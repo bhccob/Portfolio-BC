@@ -1,0 +1,16 @@
+{
+  "name": "portfolio-bob",
+  "version": "1.0.0",
+  "description": "Bob Chung's personal portfolio website.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [],
+  "author": "Bob Chung",
+  "private": true,
+  "devDependencies": {
+    "vite": "^8.3.0"
+  }
+}
