@@ -1,25 +1,43 @@
+class SettingsStore {
+  constructor(storage) {
+    this.storage = storage;
+  }
+
+  get(key, fallback = null) {
+    return this.storage.getItem(key) ?? fallback;
+  }
+
+  set(key, value) {
+    this.storage.setItem(key, value);
+  }
+}
+
 class ThemeController {
-  constructor(button) {
+  constructor(button, documentRoot, settings) {
     this.button = button;
+    this.documentRoot = documentRoot;
+    this.settings = settings;
     this.storageKey = 'bob-portfolio-theme';
     this.initialize();
   }
 
   initialize() {
-    const savedTheme = localStorage.getItem(this.storageKey);
-    if (savedTheme === 'dark') document.body.classList.add('dark');
+    const savedTheme = this.settings.get(this.storageKey);
+    if (savedTheme === 'dark') this.documentRoot.body.classList.add('dark');
     this.button.addEventListener('click', () => this.toggle());
   }
 
   toggle() {
-    const isDark = document.body.classList.toggle('dark');
-    localStorage.setItem(this.storageKey, isDark ? 'dark' : 'light');
+    const isDark = this.documentRoot.body.classList.toggle('dark');
+    this.settings.set(this.storageKey, isDark ? 'dark' : 'light');
   }
 }
 
 class LanguageController {
-  constructor(select) {
+  constructor(select, documentRoot, settings) {
     this.select = select;
+    this.documentRoot = documentRoot;
+    this.settings = settings;
     this.storageKey = 'bob-portfolio-language';
     this.translations = {
       en: { navWork:'Work', navAbout:'About', navContact:'Contact', available:'Available for selected collaborations', heroLine1:'Building bright', heroLine2:'digital worlds.', heroIntro:'A curious designer and developer from Aruba, now learning and building in Rotterdam.', scroll:'Scroll to explore', selectedWork:'Selected work', workTitle:'Things I make<br />with intent.', projectNote:'A home for future experiments, selected builds, and learning in public.', aboutLabel:'The person behind it', aboutTitle:'Learning the craft,<br /><em>one useful thing</em> at a time.', aboutText:'Chinese by blood. Raised in Aruba. Now studying in the Netherlands. I move between design, games, and security. Each one teaches me something the others don\'t. I build with curiosity and test with honesty. Home isn\'t one place for me. It\'s a mix of cultures and questions I keep chasing.', daily:'Daily', comfortable:'Comfortable', portrait:'Your portrait<br />goes here', offScreen:'Off screen', lifeTitle:'A good life<br />needs <em>momentum.</em>', contactLabel:'Let us make something', contactTitle:'Have an idea?<br /><em>Say hello.</em>', backTop:'Back to top ↑', footer:'Made with curiosity in Rotterdam' },
@@ -28,29 +46,31 @@ class LanguageController {
       es: { navWork:'Trabajo', navAbout:'Sobre mí', navContact:'Contacto', available:'Disponible para colaboraciones seleccionadas', heroLine1:'Construyendo brillantes', heroLine2:'mundos digitales.', heroIntro:'Un diseñador y desarrollador curioso de Aruba, aprendiendo y creando ahora en Róterdam.', scroll:'Explorar', selectedWork:'Trabajo seleccionado', workTitle:'Cosas que hago<br />con intención.', projectNote:'Un hogar para experimentos, proyectos seleccionados y aprender en público.', aboutLabel:'La persona detrás', aboutTitle:'Aprendiendo el oficio,<br /><em>una cosa útil</em> a la vez.', aboutText:'Chino de sangre, crecí 18 años en Aruba y ahora estudio en los Países Bajos. Soy un aprendiz honesto y apasionado entre diseño, juegos y seguridad.', daily:'Diario', comfortable:'Cómodo con', portrait:'Tu retrato<br />va aquí', offScreen:'Fuera de pantalla', lifeTitle:'Una buena vida<br />necesita <em>impulso.</em>', contactLabel:'Hagamos algo', contactTitle:'¿Una idea?<br /><em>Di hola.</em>', backTop:'Volver arriba ↑', footer:'Hecho con curiosidad en Róterdam' }
     };
     this.select.addEventListener('change', () => this.apply(this.select.value));
-    this.apply(localStorage.getItem(this.storageKey) || 'en');
+    this.apply(this.settings.get(this.storageKey, 'en'));
   }
 
   apply(language) {
-    const dictionary = this.translations[language];
-    document.documentElement.lang = language;
+    const dictionary = this.translations[language] || this.translations.en;
+    this.documentRoot.documentElement.lang = language;
     this.select.value = language;
-    document.querySelectorAll('[data-i18n]').forEach((element) => {
+    this.documentRoot.querySelectorAll('[data-i18n]').forEach((element) => {
       element.innerHTML = dictionary[element.dataset.i18n];
     });
-    localStorage.setItem(this.storageKey, language);
+    this.settings.set(this.storageKey, language);
   }
 }
 
 class CursorEffect {
-  constructor() {
-    if (!window.matchMedia('(pointer: fine)').matches) return;
+  constructor(documentRoot, windowRef) {
+    this.documentRoot = documentRoot;
+    this.window = windowRef;
+    if (!this.window.matchMedia('(pointer: fine)').matches) return;
 
     this.bindEvents();
   }
 
   bindEvents() {
-    window.addEventListener('pointerdown', (event) => this.createPulse(event));
+    this.window.addEventListener('pointerdown', (event) => this.createPulse(event));
   }
 
   createPulse(event) {
@@ -58,18 +78,94 @@ class CursorEffect {
     pulse.className = 'cursor-pulse';
     pulse.style.left = `${event.clientX}px`;
     pulse.style.top = `${event.clientY}px`;
-    document.body.append(pulse);
+    this.documentRoot.body.append(pulse);
     pulse.addEventListener('animationend', () => pulse.remove());
   }
 }
 
-class PortfolioApp {
-  constructor() {
-    this.theme = new ThemeController(document.querySelector('.theme-toggle'));
-    this.language = new LanguageController(document.querySelector('.language-select'));
-    this.cursor = new CursorEffect();
-    document.getElementById('year').textContent = new Date().getFullYear();
+class CareerWheelController {
+  constructor(element, windowRef) {
+    this.element = element;
+    this.window = windowRef;
+    this.ring = element.querySelector('.career-wheel__ring');
+    this.cards = Array.from(element.querySelectorAll('.career-card'));
+    this.focusOrder = [3, 2, 1, 0];
+    this.focusIndex = 0;
+    this.transitionDuration = 620;
+    this.scrollThreshold = 70;
+    this.scrollProgress = 0;
+    this.isTransitioning = false;
+    this.resetScrollTimer = null;
+    this.setFocusedCard();
+    this.element.addEventListener('wheel', (event) => this.handleWheel(event), { passive:false });
+  }
+
+  handleWheel(event) {
+    if (Math.abs(event.deltaY) < Math.abs(event.deltaX)) return;
+    if (this.isTransitioning) {
+      event.preventDefault();
+      return;
+    }
+
+    this.scrollProgress += event.deltaY;
+    this.window.clearTimeout(this.resetScrollTimer);
+    this.resetScrollTimer = this.window.setTimeout(() => this.resetScrollProgress(), 180);
+
+    if (Math.abs(this.scrollProgress) < this.scrollThreshold) return;
+
+    event.preventDefault();
+    this.rotate(this.scrollProgress > 0 ? 1 : -1);
+    this.resetScrollProgress();
+  }
+
+  rotate(direction) {
+    this.isTransitioning = true;
+    this.focusIndex = (this.focusIndex + direction + this.focusOrder.length) % this.focusOrder.length;
+    this.setFocusedCard();
+    this.window.setTimeout(() => {
+      this.isTransitioning = false;
+    }, this.transitionDuration);
+  }
+
+  resetScrollProgress() {
+    this.scrollProgress = 0;
+    this.resetScrollTimer = null;
+  }
+
+  setFocusedCard() {
+    const activeIndex = this.focusOrder[this.focusIndex];
+    const aboveIndex = this.focusOrder[(this.focusIndex - 1 + this.focusOrder.length) % this.focusOrder.length];
+    const belowIndex = this.focusOrder[(this.focusIndex + 1) % this.focusOrder.length];
+
+    this.cards.forEach((card, index) => {
+      card.classList.toggle('is-active', index === activeIndex);
+      card.classList.toggle('is-above', index === aboveIndex);
+      card.classList.toggle('is-below', index === belowIndex);
+    });
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => new PortfolioApp());
+class PortfolioApp {
+  constructor(documentRoot, windowRef) {
+    this.documentRoot = documentRoot;
+    this.window = windowRef;
+    this.settings = new SettingsStore(this.window.localStorage);
+    this.initialize();
+  }
+
+  initialize() {
+    this.theme = new ThemeController(this.find('.theme-toggle'), this.documentRoot, this.settings);
+    this.language = new LanguageController(this.find('.language-select'), this.documentRoot, this.settings);
+    this.cursor = new CursorEffect(this.documentRoot, this.window);
+    this.careerWheel = new CareerWheelController(this.find('.career-wheel'), this.window);
+    this.find('#year').textContent = new Date().getFullYear();
+  }
+
+  find(selector) {
+    const element = this.documentRoot.querySelector(selector);
+    if (!element) throw new Error(`PortfolioApp could not find ${selector}.`);
+    return element;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => new PortfolioApp(document, window));
