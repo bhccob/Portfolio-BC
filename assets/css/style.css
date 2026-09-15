@@ -131,7 +131,7 @@ nav a:hover::after {
 .language-select {
   border: 0;
   background: transparent;
-  color: var(--ink);
+  color: var(--violet);
   padding: 7px 9px;
   font: 500 10px var(--font-mono);
   cursor: pointer;
@@ -1127,7 +1127,7 @@ h2 em {
 }
 .portrait-wrap {
   position: relative;
-  width: 85%;
+  width: 78%;
 }
 .portrait-placeholder {
   aspect-ratio: 3/4;
