@@ -89,7 +89,7 @@ class CareerWheelController {
     this.window = windowRef;
     this.ring = element.querySelector('.career-wheel__ring');
     this.cards = Array.from(element.querySelectorAll('.career-card'));
-    this.focusOrder = [3, 2, 1, 0];
+    this.focusOrder = [0, 1, 2, 3];
     this.focusIndex = 0;
     this.transitionDuration = 620;
     this.scrollThreshold = 70;
@@ -157,7 +157,8 @@ class PortfolioApp {
     this.theme = new ThemeController(this.find('.theme-toggle'), this.documentRoot, this.settings);
     this.language = new LanguageController(this.find('.language-select'), this.documentRoot, this.settings);
     this.cursor = new CursorEffect(this.documentRoot, this.window);
-    this.careerWheel = new CareerWheelController(this.find('.career-wheel'), this.window);
+    const careerWheel = this.documentRoot.querySelector('.career-wheel');
+    if (careerWheel) this.careerWheel = new CareerWheelController(careerWheel, this.window);
     this.find('#year').textContent = new Date().getFullYear();
   }
 
