@@ -83,6 +83,27 @@ class CursorEffect {
   }
 }
 
+class LoadingScreenController {
+  constructor(documentRoot, windowRef) {
+    this.element = documentRoot.querySelector('.loading-screen');
+    this.window = windowRef;
+    if (this.element) this.initialize();
+  }
+
+  initialize() {
+    this.window.requestAnimationFrame(() => {
+      this.element.classList.add('is-ready');
+      this.window.setTimeout(() => this.dismiss(), 1000);
+    });
+  }
+
+  dismiss() {
+    this.element.classList.add('is-leaving');
+    this.element.addEventListener('transitionend', () => this.element.remove(), { once: true });
+    this.window.setTimeout(() => this.element.remove(), 750);
+  }
+}
+
 class CareerWheelController {
   constructor(element, windowRef) {
     this.element = element;
@@ -145,6 +166,32 @@ class CareerWheelController {
   }
 }
 
+class PageController {
+  constructor(documentRoot, windowRef) {
+    this.documentRoot = documentRoot;
+    this.window = windowRef;
+  }
+
+  initialize() {}
+}
+
+class HomePageController extends PageController {
+  initialize() {
+    const careerWheel = this.documentRoot.querySelector('.career-wheel');
+    if (careerWheel) this.careerWheel = new CareerWheelController(careerWheel, this.window);
+  }
+}
+
+class DetailPageController extends PageController {
+  initialize() {
+    this.detail = this.documentRoot.querySelector('.career-detail');
+  }
+}
+
+class CareerPageController extends DetailPageController {}
+
+class ProjectPageController extends DetailPageController {}
+
 class PortfolioApp {
   constructor(documentRoot, windowRef) {
     this.documentRoot = documentRoot;
@@ -154,12 +201,24 @@ class PortfolioApp {
   }
 
   initialize() {
+    this.loader = new LoadingScreenController(this.documentRoot, this.window);
     this.theme = new ThemeController(this.find('.theme-toggle'), this.documentRoot, this.settings);
     this.language = new LanguageController(this.find('.language-select'), this.documentRoot, this.settings);
     this.cursor = new CursorEffect(this.documentRoot, this.window);
-    const careerWheel = this.documentRoot.querySelector('.career-wheel');
-    if (careerWheel) this.careerWheel = new CareerWheelController(careerWheel, this.window);
+    this.page = this.createPageController();
+    this.page.initialize();
     this.find('#year').textContent = new Date().getFullYear();
+  }
+
+  createPageController() {
+    const pageType = this.documentRoot.body.dataset.page || 'home';
+    const controllers = {
+      home: HomePageController,
+      career: CareerPageController,
+      project: ProjectPageController
+    };
+    const Controller = controllers[pageType] || PageController;
+    return new Controller(this.documentRoot, this.window);
   }
 
   find(selector) {

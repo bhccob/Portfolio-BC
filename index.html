@@ -10,7 +10,16 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=Playfair+Display:ital,wght@0,500;0,700;1,500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/css/style.css" />
 </head>
-<body>
+<body data-page="home">
+  <div class="loading-screen" role="status" aria-label="Loading Bob Chung's portfolio">
+    <div class="loading-screen__grid" aria-hidden="true"></div>
+    <div class="loading-screen__content">
+      <p class="loading-screen__eyebrow">Bob Chung / Portfolio</p>
+      <div class="loading-screen__mark" aria-hidden="true"><span>B</span><span>C</span></div>
+      <p class="loading-screen__label">Loading <span aria-hidden="true">...</span></p>
+      <div class="loading-screen__progress" aria-hidden="true"></div>
+    </div>
+  </div>
   <div class="grain" aria-hidden="true"></div>
   <header class="site-header" id="top">
     <a class="brand" href="#top" aria-label="Bob Chung, back to top">BOB<span>_</span>CHUNG</a>
@@ -74,7 +83,7 @@
         </a>
         <article class="project-card card-upcoming" aria-label="Upcoming projects">
           <div class="project-number">03</div>
-          <div class="project-visual"><span>COMING<br />SOON</span></div>
+          <div class="project-visual"><span>COMING<br />SOON<small>FUTURE PROJECTS BELOW ↓</small></span></div>
           <div class="project-meta"><h3>Upcoming Projects</h3><p>In Progress · 2026</p></div>
         </article>
       </div>
