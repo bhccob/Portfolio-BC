@@ -261,7 +261,8 @@ nav a:hover::after {
   transform: scaleX(1);
 }
 .header-tools {
-  border: 1px solid var(--line);
+  border: 1px solid #17151b;
+  background: #ffffff;
   display: flex;
   align-items: center;
   gap: 0;
@@ -269,20 +270,27 @@ nav a:hover::after {
 .icon-button {
   appearance: none;
   border: 0;
-  border-right: 1px solid var(--line);
-  background: none;
-  color: var(--ink);
+  border-right: 1px solid #17151b;
+  background: #ffffff;
+  color: #17151b;
   cursor: pointer;
   font-size: 22px;
-  padding: 4px;
+  min-height: 38px;
+  padding: 4px 7px;
 }
 .language-select {
+  min-width: 64px;
+  min-height: 38px;
   border: 0;
-  background: transparent;
-  color: var(--violet);
-  padding: 7px 9px;
-  font: 500 10px var(--font-mono);
+  background: #ffffff;
+  color: #17151b;
+  padding: 7px 8px;
+  font: 700 12px/1 var(--font-mono);
   cursor: pointer;
+}
+.language-select option {
+  background: #ffffff;
+  color: #17151b;
 }
 @media (max-width: 680px) {
   .site-header {
