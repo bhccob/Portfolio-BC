@@ -982,6 +982,44 @@ h2 em {
   outline: 3px solid var(--violet);
   outline-offset: 4px;
 }
+.project-continue {
+  position: relative;
+  margin-top: clamp(72px, 11vw, 150px);
+  padding: clamp(32px, 5vw, 66px);
+  overflow: hidden;
+  background: var(--violet);
+  color: #ffffff;
+}
+.project-continue::after {
+  content: "++";
+  position: absolute;
+  right: clamp(20px, 4vw, 58px);
+  bottom: clamp(17px, 3vw, 42px);
+  color: var(--accent);
+  font: 700 clamp(68px, 13vw, 180px)/0.6 var(--font-serif);
+}
+.project-continue .eyebrow {
+  color: var(--accent);
+}
+.project-continue h2 {
+  position: relative;
+  z-index: 1;
+  max-width: 620px;
+  margin: 20px 0 32px;
+  font-size: clamp(38px, 5vw, 76px);
+  line-height: 0.9;
+}
+.project-continue h2 em {
+  color: var(--accent);
+}
+.project-continue a {
+  position: relative;
+  z-index: 1;
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: 7px;
+  font: 500 13px var(--font-mono);
+  text-transform: uppercase;
+}
 .project-showcase {
   margin: clamp(55px, 8vw, 115px) 0 0;
   background: #bc8549;
@@ -1066,6 +1104,9 @@ h2 em {
     gap: 30px;
     width: 100%;
     justify-content: space-between;
+  }
+  .project-continue {
+    margin-top: 82px;
   }
   .career-detail__reason {
     gap: 24px;
