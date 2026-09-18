@@ -3,7 +3,7 @@
   --paper: #f0eee9;
   --muted: #747078;
   --line: rgba(23, 21, 27, 0.16);
-  --accent: #e1c737;
+  --accent: #c9b56b;
   --violet: #362452;
   --font-display: "DM Sans", sans-serif;
   --font-serif: "Playfair Display", serif;
@@ -194,7 +194,7 @@ select {
   display: inline-flex;
   align-items: center;
   border: 1px solid var(--violet);
-  box-shadow: 5px 5px 0 var(--accent);
+  box-shadow: 4px 4px 0 rgba(54, 36, 82, 0.18);
   color: var(--violet);
   font: 700 19px/0.85 var(--font-serif);
   letter-spacing: 0.4px;
@@ -224,11 +224,11 @@ select {
   transform: translate(-2px, -2px);
 }
 .brand:hover::before {
-  background: var(--accent);
+  background: var(--paper);
 }
 .brand:hover span {
-  background: var(--accent);
-  color: var(--ink);
+  background: var(--paper);
+  color: var(--violet);
 }
 nav {
   border-left: 1px solid var(--line);
@@ -346,7 +346,7 @@ nav a:hover::after {
   letter-spacing: -0.05em;
   line-height: 1;
   text-transform: uppercase;
-  text-shadow: 7px 7px 0 var(--accent);
+  text-shadow: 4px 4px 0 rgba(54, 36, 82, 0.14);
 }
 .hero-tagline {
   display: block;
@@ -691,7 +691,7 @@ h2 em {
   width: clamp(330px, 34vw, 465px);
   top: 14%;
   right: clamp(-96px, -5vw, -42px);
-  background: var(--accent);
+  background: color-mix(in srgb, var(--violet) 8%, var(--paper));
   border-radius: 50%;
   box-shadow:
     inset 0 0 0 14px var(--paper),
@@ -699,7 +699,7 @@ h2 em {
 }
 .career-wheel::before {
   inset: 5%;
-  border: 2px dashed rgba(23, 21, 27, 0.45);
+  border: 1px dashed color-mix(in srgb, var(--violet) 45%, transparent);
 }
 .career-wheel__ring {
   z-index: 1;
@@ -963,11 +963,12 @@ h2 em {
   gap: 46px;
   margin-top: clamp(48px, 7vw, 88px);
   padding: 18px 21px;
-  background: var(--accent);
-  color: #17151b;
+  border: 1px solid var(--violet);
+  background: transparent;
+  color: var(--violet);
   font: 500 14px var(--font-mono);
   text-transform: uppercase;
-  box-shadow: 6px 6px 0 var(--violet);
+  box-shadow: 4px 4px 0 color-mix(in srgb, var(--violet) 22%, transparent);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .project-github-link b {
@@ -976,7 +977,7 @@ h2 em {
 }
 .project-github-link:hover {
   transform: translate(3px, 3px);
-  box-shadow: 3px 3px 0 var(--violet);
+  box-shadow: 1px 1px 0 color-mix(in srgb, var(--violet) 22%, transparent);
 }
 .project-github-link:focus-visible {
   outline: 3px solid var(--violet);
@@ -995,11 +996,11 @@ h2 em {
   position: absolute;
   right: clamp(20px, 4vw, 58px);
   bottom: clamp(17px, 3vw, 42px);
-  color: var(--accent);
+  color: color-mix(in srgb, var(--paper) 26%, transparent);
   font: 700 clamp(68px, 13vw, 180px)/0.6 var(--font-serif);
 }
 .project-continue .eyebrow {
-  color: var(--accent);
+  color: color-mix(in srgb, var(--paper) 72%, transparent);
 }
 .project-continue h2 {
   position: relative;
@@ -1010,12 +1011,13 @@ h2 em {
   line-height: 0.9;
 }
 .project-continue h2 em {
-  color: var(--accent);
+  color: var(--paper);
+  font-style: italic;
 }
 .project-continue a {
   position: relative;
   z-index: 1;
-  border-bottom: 2px solid var(--accent);
+  border-bottom: 2px solid color-mix(in srgb, var(--paper) 65%, transparent);
   padding-bottom: 7px;
   font: 500 13px var(--font-mono);
   text-transform: uppercase;
