@@ -1428,6 +1428,19 @@ h2 em {
 .skills strong {
   font-size: 14px;
 }
+.skill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.skill-list li {
+  border: 1px solid var(--line);
+  padding: 6px 9px;
+  font: 500 12px/1 var(--font-mono);
+}
 .life-section {
   border-top: 1px solid var(--line);
 }
