@@ -1799,7 +1799,10 @@ footer {
 .portrait-placeholder {
   display: block;
   padding: clamp(18px, 2vw, 28px);
-  background: #362452;
+  background: #362452; 
+}
+.dark .portrait-placeholder {
+  background: #7d5ba6;
 }
 .portrait-placeholder::before {
   display: block;
@@ -1828,21 +1831,30 @@ footer {
   font: 500 clamp(42px, 6vw, 88px) / 0.8 var(--font-serif);
   z-index: 2;
 }
-.portrait-photo {
+.portrait-photo-frame {
   width: 58%;
   aspect-ratio: 1;
-  height: auto;
   position: absolute;
   right: 21%;
   bottom: 18%;
   left: auto;
-  display: block;
+  overflow: hidden;
   border: 5px solid #362452;
   border-radius: 50%;
+  z-index: 1;
+}
+.portrait-photo {
+  width: 102%;
+  max-width: none;
+  height: 112%;
+  position: absolute;
+  top: -6%;
+  left: 0%;
+  display: block;
+  aspect-ratio: auto;
   object-fit: cover;
   object-position: 50% 30%;
   filter: contrast(1.04) saturate(0.9);
-  z-index: 1;
 }
 @media (prefers-reduced-motion: reduce) {
   .career-wheel__ring,
