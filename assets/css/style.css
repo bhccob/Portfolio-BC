@@ -1455,15 +1455,43 @@ h2 em {
 }
 .interest-list p {
   margin: 0;
-  padding: 16px 0;
+  padding: 15px 0;
   border-bottom: 1px solid var(--line);
   font-size: 15px;
+  font-weight: 700;
+}
+.interest-list__current {
+  margin-bottom: 12px !important;
+}
+.interest-list__current,
+.interest-list__occupation {
+  display: grid;
+  grid-template-columns: 142px minmax(0, 1fr);
+  column-gap: 18px;
+}
+.interest-list__occupation span {
+  width: auto;
 }
 .interest-list span {
   display: inline-block;
-  width: 65px;
+  width: 86px;
+  color: var(--violet);
+  font: 500 9px var(--font-mono);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.interest-list__caption {
+  padding: 18px 0 7px !important;
+  border: 0 !important;
   color: var(--muted);
-  font: 500 10px var(--font-mono);
+  font: 500 10px/1 var(--font-mono) !important;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.interest-list__achievement {
+  border-top: 2px solid var(--accent);
+  color: var(--violet);
+  font-weight: 700;
 }
 .inspiration-quote {
   position: relative;
