@@ -1490,7 +1490,6 @@ h2 em {
 }
 .interest-list__achievement {
   border-top: 2px solid var(--accent);
-  color: var(--violet);
   font-weight: 700;
 }
 .inspiration-quote {
@@ -1522,6 +1521,15 @@ h2 em {
 .inspiration-quote p {
   margin: 0;
   font: italic 500 clamp(25px, 3vw, 40px) / 1.05 var(--font-serif);
+}
+.inspiration-quote--portrait {
+  width: min(125%, 390px);
+  margin: 12px 0 0 5%;
+  background: color-mix(in srgb, var(--violet) 7%, var(--paper));
+  transform: rotate(-2.5deg);
+}
+.inspiration-quote--portrait p {
+  font-size: clamp(22px, 2.35vw, 32px);
 }
 .contact-section {
   background: var(--accent);
@@ -1669,6 +1677,11 @@ footer {
     width: calc(100% - 12px);
     margin-top: 48px;
     padding: 22px;
+  }
+  .inspiration-quote--portrait {
+    width: 100%;
+    margin: 30px 0 0;
+    transform: rotate(-1.5deg);
   }
   .skills {
     display: block;

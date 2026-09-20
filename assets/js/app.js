@@ -46,12 +46,14 @@ class LanguageController {
       es: { navWork:'Trabajo', navAbout:'Sobre mí', navContact:'Contacto', available:'Disponible para colaboraciones seleccionadas', heroLine1:'Construyendo brillantes', heroLine2:'mundos digitales.', heroIntro:'Un diseñador y desarrollador curioso de Aruba, aprendiendo y creando ahora en Róterdam.', scroll:'Explorar', selectedWork:'Trabajo seleccionado', workTitle:'Cosas que hago<br />con intención.', projectNote:'Un hogar para experimentos, proyectos seleccionados y aprender en público.', aboutLabel:'La persona detrás', aboutTitle:'Aprendiendo el oficio,<br /><em>una cosa útil</em> a la vez.', aboutText:'Chino de sangre, crecí 18 años en Aruba y ahora estudio en los Países Bajos. Soy un aprendiz honesto y apasionado entre diseño, juegos y seguridad.', daily:'Diario', comfortable:'Cómodo con', portrait:'Tu retrato<br />va aquí', offScreen:'Fuera de pantalla', lifeTitle:'Una buena vida<br />necesita <em>impulso.</em>', lifeCurrent:'<span>AHORA</span> Correr, gimnasio y videojuegos', lifePowerlifting:'<span>ANTES</span> Powerlifting: 81 puntos IPF GL a los 18', lifeTableTennis:'<span>ANTES</span> Seis años jugando al tenis de mesa', lifeSwimming:'<span>TAMBIÉN</span> Diploma de natación F', lifeOccupation:'<span>DÍA A DÍA</span> Estudiante de MBO 4 en Róterdam', contactLabel:'Hagamos algo', contactTitle:'¿Una idea?<br /><em>Di hola.</em>', backTop:'Volver arriba ↑', footer:'Hecho con curiosidad en Róterdam' }
     };
     Object.assign(this.translations.en, {
+      thoughtProcess: 'Thought process',
       lifeAchievements: 'Achievements',
       lifePowerlifting: 'Powerlifting 81 IPF GL Points @ 18 | National Champion',
       lifeTableTennis: '6 Years Table Tennis | National Champion',
       lifeSwimming: 'Swimming Diploma F'
     });
     Object.assign(this.translations.nl, {
+      thoughtProcess: 'Denkproces',
       lifeCurrent: '<span>HOBBY\'S</span> Hardlopen, fitness, gamen',
       lifeOccupation: '<span>BEROEP</span> MBO 4-student',
       lifeAchievements: 'Prestaties',
@@ -60,6 +62,7 @@ class LanguageController {
       lifeSwimming: 'Zwemdiploma F'
     });
     Object.assign(this.translations.zh, {
+      thoughtProcess: '思考过程',
       lifeCurrent: '<span>爱好</span> 跑步、健身、游戏',
       lifeOccupation: '<span>职业</span> MBO 4 学生',
       lifeAchievements: '成就',
@@ -68,6 +71,7 @@ class LanguageController {
       lifeSwimming: '游泳 F 文凭'
     });
     Object.assign(this.translations.es, {
+      thoughtProcess: 'Proceso de pensamiento',
       lifeCurrent: '<span>PASATIEMPOS</span> Correr, gimnasio, videojuegos',
       lifeOccupation: '<span>OCUPACIÓN</span> Estudiante de MBO 4',
       lifeAchievements: 'Logros',
