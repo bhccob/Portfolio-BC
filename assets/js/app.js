@@ -181,11 +181,16 @@ class CareerWheelController {
     this.focusIndex = 0;
     this.transitionDuration = 620;
     this.scrollThreshold = 70;
+    this.swipeThreshold = 48;
     this.scrollProgress = 0;
+    this.touchStartX = null;
+    this.touchStartY = null;
     this.isTransitioning = false;
     this.resetScrollTimer = null;
     this.setFocusedCard();
     this.element.addEventListener('wheel', (event) => this.handleWheel(event), { passive:false });
+    this.element.addEventListener('touchstart', (event) => this.handleTouchStart(event), { passive: true });
+    this.element.addEventListener('touchend', (event) => this.handleTouchEnd(event), { passive: true });
   }
 
   handleWheel(event) {
@@ -204,6 +209,25 @@ class CareerWheelController {
     event.preventDefault();
     this.rotate(this.scrollProgress > 0 ? 1 : -1);
     this.resetScrollProgress();
+  }
+
+  handleTouchStart(event) {
+    const [touch] = event.touches;
+    this.touchStartX = touch.clientX;
+    this.touchStartY = touch.clientY;
+  }
+
+  handleTouchEnd(event) {
+    if (this.touchStartX === null || this.isTransitioning) return;
+
+    const [touch] = event.changedTouches;
+    const deltaX = touch.clientX - this.touchStartX;
+    const deltaY = touch.clientY - this.touchStartY;
+    this.touchStartX = null;
+    this.touchStartY = null;
+
+    if (Math.abs(deltaX) < this.swipeThreshold || Math.abs(deltaX) < Math.abs(deltaY)) return;
+    this.rotate(deltaX < 0 ? 1 : -1);
   }
 
   rotate(direction) {
