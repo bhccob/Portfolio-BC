@@ -1796,23 +1796,51 @@ footer {
     grid-template-columns: minmax(235px, 0.76fr) 1.3fr;
   }
 }
+.portrait-placeholder {
+  display: block;
+  padding: clamp(18px, 2vw, 28px);
+  background: #362452;
+}
 .portrait-placeholder::before {
-  display: none;
+  display: block;
+  width: 66%;
+  aspect-ratio: 1;
+  right: 17%;
+  bottom: 14%;
+  left: auto;
+  border: 1px solid rgba(247, 244, 235, 0.55);
+  border-radius: 50%;
+  background: transparent;
+}
+.portrait-placeholder::after {
+  content: "";
+  position: absolute;
+  width: 1px;
+  height: 100%;
+  top: 0;
+  left: 50%;
+  background: rgba(247, 244, 235, 0.16);
 }
 .portrait-placeholder span {
+  position: relative;
+  display: block;
+  color: #c9b56b;
+  font: 500 clamp(42px, 6vw, 88px) / 0.8 var(--font-serif);
   z-index: 2;
 }
 .portrait-photo {
-  width: 55%;
-  height: 40%;
+  width: 58%;
   aspect-ratio: 1;
+  height: auto;
   position: absolute;
-  bottom: -16%;
-  left: 30%;
+  right: 21%;
+  bottom: 18%;
+  left: auto;
   display: block;
+  border: 5px solid #362452;
   border-radius: 50%;
   object-fit: cover;
-  object-position: center 30%;
+  object-position: 50% 30%;
   filter: contrast(1.04) saturate(0.9);
   z-index: 1;
 }
