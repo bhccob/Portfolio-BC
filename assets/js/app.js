@@ -109,20 +109,20 @@ class CursorEffect {
   constructor(documentRoot, windowRef) {
     this.documentRoot = documentRoot;
     this.window = windowRef;
-    this.target = { x: 0, y: 0 };
-    this.position = { x: 0, y: 0 };
-    this.angle = 0;
-    this.hasPointerPosition = false;
-    this.idleTimer = null;
+    this.points = [];
+    this.frame = null;
+    this.lifetime = 480;
+    this.maxWidth = 16;
     if (!this.window.matchMedia('(pointer: fine)').matches || this.window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-    this.createSlug();
+    this.createCanvas();
     this.bindEvents();
   }
 
   bindEvents() {
     this.window.addEventListener('pointerdown', (event) => this.createPulse(event));
-    this.window.addEventListener('pointermove', (event) => this.updateTarget(event));
+    this.window.addEventListener('pointermove', (event) => this.addPoint(event));
+    this.window.addEventListener('resize', () => this.resizeCanvas());
   }
 
   createPulse(event) {
@@ -134,37 +134,86 @@ class CursorEffect {
     pulse.addEventListener('animationend', () => pulse.remove());
   }
 
-  createSlug() {
-    this.slug = this.documentRoot.createElement('span');
-    this.slug.className = 'cursor-slug';
-    this.documentRoot.body.append(this.slug);
+  createCanvas() {
+    this.canvas = this.documentRoot.createElement('canvas');
+    this.canvas.className = 'cursor-trail';
+    this.context = this.canvas.getContext('2d');
+    this.documentRoot.body.append(this.canvas);
+    this.resizeCanvas();
   }
 
-  updateTarget(event) {
-    this.target = { x: event.clientX, y: event.clientY };
-    this.window.clearTimeout(this.idleTimer);
-    this.idleTimer = this.window.setTimeout(() => this.slug.classList.remove('is-visible'), 350);
-    this.slug.classList.add('is-visible');
-    if (!this.hasPointerPosition) {
-      this.position = { ...this.target };
-      this.hasPointerPosition = true;
-      this.animateSlug();
+  resizeCanvas() {
+    const ratio = this.window.devicePixelRatio || 1;
+    this.canvas.width = this.window.innerWidth * ratio;
+    this.canvas.height = this.window.innerHeight * ratio;
+    this.context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  }
+
+  addPoint(event) {
+    const last = this.points[this.points.length - 1];
+    if (last && Math.hypot(event.clientX - last.x, event.clientY - last.y) < 3) return;
+
+    this.points.push({ x: event.clientX, y: event.clientY, time: this.window.performance.now() });
+    if (this.frame === null) this.frame = this.window.requestAnimationFrame(() => this.draw());
+  }
+
+  draw() {
+    const now = this.window.performance.now();
+    this.points = this.points.filter((point) => now - point.time < this.lifetime);
+    this.context.clearRect(0, 0, this.window.innerWidth, this.window.innerHeight);
+
+    if (this.points.length < 2) {
+      this.frame = null;
+      return;
     }
+
+    const halfWidths = this.points.map((point) => (this.maxWidth / 2) * Math.pow(1 - (now - point.time) / this.lifetime, 1.6));
+    const left = [];
+    const right = [];
+    this.points.forEach((point, index) => {
+      const before = this.points[Math.max(index - 1, 0)];
+      const after = this.points[Math.min(index + 1, this.points.length - 1)];
+      const length = Math.hypot(after.x - before.x, after.y - before.y) || 1;
+      const normalX = -(after.y - before.y) / length;
+      const normalY = (after.x - before.x) / length;
+      left.push({ x: point.x + normalX * halfWidths[index], y: point.y + normalY * halfWidths[index] });
+      right.push({ x: point.x - normalX * halfWidths[index], y: point.y - normalY * halfWidths[index] });
+    });
+
+    const tail = this.points[0];
+    const head = this.points[this.points.length - 1];
+    const color = this.documentRoot.body.classList.contains('dark') ? '199, 166, 237' : '141, 104, 189';
+    const gradient = this.context.createLinearGradient(tail.x, tail.y, head.x, head.y);
+    gradient.addColorStop(0, `rgba(${color}, 0)`);
+    gradient.addColorStop(0.55, `rgba(${color}, 0.3)`);
+    gradient.addColorStop(1, `rgba(${color}, 0.85)`);
+
+    this.context.fillStyle = gradient;
+    this.context.shadowColor = `rgba(${color}, 0.45)`;
+    this.context.shadowBlur = 14;
+    this.context.beginPath();
+    this.context.moveTo(left[0].x, left[0].y);
+    this.traceSmooth(left);
+    this.context.lineTo(right[right.length - 1].x, right[right.length - 1].y);
+    this.traceSmooth(right.slice().reverse());
+    this.context.closePath();
+    this.context.fill();
+
+    this.context.beginPath();
+    this.context.arc(head.x, head.y, halfWidths[halfWidths.length - 1], 0, Math.PI * 2);
+    this.context.fill();
+
+    this.frame = this.window.requestAnimationFrame(() => this.draw());
   }
 
-  animateSlug() {
-    const deltaX = this.target.x - this.position.x;
-    const deltaY = this.target.y - this.position.y;
-    this.position.x += deltaX * 0.035;
-    this.position.y += deltaY * 0.035;
-
-    const distance = Math.hypot(deltaX, deltaY);
-    if (distance > 1) this.angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
-    this.slug.style.left = `${this.position.x}px`;
-    this.slug.style.top = `${this.position.y}px`;
-    this.slug.style.width = `${Math.min(Math.max(distance, 68), 260)}px`;
-    this.slug.style.transform = `rotate(${this.angle}deg)`;
-    this.window.requestAnimationFrame(() => this.animateSlug());
+  traceSmooth(points) {
+    for (let index = 1; index < points.length - 1; index += 1) {
+      const midX = (points[index].x + points[index + 1].x) / 2;
+      const midY = (points[index].y + points[index + 1].y) / 2;
+      this.context.quadraticCurveTo(points[index].x, points[index].y, midX, midY);
+    }
+    const last = points[points.length - 1];
+    this.context.lineTo(last.x, last.y);
   }
 }
 
