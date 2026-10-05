@@ -2191,14 +2191,14 @@ footer,
 
   .career-wheel {
     width: min(260px, 76vw);
-    height: 350px;
+    height: 430px;
     position: relative;
     top: auto;
     right: auto;
     order: 2;
     align-self: flex-end;
     margin: 26px 0 0;
-    touch-action: pan-y;
+    touch-action: pan-x pan-y;
   }
 
   .hero-foot {

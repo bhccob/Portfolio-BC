@@ -163,11 +163,13 @@ class CareerWheelController {
     this.scrollProgress = 0;
     this.touchStartX = null;
     this.touchStartY = null;
+    this.isHorizontalSwipe = false;
     this.isTransitioning = false;
     this.resetScrollTimer = null;
     this.setFocusedCard();
     this.element.addEventListener('wheel', (event) => this.handleWheel(event), { passive:false });
     this.element.addEventListener('touchstart', (event) => this.handleTouchStart(event), { passive: true });
+    this.element.addEventListener('touchmove', (event) => this.handleTouchMove(event), { passive: false });
     this.element.addEventListener('touchend', (event) => this.handleTouchEnd(event), { passive: true });
   }
 
@@ -193,6 +195,19 @@ class CareerWheelController {
     const [touch] = event.touches;
     this.touchStartX = touch.clientX;
     this.touchStartY = touch.clientY;
+    this.isHorizontalSwipe = false;
+  }
+
+  handleTouchMove(event) {
+    if (this.touchStartX === null) return;
+
+    const [touch] = event.touches;
+    const deltaX = touch.clientX - this.touchStartX;
+    const deltaY = touch.clientY - this.touchStartY;
+    if (Math.abs(deltaX) > 12 && Math.abs(deltaX) > Math.abs(deltaY)) {
+      this.isHorizontalSwipe = true;
+      event.preventDefault();
+    }
   }
 
   handleTouchEnd(event) {
@@ -204,7 +219,7 @@ class CareerWheelController {
     this.touchStartX = null;
     this.touchStartY = null;
 
-    if (Math.abs(deltaX) < this.swipeThreshold || Math.abs(deltaX) < Math.abs(deltaY)) return;
+    if (!this.isHorizontalSwipe || Math.abs(deltaX) < this.swipeThreshold || Math.abs(deltaX) < Math.abs(deltaY)) return;
     this.rotate(deltaX < 0 ? 1 : -1);
   }
 
