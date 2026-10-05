@@ -2177,3 +2177,60 @@ footer,
     padding-inline: 20px;
   }
 }
+
+@media (max-width: 680px) {
+  .hero {
+    min-height: 0;
+    overflow: visible;
+    padding: 30px 20px 38px;
+  }
+
+  .hero h1 {
+    margin: 54px 0 0;
+  }
+
+  .career-wheel {
+    width: min(260px, 76vw);
+    height: 350px;
+    position: relative;
+    top: auto;
+    right: auto;
+    order: 2;
+    align-self: flex-end;
+    margin: 26px 0 0;
+    touch-action: pan-y;
+  }
+
+  .hero-foot {
+    order: 3;
+    margin-top: 32px;
+  }
+}
+
+@media (min-width: 681px) and (max-width: 1200px) {
+  .hero {
+    min-height: 0;
+    overflow: visible;
+    padding-bottom: 52px;
+  }
+
+  .hero h1 {
+    margin-bottom: 0;
+  }
+
+  .career-wheel {
+    width: min(360px, 40vw);
+    height: 430px;
+    position: relative;
+    top: auto;
+    right: auto;
+    order: 2;
+    align-self: flex-end;
+    margin-top: 32px;
+  }
+
+  .hero-foot {
+    order: 3;
+    margin-top: 34px;
+  }
+}
