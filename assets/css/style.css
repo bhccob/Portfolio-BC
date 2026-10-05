@@ -1722,6 +1722,51 @@ footer {
     0 0 0 6px rgba(199, 166, 237, 0.22),
     0 0 22px rgba(199, 166, 237, 0.8);
 }
+.cursor-slug {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 68px;
+  height: 26px;
+  margin: -13px 0 0;
+  pointer-events: none;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent 0%, rgba(141, 104, 189, 0.1) 32%, rgba(141, 104, 189, 0.62) 100%);
+  box-shadow: 8px 0 22px rgba(92, 55, 139, 0.24);
+  opacity: 0;
+  transform-origin: left center;
+  transition: opacity 0.18s ease;
+  z-index: 19;
+}
+.cursor-slug::after {
+  content: "";
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  top: 50%;
+  right: 0;
+  border: 1px solid rgba(141, 104, 189, 0.72);
+  border-radius: 50%;
+  background: rgba(141, 104, 189, 0.56);
+  box-shadow:
+    inset 0 0 0 5px rgba(240, 238, 233, 0.16),
+    0 0 20px rgba(92, 55, 139, 0.32);
+  transform: translate(50%, -50%);
+}
+.cursor-slug.is-visible {
+  opacity: 0.62;
+}
+.dark .cursor-slug {
+  background: linear-gradient(90deg, transparent 0%, rgba(199, 166, 237, 0.12) 32%, rgba(199, 166, 237, 0.66) 100%);
+  box-shadow: 8px 0 22px rgba(199, 166, 237, 0.28);
+}
+.dark .cursor-slug::after {
+  border-color: rgba(199, 166, 237, 0.82);
+  background: rgba(199, 166, 237, 0.58);
+  box-shadow:
+    inset 0 0 0 5px rgba(244, 241, 235, 0.16),
+    0 0 20px rgba(199, 166, 237, 0.38);
+}
 @keyframes cursor-pulse {
   from {
     opacity: 1;
@@ -1733,7 +1778,8 @@ footer {
   }
 }
 @media (pointer: coarse), (prefers-reduced-motion: reduce) {
-  .cursor-pulse {
+  .cursor-pulse,
+  .cursor-slug {
     display: none;
   }
 }

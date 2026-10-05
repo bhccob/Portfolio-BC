@@ -109,13 +109,20 @@ class CursorEffect {
   constructor(documentRoot, windowRef) {
     this.documentRoot = documentRoot;
     this.window = windowRef;
-    if (!this.window.matchMedia('(pointer: fine)').matches) return;
+    this.target = { x: 0, y: 0 };
+    this.position = { x: 0, y: 0 };
+    this.angle = 0;
+    this.hasPointerPosition = false;
+    this.idleTimer = null;
+    if (!this.window.matchMedia('(pointer: fine)').matches || this.window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
+    this.createSlug();
     this.bindEvents();
   }
 
   bindEvents() {
     this.window.addEventListener('pointerdown', (event) => this.createPulse(event));
+    this.window.addEventListener('pointermove', (event) => this.updateTarget(event));
   }
 
   createPulse(event) {
@@ -125,6 +132,39 @@ class CursorEffect {
     pulse.style.top = `${event.clientY}px`;
     this.documentRoot.body.append(pulse);
     pulse.addEventListener('animationend', () => pulse.remove());
+  }
+
+  createSlug() {
+    this.slug = this.documentRoot.createElement('span');
+    this.slug.className = 'cursor-slug';
+    this.documentRoot.body.append(this.slug);
+  }
+
+  updateTarget(event) {
+    this.target = { x: event.clientX, y: event.clientY };
+    this.window.clearTimeout(this.idleTimer);
+    this.idleTimer = this.window.setTimeout(() => this.slug.classList.remove('is-visible'), 350);
+    this.slug.classList.add('is-visible');
+    if (!this.hasPointerPosition) {
+      this.position = { ...this.target };
+      this.hasPointerPosition = true;
+      this.animateSlug();
+    }
+  }
+
+  animateSlug() {
+    const deltaX = this.target.x - this.position.x;
+    const deltaY = this.target.y - this.position.y;
+    this.position.x += deltaX * 0.035;
+    this.position.y += deltaY * 0.035;
+
+    const distance = Math.hypot(deltaX, deltaY);
+    if (distance > 1) this.angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
+    this.slug.style.left = `${this.position.x}px`;
+    this.slug.style.top = `${this.position.y}px`;
+    this.slug.style.width = `${Math.min(Math.max(distance, 68), 260)}px`;
+    this.slug.style.transform = `rotate(${this.angle}deg)`;
+    this.window.requestAnimationFrame(() => this.animateSlug());
   }
 }
 
