@@ -2463,3 +2463,92 @@ a.career-project:focus-visible {
     padding-top: 65px;
   }
 }
+
+/* Mobile polish: bottom nav, clean centered portrait, larger tap targets */
+@media (max-width: 680px) {
+  html,
+  body {
+    overflow-x: clip;
+  }
+  body {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+    -webkit-tap-highlight-color: transparent;
+  }
+  a,
+  button,
+  select {
+    touch-action: manipulation;
+  }
+  .site-header nav {
+    display: flex;
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    z-index: 20;
+    border: 1px solid var(--violet);
+    background: var(--paper);
+    box-shadow: 4px 4px 0 var(--violet);
+  }
+  .site-header nav a {
+    flex: 1;
+    padding: 17px 8px;
+    text-align: center;
+    font-size: 12px;
+  }
+  .site-header nav a + a {
+    border-left: 1px solid var(--line);
+  }
+  .icon-button,
+  .language-select {
+    min-height: 44px;
+  }
+  .icon-button {
+    min-width: 44px;
+  }
+  .language-select {
+    font-size: 16px;
+  }
+
+  .about-section {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 48px;
+  }
+  .portrait-wrap {
+    width: min(100%, 340px);
+    margin: 0 auto;
+  }
+  .portrait-photo-frame {
+    width: 68%;
+    right: 16%;
+    bottom: 16%;
+  }
+  .portrait-placeholder::before {
+    width: 78%;
+    right: 11%;
+    bottom: 11%;
+  }
+  .vertical-label {
+    position: static;
+    writing-mode: horizontal-tb;
+    margin-top: 16px;
+    text-align: center;
+    font-size: 11px;
+    letter-spacing: 1px;
+  }
+  .inspiration-quote--portrait {
+    width: 100%;
+    margin: 20px 0 0;
+  }
+  .about-copy > p:not(.eyebrow) {
+    margin: 28px 0;
+  }
+
+  .socials {
+    gap: 14px 22px;
+  }
+  .socials a {
+    padding: 10px 0 6px;
+  }
+}
