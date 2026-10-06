@@ -2243,3 +2243,223 @@ footer,
     margin-top: 34px;
   }
 }
+
+/* Cybersecurity spotlight (all sizes) */
+.career-card--security {
+  --cyber: #2dff8a;
+}
+.career-card--security::before {
+  content: "\2605  MY MAIN PATH";
+  position: absolute;
+  z-index: 3;
+  top: 10px;
+  left: 10px;
+  padding: 4px 8px;
+  background: var(--cyber);
+  color: #06140d;
+  font: 700 9px/1 var(--font-mono);
+  letter-spacing: 0.6px;
+}
+.career-card--security div span {
+  color: var(--cyber);
+}
+.career-card--security.is-active {
+  box-shadow:
+    0 0 0 2px var(--cyber),
+    0 0 34px rgba(45, 255, 138, 0.45),
+    12px 12px 0 #07261a;
+}
+
+/* Mobile: native vertical scroll with a tappable card grid, cybersecurity featured */
+@media (max-width: 680px) {
+  body .career-wheel {
+    width: 100%;
+    height: auto;
+    margin: 36px 0 0;
+    align-self: stretch;
+    background: none;
+    border-radius: 0;
+    box-shadow: none;
+    opacity: 1;
+    touch-action: auto;
+  }
+  body .career-wheel::before {
+    content: "// PICK A PATH \2193";
+    position: static;
+    display: block;
+    margin-bottom: 14px;
+    border: 0;
+    border-radius: 0;
+    color: var(--violet);
+    font: 500 12px/1 var(--font-mono);
+    letter-spacing: 0.8px;
+  }
+  body .career-wheel .career-wheel__ring {
+    position: static;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    transform: none;
+  }
+  body .career-wheel .career-wheel__ring a.career-card {
+    position: relative;
+    inset: auto;
+    width: auto;
+    aspect-ratio: 1 / 1.05;
+    opacity: 1;
+    pointer-events: auto;
+    filter: none;
+    transform: rotate(var(--tilt, 0deg));
+    box-shadow: 5px 5px 0 var(--violet);
+    transition: transform 0.2s ease;
+  }
+  body .career-wheel .career-wheel__ring a.career-card:active {
+    transform: scale(0.96) rotate(0deg);
+  }
+  body .career-wheel .career-card img {
+    filter: saturate(1.05) contrast(1.05) !important;
+  }
+  body .career-wheel .career-card div {
+    padding: 12px;
+  }
+  body .career-wheel .career-card strong {
+    font-size: 17px;
+  }
+  body .career-wheel a.career-card--web {
+    --tilt: -1.5deg;
+  }
+  body .career-wheel a.career-card--design {
+    --tilt: 1.5deg;
+  }
+  body .career-wheel a.career-card--games {
+    --tilt: -1deg;
+    grid-column: 1 / -1;
+    aspect-ratio: 16 / 8;
+  }
+  body .career-wheel .career-wheel__ring a.career-card--security {
+    --tilt: 0deg;
+    order: -1;
+    grid-column: 1 / -1;
+    aspect-ratio: 16 / 11;
+    border: 2px solid var(--cyber);
+    box-shadow:
+      0 0 28px rgba(45, 255, 138, 0.45),
+      6px 6px 0 #07261a;
+    animation: cyber-glow 2.4s ease-in-out infinite;
+  }
+  body .career-wheel a.career-card--security::before {
+    top: 12px;
+    left: 12px;
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+  body .career-wheel a.career-card--security::after {
+    content: "";
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: repeating-linear-gradient(0deg, rgba(45, 255, 138, 0.1) 0 2px, transparent 2px 5px);
+    -webkit-mask-image: none;
+    mask-image: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  body .career-wheel a.career-card--security strong {
+    font-size: 26px;
+  }
+  body .career-wheel a.career-card--security strong::after {
+    content: "_";
+    color: var(--cyber);
+    animation: cyber-blink 1s steps(2, end) infinite;
+  }
+}
+@keyframes cyber-glow {
+  50% {
+    box-shadow:
+      0 0 42px rgba(45, 255, 138, 0.7),
+      6px 6px 0 #07261a;
+  }
+}
+@keyframes cyber-blink {
+  50% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  body .career-wheel .career-wheel__ring a.career-card--security,
+  body .career-wheel a.career-card--security strong::after {
+    animation: none;
+  }
+}
+
+/* Numbered project list on web/game career pages */
+.career-projects {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.6fr) minmax(0, 1.4fr);
+  gap: clamp(30px, 7vw, 110px);
+  padding-top: clamp(55px, 8vw, 110px);
+}
+.career-projects h2 {
+  margin: 0;
+  font-size: clamp(32px, 4vw, 60px);
+  letter-spacing: -2px;
+  line-height: 0.95;
+}
+.career-projects__list {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.career-project {
+  display: flex;
+  align-items: center;
+  gap: clamp(16px, 3vw, 32px);
+  padding: clamp(16px, 2.4vw, 26px);
+  border: 1px solid var(--violet);
+  box-shadow: 6px 6px 0 color-mix(in srgb, var(--violet) 30%, transparent);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+a.career-project:hover,
+a.career-project:focus-visible {
+  transform: translate(-3px, -3px);
+  box-shadow: 9px 9px 0 var(--violet);
+}
+.career-project__number {
+  min-width: 2.4ch;
+  color: var(--violet);
+  font: 700 clamp(34px, 5vw, 64px)/1 var(--font-mono);
+}
+.career-project__body {
+  flex: 1;
+  display: grid;
+  gap: 4px;
+}
+.career-project strong {
+  font-size: clamp(20px, 2.4vw, 30px);
+  line-height: 1.1;
+}
+.career-project small {
+  color: var(--muted);
+  font: 500 13px var(--font-mono);
+  text-transform: uppercase;
+}
+.career-project b {
+  font-size: 28px;
+  color: var(--violet);
+}
+.career-project--soon {
+  border-style: dashed;
+  box-shadow: none;
+  opacity: 0.7;
+}
+@media (max-width: 680px) {
+  .career-projects {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding-top: 65px;
+  }
+}
