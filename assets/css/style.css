@@ -2284,7 +2284,7 @@ footer,
     touch-action: auto;
   }
   body .career-wheel::before {
-    content: "// PICK A PATH \2193";
+    content: "// PICK A PATH \2192";
     position: static;
     display: block;
     margin-bottom: 14px;
@@ -2550,5 +2550,72 @@ a.career-project:focus-visible {
   }
   .socials a {
     padding: 10px 0 6px;
+  }
+}
+
+/* Mobile hero: career cards become a small, low-key swipe strip below the intro */
+@media (max-width: 680px) {
+  body .career-wheel {
+    order: 4;
+    margin-top: 26px;
+  }
+  body .career-wheel::before {
+    margin-bottom: 10px;
+    color: var(--muted);
+    font-size: 10px;
+  }
+  body .career-wheel .career-wheel__ring {
+    display: flex;
+    gap: 12px;
+    margin-inline: -20px;
+    padding: 2px 20px 10px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 20px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  body .career-wheel .career-wheel__ring::-webkit-scrollbar {
+    display: none;
+  }
+  body .career-wheel .career-wheel__ring a.career-card {
+    flex: 0 0 52%;
+    aspect-ratio: 16 / 10;
+    scroll-snap-align: start;
+    opacity: 0.88;
+    box-shadow: 3px 3px 0 color-mix(in srgb, var(--violet) 55%, transparent);
+    --tilt: 0deg;
+  }
+  body .career-wheel .career-card div {
+    padding: 8px 10px;
+  }
+  body .career-wheel .career-card strong {
+    font-size: 14px;
+  }
+  body .career-wheel .career-card span {
+    font-size: 9px;
+  }
+  body .career-wheel .career-wheel__ring a.career-card--security {
+    flex-basis: 58%;
+    aspect-ratio: 16 / 10;
+    border-width: 1px;
+    opacity: 1;
+    animation: none;
+    box-shadow: 0 0 14px rgba(45, 255, 138, 0.3);
+  }
+  body .career-wheel a.career-card--security::before {
+    top: 8px;
+    left: 8px;
+    padding: 4px 7px;
+    font-size: 9px;
+  }
+  body .career-wheel a.career-card--security::after {
+    display: none;
+  }
+  body .career-wheel a.career-card--security strong {
+    font-size: 16px;
+  }
+  body .career-wheel a.career-card--security strong::after {
+    display: none;
   }
 }
