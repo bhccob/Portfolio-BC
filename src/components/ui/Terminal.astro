@@ -18,8 +18,8 @@ const config = {
   routes: {
     home: i18n.path('/'),
     contact: i18n.path('/contact/'),
-    en: '/',
-    nl: '/nl/'
+    en: Translator.pathFor('en', '/'),
+    nl: Translator.pathFor('nl', '/')
   },
   projects: projects.all().map((project) => ({
     label: project.label,

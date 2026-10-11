@@ -25,7 +25,7 @@ A student software engineer building toward systems and firmware security work, 
 
 ## Operating Context
 
-- **Languages:** English at `/` (default) and Dutch at `/nl/`, as separate crawlable pages.
+- **Languages:** Dutch at `/` (the default, at the owner's request) and English at `/en/`, as separate crawlable pages. The old `/nl/` addresses redirect to the root.
 - **Contact:** a dedicated `/contact` page. Messages go through Web3Forms, and the form falls back to `mailto:` until an access key is configured. GitHub, Instagram and email (bhccob@gmail.com) are the visible channels.
 - **Hosting:** a static site on GitHub Pages under the custom domain bhccob.me (behind Cloudflare), built and deployed by GitHub Actions.
 - **Maintainer:** Bob edits content himself. Copy lives in `src/i18n/en.ts` and `src/i18n/nl.ts`, and projects, skills and profile data live in `src/data/`.
@@ -85,10 +85,11 @@ A student software engineer building toward systems and firmware security work, 
   - Born and raised in Aruba, Chinese heritage, moved to the Netherlands at 18, lives in Rotterdam.
   - MBO 4 student.
   - Former powerlifter and table tennis player; now runs, goes to the gym and games.
-- **Skills:**
-  - Comfortable: HTML, CSS, JavaScript, PHP, Laravel, SQL, Godot.
-  - Learning: C#.
-  - Exploring next: C, Python, embedded systems, electronics.
+- **Skills** (owner's own framing, 2026-10-11):
+  - A solid full-stack foundation: core languages (HTML, CSS, JavaScript, PHP, C#), SQL, Godot and frameworks (Laravel, Tailwind CSS).
+  - Specialising toward the possible future roles (systems, firmware, security, automation).
+  - Currently learning to use AI as an advantage in their work.
+  - Curious about embedded systems and electronics.
 - **Absent, so never fabricate:** testimonials, clients, employers, internships, awards, certificates, grades, usage statistics, the school's name and sports records.
 
 ## Product Principles

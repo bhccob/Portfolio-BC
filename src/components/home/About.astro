@@ -67,9 +67,11 @@ const stops = [
               a.mixed.map(([text, style]) => {
                 const [head, tail] = text.split('{age}');
                 return (
-                  <span class:list={['mixed__w', `mixed__w--${style}`]} data-mixed-word>
-                    {tail === undefined ? text : <>{head}<span data-age>{age}</span>{tail}</>}
-                  </span>
+                  <>
+                    <span class:list={['mixed__w', `mixed__w--${style}`]} data-mixed-word>
+                      {tail === undefined ? text : <>{head}<span data-age>{age}</span>{tail}</>}
+                    </span>{' '}
+                  </>
                 );
               })
             }
@@ -274,44 +276,6 @@ const stops = [
     --th: 1.32;
     --gap: 0.1em;
     font-size: 17px;
-  }
-
-  /* mixed type: fat caps, light italics and plain caps in one sentence */
-  .mixed {
-    font-size: clamp(26px, 2.7vw, 40px);
-    line-height: 1.12;
-    text-wrap: pretty;
-  }
-
-  .mixed__w {
-    display: inline;
-    margin-right: 0.22em;
-  }
-
-  .mixed__w--fat,
-  .mixed__w--fat-yellow {
-    font-family: var(--font-display);
-    text-transform: uppercase;
-    color: var(--paper);
-  }
-
-  .mixed__w--fat-yellow {
-    color: var(--yellow);
-  }
-
-  .mixed__w--light {
-    font-family: var(--font-sans);
-    font-style: italic;
-    font-weight: 300;
-    color: var(--lilac);
-  }
-
-  .mixed__w--caps {
-    font-family: var(--font-sans);
-    font-weight: 700;
-    text-transform: uppercase;
-    font-size: 0.82em;
-    color: var(--paper);
   }
 
   .route__meta b {

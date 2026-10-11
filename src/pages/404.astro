@@ -3,11 +3,11 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import FlapText from '../components/ui/FlapText.astro';
 import { Translator } from '../i18n/Translator';
 
-const i18n = new Translator('en');
+const i18n = new Translator('nl');
 const { t } = i18n;
 ---
 
-<BaseLayout locale="en" route="/" title={t.meta.notFoundTitle} description={t.meta.notFoundDescription} noindex page="error">
+<BaseLayout locale="nl" route="/" title={t.meta.notFoundTitle} description={t.meta.notFoundDescription} noindex page="error">
   <section class="lost" aria-labelledby="lost-title">
     <div class="container">
       <FlapText text={t.notFound.status} label="" play="intro" class="lost__flap" />

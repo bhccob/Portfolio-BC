@@ -117,13 +117,42 @@ export const en = {
   },
   skills: {
     title: 'What I work <em>with.</em>',
-    comfortable: 'Comfortable',
-    comfortableNote: 'Used in finished projects',
-    learning: 'Learning',
-    learningNote: 'In progress now',
-    exploring: 'Exploring next',
-    exploringNote: 'Toward systems and firmware',
-    exploringItems: ['C', 'Python', 'Embedded systems', 'Electronics']
+    statement: [
+      ['A solid', 'light'],
+      ['full-stack', 'fat-yellow'],
+      ['foundation,', 'fat'],
+      ['sharpened toward', 'light'],
+      ['systems', 'fat'],
+      ['and', 'light'],
+      ['firmware,', 'fat'],
+      ['accelerated by', 'caps'],
+      ['AI', 'fat-yellow'],
+      ['and curious about', 'light'],
+      ['hardware.', 'fat']
+    ],
+    statementSpoken: 'A solid full-stack foundation, sharpened toward systems and firmware, accelerated by AI and curious about hardware.',
+    rows: [
+      {
+        status: 'Solid',
+        title: 'Full-stack foundation',
+        text: 'A working command of the core programming languages, relational databases with SQL, game development in Godot and modern frameworks: enough to build a project from the database all the way to the interface.'
+      },
+      {
+        status: 'In progress',
+        title: 'Specialising',
+        text: 'Deepening the more specific skills that my possible future roles as a systems engineer or firmware security automation engineer call for: working closer to the hardware, understanding how systems fit together, and testing and securing software.'
+      },
+      {
+        status: 'Daily',
+        title: 'Working with AI',
+        text: 'Learning to use AI to my advantage: to research faster, prototype ideas, and review and test my work, while remaining responsible for every line I deliver.'
+      },
+      {
+        status: 'Next',
+        title: 'Curious about',
+        text: 'Embedded systems and electronics: the place where software meets the hardware it runs on.'
+      }
+    ]
   },
   life: {
     title: 'Off <em>duty.</em>',

@@ -3,15 +3,15 @@ import { nl } from './nl';
 
 export const locales = ['en', 'nl'] as const;
 export type Locale = (typeof locales)[number];
-export const defaultLocale: Locale = 'en';
+export const defaultLocale: Locale = 'nl';
 
 const dictionaries: Record<Locale, Dictionary> = { en, nl };
 const intlLocales: Record<Locale, string> = { en: 'en-GB', nl: 'nl-NL' };
 const ogLocales: Record<Locale, string> = { en: 'en_GB', nl: 'nl_NL' };
 
 /**
- * Resolves copy and URLs for one locale. English lives at the site root,
- * every other locale under its own prefix (`/nl/...`), so each language is a
+ * Resolves copy and URLs for one locale. Dutch (the default) lives at the
+ * site root, every other locale under its own prefix (`/en/...`), so each language is a
  * real, crawlable page instead of text swapped in by JavaScript.
  */
 export class Translator {

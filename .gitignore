@@ -22,3 +22,7 @@ __pycache__/
 Thumbs.db
 .vscode/*
 !.vscode/extensions.json
+
+# local review screenshots and browser-test logs (kept on disk, not in the repo)
+.playwright-mcp/
+.impeccable/review/

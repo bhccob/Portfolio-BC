@@ -1,7 +1,6 @@
 ---
 import FlapText from '../ui/FlapText.astro';
 import { Translator, type Locale } from '../../i18n/Translator';
-import { skills } from '../../data/skills';
 
 interface Props {
   locale: Locale;
@@ -10,88 +9,116 @@ interface Props {
 const { locale } = Astro.props;
 const { t } = new Translator(locale);
 const s = t.skills;
-
-const columns = [
-  { title: s.comfortable, note: s.comfortableNote, items: [...skills.comfortable], tone: 'paper' as const },
-  { title: s.learning, note: s.learningNote, items: [...skills.learning], tone: 'yellow' as const },
-  { title: s.exploring, note: s.exploringNote, items: s.exploringItems, tone: 'lilac' as const }
-];
 ---
 
 <section class="skills section" id="skills" aria-labelledby="skills-title">
-  <div class="container">
-    <h2 id="skills-title" class="display h2 skills__title" data-split set:html={s.title} />
+  <div class="container skills__grid">
+    <div class="skills__intro">
+      <h2 id="skills-title" class="display h2" data-split set:html={s.title} />
+      <p class="mixed skills__statement" data-mixed>
+        <span class="visually-hidden">{s.statementSpoken}</span>
+        <span aria-hidden="true">
+          {s.statement.map(([text, style]) => <><span class:list={['mixed__w', `mixed__w--${style}`]} data-mixed-word>{text}</span>{' '}</>)}
+        </span>
+      </p>
+    </div>
 
-    <div class="timetable">
+    <ol class="stack">
       {
-        columns.map((column) => (
-          <div class="timetable__col" data-reveal>
-            <h3 class="timetable__head">
-              <span class="timetable__name">{column.title}</span>
-              <span class="timetable__note">{column.note}</span>
-            </h3>
-            <ul class="timetable__list">
-              {column.items.map((item) => (
-                <li data-flap-host>
-                  <FlapText text={item} tone={column.tone} hover wrap class="timetable__item" />
-                </li>
-              ))}
-            </ul>
-          </div>
+        s.rows.map((row, index) => (
+          <li class:list={['stack__row', { 'stack__row--lead': index === 0 }]} data-reveal data-flap-host>
+            <FlapText text={row.status} hover tone={index === 3 ? 'lilac' : 'yellow'} class="stack__status" />
+            <div class="stack__body">
+              <h3 class="stack__title">{row.title}</h3>
+              <p class="stack__text">{row.text}</p>
+
+            </div>
+          </li>
         ))
       }
-    </div>
+    </ol>
   </div>
 </section>
 
 <style>
-  .skills__title {
-    margin-bottom: clamp(48px, 6vw, 80px);
-  }
-
-  .timetable {
+  .skills__grid {
     display: grid;
-    grid-template-columns: 1.3fr 0.8fr 1.1fr;
-    gap: 48px clamp(32px, 5vw, 80px);
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+    gap: 48px clamp(40px, 6vw, 96px);
+    align-items: start;
   }
 
-  .timetable__head {
+  .skills__intro {
+    position: sticky;
+    top: calc(var(--header-h) + 32px);
     display: grid;
-    gap: 6px;
-    padding-bottom: 16px;
-    margin-bottom: 8px;
-    background: linear-gradient(var(--line-strong), var(--line-strong)) left bottom / 100% 1px no-repeat;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
   }
 
-  .timetable__name {
-    font: 700 15px/1.2 var(--font-sans);
+  .skills__statement {
+    font-size: clamp(24px, 2.3vw, 34px);
+  }
+
+  /* four rows, from what is solid today to what comes next */
+  .stack__row {
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr);
+    gap: 14px 28px;
+    padding: 26px 0;
+    background: linear-gradient(var(--line), var(--line)) left top / 100% 1px no-repeat;
+  }
+
+  .stack__row:last-child {
+    background:
+      linear-gradient(var(--line), var(--line)) left top / 100% 1px no-repeat,
+      linear-gradient(var(--line), var(--line)) left bottom / 100% 1px no-repeat;
+  }
+
+  .stack :global(.stack__status) {
+    --tw: 0.84;
+    --th: 1.4;
+    --gap: 0.1em;
+    font-size: 15px;
+    align-self: start;
+  }
+
+  .stack__body {
+    display: grid;
+    gap: 10px;
+  }
+
+  .stack__title {
+    font: 400 clamp(22px, 2.1vw, 30px) / 1 var(--font-display);
+    text-transform: uppercase;
     color: var(--paper);
   }
 
-  .timetable__note {
-    font: 450 11px/1.4 var(--font-mono);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--dim);
+  .stack__row--lead .stack__title {
+    color: var(--yellow);
   }
 
-  .timetable__list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 14px 20px;
-    padding-top: 12px;
+  .stack__text {
+    max-width: 40em;
+    font-size: 16px;
+    color: var(--lilac);
   }
 
-  .timetable :global(.timetable__item) {
-    --tw: 0.8;
-    --th: 1.32;
-    --gap: 0.1em;
-    font-size: clamp(20px, 1.9vw, 27px);
-  }
 
-  @media (max-width: 900px) {
-    .timetable {
-      grid-template-columns: 1fr;
+  @media (max-width: 960px) {
+    .skills__grid {
+      grid-template-columns: minmax(0, 1fr);
     }
+
+    .skills__intro {
+      position: static;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .stack__row {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
   }
 </style>

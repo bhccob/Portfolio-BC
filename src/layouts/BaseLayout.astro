@@ -12,7 +12,7 @@ import Header from '../components/ui/Header.astro';
 import Footer from '../components/ui/Footer.astro';
 import LoadingScreen from '../components/ui/LoadingScreen.astro';
 import Terminal from '../components/ui/Terminal.astro';
-import { Translator, type Locale } from '../i18n/Translator';
+import { Translator, defaultLocale, type Locale } from '../i18n/Translator';
 import { profile } from '../data/profile';
 
 interface Props {
@@ -79,7 +79,7 @@ const graph = [person, website, ...structuredData];
         <>
           <link rel="alternate" hreflang="en" href={new URL(alternates.en, site).href} />
           <link rel="alternate" hreflang="nl" href={new URL(alternates.nl, site).href} />
-          <link rel="alternate" hreflang="x-default" href={new URL(alternates.en, site).href} />
+          <link rel="alternate" hreflang="x-default" href={new URL(alternates[defaultLocale], site).href} />
         </>
       )
     }

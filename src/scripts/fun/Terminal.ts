@@ -195,7 +195,7 @@ export class Terminal extends Component {
       this.print('<span class="dim">usage: lang en | lang nl</span>');
       return;
     }
-    const link = document.querySelector<HTMLAnchorElement>(`.lang-switch a[hreflang="${target}"]`);
+    const link = document.querySelector<HTMLAnchorElement>(`[data-lang-switch] a[hreflang="${target}"]`);
     this.navigate(link?.href ?? this.config.routes[target], target.toUpperCase());
   }
 

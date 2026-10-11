@@ -112,13 +112,42 @@ export const nl: Dictionary = {
   },
   skills: {
     title: 'Waar ik mee <em>werk.</em>',
-    comfortable: 'Vertrouwd',
-    comfortableNote: 'Gebruikt in afgeronde projecten',
-    learning: 'Aan het leren',
-    learningNote: 'Nu in uitvoering',
-    exploring: 'Hierna te ontdekken',
-    exploringNote: 'Richting systems en firmware',
-    exploringItems: ['C', 'Python', 'Embedded systems', 'Elektronica']
+    statement: [
+      ['Een stevige', 'light'],
+      ['full-stack', 'fat-yellow'],
+      ['basis,', 'fat'],
+      ['aangescherpt richting', 'light'],
+      ['systems', 'fat'],
+      ['en', 'light'],
+      ['firmware,', 'fat'],
+      ['versneld door', 'caps'],
+      ['AI', 'fat-yellow'],
+      ['en nieuwsgierig naar', 'light'],
+      ['hardware.', 'fat']
+    ],
+    statementSpoken: 'Een stevige full-stack basis, aangescherpt richting systems en firmware, versneld door AI en nieuwsgierig naar hardware.',
+    rows: [
+      {
+        status: 'Stevig',
+        title: 'Full-stack basis',
+        text: 'Een gedegen beheersing van de basisprogrammeertalen, relationele databases met SQL, gameontwikkeling in Godot en moderne frameworks: genoeg om een project te bouwen van de database tot en met de interface.'
+      },
+      {
+        status: 'Bezig',
+        title: 'Specialiseren',
+        text: 'Ik verdiep me in de specifiekere vaardigheden die mijn mogelijke toekomstige rollen als systems engineer of firmware security automation engineer vragen: dichter bij de hardware werken, begrijpen hoe systemen samenwerken, en software testen en beveiligen.'
+      },
+      {
+        status: 'Dagelijks',
+        title: 'Werken met AI',
+        text: 'Ik leer AI in mijn voordeel te gebruiken: om sneller onderzoek te doen, ideeën te prototypen en mijn werk te reviewen en testen, terwijl ik verantwoordelijk blijf voor elke regel die ik oplever.'
+      },
+      {
+        status: 'Hierna',
+        title: 'Nieuwsgierig naar',
+        text: 'Embedded systems en elektronica: de plek waar software de hardware ontmoet waarop ze draait.'
+      }
+    ]
   },
   life: {
     title: 'Buiten <em>dienst.</em>',

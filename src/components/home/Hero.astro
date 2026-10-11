@@ -43,7 +43,7 @@ const badge = h.badge.repeat(Math.max(1, Math.round(64 / h.badge.length)));
             </span>
           ))
         }
-        <span class="hero__line hero__line--big hero__line--last" style={`--chars:${last.length}`} data-hero-line>
+        <span class="hero__line hero__line--big hero__line--last" style={`--chars:${ballAt >= 0 ? last.length : last.length + 1.4}`} data-hero-line>
           {before}
           <span class="ball" data-ball>
             <svg viewBox="0 0 100 100" aria-hidden="true">
@@ -128,7 +128,7 @@ const badge = h.badge.repeat(Math.max(1, Math.round(64 / h.badge.length)));
   }
 
   .hero__line--big {
-    font-size: min(calc(88vw / (var(--chars) * 0.6)), 184px);
+    font-size: min(calc(84vw / (var(--chars) * 0.6)), 184px);
     line-height: 0.86;
     color: var(--yellow);
   }

@@ -42,7 +42,7 @@ src/
   layouts/         BaseLayout: <head>, SEO, structured data, header/footer
   components/      Astro components (home sections, UI pieces, contact form)
   views/           Page bodies shared by the English and Dutch routes
-  pages/           Routes: / and /nl/ … (thin wrappers around views)
+  pages/           Routes: Dutch at / and English at /en/ (thin wrappers around views)
   scripts/         Client-side TypeScript: core/, ui/ (flap board, loader, cursor, grid, scroll), hero/ (physics playground), contact/, fun/
   styles/          Design tokens and base styles
 tests/             Node tests for the WebAssembly physics engine
