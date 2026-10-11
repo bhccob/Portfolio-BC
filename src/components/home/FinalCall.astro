@@ -1,0 +1,120 @@
+---
+import FlapText from '../ui/FlapText.astro';
+import LineObjects from '../ui/LineObjects.astro';
+import { Translator, type Locale } from '../../i18n/Translator';
+import { profile } from '../../data/profile';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const i18n = new Translator(locale);
+const { t } = i18n;
+const c = t.cta;
+const word = locale === 'nl' ? 'HALLO' : 'HELLO';
+---
+
+<section class="final section" id="say-hello" aria-labelledby="final-title">
+  <LineObjects
+    items={[
+      { icon: 'paddle', x: 56, y: 3, size: 56, speed: 0.2, rotate: -24, accent: true },
+      { icon: 'infinity', x: 74, y: 4, size: 56, speed: -0.15 }
+    ]}
+  />
+  <div class="container final__inner">
+    <a class="final__board" href={i18n.path('/contact/')} aria-label={c.button} data-flap-host>
+      <FlapText text={word} as="span" label="" hover class="final__word" />
+      <span class="final__arrow" aria-hidden="true">
+        <svg viewBox="0 0 48 48" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="3"><path d="M8 24h30M26 12l12 12-12 12" /></svg>
+      </span>
+    </a>
+    <div class="final__foot">
+      <div class="final__text">
+        <h2 id="final-title" class="h3" set:html={c.title} />
+        <p class="body-text">{c.text}</p>
+      </div>
+      <div class="final__actions">
+        <a class="btn" href={i18n.path('/contact/')}>
+          {c.button}
+          <svg class="icon" viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4" /></svg>
+        </a>
+        <p class="final__or">
+          <span>{c.or}</span>
+          {profile.socials.filter((social) => social.id !== 'email').map((social) => (
+            <a class="text-link" href={social.url} target="_blank" rel="noopener noreferrer">{social.label}</a>
+          ))}
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .final__board {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+  }
+
+  .final :global(.final__word) {
+    --tw: 0.78;
+    --th: 1.08;
+    --gap: 0.06em;
+    --r: 0.05em;
+    font-size: clamp(80px, 17vw, 260px);
+  }
+
+  .final__arrow {
+    width: clamp(56px, 9vw, 140px);
+    aspect-ratio: 1;
+    color: var(--yellow);
+    transition: transform 0.6s var(--ease-out);
+  }
+
+  .final__board:hover .final__arrow {
+    transform: translateX(18px);
+  }
+
+  .final__foot {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 32px 64px;
+    margin-top: clamp(40px, 5vw, 64px);
+  }
+
+  .final__text {
+    display: grid;
+    gap: 14px;
+  }
+
+  .final__actions {
+    display: grid;
+    justify-items: end;
+    gap: 18px;
+  }
+
+  .final__or {
+    display: flex;
+    align-items: baseline;
+    gap: 18px;
+    color: var(--dim);
+    font-size: 15px;
+  }
+
+  @media (max-width: 760px) {
+    .final__arrow {
+      display: none;
+    }
+
+    .final__foot {
+      grid-template-columns: 1fr;
+    }
+
+    .final__actions {
+      justify-items: start;
+    }
+  }
+</style>

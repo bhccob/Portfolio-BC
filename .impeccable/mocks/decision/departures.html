@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Departures: Bob Chung</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Martian+Mono:wght@400;500&family=Sofia+Sans+Extra+Condensed:wght@700;800&family=Sofia+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --housing: #150b26;
+    --housing-2: #1d1034;
+    --tile-top: #221539;
+    --tile-bot: #1a1030;
+    --split: #070310;
+    --ink: #ffcf33;
+    --ink-soft: #e9bf3a;
+    --lilac: #a99bc9;
+    --paper: #f4efe6;
+    --line: rgba(169, 155, 201, 0.11);
+    --phase: rgba(255, 207, 51, 0);
+    --flap: 'Sofia Sans Extra Condensed', 'Arial Narrow', sans-serif;
+    --mono: 'Martian Mono', ui-monospace, monospace;
+    --sans: 'Sofia Sans', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--housing);
+    color: var(--paper);
+    font-family: var(--sans);
+    overflow: hidden;
+    cursor: none;
+  }
+  ::selection { background: var(--ink); color: var(--housing); }
+  a { color: inherit; text-decoration: none; cursor: none; }
+  canvas#grid { position: fixed; inset: 0; z-index: 0; }
+  .phase {
+    position: fixed; inset: 0; z-index: 1; pointer-events: none;
+    background: radial-gradient(120% 70% at 50% 0%, var(--phase), transparent 60%);
+    transition: background 2s ease;
+  }
+  .page { position: relative; z-index: 2; height: 100vh; display: grid; grid-template-rows: auto 1fr auto; padding: 0 clamp(16px, 3.4vw, 56px); }
+
+  /* top bar */
+  .bar { display: flex; align-items: center; justify-content: space-between; height: 76px; gap: 24px; }
+  .logo { font-family: var(--mono); font-size: 13px; letter-spacing: 0.02em; color: var(--paper); display: flex; gap: 10px; align-items: center; }
+  .logo i { width: 10px; height: 14px; background: var(--ink); display: inline-block; }
+  .nav { display: flex; gap: 34px; font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--lilac); }
+  .nav a { position: relative; padding: 6px 0; transition: color .25s; }
+  .nav a::after { content: ''; position: absolute; left: 0; right: 100%; bottom: 0; height: 2px; background: var(--ink); transition: right .35s cubic-bezier(.2,.8,.2,1); }
+  .nav a:hover { color: var(--paper); }
+  .nav a:hover::after { right: 0; }
+  .cta { display: inline-flex; align-items: center; gap: 12px; font-family: var(--flap); font-weight: 800; font-size: 20px; letter-spacing: 0.04em; text-transform: uppercase; background: var(--ink); color: var(--housing); padding: 10px 18px 9px; border-radius: 3px; transition: transform .3s cubic-bezier(.2,.8,.2,1); }
+  .cta:hover { transform: translateY(-2px); }
+  .cta svg { width: 16px; height: 16px; }
+
+  /* board */
+  .board { align-self: center; display: grid; gap: clamp(18px, 2.6vh, 30px); }
+  .board-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; }
+  .langs { font-family: var(--mono); font-size: 12px; color: var(--lilac); letter-spacing: 0.14em; text-transform: uppercase; display: flex; gap: 18px; align-items: center; }
+  .langs b { color: var(--ink); font-weight: 500; }
+  .clocks { display: flex; gap: 28px; }
+  .clock { display: grid; gap: 6px; justify-items: end; }
+  .clock span { font-family: var(--mono); font-size: 11px; color: var(--lilac); letter-spacing: .1em; text-transform: uppercase; }
+
+  /* flap tile */
+  .row { display: flex; gap: var(--gap, 4px); }
+  .f { --w: 22px; --h: 32px; --fs: 26px; position: relative; width: var(--w); height: var(--h); perspective: 300px; flex: none; }
+  .f .h { position: absolute; left: 0; right: 0; height: 50%; overflow: hidden; display: block; backface-visibility: hidden; }
+  .f .h b { position: absolute; left: 0; right: 0; height: var(--h); display: flex; align-items: center; justify-content: center; font-family: var(--flap); font-weight: 800; font-size: var(--fs); color: var(--ink); line-height: 1; letter-spacing: 0; }
+  .f .t, .f .ft { top: 0; background: var(--tile-top); border-radius: 3px 3px 0 0; }
+  .f .b, .f .fb { bottom: 0; background: var(--tile-bot); border-radius: 0 0 3px 3px; }
+  .f .b b, .f .fb b { top: calc(var(--h) / -2); }
+  .f .ft { transform-origin: 50% 100%; z-index: 2; }
+  .f .fb { transform-origin: 50% 0%; z-index: 2; transform: rotateX(90deg); }
+  .f::after { content: ''; position: absolute; left: 0; right: 0; top: calc(50% - 1px); height: 2px; background: var(--split); z-index: 3; }
+  .f.dim .h b { color: var(--lilac); }
+  .f.white .h b { color: var(--paper); }
+
+  .name { --gap: clamp(5px, .6vw, 10px); }
+  .name .f { --w: clamp(56px, 8.6vw, 132px); --h: clamp(78px, 12vw, 184px); --fs: clamp(70px, 11vw, 170px); }
+  .name .f .t, .name .f .ft { border-radius: 8px 8px 0 0; }
+  .name .f .b, .name .f .fb { border-radius: 0 0 8px 8px; }
+  .name .f.sp .h { background: transparent; }
+  .name .f.sp::after { display: none; }
+  .sub { --gap: 3px; }
+  .sub .f { --w: clamp(14px, 1.5vw, 23px); --h: clamp(22px, 2.3vw, 34px); --fs: clamp(15px, 1.6vw, 23px); }
+
+  .clock .row .f { --w: 20px; --h: 30px; --fs: 24px; }
+
+  /* departures table */
+  .table { display: grid; gap: 8px; margin-top: clamp(6px, 1vh, 14px); }
+  .thead, .tr { display: grid; grid-template-columns: 92px minmax(0, 1.5fr) minmax(0, 1.3fr) minmax(0, 0.9fr); align-items: center; gap: 18px; }
+  .thead { font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--lilac); padding: 0 12px 4px; }
+  .tr { position: relative; padding: 9px 12px; border-radius: 4px; transition: background .3s; }
+  .tr::before { content: ''; position: absolute; left: 0; top: 50%; width: 3px; height: 0; background: var(--ink); transition: height .35s cubic-bezier(.2,.8,.2,1), top .35s cubic-bezier(.2,.8,.2,1); border-radius: 2px; }
+  .tr:hover { background: rgba(255, 207, 51, 0.045); }
+  .tr:hover::before { height: 70%; top: 15%; }
+  .tr .f { --w: 15px; --h: 25px; --fs: 16px; }
+  .tr .row { --gap: 2px; overflow: hidden; }
+  .status { display: flex; align-items: center; gap: 10px; }
+  .mark { width: 14px; height: 14px; flex: none; }
+  .tr.held { opacity: .55; }
+  .tr.held .f .h b { color: var(--lilac); }
+
+  .foot { display: flex; justify-content: space-between; align-items: center; height: 84px; gap: 24px; }
+  .line { font-family: var(--sans); font-size: clamp(16px, 1.35vw, 21px); color: var(--paper); max-width: 46ch; }
+  .line em { font-style: normal; color: var(--ink); }
+  .meta { font-family: var(--mono); font-size: 11px; color: var(--lilac); letter-spacing: .1em; text-transform: uppercase; display: flex; gap: 22px; align-items: center; }
+  .meta b { color: var(--ink); font-weight: 500; }
+  .scroll { display: inline-flex; align-items: center; gap: 10px; }
+  .scroll i { width: 1px; height: 28px; background: linear-gradient(var(--ink), transparent); display: inline-block; animation: drip 1.8s ease-in-out infinite; transform-origin: top; }
+  @keyframes drip { 0% { transform: scaleY(0); } 50% { transform: scaleY(1); } 100% { transform: scaleY(1); opacity: 0; } }
+
+  /* low-key line objects */
+  .obj { position: fixed; z-index: 1; color: rgba(169, 155, 201, 0.22); pointer-events: none; transition: transform 1.2s cubic-bezier(.2,.8,.2,1); }
+  .obj svg { display: block; }
+
+  /* cursor */
+  .cursor-canvas { position: fixed; inset: 0; z-index: 50; pointer-events: none; }
+  .hint { position: fixed; right: clamp(16px, 3.4vw, 56px); bottom: 96px; z-index: 3; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--lilac); opacity: .8; }
+  .hint kbd { font-family: inherit; color: var(--ink); }
+
+  @media (max-width: 820px) {
+    body { overflow: auto; cursor: auto; }
+    a { cursor: pointer; }
+    .page { height: auto; min-height: 100vh; }
+    .nav { display: none; }
+    .name { flex-wrap: wrap; row-gap: 8px; }
+    .name .f { --w: 17vw; --h: 24vw; --fs: 22vw; }
+    .name .f.sp { flex-basis: 100%; height: 0; }
+    .sub .f { --w: 3.2vw; --h: 5vw; --fs: 4.3vw; }
+    .sub { --gap: 1px; }
+    .thead { display: none; }
+    .tr { grid-template-columns: 1fr; gap: 6px; }
+    .tr .c-year, .tr .c-type { display: none; }
+    .clocks { display: none; }
+    .foot { flex-direction: column; align-items: flex-start; height: auto; padding: 24px 0 32px; }
+    .hint, .obj, .cursor-canvas { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .scroll i { animation: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="grid" aria-hidden="true"></canvas>
+<div class="phase" aria-hidden="true"></div>
+
+<div class="obj" data-depth="18" style="left:4%; top:22%" aria-hidden="true">
+  <svg width="86" height="86" viewBox="0 0 86 86" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="43" cy="43" r="41"/><circle cx="43" cy="43" r="30"/><circle cx="43" cy="43" r="6"/><path d="M43 2v8M43 76v8M2 43h8M76 43h8"/></svg>
+</div>
+<div class="obj" data-depth="-14" style="right:6%; top:16%" aria-hidden="true">
+  <svg width="58" height="84" viewBox="0 0 58 84" fill="none" stroke="currentColor" stroke-width="1.2"><ellipse cx="29" cy="28" rx="26" ry="26"/><path d="M22 52l-3 30h20l-3-30"/><circle cx="48" cy="8" r="5"/></svg>
+</div>
+<div class="obj" data-depth="10" style="left:46%; bottom:12%" aria-hidden="true">
+  <svg width="64" height="40" viewBox="0 0 64 40" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M4 36C14 8 22 4 32 20S50 32 60 4"/><path d="M2 38h60M4 2v36"/></svg>
+</div>
+<div class="obj" data-depth="-20" style="right:30%; top:9%" aria-hidden="true">
+  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="10" y="10" width="28" height="28" rx="2"/><path d="M16 10V2M24 10V2M32 10V2M16 46v-8M24 46v-8M32 46v-8M10 16H2M10 24H2M10 32H2M46 16h-8M46 24h-8M46 32h-8"/></svg>
+</div>
+
+<div class="page">
+  <header class="bar">
+    <a class="logo" href="#"><i aria-hidden="true"></i>bhccob.me</a>
+    <nav class="nav" aria-label="Main">
+      <a href="#work">Work</a><a href="#about">About</a><a href="#career">Career</a><a href="#contact">Contact</a>
+    </nav>
+    <a class="cta" href="#contact">Send a message
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+    </a>
+  </header>
+
+  <main class="board" aria-label="Departures board">
+    <div class="board-head">
+      <div class="langs"><b>Departures</b><span>Vertrek</span><span>Salida</span><span id="phase-label">Night shift</span></div>
+      <div class="clocks" aria-label="Local times">
+        <div class="clock"><div class="row" data-flap="clock-rtm">16:42</div><span>Rotterdam</span></div>
+        <div class="clock"><div class="row" data-flap="clock-aua">10:42</div><span>Oranjestad, Aruba</span></div>
+      </div>
+    </div>
+
+    <h1 class="row name" data-flap="name" aria-label="Bob Chung">BOB CHUNG</h1>
+    <p class="row sub" data-flap="sub" aria-label="Student software engineer in Rotterdam">STUDENT SOFTWARE ENGINEER · ROTTERDAM</p>
+
+    <div class="table" role="table" aria-label="Projects">
+      <div class="thead" role="row"><span>Year</span><span>Project</span><span>Type</span><span>Status</span></div>
+      <a class="tr" role="row" href="https://github.com/bhccob/Cookies-Clicker">
+        <span class="row c-year" data-flap>2025</span>
+        <span class="row" data-flap>#01 COOKIES CLICKER</span>
+        <span class="row c-type dim-row" data-flap="dim">WEB GAME · SCHOOL</span>
+        <span class="status"><svg class="mark" viewBox="0 0 14 14" fill="none" stroke="#ffcf33" stroke-width="2"><path d="M2 7.5l3.2 3L12 3.5"/></svg><span class="row" data-flap>DEPARTED</span></span>
+      </a>
+      <a class="tr" role="row" href="https://github.com/bhccob/JE">
+        <span class="row c-year" data-flap>2026</span>
+        <span class="row" data-flap>#02 JONTAI ENERGY</span>
+        <span class="row c-type" data-flap="dim">COMPANY SITE · PERSONAL</span>
+        <span class="status"><svg class="mark" viewBox="0 0 14 14" fill="none" stroke="#ffcf33" stroke-width="2"><path d="M2 7.5l3.2 3L12 3.5"/></svg><span class="row" data-flap>DEPARTED</span></span>
+      </a>
+      <a class="tr" role="row" href="https://github.com/bhccob">
+        <span class="row c-year" data-flap>----</span>
+        <span class="row" data-flap>#03 NEXT BUILD</span>
+        <span class="row c-type" data-flap="dim">IN PREPARATION</span>
+        <span class="status"><svg class="mark" viewBox="0 0 14 14" fill="none" stroke="#ffcf33" stroke-width="2"><path d="M3 2l7 5-7 5z"/></svg><span class="row" data-flap>BOARDING SOON</span></span>
+      </a>
+      <div class="tr held" role="row">
+        <span class="row c-year" data-flap>----</span>
+        <span class="row" data-flap>EARLIER WORK</span>
+        <span class="row c-type" data-flap>NOT LISTED HERE</span>
+        <span class="status"><svg class="mark" viewBox="0 0 14 14" fill="none" stroke="#a99bc9" stroke-width="2"><circle cx="7" cy="7" r="5"/></svg><span class="row" data-flap>HELD AT GATE</span></span>
+      </div>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <p class="line">I build with <em>curiosity</em> and test with <em>honesty</em>. Born in Aruba, Chinese by heritage, based in Rotterdam.</p>
+    <div class="meta"><span>Next roles <b>scheduled</b>: Systems · Firmware Security</span><span class="scroll"><i></i>Scroll</span></div>
+  </footer>
+</div>
+<p class="hint">Type anything: the board will spell it</p>
+<canvas class="cursor-canvas" aria-hidden="true"></canvas>
+
+<script>
+(() => {
+  const CHARS = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#·:-.,!?';
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  class Flap {
+    constructor(char, cls) {
+      this.char = char;
+      this.el = document.createElement('span');
+      this.el.className = 'f' + (cls ? ' ' + cls : '') + (char === ' ' ? ' sp' : '');
+      this.el.setAttribute('aria-hidden', 'true');
+      this.el.innerHTML = '<span class="h t"><b></b></span><span class="h b"><b></b></span><span class="h ft"><b></b></span><span class="h fb"><b></b></span>';
+      [this.t, this.b, this.ft, this.fb] = [...this.el.querySelectorAll('b')];
+      this.paint(char);
+      this.queue = [];
+      this.busy = false;
+    }
+    paint(c) { this.t.textContent = this.b.textContent = this.ft.textContent = this.fb.textContent = c; }
+    to(target, spins = 0) {
+      if (reduced) { this.char = target; this.paint(target); return; }
+      const seq = [];
+      for (let i = 0; i < spins; i++) seq.push(CHARS[1 + Math.floor(Math.random() * (CHARS.length - 1))]);
+      seq.push(target);
+      this.queue = seq;
+      if (!this.busy) this.next();
+    }
+    next() {
+      const c = this.queue.shift();
+      if (c === undefined) { this.busy = false; return; }
+      this.busy = true;
+      const old = this.char;
+      this.t.textContent = c; this.fb.textContent = c;
+      this.ft.textContent = old; this.b.textContent = old;
+      const d = 70;
+      this.ft.parentElement.animate([{ transform: 'rotateX(0deg)' }, { transform: 'rotateX(-90deg)' }], { duration: d, easing: 'ease-in', fill: 'forwards' });
+      const a = this.fb.parentElement.animate([{ transform: 'rotateX(90deg)' }, { transform: 'rotateX(0deg)' }], { duration: d, delay: d, easing: 'ease-out', fill: 'forwards' });
+      a.onfinish = () => { this.char = c; this.b.textContent = c; this.ft.textContent = c; this.ft.parentElement.getAnimations().forEach(x => x.cancel()); this.next(); };
+    }
+  }
+
+  class FlapRow {
+    constructor(el) {
+      this.el = el;
+      this.text = el.textContent;
+      this.cls = el.dataset.flap === 'dim' ? 'dim' : '';
+      el.textContent = '';
+      this.flaps = [...this.text].map(c => new Flap(c.toUpperCase(), this.cls));
+      this.flaps.forEach(f => el.append(f.el));
+    }
+    set(text, spin = 4, stagger = 18) {
+      const t = text.toUpperCase().padEnd(this.flaps.length, ' ').slice(0, this.flaps.length);
+      [...t].forEach((c, i) => {
+        if (this.flaps[i].char === c && spin === 0) return;
+        setTimeout(() => this.flaps[i].to(c, spin + Math.floor(Math.random() * 3)), i * stagger);
+      });
+    }
+    shuffle() { this.set(this.text, 5, 22); }
+  }
+
+  const rows = new Map();
+  document.querySelectorAll('[data-flap]').forEach((el, i) => {
+    const r = new FlapRow(el);
+    rows.set(el, r);
+    if (!reduced) {
+      r.flaps.forEach(f => { f.char = ' '; f.paint(' '); });
+      setTimeout(() => r.set(r.text, 6, 30), 120 + i * 70);
+    }
+  });
+
+  const name = rows.get(document.querySelector('[data-flap="name"]'));
+  const sub = rows.get(document.querySelector('[data-flap="sub"]'));
+
+  // name tiles flip under the pointer
+  name.flaps.forEach(f => f.el.addEventListener('pointerenter', () => { if (!f.busy && f.char !== ' ') f.to(f.char, 5); }));
+  // project rows re-flip on hover
+  document.querySelectorAll('.tr').forEach(tr => tr.addEventListener('pointerenter', () => {
+    tr.querySelectorAll('[data-flap]').forEach(el => rows.get(el).shuffle());
+  }));
+
+  // type to spell on the board
+  let typed = '', typingTimer;
+  addEventListener('keydown', e => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key.length === 1 && CHARS.includes(e.key.toUpperCase())) typed = (typed + e.key).slice(-9);
+    else if (e.key === 'Backspace') typed = typed.slice(0, -1);
+    else return;
+    name.set(typed.toUpperCase().padStart(Math.min(9, typed.length), ' ').padEnd(9, ' '), 2, 10);
+    sub.set('HELLO, ' + typed.toUpperCase() + ' · WELCOME ABOARD', 2, 8);
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(() => { typed = ''; name.set(name.text, 4, 40); sub.set(sub.text, 3, 12); }, 2600);
+  });
+
+  // clocks and the ambient phase follow real Rotterdam time
+  const rtm = rows.get(document.querySelector('[data-flap="clock-rtm"]'));
+  const aua = rows.get(document.querySelector('[data-flap="clock-aua"]'));
+  const fmt = tz => new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz }).format(new Date());
+  const phases = [
+    [0, 'Night shift', 'rgba(120, 90, 200, 0.10)'],
+    [6, 'First light', 'rgba(255, 170, 120, 0.08)'],
+    [9, 'Daylight', 'rgba(255, 207, 51, 0.09)'],
+    [18, 'Evening', 'rgba(255, 140, 90, 0.08)'],
+    [22, 'Night shift', 'rgba(120, 90, 200, 0.10)']
+  ];
+  function tick() {
+    const r = fmt('Europe/Amsterdam'), a = fmt('America/Aruba');
+    if (rtm.flaps.map(f => f.char).join('') !== r) rtm.set(r, 1, 30);
+    if (aua.flaps.map(f => f.char).join('') !== a) aua.set(a, 1, 30);
+    const h = +r.slice(0, 2);
+    const p = phases.filter(x => h >= x[0]).pop();
+    document.documentElement.style.setProperty('--phase', p[2]);
+    document.getElementById('phase-label').textContent = p[1];
+  }
+  setTimeout(tick, 1400); setInterval(tick, 10000);
+
+  // live blueprint grid that bends toward the pointer
+  const cv = document.getElementById('grid'), cx = cv.getContext('2d');
+  const pointer = { x: innerWidth / 2, y: innerHeight / 2, tx: innerWidth / 2, ty: innerHeight / 2 };
+  let W, H, dpr;
+  function size() { dpr = Math.min(devicePixelRatio, 2); W = innerWidth; H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px'; cx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+  size(); addEventListener('resize', size);
+  const STEP = 48;
+  function bend(x, y) {
+    const dx = pointer.x - x, dy = pointer.y - y, d2 = dx * dx + dy * dy, R = 220;
+    const k = Math.exp(-d2 / (2 * R * R)) * 0.22;
+    return [x + dx * k, y + dy * k];
+  }
+  function drawGrid() {
+    pointer.x += (pointer.tx - pointer.x) * 0.08; pointer.y += (pointer.ty - pointer.y) * 0.08;
+    cx.clearRect(0, 0, W, H);
+    cx.strokeStyle = 'rgba(169,155,201,0.075)'; cx.lineWidth = 1;
+    for (let x = 0; x <= W + STEP; x += STEP) { cx.beginPath(); for (let y = 0; y <= H; y += 16) { const [px, py] = bend(x, y); y ? cx.lineTo(px, py) : cx.moveTo(px, py); } cx.stroke(); }
+    for (let y = 0; y <= H + STEP; y += STEP) { cx.beginPath(); for (let x = 0; x <= W; x += 16) { const [px, py] = bend(x, y); x ? cx.lineTo(px, py) : cx.moveTo(px, py); } cx.stroke(); }
+    // dimension line under the name
+    const n = document.querySelector('.name').getBoundingClientRect();
+    cx.strokeStyle = 'rgba(255,207,51,0.28)'; cx.fillStyle = 'rgba(255,207,51,0.5)';
+    const y = n.bottom + 10;
+    cx.beginPath(); cx.moveTo(n.left, y); cx.lineTo(n.right, y); cx.moveTo(n.left, y - 5); cx.lineTo(n.left, y + 5); cx.moveTo(n.right, y - 5); cx.lineTo(n.right, y + 5); cx.stroke();
+    cx.font = '10px "Martian Mono", monospace'; cx.textAlign='right'; cx.fillText('BC-001 · SCALE 1:1', n.right, y - 8); cx.textAlign='left';
+    requestAnimationFrame(drawGrid);
+  }
+  requestAnimationFrame(drawGrid);
+
+  // parallax line objects
+  const objs = [...document.querySelectorAll('.obj')];
+  addEventListener('pointermove', e => {
+    pointer.tx = e.clientX; pointer.ty = e.clientY;
+    const nx = e.clientX / innerWidth - 0.5, ny = e.clientY / innerHeight - 0.5;
+    objs.forEach(o => { const d = +o.dataset.depth; o.style.transform = `translate(${nx * d}px, ${ny * d}px) rotate(${nx * d * 0.4}deg)`; });
+  });
+
+  // cursor: a flap-chip head exactly at the pointer, trailing tiles behind it
+  const cc = document.querySelector('.cursor-canvas'), c2 = cc.getContext('2d');
+  function csize() { cc.width = innerWidth * dpr; cc.height = innerHeight * dpr; cc.style.width = innerWidth + 'px'; cc.style.height = innerHeight + 'px'; c2.setTransform(dpr, 0, 0, dpr, 0, 0); }
+  csize(); addEventListener('resize', csize);
+  const N = 14, trail = Array.from({ length: N }, () => ({ x: -50, y: -50 }));
+  const head = { x: -50, y: -50, seen: false };
+  addEventListener('pointermove', e => { head.x = e.clientX; head.y = e.clientY; if (!head.seen) { trail.forEach(p => { p.x = head.x; p.y = head.y; }); head.seen = true; } });
+  let hovering = false;
+  document.addEventListener('pointerover', e => { hovering = !!e.target.closest('a, .f'); });
+  function drawCursor() {
+    c2.clearRect(0, 0, innerWidth, innerHeight);
+    let px = head.x, py = head.y;
+    trail.forEach((p, i) => { const k = 0.34 - i * 0.012; p.x += (px - p.x) * k; p.y += (py - p.y) * k; px = p.x; py = p.y; });
+    for (let i = N - 1; i >= 0; i--) {
+      const p = trail[i], s = 7 - i * 0.38, a = 0.55 - i * 0.035;
+      if (s <= 0 || a <= 0) continue;
+      c2.fillStyle = `rgba(255,207,51,${a})`;
+      c2.fillRect(p.x - s / 2, p.y - s * 0.7, s, s * 1.4);
+    }
+    const hs = hovering ? 22 : 10;
+    c2.fillStyle = '#ffcf33';
+    c2.fillRect(head.x - hs / 2, head.y - hs * 0.7, hs, hs * 1.4);
+    c2.fillStyle = '#070310';
+    c2.fillRect(head.x - hs / 2, head.y - 1, hs, 2);
+    requestAnimationFrame(drawCursor);
+  }
+  requestAnimationFrame(drawCursor);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,329 @@
+---
+import FlapText from './FlapText.astro';
+import { Translator, type Locale } from '../../i18n/Translator';
+
+interface Props {
+  locale: Locale;
+  route: string;
+}
+
+const { locale, route } = Astro.props;
+const i18n = new Translator(locale);
+const { t } = i18n;
+const home = i18n.path('/');
+const contact = i18n.path('/contact/');
+const alternates = i18n.alternates(route);
+const links = [
+  { href: `${home}#work`, label: t.nav.work },
+  { href: `${home}#about`, label: t.nav.about },
+  { href: `${home}#career`, label: t.nav.career }
+];
+---
+
+<header class="site-header" data-site-header>
+  <a class="brand" href={home} aria-label={t.nav.home}>
+    <span class="brand__tile" aria-hidden="true"><span class="f" data-c="B" data-b="B"></span></span>
+    <span class="brand__name">bhccob.me</span>
+  </a>
+
+  <nav class="site-nav" aria-label="Primary">
+    <ul>
+      {links.map((link) => <li><a class="site-nav__link" href={link.href}>{link.label}</a></li>)}
+    </ul>
+  </nav>
+
+  <div class="header-tools">
+    <button class="tool" type="button" data-terminal-open aria-label={t.nav.terminal} title={t.nav.terminal}>
+      <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 5l5 5-5 5M10 15h7" stroke-linecap="round" stroke-linejoin="round" /></svg>
+    </button>
+    <div class="lang" role="group" aria-label={t.nav.language}>
+      <a href={alternates.en} hreflang="en" lang="en" aria-current={locale === 'en' ? 'true' : undefined} aria-label={locale === 'en' ? 'English' : t.nav.switchTo}>EN</a>
+      <a href={alternates.nl} hreflang="nl" lang="nl" aria-current={locale === 'nl' ? 'true' : undefined} aria-label={locale === 'nl' ? 'Nederlands' : t.nav.switchTo}>NL</a>
+    </div>
+    <a class="btn header-cta" href={contact}>
+      {t.nav.send}
+      <svg class="icon" viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4" /></svg>
+    </a>
+    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="mobile-menu" data-menu-toggle>
+      <span class="visually-hidden" data-menu-label data-open-label={t.nav.menu} data-close-label={t.nav.close}>{t.nav.menu}</span>
+      <span class="menu-btn__line" aria-hidden="true"></span>
+      <span class="menu-btn__line" aria-hidden="true"></span>
+    </button>
+  </div>
+</header>
+
+<div class="mobile-menu" id="mobile-menu" data-mobile-menu hidden>
+  <nav aria-label="Mobile">
+    <ol>
+      {
+        [...links, { href: contact, label: t.nav.contact }].map((link, index) => (
+          <li style={`--i:${index}`}>
+            <a href={link.href} data-menu-link>
+              <span class="mobile-menu__num">0{index + 1}</span>
+              <FlapText text={link.label} play="none" label={link.label} class="mobile-menu__flap" />
+            </a>
+          </li>
+        ))
+      }
+    </ol>
+  </nav>
+  <p class="mobile-menu__foot">bob@rotterdam:~$ <span class="yellow">_</span></p>
+</div>
+
+<style>
+  .site-header {
+    position: fixed;
+    inset: 0 0 auto;
+    z-index: 80;
+    height: var(--header-h);
+    padding: 0 var(--gutter);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    transition: transform 0.5s var(--ease-out), background-color 0.4s;
+    background: linear-gradient(var(--line), var(--line)) left bottom / 100% 1px no-repeat;
+    background-color: transparent;
+  }
+
+  .site-header.is-scrolled {
+    background-color: rgb(21 11 38 / 0.94);
+  }
+
+  .site-header.is-hidden {
+    transform: translateY(-100%);
+  }
+
+  .brand {
+    position: relative;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .brand__tile {
+    display: inline-flex;
+    --tw: 0.78;
+    --th: 1.18;
+    --r: 0.1em;
+    font: 800 24px/1 var(--font-flap);
+    color: var(--on-yellow);
+  }
+
+  .brand__tile .f::before {
+    background: var(--yellow-soft);
+  }
+
+  .brand__tile .f::after {
+    background: var(--yellow);
+    border-top-color: rgb(21 11 38 / 0.5);
+  }
+
+  .brand__name {
+    font: 500 14px/1 var(--font-mono);
+    letter-spacing: 0.02em;
+  }
+
+  .site-nav ul {
+    display: flex;
+    gap: 34px;
+  }
+
+  .site-nav__link {
+    position: relative;
+    display: block;
+    padding: 8px 0;
+    font: 450 12px/1 var(--font-mono);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--lilac);
+    transition: color 0.3s;
+  }
+
+  .site-nav__link::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: var(--yellow);
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.4s var(--ease-out);
+  }
+
+  .site-nav__link:hover,
+  .site-nav__link.is-active {
+    color: var(--paper);
+  }
+
+  .site-nav__link:hover::after,
+  .site-nav__link.is-active::after {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+
+  .header-tools {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .tool {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    color: var(--lilac);
+    border-radius: var(--radius);
+    transition: color 0.3s, background-color 0.3s;
+  }
+
+  .tool:hover {
+    color: var(--on-yellow);
+    background: var(--yellow);
+  }
+
+  .lang {
+    display: flex;
+    gap: 4px;
+    font: 800 17px/1 var(--font-flap);
+  }
+
+  .lang a {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 34px;
+    color: var(--dim);
+    background: linear-gradient(var(--tile-hi), var(--tile) 50%, var(--split) 50%, var(--split) calc(50% + 1px), var(--tile-2) calc(50% + 1px));
+    border-radius: 3px;
+    transition: color 0.3s;
+  }
+
+  .lang a:hover {
+    color: var(--paper);
+  }
+
+  .lang a[aria-current='true'] {
+    color: var(--yellow);
+  }
+
+  .header-cta {
+    min-height: 42px;
+    padding-inline: 18px;
+    font-size: 19px;
+  }
+
+  .menu-btn {
+    position: relative;
+    display: none;
+    width: 44px;
+    height: 44px;
+  }
+
+  .menu-btn__line {
+    position: absolute;
+    left: 11px;
+    right: 11px;
+    height: 2px;
+    background: var(--paper);
+    transition: transform 0.45s var(--ease-out);
+  }
+
+  .menu-btn__line:nth-of-type(2) {
+    transform: translateY(-4px);
+  }
+
+  .menu-btn__line:nth-of-type(3) {
+    transform: translateY(4px);
+  }
+
+  .menu-btn[aria-expanded='true'] .menu-btn__line:nth-of-type(2) {
+    transform: rotate(45deg);
+  }
+
+  .menu-btn[aria-expanded='true'] .menu-btn__line:nth-of-type(3) {
+    transform: rotate(-45deg);
+  }
+
+  .mobile-menu {
+    position: fixed;
+    inset: 0;
+    z-index: 79;
+    padding: calc(var(--header-h) + 36px) var(--gutter) 32px;
+    background: var(--board-deep);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    clip-path: inset(0 0 100% 0);
+    transition: clip-path 0.7s var(--ease-in-out);
+  }
+
+  .mobile-menu.is-open {
+    clip-path: inset(0 0 0 0);
+  }
+
+  .mobile-menu ol {
+    display: grid;
+    gap: 14px;
+  }
+
+  .mobile-menu a {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 6px 0;
+  }
+
+  .mobile-menu li {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity 0.5s var(--ease-out), transform 0.6s var(--ease-out);
+    transition-delay: calc(0.18s + var(--i) * 70ms);
+  }
+
+  .mobile-menu.is-open li {
+    opacity: 1;
+    transform: none;
+  }
+
+  .mobile-menu__num {
+    font: 450 12px/1 var(--font-mono);
+    color: var(--dim);
+    letter-spacing: 0.1em;
+  }
+
+  .mobile-menu :global(.mobile-menu__flap) {
+    --tw: 0.72;
+    --th: 1.2;
+    --gap: 0.08em;
+    font-size: clamp(34px, 11vw, 54px);
+  }
+
+  .mobile-menu__foot {
+    font: 450 12px/1 var(--font-mono);
+    color: var(--dim);
+  }
+
+  @media (max-width: 960px) {
+    .site-nav,
+    .header-cta {
+      display: none;
+    }
+
+    .menu-btn {
+      display: block;
+    }
+  }
+
+  @media (max-width: 420px) {
+    .tool {
+      display: none;
+    }
+  }
+</style>

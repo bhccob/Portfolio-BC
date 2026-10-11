@@ -1,0 +1,51 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - link "bhccob.me" [ref=e5]:
+        - /url: "#"
+      - navigation "Main" [ref=e7]:
+        - link "Work" [ref=e8]:
+          - /url: "#work"
+        - link "About" [ref=e9]:
+          - /url: "#about"
+        - link "Career" [ref=e10]:
+          - /url: "#career"
+        - link "Contact" [ref=e11]:
+          - /url: "#contact"
+      - link "Send a message" [ref=e12]:
+        - /url: "#contact"
+    - main "Departures board" [ref=e15]:
+      - generic [ref=e16]:
+        - generic [ref=e17]:
+          - generic [ref=e18]: Departures
+          - generic [ref=e19]: Vertrek
+          - generic [ref=e20]: Salida
+          - generic [ref=e21]: Night shift
+        - generic "Local times" [ref=e22]:
+          - generic [ref=e23]:
+            - generic [ref=e24]: ·
+            - generic [ref=e60]: Rotterdam
+          - generic [ref=e61]: Oranjestad, Aruba
+      - heading "Bob Chung" [level=1] [ref=e99]
+      - paragraph [ref=e181]
+      - table "Projects" [ref=e515]:
+        - row "Year Project Type Status" [ref=e516]:
+          - generic [ref=e517]: Year
+          - generic [ref=e518]: Project
+          - generic [ref=e519]: Type
+          - generic [ref=e520]: Status
+        - row [ref=e521]
+        - row [ref=e865]
+        - row [ref=e1237]
+        - row [ref=e1560]
+    - contentinfo [ref=e1869]:
+      - paragraph [ref=e1870]:
+        - text: I build with
+        - emphasis [ref=e1871]: curiosity
+        - text: and test with
+        - emphasis [ref=e1872]: honesty
+        - text: . Born in Aruba, Chinese by heritage, based in Rotterdam.
+      - generic [ref=e1873]:
+        - generic [ref=e1874]: "Next roles scheduled: Systems · Firmware Security"
+        - generic [ref=e1875]: Scroll
+  - paragraph [ref=e1877]: "Type anything: the board will spell it"

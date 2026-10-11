@@ -1,0 +1,89 @@
+---
+/**
+ * Low-key line drawings (maths, tech and sports) placed around a section like
+ * notes on a technical drawing. They drift with the scroll (`data-speed`) and
+ * stay well behind the content.
+ */
+import Icon from './Icon.astro';
+import type { IconName } from './icons';
+
+export interface LineObject {
+  icon: IconName;
+  /** Position inside the parent section, in % (left, top). */
+  x: number;
+  y: number;
+  size: number;
+  /** Parallax factor: positive drifts up faster than the scroll, negative lags. */
+  speed: number;
+  rotate?: number;
+  accent?: boolean;
+  /** A short drawing annotation, e.g. "Ø 450". */
+  note?: string;
+}
+
+interface Props {
+  items: LineObject[];
+}
+
+const { items } = Astro.props;
+---
+
+<div class="objects" aria-hidden="true">
+  {
+    items.map((item) => (
+      <span
+        class:list={['objects__item', { 'objects__item--accent': item.accent }]}
+        data-speed={item.speed}
+        data-spin={item.rotate ?? 0}
+        style={`left:${item.x}%;top:${item.y}%;--size:${item.size}px;--rot:${item.rotate ?? 0}deg`}
+      >
+        <Icon name={item.icon} size="100%" strokeWidth={1} />
+        {item.note && <span class="objects__note">{item.note}</span>}
+      </span>
+    ))
+  }
+</div>
+
+<style>
+  .objects {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: clip;
+  }
+
+  .objects__item {
+    position: absolute;
+    width: var(--size);
+    height: var(--size);
+    color: rgb(179 165 212 / 0.2);
+    rotate: var(--rot);
+    will-change: transform;
+  }
+
+  .objects__item--accent {
+    color: rgb(255 207 51 / 0.38);
+  }
+
+  .objects__note {
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    margin-left: 10px;
+    padding-left: 18px;
+    font: 450 10px/1 var(--font-mono);
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+    color: rgb(179 165 212 / 0.42);
+    rotate: calc(var(--rot) * -1);
+    background: linear-gradient(currentColor, currentColor) left center / 12px 1px no-repeat;
+  }
+
+  /* on narrow screens there are no empty gutters to hold them */
+  @media (max-width: 900px) {
+    .objects {
+      display: none;
+    }
+  }
+</style>

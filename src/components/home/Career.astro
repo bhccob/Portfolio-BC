@@ -1,0 +1,173 @@
+---
+import FlapText from '../ui/FlapText.astro';
+import { Translator, type Locale } from '../../i18n/Translator';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const { t } = new Translator(locale);
+const c = t.career;
+const pad = Math.max(c.currentStatus.length, c.nextStatus.length);
+---
+
+<section class="career section" id="career" aria-labelledby="career-title">
+  <div class="container">
+    <div class="career__grid">
+      <div class="career__intro">
+        <h2 id="career-title" class="display career__title" data-split set:html={c.title} />
+        <p class="body-text" data-reveal>{c.roadmapNote}</p>
+      </div>
+
+      <ol class="service">
+        <li class="service__row service__row--now" data-reveal data-flap-host>
+          <FlapText text={c.currentStatus} pad={pad} hover class="service__status" />
+          <div class="service__body">
+            <h3 class="service__role">{c.currentRole}</h3>
+            <p class="service__org">{c.currentOrg}</p>
+            <p class="service__text">{c.currentText}</p>
+          </div>
+        </li>
+        {
+          c.roles.map((role) => (
+            <li class="service__row" data-reveal data-flap-host>
+              <FlapText text={c.nextStatus} pad={pad} tone="lilac" hover class="service__status" />
+              <div class="service__body">
+                <h3 class="service__role">{role.title}</h3>
+                <p class="service__text">{role.text}</p>
+              </div>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+
+    <details class="why" data-reveal>
+      <summary>
+        <span>{c.whyToggle}</span>
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6l4 4 4-4" /></svg>
+      </summary>
+      <p>{c.why}</p>
+    </details>
+  </div>
+</section>
+
+<style>
+  .career__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    gap: 40px clamp(40px, 6vw, 96px);
+    align-items: start;
+  }
+
+  .career__intro {
+    display: grid;
+    gap: 22px;
+  }
+
+  .career__title {
+    font-size: clamp(44px, 5.4vw, 76px);
+  }
+
+  .service {
+    display: grid;
+  }
+
+  .service__row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 16px 28px;
+    padding: 24px 0;
+    background: linear-gradient(var(--line), var(--line)) left top / 100% 1px no-repeat;
+  }
+
+  .service__row:last-child {
+    background:
+      linear-gradient(var(--line), var(--line)) left top / 100% 1px no-repeat,
+      linear-gradient(var(--line), var(--line)) left bottom / 100% 1px no-repeat;
+  }
+
+  .service :global(.service__status) {
+    --tw: 0.86;
+    --th: 1.45;
+    --gap: 0.1em;
+    font-size: 15px;
+    align-self: start;
+  }
+
+  .service__body {
+    display: grid;
+    gap: 6px;
+  }
+
+  .service__role {
+    font: 800 clamp(24px, 2.3vw, 32px) / 1 var(--font-flap);
+    text-transform: uppercase;
+    color: var(--paper);
+  }
+
+  .service__row--now .service__role {
+    color: var(--yellow);
+  }
+
+  .service__org {
+    font: 450 11px/1.5 var(--font-mono);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+
+  .service__text {
+    color: var(--lilac);
+    font-size: 16px;
+    max-width: 40em;
+  }
+
+  .why {
+    margin-top: 36px;
+    max-width: 52em;
+  }
+
+  .why summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    list-style: none;
+    font-weight: 600;
+    color: var(--paper);
+    padding-bottom: 4px;
+    background: linear-gradient(var(--yellow), var(--yellow)) left bottom / 100% 2px no-repeat;
+    cursor: pointer;
+  }
+
+  .why summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .why summary svg {
+    color: var(--yellow);
+    transition: transform 0.35s var(--ease-out);
+  }
+
+  .why[open] summary svg {
+    transform: rotate(180deg);
+  }
+
+  .why p {
+    margin-top: 16px;
+    color: var(--lilac);
+  }
+
+  @media (max-width: 960px) {
+    .career__grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .service__row {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

@@ -1,0 +1,62 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e2]: MH1 · 20 KG
+  - generic [aria-hidden]: Σ f(t) = ∫ curiosity · dt
+  - generic [ref=f1e5]:
+    - banner [ref=f1e6]:
+      - generic [ref=f1e7]:
+        - generic [ref=f1e8]: BHCCOB.ME
+        - generic [ref=f1e9]: Portfolio board
+        - generic [ref=f1e10]: Rev 2.0 · 2026
+      - navigation "Main" [ref=f1e11]:
+        - link "P1 Work" [ref=f1e12]:
+          - /url: "#work"
+        - link "P2 About" [ref=f1e13]:
+          - /url: "#about"
+        - link "P3 Career" [ref=f1e14]:
+          - /url: "#career"
+        - link "P4 Contact" [ref=f1e15]:
+          - /url: "#contact"
+    - region "Introduction" [ref=f1e16]:
+      - heading "Bob Chung" [level=1] [ref=f1e17]:
+        - generic [ref=f1e18]: Bob
+        - generic [ref=f1e19]: Chung
+      - paragraph [ref=f1e20]:
+        - strong [ref=f1e21]: Student software engineer in Rotterdam.
+        - text: Born in Aruba, Chinese by heritage. I build with curiosity and test with honesty.
+      - generic [ref=f1e22]:
+        - link "Send me a message" [ref=f1e23]:
+          - /url: "#contact"
+        - link "GitHub" [ref=f1e25]:
+          - /url: https://github.com/bhccob
+        - link "Instagram" [ref=f1e27]:
+          - /url: https://www.instagram.com/bhccob/
+    - generic [ref=f1e29]:
+      - generic [ref=f1e30]: U1
+      - generic [ref=f1e31]:
+        - img "Portrait of Bob Chung" [ref=f1e64]
+        - generic [ref=f1e65]:
+          - generic [ref=f1e66]: BC-2006
+          - text: ARUBA → ROTTERDAMFW REV. STUDENT
+    - region "Projects" [ref=f1e67]:
+      - 'link "U2 · PROJECT #01 2025 Cookies Clicker Web game · school project" [ref=f1e68]':
+        - /url: https://github.com/bhccob/Cookies-Clicker
+        - generic [ref=f1e70]:
+          - generic [ref=f1e71]: "U2 · PROJECT #01"
+          - generic [ref=f1e72]: "2025"
+        - generic [ref=f1e73]: Cookies Clicker
+        - generic [ref=f1e74]: Web game · school project
+      - 'link "U3 · PROJECT #02 2026 Jontai Energy Company website · personal project" [ref=f1e75]':
+        - /url: https://github.com/bhccob/JE
+        - generic [ref=f1e77]:
+          - generic [ref=f1e78]: "U3 · PROJECT #02"
+          - generic [ref=f1e79]: "2026"
+        - generic [ref=f1e80]: Jontai Energy
+        - generic [ref=f1e81]: Company website · personal project
+      - 'link "U4 · PROJECT #03 DNP Next build Footprint reserved, in preparation" [ref=f1e82]':
+        - /url: https://github.com/bhccob
+        - generic [ref=f1e84]:
+          - generic [ref=f1e85]: "U4 · PROJECT #03"
+          - generic [ref=f1e86]: DNP
+        - generic [ref=f1e87]: Next build
+        - generic [ref=f1e88]: Footprint reserved, in preparation
+      - paragraph [ref=f1e89]: DNP = do not populate.Earlier projects exist butare not placed on this board.

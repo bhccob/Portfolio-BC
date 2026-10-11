@@ -1,0 +1,48 @@
+/*
+ * Design tokens: the departures board.
+ * Aubergine housing, flap tiles with a black split, signal-yellow characters.
+ */
+:root {
+  /* board housing, from deepest to lightest */
+  --board-deep: #0e0719;
+  --board: #150b26;
+  --board-2: #1b0f31;
+  --board-3: #24163f;
+
+  /* flap tiles */
+  --tile-hi: #2a1a45;
+  --tile: #221539;
+  --tile-2: #1a1030;
+  --split: #070310;
+
+  /* ink */
+  --yellow: #ffcf33;
+  --yellow-soft: #ffe07a;
+  --on-yellow: #150b26;
+  --paper: #f4efe6;
+  --lilac: #b3a5d4;
+  --dim: #9283b8;
+  --line: rgb(179 165 212 / 0.13);
+  --line-strong: rgb(179 165 212 / 0.28);
+  --grid: rgb(179 165 212 / 0.07);
+
+  /* type */
+  --font-flap: 'Sofia Sans Extra Condensed Variable', 'Arial Narrow', 'Roboto Condensed', sans-serif;
+  --font-sans: 'Sofia Sans Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'Martian Mono Variable', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+
+  /* layout */
+  --gutter: clamp(16px, 4vw, 56px);
+  --max: 1360px;
+  --header-h: 76px;
+  --section-y: clamp(64px, 6vw, 96px);
+  --radius: 4px;
+
+  /* motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.76, 0, 0.24, 1);
+  --ease-flap-in: cubic-bezier(0.55, 0, 1, 0.45);
+  --ease-flap-out: cubic-bezier(0, 0.55, 0.45, 1);
+
+  color-scheme: dark;
+}

@@ -1,0 +1,672 @@
+- generic [active] [ref=f18e1]:
+  - link "Direct naar de inhoud" [ref=f18e2]:
+    - /url: "#main"
+  - text: B B H H C C C C O O B B . . M M E E 0 0 % %
+  - banner [ref=f18e3]:
+    - link "Bob Chung, terug naar home" [ref=f18e4]:
+      - /url: /nl/
+      - generic [ref=f18e6]: B B
+      - generic [ref=f18e7]: bhccob.me
+    - navigation "Primary" [ref=f18e8]:
+      - list [ref=f18e9]:
+        - listitem [ref=f18e10]:
+          - link "Werk" [ref=f18e11]:
+            - /url: /nl/#work
+        - listitem [ref=f18e12]:
+          - link "Over mij" [ref=f18e13]:
+            - /url: /nl/#about
+        - listitem [ref=f18e14]:
+          - link "Loopbaan" [ref=f18e15]:
+            - /url: /nl/#career
+    - generic [ref=f18e16]:
+      - button "Terminal openen" [ref=f18e17]
+      - group "Taal" [ref=f18e20]:
+        - link "View this page in English" [ref=f18e21]:
+          - /url: /
+          - text: EN
+        - link "Nederlands" [ref=f18e22]:
+          - /url: /nl/
+          - text: NL
+      - link "Stuur een bericht" [ref=f18e23]:
+        - /url: /nl/contact/
+  - text: W W E E R R K K O O V V E E R R M M I I J J L L O O O O P P B B A A A A N N C C O O N N T T A A C C T T
+  - main [ref=f18e26]:
+    - region [ref=f18e27]:
+      - generic [aria-hidden]:
+        - generic: Ø 450
+        - generic: f(t)
+      - generic [ref=f18e28]:
+        - generic [ref=f18e29]:
+          - paragraph [ref=f18e30]:
+            - generic [ref=f18e31]: Vertrek
+            - generic [ref=f18e32]: Departures
+            - generic [ref=f18e33]: Salida
+            - generic [ref=f18e34]: Dagdienst
+          - generic [ref=f18e35]:
+            - generic [ref=f18e36]:
+              - generic [ref=f18e39]:
+                - generic [ref=f18e40]: "- -"
+                - generic [ref=f18e41]: "- -"
+                - generic [ref=f18e42]: ": :"
+                - generic [ref=f18e43]: "- -"
+                - generic [ref=f18e44]: "- -"
+              - generic [ref=f18e45]: Rotterdam
+            - generic [ref=f18e46]:
+              - generic [ref=f18e49]:
+                - generic [ref=f18e50]: "- -"
+                - generic [ref=f18e51]: "- -"
+                - generic [ref=f18e52]: ": :"
+                - generic [ref=f18e53]: "- -"
+                - generic [ref=f18e54]: "- -"
+              - generic [ref=f18e55]: Oranjestad, Aruba
+        - heading "Bob Chung" [level=1] [ref=f18e56]:
+          - generic [ref=f18e60]:
+            - text: J
+            - generic [ref=f18e62]: J
+        - generic [ref=f18e72]: BC-2006 · Schaal 1:1
+        - paragraph [ref=f18e73]:
+          - generic [ref=f18e74]: Student software engineer in Rotterdam
+        - generic [ref=f18e118]:
+          - generic [aria-hidden] [ref=f18e119]:
+            - generic [ref=f18e120]: Jaar
+            - generic [ref=f18e121]: Project
+            - generic [ref=f18e122]: Lijn
+            - generic [ref=f18e123]: Status
+          - list [ref=f18e124]:
+            - listitem [ref=f18e125]:
+              - 'link "2025 #01 Cookies Clicker GD · Gamedev Vertrokken" [ref=f18e126]':
+                - /url: "#project-cookies-clicker"
+                - generic [ref=f18e127]: "2025"
+                - generic [ref=f18e135]: "#01 Cookies Clicker"
+                - generic [ref=f18e160]: GD · Gamedev
+                - generic [ref=f18e182]: Vertrokken
+            - listitem [ref=f18e200]:
+              - 'link "2026 #02 Jontai Energy WD · Webdev Vertrokken" [ref=f18e201]':
+                - /url: "#project-jontai-energy"
+                - generic [ref=f18e202]: "2026"
+                - generic [ref=f18e210]: "#02 Jontai Energy"
+                - generic [ref=f18e235]: WD · Webdev
+                - generic [ref=f18e257]: Vertrokken
+            - listitem [ref=f18e275]:
+              - link "#03 Volgende build In voorbereiding Instappen" [ref=f18e276]:
+                - /url: "#work-next"
+                - generic [ref=f18e284]: "#03 Volgende build"
+                - generic [ref=f18e309]: In voorbereiding
+                - generic [ref=f18e330]: Instappen
+            - listitem [ref=f18e348]:
+              - link "Eerder werk Niet vermeld Aan de gate" [ref=f18e349]:
+                - /url: "#work-held"
+                - generic [ref=f18e357]: Eerder werk
+                - generic [ref=f18e381]: Niet vermeld
+                - generic [ref=f18e402]: Aan de gate
+        - generic [ref=f18e422]:
+          - paragraph [ref=f18e423]:
+            - text: Ik bouw met
+            - emphasis [ref=f18e424]: nieuwsgierigheid
+            - text: en test met
+            - emphasis [ref=f18e425]: eerlijkheid
+            - text: . Geboren op Aruba, Chinees van afkomst, gevestigd in Rotterdam.
+          - generic [ref=f18e426]:
+            - paragraph [ref=f18e427]: "Typ iets: het bord spelt het"
+            - link "Scroll" [ref=f18e428]:
+              - /url: "#work"
+    - region [ref=f18e430]:
+      - generic [aria-hidden]:
+        - generic: "{ }"
+      - generic [ref=f18e431]:
+        - paragraph [ref=f18e433]:
+          - generic [ref=f18e434]: Perrons 1–3
+          - generic [ref=f18e435]: 2 vertrokken · 1 instappen
+        - generic [ref=f18e436]:
+          - heading "Projecten, build voor build." [level=2] [ref=f18e437]:
+            - generic [aria-hidden] [ref=f18e439]:
+              - text: Projecten,
+              - emphasis [ref=f18e440]: build
+            - emphasis [ref=f18e443]: voor build.
+          - paragraph [ref=f18e444]: "Elk project is een ander soort werk, dus elk rijdt op een eigen lijn: gameontwikkeling, webontwikkeling en wat er hierna instapt."
+      - article [ref=f18e445]:
+        - generic [ref=f18e446]:
+          - generic [ref=f18e447]:
+            - generic [ref=f18e448]:
+              - generic [ref=f18e449]: "Project #01"
+              - generic [ref=f18e451]:
+                - generic [ref=f18e452]: "# #"
+                - generic [ref=f18e453]: 0 0
+                - generic [ref=f18e454]: 1 1
+            - generic [ref=f18e455]:
+              - generic [ref=f18e456]: "Lijn: Gameontwikkeling"
+              - generic [aria-hidden] [ref=f18e457]:
+                - generic [ref=f18e458]:
+                  - generic [ref=f18e459]: G G
+                  - generic [ref=f18e460]: D D
+                - generic [ref=f18e462]: · ·
+                - generic [ref=f18e465]:
+                  - generic [ref=f18e466]: G G
+                  - generic [ref=f18e467]: A A
+                  - generic [ref=f18e468]: M M
+                  - generic [ref=f18e469]: E E
+                  - generic [ref=f18e470]: D D
+                  - generic [ref=f18e471]: E E
+                  - generic [ref=f18e472]: V V
+            - generic [ref=f18e473]:
+              - generic [ref=f18e474]:
+                - term [ref=f18e475]: Type
+                - definition [ref=f18e476]: Webgame · Schoolproject
+              - generic [ref=f18e477]:
+                - term [ref=f18e478]: Jaar
+                - definition [ref=f18e479]: "2025"
+              - generic [ref=f18e480]:
+                - term [ref=f18e481]: Gebouwd met
+                - definition [ref=f18e482]: HTML · CSS · JavaScript · localStorage
+              - generic [ref=f18e483]:
+                - term [ref=f18e484]: Status
+                - definition [ref=f18e485]: Vertrokken
+          - generic [ref=f18e486]:
+            - heading "Cookies Clicker" [level=3] [ref=f18e487]:
+              - generic [aria-hidden] [ref=f18e489]: Cookies Clicker
+            - paragraph [ref=f18e490]: "Een incrementele browsergame, gebouwd als schoolproject rond één bevredigende loop: klik, verdien koekjes, investeer in upgrades en zie de productie groeien."
+            - 'link "Lees de case study: Cookies Clicker" [ref=f18e491]':
+              - /url: /nl/projects/cookies-clicker/
+              - generic [aria-hidden] [ref=f18e492]:
+                - generic [ref=f18e493]: bhccob/Cookies-Clicker
+                - generic [ref=f18e494]: "#01 · 2025"
+              - img "Interface van Cookies Clicker met de koekjesteller, de winkel met producenten en het boostpaneel" [ref=f18e497]
+            - generic [ref=f18e498]:
+              - link "Lees de case study" [ref=f18e499]:
+                - /url: /nl/projects/cookies-clicker/
+              - link "Bekijk op GitHub" [ref=f18e502]:
+                - /url: https://github.com/bhccob/Cookies-Clicker
+      - article [ref=f18e505]:
+        - generic [ref=f18e506]:
+          - generic [ref=f18e507]:
+            - generic [ref=f18e508]:
+              - generic [ref=f18e509]: "Project #02"
+              - generic [ref=f18e511]:
+                - generic [ref=f18e512]: "# #"
+                - generic [ref=f18e513]: 0 0
+                - generic [ref=f18e514]: 2 2
+            - generic [ref=f18e515]:
+              - generic [ref=f18e516]: "Lijn: Webontwikkeling"
+              - generic [aria-hidden] [ref=f18e517]:
+                - generic [ref=f18e518]:
+                  - generic [ref=f18e519]: W W
+                  - generic [ref=f18e520]: D D
+                - generic [ref=f18e522]: · ·
+                - generic [ref=f18e525]:
+                  - generic [ref=f18e526]: W W
+                  - generic [ref=f18e527]: E E
+                  - generic [ref=f18e528]: B B
+                  - generic [ref=f18e529]: D D
+                  - generic [ref=f18e530]: E E
+                  - generic [ref=f18e531]: V V
+            - generic [ref=f18e532]:
+              - generic [ref=f18e533]:
+                - term [ref=f18e534]: Type
+                - definition [ref=f18e535]: Bedrijfswebsite · Eigen project
+              - generic [ref=f18e536]:
+                - term [ref=f18e537]: Jaar
+                - definition [ref=f18e538]: "2026"
+              - generic [ref=f18e539]:
+                - term [ref=f18e540]: Gebouwd met
+                - definition [ref=f18e541]: HTML · Tailwind CSS · JavaScript · PowerShell
+              - generic [ref=f18e542]:
+                - term [ref=f18e543]: Status
+                - definition [ref=f18e544]: Vertrokken
+          - generic [ref=f18e545]:
+            - heading "Jontai Energy" [level=3] [ref=f18e546]:
+              - generic [aria-hidden] [ref=f18e548]: Jontai Energy
+            - paragraph [ref=f18e549]: "Een website met meerdere pagina’s voor een zonne-energiebedrijf, gebouwd als eigen project: de site stelt het bedrijf voor, leidt bezoekers door de diensten en maakt een offerte aanvragen moeiteloos."
+            - 'link "Lees de case study: Jontai Energy" [ref=f18e550]':
+              - /url: /nl/projects/jontai-energy/
+              - generic [aria-hidden] [ref=f18e551]:
+                - generic [ref=f18e552]: bhccob/JE
+                - generic [ref=f18e553]: "#02 · 2026"
+              - img "Homepagina van Jontai Energy met de kop “Power Your Future” boven een veld met zonnepanelen" [ref=f18e556]
+            - generic [ref=f18e557]:
+              - link "Lees de case study" [ref=f18e558]:
+                - /url: /nl/projects/jontai-energy/
+              - link "Bekijk op GitHub" [ref=f18e561]:
+                - /url: https://github.com/bhccob/JE
+      - generic [ref=f18e564]:
+        - generic [ref=f18e565]:
+          - generic [ref=f18e566]:
+            - generic [ref=f18e567]: "Project #03"
+            - generic [ref=f18e569]:
+              - generic [ref=f18e570]: "# #"
+              - generic [ref=f18e571]: 0 0
+              - generic [ref=f18e572]: 3 3
+          - generic [ref=f18e573]:
+            - heading [level=3] [ref=f18e574]:
+              - text: Volgende build
+              - emphasis [ref=f18e575]: stapt bijna in.
+            - paragraph [ref=f18e576]: Er komen meer projecten aan. Sommige zijn nog in ontwikkeling, andere wachten op publicatie. Volg tot die tijd mee op GitHub.
+            - link "Volg mij op GitHub" [ref=f18e577]:
+              - /url: https://github.com/bhccob
+          - generic [ref=f18e585]:
+            - generic [ref=f18e586]: I I
+            - generic [ref=f18e587]: N N
+            - generic [ref=f18e588]: S S
+            - generic [ref=f18e589]: T T
+            - generic [ref=f18e590]: A A
+            - generic [ref=f18e591]: P P
+            - generic [ref=f18e592]: P P
+            - generic [ref=f18e593]: E E
+            - generic [ref=f18e594]: N N
+        - paragraph [ref=f18e598]:
+          - strong [ref=f18e599]: Aan de gate.
+          - text: Er bestaan eerdere projecten, maar niet al mijn werk haalt dit bord. Alleen projecten die voldoen aan de standaard die ik voor dit portfolio hanteer, staan hier.
+    - region [ref=f18e600]:
+      - generic [aria-hidden]:
+        - generic: "3.14159"
+      - generic [ref=f18e601]:
+        - paragraph [ref=f18e603]:
+          - generic [ref=f18e604]: Route AUA → RTM
+        - generic [ref=f18e605]:
+          - figure "Bob Chung Rotterdam, NL" [ref=f18e606]:
+            - img "Portret van Bob Chung" [ref=f18e609]
+            - generic [ref=f18e610]:
+              - generic [ref=f18e611]: Bob Chung
+              - generic [ref=f18e612]: Rotterdam, NL
+          - generic [ref=f18e613]:
+            - heading "De route tot nu toe." [level=2] [ref=f18e614]:
+              - generic [aria-hidden] [ref=f18e616]:
+                - text: De route
+                - emphasis [ref=f18e617]
+                - emphasis [ref=f18e618]: tot nu toe.
+            - paragraph [ref=f18e619]: Ik ben Bob Chung, een 20-jarige student software engineer in Rotterdam. Geboren en getogen op Aruba en Chinees van afkomst; op mijn achttiende verhuisde ik naar Nederland.
+            - paragraph [ref=f18e620]: Ik werk aan databases, gameontwikkeling en webontwikkeling, en elke discipline scherpt de andere aan. Hardware en elektrotechniek zijn de volgende haltes op mijn route. Ik bouw met nieuwsgierigheid en test met eerlijkheid.
+            - blockquote [ref=f18e621]:
+              - paragraph [ref=f18e622]: “Thuis is voor mij niet één plek. Het is een mix van culturen en de vragen die ik blijf najagen.”
+            - generic [ref=f18e623]:
+              - generic [ref=f18e624]:
+                - term [ref=f18e625]: Leeftijd
+                - definition [ref=f18e626]: "20"
+              - generic [ref=f18e627]:
+                - term [ref=f18e628]: Geboren
+                - definition [ref=f18e629]: Aruba
+              - generic [ref=f18e630]:
+                - term [ref=f18e631]: Afkomst
+                - definition [ref=f18e632]: Chinees
+              - generic [ref=f18e633]:
+                - term [ref=f18e634]: Woont in
+                - definition [ref=f18e635]: Rotterdam, NL
+              - generic [ref=f18e636]:
+                - term [ref=f18e637]: Opleiding
+                - definition [ref=f18e638]: MBO 4, Rotterdam
+        - group "Herkomstroute" [ref=f18e639]:
+          - list [ref=f18e641]:
+            - listitem [ref=f18e642]:
+              - generic [ref=f18e645]:
+                - generic [ref=f18e646]: C C
+                - generic [ref=f18e647]: N N
+              - generic [ref=f18e648]: Afkomst
+              - generic [ref=f18e649]: China
+            - listitem [ref=f18e650]:
+              - generic [ref=f18e653]:
+                - generic [ref=f18e654]: A A
+                - generic [ref=f18e655]: U U
+                - generic [ref=f18e656]: A A
+              - generic [ref=f18e657]: Geboren & getogen
+              - generic [ref=f18e658]: Aruba
+            - listitem [ref=f18e659]:
+              - generic [ref=f18e662]:
+                - generic [ref=f18e663]: R R
+                - generic [ref=f18e664]: T T
+                - generic [ref=f18e665]: M M
+              - generic [ref=f18e666]: Sinds mijn achttiende
+              - generic [ref=f18e667]: Rotterdam
+        - paragraph [ref=f18e668]:
+          - generic [ref=f18e669]: Een regel die ik volg
+          - generic [ref=f18e670]: “Overdenken is angst die zich voordoet als logica.”
+    - region [ref=f18e671]:
+      - generic [ref=f18e672]:
+        - paragraph [ref=f18e674]:
+          - generic [ref=f18e675]: Dienstregeling gereedschap
+        - heading "Waar ik mee werk." [level=2] [ref=f18e676]:
+          - generic [aria-hidden] [ref=f18e678]:
+            - text: Waar ik mee
+            - emphasis [ref=f18e679]
+            - emphasis [ref=f18e680]: werk.
+        - generic [ref=f18e681]:
+          - generic [ref=f18e682]:
+            - heading "Vertrouwd Gebruikt in afgeronde projecten" [level=3] [ref=f18e683]:
+              - generic [ref=f18e684]: Vertrouwd
+              - generic [ref=f18e685]: Gebruikt in afgeronde projecten
+            - list [ref=f18e686]:
+              - listitem [ref=f18e687]:
+                - generic [ref=f18e688]:
+                  - generic [ref=f18e689]: HTML
+                  - generic [ref=f18e691]:
+                    - generic [ref=f18e692]: H H
+                    - generic [ref=f18e693]: T T
+                    - generic [ref=f18e694]: M M
+                    - generic [ref=f18e695]: L L
+              - listitem [ref=f18e696]:
+                - generic [ref=f18e697]:
+                  - generic [ref=f18e698]: CSS
+                  - generic [ref=f18e700]:
+                    - generic [ref=f18e701]: C C
+                    - generic [ref=f18e702]: S S
+                    - generic [ref=f18e703]: S S
+              - listitem [ref=f18e704]:
+                - generic [ref=f18e705]:
+                  - generic [ref=f18e706]: JavaScript
+                  - generic [ref=f18e708]:
+                    - generic [ref=f18e709]: J J
+                    - generic [ref=f18e710]: A A
+                    - generic [ref=f18e711]: V V
+                    - generic [ref=f18e712]: A A
+                    - generic [ref=f18e713]: S S
+                    - generic [ref=f18e714]: C C
+                    - generic [ref=f18e715]: R R
+                    - generic [ref=f18e716]: I I
+                    - generic [ref=f18e717]: P P
+                    - generic [ref=f18e718]: T T
+              - listitem [ref=f18e719]:
+                - generic [ref=f18e720]:
+                  - generic [ref=f18e721]: PHP
+                  - generic [ref=f18e723]:
+                    - generic [ref=f18e724]: P P
+                    - generic [ref=f18e725]: H H
+                    - generic [ref=f18e726]: P P
+              - listitem [ref=f18e727]:
+                - generic [ref=f18e728]:
+                  - generic [ref=f18e729]: Laravel
+                  - generic [ref=f18e731]:
+                    - generic [ref=f18e732]: L L
+                    - generic [ref=f18e733]: A A
+                    - generic [ref=f18e734]: R R
+                    - generic [ref=f18e735]: A A
+                    - generic [ref=f18e736]: V V
+                    - generic [ref=f18e737]: E E
+                    - generic [ref=f18e738]: L L
+              - listitem [ref=f18e739]:
+                - generic [ref=f18e740]:
+                  - generic [ref=f18e741]: SQL
+                  - generic [ref=f18e743]:
+                    - generic [ref=f18e744]: S S
+                    - generic [ref=f18e745]: Q Q
+                    - generic [ref=f18e746]: L L
+              - listitem [ref=f18e747]:
+                - generic [ref=f18e748]:
+                  - generic [ref=f18e749]: Godot
+                  - generic [ref=f18e751]:
+                    - generic [ref=f18e752]: G G
+                    - generic [ref=f18e753]: O O
+                    - generic [ref=f18e754]: D D
+                    - generic [ref=f18e755]: O O
+                    - generic [ref=f18e756]: T T
+          - generic [ref=f18e757]:
+            - heading "Aan het leren Nu in uitvoering" [level=3] [ref=f18e758]:
+              - generic [ref=f18e759]: Aan het leren
+              - generic [ref=f18e760]: Nu in uitvoering
+            - list [ref=f18e761]:
+              - listitem [ref=f18e762]:
+                - generic [ref=f18e763]:
+                  - generic [ref=f18e764]: C#
+                  - generic [ref=f18e766]:
+                    - generic [ref=f18e767]: C C
+                    - generic [ref=f18e768]: "# #"
+          - generic [ref=f18e769]:
+            - heading "Hierna te ontdekken Richting systems en firmware" [level=3] [ref=f18e770]:
+              - generic [ref=f18e771]: Hierna te ontdekken
+              - generic [ref=f18e772]: Richting systems en firmware
+            - list [ref=f18e773]:
+              - listitem [ref=f18e774]:
+                - generic [ref=f18e775]:
+                  - generic [ref=f18e776]: C
+                  - generic [ref=f18e778]: C C
+              - listitem [ref=f18e780]:
+                - generic [ref=f18e781]:
+                  - generic [ref=f18e782]: Python
+                  - generic [ref=f18e784]:
+                    - generic [ref=f18e785]: P P
+                    - generic [ref=f18e786]: Y Y
+                    - generic [ref=f18e787]: T T
+                    - generic [ref=f18e788]: H H
+                    - generic [ref=f18e789]: O O
+                    - generic [ref=f18e790]: N N
+              - listitem [ref=f18e791]:
+                - generic [ref=f18e792]:
+                  - generic [ref=f18e793]: Embedded systems
+                  - generic [aria-hidden] [ref=f18e794]:
+                    - generic [ref=f18e795]:
+                      - generic [ref=f18e796]: E E
+                      - generic [ref=f18e797]: M M
+                      - generic [ref=f18e798]: B B
+                      - generic [ref=f18e799]: E E
+                      - generic [ref=f18e800]: D D
+                      - generic [ref=f18e801]: D D
+                      - generic [ref=f18e802]: E E
+                      - generic [ref=f18e803]: D D
+                    - generic [ref=f18e805]:
+                      - generic [ref=f18e806]: S S
+                      - generic [ref=f18e807]: Y Y
+                      - generic [ref=f18e808]: S S
+                      - generic [ref=f18e809]: T T
+                      - generic [ref=f18e810]: E E
+                      - generic [ref=f18e811]: M M
+                      - generic [ref=f18e812]: S S
+              - listitem [ref=f18e813]:
+                - generic [ref=f18e814]:
+                  - generic [ref=f18e815]: Elektronica
+                  - generic [ref=f18e817]:
+                    - generic [ref=f18e818]: E E
+                    - generic [ref=f18e819]: L L
+                    - generic [ref=f18e820]: E E
+                    - generic [ref=f18e821]: K K
+                    - generic [ref=f18e822]: T T
+                    - generic [ref=f18e823]: R R
+                    - generic [ref=f18e824]: O O
+                    - generic [ref=f18e825]: N N
+                    - generic [ref=f18e826]: I I
+                    - generic [ref=f18e827]: C C
+                    - generic [ref=f18e828]: A A
+    - region [ref=f18e829]:
+      - generic [ref=f18e830]:
+        - paragraph [ref=f18e832]:
+          - generic [ref=f18e833]: Buiten dienst
+        - generic [ref=f18e834]:
+          - heading "Buiten dienst." [level=2] [ref=f18e835]:
+            - generic [aria-hidden] [ref=f18e837]:
+              - text: Buiten
+              - emphasis [ref=f18e838]
+              - emphasis [ref=f18e839]: dienst.
+          - paragraph [ref=f18e840]: Buiten het programmeren blijf ik in beweging. Ik ben oud-powerlifter en oud-tafeltennisser; tegenwoordig hardloop ik, train ik in de sportschool en game ik om fit, gefocust en in balans te blijven.
+        - generic [ref=f18e841]:
+          - generic [ref=f18e842]:
+            - paragraph [ref=f18e843]: Nu
+            - list [ref=f18e844]:
+              - listitem [ref=f18e845]:
+                - generic [ref=f18e849]: Hardlopen
+                - generic [ref=f18e850]: Uithoudingsvermogen en een helder hoofd.
+              - listitem [ref=f18e851]:
+                - generic [ref=f18e854]: Sportschool
+                - generic [ref=f18e855]: Kracht, stap voor stap opgebouwd.
+              - listitem [ref=f18e856]:
+                - generic [ref=f18e862]: Gamen
+                - generic [ref=f18e863]: Spelen, met oog voor goed gamedesign.
+          - generic [ref=f18e864]:
+            - paragraph [ref=f18e865]: Vroeger
+            - list [ref=f18e866]:
+              - listitem [ref=f18e867]:
+                - generic [ref=f18e872]: Powerliften
+              - listitem [ref=f18e873]:
+                - generic [ref=f18e878]: Tafeltennis
+      - generic [ref=f18e879]:
+        - 'img "Interactieve speeltuin met lijntekeningen: een pingpongballetje, een halterschijf, wiskundige symbolen, een chip, een gamecontroller en een stopwatch. Pak ze, gooi ze en laat ze tegen de woorden stuiteren." [ref=f18e880]'
+        - paragraph [aria-hidden]:
+          - generic: Train
+          - generic: Ren
+          - generic: Speel
+        - generic:
+          - paragraph: Pak de objecten en gooi ze weg. Houd het pingpongballetje in de lucht.
+          - generic [ref=f18e881]:
+            - generic [ref=f18e882]:
+              - text: Rally
+              - generic [ref=f18e883]: "00"
+            - generic [ref=f18e884]:
+              - text: Record
+              - generic [ref=f18e885]: "00"
+            - button "Zwaartekracht in de speeltuin aan- of uitzetten" [ref=f18e886]: Zwaartekracht
+    - region [ref=f18e888]:
+      - generic [ref=f18e889]:
+        - paragraph [ref=f18e891]:
+          - generic [ref=f18e892]: Huidige build & roadmap
+        - generic [ref=f18e893]:
+          - generic [ref=f18e894]:
+            - heading "Huidige build & roadmap." [level=2] [ref=f18e895]:
+              - generic [aria-hidden] [ref=f18e897]: Huidige build
+              - generic [aria-hidden] [ref=f18e899]:
+                - emphasis [ref=f18e900]
+                - emphasis [ref=f18e901]: "& roadmap."
+            - paragraph [ref=f18e902]: "De rollen hieronder zijn mogelijke bestemmingen voor mijn toekomstige loopbaan: richtingen waar ik naartoe werk, geen vaste plannen."
+          - list [ref=f18e903]:
+            - listitem [ref=f18e904]:
+              - generic [ref=f18e905]:
+                - generic [ref=f18e906]: In dienst
+                - generic [aria-hidden] [ref=f18e907]:
+                  - generic [ref=f18e908]:
+                    - generic [ref=f18e909]: I I
+                    - generic [ref=f18e910]: N N
+                  - generic [ref=f18e912]:
+                    - generic [ref=f18e913]: D D
+                    - generic [ref=f18e914]: I I
+                    - generic [ref=f18e915]: E E
+                    - generic [ref=f18e916]: N N
+                    - generic [ref=f18e917]: S S
+                    - generic [ref=f18e918]: T T
+              - generic [ref=f18e919]:
+                - heading "Student Software Engineer" [level=3] [ref=f18e920]
+                - paragraph [ref=f18e921]: MBO 4 · Rotterdam
+                - paragraph [ref=f18e922]: "Ik bouw een brede softwarebasis op: gameontwikkeling in Godot, webontwikkeling, relationele databases en SQL, frameworks zoals Laravel en programmeerbasis in meerdere talen."
+            - listitem [ref=f18e923]:
+              - generic [ref=f18e924]:
+                - generic [ref=f18e925]: Mogelijk
+                - generic [ref=f18e927]:
+                  - generic [ref=f18e928]: M M
+                  - generic [ref=f18e929]: O O
+                  - generic [ref=f18e930]: G G
+                  - generic [ref=f18e931]: E E
+                  - generic [ref=f18e932]: L L
+                  - generic [ref=f18e933]: I I
+                  - generic [ref=f18e934]: J J
+                  - generic [ref=f18e935]: K K
+              - generic [ref=f18e937]:
+                - heading "Systems Engineer" [level=3] [ref=f18e938]
+                - paragraph [ref=f18e939]: Het ontwerpen, integreren en onderhouden van de systemen waar al het andere op draait.
+            - listitem [ref=f18e940]:
+              - generic [ref=f18e941]:
+                - generic [ref=f18e942]: Mogelijk
+                - generic [ref=f18e944]:
+                  - generic [ref=f18e945]: M M
+                  - generic [ref=f18e946]: O O
+                  - generic [ref=f18e947]: G G
+                  - generic [ref=f18e948]: E E
+                  - generic [ref=f18e949]: L L
+                  - generic [ref=f18e950]: I I
+                  - generic [ref=f18e951]: J J
+                  - generic [ref=f18e952]: K K
+              - generic [ref=f18e954]:
+                - heading "Firmware Security Automation Engineer" [level=3] [ref=f18e955]
+                - paragraph [ref=f18e956]: Het beveiligen van de low-level code in apparaten, en het automatiseren van hoe die getest en geverifieerd wordt.
+        - group [ref=f18e957]:
+          - generic "Waarom deze richting?" [ref=f18e958]
+    - region [ref=f18e962]:
+      - generic [aria-hidden]:
+        - generic: √2
+      - generic [ref=f18e963]:
+        - paragraph [ref=f18e965]:
+          - generic [ref=f18e966]: Machinekamer
+        - generic [ref=f18e967]:
+          - heading "Deze site is ook een project." [level=2] [ref=f18e968]:
+            - generic [aria-hidden] [ref=f18e970]:
+              - text: Deze site is
+              - emphasis [ref=f18e971]: ook
+            - emphasis [ref=f18e974]: een project.
+          - paragraph [ref=f18e975]: "Drie talen, elk voor het werk waar ze het best in zijn: dezelfde mindset die ik wil meenemen naar systems- en firmwarewerk."
+        - list [ref=f18e976]:
+          - listitem [ref=f18e977]:
+            - generic [ref=f18e980]:
+              - generic [ref=f18e981]: T T
+              - generic [ref=f18e982]: S S
+            - paragraph [ref=f18e983]: TypeScript · Astro
+            - heading "De site" [level=3] [ref=f18e984]
+            - paragraph [ref=f18e985]: Statische, SEO-vriendelijke pagina’s gegenereerd door Astro, met elke interactieve functie als TypeScript-klasse, inclusief dit bord.
+          - listitem [ref=f18e986]:
+            - generic [ref=f18e987]: C C
+            - paragraph [ref=f18e992]: C · WebAssembly
+            - heading "De physics" [level=3] [ref=f18e993]
+            - paragraph [ref=f18e994]: De speeltuin onder ‘Buiten dienst’ draait op een kleine physics-engine, geschreven in C en gecompileerd naar WebAssembly.
+          - listitem [ref=f18e995]:
+            - generic [ref=f18e998]:
+              - generic [ref=f18e999]: P P
+              - generic [ref=f18e1000]: Y Y
+            - paragraph [ref=f18e1001]: Python
+            - heading "De deploy-bewaker" [level=3] [ref=f18e1002]
+            - paragraph [ref=f18e1003]: Voor elke deploy controleert een Python-auditor de titels, beschrijvingen, links en alt-teksten van elke pagina, en stopt de release als er iets niet klopt.
+    - region [ref=f18e1004]:
+      - generic [aria-hidden]:
+        - generic: ∞
+      - generic [ref=f18e1005]:
+        - paragraph [ref=f18e1007]:
+          - generic [ref=f18e1008]: Laatste oproep
+          - generic [ref=f18e1009]: Berichten
+        - link "Stuur mij een bericht" [ref=f18e1010]:
+          - /url: /nl/contact/
+          - generic [ref=f18e1013]:
+            - generic [ref=f18e1014]: H H
+            - generic [ref=f18e1015]: A A
+            - generic [ref=f18e1016]: L L
+            - generic [ref=f18e1017]: L L
+            - generic [ref=f18e1018]: O O
+        - generic [ref=f18e1022]:
+          - generic [ref=f18e1023]:
+            - heading [level=2] [ref=f18e1024]:
+              - text: "Laatste oproep:"
+              - emphasis [ref=f18e1025]: zeg hallo.
+            - paragraph [ref=f18e1026]: "Vragen, kansen of gewoon een hallo: mijn inbox staat open."
+          - generic [ref=f18e1027]:
+            - link "Stuur mij een bericht" [ref=f18e1028]:
+              - /url: /nl/contact/
+            - paragraph [ref=f18e1031]:
+              - generic [ref=f18e1032]: Of vind mij op
+              - link "GitHub" [ref=f18e1033]:
+                - /url: https://github.com/bhccob
+              - link "Instagram" [ref=f18e1034]:
+                - /url: https://www.instagram.com/bhccob/
+  - contentinfo [ref=f18e1035]:
+    - generic [ref=f18e1036]:
+      - generic [ref=f18e1037]:
+        - paragraph [ref=f18e1038]:
+          - generic [ref=f18e1039]: Bob Chung
+          - generic [aria-hidden] [ref=f18e1040]:
+            - generic [ref=f18e1041]:
+              - generic [ref=f18e1042]: B B
+              - generic [ref=f18e1043]: O O
+              - generic [ref=f18e1044]: B B
+            - generic [ref=f18e1046]:
+              - generic [ref=f18e1047]: C C
+              - generic [ref=f18e1048]: H H
+              - generic [ref=f18e1049]: U U
+              - generic [ref=f18e1050]: N N
+              - generic [ref=f18e1051]: G G
+        - link "Terug naar boven" [ref=f18e1052]:
+          - /url: "#top"
+      - generic [ref=f18e1055]:
+        - paragraph [ref=f18e1056]: © 2026 Bob Chung · Met nieuwsgierigheid gebouwd in Rotterdam
+        - list [ref=f18e1057]:
+          - listitem [ref=f18e1058]:
+            - link "GitHub" [ref=f18e1059]:
+              - /url: https://github.com/bhccob
+          - listitem [ref=f18e1060]:
+            - link "Instagram" [ref=f18e1061]:
+              - /url: https://www.instagram.com/bhccob/
+          - listitem [ref=f18e1062]:
+            - link "Email" [ref=f18e1063]:
+              - /url: mailto:bhccob@gmail.com
+        - paragraph [ref=f18e1064]:
+          - text: Druk op
+          - generic [ref=f18e1065]: /
+          - text: om de terminal te openen
+  - status

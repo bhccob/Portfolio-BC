@@ -1,0 +1,134 @@
+---
+import FlapText from './FlapText.astro';
+import { Translator, type Locale } from '../../i18n/Translator';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const { t } = new Translator(locale);
+---
+
+<div class="loader" data-loader>
+  <p class="visually-hidden" role="status">{t.loader.label}</p>
+  <div class="loader__head" aria-hidden="true">
+    <span>bhccob.me</span>
+    <span>{t.loader.status}</span>
+  </div>
+  <div class="loader__center" aria-hidden="true">
+    <FlapText text="BHCCOB.ME" play="none" label="" class="loader__name" data-loader-name="" />
+    <div class="loader__meta">
+      <span class="loader__bar"><span></span></span>
+      <FlapText text="  0%" play="none" label="" class="loader__pct" data-loader-pct="" />
+    </div>
+  </div>
+  <p class="loader__skip" aria-hidden="true">{t.loader.skip}</p>
+</div>
+
+<style>
+  .loader {
+    --p: 0;
+    position: fixed;
+    inset: 0;
+    z-index: 150;
+    display: none;
+    grid-template-rows: auto 1fr auto;
+    padding: 26px var(--gutter);
+    background: var(--board-deep);
+    clip-path: inset(0 0 0 0);
+    transition: clip-path 0.85s var(--ease-in-out);
+  }
+
+  :global(html.is-booting) .loader {
+    display: grid;
+  }
+
+  :global(html.is-booting) {
+    overflow: hidden;
+  }
+
+  /* leaving: the board folds shut onto its split line */
+  .loader.is-leaving {
+    clip-path: inset(50% 0 50% 0);
+    pointer-events: none;
+  }
+
+  .loader::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 2px;
+    background: var(--yellow);
+    transform: scaleX(0);
+    transition: transform 0.6s var(--ease-out);
+  }
+
+  .loader.is-leaving::after {
+    transform: scaleX(1);
+  }
+
+  .loader__head,
+  .loader__skip {
+    display: flex;
+    justify-content: space-between;
+    font: 450 12px/1.5 var(--font-mono);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+
+  .loader__skip {
+    justify-content: flex-end;
+  }
+
+  .loader__center {
+    align-self: center;
+    justify-self: center;
+    display: grid;
+    gap: 22px;
+    justify-items: start;
+  }
+
+  .loader__name {
+    --tw: 0.78;
+    --th: 1.14;
+    --gap: 0.09em;
+    font-size: clamp(42px, 9vw, 120px);
+  }
+
+  .loader__meta {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+
+  .loader__bar {
+    flex: 1;
+    height: 2px;
+    background: var(--line-strong);
+  }
+
+  .loader__bar span {
+    display: block;
+    height: 100%;
+    background: var(--yellow);
+    transform: scaleX(var(--p));
+    transform-origin: left;
+  }
+
+  .loader__pct {
+    --tw: 0.86;
+    --th: 1.4;
+    font-size: 26px;
+  }
+
+  @media (max-width: 600px) {
+    .loader__skip {
+      display: none;
+    }
+  }
+</style>

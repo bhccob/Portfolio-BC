@@ -1,0 +1,520 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-11T15:43:57.810Z",
+  "title": "Design System: bhccob.me",
+  "extensions": {
+    "colorMeta": {
+      "board-deep": {
+        "role": "neutral",
+        "displayName": "Deep Housing",
+        "canonical": "#0e0719",
+        "tonalRamp": [
+          "#0e0719",
+          "#150b26",
+          "#1b0f31",
+          "#24163f",
+          "#3a2a5e",
+          "#5c4b85",
+          "#8c7fb0",
+          "#d6cfe8"
+        ]
+      },
+      "board": {
+        "role": "neutral",
+        "displayName": "Board Housing",
+        "canonical": "#150b26",
+        "tonalRamp": [
+          "#0e0719",
+          "#150b26",
+          "#1b0f31",
+          "#24163f",
+          "#3a2a5e",
+          "#5c4b85",
+          "#8c7fb0",
+          "#d6cfe8"
+        ]
+      },
+      "board-2": {
+        "role": "neutral",
+        "displayName": "Housing Step 2",
+        "canonical": "#1b0f31"
+      },
+      "board-3": {
+        "role": "neutral",
+        "displayName": "Housing Step 3",
+        "canonical": "#24163f"
+      },
+      "tile-hi": {
+        "role": "neutral",
+        "displayName": "Tile Highlight",
+        "canonical": "#2a1a45"
+      },
+      "tile": {
+        "role": "neutral",
+        "displayName": "Tile Face",
+        "canonical": "#221539"
+      },
+      "tile-2": {
+        "role": "neutral",
+        "displayName": "Tile Lower Face",
+        "canonical": "#1a1030"
+      },
+      "split": {
+        "role": "neutral",
+        "displayName": "The Split",
+        "canonical": "#070310"
+      },
+      "signal-yellow": {
+        "role": "primary",
+        "displayName": "Signal Yellow",
+        "canonical": "#ffcf33",
+        "tonalRamp": [
+          "#3d2e00",
+          "#665000",
+          "#8f7200",
+          "#b89300",
+          "#e0b400",
+          "#ffcf33",
+          "#ffe07a",
+          "#fff3cc"
+        ]
+      },
+      "signal-yellow-soft": {
+        "role": "primary",
+        "displayName": "Soft Signal",
+        "canonical": "#ffe07a"
+      },
+      "on-yellow": {
+        "role": "neutral",
+        "displayName": "Ink on Yellow",
+        "canonical": "#150b26"
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Warm Paper",
+        "canonical": "#f4efe6",
+        "tonalRamp": [
+          "#2b2822",
+          "#4a463e",
+          "#6c675d",
+          "#8f897e",
+          "#b3ada1",
+          "#d4cec3",
+          "#f4efe6",
+          "#fbf9f5"
+        ]
+      },
+      "lilac": {
+        "role": "neutral",
+        "displayName": "Lilac",
+        "canonical": "#b3a5d4",
+        "tonalRamp": [
+          "#1f1830",
+          "#352a52",
+          "#4d3f73",
+          "#665893",
+          "#8173b3",
+          "#9e90c9",
+          "#b3a5d4",
+          "#e8e3f3"
+        ]
+      },
+      "dim": {
+        "role": "neutral",
+        "displayName": "Dim Violet",
+        "canonical": "#9283b8"
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Rule",
+        "canonical": "rgb(179 165 212 / 0.13)"
+      },
+      "line-strong": {
+        "role": "neutral",
+        "displayName": "Strong Rule",
+        "canonical": "rgb(179 165 212 / 0.28)"
+      },
+      "grid": {
+        "role": "neutral",
+        "displayName": "Blueprint Grid",
+        "canonical": "rgb(179 165 212 / 0.07)"
+      },
+      "error": {
+        "role": "semantic",
+        "displayName": "Error Coral",
+        "canonical": "#ff9d8f"
+      },
+      "terminal-ok": {
+        "role": "scoped-terminal",
+        "displayName": "Terminal OK",
+        "canonical": "#8ff0a4"
+      },
+      "terminal-err": {
+        "role": "scoped-terminal",
+        "displayName": "Terminal Error",
+        "canonical": "#ff8fa3"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Section titles in condensed caps; one or two words switch to yellow."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Subsection heads such as the next build and route stops."
+      },
+      "title": {
+        "displayName": "Lead",
+        "purpose": "Opening paragraph under a section title, in paper, max 34em."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running prose, usually lilac, max 38em."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Mono uppercase for column heads, fact labels, nav, codes and times."
+      },
+      "button": {
+        "displayName": "Button",
+        "purpose": "Every button face."
+      },
+      "display-contact": {
+        "displayName": "Display: Contact",
+        "purpose": "Contact page title."
+      },
+      "display-case": {
+        "displayName": "Display: Case",
+        "purpose": "Case-study title."
+      },
+      "display-project": {
+        "displayName": "Display: Project",
+        "purpose": "Project platform titles on the home page."
+      },
+      "display-secondary": {
+        "displayName": "Display: Secondary",
+        "purpose": "Secondary home sections (Career, Engine Room)."
+      },
+      "display-small": {
+        "displayName": "Display: Small",
+        "purpose": "404 title; also the next-row title tiles on case pages."
+      },
+      "quote": {
+        "displayName": "Quote",
+        "purpose": "The pulled thought in About, in lilac."
+      },
+      "lead-small": {
+        "displayName": "Lead small",
+        "purpose": "Bob's own sentence at the foot of the hero."
+      },
+      "support-lg": {
+        "displayName": "Supporting 16",
+        "purpose": "Fact values, service and engine-room descriptions, hobby text, held-work note."
+      },
+      "support": {
+        "displayName": "Supporting 15",
+        "purpose": "Hints, handles, footer text, small headings such as the form title."
+      },
+      "support-sm": {
+        "displayName": "Supporting 14",
+        "purpose": "Form privacy, field errors, footer hints. Floor for readable prose."
+      },
+      "label-sm": {
+        "displayName": "Label small",
+        "purpose": "Column heads, fact labels, field labels."
+      },
+      "code": {
+        "displayName": "Code",
+        "purpose": "Terminal log and prompt only."
+      },
+      "button-small": {
+        "displayName": "Button small",
+        "purpose": "Header call to action."
+      },
+      "flap-final": {
+        "displayName": "Tile: Final call",
+        "purpose": "HELLO board."
+      },
+      "flap-hero": {
+        "displayName": "Tile: Hero name",
+        "purpose": "BOB CHUNG; 21vw on mobile."
+      },
+      "flap-lost": {
+        "displayName": "Tile: Lost",
+        "purpose": "404 board."
+      },
+      "flap-case": {
+        "displayName": "Tile: Case number",
+        "purpose": "Case-study project number."
+      },
+      "flap-number": {
+        "displayName": "Tile: Project number",
+        "purpose": "#01, #02, #03 on the home page."
+      },
+      "flap-sent": {
+        "displayName": "Tile: Sent",
+        "purpose": "Form success board."
+      },
+      "flap-loader": {
+        "displayName": "Tile: Loader",
+        "purpose": "Loader name."
+      },
+      "flap-route": {
+        "displayName": "Tile: Route code",
+        "purpose": "CN, AUA, RTM."
+      },
+      "flap-route-compact": {
+        "displayName": "Tile: Route code compact",
+        "purpose": "Route codes at 560px and below."
+      },
+      "flap-timetable": {
+        "displayName": "Tile: Timetable",
+        "purpose": "Skills on the toolkit board."
+      },
+      "flap-role": {
+        "displayName": "Tile: Role row",
+        "purpose": "Role line under the hero name."
+      },
+      "flap-code": {
+        "displayName": "Tile: Code",
+        "purpose": "Contact codes, loader percent."
+      },
+      "flap-clock": {
+        "displayName": "Tile: Clock",
+        "purpose": "Rotterdam and Aruba clocks; 18px on mobile."
+      },
+      "flap-row": {
+        "displayName": "Tile: Departure row",
+        "purpose": "Hero departure rows; 4.2vw on mobile."
+      },
+      "flap-line": {
+        "displayName": "Tile: Line",
+        "purpose": "Project lines, boarding status."
+      },
+      "flap-status": {
+        "displayName": "Tile: Status",
+        "purpose": "Service and hobby statuses."
+      }
+    },
+    "shadows": [
+      {
+        "name": "photo-drop",
+        "value": "0 40px 70px -40px rgb(0 0 0 / 0.75)",
+        "purpose": "Long soft shadow under project screenshots only."
+      },
+      {
+        "name": "photo-drop-hero",
+        "value": "0 50px 80px -50px rgb(0 0 0 / 0.8)",
+        "purpose": "Case-study hero screenshot."
+      },
+      {
+        "name": "floating-panel",
+        "value": "0 18px 40px -12px rgb(0 0 0 / 0.55)",
+        "purpose": "Toast."
+      },
+      {
+        "name": "dialog",
+        "value": "0 40px 120px rgb(0 0 0 / 0.55)",
+        "purpose": "Terminal dialog over a blurred backdrop."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Default easing for every state transition, reveal and hover."
+      },
+      {
+        "name": "ease-in-out",
+        "value": "cubic-bezier(0.76, 0, 0.24, 1)",
+        "purpose": "Mobile menu clip and outgoing view transition."
+      },
+      {
+        "name": "ease-flap-in",
+        "value": "cubic-bezier(0.55, 0, 1, 0.45)",
+        "purpose": "Top leaf falling."
+      },
+      {
+        "name": "ease-flap-out",
+        "value": "cubic-bezier(0, 0.55, 0.45, 1)",
+        "purpose": "Bottom leaf landing."
+      },
+      {
+        "name": "flap-half",
+        "value": "62ms",
+        "purpose": "One half-flip of a tile."
+      },
+      {
+        "name": "flap-stagger",
+        "value": "14ms to 55ms",
+        "purpose": "Delay between neighbouring tiles (24ms default, 55ms for the hero name)."
+      },
+      {
+        "name": "button-flap",
+        "value": "0.4s",
+        "purpose": "Paper flap falling over a button on hover."
+      },
+      {
+        "name": "view-transition",
+        "value": "0.32s out / 0.48s in",
+        "purpose": "Page navigation: fade and 14 to 22px vertical shift."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "xs",
+        "value": "420px"
+      },
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "720px"
+      },
+      {
+        "name": "objects",
+        "value": "900px"
+      },
+      {
+        "name": "lg",
+        "value": "960px"
+      },
+      {
+        "name": "xl",
+        "value": "1080px"
+      }
+    ],
+    "annotation": {
+      "value": "450 10px/1 Martian Mono, 0.12em tracking",
+      "purpose": "Drafting notes on dimension lines and line objects only, always inside aria-hidden decoration. Not a text size; deliberately absent from the frontmatter ramp so 10px on readable text stays flagged."
+    },
+    "tileScaleNote": "Tiles size by context: font size sets the em; --tw (about 0.72 to 0.9), --th (about 1.08 to 1.5), --gap and --r set proportions in em."
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Yellow plate with condensed caps; a paper flap falls over it on hover.",
+      "html": "<a class=\"ds-btn\" href=\"#\">Read the case study <svg class=\"ds-icon\" viewBox=\"0 0 16 16\" width=\"15\" height=\"15\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"M2 8h11M9 4l4 4-4 4\"/></svg></a>",
+      "css": ".ds-btn { position: relative; display: inline-flex; align-items: center; gap: 12px; min-height: 52px; padding: 2px 24px 0; background: #ffcf33; color: #150b26; font: 800 21px/1 'Sofia Sans Extra Condensed Variable', 'Arial Narrow', sans-serif; letter-spacing: 0.04em; text-transform: uppercase; text-decoration: none; border-radius: 4px; overflow: hidden; isolation: isolate; transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1); } .ds-btn::before { content: ''; position: absolute; inset: 0; z-index: -1; background: #f4efe6; transform: scaleY(0); transform-origin: top; transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1); } .ds-btn:hover::before, .ds-btn:focus-visible::before { transform: scaleY(1); } .ds-btn:hover { transform: translateY(-2px); } .ds-btn .ds-icon { transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1); } .ds-btn:hover .ds-icon { transform: translateX(4px); } .ds-btn:focus-visible { outline: 2px solid #ffcf33; outline-offset: 4px; }"
+    },
+    {
+      "name": "Text Link",
+      "kind": "button",
+      "refersTo": "text-link",
+      "description": "Paper text over a yellow underline that retracts on hover.",
+      "html": "<a class=\"ds-text-link\" href=\"#\">View on GitHub <svg viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"M4 12L12 4M5.5 4H12v6.5\"/></svg></a>",
+      "css": ".ds-text-link { display: inline-flex; align-items: center; gap: 10px; color: #f4efe6; font: 600 18px/1.6 'Sofia Sans Variable', 'Segoe UI', sans-serif; text-decoration: none; padding-bottom: 4px; background: linear-gradient(#ffcf33, #ffcf33) left bottom / 100% 2px no-repeat; transition: background-size 0.4s cubic-bezier(0.22, 1, 0.36, 1), color 0.3s; } .ds-text-link:hover { color: #ffcf33; background-size: 0 2px; background-position: right bottom; } .ds-text-link:focus-visible { outline: 2px solid #ffcf33; outline-offset: 4px; }"
+    },
+    {
+      "name": "Line Field",
+      "kind": "input",
+      "refersTo": "input-line",
+      "description": "An underline, not a box; a yellow line draws in on focus.",
+      "html": "<label class=\"ds-field\"><span>Name</span><input type=\"text\" placeholder=\"Your name\"></label>",
+      "css": ".ds-field { display: grid; gap: 6px; background: #150b26; padding: 16px; } .ds-field span { font: 450 11px/1.4 'Martian Mono Variable', ui-monospace, monospace; letter-spacing: 0.12em; text-transform: uppercase; color: #9283b8; transition: color 0.3s; } .ds-field:focus-within span { color: #ffcf33; } .ds-field input { width: 100%; padding: 10px 0 12px; border: 0; border-radius: 0; color: #f4efe6; font: 400 20px/1.4 'Sofia Sans Variable', sans-serif; caret-color: #ffcf33; background: linear-gradient(#ffcf33, #ffcf33) left bottom / 0 2px no-repeat, linear-gradient(rgb(179 165 212 / 0.28), rgb(179 165 212 / 0.28)) left bottom / 100% 1px no-repeat; transition: background-size 0.5s cubic-bezier(0.22, 1, 0.36, 1); } .ds-field input::placeholder { color: #9283b8; } .ds-field input:focus { outline: none; background-size: 100% 2px, 100% 1px; }"
+    },
+    {
+      "name": "Nav Link",
+      "kind": "nav",
+      "refersTo": "nav-link",
+      "description": "Mono uppercase lilac link with a yellow underline drawn from the left.",
+      "html": "<nav class=\"ds-nav\"><a href=\"#\" class=\"is-active\">Work</a><a href=\"#\">About</a><a href=\"#\">Career</a></nav>",
+      "css": ".ds-nav { display: flex; gap: 34px; background: #150b26; padding: 16px; } .ds-nav a { position: relative; padding: 8px 0; font: 450 12px/1 'Martian Mono Variable', ui-monospace, monospace; letter-spacing: 0.12em; text-transform: uppercase; color: #b3a5d4; text-decoration: none; transition: color 0.3s; } .ds-nav a::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: #ffcf33; transform: scaleX(0); transform-origin: right; transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1); } .ds-nav a:hover, .ds-nav a.is-active { color: #f4efe6; } .ds-nav a:hover::after, .ds-nav a.is-active::after { transform: scaleX(1); transform-origin: left; } .ds-nav a:focus-visible { outline: 2px solid #ffcf33; outline-offset: 4px; }"
+    },
+    {
+      "name": "Split-Flap Tiles",
+      "kind": "custom",
+      "refersTo": "flap-tile",
+      "description": "Signature element: one tile per character, split at the middle with a near-black seam.",
+      "html": "<span class=\"ds-flap\"><span class=\"ds-f\" data-c=\"#\"></span><span class=\"ds-f\" data-c=\"0\"></span><span class=\"ds-f\" data-c=\"1\"></span></span>",
+      "css": ".ds-flap { display: inline-flex; gap: 0.06em; font: 800 72px/1 'Sofia Sans Extra Condensed Variable', 'Arial Narrow', sans-serif; text-transform: uppercase; color: #ffcf33; background: #150b26; padding: 16px; } .ds-f { position: relative; width: 0.78em; height: 1.1em; } .ds-f::before, .ds-f::after { content: attr(data-c); position: absolute; left: 0; right: 0; height: 50%; overflow: hidden; display: flex; justify-content: center; line-height: 1.1em; } .ds-f::before { top: 0; align-items: flex-start; background: linear-gradient(#2a1a45, #221539); border-radius: 0.12em 0.12em 0 0; } .ds-f::after { bottom: 0; align-items: flex-end; background: #1a1030; border-top: max(1px, 0.035em) solid #070310; border-radius: 0 0 0.12em 0.12em; }"
+    },
+    {
+      "name": "Departure Row",
+      "kind": "custom",
+      "refersTo": "departure-row",
+      "description": "Timetable row; hover lays a faint yellow plate and grows a left yellow bar.",
+      "html": "<a class=\"ds-dep\" href=\"#\"><span class=\"ds-dep__c\">2025</span><span class=\"ds-dep__c\">#01 Cookies Clicker</span><span class=\"ds-dep__l\">Game dev</span><span class=\"ds-dep__c\">Departed</span></a>",
+      "css": ".ds-dep { position: relative; display: grid; grid-template-columns: 70px 1.7fr 1.3fr 1.15fr; gap: 20px; align-items: center; padding: 9px 14px; border-radius: 4px; background: #150b26; text-decoration: none; font: 800 20px/1.28 'Sofia Sans Extra Condensed Variable', 'Arial Narrow', sans-serif; text-transform: uppercase; letter-spacing: 0.08em; transition: background-color 0.3s; } .ds-dep__c { color: #ffcf33; } .ds-dep__l { color: #b3a5d4; } .ds-dep::before { content: ''; position: absolute; left: 0; top: 50%; width: 3px; height: 0; background: #ffcf33; border-radius: 2px; transition: height 0.35s cubic-bezier(0.22, 1, 0.36, 1), top 0.35s cubic-bezier(0.22, 1, 0.36, 1); } .ds-dep:hover { background: linear-gradient(rgb(255 207 51 / 0.05), rgb(255 207 51 / 0.05)), #150b26; } .ds-dep:hover::before { top: 16%; height: 68%; } .ds-dep:focus-visible { outline: 2px solid #ffcf33; outline-offset: 4px; }"
+    },
+    {
+      "name": "Language Tiles",
+      "kind": "chip",
+      "refersTo": "lang-tile",
+      "description": "Two small flap tiles; the current language is yellow.",
+      "html": "<div class=\"ds-lang\"><a href=\"#\" aria-current=\"true\">EN</a><a href=\"#\">NL</a></div>",
+      "css": ".ds-lang { display: flex; gap: 4px; font: 800 17px/1 'Sofia Sans Extra Condensed Variable', 'Arial Narrow', sans-serif; background: #150b26; padding: 16px; } .ds-lang a { display: grid; place-items: center; width: 30px; height: 34px; color: #9283b8; text-decoration: none; border-radius: 3px; background: linear-gradient(#2a1a45, #221539 50%, #070310 50%, #070310 calc(50% + 1px), #1a1030 calc(50% + 1px)); transition: color 0.3s; } .ds-lang a:hover { color: #f4efe6; } .ds-lang a[aria-current='true'] { color: #ffcf33; } .ds-lang a:focus-visible { outline: 2px solid #ffcf33; outline-offset: 4px; }"
+    },
+    {
+      "name": "Fact Row",
+      "kind": "card",
+      "refersTo": "",
+      "description": "Platform facts: mono label and value separated by hairlines, never boxed.",
+      "html": "<dl class=\"ds-facts\"><div><dt>Year</dt><dd>2025</dd></div><div><dt>Status</dt><dd class=\"y\">Departed</dd></div></dl>",
+      "css": ".ds-facts { margin: 0; background: #150b26; padding: 16px; width: 320px; } .ds-facts div { display: grid; grid-template-columns: 108px 1fr; gap: 16px; padding: 12px 0; background: linear-gradient(rgb(179 165 212 / 0.13), rgb(179 165 212 / 0.13)) left bottom / 100% 1px no-repeat; } .ds-facts dt { font: 450 11px/1.9 'Martian Mono Variable', ui-monospace, monospace; letter-spacing: 0.12em; text-transform: uppercase; color: #9283b8; } .ds-facts dd { margin: 0; font: 400 16px/1.6 'Sofia Sans Variable', sans-serif; color: #f4efe6; } .ds-facts dd.y { color: #ffcf33; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Departures Board",
+    "overview": "The whole site is one station departures board for a single route, Aruba to Rotterdam and onward. Projects are departures, the next build is boarding, earlier work is held at the gate, and possible future roles are scheduled. Characters live on split-flap tiles that clatter into place; the board housing is a deep aubergine, the characters signal yellow, and the running prose a warm white. Behind everything sits a low-key drafting layer: a blueprint grid that bends toward the pointer, dimension lines with measurements, and thin line drawings of maths, tech and sports objects.\n\nDensity is that of a timetable: rows, rules and tiles, read left to right in columns, with generous vertical breathing room between platforms. Content is never boxed. Separation comes from 1px hairline rules, a darker band behind alternate sections, and column alignment. Data (times, codes, years, stacks) is set in a monospace; everything a passenger would read from across the hall is set in heavy extra-condensed capitals.\n\nMotion is mechanical and short: tiles flip in 62ms half-turns with a slight stagger, so rows settle like a real board rather than fading in. Everything else eases out on one curve.",
+    "keyCharacteristics": [
+      "Split-flap tiles as the signature element, for the name, project numbers, departure rows, clocks, the mobile menu and the logo.",
+      "Aubergine housing in four steps, signal yellow as the single accent, lilac and dim violet for secondary text.",
+      "Three typefaces with strict jobs: extra-condensed display, humanist sans prose, mono data.",
+      "Rules and hairlines instead of boxes; one 4px radius everywhere a corner shows.",
+      "Blueprint drafting marks (grid, dimension lines, corner brackets, measurement notes) as the ambient layer."
+    ],
+    "rules": [
+      {
+        "name": "The One Signal Rule",
+        "body": "Yellow is the only accent on the board (the scoped terminal palette excepted). It marks what is live (a character, a status, a call to action, a focused field); everything else is aubergine, paper or lilac.",
+        "section": "colors"
+      },
+      {
+        "name": "The Housing Rule",
+        "body": "Surfaces step only within the aubergine family (board-deep to board-3). Depth comes from changing the housing tone, not from a new hue.",
+        "section": "colors"
+      },
+      {
+        "name": "The Three Jobs Rule",
+        "body": "Display face for anything on a tile or a sign, sans for sentences, mono only for data, codes, times and labels. Never set prose in mono or labels in the display face.",
+        "section": "typography"
+      },
+      {
+        "name": "The All-Caps Board Rule",
+        "body": "Display and tile text is always uppercase; prose never is.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tile Scale Rule",
+        "body": "A new tile context picks the nearest step on the tile scale and tunes proportions through the tile ratios, not through a new font size.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Board Rule",
+        "body": "Text, rows, tiles and buttons carry no shadow. Only screenshots, toasts and dialogs lift.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do put names, numbers, statuses and short codes on split-flap tiles; that is the board's voice.",
+      "Do keep yellow for live things only: characters, statuses, calls to action, focus and emphasis inside a title.",
+      "Do separate content with 1px hairlines (line or line-strong), column alignment and the deep band behind alternate sections.",
+      "Do set times, years, stacks, codes and labels in Martian Mono uppercase at 11 to 12px with 0.12em tracking.",
+      "Do frame images with drafting marks (dimension lines, corner brackets) and a 4px corner.",
+      "Do respect reduced motion: flips and transitions collapse to instant."
+    ],
+    "donts": [
+      "Don't box content in bordered cards; the terminal dialog's 1px hairline is the only stroked container.",
+      "Don't introduce a second accent hue; status and emphasis stay yellow, secondary text stays lilac or dim.",
+      "Don't put shadows on text, rows, tiles or buttons.",
+      "Don't set prose in the condensed display face or in mono.",
+      "Don't draw fields as boxes; inputs are underlines."
+    ]
+  }
+}

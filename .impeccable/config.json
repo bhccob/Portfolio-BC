@@ -1,0 +1,494 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "undersized-ui-text",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/departures.html"
+        ],
+        "createdAt": "2026-10-11T15:25:22.582Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "undersized-ui-text",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/board.src.html"
+        ],
+        "createdAt": "2026-10-11T15:25:22.694Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "undersized-ui-text",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/woven.html"
+        ],
+        "createdAt": "2026-10-11T15:25:22.827Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "undersized-ui-text",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/print.src.html"
+        ],
+        "createdAt": "2026-10-11T15:25:22.941Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "wide-tracking",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/departures.html"
+        ],
+        "createdAt": "2026-10-11T15:41:18.000Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/departures.html"
+        ],
+        "createdAt": "2026-10-11T15:41:18.105Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/departures.html"
+        ],
+        "createdAt": "2026-10-11T15:41:18.214Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/departures.html"
+        ],
+        "createdAt": "2026-10-11T15:41:18.321Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/departures.html"
+        ],
+        "createdAt": "2026-10-11T15:41:18.429Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "radial-halo",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/departures.html"
+        ],
+        "createdAt": "2026-10-11T15:41:18.539Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "marquee",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/departures.html"
+        ],
+        "createdAt": "2026-10-11T15:41:18.644Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "repeating-stripes-gradient",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/departures.html"
+        ],
+        "createdAt": "2026-10-11T15:41:18.750Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "wide-tracking",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/board.src.html"
+        ],
+        "createdAt": "2026-10-11T15:41:18.984Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/board.src.html"
+        ],
+        "createdAt": "2026-10-11T15:41:19.089Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/board.src.html"
+        ],
+        "createdAt": "2026-10-11T15:41:19.189Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/board.src.html"
+        ],
+        "createdAt": "2026-10-11T15:41:19.289Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/board.src.html"
+        ],
+        "createdAt": "2026-10-11T15:41:19.391Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "radial-halo",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/board.src.html"
+        ],
+        "createdAt": "2026-10-11T15:41:19.490Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "marquee",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/board.src.html"
+        ],
+        "createdAt": "2026-10-11T15:41:19.593Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "repeating-stripes-gradient",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/board.src.html"
+        ],
+        "createdAt": "2026-10-11T15:41:19.691Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "undersized-ui-text",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/board.html"
+        ],
+        "createdAt": "2026-10-11T15:41:19.793Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "wide-tracking",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/board.html"
+        ],
+        "createdAt": "2026-10-11T15:41:19.892Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/board.html"
+        ],
+        "createdAt": "2026-10-11T15:41:19.997Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/board.html"
+        ],
+        "createdAt": "2026-10-11T15:41:20.099Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/board.html"
+        ],
+        "createdAt": "2026-10-11T15:41:20.206Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/board.html"
+        ],
+        "createdAt": "2026-10-11T15:41:20.309Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "radial-halo",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/board.html"
+        ],
+        "createdAt": "2026-10-11T15:41:20.413Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "marquee",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/board.html"
+        ],
+        "createdAt": "2026-10-11T15:41:20.513Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "repeating-stripes-gradient",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/board.html"
+        ],
+        "createdAt": "2026-10-11T15:41:20.615Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "wide-tracking",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/woven.html"
+        ],
+        "createdAt": "2026-10-11T15:41:20.816Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/woven.html"
+        ],
+        "createdAt": "2026-10-11T15:41:20.923Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/woven.html"
+        ],
+        "createdAt": "2026-10-11T15:41:21.024Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/woven.html"
+        ],
+        "createdAt": "2026-10-11T15:41:21.127Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/woven.html"
+        ],
+        "createdAt": "2026-10-11T15:41:21.226Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "radial-halo",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/woven.html"
+        ],
+        "createdAt": "2026-10-11T15:41:21.327Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "marquee",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/woven.html"
+        ],
+        "createdAt": "2026-10-11T15:41:21.428Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "repeating-stripes-gradient",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/woven.html"
+        ],
+        "createdAt": "2026-10-11T15:41:21.527Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "wide-tracking",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/print.src.html"
+        ],
+        "createdAt": "2026-10-11T15:41:21.739Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/print.src.html"
+        ],
+        "createdAt": "2026-10-11T15:41:21.847Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/print.src.html"
+        ],
+        "createdAt": "2026-10-11T15:41:21.959Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/print.src.html"
+        ],
+        "createdAt": "2026-10-11T15:41:22.075Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/print.src.html"
+        ],
+        "createdAt": "2026-10-11T15:41:22.184Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "radial-halo",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/print.src.html"
+        ],
+        "createdAt": "2026-10-11T15:41:22.298Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "marquee",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/print.src.html"
+        ],
+        "createdAt": "2026-10-11T15:41:22.406Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "repeating-stripes-gradient",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/print.src.html"
+        ],
+        "createdAt": "2026-10-11T15:41:22.513Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "undersized-ui-text",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/print.html"
+        ],
+        "createdAt": "2026-10-11T15:41:22.622Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "wide-tracking",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/print.html"
+        ],
+        "createdAt": "2026-10-11T15:41:22.736Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/print.html"
+        ],
+        "createdAt": "2026-10-11T15:41:22.843Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/print.html"
+        ],
+        "createdAt": "2026-10-11T15:41:22.950Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/print.html"
+        ],
+        "createdAt": "2026-10-11T15:41:23.052Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/print.html"
+        ],
+        "createdAt": "2026-10-11T15:41:23.154Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "radial-halo",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/print.html"
+        ],
+        "createdAt": "2026-10-11T15:41:23.271Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "marquee",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/print.html"
+        ],
+        "createdAt": "2026-10-11T15:41:23.374Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "repeating-stripes-gradient",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/print.html"
+        ],
+        "createdAt": "2026-10-11T15:41:23.473Z",
+        "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      }
+    ]
+  }
+}

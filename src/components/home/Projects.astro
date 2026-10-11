@@ -1,0 +1,408 @@
+---
+import { Picture } from 'astro:assets';
+import FlapText from '../ui/FlapText.astro';
+import LineObjects from '../ui/LineObjects.astro';
+import { Translator, type Locale } from '../../i18n/Translator';
+import { projects } from '../../data/projects';
+import { profile } from '../../data/profile';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const i18n = new Translator(locale);
+const { t } = i18n;
+const list = projects.all();
+const github = profile.social('github');
+---
+
+<section class="work section" id="work" aria-labelledby="work-title">
+  <LineObjects
+    items={[
+      { icon: 'braces', x: 84, y: 2, size: 72, speed: 0.2, note: '{ }' },
+      { icon: 'controller', x: 46, y: 1.5, size: 60, speed: -0.15, rotate: -12, accent: true },
+      { icon: 'binary', x: 86, y: 96, size: 48, speed: 0.15 }
+    ]}
+  />
+  <div class="container">
+    <header class="work__head">
+      <h2 id="work-title" class="display h2" data-split set:html={t.work.title} />
+      <div class="work__aside" data-reveal>
+        <p class="body-text">{t.work.intro}</p>
+        <p class="work__status"><b>{list.length}</b> {t.board.departed.toLowerCase()} · <b>1</b> {t.board.boarding.toLowerCase()}</p>
+      </div>
+    </header>
+  </div>
+
+  {
+    list.map((project, index) => {
+      const copy = project.copy(locale);
+      return (
+        <article class:list={['platform', { 'platform--alt': index % 2 === 1 }]} id={project.anchor} aria-labelledby={`${project.anchor}-title`}>
+          <div class="container platform__grid">
+            <div class="platform__rail">
+              <FlapText text={project.label} label={`${t.work.project} ${project.label}`} class="platform__num" />
+              <FlapText text={`${project.line} · ${copy.areaShort}`} tone="lilac" label={`${t.work.line}: ${copy.area}`} class="platform__line" />
+              <dl class="platform__facts" data-reveal>
+                <div>
+                  <dt>{t.work.type}</dt>
+                  <dd>{copy.type}</dd>
+                </div>
+                <div>
+                  <dt>{t.work.year}</dt>
+                  <dd>{project.year}</dd>
+                </div>
+                <div>
+                  <dt>{t.work.stack}</dt>
+                  <dd>{project.stack.join(' · ')}</dd>
+                </div>
+                <div>
+                  <dt>{t.work.status}</dt>
+                  <dd class="yellow">{t.board.departed}</dd>
+                </div>
+              </dl>
+            </div>
+
+            <div class="platform__main">
+              <h3 id={`${project.anchor}-title`} class="display platform__title" data-split>{project.title}</h3>
+              <p class="lead platform__summary" data-reveal>{copy.summary}</p>
+              <a class="shot" href={i18n.path(project.route())} data-shot aria-label={`${t.work.caseStudy}: ${project.title}`}>
+                <span class="shot__bar" aria-hidden="true">
+                  <span>{project.repoPath}</span>
+                  <span>{project.label} · {project.year}</span>
+                </span>
+                <span class="shot__frame" style={project.crop ? `--shot-ratio:${project.crop.ratio};--shot-pos:${project.crop.position}` : undefined}>
+                  <Picture
+                    src={project.image}
+                    formats={['avif', 'webp']}
+                    widths={[560, 880, 1200, 1600]}
+                    sizes="(max-width: 960px) 92vw, 760px"
+                    alt={copy.imageAlt}
+                    loading="lazy"
+                  />
+                </span>
+                <span class="shot__dim" aria-hidden="true"><span>{project.image.width} × {project.image.height} px</span></span>
+              </a>
+              <div class="platform__links" data-reveal>
+                <a class="btn" href={i18n.path(project.route())}>
+                  {t.work.caseStudy}
+                  <svg class="icon" viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4" /></svg>
+                </a>
+                <a class="text-link" href={project.repo} target="_blank" rel="noopener noreferrer">
+                  {t.work.github}
+                  <svg class="icon" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 12L12 4M5.5 4H12v6.5" /></svg>
+                </a>
+              </div>
+            </div>
+          </div>
+        </article>
+      );
+    })
+  }
+
+  <div class="container">
+    <div class="next" id="work-next" data-flap-host>
+      <FlapText text={projects.upcomingLabel} label={`${t.work.project} ${projects.upcomingLabel}`} class="platform__num next__num" hover />
+      <div class="next__body">
+        <h3 class="h3" set:html={t.work.nextTitle} />
+        <p class="body-text">{t.work.nextText}</p>
+        <a class="text-link" href={github.url} target="_blank" rel="noopener noreferrer">
+          {t.work.nextLink}
+          <svg class="icon" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 12L12 4M5.5 4H12v6.5" /></svg>
+        </a>
+      </div>
+      <div class="next__status" aria-hidden="true">
+        <svg viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3.5 2.5l7 4.5-7 4.5z" /></svg>
+        <FlapText text={t.board.boarding} label="" play="view" />
+      </div>
+    </div>
+
+    <div class="held" id="work-held">
+      <svg class="held__mark" viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="7" cy="7" r="4.6" /></svg>
+      <p><strong>{t.work.heldTitle}.</strong> {t.work.heldText}</p>
+    </div>
+  </div>
+</section>
+
+<style>
+  .work__head {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
+    align-items: end;
+    gap: 32px 64px;
+    margin-bottom: clamp(40px, 5vw, 72px);
+  }
+
+  .work__aside {
+    display: grid;
+    gap: 16px;
+    padding-bottom: 8px;
+  }
+
+  .work__status {
+    font: 450 12px/1.5 var(--font-mono);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+
+  .work__status b {
+    color: var(--yellow);
+    font-weight: 450;
+  }
+
+  /* one platform per project; the second one sits on a darker band and mirrors */
+  .platform {
+    position: relative;
+    padding-block: clamp(56px, 6vw, 96px);
+  }
+
+  .platform--alt {
+    background: var(--board-deep);
+  }
+
+  .platform__grid {
+    display: grid;
+    grid-template-columns: minmax(250px, 0.62fr) minmax(0, 1.38fr);
+    gap: 40px clamp(40px, 6vw, 96px);
+    align-items: start;
+  }
+
+  .platform--alt .platform__grid {
+    grid-template-columns: minmax(0, 1.38fr) minmax(250px, 0.62fr);
+  }
+
+  .platform--alt .platform__rail {
+    order: 2;
+  }
+
+  .platform__rail {
+    position: sticky;
+    top: calc(var(--header-h) + 32px);
+    display: grid;
+    gap: 22px;
+    justify-items: start;
+  }
+
+  .platform :global(.platform__num),
+  .next :global(.platform__num) {
+    --tw: 0.78;
+    --th: 1.1;
+    --gap: 0.06em;
+    font-size: clamp(64px, 8vw, 120px);
+  }
+
+  .platform :global(.platform__line) {
+    --tw: 0.86;
+    --th: 1.45;
+    --gap: 0.12em;
+    font-size: 17px;
+  }
+
+  .platform__facts {
+    display: grid;
+    gap: 0;
+    width: 100%;
+    margin-top: 6px;
+  }
+
+  .platform__facts div {
+    display: grid;
+    grid-template-columns: 108px 1fr;
+    gap: 16px;
+    padding: 12px 0;
+    background: linear-gradient(var(--line), var(--line)) left bottom / 100% 1px no-repeat;
+  }
+
+  .platform__facts dt {
+    font: 450 11px/1.9 var(--font-mono);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+
+  .platform__facts dd {
+    font-size: 16px;
+    color: var(--paper);
+  }
+
+  .platform__main {
+    display: grid;
+    gap: 26px;
+  }
+
+  .platform__title {
+    font-size: clamp(56px, 7vw, 96px);
+  }
+
+  .platform__summary {
+    max-width: 30em;
+  }
+
+  .shot {
+    display: block;
+    margin-top: 10px;
+  }
+
+  .shot__bar {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 0 2px 10px;
+    font: 450 11px/1 var(--font-mono);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--dim);
+    transition: color 0.3s;
+  }
+
+  .shot:hover .shot__bar {
+    color: var(--yellow);
+  }
+
+  .shot__frame {
+    display: block;
+    overflow: hidden;
+    border-radius: var(--radius);
+    background: var(--board-3);
+    box-shadow: 0 40px 70px -40px rgb(0 0 0 / 0.75);
+  }
+
+  .shot__frame :global(img) {
+    width: 100%;
+    aspect-ratio: var(--shot-ratio, auto);
+    object-fit: cover;
+    object-position: var(--shot-pos, center);
+    transition: transform 0.9s var(--ease-out), filter 0.6s;
+    filter: saturate(0.92) brightness(0.92);
+  }
+
+  /* the screenshot's real size, measured like a drawing */
+  .shot__dim {
+    position: relative;
+    display: block;
+    height: 12px;
+    margin-top: 12px;
+    background: linear-gradient(rgb(255 207 51 / 0.4), rgb(255 207 51 / 0.4)) left center / 100% 1px no-repeat;
+  }
+
+  .shot__dim::before,
+  .shot__dim::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    width: 1px;
+    height: 100%;
+    background: rgb(255 207 51 / 0.5);
+  }
+
+  .shot__dim::before {
+    left: 0;
+  }
+
+  .shot__dim::after {
+    right: 0;
+  }
+
+  .shot__dim span {
+    position: absolute;
+    left: 50%;
+    top: -2px;
+    transform: translateX(-50%);
+    padding: 0 10px;
+    background: var(--board);
+    font: 450 11px/1.4 var(--font-mono);
+    letter-spacing: 0.1em;
+    color: rgb(255 207 51 / 0.75);
+  }
+
+  .platform--alt .shot__dim span {
+    background: var(--board-deep);
+  }
+
+  .shot:hover .shot__frame :global(img) {
+    transform: scale(1.025);
+    filter: saturate(1.05);
+  }
+
+  .platform__links {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 18px 32px;
+    margin-top: 6px;
+  }
+
+  /* the next build and the work held back */
+  .next {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 24px clamp(32px, 5vw, 72px);
+    padding-block: clamp(48px, 6vw, 80px) 32px;
+  }
+
+  .next :global(.next__num .f::before),
+  .next :global(.next__num .f::after) {
+    color: var(--dim);
+  }
+
+  .next__body {
+    display: grid;
+    gap: 14px;
+    justify-items: start;
+  }
+
+  .next__status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--yellow);
+  }
+
+  .next__status :global(.flap) {
+    --tw: 0.9;
+    --th: 1.5;
+    font-size: 17px;
+  }
+
+  .held {
+    display: flex;
+    gap: 14px;
+    align-items: baseline;
+    max-width: 62em;
+    padding: 22px 0 0;
+    background: linear-gradient(var(--line), var(--line)) left top / 100% 1px no-repeat;
+    color: var(--lilac);
+    font-size: 16px;
+  }
+
+  .held strong {
+    color: var(--paper);
+    font-weight: 600;
+  }
+
+  .held__mark {
+    flex: none;
+    color: var(--dim);
+    transform: translateY(2px);
+  }
+
+  @media (max-width: 960px) {
+    .work__head,
+    .platform__grid,
+    .platform--alt .platform__grid {
+      grid-template-columns: 1fr;
+    }
+
+    .platform__rail {
+      position: static;
+      order: 0 !important;
+    }
+
+    .next {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

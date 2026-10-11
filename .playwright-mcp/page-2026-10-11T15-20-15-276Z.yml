@@ -1,0 +1,989 @@
+- generic [active] [ref=f10e1]:
+  - link "Skip to content" [ref=f10e2]:
+    - /url: "#main"
+  - text: B B H H C C C C O O B B . . M M E E 0 0 % %
+  - banner [ref=f10e3]:
+    - link "Bob Chung, back to home" [ref=f10e4]:
+      - /url: /
+      - generic [ref=f10e6]: B B
+      - generic [ref=f10e7]: bhccob.me
+    - navigation "Primary" [ref=f10e8]:
+      - list [ref=f10e9]:
+        - listitem [ref=f10e10]:
+          - link "Work" [ref=f10e11]:
+            - /url: /#work
+        - listitem [ref=f10e12]:
+          - link "About" [ref=f10e13]:
+            - /url: /#about
+        - listitem [ref=f10e14]:
+          - link "Career" [ref=f10e15]:
+            - /url: /#career
+    - generic [ref=f10e16]:
+      - button "Open terminal" [ref=f10e17]
+      - group "Language" [ref=f10e20]:
+        - link "English" [ref=f10e21]:
+          - /url: /
+          - text: EN
+        - link "Bekijk deze pagina in het Nederlands" [ref=f10e22]:
+          - /url: /nl/
+          - text: NL
+      - link "Send a message" [ref=f10e23]:
+        - /url: /contact/
+  - text: W W O O R R K K A A B B O O U U T T C C A A R R E E E E R R C C O O N N T T A A C C T T
+  - main [ref=f10e26]:
+    - region [ref=f10e27]:
+      - generic [aria-hidden]:
+        - generic: Ø 450
+        - generic: f(t)
+      - generic [ref=f10e28]:
+        - generic [ref=f10e29]:
+          - paragraph [ref=f10e30]:
+            - generic [ref=f10e31]: Departures
+            - generic [ref=f10e32]: Vertrek
+            - generic [ref=f10e33]: Salida
+            - generic [ref=f10e34]: Day service
+          - generic [ref=f10e35]:
+            - generic [ref=f10e36]:
+              - generic [ref=f10e39]:
+                - generic [ref=f10e40]: 1 1
+                - generic [ref=f10e41]: 7 7
+                - generic [ref=f10e42]: ": :"
+                - generic [ref=f10e43]: 2 2
+                - generic [ref=f10e44]: 0 0
+              - generic [ref=f10e45]: Rotterdam
+            - generic [ref=f10e46]:
+              - generic [ref=f10e49]:
+                - generic [ref=f10e50]: 1 1
+                - generic [ref=f10e51]: 1 1
+                - generic [ref=f10e52]: ": :"
+                - generic [ref=f10e53]: 2 2
+                - generic [ref=f10e54]: 0 0
+              - generic [ref=f10e55]: Oranjestad, Aruba
+        - heading "Bob Chung" [level=1] [ref=f10e56]:
+          - generic [aria-hidden] [ref=f10e58]:
+            - generic [ref=f10e1079]: H H
+            - generic [ref=f10e63]:
+              - generic [ref=f10e1080]: E E
+              - generic [ref=f10e1081]: Y Y
+        - generic [ref=f10e65]: BC-2006 · Scale 1:1
+        - paragraph [ref=f10e66]:
+          - generic [ref=f10e67]: Student software engineer in Rotterdam
+          - generic [aria-hidden] [ref=f10e68]:
+            - generic [ref=f10e69]:
+              - generic [ref=f10e70]: H H
+              - generic [ref=f10e71]: E E
+              - generic [ref=f10e72]: L L
+              - generic [ref=f10e73]:
+                - text: L Q
+                - generic [ref=f10e1082]: L
+                - text: Q
+              - generic [ref=f10e74]: O O
+              - generic [ref=f10e75]: ", ,"
+            - generic [ref=f10e77]:
+              - text: "{ D"
+              - generic [ref=f10e1083]: "{"
+              - text: D
+            - generic [ref=f10e78]:
+              - generic [ref=f10e79]: N N
+              - generic [ref=f10e80]:
+                - text: A Q
+                - generic [ref=f10e1084]: A
+                - text: Q
+              - generic [ref=f10e81]: M M
+              - generic [ref=f10e82]: E E
+              - generic [ref=f10e83]: "} }"
+              - generic [ref=f10e85]: · ·
+            - generic [ref=f10e87]: W W
+            - generic [ref=f10e88]:
+              - generic [ref=f10e89]:
+                - text: E
+                - generic [ref=f10e1085]: "-"
+                - text: E -
+              - generic [ref=f10e90]:
+                - text: L
+                - generic [ref=f10e1086]: R
+                - text: L R
+              - generic [ref=f10e91]:
+                - text: C
+                - generic [ref=f10e1087]: "2"
+                - text: C 2
+              - generic [ref=f10e92]:
+                - text: O
+                - generic [ref=f10e1088]: K
+                - text: O K
+              - generic [ref=f10e93]: M M
+              - generic [ref=f10e94]: E E
+              - generic [ref=f10e95]:
+                - text: W 4
+                - generic [ref=f10e1089]: W
+                - text: "4"
+              - generic [ref=f10e96]:
+                - text: 8 0
+                - generic [ref=f10e1090]: "8"
+                - text: "0"
+            - generic [ref=f10e97]: B B
+            - generic [ref=f10e99]:
+              - text: H 1
+              - generic [ref=f10e1091]: H
+              - text: "1"
+            - generic [ref=f10e100]:
+              - text: A T
+              - generic [ref=f10e1092]: A
+              - text: T
+            - generic [ref=f10e101]:
+              - generic [ref=f10e102]:
+                - text: R B
+                - generic [ref=f10e1093]: R
+                - text: B
+              - generic [ref=f10e103]:
+                - text: D .
+                - generic [ref=f10e1094]: D
+                - text: .
+              - generic [ref=f10e104]: A A
+              - generic [ref=f10e105]: "? ?"
+              - generic [ref=f10e106]:
+                - generic [ref=f10e1097]: ":"
+                - text: ":"
+              - generic [ref=f10e107]:
+                - generic [ref=f10e1098]: M
+                - text: M
+              - generic [ref=f10e108]: 1 1
+              - generic [ref=f10e109]:
+                - text: T L
+                - generic [ref=f10e1100]: T
+                - text: L
+              - generic [ref=f10e110]:
+                - text: E
+                - generic [ref=f10e1101]: "-"
+                - text: E -
+        - generic [ref=f10e111]:
+          - generic [aria-hidden] [ref=f10e112]:
+            - generic [ref=f10e113]: Year
+            - generic [ref=f10e114]: Project
+            - generic [ref=f10e115]: Line
+            - generic [ref=f10e116]: Status
+          - list [ref=f10e117]:
+            - listitem [ref=f10e118]:
+              - 'link "2025 #01 Cookies Clicker GD · Game dev Departed" [ref=f10e119]':
+                - /url: "#project-cookies-clicker"
+                - generic [ref=f10e120]:
+                  - generic [ref=f10e121]: "2025"
+                  - generic [ref=f10e123]:
+                    - generic [ref=f10e124]: 2 2
+                    - generic [ref=f10e125]: 0 0
+                    - generic [ref=f10e126]: 2 2
+                    - generic [ref=f10e127]: 5 5
+                - generic [ref=f10e128]:
+                  - generic [ref=f10e129]: "#01 Cookies Clicker"
+                  - generic [aria-hidden] [ref=f10e130]:
+                    - generic [ref=f10e131]:
+                      - generic [ref=f10e132]: "# #"
+                      - generic [ref=f10e133]: 0 0
+                      - generic [ref=f10e134]: 1 1
+                    - generic [ref=f10e136]:
+                      - generic [ref=f10e137]: C C
+                      - generic [ref=f10e138]: O O
+                      - generic [ref=f10e139]: O O
+                      - generic [ref=f10e140]: K K
+                      - generic [ref=f10e141]: I I
+                      - generic [ref=f10e142]: E E
+                      - generic [ref=f10e143]: S S
+                    - generic [ref=f10e145]:
+                      - generic [ref=f10e146]: C C
+                      - generic [ref=f10e147]: L L
+                      - generic [ref=f10e148]: I I
+                      - generic [ref=f10e149]: C C
+                      - generic [ref=f10e150]: K K
+                      - generic [ref=f10e151]: E E
+                      - generic [ref=f10e152]: R R
+                - generic [ref=f10e153]:
+                  - generic [ref=f10e154]: GD · Game dev
+                  - generic [aria-hidden] [ref=f10e155]:
+                    - generic [ref=f10e156]:
+                      - generic [ref=f10e157]: G G
+                      - generic [ref=f10e158]: D D
+                    - generic [ref=f10e160]: · ·
+                    - generic [ref=f10e163]:
+                      - generic [ref=f10e164]: G G
+                      - generic [ref=f10e165]: A A
+                      - generic [ref=f10e166]: M M
+                      - generic [ref=f10e167]: E E
+                    - generic [ref=f10e169]:
+                      - generic [ref=f10e170]: D D
+                      - generic [ref=f10e171]: E E
+                      - generic [ref=f10e172]: V V
+                - generic [ref=f10e178]:
+                  - generic [ref=f10e179]: Departed
+                  - generic [ref=f10e181]:
+                    - generic [ref=f10e182]: D D
+                    - generic [ref=f10e183]: E E
+                    - generic [ref=f10e184]: P P
+                    - generic [ref=f10e185]: A A
+                    - generic [ref=f10e186]: R R
+                    - generic [ref=f10e187]: T T
+                    - generic [ref=f10e188]: E E
+                    - generic [ref=f10e189]: D D
+            - listitem [ref=f10e195]:
+              - 'link "2026 #02 Jontai Energy WD · Web dev Departed" [ref=f10e196]':
+                - /url: "#project-jontai-energy"
+                - generic [ref=f10e197]:
+                  - generic [ref=f10e198]: "2026"
+                  - generic [ref=f10e200]:
+                    - generic [ref=f10e201]: 2 2
+                    - generic [ref=f10e202]: 0 0
+                    - generic [ref=f10e203]: 2 2
+                    - generic [ref=f10e204]: 6 6
+                - generic [ref=f10e205]:
+                  - generic [ref=f10e206]: "#02 Jontai Energy"
+                  - generic [aria-hidden] [ref=f10e207]:
+                    - generic [ref=f10e208]:
+                      - generic [ref=f10e209]: "# #"
+                      - generic [ref=f10e210]: 0 0
+                      - generic [ref=f10e211]: 2 2
+                    - generic [ref=f10e213]:
+                      - generic [ref=f10e214]: J J
+                      - generic [ref=f10e215]: O O
+                      - generic [ref=f10e216]: N N
+                      - generic [ref=f10e217]: T T
+                      - generic [ref=f10e218]: A A
+                      - generic [ref=f10e219]: I I
+                    - generic [ref=f10e221]:
+                      - generic [ref=f10e222]: E E
+                      - generic [ref=f10e223]: N N
+                      - generic [ref=f10e224]: E E
+                      - generic [ref=f10e225]: R R
+                      - generic [ref=f10e226]: G G
+                      - generic [ref=f10e227]: Y Y
+                - generic [ref=f10e230]:
+                  - generic [ref=f10e231]: WD · Web dev
+                  - generic [aria-hidden] [ref=f10e232]:
+                    - generic [ref=f10e233]:
+                      - generic [ref=f10e234]: W W
+                      - generic [ref=f10e235]: D D
+                    - generic [ref=f10e237]: · ·
+                    - generic [ref=f10e240]:
+                      - generic [ref=f10e241]: W W
+                      - generic [ref=f10e242]: E E
+                      - generic [ref=f10e243]: B B
+                    - generic [ref=f10e245]:
+                      - generic [ref=f10e246]: D D
+                      - generic [ref=f10e247]: E E
+                      - generic [ref=f10e248]: V V
+                - generic [ref=f10e255]:
+                  - generic [ref=f10e256]: Departed
+                  - generic [ref=f10e258]:
+                    - generic [ref=f10e259]: D D
+                    - generic [ref=f10e260]: E E
+                    - generic [ref=f10e261]: P P
+                    - generic [ref=f10e262]: A A
+                    - generic [ref=f10e263]: R R
+                    - generic [ref=f10e264]: T T
+                    - generic [ref=f10e265]: E E
+                    - generic [ref=f10e266]: D D
+            - listitem [ref=f10e272]:
+              - link "#03 Next build In preparation Boarding soon" [ref=f10e273]:
+                - /url: "#work-next"
+                - generic [ref=f10e276]:
+                  - generic [ref=f10e277]: "- -"
+                  - generic [ref=f10e278]: "- -"
+                  - generic [ref=f10e279]: "- -"
+                  - generic [ref=f10e280]: "- -"
+                - generic [ref=f10e281]:
+                  - generic [ref=f10e282]: "#03 Next build"
+                  - generic [aria-hidden] [ref=f10e283]:
+                    - generic [ref=f10e284]:
+                      - generic [ref=f10e285]: "# #"
+                      - generic [ref=f10e286]: 0 0
+                      - generic [ref=f10e287]: 3 3
+                    - generic [ref=f10e289]:
+                      - generic [ref=f10e290]: N N
+                      - generic [ref=f10e291]: E E
+                      - generic [ref=f10e292]: X X
+                      - generic [ref=f10e293]: T T
+                    - generic [ref=f10e295]:
+                      - generic [ref=f10e296]: B B
+                      - generic [ref=f10e297]: U U
+                      - generic [ref=f10e298]: I I
+                      - generic [ref=f10e299]: L L
+                      - generic [ref=f10e300]: D D
+                - generic [ref=f10e306]:
+                  - generic [ref=f10e307]: In preparation
+                  - generic [aria-hidden] [ref=f10e308]:
+                    - generic [ref=f10e309]:
+                      - generic [ref=f10e310]: I I
+                      - generic [ref=f10e311]: N N
+                    - generic [ref=f10e313]:
+                      - generic [ref=f10e314]: P P
+                      - generic [ref=f10e315]: R R
+                      - generic [ref=f10e316]: E E
+                      - generic [ref=f10e317]: P P
+                      - generic [ref=f10e318]: A A
+                      - generic [ref=f10e319]: R R
+                      - generic [ref=f10e320]: A A
+                      - generic [ref=f10e321]: T T
+                      - generic [ref=f10e322]: I I
+                      - generic [ref=f10e323]: O O
+                      - generic [ref=f10e324]: N N
+                - generic [ref=f10e329]:
+                  - generic [ref=f10e330]: Boarding soon
+                  - generic [aria-hidden] [ref=f10e331]:
+                    - generic [ref=f10e332]:
+                      - generic [ref=f10e333]: B B
+                      - generic [ref=f10e334]: O O
+                      - generic [ref=f10e335]: A A
+                      - generic [ref=f10e336]: R R
+                      - generic [ref=f10e337]: D D
+                      - generic [ref=f10e338]: I I
+                      - generic [ref=f10e339]: N N
+                      - generic [ref=f10e340]: G G
+                    - generic [ref=f10e342]:
+                      - generic [ref=f10e343]: S S
+                      - generic [ref=f10e344]: O O
+                      - generic [ref=f10e345]: O O
+                      - generic [ref=f10e346]: N N
+            - listitem [ref=f10e347]:
+              - link "Earlier work Not listed here Held at gate" [ref=f10e348]:
+                - /url: "#work-held"
+                - generic [ref=f10e351]:
+                  - generic [ref=f10e352]: "- -"
+                  - generic [ref=f10e353]: "- -"
+                  - generic [ref=f10e354]: "- -"
+                  - generic [ref=f10e355]: "- -"
+                - generic [ref=f10e356]:
+                  - generic [ref=f10e357]: Earlier work
+                  - generic [aria-hidden] [ref=f10e358]:
+                    - generic [ref=f10e359]:
+                      - generic [ref=f10e360]: E E
+                      - generic [ref=f10e361]: A A
+                      - generic [ref=f10e362]: R R
+                      - generic [ref=f10e363]: L L
+                      - generic [ref=f10e364]: I I
+                      - generic [ref=f10e365]: E E
+                      - generic [ref=f10e366]: R R
+                    - generic [ref=f10e368]:
+                      - generic [ref=f10e369]: W W
+                      - generic [ref=f10e370]: O O
+                      - generic [ref=f10e371]: R R
+                      - generic [ref=f10e372]: K K
+                - generic [ref=f10e380]:
+                  - generic [ref=f10e381]: Not listed here
+                  - generic [aria-hidden] [ref=f10e382]:
+                    - generic [ref=f10e383]:
+                      - generic [ref=f10e384]: N N
+                      - generic [ref=f10e385]: O O
+                      - generic [ref=f10e386]: T T
+                    - generic [ref=f10e388]:
+                      - generic [ref=f10e389]: L L
+                      - generic [ref=f10e390]: I I
+                      - generic [ref=f10e391]: S S
+                      - generic [ref=f10e392]: T T
+                      - generic [ref=f10e393]: E E
+                      - generic [ref=f10e394]: D D
+                    - generic [ref=f10e396]:
+                      - generic [ref=f10e397]: H H
+                      - generic [ref=f10e398]: E E
+                      - generic [ref=f10e399]: R R
+                      - generic [ref=f10e400]: E E
+                - generic [ref=f10e404]:
+                  - generic [ref=f10e405]: Held at gate
+                  - generic [aria-hidden] [ref=f10e406]:
+                    - generic [ref=f10e407]:
+                      - generic [ref=f10e408]: H H
+                      - generic [ref=f10e409]: E E
+                      - generic [ref=f10e410]: L L
+                      - generic [ref=f10e411]: D D
+                    - generic [ref=f10e413]:
+                      - generic [ref=f10e414]: A A
+                      - generic [ref=f10e415]: T T
+                    - generic [ref=f10e417]:
+                      - generic [ref=f10e418]: G G
+                      - generic [ref=f10e419]: A A
+                      - generic [ref=f10e420]: T T
+                      - generic [ref=f10e421]: E E
+        - generic [ref=f10e423]:
+          - paragraph [ref=f10e424]:
+            - text: I build with
+            - emphasis [ref=f10e425]: curiosity
+            - text: and test with
+            - emphasis [ref=f10e426]: honesty
+            - text: . Born in Aruba, Chinese by heritage, based in Rotterdam.
+          - generic [ref=f10e427]:
+            - paragraph [ref=f10e428]: "Type anything: the board spells it"
+            - link "Scroll" [ref=f10e429]:
+              - /url: "#work"
+    - region [ref=f10e431]:
+      - generic [aria-hidden]:
+        - generic: "{ }"
+      - generic [ref=f10e432]:
+        - paragraph [ref=f10e434]:
+          - generic [ref=f10e435]: Platforms 1–3
+          - generic [ref=f10e436]: 2 departed · 1 boarding soon
+        - generic [ref=f10e437]:
+          - heading "Projects, one build at a time." [level=2] [ref=f10e438]:
+            - generic [aria-hidden] [ref=f10e440]:
+              - text: Projects,
+              - emphasis [ref=f10e441]: one
+            - emphasis [ref=f10e444]: build at a time.
+          - paragraph [ref=f10e445]: "Each project is a different kind of work, so each runs on its own line: game development, web development, and whatever boards next."
+      - article [ref=f10e446]:
+        - generic [ref=f10e447]:
+          - generic [ref=f10e448]:
+            - generic [ref=f10e449]:
+              - generic [ref=f10e450]: "Project #01"
+              - generic [ref=f10e452]:
+                - generic [ref=f10e453]:
+                  - text: B
+                  - generic [ref=f10e1102]: "#"
+                  - text: "B #"
+                - generic [ref=f10e454]: 0 0
+                - generic [ref=f10e455]: 1 1
+            - generic [ref=f10e456]:
+              - generic [ref=f10e457]: "Line: Game development"
+              - generic [aria-hidden] [ref=f10e458]:
+                - generic [ref=f10e459]:
+                  - generic [ref=f10e460]:
+                    - text: F
+                    - generic [ref=f10e1103]: G
+                    - generic [ref=f10e1104]: F
+                    - text: G
+                  - generic [ref=f10e461]: D D
+                - generic [ref=f10e463]: · ·
+                - generic [ref=f10e466]:
+                  - generic [ref=f10e467]: G G
+                  - generic [ref=f10e468]: A A
+                  - generic [ref=f10e469]: M M
+                  - generic [ref=f10e470]: E E
+                - generic [ref=f10e472]:
+                  - generic [ref=f10e473]: D D
+                  - generic [ref=f10e474]: E E
+                  - generic [ref=f10e475]: V V
+            - generic [ref=f10e476]:
+              - generic [ref=f10e477]:
+                - term [ref=f10e478]: Type
+                - definition [ref=f10e479]: Web game · School project
+              - generic [ref=f10e480]:
+                - term [ref=f10e481]: Year
+                - definition [ref=f10e482]: "2025"
+              - generic [ref=f10e483]:
+                - term [ref=f10e484]: Built with
+                - definition [ref=f10e485]: HTML · CSS · JavaScript · localStorage
+              - generic [ref=f10e486]:
+                - term [ref=f10e487]: Status
+                - definition [ref=f10e488]: Departed
+          - generic [ref=f10e489]:
+            - heading "Cookies Clicker" [level=3] [ref=f10e490]:
+              - generic [aria-hidden] [ref=f10e492]: Cookies Clicker
+            - paragraph [ref=f10e493]: "A browser-based incremental game, built as a school project around one satisfying loop: click, earn cookies, reinvest in upgrades and watch production compound."
+            - 'link "Read the case study: Cookies Clicker" [ref=f10e494]':
+              - /url: /projects/cookies-clicker/
+              - generic [aria-hidden] [ref=f10e495]:
+                - generic [ref=f10e496]: bhccob/Cookies-Clicker
+                - generic [ref=f10e497]: "#01 · 2025"
+              - img "Cookies Clicker interface with the cookie counter, the store of producers and the boosts panel" [ref=f10e500]
+            - generic [ref=f10e501]:
+              - link "Read the case study" [ref=f10e502]:
+                - /url: /projects/cookies-clicker/
+              - link "View on GitHub" [ref=f10e505]:
+                - /url: https://github.com/bhccob/Cookies-Clicker
+      - article [ref=f10e508]:
+        - generic [ref=f10e509]:
+          - generic [ref=f10e510]:
+            - generic [ref=f10e511]:
+              - generic [ref=f10e512]: "Project #02"
+              - generic [ref=f10e514]:
+                - generic [ref=f10e515]: "# #"
+                - generic [ref=f10e516]: 0 0
+                - generic [ref=f10e517]: 2 2
+            - generic [ref=f10e518]:
+              - generic [ref=f10e519]: "Line: Web development"
+              - generic [aria-hidden] [ref=f10e520]:
+                - generic [ref=f10e521]:
+                  - generic [ref=f10e522]: W W
+                  - generic [ref=f10e523]: D D
+                - generic [ref=f10e525]: · ·
+                - generic [ref=f10e528]:
+                  - generic [ref=f10e529]: W W
+                  - generic [ref=f10e530]: E E
+                  - generic [ref=f10e531]: B B
+                - generic [ref=f10e533]:
+                  - generic [ref=f10e534]: D D
+                  - generic [ref=f10e535]: E E
+                  - generic [ref=f10e536]: V V
+            - generic [ref=f10e537]:
+              - generic [ref=f10e538]:
+                - term [ref=f10e539]: Type
+                - definition [ref=f10e540]: Company website · Personal project
+              - generic [ref=f10e541]:
+                - term [ref=f10e542]: Year
+                - definition [ref=f10e543]: "2026"
+              - generic [ref=f10e544]:
+                - term [ref=f10e545]: Built with
+                - definition [ref=f10e546]: HTML · Tailwind CSS · JavaScript · PowerShell
+              - generic [ref=f10e547]:
+                - term [ref=f10e548]: Status
+                - definition [ref=f10e549]: Departed
+          - generic [ref=f10e550]:
+            - heading "Jontai Energy" [level=3] [ref=f10e551]:
+              - generic [aria-hidden] [ref=f10e553]: Jontai Energy
+            - paragraph [ref=f10e554]: "A multi-page website for a solar-energy company, built as a personal project: it introduces the business, guides visitors through its services and makes requesting a quote effortless."
+            - 'link "Read the case study: Jontai Energy" [ref=f10e555]':
+              - /url: /projects/jontai-energy/
+              - generic [aria-hidden] [ref=f10e556]:
+                - generic [ref=f10e557]: bhccob/JE
+                - generic [ref=f10e558]: "#02 · 2026"
+              - img "Jontai Energy homepage with the headline “Power Your Future” over a field of solar panels" [ref=f10e561]
+            - generic [ref=f10e562]:
+              - link "Read the case study" [ref=f10e563]:
+                - /url: /projects/jontai-energy/
+              - link "View on GitHub" [ref=f10e566]:
+                - /url: https://github.com/bhccob/JE
+      - generic [ref=f10e569]:
+        - generic [ref=f10e570]:
+          - generic [ref=f10e571]:
+            - generic [ref=f10e572]: "Project #03"
+            - generic [ref=f10e574]:
+              - generic [ref=f10e575]: "# #"
+              - generic [ref=f10e576]: 0 0
+              - generic [ref=f10e577]: 3 3
+          - generic [ref=f10e578]:
+            - heading [level=3] [ref=f10e579]:
+              - text: Next build
+              - emphasis [ref=f10e580]: boarding soon.
+            - paragraph [ref=f10e581]: More projects are on the way. Some are still in progress; others are waiting to be published. Follow along on GitHub in the meantime.
+            - link "Follow on GitHub" [ref=f10e582]:
+              - /url: https://github.com/bhccob
+          - generic [aria-hidden] [ref=f10e589]:
+            - generic [ref=f10e590]:
+              - generic [ref=f10e591]: B B
+              - generic [ref=f10e592]: O O
+              - generic [ref=f10e593]: A A
+              - generic [ref=f10e594]: R R
+              - generic [ref=f10e595]: D D
+              - generic [ref=f10e596]: I I
+              - generic [ref=f10e597]: N N
+              - generic [ref=f10e598]: G G
+            - generic [ref=f10e600]:
+              - generic [ref=f10e601]: S S
+              - generic [ref=f10e602]: O O
+              - generic [ref=f10e603]: O O
+              - generic [ref=f10e604]: N N
+        - paragraph [ref=f10e608]:
+          - strong [ref=f10e609]: Held at gate.
+          - text: Earlier projects exist, but not every piece of work makes this board. Only projects that meet the standard I set for this portfolio are listed.
+    - region [ref=f10e610]:
+      - generic [aria-hidden]:
+        - generic: "3.14159"
+      - generic [ref=f10e611]:
+        - paragraph [ref=f10e613]:
+          - generic [ref=f10e614]: Route AUA → RTM
+          - generic [ref=f10e1105]: 6 hours apart
+        - generic [ref=f10e615]:
+          - figure "Bob Chung Rotterdam, NL" [ref=f10e616]:
+            - img "Portrait of Bob Chung" [ref=f10e619]
+            - generic [ref=f10e620]:
+              - generic [ref=f10e621]: Bob Chung
+              - generic [ref=f10e622]: Rotterdam, NL
+          - generic [ref=f10e623]:
+            - heading "The route so far." [level=2] [ref=f10e624]:
+              - generic [aria-hidden] [ref=f10e626]:
+                - text: The route
+                - emphasis [ref=f10e627]
+                - emphasis [ref=f10e628]: so far.
+            - paragraph [ref=f10e629]: I’m Bob Chung, a 20-year-old student software engineer based in Rotterdam. Born and raised in Aruba and Chinese by heritage, I moved to the Netherlands at eighteen.
+            - paragraph [ref=f10e630]: I work across databases, game development and web development, and each discipline sharpens the others. Hardware and electrical engineering are next on my route. I build with curiosity and test with honesty.
+            - blockquote [ref=f10e631]:
+              - paragraph [ref=f10e632]: “Home isn’t one place for me. It’s a blend of cultures and the questions I keep chasing.”
+            - generic [ref=f10e633]:
+              - generic [ref=f10e634]:
+                - term [ref=f10e635]: Age
+                - definition [ref=f10e636]: "20"
+              - generic [ref=f10e637]:
+                - term [ref=f10e638]: Born
+                - definition [ref=f10e639]: Aruba
+              - generic [ref=f10e640]:
+                - term [ref=f10e641]: Heritage
+                - definition [ref=f10e642]: Chinese
+              - generic [ref=f10e643]:
+                - term [ref=f10e644]: Based in
+                - definition [ref=f10e645]: Rotterdam, NL
+              - generic [ref=f10e646]:
+                - term [ref=f10e647]: Studying
+                - definition [ref=f10e648]: MBO 4, Rotterdam
+        - group "Origin route" [ref=f10e649]:
+          - list [ref=f10e651]:
+            - listitem [ref=f10e652]:
+              - generic [ref=f10e655]:
+                - generic [ref=f10e656]: C C
+                - generic [ref=f10e657]: N N
+              - generic [ref=f10e658]: Heritage
+              - generic [ref=f10e659]: China
+            - listitem [ref=f10e660]:
+              - generic [ref=f10e663]:
+                - generic [ref=f10e664]: A A
+                - generic [ref=f10e665]: U U
+                - generic [ref=f10e666]: A A
+              - generic [ref=f10e667]: Born & raised
+              - generic [ref=f10e668]: Aruba
+            - listitem [ref=f10e669]:
+              - generic [ref=f10e672]:
+                - generic [ref=f10e673]: R R
+                - generic [ref=f10e674]: T T
+                - generic [ref=f10e675]: M M
+              - generic [ref=f10e676]: Since eighteen
+              - generic [ref=f10e677]: Rotterdam
+        - paragraph [ref=f10e678]:
+          - generic [ref=f10e679]: A rule I keep
+          - generic [ref=f10e680]: “Overthinking is fear pretending to be logic.”
+    - region [ref=f10e681]:
+      - generic [ref=f10e682]:
+        - paragraph [ref=f10e684]:
+          - generic [ref=f10e685]: Toolkit timetable
+        - heading "What I work with." [level=2] [ref=f10e686]:
+          - generic [aria-hidden] [ref=f10e688]:
+            - text: What I work
+            - emphasis [ref=f10e689]
+            - emphasis [ref=f10e690]: with.
+        - generic [ref=f10e691]:
+          - generic [ref=f10e692]:
+            - heading "Comfortable Used in finished projects" [level=3] [ref=f10e693]:
+              - generic [ref=f10e694]: Comfortable
+              - generic [ref=f10e695]: Used in finished projects
+            - list [ref=f10e696]:
+              - listitem [ref=f10e697]:
+                - generic [ref=f10e698]:
+                  - generic [ref=f10e699]: HTML
+                  - generic [ref=f10e701]:
+                    - generic [ref=f10e702]: H H
+                    - generic [ref=f10e703]: T T
+                    - generic [ref=f10e704]: M M
+                    - generic [ref=f10e705]: L L
+              - listitem [ref=f10e706]:
+                - generic [ref=f10e707]:
+                  - generic [ref=f10e708]: CSS
+                  - generic [ref=f10e710]:
+                    - generic [ref=f10e711]: C C
+                    - generic [ref=f10e712]: S S
+                    - generic [ref=f10e713]: S S
+              - listitem [ref=f10e714]:
+                - generic [ref=f10e715]:
+                  - generic [ref=f10e716]: JavaScript
+                  - generic [ref=f10e718]:
+                    - generic [ref=f10e719]: J J
+                    - generic [ref=f10e720]: A A
+                    - generic [ref=f10e721]: V V
+                    - generic [ref=f10e722]: A A
+                    - generic [ref=f10e723]: S S
+                    - generic [ref=f10e724]: C C
+                    - generic [ref=f10e725]: R R
+                    - generic [ref=f10e726]: I I
+                    - generic [ref=f10e727]: P P
+                    - generic [ref=f10e728]: T T
+              - listitem [ref=f10e729]:
+                - generic [ref=f10e730]:
+                  - generic [ref=f10e731]: PHP
+                  - generic [ref=f10e733]:
+                    - generic [ref=f10e734]: P P
+                    - generic [ref=f10e735]: H H
+                    - generic [ref=f10e736]: P P
+              - listitem [ref=f10e737]:
+                - generic [ref=f10e738]:
+                  - generic [ref=f10e739]: Laravel
+                  - generic [ref=f10e741]:
+                    - generic [ref=f10e742]: L L
+                    - generic [ref=f10e743]: A A
+                    - generic [ref=f10e744]: R R
+                    - generic [ref=f10e745]: A A
+                    - generic [ref=f10e746]: V V
+                    - generic [ref=f10e747]: E E
+                    - generic [ref=f10e748]: L L
+              - listitem [ref=f10e749]:
+                - generic [ref=f10e750]:
+                  - generic [ref=f10e751]: SQL
+                  - generic [ref=f10e753]:
+                    - generic [ref=f10e754]: S S
+                    - generic [ref=f10e755]: Q Q
+                    - generic [ref=f10e756]: L L
+              - listitem [ref=f10e757]:
+                - generic [ref=f10e758]:
+                  - generic [ref=f10e759]: Godot
+                  - generic [ref=f10e761]:
+                    - generic [ref=f10e762]: G G
+                    - generic [ref=f10e763]: O O
+                    - generic [ref=f10e764]: D D
+                    - generic [ref=f10e765]: O O
+                    - generic [ref=f10e766]: T T
+          - generic [ref=f10e767]:
+            - heading "Learning In progress now" [level=3] [ref=f10e768]:
+              - generic [ref=f10e769]: Learning
+              - generic [ref=f10e770]: In progress now
+            - list [ref=f10e771]:
+              - listitem [ref=f10e772]:
+                - generic [ref=f10e773]:
+                  - generic [ref=f10e774]: C#
+                  - generic [ref=f10e776]:
+                    - generic [ref=f10e777]: C C
+                    - generic [ref=f10e778]: "# #"
+          - generic [ref=f10e779]:
+            - heading "Exploring next Toward systems and firmware" [level=3] [ref=f10e780]:
+              - generic [ref=f10e781]: Exploring next
+              - generic [ref=f10e782]: Toward systems and firmware
+            - list [ref=f10e783]:
+              - listitem [ref=f10e784]:
+                - generic [ref=f10e785]:
+                  - generic [ref=f10e786]: C
+                  - generic [ref=f10e788]: C C
+              - listitem [ref=f10e790]:
+                - generic [ref=f10e791]:
+                  - generic [ref=f10e792]: Python
+                  - generic [ref=f10e794]:
+                    - generic [ref=f10e795]: P P
+                    - generic [ref=f10e796]: Y Y
+                    - generic [ref=f10e797]: T T
+                    - generic [ref=f10e798]: H H
+                    - generic [ref=f10e799]: O O
+                    - generic [ref=f10e800]: N N
+              - listitem [ref=f10e801]:
+                - generic [ref=f10e802]:
+                  - generic [ref=f10e803]: Embedded systems
+                  - generic [aria-hidden] [ref=f10e804]:
+                    - generic [ref=f10e805]:
+                      - generic [ref=f10e806]: E E
+                      - generic [ref=f10e807]: M M
+                      - generic [ref=f10e808]: B B
+                      - generic [ref=f10e809]: E E
+                      - generic [ref=f10e810]: D D
+                      - generic [ref=f10e811]: D D
+                      - generic [ref=f10e812]: E E
+                      - generic [ref=f10e813]: D D
+                    - generic [ref=f10e815]:
+                      - generic [ref=f10e816]: S S
+                      - generic [ref=f10e817]: Y Y
+                      - generic [ref=f10e818]: S S
+                      - generic [ref=f10e819]: T T
+                      - generic [ref=f10e820]: E E
+                      - generic [ref=f10e821]: M M
+                      - generic [ref=f10e822]: S S
+              - listitem [ref=f10e823]:
+                - generic [ref=f10e824]:
+                  - generic [ref=f10e825]: Electronics
+                  - generic [ref=f10e827]:
+                    - generic [ref=f10e828]: E E
+                    - generic [ref=f10e829]: L L
+                    - generic [ref=f10e830]: E E
+                    - generic [ref=f10e831]: C C
+                    - generic [ref=f10e832]: T T
+                    - generic [ref=f10e833]: R R
+                    - generic [ref=f10e834]: O O
+                    - generic [ref=f10e835]: N N
+                    - generic [ref=f10e836]: I I
+                    - generic [ref=f10e837]: C C
+                    - generic [ref=f10e838]: S S
+    - region [ref=f10e839]:
+      - generic [ref=f10e840]:
+        - paragraph [ref=f10e842]:
+          - generic [ref=f10e843]: Off duty
+        - generic [ref=f10e844]:
+          - heading "Off duty." [level=2] [ref=f10e845]:
+            - generic [aria-hidden] [ref=f10e847]:
+              - text: "Off"
+              - emphasis [ref=f10e848]
+              - emphasis [ref=f10e849]: duty.
+          - paragraph [ref=f10e850]: Outside of code I keep moving. I’m a former powerlifter and table tennis player; today I run, train at the gym and play games to stay fit, focused and balanced.
+        - generic [ref=f10e851]:
+          - generic [ref=f10e852]:
+            - paragraph [ref=f10e853]: Now
+            - list [ref=f10e854]:
+              - listitem [ref=f10e855]:
+                - generic [ref=f10e859]: Running
+                - generic [ref=f10e860]: Endurance and a clear head.
+              - listitem [ref=f10e861]:
+                - generic [ref=f10e864]: Gym
+                - generic [ref=f10e865]: Strength, built progressively.
+              - listitem [ref=f10e866]:
+                - generic [ref=f10e872]: Gaming
+                - generic [ref=f10e873]: Play, and an eye for good game design.
+          - generic [ref=f10e874]:
+            - paragraph [ref=f10e875]: Formerly
+            - list [ref=f10e876]:
+              - listitem [ref=f10e877]:
+                - generic [ref=f10e882]: Powerlifting
+              - listitem [ref=f10e883]:
+                - generic [ref=f10e888]: Table tennis
+      - generic [ref=f10e889]:
+        - 'img "Interactive playground with line-art objects: a ping-pong ball, a weight plate, maths symbols, a chip, a game controller and a stopwatch. Grab, throw and bounce them off the words." [ref=f10e890]'
+        - paragraph [aria-hidden]:
+          - generic: Train
+          - generic: Run
+          - generic: Play
+        - generic:
+          - paragraph: Grab and throw the objects. Keep the ping-pong ball in the air.
+          - generic [ref=f10e891]:
+            - generic [ref=f10e892]:
+              - text: Rally
+              - generic [ref=f10e893]: "00"
+            - generic [ref=f10e894]:
+              - text: Best
+              - generic [ref=f10e895]: "00"
+            - button "Toggle gravity in the playground" [ref=f10e896]: Gravity
+    - region [ref=f10e898]:
+      - generic [ref=f10e899]:
+        - paragraph [ref=f10e901]:
+          - generic [ref=f10e902]: Current build & roadmap
+        - generic [ref=f10e903]:
+          - generic [ref=f10e904]:
+            - heading "Current build & roadmap." [level=2] [ref=f10e905]:
+              - generic [aria-hidden] [ref=f10e907]: Current build
+              - generic [aria-hidden] [ref=f10e909]:
+                - emphasis [ref=f10e910]
+                - emphasis [ref=f10e911]: "& roadmap."
+            - paragraph [ref=f10e912]: "The roles below are possible destinations for my future career: directions I am working toward, not fixed plans."
+          - list [ref=f10e913]:
+            - listitem [ref=f10e914]:
+              - generic [ref=f10e915]:
+                - generic [ref=f10e916]: In service
+                - generic [aria-hidden] [ref=f10e917]:
+                  - generic [ref=f10e918]:
+                    - generic [ref=f10e919]: I I
+                    - generic [ref=f10e920]: N N
+                  - generic [ref=f10e922]:
+                    - generic [ref=f10e923]: S S
+                    - generic [ref=f10e924]: E E
+                    - generic [ref=f10e925]: R R
+                    - generic [ref=f10e926]: V V
+                    - generic [ref=f10e927]: I I
+                    - generic [ref=f10e928]: C C
+                    - generic [ref=f10e929]: E E
+              - generic [ref=f10e930]:
+                - heading "Student Software Engineer" [level=3] [ref=f10e931]
+                - paragraph [ref=f10e932]: MBO 4 · Rotterdam
+                - paragraph [ref=f10e933]: "Building a broad software foundation: game development in Godot, web development, relational databases and SQL, frameworks such as Laravel, and programming fundamentals across several languages."
+            - listitem [ref=f10e934]:
+              - generic [ref=f10e935]:
+                - generic [ref=f10e936]: Possible
+                - generic [ref=f10e938]:
+                  - generic [ref=f10e939]: P P
+                  - generic [ref=f10e940]: O O
+                  - generic [ref=f10e941]: S S
+                  - generic [ref=f10e942]: S S
+                  - generic [ref=f10e943]: I I
+                  - generic [ref=f10e944]: B B
+                  - generic [ref=f10e945]: L L
+                  - generic [ref=f10e946]: E E
+              - generic [ref=f10e949]:
+                - heading "Systems Engineer" [level=3] [ref=f10e950]
+                - paragraph [ref=f10e951]: Designing, integrating and maintaining the systems that everything else runs on.
+            - listitem [ref=f10e952]:
+              - generic [ref=f10e953]:
+                - generic [ref=f10e954]: Possible
+                - generic [ref=f10e956]:
+                  - generic [ref=f10e957]: P P
+                  - generic [ref=f10e958]: O O
+                  - generic [ref=f10e959]: S S
+                  - generic [ref=f10e960]: S S
+                  - generic [ref=f10e961]: I I
+                  - generic [ref=f10e962]: B B
+                  - generic [ref=f10e963]: L L
+                  - generic [ref=f10e964]: E E
+              - generic [ref=f10e967]:
+                - heading "Firmware Security Automation Engineer" [level=3] [ref=f10e968]
+                - paragraph [ref=f10e969]: Securing the low-level code inside devices, and automating how it is tested and verified.
+        - group [ref=f10e970]:
+          - generic "Why this direction?" [ref=f10e971]
+    - region [ref=f10e975]:
+      - generic [aria-hidden]:
+        - generic: √2
+      - generic [ref=f10e976]:
+        - paragraph [ref=f10e978]:
+          - generic [ref=f10e979]: Engine room
+        - generic [ref=f10e980]:
+          - heading "This site is a project too." [level=2] [ref=f10e981]:
+            - generic [aria-hidden] [ref=f10e983]:
+              - text: This site is
+              - emphasis [ref=f10e984]: a
+            - emphasis [ref=f10e987]: project too.
+          - paragraph [ref=f10e988]: "Three languages, each doing the job it does best: the same mindset I want to bring to systems and firmware work."
+        - list [ref=f10e989]:
+          - listitem [ref=f10e990]:
+            - generic [ref=f10e993]:
+              - generic [ref=f10e994]: T T
+              - generic [ref=f10e995]: S S
+            - paragraph [ref=f10e996]: TypeScript · Astro
+            - heading "The site" [level=3] [ref=f10e997]
+            - paragraph [ref=f10e998]: Static, SEO-friendly pages generated by Astro, with every interactive feature written as a TypeScript class, including this board.
+          - listitem [ref=f10e999]:
+            - generic [ref=f10e1000]: C C
+            - paragraph [ref=f10e1005]: C · WebAssembly
+            - heading "The physics" [level=3] [ref=f10e1006]
+            - paragraph [ref=f10e1007]: The off-duty playground runs on a small physics engine written in C and compiled to WebAssembly.
+          - listitem [ref=f10e1008]:
+            - generic [ref=f10e1011]:
+              - generic [ref=f10e1012]: P P
+              - generic [ref=f10e1013]: Y Y
+            - paragraph [ref=f10e1014]: Python
+            - heading "The deploy guard" [level=3] [ref=f10e1015]
+            - paragraph [ref=f10e1016]: Before every deploy, a Python auditor checks each page’s titles, descriptions, links and alt text, and stops the release if anything is off.
+    - region [ref=f10e1017]:
+      - generic [aria-hidden]:
+        - generic: ∞
+      - generic [ref=f10e1018]:
+        - paragraph [ref=f10e1020]:
+          - generic [ref=f10e1021]: Final call
+          - generic [ref=f10e1022]: Messages
+        - link "Send me a message" [ref=f10e1023]:
+          - /url: /contact/
+          - generic [ref=f10e1026]:
+            - generic [ref=f10e1027]: H H
+            - generic [ref=f10e1028]: E E
+            - generic [ref=f10e1029]: L L
+            - generic [ref=f10e1030]: L L
+            - generic [ref=f10e1031]: O O
+        - generic [ref=f10e1035]:
+          - generic [ref=f10e1036]:
+            - heading [level=2] [ref=f10e1037]:
+              - text: "Final call:"
+              - emphasis [ref=f10e1038]: say hello.
+            - paragraph [ref=f10e1039]: "Questions, opportunities or simply a hello: my inbox is open."
+          - generic [ref=f10e1040]:
+            - link "Send me a message" [ref=f10e1041]:
+              - /url: /contact/
+            - paragraph [ref=f10e1044]:
+              - generic [ref=f10e1045]: Or find me on
+              - link "GitHub" [ref=f10e1046]:
+                - /url: https://github.com/bhccob
+              - link "Instagram" [ref=f10e1047]:
+                - /url: https://www.instagram.com/bhccob/
+  - contentinfo [ref=f10e1048]:
+    - generic [ref=f10e1049]:
+      - generic [ref=f10e1050]:
+        - paragraph [ref=f10e1051]:
+          - generic [ref=f10e1052]: Bob Chung
+          - generic [aria-hidden] [ref=f10e1053]:
+            - generic [ref=f10e1054]:
+              - generic [ref=f10e1055]: B B
+              - generic [ref=f10e1056]: O O
+              - generic [ref=f10e1057]: B B
+            - generic [ref=f10e1059]:
+              - generic [ref=f10e1060]: C C
+              - generic [ref=f10e1061]: H H
+              - generic [ref=f10e1062]: U U
+              - generic [ref=f10e1063]: N N
+              - generic [ref=f10e1064]: G G
+        - link "Back to top" [ref=f10e1065]:
+          - /url: "#top"
+      - generic [ref=f10e1068]:
+        - paragraph [ref=f10e1069]: © 2026 Bob Chung · Built with curiosity in Rotterdam
+        - list [ref=f10e1070]:
+          - listitem [ref=f10e1071]:
+            - link "GitHub" [ref=f10e1072]:
+              - /url: https://github.com/bhccob
+          - listitem [ref=f10e1073]:
+            - link "Instagram" [ref=f10e1074]:
+              - /url: https://www.instagram.com/bhccob/
+          - listitem [ref=f10e1075]:
+            - link "Email" [ref=f10e1076]:
+              - /url: mailto:bhccob@gmail.com
+        - paragraph [ref=f10e1077]:
+          - text: Press
+          - generic [ref=f10e1078]: /
+          - text: to open the terminal
+  - status

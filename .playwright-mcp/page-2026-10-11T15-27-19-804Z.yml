@@ -1,0 +1,139 @@
+- generic [active] [ref=f21e1]:
+  - link "Skip to content" [ref=f21e2] [cursor=pointer]:
+    - /url: "#main"
+  - text: B B H H C C C C O O B B . . M M E E 0 0 % %
+  - banner [ref=f21e3]:
+    - link "Bob Chung, back to home" [ref=f21e4] [cursor=pointer]:
+      - /url: /
+      - generic [ref=f21e6]: B B
+      - generic [ref=f21e7]: bhccob.me
+    - navigation "Primary" [ref=f21e8]:
+      - list [ref=f21e9]:
+        - listitem [ref=f21e10]:
+          - link "Work" [ref=f21e11] [cursor=pointer]:
+            - /url: /#work
+        - listitem [ref=f21e12]:
+          - link "About" [ref=f21e13] [cursor=pointer]:
+            - /url: /#about
+        - listitem [ref=f21e14]:
+          - link "Career" [ref=f21e15] [cursor=pointer]:
+            - /url: /#career
+    - generic [ref=f21e16]:
+      - button "Open terminal" [ref=f21e17] [cursor=pointer]
+      - group "Language" [ref=f21e20]:
+        - link "English" [ref=f21e21] [cursor=pointer]:
+          - /url: /contact/
+          - text: EN
+        - link "Bekijk deze pagina in het Nederlands" [ref=f21e22] [cursor=pointer]:
+          - /url: /nl/contact/
+          - text: NL
+      - link "Send a message" [ref=f21e23] [cursor=pointer]:
+        - /url: /contact/
+  - text: W W O O R R K K A A B B O O U U T T C C A A R R E E E E R R C C O O N N T T A A C C T T
+  - main [ref=f21e26]:
+    - region [ref=f21e27]:
+      - generic [aria-hidden]:
+        - generic: ∫
+      - generic [ref=f21e28]:
+        - paragraph [ref=f21e30]:
+          - generic [ref=f21e31]: Messages
+          - generic [ref=f21e32]: Rotterdam · NL
+        - generic [ref=f21e33]:
+          - heading [level=1] [ref=f21e34]:
+            - text: Send a
+            - emphasis [ref=f21e35]: message.
+          - paragraph [ref=f21e36]: Have a question, an opportunity, or just want to say hello? Write it below and it arrives straight in my inbox.
+        - generic [ref=f21e37]:
+          - complementary [ref=f21e38]:
+            - paragraph [ref=f21e39]: Or reach me directly
+            - list [ref=f21e40]:
+              - listitem [ref=f21e41]:
+                - link "GitHub @bhccob" [ref=f21e42] [cursor=pointer]:
+                  - /url: https://github.com/bhccob
+                  - generic [ref=f21e45]:
+                    - generic [ref=f21e46]: G G
+                    - generic [ref=f21e47]: H H
+                  - generic [ref=f21e48]:
+                    - generic [ref=f21e49]: GitHub
+                    - generic [ref=f21e50]: "@bhccob"
+              - listitem [ref=f21e53]:
+                - link "Instagram @bhccob" [ref=f21e54] [cursor=pointer]:
+                  - /url: https://www.instagram.com/bhccob/
+                  - generic [ref=f21e57]:
+                    - generic [ref=f21e58]: I I
+                    - generic [ref=f21e59]: G G
+                  - generic [ref=f21e60]:
+                    - generic [ref=f21e61]: Instagram
+                    - generic [ref=f21e62]: "@bhccob"
+              - listitem [ref=f21e65]:
+                - link "Email bhccob@gmail.com" [ref=f21e66] [cursor=pointer]:
+                  - /url: mailto:bhccob@gmail.com
+                  - generic [ref=f21e67]: "@ @"
+                  - generic [ref=f21e72]:
+                    - generic [ref=f21e73]: Email
+                    - generic [ref=f21e74]: bhccob@gmail.com
+          - generic [ref=f21e78]:
+            - generic [ref=f21e79]:
+              - heading "Your message" [level=2] [ref=f21e80]
+              - checkbox [aria-hidden] [ref=f21e81]
+              - generic [ref=f21e82]:
+                - generic [ref=f21e83]:
+                  - generic [ref=f21e84]: Name
+                  - textbox "Name" [ref=f21e85]:
+                    - /placeholder: Your name
+                  - paragraph [ref=f21e86]
+                - generic [ref=f21e87]:
+                  - generic [ref=f21e88]: Email
+                  - textbox "Email" [ref=f21e89]:
+                    - /placeholder: you@example.com
+                  - paragraph [ref=f21e90]
+              - generic [ref=f21e91]:
+                - generic [ref=f21e92]: Subject (optional)
+                - textbox "Subject (optional)" [ref=f21e93]:
+                  - /placeholder: What is it about?
+              - generic [ref=f21e94]:
+                - generic [ref=f21e95]: Message
+                - textbox "Message" [ref=f21e96]:
+                  - /placeholder: Write your message…
+                - generic [ref=f21e97]:
+                  - paragraph
+                  - paragraph [ref=f21e98]: 0 / 3000
+              - generic [ref=f21e99]:
+                - button "Send message" [ref=f21e100] [cursor=pointer]
+                - paragraph [ref=f21e104]: Your details are only used to reply to your message.
+            - text: S S E E N N T T
+  - contentinfo [ref=f21e105]:
+    - generic [ref=f21e106]:
+      - generic [ref=f21e107]:
+        - paragraph [ref=f21e108]:
+          - generic [ref=f21e109]: Bob Chung
+          - generic [aria-hidden] [ref=f21e110]:
+            - generic [ref=f21e111]:
+              - generic [ref=f21e112]: B B
+              - generic [ref=f21e113]: O O
+              - generic [ref=f21e114]: B B
+            - generic [ref=f21e116]:
+              - generic [ref=f21e117]: C C
+              - generic [ref=f21e118]: H H
+              - generic [ref=f21e119]: U U
+              - generic [ref=f21e120]: N N
+              - generic [ref=f21e121]: G G
+        - link "Back to top" [ref=f21e122] [cursor=pointer]:
+          - /url: "#top"
+      - generic [ref=f21e125]:
+        - paragraph [ref=f21e126]: © 2026 Bob Chung · Built with curiosity in Rotterdam
+        - list [ref=f21e127]:
+          - listitem [ref=f21e128]:
+            - link "GitHub" [ref=f21e129] [cursor=pointer]:
+              - /url: https://github.com/bhccob
+          - listitem [ref=f21e130]:
+            - link "Instagram" [ref=f21e131] [cursor=pointer]:
+              - /url: https://www.instagram.com/bhccob/
+          - listitem [ref=f21e132]:
+            - link "Email" [ref=f21e133] [cursor=pointer]:
+              - /url: mailto:bhccob@gmail.com
+        - paragraph [ref=f21e134]:
+          - text: Press
+          - generic [ref=f21e135]: /
+          - text: to open the terminal
+  - status

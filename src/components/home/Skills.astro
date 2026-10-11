@@ -1,0 +1,97 @@
+---
+import FlapText from '../ui/FlapText.astro';
+import { Translator, type Locale } from '../../i18n/Translator';
+import { skills } from '../../data/skills';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const { t } = new Translator(locale);
+const s = t.skills;
+
+const columns = [
+  { title: s.comfortable, note: s.comfortableNote, items: [...skills.comfortable], tone: 'paper' as const },
+  { title: s.learning, note: s.learningNote, items: [...skills.learning], tone: 'yellow' as const },
+  { title: s.exploring, note: s.exploringNote, items: s.exploringItems, tone: 'lilac' as const }
+];
+---
+
+<section class="skills section" id="skills" aria-labelledby="skills-title">
+  <div class="container">
+    <h2 id="skills-title" class="display h2 skills__title" data-split set:html={s.title} />
+
+    <div class="timetable">
+      {
+        columns.map((column) => (
+          <div class="timetable__col" data-reveal>
+            <h3 class="timetable__head">
+              <span class="timetable__name">{column.title}</span>
+              <span class="timetable__note">{column.note}</span>
+            </h3>
+            <ul class="timetable__list">
+              {column.items.map((item) => (
+                <li data-flap-host>
+                  <FlapText text={item} tone={column.tone} hover wrap class="timetable__item" />
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .skills__title {
+    margin-bottom: clamp(48px, 6vw, 80px);
+  }
+
+  .timetable {
+    display: grid;
+    grid-template-columns: 1.3fr 0.8fr 1.1fr;
+    gap: 48px clamp(32px, 5vw, 80px);
+  }
+
+  .timetable__head {
+    display: grid;
+    gap: 6px;
+    padding-bottom: 16px;
+    margin-bottom: 8px;
+    background: linear-gradient(var(--line-strong), var(--line-strong)) left bottom / 100% 1px no-repeat;
+  }
+
+  .timetable__name {
+    font: 700 15px/1.2 var(--font-sans);
+    color: var(--paper);
+  }
+
+  .timetable__note {
+    font: 450 11px/1.4 var(--font-mono);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+
+  .timetable__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 20px;
+    padding-top: 12px;
+  }
+
+  .timetable :global(.timetable__item) {
+    --tw: 0.8;
+    --th: 1.32;
+    --gap: 0.1em;
+    font-size: clamp(20px, 1.9vw, 27px);
+  }
+
+  @media (max-width: 900px) {
+    .timetable {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

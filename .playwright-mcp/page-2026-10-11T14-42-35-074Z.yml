@@ -1,0 +1,56 @@
+- generic [ref=f2e2]:
+  - banner [ref=f2e3]:
+    - link "bhccob.me" [ref=f2e4]:
+      - /url: "#"
+    - navigation "Main" [ref=f2e8]:
+      - link "Work" [ref=f2e9]:
+        - /url: "#work"
+      - link "About" [ref=f2e10]:
+        - /url: "#about"
+      - link "Career" [ref=f2e11]:
+        - /url: "#career"
+      - link "Send a message" [ref=f2e12]:
+        - /url: "#contact"
+  - generic [aria-hidden] [ref=f2e13]:
+    - generic [ref=f2e14]:
+      - generic [ref=f2e15]: Card
+      - text: Row 001 / 054
+    - generic [ref=f2e17]:
+      - generic [ref=f2e18]: Pattern
+      - text: BC-2006 · Rotterdam
+  - generic [ref=f2e19]:
+    - heading "Bob Chung" [level=1] [ref=f2e20]
+    - img "Bob Chung, woven in gold thread" [ref=f2e21]
+  - generic [ref=f2e22]:
+    - generic [ref=f2e23]:
+      - generic [ref=f2e24]: Student software engineer in Rotterdam
+      - paragraph [ref=f2e25]:
+        - text: Born in Aruba, Chinese by heritage. I build with
+        - emphasis [ref=f2e26]: curiosity
+        - text: and test with
+        - emphasis [ref=f2e27]: honesty
+        - text: ", one row at a time."
+    - generic [ref=f2e28]:
+      - generic "Projects" [ref=f2e29]:
+        - 'link "Card #01 2025 Cookies Clicker Web game · school project" [ref=f2e30]':
+          - /url: https://github.com/bhccob/Cookies-Clicker
+          - generic [ref=f2e31]:
+            - generic [ref=f2e32]: "Card #01"
+            - generic [ref=f2e33]: "2025"
+          - generic [ref=f2e34]: Cookies Clicker
+          - generic [ref=f2e35]: Web game · school project
+        - 'link "Card #02 2026 Jontai Energy Company website · personal project" [ref=f2e55]':
+          - /url: https://github.com/bhccob/JE
+          - generic [ref=f2e56]:
+            - generic [ref=f2e57]: "Card #02"
+            - generic [ref=f2e58]: "2026"
+          - generic [ref=f2e59]: Jontai Energy
+          - generic [ref=f2e60]: Company website · personal project
+        - 'link "Card #03 Blank Next build Not yet punched" [ref=f2e80]':
+          - /url: https://github.com/bhccob
+          - generic [ref=f2e81]:
+            - generic [ref=f2e82]: "Card #03"
+            - generic [ref=f2e83]: Blank
+          - generic [ref=f2e84]: Next build
+          - generic [ref=f2e85]: Not yet punched
+      - paragraph [ref=f2e86]: Earlier cards exist; they are not part of this deck.

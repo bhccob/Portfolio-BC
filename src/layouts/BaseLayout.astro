@@ -1,0 +1,225 @@
+---
+import '@fontsource-variable/sofia-sans-extra-condensed';
+import '@fontsource-variable/sofia-sans';
+import '@fontsource-variable/martian-mono';
+import '../styles/tokens.css';
+import '../styles/base.css';
+
+import Header from '../components/ui/Header.astro';
+import Footer from '../components/ui/Footer.astro';
+import LoadingScreen from '../components/ui/LoadingScreen.astro';
+import Terminal from '../components/ui/Terminal.astro';
+import { Translator, type Locale } from '../i18n/Translator';
+import { profile } from '../data/profile';
+
+interface Props {
+  locale: Locale;
+  /** Locale-neutral route, e.g. `/` or `/contact/`. */
+  route: string;
+  title: string;
+  description: string;
+  ogType?: 'website' | 'article' | 'profile';
+  /** Extra JSON-LD objects for this page. */
+  structuredData?: Record<string, unknown>[];
+  noindex?: boolean;
+  page?: 'home' | 'contact' | 'project' | 'error';
+}
+
+const { locale, route, title, description, ogType = 'website', structuredData = [], noindex = false, page = 'home' } = Astro.props;
+const i18n = new Translator(locale);
+const site = Astro.site ?? new URL(profile.site);
+const alternates = i18n.alternates(route);
+const canonical = new URL(i18n.path(route), site).href;
+const ogImage = new URL('/og.png', site).href;
+const age = profile.ageOn();
+
+const person = {
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  '@id': `${site.origin}/#person`,
+  name: profile.name,
+  givenName: profile.givenName,
+  familyName: profile.familyName,
+  url: site.origin,
+  email: `mailto:${profile.email}`,
+  image: new URL('/og.png', site).href,
+  jobTitle: 'Student Software Engineer',
+  birthPlace: { '@type': 'Place', name: 'Aruba' },
+  homeLocation: { '@type': 'Place', name: 'Rotterdam, Netherlands' },
+  knowsAbout: ['Web development', 'Game development', 'Godot', 'SQL', 'Databases', 'Laravel', 'JavaScript', 'PHP'],
+  sameAs: profile.socials.filter((social) => social.id !== 'email').map((social) => social.url)
+};
+
+const website = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  '@id': `${site.origin}/#website`,
+  url: site.origin,
+  name: 'Bob Chung',
+  inLanguage: ['en', 'nl'],
+  author: { '@id': `${site.origin}/#person` }
+};
+
+const graph = [person, website, ...structuredData];
+---
+
+<!doctype html>
+<html lang={locale} data-page={page}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    {noindex ? <meta name="robots" content="noindex, follow" /> : <link rel="canonical" href={canonical} />}
+    {
+      !noindex && (
+        <>
+          <link rel="alternate" hreflang="en" href={new URL(alternates.en, site).href} />
+          <link rel="alternate" hreflang="nl" href={new URL(alternates.nl, site).href} />
+          <link rel="alternate" hreflang="x-default" href={new URL(alternates.en, site).href} />
+        </>
+      )
+    }
+    <meta name="author" content={profile.name} />
+    <meta name="theme-color" content="#150b26" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+
+    <meta property="og:type" content={ogType} />
+    <meta property="og:site_name" content="Bob Chung" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Bob Chung, Student Software Engineer in Rotterdam" />
+    <meta property="og:locale" content={i18n.ogLocale} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+
+    <script type="application/ld+json" set:html={JSON.stringify(graph)} />
+
+    <!--
+      Runs before first paint: flags JS support, decides whether the boot screen
+      plays, and blanks the intro tiles so they can flip in (with a failsafe in
+      case the main script never runs).
+    -->
+    <script is:inline>
+      (function () {
+        var root = document.documentElement;
+        root.classList.add('js');
+        var booted = false;
+        try { booted = sessionStorage.getItem('bob-booted') === '1'; } catch (error) {}
+        var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (!booted && !reduce) root.classList.add('is-booting');
+        if (!reduce) {
+          root.classList.add('flap-intro');
+          window.setTimeout(function () { root.classList.remove('flap-intro'); }, 4000);
+        }
+        // Cross-page view transitions are an enhancement; a skipped one is not an error.
+        var quiet = function (event) {
+          var transition = event.viewTransition;
+          if (!transition) return;
+          transition.ready.catch(function () {});
+          transition.finished.catch(function () {});
+        };
+        window.addEventListener('pageswap', quiet);
+        window.addEventListener('pagereveal', quiet);
+      })();
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">{i18n.t.nav.skip}</a>
+    <LoadingScreen locale={locale} />
+    <canvas class="blueprint" data-blueprint aria-hidden="true"></canvas>
+    <Header locale={locale} route={route} />
+    <main id="main" tabindex="-1">
+      <slot />
+    </main>
+    <Footer locale={locale} />
+    <Terminal locale={locale} age={age} />
+    <div class="toast-region" role="status" aria-live="polite" data-toast-region data-strings={JSON.stringify(i18n.t.toast)}></div>
+    <script>
+      import { bootstrap } from '../scripts/main';
+      bootstrap();
+    </script>
+  </body>
+</html>
+
+<style is:global>
+  html.flap-intro [data-flap='intro'] .f::before,
+  html.flap-intro [data-flap='intro'] .f::after {
+    color: transparent;
+  }
+
+  .blueprint {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+  }
+
+  #main,
+  .site-footer {
+    position: relative;
+    z-index: 1;
+  }
+
+  main:focus {
+    outline: none;
+  }
+
+  .toast-region {
+    position: fixed;
+    z-index: 95;
+    left: 50%;
+    bottom: 24px;
+    display: grid;
+    gap: 8px;
+    justify-items: center;
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
+  .toast {
+    padding: 12px 18px 11px;
+    background: var(--yellow);
+    color: var(--on-yellow);
+    font: 500 12px/1.3 var(--font-mono);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    border-radius: var(--radius);
+    box-shadow: 0 18px 40px -12px rgb(0 0 0 / 0.55);
+    animation: toast-in 0.5s var(--ease-out) both;
+    transform-origin: top;
+  }
+
+  .toast b {
+    font-weight: 700;
+  }
+
+  .toast.is-leaving {
+    animation: toast-out 0.35s var(--ease-in-out) both;
+  }
+
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: perspective(400px) rotateX(-80deg);
+    }
+  }
+
+  @keyframes toast-out {
+    to {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+  }
+</style>

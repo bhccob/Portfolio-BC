@@ -1,0 +1,313 @@
+---
+import Icon from '../ui/Icon.astro';
+import FlapText from '../ui/FlapText.astro';
+import { Translator, type Locale } from '../../i18n/Translator';
+import type { IconName } from '../ui/icons';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const { t } = new Translator(locale);
+const l = t.life;
+
+const now: { icon: IconName; title: string; text: string }[] = [
+  { icon: 'shoe', title: l.hobbies.running, text: l.hobbies.runningText },
+  { icon: 'dumbbell', title: l.hobbies.gym, text: l.hobbies.gymText },
+  { icon: 'controller', title: l.hobbies.gaming, text: l.hobbies.gamingText }
+];
+const former: { icon: IconName; title: string }[] = [
+  { icon: 'plate', title: l.hobbies.powerlifting },
+  { icon: 'paddle', title: l.hobbies.tableTennis }
+];
+
+const rows = [
+  ...now.map((hobby) => ({ ...hobby, former: false })),
+  ...former.map((hobby) => ({ ...hobby, text: '', former: true }))
+];
+
+const strings = { rallyOver: l.rallyOver, newBest: l.newBest, hint: l.hint, hintTouch: l.hintTouch };
+const words = l.playTitle.split(' · ');
+---
+
+<section class="off section" id="off-duty" aria-labelledby="off-title" data-play data-strings={JSON.stringify(strings)}>
+  <div class="container">
+    <div class="off__head">
+      <h2 id="off-title" class="display h2" data-split set:html={l.title} />
+      <p class="body-text" data-reveal>{l.text}</p>
+    </div>
+
+    <ol class="hobbies" data-reveal>
+      {
+        rows.map((hobby) => (
+          <li class:list={['hobby', { 'hobby--former': hobby.former }]} data-flap-host>
+            <Icon name={hobby.icon} size={30} strokeWidth={1.4} />
+            <span class="hobby__title">{hobby.title}</span>
+            <span class="hobby__text">{hobby.text}</span>
+            <FlapText text={hobby.former ? l.former : l.current} tone={hobby.former ? 'dim' : 'yellow'} hover class="hobby__status" />
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+
+  <div class="stage" data-play-stage>
+    <canvas class="stage__canvas" data-play-canvas role="img" aria-label={l.playgroundLabel}></canvas>
+    <p class="stage__words" data-play-title aria-hidden="true">
+      {
+        words.map((word, index) => (
+          <>
+            {index > 0 && <span class="stage__dot" />}
+            <span class="stage__word">{[...word].map((char) => <span data-letter>{char}</span>)}</span>
+          </>
+        ))
+      }
+    </p>
+    <div class="stage__hud" data-play-avoid>
+      <p class="stage__hint" data-play-hint>{l.hint}</p>
+      <div class="stage__score">
+        <span class="stage__stat">{l.rally} <b data-rally>00</b></span>
+        <span class="stage__stat">{l.best} <b data-best>00</b></span>
+        <button class="stage__gravity" type="button" data-gravity aria-pressed="false" aria-label={l.gravityLabel}>
+          <span class="stage__switch" aria-hidden="true"></span>
+          {l.gravity}
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .off__head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: end;
+    gap: 28px 64px;
+  }
+
+  .hobbies {
+    margin-top: clamp(36px, 4vw, 56px);
+  }
+
+  /* one departure row per hobby: icon, name, note, now or formerly */
+  .hobby {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 0.7fr) minmax(0, 1.3fr) auto;
+    align-items: center;
+    gap: 10px 24px;
+    padding: 14px 0;
+    color: var(--lilac);
+    background: linear-gradient(var(--line), var(--line)) left top / 100% 1px no-repeat;
+  }
+
+  .hobby:last-child {
+    background:
+      linear-gradient(var(--line), var(--line)) left top / 100% 1px no-repeat,
+      linear-gradient(var(--line), var(--line)) left bottom / 100% 1px no-repeat;
+  }
+
+  .hobby :global(.icon) {
+    color: var(--yellow);
+  }
+
+  .hobby--former :global(.icon) {
+    color: var(--dim);
+  }
+
+  .hobby__title {
+    font: 800 28px/1 var(--font-flap);
+    text-transform: uppercase;
+    color: var(--paper);
+  }
+
+  .hobby__text {
+    font-size: 16px;
+  }
+
+  .hobby :global(.hobby__status) {
+    justify-self: end;
+    --tw: 0.84;
+    --th: 1.4;
+    --gap: 0.1em;
+    font-size: 15px;
+  }
+
+  /* the playground: big words the objects bounce off */
+  .stage {
+    position: relative;
+    height: clamp(460px, 74vh, 760px);
+    margin-top: clamp(40px, 5vw, 72px);
+    background:
+      linear-gradient(var(--yellow), var(--yellow)) center bottom / 100% 2px no-repeat,
+      linear-gradient(90deg, transparent calc(50% - 1px), rgb(179 165 212 / 0.16) calc(50% - 1px), rgb(179 165 212 / 0.16) calc(50% + 1px), transparent calc(50% + 1px));
+    touch-action: pan-y;
+  }
+
+  .stage__canvas {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    width: 100%;
+    height: 100%;
+  }
+
+  .stage__words {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0 0.18em;
+    padding: 0 var(--gutter);
+    font: 800 clamp(64px, 11vw, 176px) / 0.9 var(--font-flap);
+    text-transform: uppercase;
+    color: transparent;
+    -webkit-text-stroke: 1.5px rgb(179 165 212 / 0.42);
+    user-select: none;
+    pointer-events: none;
+  }
+
+  .stage__dot {
+    width: 0.13em;
+    height: 0.13em;
+    margin: 0 0.06em;
+    background: var(--yellow);
+    border-radius: 2px;
+  }
+
+  .stage__word {
+    white-space: nowrap;
+  }
+
+  .stage__hud {
+    position: absolute;
+    z-index: 3;
+    left: var(--gutter);
+    right: var(--gutter);
+    bottom: 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px 32px;
+    flex-wrap: wrap;
+    pointer-events: none;
+  }
+
+  .stage__hint {
+    font-size: 15px;
+    color: var(--dim);
+    max-width: 36em;
+  }
+
+  .stage__score {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    pointer-events: auto;
+  }
+
+  .stage__stat {
+    font: 450 11px/1 var(--font-mono);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+
+  .stage__stat b {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 5px 6px 4px;
+    font: 800 20px/1 var(--font-flap);
+    color: var(--yellow);
+    background: linear-gradient(var(--tile-hi), var(--tile) 50%, var(--split) 50%, var(--split) calc(50% + 1px), var(--tile-2) calc(50% + 1px));
+    border-radius: 3px;
+    min-width: 2.2em;
+    text-align: center;
+  }
+
+  .stage__stat b:global(.is-bumped) {
+    animation: bump 0.35s var(--ease-out);
+  }
+
+  @keyframes bump {
+    40% {
+      transform: scale(1.25);
+    }
+  }
+
+  .stage__gravity {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 4px;
+    font: 450 11px/1 var(--font-mono);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--lilac);
+  }
+
+  .stage__switch {
+    position: relative;
+    width: 34px;
+    height: 18px;
+    border-radius: 999px;
+    background: var(--board-3);
+    transition: background-color 0.3s;
+  }
+
+  .stage__switch::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--lilac);
+    transition: transform 0.35s var(--ease-out), background-color 0.3s;
+  }
+
+  .stage__gravity[aria-pressed='true'] .stage__switch {
+    background: var(--yellow);
+  }
+
+  .stage__gravity[aria-pressed='true'] .stage__switch::after {
+    transform: translateX(16px);
+    background: var(--on-yellow);
+  }
+
+  @media (max-width: 900px) {
+    .off__head {
+      grid-template-columns: 1fr;
+    }
+
+    .hobby {
+      grid-template-columns: 36px minmax(0, 1fr) auto;
+    }
+
+    .hobby__text {
+      grid-column: 2 / -1;
+    }
+
+    .hobby :global(.hobby__status) {
+      grid-column: 3;
+      grid-row: 1;
+    }
+
+    .stage {
+      height: 520px;
+    }
+
+    .stage__words {
+      font-size: 22vw;
+      align-content: center;
+    }
+
+    .stage__dot {
+      display: none;
+    }
+  }
+</style>

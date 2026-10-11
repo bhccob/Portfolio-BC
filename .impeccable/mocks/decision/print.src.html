@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Four-Language Print: Bob Chung</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Schibsted+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@700&text=以好奇心构建，诚实测试&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sheet: #22103f;
+    --sheet-deep: #170a2c;
+    --sun: #ffd43b;
+    --lilac: #b9a3ff;
+    --paper: #f6f1ff;
+    --muted: #c9bde8;
+    --display: 'Unbounded', system-ui, sans-serif;
+    --sans: 'Schibsted Grotesk', system-ui, sans-serif;
+    --frame: 46px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { background: var(--sheet-deep); color: var(--paper); font-family: var(--sans); overflow: hidden; cursor: none; }
+  ::selection { background: var(--sun); color: var(--sheet); }
+  a { color: inherit; text-decoration: none; cursor: none; }
+
+  /* the running four-language border */
+  .frame { position: fixed; inset: 0; z-index: 4; pointer-events: none; }
+  .edge { position: absolute; overflow: hidden; display: flex; align-items: center; font-family: var(--display); font-weight: 700; font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: var(--sun); white-space: nowrap; }
+  .edge.top, .edge.bottom { left: 0; right: 0; height: var(--frame); }
+  .edge.top { top: 0; } .edge.bottom { bottom: 0; color: var(--lilac); }
+  .edge.left, .edge.right { top: var(--frame); bottom: var(--frame); width: var(--frame); justify-content: center; align-items: flex-start; }
+  .edge.left { left: 0; color: var(--lilac); } .edge.right { right: 0; }
+  .edge .run { display: inline-flex; gap: 48px; padding-right: 48px; animation: run 60s linear infinite; }
+  .edge.bottom .run { animation-direction: reverse; }
+  .edge.left .run, .edge.right .run { writing-mode: vertical-rl; flex-direction: row; animation-name: runv; padding: 0 0 48px; }
+  .edge.left .run { font-family: 'Noto Sans SC', var(--display); letter-spacing: .5em; font-size: 15px; animation-direction: reverse; }
+  .edge .run span::after { content: ''; display: inline-block; width: 7px; height: 7px; background: currentColor; transform: rotate(45deg); margin-left: 48px; vertical-align: middle; }
+  .edge.left .run span::after, .edge.right .run span::after { margin: 48px 0 0; }
+  @keyframes run { to { transform: translateX(-50%); } }
+  @keyframes runv { to { transform: translateY(-50%); } }
+
+  .sheet { position: fixed; inset: var(--frame); background: var(--sheet); overflow: hidden; z-index: 1; }
+  .sheet::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .55; mix-blend-mode: overlay; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .25 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  canvas#tone { position: absolute; left: 50%; top: 0; height: 100%; transform: translateX(-50%); }
+
+  .ui { position: fixed; inset: var(--frame); z-index: 3; display: grid; grid-template-rows: 74px 1fr auto; padding: 0 40px; }
+  .bar { display: flex; justify-content: space-between; align-items: center; }
+  .logo { font-family: var(--display); font-weight: 700; font-size: 15px; letter-spacing: .02em; }
+  .logo b { color: var(--sun); }
+  .nav { display: flex; gap: 30px; align-items: center; font-size: 15px; color: var(--muted); }
+  .nav a { transition: color .25s; }
+  .nav a:hover { color: var(--sun); }
+  .nav .send { background: var(--sun); color: var(--sheet); padding: 10px 18px; font-weight: 600; border-radius: 2px; }
+  .nav .send:hover { color: var(--sheet); background: #fff; }
+
+  h1 { align-self: end; justify-self: center; font-family: var(--display); font-weight: 900; font-size: clamp(64px, 10.4vw, 168px); line-height: .8; letter-spacing: -0.035em; text-transform: uppercase; color: var(--sun); text-align: center; margin-bottom: 22px; position: relative; }
+  h1 .shadow { position: absolute; inset: 0; z-index: -1; color: var(--lilac); opacity: .7; transform: translate(var(--mx, 5px), var(--my, 4px)); pointer-events: none; }
+
+  .low { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; align-items: end; padding-bottom: 30px; }
+  .who { display: grid; gap: 8px; max-width: 420px; }
+  .who strong { font-size: 19px; font-weight: 600; }
+  .who p { color: var(--muted); font-size: 16px; line-height: 1.5; }
+  .index { justify-self: end; display: grid; gap: 2px; min-width: 430px; }
+  .index a, .index p { display: grid; grid-template-columns: 52px 1fr auto; gap: 14px; align-items: baseline; padding: 10px 0; position: relative; }
+  .index a::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--sun); transform: scaleX(0); transform-origin: left; transition: transform .5s cubic-bezier(.2,.8,.2,1); }
+  .index a:hover::after { transform: scaleX(1); }
+  .index .no { font-family: var(--display); font-weight: 700; font-size: 14px; color: var(--sun); }
+  .index .t { font-family: var(--display); font-weight: 700; font-size: 18px; letter-spacing: -0.01em; }
+  .index .t small { display: block; font-family: var(--sans); font-weight: 400; font-size: 14px; color: var(--muted); letter-spacing: 0; margin-top: 3px; }
+  .index .y { font-size: 14px; color: var(--muted); }
+  .index p { color: var(--muted); }
+  .index p .t { color: var(--muted); }
+  .cursor { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
+
+  @media (max-width: 900px) {
+    :root { --frame: 30px; }
+    body { overflow: auto; cursor: auto; } a { cursor: pointer; }
+    .edge { font-size: 10px; }
+    .ui { position: relative; inset: auto; margin: var(--frame); min-height: calc(100vh - 60px); padding: 0 16px; }
+    .nav a:not(.send) { display: none; }
+    .low { grid-template-columns: 1fr; }
+    .index { justify-self: stretch; min-width: 0; }
+    .cursor { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { .edge .run { animation: none; } }
+</style>
+</head>
+<body>
+<div class="sheet" aria-hidden="true"><canvas id="tone"></canvas></div>
+
+<div class="frame" aria-hidden="true">
+  <div class="edge top"><div class="run"><span>I build with curiosity and test with honesty</span><span>I build with curiosity and test with honesty</span><span>I build with curiosity and test with honesty</span><span>I build with curiosity and test with honesty</span></div></div>
+  <div class="edge right"><div class="run"><span>Ik bouw met nieuwsgierigheid en test met eerlijkheid</span><span>Ik bouw met nieuwsgierigheid en test met eerlijkheid</span></div></div>
+  <div class="edge bottom"><div class="run"><span>Mi ta traha cu curiosidad y ta purba cu onestidad</span><span>Mi ta traha cu curiosidad y ta purba cu onestidad</span><span>Mi ta traha cu curiosidad y ta purba cu onestidad</span><span>Mi ta traha cu curiosidad y ta purba cu onestidad</span></div></div>
+  <div class="edge left"><div class="run"><span>以好奇心构建，以诚实测试</span><span>以好奇心构建，以诚实测试</span><span>以好奇心构建，以诚实测试</span><span>以好奇心构建，以诚实测试</span><span>以好奇心构建，以诚实测试</span><span>以好奇心构建，以诚实测试</span><span>以好奇心构建，以诚实测试</span><span>以好奇心构建，以诚实测试</span></div></div>
+</div>
+
+<div class="ui">
+  <header class="bar">
+    <a class="logo" href="#">bhccob<b>.</b>me</a>
+    <nav class="nav" aria-label="Main"><a href="#work">Work</a><a href="#about">About</a><a href="#career">Career</a><a class="send" href="#contact">Send a message</a></nav>
+  </header>
+  <h1>Bob Chung<span class="shadow" aria-hidden="true">Bob Chung</span></h1>
+  <div class="low">
+    <div class="who">
+      <strong>Student software engineer, Rotterdam.</strong>
+      <p>Born and raised in Aruba, Chinese by heritage, in the Netherlands since eighteen. Home isn’t one place for me.</p>
+    </div>
+    <div class="index" aria-label="Projects">
+      <a href="https://github.com/bhccob/Cookies-Clicker"><span class="no">#01</span><span class="t">Cookies Clicker<small>Web game · school project</small></span><span class="y">2025</span></a>
+      <a href="https://github.com/bhccob/JE"><span class="no">#02</span><span class="t">Jontai Energy<small>Company website · personal project</small></span><span class="y">2026</span></a>
+      <p><span class="no">#03</span><span class="t">Next print<small>In preparation; earlier work is not printed here</small></span><span class="y">—</span></p>
+    </div>
+  </div>
+</div>
+<canvas class="cursor" aria-hidden="true"></canvas>
+<img id="src" src="__PORTRAIT__" alt="" hidden>
+
+<script>
+(() => {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const dpr = Math.min(devicePixelRatio, 2);
+  const cv = document.getElementById('tone'), c = cv.getContext('2d');
+  const img = document.getElementById('src');
+  const mouse = { x: -999, y: -999 };
+  let grid = [], W, H, step, pull = 0;
+
+  function prepare() {
+    const sheet = cv.parentElement.getBoundingClientRect();
+    H = sheet.height; W = Math.round(H * 0.62);
+    cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px';
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    step = innerWidth > 900 ? 9 : 7;
+    const cols = Math.floor(W / step), rows = Math.floor(H / step);
+    const off = document.createElement('canvas'); off.width = cols; off.height = rows;
+    const o = off.getContext('2d');
+    const ratio = img.naturalWidth / img.naturalHeight, target = cols / rows;
+    let sw = img.naturalWidth, sh = img.naturalHeight, sx = 0, sy = 0;
+    if (ratio > target) { sw = sh * target; sx = (img.naturalWidth - sw) / 2; } else { sh = sw / target; sy = (img.naturalHeight - sh) * 0.15; }
+    o.drawImage(img, sx, sy, sw, sh, 0, 0, cols, rows);
+    const d = o.getImageData(0, 0, cols, rows).data;
+    grid = [];
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+      const i = (y * cols + x) * 4;
+      let l = (0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2]) / 255;
+      l = Math.min(1, Math.max(0, (l - 0.08) * 1.5));
+      // fade the print out towards the sheet edges
+      const ex = Math.min(x, cols - x) / (cols * .18), ey = (rows - y) / (rows * .12);
+      grid.push({ x: x * step + step / 2, y: y * step + step / 2, l: l * Math.min(1, ex, ey) });
+    }
+  }
+
+  function draw(t) {
+    c.clearRect(0, 0, W, H);
+    const r = cv.getBoundingClientRect();
+    const mx = mouse.x - r.left, my = mouse.y - r.top;
+    const wipe = reduced ? W * 2 : pull;
+    // second ink pass (lilac), slightly off register, pulled first
+    c.fillStyle = 'rgba(185, 163, 255, .42)';
+    const offX = 3 + Math.sin(t / 1400) * 1.2, offY = 2;
+    for (const p of grid) {
+      if (p.x > wipe) continue;
+      const rr = p.l * step * 0.5;
+      if (rr < .5) continue;
+      c.beginPath(); c.arc(p.x + offX, p.y + offY, rr, 0, 6.283); c.fill();
+    }
+    // main ink (sun yellow); dots swell under the pointer like fresh ink
+    c.fillStyle = '#ffd43b';
+    for (const p of grid) {
+      if (p.x > wipe - 120) continue;
+      const dx = mx - p.x, dy = my - p.y, near = Math.exp(-(dx * dx + dy * dy) / 9000);
+      const rr = Math.min(step * .62, p.l * step * 0.46 * (1 + near * .7));
+      if (rr < .45) continue;
+      c.beginPath(); c.arc(p.x, p.y, rr, 0, 6.283); c.fill();
+    }
+    if (pull < W * 2) pull += W / 55;
+    requestAnimationFrame(draw);
+  }
+
+  function start() { prepare(); requestAnimationFrame(draw); }
+  if (img.complete) document.fonts.ready.then(start); else img.onload = () => document.fonts.ready.then(start);
+  addEventListener('resize', prepare);
+  const shadow = document.querySelector('h1 .shadow');
+  addEventListener('pointermove', e => {
+    mouse.x = e.clientX; mouse.y = e.clientY;
+    shadow.style.setProperty('--mx', ((e.clientX / innerWidth - .5) * 14).toFixed(1) + 'px');
+    shadow.style.setProperty('--my', ((e.clientY / innerHeight - .5) * 10).toFixed(1) + 'px');
+  });
+  addEventListener('click', () => { pull = 0; });
+
+  // cursor: an ink dot on the pointer, shedding smaller halftone dots behind it
+  const cc = document.querySelector('.cursor'), x2 = cc.getContext('2d');
+  function size() { cc.width = innerWidth * dpr; cc.height = innerHeight * dpr; cc.style.width = innerWidth + 'px'; cc.style.height = innerHeight + 'px'; x2.setTransform(dpr, 0, 0, dpr, 0, 0); }
+  size(); addEventListener('resize', size);
+  const N = 12, pts = Array.from({ length: N }, () => ({ x: -99, y: -99 }));
+  let on = false, hot = false;
+  addEventListener('pointermove', e => { if (!on) { pts.forEach(p => { p.x = e.clientX; p.y = e.clientY; }); on = true; } });
+  document.addEventListener('pointerover', e => { hot = !!e.target.closest('a'); });
+  (function loop() {
+    x2.clearRect(0, 0, innerWidth, innerHeight);
+    let px = mouse.x, py = mouse.y;
+    pts.forEach((p, i) => { const k = .3 - i * .012; p.x += (px - p.x) * k; p.y += (py - p.y) * k; px = p.x; py = p.y; });
+    pts.forEach((p, i) => { x2.fillStyle = i % 2 ? 'rgba(185,163,255,.55)' : 'rgba(255,212,59,.7)'; x2.beginPath(); x2.arc(p.x, p.y, Math.max(0, 5 - i * .4), 0, 6.283); x2.fill(); });
+    x2.fillStyle = '#ffd43b'; x2.beginPath(); x2.arc(mouse.x, mouse.y, hot ? 14 : 7, 0, 6.283); x2.fill();
+    if (hot) { x2.fillStyle = '#22103f'; x2.beginPath(); x2.arc(mouse.x, mouse.y, 3, 0, 6.283); x2.fill(); }
+    requestAnimationFrame(loop);
+  })();
+})();
+</script>
+</body>
+</html>

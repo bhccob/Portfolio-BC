@@ -1,0 +1,133 @@
+{
+  "title": "Choose the look of bhccob.me",
+  "question": "Four complete directions for your portfolio. Open each one with the expand chip to try the live prototype, then lock the one you want built.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "Departures",
+      "kicker": "THE ROLL",
+      "lineage": "Split-flap departure boards at Rotterdam Centraal and Aruba's airport",
+      "thesis": "Your portfolio as a departures board: one route from Aruba to Rotterdam, where projects depart and future roles are scheduled.",
+      "palette": ["#140b24", "#0d0718", "#ffcf33", "#4a3a72", "#f4efe6"],
+      "materials": ["split-flap tiles", "station signage", "faint mounting blueprint"],
+      "viewport": "A full-width board: BOB CHUNG built from yellow flap tiles, then live rows for Project #01, #02 and the next build, with Rotterdam and Aruba clocks.",
+      "risk": "Split-flap is a known novelty; it must lead the hero and the project index only, with quieter sections below, or it tires.",
+      "raised": [
+        { "from": "challenger-cutting-bench", "raise": "Every status is a word and a mark (DEPARTED, BOARDING, SCHEDULED, HELD), and unlisted projects stay visible on a quiet HELD AT GATE line." },
+        { "from": "challenger-cyclorama", "raise": "The board's ambient light follows the real time in Rotterdam, in named phases from night shift to daylight." },
+        { "from": "challenger-synth-grid", "raise": "The blueprint mounting grid is drawn live and bends toward the cursor instead of being a static image." },
+        { "from": "challenger-minihompy", "raise": "The board remembers a returning visitor and flips a welcome-back line." }
+      ],
+      "html": ".impeccable/mocks/decision/departures.html"
+    },
+    {
+      "id": "model-pick",
+      "label": "The Board",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "Hobbyist purple circuit boards with gold (ENIG) pads",
+      "thesis": "The site is a purple circuit board with gold pads: you are the main chip, and every section is a component wired to it.",
+      "palette": ["#2a0f4f", "#170830", "#e9b730", "#f3eefb", "#6b4fa8"],
+      "materials": ["solder mask", "gold traces and pads", "white silkscreen labels"],
+      "viewport": "A chip labelled U1 BOB CHUNG at the centre; gold traces run from its pins to edge connectors that are the navigation, and the cursor sends a signal pulse along the nearest trace.",
+      "risk": "Circuit boards are the obvious tech picture; this works only if the traces really are the navigation and the labels stay plain.",
+      "html": ".impeccable/mocks/decision/board.html"
+    },
+    {
+      "id": "challenger-jacquard",
+      "label": "Woven Code",
+      "verdict": "competitive",
+      "lineage": "Jacquard looms: punched cards, the ancestor of programming, weaving silk brocade",
+      "thesis": "Punched binary rows weave your name in gold across midnight-purple silk: the first programmable machine meeting the firmware you want to write.",
+      "palette": ["#1a0d30", "#f0bf2e", "#efe4cc", "#0b0614", "#7d5fc4"],
+      "materials": ["silk weave", "gold weft", "punched instruction rows"],
+      "viewport": "A loom across the screen: moving the cursor throws the shuttle, the punch rows above scroll, and BOB CHUNG resolves out of the woven matrix.",
+      "case": "Fuses cleanly: punched cards lead to programming and silk brocade nods to your Chinese heritage; loses narrowly on instant clarity for recruiters.",
+      "risk": "Can read as fashion or craft rather than engineering if the binary layer is not legible.",
+      "hero": "https://impeccable.style/worlds/cards/textiles-weave-drape-fashion-jacquard-punched-brocade-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/textiles-weave-drape-fashion-jacquard-punched-brocade.webp",
+      "html": ".impeccable/mocks/decision/woven.html"
+    },
+    {
+      "id": "challenger-silkscreen",
+      "label": "Four-Language Print",
+      "verdict": "competitive",
+      "lineage": "Two-ink screen-printed posters with a multilingual typographic border",
+      "thesis": "A two-ink screen print: your portrait as one flat emblem, framed by your line in English, Dutch, Papiamento and Chinese.",
+      "palette": ["#22103f", "#ffd43b", "#b9a3ff", "#0f0820"],
+      "materials": ["flat ink fields", "halftone portrait", "off-register second pass"],
+      "viewport": "Halftone portrait centred on a purple sheet, the four-language border running around all edges, each ink layer pulled across the screen like a squeegee.",
+      "case": "Fuses well on identity: the multilingual border is unmistakably you; loses on clarity because the work only appears after scrolling.",
+      "risk": "The Papiamento and Chinese lines need your approval, and a poster can feel static once the print animation ends.",
+      "hero": "https://impeccable.style/worlds/cards/posters-covers-sleeves-ospaaal-poster-hero.webp",
+      "html": ".impeccable/mocks/decision/print.html"
+    },
+    {
+      "id": "challenger-cutting-bench",
+      "label": "Cutting Bench",
+      "verdict": "declined",
+      "lineage": "Film editors' work prints strung on a select rail",
+      "thesis": "Projects as film frames on a perforated rail, with trims hanging on pins below.",
+      "palette": ["#000000", "#ff6a1a", "#ffffff"],
+      "materials": ["film grain", "grease-pencil marks"],
+      "viewport": "A perforated rail across the screen holding each project as a frame.",
+      "case": "Fuses poorly: nothing in your story is film editing, and the rail is harder to read than a list.",
+      "kept": "Status shown as a mark, not just a colour, and set-aside work kept visible.",
+      "risk": "Borrowed world with no link to you.",
+      "hero": "https://impeccable.style/worlds/cards/operate-a-cutting-bench-select-rail-hero.webp"
+    },
+    {
+      "id": "challenger-minihompy",
+      "label": "Mini Room",
+      "verdict": "declined",
+      "lineage": "Cyworld minihompy decorated rooms",
+      "thesis": "An isometric room as your profile, furnished with plates, a paddle and a controller.",
+      "palette": ["#f6d8e6", "#bfe3f2", "#ffffff"],
+      "materials": ["isometric pixels", "sticker furniture"],
+      "viewport": "A pastel isometric room with a visitor counter.",
+      "case": "Fuses poorly: too playful for employers and teachers, and it hides the projects.",
+      "kept": "The site remembers the visitor.",
+      "risk": "Reads as a toy.",
+      "hero": "https://impeccable.style/worlds/cards/cyworld-minihompy-room-hero.webp"
+    },
+    {
+      "id": "challenger-synth-grid",
+      "label": "Horizon Grid",
+      "verdict": "declined",
+      "lineage": "Retro synthwave album covers",
+      "thesis": "A wireframe grid racing toward a banded sun.",
+      "palette": ["#2b0b4f", "#ff3cac", "#00e5ff", "#ffcf33"],
+      "materials": ["wireframe grid", "gradient sky"],
+      "viewport": "Extruded name above a moving perspective grid.",
+      "case": "Fuses poorly: a familiar costume rather than your story, and everything is forced onto one centre line.",
+      "kept": "A grid rendered live that reacts to the cursor.",
+      "risk": "Instantly dated.",
+      "hero": "https://impeccable.style/worlds/cards/digital-design-canon-grid-horizon-sunset-hero.webp"
+    },
+    {
+      "id": "challenger-cyclorama",
+      "label": "Dawn Stage",
+      "verdict": "declined",
+      "lineage": "Theatre cyclorama lighting",
+      "thesis": "Scrolling raises the lights from night to day.",
+      "palette": ["#000000", "#1d3ccf", "#e86a9a", "#ffffff"],
+      "materials": ["coloured light", "stage horizon"],
+      "viewport": "A black stage with a cobalt band rising.",
+      "case": "Fuses poorly: theatre has no tie to you and its colours fight purple and yellow.",
+      "kept": "Atmosphere tied to real time, in named phases.",
+      "risk": "Mood without content.",
+      "hero": "https://impeccable.style/worlds/cards/stagecraft-theater-lighting-cyclorama-dawn-hero.webp"
+    }
+  ],
+  "reroll": { "registers": ["safer", "bolder"] },
+  "buildPath": { "value": "code" },
+  "canon": true,
+  "canonCard": {
+    "label": "The category standard",
+    "thesis": "A dark developer portfolio done well: big name, short intro, project cards, contact.",
+    "palette": ["#120a1f", "#f5f3f7", "#ffcf33", "#2a1d40"],
+    "materials": ["clean grid", "screenshots"],
+    "viewport": "Large name and role on the left, a portrait on the right, project cards below.",
+    "risk": "Looks like many other student portfolios by design."
+  },
+  "steer": true
+}

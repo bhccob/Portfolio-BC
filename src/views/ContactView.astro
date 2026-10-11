@@ -1,0 +1,165 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import ContactForm from '../components/contact/ContactForm.astro';
+import FlapText from '../components/ui/FlapText.astro';
+import LineObjects from '../components/ui/LineObjects.astro';
+import { Translator, type Locale } from '../i18n/Translator';
+import { profile } from '../data/profile';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const i18n = new Translator(locale);
+const { t } = i18n;
+const site = Astro.site!;
+const codes = { github: 'GH', instagram: 'IG', email: '@' } as const;
+
+const contactPage = {
+  '@context': 'https://schema.org',
+  '@type': 'ContactPage',
+  url: new URL(i18n.path('/contact/'), site).href,
+  name: t.meta.contactTitle,
+  about: { '@id': `${site.origin}/#person` }
+};
+---
+
+<BaseLayout locale={locale} route="/contact/" title={t.meta.contactTitle} description={t.meta.contactDescription} structuredData={[contactPage]} page="contact">
+  <section class="contact" aria-labelledby="contact-title">
+    <LineObjects
+      items={[
+        { icon: 'paddle', x: 84, y: 14, size: 72, speed: 0.2, rotate: -18, accent: true },
+        { icon: 'chip', x: 30, y: 94, size: 44, speed: 0.2 }
+      ]}
+    />
+    <div class="container">
+      <header class="contact__head">
+        <h1 id="contact-title" class="display contact__title" data-split set:html={t.contact.title} />
+        <p class="lead" data-reveal>{t.contact.intro}</p>
+      </header>
+
+      <div class="contact__grid">
+        <aside class="direct" data-reveal>
+          <p class="direct__label">{t.contact.direct}</p>
+          <ul>
+            {
+              profile.socials.map((social) => (
+                <li>
+                  <a
+                    class="direct__row"
+                    href={social.url}
+                    target={social.id === 'email' ? undefined : '_blank'}
+                    rel={social.id === 'email' ? undefined : 'noopener noreferrer'}
+                    data-flap-host
+                  >
+                    <FlapText text={codes[social.id]} pad={2} label="" hover class="direct__code" />
+                    <span class="direct__text">
+                      <span class="direct__name">{social.label}</span>
+                      <span class="direct__handle">{social.handle}</span>
+                    </span>
+                    <svg class="direct__arrow" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 12L12 4M5.5 4H12v6.5" /></svg>
+                  </a>
+                </li>
+              ))
+            }
+          </ul>
+        </aside>
+        <div data-reveal>
+          <ContactForm locale={locale} />
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .contact {
+    position: relative;
+    padding: calc(var(--header-h) + clamp(40px, 6vw, 80px)) 0 var(--section-y);
+  }
+
+  .contact .container {
+    position: relative;
+    z-index: 1;
+  }
+
+  .contact__head {
+    display: grid;
+    gap: 24px;
+    margin-bottom: clamp(48px, 7vw, 96px);
+  }
+
+  .contact__title {
+    font-size: clamp(64px, 10vw, 150px);
+  }
+
+  .contact__grid {
+    display: grid;
+    grid-template-columns: minmax(260px, 0.75fr) minmax(0, 1.25fr);
+    gap: 48px clamp(40px, 7vw, 120px);
+    align-items: start;
+  }
+
+  .direct__label {
+    padding-bottom: 14px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--lilac);
+    background: linear-gradient(var(--line-strong), var(--line-strong)) left bottom / 100% 1px no-repeat;
+  }
+
+  .direct__row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 18px;
+    padding: 18px 0;
+    background: linear-gradient(var(--line), var(--line)) left bottom / 100% 1px no-repeat;
+    transition: padding 0.4s var(--ease-out);
+  }
+
+  .direct__row:hover {
+    padding-left: 8px;
+  }
+
+  .direct :global(.direct__code) {
+    --tw: 0.86;
+    --th: 1.3;
+    --gap: 0.08em;
+    font-size: 26px;
+  }
+
+  .direct__text {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .direct__name {
+    font: 800 24px/1 var(--font-flap);
+    text-transform: uppercase;
+  }
+
+  .direct__handle {
+    font-size: 15px;
+    color: var(--lilac);
+    overflow-wrap: anywhere;
+  }
+
+  .direct__arrow {
+    color: var(--dim);
+    transition: color 0.3s, transform 0.4s var(--ease-out);
+  }
+
+  .direct__row:hover .direct__arrow {
+    color: var(--yellow);
+    transform: translate(3px, -3px);
+  }
+
+  @media (max-width: 900px) {
+    .contact__grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

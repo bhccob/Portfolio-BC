@@ -1,0 +1,48 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import FlapText from '../components/ui/FlapText.astro';
+import { Translator } from '../i18n/Translator';
+
+const i18n = new Translator('en');
+const { t } = i18n;
+---
+
+<BaseLayout locale="en" route="/" title={t.meta.notFoundTitle} description={t.meta.notFoundDescription} noindex page="error">
+  <section class="lost" aria-labelledby="lost-title">
+    <div class="container">
+      <FlapText text={t.notFound.status} label="" play="intro" class="lost__flap" />
+      <h1 id="lost-title" class="display lost__title" set:html={t.notFound.title} />
+      <p class="lead">{t.notFound.text}</p>
+      <a class="btn" href="/">
+        {t.notFound.home}
+        <svg class="icon" viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4" /></svg>
+      </a>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .lost {
+    min-height: 100svh;
+    display: flex;
+    align-items: center;
+    padding: calc(var(--header-h) + 40px) 0 80px;
+  }
+
+  .lost .container {
+    display: grid;
+    gap: 28px;
+    justify-items: start;
+  }
+
+  .lost :global(.lost__flap) {
+    --tw: 0.78;
+    --th: 1.1;
+    --gap: 0.06em;
+    font-size: clamp(56px, 12vw, 180px);
+  }
+
+  .lost__title {
+    font-size: clamp(40px, 5vw, 72px);
+  }
+</style>

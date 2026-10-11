@@ -1,0 +1,288 @@
+/**
+ * English copy. This object defines the shape of every dictionary:
+ * `nl.ts` is typed against it, so a missing Dutch key fails type-checking.
+ * Strings that contain markup are rendered with `set:html` and only ever
+ * come from this file, never from user input.
+ */
+export const en = {
+  meta: {
+    homeTitle: 'Bob Chung | Student Software Engineer in Rotterdam',
+    homeDescription:
+      'Portfolio of Bob Chung, a student software engineer in Rotterdam: game and web projects, and a route toward systems and firmware security engineering.',
+    contactTitle: 'Contact | Bob Chung',
+    contactDescription: 'Send Bob Chung a message straight from his portfolio, or find him on GitHub and Instagram.',
+    notFoundTitle: 'Page not found | Bob Chung',
+    notFoundDescription: 'This page does not exist. Head back to the portfolio of Bob Chung.'
+  },
+  nav: {
+    work: 'Work',
+    about: 'About',
+    career: 'Career',
+    contact: 'Contact',
+    send: 'Send a message',
+    menu: 'Menu',
+    close: 'Close menu',
+    terminal: 'Open terminal',
+    skip: 'Skip to content',
+    language: 'Language',
+    switchTo: 'Bekijk deze pagina in het Nederlands',
+    home: 'Bob Chung, back to home'
+  },
+  loader: {
+    label: 'Loading portfolio',
+    status: 'Preparing departures',
+    skip: 'Click or press any key to skip'
+  },
+  board: {
+    words: ['Departures', 'Vertrek', 'Salida'],
+    phases: { night: 'Night service', dawn: 'First light', day: 'Day service', dusk: 'Evening service' },
+    rotterdam: 'Rotterdam',
+    aruba: 'Oranjestad, Aruba',
+    role: 'Student software engineer · Rotterdam',
+    roleSpoken: 'Student software engineer in Rotterdam',
+    echo: 'Hello, {name} · welcome aboard',
+    columns: { year: 'Year', project: 'Project', line: 'Line', status: 'Status' },
+    departed: 'Departed',
+    boarding: 'Boarding soon',
+    held: 'Held at gate',
+    nextTitle: '#03 Next build',
+    nextLine: 'In preparation',
+    earlierTitle: 'Earlier work',
+    earlierLine: 'Not listed here',
+    line: 'I build with <em>curiosity</em> and test with <em>honesty</em>. Born in Aruba, Chinese by heritage, based in Rotterdam.',
+    typeHint: 'Type anything: the board spells it',
+    scroll: 'Scroll',
+    drawing: 'BC-2006 · Scale 1:1'
+  },
+  work: {
+    title: 'Projects, <em>one build at a time.</em>',
+    intro:
+      'Each project is a different kind of work, so each runs on its own line: game development, web development, and whatever boards next.',
+    project: 'Project',
+    line: 'Line',
+    type: 'Type',
+    year: 'Year',
+    role: 'Role',
+    stack: 'Built with',
+    status: 'Status',
+    github: 'View on GitHub',
+    caseStudy: 'Read the case study',
+    nextTitle: 'Next build <em>boarding soon.</em>',
+    nextText:
+      'More projects are on the way. Some are still in progress; others are waiting to be published. Follow along on GitHub in the meantime.',
+    nextLink: 'Follow on GitHub',
+    heldTitle: 'Held at gate',
+    heldText:
+      'Earlier projects exist, but not every piece of work makes this board. Only projects that meet the standard I set for this portfolio are listed.'
+  },
+  about: {
+    title: 'The route <em>so far.</em>',
+    lead:
+      'I’m Bob Chung, a <span data-age>{age}</span>-year-old student software engineer based in Rotterdam. Born and raised in Aruba and Chinese by heritage, I moved to the Netherlands at eighteen.',
+    body:
+      'I work across databases, game development and web development, and each discipline sharpens the others. Hardware and electrical engineering are next on my route. I build with curiosity and test with honesty.',
+    quote: 'Home isn’t one place for me. It’s a blend of cultures and the questions I keep chasing.',
+    thoughtLabel: 'A rule I keep',
+    thought: '“Overthinking is fear pretending to be logic.”',
+    portraitAlt: 'Portrait of Bob Chung',
+    facts: {
+      age: 'Age',
+      born: 'Born',
+      bornValue: 'Aruba',
+      heritage: 'Heritage',
+      heritageValue: 'Chinese',
+      based: 'Based in',
+      basedValue: 'Rotterdam, NL',
+      studying: 'Studying',
+      studyingValue: 'MBO 4, Rotterdam'
+    },
+    route: {
+      label: 'Origin route',
+      heritage: 'Heritage',
+      heritagePlace: 'China',
+      born: 'Born & raised',
+      bornPlace: 'Aruba',
+      now: 'Since eighteen',
+      nowPlace: 'Rotterdam'
+    },
+    clock: {
+      label: 'Local time',
+      apart: '{h} hours apart'
+    }
+  },
+  skills: {
+    title: 'What I work <em>with.</em>',
+    comfortable: 'Comfortable',
+    comfortableNote: 'Used in finished projects',
+    learning: 'Learning',
+    learningNote: 'In progress now',
+    exploring: 'Exploring next',
+    exploringNote: 'Toward systems and firmware',
+    exploringItems: ['C', 'Python', 'Embedded systems', 'Electronics']
+  },
+  life: {
+    title: 'Off <em>duty.</em>',
+    text: 'Outside of code I keep moving. I’m a former powerlifter and table tennis player; today I run, train at the gym and play games to stay fit, focused and balanced.',
+    current: 'Now',
+    former: 'Formerly',
+    hobbies: {
+      running: 'Running',
+      runningText: 'Endurance and a clear head.',
+      gym: 'Gym',
+      gymText: 'Strength, built progressively.',
+      gaming: 'Gaming',
+      gamingText: 'Play, and an eye for good game design.',
+      powerlifting: 'Powerlifting',
+      tableTennis: 'Table tennis'
+    },
+    playTitle: 'Train · Run · Play',
+    hint: 'Grab and throw the objects. Keep the ping-pong ball in the air.',
+    hintTouch: 'Tap the objects. Keep the ping-pong ball in the air.',
+    rally: 'Rally',
+    best: 'Best',
+    gravity: 'Gravity',
+    gravityLabel: 'Toggle gravity in the playground',
+    rallyOver: 'Rally over: {n} hits',
+    newBest: 'New best rally: {n}!',
+    playgroundLabel:
+      'Interactive playground with line-art objects: a ping-pong ball, a weight plate, maths symbols, a chip, a game controller and a stopwatch. Grab, throw and bounce them off the words.'
+  },
+  career: {
+    title: 'Current build <em>& roadmap.</em>',
+    currentStatus: 'In service',
+    currentRole: 'Student Software Engineer',
+    currentOrg: 'MBO 4 · Rotterdam',
+    currentText:
+      'Building a broad software foundation: game development in Godot, web development, relational databases and SQL, frameworks such as Laravel, and programming fundamentals across several languages.',
+    nextStatus: 'Possible',
+    roadmapNote: 'The roles below are possible destinations for my future career: directions I am working toward, not fixed plans.',
+    roles: [
+      {
+        title: 'Systems Engineer',
+        text: 'Designing, integrating and maintaining the systems that everything else runs on.'
+      },
+      {
+        title: 'Firmware Security Automation Engineer',
+        text: 'Securing the low-level code inside devices, and automating how it is tested and verified.'
+      }
+    ],
+    whyToggle: 'Why this direction?',
+    why:
+      'Both fields are built to last: as connected devices and critical infrastructure multiply, so does the need for engineers who can secure and automate them. They reward deep, uninterrupted focus on complex technical problems, in roles that are engineering-driven rather than client-facing. They also offer strong long-term prospects and a solid foundation for one day building a company of my own.'
+  },
+  hood: {
+    title: 'This site is <em>a project too.</em>',
+    intro: 'Three languages, each doing the job it does best: the same mindset I want to bring to systems and firmware work.',
+    cards: [
+      {
+        lang: 'TypeScript · Astro',
+        title: 'The site',
+        text: 'Static, SEO-friendly pages generated by Astro, with every interactive feature written as a TypeScript class, including this board.'
+      },
+      {
+        lang: 'C · WebAssembly',
+        title: 'The physics',
+        text: 'The off-duty playground runs on a small physics engine written in C and compiled to WebAssembly.'
+      },
+      {
+        lang: 'Python',
+        title: 'The deploy guard',
+        text: 'Before every deploy, a Python auditor checks each page’s titles, descriptions, links and alt text, and stops the release if anything is off.'
+      }
+    ]
+  },
+  cta: {
+    title: 'Final call: <em>say hello.</em>',
+    text: 'Questions, opportunities or simply a hello: my inbox is open.',
+    button: 'Send me a message',
+    or: 'Or find me on'
+  },
+  contact: {
+    title: 'Send a <em>message.</em>',
+    intro: 'Have a question, an opportunity, or just want to say hello? Write it below and it will reach my inbox.',
+    direct: 'Or reach me directly',
+    formTitle: 'Your message',
+    name: 'Name',
+    namePlaceholder: 'Your name',
+    email: 'Email',
+    emailPlaceholder: 'you@example.com',
+    subject: 'Subject',
+    subjectPlaceholder: 'What is it about?',
+    optional: 'optional',
+    message: 'Message',
+    messagePlaceholder: 'Write your message…',
+    send: 'Send message',
+    sending: 'Sending…',
+    privacy: 'Your details are only used to reply to your message.',
+    errors: {
+      name: 'Please enter your name.',
+      email: 'Please enter a valid email address.',
+      message: 'Your message needs at least 10 characters.',
+      generic: 'Something went wrong while sending. Please try again, or email me directly at bhccob@gmail.com.'
+    },
+    successTitle: 'Message sent.',
+    successText: 'Thank you for reaching out. I’ll reply as soon as I can.',
+    again: 'Send another message',
+    mailtoTitle: 'Almost there.',
+    mailtoText: 'Your email app should open with the message ready to send.'
+  },
+  project: {
+    back: 'All projects',
+    overview: 'Overview',
+    build: 'How it’s built',
+    focus: 'Focus',
+    next: 'Next project',
+    moreTitle: 'More projects <em>are on the way.</em>',
+    moreText: 'New work is in progress or waiting to be published.',
+    moreLink: 'Back to all projects'
+  },
+  footer: {
+    made: 'Built with curiosity in Rotterdam',
+    top: 'Back to top',
+    terminalHint: 'Press <kbd>/</kbd> to open the terminal'
+  },
+  notFound: {
+    status: 'Cancelled',
+    title: 'This page has been <em>cancelled.</em>',
+    text: 'The page you are looking for does not exist (anymore). The site was rebuilt, so some older links have moved.',
+    home: 'Back to departures'
+  },
+  terminal: {
+    title: 'bob@rotterdam: ~',
+    placeholder: 'Type a command, e.g. help',
+    welcome: 'Welcome to bob-shell. Type “help” to see what I can do.',
+    notFound: 'command not found: {cmd}. Try “help”.',
+    help: {
+      help: 'list available commands',
+      whoami: 'who is Bob?',
+      projects: 'list projects',
+      career: 'current build & roadmap',
+      socials: 'where to find me',
+      contact: 'open the contact page',
+      rally: 'show your best ping-pong rally',
+      gravity: 'toggle gravity in the playground',
+      time: 'local time in Rotterdam and Aruba',
+      lang: 'switch language (en / nl)',
+      clear: 'clear the screen',
+      exit: 'close the terminal'
+    },
+    whoami:
+      'Bob Chung, {age}. Student software engineer in Rotterdam. Born in Aruba, Chinese by heritage. Builds with curiosity, tests with honesty.',
+    careerNow: 'now   → Student Software Engineer (MBO 4, Rotterdam)',
+    careerNext: 'next  → possible: Systems Engineer · Firmware Security Automation Engineer',
+    rallyBest: 'Best rally: {n} hits.',
+    rallyNone: 'No rally yet. Hit the ping-pong ball in the off-duty playground!',
+    gravityOn: 'Gravity enabled. Everything drops.',
+    gravityOff: 'Gravity disabled. Back to floating.',
+    gravityElsewhere: 'Gravity lives in the playground. Go to the home page first.',
+    opening: 'Opening {page}…',
+    sudo: 'Permission granted. Redirecting you to the contact page…',
+    moreSoon: '#03  next build boarding soon…'
+  },
+  toast: {
+    konami: '↑↑↓↓←→←→BA: ball storm!',
+    konamiElsewhere: 'Cheat code accepted. Visit the home page to see it.'
+  }
+};
+
+export type Dictionary = typeof en;

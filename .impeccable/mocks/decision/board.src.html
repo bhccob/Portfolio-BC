@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Board: Bob Chung</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..900&family=Chivo+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --mask: #2a0f4f;
+    --mask-deep: #1c0937;
+    --gold: #e9b730;
+    --gold-hi: #ffd76a;
+    --silk: #f3eefb;
+    --silk-dim: rgba(243, 238, 251, 0.62);
+    --ceramic: #15101d;
+    --copper: rgba(233, 183, 48, 0.16);
+    --mono: 'Chivo Mono', ui-monospace, monospace;
+    --sans: 'Archivo', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background:
+      radial-gradient(90% 70% at 70% 40%, #33135f 0%, transparent 70%),
+      radial-gradient(60% 60% at 10% 90%, #240b45 0%, transparent 70%),
+      var(--mask);
+    color: var(--silk);
+    font-family: var(--sans);
+    overflow: hidden;
+    cursor: none;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: .5;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .1 0 0 0 0 0 0 0 0 0 .2 0 0 0 .18 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  ::selection { background: var(--gold); color: var(--mask-deep); }
+  a { color: inherit; text-decoration: none; cursor: none; }
+  svg#traces { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+  .board { position: relative; z-index: 2; height: 100vh; padding: 0 56px; display: grid; grid-template-columns: minmax(0, 1fr) 380px; grid-template-rows: 86px 1fr auto; column-gap: 72px; }
+
+  /* mounting holes */
+  .mh { position: fixed; width: 30px; height: 30px; border-radius: 50%; background: radial-gradient(circle, #0c0414 0 6px, var(--gold) 6.5px 13px, transparent 13.5px); z-index: 2; }
+  .mh span { position: absolute; left: 38px; top: 8px; font-family: var(--mono); font-size: 10px; color: var(--silk-dim); white-space: nowrap; letter-spacing: .08em; }
+
+  /* header: silkscreen title + edge connector nav */
+  .head { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: flex-start; }
+  .title { padding-top: 26px; padding-left: 52px; font-family: var(--mono); font-size: 11.5px; letter-spacing: .12em; color: var(--silk-dim); text-transform: uppercase; display: flex; gap: 22px; }
+  .title b { color: var(--silk); font-weight: 500; }
+  .fingers { display: flex; gap: 10px; }
+  .finger { position: relative; display: block; width: 112px; height: 50px; background: linear-gradient(180deg, var(--gold-hi), var(--gold) 70%, #c99a1d); border-radius: 0 0 6px 6px; color: #3a1d06; font-family: var(--mono); font-size: 11.5px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 9px; transition: transform .35s cubic-bezier(.2,.8,.2,1), filter .35s; }
+  .finger::before { content: attr(data-pin); position: absolute; top: 6px; left: 8px; font-size: 9px; opacity: .55; }
+  .finger:hover { transform: translateY(5px); filter: brightness(1.08); }
+  .finger.contact { background: var(--silk); color: var(--mask-deep); }
+
+  /* intro */
+  .intro { align-self: center; display: grid; gap: 30px; padding-left: 4px; }
+  .ref { font-family: var(--mono); font-size: 11px; color: var(--silk-dim); letter-spacing: .14em; }
+  h1 { font-family: var(--sans); font-variation-settings: 'wdth' 118; font-weight: 850; font-size: clamp(72px, 9.6vw, 150px); line-height: .86; letter-spacing: -0.02em; text-transform: uppercase; color: var(--silk); }
+  h1 span { display: block; }
+  h1 .y { color: var(--gold); }
+  .lede { max-width: 34ch; font-size: clamp(17px, 1.4vw, 21px); line-height: 1.45; color: var(--silk-dim); }
+  .lede strong { color: var(--silk); font-weight: 600; }
+  .actions { display: flex; align-items: center; gap: 28px; }
+  .pad-btn { display: inline-flex; align-items: center; gap: 14px; padding: 15px 22px 15px 18px; background: var(--gold); color: #2a1406; border-radius: 999px 10px 10px 999px; font-weight: 700; font-size: 16px; letter-spacing: .01em; transition: background .3s, transform .3s cubic-bezier(.2,.8,.2,1); }
+  .pad-btn i { width: 14px; height: 14px; border-radius: 50%; background: #2a1406; box-shadow: inset 0 0 0 3px var(--gold-hi); }
+  .pad-btn:hover { background: var(--gold-hi); transform: translateX(4px); }
+  .via { display: inline-flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 12.5px; color: var(--silk); letter-spacing: .04em; }
+  .via i { width: 14px; height: 14px; border-radius: 50%; border: 3px solid var(--gold); background: #12051f; transition: transform .3s; }
+  .via:hover i { transform: scale(1.3); }
+
+  /* the EPROM */
+  .chip-wrap { grid-row: 2; grid-column: 2; align-self: center; position: relative; justify-self: center; }
+  .chip { position: relative; width: 300px; height: 470px; background: linear-gradient(160deg, #1d1628, var(--ceramic) 60%); border-radius: 10px; box-shadow: 0 30px 60px -20px rgba(5, 0, 15, .8), inset 0 1px 0 rgba(255,255,255,.06); }
+  .chip::before { content: ''; position: absolute; left: 50%; top: -1px; width: 34px; height: 17px; transform: translateX(-50%); background: var(--mask); border-radius: 0 0 17px 17px; }
+  .pins { position: absolute; top: 34px; bottom: 34px; width: 22px; display: flex; flex-direction: column; justify-content: space-between; }
+  .pins.l { left: -20px; } .pins.r { right: -20px; }
+  .pins i { height: 9px; background: linear-gradient(90deg, #b8b2c2, #e8e4ee); border-radius: 2px; display: block; }
+  .window { position: absolute; left: 50%; top: 78px; width: 210px; height: 210px; transform: translateX(-50%); border-radius: 50%; overflow: hidden; background: var(--gold); box-shadow: 0 0 0 10px #241c30, 0 0 0 11px rgba(255,255,255,.08), inset 0 0 40px rgba(0,0,0,.5); }
+  .window img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; filter: grayscale(1) contrast(1.25) brightness(1.05); mix-blend-mode: multiply; display: block; }
+  .window::after { content: ''; position: absolute; inset: 0; background: #3a1670; mix-blend-mode: lighten; }
+  .window::before { content: ''; position: absolute; inset: 0; z-index: 2; background: linear-gradient(135deg, rgba(255,255,255,.22), transparent 45%); border-radius: 50%; }
+  .marking { position: absolute; left: 0; right: 0; bottom: 46px; text-align: center; font-family: var(--mono); color: rgba(220, 214, 230, .62); font-size: 12px; letter-spacing: .12em; line-height: 1.9; }
+  .marking b { display: block; font-family: var(--sans); font-variation-settings: 'wdth' 110; font-weight: 700; font-size: 22px; letter-spacing: .06em; color: rgba(236, 232, 244, .85); }
+  .pin1 { position: absolute; left: 22px; top: 22px; width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,.12); }
+  .designator { position: absolute; left: -2px; top: -30px; font-family: var(--mono); font-size: 12px; color: var(--silk); letter-spacing: .1em; }
+
+  /* project footprints */
+  .parts { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, .7fr); gap: 40px; padding: 0 0 44px; align-items: end; }
+  .part { position: relative; padding: 22px 26px 20px 30px; display: grid; gap: 7px; transition: background .4s; border-radius: 4px; }
+  .part::before, .part::after { content: ''; position: absolute; width: 16px; height: 16px; border-color: var(--silk-dim); border-style: solid; transition: border-color .3s, transform .4s cubic-bezier(.2,.8,.2,1); }
+  .part::before { left: 0; top: 0; border-width: 1.5px 0 0 1.5px; }
+  .part::after { right: 0; bottom: 0; border-width: 0 1.5px 1.5px 0; }
+  .part:hover { background: rgba(233,183,48,.06); }
+  .part:hover::before { border-color: var(--gold); transform: translate(-4px, -4px); }
+  .part:hover::after { border-color: var(--gold); transform: translate(4px, 4px); }
+  .part .d { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; color: var(--gold); display: flex; justify-content: space-between; }
+  .part .n { font-variation-settings: 'wdth' 112; font-weight: 750; font-size: 24px; letter-spacing: -0.005em; }
+  .part .m { font-size: 14px; color: var(--silk-dim); }
+  .part .pads { position: absolute; left: -7px; top: 50%; transform: translateY(-50%); width: 9px; height: 26px; background: var(--gold); border-radius: 2px; }
+  .part.dnp .n { color: var(--silk-dim); }
+  .part.dnp { opacity: .8; }
+  .part.dnp .pads { background: transparent; box-shadow: inset 0 0 0 1.5px var(--gold); }
+  .note { font-family: var(--mono); font-size: 12.5px; line-height: 1.7; color: var(--silk-dim); letter-spacing: .05em; padding-bottom: 20px; }
+  .note b { color: var(--silk); font-weight: 500; }
+
+  .led { position: fixed; right: 64px; bottom: 30px; z-index: 3; display: none; }
+
+  /* silkscreen doodles: sports + maths, low-key */
+  .doodle { position: fixed; z-index: 1; color: rgba(243, 238, 251, .16); pointer-events: none; font-family: var(--mono); font-size: 10px; letter-spacing: .1em; }
+  .cursor { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
+
+  @media (max-width: 900px) {
+    body { overflow: auto; cursor: auto; }
+    a { cursor: pointer; }
+    .board { height: auto; grid-template-columns: 1fr; grid-template-rows: auto; padding: 0 16px; row-gap: 40px; }
+    .head { flex-direction: column-reverse; gap: 16px; }
+    .title { padding-left: 0; padding-top: 0; flex-wrap: wrap; }
+    .fingers { width: 100%; }
+    .finger { flex: 1; width: auto; font-size: 10px; height: 44px; }
+    .chip-wrap { grid-column: 1; grid-row: auto; transform: scale(.82); margin: -30px 0; }
+    .parts { grid-template-columns: 1fr; gap: 20px; }
+    .mh, .doodle, .cursor, svg#traces { display: none; }
+  }
+</style>
+</head>
+<body>
+<svg id="traces" aria-hidden="true"></svg>
+<div class="mh" style="left:22px; top:auto; bottom:22px"><span>MH1 · 20 KG</span></div>
+<div class="mh" style="right:22px; bottom:22px"></div>
+
+<div class="doodle" style="left:47%; top:16%" aria-hidden="true">
+  <svg width="120" height="44" viewBox="0 0 120 44" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2 22h116"/><rect x="18" y="4" width="10" height="36" rx="2"/><rect x="30" y="10" width="6" height="24" rx="1"/><rect x="92" y="4" width="10" height="36" rx="2"/><rect x="84" y="10" width="6" height="24" rx="1"/></svg>
+</div>
+<div class="doodle" style="left:57%; top:73%" aria-hidden="true">Σ  f(t) = ∫ curiosity · dt</div>
+<div class="doodle" style="left:3.6%; top:52%" aria-hidden="true">
+  <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="20" cy="20" r="17"/><path d="M5 14c8 4 22 4 30 0M5 26c8-4 22-4 30 0"/></svg>
+</div>
+
+<div class="board">
+  <header class="head">
+    <div class="title"><b>BHCCOB.ME</b><span>Portfolio board</span><span>Rev 2.0 · 2026</span></div>
+    <nav class="fingers" aria-label="Main">
+      <a class="finger" data-pin="P1" href="#work" data-trace="nav-work">Work</a>
+      <a class="finger" data-pin="P2" href="#about" data-trace="nav-about">About</a>
+      <a class="finger" data-pin="P3" href="#career" data-trace="nav-career">Career</a>
+      <a class="finger contact" data-pin="P4" href="#contact" data-trace="nav-contact">Contact</a>
+    </nav>
+  </header>
+
+  <section class="intro" aria-label="Introduction">
+    <h1 data-trace="title"><span>Bob</span><span class="y">Chung</span></h1>
+    <p class="lede"><strong>Student software engineer in Rotterdam.</strong> Born in Aruba, Chinese by heritage. I build with curiosity and test with honesty.</p>
+    <div class="actions">
+      <a class="pad-btn" href="#contact" data-trace="cta"><i></i>Send me a message</a>
+      <a class="via" href="https://github.com/bhccob"><i></i>GitHub</a>
+      <a class="via" href="https://www.instagram.com/bhccob/"><i></i>Instagram</a>
+    </div>
+  </section>
+
+  <div class="chip-wrap">
+    <span class="designator">U1</span>
+    <div class="chip" data-chip>
+      <div class="pins l">__PINS__</div>
+      <div class="pins r">__PINS__</div>
+      <span class="pin1"></span>
+      <div class="window"><img src="__PORTRAIT__" alt="Portrait of Bob Chung"></div>
+      <div class="marking"><b>BC-2006</b>ARUBA → ROTTERDAM<br>FW REV. STUDENT</div>
+    </div>
+  </div>
+
+  <section class="parts" aria-label="Projects">
+    <a class="part" href="https://github.com/bhccob/Cookies-Clicker" data-trace="p1"><span class="pads"></span><span class="d"><span>U2 · PROJECT #01</span><span>2025</span></span><span class="n">Cookies Clicker</span><span class="m">Web game · school project</span></a>
+    <a class="part" href="https://github.com/bhccob/JE" data-trace="p2"><span class="pads"></span><span class="d"><span>U3 · PROJECT #02</span><span>2026</span></span><span class="n">Jontai Energy</span><span class="m">Company website · personal project</span></a>
+    <a class="part dnp" href="https://github.com/bhccob" data-trace="p3"><span class="pads"></span><span class="d"><span>U4 · PROJECT #03</span><span>DNP</span></span><span class="n">Next build</span><span class="m">Footprint reserved, in preparation</span></a>
+    <p class="note"><b>DNP</b> = do not populate.<br>Earlier projects exist but<br>are not placed on this board.</p>
+  </section>
+</div>
+<canvas class="cursor" aria-hidden="true"></canvas>
+
+<script>
+(() => {
+  const svg = document.getElementById('traces');
+  const NS = 'http://www.w3.org/2000/svg';
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const routes = [];
+
+  // Route with a 45-degree dog-leg: horizontal, diagonal, horizontal (or vertical first).
+  function route(a, b, vertical) {
+    if (vertical) {
+      const dy = b.y - a.y, dx = b.x - a.x, d = Math.min(Math.abs(dx), Math.abs(dy) * .7);
+      const my = a.y + (dy - Math.sign(dy) * d) * .5;
+      return `M${a.x},${a.y} V${my} L${a.x + Math.sign(dx) * d},${my + Math.sign(dy) * d} H${b.x} V${b.y}`;
+    }
+    const dx = b.x - a.x, dy = b.y - a.y, d = Math.min(Math.abs(dy), Math.abs(dx) * .6);
+    const mx = a.x + (dx - Math.sign(dx) * d) * .45;
+    return `M${a.x},${a.y} H${mx} L${mx + Math.sign(dx) * d},${a.y + Math.sign(dy) * d} V${b.y} H${b.x}`;
+  }
+
+  function build() {
+    svg.innerHTML = '';
+    routes.length = 0;
+    const chip = document.querySelector('[data-chip]').getBoundingClientRect();
+    const pinsL = [...document.querySelectorAll('.pins.l i')].map(p => p.getBoundingClientRect());
+    const pinsR = [...document.querySelectorAll('.pins.r i')].map(p => p.getBoundingClientRect());
+    const pt = (r, side) => side === 'l' ? { x: r.left, y: r.top + r.height / 2 } : side === 'r' ? { x: r.right, y: r.top + r.height / 2 } : side === 'b' ? { x: r.left + r.width / 2, y: r.bottom } : { x: r.left + r.width / 2, y: r.top };
+    const el = k => document.querySelector(`[data-trace="${k}"]`);
+    const defs = [
+      ['title', pinsL[2], el('title').getBoundingClientRect(), 'r', false],
+      ['cta', pinsL[9], el('cta').getBoundingClientRect(), 'r', false],
+      ['p1', pinsL[12], el('p1').getBoundingClientRect(), 't', true],
+      ['p2', pinsL[13], el('p2').getBoundingClientRect(), 't', true],
+      ['p3', pinsR[13], el('p3').getBoundingClientRect(), 't', true],
+      ['nav-work', { left: chip.left + 40, right: chip.left + 40, top: chip.top, bottom: chip.top, width: 0, height: 0 }, el('nav-work').getBoundingClientRect(), 'b', true],
+      ['nav-about', { left: chip.left + 90, right: chip.left + 90, top: chip.top, bottom: chip.top, width: 0, height: 0 }, el('nav-about').getBoundingClientRect(), 'b', true],
+      ['nav-career', { left: chip.right - 90, right: chip.right - 90, top: chip.top, bottom: chip.top, width: 0, height: 0 }, el('nav-career').getBoundingClientRect(), 'b', true],
+      ['nav-contact', pinsR[1], el('nav-contact').getBoundingClientRect(), 'b', true]
+    ];
+    defs.forEach(([key, from, toRect, side, vertical], i) => {
+      let a = from.width ? pt(from, from === pinsR[1] || from === pinsR[13] ? 'r' : 'l') : { x: from.left, y: from.top };
+      let b = pt(toRect, side);
+      if (key === 'title') { const y = document.querySelector('h1 .y').getBoundingClientRect(); b = { x: y.left + y.width + 26, y: y.top + y.height * .5 }; }
+      if (key === 'cta') b = { x: toRect.right + 330, y: toRect.top + toRect.height / 2 };
+      if (key.startsWith('p') && key.length === 2) b = { x: toRect.left - 2, y: toRect.top + toRect.height / 2 };
+      const d = key.startsWith('p') && key.length === 2 ? routeToPart(a, b, from === pinsR[13]) : route(a, b, vertical);
+      const base = document.createElementNS(NS, 'path');
+      base.setAttribute('d', d); base.setAttribute('fill', 'none'); base.setAttribute('stroke', 'rgba(233,183,48,.30)'); base.setAttribute('stroke-width', '2.2'); base.setAttribute('stroke-linejoin', 'round');
+      const pulse = document.createElementNS(NS, 'path');
+      pulse.setAttribute('d', d); pulse.setAttribute('fill', 'none'); pulse.setAttribute('stroke', '#ffd76a'); pulse.setAttribute('stroke-width', '2.6'); pulse.setAttribute('stroke-linecap', 'round');
+      svg.append(base, pulse);
+      const len = base.getTotalLength();
+      pulse.style.strokeDasharray = `40 ${len + 40}`;
+      pulse.style.strokeDashoffset = 40;
+      pulse.style.opacity = 0;
+      // end via
+      const end = base.getPointAtLength(len);
+      const via = document.createElementNS(NS, 'circle');
+      via.setAttribute('cx', end.x); via.setAttribute('cy', end.y); via.setAttribute('r', 4.5); via.setAttribute('fill', '#12051f'); via.setAttribute('stroke', '#e9b730'); via.setAttribute('stroke-width', '2.4');
+      svg.append(via);
+      routes.push({ key, base, pulse, len });
+      if (!reduced) {
+        base.style.strokeDasharray = len; base.style.strokeDashoffset = len;
+        base.animate([{ strokeDashoffset: len }, { strokeDashoffset: 0 }], { duration: 900, delay: 200 + i * 90, easing: 'cubic-bezier(.6,0,.2,1)', fill: 'forwards' });
+      }
+    });
+  }
+  function routeToPart(a, b, fromRight) {
+    // leave the chip sideways, drop down, then run along under the parts to their pad
+    const out = fromRight ? a.x + 26 : a.x - 26 - (b.y % 3) * 8;
+    const top = document.querySelector('.parts').getBoundingClientRect().top; const lane = top - 14 - (fromRight ? 0 : (b.x > innerWidth * .25 ? 10 : 20));
+    return `M${a.x},${a.y} H${out} V${lane - 12} L${out - 12},${lane} H${b.x - 30} L${b.x - 18},${lane + 12} V${b.y} H${b.x}`;
+  }
+
+  function fire(key) {
+    const r = routes.find(x => x.key === key); if (!r || reduced) return;
+    r.pulse.style.opacity = 1;
+    r.pulse.animate([{ strokeDashoffset: 40 }, { strokeDashoffset: -r.len }], { duration: Math.max(500, r.len * 1.2), easing: 'cubic-bezier(.4,0,.2,1)' }).onfinish = () => { r.pulse.style.opacity = 0; };
+  }
+  document.querySelectorAll('[data-trace]').forEach(n => n.addEventListener('pointerenter', () => fire(n.dataset.trace)));
+  // idle: the board ticks over, firing a random trace now and then
+  setInterval(() => { if (routes.length) fire(routes[Math.floor(Math.random() * routes.length)].key); }, 1700);
+
+  const go = () => requestAnimationFrame(build);
+  document.fonts.ready.then(go); addEventListener('resize', go); go();
+
+  // cursor: a gold pad on the pointer with a signal trail that lags behind it
+  const cv = document.querySelector('.cursor'), c = cv.getContext('2d');
+  const dpr = Math.min(devicePixelRatio, 2);
+  function size() { cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; cv.style.width = innerWidth + 'px'; cv.style.height = innerHeight + 'px'; c.setTransform(dpr, 0, 0, dpr, 0, 0); }
+  size(); addEventListener('resize', size);
+  const N = 22, pts = Array.from({ length: N }, () => ({ x: -99, y: -99 }));
+  const head = { x: -99, y: -99, on: false };
+  let hot = false;
+  addEventListener('pointermove', e => { head.x = e.clientX; head.y = e.clientY; if (!head.on) { pts.forEach(p => { p.x = head.x; p.y = head.y; }); head.on = true; } });
+  document.addEventListener('pointerover', e => { hot = !!e.target.closest('a'); });
+  (function draw() {
+    c.clearRect(0, 0, innerWidth, innerHeight);
+    let px = head.x, py = head.y;
+    pts.forEach((p, i) => { const k = .3 - i * .008; p.x += (px - p.x) * k; p.y += (py - p.y) * k; px = p.x; py = p.y; });
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    for (let i = 1; i < N; i++) {
+      c.strokeStyle = `rgba(255,215,106,${(1 - i / N) * .75})`;
+      c.lineWidth = 3.4 * (1 - i / N) + .4;
+      c.beginPath(); c.moveTo(pts[i - 1].x, pts[i - 1].y); c.lineTo(pts[i].x, pts[i].y); c.stroke();
+    }
+    c.beginPath(); c.moveTo(head.x, head.y); c.lineTo(pts[0].x, pts[0].y); c.strokeStyle = '#ffd76a'; c.lineWidth = 3.6; c.stroke();
+    const r = hot ? 12 : 7;
+    c.beginPath(); c.arc(head.x, head.y, r, 0, Math.PI * 2); c.fillStyle = '#12051f'; c.fill(); c.lineWidth = hot ? 4 : 3; c.strokeStyle = '#e9b730'; c.stroke();
+    requestAnimationFrame(draw);
+  })();
+})();
+</script>
+</body>
+</html>
