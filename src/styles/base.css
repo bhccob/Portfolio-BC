@@ -505,3 +505,18 @@ html.has-custom-cursor textarea {
   color: var(--paper);
 }
 
+
+/* ---------- disclosures open smoothly where supported ---------- */
+:root {
+  interpolate-size: allow-keywords;
+}
+
+details::details-content {
+  height: 0;
+  overflow: clip;
+  transition: height 0.5s var(--ease-out), content-visibility 0.5s allow-discrete;
+}
+
+details[open]::details-content {
+  height: auto;
+}

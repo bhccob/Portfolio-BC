@@ -140,7 +140,7 @@ export const en = {
       {
         status: 'In progress',
         title: 'Specialising',
-        text: 'Deepening the more specific skills that my possible future roles as a systems engineer or firmware security automation engineer call for: working closer to the hardware, understanding how systems fit together, and testing and securing software.'
+        text: 'Deepening the more specific skills that my possible future roles call for, from systems and firmware security to security engineering, data engineering, MLOps and site reliability engineering (SRE): working closer to the hardware, understanding how systems fit together, and testing, securing and operating software.'
       },
       {
         status: 'Daily',
@@ -150,7 +150,7 @@ export const en = {
       {
         status: 'Next',
         title: 'Curious about',
-        text: 'Embedded systems and electronics: the place where software meets the hardware it runs on.'
+        text: 'Embedded systems and electronics, where software meets the hardware it runs on, and how machine-learning systems, data platforms and large online services are secured and kept running: MLOps, data engineering, security and SRE.'
       }
     ]
   },
@@ -189,7 +189,9 @@ export const en = {
     currentText:
       'Building a broad software foundation: game development in Godot, web development, relational databases and SQL, frameworks such as Laravel, and programming fundamentals across several languages.',
     nextStatus: 'Possible',
-    roadmapNote: 'The roles below are possible destinations for my future career: directions I am working toward, not fixed plans.',
+    roadmapNote: 'The roles in the roadmap are possible destinations for my future career: directions I am interested in and working toward, not fixed plans.',
+    rolesToggle: 'Possible future roles',
+    rolesHint: 'Interests, not fixed plans',
     roles: [
       {
         title: 'Systems Engineer',
@@ -198,11 +200,27 @@ export const en = {
       {
         title: 'Firmware Security Automation Engineer',
         text: 'Securing the low-level code inside devices, and automating how it is tested and verified.'
+      },
+      {
+        title: 'Security Engineer',
+        text: 'Protecting systems and data by finding weaknesses early and building defences into the design.'
+      },
+      {
+        title: 'Site Reliability Engineer (SRE)',
+        text: 'Keeping large services fast, stable and available through automation and careful monitoring.'
+      },
+      {
+        title: 'Data Engineer',
+        text: 'Building the pipelines and databases that turn raw data into something reliable to work with.'
+      },
+      {
+        title: 'MLOps Engineer',
+        text: 'Bringing machine-learning models into production and keeping them reliable, measurable and up to date.'
       }
     ],
-    whyToggle: 'Why this direction?',
+    whyToggle: 'Why these directions?',
     why:
-      'Both fields are built to last: as connected devices and critical infrastructure multiply, so does the need for engineers who can secure and automate them. They reward deep, uninterrupted focus on complex technical problems, in roles that are engineering-driven rather than client-facing. They also offer strong long-term prospects and a solid foundation for one day building a company of my own.'
+      'They share one thread: they are built to last. As connected devices, data and online services keep growing, so does the need for engineers who can secure, automate and keep them running. These roles reward deep, uninterrupted focus on complex technical problems and are engineering-driven rather than client-facing. They also offer strong long-term prospects and a solid foundation for one day building a company of my own.'
   },
   hood: {
     title: 'This site is <em>a project too.</em>',
@@ -303,7 +321,7 @@ export const en = {
     whoami:
       'Bob Chung, {age}. Student software engineer in Rotterdam. Born in Aruba, Chinese by heritage. Builds with curiosity, tests with honesty.',
     careerNow: 'now   → Student Software Engineer (MBO 4, Rotterdam)',
-    careerNext: 'next  → possible: Systems Engineer · Firmware Security Automation Engineer',
+    careerNext: 'next  → possible: Systems · Firmware Security Automation · Security · SRE · Data · MLOps',
     rallyBest: 'Best rally: {n} hits.',
     rallyNone: 'No rally yet. Hit the ping-pong ball in the off-duty playground!',
     gravityOn: 'Gravity enabled. Everything drops.',

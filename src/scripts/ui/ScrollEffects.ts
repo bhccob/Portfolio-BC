@@ -54,6 +54,8 @@ export class ScrollEffects extends Component {
 
     this.listen<CustomEvent<boolean>>(document, 'scroll:lock', (event) => (event.detail ? lenis.stop() : lenis.start()));
     this.listen<MouseEvent>(document, 'click', (event) => this.handleAnchor(event));
+    // Opening a <details> changes the page height; re-measure once it has settled.
+    this.listen(document, 'toggle', () => window.setTimeout(() => ScrollTrigger.refresh(), 520), { capture: true });
 
     // Hold the page still while the boot screen is up.
     if (!signals.loaderDone.hasFired) {

@@ -135,7 +135,7 @@ export const nl: Dictionary = {
       {
         status: 'Bezig',
         title: 'Specialiseren',
-        text: 'Ik verdiep me in de specifiekere vaardigheden die mijn mogelijke toekomstige rollen als systems engineer of firmware security automation engineer vragen: dichter bij de hardware werken, begrijpen hoe systemen samenwerken, en software testen en beveiligen.'
+        text: 'Ik verdiep me in de specifiekere vaardigheden die mijn mogelijke toekomstige rollen vragen, van systems en firmware security tot security engineering, data engineering, MLOps en site reliability engineering (SRE): dichter bij de hardware werken, begrijpen hoe systemen samenwerken, en software testen, beveiligen en beheren.'
       },
       {
         status: 'Dagelijks',
@@ -145,7 +145,7 @@ export const nl: Dictionary = {
       {
         status: 'Hierna',
         title: 'Nieuwsgierig naar',
-        text: 'Embedded systems en elektronica: de plek waar software de hardware ontmoet waarop ze draait.'
+        text: 'Embedded systems en elektronica, waar software de hardware ontmoet waarop ze draait, en hoe machine-learningsystemen, dataplatforms en grote online diensten beveiligd en draaiende gehouden worden: MLOps, data engineering, security en SRE.'
       }
     ]
   },
@@ -184,7 +184,9 @@ export const nl: Dictionary = {
     currentText:
       'Ik bouw een brede softwarebasis op: gameontwikkeling in Godot, webontwikkeling, relationele databases en SQL, frameworks zoals Laravel en programmeerbasis in meerdere talen.',
     nextStatus: 'Mogelijk',
-    roadmapNote: 'De rollen hieronder zijn mogelijke bestemmingen voor mijn toekomstige loopbaan: richtingen waar ik naartoe werk, geen vaste plannen.',
+    roadmapNote: 'De rollen in de roadmap zijn mogelijke bestemmingen voor mijn toekomstige loopbaan: richtingen die mij interesseren en waar ik naartoe werk, geen vaste plannen.',
+    rolesToggle: 'Mogelijke toekomstige rollen',
+    rolesHint: 'Interesses, geen vaste plannen',
     roles: [
       {
         title: 'Systems Engineer',
@@ -193,11 +195,27 @@ export const nl: Dictionary = {
       {
         title: 'Firmware Security Automation Engineer',
         text: 'Het beveiligen van de low-level code in apparaten, en het automatiseren van hoe die getest en geverifieerd wordt.'
+      },
+      {
+        title: 'Security Engineer',
+        text: 'Systemen en data beschermen door zwakke plekken vroeg te vinden en beveiliging in het ontwerp in te bouwen.'
+      },
+      {
+        title: 'Site Reliability Engineer (SRE)',
+        text: 'Grote diensten snel, stabiel en beschikbaar houden met automatisering en zorgvuldige monitoring.'
+      },
+      {
+        title: 'Data Engineer',
+        text: 'De pipelines en databases bouwen die ruwe data omzetten in iets betrouwbaars om mee te werken.'
+      },
+      {
+        title: 'MLOps Engineer',
+        text: 'Machine-learningmodellen in productie brengen en ze betrouwbaar, meetbaar en actueel houden.'
       }
     ],
-    whyToggle: 'Waarom deze richting?',
+    whyToggle: 'Waarom deze richtingen?',
     why:
-      'Beide vakgebieden zijn toekomstbestendig: naarmate verbonden apparaten en kritieke infrastructuur toenemen, groeit ook de vraag naar engineers die ze kunnen beveiligen en automatiseren. Ze belonen diepe, ongestoorde focus op complexe technische problemen, in rollen die draaien om techniek in plaats van klantcontact. Daarnaast bieden ze sterke vooruitzichten en een solide basis om later een eigen bedrijf op te bouwen.'
+      'Ze hebben één ding gemeen: ze zijn toekomstbestendig. Naarmate verbonden apparaten, data en online diensten blijven groeien, groeit ook de vraag naar engineers die ze kunnen beveiligen, automatiseren en draaiende houden. Deze rollen belonen diepe, ongestoorde focus op complexe technische problemen en draaien om techniek in plaats van klantcontact. Daarnaast bieden ze sterke vooruitzichten en een solide basis om later een eigen bedrijf op te bouwen.'
   },
   hood: {
     title: 'Deze site is <em>ook een project.</em>',
@@ -298,7 +316,7 @@ export const nl: Dictionary = {
     whoami:
       'Bob Chung, {age}. Student software engineer in Rotterdam. Geboren op Aruba, Chinees van afkomst. Bouwt met nieuwsgierigheid, test met eerlijkheid.',
     careerNow: 'nu     → Student Software Engineer (MBO 4, Rotterdam)',
-    careerNext: 'straks → mogelijk: Systems Engineer · Firmware Security Automation Engineer',
+    careerNext: 'straks → mogelijk: Systems · Firmware Security Automation · Security · SRE · Data · MLOps',
     rallyBest: 'Beste rally: {n} slagen.',
     rallyNone: 'Nog geen rally. Sla het pingpongballetje in de speeltuin onder ‘Buiten dienst’!',
     gravityOn: 'Zwaartekracht aan. Alles valt.',

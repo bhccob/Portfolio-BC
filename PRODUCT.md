@@ -51,7 +51,7 @@ A student software engineer building toward systems and firmware security work, 
   - No heavy bordered boxes: rows, rules and tiles instead.
 - **Terminology:**
   - Current occupation: "Student Software Engineer".
-  - Future careers: "Systems Engineer" and "Firmware Security Automation Engineer". The owner wrote "System Engineer"; the site uses the standard title "Systems Engineer".
+  - Possible future careers (interests, never presented as plans): "Systems Engineer", "Firmware Security Automation Engineer", "Security Engineer", "Site Reliability Engineer (SRE)", "Data Engineer" and "MLOps Engineer". The owner wrote "System Engineer"; the site uses the standard title "Systems Engineer". On the site they sit behind one "Possible future roles" dropdown so the roadmap stays uncluttered.
   - Projects are labelled "Project #01", "#02", and so on.
 - **Technical:** static output only, so there is no server-side code. The local toolchain is Node only: C compiles through `@yowasp/clang`, and the Python tooling runs in CI.
 - **Open decisions:**

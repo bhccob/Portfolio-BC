@@ -18,6 +18,13 @@ const pad = Math.max(c.currentStatus.length, c.nextStatus.length);
       <div class="career__intro">
         <h2 id="career-title" class="display career__title" data-split set:html={c.title} />
         <p class="body-text" data-reveal>{c.roadmapNote}</p>
+        <details class="why" data-reveal>
+          <summary>
+            <span>{c.whyToggle}</span>
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6l4 4 4-4" /></svg>
+          </summary>
+          <p>{c.why}</p>
+        </details>
       </div>
 
       <ol class="service">
@@ -29,27 +36,34 @@ const pad = Math.max(c.currentStatus.length, c.nextStatus.length);
             <p class="service__text">{c.currentText}</p>
           </div>
         </li>
-        {
-          c.roles.map((role) => (
-            <li class="service__row" data-reveal data-flap-host>
-              <FlapText text={c.nextStatus} pad={pad} tone="lilac" hover class="service__status" />
-              <div class="service__body">
-                <h3 class="service__role">{role.title}</h3>
-                <p class="service__text">{role.text}</p>
-              </div>
-            </li>
-          ))
-        }
+        <li class="service__row service__row--future" data-reveal>
+          <details class="future" data-flap-host>
+            <summary class="future__summary">
+              <FlapText text={c.nextStatus} pad={pad} tone="lilac" label="" hover class="service__status" />
+              <span class="future__label">
+                <span class="service__role">{c.rolesToggle}</span>
+                <span class="service__org">{c.roles.length} · {c.rolesHint}</span>
+              </span>
+              <span class="future__chevron" aria-hidden="true">
+                <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4" /></svg>
+              </span>
+            </summary>
+            <ul class="future__list">
+              {
+                c.roles.map((role) => (
+                  <li class="future__item">
+                    <h3 class="future__role">{role.title}</h3>
+                    <p class="future__text">{role.text}</p>
+                  </li>
+                ))
+              }
+            </ul>
+          </details>
+        </li>
       </ol>
     </div>
 
-    <details class="why" data-reveal>
-      <summary>
-        <span>{c.whyToggle}</span>
-        <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6l4 4 4-4" /></svg>
-      </summary>
-      <p>{c.why}</p>
-    </details>
+
   </div>
 </section>
 
@@ -118,6 +132,80 @@ const pad = Math.max(c.currentStatus.length, c.nextStatus.length);
     color: var(--dim);
   }
 
+  /* the possible future roles fold away behind one row */
+  .service__row--future {
+    display: block;
+  }
+
+  .future__summary {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 16px 28px;
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .future__summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .future__label {
+    display: grid;
+    gap: 6px;
+  }
+
+  .future__summary:hover .service__role {
+    color: var(--yellow);
+  }
+
+  .future__chevron {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border: 1.5px solid var(--line-strong);
+    border-radius: 50%;
+    color: var(--yellow);
+    transition: transform 0.45s var(--ease-out), background-color 0.3s, color 0.3s;
+  }
+
+  .future__summary:hover .future__chevron {
+    background: var(--yellow);
+    color: var(--on-yellow);
+  }
+
+  .future[open] .future__chevron {
+    transform: rotate(180deg);
+  }
+
+  .future__list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 28px;
+    margin-top: 18px;
+  }
+
+  .future__item {
+    display: grid;
+    gap: 4px;
+    align-content: start;
+    padding: 14px 0;
+    background: linear-gradient(var(--line), var(--line)) left top / 100% 1px no-repeat;
+  }
+
+  .future__role {
+    font: 400 19px/1.05 var(--font-display);
+    text-transform: uppercase;
+    color: var(--paper);
+  }
+
+  .future__text {
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--lilac);
+  }
+
   .service__text {
     color: var(--lilac);
     font-size: 16px;
@@ -125,7 +213,7 @@ const pad = Math.max(c.currentStatus.length, c.nextStatus.length);
   }
 
   .why {
-    margin-top: 36px;
+    margin-top: 4px;
     max-width: 52em;
   }
 
@@ -165,9 +253,23 @@ const pad = Math.max(c.currentStatus.length, c.nextStatus.length);
     }
   }
 
+  @media (max-width: 720px) {
+    .future__list {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
   @media (max-width: 520px) {
     .service__row {
       grid-template-columns: 1fr;
+    }
+
+    .future__summary {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .future__summary :global(.service__status) {
+      grid-column: 1 / -1;
     }
   }
 </style>
