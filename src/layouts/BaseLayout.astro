@@ -1,6 +1,9 @@
 ---
 import '@fontsource-variable/sofia-sans-extra-condensed';
 import '@fontsource-variable/sofia-sans';
+import '@fontsource-variable/sofia-sans/wght-italic.css';
+import '@fontsource/bagel-fat-one';
+import '@fontsource/yellowtail';
 import '@fontsource-variable/martian-mono';
 import '../styles/tokens.css';
 import '../styles/base.css';
@@ -81,7 +84,7 @@ const graph = [person, website, ...structuredData];
       )
     }
     <meta name="author" content={profile.name} />
-    <meta name="theme-color" content="#150b26" />
+    <meta name="theme-color" content="#1c1030" />
     <meta name="color-scheme" content="dark" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="sitemap" href="/sitemap-index.xml" />
@@ -135,7 +138,11 @@ const graph = [person, website, ...structuredData];
   <body>
     <a class="skip-link" href="#main">{i18n.t.nav.skip}</a>
     <LoadingScreen locale={locale} />
-    <canvas class="blueprint" data-blueprint aria-hidden="true"></canvas>
+    <div class="blueprint" data-blueprint aria-hidden="true">
+      <div class="blueprint__sheet"></div>
+      <div class="blueprint__sheet blueprint__sheet--glow"></div>
+    </div>
+    <div class="grain" aria-hidden="true"></div>
     <Header locale={locale} route={route} />
     <main id="main" tabindex="-1">
       <slot />
@@ -156,13 +163,45 @@ const graph = [person, website, ...structuredData];
     color: transparent;
   }
 
+  /* drawing-paper grid: minor lines every 56px, a stronger line every 224px */
   .blueprint {
     position: fixed;
     inset: 0;
     z-index: 0;
-    width: 100vw;
-    height: 100vh;
+    overflow: hidden;
     pointer-events: none;
+  }
+
+  .blueprint__sheet {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -224px;
+    height: calc(100% + 448px);
+    transform: translate3d(0, var(--gy, 0px), 0);
+    background-image:
+      linear-gradient(rgb(184 170 216 / 0.085) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(184 170 216 / 0.085) 1px, transparent 1px),
+      linear-gradient(rgb(184 170 216 / 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(184 170 216 / 0.04) 1px, transparent 1px);
+    background-size: 224px 224px, 224px 224px, 56px 56px, 56px 56px;
+  }
+
+  /* the same grid in yellow, revealed only around the pointer */
+  .blueprint__sheet--glow {
+    background-image:
+      linear-gradient(rgb(255 207 51 / 0.32) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(255 207 51 / 0.32) 1px, transparent 1px),
+      linear-gradient(rgb(255 207 51 / 0.18) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(255 207 51 / 0.18) 1px, transparent 1px);
+    -webkit-mask-image: radial-gradient(220px circle at var(--mx, -999px) var(--my, -999px), #000 0%, transparent 100%);
+    mask-image: radial-gradient(220px circle at var(--mx, -999px) var(--my, -999px), #000 0%, transparent 100%);
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
+
+  .blueprint.is-lit .blueprint__sheet--glow {
+    opacity: 1;
   }
 
   #main,

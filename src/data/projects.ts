@@ -6,12 +6,8 @@ import jontaiImage from '../assets/jontai-energy.png';
 export interface ProjectCopy {
   /** Kind of work and context, e.g. "Web game · School project". */
   type: string;
-  /** Skill area the project belongs to: its "line" on the board. */
-  area: string;
-  /** Short board text for the area (fits a row of flap tiles). */
-  areaShort: string;
-  /** Short board text for the type (fits a row of flap tiles). */
-  typeShort: string;
+  /** Skill area and kind of build, shown on the project card, e.g. "Web development · Browser game". */
+  category: string;
   role: string;
   summary: string;
   overview: string;
@@ -25,13 +21,14 @@ export interface ProjectData {
   slug: string;
   number: number;
   title: string;
-  /** Two-letter line code shown on the board, e.g. "GD" for game development. */
-  line: string;
   year: number;
   repo: string;
   image: ImageMetadata;
-  /** Optional crop for the screenshot frame, when the full capture is mostly empty space. */
-  crop?: { ratio: string; position: string };
+  /**
+   * How the screenshot sits in its 4:3 card: the focal point, and how far the
+   * crop magnifies it (so a large enough source image is requested).
+   */
+  crop?: { position: string; zoom: number };
   stack: string[];
   copy: Record<Locale, ProjectCopy>;
 }
@@ -42,7 +39,6 @@ export class Project {
   get slug() { return this.data.slug; }
   get number() { return this.data.number; }
   get title() { return this.data.title; }
-  get line() { return this.data.line; }
   get year() { return this.data.year; }
   get repo() { return this.data.repo; }
   get image() { return this.data.image; }
@@ -105,17 +101,15 @@ export const projects = new ProjectCatalog([
     slug: 'cookies-clicker',
     number: 1,
     title: 'Cookies Clicker',
-    line: 'GD',
     year: 2025,
     repo: 'https://github.com/bhccob/Cookies-Clicker',
     image: cookiesImage,
+    crop: { position: '6% 50%', zoom: 2.8 },
     stack: ['HTML', 'CSS', 'JavaScript', 'localStorage'],
     copy: {
       en: {
         type: 'Web game · School project',
-        area: 'Game development',
-        areaShort: 'Game dev',
-        typeShort: 'Web game · School',
+        category: 'Web development · Browser game',
         role: 'Design & development',
         summary:
           'A browser-based incremental game, built as a school project around one satisfying loop: click, earn cookies, reinvest in upgrades and watch production compound.',
@@ -131,9 +125,7 @@ export const projects = new ProjectCatalog([
       },
       nl: {
         type: 'Webgame · Schoolproject',
-        area: 'Gameontwikkeling',
-        areaShort: 'Gamedev',
-        typeShort: 'Webgame · School',
+        category: 'Webontwikkeling · Browsergame',
         role: 'Ontwerp & ontwikkeling',
         summary:
           'Een incrementele browsergame, gebouwd als schoolproject rond één bevredigende loop: klik, verdien koekjes, investeer in upgrades en zie de productie groeien.',
@@ -153,18 +145,15 @@ export const projects = new ProjectCatalog([
     slug: 'jontai-energy',
     number: 2,
     title: 'Jontai Energy',
-    line: 'WD',
     year: 2026,
     repo: 'https://github.com/bhccob/JE',
     image: jontaiImage,
-    crop: { ratio: '16 / 9', position: '50% 58%' },
+    crop: { position: '50% 58%', zoom: 1.7 },
     stack: ['HTML', 'Tailwind CSS', 'JavaScript', 'PowerShell'],
     copy: {
       en: {
         type: 'Company website · Personal project',
-        area: 'Web development',
-        areaShort: 'Web dev',
-        typeShort: 'Company site · Personal',
+        category: 'Web development · Company website',
         role: 'Design & front-end development',
         summary:
           'A multi-page website for a solar-energy company, built as a personal project: it introduces the business, guides visitors through its services and makes requesting a quote effortless.',
@@ -180,9 +169,7 @@ export const projects = new ProjectCatalog([
       },
       nl: {
         type: 'Bedrijfswebsite · Eigen project',
-        area: 'Webontwikkeling',
-        areaShort: 'Webdev',
-        typeShort: 'Bedrijfssite · Eigen',
+        category: 'Webontwikkeling · Bedrijfswebsite',
         role: 'Ontwerp & front-end-ontwikkeling',
         summary:
           'Een website met meerdere pagina’s voor een zonne-energiebedrijf, gebouwd als eigen project: de site stelt het bedrijf voor, leidt bezoekers door de diensten en maakt een offerte aanvragen moeiteloos.',

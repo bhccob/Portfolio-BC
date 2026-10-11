@@ -36,7 +36,7 @@ const sourceCode = {
 };
 
 const facts = [
-  { label: t.work.line, value: `${project.line} · ${copy.area}` },
+  { label: t.work.category, value: copy.category },
   { label: t.work.type, value: copy.type },
   { label: t.work.year, value: String(project.year) },
   { label: t.work.role, value: copy.role },
@@ -61,7 +61,7 @@ const sections = [
 >
   <article class="case" aria-labelledby="case-title">
     <LineObjects
-      items={project.line === 'GD'
+      items={project.slug === 'cookies-clicker'
         ? [
             { icon: 'controller', x: 84, y: 7, size: 76, speed: 0.2, rotate: 12, accent: true }
           ]
@@ -75,7 +75,7 @@ const sections = [
           <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 8H3M7 4L3 8l4 4" /></svg>
           {t.project.back}
         </a>
-        <p class="board-line__code"><b>{t.work.project} {project.label}</b><span>{t.board.departed}</span></p>
+        <p class="board-line__code"><b>{t.work.project} {project.label}</b><span>{copy.category}</span></p>
       </div>
 
       <header class="case__head">
@@ -242,16 +242,19 @@ const sections = [
     color: var(--dim);
   }
 
+  /* the screenshot as a cream print, like the cards on the home page */
   .case__frame {
     display: block;
-    overflow: hidden;
-    border-radius: var(--radius);
-    background: var(--board-3);
+    padding: clamp(10px, 1.4vw, 18px);
+    background: var(--cream);
+    border-radius: var(--radius-card);
     box-shadow: 0 50px 80px -50px rgb(0 0 0 / 0.8);
+    rotate: -0.6deg;
   }
 
   .case__frame :global(img) {
     width: 100%;
+    border-radius: var(--radius);
   }
 
   .case__dim {
@@ -306,7 +309,7 @@ const sections = [
   }
 
   .case__section-title {
-    font: 800 28px/1 var(--font-flap);
+    font: 400 26px/1 var(--font-display);
     text-transform: uppercase;
     color: var(--yellow);
   }

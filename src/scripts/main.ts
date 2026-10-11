@@ -2,6 +2,7 @@ import { App } from './core/App';
 import { FlapBoard } from './ui/FlapBoard';
 import { LoadingScreen } from './ui/LoadingScreen';
 import { BlueprintGrid } from './ui/BlueprintGrid';
+import { HeroMascot } from './ui/HeroMascot';
 import { CursorTrail } from './ui/CursorTrail';
 import { SiteHeader } from './ui/SiteHeader';
 import { ScrollEffects } from './ui/ScrollEffects';
@@ -18,6 +19,7 @@ export function bootstrap(): void {
     .use(new FlapBoard())
     .use(new LoadingScreen())
     .use(new BlueprintGrid())
+    .use(new HeroMascot())
     .use(new HeroPlayground())
     .use(new ScrollEffects())
     .use(new SiteHeader())

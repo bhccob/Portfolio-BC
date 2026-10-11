@@ -19,17 +19,25 @@ export class FlapTile {
   /** Duration of one half-flip, in ms. */
   static halfFlip = 62;
 
-  private readonly topLeaf: HTMLSpanElement;
-  private readonly bottomLeaf: HTMLSpanElement;
+  // The two moving leaves are only created on a tile's first flip, so a page
+  // full of tiles costs no extra DOM until something actually moves.
+  private topLeaf: HTMLSpanElement | null = null;
+  private bottomLeaf: HTMLSpanElement | null = null;
   private queue: string[] = [];
   private running = false;
   char: string;
 
   constructor(readonly element: HTMLElement) {
     this.char = element.dataset.c ?? ' ';
-    this.topLeaf = FlapTile.leaf('leaf leaf--t');
-    this.bottomLeaf = FlapTile.leaf('leaf leaf--b');
-    element.append(this.topLeaf, this.bottomLeaf);
+  }
+
+  private leaves(): [HTMLSpanElement, HTMLSpanElement] {
+    if (!this.topLeaf || !this.bottomLeaf) {
+      this.topLeaf = FlapTile.leaf('leaf leaf--t');
+      this.bottomLeaf = FlapTile.leaf('leaf leaf--b');
+      this.element.append(this.topLeaf, this.bottomLeaf);
+    }
+    return [this.topLeaf, this.bottomLeaf];
   }
 
   private static leaf(className: string): HTMLSpanElement {
@@ -70,19 +78,21 @@ export class FlapTile {
     this.running = true;
     const previous = this.char;
     const half = FlapTile.halfFlip;
+    const [topLeaf, bottomLeaf] = this.leaves();
 
     this.element.dataset.c = char;
-    this.topLeaf.dataset.c = previous;
-    this.bottomLeaf.dataset.c = char;
-    this.topLeaf.style.visibility = 'visible';
-    this.bottomLeaf.style.visibility = 'visible';
+    topLeaf.dataset.c = previous;
+    bottomLeaf.dataset.c = char;
+    topLeaf.style.visibility = 'visible';
+    bottomLeaf.style.visibility = 'visible';
 
-    this.topLeaf.animate([{ transform: 'rotateX(0deg)' }, { transform: 'rotateX(-90deg)' }], {
+    // Perspective lives in the keyframes, so idle tiles are plain 2D boxes.
+    topLeaf.animate([{ transform: 'perspective(4em) rotateX(0deg)' }, { transform: 'perspective(4em) rotateX(-90deg)' }], {
       duration: half,
       easing: 'cubic-bezier(.55,0,1,.45)',
       fill: 'forwards'
     });
-    const landing = this.bottomLeaf.animate([{ transform: 'rotateX(90deg)' }, { transform: 'rotateX(0deg)' }], {
+    const landing = bottomLeaf.animate([{ transform: 'perspective(4em) rotateX(90deg)' }, { transform: 'perspective(4em) rotateX(0deg)' }], {
       duration: half,
       delay: half,
       easing: 'cubic-bezier(0,.55,.45,1)',
@@ -91,9 +101,9 @@ export class FlapTile {
     landing.onfinish = () => {
       this.char = char;
       this.element.dataset.b = char;
-      this.topLeaf.style.visibility = 'hidden';
-      this.bottomLeaf.style.visibility = 'hidden';
-      this.topLeaf.getAnimations().forEach((animation) => animation.cancel());
+      topLeaf.style.visibility = 'hidden';
+      bottomLeaf.style.visibility = 'hidden';
+      topLeaf.getAnimations().forEach((animation) => animation.cancel());
       this.next();
     };
   }
@@ -202,7 +212,8 @@ export class FlapBoard extends Component {
   private intro(elements: HTMLElement[]): void {
     const root = document.documentElement;
     if (!elements.length || Motion.reduced) {
-      root.classList.remove('flap-intro');
+      // Without flap rows the hero's own intro (ScrollEffects) clears the class.
+      if (Motion.reduced) root.classList.remove('flap-intro');
       signals.heroSettled.fire();
       return;
     }

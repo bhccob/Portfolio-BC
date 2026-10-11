@@ -1,32 +1,38 @@
 /*
- * Design tokens: the departures board.
- * Aubergine housing, flap tiles with a black split, signal-yellow characters.
+ * Design tokens. A dark, grainy purple board with signal-yellow ink, cream
+ * cards for the work, fat playful display type and split-flap tiles.
  */
 :root {
-  /* board housing, from deepest to lightest */
-  --board-deep: #0e0719;
-  --board: #150b26;
-  --board-2: #1b0f31;
-  --board-3: #24163f;
+  /* board, from deepest to lightest */
+  --board-deep: #140a24;
+  --board: #1c1030;
+  --board-2: #22153a;
+  --board-3: #2c1d4a;
 
   /* flap tiles */
-  --tile-hi: #2a1a45;
-  --tile: #221539;
-  --tile-2: #1a1030;
-  --split: #070310;
+  --tile-hi: #33224f;
+  --tile: #2a1b44;
+  --tile-2: #21153a;
+  --split: #0b0516;
 
   /* ink */
   --yellow: #ffcf33;
   --yellow-soft: #ffe07a;
-  --on-yellow: #150b26;
-  --paper: #f4efe6;
-  --lilac: #b3a5d4;
-  --dim: #9283b8;
-  --line: rgb(179 165 212 / 0.13);
-  --line-strong: rgb(179 165 212 / 0.28);
-  --grid: rgb(179 165 212 / 0.07);
+  --on-yellow: #1c1030;
+  --paper: #f4ecda;
+  --cream: #f1e8d3;
+  --on-cream: #1c1030;
+  --on-cream-soft: #5b4a78;
+  --purple: #6a2fd0;
+  --lilac: #b8aad8;
+  --dim: #9789bb;
+  --line: rgb(184 170 216 / 0.14);
+  --line-strong: rgb(244 236 218 / 0.32);
+  --grid: rgb(184 170 216 / 0.06);
 
   /* type */
+  --font-display: 'Bagel Fat One', 'Arial Black', system-ui, sans-serif;
+  --font-script: 'Yellowtail', 'Brush Script MT', cursive;
   --font-flap: 'Sofia Sans Extra Condensed Variable', 'Arial Narrow', 'Roboto Condensed', sans-serif;
   --font-sans: 'Sofia Sans Variable', 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'Martian Mono Variable', ui-monospace, 'Cascadia Mono', Consolas, monospace;
@@ -34,15 +40,14 @@
   /* layout */
   --gutter: clamp(16px, 4vw, 56px);
   --max: 1360px;
-  --header-h: 76px;
+  --header-h: 84px;
   --section-y: clamp(64px, 6vw, 96px);
   --radius: 4px;
+  --radius-card: 10px;
 
   /* motion */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-out: cubic-bezier(0.76, 0, 0.24, 1);
-  --ease-flap-in: cubic-bezier(0.55, 0, 1, 0.45);
-  --ease-flap-out: cubic-bezier(0, 0.55, 0.45, 1);
 
   color-scheme: dark;
 }

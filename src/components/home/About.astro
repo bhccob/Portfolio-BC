@@ -60,7 +60,21 @@ const stops = [
 
       <div class="about__text">
         <h2 id="about-title" class="display h2" data-split set:html={a.title} />
-        <p class="lead" data-reveal set:html={a.lead.replace('{age}', String(age))} />
+        <p class="mixed" data-mixed>
+          <span class="visually-hidden" set:html={a.lead.replace('{age}', String(age))} />
+          <span class="mixed__words" aria-hidden="true">
+            {
+              a.mixed.map(([text, style]) => {
+                const [head, tail] = text.split('{age}');
+                return (
+                  <span class:list={['mixed__w', `mixed__w--${style}`]} data-mixed-word>
+                    {tail === undefined ? text : <>{head}<span data-age>{age}</span>{tail}</>}
+                  </span>
+                );
+              })
+            }
+          </span>
+        </p>
         <p class="body-text" data-reveal>{a.body}</p>
         <blockquote class="about__quote" data-reveal>
           <p>{a.quote}</p>
@@ -80,7 +94,12 @@ const stops = [
     </div>
 
     <div class="route" data-route aria-label={a.route.label} role="group">
-      <p class="route__meta"><b>AUA → RTM</b> <span data-clock-diff data-template={a.clock.apart}></span></p>
+      <div class="route__meta">
+        <b>AUA → RTM</b>
+        <span class="route__clock"><FlapText text="--:--" play="none" label="" class="route__time" data-clock="America/Aruba" /> Aruba</span>
+        <span class="route__clock"><FlapText text="--:--" play="none" label="" class="route__time" data-clock="Europe/Amsterdam" /> Rotterdam</span>
+        <span data-clock-diff data-template={a.clock.apart}></span>
+      </div>
       <svg class="route__svg" viewBox="0 0 1000 40" preserveAspectRatio="none" aria-hidden="true">
         <path class="route__base" d="M0 20 H1000" />
         <path class="route__line" d="M0 20 H1000" pathLength="1" data-route-line />
@@ -193,7 +212,7 @@ const stops = [
   }
 
   .about__quote p {
-    font: 700 clamp(28px, 3vw, 42px) / 1.04 var(--font-flap);
+    font: 400 clamp(24px, 2.4vw, 36px) / 1.08 var(--font-display);
     text-transform: uppercase;
     color: var(--paper);
     text-wrap: balance;
@@ -221,7 +240,7 @@ const stops = [
   }
 
   .facts dd {
-    font: 800 26px/1 var(--font-flap);
+    font: 400 22px/1.05 var(--font-display);
     text-transform: uppercase;
     color: var(--yellow);
   }
@@ -233,11 +252,66 @@ const stops = [
   }
 
   .route__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 24px;
     margin-bottom: 18px;
     font: 450 12px/1.5 var(--font-mono);
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--dim);
+  }
+
+  .route__clock {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .route :global(.route__time) {
+    --tw: 0.84;
+    --th: 1.32;
+    --gap: 0.1em;
+    font-size: 17px;
+  }
+
+  /* mixed type: fat caps, light italics and plain caps in one sentence */
+  .mixed {
+    font-size: clamp(26px, 2.7vw, 40px);
+    line-height: 1.12;
+    text-wrap: pretty;
+  }
+
+  .mixed__w {
+    display: inline;
+    margin-right: 0.22em;
+  }
+
+  .mixed__w--fat,
+  .mixed__w--fat-yellow {
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    color: var(--paper);
+  }
+
+  .mixed__w--fat-yellow {
+    color: var(--yellow);
+  }
+
+  .mixed__w--light {
+    font-family: var(--font-sans);
+    font-style: italic;
+    font-weight: 300;
+    color: var(--lilac);
+  }
+
+  .mixed__w--caps {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.82em;
+    color: var(--paper);
   }
 
   .route__meta b {

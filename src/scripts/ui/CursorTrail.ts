@@ -149,7 +149,7 @@ export class CursorTrail extends Component {
       ctx.translate(point.x, point.y);
       ctx.rotate(lean);
       ctx.globalAlpha = 0.12 + 0.6 * life * life;
-      ctx.fillStyle = index % 3 === 0 ? '#ffcf33' : '#b3a5d4';
+      ctx.fillStyle = index % 3 === 0 ? '#ffcf33' : '#b8aad8';
       ctx.fillRect(-width / 2, -height / 2, width, height);
       ctx.fillStyle = 'rgba(7, 3, 16, 0.85)';
       ctx.fillRect(-width / 2, -0.5, width, 1);
@@ -167,7 +167,7 @@ export class CursorTrail extends Component {
       .cursor-head.is-visible { opacity: 1; }
       .cursor-head::before { content: ''; position: absolute; width: 10px; height: 14px; margin: -7px 0 0 -5px; border-radius: 2px;
         background: linear-gradient(#ffe07a 0 calc(50% - .5px), #070310 calc(50% - .5px) calc(50% + .5px), #ffcf33 calc(50% + .5px));
-        box-shadow: 0 0 0 1.5px #150b26; transition: transform .35s cubic-bezier(.22,1,.36,1); }
+        box-shadow: 0 0 0 1.5px #1c1030; transition: transform .35s cubic-bezier(.22,1,.36,1); }
       .cursor-head::after { content: ''; position: absolute; width: 38px; height: 38px; margin: -19px 0 0 -19px;
         background:
           linear-gradient(#ffcf33,#ffcf33) left top / 9px 2px no-repeat, linear-gradient(#ffcf33,#ffcf33) left top / 2px 9px no-repeat,

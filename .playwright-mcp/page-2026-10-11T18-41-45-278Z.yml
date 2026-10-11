@@ -1,0 +1,432 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - link "Working Stiff" [ref=e3]:
+      - /url: /
+    - navigation [ref=e7]:
+      - link "Work" [ref=e8]:
+        - /url: /work
+      - link "News" [ref=e9]:
+        - /url: /news
+      - link "About" [ref=e10]:
+        - /url: /about
+      - link "capabilities" [ref=e11]:
+        - /url: /capabilities
+      - link "Contact" [ref=e12]:
+        - /url: /contact
+  - main [ref=e14]:
+    - generic [ref=e15]:
+      - generic [ref=e27]:
+        - generic [ref=e28]:
+          - heading "W e m a k e L a u g h s T h a t l o o k D a m n G o o d" [level=1] [ref=e29]:
+            - generic [ref=e30]:
+              - generic [ref=e32]:
+                - generic [ref=e33]: W
+                - generic [ref=e34]: e
+                - generic [ref=e35]: m
+                - generic [ref=e36]: a
+                - generic [ref=e37]: k
+                - generic [ref=e38]: e
+              - generic [ref=e40]:
+                - generic [ref=e41]: L
+                - generic [ref=e42]: a
+                - generic [ref=e43]: u
+                - generic [ref=e44]: g
+                - generic [ref=e45]: h
+                - generic [ref=e46]: s
+              - generic [ref=e48]:
+                - generic [ref=e49]: T
+                - generic [ref=e50]: h
+                - generic [ref=e51]: a
+                - generic [ref=e52]: t
+                - generic [ref=e53]: l
+                - generic [ref=e54]: o
+                - generic [ref=e55]: o
+                - generic [ref=e56]: k
+              - generic [ref=e58]:
+                - generic [ref=e59]: D
+                - generic [ref=e60]: a
+                - generic [ref=e61]: m
+                - generic [ref=e62]: "n"
+            - generic [ref=e63]:
+              - generic [ref=e65]:
+                - generic: G
+                - generic: o
+              - generic [ref=e67]:
+                - generic: o
+                - generic: d
+              - figure [ref=e68]:
+                - img "Walking teeth with eyes and hands looking to the right"
+          - generic [ref=e546]:
+            - generic [ref=e547]: L
+            - generic [ref=e548]: a
+            - generic [ref=e549]: u
+            - generic [ref=e550]: g
+            - generic [ref=e551]: h
+            - generic [ref=e552]: s
+        - generic [ref=e553]:
+          - heading "Work Work Work Work Work Work Work Work Work Work Work Work Work Work Work Work Work Work Work Work" [level=2] [ref=e557]:
+            - generic [ref=e558]: Work
+            - generic [ref=e559]: Work
+            - generic [ref=e560]: Work
+            - generic [ref=e561]: Work
+            - generic [ref=e562]: Work
+            - generic [ref=e563]: Work
+            - generic [ref=e564]: Work
+            - generic [ref=e565]: Work
+            - generic [ref=e566]: Work
+            - generic [ref=e567]: Work
+            - generic [ref=e568]: Work
+            - generic [ref=e569]: Work
+            - generic [ref=e570]: Work
+            - generic [ref=e571]: Work
+            - generic [ref=e572]: Work
+            - generic [ref=e573]: Work
+            - generic [ref=e574]: Work
+            - generic [ref=e575]: Work
+            - generic [ref=e576]: Work
+            - generic [ref=e577]: Work
+          - generic [ref=e578]:
+            - article [ref=e579] [cursor=pointer]:
+              - figure [ref=e581]:
+                - img "Astrology" [ref=e582]
+              - heading "Re/max" [level=2] [ref=e583]
+              - heading "Astrology" [level=1] [ref=e584]
+            - article [ref=e585] [cursor=pointer]:
+              - figure [ref=e587]:
+                - img "Mo Knows" [ref=e588]
+              - heading "MOPAR" [level=2] [ref=e589]
+              - heading "Mo Knows" [level=1] [ref=e590]
+            - article [ref=e591] [cursor=pointer]:
+              - figure [ref=e593]:
+                - img "Running" [ref=e594]
+              - heading "EQ Bank" [level=2] [ref=e595]
+              - heading "Running" [level=1] [ref=e596]
+            - article [ref=e597] [cursor=pointer]:
+              - figure [ref=e599]:
+                - img "rich" [ref=e600]
+              - heading "Edward Jones" [level=2] [ref=e601]
+              - heading "rich" [level=1] [ref=e602]
+            - article [ref=e603] [cursor=pointer]:
+              - figure [ref=e605]:
+                - img "Same Day" [ref=e606]
+              - heading "AMAZON" [level=2] [ref=e607]
+              - heading "Same Day" [level=1] [ref=e608]
+            - link "View All Work Illustrated arrow pointing to right" [ref=e609]:
+              - /url: /work
+              - generic [ref=e610]: View All Work
+              - img "Illustrated arrow pointing to right" [ref=e611]
+          - generic [ref=e613]:
+            - figure [ref=e615]:
+              - img "Comedy Gold rotating text" [ref=e616]
+            - generic [ref=e644]:
+              - heading "For twenty years, we’ve been collaborating, shaping stories, sweating details, solving problems, and crafting relatable humor for big ass (and tiny ass) brands." [level=2] [ref=e645]
+              - paragraph [ref=e646]: We ain’t so Stiff after all.
+      - generic [ref=e647]:
+        - generic [ref=e649]:
+          - generic [ref=e650]:
+            - heading "In Your Feed" [level=2] [ref=e651]:
+              - generic [ref=e652]: In Your
+              - generic [ref=e653]: Feed
+            - figure [ref=e654]:
+              - img "Walking camera guy with mustache and huge eyebrows walking to the right"
+          - generic [ref=e1116]:
+            - article [ref=e1117]:
+              - link "Actress Jenny Slate Hosts 'Off The Clock With Indeed' February 20, 2026" [ref=e1118]:
+                - /url: https://www.mediapost.com/publications/article/411195/actress-jenny-slate-hosts-off-the-clock-with-inde.html
+                - figure [ref=e1119]
+                - generic [ref=e1120]:
+                  - paragraph [ref=e1121]: Actress Jenny Slate Hosts 'Off The Clock With Indeed'
+                  - generic [ref=e1122]: February 20, 2026
+            - article [ref=e1123]:
+              - link "Edward Jones taps Milo Ventimiglia to help Find Your Rich January 20, 2026" [ref=e1124]:
+                - /url: https://reel360.com/article/edward-jones-taps-milo-ventimiglia-to-help-find-your-rich/
+                - figure [ref=e1125]
+                - generic [ref=e1126]:
+                  - paragraph [ref=e1127]: Edward Jones taps Milo Ventimiglia to help Find Your Rich
+                  - generic [ref=e1128]: January 20, 2026
+            - article [ref=e1129]:
+              - link "EQ Bank Calls on Canadians to Step Away from Outdated Systems December 20, 2025" [ref=e1130]:
+                - /url: https://lbbonline.com/news/Arrivals-Departures-EQ-Bank-Outdated-Banking-Systems
+                - figure [ref=e1131]
+                - generic [ref=e1132]:
+                  - paragraph [ref=e1133]: EQ Bank Calls on Canadians to Step Away from Outdated Systems
+                  - generic [ref=e1134]: December 20, 2025
+            - article [ref=e1135]:
+              - 'link "Balls, bets, and brilliance: Matt Pittroff’s Greenball rolls back into Jersey, tongue firmly in cheek. July 10, 2025" [ref=e1136]':
+                - /url: https://thehowler.news/director-matt-pittroff-in-peak-form-with-return-of-greenball-for-new-jersey-lottery/
+                - figure [ref=e1137]
+                - generic [ref=e1138]:
+                  - paragraph [ref=e1139]: "Balls, bets, and brilliance: Matt Pittroff’s Greenball rolls back into Jersey, tongue firmly in cheek."
+                  - generic [ref=e1140]: July 10, 2025
+            - article [ref=e1141]:
+              - link "30 creatives spill their secrets. Matt Pittroff’s? Don’t force it. Step back, reset, then come back swinging. November 20, 2024" [ref=e1142]:
+                - /url: https://lbbonline.com/news/30-creatives-tell-you-their-secrets-for-breaking-through-creative-roadblocks
+                - figure [ref=e1143]
+                - generic [ref=e1144]:
+                  - paragraph [ref=e1145]: 30 creatives spill their secrets. Matt Pittroff’s? Don’t force it. Step back, reset, then come back swinging.
+                  - generic [ref=e1146]: November 20, 2024
+            - article [ref=e1147]:
+              - 'link "Full-time Pros Take on Real Estate''s Biggest Issues: Side Hustlers & Stranger Danger June 19, 2024" [ref=e1148]':
+                - /url: https://simian.me/hv3nh
+                - figure [ref=e1149]
+                - generic [ref=e1150]:
+                  - paragraph [ref=e1151]: "Full-time Pros Take on Real Estate's Biggest Issues: Side Hustlers & Stranger Danger"
+                  - generic [ref=e1152]: June 19, 2024
+        - generic [ref=e1154]:
+          - generic [ref=e1155]:
+            - heading "Hit us Up" [level=2] [ref=e1156]:
+              - generic [ref=e1157]: Hit us
+              - generic [ref=e1158]: Up
+            - figure [ref=e1159]:
+              - img "car van with extreme facial expression with excitement"
+          - generic [ref=e1509]:
+            - generic [ref=e1511]:
+              - generic [ref=e1512]:
+                - generic [ref=e1513]:
+                  - heading "Stiff Films" [level=2] [ref=e1514]
+                  - heading "Baltimore, MD" [level=3] [ref=e1515]
+                - generic [ref=e1517]:
+                  - link [ref=e1518]:
+                    - /url: https://www.instagram.com/workingstiff_films/
+                    - img "instagram icon" [ref=e1519]
+                    - generic: Instagram
+                  - link [ref=e1520]:
+                    - /url: https://www.linkedin.com/company/workingstiff-films/
+                    - img "linkedin icon" [ref=e1521]
+                    - generic: Linkedin
+                  - link [ref=e1522]:
+                    - /url: https://open.spotify.com/show/6Efn0jPJVeU5oZe8plQLQD
+                    - img "spotify icon" [ref=e1523]
+                    - generic: Spotify
+                  - link [ref=e1524]:
+                    - /url: https://www.facebook.com/workingstifffilms
+                    - img "facebook icon" [ref=e1525]
+                    - generic: Facebook
+              - list [ref=e1527]:
+                - listitem [ref=e1528]:
+                  - generic [ref=e1529]: Matthew Pittroff
+                  - generic [ref=e1530]: Director/Managing Partner
+                - listitem [ref=e1531]:
+                  - link "matt@workingstiff-films.com" [ref=e1533]:
+                    - /url: mailto:matt@workingstiff-films.com
+                  - link "443.865.0277" [ref=e1535]:
+                    - /url: tel:443.865.0277
+            - link [ref=e1537]:
+              - /url: /contact
+              - img "Reach out spinning text in circle" [ref=e1538]
+              - img "Illustrater arrow icon" [ref=e1539]
+    - generic:
+      - generic:
+        - img "close icon"
+      - generic:
+        - iframe [ref=e1540]:
+          - generic [ref=f1e2]:
+            - generic:
+              - generic [aria-hidden]:
+                - generic: Playing in picture-in-picture
+            - generic:
+              - generic:
+                - button "Play" [ref=f1e10] [cursor=pointer]:
+                  - generic:
+                    - generic [aria-hidden]: Play
+                - generic [ref=f1e14]:
+                  - generic [ref=f1e15]:
+                    - slider "Progress Bar" [ref=f1e16] [cursor=pointer]
+                    - generic [ref=f1e17] [cursor=pointer]
+                    - generic [aria-hidden]:
+                      - generic: 00:00
+                    - generic [ref=f1e21]: 00:30
+                  - generic [ref=f1e23]:
+                    - generic [ref=f1e24]:
+                      - button "Mute" [ref=f1e26] [cursor=pointer]
+                      - slider "Volume (use up/down arrow keys to change)"
+                    - button "CC/subtitles" [ref=f1e29] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: CC/subtitles
+                    - button "Settings" [ref=f1e32] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: Settings
+                    - button "Speed" [ref=f1e35] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: Speed
+                    - button "Transcript" [ref=f1e39] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: Transcript
+                    - button "Picture-in-Picture" [ref=f1e42] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: Picture-in-Picture
+                    - button "Fullscreen" [ref=f1e45] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: Fullscreen
+        - generic: Re/max / Astrology
+      - generic:
+        - iframe [ref=e1541]:
+          - generic [ref=f2e2]:
+            - generic:
+              - generic [aria-hidden]:
+                - generic: Playing in picture-in-picture
+            - generic:
+              - generic:
+                - button "Play" [ref=f2e10] [cursor=pointer]:
+                  - generic:
+                    - generic [aria-hidden]: Play
+                - generic [ref=f2e14]:
+                  - generic [ref=f2e15]:
+                    - slider "Progress Bar" [ref=f2e16] [cursor=pointer]
+                    - generic [ref=f2e17] [cursor=pointer]
+                    - generic [aria-hidden]:
+                      - generic: 00:00
+                    - generic [ref=f2e21]: 00:30
+                  - generic [ref=f2e23]:
+                    - generic [ref=f2e24]:
+                      - button "Mute" [ref=f2e26] [cursor=pointer]
+                      - slider "Volume (use up/down arrow keys to change)"
+                    - button "CC/subtitles" [ref=f2e29] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: CC/subtitles
+                    - button "Settings" [ref=f2e32] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: Settings
+                    - button "Speed" [ref=f2e35] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: Speed
+                    - button "Transcript" [ref=f2e39] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: Transcript
+                    - button "Picture-in-Picture" [ref=f2e42] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: Picture-in-Picture
+                    - button "Fullscreen" [ref=f2e45] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: Fullscreen
+        - generic: MOPAR / Mo Knows
+      - generic:
+        - iframe [ref=e1542]:
+          - generic [ref=f3e2]:
+            - generic:
+              - generic [aria-hidden]:
+                - generic: Playing in picture-in-picture
+            - generic:
+              - generic:
+                - button "Play" [ref=f3e10] [cursor=pointer]:
+                  - generic:
+                    - generic [aria-hidden]: Play
+                - generic [ref=f3e14]:
+                  - generic [ref=f3e15]:
+                    - slider "Progress Bar" [ref=f3e16] [cursor=pointer]
+                    - generic [ref=f3e17] [cursor=pointer]
+                    - generic [aria-hidden]:
+                      - generic: 00:00
+                    - generic [ref=f3e21]: 00:30
+                  - generic [ref=f3e23]:
+                    - generic [ref=f3e24]:
+                      - button "Mute" [ref=f3e26] [cursor=pointer]
+                      - slider "Volume (use up/down arrow keys to change)"
+                    - button "CC/subtitles" [ref=f3e29] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: CC/subtitles
+                    - button "Settings" [ref=f3e32] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: Settings
+                    - button "Speed" [ref=f3e35] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: Speed
+                    - button "Transcript" [ref=f3e39] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: Transcript
+                    - button "Picture-in-Picture" [ref=f3e42] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: Picture-in-Picture
+                    - button "Fullscreen" [ref=f3e45] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: Fullscreen
+        - generic: EQ Bank / Running
+      - generic:
+        - iframe [ref=e1543]:
+          - generic [ref=f4e2]:
+            - generic:
+              - generic [aria-hidden]:
+                - generic: Playing in picture-in-picture
+            - generic:
+              - generic:
+                - button "Play" [ref=f4e10] [cursor=pointer]:
+                  - generic:
+                    - generic [aria-hidden]: Play
+                - generic [ref=f4e14]:
+                  - generic [ref=f4e15]:
+                    - slider "Progress Bar" [ref=f4e16] [cursor=pointer]
+                    - generic [ref=f4e17] [cursor=pointer]
+                    - generic [aria-hidden]:
+                      - generic: 00:00
+                    - generic [ref=f4e21]: 01:01
+                  - generic [ref=f4e23]:
+                    - generic [ref=f4e24]:
+                      - button "Mute" [ref=f4e26] [cursor=pointer]
+                      - slider "Volume (use up/down arrow keys to change)"
+                    - button "CC/subtitles" [ref=f4e29] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: CC/subtitles
+                    - button "Settings" [ref=f4e32] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: Settings
+                    - button "Speed" [ref=f4e35] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: Speed
+                    - button "Transcript" [ref=f4e39] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: Transcript
+                    - button "Picture-in-Picture" [ref=f4e42] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: Picture-in-Picture
+                    - button "Fullscreen" [ref=f4e45] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: Fullscreen
+        - generic: Edward Jones / rich
+      - generic:
+        - iframe [ref=e1544]:
+          - generic [ref=f5e2]:
+            - generic:
+              - generic [aria-hidden]:
+                - generic: Playing in picture-in-picture
+            - generic:
+              - generic:
+                - button "Play" [ref=f5e10] [cursor=pointer]:
+                  - generic:
+                    - generic [aria-hidden]: Play
+                - generic [ref=f5e14]:
+                  - generic [ref=f5e15]:
+                    - slider "Progress Bar" [ref=f5e16] [cursor=pointer]
+                    - generic [ref=f5e17] [cursor=pointer]
+                    - generic [aria-hidden]:
+                      - generic: 00:00
+                    - generic [ref=f5e21]: 00:32
+                  - generic [ref=f5e23]:
+                    - generic [ref=f5e24]:
+                      - button "Mute" [ref=f5e26] [cursor=pointer]
+                      - slider "Volume (use up/down arrow keys to change)"
+                    - button "CC/subtitles" [ref=f5e29] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: CC/subtitles
+                    - button "Settings" [ref=f5e32] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: Settings
+                    - button "Speed" [ref=f5e35] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: Speed
+                    - button "Transcript" [ref=f5e39] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: Transcript
+                    - button "Picture-in-Picture" [ref=f5e42] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: Picture-in-Picture
+                    - button "Fullscreen" [ref=f5e45] [cursor=pointer]:
+                      - generic:
+                        - generic [aria-hidden]: Fullscreen
+        - generic: AMAZON / Same Day
+  - generic [ref=e1545]:
+    - img "Hand drawn close icon with dark outline border" [ref=e1547]
+    - generic [ref=e1548]:
+      - figure [ref=e1549]
+      - heading "Matt Pittroff" [level=2] [ref=e1550]: MattPittroff
+      - generic [ref=e1551]: Director/Managing partner
+      - paragraph [ref=e1552]: Creative conspirer. Born of a Charm City paint salesman. Failed oil painter. Laser level eyes. Razor sharp wit. Regrettably pear shaped, but working on it. Rumored to be the smartest dumb guy you will ever meet.

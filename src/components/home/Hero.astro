@@ -1,8 +1,6 @@
 ---
-import FlapText from '../ui/FlapText.astro';
 import LineObjects from '../ui/LineObjects.astro';
 import { Translator, type Locale } from '../../i18n/Translator';
-import { projects } from '../../data/projects';
 
 interface Props {
   locale: Locale;
@@ -10,380 +8,282 @@ interface Props {
 
 const { locale } = Astro.props;
 const { t } = new Translator(locale);
-const b = t.board;
+const h = t.hero;
 
-type Status = 'departed' | 'boarding' | 'held';
-interface Row {
-  href: string;
-  year: string;
-  project: string;
-  line: string;
-  status: Status;
-  statusText: string;
-}
+// The last word gets the ping-pong ball: it takes the place of the first "O",
+// or sits after the word when there is none (e.g. "eerlijkheid").
+const lines = h.lines.map((text, index) => ({ text: text.toUpperCase(), big: index % 2 === 1 }));
+const last = lines[lines.length - 1].text;
+const ballAt = last.indexOf('O');
+const before = ballAt >= 0 ? last.slice(0, ballAt) : last;
+const after = ballAt >= 0 ? last.slice(ballAt + 1) : '';
 
-const rows: Row[] = [
-  ...projects.all().map((project) => ({
-    href: `#${project.anchor}`,
-    year: String(project.year),
-    project: `${project.label} ${project.title}`,
-    line: `${project.line} · ${project.copy(locale).areaShort}`,
-    status: 'departed' as Status,
-    statusText: b.departed
-  })),
-  { href: '#work-next', year: '----', project: b.nextTitle, line: b.nextLine, status: 'boarding', statusText: b.boarding },
-  { href: '#work-held', year: '----', project: b.earlierTitle, line: b.earlierLine, status: 'held', statusText: b.held }
-];
-
-// Every column pads to its longest entry, so the tiles line up down the board.
-const widest = (key: keyof Row) => Math.max(...rows.map((row) => row[key].length));
-const pads = { year: 4, project: widest('project'), line: widest('line'), status: widest('statusText') };
-const echoLength = b.echo.replace('{name}', 'XXXXXXXXX').length;
-const rolePad = Math.max(b.role.length, echoLength);
-const phases = JSON.stringify(b.phases);
+// Repeat the badge text so it always fills its circle.
+const badge = h.badge.repeat(Math.max(1, Math.round(64 / h.badge.length)));
 ---
 
 <section class="hero" id="top" data-hero aria-labelledby="hero-title">
   <LineObjects
     items={[
-      { icon: 'plate', x: 31, y: 7, size: 70, speed: 0.25, note: 'Ø 450' },
-      { icon: 'paddle', x: 54, y: 11, size: 52, speed: -0.2, rotate: -20 },
-      { icon: 'sine', x: 63, y: 89, size: 70, speed: 0.15, note: 'f(t)' },
-      { icon: 'chip', x: 71, y: 9, size: 44, speed: 0.3, accent: true }
+      { icon: 'sigma', x: 7, y: 22, size: 54, speed: 0.2 },
+      { icon: 'chip', x: 88, y: 18, size: 46, speed: -0.15, accent: true },
+      { icon: 'plate', x: 6, y: 74, size: 64, speed: 0.25, note: 'Ø 450' }
     ]}
   />
 
   <div class="hero__inner">
-    <div class="hero__head">
-      <p class="hero__words">
-        {b.words.map((word, index) => (index === 0 ? <b>{word}</b> : <span lang={index === 1 ? (locale === 'en' ? 'nl' : 'en') : 'pap'}>{word}</span>))}
-        <span class="hero__phase" data-phase-label data-phases={phases}>{b.phases.day}</span>
-      </p>
-      <div class="hero__clocks">
-        <div class="clock">
-          <FlapText text="--:--" play="none" label="" class="clock__time" data-clock="Europe/Amsterdam" />
-          <span class="clock__place">{b.rotterdam}</span>
-        </div>
-        <div class="clock">
-          <FlapText text="--:--" play="none" label="" class="clock__time" data-clock="America/Aruba" />
-          <span class="clock__place">{b.aruba}</span>
-        </div>
-      </div>
-    </div>
-
-    <FlapText as="h1" id="hero-title" text="BOB CHUNG" label="Bob Chung" play="intro" wrap class="hero__name" data-flap-spell="" data-flap-tiles="" />
-    <div class="hero__dim" aria-hidden="true"><span>{b.drawing}</span></div>
-    <FlapText as="p" text={b.role} pad={rolePad} label={b.roleSpoken} play="intro" wrap class="hero__role" data-flap-echo={b.echo.toUpperCase()} />
-
-    <div class="board" data-hero-board>
-      <div class="board__head" aria-hidden="true">
-        <span>{b.columns.year}</span>
-        <span>{b.columns.project}</span>
-        <span>{b.columns.line}</span>
-        <span>{b.columns.status}</span>
-      </div>
-      <ol class="board__rows">
+    <h1 id="hero-title" class="hero__title">
+      <span class="hero__hello" data-hero-line>{h.hello}</span>
+      <span class="visually-hidden">: {h.spoken}</span>
+      <span class="hero__stack" aria-hidden="true">
         {
-          rows.map((row) => (
-            <li>
-              <a class:list={['dep', `dep--${row.status}`]} href={row.href}>
-                <FlapText text={row.year} pad={pads.year} play="intro" hover label={row.year === '----' ? '' : row.year} class="dep__year" tone={row.status === 'held' ? 'dim' : 'yellow'} />
-                <FlapText text={row.project} pad={pads.project} play="intro" hover class="dep__project" tone={row.status === 'held' ? 'dim' : 'yellow'} />
-                <FlapText text={row.line} pad={pads.line} play="intro" hover class="dep__line" tone={row.status === 'held' ? 'dim' : 'lilac'} />
-                <span class="dep__status">
-                  <svg class="dep__mark" viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    {row.status === 'departed' && <path d="M2 7.5l3.2 3L12 3.5" />}
-                    {row.status === 'boarding' && <path d="M3.5 2.5l7 4.5-7 4.5z" />}
-                    {row.status === 'held' && <circle cx="7" cy="7" r="4.6" />}
-                  </svg>
-                  <FlapText text={row.statusText} pad={pads.status} play="intro" hover tone={row.status === 'held' ? 'dim' : 'yellow'} />
-                </span>
-              </a>
-            </li>
+          lines.slice(0, -1).map((line) => (
+            <span class:list={['hero__line', { 'hero__line--big': line.big }]} style={`--chars:${line.text.length}`} data-hero-line>
+              {line.text}
+            </span>
           ))
         }
-      </ol>
-    </div>
-
-    <div class="hero__foot">
-      <p class="hero__line" set:html={b.line} />
-      <div class="hero__aside">
-        <p class="hero__hint">{b.typeHint}</p>
-        <a class="hero__scroll" href="#work"><span aria-hidden="true"></span>{b.scroll}</a>
-      </div>
-    </div>
+        <span class="hero__line hero__line--big hero__line--last" style={`--chars:${last.length}`} data-hero-line>
+          {before}
+          <span class="ball" data-ball>
+            <svg viewBox="0 0 100 100" aria-hidden="true">
+              <circle class="ball__body" cx="50" cy="50" r="46" />
+              <path class="ball__shine" d="M24 30a30 30 0 0 1 22-14" />
+              <g class="ball__eye" transform="translate(37 52)"><ellipse rx="10" ry="17" /><circle class="ball__pupil" cy="-5" r="5.5" /></g>
+              <g class="ball__eye" transform="translate(63 52)"><ellipse rx="10" ry="17" /><circle class="ball__pupil" cy="-5" r="5.5" /></g>
+            </svg>
+          </span>
+          {after}
+        </span>
+      </span>
+    </h1>
+    <p class="hero__role" data-hero-line>{h.role}</p>
   </div>
+
+  <a class="badge" href="#about" aria-label={t.nav.about}>
+    <svg class="badge__ring" viewBox="0 0 200 200" aria-hidden="true">
+      <defs><path id="badge-circle" d="M100,100 m-76,0 a76,76 0 1,1 152,0 a76,76 0 1,1 -152,0" /></defs>
+      <text><textPath href="#badge-circle" textLength="474">{badge.toUpperCase()}</textPath></text>
+    </svg>
+    <span class="badge__core" aria-hidden="true">
+      <svg viewBox="0 0 40 40" width="46%" height="46%">
+        <circle cx="16" cy="16" r="12" fill="currentColor" />
+        <rect x="23" y="22" width="6.5" height="15" rx="3.2" transform="rotate(-45 26 29.5)" fill="currentColor" />
+        <circle cx="33" cy="8" r="3.6" fill="none" stroke="currentColor" stroke-width="2" />
+      </svg>
+    </span>
+  </a>
+
+  <a class="hero__scroll" href="#work"><span aria-hidden="true"></span>{h.scroll}</a>
 </section>
 
 <style>
   .hero {
     position: relative;
     min-height: 100svh;
-    display: flex;
-    padding: calc(var(--header-h) + clamp(18px, 4vh, 48px)) var(--gutter) 28px;
+    display: grid;
+    place-items: center;
+    padding: calc(var(--header-h) + 24px) var(--gutter) 72px;
+    overflow: clip;
   }
 
   .hero__inner {
     position: relative;
     z-index: 1;
-    width: min(100%, 1440px);
-    margin-inline: auto;
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    justify-items: center;
+    gap: clamp(18px, 3vh, 30px);
+    text-align: center;
+  }
+
+  .hero__title {
+    display: grid;
+    justify-items: center;
+  }
+
+  /* the hand-written hello sits on top of the stack like a sticker */
+  .hero__hello {
+    position: relative;
+    z-index: 2;
+    margin-bottom: -0.02em;
+    margin-left: -0.6em;
+    font: 400 clamp(34px, 4.4vw, 64px) / 1 var(--font-script);
+    color: var(--yellow);
+    transform: rotate(-5deg);
+  }
+
+  .hero__stack {
+    display: grid;
+    justify-items: center;
+  }
+
+  /* each line fits the width: fat type sized by its own length */
+  .hero__line {
+    display: block;
+    font-family: var(--font-display);
+    font-size: min(calc(78vw / (var(--chars) * 0.6)), 76px);
+    line-height: 0.94;
+    color: var(--paper);
+    white-space: nowrap;
+  }
+
+  .hero__line--big {
+    font-size: min(calc(88vw / (var(--chars) * 0.6)), 184px);
+    line-height: 0.86;
+    color: var(--yellow);
+  }
+
+  .hero__line--last {
+    color: var(--paper);
+    display: inline-flex;
+    align-items: center;
     justify-content: center;
-    gap: clamp(14px, 2.4vh, 26px);
   }
 
-  .hero__head {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 20px 32px;
-    flex-wrap: wrap;
+  /* the ping-pong ball takes the place of an "O" and keeps an eye on you */
+  .ball {
+    display: inline-block;
+    width: 0.74em;
+    height: 0.74em;
+    margin: 0 0.02em;
+    transform: translateY(0.02em);
+    transition: transform 0.5s var(--ease-out);
   }
 
-  .hero__words {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px 20px;
-    font: 450 12px/1.5 var(--font-mono);
-    letter-spacing: 0.14em;
+  .ball svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .ball__body {
+    fill: var(--yellow);
+  }
+
+  .ball__shine {
+    fill: none;
+    stroke: rgb(255 255 255 / 0.55);
+    stroke-width: 5;
+    stroke-linecap: round;
+  }
+
+  .ball__eye ellipse {
+    fill: var(--paper);
+    stroke: var(--on-yellow);
+    stroke-width: 3.5;
+  }
+
+  .ball__pupil {
+    fill: var(--on-yellow);
+    transform: translate(var(--px, 0px), var(--py, 0px));
+    transition: transform 0.18s ease-out;
+  }
+
+  .ball__eye ellipse,
+  .ball__pupil {
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .ball:global(.is-blink) .ball__eye ellipse {
+    transform: scaleY(0.12);
+  }
+
+  .ball:global(.is-blink) .ball__pupil {
+    transform: translate(var(--px, 0px), var(--py, 0px)) scaleY(0.12);
+  }
+
+  .ball:global(.is-hit) {
+    animation: ball-hit 0.7s var(--ease-out);
+  }
+
+  @keyframes ball-hit {
+    30% {
+      transform: translateY(-0.35em) rotate(-20deg) scale(0.92, 1.08);
+    }
+    55% {
+      transform: translateY(0.04em) scale(1.12, 0.88);
+    }
+    75% {
+      transform: translateY(-0.08em);
+    }
+  }
+
+  .hero__line--last {
+    cursor: pointer;
+  }
+
+  .hero__line--last:hover .ball {
+    transform: translateY(-0.08em) rotate(-12deg) scale(1.06);
+  }
+
+  .hero__role {
+    font: 800 clamp(14px, 1.2vw, 17px) / 1.4 var(--font-sans);
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--lilac);
   }
 
-  .hero__words b {
-    color: var(--yellow);
-    font-weight: 500;
+  /* rotating circular badge */
+  .badge {
+    position: absolute;
+    z-index: 2;
+    right: clamp(18px, 6vw, 96px);
+    bottom: clamp(40px, 9vh, 96px);
+    width: clamp(118px, 12vw, 172px);
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
   }
 
-  .hero__phase {
-    color: var(--dim);
+  .badge__ring {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    animation: spin 26s linear infinite;
   }
 
-  .hero__phase::before {
-    content: '';
-    display: inline-block;
-    width: 7px;
-    height: 7px;
-    margin-right: 10px;
+  .badge__ring text {
+    font: 800 15px var(--font-sans);
+    letter-spacing: 0.04em;
+    fill: var(--paper);
+  }
+
+  .badge__core {
+    width: 46%;
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
     border-radius: 50%;
     background: var(--yellow);
-    vertical-align: 1px;
-    animation: phase-blink 2.4s steps(1) infinite;
+    color: var(--on-yellow);
+    transition: transform 0.5s var(--ease-out);
   }
 
-  @keyframes phase-blink {
-    50% {
-      opacity: 0.25;
+  .badge:hover .badge__core {
+    transform: rotate(-30deg) scale(1.08);
+  }
+
+  .badge:hover .badge__ring {
+    animation-duration: 8s;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
     }
   }
 
-  .hero__clocks {
-    display: flex;
-    gap: 28px;
-  }
-
-  .clock {
-    display: grid;
-    gap: 7px;
-    justify-items: end;
-  }
-
-  .clock :global(.clock__time) {
-    --tw: 0.82;
-    --th: 1.3;
-    --gap: 0.1em;
-    font-size: 22px;
-  }
-
-  .clock__place {
-    font: 450 11px/1 var(--font-mono);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--dim);
-  }
-
-  /* the name: the largest tiles on the board */
-  .hero :global(.hero__name) {
-    --tw: 0.76;
-    --th: 1.08;
-    --gap: 0.055em;
-    --r: 0.05em;
-    font-size: clamp(64px, 12.6vw, 196px);
-    align-self: flex-start;
-  }
-
-  .hero :global(.hero__name .f.sp) {
-    visibility: hidden;
-    width: calc(var(--tw) * 0.55em);
-  }
-
-  .hero__dim {
-    position: relative;
-    height: 12px;
-    margin-top: -4px;
-    background: linear-gradient(rgb(255 207 51 / 0.42), rgb(255 207 51 / 0.42)) left center / 100% 1px no-repeat;
-  }
-
-  .hero__dim::before,
-  .hero__dim::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    width: 1px;
-    height: 100%;
-    background: rgb(255 207 51 / 0.5);
-  }
-
-  .hero__dim::before {
-    left: 0;
-  }
-
-  .hero__dim::after {
-    right: 0;
-  }
-
-  .hero__dim span {
-    position: absolute;
-    right: 18px;
-    top: -14px;
-    font: 450 10px/1 var(--font-mono);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: rgb(255 207 51 / 0.7);
-    background: var(--board);
-    padding: 0 8px;
-  }
-
-  .hero :global(.hero__role) {
-    --tw: 0.76;
-    --th: 1.26;
-    --gap: 0.09em;
-    font-size: clamp(15px, 1.75vw, 26px);
-  }
-
-  /* departures */
-  .board {
-    margin-top: clamp(6px, 1.6vh, 18px);
-  }
-
-  .board__head,
-  .dep {
-    display: grid;
-    grid-template-columns: minmax(70px, 0.5fr) minmax(0, 1.7fr) minmax(0, 1.3fr) minmax(0, 1.15fr);
-    align-items: center;
-    gap: 20px;
-    padding: 0 14px;
-  }
-
-  .board__head {
-    padding-bottom: 8px;
-    font: 450 11px/1 var(--font-mono);
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--dim);
-  }
-
-  .board__rows {
-    display: grid;
-    gap: 4px;
-  }
-
-  .dep {
-    position: relative;
-    padding-block: 9px;
-    border-radius: var(--radius);
-    transition: background-color 0.3s;
-  }
-
-  .dep::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 50%;
-    width: 3px;
-    height: 0;
-    background: var(--yellow);
-    border-radius: 2px;
-    transition: height 0.35s var(--ease-out), top 0.35s var(--ease-out);
-  }
-
-  .dep:hover {
-    background: rgb(255 207 51 / 0.05);
-  }
-
-  .dep:hover::before {
-    top: 16%;
-    height: 68%;
-  }
-
-  .dep :global(.flap) {
-    --tw: 0.8;
-    --th: 1.28;
-    --gap: 0.08em;
-    font-size: clamp(15px, 1.32vw, 20px);
-    overflow: hidden;
-    max-width: 100%;
-  }
-
-  .dep__status {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-width: 0;
-  }
-
-  .dep__mark {
-    flex: none;
-    color: var(--yellow);
-  }
-
-  .dep--held {
-    opacity: 0.75;
-  }
-
-  .dep--held .dep__mark {
-    color: var(--dim);
-  }
-
-  .hero__foot {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    gap: 24px 48px;
-    flex-wrap: wrap;
-    margin-top: clamp(8px, 2vh, 22px);
-  }
-
-  .hero__line {
-    max-width: 36em;
-    font-size: clamp(17px, 1.35vw, 21px);
-    line-height: 1.5;
-    color: var(--paper);
-  }
-
-  .hero__line :global(em) {
-    font-style: normal;
-    color: var(--yellow);
-  }
-
-  .hero__aside {
-    display: flex;
-    align-items: center;
-    gap: 32px;
-  }
-
-  .hero__hint {
-    font-size: 15px;
-    color: var(--dim);
-  }
-
   .hero__scroll {
+    position: absolute;
+    left: 50%;
+    bottom: 22px;
+    transform: translateX(-50%);
     display: inline-flex;
     align-items: center;
     gap: 12px;
-    font: 450 11px/1.4 var(--font-mono);
+    font: 800 12px/1 var(--font-sans);
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--lilac);
@@ -391,7 +291,7 @@ const phases = JSON.stringify(b.phases);
 
   .hero__scroll span {
     width: 1px;
-    height: 30px;
+    height: 26px;
     background: linear-gradient(var(--yellow), transparent);
     transform-origin: top;
     animation: drip 1.9s var(--ease-in-out) infinite;
@@ -412,70 +312,36 @@ const phases = JSON.stringify(b.phases);
     }
   }
 
-  @media (hover: none), (pointer: coarse) {
-    .hero__hint {
-      display: none;
-    }
-  }
-
-  @media (max-width: 1080px) {
-    .board__head,
-    .dep {
-      grid-template-columns: minmax(64px, 0.5fr) minmax(0, 1.8fr) minmax(0, 1.2fr);
-    }
-
-    .board__head span:nth-child(3),
-    .dep :global(.dep__line) {
-      display: none;
-    }
+  :global(html.flap-intro) .hero [data-hero-line] {
+    opacity: 0;
   }
 
   @media (max-width: 720px) {
     .hero {
-      min-height: auto;
-      padding-bottom: 56px;
+      min-height: 92svh;
+      padding-bottom: 120px;
     }
 
-    .hero__clocks {
-      gap: 18px;
+    .badge {
+      right: 16px;
+      bottom: 64px;
+      width: 104px;
     }
 
-    .clock :global(.clock__time) {
-      font-size: 18px;
+    .badge__ring text {
+      font-size: 16px;
     }
 
-    .hero :global(.hero__name) {
-      font-size: 21vw;
+    .hero__scroll {
+      left: var(--gutter);
+      transform: none;
     }
+  }
 
-    .hero :global(.hero__name .f.sp) {
-      display: none;
-    }
-
-    .hero__dim span {
-      right: 8px;
-    }
-
-    .hero :global(.hero__role) {
-      font-size: 4.2vw;
-    }
-
-    .board__head {
-      display: none;
-    }
-
-    .dep {
-      grid-template-columns: 1fr;
-      gap: 8px;
-      padding: 12px 12px;
-    }
-
-    .dep :global(.dep__year) {
-      display: none;
-    }
-
-    .dep :global(.flap) {
-      font-size: 4.2vw;
+  @media (prefers-reduced-motion: reduce) {
+    .badge__ring,
+    .hero__scroll span {
+      animation: none;
     }
   }
 </style>

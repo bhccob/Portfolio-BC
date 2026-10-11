@@ -28,9 +28,11 @@ export class ScrollEffects extends Component {
     this.startLenis();
     document.documentElement.classList.add('motion-ready');
 
+    this.heroIntro();
     this.reveals();
     this.parallax();
     this.heroRecede();
+    this.mixedWords();
     this.shots();
     this.portrait();
     this.route();
@@ -137,35 +139,66 @@ export class ScrollEffects extends Component {
     });
   }
 
-  /** The hero board tilts back slightly and fades as the visitor scrolls past it. */
+  /** Hero lines rise out of a blur, one after another, once the loader is gone. */
+  private heroIntro(): void {
+    const lines = $$('[data-hero-line]');
+    if (!lines.length) return;
+    gsap.set(lines, { yPercent: 40, opacity: 0, filter: 'blur(14px)' });
+    document.documentElement.classList.remove('flap-intro');
+    signals.loaderDone.then(() => {
+      gsap.to(lines, {
+        yPercent: 0,
+        opacity: 1,
+        filter: 'blur(0px)',
+        duration: 1.1,
+        ease: 'expo.out',
+        stagger: 0.09,
+        delay: 0.1,
+        clearProps: 'filter'
+      });
+    });
+  }
+
+  /** The hero text drifts up and fades as the visitor scrolls past it (transform and opacity only). */
   private heroRecede(): void {
     const hero = $('[data-hero]');
-    const board = $('.hero__inner', hero ?? document);
-    if (!hero || !board) return;
-    gsap.to(board, {
-      yPercent: -8,
-      rotateX: 8,
-      transformPerspective: 1400,
-      transformOrigin: '50% 0%',
-      opacity: 0.2,
+    const inner = $('.hero__inner', hero ?? document);
+    if (!hero || !inner) return;
+    gsap.to(inner, {
+      yPercent: -14,
+      opacity: 0.15,
       ease: 'none',
       scrollTrigger: { trigger: hero, start: 'top top', end: 'bottom top', scrub: true }
     });
   }
 
-  /** Project screenshots unfold from their top edge and settle as they scroll in. */
+  /** Words of the mixed-type paragraph come into focus as it scrolls into view. */
+  private mixedWords(): void {
+    $$('[data-mixed]').forEach((paragraph) => {
+      const words = $$('[data-mixed-word]', paragraph);
+      gsap.fromTo(
+        words,
+        { opacity: 0.12, filter: 'blur(6px)' },
+        {
+          opacity: 1,
+          filter: 'blur(0px)',
+          ease: 'none',
+          stagger: 0.12,
+          scrollTrigger: { trigger: paragraph, start: 'top 85%', end: 'bottom 55%', scrub: true }
+        }
+      );
+    });
+  }
+
+  /** Project screenshots unfold from their top edge as they scroll in. */
   private shots(): void {
     $$('[data-shot]').forEach((shot) => {
       const frame = $('.shot__frame, .case__frame', shot) ?? shot;
-      const image = $('img', shot);
       gsap.fromTo(
         frame,
         { clipPath: 'inset(0% 0% 62% 0%)' },
         { clipPath: 'inset(0% 0% 0% 0%)', ease: 'none', scrollTrigger: { trigger: shot, start: 'top 92%', end: 'top 40%', scrub: true } }
       );
-      if (image) {
-        gsap.fromTo(image, { scale: 1.12, yPercent: -4 }, { scale: 1, yPercent: 0, ease: 'none', scrollTrigger: { trigger: shot, start: 'top bottom', end: 'bottom 35%', scrub: true } });
-      }
     });
   }
 

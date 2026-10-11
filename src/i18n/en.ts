@@ -33,33 +33,21 @@ export const en = {
     status: 'Preparing departures',
     skip: 'Click or press any key to skip'
   },
-  board: {
-    words: ['Departures', 'Vertrek', 'Salida'],
-    phases: { night: 'Night service', dawn: 'First light', day: 'Day service', dusk: 'Evening service' },
-    rotterdam: 'Rotterdam',
-    aruba: 'Oranjestad, Aruba',
-    role: 'Student software engineer · Rotterdam',
-    roleSpoken: 'Student software engineer in Rotterdam',
-    echo: 'Hello, {name} · welcome aboard',
-    columns: { year: 'Year', project: 'Project', line: 'Line', status: 'Status' },
-    departed: 'Departed',
-    boarding: 'Boarding soon',
-    held: 'Held at gate',
-    nextTitle: '#03 Next build',
-    nextLine: 'In preparation',
-    earlierTitle: 'Earlier work',
-    earlierLine: 'Not listed here',
-    line: 'I build with <em>curiosity</em> and test with <em>honesty</em>. Born in Aruba, Chinese by heritage, based in Rotterdam.',
-    typeHint: 'Type anything: the board spells it',
-    scroll: 'Scroll',
-    drawing: 'BC-2006 · Scale 1:1'
+  hero: {
+    hello: 'Hey, I’m Bob Chung',
+    lines: ['I build with', 'curiosity', '& test with', 'honesty'],
+    spoken: 'I build with curiosity and test with honesty.',
+    role: 'Student software engineer · Rotterdam, NL',
+    badge: 'Student software engineer • Born in Aruba • Based in Rotterdam • ',
+    ball: 'Play ping-pong',
+    scroll: 'Scroll down'
   },
   work: {
     title: 'Projects, <em>one build at a time.</em>',
     intro:
-      'Each project is a different kind of work, so each runs on its own line: game development, web development, and whatever boards next.',
+      'Each project is a different kind of job, so each one has its own page. Pick a card to see what it is, how it was built and what I focused on.',
     project: 'Project',
-    line: 'Line',
+    category: 'Category',
     type: 'Type',
     year: 'Year',
     role: 'Role',
@@ -67,16 +55,33 @@ export const en = {
     status: 'Status',
     github: 'View on GitHub',
     caseStudy: 'Read the case study',
-    nextTitle: 'Next build <em>boarding soon.</em>',
+    view: 'View project',
+    soon: 'Coming soon',
+    rail: 'Projects',
+    nextTitle: 'Next build <em>on the way.</em>',
     nextText:
       'More projects are on the way. Some are still in progress; others are waiting to be published. Follow along on GitHub in the meantime.',
     nextLink: 'Follow on GitHub',
-    heldTitle: 'Held at gate',
+    heldTitle: 'Not everything is listed',
     heldText:
-      'Earlier projects exist, but not every piece of work makes this board. Only projects that meet the standard I set for this portfolio are listed.'
+      'Earlier projects exist, but only work that meets the standard I set for this portfolio makes it onto this page.'
   },
   about: {
     title: 'The route <em>so far.</em>',
+    mixed: [
+      ['I’m Bob,', 'fat'],
+      ['a', 'light'],
+      ['{age}-year-old', 'fat-yellow'],
+      ['student', 'caps'],
+      ['software engineer.', 'fat'],
+      ['Born and raised in', 'light'],
+      ['Aruba,', 'fat'],
+      ['Chinese', 'fat-yellow'],
+      ['by heritage,', 'light'],
+      ['and based in', 'caps'],
+      ['Rotterdam', 'fat'],
+      ['since eighteen.', 'light']
+    ],
     lead:
       'I’m Bob Chung, a <span data-age>{age}</span>-year-old student software engineer based in Rotterdam. Born and raised in Aruba and Chinese by heritage, I moved to the Netherlands at eighteen.',
     body:
@@ -277,7 +282,7 @@ export const en = {
     gravityElsewhere: 'Gravity lives in the playground. Go to the home page first.',
     opening: 'Opening {page}…',
     sudo: 'Permission granted. Redirecting you to the contact page…',
-    moreSoon: '#03  next build boarding soon…'
+    moreSoon: '#03  next build on the way…'
   },
   toast: {
     konami: '↑↑↓↓←→←→BA: ball storm!',

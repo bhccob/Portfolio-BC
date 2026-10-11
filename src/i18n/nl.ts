@@ -29,33 +29,21 @@ export const nl: Dictionary = {
     status: 'Vertrekbord wordt geladen',
     skip: 'Klik of druk op een toets om over te slaan'
   },
-  board: {
-    words: ['Vertrek', 'Departures', 'Salida'],
-    phases: { night: 'Nachtdienst', dawn: 'Eerste licht', day: 'Dagdienst', dusk: 'Avonddienst' },
-    rotterdam: 'Rotterdam',
-    aruba: 'Oranjestad, Aruba',
-    role: 'Student software engineer · Rotterdam',
-    roleSpoken: 'Student software engineer in Rotterdam',
-    echo: 'Hallo, {name} · welkom aan boord',
-    columns: { year: 'Jaar', project: 'Project', line: 'Lijn', status: 'Status' },
-    departed: 'Vertrokken',
-    boarding: 'Instappen',
-    held: 'Aan de gate',
-    nextTitle: '#03 Volgende build',
-    nextLine: 'In voorbereiding',
-    earlierTitle: 'Eerder werk',
-    earlierLine: 'Niet vermeld',
-    line: 'Ik bouw met <em>nieuwsgierigheid</em> en test met <em>eerlijkheid</em>. Geboren op Aruba, Chinees van afkomst, gevestigd in Rotterdam.',
-    typeHint: 'Typ iets: het bord spelt het',
-    scroll: 'Scroll',
-    drawing: 'BC-2006 · Schaal 1:1'
+  hero: {
+    hello: 'Hoi, ik ben Bob Chung',
+    lines: ['Ik bouw met', 'nieuwsgierigheid', '& test met', 'eerlijkheid'],
+    spoken: 'Ik bouw met nieuwsgierigheid en test met eerlijkheid.',
+    role: 'Student software engineer · Rotterdam, NL',
+    badge: 'Student software engineer • Geboren op Aruba • Woont in Rotterdam • ',
+    ball: 'Speel pingpong',
+    scroll: 'Scroll omlaag'
   },
   work: {
     title: 'Projecten, <em>build voor build.</em>',
     intro:
-      'Elk project is een ander soort werk, dus elk rijdt op een eigen lijn: gameontwikkeling, webontwikkeling en wat er hierna instapt.',
+      'Elk project is een ander soort klus, dus elk project heeft een eigen pagina. Kies een kaart om te zien wat het is, hoe het gebouwd is en waar ik op focuste.',
     project: 'Project',
-    line: 'Lijn',
+    category: 'Categorie',
     type: 'Type',
     year: 'Jaar',
     role: 'Rol',
@@ -63,16 +51,32 @@ export const nl: Dictionary = {
     status: 'Status',
     github: 'Bekijk op GitHub',
     caseStudy: 'Lees de case study',
-    nextTitle: 'Volgende build <em>stapt bijna in.</em>',
+    view: 'Bekijk project',
+    soon: 'Binnenkort',
+    rail: 'Projecten',
+    nextTitle: 'Volgende build <em>is onderweg.</em>',
     nextText:
       'Er komen meer projecten aan. Sommige zijn nog in ontwikkeling, andere wachten op publicatie. Volg tot die tijd mee op GitHub.',
     nextLink: 'Volg mij op GitHub',
-    heldTitle: 'Aan de gate',
+    heldTitle: 'Niet alles staat hier',
     heldText:
-      'Er bestaan eerdere projecten, maar niet al mijn werk haalt dit bord. Alleen projecten die voldoen aan de standaard die ik voor dit portfolio hanteer, staan hier.'
+      'Er bestaan eerdere projecten, maar alleen werk dat voldoet aan de standaard die ik voor dit portfolio hanteer, komt op deze pagina.'
   },
   about: {
     title: 'De route <em>tot nu toe.</em>',
+    mixed: [
+      ['Ik ben Bob,', 'fat'],
+      ['een', 'light'],
+      ['{age}-jarige', 'fat-yellow'],
+      ['student', 'caps'],
+      ['software engineer.', 'fat'],
+      ['Geboren en getogen op', 'light'],
+      ['Aruba,', 'fat'],
+      ['Chinees', 'fat-yellow'],
+      ['van afkomst,', 'light'],
+      ['en sinds mijn achttiende in', 'caps'],
+      ['Rotterdam.', 'fat']
+    ],
     lead:
       'Ik ben Bob Chung, een <span data-age>{age}</span>-jarige student software engineer in Rotterdam. Geboren en getogen op Aruba en Chinees van afkomst; op mijn achttiende verhuisde ik naar Nederland.',
     body:
@@ -273,7 +277,7 @@ export const nl: Dictionary = {
     gravityElsewhere: 'Zwaartekracht bestaat alleen in de speeltuin. Ga eerst naar de homepagina.',
     opening: '{page} openen…',
     sudo: 'Toegang verleend. Je gaat naar de contactpagina…',
-    moreSoon: '#03  volgende build stapt bijna in…'
+    moreSoon: '#03  volgende build is onderweg…'
   },
   toast: {
     konami: '↑↑↓↓←→←→BA: ballenregen!',

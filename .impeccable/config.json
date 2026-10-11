@@ -488,6 +488,24 @@
         ],
         "createdAt": "2026-10-11T15:41:23.473Z",
         "reason": "Claude: spent decision-round prototype, not shipping UI; the shipped site lives in src/"
+      },
+      {
+        "rule": "codex-grid-background",
+        "value": "*",
+        "files": [
+          "src/layouts/BaseLayout.astro"
+        ],
+        "createdAt": "2026-10-11T18:55:27.755Z",
+        "reason": "Owner's brief asked for low-key blueprint-like lines in the background; the grid is that requirement"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgb(255 255 255 / 0.55)",
+        "files": [
+          "src/components/home/Hero.astro"
+        ],
+        "createdAt": "2026-10-11T19:02:09.755Z",
+        "reason": "Claude: highlight stroke inside the ping-pong ball illustration, not a UI colour"
       }
     ]
   }
