@@ -53,16 +53,16 @@ typography:
     fontSize: "clamp(40px, 5vw, 72px)"
     fontWeight: 400
     lineHeight: 0.92
-  hero-line:
+  hero-name:
     fontFamily: "Bagel Fat One, Arial Black, system-ui, sans-serif"
-    fontSize: "min(calc(78vw / (var(--chars) * 0.6)), 76px)"
+    fontSize: "min(25vw, calc((100svh - 330px) / 1.75), 260px)"
     fontWeight: 400
-    lineHeight: 0.94
-  hero-line-big:
-    fontFamily: "Bagel Fat One, Arial Black, system-ui, sans-serif"
-    fontSize: "min(calc(88vw / (var(--chars) * 0.6)), 184px)"
+    lineHeight: 0.84
+  hero-motto:
+    fontFamily: "Bagel Fat One / Sofia Sans Variable (mixed)"
+    fontSize: "clamp(20px, 1.9vw, 30px)"
     fontWeight: 400
-    lineHeight: 0.86
+    lineHeight: 1.12
   headline:
     fontFamily: "Bagel Fat One, Arial Black, system-ui, sans-serif"
     fontSize: "clamp(28px, 3vw, 44px)"
@@ -294,6 +294,22 @@ components:
   print-card-title:
     textColor: "{colors.print-purple}"
     typography: "{typography.card-title}"
+  category-print:
+    backgroundColor: "{colors.cream}"
+    textColor: "{colors.print-purple}"
+    rounded: "{rounded.card}"
+    padding: "14px 14px 22px"
+  shelf-tab:
+    textColor: "{colors.paper}"
+    typography: "{typography.headline}"
+    padding: "10px 0 14px"
+  shelf-tab-current:
+    textColor: "{colors.signal-yellow}"
+  game-panel:
+    backgroundColor: "{colors.board-deep}"
+    textColor: "{colors.paper}"
+    rounded: "{rounded.card}"
+    padding: "28px 40px 26px"
   slot-card:
     textColor: "{colors.paper}"
     rounded: "{rounded.card}"
@@ -319,16 +335,17 @@ components:
 
 **Creative North Star: "The Printed Board"**
 
-The site is a dark, grainy purple sheet with loud things printed on it. One fat headline per section, in rounded heavy capitals, carries the voice; a yellow word inside it is the one thing shouting. The work arrives as cream prints pinned to the sheet at a slight tilt, each with a vivid purple title, so projects read as objects rather than as rows of data. A hand-written script signs the page (the logo and the hero hello), and a ping-pong ball with eyes stands in for a letter of the hero's last word and follows the pointer.
+The site is a dark, grainy purple sheet with loud things printed on it. One fat headline per section, in rounded heavy capitals, carries the voice; a yellow word inside it is the one thing shouting. The work arrives as cream prints pinned to the sheet at a slight tilt, each with a vivid purple title, so projects read as objects rather than as rows of data. The first viewport belongs to the name: BOB CHUNG printed as a giant outline, with a yellow lens that fills the letters wherever the pointer is. A hand-written script signs the page (the logo and the hero hello), and a ping-pong ball with eyes stands in for the O in BOB and follows the pointer; the same ball is the site's mark and favicon.
 
 The earlier Departures board is still underneath. Split-flap tiles remain the mechanical detail: codes, clocks, route stops, statuses, the toolkit timetable, the HELLO final call, the 404, the mobile menu and the case number all clatter in on tiles. A drafting grid (56px minor, 224px major) lies under everything and lights yellow in a soft circle around the pointer; thin line drawings of maths, tech and sports objects drift with scroll. A static film-grain layer sits over the whole page.
 
-Separation is still mostly rules and hairlines. The few stroked shapes are thin, light outlines (the header bar, the ticker rail, the dashed empty slot), never heavy frames; the prints are filled cream, not bordered. Motion is soft and weighted: headline lines rise out of a blur, mixed-type words sharpen as they scroll into view, prints straighten on hover, and tiles still flip in 62ms half-turns.
+Separation is still mostly rules and hairlines. The few stroked shapes are thin, light outlines (the header bar, the ticker rail, the dashed empty slot), never heavy frames; the prints are filled cream, not bordered. Motion is soft and weighted, and only ever moves transforms, opacity or a clip: headline lines rise into place, mixed-type words light up as they scroll into view, prints straighten and lean toward the pointer, and tiles still flip in 62ms half-turns.
 
 **Key Characteristics:**
 - Bagel Fat One uppercase for every title and name; one or two words per title in signal yellow.
 - Cream prints (10px corners, slight tilt, long soft shadow) as the only filled cards, with purple titles.
-- Yellowtail script for the signature moments only: the logo and the hero hello.
+- The name as the hero: outlined Bagel Fat One with a pointer-following yellow lens.
+- Yellowtail script for the signature moments only: the logo, the hero hello and the share-image signature.
 - Split-flap tiles for codes, numbers, clocks and statuses, never for titles.
 - Drafting grid that lights yellow around the pointer, line-drawn objects, and a static grain over everything.
 - Hairline rules for lists and facts; thin light outlines for the header, rail and empty slot.
@@ -338,7 +355,7 @@ Separation is still mostly rules and hairlines. The few stroked shapes are thin,
 A grainy dark purple ground lit by one signal yellow, with cream prints as the second material.
 
 ### Primary
-- **Signal Yellow** (`signal-yellow`): the loud word in each title, the big hero lines, the ping-pong ball, buttons, the current language chip, active nav, focus rings, selection, fact values, the lit grid around the pointer and dimension lines. It is the only accent on the purple ground.
+- **Signal Yellow** (`signal-yellow`): the loud word in each title, the hero name's lens fill, the ping-pong ball, buttons, the current language chip, active nav, focus rings, selection, fact values, the lit grid around the pointer and dimension lines. It is the only accent on the purple ground.
 - **Soft Signal** (`signal-yellow-soft`): the lit upper half of yellow tiles (cursor head).
 - **Ink on Yellow** (`on-yellow`): text and glyphs on any yellow surface; identical to the board.
 
@@ -350,7 +367,7 @@ A grainy dark purple ground lit by one signal yellow, with cream prints as the s
 - **Deep Board** (`board-deep`): mobile menu, scrollbar track.
 - **Board Steps** (`board-2`, `board-3`): the empty slot's placeholder plate and image placeholders; `board-3` also fills the scrollbar thumb and switch track.
 - **Tile Faces** (`tile-hi` to `tile` on the top half, `tile-2` below) and **The Split** (`split`): the flap tile body and its seam.
-- **Warm Paper** (`paper`): titles, hero lines, nav, lead text and the button's hover face.
+- **Warm Paper** (`paper`): titles, the hero name's outline (at 62%), nav, lead text and the button's hover face.
 - **Cream** (`cream`): the print card and the case-study screenshot mount.
 - **Ink on Cream** (`on-cream`) and **Soft Ink on Cream** (`on-cream-soft`): meta and category text on prints.
 - **Lilac** (`lilac`): body prose, light italic words, role line, icon tools.
@@ -381,7 +398,8 @@ A grainy dark purple ground lit by one signal yellow, with cream prints as the s
 ### Hierarchy
 - **Display** (400, clamp(44px, 6.4vw, 92px), 0.92, uppercase, balanced): home section titles. One or two words switch to yellow via emphasis.
 - **Display variants** (same face and leading; size by surface): contact title (`display-contact`), case title (`display-case`), Career and Engine Room titles (`display-secondary`), 404 title and the next-case row (`display-small`). Pick a variant; do not invent a new clamp.
-- **Hero lines** (`hero-line`, `hero-line-big`): fit-to-width lines sized by their own character count, capped at 76px (paper) and 184px (yellow, alternate lines). The last line is paper and carries the ball.
+- **Hero name** (`hero-name`): BOB over CHUNG, left-aligned, one size for both lines: as wide as the viewport allows (CHUNG is 3.4em) and as tall as the first view allows, capped at 260px (200px on phones). Outline only (`-webkit-text-stroke` at 0.9% of the size, min 1.5px, paper at 62%); the yellow fill shows inside the lens.
+- **Hero motto** (`hero-motto`): the mixed-type line under the name, wrapping to the name's width.
 - **Headline** (400, clamp(28px, 3vw, 44px), 0.98): subsection heads.
 - **Card title** (400, clamp(30px, 2.8vw, 42px), 0.95, centred): print titles in purple.
 - **Quote** (400 display, clamp(24px, 2.4vw, 36px), 1.08): the About quote, paper with yellow quote marks.
@@ -391,7 +409,7 @@ A grainy dark purple ground lit by one signal yellow, with cream prints as the s
 - **Thought** (400 sans, clamp(19px, 1.6vw, 23px), lilac): the one-line thought at the foot of About.
 - **Title / Lead** (400 sans, clamp(20px, 1.7vw, 25px), 1.45, max 34em) and **Body** (400 sans, 18px, 1.6, max 38em, lilac).
 - **Supporting text** (16px, 15px, 14px): descriptions, hints and handles, privacy and errors. Readable prose never goes below 14px.
-- **Caps** (Sofia 800 uppercase, 15px 0.04em; `caps-sm` 13px 0.06em): nav, ticker rail, badge text, card category and meta, the hero role line (clamp(14px, 1.2vw, 17px), 0.08em).
+- **Caps** (Sofia 800 uppercase, 15px 0.04em; `caps-sm` 13px 0.06em): nav, ticker rail, badge text, card category and meta, the hero role line (clamp(13px, 1.1vw, 16px), 0.08em).
 - **Button** (Sofia 800, 16px, 0.04em, uppercase).
 - **Label** (450 mono, 12px, 0.12em, uppercase; 11px for fact labels, field labels and route labels): data, codes and times. Dim by default, yellow for a live value.
 - **Code** (500 mono, 13px, 1.7): terminal only.
@@ -405,15 +423,15 @@ Font size sets the em; `--tw`, `--th`, `--gap` and `--r` set proportions. Shippe
 
 **The Four Jobs Rule.** Display for titles and names, sans for sentences and bold caps UI, mono for data, codes, times and labels, condensed only inside tiles. Never set prose in display or mono.
 
-**The Signature Rule.** Yellowtail appears only for the logo and the hero hello. It is a signature, not a heading style.
+**The Signature Rule.** Yellowtail appears only for the logo, the hero hello and the signature on share images. It is a signature, not a heading style.
 
 ## Layout
 
 Content sits in `min(100% - 2 × gutter, 1360px)`; sections pad by `section-y`. The header is a fixed floating bar 12px from the top with 10 to 18px side inset; `header-h` (84px) sets scroll padding and hero top padding.
 
-The hero is a centred stack filling the first viewport: script hello, four fit-to-width lines, the role line, a rotating badge pinned bottom right (118 to 172px; 104px on mobile) and a scroll cue bottom centre. Section heads pair a display title (1.2fr) with an intro (0.8fr), aligned to the bottom. The work deck is a 52px ticker rail beside a three-column grid of prints, two columns below 1000px, one below 760px where the rail hides. About is a sticky portrait (0.8fr) beside text (1.2fr), collapsing at 960px. Fact lists auto-fit at 150 to 170px columns with hairlines on top.
+The hero fills the first viewport with one left-aligned block, centred on the page: the script hello stuck onto BOB, CHUNG beneath, the motto wrapping to the name's width, and a foot row with the role line and the hint "Move over my name". A rotating badge sits bottom right (118 to 160px; 112px below 1100px, 100px on mobile) and a scroll cue bottom centre. Section heads pair a display title (1.2fr) with an intro (0.8fr), aligned to the bottom. The work deck is a 52px ticker rail beside a three-column grid: one category print per discipline and the dashed slot for the next category; two columns below 1000px, one below 760px where the rail hides. A category page opens with the board line, then the shelf (category title with its icon disc, intro, a row of project tabs, and Previous / position / Next on the right), then the project case. About is a sticky portrait (0.8fr) beside text (1.2fr), collapsing at 960px. Fact lists auto-fit at 150 to 170px columns with hairlines on top.
 
-Breakpoints: 420px (terminal button hides), 560px (compact route), 720px (hero tightens), 760px (work deck stacks), 900px (drafting objects hide), 960px (nav becomes the tile menu; two-column layouts stack), 1000px (two print columns).
+Breakpoints: 420px (terminal button hides), 560px (compact route), 640px (the shelf stacks), 720px (hero tightens), 760px (work deck stacks), 900px (drafting objects hide), 960px (nav becomes the tile menu; two-column layouts stack), 1000px (two print columns), 1100px (badge shrinks).
 
 ## Elevation & Depth
 
@@ -423,17 +441,18 @@ Depth comes from material, not from stacking surfaces: the dark board, the draft
 - **Print rest** (`box-shadow: 0 30px 50px -30px rgb(0 0 0 / 0.7)`): project prints.
 - **Print lifted** (`box-shadow: 0 44px 60px -30px rgb(0 0 0 / 0.8)`): print on hover, with an 8px rise.
 - **Case mount** (`box-shadow: 0 50px 80px -50px rgb(0 0 0 / 0.8)`): the case screenshot print.
-- **Floating panel** (`box-shadow: 0 18px 40px -12px rgb(0 0 0 / 0.55)`): the toast.
+- **Floating panel** (`box-shadow: 0 18px 40px -12px rgb(0 0 0 / 0.55)`): the toast and the game's result panel.
+- **Stacked print** (`box-shadow: 0 18px 30px -16px rgb(0 0 0 / 0.75)`): the small screenshot prints fanned inside a category print.
 - **Dialog** (`box-shadow: 0 40px 120px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(255 207 51 / 0.1)`): the terminal over a blurred backdrop.
 
 ### Named Rules
-**The Only Prints Lift Rule.** Text, rows, tiles, buttons and the header carry no shadow. Prints, the toast and the terminal are the only lifted things, and every lift is long, soft and below the object.
+**The Only Prints Lift Rule.** Text, rows, tiles, buttons and the header carry no shadow. Prints, the toast, the game panel and the terminal are the only lifted things, and every lift is long, soft and below the object.
 
 **The Grain Rule.** A single static grain layer (fractal noise at 9% opacity) covers the page above content. It never animates.
 
 ## Shapes
 
-Two radii. Large shapes that hold things (the header bar, prints, the ticker rail, the empty slot, buttons) round at 10px; small things inside them (screenshots inside prints, the portrait, icon tools, language chips, the terminal, the toast) round at 4px. Flap tiles round at 0.12em of their own size and split with a 1px near-black seam; footer tiles round at 3px. The switch track is the one pill. Circles appear only as objects: the ping-pong ball, the badge core and its ring of text. Prints tilt between -1.4° and 1.6° (alternating), the case mount -0.6°, and straighten on hover. Fields have no corners; they are underlines. Images are framed by drafting marks (22px corner brackets at 2px in yellow, dimension lines) rather than strokes.
+Two radii. Large shapes that hold things (the header bar, prints, the ticker rail, the empty slot, buttons) round at 10px; small things inside them (screenshots inside prints, the portrait, icon tools, language chips, the terminal, the toast) round at 4px. Flap tiles round at 0.12em of their own size and split with a 1px near-black seam; footer tiles round at 3px. The switch track is the one pill. Circles appear only as objects: the ping-pong ball, the badge core and its ring of text, the hero lens, the icon discs on category prints and shelves, and the game's target rings. Prints tilt between -1.4° and 1.6° (alternating), the case mount -0.6°, and straighten on hover. Fields have no corners; they are underlines. Images are framed by drafting marks (22px corner brackets at 2px in yellow, dimension lines) rather than strokes.
 
 ## Components
 
@@ -446,7 +465,7 @@ Yellow plates with bold sans capitals.
 - **Icon tool:** 40px, lilac glyph; becomes a yellow plate on hover.
 
 ### Cards / Containers
-Prints pinned to the board.
+Prints pinned to the board. On the home page each print is a category: its newest screenshots fanned as small cream prints (up to three, spread 13% and 7° apart, fanning wider on hover) on a board-3 plate with a yellow icon disc, then "Category #01 · 2 projects" in soft-ink caps, the category title in purple at min(40px, 8.4cqi) so long Dutch words fit, the stack in mono, and the project names with "View projects". Category prints lean up to 5° toward the pointer.
 - **Corner Style:** 10px; screenshot inside at 4px, 4:3.
 - **Background:** cream, ink on cream; centred category line in soft ink caps, centred purple display title, a meta row (label · year, "view" with arrow) under a 15% ink hairline.
 - **Shadow Strategy:** Print rest, Print lifted on hover (see Elevation).
@@ -462,8 +481,17 @@ Prints pinned to the board.
 ### Navigation
 A floating outlined bar: 60px tall, `board` fill, 1.5px `line-strong` outline (paper at 50% once scrolled), 10px corners; it hides on scroll down. The Yellowtail logo sits left and tilts further on hover. Links are Sofia 800 15px caps in paper; hover and active turn yellow and draw a 2px yellow underline from the left. A hairline divides links from tools: terminal icon, then EN/NL chips (34 × 32px, 4px), the current one a yellow plate. Below 960px a full-screen deep-board menu clips open from the top with numbered rows of flap text staggered at 70ms.
 
+### Name Reveal (signature)
+Each word of the name is printed twice: a paper outline, and a yellow fill clipped to a circle (`clip-path: circle()`, radius 0.56em) that follows the pointer with exponential easing. Near the name the lens tracks the pointer and shrinks as it moves away; after 2.4s without movement, and always on touch screens, it drifts along the letters (across BOB, down, back along CHUNG) at 0.82 of its size. As the hero rises in, the lens sweeps across the name once. A click or tap floods the whole name yellow for 0.95s. Reduced motion shows the name fully yellow. Only the clip changes per frame, and the loop sleeps while the hero is off-screen.
+
 ### Hero Mascot (signature)
-The ping-pong ball replaces the first "O" of the last hero line (or follows the word when it has none): a yellow disc, a white shine stroke, two paper eyes with board-colour pupils that track the pointer, an occasional 140ms blink, and a squash-and-bounce when the line is clicked.
+The ping-pong ball replaces the "O" of BOB, sitting on the capitals' baseline (0.075em below the line box centre): a yellow disc, a white shine stroke, two paper eyes with board-colour pupils that track the pointer, an occasional 140ms blink, and a squash-and-bounce when the word is clicked. The ball is never covered by the lens. The same ball, on a board-coloured tile, is the favicon, app icon and footer mark.
+
+### Project Shelf
+The category page's switcher. Tabs read like nav links: Martian Mono meta (#02 · 2026) over the project name in display type at 20 to 28px, paper; hover and the current tab turn yellow and draw a 3px yellow underline from the left. Previous and Next are 40px icon tools around a yellow mono position ("1 of 2"); the arrow keys and a horizontal swipe follow the same links, and the change runs on the cross-document view transition with the title and screenshot morphing in place.
+
+### Trick Shots (play area)
+The playground's game: a yellow Start button in the HUD, a 3-2-1 countdown in giant yellow display type over the stage, then 60 seconds of target rings drawn like drafting marks (a 2.5px yellow ring, a dashed lilac inner ring, four tick marks; gold rings filled at 16% with "+5s" in mono). Hits burst into small yellow and lilac tiles with a "+300 ×3" popup in display type. The HUD shows Time, Score, Combo and Best on tile plates; the last ten seconds blink. The result panel is a board-deep plate with the floating-panel shadow: a yellow display title, the score line in paper, the best score in mono, and Play again / Close.
 
 ### Rotating Badge
 A circle of Sofia 800 caps in paper turning once per 26s (8s on hover) around a yellow disc holding a glyph; links to About.
@@ -478,7 +506,10 @@ One tile per character: `tile-hi` to `tile` gradient on top, `tile-2` below, div
 Two CSS sheets: lilac lines (8.5% at 224px, 4% at 56px) moving at half scroll speed, and the same grid in yellow (32% and 18%) masked to a 220px circle around the pointer, fading in over 0.5s. Line objects in lilac at 20% (one yellow accent each section) drift with scroll. The custom cursor is a small yellow tile with a delayed trail.
 
 ### Motion
-Everything eases on `cubic-bezier(0.22, 1, 0.36, 1)`. Hero lines rise 40% out of a 14px blur, staggered 90ms, over 1.1s. Mixed-type words scrub from 12% opacity and 6px blur to sharp as they scroll in. Reveals rise 28px. Reduced motion collapses all of it to instant and stops the badge, rail and scroll cue.
+Everything eases on `cubic-bezier(0.22, 1, 0.36, 1)`. Hero lines rise 40% and fade in, staggered 90ms, over 1.1s. Mixed-type words scrub from 55% to full opacity as they scroll in (never fainter, so the large text keeps 3:1 contrast). Reveals rise 28px. Motion only animates transform, opacity and clip-path: no blur filters, and the grid glow is a small window moved by transform. Reduced motion collapses all of it to instant and stops the badge, rail, scroll cue, lens and countdown.
+
+### Share Images
+Every page has a 1200 × 630 share image rendered at build time in the site's own fonts (glyph outlines via opentype.js): the board with its grid, the ball mark and "bhccob.me" top left. The site image is the outlined name with a yellow lens across UN and the portrait as a tilted cream print; project images carry the category label in yellow mono, the title in paper display type, the type line in lilac, the screenshot as a cream print turned -3°, and a Yellowtail signature.
 
 ## Do's and Don'ts
 
@@ -489,7 +520,8 @@ Everything eases on `cubic-bezier(0.22, 1, 0.36, 1)`. Hero lines rise 40% out of
 - **Do** use 10px corners for containers and buttons and 4px for the things inside them.
 - **Do** separate lists and facts with 1px hairlines (`line` or `line-strong`).
 - **Do** set data, codes, times and labels in Martian Mono uppercase at 11 to 12px with 0.12em tracking.
-- **Do** respect reduced motion: flips, blurs, rotations and tickers stop.
+- **Do** respect reduced motion: flips, rotations, tickers and the lens stop.
+- **Do** keep the name the loudest thing in the first viewport; nothing else there is set larger than the motto.
 
 ### Don't:
 - **Don't** put purple on the dark board or use cream as a section background.

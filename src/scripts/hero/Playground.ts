@@ -62,7 +62,7 @@ export class Playground extends Component {
   private readonly startButton = $<HTMLButtonElement>('[data-start]');
   private readonly soundButton = $<HTMLButtonElement>('[data-sound]');
   private readonly panel = $('[data-panel]');
-  private readonly countLabel = $('[data-count]');
+  private readonly countLabel = $('[data-countdown]');
   private readonly result = $('[data-result]');
   private readonly announcer = $('[data-announce]');
   private readonly stats = {

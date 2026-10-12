@@ -68,7 +68,8 @@ const badge = h.badge.repeat(Math.max(1, Math.round(64 / h.badge.length)));
     </div>
   </div>
 
-  <a class="badge" href="#about" aria-label={t.nav.about}>
+  <a class="badge" href="#about">
+    <span class="visually-hidden">{t.nav.about}</span>
     <svg class="badge__ring" viewBox="0 0 200 200" aria-hidden="true">
       <defs><path id="badge-circle" d="M100,100 m-76,0 a76,76 0 1,1 152,0 a76,76 0 1,1 -152,0" /></defs>
       <text><textPath href="#badge-circle" textLength="474">{badge.toUpperCase()}</textPath></text>
@@ -163,7 +164,6 @@ const badge = h.badge.repeat(Math.max(1, Math.round(64 / h.badge.length)));
     color: var(--yellow);
     clip-path: circle(var(--r) at var(--x) var(--y));
     pointer-events: none;
-    will-change: clip-path;
   }
 
   /* reduced motion, or before the script runs: the name is simply printed in yellow */

@@ -1,0 +1,19 @@
+# Weekly update pull requests for npm packages and GitHub Actions.
+# Each one runs the full build, tests and audit before it can be merged.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      astro:
+        patterns: ['astro', '@astrojs/*']
+      fonts:
+        patterns: ['@fontsource/*', '@fontsource-variable/*']
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

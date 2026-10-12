@@ -31,10 +31,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Check dependencies for known vulnerabilities
+        run: npm audit --audit-level=high
+
       - name: Build (C → WebAssembly, then Astro)
         run: npm run build
         env:
           PUBLIC_WEB3FORMS_KEY: ${{ vars.PUBLIC_WEB3FORMS_KEY }}
+          PUBLIC_CF_ANALYTICS_TOKEN: ${{ vars.PUBLIC_CF_ANALYTICS_TOKEN }}
 
       - name: Test the physics engine
         run: npm test
@@ -49,10 +53,17 @@ jobs:
       - name: Audit the built site
         run: python tools/site_audit.py dist --strict
 
+      # Accessibility, SEO and best practices must hold; performance is reported as a warning
+      # (CI machines vary too much for a hard limit). Thresholds live in lighthouserc.json.
+      - name: Lighthouse
+        run: npx --yes @lhci/cli@0.15.1 autorun
+
       - uses: actions/upload-pages-artifact@v5
         if: github.event_name != 'pull_request'
         with:
           path: dist
+          # Keeps public/.well-known/security.txt in the deployed site.
+          include-hidden-files: true
 
   deploy:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'

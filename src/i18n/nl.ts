@@ -190,9 +190,9 @@ export const nl: Dictionary = {
     again: 'Opnieuw spelen',
     close: 'Sluiten',
     sound: 'Geluid',
-    soundLabel: 'Spelgeluiden aan- of uitzetten',
+    soundLabel: 'Geluid van de minigame',
     gravity: 'Zwaartekracht',
-    gravityLabel: 'Zwaartekracht in de speeltuin aan- of uitzetten',
+    gravityLabel: 'Zwaartekracht in de speeltuin',
     playgroundLabel:
       'Minigame: houd een pingpongballetje in de lucht en speel het binnen 60 seconden door ringen. Lijntekeningen (een halterschijf, wiskundige symbolen, een chip, een gamecontroller en een stopwatch) zweven rond de woorden en kun je pakken en gooien.'
   },
@@ -290,7 +290,8 @@ export const nl: Dictionary = {
       name: 'Vul je naam in.',
       email: 'Vul een geldig e-mailadres in.',
       message: 'Je bericht moet minstens 10 tekens bevatten.',
-      generic: 'Er ging iets mis bij het versturen. Probeer het opnieuw, of mail mij direct op bhccob@gmail.com.'
+      generic: 'Er ging iets mis bij het versturen. Probeer het opnieuw, of mail mij direct op bhccob@gmail.com.',
+      cooldown: 'Je bericht is net verstuurd. Wacht een minuut voordat je een volgend bericht stuurt.'
     },
     successTitle: 'Bericht verzonden.',
     successText: 'Bedankt voor je bericht. Ik reageer zo snel mogelijk.',

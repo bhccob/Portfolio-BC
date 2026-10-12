@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import opentype, { type Font, type Glyph } from 'opentype.js';
-import sharp from 'sharp';
+import sharp, { type OverlayOptions } from 'sharp';
 
 /**
  * Renders the 1200 × 630 share images (Open Graph / social previews) at build
@@ -202,7 +202,7 @@ async function print(file: string, boxWidth: number, boxHeight: number, angle: n
   return { input: turned, width: meta.width ?? boxWidth, height: meta.height ?? boxHeight };
 }
 
-async function render(svg: string, layers: sharp.OverlayOptions[] = []): Promise<Buffer> {
+async function render(svg: string, layers: OverlayOptions[] = []): Promise<Buffer> {
   return sharp(Buffer.from(svg)).composite(layers).png({ compressionLevel: 9 }).toBuffer();
 }
 

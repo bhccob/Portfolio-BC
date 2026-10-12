@@ -1,9 +1,10 @@
 import { Component } from '../core/Component';
+import { SafeStorage } from '../core/SafeStorage';
 import { $, readJson } from '../core/dom';
 import { FlapBoard } from '../ui/FlapBoard';
 
 interface FormStrings {
-  errors: { name: string; email: string; message: string; generic: string };
+  errors: { name: string; email: string; message: string; generic: string; cooldown: string };
   send: string;
   sending: string;
 }
@@ -15,13 +16,23 @@ type FieldName = 'name' | 'email' | 'message';
  * background and shows a success state; without one it falls back to the
  * visitor's email app with everything pre-filled. Without JavaScript the
  * form still submits natively (Web3Forms redirects back with `?sent=1`).
+ *
+ * Spam guards, all invisible to people: a honeypot box, a minimum time
+ * between opening the page and sending (scripts submit instantly), and a
+ * one-minute pause after a message has gone out.
  */
 export class ContactForm extends Component {
   private static readonly ENDPOINT = 'https://api.web3forms.com/submit';
   private static readonly EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  /** Nobody reads the page and writes a message in under this many milliseconds. */
+  private static readonly MIN_FILL_MS = 3000;
+  private static readonly COOLDOWN_MS = 60_000;
+  private static readonly SENT_KEY = 'bob-contact-sent';
 
   private readonly form = $<HTMLFormElement>('[data-contact-form]');
   private readonly done = $('[data-form-done]');
+  private readonly session = SafeStorage.session();
+  private readonly openedAt = performance.now();
   private strings!: FormStrings;
 
   mount(): void {
@@ -85,9 +96,15 @@ export class ContactForm extends Component {
       return;
     }
 
-    // Honeypot: real people never tick the hidden box.
-    if ((this.field('botcheck') as HTMLInputElement).checked) {
+    // Honeypot and speed check: real people never tick the hidden box, nor write a message in three seconds.
+    if ((this.field('botcheck') as HTMLInputElement).checked || performance.now() - this.openedAt < ContactForm.MIN_FILL_MS) {
       this.showDone('sent');
+      return;
+    }
+
+    const lastSent = this.session.getNumber(ContactForm.SENT_KEY, 0);
+    if (Date.now() - lastSent < ContactForm.COOLDOWN_MS) {
+      this.setStatus(this.strings.errors.cooldown);
       return;
     }
 
@@ -114,6 +131,7 @@ export class ContactForm extends Component {
       });
       const result = (await response.json().catch(() => ({}))) as { success?: boolean };
       if (!response.ok || !result.success) throw new Error(`Web3Forms responded with ${response.status}`);
+      this.session.set(ContactForm.SENT_KEY, String(Date.now()));
       this.showDone('sent');
     } catch (error) {
       console.error(error);

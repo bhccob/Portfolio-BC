@@ -69,5 +69,10 @@ export default defineConfig({
       }
     }
   },
+  vite: {
+    // Fonts ship as files, never inlined as data: URIs: the CSP only allows fonts
+    // from 'self', and inlining every unicode-range subset bloated the CSS.
+    build: { assetsInlineLimit: 0 }
+  },
   devToolbar: { enabled: false }
 });

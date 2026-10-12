@@ -325,7 +325,6 @@ const stops = [
     justify-items: start;
     padding-right: 12px;
     background: var(--board);
-    opacity: 0.45;
     transition: opacity 0.5s var(--ease-out);
   }
 
@@ -341,8 +340,18 @@ const stops = [
     padding: 0 12px;
   }
 
-  :global(html:not(.motion-ready)) .route__stop,
-  .route__stop:global(.is-lit) {
+  /*
+   * A stop lights up when the route reaches it: its tiles come on and its
+   * place turns paper. The words stay readable before that (lilac, not faded),
+   * so the text keeps its contrast at every scroll position.
+   */
+  .route__stop :global(.route__code) {
+    opacity: 0.4;
+    transition: opacity 0.4s var(--ease-out);
+  }
+
+  :global(html:not(.motion-ready)) .route__stop :global(.route__code),
+  .route__stop:global(.is-lit) :global(.route__code) {
     opacity: 1;
   }
 
@@ -363,6 +372,13 @@ const stops = [
   .route__place {
     font-size: 18px;
     font-weight: 600;
+    color: var(--lilac);
+    transition: color 0.4s var(--ease-out);
+  }
+
+  :global(html:not(.motion-ready)) .route__place,
+  .route__stop:global(.is-lit) .route__place {
+    color: var(--paper);
   }
 
   .about__thought {

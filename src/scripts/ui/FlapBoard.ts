@@ -87,7 +87,7 @@ export class FlapTile {
     bottomLeaf.style.visibility = 'visible';
 
     // Perspective lives in the keyframes, so idle tiles are plain 2D boxes.
-    topLeaf.animate([{ transform: 'perspective(4em) rotateX(0deg)' }, { transform: 'perspective(4em) rotateX(-90deg)' }], {
+    const fall = topLeaf.animate([{ transform: 'perspective(4em) rotateX(0deg)' }, { transform: 'perspective(4em) rotateX(-90deg)' }], {
       duration: half,
       easing: 'cubic-bezier(.55,0,1,.45)',
       fill: 'forwards'
@@ -103,7 +103,9 @@ export class FlapTile {
       this.element.dataset.b = char;
       topLeaf.style.visibility = 'hidden';
       bottomLeaf.style.visibility = 'hidden';
-      topLeaf.getAnimations().forEach((animation) => animation.cancel());
+      // Cancel the held top-leaf animation directly: element.getAnimations() forces a
+      // style recalculation, and with dozens of tiles flipping that cost whole frames.
+      fall.cancel();
       this.next();
     };
   }

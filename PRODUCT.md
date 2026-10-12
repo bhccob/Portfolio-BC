@@ -33,31 +33,34 @@ A student software engineer building toward systems and firmware security work, 
 ## Capabilities and Constraints
 
 - **Home page:**
-  - A departures-board hero: the name and project rows on split-flap tiles that flip in, live Rotterdam and Aruba clocks, and typing that spells across the board.
-  - Numbered projects, each on its own skill "line": #01 Cookies Clicker (game development), #02 Jontai Energy (web development), #03 "next build boarding soon", plus a note that earlier work exists but is not listed.
+  - A name-first hero (chosen 2026-10-12): BOB CHUNG as giant outlined type with a yellow lens that follows the pointer, the ping-pong ball as the O in BOB, the motto and role line beneath.
+  - Work as category prints only: Web development (Jontai Energy, Cookies Clicker) and Game development (Cookies Clicker), plus an empty slot for a future "systems & security" category and a note that earlier work exists but is not listed. The home page never lists the projects themselves.
   - About, with the route China → Aruba → Rotterdam.
   - Toolkit.
-  - Off duty: hobbies and the physics playground (ping-pong rally mini-game and gravity toggle, C/WebAssembly).
-  - Current build & roadmap (future roles labelled as possibilities).
+  - Off duty: hobbies and the physics playground (C/WebAssembly) with the 60-second "trick shots" mini-game: keep the ping-pong ball up and knock it through rings for combos; gold rings add time; best score saved locally.
+  - Current build & roadmap: MBO 4 now, an HBO degree in a technical field next (programme not chosen yet), then possible future roles behind a dropdown.
   - Engine room ("this site is a project too").
   - Final call to the contact page.
-- **Other pages and extras:** a case-study page per project, a contact page, a 404 page, a `/` terminal easter egg and the Konami code.
+- **Other pages and extras:** a page per category (`/projects/web-development/`, `/projects/game-development/`) that opens on its newest project and switches between the projects in that category with tabs, Previous / Next, arrow keys and swipes; a contact page; a 404 page; a `/` terminal easter egg and the Konami code. Every page has a share image rendered at build time.
 - **Owner constraints:**
   - The career section must **not** be the main focus.
   - No collaboration wording for now.
   - The site stays highly interactive, SEO-friendly and object-oriented in code.
-  - Projects are shown separately because they are different kinds of work, and the site states that more projects are coming and that earlier, unlisted projects exist.
+  - Projects are grouped by software discipline (owner, 2026-10-12); a project may sit in more than one category (Cookies Clicker is both a web and a game project) and is indexed at its first category. The site states that more projects are coming and that earlier, unlisted projects exist.
+  - The site must feel smooth on ordinary laptops; heavy effects only animate transforms, opacity or clips.
   - Future roles are presented as possible destinations, not fixed plans.
   - No heavy bordered boxes: rows, rules and tiles instead.
 - **Terminology:**
   - Current occupation: "Student Software Engineer".
+  - Next step: an HBO degree in technology after the MBO 4 ("HBO · Technologie"); the specific programme is open.
   - Possible future careers (interests, never presented as plans): "Systems Engineer", "Firmware Security Automation Engineer", "Security Engineer", "Site Reliability Engineer (SRE)", "Data Engineer" and "MLOps Engineer". The owner wrote "System Engineer"; the site uses the standard title "Systems Engineer". On the site they sit behind one "Possible future roles" dropdown so the roadmap stays uncluttered.
   - Projects are labelled "Project #01", "#02", and so on.
-- **Technical:** static output only, so there is no server-side code. The local toolchain is Node only: C compiles through `@yowasp/clang`, and the Python tooling runs in CI.
+- **Technical:** static output only, so there is no server-side code. Security headers are impossible on GitHub Pages, so the Content-Security-Policy ships as a meta tag. Visitor statistics are cookie-free (Cloudflare Web Analytics) and only load when a token is configured. The local toolchain is Node only: C compiles through `@yowasp/clang`, and the Python tooling runs in CI.
 - **Open decisions:**
   - The school's name is not stated (only "MBO 4, Rotterdam").
   - The Web3Forms key is not configured yet.
-  - The GitHub Pages source still has to be switched to GitHub Actions.
+  - The Cloudflare Web Analytics token is not configured yet.
+  - The exact HBO programme is not chosen yet (the site names example directions: HBO-ICT, Computer Science, Embedded Systems Engineering).
   - Future projects are not yet chosen.
 
 ## Brand Commitments
@@ -73,7 +76,7 @@ A student software engineer building toward systems and firmware security work, 
 
 ## Evidence on Hand
 
-- **Cookies Clicker:** a web game built as a **school project** in 2025.
+- **Cookies Clicker:** a web game built as a **school project** in 2025. Listed under game development (its home) and web development.
   - Repo: https://github.com/bhccob/Cookies-Clicker. Screenshot: `src/assets/cookies.png`.
   - Built with HTML, CSS and JavaScript: a reusable AutoClicker class, timed boosts, random bonus events and saved progress via localStorage.
 - **Jontai Energy:** a **personal project**: a practice website for a self-chosen solar-energy company, built in 2026. It is **not client work** and must never be described as such.

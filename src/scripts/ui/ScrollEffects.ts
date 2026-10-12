@@ -175,13 +175,17 @@ export class ScrollEffects extends Component {
     });
   }
 
-  /** Words of the mixed-type paragraph light up as it scrolls into view (opacity only, so scrubbing stays cheap). */
+  /**
+   * Words of the mixed-type paragraph light up as they scroll into view
+   * (opacity only, so scrubbing stays cheap). They start at 55%, never
+   * fainter, so the large text keeps a 3:1 contrast at every scroll position.
+   */
   private mixedWords(): void {
     $$('[data-mixed]').forEach((paragraph) => {
       const words = $$('[data-mixed-word]', paragraph);
       gsap.fromTo(
         words,
-        { opacity: 0.12 },
+        { opacity: 0.55 },
         {
           opacity: 1,
           ease: 'none',

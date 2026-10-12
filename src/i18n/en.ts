@@ -195,9 +195,9 @@ export const en = {
     again: 'Play again',
     close: 'Close',
     sound: 'Sound',
-    soundLabel: 'Turn the game sounds on or off',
+    soundLabel: 'Sound for the mini-game',
     gravity: 'Gravity',
-    gravityLabel: 'Toggle gravity in the playground',
+    gravityLabel: 'Gravity in the playground',
     playgroundLabel:
       'Mini-game: keep a ping-pong ball in the air and knock it through rings within 60 seconds. Line-art objects (a weight plate, maths symbols, a chip, a game controller and a stopwatch) float around the words and can be grabbed and thrown.'
   },
@@ -295,7 +295,8 @@ export const en = {
       name: 'Please enter your name.',
       email: 'Please enter a valid email address.',
       message: 'Your message needs at least 10 characters.',
-      generic: 'Something went wrong while sending. Please try again, or email me directly at bhccob@gmail.com.'
+      generic: 'Something went wrong while sending. Please try again, or email me directly at bhccob@gmail.com.',
+      cooldown: 'Your message has just been sent. Please wait a minute before sending another one.'
     },
     successTitle: 'Message sent.',
     successText: 'Thank you for reaching out. I’ll reply as soon as I can.',
