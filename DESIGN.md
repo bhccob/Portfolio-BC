@@ -230,7 +230,7 @@ typography:
     lineHeight: 1
   flap-status:
     fontFamily: "Sofia Sans Extra Condensed Variable, Arial Narrow, Roboto Condensed, sans-serif"
-    fontSize: "15px"
+    fontSize: "22px"
     fontWeight: 800
     lineHeight: 1
 rounded:
@@ -429,7 +429,7 @@ Font size sets the em; `--tw`, `--th`, `--gap` and `--r` set proportions. Shippe
 
 Content sits in `min(100% - 2 × gutter, 1360px)`; sections pad by `section-y`. The header is a fixed floating bar 12px from the top with 10 to 18px side inset; `header-h` (84px) sets scroll padding and hero top padding.
 
-The hero fills the first viewport with one left-aligned block, centred on the page: the script hello stuck onto BOB, CHUNG beneath, the motto wrapping to the name's width, and a foot row with the role line and the hint "Move over my name". A rotating badge sits bottom right (118 to 160px; 112px below 1100px, 100px on mobile) and a scroll cue bottom centre. Section heads pair a display title (1.2fr) with an intro (0.8fr), aligned to the bottom. The work deck is a 52px ticker rail beside a three-column grid: one category print per discipline and the dashed slot for the next category; two columns below 1000px, one below 760px where the rail hides. A category page opens with the board line, then the shelf (category title with its icon disc, intro, a row of project tabs, and Previous / position / Next on the right), then the project case. About is a sticky portrait (0.8fr) beside text (1.2fr), collapsing at 960px. Fact lists auto-fit at 150 to 170px columns with hairlines on top.
+The hero fills the first viewport with one left-aligned block, centred on the page: the script hello stuck onto BOB, CHUNG beneath, the motto wrapping to the name's width, and a foot row with the role line and the hint "Move over my name". A rotating badge sits bottom right (118 to 160px; 112px below 1100px, 100px on mobile) and a scroll cue bottom centre. Section heads pair a display title (1.2fr) with an intro (0.8fr), aligned to the bottom. The work deck is a 52px ticker rail beside a three-column grid: one category print per discipline and the dashed slot for the next category; two columns below 1000px, one below 760px where the rail hides. A category page opens with the board line (back link, project count), then the shelf (category title with its icon disc, intro, a row of project tabs, and Previous / Next on the right; the intro hides on phones), then the project: title beside summary, screenshot, facts, sections. About is a sticky portrait (0.8fr) beside text (1.2fr), collapsing at 960px. Fact lists auto-fit at 150 to 170px columns with hairlines on top.
 
 Breakpoints: 420px (terminal button hides), 560px (compact route), 640px (the shelf stacks), 720px (hero tightens), 760px (work deck stacks), 900px (drafting objects hide), 960px (nav becomes the tile menu; two-column layouts stack), 1000px (two print columns), 1100px (badge shrinks).
 
@@ -465,12 +465,12 @@ Yellow plates with bold sans capitals.
 - **Icon tool:** 40px, lilac glyph; becomes a yellow plate on hover.
 
 ### Cards / Containers
-Prints pinned to the board. On the home page each print is a category: its newest screenshots fanned as small cream prints (up to three, spread 13% and 7° apart, fanning wider on hover) on a board-3 plate with a yellow icon disc, then "Category #01 · 2 projects" in soft-ink caps, the category title in purple at min(40px, 8.4cqi) so long Dutch words fit, the stack in mono, and the project names with "View projects". Category prints lean up to 5° toward the pointer.
+Prints pinned to the board. On the home page each print is a category: its newest screenshots fanned as small cream prints (up to three, spread 13% and 7° apart, fanning wider on hover) on a board-3 plate with a yellow icon disc, then the category title in purple at min(40px, 8.4cqi) so long Dutch words fit, the stack in mono, and a meta row with the project count and "View projects". No label above the title, no category number and no project names: the home page shows disciplines, never the projects themselves. Category prints lean up to 5° toward the pointer.
 - **Corner Style:** 10px; screenshot inside at 4px, 4:3.
 - **Background:** cream, ink on cream; centred category line in soft ink caps, centred purple display title, a meta row (label · year, "view" with arrow) under a 15% ink hairline.
 - **Shadow Strategy:** Print rest, Print lifted on hover (see Elevation).
 - **Behaviour:** tilted at rest, straightens over 0.6s on hover, rises 8px, image scales to 1.05, arrow shifts 4px.
-- **Empty slot:** a transparent card with a 2px dashed `line-strong` outline, an outlined display number on a `board-2` plate, yellow status and paper title; the outline turns yellow on hover. It is the only dashed shape.
+- **Empty slot:** a transparent card with a 2px dashed `line-strong` outline, the line-art chip (systems & security, the next category) in dim on a `board-2` plate, and a paper title; the outline and the chip turn yellow on hover. It is the only dashed shape.
 - **Internal Padding:** 14px sides, 22px bottom.
 
 ### Inputs / Fields
@@ -488,7 +488,7 @@ Each word of the name is printed twice: a paper outline, and a yellow fill clipp
 The ping-pong ball replaces the "O" of BOB, sitting on the capitals' baseline (0.075em below the line box centre): a yellow disc, a white shine stroke, two paper eyes with board-colour pupils that track the pointer, an occasional 140ms blink, and a squash-and-bounce when the word is clicked. The ball is never covered by the lens. The same ball, on a board-coloured tile, is the favicon, app icon and footer mark.
 
 ### Project Shelf
-The category page's switcher. Tabs read like nav links: Martian Mono meta (#02 · 2026) over the project name in display type at 20 to 28px, paper; hover and the current tab turn yellow and draw a 3px yellow underline from the left. Previous and Next are 40px icon tools around a yellow mono position ("1 of 2"); the arrow keys and a horizontal swipe follow the same links, and the change runs on the cross-document view transition with the title and screenshot morphing in place.
+The category page's switcher. Tabs read like nav links: Martian Mono meta (#02 · 2026) over the project name in display type at 20 to 28px, paper; hover and the current tab turn yellow and draw a 3px yellow underline from the left. Previous and Next are 40px icon tools (no position counter: it would contradict the project numbers); the arrow keys and a horizontal swipe follow the same links, and the change runs on the cross-document view transition with the title and screenshot morphing in place. Below the shelf the project's title (display, clamp(48px, 6.4vw, 96px)) sits beside its summary like a section head, and the screenshot follows directly, so both land in the first view; the facts come after the screenshot. The back link is Sofia 800 caps, like the nav.
 
 ### Trick Shots (play area)
 The playground's game: a yellow Start button in the HUD, a 3-2-1 countdown in giant yellow display type over the stage, then 60 seconds of target rings drawn like drafting marks (a 2.5px yellow ring, a dashed lilac inner ring, four tick marks; gold rings filled at 16% with "+5s" in mono). Hits burst into small yellow and lilac tiles with a "+300 ×3" popup in display type. The HUD shows Time, Score, Combo and Best on tile plates; the last ten seconds blink. The result panel is a board-deep plate with the floating-panel shadow: a yellow display title, the score line in paper, the best score in mono, and Play again / Close.

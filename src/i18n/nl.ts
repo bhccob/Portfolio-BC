@@ -50,7 +50,6 @@ export const nl: Dictionary = {
       'Mijn projecten zijn ingedeeld per vakgebied. Kies een categorie om de projecten te bekijken: wat elk project is, hoe het gebouwd is en waar ik op focuste.',
     countOne: '1 project',
     countMany: '{n} projecten',
-    categoryLabel: 'Categorie',
     project: 'Project',
     category: 'Categorie',
     type: 'Type',
@@ -61,7 +60,6 @@ export const nl: Dictionary = {
     github: 'Bekijk op GitHub',
     caseStudy: 'Lees de case study',
     view: 'Bekijk projecten',
-    soon: 'Onderweg',
     rail: 'Projecten',
     nextTitle: 'Volgende categorie: <em>systems & security.</em>',
     nextText:
@@ -304,7 +302,6 @@ export const nl: Dictionary = {
     shelf: 'Projecten in {category}',
     previous: 'Vorige',
     next: 'Volgende',
-    position: '{n} van {total}',
     keys: 'Gebruik ← en → om van project te wisselen',
     overview: 'Overzicht',
     build: 'Hoe het gebouwd is',

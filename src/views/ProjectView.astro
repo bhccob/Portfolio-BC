@@ -92,8 +92,8 @@ const sections = [
   <article class="case" aria-labelledby="case-title">
     <LineObjects
       items={category.id === 'game-development'
-        ? [{ icon: 'controller', x: 86, y: 16, size: 76, speed: 0.2, rotate: 12, accent: true }]
-        : [{ icon: 'sine', x: 86, y: 16, size: 80, speed: 0.2, accent: true, note: 'f(t)' }]}
+        ? [{ icon: 'controller', x: 62, y: 9, size: 76, speed: 0.2, rotate: 12, accent: true }]
+        : [{ icon: 'sine', x: 62, y: 9, size: 80, speed: 0.2, accent: true, note: 'f(t)' }]}
     />
     <div class="container">
       <div class="board-line">
@@ -101,7 +101,7 @@ const sections = [
           <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 8H3M7 4L3 8l4 4" /></svg>
           {t.project.back}
         </a>
-        <p class="board-line__code"><b>{t.work.categoryLabel} {category.label}</b><span>{count(shelf.length)}</span></p>
+        <p class="board-line__code"><b>{count(shelf.length)}</b></p>
       </div>
 
       <nav class="shelf" aria-label={i18n.format(t.project.shelf, { category: categoryCopy.title })} data-shelf>
@@ -129,7 +129,6 @@ const sections = [
                 <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 8H3M7 4L3 8l4 4" /></svg>
                 <span class="visually-hidden">{t.project.previous}: {previous.title}</span>
               </a>
-              <span class="shelf__count">{i18n.format(t.project.position, { n: index + 1, total: shelf.length })}</span>
               <a class="shelf__arrow" href={i18n.path(projects.route(next, category))} rel="next" data-switch-next>
                 <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4" /></svg>
                 <span class="visually-hidden">{t.project.next}: {next.title}</span>
@@ -141,27 +140,10 @@ const sections = [
       </nav>
 
       <header class="case__head">
-        <FlapText text={project.label} label="" play="intro" class="case__num" />
-        <div class="case__intro">
-          <h1 id="case-title" class="display case__title" data-split>{project.title}</h1>
-          <p class="lead" data-reveal>{copy.summary}</p>
-        </div>
+        <h1 id="case-title" class="display case__title" data-split>{project.title}</h1>
+        <p class="lead" data-reveal>{copy.summary}</p>
       </header>
 
-      <dl class="case__facts" data-reveal>
-        {
-          facts.map((fact) => (
-            <div>
-              <dt>{fact.label}</dt>
-              <dd>{fact.value}</dd>
-            </div>
-          ))
-        }
-        <div>
-          <dt>GitHub</dt>
-          <dd><a class="text-link" href={project.repo} target="_blank" rel="noopener noreferrer">{project.repoPath}</a></dd>
-        </div>
-      </dl>
 
       <figure class="case__shot" data-shot>
         <span class="case__bar" aria-hidden="true">
@@ -181,6 +163,21 @@ const sections = [
         </span>
         <span class="case__dim" aria-hidden="true"><span>{project.image.width} × {project.image.height} px</span></span>
       </figure>
+
+      <dl class="case__facts" data-reveal>
+        {
+          facts.map((fact) => (
+            <div>
+              <dt>{fact.label}</dt>
+              <dd>{fact.value}</dd>
+            </div>
+          ))
+        }
+        <div>
+          <dt>GitHub</dt>
+          <dd><a class="text-link" href={project.repo} target="_blank" rel="noopener noreferrer">{project.repoPath}</a></dd>
+        </div>
+      </dl>
 
       <div class="case__sections">
         {
@@ -240,7 +237,11 @@ const sections = [
 <style>
   .case {
     position: relative;
-    padding: calc(var(--header-h) + clamp(32px, 5vw, 64px)) 0 var(--section-y);
+    padding: calc(var(--header-h) + clamp(20px, 3vw, 40px)) 0 var(--section-y);
+  }
+
+  .case .board-line {
+    margin-bottom: clamp(24px, 3vw, 40px);
   }
 
   .case .container {
@@ -252,8 +253,8 @@ const sections = [
     display: inline-flex;
     align-items: center;
     gap: 10px;
-    font: 450 12px/1 var(--font-mono);
-    letter-spacing: 0.12em;
+    font: 800 14px/1 var(--font-sans);
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--lilac);
     transition: color 0.3s;
@@ -272,8 +273,8 @@ const sections = [
       'intro intro'
       'tabs tabs';
     align-items: center;
-    gap: 14px 32px;
-    margin-bottom: clamp(44px, 6vw, 80px);
+    gap: 12px 32px;
+    margin-bottom: clamp(32px, 4vw, 56px);
     view-transition-name: shelf;
   }
 
@@ -383,15 +384,6 @@ const sections = [
     color: var(--on-yellow);
   }
 
-  .shelf__count {
-    min-width: 5.5em;
-    text-align: center;
-    font: 450 12px/1 var(--font-mono);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--yellow);
-  }
-
   .shelf__keys {
     flex-basis: 100%;
     text-align: right;
@@ -406,27 +398,16 @@ const sections = [
   }
 
   /* ---------- the case itself ---------- */
+  /* the project's name beside its summary, like the section heads on the home page */
   .case__head {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: 24px clamp(28px, 5vw, 72px);
-    align-items: start;
-  }
-
-  .case :global(.case__num) {
-    --tw: 0.78;
-    --th: 1.1;
-    --gap: 0.06em;
-    font-size: clamp(64px, 9vw, 140px);
-  }
-
-  .case__intro {
-    display: grid;
-    gap: 24px;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    gap: 18px clamp(32px, 5vw, 72px);
+    align-items: end;
   }
 
   .case__title {
-    font-size: clamp(60px, 9vw, 132px);
+    font-size: clamp(48px, 6.4vw, 96px);
     view-transition-name: case-title;
   }
 
@@ -434,7 +415,7 @@ const sections = [
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
     gap: 0 28px;
-    margin-top: clamp(40px, 5vw, 64px);
+    margin-top: clamp(32px, 4vw, 48px);
   }
 
   .case__facts div {
@@ -456,7 +437,7 @@ const sections = [
   }
 
   .case__shot {
-    margin-top: clamp(40px, 5vw, 72px);
+    margin-top: clamp(28px, 3.5vw, 48px);
   }
 
   .case__bar {
@@ -674,6 +655,11 @@ const sections = [
     .shelf__icon {
       width: 38px;
       height: 38px;
+    }
+
+    /* on a phone the project comes first; the category intro is in the page's description */
+    .shelf__intro {
+      display: none;
     }
   }
 </style>

@@ -54,7 +54,6 @@ export const en = {
       'My projects are grouped by discipline. Pick a category to browse its projects: what each one is, how it was built and what I focused on.',
     countOne: '1 project',
     countMany: '{n} projects',
-    categoryLabel: 'Category',
     project: 'Project',
     category: 'Category',
     type: 'Type',
@@ -65,7 +64,6 @@ export const en = {
     github: 'View on GitHub',
     caseStudy: 'Read the case study',
     view: 'View projects',
-    soon: 'On the way',
     rail: 'Projects',
     nextTitle: 'Next category: <em>systems & security.</em>',
     nextText:
@@ -309,7 +307,6 @@ export const en = {
     shelf: 'Projects in {category}',
     previous: 'Previous',
     next: 'Next',
-    position: '{n} of {total}',
     keys: 'Use ← and → to switch projects',
     overview: 'Overview',
     build: 'How it’s built',

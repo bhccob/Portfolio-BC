@@ -72,11 +72,10 @@ const shelves = categories.all().map((category) => {
                   ))}
                   <span class="card__icon" aria-hidden="true"><Icon name={category.icon} size={26} strokeWidth={1.6} /></span>
                 </span>
-                <span class="card__category">{t.work.categoryLabel} {category.label} · {count}</span>
                 <span class="card__title">{copy.title}</span>
                 <span class="card__stack">{stack.join(' · ')}</span>
                 <span class="card__meta">
-                  <span class="card__names">{list.map((project) => project.title).join(', ')}</span>
+                  <span class="card__count">{count}</span>
                   <span class="card__go">
                     {t.work.view}
                     <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4" /></svg>
@@ -88,8 +87,7 @@ const shelves = categories.all().map((category) => {
         }
         <li class="cards__item" style="--tilt:-0.8deg" data-reveal>
           <a class="card card--next" href="#career" id="work-next">
-            <span class="card__slot" aria-hidden="true">{`#${String(shelves.length + 1).padStart(2, '0')}`}</span>
-            <span class="card__category">{t.work.soon}</span>
+            <span class="card__slot" aria-hidden="true"><Icon name="chip" size={84} strokeWidth={1.1} /></span>
             <span class="card__title" set:html={t.work.nextTitle} />
             <span class="card__text">{t.work.nextText}</span>
             <span class="card__meta">
@@ -253,17 +251,9 @@ const shelves = categories.all().map((category) => {
     color: var(--on-yellow);
   }
 
-  .card__category {
-    margin-top: 6px;
-    font: 800 13px/1.3 var(--font-sans);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--on-cream-soft);
-    text-align: center;
-  }
-
   /* long Dutch compounds ("Gameontwikkeling") must fit the print, so the size follows its width */
   .card__title {
+    margin-top: 8px;
     font: 400 min(40px, 8.4cqi) / 0.95 var(--font-display);
     text-transform: uppercase;
     text-align: center;
@@ -297,8 +287,7 @@ const shelves = categories.all().map((category) => {
     text-transform: uppercase;
   }
 
-  .card__names {
-    min-width: 0;
+  .card__count {
     color: var(--on-cream-soft);
   }
 
@@ -320,7 +309,7 @@ const shelves = categories.all().map((category) => {
 
   /* the next category: an empty slot, waiting for its print */
   .card--next {
-    grid-template-rows: auto auto auto 1fr auto;
+    grid-template-rows: auto auto 1fr auto;
     background: transparent;
     color: var(--paper);
     border: 2px dashed var(--line-strong);
@@ -338,12 +327,11 @@ const shelves = categories.all().map((category) => {
     aspect-ratio: 4 / 3;
     border-radius: var(--radius);
     background: var(--board-2);
-    font: 400 clamp(54px, 6vw, 88px) / 1 var(--font-display);
-    color: var(--board-3);
-    -webkit-text-stroke: 2px var(--dim);
+    color: var(--dim);
+    transition: color 0.4s;
   }
 
-  .card--next .card__category {
+  .card--next:hover .card__slot {
     color: var(--yellow);
   }
 

@@ -506,6 +506,15 @@
         ],
         "createdAt": "2026-10-11T19:02:09.755Z",
         "reason": "Claude: highlight stroke inside the ping-pong ball illustration, not a UI colour"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/views/ProjectView.astro"
+        ],
+        "createdAt": "2026-10-12T15:24:58.719Z",
+        "reason": "Claude's triage: .shelf__tab::after is a 3px bottom underline marking the current project tab (DESIGN.md nav-link-active pattern), not a side border on a card"
       }
     ]
   }
