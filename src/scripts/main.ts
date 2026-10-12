@@ -3,11 +3,14 @@ import { FlapBoard } from './ui/FlapBoard';
 import { LoadingScreen } from './ui/LoadingScreen';
 import { BlueprintGrid } from './ui/BlueprintGrid';
 import { HeroMascot } from './ui/HeroMascot';
+import { NameReveal } from './hero/NameReveal';
 import { CursorTrail } from './ui/CursorTrail';
 import { SiteHeader } from './ui/SiteHeader';
 import { ScrollEffects } from './ui/ScrollEffects';
+import { TiltCards } from './ui/TiltCards';
+import { ProjectSwitcher } from './ui/ProjectSwitcher';
 import { AgeUpdater } from './ui/AgeUpdater';
-import { HeroPlayground } from './hero/HeroPlayground';
+import { Playground } from './hero/Playground';
 import { ContactForm } from './contact/ContactForm';
 import { Terminal } from './fun/Terminal';
 import { StationClock } from './fun/StationClock';
@@ -20,8 +23,11 @@ export function bootstrap(): void {
     .use(new LoadingScreen())
     .use(new BlueprintGrid())
     .use(new HeroMascot())
-    .use(new HeroPlayground())
+    .use(new NameReveal())
+    .use(new Playground())
     .use(new ScrollEffects())
+    .use(new TiltCards())
+    .use(new ProjectSwitcher())
     .use(new SiteHeader())
     .use(new CursorTrail())
     .use(new AgeUpdater())

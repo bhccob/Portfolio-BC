@@ -9,7 +9,7 @@ interface Props {
 const { locale } = Astro.props;
 const { t } = new Translator(locale);
 const c = t.career;
-const pad = Math.max(c.currentStatus.length, c.nextStatus.length);
+const pad = Math.max(c.currentStatus.length, c.hboStatus.length, c.nextStatus.length);
 ---
 
 <section class="career section" id="career" aria-labelledby="career-title">
@@ -34,6 +34,14 @@ const pad = Math.max(c.currentStatus.length, c.nextStatus.length);
             <h3 class="service__role">{c.currentRole}</h3>
             <p class="service__org">{c.currentOrg}</p>
             <p class="service__text">{c.currentText}</p>
+          </div>
+        </li>
+        <li class="service__row service__row--study" data-reveal data-flap-host>
+          <FlapText text={c.hboStatus} pad={pad} tone="paper" hover class="service__status" />
+          <div class="service__body">
+            <h3 class="service__role">{c.hboRole}</h3>
+            <p class="service__org">{c.hboOrg}</p>
+            <p class="service__text">{c.hboText}</p>
           </div>
         </li>
         <li class="service__row service__row--future" data-reveal>

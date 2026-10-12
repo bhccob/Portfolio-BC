@@ -1,5 +1,6 @@
 ---
 import { Translator, type Locale } from '../../i18n/Translator';
+import { categories } from '../../data/categories';
 import { projects } from '../../data/projects';
 import { profile } from '../../data/profile';
 
@@ -21,11 +22,16 @@ const config = {
     en: Translator.pathFor('en', '/'),
     nl: Translator.pathFor('nl', '/')
   },
-  projects: projects.all().map((project) => ({
-    label: project.label,
-    title: project.title,
-    type: project.copy(locale).type,
-    url: i18n.path(project.route())
+  categories: categories.all().map((category) => ({
+    label: category.label,
+    title: category.copy(locale).title,
+    url: i18n.path(category.route()),
+    projects: projects.inCategory(category).map((project) => ({
+      label: project.label,
+      title: project.title,
+      type: project.copy(locale).type,
+      url: i18n.path(projects.route(project, category))
+    }))
   })),
   socials: profile.socials.map((social) => ({ label: social.label, handle: social.handle, url: social.url }))
 };

@@ -2,7 +2,10 @@
 
 Every HTML page is parsed and run through a set of rules: titles, meta
 descriptions, a single h1, alt text, canonical and hreflang links, Open Graph
-tags, structured data and internal links (including ``#fragment`` targets).
+tags, structured data and internal links (including ``#fragment`` targets),
+plus the security basics a static host leaves to the page itself: a
+Content-Security-Policy, safe ``target="_blank"`` links, no insecure
+``http://`` resources and redirect stubs that stay out of search results.
 Errors fail the build, so a broken page never reaches bhccob.me.
 
 Standard library only. Usage::
@@ -26,6 +29,10 @@ from urllib.parse import unquote, urlparse
 DEFAULT_ORIGIN = "https://bhccob.me"
 EXPECTED_LOCALES = ("en", "nl", "x-default")
 SKIPPED_SCHEMES = ("mailto:", "tel:", "javascript:", "data:")
+# Directives every page's Content-Security-Policy must set (the rest are page-specific hashes).
+REQUIRED_CSP_DIRECTIVES = ("default-src", "script-src", "object-src", "base-uri")
+# Elements and attributes that make the browser fetch something.
+RESOURCE_ATTRIBUTES = {"script": "src", "img": "src", "source": "src", "iframe": "src", "audio": "src", "video": "src", "link": "href"}
 
 
 # --------------------------------------------------------------------------- #
@@ -108,7 +115,10 @@ class PageParser(HTMLParser):
         self.lang: str | None = None
         self.title_parts: list[str] = []
         self.meta: dict[str, str] = {}
+        self.http_equiv: dict[str, str] = {}
         self.canonical: str | None = None
+        self.new_tab_links: list[tuple[str, str]] = []
+        self.resources: list[str] = []
         self.alternates: dict[str, str] = {}
         self.anchors: list[str] = []
         self.images: list[Image] = []
@@ -132,6 +142,8 @@ class PageParser(HTMLParser):
             key = attributes.get("name") or attributes.get("property")
             if key:
                 self.meta[key.lower()] = attributes.get("content", "")
+            if "http-equiv" in attributes:
+                self.http_equiv[attributes["http-equiv"].lower()] = attributes.get("content", "")
         elif tag == "link":
             rel = attributes.get("rel", "").lower().split()
             if "canonical" in rel:
@@ -140,8 +152,18 @@ class PageParser(HTMLParser):
                 self.alternates[attributes["hreflang"].lower()] = attributes.get("href", "")
         elif tag == "a" and "href" in attributes:
             self.anchors.append(attributes["href"])
+            if attributes.get("target") == "_blank":
+                self.new_tab_links.append((attributes["href"], attributes.get("rel", "").lower()))
         elif tag == "img":
             self.images.append(Image(src=attributes.get("src", ""), has_alt="alt" in attributes))
+
+        if tag in RESOURCE_ATTRIBUTES and attributes.get(RESOURCE_ATTRIBUTES[tag]):
+            # Hyperlink-like <link>s (canonical, alternate) are addresses, not downloads.
+            rel = attributes.get("rel", "").lower().split()
+            if tag != "link" or not {"canonical", "alternate"} & set(rel):
+                self.resources.append(attributes[RESOURCE_ATTRIBUTES[tag]])
+        if tag in ("img", "source") and attributes.get("srcset"):
+            self.resources.extend(candidate.strip().split(" ")[0] for candidate in attributes["srcset"].split(","))
         elif tag == "h1":
             self.h1_count += 1
         elif tag == "script" and attributes.get("type") == "application/ld+json":
@@ -171,6 +193,7 @@ class Page:
     lang: str | None
     title: str
     meta: dict[str, str]
+    http_equiv: dict[str, str]
     canonical: str | None
     alternates: dict[str, str]
     anchors: list[str]
@@ -178,6 +201,8 @@ class Page:
     h1_count: int
     ids: set[str]
     json_ld: list[str]
+    new_tab_links: list[tuple[str, str]] = field(default_factory=list)
+    resources: list[str] = field(default_factory=list)
 
     @classmethod
     def load(cls, file: Path, root: Path) -> "Page":
@@ -189,6 +214,7 @@ class Page:
             lang=parser.lang,
             title=" ".join("".join(parser.title_parts).split()),
             meta=parser.meta,
+            http_equiv=parser.http_equiv,
             canonical=parser.canonical,
             alternates=parser.alternates,
             anchors=parser.anchors,
@@ -196,6 +222,8 @@ class Page:
             h1_count=parser.h1_count,
             ids=parser.ids,
             json_ld=parser.json_ld,
+            new_tab_links=parser.new_tab_links,
+            resources=parser.resources,
         )
 
     @staticmethod
@@ -210,6 +238,11 @@ class Page:
     @property
     def indexable(self) -> bool:
         return "noindex" not in self.meta.get("robots", "").lower()
+
+    @property
+    def redirects(self) -> bool:
+        """A stub that only forwards visitors to another address."""
+        return "refresh" in self.http_equiv
 
 
 class Site:
@@ -406,6 +439,70 @@ class InternalLinkRule(Rule):
         return issues
 
 
+class ContentSecurityPolicyRule(Rule):
+    """Every real page carries a CSP; GitHub Pages cannot send one as a header."""
+
+    name = "csp"
+
+    def check(self, page: Page, site: Site) -> list[Issue]:
+        policy = page.http_equiv.get("content-security-policy", "")
+        if not policy:
+            return [self.error(page, "missing Content-Security-Policy <meta>")]
+        directives = {part.strip().split(" ")[0] for part in policy.split(";") if part.strip()}
+        missing = [directive for directive in REQUIRED_CSP_DIRECTIVES if directive not in directives]
+        issues = [self.error(page, f"Content-Security-Policy has no {directive}") for directive in missing]
+        if "'unsafe-eval'" in policy:
+            issues.append(self.error(page, "Content-Security-Policy allows 'unsafe-eval'"))
+        return issues
+
+
+class NewTabLinkRule(Rule):
+    """Links that open a new tab must not hand the opener to the other site."""
+
+    name = "noopener"
+
+    def applies_to(self, page: Page) -> bool:
+        return True
+
+    def check(self, page: Page, site: Site) -> list[Issue]:
+        return [
+            self.error(page, f'target="_blank" link to {href} has no rel="noopener"')
+            for href, rel in page.new_tab_links
+            if "noopener" not in rel.split() and "noreferrer" not in rel.split()
+        ]
+
+
+class SecureResourceRule(Rule):
+    """Everything the page loads comes over HTTPS; plain-http links are only flagged."""
+
+    name = "https"
+
+    def applies_to(self, page: Page) -> bool:
+        return True
+
+    def check(self, page: Page, site: Site) -> list[Issue]:
+        issues = [self.error(page, f"insecure resource: {src}") for src in page.resources if src.startswith("http://")]
+        issues += [self.warning(page, f"insecure link: {href}") for href in page.anchors if href.startswith("http://")]
+        return issues
+
+
+class RedirectStubRule(Rule):
+    """A redirect stub must stay out of search results and name where it points."""
+
+    name = "redirect"
+
+    def applies_to(self, page: Page) -> bool:
+        return page.redirects
+
+    def check(self, page: Page, site: Site) -> list[Issue]:
+        issues: list[Issue] = []
+        if page.indexable:
+            issues.append(self.error(page, "redirect page is missing robots noindex"))
+        if not page.canonical:
+            issues.append(self.error(page, "redirect page has no canonical link to its target"))
+        return issues
+
+
 DEFAULT_RULES: tuple[Rule, ...] = (
     LangRule(),
     TitleRule(),
@@ -417,6 +514,10 @@ DEFAULT_RULES: tuple[Rule, ...] = (
     OpenGraphRule(),
     StructuredDataRule(),
     InternalLinkRule(),
+    ContentSecurityPolicyRule(),
+    NewTabLinkRule(),
+    SecureResourceRule(),
+    RedirectStubRule(),
 )
 
 

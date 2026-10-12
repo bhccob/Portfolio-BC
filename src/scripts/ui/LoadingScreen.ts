@@ -7,7 +7,8 @@ import { FlapBoard, type FlapRow } from './FlapBoard';
 /**
  * The boot screen: the site's name flips onto a single row of tiles while a
  * percentage counts up, then the board folds shut onto its split line.
- * Progress follows real work (fonts, page assets and the physics module), but
+ * Progress follows real work (fonts and page assets; the physics module loads
+ * later, when its playground scrolls near), but
  * it never shows for less than MIN_MS (so the sequence reads) or longer than
  * MAX_MS (so nobody waits on a slow asset). It plays once per browser
  * session; any click or key skips it.
@@ -45,7 +46,7 @@ export class LoadingScreen extends Component {
     if (pct) this.pct = FlapBoard.row(pct);
 
     this.started = performance.now();
-    const tasks = [this.fontsReady(), this.pageLoaded(), this.physicsReady()];
+    const tasks = [this.fontsReady(), this.pageLoaded()];
     let done = 0;
     tasks.forEach((task) =>
       task.then(() => {
@@ -70,11 +71,6 @@ export class LoadingScreen extends Component {
     return new Promise((resolve) => window.addEventListener('load', () => resolve(), { once: true }));
   }
 
-  private physicsReady(): Promise<unknown> {
-    // Only the home page has the playground; elsewhere there is nothing to wait for.
-    if (!$('[data-play]')) return Promise.resolve();
-    return signals.physicsReady.wait(LoadingScreen.MAX_MS);
-  }
 
   /** Eases the displayed percentage toward the real progress, with a time floor so it keeps moving. */
   private tick = (): void => {

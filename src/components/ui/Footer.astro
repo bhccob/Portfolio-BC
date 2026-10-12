@@ -9,13 +9,18 @@ interface Props {
 const { locale } = Astro.props;
 const { t } = new Translator(locale);
 const year = new Date().getFullYear();
+// Mentioned only when the cookie-free analytics beacon is actually on (see BaseLayout).
+const analytics = Boolean(import.meta.env.PUBLIC_CF_ANALYTICS_TOKEN);
 ---
 
 <footer class="site-footer">
   <div class="container site-footer__row">
     <p class="site-footer__made">
-      <span class="site-footer__tile" aria-hidden="true"><span class="f" data-c="B" data-b="B"></span></span>
-      <span>© <span data-year>{year}</span> {profile.name} · {t.footer.made}</span>
+      <img class="site-footer__mark" src="/favicon.svg" width="30" height="30" alt="" />
+      <span>
+        © <span data-year>{year}</span> {profile.name} · {t.footer.made}
+        {analytics && <span class="site-footer__stats">{t.footer.analytics}</span>}
+      </span>
     </p>
     <ul class="site-footer__links">
       {
@@ -58,22 +63,16 @@ const year = new Date().getFullYear();
     gap: 14px;
   }
 
-  .site-footer__tile {
-    display: inline-flex;
-    --tw: 0.78;
-    --th: 1.18;
-    --r: 0.1em;
-    font: 800 22px/1 var(--font-flap);
-    color: var(--on-yellow);
+  /* the ping-pong ball monogram, the same mark as the browser tab */
+  .site-footer__mark {
+    flex: none;
+    border-radius: 6px;
   }
 
-  .site-footer__tile .f::before {
-    background: var(--yellow-soft);
-  }
-
-  .site-footer__tile .f::after {
-    background: var(--yellow);
-    border-top-color: rgb(21 11 38 / 0.5);
+  .site-footer__stats {
+    display: block;
+    font-size: 13px;
+    color: var(--dim);
   }
 
   .site-footer__links {

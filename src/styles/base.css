@@ -456,14 +456,20 @@ html.has-custom-cursor textarea {
   }
 }
 
-/* ---------- film grain over everything (static, so it costs nothing to scroll) ---------- */
+/*
+ * ---------- film grain over everything ----------
+ * A pre-rendered 220px noise tile (public/grain.webp, made once from an SVG
+ * fractal-noise filter) instead of a live SVG filter, so the browser never
+ * has to compute noise. It is a static layer: it costs nothing to scroll.
+ */
 .grain {
   position: fixed;
   inset: 0;
   z-index: 90;
   pointer-events: none;
   opacity: 0.09;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1.4 -0.35'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-image: url('/grain.webp');
+  background-size: 220px 220px;
   will-change: transform;
 }
 
@@ -519,4 +525,93 @@ details::details-content {
 
 details[open]::details-content {
   height: auto;
+}
+
+/* ---------- custom cursor: a yellow flap tile on the pointer, and its trail (CursorTrail.ts) ---------- */
+.cursor-trail {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+}
+
+.cursor-head {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+
+.cursor-head.is-visible {
+  opacity: 1;
+}
+
+.cursor-head::before {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 14px;
+  margin: -7px 0 0 -5px;
+  border-radius: 2px;
+  background: linear-gradient(var(--yellow-soft) 0 calc(50% - 0.5px), var(--split) calc(50% - 0.5px) calc(50% + 0.5px), var(--yellow) calc(50% + 0.5px));
+  box-shadow: 0 0 0 1.5px var(--board);
+  transition: transform 0.35s var(--ease-out);
+}
+
+/* drafting-mark corners that close in around links and buttons */
+.cursor-head::after {
+  content: '';
+  position: absolute;
+  width: 38px;
+  height: 38px;
+  margin: -19px 0 0 -19px;
+  background:
+    linear-gradient(var(--yellow), var(--yellow)) left top / 9px 2px no-repeat,
+    linear-gradient(var(--yellow), var(--yellow)) left top / 2px 9px no-repeat,
+    linear-gradient(var(--yellow), var(--yellow)) right top / 9px 2px no-repeat,
+    linear-gradient(var(--yellow), var(--yellow)) right top / 2px 9px no-repeat,
+    linear-gradient(var(--yellow), var(--yellow)) left bottom / 9px 2px no-repeat,
+    linear-gradient(var(--yellow), var(--yellow)) left bottom / 2px 9px no-repeat,
+    linear-gradient(var(--yellow), var(--yellow)) right bottom / 9px 2px no-repeat,
+    linear-gradient(var(--yellow), var(--yellow)) right bottom / 2px 9px no-repeat;
+  transform: scale(0.3) rotate(45deg);
+  opacity: 0;
+  transition: transform 0.45s var(--ease-out), opacity 0.3s;
+}
+
+.cursor-head[data-state='hover']::after {
+  transform: scale(1) rotate(0deg);
+  opacity: 1;
+}
+
+.cursor-head[data-state='hover']::before {
+  transform: scale(0.7);
+}
+
+.cursor-head[data-state='grab']::after {
+  transform: scale(0.85);
+  opacity: 0.8;
+}
+
+.cursor-head[data-state='grabbing']::after {
+  transform: scale(0.6);
+  opacity: 1;
+}
+
+.cursor-head[data-state='grabbing']::before {
+  transform: scale(1.3);
+}
+
+.cursor-head.is-pressed::before {
+  transform: scale(0.7) rotateX(60deg);
+}
+
+.cursor-head[data-state='text'],
+.cursor-head[data-state='hidden'] {
+  opacity: 0;
 }

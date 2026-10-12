@@ -1,7 +1,11 @@
 import type { ImageMetadata } from 'astro';
 import type { Locale } from '../i18n/Translator';
-import cookiesImage from '../assets/cookies.png';
-import jontaiImage from '../assets/jontai-energy.png';
+import { categories, type Category, type CategoryId } from './categories';
+
+// Screenshots live in src/assets. A project names its file once; that name
+// gives both the optimised image for <Picture> and the source file the
+// build-time share image (src/og/) reads.
+const screenshots = import.meta.glob<{ default: ImageMetadata }>('../assets/*.{png,jpg,jpeg,webp}', { eager: true });
 
 export interface ProjectCopy {
   /** Kind of work and context, e.g. "Web game · School project". */
@@ -23,13 +27,16 @@ export interface ProjectData {
   title: string;
   year: number;
   repo: string;
-  image: ImageMetadata;
+  /** Screenshot file name in src/assets, e.g. "cookies.png". */
+  image: string;
   /**
    * How the screenshot sits in its 4:3 card: the focal point, and how far the
    * crop magnifies it (so a large enough source image is requested).
    */
   crop?: { position: string; zoom: number };
   stack: string[];
+  /** Categories this project is listed under; the first one is its home (canonical) category. */
+  categories: CategoryId[];
   copy: Record<Locale, ProjectCopy>;
 }
 
@@ -41,27 +48,37 @@ export class Project {
   get title() { return this.data.title; }
   get year() { return this.data.year; }
   get repo() { return this.data.repo; }
-  get image() { return this.data.image; }
+  get image(): ImageMetadata {
+    const module = screenshots[`../assets/${this.data.image}`];
+    if (!module) throw new Error(`Missing screenshot src/assets/${this.data.image} for ${this.data.slug}`);
+    return module.default;
+  }
+
+  /** Repository-relative path of the screenshot, for build-time tools. */
+  get imageFile(): string {
+    return `src/assets/${this.data.image}`;
+  }
   get crop() { return this.data.crop; }
   get stack() { return this.data.stack; }
+  get categoryIds() { return this.data.categories; }
+
+  /** The category whose page is this project's canonical address. */
+  get primaryCategory(): Category {
+    return categories.byId(this.data.categories[0]);
+  }
+
+  inCategory(id: CategoryId): boolean {
+    return this.data.categories.includes(id);
+  }
 
   /** "#01", "#02", … */
   get label(): string {
     return `#${String(this.data.number).padStart(2, '0')}`;
   }
 
-  /** Anchor of the project's chapter on the home page. */
-  get anchor(): string {
-    return `project-${this.data.slug}`;
-  }
-
   /** Short repository path, e.g. "bhccob/JE". */
   get repoPath(): string {
     return this.data.repo.replace(/^https?:\/\/github\.com\//, '');
-  }
-
-  route(): string {
-    return `/projects/${this.data.slug}/`;
   }
 
   copy(locale: Locale): ProjectCopy {
@@ -84,15 +101,19 @@ export class ProjectCatalog {
     return this.items.find((project) => project.slug === slug);
   }
 
-  /** The project after this one, wrapping around to the first. */
-  next(project: Project): Project {
-    const index = this.items.indexOf(project);
-    return this.items[(index + 1) % this.items.length];
+  /** The projects on one category's shelf, newest first. */
+  inCategory(category: Category): Project[] {
+    return this.items.filter((project) => project.inCategory(category.id)).sort((a, b) => b.year - a.year || b.number - a.number);
   }
 
-  /** Number shown on the "next build" placeholder. */
-  get upcomingLabel(): string {
-    return `#${String(this.items.length + 1).padStart(2, '0')}`;
+  /**
+   * Locale-neutral URL of a project inside a category (by default its home
+   * category). The first project on a shelf opens at the category's own
+   * address; the others get a sub-page.
+   */
+  route(project: Project, category: Category = project.primaryCategory): string {
+    const shelf = this.inCategory(category);
+    return shelf[0] === project ? category.route() : `${category.route()}${project.slug}/`;
   }
 }
 
@@ -103,9 +124,10 @@ export const projects = new ProjectCatalog([
     title: 'Cookies Clicker',
     year: 2025,
     repo: 'https://github.com/bhccob/Cookies-Clicker',
-    image: cookiesImage,
+    image: 'cookies.png',
     crop: { position: '6% 50%', zoom: 2.8 },
     stack: ['HTML', 'CSS', 'JavaScript', 'localStorage'],
+    categories: ['game-development', 'web-development'],
     copy: {
       en: {
         type: 'Web game · School project',
@@ -147,9 +169,10 @@ export const projects = new ProjectCatalog([
     title: 'Jontai Energy',
     year: 2026,
     repo: 'https://github.com/bhccob/JE',
-    image: jontaiImage,
+    image: 'jontai-energy.png',
     crop: { position: '50% 58%', zoom: 1.7 },
     stack: ['HTML', 'Tailwind CSS', 'JavaScript', 'PowerShell'],
+    categories: ['web-development'],
     copy: {
       en: {
         type: 'Company website · Personal project',

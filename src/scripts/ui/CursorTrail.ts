@@ -16,10 +16,12 @@ export type CursorState = 'default' | 'hover' | 'grab' | 'grabbing' | 'hidden';
  * stay precise) and replaces the system cursor. Behind it runs a trail of
  * smaller tiles: a chain of springs where the first link chases the pointer
  * and every next link chases the one before it, which gives the smooth,
- * delayed follow.
+ * delayed follow. The trail canvas renders at 1x (the tiles are a few pixels
+ * wide, so retina detail is wasted) and only the box it drew last frame is
+ * cleared, which keeps the per-frame cost tiny on large screens.
  */
 export class CursorTrail extends Component {
-  private static readonly POINTS = 16;
+  private static readonly POINTS = 10;
   private static readonly STIFFNESS = 0.3;
   private static readonly DAMPING = 0.56;
 
@@ -32,7 +34,8 @@ export class CursorTrail extends Component {
   private visible = false;
   private frame = 0;
   private idleFrames = 0;
-  private ratio = 1;
+  /** Area painted on the previous frame, cleared before the next one. */
+  private dirty = { minX: 0, minY: 0, maxX: 0, maxY: 0, empty: true };
 
   static isSupported(): boolean {
     return Motion.finePointer && !Motion.reduced;
@@ -52,7 +55,6 @@ export class CursorTrail extends Component {
 
     document.body.append(this.canvas, this.head);
     this.root.classList.add('has-custom-cursor');
-    this.injectStyles();
     this.resize();
 
     this.listen<PointerEvent>(window, 'pointermove', (event) => this.move(event), { passive: true });
@@ -96,14 +98,20 @@ export class CursorTrail extends Component {
   private setVisible(visible: boolean): void {
     this.visible = visible;
     this.head.classList.toggle('is-visible', visible);
-    if (!visible) this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    if (!visible) this.clearDirty();
   }
 
   private resize(): void {
-    this.ratio = Math.min(window.devicePixelRatio || 1, 2);
-    this.canvas.width = Math.round(window.innerWidth * this.ratio);
-    this.canvas.height = Math.round(window.innerHeight * this.ratio);
-    this.context.setTransform(this.ratio, 0, 0, this.ratio, 0, 0);
+    this.canvas.width = window.innerWidth;
+    this.canvas.height = window.innerHeight;
+    this.dirty.empty = true;
+  }
+
+  private clearDirty(): void {
+    const box = this.dirty;
+    if (box.empty) return;
+    this.context.clearRect(box.minX - 12, box.minY - 12, box.maxX - box.minX + 24, box.maxY - box.minY + 24);
+    box.empty = true;
   }
 
   private step = (): void => {
@@ -124,7 +132,7 @@ export class CursorTrail extends Component {
     if (spread < 1) this.idleFrames += 1;
     if (this.idleFrames > 8 || !this.visible) {
       this.frame = 0;
-      this.context.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      this.clearDirty();
       return;
     }
     this.frame = requestAnimationFrame(this.step);
@@ -133,7 +141,10 @@ export class CursorTrail extends Component {
   /** Draws the trail as small flap tiles that shrink and fade toward the tail, each leaning into the motion. */
   private draw(): void {
     const ctx = this.context;
-    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    this.clearDirty();
+    const box = this.dirty;
+    box.minX = box.minY = Infinity;
+    box.maxX = box.maxY = -Infinity;
     const count = this.points.length;
     for (let index = count - 1; index >= 0; index -= 1) {
       const point = this.points[index];
@@ -144,6 +155,11 @@ export class CursorTrail extends Component {
       const width = 2 + 6 * life;
       const height = width * 1.4;
       const lean = Math.max(-0.5, Math.min(0.5, (before.x - point.x) * 0.04));
+      box.minX = Math.min(box.minX, point.x);
+      box.maxX = Math.max(box.maxX, point.x);
+      box.minY = Math.min(box.minY, point.y);
+      box.maxY = Math.max(box.maxY, point.y);
+      box.empty = false;
 
       ctx.save();
       ctx.translate(point.x, point.y);
@@ -155,34 +171,5 @@ export class CursorTrail extends Component {
       ctx.fillRect(-width / 2, -0.5, width, 1);
       ctx.restore();
     }
-  }
-
-  private injectStyles(): void {
-    if (document.getElementById('cursor-styles')) return;
-    const style = document.createElement('style');
-    style.id = 'cursor-styles';
-    style.textContent = `
-      .cursor-trail { position: fixed; inset: 0; z-index: 9998; width: 100vw; height: 100vh; pointer-events: none; }
-      .cursor-head { position: fixed; top: 0; left: 0; z-index: 9999; pointer-events: none; opacity: 0; transition: opacity .25s; }
-      .cursor-head.is-visible { opacity: 1; }
-      .cursor-head::before { content: ''; position: absolute; width: 10px; height: 14px; margin: -7px 0 0 -5px; border-radius: 2px;
-        background: linear-gradient(#ffe07a 0 calc(50% - .5px), #070310 calc(50% - .5px) calc(50% + .5px), #ffcf33 calc(50% + .5px));
-        box-shadow: 0 0 0 1.5px #1c1030; transition: transform .35s cubic-bezier(.22,1,.36,1); }
-      .cursor-head::after { content: ''; position: absolute; width: 38px; height: 38px; margin: -19px 0 0 -19px;
-        background:
-          linear-gradient(#ffcf33,#ffcf33) left top / 9px 2px no-repeat, linear-gradient(#ffcf33,#ffcf33) left top / 2px 9px no-repeat,
-          linear-gradient(#ffcf33,#ffcf33) right top / 9px 2px no-repeat, linear-gradient(#ffcf33,#ffcf33) right top / 2px 9px no-repeat,
-          linear-gradient(#ffcf33,#ffcf33) left bottom / 9px 2px no-repeat, linear-gradient(#ffcf33,#ffcf33) left bottom / 2px 9px no-repeat,
-          linear-gradient(#ffcf33,#ffcf33) right bottom / 9px 2px no-repeat, linear-gradient(#ffcf33,#ffcf33) right bottom / 2px 9px no-repeat;
-        transform: scale(.3) rotate(45deg); opacity: 0; transition: transform .45s cubic-bezier(.22,1,.36,1), opacity .3s; }
-      .cursor-head[data-state="hover"]::after { transform: scale(1) rotate(0deg); opacity: 1; }
-      .cursor-head[data-state="hover"]::before { transform: scale(.7); }
-      .cursor-head[data-state="grab"]::after { transform: scale(.85); opacity: .8; }
-      .cursor-head[data-state="grabbing"]::after { transform: scale(.6); opacity: 1; }
-      .cursor-head[data-state="grabbing"]::before { transform: scale(1.3); }
-      .cursor-head.is-pressed::before { transform: scale(.7) rotateX(60deg); }
-      .cursor-head[data-state="text"], .cursor-head[data-state="hidden"] { opacity: 0; }
-    `;
-    document.head.append(style);
   }
 }

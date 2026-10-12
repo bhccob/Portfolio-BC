@@ -27,7 +27,16 @@ const rows = [
   ...former.map((hobby) => ({ ...hobby, text: '', former: true }))
 ];
 
-const strings = { rallyOver: l.rallyOver, newBest: l.newBest, hint: l.hint, hintTouch: l.hintTouch };
+const strings = {
+  hint: l.hint,
+  hintTouch: l.hintTouch,
+  hintPlaying: l.hintPlaying,
+  go: l.go,
+  resultTitle: l.resultTitle,
+  result: l.result,
+  newBest: l.newBest,
+  best: l.bestScore
+};
 const words = l.playTitle.split(' · ');
 ---
 
@@ -64,15 +73,46 @@ const words = l.playTitle.split(' · ');
         ))
       }
     </p>
+    <div class="stage__panel" data-panel hidden>
+      <p class="stage__count" data-count aria-hidden="true"></p>
+      <div class="stage__result" data-result hidden>
+        <p class="stage__result-title" data-result-title></p>
+        <p class="stage__result-text" data-result-text></p>
+        <p class="stage__result-best" data-result-best></p>
+        <div class="stage__result-actions">
+          <button class="btn" type="button" data-again>
+            {l.again}
+            <svg class="icon" viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.5M13 2.5v3h-3" /></svg>
+          </button>
+          <button class="stage__close" type="button" data-close>{l.close}</button>
+        </div>
+      </div>
+    </div>
+    <p class="visually-hidden" aria-live="polite" data-announce></p>
+
     <div class="stage__hud" data-play-avoid>
-      <p class="stage__hint" data-play-hint>{l.hint}</p>
-      <div class="stage__score">
-        <span class="stage__stat">{l.rally} <b data-rally>00</b></span>
-        <span class="stage__stat">{l.best} <b data-best>00</b></span>
-        <button class="stage__gravity" type="button" data-gravity aria-pressed="false" aria-label={l.gravityLabel}>
-          <span class="stage__switch" aria-hidden="true"></span>
-          {l.gravity}
+      <div class="stage__intro">
+        <button class="btn stage__start" type="button" data-start>
+          {l.start}
+          <svg class="icon" viewBox="0 0 16 16" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M4 2.5v11l9-5.5z" /></svg>
         </button>
+        <p class="stage__hint" data-play-hint>{l.hint}</p>
+      </div>
+      <div class="stage__score">
+        <span class="stage__stat">{l.time} <b data-time>60</b></span>
+        <span class="stage__stat">{l.score} <b data-score>0000</b></span>
+        <span class="stage__stat">{l.combo} <b data-combo>×1</b></span>
+        <span class="stage__stat">{l.best} <b data-best>0000</b></span>
+        <span class="stage__toggles">
+          <button class="stage__gravity" type="button" data-sound aria-pressed="false" aria-label={l.soundLabel}>
+            <span class="stage__switch" aria-hidden="true"></span>
+            {l.sound}
+          </button>
+          <button class="stage__gravity" type="button" data-gravity aria-pressed="false" aria-label={l.gravityLabel}>
+            <span class="stage__switch" aria-hidden="true"></span>
+            {l.gravity}
+          </button>
+        </span>
       </div>
     </div>
   </div>
@@ -190,13 +230,30 @@ const words = l.playTitle.split(' · ');
     bottom: 18px;
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-end;
     gap: 16px 32px;
     flex-wrap: wrap;
     pointer-events: none;
   }
 
+  .stage__intro {
+    display: flex;
+    align-items: center;
+    gap: 14px 22px;
+    flex-wrap: wrap;
+    max-width: 44em;
+  }
+
+  .stage__start {
+    pointer-events: auto;
+  }
+
+  .stage__start[hidden] {
+    display: none;
+  }
+
   .stage__hint {
+    flex: 1 1 18em;
     font-size: 15px;
     color: var(--dim);
     max-width: 36em;
@@ -205,8 +262,110 @@ const words = l.playTitle.split(' · ');
   .stage__score {
     display: flex;
     align-items: center;
-    gap: 22px;
+    flex-wrap: wrap;
+    gap: 12px 22px;
     pointer-events: auto;
+  }
+
+  .stage__toggles {
+    display: inline-flex;
+    gap: 14px;
+  }
+
+  /* countdown and result, printed over the middle of the stage */
+  .stage__panel {
+    position: absolute;
+    z-index: 4;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+  }
+
+  .stage__panel[hidden] {
+    display: none;
+  }
+
+  .stage__count {
+    font: 400 clamp(110px, 18vw, 240px) / 1 var(--font-display);
+    text-transform: uppercase;
+    color: var(--yellow);
+  }
+
+  .stage__count:global(.is-pop) {
+    animation: count-pop 0.6s var(--ease-out);
+  }
+
+  @keyframes count-pop {
+    from {
+      transform: scale(1.5);
+      opacity: 0;
+    }
+  }
+
+  .stage__result {
+    display: grid;
+    justify-items: center;
+    gap: 10px;
+    max-width: min(92%, 34em);
+    padding: 28px clamp(20px, 4vw, 40px) 26px;
+    text-align: center;
+    background: var(--board-deep);
+    border-radius: var(--radius-card);
+    box-shadow: 0 18px 40px -12px rgb(0 0 0 / 0.55);
+    pointer-events: auto;
+    animation: result-in 0.5s var(--ease-out);
+  }
+
+  .stage__result[hidden] {
+    display: none;
+  }
+
+  @keyframes result-in {
+    from {
+      transform: translateY(16px) scale(0.96);
+      opacity: 0;
+    }
+  }
+
+  .stage__result-title {
+    font: 400 clamp(44px, 6vw, 72px) / 0.92 var(--font-display);
+    text-transform: uppercase;
+    color: var(--yellow);
+  }
+
+  .stage__result-text {
+    font-size: 18px;
+    color: var(--paper);
+  }
+
+  .stage__result-best {
+    font: 450 12px/1.5 var(--font-mono);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+
+  .stage__result-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 12px 24px;
+    margin-top: 10px;
+  }
+
+  .stage__close {
+    font: 800 14px/1 var(--font-sans);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--lilac);
+    padding: 10px 4px;
+    transition: color 0.3s;
+  }
+
+  .stage__close:hover {
+    color: var(--yellow);
   }
 
   .stage__stat {
@@ -230,6 +389,17 @@ const words = l.playTitle.split(' · ');
 
   .stage__stat b:global(.is-bumped) {
     animation: bump 0.35s var(--ease-out);
+  }
+
+  /* the last ten seconds tick louder */
+  .stage__stat b:global(.is-low) {
+    animation: low 1s steps(2, jump-none) infinite;
+  }
+
+  @keyframes low {
+    50% {
+      color: var(--paper);
+    }
   }
 
   @keyframes bump {
@@ -279,6 +449,14 @@ const words = l.playTitle.split(' · ');
     background: var(--on-yellow);
   }
 
+  @media (prefers-reduced-motion: reduce) {
+    .stage__stat b:global(.is-low),
+    .stage__count:global(.is-pop),
+    .stage__result {
+      animation: none;
+    }
+  }
+
   @media (max-width: 900px) {
     .off__head {
       grid-template-columns: 1fr;
@@ -298,7 +476,7 @@ const words = l.playTitle.split(' · ');
     }
 
     .stage {
-      height: 520px;
+      height: 620px;
     }
 
     .stage__words {

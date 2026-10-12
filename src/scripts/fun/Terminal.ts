@@ -11,6 +11,7 @@ interface TerminalConfig {
     help: Record<string, string>;
     whoami: string;
     careerNow: string;
+    careerHbo: string;
     careerNext: string;
     rallyBest: string;
     rallyNone: string;
@@ -22,7 +23,7 @@ interface TerminalConfig {
     moreSoon: string;
   };
   routes: { home: string; contact: string; en: string; nl: string };
-  projects: { label: string; title: string; type: string; url: string }[];
+  categories: { label: string; title: string; url: string; projects: { label: string; title: string; type: string; url: string }[] }[];
   socials: { label: string; handle: string; url: string }[];
 }
 
@@ -46,7 +47,7 @@ export class Terminal extends Component {
     help: () => this.help(),
     whoami: () => this.print(escapeHtml(this.config.strings.whoami)),
     projects: () => this.projects(),
-    career: () => this.print(`${escapeHtml(this.config.strings.careerNow)}\n${escapeHtml(this.config.strings.careerNext)}`),
+    career: () => this.print([this.config.strings.careerNow, this.config.strings.careerHbo, this.config.strings.careerNext].map(escapeHtml).join('\n')),
     socials: () => this.socials(),
     contact: () => this.navigate(this.config.routes.contact, 'contact'),
     rally: () => this.rally(),
@@ -146,7 +147,10 @@ export class Terminal extends Component {
   }
 
   private projects(): void {
-    const rows = this.config.projects.map((project) => `${project.label}  <a href="${project.url}">${escapeHtml(project.title)}</a>  <span class="dim">${escapeHtml(project.type)}</span>`);
+    const rows = this.config.categories.flatMap((category) => [
+      `<b class="ok">${category.label}</b> <a href="${category.url}">${escapeHtml(category.title)}</a>`,
+      ...category.projects.map((project) => `    ${project.label}  <a href="${project.url}">${escapeHtml(project.title)}</a>  <span class="dim">${escapeHtml(project.type)}</span>`)
+    ]);
     rows.push(`<span class="dim">${escapeHtml(this.config.strings.moreSoon)}</span>`);
     this.print(rows.join('\n'));
   }
@@ -160,7 +164,7 @@ export class Terminal extends Component {
   }
 
   private rally(): void {
-    const best = this.local.getNumber('bob-rally-best', 0);
+    const best = this.local.getNumber('bob-trickshot-best', 0);
     this.print(best > 0 ? escapeHtml(format(this.config.strings.rallyBest, { n: best })) : escapeHtml(this.config.strings.rallyNone));
   }
 

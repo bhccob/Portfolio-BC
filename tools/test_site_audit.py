@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from site_audit import Severity, SiteAuditor, main  # noqa: E402
 
 ORIGIN = "https://bhccob.me"
+CSP = "default-src 'self'; script-src 'self' 'sha256-abc'; object-src 'none'; base-uri 'self'"
 
 
 def page(
@@ -25,6 +26,7 @@ def page(
     head_extra: str = "",
     alternates: bool = True,
     noindex: bool = False,
+    csp: str | None = CSP,
 ) -> str:
     links = ""
     if alternates:
@@ -35,7 +37,9 @@ def page(
             f'<link rel="alternate" hreflang="x-default" href="{ORIGIN}{path}">'
         )
     robots = '<meta name="robots" content="noindex">' if noindex else f'<link rel="canonical" href="{ORIGIN}{path}">'
+    policy = f'<meta http-equiv="content-security-policy" content="{csp}">' if csp else ""
     return f"""<!doctype html><html lang="en"><head>
+      {policy}
       <title>{title}</title>
       <meta name="description" content="{description}">
       {robots}{links}
@@ -143,6 +147,43 @@ class SiteAuditorTests(AuditTestCase):
         report = self.audit()
         self.assertNotIn("title", {issue.rule for issue in report.errors})
         self.assertIn(Severity.WARNING, {issue.severity for issue in report.issues if issue.rule == "title"})
+
+    def test_missing_csp_is_an_error(self) -> None:
+        self.write("contact/index.html", page(path="/contact/", title="Contact | Bob Chung", body="<h1>Contact</h1>", csp=None))
+        self.assertIn("csp", self.rules_with_errors())
+
+    def test_weak_csp_is_an_error(self) -> None:
+        weak = "default-src 'self'; script-src 'self' 'unsafe-eval'; base-uri 'self'"
+        self.write("contact/index.html", page(path="/contact/", title="Contact | Bob Chung", body="<h1>Contact</h1>", csp=weak))
+        messages = [issue.message for issue in self.audit().errors if issue.rule == "csp"]
+        self.assertTrue(any("object-src" in message for message in messages))
+        self.assertTrue(any("unsafe-eval" in message for message in messages))
+
+    def test_new_tab_link_needs_noopener(self) -> None:
+        body = '<h1>Contact</h1><a href="https://github.com/bhccob" target="_blank">GitHub</a>'
+        self.write("contact/index.html", page(path="/contact/", title="Contact | Bob Chung", body=body))
+        self.assertIn("noopener", self.rules_with_errors())
+        safe = body.replace('target="_blank"', 'target="_blank" rel="noopener noreferrer"')
+        self.write("contact/index.html", page(path="/contact/", title="Contact | Bob Chung", body=safe))
+        self.assertNotIn("noopener", self.rules_with_errors())
+
+    def test_insecure_resource_is_an_error_and_insecure_link_a_warning(self) -> None:
+        body = '<h1>Contact</h1><img src="http://example.com/a.png" alt=""><a href="http://example.com/">x</a>'
+        self.write("contact/index.html", page(path="/contact/", title="Contact | Bob Chung", body=body))
+        report = self.audit()
+        self.assertIn("https", {issue.rule for issue in report.errors})
+        self.assertIn("https", {issue.rule for issue in report.warnings})
+
+    def test_redirect_stub_must_be_noindex(self) -> None:
+        stub = (
+            '<!doctype html><html lang="nl"><head><title>Verplaatst | Bob Chung</title>'
+            f'<meta http-equiv="refresh" content="0; url=/"><link rel="canonical" href="{ORIGIN}/">'
+            '</head><body><a href="/">Home</a></body></html>'
+        )
+        self.write("old/index.html", stub)
+        self.assertIn("redirect", self.rules_with_errors())
+        self.write("old/index.html", stub.replace("<head>", '<head><meta name="robots" content="noindex, follow">'))
+        self.assertNotIn("redirect", self.rules_with_errors())
 
     def test_cli_exit_codes(self) -> None:
         with redirect_stdout(io.StringIO()):

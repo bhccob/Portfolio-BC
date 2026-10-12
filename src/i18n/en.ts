@@ -34,18 +34,27 @@ export const en = {
     skip: 'Click or press any key to skip'
   },
   hero: {
-    hello: 'Hey, I’m Bob Chung',
-    lines: ['I build with', 'curiosity', '& test with', 'honesty'],
-    spoken: 'I build with curiosity and test with honesty.',
+    hello: 'Hey, I’m',
+    name: ['Bob', 'Chung'],
+    motto: [
+      ['I build with', 'fat'],
+      ['curiosity', 'light'],
+      ['& test with', 'fat'],
+      ['honesty.', 'light']
+    ],
     role: 'Student software engineer · Rotterdam, NL',
+    hint: 'Move over my name',
+    hintTouch: 'Tap my name',
     badge: 'Student software engineer • Born in Aruba • Based in Rotterdam • ',
-    ball: 'Play ping-pong',
     scroll: 'Scroll down'
   },
   work: {
     title: 'Projects, <em>one build at a time.</em>',
     intro:
-      'Each project is a different kind of job, so each one has its own page. Pick a card to see what it is, how it was built and what I focused on.',
+      'My projects are grouped by discipline. Pick a category to browse its projects: what each one is, how it was built and what I focused on.',
+    countOne: '1 project',
+    countMany: '{n} projects',
+    categoryLabel: 'Category',
     project: 'Project',
     category: 'Category',
     type: 'Type',
@@ -55,13 +64,13 @@ export const en = {
     status: 'Status',
     github: 'View on GitHub',
     caseStudy: 'Read the case study',
-    view: 'View project',
-    soon: 'Coming soon',
+    view: 'View projects',
+    soon: 'On the way',
     rail: 'Projects',
-    nextTitle: 'Next build <em>on the way.</em>',
+    nextTitle: 'Next category: <em>systems & security.</em>',
     nextText:
-      'More projects are on the way. Some are still in progress; others are waiting to be published. Follow along on GitHub in the meantime.',
-    nextLink: 'Follow on GitHub',
+      'The directions I am exploring lead toward systems and security. Once projects in that area are finished, they will get a category of their own here.',
+    nextLink: 'See the roadmap',
     heldTitle: 'Not everything is listed',
     heldText:
       'Earlier projects exist, but only work that meets the standard I set for this portfolio makes it onto this page.'
@@ -170,16 +179,27 @@ export const en = {
       tableTennis: 'Table tennis'
     },
     playTitle: 'Train · Run · Play',
-    hint: 'Grab and throw the objects. Keep the ping-pong ball in the air.',
-    hintTouch: 'Tap the objects. Keep the ping-pong ball in the air.',
-    rally: 'Rally',
+    hint: 'Press Start, then keep the ping-pong ball in the air with your pointer and knock it through the rings. You have 60 seconds.',
+    hintTouch: 'Press Start, then tap the ping-pong ball to keep it up and knock it through the rings. You have 60 seconds.',
+    hintPlaying: 'Gold rings add 5 seconds. If the ball touches the floor, your combo resets.',
+    start: 'Start trick shots',
+    time: 'Time',
+    score: 'Score',
+    combo: 'Combo',
     best: 'Best',
+    go: 'Go!',
+    resultTitle: 'Time!',
+    result: '{score} points, {rings} rings, best combo ×{combo}',
+    newBest: 'New best: {n} points!',
+    bestScore: 'Your best: {n} points',
+    again: 'Play again',
+    close: 'Close',
+    sound: 'Sound',
+    soundLabel: 'Turn the game sounds on or off',
     gravity: 'Gravity',
     gravityLabel: 'Toggle gravity in the playground',
-    rallyOver: 'Rally over: {n} hits',
-    newBest: 'New best rally: {n}!',
     playgroundLabel:
-      'Interactive playground with line-art objects: a ping-pong ball, a weight plate, maths symbols, a chip, a game controller and a stopwatch. Grab, throw and bounce them off the words.'
+      'Mini-game: keep a ping-pong ball in the air and knock it through rings within 60 seconds. Line-art objects (a weight plate, maths symbols, a chip, a game controller and a stopwatch) float around the words and can be grabbed and thrown.'
   },
   career: {
     title: 'Current build <em>& roadmap.</em>',
@@ -188,6 +208,11 @@ export const en = {
     currentOrg: 'MBO 4 · Rotterdam',
     currentText:
       'Building a broad software foundation: game development in Godot, web development, relational databases and SQL, frameworks such as Laravel, and programming fundamentals across several languages.',
+    hboStatus: 'Next',
+    hboRole: 'HBO · Technology',
+    hboOrg: 'After my MBO 4 · programme still open',
+    hboText:
+      'After my MBO 4, I intend to continue at HBO level in a technical field. I have not chosen the exact programme yet; directions such as HBO-ICT, Computer Science or Embedded Systems Engineering fit the roles I am working toward.',
     nextStatus: 'Possible',
     roadmapNote: 'The roles in the roadmap are possible destinations for my future career: directions I am interested in and working toward, not fixed plans.',
     rolesToggle: 'Possible future roles',
@@ -279,17 +304,23 @@ export const en = {
     mailtoText: 'Your email app should open with the message ready to send.'
   },
   project: {
-    back: 'All projects',
+    back: 'All categories',
+    shelf: 'Projects in {category}',
+    previous: 'Previous',
+    next: 'Next',
+    position: '{n} of {total}',
+    keys: 'Use ← and → to switch projects',
     overview: 'Overview',
     build: 'How it’s built',
     focus: 'Focus',
-    next: 'Next project',
+    alsoSee: 'Also see',
     moreTitle: 'More projects <em>are on the way.</em>',
-    moreText: 'New work is in progress or waiting to be published.',
-    moreLink: 'Back to all projects'
+    moreText: 'New work is in progress or waiting to be published, and earlier projects that do not meet my standard are not listed.',
+    moreLink: 'Back to all categories'
   },
   footer: {
     made: 'Built with curiosity in Rotterdam',
+    analytics: 'Anonymous visitor statistics, without cookies.',
     top: 'Back to top',
     terminalHint: 'Press <kbd>/</kbd> to open the terminal'
   },
@@ -307,11 +338,11 @@ export const en = {
     help: {
       help: 'list available commands',
       whoami: 'who is Bob?',
-      projects: 'list projects',
+      projects: 'list projects by category',
       career: 'current build & roadmap',
       socials: 'where to find me',
       contact: 'open the contact page',
-      rally: 'show your best ping-pong rally',
+      rally: 'show your best trick-shot score',
       gravity: 'toggle gravity in the playground',
       time: 'local time in Rotterdam and Aruba',
       lang: 'switch language (en / nl)',
@@ -321,15 +352,16 @@ export const en = {
     whoami:
       'Bob Chung, {age}. Student software engineer in Rotterdam. Born in Aruba, Chinese by heritage. Builds with curiosity, tests with honesty.',
     careerNow: 'now   → Student Software Engineer (MBO 4, Rotterdam)',
-    careerNext: 'next  → possible: Systems · Firmware Security Automation · Security · SRE · Data · MLOps',
-    rallyBest: 'Best rally: {n} hits.',
-    rallyNone: 'No rally yet. Hit the ping-pong ball in the off-duty playground!',
+    careerHbo: 'next  → HBO in technology, after my MBO 4 (programme still open)',
+    careerNext: 'later → possible: Systems · Firmware Security Automation · Security · SRE · Data · MLOps',
+    rallyBest: 'Best trick-shot score: {n} points.',
+    rallyNone: 'No score yet. Play trick shots in the off-duty playground!',
     gravityOn: 'Gravity enabled. Everything drops.',
     gravityOff: 'Gravity disabled. Back to floating.',
     gravityElsewhere: 'Gravity lives in the playground. Go to the home page first.',
     opening: 'Opening {page}…',
     sudo: 'Permission granted. Redirecting you to the contact page…',
-    moreSoon: '#03  next build on the way…'
+    moreSoon: '#03 next category: systems & security, on the way…'
   },
   toast: {
     konami: '↑↑↓↓←→←→BA: ball storm!',

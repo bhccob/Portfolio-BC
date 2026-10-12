@@ -141,22 +141,23 @@ export class ScrollEffects extends Component {
     });
   }
 
-  /** Hero lines rise out of a blur, one after another, once the loader is gone. */
+  /**
+   * Hero lines rise into place, one after another, once the loader is gone.
+   * Transform and opacity only: a blur on type this large costs whole frames.
+   */
   private heroIntro(): void {
     const lines = $$('[data-hero-line]');
     if (!lines.length) return;
-    gsap.set(lines, { yPercent: 40, opacity: 0, filter: 'blur(14px)' });
+    gsap.set(lines, { yPercent: 40, opacity: 0 });
     document.documentElement.classList.remove('flap-intro');
     signals.loaderDone.then(() => {
       gsap.to(lines, {
         yPercent: 0,
         opacity: 1,
-        filter: 'blur(0px)',
         duration: 1.1,
         ease: 'expo.out',
         stagger: 0.09,
-        delay: 0.1,
-        clearProps: 'filter'
+        delay: 0.1
       });
     });
   }
@@ -174,16 +175,15 @@ export class ScrollEffects extends Component {
     });
   }
 
-  /** Words of the mixed-type paragraph come into focus as it scrolls into view. */
+  /** Words of the mixed-type paragraph light up as it scrolls into view (opacity only, so scrubbing stays cheap). */
   private mixedWords(): void {
     $$('[data-mixed]').forEach((paragraph) => {
       const words = $$('[data-mixed-word]', paragraph);
       gsap.fromTo(
         words,
-        { opacity: 0.12, filter: 'blur(6px)' },
+        { opacity: 0.12 },
         {
           opacity: 1,
-          filter: 'blur(0px)',
           ease: 'none',
           stagger: 0.12,
           scrollTrigger: { trigger: paragraph, start: 'top 85%', end: 'bottom 55%', scrub: true }

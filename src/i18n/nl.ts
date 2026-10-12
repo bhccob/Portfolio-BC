@@ -30,18 +30,27 @@ export const nl: Dictionary = {
     skip: 'Klik of druk op een toets om over te slaan'
   },
   hero: {
-    hello: 'Hoi, ik ben Bob Chung',
-    lines: ['Ik bouw met', 'nieuwsgierigheid', '& test met', 'eerlijkheid'],
-    spoken: 'Ik bouw met nieuwsgierigheid en test met eerlijkheid.',
+    hello: 'Hoi, ik ben',
+    name: ['Bob', 'Chung'],
+    motto: [
+      ['Ik bouw met', 'fat'],
+      ['nieuwsgierigheid', 'light'],
+      ['& test met', 'fat'],
+      ['eerlijkheid.', 'light']
+    ],
     role: 'Student software engineer · Rotterdam, NL',
+    hint: 'Beweeg over mijn naam',
+    hintTouch: 'Tik op mijn naam',
     badge: 'Student software engineer • Geboren op Aruba • Woont in Rotterdam • ',
-    ball: 'Speel pingpong',
     scroll: 'Scroll omlaag'
   },
   work: {
     title: 'Projecten, <em>build voor build.</em>',
     intro:
-      'Elk project is een ander soort klus, dus elk project heeft een eigen pagina. Kies een kaart om te zien wat het is, hoe het gebouwd is en waar ik op focuste.',
+      'Mijn projecten zijn ingedeeld per vakgebied. Kies een categorie om de projecten te bekijken: wat elk project is, hoe het gebouwd is en waar ik op focuste.',
+    countOne: '1 project',
+    countMany: '{n} projecten',
+    categoryLabel: 'Categorie',
     project: 'Project',
     category: 'Categorie',
     type: 'Type',
@@ -51,13 +60,13 @@ export const nl: Dictionary = {
     status: 'Status',
     github: 'Bekijk op GitHub',
     caseStudy: 'Lees de case study',
-    view: 'Bekijk project',
-    soon: 'Binnenkort',
+    view: 'Bekijk projecten',
+    soon: 'Onderweg',
     rail: 'Projecten',
-    nextTitle: 'Volgende build <em>is onderweg.</em>',
+    nextTitle: 'Volgende categorie: <em>systems & security.</em>',
     nextText:
-      'Er komen meer projecten aan. Sommige zijn nog in ontwikkeling, andere wachten op publicatie. Volg tot die tijd mee op GitHub.',
-    nextLink: 'Volg mij op GitHub',
+      'De richtingen die ik verken, lopen naar systems en security. Zodra projecten op dat gebied klaar zijn, krijgen ze hier een eigen categorie.',
+    nextLink: 'Bekijk de roadmap',
     heldTitle: 'Niet alles staat hier',
     heldText:
       'Er bestaan eerdere projecten, maar alleen werk dat voldoet aan de standaard die ik voor dit portfolio hanteer, komt op deze pagina.'
@@ -165,16 +174,27 @@ export const nl: Dictionary = {
       tableTennis: 'Tafeltennis'
     },
     playTitle: 'Train · Ren · Speel',
-    hint: 'Pak de objecten en gooi ze weg. Houd het pingpongballetje in de lucht.',
-    hintTouch: 'Tik op de objecten. Houd het pingpongballetje in de lucht.',
-    rally: 'Rally',
+    hint: 'Druk op Start, houd het pingpongballetje met je muis in de lucht en speel het door de ringen. Je hebt 60 seconden.',
+    hintTouch: 'Druk op Start, tik het pingpongballetje omhoog en speel het door de ringen. Je hebt 60 seconden.',
+    hintPlaying: 'Gouden ringen geven 5 seconden extra. Raakt de bal de grond, dan begint je combo opnieuw.',
+    start: 'Start trickshots',
+    time: 'Tijd',
+    score: 'Score',
+    combo: 'Combo',
     best: 'Record',
+    go: 'Go!',
+    resultTitle: 'Tijd!',
+    result: '{score} punten, {rings} ringen, beste combo ×{combo}',
+    newBest: 'Nieuw record: {n} punten!',
+    bestScore: 'Jouw record: {n} punten',
+    again: 'Opnieuw spelen',
+    close: 'Sluiten',
+    sound: 'Geluid',
+    soundLabel: 'Spelgeluiden aan- of uitzetten',
     gravity: 'Zwaartekracht',
     gravityLabel: 'Zwaartekracht in de speeltuin aan- of uitzetten',
-    rallyOver: 'Rally voorbij: {n} slagen',
-    newBest: 'Nieuw rallyrecord: {n}!',
     playgroundLabel:
-      'Interactieve speeltuin met lijntekeningen: een pingpongballetje, een halterschijf, wiskundige symbolen, een chip, een gamecontroller en een stopwatch. Pak ze, gooi ze en laat ze tegen de woorden stuiteren.'
+      'Minigame: houd een pingpongballetje in de lucht en speel het binnen 60 seconden door ringen. Lijntekeningen (een halterschijf, wiskundige symbolen, een chip, een gamecontroller en een stopwatch) zweven rond de woorden en kun je pakken en gooien.'
   },
   career: {
     title: 'Huidige build <em>& roadmap.</em>',
@@ -183,6 +203,11 @@ export const nl: Dictionary = {
     currentOrg: 'MBO 4 · Rotterdam',
     currentText:
       'Ik bouw een brede softwarebasis op: gameontwikkeling in Godot, webontwikkeling, relationele databases en SQL, frameworks zoals Laravel en programmeerbasis in meerdere talen.',
+    hboStatus: 'Hierna',
+    hboRole: 'HBO · Technologie',
+    hboOrg: 'Na mijn MBO 4 · richting nog open',
+    hboText:
+      'Na mijn MBO 4 wil ik doorstromen naar het HBO, in een technische richting. Welke opleiding het precies wordt, kies ik nog; richtingen als HBO-ICT, Technische Informatica of Embedded Systems Engineering sluiten aan bij de rollen waar ik naartoe werk.',
     nextStatus: 'Mogelijk',
     roadmapNote: 'De rollen in de roadmap zijn mogelijke bestemmingen voor mijn toekomstige loopbaan: richtingen die mij interesseren en waar ik naartoe werk, geen vaste plannen.',
     rolesToggle: 'Mogelijke toekomstige rollen',
@@ -274,17 +299,23 @@ export const nl: Dictionary = {
     mailtoText: 'Je e-mailprogramma zou nu moeten openen met het bericht klaar om te versturen.'
   },
   project: {
-    back: 'Alle projecten',
+    back: 'Alle categorieën',
+    shelf: 'Projecten in {category}',
+    previous: 'Vorige',
+    next: 'Volgende',
+    position: '{n} van {total}',
+    keys: 'Gebruik ← en → om van project te wisselen',
     overview: 'Overzicht',
     build: 'Hoe het gebouwd is',
     focus: 'Focus',
-    next: 'Volgend project',
+    alsoSee: 'Ook bekijken',
     moreTitle: 'Er komen <em>meer projecten aan.</em>',
-    moreText: 'Nieuw werk is in ontwikkeling of wacht op publicatie.',
-    moreLink: 'Terug naar alle projecten'
+    moreText: 'Nieuw werk is in ontwikkeling of wacht op publicatie, en eerdere projecten die niet aan mijn standaard voldoen, staan hier niet.',
+    moreLink: 'Terug naar alle categorieën'
   },
   footer: {
     made: 'Met nieuwsgierigheid gebouwd in Rotterdam',
+    analytics: 'Anonieme bezoekersstatistieken, zonder cookies.',
     top: 'Terug naar boven',
     terminalHint: 'Druk op <kbd>/</kbd> om de terminal te openen'
   },
@@ -302,11 +333,11 @@ export const nl: Dictionary = {
     help: {
       help: 'toon beschikbare commando’s',
       whoami: 'wie is Bob?',
-      projects: 'toon projecten',
+      projects: 'toon projecten per categorie',
       career: 'huidige build & roadmap',
       socials: 'waar je mij vindt',
       contact: 'open de contactpagina',
-      rally: 'toon je beste pingpongrally',
+      rally: 'toon je beste trickshotscore',
       gravity: 'zwaartekracht in de speeltuin aan/uit',
       time: 'lokale tijd in Rotterdam en op Aruba',
       lang: 'wissel van taal (en / nl)',
@@ -316,15 +347,16 @@ export const nl: Dictionary = {
     whoami:
       'Bob Chung, {age}. Student software engineer in Rotterdam. Geboren op Aruba, Chinees van afkomst. Bouwt met nieuwsgierigheid, test met eerlijkheid.',
     careerNow: 'nu     → Student Software Engineer (MBO 4, Rotterdam)',
-    careerNext: 'straks → mogelijk: Systems · Firmware Security Automation · Security · SRE · Data · MLOps',
-    rallyBest: 'Beste rally: {n} slagen.',
-    rallyNone: 'Nog geen rally. Sla het pingpongballetje in de speeltuin onder ‘Buiten dienst’!',
+    careerHbo: 'hierna → HBO in technologie, na mijn MBO 4 (richting nog open)',
+    careerNext: 'later  → mogelijk: Systems · Firmware Security Automation · Security · SRE · Data · MLOps',
+    rallyBest: 'Beste trickshotscore: {n} punten.',
+    rallyNone: 'Nog geen score. Speel trickshots in de speeltuin onder ‘Buiten dienst’!',
     gravityOn: 'Zwaartekracht aan. Alles valt.',
     gravityOff: 'Zwaartekracht uit. Alles zweeft weer.',
     gravityElsewhere: 'Zwaartekracht bestaat alleen in de speeltuin. Ga eerst naar de homepagina.',
     opening: '{page} openen…',
     sudo: 'Toegang verleend. Je gaat naar de contactpagina…',
-    moreSoon: '#03  volgende build is onderweg…'
+    moreSoon: '#03 volgende categorie: systems & security, onderweg…'
   },
   toast: {
     konami: '↑↑↓↓←→←→BA: ballenregen!',

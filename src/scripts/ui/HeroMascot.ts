@@ -23,7 +23,7 @@ export class HeroMascot extends Component {
         if (!this.frame) this.frame = requestAnimationFrame(this.look);
       }, { passive: true });
     }
-    this.listen(this.ball.closest('.hero__line') ?? this.ball, 'click', () => this.bounce());
+    this.listen(this.ball.closest('[data-name-word]') ?? this.ball, 'click', () => this.bounce());
     this.scheduleBlink();
     this.onCleanup(() => window.clearTimeout(this.blinkTimer));
   }

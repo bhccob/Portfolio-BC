@@ -9,7 +9,7 @@ import Career from '../components/home/Career.astro';
 import EngineRoom from '../components/home/EngineRoom.astro';
 import FinalCall from '../components/home/FinalCall.astro';
 import { Translator, type Locale } from '../i18n/Translator';
-import { projects } from '../data/projects';
+import { categories } from '../data/categories';
 
 interface Props {
   locale: Locale;
@@ -23,11 +23,11 @@ const projectList = {
   '@context': 'https://schema.org',
   '@type': 'ItemList',
   name: i18n.t.nav.work,
-  itemListElement: projects.all().map((project, index) => ({
+  itemListElement: categories.all().map((category, index) => ({
     '@type': 'ListItem',
     position: index + 1,
-    url: new URL(i18n.path(project.route()), site).href,
-    name: project.title
+    url: new URL(i18n.path(category.route()), site).href,
+    name: category.copy(locale).title
   }))
 };
 ---
