@@ -475,17 +475,23 @@ const words = l.playTitle.split(' · ');
       grid-row: 1;
     }
 
+    /* the controls stack up on narrow screens, so the words sit in the field above them */
     .stage {
-      height: 620px;
+      height: 760px;
     }
 
     .stage__words {
+      bottom: 250px;
       font-size: 22vw;
       align-content: center;
     }
 
     .stage__dot {
       display: none;
+    }
+
+    .stage__hint {
+      font-size: 14px;
     }
   }
 </style>
