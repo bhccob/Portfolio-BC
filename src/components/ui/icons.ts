@@ -18,7 +18,7 @@ export const icons = {
     '<rect x="3" y="4" width="4" height="7" rx="2"/><path d="M11 4v7M16 4v7M20.5 4v7M5 13v7M10 13v7"/><rect x="13" y="13" width="4" height="7" rx="2"/><path d="M20.5 13v7"/>',
   dumbbell: '<path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/>',
   plate: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5.5" stroke-dasharray="1.5 2"/><circle cx="12" cy="12" r="1.8"/>',
-  paddle: '<circle cx="12" cy="9" r="6.5"/><path d="M10.4 15.3v5.3a1.4 1.4 0 0 0 1.4 1.4h.4a1.4 1.4 0 0 0 1.4-1.4v-5.3"/><circle cx="20" cy="18.5" r="1.7" fill="currentColor" stroke="none"/>',
+  paddle: '<circle cx="13.8" cy="9" r="7" fill="currentColor"/><rect x="4.6" y="12.1" width="4.2" height="8.4" rx="2.1" transform="rotate(45 6.7 16.3)" fill="currentColor"/><circle cx="20.1" cy="19.8" r="2" fill="currentColor" stroke="none"/>',
   stopwatch: '<circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.6M10 2.5h4M12 2.5V6M18.2 7.3l1.4-1.4"/>',
   controller:
     '<path d="M7.2 8.5h9.6a4.2 4.2 0 0 1 4.2 4.2v1.6a2.7 2.7 0 0 1-4.8 1.7L14.8 14H9.2l-1.4 2a2.7 2.7 0 0 1-4.8-1.7v-1.6a4.2 4.2 0 0 1 4.2-4.2z"/><path d="M7.6 10.8v3M6.1 12.3h3"/><circle cx="15.6" cy="11.6" r=".6"/><circle cx="17.4" cy="13.2" r=".6"/>',

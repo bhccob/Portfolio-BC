@@ -657,9 +657,14 @@ const sections = [
       height: 38px;
     }
 
-    /* on a phone the project comes first; the category intro is in the page's description */
+    /* on a phone the project comes first: the category intro is kept to two lines */
     .shelf__intro {
-      display: none;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      overflow: hidden;
+      font-size: 15px;
     }
   }
 </style>
