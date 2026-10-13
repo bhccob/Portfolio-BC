@@ -328,7 +328,7 @@ The site is a dark, grainy purple sheet with loud things printed on it. One fat 
 
 The earlier Departures board is still underneath. Split-flap tiles remain the mechanical detail: codes, clocks, route stops, statuses, the toolkit timetable, the HELLO final call, the 404, the mobile menu and the case number all clatter in on tiles. A drafting grid (56px minor, 224px major) lies under everything and lights yellow in a soft circle around the pointer; thin line drawings of maths, tech and sports objects drift with scroll. A static film-grain layer sits over the whole page.
 
-Separation is still mostly rules and hairlines. The few stroked shapes are thin, light outlines (the header bar, the ticker rail, the dashed empty slot), never heavy frames; the prints are filled cream, not bordered. Motion is soft and weighted, and only ever moves transforms, opacity or a clip: headline lines rise into place, mixed-type words light up as they scroll into view, prints straighten and lean toward the pointer, and tiles still flip in 62ms half-turns.
+Separation is still mostly rules and hairlines. The few stroked shapes are thin, light outlines (the header bar, the ticker rail, the dashed empty slot), never heavy frames; the prints are filled cream, not bordered. Motion is soft and weighted, and only ever moves transforms, opacity or a clip: headline lines rise into place, mixed-type words light up as they scroll into view, prints and rows are dealt onto the board as the visitor scrolls, two printed tapes cross the board under the hero, prints straighten and lean toward the pointer, and tiles still flip in 62ms half-turns.
 
 **Key Characteristics:**
 - Bagel Fat One uppercase for every title and name; one or two words per title in signal yellow.
@@ -490,8 +490,19 @@ One tile per character: `tile-hi` to `tile` gradient on top, `tile-2` below, div
 ### Drafting Grid
 Two CSS sheets: lilac lines (8.5% at 224px, 4% at 56px) moving at half scroll speed, and the same grid in yellow (32% and 18%) masked to a 220px circle around the pointer, fading in over 0.5s. Line objects in lilac at 20% (one yellow accent each section) drift with scroll. The custom cursor is a small yellow tile with a delayed trail.
 
+### Scroll Tapes
+Two printed strips cross the board between the hero and the work: the badge facts in `on-yellow` Bagel Fat One on a yellow tape turned -3.2°, and the motto in paper on a purple tape turned 2.4° beneath it, each phrase followed by a small ball. They slide in opposite directions as the page scrolls and skew up to 10° with the scroll speed, easing back to flat when the scrolling stops. Decorative (`aria-hidden`): the same words are on the page.
+
 ### Motion
 Everything eases on `cubic-bezier(0.22, 1, 0.36, 1)`. Hero lines rise 40% and fade in, staggered 90ms, over 1.1s. Mixed-type words scrub from 55% to full opacity as they scroll in (never fainter, so the large text keeps 3:1 contrast). Reveals rise 28px. Motion only animates transform, opacity and clip-path: no blur filters, and the grid glow is a small window moved by transform. Reduced motion collapses all of it to instant and stops the badge, rail, scroll cue and lens.
+
+Scroll scenes (`ScrollScenes.ts`) tie each section to the scroll position, in both directions, without pinning anything:
+- **Dealt:** prints and board rows are dealt onto the board as they arrive. Prints, toolkit rows and roadmap rows come from the side (up to 36% of the viewport, tilted 10° plus 3° per position in a row, at 86% scale), engine rows and project-page sections rise 100px with a 4° tilt, and the off-duty rows fall open from their top edge like a flap. Items side by side start 7% of the viewport apart.
+- **Portrait:** the About photo swings into its frame as the section arrives (frame from -9° and 82%, photo from 145% and 10°), then pushes in to 112% while it stays pinned beside the text.
+- **Quote:** the About quote blows in word by word, each word tilting up from the side.
+- **Recede:** a section dims to 55% and shrinks to 95% as its bottom leaves the top half of the screen; the last section stays.
+- **HELLO:** the closing board grows from 62% and its arrow slides home.
+- **Screenshot:** on a project page the screenshot settles from 118% as it unfolds.
 
 ### Share Images
 Every page has a 1200 × 630 share image rendered at build time in the site's own fonts (glyph outlines via opentype.js): the board with its grid, the ball mark and "bhccob.me" top left. The site image is the outlined name with a yellow lens across UN and the portrait as a tilted cream print; project images carry the category label in yellow mono, the title in paper display type, the type line in lilac, the screenshot as a cream print turned -3°, and a Yellowtail signature.
@@ -509,7 +520,7 @@ Every page has a 1200 × 630 share image rendered at build time in the site's ow
 - **Do** keep the name the loudest thing in the first viewport; nothing else there is set larger than the motto.
 
 ### Don't:
-- **Don't** put purple on the dark board or use cream as a section background.
+- **Don't** put purple on the dark board or use cream as a section background. The one exception is the motto's scroll tape, a filled purple strip carrying paper type (owner-approved, 2026-10-13).
 - **Don't** introduce a second accent on the purple ground; status and emphasis stay yellow.
 - **Don't** draw heavy bordered boxes; outlines stay at 1.5 to 2px in `line-strong` and only on the header, rail and empty slot.
 - **Don't** put shadows on text, rows, tiles, buttons or the header.

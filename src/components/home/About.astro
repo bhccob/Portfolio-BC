@@ -78,8 +78,8 @@ const stops = [
           </span>
         </p>
         <p class="body-text" data-reveal>{a.body}</p>
-        <blockquote class="about__quote" data-reveal>
-          <p>{a.quote}</p>
+        <blockquote class="about__quote">
+          <p data-blow>{a.quote}</p>
         </blockquote>
 
         <dl class="facts" data-reveal>
@@ -151,6 +151,7 @@ const stops = [
     width: 100%;
     height: 112%;
     object-fit: cover;
+    scale: var(--zoom, 1);
     object-position: 50% 20%;
     filter: grayscale(0.35) contrast(1.05);
     transition: filter 0.8s var(--ease-out);

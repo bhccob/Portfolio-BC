@@ -35,10 +35,10 @@ const rows = [
       <p class="body-text" data-reveal>{l.text}</p>
     </div>
 
-    <ol class="hobbies" data-reveal>
+    <ol class="hobbies">
       {
         rows.map((hobby) => (
-          <li class:list={['hobby', { 'hobby--former': hobby.former }]} data-flap-host>
+          <li class:list={['hobby', { 'hobby--former': hobby.former }]} data-deal="flip" data-flap-host>
             <Icon name={hobby.icon} size={30} strokeWidth={1.4} />
             <span class="hobby__title">{hobby.title}</span>
             <span class="hobby__text">{hobby.text}</span>

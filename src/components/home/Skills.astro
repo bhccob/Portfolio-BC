@@ -26,7 +26,7 @@ const s = t.skills;
     <ol class="stack">
       {
         s.rows.map((row, index) => (
-          <li class:list={['stack__row', { 'stack__row--lead': index === 0 }]} data-reveal data-flap-host>
+          <li class:list={['stack__row', { 'stack__row--lead': index === 0 }]} data-deal="right" data-flap-host>
             <FlapText text={row.status} hover tone={index === 3 ? 'lilac' : 'yellow'} class="stack__status" />
             <div class="stack__body">
               <h3 class="stack__title">{row.title}</h3>

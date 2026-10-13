@@ -7,6 +7,7 @@ import { NameReveal } from './hero/NameReveal';
 import { CursorTrail } from './ui/CursorTrail';
 import { SiteHeader } from './ui/SiteHeader';
 import { ScrollEffects } from './ui/ScrollEffects';
+import { ScrollScenes } from './ui/ScrollScenes';
 import { TiltCards } from './ui/TiltCards';
 import { ProjectSwitcher } from './ui/ProjectSwitcher';
 import { AgeUpdater } from './ui/AgeUpdater';
@@ -23,6 +24,7 @@ export function bootstrap(): void {
     .use(new HeroMascot())
     .use(new NameReveal())
     .use(new ScrollEffects())
+    .use(new ScrollScenes())
     .use(new TiltCards())
     .use(new ProjectSwitcher())
     .use(new SiteHeader())

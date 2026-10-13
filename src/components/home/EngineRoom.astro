@@ -23,7 +23,7 @@ const codes = ['TS', 'PY'];
     <ol class="engine__rows">
       {
         h.cards.map((card, index) => (
-          <li class="engine__row" data-reveal data-flap-host>
+          <li class="engine__row" data-deal="up" data-flap-host>
             <FlapText text={codes[index]} label="" hover class="engine__code" />
             <h3 class="engine__name">{card.title}</h3>
             <p class="engine__lang">{card.lang}</p>

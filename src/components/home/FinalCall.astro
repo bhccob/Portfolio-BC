@@ -23,7 +23,7 @@ const word = locale === 'nl' ? 'HALLO' : 'HELLO';
     ]}
   />
   <div class="container final__inner">
-    <a class="final__board" href={i18n.path('/contact/')} aria-label={c.button} data-flap-host>
+    <a class="final__board" href={i18n.path('/contact/')} aria-label={c.button} data-flap-host data-hello>
       <FlapText text={word} as="span" label="" hover class="final__word" />
       <span class="final__arrow" aria-hidden="true">
         <svg viewBox="0 0 48 48" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="3"><path d="M8 24h30M26 12l12 12-12 12" /></svg>

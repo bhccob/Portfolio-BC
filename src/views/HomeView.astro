@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Hero from '../components/home/Hero.astro';
+import ScrollTapes from '../components/ui/ScrollTapes.astro';
 import Projects from '../components/home/Projects.astro';
 import About from '../components/home/About.astro';
 import Skills from '../components/home/Skills.astro';
@@ -42,6 +43,7 @@ const projectList = {
   page="home"
 >
   <Hero locale={locale} />
+  <ScrollTapes locale={locale} />
   <Projects locale={locale} />
   <About locale={locale} />
   <Skills locale={locale} />

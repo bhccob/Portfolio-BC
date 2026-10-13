@@ -28,7 +28,7 @@ const pad = Math.max(c.currentStatus.length, c.hboStatus.length, c.nextStatus.le
       </div>
 
       <ol class="service">
-        <li class="service__row service__row--now" data-reveal data-flap-host>
+        <li class="service__row service__row--now" data-deal="left" data-flap-host>
           <FlapText text={c.currentStatus} pad={pad} hover class="service__status" />
           <div class="service__body">
             <h3 class="service__role">{c.currentRole}</h3>
@@ -36,7 +36,7 @@ const pad = Math.max(c.currentStatus.length, c.hboStatus.length, c.nextStatus.le
             <p class="service__text">{c.currentText}</p>
           </div>
         </li>
-        <li class="service__row service__row--study" data-reveal data-flap-host>
+        <li class="service__row service__row--study" data-deal="left" data-flap-host>
           <FlapText text={c.hboStatus} pad={pad} tone="paper" hover class="service__status" />
           <div class="service__body">
             <h3 class="service__role">{c.hboRole}</h3>
@@ -44,7 +44,7 @@ const pad = Math.max(c.currentStatus.length, c.hboStatus.length, c.nextStatus.le
             <p class="service__text">{c.hboText}</p>
           </div>
         </li>
-        <li class="service__row service__row--future" data-reveal>
+        <li class="service__row service__row--future" data-deal="left">
           <details class="future" data-flap-host>
             <summary class="future__summary">
               <FlapText text={c.nextStatus} pad={pad} tone="lilac" label="" hover class="service__status" />

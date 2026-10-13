@@ -1,0 +1,102 @@
+---
+/**
+ * Two printed tapes crossing the board between the hero and the work: the
+ * facts on yellow, the motto on purple. They slide with the scroll and lean
+ * with its speed (ScrollScenes.ts). Decorative: the same words are on the page.
+ */
+import { Translator, type Locale } from '../../i18n/Translator';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const { t } = new Translator(locale);
+const facts = t.hero.badge
+  .split('•')
+  .map((part) => part.trim())
+  .filter(Boolean);
+const motto = t.hero.motto.map(([text]) => text).join(' ');
+
+// Enough repeats that the track still covers the screen after sliding a quarter of its length.
+const repeat = <T,>(list: T[], times: number) => Array.from({ length: times }, () => list).flat();
+const tapes = [
+  { tone: 'yellow', words: repeat(facts, 4) },
+  { tone: 'purple', words: repeat([motto], 6) }
+];
+---
+
+<div class="tapes" data-tapes aria-hidden="true">
+  {
+    tapes.map((tape) => (
+      <div class:list={['tape', `tape--${tape.tone}`]} data-tape>
+        <div class="tape__track" data-tape-track>
+          {tape.words.map((word) => (
+            <>
+              <span class="tape__word">{word}</span>
+              <span class="tape__ball" />
+            </>
+          ))}
+        </div>
+      </div>
+    ))
+  }
+</div>
+
+<style>
+  .tapes {
+    position: relative;
+    z-index: 2;
+    height: clamp(150px, 16vw, 230px);
+    margin-block: clamp(-60px, -4vw, -24px) 0;
+    pointer-events: none;
+  }
+
+  .tape {
+    position: absolute;
+    left: -6vw;
+    right: -6vw;
+    top: 50%;
+    overflow: hidden;
+    padding: 0.42em 0 0.36em;
+    font: 400 clamp(22px, 2.6vw, 38px) / 1 var(--font-display);
+    text-transform: uppercase;
+    white-space: nowrap;
+    box-shadow: 0 18px 30px -18px rgb(0 0 0 / 0.7);
+  }
+
+  .tape--yellow {
+    z-index: 1;
+    background: var(--yellow);
+    color: var(--on-yellow);
+    rotate: -3.2deg;
+    translate: 0 -62%;
+  }
+
+  .tape--purple {
+    background: var(--purple);
+    color: var(--paper);
+    rotate: 2.4deg;
+    translate: 0 -30%;
+  }
+
+  .tape__track {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    width: max-content;
+  }
+
+  /* a small ping-pong ball between the phrases */
+  .tape__ball {
+    flex: none;
+    width: 0.62em;
+    height: 0.62em;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .tape--purple .tape__ball {
+    background: var(--yellow);
+  }
+</style>

@@ -52,7 +52,7 @@ const shelves = categories.all().map((category) => {
       <ol class="cards">
         {
           shelves.map(({ category, copy, list, stack, count }, index) => (
-            <li class="cards__item" style={`--tilt:${index % 2 ? 1.6 : -1.4}deg`} data-reveal>
+            <li class="cards__item" style={`--tilt:${index % 2 ? 1.6 : -1.4}deg`} data-deal="right">
               <a class="card" href={i18n.path(category.route())} data-tilt>
                 <span class="card__shot">
                   {list.slice(0, 3).map((project, layer) => (
@@ -85,7 +85,7 @@ const shelves = categories.all().map((category) => {
             </li>
           ))
         }
-        <li class="cards__item" style="--tilt:-0.8deg" data-reveal>
+        <li class="cards__item" style="--tilt:-0.8deg" data-deal="right">
           <a class="card card--next" href="#career" id="work-next">
             <span class="card__slot" aria-hidden="true"><Icon name="chip" size={84} strokeWidth={1.1} /></span>
             <span class="card__title" set:html={t.work.nextTitle} />
