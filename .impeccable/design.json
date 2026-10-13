@@ -364,11 +364,6 @@
         "purpose": "Case-study screenshot print."
       },
       {
-        "name": "floating-panel",
-        "value": "0 18px 40px -12px rgb(0 0 0 / 0.55)",
-        "purpose": "Toast."
-      },
-      {
         "name": "dialog",
         "value": "0 40px 120px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(255 207 51 / 0.1)",
         "purpose": "Terminal dialog over a blurred backdrop."
@@ -590,7 +585,7 @@
       },
       {
         "name": "The Only Prints Lift Rule",
-        "body": "Text, rows, tiles, buttons and the header carry no shadow. Prints, the toast and the terminal are the only lifted things, and every lift is long, soft and below the object.",
+        "body": "Text, rows, tiles, buttons and the header carry no shadow. Prints and the terminal are the only lifted things, and every lift is long, soft and below the object.",
         "section": "elevation"
       },
       {

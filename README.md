@@ -1,19 +1,16 @@
 # bhccob.me: Bob Chung's portfolio
 
 Personal portfolio of Bob Chung, a student software engineer in Rotterdam.
-It's built with three languages, each doing the job it's best at:
+It's built with two languages, each doing the job it's best at:
 
 | Part | Language | Where |
 | --- | --- | --- |
 | The site | **TypeScript** with [Astro](https://astro.build) (static, SEO-friendly HTML; every interactive feature is a class) | `src/` |
-| The playground physics | **C**, compiled to WebAssembly | `native/` |
 | The deploy guard | **Python** (stdlib only): audits every built page before release | `tools/` |
 
 ## Getting started
 
-Requirements: Node.js 22.12 or newer (the tests run TypeScript directly, which needs Node 22.18+ or 24).
-You don't need a C compiler: the C code is compiled by
-[`@yowasp/clang`](https://www.npmjs.com/package/@yowasp/clang), a version of Clang that runs inside Node.
+Requirements: Node.js 22.12 or newer.
 
 ```bash
 npm install
@@ -24,10 +21,9 @@ The dev server runs at `http://localhost:4321`.
 
 | Command | What it does |
 | --- | --- |
-| `npm run dev` | Compiles `native/physics.c` (if changed), then starts the dev server |
-| `npm run build` | Compiles the WebAssembly and builds the static site into `dist/`, share images included |
+| `npm run dev` | Starts the dev server |
+| `npm run build` | Builds the static site into `dist/`, share images included |
 | `npm run preview` | Serves the production build locally |
-| `npm test` | Runs the physics engine tests and the trick-shots game tests (`tests/`) |
 | `npm run audit` | Runs the Python site auditor on `dist/` (needs Python 3.10+) |
 | `npm run build:icons -- --force` | Re-renders the app icons from `public/favicon.svg` |
 
@@ -36,7 +32,6 @@ To run the Python tests: `python -m unittest discover tools`.
 ## Project structure
 
 ```
-native/            C physics engine (physics.c / physics.h) + build script
 src/
   data/            profile, categories and projects: the content lives here
   i18n/            English and Dutch copy (nl.ts is type-checked against en.ts)
@@ -45,9 +40,8 @@ src/
   views/           Page bodies shared by the English and Dutch routes
   pages/           Routes: Dutch at / and English at /en/, plus the share-image endpoints in og/
   og/              Renders the 1200 × 630 share images at build time, in the site's own fonts
-  scripts/         Client-side TypeScript: core/, ui/, hero/ (name reveal, playground, trick shots), contact/, fun/
+  scripts/         Client-side TypeScript: core/, ui/, hero/ (name reveal), contact/, fun/
   styles/          Design tokens and base styles
-tests/             Node tests for the physics engine and the trick-shots rules
 tools/             Python site auditor (+ unit tests) and the icon renderer
 public/            Static files: CNAME, icons, manifest, security.txt, robots.txt, old-URL redirects
 ```
@@ -82,8 +76,7 @@ script is loaded and the footer does not mention statistics.
 
 - **Content-Security-Policy**: GitHub Pages cannot send response headers, so Astro writes the policy into a
   `<meta>` tag on every page, with hashes of every script and style it emits (`security.csp` in
-  `astro.config.mjs`). Only same-origin resources load, plus Web3Forms and the Cloudflare beacon; WebAssembly is
-  allowed for the physics engine.
+  `astro.config.mjs`). Only same-origin resources load, plus Web3Forms and the Cloudflare beacon.
 - **What a meta tag cannot do**: `frame-ancestors` (clickjacking protection) and HSTS only work as headers. If the
   site ever moves behind a host or proxy that can set headers (for example Cloudflare), add them there.
 - `public/.well-known/security.txt` tells people how to report a problem.
@@ -94,7 +87,7 @@ script is loaded and the footer does not mention statistics.
 ## Deployment
 
 Every push to `main` runs `.github/workflows/deploy.yml`: it checks dependencies with `npm audit`, builds, runs
-the physics, game and auditor tests, audits `dist/`, runs Lighthouse (accessibility, SEO and best practices must
+the auditor tests, audits `dist/`, runs Lighthouse (accessibility, SEO and best practices must
 score 95+, 95+ and 90+) and publishes the site to GitHub Pages. One-time setup: **Settings → Pages → Build and
 deployment → Source: GitHub Actions**, and tick **Enforce HTTPS**.
 
@@ -102,7 +95,4 @@ deployment → Source: GitHub Actions**, and tick **Enforce HTTPS**.
 
 - Press <kbd>/</kbd> (or <kbd>Ctrl</kbd>+<kbd>K</kbd>) anywhere for a small terminal. Try `help`.
 - Move over the name in the hero; click it.
-- Press <kbd>G</kbd> while the Off duty playground is in view to toggle gravity.
-- Press **Start trick shots** in the playground for a 60-second round; <kbd>Space</kbd> bumps the ball.
 - On a category page, <kbd>←</kbd> and <kbd>→</kbd> switch projects.
-- ↑ ↑ ↓ ↓ ← → ← → B A

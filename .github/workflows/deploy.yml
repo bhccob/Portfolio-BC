@@ -34,14 +34,11 @@ jobs:
       - name: Check dependencies for known vulnerabilities
         run: npm audit --audit-level=high
 
-      - name: Build (C → WebAssembly, then Astro)
+      - name: Build
         run: npm run build
         env:
           PUBLIC_WEB3FORMS_KEY: ${{ vars.PUBLIC_WEB3FORMS_KEY }}
           PUBLIC_CF_ANALYTICS_TOKEN: ${{ vars.PUBLIC_CF_ANALYTICS_TOKEN }}
-
-      - name: Test the physics engine
-        run: npm test
 
       - uses: actions/setup-python@v7
         with:

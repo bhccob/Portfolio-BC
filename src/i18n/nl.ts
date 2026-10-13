@@ -170,29 +170,7 @@ export const nl: Dictionary = {
       gamingText: 'Spelen, met oog voor goed gamedesign.',
       powerlifting: 'Powerliften',
       tableTennis: 'Tafeltennis'
-    },
-    playTitle: 'Train · Ren · Speel',
-    hint: 'Druk op Start, houd het pingpongballetje met je muis in de lucht en speel het door de ringen. Je hebt 60 seconden.',
-    hintTouch: 'Druk op Start, tik het pingpongballetje omhoog en speel het door de ringen. Je hebt 60 seconden.',
-    hintPlaying: 'Gouden ringen geven 5 seconden extra. Raakt de bal de grond, dan begint je combo opnieuw.',
-    start: 'Start trickshots',
-    time: 'Tijd',
-    score: 'Score',
-    combo: 'Combo',
-    best: 'Record',
-    go: 'Go!',
-    resultTitle: 'Tijd!',
-    result: '{score} punten, {rings} ringen, beste combo ×{combo}',
-    newBest: 'Nieuw record: {n} punten!',
-    bestScore: 'Jouw record: {n} punten',
-    again: 'Opnieuw spelen',
-    close: 'Sluiten',
-    sound: 'Geluid',
-    soundLabel: 'Geluid van de minigame',
-    gravity: 'Zwaartekracht',
-    gravityLabel: 'Zwaartekracht in de speeltuin',
-    playgroundLabel:
-      'Minigame: houd een pingpongballetje in de lucht en speel het binnen 60 seconden door ringen. Lijntekeningen (een halterschijf, wiskundige symbolen, een chip, een gamecontroller en een stopwatch) zweven rond de woorden en kun je pakken en gooien.'
+    }
   },
   career: {
     title: 'Huidige build <em>& roadmap.</em>',
@@ -242,17 +220,12 @@ export const nl: Dictionary = {
   },
   hood: {
     title: 'Deze site is <em>ook een project.</em>',
-    intro: 'Drie talen, elk voor het werk waar ze het best in zijn: dezelfde mindset die ik wil meenemen naar systems- en firmwarewerk.',
+    intro: 'Twee talen, elk voor het werk waar ze het best in zijn: dezelfde mindset die ik wil meenemen naar systems- en firmwarewerk.',
     cards: [
       {
         lang: 'TypeScript · Astro',
         title: 'De site',
         text: 'Statische, SEO-vriendelijke pagina’s gegenereerd door Astro, met elke interactieve functie als TypeScript-klasse, inclusief dit bord.'
-      },
-      {
-        lang: 'C · WebAssembly',
-        title: 'De physics',
-        text: 'De speeltuin onder ‘Buiten dienst’ draait op een kleine physics-engine, geschreven in C en gecompileerd naar WebAssembly.'
       },
       {
         lang: 'Python',
@@ -335,8 +308,6 @@ export const nl: Dictionary = {
       career: 'huidige build & roadmap',
       socials: 'waar je mij vindt',
       contact: 'open de contactpagina',
-      rally: 'toon je beste trickshotscore',
-      gravity: 'zwaartekracht in de speeltuin aan/uit',
       time: 'lokale tijd in Rotterdam en op Aruba',
       lang: 'wissel van taal (en / nl)',
       clear: 'scherm leegmaken',
@@ -347,17 +318,8 @@ export const nl: Dictionary = {
     careerNow: 'nu     → Student Software Engineer (MBO 4, Rotterdam)',
     careerHbo: 'hierna → HBO in technologie, na mijn MBO 4 (richting nog open)',
     careerNext: 'later  → mogelijk: Systems · Firmware Security Automation · Security · SRE · Data · MLOps',
-    rallyBest: 'Beste trickshotscore: {n} punten.',
-    rallyNone: 'Nog geen score. Speel trickshots in de speeltuin onder ‘Buiten dienst’!',
-    gravityOn: 'Zwaartekracht aan. Alles valt.',
-    gravityOff: 'Zwaartekracht uit. Alles zweeft weer.',
-    gravityElsewhere: 'Zwaartekracht bestaat alleen in de speeltuin. Ga eerst naar de homepagina.',
     opening: '{page} openen…',
     sudo: 'Toegang verleend. Je gaat naar de contactpagina…',
     moreSoon: '#03 volgende categorie: systems & security, onderweg…'
-  },
-  toast: {
-    konami: '↑↑↓↓←→←→BA: ballenregen!',
-    konamiElsewhere: 'Cheatcode geaccepteerd. Ga naar de homepagina om het te zien.'
   }
 };

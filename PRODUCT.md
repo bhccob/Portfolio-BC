@@ -20,7 +20,7 @@ The personal portfolio of Bob Chung at bhccob.me. It introduces who he is, his c
 
 A student software engineer building toward systems and firmware security work, whose portfolio is itself the proof:
 
-- The site is engineered across three languages, each in the role it suits: TypeScript/Astro for the site, a C physics engine compiled to WebAssembly for the playable hero, and a Python auditor that guards every deploy.
+- The site is engineered across two languages, each in the role it suits: TypeScript/Astro for the site and a Python auditor that guards every deploy.
 - It pairs that with a story no neighbouring portfolio can copy: born and raised in Aruba, Chinese by heritage, living in Rotterdam since 18, and a former powerlifter and table tennis player.
 
 ## Operating Context
@@ -37,15 +37,16 @@ A student software engineer building toward systems and firmware security work, 
   - Work as category prints only: Web development (Jontai Energy, Cookies Clicker) and Game development (Cookies Clicker), plus an empty slot for a future "systems & security" category and a note that earlier work exists but is not listed. The home page never lists the projects themselves.
   - About, with the route China → Aruba → Rotterdam.
   - Toolkit.
-  - Off duty: hobbies and the physics playground (C/WebAssembly) with the 60-second "trick shots" mini-game: keep the ping-pong ball up and knock it through rings for combos; gold rings add time; best score saved locally.
+  - Off duty: hobbies, current and former, as departure rows.
   - Current build & roadmap: MBO 4 now, an HBO degree in a technical field next (programme not chosen yet), then possible future roles behind a dropdown.
   - Engine room ("this site is a project too").
   - Final call to the contact page.
-- **Other pages and extras:** a page per category (`/projects/web-development/`, `/projects/game-development/`) that opens on its newest project and switches between the projects in that category with tabs, Previous / Next, arrow keys and swipes; a contact page; a 404 page; a `/` terminal easter egg and the Konami code. Every page has a share image rendered at build time.
+- **Other pages and extras:** a page per category (`/projects/web-development/`, `/projects/game-development/`) that opens on its newest project and switches between the projects in that category with tabs, Previous / Next, arrow keys and swipes; a contact page; a 404 page; a `/` terminal easter egg. Every page has a share image rendered at build time.
 - **Owner constraints:**
   - The career section must **not** be the main focus.
   - No collaboration wording for now.
   - The site stays highly interactive, SEO-friendly and object-oriented in code.
+  - No playable game on the site itself (owner, 2026-10-13): the off-duty physics playground, its trick-shots mini-game, the C/WebAssembly engine behind it and the Konami code were removed at the owner's request. Game projects such as Cookies Clicker stay listed.
   - Projects are grouped by software discipline (owner, 2026-10-12); a project may sit in more than one category (Cookies Clicker is both a web and a game project) and is indexed at its first category. The site states that more projects are coming and that earlier, unlisted projects exist.
   - The site must feel smooth on ordinary laptops; heavy effects only animate transforms, opacity or clips.
   - Future roles are presented as possible destinations, not fixed plans.
@@ -55,7 +56,7 @@ A student software engineer building toward systems and firmware security work, 
   - Next step: an HBO degree in technology after the MBO 4 ("HBO · Technologie"); the specific programme is open.
   - Possible future careers (interests, never presented as plans): "Systems Engineer", "Firmware Security Automation Engineer", "Security Engineer", "Site Reliability Engineer (SRE)", "Data Engineer" and "MLOps Engineer". The owner wrote "System Engineer"; the site uses the standard title "Systems Engineer". On the site they sit behind one "Possible future roles" dropdown so the roadmap stays uncluttered.
   - Projects are labelled "Project #01", "#02", and so on.
-- **Technical:** static output only, so there is no server-side code. Security headers are impossible on GitHub Pages, so the Content-Security-Policy ships as a meta tag. Visitor statistics are cookie-free (Cloudflare Web Analytics) and only load when a token is configured. The local toolchain is Node only: C compiles through `@yowasp/clang`, and the Python tooling runs in CI.
+- **Technical:** static output only, so there is no server-side code. Security headers are impossible on GitHub Pages, so the Content-Security-Policy ships as a meta tag. Visitor statistics are cookie-free (Cloudflare Web Analytics) and only load when a token is configured. The local toolchain is Node only; the Python tooling runs in CI.
 - **Open decisions:**
   - The school's name is not stated (only "MBO 4, Rotterdam").
   - The Web3Forms key is not configured yet.
@@ -98,7 +99,7 @@ A student software engineer building toward systems and firmware security work, 
 ## Product Principles
 
 1. **Memorable over generic.** Every section should leave an impression of Bob as a specific person, not a template student.
-2. **Show, don't claim.** The working site (physics engine, audited deploys, bilingual pages) is the proof of skill; experience is never inflated.
+2. **Show, don't claim.** The working site (audited deploys, bilingual pages) is the proof of skill; experience is never inflated.
 3. **Label work honestly.** Personal and practice projects are called exactly that, and no proof is invented.
 4. **Person first, career second.** The career roadmap is present but never the headline.
 5. **Clear at a glance, rewarding up close.** The audience is mixed, so the first viewport must say who Bob is without prior context, and deeper sections reward the curious.

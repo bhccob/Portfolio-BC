@@ -60,8 +60,8 @@ export default defineConfig({
         'upgrade-insecure-requests'
       ],
       scriptDirective: {
-        // The physics playground compiles WebAssembly; the analytics beacon is the one third-party script.
-        resources: ["'self'", "'wasm-unsafe-eval'", 'https://static.cloudflareinsights.com']
+        // The analytics beacon is the one third-party script.
+        resources: ["'self'", 'https://static.cloudflareinsights.com']
       },
       styleDirective: {
         // Components pass CSS custom properties through style attributes (e.g. a card's tilt).

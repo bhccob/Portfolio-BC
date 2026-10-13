@@ -8,8 +8,7 @@ import { FlapBoard, type FlapRow } from './FlapBoard';
  * The boot screen: the site's name flips onto a single row of tiles while a
  * percentage counts up, then the board folds shut onto its split line.
  * Progress follows the one thing the first view needs, its fonts (images load
- * lazily and the physics module loads when its playground scrolls near), but
- * it never shows for less than MIN_MS (so the sequence reads) or longer than
+ * lazily), but it never shows for less than MIN_MS (so the sequence reads) or longer than
  * MAX_MS (so nobody waits on a slow asset). It plays once per browser
  * session; any click or key skips it.
  */

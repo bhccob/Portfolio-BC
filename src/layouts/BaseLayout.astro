@@ -182,7 +182,6 @@ const graph = [person, website, ...structuredData];
     </main>
     <Footer locale={locale} />
     <Terminal locale={locale} age={age} />
-    <div class="toast-region" role="status" aria-live="polite" data-toast-region data-strings={JSON.stringify(i18n.t.toast)}></div>
     {analyticsToken && <script is:inline defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon={JSON.stringify({ token: analyticsToken })}></script>}
     <script>
       import { bootstrap } from '../scripts/main';
@@ -267,53 +266,5 @@ const graph = [person, website, ...structuredData];
 
   main:focus {
     outline: none;
-  }
-
-  .toast-region {
-    position: fixed;
-    z-index: 95;
-    left: 50%;
-    bottom: 24px;
-    display: grid;
-    gap: 8px;
-    justify-items: center;
-    transform: translateX(-50%);
-    pointer-events: none;
-  }
-
-  .toast {
-    padding: 12px 18px 11px;
-    background: var(--yellow);
-    color: var(--on-yellow);
-    font: 500 12px/1.3 var(--font-mono);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    border-radius: var(--radius);
-    box-shadow: 0 18px 40px -12px rgb(0 0 0 / 0.55);
-    animation: toast-in 0.5s var(--ease-out) both;
-    transform-origin: top;
-  }
-
-  .toast b {
-    font-weight: 700;
-  }
-
-  .toast.is-leaving {
-    animation: toast-out 0.35s var(--ease-in-out) both;
-  }
-
-  @keyframes toast-in {
-    from {
-      opacity: 0;
-      transform: perspective(400px) rotateX(-80deg);
-    }
-  }
-
-  @keyframes toast-out {
-    to {
-      opacity: 0;
-      transform: translateY(10px);
-    }
   }
 </style>

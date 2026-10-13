@@ -10,11 +10,9 @@ import { ScrollEffects } from './ui/ScrollEffects';
 import { TiltCards } from './ui/TiltCards';
 import { ProjectSwitcher } from './ui/ProjectSwitcher';
 import { AgeUpdater } from './ui/AgeUpdater';
-import { Playground } from './hero/Playground';
 import { ContactForm } from './contact/ContactForm';
 import { Terminal } from './fun/Terminal';
 import { StationClock } from './fun/StationClock';
-import { Konami } from './fun/Konami';
 
 /** Entry point: every feature is a Component; each one checks for its own markup and bows out if absent. */
 export function bootstrap(): void {
@@ -24,7 +22,6 @@ export function bootstrap(): void {
     .use(new BlueprintGrid())
     .use(new HeroMascot())
     .use(new NameReveal())
-    .use(new Playground())
     .use(new ScrollEffects())
     .use(new TiltCards())
     .use(new ProjectSwitcher())
@@ -33,7 +30,6 @@ export function bootstrap(): void {
     .use(new AgeUpdater())
     .use(new StationClock())
     .use(new Terminal())
-    .use(new Konami())
     .use(new ContactForm());
 
   app.start();

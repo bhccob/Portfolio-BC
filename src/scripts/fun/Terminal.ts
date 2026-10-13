@@ -1,5 +1,4 @@
 import { Component } from '../core/Component';
-import { SafeStorage } from '../core/SafeStorage';
 import { $, escapeHtml, format, readJson } from '../core/dom';
 import { StationClock } from './StationClock';
 
@@ -13,11 +12,6 @@ interface TerminalConfig {
     careerNow: string;
     careerHbo: string;
     careerNext: string;
-    rallyBest: string;
-    rallyNone: string;
-    gravityOn: string;
-    gravityOff: string;
-    gravityElsewhere: string;
     opening: string;
     sudo: string;
     moreSoon: string;
@@ -37,7 +31,6 @@ export class Terminal extends Component {
   private readonly dialog = $<HTMLDialogElement>('[data-terminal]');
   private readonly log = $('[data-terminal-log]');
   private readonly input = $<HTMLInputElement>('[data-terminal-input]');
-  private readonly local = SafeStorage.local();
   private config!: TerminalConfig;
   private history: string[] = [];
   private historyIndex = -1;
@@ -50,8 +43,6 @@ export class Terminal extends Component {
     career: () => this.print([this.config.strings.careerNow, this.config.strings.careerHbo, this.config.strings.careerNext].map(escapeHtml).join('\n')),
     socials: () => this.socials(),
     contact: () => this.navigate(this.config.routes.contact, 'contact'),
-    rally: () => this.rally(),
-    gravity: () => this.gravity(),
     time: () => this.time(),
     lang: (args) => this.language(args[0]),
     clear: () => this.clear(),
@@ -161,22 +152,6 @@ export class Terminal extends Component {
         .map((social) => `${social.label.padEnd(10)} <a href="${social.url}"${social.url.startsWith('http') ? ' target="_blank" rel="noopener noreferrer"' : ''}>${escapeHtml(social.handle)}</a>`)
         .join('\n')
     );
-  }
-
-  private rally(): void {
-    const best = this.local.getNumber('bob-trickshot-best', 0);
-    this.print(best > 0 ? escapeHtml(format(this.config.strings.rallyBest, { n: best })) : escapeHtml(this.config.strings.rallyNone));
-  }
-
-  private gravity(): void {
-    if (!document.querySelector('[data-play]')) {
-      this.print(`<span class="err">${escapeHtml(this.config.strings.gravityElsewhere)}</span>`);
-      return;
-    }
-    const button = document.querySelector<HTMLButtonElement>('[data-gravity]');
-    button?.click();
-    const on = button?.getAttribute('aria-pressed') === 'true';
-    this.print(`<span class="ok">${escapeHtml(on ? this.config.strings.gravityOn : this.config.strings.gravityOff)}</span>`);
   }
 
   private time(): void {

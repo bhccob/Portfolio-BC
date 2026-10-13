@@ -238,7 +238,6 @@ rounded:
   base: "4px"
   card: "10px"
   tile: "0.12em"
-  pill: "999px"
 spacing:
   gutter: "clamp(16px, 4vw, 56px)"
   section-y: "clamp(64px, 6vw, 96px)"
@@ -305,11 +304,6 @@ components:
     padding: "10px 0 14px"
   shelf-tab-current:
     textColor: "{colors.signal-yellow}"
-  game-panel:
-    backgroundColor: "{colors.board-deep}"
-    textColor: "{colors.paper}"
-    rounded: "{rounded.card}"
-    padding: "28px 40px 26px"
   slot-card:
     textColor: "{colors.paper}"
     rounded: "{rounded.card}"
@@ -322,11 +316,6 @@ components:
     textColor: "{colors.paper}"
     rounded: "0"
     padding: "10px 0 12px"
-  switch-track:
-    backgroundColor: "{colors.board-3}"
-    rounded: "{rounded.pill}"
-    width: "34px"
-    height: "18px"
 ---
 
 # Design System: bhccob.me
@@ -365,7 +354,7 @@ A grainy dark purple ground lit by one signal yellow, with cream prints as the s
 ### Neutral
 - **Board** (`board`): page background, header bar fill, default surface.
 - **Deep Board** (`board-deep`): mobile menu, scrollbar track.
-- **Board Steps** (`board-2`, `board-3`): the empty slot's placeholder plate and image placeholders; `board-3` also fills the scrollbar thumb and switch track.
+- **Board Steps** (`board-2`, `board-3`): the empty slot's placeholder plate and image placeholders; `board-3` also fills the scrollbar thumb.
 - **Tile Faces** (`tile-hi` to `tile` on the top half, `tile-2` below) and **The Split** (`split`): the flap tile body and its seam.
 - **Warm Paper** (`paper`): titles, the hero name's outline (at 62%), nav, lead text and the button's hover face.
 - **Cream** (`cream`): the print card and the case-study screenshot mount.
@@ -441,18 +430,17 @@ Depth comes from material, not from stacking surfaces: the dark board, the draft
 - **Print rest** (`box-shadow: 0 30px 50px -30px rgb(0 0 0 / 0.7)`): project prints.
 - **Print lifted** (`box-shadow: 0 44px 60px -30px rgb(0 0 0 / 0.8)`): print on hover, with an 8px rise.
 - **Case mount** (`box-shadow: 0 50px 80px -50px rgb(0 0 0 / 0.8)`): the case screenshot print.
-- **Floating panel** (`box-shadow: 0 18px 40px -12px rgb(0 0 0 / 0.55)`): the toast and the game's result panel.
 - **Stacked print** (`box-shadow: 0 18px 30px -16px rgb(0 0 0 / 0.75)`): the small screenshot prints fanned inside a category print.
 - **Dialog** (`box-shadow: 0 40px 120px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(255 207 51 / 0.1)`): the terminal over a blurred backdrop.
 
 ### Named Rules
-**The Only Prints Lift Rule.** Text, rows, tiles, buttons and the header carry no shadow. Prints, the toast, the game panel and the terminal are the only lifted things, and every lift is long, soft and below the object.
+**The Only Prints Lift Rule.** Text, rows, tiles, buttons and the header carry no shadow. Prints and the terminal are the only lifted things, and every lift is long, soft and below the object.
 
 **The Grain Rule.** A single static grain layer (fractal noise at 9% opacity) covers the page above content. It never animates.
 
 ## Shapes
 
-Two radii. Large shapes that hold things (the header bar, prints, the ticker rail, the empty slot, buttons) round at 10px; small things inside them (screenshots inside prints, the portrait, icon tools, language chips, the terminal, the toast) round at 4px. Flap tiles round at 0.12em of their own size and split with a 1px near-black seam; footer tiles round at 3px. The switch track is the one pill. Circles appear only as objects: the ping-pong ball, the badge core and its ring of text, the hero lens, the icon discs on category prints and shelves, and the game's target rings. Prints tilt between -1.4° and 1.6° (alternating), the case mount -0.6°, and straighten on hover. Fields have no corners; they are underlines. Images are framed by drafting marks (22px corner brackets at 2px in yellow, dimension lines) rather than strokes.
+Two radii. Large shapes that hold things (the header bar, prints, the ticker rail, the empty slot, buttons) round at 10px; small things inside them (screenshots inside prints, the portrait, icon tools, language chips, the terminal) round at 4px. Flap tiles round at 0.12em of their own size and split with a 1px near-black seam; footer tiles round at 3px. Nothing is a pill. Circles appear only as objects: the ping-pong ball, the badge core and its ring of text, the hero lens, and the icon discs on category prints and shelves. Prints tilt between -1.4° and 1.6° (alternating), the case mount -0.6°, and straighten on hover. Fields have no corners; they are underlines. Images are framed by drafting marks (22px corner brackets at 2px in yellow, dimension lines) rather than strokes.
 
 ## Components
 
@@ -490,9 +478,6 @@ The ping-pong ball replaces the "O" of BOB, sitting on the capitals' baseline (0
 ### Project Shelf
 The category page's switcher. Tabs read like nav links: Martian Mono meta (#02 · 2026) over the project name in display type at 20 to 28px, paper; hover and the current tab turn yellow and draw a 3px yellow underline from the left. Previous and Next are 40px icon tools (no position counter: it would contradict the project numbers); the arrow keys and a horizontal swipe follow the same links, and the change runs on the cross-document view transition with the title and screenshot morphing in place. Below the shelf the project's title (display, clamp(48px, 6.4vw, 96px)) sits beside its summary like a section head, and the screenshot follows directly, so both land in the first view; the facts come after the screenshot. The back link is Sofia 800 caps, like the nav.
 
-### Trick Shots (play area)
-The playground's game: a yellow Start button in the HUD, a 3-2-1 countdown in giant yellow display type over the stage, then 60 seconds of target rings drawn like drafting marks (a 2.5px yellow ring, a dashed lilac inner ring, four tick marks; gold rings filled at 16% with "+5s" in mono). Hits burst into small yellow and lilac tiles with a "+300 ×3" popup in display type. The HUD shows Time, Score, Combo and Best on tile plates; the last ten seconds blink. The result panel is a board-deep plate with the floating-panel shadow: a yellow display title, the score line in paper, the best score in mono, and Play again / Close.
-
 ### Rotating Badge
 A circle of Sofia 800 caps in paper turning once per 26s (8s on hover) around a yellow disc holding a glyph; links to About.
 
@@ -506,7 +491,7 @@ One tile per character: `tile-hi` to `tile` gradient on top, `tile-2` below, div
 Two CSS sheets: lilac lines (8.5% at 224px, 4% at 56px) moving at half scroll speed, and the same grid in yellow (32% and 18%) masked to a 220px circle around the pointer, fading in over 0.5s. Line objects in lilac at 20% (one yellow accent each section) drift with scroll. The custom cursor is a small yellow tile with a delayed trail.
 
 ### Motion
-Everything eases on `cubic-bezier(0.22, 1, 0.36, 1)`. Hero lines rise 40% and fade in, staggered 90ms, over 1.1s. Mixed-type words scrub from 55% to full opacity as they scroll in (never fainter, so the large text keeps 3:1 contrast). Reveals rise 28px. Motion only animates transform, opacity and clip-path: no blur filters, and the grid glow is a small window moved by transform. Reduced motion collapses all of it to instant and stops the badge, rail, scroll cue, lens and countdown.
+Everything eases on `cubic-bezier(0.22, 1, 0.36, 1)`. Hero lines rise 40% and fade in, staggered 90ms, over 1.1s. Mixed-type words scrub from 55% to full opacity as they scroll in (never fainter, so the large text keeps 3:1 contrast). Reveals rise 28px. Motion only animates transform, opacity and clip-path: no blur filters, and the grid glow is a small window moved by transform. Reduced motion collapses all of it to instant and stops the badge, rail, scroll cue and lens.
 
 ### Share Images
 Every page has a 1200 × 630 share image rendered at build time in the site's own fonts (glyph outlines via opentype.js): the board with its grid, the ball mark and "bhccob.me" top left. The site image is the outlined name with a yellow lens across UN and the portrait as a tilted cream print; project images carry the category label in yellow mono, the title in paper display type, the type line in lilac, the screenshot as a cream print turned -3°, and a Yellowtail signature.

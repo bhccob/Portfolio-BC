@@ -16,9 +16,6 @@ import { $, $$ } from '../core/dom';
  * prefers reduced motion.
  */
 export class ScrollEffects extends Component {
-  /** Shared so other components (e.g. the playground) can scroll the page. */
-  static lenis: Lenis | null = null;
-
   private lenis: Lenis | null = null;
 
   mount(): void {
@@ -47,7 +44,6 @@ export class ScrollEffects extends Component {
   private startLenis(): void {
     const lenis = new Lenis({ autoRaf: false, lerp: 0.11, wheelMultiplier: 1 });
     this.lenis = lenis;
-    ScrollEffects.lenis = lenis;
     lenis.on('scroll', ScrollTrigger.update);
     gsap.ticker.add((time) => lenis.raf(time * 1000));
     gsap.ticker.lagSmoothing(0);

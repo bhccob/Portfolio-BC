@@ -1,19 +1,14 @@
 {
   "name": "portfolio-bob",
   "version": "2.0.0",
-  "description": "Bob Chung's personal portfolio: Astro + TypeScript, a C/WebAssembly physics hero and a Python deploy auditor.",
+  "description": "Bob Chung's personal portfolio: Astro + TypeScript and a Python deploy auditor.",
   "type": "module",
   "private": true,
   "author": "Bob Chung",
   "scripts": {
-    "build:wasm": "node native/build.mjs",
-    "predev": "npm run build:wasm",
     "dev": "astro dev",
-    "prebuild": "npm run build:wasm",
     "build": "astro build",
     "preview": "astro preview",
-    "pretest": "npm run build:wasm",
-    "test": "node --test tests/*.test.mjs",
     "audit": "python tools/site_audit.py dist",
     "build:icons": "node tools/icons.mjs"
   },
@@ -34,7 +29,6 @@
   "devDependencies": {
     "@fontsource/martian-mono": "5.3.0",
     "@fontsource/sofia-sans": "5.3.0",
-    "@yowasp/clang": "22.0.0-git20542-10",
     "opentype.js": "2.0.0"
   }
 }
