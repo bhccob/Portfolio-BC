@@ -123,7 +123,8 @@ export class ScrollScenes extends Component {
 
   /**
    * The project prints form a gallery while motion runs: one row of wide prints, longer than the
-   * board (see the styles). Once they have been dealt, the row slides left with the scroll, pixel
+   * board (see the styles). The prints are always on the board (they are not dealt in); while the
+   * section is held, the row slides left with the scroll, pixel
    * for pixel, until the last print reaches the board's right edge, and comes back the same way.
    * Where there is room, the projects section holds still while the row travels and the page
    * moves on only once the last print has arrived; on very short screens the row travels while
@@ -163,8 +164,9 @@ export class ScrollScenes extends Component {
         start: () => `top ${Math.round(holdAt())}px`,
         // One pixel of scrolling moves the row one pixel; the hold is never shorter than 60% of the screen.
         end: () => `+=${Math.round(Math.max(travel(), window.innerHeight * 0.6))}`,
+        // No anticipatePin: Lenis drives the scroll in step with the pin, and pinning early by
+        // scroll speed made the section jump into place.
         pin: true,
-        anticipatePin: 1,
         // The pin adds scroll length below it; measure it before the triggers that come after it.
         refreshPriority: 1
       })
@@ -174,16 +176,20 @@ export class ScrollScenes extends Component {
     // A print reached with the keyboard may still be off the board: scroll to where it is in full view.
     this.listen<FocusEvent>(row, 'focusin', (event) => {
       const item = (event.target as Element).closest<HTMLElement>('.cards__item');
-      const max = travel();
-      if (!item || !active || !max) return;
-      const now = -Number(gsap.getProperty(row, 'x'));
-      // The row's transform usually makes it the print's offset parent; otherwise both share one.
-      const left = item.offsetLeft - (item.offsetParent === row ? 0 : row.offsetLeft);
-      const right = left + item.offsetWidth - frame.clientWidth;
-      if (left >= now && right <= now) return;
-      const shift = gsap.utils.clamp(0, max, left < now ? left : right);
-      const target = active.start + (shift / max) * (active.end - active.start);
-      requestAnimationFrame(() => window.scrollTo(0, target));
+      if (!item) return;
+      // Wait for the browser's own scroll to the focused print, then read the slide from the scroll.
+      requestAnimationFrame(() => {
+        const max = travel();
+        if (!active || !max) return;
+        const span = active.end - active.start;
+        const now = gsap.utils.clamp(0, max, ((window.scrollY - active.start) / span) * max);
+        // The row's transform usually makes it the print's offset parent; otherwise both share one.
+        const left = item.offsetLeft - (item.offsetParent === row ? 0 : row.offsetLeft);
+        const right = left + item.offsetWidth - frame.clientWidth;
+        if (left >= now && right <= now) return;
+        const shift = gsap.utils.clamp(0, max, left < now ? left : right);
+        window.scrollTo(0, active.start + (shift / max) * span);
+      });
     });
 
     // Crossing the breakpoint rebuilds every trigger, and creating the new drift trigger wipes the
@@ -257,8 +263,10 @@ export class ScrollScenes extends Component {
   private recede(): void {
     const sections = $$('main .section, main > [data-recede]').filter((section) => !section.matches('[data-hero]'));
     sections.slice(0, -1).forEach((section) => {
-      // A pinned container sits inside its pin spacer; transforming the section instead would unpin it.
-      const inner = $(':scope > .container, :scope > .pin-spacer > .container', section) ?? section;
+      // A pinned container must not be moved by another tween (it would lose its place after the
+      // pin) and its section must not be transformed (that unpins it), so such a section names
+      // an element inside the container to recede instead.
+      const inner = $('[data-recede-inner]', section) ?? $(':scope > .container', section) ?? section;
       gsap.to(inner, {
         scale: 0.95,
         opacity: 0.55,

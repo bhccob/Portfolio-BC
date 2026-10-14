@@ -37,74 +37,76 @@ const shelves = categories.all().map((category) => {
     ]}
   />
   <div class="container">
-    <header class="work__head">
-      <h2 id="work-title" class="display h2" data-split set:html={t.work.title} />
-      <p class="body-text" data-reveal>{t.work.intro}</p>
-    </header>
+    <div class="work__board" data-recede-inner>
+      <header class="work__head">
+        <h2 id="work-title" class="display h2" data-split set:html={t.work.title} />
+        <p class="body-text" data-reveal>{t.work.intro}</p>
+      </header>
 
-    <div class="work__deck">
-      <div class="rail" aria-hidden="true">
-        <div class="rail__track">
-          {[...rail, ...rail].map((word) => <span>{word}</span>)}
+      <div class="work__deck">
+        <div class="rail" aria-hidden="true">
+          <div class="rail__track">
+            {[...rail, ...rail].map((word) => <span>{word}</span>)}
+          </div>
+        </div>
+
+        <div class="work__gallery">
+          <ol class="cards" data-drift>
+            {
+              shelves.map(({ category, copy, list, stack, count }, index) => (
+                <li class="cards__item" style={`--tilt:${index % 2 ? 1.6 : -1.4}deg`}>
+                  <a class="card" href={i18n.path(category.route())} data-tilt>
+                    <span class="card__shot">
+                      {list.slice(0, 3).map((project, layer) => (
+                        <span
+                          class="card__print"
+                          style={`--layer:${layer};--count:${Math.min(list.length, 3)}${project.crop ? `;--shot-pos:${project.crop.position}` : ''}`}
+                        >
+                          <Picture
+                            src={project.image}
+                            formats={['avif', 'webp']}
+                            widths={[480, 800, 1200]}
+                            sizes={`(max-width: 760px) ${Math.round(70 * (project.crop?.zoom ?? 1))}vw, ${Math.round(320 * (project.crop?.zoom ?? 1))}px`}
+                            alt=""
+                            loading="lazy"
+                          />
+                        </span>
+                      ))}
+                      <span class="card__icon" aria-hidden="true"><Icon name={category.icon} size={26} strokeWidth={1.6} /></span>
+                    </span>
+                    <span class="card__title">{copy.title}</span>
+                    <span class="card__stack">{stack.join(' · ')}</span>
+                    <span class="card__meta">
+                      <span class="card__count">{count}</span>
+                      <span class="card__go">
+                        {t.work.view}
+                        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4" /></svg>
+                      </span>
+                    </span>
+                  </a>
+                </li>
+              ))
+            }
+            <li class="cards__item" style="--tilt:-0.8deg">
+              <a class="card card--next" href="#career" id="work-next">
+                <span class="card__slot" aria-hidden="true"><Icon name="chip" size={84} strokeWidth={1.1} /></span>
+                <span class="card__title" set:html={t.work.nextTitle} />
+                <span class="card__text">{t.work.nextText}</span>
+                <span class="card__meta">
+                  <span></span>
+                  <span class="card__go">
+                    {t.work.nextLink}
+                    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M8 2v11M4 9l4 4 4-4" /></svg>
+                  </span>
+                </span>
+              </a>
+            </li>
+          </ol>
         </div>
       </div>
 
-      <div class="work__gallery">
-        <ol class="cards" data-drift>
-          {
-            shelves.map(({ category, copy, list, stack, count }, index) => (
-              <li class="cards__item" style={`--tilt:${index % 2 ? 1.6 : -1.4}deg`} data-deal="right">
-                <a class="card" href={i18n.path(category.route())} data-tilt>
-                  <span class="card__shot">
-                    {list.slice(0, 3).map((project, layer) => (
-                      <span
-                        class="card__print"
-                        style={`--layer:${layer};--count:${Math.min(list.length, 3)}${project.crop ? `;--shot-pos:${project.crop.position}` : ''}`}
-                      >
-                        <Picture
-                          src={project.image}
-                          formats={['avif', 'webp']}
-                          widths={[480, 800, 1200]}
-                          sizes={`(max-width: 760px) ${Math.round(70 * (project.crop?.zoom ?? 1))}vw, ${Math.round(320 * (project.crop?.zoom ?? 1))}px`}
-                          alt=""
-                          loading="lazy"
-                        />
-                      </span>
-                    ))}
-                    <span class="card__icon" aria-hidden="true"><Icon name={category.icon} size={26} strokeWidth={1.6} /></span>
-                  </span>
-                  <span class="card__title">{copy.title}</span>
-                  <span class="card__stack">{stack.join(' · ')}</span>
-                  <span class="card__meta">
-                    <span class="card__count">{count}</span>
-                    <span class="card__go">
-                      {t.work.view}
-                      <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4" /></svg>
-                    </span>
-                  </span>
-                </a>
-              </li>
-            ))
-          }
-          <li class="cards__item" style="--tilt:-0.8deg" data-deal="right">
-            <a class="card card--next" href="#career" id="work-next">
-              <span class="card__slot" aria-hidden="true"><Icon name="chip" size={84} strokeWidth={1.1} /></span>
-              <span class="card__title" set:html={t.work.nextTitle} />
-              <span class="card__text">{t.work.nextText}</span>
-              <span class="card__meta">
-                <span></span>
-                <span class="card__go">
-                  {t.work.nextLink}
-                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M8 2v11M4 9l4 4 4-4" /></svg>
-                </span>
-              </span>
-            </a>
-          </li>
-        </ol>
-      </div>
+      <p class="held" id="work-held"><strong>{t.work.heldTitle}.</strong> {t.work.heldText}</p>
     </div>
-
-    <p class="held" id="work-held"><strong>{t.work.heldTitle}.</strong> {t.work.heldText}</p>
   </div>
 </section>
 
