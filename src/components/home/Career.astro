@@ -83,7 +83,8 @@ const roleCount = c.roleGroups.reduce((count, group) => count + group.roles.leng
             </div>
           </details>
         </li>
-        <li class="service__row service__row--goal" data-deal="left" data-flap-host>
+        {/* Not dealt in: the dropdown above moves this row, and the re-measure after it opens would deal it out again. */}
+        <li class="service__row service__row--goal" data-flap-host>
           <FlapText text={c.goalStatus} pad={pad} hover class="service__status" />
           <div class="service__body">
             <h3 class="service__role">{c.goalRole}</h3>
