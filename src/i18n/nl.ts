@@ -142,7 +142,7 @@ export const nl: Dictionary = {
       {
         status: 'Bezig',
         title: 'Specialiseren',
-        text: 'Ik verdiep me in de specifiekere vaardigheden die mijn mogelijke toekomstige rollen vragen, van systems en firmware security tot security engineering, data engineering, MLOps en site reliability engineering (SRE): dichter bij de hardware werken, begrijpen hoe systemen samenwerken, en software testen, beveiligen en beheren.'
+        text: 'Ik verdiep me in de specifieke vaardigheden die mijn mogelijke toekomstige rollen vragen, binnen engineering en cybersecurity: programmeren dicht op de hardware voor embedded systems, betrouwbare datapipelines bouwen, beveiliging integreren in elke fase van de ontwikkeling (DevSecOps) en automatiseren hoe firmware getest en beveiligd wordt.'
       },
       {
         status: 'Dagelijks',
@@ -152,7 +152,7 @@ export const nl: Dictionary = {
       {
         status: 'Hierna',
         title: 'Nieuwsgierig naar',
-        text: 'Embedded systems en elektronica, waar software de hardware ontmoet waarop ze draait, en hoe machine-learningsystemen, dataplatforms en grote online diensten beveiligd en draaiende gehouden worden: MLOps, data engineering, security en SRE.'
+        text: 'Elektronica en de hardware waarop software draait, en financiële technologie (fintech): hoe betaalsystemen, bankplatforms en financiële data ontworpen, beveiligd en betrouwbaar gehouden worden onder strikte regelgeving.'
       }
     ]
   },
@@ -188,35 +188,50 @@ export const nl: Dictionary = {
     roadmapNote: 'De rollen in de roadmap zijn mogelijke bestemmingen voor mijn toekomstige loopbaan: richtingen die mij interesseren en waar ik naartoe werk, geen vaste plannen.',
     rolesToggle: 'Mogelijke toekomstige rollen',
     rolesHint: 'Interesses, geen vaste plannen',
-    roles: [
+    roleGroups: [
       {
-        title: 'Systems Engineer',
-        text: 'Het ontwerpen, integreren en onderhouden van de systemen waar al het andere op draait.'
+        field: 'Engineering',
+        roles: [
+          {
+            title: 'Embedded Engineer',
+            text: 'Software ontwikkelen die direct op hardware draait, van microcontrollers tot verbonden apparaten, binnen strikte grenzen voor geheugen, energieverbruik en timing.'
+          },
+          {
+            title: 'Data Engineer',
+            text: 'De pipelines en databases ontwerpen die ruwe data omzetten in een betrouwbare basis voor analyses en beslissingen.'
+          }
+        ]
       },
       {
-        title: 'Firmware Security Automation Engineer',
-        text: 'Het beveiligen van de low-level code in apparaten, en het automatiseren van hoe die getest en geverifieerd wordt.'
+        field: 'Cybersecurity',
+        roles: [
+          {
+            title: 'DevSecOps Engineer',
+            text: 'Beveiliging integreren in elke fase van softwareontwikkeling en -oplevering, met geautomatiseerde tests van de eerste regel code tot de release.'
+          }
+        ]
       },
       {
-        title: 'Security Engineer',
-        text: 'Systemen en data beschermen door zwakke plekken vroeg te vinden en beveiliging in het ontwerp in te bouwen.'
-      },
-      {
-        title: 'Site Reliability Engineer (SRE)',
-        text: 'Grote diensten snel, stabiel en beschikbaar houden met automatisering en zorgvuldige monitoring.'
-      },
-      {
-        title: 'Data Engineer',
-        text: 'De pipelines en databases bouwen die ruwe data omzetten in iets betrouwbaars om mee te werken.'
-      },
-      {
-        title: 'MLOps Engineer',
-        text: 'Machine-learningmodellen in productie brengen en ze betrouwbaar, meetbaar en actueel houden.'
+        field: 'Engineering & cybersecurity',
+        roles: [
+          {
+            title: 'Firmware Security Automation Engineer',
+            text: 'De low-level code in apparaten beveiligen en automatiseren hoe die getest en geverifieerd wordt: embedded engineering en cybersecurity in één rol.'
+          }
+        ]
       }
     ],
+    sector: {
+      label: 'Mogelijke sector',
+      title: 'Fintech',
+      text: 'Al deze richtingen zijn gewild in de financiële technologie: betaalterminals steunen op beveiligde firmware, fraudedetectie op betrouwbare data en gereguleerde financiële software op een veilige oplevering. Met een basis in deze vakgebieden is de overstap naar fintech een logische stap.'
+    },
     whyToggle: 'Waarom deze richtingen?',
-    why:
-      'Ze hebben één ding gemeen: ze zijn toekomstbestendig. Naarmate verbonden apparaten, data en online diensten blijven groeien, groeit ook de vraag naar engineers die ze kunnen beveiligen, automatiseren en draaiende houden. Deze rollen belonen diepe, ongestoorde focus op complexe technische problemen en draaien om techniek in plaats van klantcontact. Daarnaast bieden ze sterke vooruitzichten en een solide basis om later een eigen bedrijf op te bouwen.'
+    why: [
+      'Deze richtingen hebben één ding gemeen: ze zijn onmisbaar voor de technologie waar de samenleving steeds meer op steunt. Naarmate verbonden apparaten, data en digitale diensten blijven groeien, groeit ook de vraag naar engineers die ze kunnen bouwen, beveiligen en automatiseren.',
+      'Ze passen bovendien bij mijn persoonlijkheid: ik werk het best wanneer ik me diep en ongestoord kan concentreren op complexe technische problemen. Deze rollen draaien om techniek in plaats van klantcontact en belonen precies die manier van werken.',
+      'Tot slot bieden ze sterke vooruitzichten op de lange termijn, een logische route naar fintech en een solide basis om later een eigen bedrijf op te richten.'
+    ]
   },
   hood: {
     title: 'Deze site is <em>ook een project.</em>',
@@ -317,7 +332,7 @@ export const nl: Dictionary = {
       'Bob Chung, {age}. Student software engineer in Rotterdam. Geboren op Aruba, Chinees van afkomst. Bouwt met nieuwsgierigheid, test met eerlijkheid.',
     careerNow: 'nu     → Student Software Engineer (MBO 4, Rotterdam)',
     careerHbo: 'hierna → HBO in technologie, na mijn MBO 4 (richting nog open)',
-    careerNext: 'later  → mogelijk: Systems · Firmware Security Automation · Security · SRE · Data · MLOps',
+    careerNext: 'later  → mogelijk: Embedded · Data · DevSecOps · Firmware Security Automation, richting fintech',
     opening: '{page} openen…',
     sudo: 'Toegang verleend. Je gaat naar de contactpagina…',
     moreSoon: '#03 volgende categorie: systems & security, onderweg…'

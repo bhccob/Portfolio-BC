@@ -38,7 +38,7 @@ A student software engineer building toward systems and firmware security work, 
   - About, with the route China → Aruba → Rotterdam.
   - Toolkit.
   - Off duty: hobbies, current and former, as departure rows.
-  - Current build & roadmap: MBO 4 now, an HBO degree in a technical field next (programme not chosen yet), then possible future roles behind a dropdown.
+  - Current build & roadmap: MBO 4 now, an HBO degree in a technical field next (programme not chosen yet), then possible future roles, grouped by field, behind a dropdown.
   - Engine room ("this site is a project too").
   - Final call to the contact page.
 - **Other pages and extras:** a page per category (`/projects/web-development/`, `/projects/game-development/`) that opens on its newest project and switches between the projects in that category with tabs, Previous / Next, arrow keys and swipes; a contact page; a 404 page; a `/` terminal easter egg. Every page has a share image rendered at build time.
@@ -55,7 +55,7 @@ A student software engineer building toward systems and firmware security work, 
 - **Terminology:**
   - Current occupation: "Student Software Engineer".
   - Next step: an HBO degree in technology after the MBO 4 ("HBO · Technologie"); the specific programme is open.
-  - Possible future careers (interests, never presented as plans): "Systems Engineer", "Firmware Security Automation Engineer", "Security Engineer", "Site Reliability Engineer (SRE)", "Data Engineer" and "MLOps Engineer". The owner wrote "System Engineer"; the site uses the standard title "Systems Engineer". On the site they sit behind one "Possible future roles" dropdown so the roadmap stays uncluttered.
+  - Possible future careers (interests, never presented as plans), grouped by field (owner, 2026-10-14): Engineering ("Embedded Engineer", "Data Engineer"), Cybersecurity ("DevSecOps Engineer"), and "Firmware Security Automation Engineer" as the role that combines both. Fintech is named as a possible sector that all of these lead to, not as a role. The earlier Systems, Security, SRE and MLOps roles were dropped at the owner's request. On the site they sit behind one "Possible future roles" dropdown as labelled groups (layout chosen by the owner, 2026-10-14), so the roadmap stays uncluttered.
   - Projects are labelled "Project #01", "#02", and so on.
 - **Technical:** static output only, so there is no server-side code. Security headers are impossible on GitHub Pages, so the Content-Security-Policy ships as a meta tag. Visitor statistics are cookie-free (Cloudflare Web Analytics) and only load when a token is configured. The local toolchain is Node only; the Python tooling runs in CI.
 - **Open decisions:**
@@ -92,9 +92,10 @@ A student software engineer building toward systems and firmware security work, 
   - Former powerlifter and table tennis player; now runs, goes to the gym and games.
 - **Skills** (owner's own framing, 2026-10-11):
   - A solid full-stack foundation: core languages (HTML, CSS, JavaScript, PHP, C#), SQL, Godot and frameworks (Laravel, Tailwind CSS).
-  - Specialising toward the possible future roles (systems, firmware, security, automation).
+  - Specialising toward the possible future roles (embedded systems, data pipelines, DevSecOps, firmware security automation).
   - Currently learning to use AI as an advantage in their work.
-  - Curious about embedded systems and electronics.
+  - Curious about electronics and fintech.
+- **Personality** (owner, 2026-10-14): works best with deep, uninterrupted focus on complex technical problems, and prefers engineering-driven work to client-facing work. Name no other traits unless the owner states them.
 - **Absent, so never fabricate:** testimonials, clients, employers, internships, awards, certificates, grades, usage statistics, the school's name and sports records.
 
 ## Product Principles

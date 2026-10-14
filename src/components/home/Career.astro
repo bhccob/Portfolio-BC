@@ -10,6 +10,7 @@ const { locale } = Astro.props;
 const { t } = new Translator(locale);
 const c = t.career;
 const pad = Math.max(c.currentStatus.length, c.hboStatus.length, c.nextStatus.length);
+const roleCount = c.roleGroups.reduce((count, group) => count + group.roles.length, 0);
 ---
 
 <section class="career section" id="career" aria-labelledby="career-title">
@@ -23,7 +24,7 @@ const pad = Math.max(c.currentStatus.length, c.hboStatus.length, c.nextStatus.le
             <span>{c.whyToggle}</span>
             <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6l4 4 4-4" /></svg>
           </summary>
-          <p>{c.why}</p>
+          {c.why.map((paragraph) => <p>{paragraph}</p>)}
         </details>
       </div>
 
@@ -50,22 +51,36 @@ const pad = Math.max(c.currentStatus.length, c.hboStatus.length, c.nextStatus.le
               <FlapText text={c.nextStatus} pad={pad} tone="lilac" label="" hover class="service__status" />
               <span class="future__label">
                 <span class="service__role">{c.rolesToggle}</span>
-                <span class="service__org">{c.roles.length} · {c.rolesHint}</span>
+                <span class="service__org">{roleCount} · {c.rolesHint}</span>
               </span>
               <span class="future__chevron" aria-hidden="true">
                 <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4" /></svg>
               </span>
             </summary>
-            <ul class="future__list">
+            <div class="future__groups">
               {
-                c.roles.map((role) => (
-                  <li class="future__item">
-                    <h3 class="future__role">{role.title}</h3>
-                    <p class="future__text">{role.text}</p>
-                  </li>
+                c.roleGroups.map((group, index) => (
+                  <div class="future__group">
+                    <p class="future__field" id={`future-field-${index}`}>{group.field}</p>
+                    <ul class="future__list" aria-labelledby={`future-field-${index}`}>
+                      {group.roles.map((role) => (
+                        <li class="future__item">
+                          <h3 class="future__role">{role.title}</h3>
+                          <p class="future__text">{role.text}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ))
               }
-            </ul>
+              <div class="future__group future__group--sector">
+                <p class="future__field">{c.sector.label}</p>
+                <div class="future__item">
+                  <h3 class="future__role">{c.sector.title}</h3>
+                  <p class="future__text">{c.sector.text}</p>
+                </div>
+              </div>
+            </div>
           </details>
         </li>
       </ol>
@@ -187,19 +202,46 @@ const pad = Math.max(c.currentStatus.length, c.hboStatus.length, c.nextStatus.le
     transform: rotate(180deg);
   }
 
+  .future__groups {
+    display: grid;
+    gap: 14px;
+    margin-top: 18px;
+  }
+
+  /* each field opens with its name and a rule running to the edge */
+  .future__field {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font: 450 11px/1.5 var(--font-mono);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+
+  .future__field::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+  }
+
   .future__list {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0 28px;
-    margin-top: 18px;
   }
 
   .future__item {
     display: grid;
     gap: 4px;
     align-content: start;
-    padding: 14px 0;
-    background: linear-gradient(var(--line), var(--line)) left top / 100% 1px no-repeat;
+    padding: 10px 0 4px;
+  }
+
+  /* a field with a single role gives it the full width */
+  .future__item:only-child {
+    grid-column: 1 / -1;
   }
 
   .future__role {
@@ -212,6 +254,12 @@ const pad = Math.max(c.currentStatus.length, c.hboStatus.length, c.nextStatus.le
     font-size: 15px;
     line-height: 1.5;
     color: var(--lilac);
+    max-width: 40em;
+  }
+
+  .future__group--sector .future__field,
+  .future__group--sector .future__role {
+    color: var(--yellow);
   }
 
   .service__text {

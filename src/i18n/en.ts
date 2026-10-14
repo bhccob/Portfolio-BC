@@ -147,7 +147,7 @@ export const en = {
       {
         status: 'In progress',
         title: 'Specialising',
-        text: 'Deepening the more specific skills that my possible future roles call for, from systems and firmware security to security engineering, data engineering, MLOps and site reliability engineering (SRE): working closer to the hardware, understanding how systems fit together, and testing, securing and operating software.'
+        text: 'Deepening the specific skills that my possible future roles require, in engineering and cybersecurity: programming closer to the hardware for embedded systems, building reliable data pipelines, integrating security into every stage of development (DevSecOps), and automating how firmware is tested and secured.'
       },
       {
         status: 'Daily',
@@ -157,7 +157,7 @@ export const en = {
       {
         status: 'Next',
         title: 'Curious about',
-        text: 'Embedded systems and electronics, where software meets the hardware it runs on, and how machine-learning systems, data platforms and large online services are secured and kept running: MLOps, data engineering, security and SRE.'
+        text: 'Electronics and the hardware that software runs on, and financial technology (fintech): how payment systems, banking platforms and financial data are engineered, secured and kept reliable under strict regulation.'
       }
     ]
   },
@@ -193,35 +193,50 @@ export const en = {
     roadmapNote: 'The roles in the roadmap are possible destinations for my future career: directions I am interested in and working toward, not fixed plans.',
     rolesToggle: 'Possible future roles',
     rolesHint: 'Interests, not fixed plans',
-    roles: [
+    roleGroups: [
       {
-        title: 'Systems Engineer',
-        text: 'Designing, integrating and maintaining the systems that everything else runs on.'
+        field: 'Engineering',
+        roles: [
+          {
+            title: 'Embedded Engineer',
+            text: 'Developing the software that runs directly on hardware, from microcontrollers to connected devices, within strict limits on memory, power and timing.'
+          },
+          {
+            title: 'Data Engineer',
+            text: 'Designing the pipelines and databases that turn raw data into a reliable foundation for analysis and decisions.'
+          }
+        ]
       },
       {
-        title: 'Firmware Security Automation Engineer',
-        text: 'Securing the low-level code inside devices, and automating how it is tested and verified.'
+        field: 'Cybersecurity',
+        roles: [
+          {
+            title: 'DevSecOps Engineer',
+            text: 'Integrating security into every stage of software development and delivery, with automated testing from the first line of code to release.'
+          }
+        ]
       },
       {
-        title: 'Security Engineer',
-        text: 'Protecting systems and data by finding weaknesses early and building defences into the design.'
-      },
-      {
-        title: 'Site Reliability Engineer (SRE)',
-        text: 'Keeping large services fast, stable and available through automation and careful monitoring.'
-      },
-      {
-        title: 'Data Engineer',
-        text: 'Building the pipelines and databases that turn raw data into something reliable to work with.'
-      },
-      {
-        title: 'MLOps Engineer',
-        text: 'Bringing machine-learning models into production and keeping them reliable, measurable and up to date.'
+        field: 'Engineering & cybersecurity',
+        roles: [
+          {
+            title: 'Firmware Security Automation Engineer',
+            text: 'Securing the low-level code inside devices and automating how it is tested and verified: embedded engineering and cybersecurity in one role.'
+          }
+        ]
       }
     ],
+    sector: {
+      label: 'Possible sector',
+      title: 'Fintech',
+      text: 'Each of these directions is in demand in financial technology: payment terminals rely on secure firmware, fraud detection on reliable data, and regulated financial software on secure delivery. A foundation in these fields makes a transition into fintech a natural step.'
+    },
     whyToggle: 'Why these directions?',
-    why:
-      'They share one thread: they are built to last. As connected devices, data and online services keep growing, so does the need for engineers who can secure, automate and keep them running. These roles reward deep, uninterrupted focus on complex technical problems and are engineering-driven rather than client-facing. They also offer strong long-term prospects and a solid foundation for one day building a company of my own.'
+    why: [
+      'These directions share one thread: they are essential to the technology that society increasingly depends on. As connected devices, data and digital services continue to grow, so does the demand for engineers who can build, secure and automate them.',
+      'They also suit my personality: I work best when I can focus deeply and without interruption on complex technical problems. These roles are engineering-driven rather than client-facing, and they reward exactly that way of working.',
+      'Finally, they offer strong long-term prospects, a natural route into fintech and a solid foundation for one day establishing a company of my own.'
+    ]
   },
   hood: {
     title: 'This site is <em>a project too.</em>',
@@ -322,7 +337,7 @@ export const en = {
       'Bob Chung, {age}. Student software engineer in Rotterdam. Born in Aruba, Chinese by heritage. Builds with curiosity, tests with honesty.',
     careerNow: 'now   → Student Software Engineer (MBO 4, Rotterdam)',
     careerHbo: 'next  → HBO in technology, after my MBO 4 (programme still open)',
-    careerNext: 'later → possible: Systems · Firmware Security Automation · Security · SRE · Data · MLOps',
+    careerNext: 'later → possible: Embedded · Data · DevSecOps · Firmware Security Automation, toward fintech',
     opening: 'Opening {page}…',
     sudo: 'Permission granted. Redirecting you to the contact page…',
     moreSoon: '#03 next category: systems & security, on the way…'
