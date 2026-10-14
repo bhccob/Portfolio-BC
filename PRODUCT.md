@@ -47,7 +47,12 @@ A student software engineer building toward systems and firmware security work, 
   - No collaboration wording for now.
   - The site stays highly interactive, SEO-friendly and object-oriented in code.
   - No playable game on the site itself (owner, 2026-10-13): the off-duty physics playground, its trick-shots mini-game, the C/WebAssembly engine behind it and the Konami code were removed at the owner's request. Game projects such as Cookies Clicker stay listed.
-  - Scrolling should be fun and hold attention on each section (owner, 2026-10-13): sections answer the scroll position in both directions (crossing tapes under the hero, dealt prints and rows, the portrait swinging into its frame, receding sections), with no pinned sections. The portrait stays the real photo; an AI-generated video or 3D version was tried and dropped at the owner's request.
+  - Scrolling should be fun and hold attention on each section (owner, 2026-10-13): sections answer the scroll position in both directions (crossing tapes under the hero, dealt prints and rows, the portrait swinging into its frame, receding sections). The project prints are a scroll-driven gallery (owner, 2026-10-14).
+    - The owner asked for GSAP ScrollTrigger, which the other scenes already use.
+    - The section holds still while the prints travel, and the page moves on only once the last print has arrived.
+    - The owner chose bigger landscape prints, two in view, so visitors spend longer in the gallery, sliding left so the cards keep their reading order.
+    - Only real categories plus the one "next category" slot are shown; no extra empty slots. New categories lengthen the gallery and the hold by themselves.
+    - This is the only pinned section. The portrait stays the real photo; an AI-generated video or 3D version was tried and dropped at the owner's request.
   - Projects are grouped by software discipline (owner, 2026-10-12); a project may sit in more than one category (Cookies Clicker is both a web and a game project) and is indexed at its first category. The site states that more projects are coming and that earlier, unlisted projects exist.
   - The site must feel smooth on ordinary laptops; heavy effects only animate transforms, opacity or clips.
   - Future roles are presented as possible destinations, not fixed plans.

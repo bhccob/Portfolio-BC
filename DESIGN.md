@@ -496,8 +496,18 @@ Two printed strips cross the board between the hero and the work: the badge fact
 ### Motion
 Everything eases on `cubic-bezier(0.22, 1, 0.36, 1)`. Hero lines rise 40% and fade in, staggered 90ms, over 1.1s. Mixed-type words scrub from 55% to full opacity as they scroll in (never fainter, so the large text keeps 3:1 contrast). Reveals rise 28px. Motion only animates transform, opacity and clip-path: no blur filters, and the grid glow is a small window moved by transform. Reduced motion collapses all of it to instant and stops the badge, rail, scroll cue and lens.
 
-Scroll scenes (`ScrollScenes.ts`) tie each section to the scroll position, in both directions, without pinning anything:
+Scroll scenes (`ScrollScenes.ts`) tie each section to the scroll position, in both directions. Only the projects section is ever pinned, and only while its prints travel:
 - **Dealt:** prints and board rows are dealt onto the board as they arrive. Prints, toolkit rows and roadmap rows come from the side (up to 36% of the viewport, tilted 10° plus 3° per position in a row, at 86% scale), engine rows and project-page sections rise 100px with a 4° tilt, and the off-duty rows fall open from their top edge like a flap. Items side by side start 7% of the viewport apart.
+- **Gallery:** while motion runs, the project prints form a single row of wide landscape prints that is longer than the board. Each print is 46% of the board's width (82% on a phone, where the edge of the next print shows).
+  - **The slide:** once the prints have been dealt, the row slides left with the scroll, one pixel per pixel scrolled, with no easing and no catch-up. It stops when the last print meets the board's right edge, and comes back the same way on the way up.
+  - **The hold:** the projects section holds still during the slide, for at least 60% of a screen height of scrolling.
+    - When the section fits the screen, it is held in the middle.
+    - When it doesn't fit, every print stays in view with as much of the heading above as fits, and the note below gives way first.
+    - Screens under 500px tall get the slide without the hold.
+  - **Edges:** prints leave just past the rail's edge (14px of slack keeps a tilted corner whole) and run off the right of the screen.
+  - **Height:** the screenshot area shortens on shorter screens, between 150px and 60% of the print's width, so the held section fits. The screenshots inside are sized by the area's height.
+  - **Keyboard:** focusing a print scrolls the page to where that print is fully in view.
+  - **Without motion:** the prints stay a three-column grid, all in view.
 - **Portrait:** the About photo swings into its frame as the section arrives (frame from -9° and 82%, photo from 145% and 10°), then pushes in to 112% while it stays pinned beside the text.
 - **Quote:** the About quote blows in word by word, each word tilting up from the side.
 - **Recede:** a section dims to 55% and shrinks to 95% as its bottom leaves the top half of the screen; the last section stays.

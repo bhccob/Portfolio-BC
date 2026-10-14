@@ -23,6 +23,7 @@ export class ScrollScenes extends Component {
 
     this.tapes();
     this.deals();
+    this.drift();
     this.portrait();
     this.recede();
     this.hello();
@@ -121,6 +122,85 @@ export class ScrollScenes extends Component {
   }
 
   /**
+   * The project prints form a gallery while motion runs: one row of wide prints, longer than the
+   * board (see the styles). Once they have been dealt, the row slides left with the scroll, pixel
+   * for pixel, until the last print reaches the board's right edge, and comes back the same way.
+   * Where there is room, the projects section holds still while the row travels and the page
+   * moves on only once the last print has arrived; on very short screens the row travels while
+   * the page scrolls instead.
+   */
+  private drift(): void {
+    const row = $('[data-drift]');
+    const frame = row?.parentElement;
+    const deck = row?.closest<HTMLElement>('.work__deck');
+    const board = row?.closest<HTMLElement>('.container');
+    if (!row || !frame || !deck || !board) return;
+
+    // How far the row reaches past the board; layout widths ignore pins and transforms.
+    const travel = () => Math.max(0, row.offsetWidth - frame.clientWidth);
+    // Where the section's top is held: centred when it fits; otherwise the prints stay fully in
+    // view with as much of the heading above them as fits, and the note below gives way first.
+    const holdAt = () => {
+      const screen = window.innerHeight;
+      if (board.offsetHeight <= screen) return (screen - board.offsetHeight) / 2;
+      const deckBottom = deck.getBoundingClientRect().bottom - board.getBoundingClientRect().top;
+      return Math.min(0, screen - deckBottom - 16);
+    };
+    let active: ScrollTrigger | undefined;
+    const slide = (trigger: ScrollTrigger.Vars) => {
+      active = gsap.fromTo(
+        row,
+        { x: 0 },
+        { x: () => -travel(), ease: 'none', scrollTrigger: { scrub: true, invalidateOnRefresh: true, ...trigger } }
+      ).scrollTrigger;
+      return () => (active = undefined);
+    };
+
+    const media = gsap.matchMedia();
+    media.add('(min-height: 500px)', () =>
+      slide({
+        trigger: board,
+        start: () => `top ${Math.round(holdAt())}px`,
+        // One pixel of scrolling moves the row one pixel; the hold is never shorter than 60% of the screen.
+        end: () => `+=${Math.round(Math.max(travel(), window.innerHeight * 0.6))}`,
+        pin: true,
+        anticipatePin: 1,
+        // The pin adds scroll length below it; measure it before the triggers that come after it.
+        refreshPriority: 1
+      })
+    );
+    media.add('(max-height: 499px)', () => slide({ trigger: row, start: 'top 80%', end: 'bottom 20%' }));
+
+    // A print reached with the keyboard may still be off the board: scroll to where it is in full view.
+    this.listen<FocusEvent>(row, 'focusin', (event) => {
+      const item = (event.target as Element).closest<HTMLElement>('.cards__item');
+      const max = travel();
+      if (!item || !active || !max) return;
+      const now = -Number(gsap.getProperty(row, 'x'));
+      // The row's transform usually makes it the print's offset parent; otherwise both share one.
+      const left = item.offsetLeft - (item.offsetParent === row ? 0 : row.offsetLeft);
+      const right = left + item.offsetWidth - frame.clientWidth;
+      if (left >= now && right <= now) return;
+      const shift = gsap.utils.clamp(0, max, left < now ? left : right);
+      const target = active.start + (shift / max) * (active.end - active.start);
+      requestAnimationFrame(() => window.scrollTo(0, target));
+    });
+
+    // Crossing the breakpoint rebuilds every trigger, and creating the new drift trigger wipes the
+    // scroll position ScrollTrigger keeps for that rebuild, which would send the page to the top.
+    let kept = window.scrollY;
+    this.listen(window, 'scroll', () => {
+      kept = window.scrollY;
+    }, { passive: true });
+    const restore = () => {
+      window.scrollTo(0, kept);
+      ScrollTrigger.update();
+    };
+    ScrollTrigger.addEventListener('matchMedia', restore);
+    this.onCleanup(() => ScrollTrigger.removeEventListener('matchMedia', restore));
+  }
+
+  /**
    * The About photo is pinned beside the text; it swings into its frame as
    * the section arrives (frame tilted and small, photo zoomed and turned),
    * then keeps drifting slowly inside the frame while the visitor reads.
@@ -177,7 +257,8 @@ export class ScrollScenes extends Component {
   private recede(): void {
     const sections = $$('main .section, main > [data-recede]').filter((section) => !section.matches('[data-hero]'));
     sections.slice(0, -1).forEach((section) => {
-      const inner = $(':scope > .container', section) ?? section;
+      // A pinned container sits inside its pin spacer; transforming the section instead would unpin it.
+      const inner = $(':scope > .container, :scope > .pin-spacer > .container', section) ?? section;
       gsap.to(inner, {
         scale: 0.95,
         opacity: 0.55,

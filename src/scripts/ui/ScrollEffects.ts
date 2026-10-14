@@ -99,13 +99,18 @@ export class ScrollEffects extends Component {
 
   /** Display headings drop in line by line, hinged at the top like a flap. */
   private splitHeadings(): void {
+    // A re-split after a resize can change a heading's height once ScrollTrigger has measured the
+    // page (a pinned section would keep the stale height), so measure again when it has settled.
+    const remeasure = gsap.delayedCall(0.15, () => ScrollTrigger.refresh()).pause();
     $$('[data-split]').forEach((heading) => {
+      let splits = 0;
       SplitText.create(heading, {
         type: 'lines',
         mask: 'lines',
         autoSplit: true,
-        onSplit: (self) =>
-          gsap.from(self.lines, {
+        onSplit: (self) => {
+          if (splits++) remeasure.restart(true);
+          return gsap.from(self.lines, {
             yPercent: -105,
             rotateX: -70,
             transformOrigin: '50% 0%',
@@ -114,7 +119,8 @@ export class ScrollEffects extends Component {
             ease: 'expo.out',
             stagger: 0.09,
             scrollTrigger: { trigger: heading, start: 'top 88%', once: true }
-          })
+          });
+        }
       });
     });
   }
