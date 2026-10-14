@@ -12,6 +12,7 @@ interface TerminalConfig {
     careerNow: string;
     careerHbo: string;
     careerNext: string;
+    careerGoal: string;
     opening: string;
     sudo: string;
     moreSoon: string;
@@ -40,7 +41,10 @@ export class Terminal extends Component {
     help: () => this.help(),
     whoami: () => this.print(escapeHtml(this.config.strings.whoami)),
     projects: () => this.projects(),
-    career: () => this.print([this.config.strings.careerNow, this.config.strings.careerHbo, this.config.strings.careerNext].map(escapeHtml).join('\n')),
+    career: () =>
+      this.print(
+        [this.config.strings.careerNow, this.config.strings.careerHbo, this.config.strings.careerNext, this.config.strings.careerGoal].map(escapeHtml).join('\n')
+      ),
     socials: () => this.socials(),
     contact: () => this.navigate(this.config.routes.contact, 'contact'),
     time: () => this.time(),

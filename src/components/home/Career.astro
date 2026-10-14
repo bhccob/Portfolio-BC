@@ -9,7 +9,7 @@ interface Props {
 const { locale } = Astro.props;
 const { t } = new Translator(locale);
 const c = t.career;
-const pad = Math.max(c.currentStatus.length, c.hboStatus.length, c.nextStatus.length);
+const pad = Math.max(c.currentStatus.length, c.hboStatus.length, c.nextStatus.length, c.goalStatus.length);
 const roleCount = c.roleGroups.reduce((count, group) => count + group.roles.length, 0);
 ---
 
@@ -83,6 +83,14 @@ const roleCount = c.roleGroups.reduce((count, group) => count + group.roles.leng
             </div>
           </details>
         </li>
+        <li class="service__row service__row--goal" data-deal="left" data-flap-host>
+          <FlapText text={c.goalStatus} pad={pad} hover class="service__status" />
+          <div class="service__body">
+            <h3 class="service__role">{c.goalRole}</h3>
+            <p class="service__org">{c.goalOrg}</p>
+            <p class="service__text">{c.goalText}</p>
+          </div>
+        </li>
       </ol>
     </div>
 
@@ -144,7 +152,9 @@ const roleCount = c.roleGroups.reduce((count, group) => count + group.roles.leng
     color: var(--paper);
   }
 
-  .service__row--now .service__role {
+  /* where the roadmap starts and where it leads share the yellow */
+  .service__row--now .service__role,
+  .service__row--goal .service__role {
     color: var(--yellow);
   }
 

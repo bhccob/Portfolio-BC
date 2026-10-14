@@ -38,7 +38,7 @@ A student software engineer building toward systems and firmware security work, 
   - About, with the route China → Aruba → Rotterdam.
   - Toolkit.
   - Off duty: hobbies, current and former, as departure rows.
-  - Current build & roadmap: MBO 4 now, an HBO degree in a technical field next (programme not chosen yet), then possible future roles, grouped by field, behind a dropdown.
+  - Current build & roadmap: MBO 4 now, an HBO degree in a technical field next (programme not chosen yet), then possible future roles, grouped by field, behind a dropdown, and finally the goal row: a technology company of his own (owner, 2026-10-14).
   - Engine room ("this site is a project too").
   - Final call to the contact page.
 - **Other pages and extras:** a page per category (`/projects/web-development/`, `/projects/game-development/`) that opens on its newest project and switches between the projects in that category with tabs, Previous / Next, arrow keys and swipes; a contact page; a 404 page; a `/` terminal easter egg. Every page has a share image rendered at build time.
@@ -55,12 +55,13 @@ A student software engineer building toward systems and firmware security work, 
     - This is the only pinned section. The portrait stays the real photo; an AI-generated video or 3D version was tried and dropped at the owner's request.
   - Projects are grouped by software discipline (owner, 2026-10-12); a project may sit in more than one category (Cookies Clicker is both a web and a game project) and is indexed at its first category. The site states that more projects are coming and that earlier, unlisted projects exist.
   - The site must feel smooth on ordinary laptops; heavy effects only animate transforms, opacity or clips.
-  - Future roles are presented as possible destinations, not fixed plans.
+  - Future roles are presented as possible steps, not fixed plans. The destination is founding his own company (owner, 2026-10-14), shown as its own visible "Goal" row (layout chosen by the owner) rather than inside the dropdown.
+  - The "Why these directions?" text names the electrical and mechanical side of the work (sensors, motors and actuators, circuits and power) next to the software (owner, 2026-10-14).
   - No heavy bordered boxes: rows, rules and tiles instead.
 - **Terminology:**
   - Current occupation: "Student Software Engineer".
   - Next step: an HBO degree in technology after the MBO 4 ("HBO · Technologie"); the specific programme is open.
-  - Possible future careers (interests, never presented as plans), grouped by field (owner, 2026-10-14): Engineering ("Embedded Engineer", "Data Engineer"), Cybersecurity ("DevSecOps Engineer"), and "Firmware Security Automation Engineer" as the role that combines both. Fintech is named as a possible sector that all of these lead to, not as a role. The earlier Systems, Security, SRE and MLOps roles were dropped at the owner's request. On the site they sit behind one "Possible future roles" dropdown as labelled groups (layout chosen by the owner, 2026-10-14), so the roadmap stays uncluttered.
+  - Possible future careers (interests, never presented as plans), grouped by field (owner, 2026-10-14): Engineering ("Embedded Engineer", "Data Engineer"), Cybersecurity ("DevSecOps Engineer"), and "Firmware Security Automation Engineer" as the role that combines both. Fintech stays in the dropdown as one short line, a possible sector along the way; it is not the end goal and gets little emphasis (owner, 2026-10-14). The earlier Systems, Security, SRE and MLOps roles were dropped at the owner's request. On the site they sit behind one "Possible future roles" dropdown as labelled groups (layout chosen by the owner, 2026-10-14), so the roadmap stays uncluttered.
   - Projects are labelled "Project #01", "#02", and so on.
 - **Technical:** static output only, so there is no server-side code. Security headers are impossible on GitHub Pages, so the Content-Security-Policy ships as a meta tag. Visitor statistics are cookie-free (Cloudflare Web Analytics) and only load when a token is configured. The local toolchain is Node only; the Python tooling runs in CI.
 - **Open decisions:**

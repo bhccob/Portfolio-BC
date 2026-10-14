@@ -190,7 +190,7 @@ export const en = {
     hboText:
       'After my MBO 4, I intend to continue at HBO level in a technical field. I have not chosen the exact programme yet; directions such as HBO-ICT, Computer Science or Embedded Systems Engineering fit the roles I am working toward.',
     nextStatus: 'Possible',
-    roadmapNote: 'The roles in the roadmap are possible destinations for my future career: directions I am interested in and working toward, not fixed plans.',
+    roadmapNote: 'The roles in the roadmap are possible steps in my career: directions I am interested in and working toward, not fixed plans. Where they lead is a company of my own.',
     rolesToggle: 'Possible future roles',
     rolesHint: 'Interests, not fixed plans',
     roleGroups: [
@@ -229,13 +229,19 @@ export const en = {
     sector: {
       label: 'Possible sector',
       title: 'Fintech',
-      text: 'Each of these directions is in demand in financial technology: payment terminals rely on secure firmware, fraud detection on reliable data, and regulated financial software on secure delivery. A foundation in these fields makes a transition into fintech a natural step.'
+      text: 'These skills are also in demand in financial technology, from secure payment terminals to fraud detection: one sector this path could lead through, not the destination itself.'
     },
+    goalStatus: 'Goal',
+    goalRole: 'A company of my own',
+    goalOrg: 'Long term · the destination',
+    goalText:
+      'In the long term, I intend to found a technology company of my own. The roles above are the route there: each one builds the experience in hardware, software, data and security that such a company relies on.',
     whyToggle: 'Why these directions?',
     why: [
       'These directions share one thread: they are essential to the technology that society increasingly depends on. As connected devices, data and digital services continue to grow, so does the demand for engineers who can build, secure and automate them.',
+      'Several of them reach beyond the screen. Embedded and firmware work joins software with electrical and mechanical engineering: reading sensors, driving motors and actuators, and designing within the limits of circuits, power and moving parts. Understanding the whole device, not only its code, is what draws me to these fields.',
       'They also suit my personality: I work best when I can focus deeply and without interruption on complex technical problems. These roles are engineering-driven rather than client-facing, and they reward exactly that way of working.',
-      'Finally, they offer strong long-term prospects, a natural route into fintech and a solid foundation for one day establishing a company of my own.'
+      'Above all, they lead toward my long-term goal: founding a technology company of my own. Each role is a building block for it: the electronics and mechanics of a product, the software that runs on it, the data it produces and the security that protects it.'
     ]
   },
   hood: {
@@ -337,7 +343,8 @@ export const en = {
       'Bob Chung, {age}. Student software engineer in Rotterdam. Born in Aruba, Chinese by heritage. Builds with curiosity, tests with honesty.',
     careerNow: 'now   → Student Software Engineer (MBO 4, Rotterdam)',
     careerHbo: 'next  → HBO in technology, after my MBO 4 (programme still open)',
-    careerNext: 'later → possible: Embedded · Data · DevSecOps · Firmware Security Automation, toward fintech',
+    careerNext: 'later → possible: Embedded · Data · DevSecOps · Firmware Security Automation',
+    careerGoal: 'goal  → a technology company of my own',
     opening: 'Opening {page}…',
     sudo: 'Permission granted. Redirecting you to the contact page…',
     moreSoon: '#03 next category: systems & security, on the way…'

@@ -185,7 +185,7 @@ export const nl: Dictionary = {
     hboText:
       'Na mijn MBO 4 wil ik doorstromen naar het HBO, in een technische richting. Welke opleiding het precies wordt, kies ik nog; richtingen als HBO-ICT, Technische Informatica of Embedded Systems Engineering sluiten aan bij de rollen waar ik naartoe werk.',
     nextStatus: 'Mogelijk',
-    roadmapNote: 'De rollen in de roadmap zijn mogelijke bestemmingen voor mijn toekomstige loopbaan: richtingen die mij interesseren en waar ik naartoe werk, geen vaste plannen.',
+    roadmapNote: 'De rollen in de roadmap zijn mogelijke stappen in mijn loopbaan: richtingen die mij interesseren en waar ik naartoe werk, geen vaste plannen. Waar ze naartoe leiden, is een eigen bedrijf.',
     rolesToggle: 'Mogelijke toekomstige rollen',
     rolesHint: 'Interesses, geen vaste plannen',
     roleGroups: [
@@ -224,13 +224,19 @@ export const nl: Dictionary = {
     sector: {
       label: 'Mogelijke sector',
       title: 'Fintech',
-      text: 'Al deze richtingen zijn gewild in de financiële technologie: betaalterminals steunen op beveiligde firmware, fraudedetectie op betrouwbare data en gereguleerde financiële software op een veilige oplevering. Met een basis in deze vakgebieden is de overstap naar fintech een logische stap.'
+      text: 'Deze vaardigheden zijn ook gewild in de financiële technologie, van beveiligde betaalterminals tot fraudedetectie: een sector waar deze route langs kan leiden, niet de bestemming zelf.'
     },
+    goalStatus: 'Doel',
+    goalRole: 'Een eigen bedrijf',
+    goalOrg: 'Lange termijn · de bestemming',
+    goalText:
+      'Op de lange termijn wil ik een eigen technologiebedrijf oprichten. De rollen hierboven zijn de route ernaartoe: elk ervan bouwt de ervaring op in hardware, software, data en beveiliging waar zo’n bedrijf op steunt.',
     whyToggle: 'Waarom deze richtingen?',
     why: [
       'Deze richtingen hebben één ding gemeen: ze zijn onmisbaar voor de technologie waar de samenleving steeds meer op steunt. Naarmate verbonden apparaten, data en digitale diensten blijven groeien, groeit ook de vraag naar engineers die ze kunnen bouwen, beveiligen en automatiseren.',
+      'Een aantal ervan reikt verder dan het scherm. Embedded- en firmwarewerk brengt software samen met elektrotechniek en werktuigbouwkunde: sensoren uitlezen, motoren en actuatoren aansturen en ontwerpen binnen de grenzen van schakelingen, energie en bewegende onderdelen. Het hele apparaat begrijpen, niet alleen de code, is wat mij in deze vakgebieden aantrekt.',
       'Ze passen bovendien bij mijn persoonlijkheid: ik werk het best wanneer ik me diep en ongestoord kan concentreren op complexe technische problemen. Deze rollen draaien om techniek in plaats van klantcontact en belonen precies die manier van werken.',
-      'Tot slot bieden ze sterke vooruitzichten op de lange termijn, een logische route naar fintech en een solide basis om later een eigen bedrijf op te richten.'
+      'Bovenal leiden ze naar mijn doel op de lange termijn: een eigen technologiebedrijf oprichten. Elke rol is daar een bouwsteen voor: de elektronica en mechanica van een product, de software die erop draait, de data die het oplevert en de beveiliging die het beschermt.'
     ]
   },
   hood: {
@@ -332,7 +338,8 @@ export const nl: Dictionary = {
       'Bob Chung, {age}. Student software engineer in Rotterdam. Geboren op Aruba, Chinees van afkomst. Bouwt met nieuwsgierigheid, test met eerlijkheid.',
     careerNow: 'nu     → Student Software Engineer (MBO 4, Rotterdam)',
     careerHbo: 'hierna → HBO in technologie, na mijn MBO 4 (richting nog open)',
-    careerNext: 'later  → mogelijk: Embedded · Data · DevSecOps · Firmware Security Automation, richting fintech',
+    careerNext: 'later  → mogelijk: Embedded · Data · DevSecOps · Firmware Security Automation',
+    careerGoal: 'doel   → een eigen technologiebedrijf',
     opening: '{page} openen…',
     sudo: 'Toegang verleend. Je gaat naar de contactpagina…',
     moreSoon: '#03 volgende categorie: systems & security, onderweg…'
