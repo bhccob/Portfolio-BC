@@ -80,6 +80,30 @@ function room(): RoomEnvironment {
   return scene;
 }
 
+/**
+ * The chip under `pointer` (normalised device coordinates) as `camera` sees
+ * it, judged with every chip at rest on the board: a lifted chip answers
+ * where it stands, so hover and click agree, and a chip rising out from under
+ * the pointer does not flicker. Null when something else, or nothing, is in
+ * front. The chips are back at their heights when it returns.
+ */
+export function chipAt(
+  device: DeviceModel,
+  rest: readonly number[],
+  camera: THREE.Camera,
+  pointer: THREE.Vector2,
+  raycaster = new THREE.Raycaster()
+): THREE.Mesh | null {
+  const heights = device.chips.map((chip) => chip.position.y);
+  device.chips.forEach((chip, i) => (chip.position.y = rest[i]));
+  device.group.updateWorldMatrix(true, true);
+  raycaster.setFromCamera(pointer, camera);
+  const [hit] = raycaster.intersectObject(device.group, true);
+  device.chips.forEach((chip, i) => (chip.position.y = heights[i]));
+  device.group.updateWorldMatrix(false, true);
+  return hit && device.chips.includes(hit.object as THREE.Mesh) ? (hit.object as THREE.Mesh) : null;
+}
+
 export class DeviceScene {
   /** Whether a WebGL2 context can be created here. */
   static supported(): boolean {
@@ -235,12 +259,7 @@ export class DeviceScene {
     this.sway = THREE.MathUtils.damp(this.sway, pose.section === 'hello' ? 1 : 0, SWAY.damp, dt);
     this.rig.rotation.y = this.sway * SWAY.amplitude * Math.sin((2 * Math.PI * this.time) / SWAY.period);
 
-    if (this.pointer) {
-      // Picked with every chip at rest, so a chip lifting out from under the pointer does not flicker.
-      this.device.chips.forEach((chip, i) => (chip.position.y = this.rest[i]));
-      this.rig.updateMatrixWorld();
-      this.hover(this.pick(this.pointer));
-    }
+    if (this.pointer) this.hover(this.pick(this.pointer));
     this.device.chips.forEach((chip, i) => {
       this.lift[i] = THREE.MathUtils.damp(this.lift[i], chip === this.hovered ? 1 : 0, HOVER.damp, dt);
       chip.position.y = this.rest[i] + HOVER.lift * this.lift[i];
@@ -339,11 +358,9 @@ export class DeviceScene {
     return new THREE.Vector2((event.offsetX / this.width) * 2 - 1, 1 - (event.offsetY / this.height) * 2);
   }
 
-  /** The chip first under `pointer`, or null when something else (or nothing) is in front. */
+  /** The chip under `pointer`, judged at rest (see chipAt), for hover and click alike. */
   private pick(pointer: THREE.Vector2): THREE.Mesh | null {
-    this.raycaster.setFromCamera(pointer, this.camera);
-    const [hit] = this.raycaster.intersectObject(this.device.group, true);
-    return hit && this.device.chips.includes(hit.object as THREE.Mesh) ? (hit.object as THREE.Mesh) : null;
+    return chipAt(this.device, this.rest, this.camera, pointer, this.raycaster);
   }
 
   private hover(chip: THREE.Mesh | null): void {
