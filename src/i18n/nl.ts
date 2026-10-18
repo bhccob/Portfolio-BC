@@ -343,5 +343,38 @@ export const nl: Dictionary = {
     opening: '{page} openen…',
     sudo: 'Toegang verleend. Je gaat naar de contactpagina…',
     moreSoon: '#03 volgende categorie: systems & security, onderweg…'
+  },
+  bench: {
+    meta: {
+      title: 'Apparaatstudie | Bob Chung',
+      description: 'Een voorproef van het vernieuwde portfolio: het apparaat dat tijdens het scrollen opengaat.'
+    },
+    hello: {
+      label: 'Student software engineer · Rotterdam'
+    },
+    about: {
+      label: 'Geboren op Aruba · Chinees van afkomst · Sinds mijn achttiende in Rotterdam',
+      text: 'Ik bouw software en wil de hardware begrijpen waarop die draait.',
+      portraitAlt: 'Portret van Bob Chung'
+    },
+    projects: {
+      label: 'De printplaat',
+      title: 'Projecten',
+      text: 'Elke chip is een project. Open er een om te zien hoe het werkt.',
+      chips: {
+        funcial: 'Funcial',
+        'jontai-energy': 'Jontai Energy',
+        'cookies-clicker': 'Cookies Clicker',
+        next: 'Volgende socket'
+      }
+    },
+    offduty: {
+      title: 'Wat mij opgeladen houdt',
+      text: 'Hardlopen, de sportschool en gamen. Vroeger powerliften en tafeltennis.'
+    },
+    spec: {
+      title: 'Waar ik mee werk',
+      lines: ['Full-stack basis', 'Werken met AI']
+    }
   }
 };

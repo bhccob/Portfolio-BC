@@ -348,6 +348,42 @@ export const en = {
     opening: 'Opening {page}…',
     sudo: 'Permission granted. Redirecting you to the contact page…',
     moreSoon: '#03 next category: systems & security, on the way…'
+  },
+  /** The redesign ("The Bench"): the device that comes apart as the page scrolls, one section per layer. */
+  bench: {
+    meta: {
+      title: 'Device study | Bob Chung',
+      description: 'A preview of the redesigned portfolio: the device that opens as you scroll.'
+    },
+    hello: {
+      label: 'Student software engineer · Rotterdam'
+    },
+    about: {
+      label: 'Born in Aruba · Chinese heritage · Rotterdam since eighteen',
+      text: 'I build software, and I want to understand the hardware it runs on.',
+      portraitAlt: 'Portrait of Bob Chung'
+    },
+    projects: {
+      label: 'The board',
+      title: 'Projects',
+      text: 'Each chip is a project. Open one to see how it works.',
+      /** Keyed by the chip's slug on the device. */
+      chips: {
+        funcial: 'Funcial',
+        'jontai-energy': 'Jontai Energy',
+        'cookies-clicker': 'Cookies Clicker',
+        next: 'Next socket'
+      }
+    },
+    offduty: {
+      title: 'What keeps me charged',
+      text: 'Running, the gym and gaming. Formerly powerlifting and table tennis.'
+    },
+    spec: {
+      title: 'What I work with',
+      /** Printed on the back plate's spec label, too. */
+      lines: ['Full-stack foundation', 'Working with AI']
+    }
   }
 };
 

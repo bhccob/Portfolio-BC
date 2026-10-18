@@ -15,6 +15,7 @@ const dist = new URL('./dist/', import.meta.url);
  * shown in a second category (e.g. Cookies Clicker under web development) points
  * its canonical to its home category, so that copy is left out. The built HTML
  * is the source of truth: the sitemap is written after every page exists.
+ * The lab's review pages (noindex) stay out as well.
  */
 function isCanonical(page) {
   try {
@@ -36,7 +37,7 @@ export default defineConfig({
         defaultLocale: 'nl',
         locales: { nl: 'nl', en: 'en' }
       },
-      filter: (page) => !page.includes('/404') && isCanonical(page)
+      filter: (page) => !page.includes('/404') && !page.includes('/lab/') && isCanonical(page)
     })
   ],
   security: {
