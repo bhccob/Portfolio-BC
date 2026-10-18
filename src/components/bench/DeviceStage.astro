@@ -125,6 +125,9 @@ const b = t.bench;
    * ---------- live: the stage sticks to the viewport while the track scrolls past ----------
    * The scene is transparent, so the stage paints the board it lies on. The
    * text sits above the canvas but lets the pointer through to the chips.
+   * js-motion is set before first paint and taken off again if the bench
+   * module never runs (BenchLayout's failsafe), so this layout never waits
+   * on a script that is not coming.
    */
   :global(.js-motion) .device:not(:has([data-fallback])) {
     height: 500svh;
