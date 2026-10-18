@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { ChipPointer } from './ChipPointer';
 import { buildDevice, type DeviceModel } from './Device';
 import { mono, paintScreen, paintShadow, paintSilkscreen, paintSpec, type Plate } from './labels';
 import { palette } from './palette';
+import { PixelBudget } from './PixelBudget';
 import { RenderLoop } from './RenderLoop';
 import { poseAt, type Pose } from './Teardown';
 
@@ -10,16 +12,18 @@ import { poseAt, type Pose } from './Teardown';
  * The home device on its canvas: the renderer, the light, the camera that
  * follows the teardown, and the chips answering the pointer. Scroll sets a
  * target progress, which the scene eases towards on every frame; frames run
- * only while it is switched on. The canvas is transparent, so the page shows
- * round the device. Construct it only where `supported()` is true; even then
- * the constructor throws if the browser refuses the context.
+ * only while it is switched on (setActive), and the chips answer the pointer
+ * only while it is interactive (setInteractive). The canvas is transparent,
+ * so the page shows round the device. Construct it only where `supported()`
+ * is true; even then the constructor throws if the browser refuses the
+ * context, having let go of whatever it had built.
  */
 
 export interface DeviceSceneOptions {
   /** A mouse or trackpad, which earns a sharper canvas. */
   finePointer: boolean;
-  /** The portrait, cover-cropped onto the display. */
-  screen?: HTMLImageElement;
+  /** The portrait's address; loaded here and cover-cropped onto the display once it arrives. */
+  screen?: string;
   /** The spec label's lines (two). */
   specLines: readonly string[];
   /** Names printed on the chips, keyed by slug; a chip without one stays plain. */
@@ -29,8 +33,11 @@ export interface DeviceSceneOptions {
 /** A chip under the pointer (null: none), on hover changes and on clicks. */
 export type ChipHandler = (slug: string | null, kind: 'hover' | 'click') => void;
 
-/** The highest pixel ratio drawn, for a fine and a coarse pointer. */
-const PIXEL_RATIO = { fine: 1.75, coarse: 1.25 };
+/**
+ * The highest pixel ratio drawn, for a fine and a coarse pointer, and the
+ * steps it comes down by while frames run slow (PixelBudget).
+ */
+const PIXEL_RATIO = { fine: [1.75, 1.25, 1], coarse: [1.25, 1] };
 
 const FOV = 35;
 
@@ -105,10 +112,14 @@ export function chipAt(
 }
 
 export class DeviceScene {
-  /** Whether a WebGL2 context can be created here. */
+  /**
+   * Whether a WebGL2 context can be created here on a GPU. A browser drawing
+   * WebGL in software (SwiftShader standing in for a missing or blocklisted
+   * GPU) reports a major performance caveat and gets the stacked page.
+   */
   static supported(): boolean {
     try {
-      const gl = document.createElement('canvas').getContext('webgl2');
+      const gl = document.createElement('canvas').getContext('webgl2', { failIfMajorPerformanceCaveat: true });
       gl?.getExtension('WEBGL_lose_context')?.loseContext();
       return gl !== null;
     } catch {
@@ -126,89 +137,116 @@ export class DeviceScene {
   private readonly textures: THREE.Texture[] = [];
   private readonly loop = new RenderLoop((dt) => this.tick(dt));
   private readonly raycaster = new THREE.Raycaster();
+  private readonly chips = new ChipPointer(
+    (pointer) => chipAt(this.device, this.rest, this.camera, pointer, this.raycaster),
+    (chip, kind) => this.answer(chip, kind)
+  );
   private readonly handlers: ChipHandler[] = [];
-  private readonly maxPixelRatio: number;
+  private readonly budget: PixelBudget;
   /** Each chip's height on the board, and how far (0..1) it is lifted now. */
-  private readonly rest: number[];
-  private readonly lift: number[];
-  private readonly listeners: [string, EventListener][];
+  private readonly rest: number[] = [];
+  private readonly lift: number[] = [];
+  private readonly listeners: [string, EventListener][] = [];
   private target = 0;
   private progress = 0;
   private sway = 1;
   private time = 0;
   private width = 0;
   private height = 0;
-  /** The pointer in normalised device coordinates, or null while it is off the canvas. */
-  private pointer: THREE.Vector2 | null = null;
-  private hovered: THREE.Mesh | null = null;
   private disposed = false;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
     options: DeviceSceneOptions
   ) {
-    this.maxPixelRatio = options.finePointer ? PIXEL_RATIO.fine : PIXEL_RATIO.coarse;
+    this.budget = new PixelBudget(options.finePointer ? PIXEL_RATIO.fine : PIXEL_RATIO.coarse);
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-    this.renderer.setClearColor(0x000000, 0);
-    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.toneMapping = THREE.NeutralToneMapping;
-    this.renderer.toneMappingExposure = 1;
+    try {
+      this.renderer.setClearColor(0x000000, 0);
+      this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+      this.renderer.toneMapping = THREE.NeutralToneMapping;
+      this.renderer.toneMappingExposure = 1;
 
-    this.light();
-    this.scene.environmentIntensity = ENVIRONMENT_INTENSITY;
+      this.light();
+      this.scene.environmentIntensity = ENVIRONMENT_INTENSITY;
 
-    const key = new THREE.DirectionalLight(0xffffff, KEY.intensity);
-    key.position.set(...KEY.position);
-    this.scene.add(key);
+      const key = new THREE.DirectionalLight(0xffffff, KEY.intensity);
+      key.position.set(...KEY.position);
+      this.scene.add(key);
 
-    const spec = paintSpec(options.specLines);
-    const screen = options.screen ? paintScreen(options.screen) : undefined;
-    this.device = buildDevice({ screen, spec: spec.texture });
-    this.rig.add(this.device.group, this.shadow());
-    this.scene.add(this.rig);
-    const silkscreen = this.printChipNames(options.chipLabels ?? {});
-    this.keep(spec.texture, screen, ...silkscreen.texture);
+      const spec = paintSpec(options.specLines);
+      const screen = options.screen ? paintScreen(options.screen) : undefined;
+      this.device = buildDevice({ screen, spec: spec.texture });
+      this.rig.add(this.device.group, this.shadow());
+      this.scene.add(this.rig);
+      const silkscreen = this.printChipNames(options.chipLabels ?? {});
+      this.keep(spec.texture, screen, ...silkscreen.texture);
 
-    // Martian Mono may arrive after the first draw; the type is set again once it has.
-    document.fonts
-      ?.load(mono(32))
-      .catch(() => undefined)
-      .then(() => document.fonts.ready)
-      .then(() => {
-        if (this.disposed) return;
-        spec.draw();
-        silkscreen.draw();
-      });
+      // Martian Mono may arrive after the first draw; the type is set again once it has.
+      if (document.fonts) {
+        document.fonts
+          .load(mono(32))
+          .catch(() => undefined)
+          .then(() => document.fonts.ready)
+          .then(() => {
+            if (this.disposed) return;
+            spec.draw();
+            silkscreen.draw();
+          });
+      }
 
-    this.rest = this.device.chips.map((chip) => chip.position.y);
-    this.lift = this.device.chips.map(() => 0);
-    for (const chip of this.device.chips) {
-      const material = chip.material as THREE.MeshStandardMaterial;
-      material.emissive.set(palette.yellow);
-      material.emissiveIntensity = 0;
+      for (const chip of this.device.chips) {
+        this.rest.push(chip.position.y);
+        this.lift.push(0);
+        const material = chip.material as THREE.MeshStandardMaterial;
+        material.emissive.set(palette.yellow);
+        material.emissiveIntensity = 0;
+      }
+
+      this.listeners.push(
+        ['pointermove', (event) => this.point(event as PointerEvent)],
+        ['pointerleave', () => this.chips.leave()],
+        ['click', (event) => this.chips.click(this.toDevice(event as MouseEvent))],
+        // A restored context has lost the environment map, which lives only on the GPU.
+        ['webglcontextrestored', () => this.light()]
+      );
+      for (const [type, listener] of this.listeners) canvas.addEventListener(type, listener);
+
+      this.resize();
+    } catch (error) {
+      // Whatever was built goes, and the context with it, rather than stay with the canvas for the
+      // life of the page.
+      this.dispose();
+      throw error;
     }
-
-    this.listeners = [
-      ['pointermove', (event) => this.point(event as PointerEvent)],
-      ['pointerleave', () => this.leave()],
-      ['click', (event) => this.emit(this.pick(this.toDevice(event as MouseEvent)), 'click')],
-      // A restored context has lost the environment map, which lives only on the GPU.
-      ['webglcontextrestored', () => this.light()]
-    ];
-    for (const [type, listener] of this.listeners) canvas.addEventListener(type, listener);
-
-    this.resize();
   }
 
-  /** Sets the progress (0..1) the scene eases towards; out of range is clamped and NaN reads as 0. */
-  setProgress(progress: number): void {
+  /**
+   * Sets the progress (0..1) the scene eases towards; out of range is clamped
+   * and NaN reads as 0. `immediate` puts the scene there without easing, for
+   * a page that opens partway down.
+   */
+  setProgress(progress: number, { immediate = false }: { immediate?: boolean } = {}): void {
     this.target = Number.isNaN(progress) ? 0 : THREE.MathUtils.clamp(progress, 0, 1);
+    if (immediate) this.progress = this.target;
   }
 
   /** Starts or stops drawing frames, as the canvas comes on screen or leaves it. */
   setActive(active: boolean): void {
-    if (this.disposed) return;
+    if (this.disposed || active === this.loop.running) return;
+    // The first frames back compile, upload and resize; the pixel budget leaves them out.
+    if (active) this.budget.restart();
     this.loop.setActive(active);
+  }
+
+  /**
+   * Lets the chips answer the pointer, or not. While off, nothing is picked:
+   * no hover, lift, glow or pointer cursor, clicks are ignored, and a chip
+   * that was hovered settles back onto the board.
+   */
+  setInteractive(on: boolean): void {
+    if (this.disposed) return;
+    this.chips.setInteractive(on);
   }
 
   /** Matches the drawing buffer and the camera to the canvas's size on the page. */
@@ -218,7 +256,7 @@ export class DeviceScene {
     if (this.disposed || width === 0 || height === 0) return;
     this.width = width;
     this.height = height;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.maxPixelRatio));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.budget.ratio));
     this.renderer.setSize(width, height, false);
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
@@ -229,7 +267,10 @@ export class DeviceScene {
     this.handlers.push(handler);
   }
 
-  /** Stops the frames and frees the renderer, the environment and every geometry, material and texture. */
+  /**
+   * Stops the frames and frees the renderer, the environment and every
+   * geometry, material and texture, then lets the canvas's context go.
+   */
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
@@ -244,9 +285,12 @@ export class DeviceScene {
     for (const texture of this.textures) texture.dispose();
     this.environment?.dispose();
     this.renderer.dispose();
+    this.renderer.forceContextLoss();
   }
 
   private tick(dtSeconds: number): void {
+    // Frames running slow step the pixel ratio down; the buffer is resized before this frame draws.
+    if (this.budget.sample(dtSeconds) !== null) this.resize();
     const dt = Math.min(dtSeconds, MAX_STEP);
     this.progress = THREE.MathUtils.damp(this.progress, this.target, PROGRESS_DAMP, dt);
     if (Math.abs(this.target - this.progress) < 1e-5) this.progress = this.target;
@@ -259,9 +303,9 @@ export class DeviceScene {
     this.sway = THREE.MathUtils.damp(this.sway, pose.section === 'hello' ? 1 : 0, SWAY.damp, dt);
     this.rig.rotation.y = this.sway * SWAY.amplitude * Math.sin((2 * Math.PI * this.time) / SWAY.period);
 
-    if (this.pointer) this.hover(this.pick(this.pointer));
+    this.chips.frame();
     this.device.chips.forEach((chip, i) => {
-      this.lift[i] = THREE.MathUtils.damp(this.lift[i], chip === this.hovered ? 1 : 0, HOVER.damp, dt);
+      this.lift[i] = THREE.MathUtils.damp(this.lift[i], chip === this.chips.hovered ? 1 : 0, HOVER.damp, dt);
       chip.position.y = this.rest[i] + HOVER.lift * this.lift[i];
       (chip.material as THREE.MeshStandardMaterial).emissiveIntensity = HOVER.glow * this.lift[i];
     });
@@ -345,12 +389,7 @@ export class DeviceScene {
 
   private point(event: PointerEvent): void {
     if (event.pointerType === 'touch') return;
-    this.pointer = this.toDevice(event);
-  }
-
-  private leave(): void {
-    this.pointer = null;
-    this.hover(null);
+    this.chips.move(this.toDevice(event));
   }
 
   /** The event's position on the canvas in normalised device coordinates. */
@@ -358,19 +397,9 @@ export class DeviceScene {
     return new THREE.Vector2((event.offsetX / this.width) * 2 - 1, 1 - (event.offsetY / this.height) * 2);
   }
 
-  /** The chip under `pointer`, judged at rest (see chipAt), for hover and click alike. */
-  private pick(pointer: THREE.Vector2): THREE.Mesh | null {
-    return chipAt(this.device, this.rest, this.camera, pointer, this.raycaster);
-  }
-
-  private hover(chip: THREE.Mesh | null): void {
-    if (chip === this.hovered) return;
-    this.hovered = chip;
-    this.canvas.style.cursor = chip ? 'pointer' : '';
-    this.emit(chip, 'hover');
-  }
-
-  private emit(chip: THREE.Mesh | null, kind: 'hover' | 'click'): void {
+  /** What the chip pointer answers: a hovered chip shows the pointer cursor, and the handlers hear both kinds. */
+  private answer(chip: THREE.Mesh | null, kind: 'hover' | 'click'): void {
+    if (kind === 'hover') this.canvas.style.cursor = chip ? 'pointer' : '';
     const slug = chip ? (chip.userData.slug as string) : null;
     for (const handler of this.handlers) handler(slug, kind);
   }

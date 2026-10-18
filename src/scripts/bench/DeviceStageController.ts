@@ -13,13 +13,17 @@ import { sectionAt, type SectionId } from '../three/Teardown';
  * The device stage (DeviceStage.astro): Lenis smooth scrolling and one
  * ScrollTrigger over the track scrub the teardown, the section the scroll is
  * in shows its text, and the chip under the pointer is named on the HUD
- * while the board is in view. The scene draws only while the stage is on
- * screen and the tab is visible. With reduced motion, without WebGL, or if
- * the scene fails to start, the stage is marked `data-fallback` and reads as
- * a plain stacked page instead.
+ * while the board is in view (the chips answer nowhere else). The scene
+ * draws only while the stage is on screen and the tab is visible. With
+ * reduced motion, without WebGL on a GPU, without the boot script's
+ * `js-motion` flag (BenchLayout), or if the scene fails to start, the stage
+ * is marked `data-fallback` and reads as a plain stacked page instead.
  *
- * The portrait goes to the scene still loading: the device shows at once and
- * its display lights up when the image arrives.
+ * Either way the root is marked `data-bench` ("live" or "fallback"), which
+ * tells the boot script's failsafe that this module ran.
+ *
+ * The scene loads the portrait itself: the device shows at once and its
+ * display lights up when the image arrives.
  */
 export class DeviceStageController extends Component {
   private scene: DeviceScene | null = null;
@@ -28,8 +32,6 @@ export class DeviceStageController extends Component {
   private readout: HTMLElement | null = null;
   private names: Record<string, string> = {};
   private section: SectionId | null = null;
-  /** The chip under the pointer, wherever the scroll is; shown only on the board. */
-  private hovered: string | null = null;
   private onScreen = false;
   private active = false;
 
@@ -39,9 +41,12 @@ export class DeviceStageController extends Component {
     const canvas = stage && $<HTMLCanvasElement>('[data-device-canvas]', stage);
     if (!track || !stage || !canvas) return;
 
-    if (!Motion.reduced && DeviceScene.supported()) {
+    // The pinned layout is keyed to js-motion; once the failsafe has taken it off, the page stays stacked.
+    const root = document.documentElement;
+    if (root.classList.contains('js-motion') && !Motion.reduced && DeviceScene.supported()) {
       try {
         this.start(track, stage, canvas);
+        root.dataset.bench = 'live';
         return;
       } catch (error) {
         console.warn('[portfolio] the device scene could not start; showing the stacked page', error);
@@ -49,17 +54,14 @@ export class DeviceStageController extends Component {
       }
     }
     stage.setAttribute('data-fallback', '');
+    root.dataset.bench = 'fallback';
   }
 
   private start(track: HTMLElement, stage: HTMLElement, canvas: HTMLCanvasElement): void {
-    const screen = new Image();
-    screen.decoding = 'async';
-    screen.src = portrait.src;
-
     this.names = readJson<Record<string, string>>(stage, 'data-chip-names', {});
     const scene = new DeviceScene(canvas, {
       finePointer: Motion.finePointer,
-      screen,
+      screen: portrait.src,
       specLines: readJson<string[]>(stage, 'data-spec-lines', []),
       chipLabels: this.names
     });
@@ -72,7 +74,7 @@ export class DeviceStageController extends Component {
     this.stage = stage;
     this.sections = $$('[data-section]', stage);
     this.readout = $('[data-chip-readout]', stage);
-    scene.onChip((slug, kind) => this.chip(slug, kind));
+    scene.onChip((slug) => this.chip(slug));
 
     gsap.registerPlugin(ScrollTrigger);
     const lenis = new Lenis({ autoRaf: false, lerp: 0.1 });
@@ -93,11 +95,13 @@ export class DeviceStageController extends Component {
       onUpdate: (self) => this.progress(self.progress)
     });
     this.onCleanup(() => trigger.kill());
-    // Section and target are set before the first frame, so a reload mid-page shows its own section.
+    // Section, target and chips are set before the first frame, so a reload mid-page shows its own section,
+    // the device already open.
     this.progress(trigger.progress);
 
-    const observer = new IntersectionObserver(([entry]) => {
-      this.onScreen = entry.isIntersecting;
+    // A batch can hold several changes for the stage; the last is where it is now.
+    const observer = new IntersectionObserver((entries) => {
+      this.onScreen = entries[entries.length - 1].isIntersecting;
       this.activate();
     });
     observer.observe(stage);
@@ -106,18 +110,42 @@ export class DeviceStageController extends Component {
 
     let width = canvas.clientWidth;
     let height = canvas.clientHeight;
-    // A phone's toolbar sliding away resizes the window but not the stage (100svh).
-    this.listen(window, 'resize', () => {
+    const resized = (): void => {
+      // A phone's toolbar sliding away resizes the window but not the stage (100svh).
       if (canvas.clientWidth === width && canvas.clientHeight === height) return;
       width = canvas.clientWidth;
       height = canvas.clientHeight;
-      // The track is measured in viewport heights: hold the progress, not the pixel offset.
+      // The track is measured in viewport heights: inside it, hold the progress, not the pixel offset.
+      // Above or below it (content before or after the stage), the scroll is left where it is.
       const progress = trigger.progress;
+      const inside = trigger.isActive && progress > 0 && progress < 1;
       scene.resize();
       ScrollTrigger.refresh();
       lenis.resize();
-      lenis.scrollTo(trigger.start + progress * (trigger.end - trigger.start), { immediate: true });
-    });
+      if (inside) lenis.scrollTo(trigger.start + progress * (trigger.end - trigger.start), { immediate: true });
+    };
+    // One run per frame. The first resize event of a frame is handled at once, while the progress is
+    // still the visitor's: a turn between portrait and landscape makes ScrollTrigger refresh itself (its
+    // own orientation query) before the next frame, which would move it. Any later event in the same
+    // frame is handled once, in the next.
+    let gate = 0;
+    let again = false;
+    const onResize = (): void => {
+      if (gate) {
+        again = true;
+        return;
+      }
+      resized();
+      gate = requestAnimationFrame(() => {
+        gate = 0;
+        if (again) {
+          again = false;
+          onResize();
+        }
+      });
+    };
+    this.listen(window, 'resize', onResize);
+    this.onCleanup(() => cancelAnimationFrame(gate));
 
     // The canvas may not have its size until layout has run.
     const frame = requestAnimationFrame(() => scene.resize());
@@ -134,7 +162,9 @@ export class DeviceStageController extends Component {
   }
 
   private progress(progress: number): void {
-    this.scene?.setProgress(progress);
+    // The first call (a page opening partway down, as after a reload) puts the device where the scroll is,
+    // rather than easing it open from closed.
+    this.scene?.setProgress(progress, { immediate: this.section === null });
     const section = sectionAt(progress);
     if (section === this.section) return;
     // The page arrives showing hello; a reload further down swaps to its section at once, not as a crossfade.
@@ -146,12 +176,14 @@ export class DeviceStageController extends Component {
       void settle.offsetWidth;
       settle.removeAttribute('data-settling');
     }
-    this.show(section === 'projects' ? this.hovered : null);
+    // The chips answer on the board alone. The readout starts empty; on the board, the next frame names
+    // the chip under the pointer.
+    this.scene?.setInteractive(section === 'projects');
+    this.show(null);
   }
 
-  /** Chips answer only on the board; a click names its chip as hover does (project pages come later). */
-  private chip(slug: string | null, kind: 'hover' | 'click'): void {
-    if (kind === 'hover') this.hovered = slug;
+  /** The chip under the pointer, or clicked (project pages come later), named on the HUD while the board is in view. */
+  private chip(slug: string | null): void {
     if (this.section === 'projects') this.show(slug);
   }
 

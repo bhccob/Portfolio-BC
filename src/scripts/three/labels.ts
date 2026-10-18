@@ -73,34 +73,31 @@ const SCREEN_PIXELS = 1024;
 const PORTRAIT_FOCUS = { x: 0.5, y: 0.45 };
 
 /**
- * The portrait cover-cropped to the display. An image still loading is
- * loaded again here (a lazy or hidden one might never load on its own);
- * the screen stays dark until it arrives.
+ * The portrait at `src`, cover-cropped to the display. The image is loaded
+ * here, once; the screen stays dark until it arrives.
  */
-export function paintScreen(image: HTMLImageElement): THREE.CanvasTexture {
+export function paintScreen(src: string): THREE.CanvasTexture {
   const { context, texture } = canvasTexture(SCREEN_PIXELS, (SCREEN_PIXELS * SCREEN_DISPLAY.depth) / SCREEN_DISPLAY.width);
   const { width, height } = context.canvas;
   context.fillStyle = css(palette.ink);
   context.fillRect(0, 0, width, height);
 
-  const draw = (source: HTMLImageElement): void => {
-    const scale = Math.max(width / source.naturalWidth, height / source.naturalHeight);
-    const w = source.naturalWidth * scale;
-    const h = source.naturalHeight * scale;
-    const x = THREE.MathUtils.clamp(width / 2 - PORTRAIT_FOCUS.x * w, width - w, 0);
-    const y = THREE.MathUtils.clamp(height / 2 - PORTRAIT_FOCUS.y * h, height - h, 0);
-    context.drawImage(source, x, y, w, h);
-    texture.needsUpdate = true;
-  };
-
-  if (image.complete && image.naturalWidth > 0) {
-    draw(image);
-  } else {
-    const copy = new Image();
-    copy.decoding = 'async';
-    copy.addEventListener('load', () => draw(copy), { once: true });
-    copy.src = image.currentSrc || image.src;
-  }
+  const image = new Image();
+  image.decoding = 'async';
+  image.addEventListener(
+    'load',
+    () => {
+      const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
+      const w = image.naturalWidth * scale;
+      const h = image.naturalHeight * scale;
+      const x = THREE.MathUtils.clamp(width / 2 - PORTRAIT_FOCUS.x * w, width - w, 0);
+      const y = THREE.MathUtils.clamp(height / 2 - PORTRAIT_FOCUS.y * h, height - h, 0);
+      context.drawImage(image, x, y, w, h);
+      texture.needsUpdate = true;
+    },
+    { once: true }
+  );
+  image.src = src;
   return texture;
 }
 
