@@ -90,7 +90,7 @@ export function socket(slug: string, width: number, depth: number): THREE.Mesh {
   material.vertexColors = true;
   const mesh = new THREE.Mesh(
     sweep([
-      { rings: rim, color: palette.lilac },
+      { rings: rim, color: palette.dim },
       { rings: floor, color: palette.boardDeep }
     ]),
     material

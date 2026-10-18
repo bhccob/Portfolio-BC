@@ -13,6 +13,8 @@ export interface Pose {
   explode: number;
   /** World-space Y of each layer. */
   offsets: Record<LayerId, number>;
+  /** 0 in the stack … 1 moved aside, so a layer above the focus clears the view. */
+  aside: Record<LayerId, number>;
   /** Layer the camera is on. */
   focus: LayerId | null;
   section: SectionId;
@@ -92,6 +94,26 @@ export function sectionAt(progress: number): SectionId {
   return SECTIONS[sectionIndexAt(normalise(progress))].id;
 }
 
+/** Where section `index` has finished arriving: ARRIVAL of its span in. */
+function arrivalOf(index: number): { from: number; to: number } {
+  const from = SECTIONS[index].from;
+  const end = SECTIONS[index + 1]?.from ?? 1;
+  return { from, to: from + ARRIVAL * (end - from) };
+}
+
+/**
+ * How far `layer` has moved aside: it leaves while the camera arrives at the
+ * first section that looks at a layer below it, and stays gone after. The
+ * back plate has nothing below it, so it never leaves.
+ */
+function asideOf(layer: LayerId, progress: number): number {
+  const depth = LAYERS.indexOf(layer);
+  const index = SECTIONS.findIndex((section) => section.layer !== null && LAYERS.indexOf(section.layer) > depth);
+  if (index < 0) return 0;
+  const { from, to } = arrivalOf(index);
+  return smoothstep(from, to, progress);
+}
+
 /** The camera a section settles on, given where the layers are right now. */
 function cameraFor(index: number, offsets: Record<LayerId, number>): Pose['camera'] {
   const { layer } = SECTIONS[index];
@@ -112,18 +134,19 @@ export function poseAt(progress: number): Pose {
   const explode = smoothstep(EXPLODE_FROM, EXPLODE_TO, p);
 
   const offsets = {} as Record<LayerId, number>;
+  const aside = {} as Record<LayerId, number>;
   LAYERS.forEach((layer, i) => {
     const fromBottom = LAYERS.length - 1 - i;
     offsets[layer] = CLOSED_Y[layer] + explode * fromBottom * GAP;
+    aside[layer] = asideOf(layer, p);
   });
 
   const index = sectionIndexAt(p);
   const settled = cameraFor(index, offsets);
   let camera = settled;
   if (index > 0) {
-    const from = SECTIONS[index].from;
-    const to = SECTIONS[index + 1]?.from ?? 1;
-    const t = smoothstep(from, from + ARRIVAL * (to - from), p);
+    const { from, to } = arrivalOf(index);
+    const t = smoothstep(from, to, p);
     const previous = cameraFor(index - 1, offsets);
     camera = {
       position: lerpVec3(previous.position, settled.position, t),
@@ -131,5 +154,5 @@ export function poseAt(progress: number): Pose {
     };
   }
 
-  return { explode, offsets, focus: SECTIONS[index].layer, section: SECTIONS[index].id, camera };
+  return { explode, offsets, aside, focus: SECTIONS[index].layer, section: SECTIONS[index].id, camera };
 }

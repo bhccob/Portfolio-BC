@@ -21,4 +21,11 @@ describe('buildDevice', () => {
     device.applyPose(pose);
     LAYERS.forEach((id) => expect(device.layers[id].position.y).toBeCloseTo(pose.offsets[id]));
   });
+  it('slides the layers above the focus aside, to the right', () => {
+    device.applyPose(poseAt(1));
+    expect(device.layers.shell.position.x).toBeCloseTo(4.6);
+    expect(device.layers.shell.rotation.z).toBeCloseTo(-0.3);
+    expect(device.layers.back.position.x).toBe(0);
+    expect(device.layers.back.rotation.z).toBeCloseTo(0);
+  });
 });

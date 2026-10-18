@@ -31,7 +31,7 @@ export interface DeviceModel {
   chips: THREE.Mesh[];
   /** The yellow ball, the site's mark. */
   powerButton: THREE.Mesh<THREE.BufferGeometry, THREE.MeshPhysicalMaterial>;
-  /** Sets each layer's height from the pose. */
+  /** Sets each layer's height from the pose, and slides the layers it has moved aside off to the right. */
   applyPose(pose: Pose): void;
 }
 
@@ -96,6 +96,9 @@ const TABS = { width: 0.14, height: 0.012, depth: 0.12, z: 0.24 };
 
 /** Four screws, one in each corner of the back plate inside the walls. */
 const SCREWS = { x: 1.36, z: 0.66, radius: 0.05, height: 0.02 };
+
+/** A layer fully aside: this far to the right, tipped down this far (radians) on its right side. */
+const ASIDE = { x: 4.6, tilt: 0.3 };
 
 function named<T extends THREE.Object3D>(object: T, name: string): T {
   object.name = name;
@@ -283,7 +286,11 @@ export function buildDevice(textures: DeviceTextures = {}): DeviceModel {
     chips,
     powerButton,
     applyPose(pose) {
-      for (const id of LAYERS) layers[id].position.y = pose.offsets[id];
+      for (const id of LAYERS) {
+        layers[id].position.y = pose.offsets[id];
+        layers[id].position.x = pose.aside[id] * ASIDE.x;
+        layers[id].rotation.z = -pose.aside[id] * ASIDE.tilt;
+      }
     }
   };
   device.applyPose(poseAt(0));

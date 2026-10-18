@@ -15,8 +15,10 @@ export const palette = {
   pcb: 0x4b2a8a,
   /** Gold contacts: pins, traces and tabs. */
   gold: 0xd9a520,
+  /** Lilac (--lilac, the site's text): the silkscreen names on the chips. */
+  lilac: 0xb8aad8,
   /** Dim lilac (--dim, the site's quiet text): the empty socket's outline. */
-  lilac: 0x9789bb,
+  dim: 0x9789bb,
   /** Near-black (--split): chip bodies and the screen while it is off. */
   ink: 0x0b0516
 } as const;
