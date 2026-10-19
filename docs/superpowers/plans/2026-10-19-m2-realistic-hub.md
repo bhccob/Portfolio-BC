@@ -22,6 +22,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-18-portfolio-redesign-design.md` (revision 3: "Decided by Bob" hub and device rows; "My calls" 2, 3, 4 and 11; Build order step 2)
 
+> **Amendment (2026-10-19, Task 4 review):** the floor mirror (Reflector) was removed — A/B renders showed its reflection was invisible (<0.5/255 mean difference) while it cost 13–16% of a frame. The floor is a gloss sheet with a warm pool and a faint purple sheen. The quality ladder therefore has no reflection rung: fine {1.75,600}→{1.75,300}→{1.25,200}→{1,150}, coarse {1.25,300}→{1.25,150}→{1,120}; `Quality` has no `reflection` field; PixelBudget takes { limit: 1/56, slowRun: 3 } in HubScene. Read the Task 4 and Review Focus 4 text below with that in mind.
+
 ## Global Constraints
 
 - **Branch:** `redesign-bench` only. Never push or merge. Commit messages end with a blank line and `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.

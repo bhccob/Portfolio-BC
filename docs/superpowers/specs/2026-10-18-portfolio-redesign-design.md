@@ -72,7 +72,7 @@ Bob wants his portfolio (Astro + TypeScript, `C:\Users\bhcco\Downloads\Portfolio
 3. **Rendering: everything is real-time 3D** (three.js), with no background images.
    - **The studio:**
      - a gradient backdrop
-     - a reflective floor (a planar reflector or a screen-space blurred mirror)
+     - a glossy floor (a gloss sheet with a warm light pool; a real mirror was tried in milestone 2 and removed because its reflection was invisible at the hub camera while costing 13–16% of a frame)
      - a soft volumetric beam (an additive cone with noise)
      - drifting dust particles
      - purple haze (fog)
@@ -199,7 +199,7 @@ Bob wants his portfolio (Astro + TypeScript, `C:\Users\bhcco\Downloads\Portfolio
   - **Reduced motion or no WebGL:** a stacked page with a still render of each state.
   - **Without JavaScript:** real HTML text.
 - **Performance:**
-  - a steady 60 fps scroll on an ordinary laptop (PixelBudget steps the pixel ratio down, and the reflection drops first)
+  - a steady 60 fps scroll on an ordinary laptop (PixelBudget steps quality down: dust first, then the pixel ratio)
   - home JavaScript about 250 KB gzipped (three.js in its own chunk)
   - under 1.5 MB before the loader clip plays
   - textures as compressed WebP/KTX2, within about 4 MB together
