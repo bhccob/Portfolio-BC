@@ -207,7 +207,9 @@ describe('the instrument, in detail', () => {
     const m = buildInstrument();
     const rim = m.root.getObjectByName('compass:rim') as THREE.Mesh;
     const brass = rim.material as THREE.MeshStandardMaterial;
-    expect(brass.map).toBeNull();
+    // A white placeholder until the image arrives: the plain colour shows true.
+    expect(brass.map).toBeInstanceOf(THREE.DataTexture);
+    expect(Array.from((brass.map as THREE.DataTexture).image.data as Uint8Array)).toEqual([255, 255, 255, 255]);
     expect(brass.color.getHexString()).toBe('c9a24a');
     const image = new THREE.Texture();
     m.setTextures({ brass: image });
@@ -219,6 +221,32 @@ describe('the instrument, in detail', () => {
     m.setTextures({ brass: image });
     m.setTextures({});
     expect(brass.map).toBe(image);
+  });
+
+  it('compiles nothing new when the textures, face and strips arrive', () => {
+    const m = buildInstrument();
+    const versions = new Map(m.materials().map((material) => [material, material.version]));
+    const lacquer = (m.root.getObjectByName('compass:pool-floor') as THREE.Mesh).material as THREE.MeshPhysicalMaterial;
+    const plate = ((m.root.getObjectByName('compass:plate') as THREE.Mesh).material as THREE.MeshPhysicalMaterial[])[0];
+    const brass = (m.root.getObjectByName('compass:rim') as THREE.Mesh).material as THREE.MeshStandardMaterial;
+    for (const material of [lacquer, plate, brass]) expect(material.map, material.name).toBeInstanceOf(THREE.DataTexture);
+    const images = { brass: new THREE.Texture(), lacquer: new THREE.Texture(), portrait: new THREE.Texture() };
+    m.setTextures(images);
+    m.setTextures(images);
+    m.setFace(new THREE.Texture(), new THREE.Texture());
+    m.setStrips({ plain: new THREE.Texture(), china: new THREE.Texture() });
+    m.setPattern('plain', 'china', 0.3, 90);
+    m.applyPose({ bearing: 1, lift: 1, portrait: 1, threads: 0 });
+    expect(brass.map).toBe(images.brass); expect(lacquer.map).toBe(images.lacquer); expect(plate.map).toBe(images.lacquer);
+    versions.forEach((version, material) => expect(material.version, material.name).toBe(version));
+  });
+
+  it('draws the glass last, without depth, so it never clips the needle or hides the portrait', () => {
+    const m = buildInstrument();
+    const glass = m.root.getObjectByName('compass:glass') as THREE.Mesh;
+    const material = glass.material as THREE.MeshPhysicalMaterial;
+    expect(material.depthWrite).toBe(false); expect(material.transparent).toBe(true);
+    m.root.traverse((o) => { if ((o as THREE.Mesh).isMesh && o !== glass) expect(o.renderOrder, o.name).toBeLessThan(glass.renderOrder); });
   });
 
   it('switches the lacquer and pattern clearcoat', () => {

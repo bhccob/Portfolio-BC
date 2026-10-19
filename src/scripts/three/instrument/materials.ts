@@ -62,6 +62,8 @@ export interface Placeholders {
   faceMr: THREE.DataTexture;
   /** The portrait's map until it arrives (the disc stays hidden meanwhile). */
   portrait: THREE.DataTexture;
+  /** White: the brass's and lacquers' map until the images arrive, so they show their plain colours. */
+  image: THREE.DataTexture;
 }
 
 /** A 1 x 1 texture of one colour; `srgb` for a colour map, linear for data. */
@@ -81,7 +83,8 @@ export function createPlaceholders(): Placeholders {
     strip: hexPixel(COLOR.plate),
     face: hexPixel(COLOR.lacquer),
     faceMr: pixel(0, Math.round(FACE_ROUGHNESS * 255), 0, false),
-    portrait: hexPixel(COLOR.lacquer)
+    portrait: hexPixel(COLOR.lacquer),
+    image: hexPixel(0xffffff)
   };
 }
 
@@ -150,13 +153,14 @@ function createPattern(strip: THREE.Texture): { material: THREE.MeshPhysicalMate
 }
 
 export function createMaterials(placeholders: Placeholders): { materials: InstrumentMaterials; patternUniforms: PatternUniforms } {
+  // The image-mapped finishes start on a white map, so they show their plain colours and the images only swap a texture.
   const lacquer = (name: string, color: number) =>
-    new THREE.MeshPhysicalMaterial({ name, color, metalness: 0, roughness: 0.28, clearcoat: 1, clearcoatRoughness: 0.12 });
+    new THREE.MeshPhysicalMaterial({ name, color, map: placeholders.image, metalness: 0, roughness: 0.28, clearcoat: 1, clearcoatRoughness: 0.12 });
   const pattern = createPattern(placeholders.strip);
   const materials: InstrumentMaterials = {
     lacquer: lacquer('compass:lacquer', COLOR.lacquer),
     plate: lacquer('compass:plate', COLOR.plate),
-    brass: new THREE.MeshStandardMaterial({ name: 'compass:brass', color: COLOR.brass, metalness: 1, roughness: 0.32 }),
+    brass: new THREE.MeshStandardMaterial({ name: 'compass:brass', color: COLOR.brass, map: placeholders.image, metalness: 1, roughness: 0.32 }),
     gilt: new THREE.MeshStandardMaterial({ name: 'compass:gilt', color: COLOR.gilt, metalness: 1, roughness: 0.3 }),
     face: new THREE.MeshStandardMaterial({
       name: 'compass:face',
@@ -191,7 +195,9 @@ export function createMaterials(placeholders: Placeholders): { materials: Instru
       roughness: 0.05,
       clearcoat: 1,
       transparent: true,
-      opacity: 0.15
+      opacity: 0.15,
+      // The needle's lower facets dip below the glass on a tilt: the glass must not clip them.
+      depthWrite: false
     }),
     portrait: new THREE.MeshBasicMaterial({ name: 'compass:portrait', map: placeholders.portrait, transparent: true, opacity: 0 })
   };
@@ -206,13 +212,14 @@ function wrap(texture: THREE.Texture, s: THREE.Wrapping, t: THREE.Wrapping): voi
   texture.needsUpdate = true;
 }
 
-/** Gives `material` the image `map`, its colour divided by the image's mean so the average stays `target`. */
+/**
+ * Gives `material` the image `map`, its colour divided by the image's mean so
+ * the average stays `target`. The material already has a map (the white
+ * placeholder), so this swaps a texture and compiles nothing.
+ */
 function tinted(material: THREE.MeshStandardMaterial, map: THREE.Texture, target: number, mean: readonly [number, number, number]): void {
   const color = new THREE.Color(target);
   material.color.setRGB(color.r / mean[0], color.g / mean[1], color.b / mean[2], THREE.LinearSRGBColorSpace);
-  if (material.map === map) return;
-  // A map where there was none is a new program; one map for another is not.
-  if (!material.map) material.needsUpdate = true;
   material.map = map;
 }
 

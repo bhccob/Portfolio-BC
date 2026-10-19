@@ -43,6 +43,8 @@ export function buildPool(m: InstrumentMaterials): Pool {
 
   const glass = new THREE.Mesh(disc(DIAL.pool, POOL.glass), m.glass);
   glass.name = 'compass:glass';
+  // Drawn after the portrait, the needle and the threads, whatever order they were made in. It writes no depth.
+  glass.renderOrder = 1;
 
   object.add(floor, portrait, wall, glass);
   return { object, portrait };
