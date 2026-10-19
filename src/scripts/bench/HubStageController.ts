@@ -18,11 +18,14 @@ const INTERACTIVE_FROM = 0.9;
  * exploded hub (the first half of the track), where the callouts fade in and
  * the hub holds. The callouts follow the scene's eased progress, not the
  * scroll's, so after a jump they wait for the device to arrive. A drag on
- * the stage turns the device; once the callouts show, hovering a label or a
- * layer highlights both, and a click pins the highlight. The scene draws only while the stage is on screen and the tab
- * is visible. With reduced motion, without WebGL on a GPU, without the boot
- * script's `js-motion` flag (BenchLayout), or if the scene fails to start,
- * the stage is marked `data-fallback` and reads as a plain stacked page.
+ * the stage turns the device; once the callouts show (INTERACTIVE_FROM),
+ * hovering or focusing a label or hovering a layer highlights both, and a
+ * click or Enter pins the highlight; before that, and once the hub is left,
+ * neither answers and no pin stays. The scene draws only while the stage is
+ * on screen and the tab is visible. With reduced motion, without WebGL on a
+ * GPU, without the boot script's `js-motion` flag (BenchLayout), or if the
+ * scene fails to start, the stage is marked `data-fallback` and reads as a
+ * plain stacked page.
  *
  * Either way the root is marked `data-bench` ("live" or "fallback"), which
  * tells the boot script's failsafe that this module ran.
@@ -80,11 +83,16 @@ export class HubStageController extends Component {
         callouts.dispose();
         this.callouts = null;
       });
+      // A label focused (or hovered) while the callouts are still fading in lights nothing, and Enter on it
+      // pins nothing: the layers do not answer yet.
       callouts.onHover((id) => {
+        if (id !== null && !this.interactive) return;
         this.labelHover = id;
         this.highlight();
       });
-      callouts.onClick((id) => this.pin(this.pinned === id ? null : id));
+      callouts.onClick((id) => {
+        if (this.interactive) this.pin(this.pinned === id ? null : id);
+      });
       // Under the device, the list's band is kept free of it, from the moment it is measured.
       callouts.onBand((pixels) => scene.setBottomReserve(pixels));
     }
@@ -245,8 +253,13 @@ export class HubStageController extends Component {
     }
   }
 
-  /** Pins a layer's highlight (null: unpins), as a click on its label or on the layer does. */
+  /**
+   * Pins a layer's highlight (null: unpins), as a click on its label or on the
+   * layer does: only while the layers answer the pointer (gate()), which
+   * unpins as it closes.
+   */
   private pin(id: HubLayerId | null): void {
+    if (id !== null && !this.interactive) return;
     this.pinned = id;
     this.callouts?.pin(id);
     this.highlight();
