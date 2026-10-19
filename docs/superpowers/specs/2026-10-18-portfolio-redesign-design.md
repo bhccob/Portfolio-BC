@@ -1,4 +1,4 @@
-# bhccob.me redesign: "The Bench" (bench dive + teardown)
+# bhccob.me redesign: "The Workshop" (revision 2)
 
 ## Context
 
@@ -12,207 +12,233 @@ Bob wants his portfolio (Astro + TypeScript, `C:\Users\bhcco\Downloads\Portfolio
 - "What I work with" cut to the full-stack foundation and working with AI
 - his new fintech project added: he wrote "Funancial", but the app was renamed **Funcial** on 2026-10-18 (Funcial commit `fee214c`), repo `bhccob/Funcial`
 
-Inspiration he asked to be studied:
-- shelbykho.com: the desk that zooms into a notebook of projects, and the case-study step bar
-- the motionsites/Viktor Oddy workflow: AI image → Seedance video → scrubbed by scroll
-- aengel.io: a gated entry, scroll-driven worlds, projects as 3D objects, a lite version for phones
-- silviamalavasi.com: one metaphor ("dissection"), a click gate, numbered hotspots on a 3D model that fly the camera in and open a panel
-- portfolio-zxc.com: an explorable 3D desk and keyboard, with project fields "Inspiration / Main skills / Index"
+**History:**
+- **Revision 1 (2026-10-18):** a mix of a cinematic workbench dive and a toy-like 3D device that comes apart. Milestone 1 built and verified it on `redesign-bench` (599fa6b..bdeb821; review page `/lab/device/`).
+- **Revision 2 (2026-10-19):** after seeing milestone 1, Bob asked for four things:
+  - a **more complex device**
+  - a **much more immersive** site, with a real background environment, more realistic and premium scrolling, and text **placed more creatively**
+  - an **eye-catching** first impression
+  - a **unique loading screen**
 
-Three concept demos were shown (A Teardown, B The bench, C Signal); Bob chose a **mix of A and B**.
+  His references: Junkbranding's floating browser windows over misty water, and look.ai's billboards on a grey city. From Higgsfield concept images he picked a calm Rotterdam workshop with a spotlight per section, and a two-part loader.
 
-## Decided by Bob (2026-10-18)
+**Inspiration studied:**
+- shelbykho.com: the desk to notebook dive, and the step bar
+- the motionsites/Viktor Oddy workflow: AI image → Seedance video → scrub
+- aengel.io: a gated entry, scroll-driven worlds, a lite version for phones
+- silviamalavasi.com: one metaphor, a click gate, hotspots that fly the camera in
+- portfolio-zxc.com: an explorable 3D desk, and project fields
+
+## Decided by Bob
 
 | Topic | Decision |
 |---|---|
-| Direction | Mix: cinematic bench dive (B) handing off to a 3D device that comes apart (A) |
-| 3D look | **Solid and stylised**: clean, smooth, toy-like shapes in purple and yellow, built in code |
-| Categories | Electronics names: **Front panel** (web), **Feedback loop** (games), **Secure element** (fintech), **Bare metal** (next: embedded) |
-| Kept from the old site | **Off duty** (hobbies) only. Terminal, engine room ("this site is a project too"), origin route and clocks are dropped |
-| Typography | Left to me (see my calls) |
-| Higgsfield | Use it; Seedance 2.5 for video, GPT Image 2.5 for images. Account is on **Plus with ~686 credits** (checked 2026-10-18) |
-| Funcial links | The project page links both the repo (github.com/bhccob/Funcial) and the download page (https://funcial.vercel.app/get), so any visitor can install the Android app |
+| World (2026-10-19) | **A calm, minimal workshop in Rotterdam at night:** one long bench in front of a large window with the Rotterdam skyline and the Erasmus bridge. **Room + spotlight:** visitors arrive in the lit room; each scroll step dims it and spotlights one object, with that section's text floating beside it in the scene. Bob found the full workshop "a bit too much going on"; calm is a requirement. |
+| 3D look (2026-10-19) | **Realistic and premium.** Replaces revision 1's "solid and stylised". The device is **more complex**: purple anodised aluminium, brass screws, a smoked window over a dense circuit board, USB-C, a glowing yellow power button. |
+| Loading screen (2026-10-19) | **Two parts, in sequence:** (1) a robot arm places a "BC-2006" chip on a purple board while the site loads, with the solder glowing as it reflows; (2) at 100% the device around the chip boots up and its screen shows the boot. The visitor presses its power button, and the camera moves out into the workshop. |
+| Text (2026-10-19) | Placed creatively **in the scene**: floating beside the spotlit object, layered in depth. Not plain stacked sections. |
+| Categories (2026-10-18) | Electronics names: **Front panel** (web), **Feedback loop** (games), **Secure element** (fintech), **Bare metal** (next: embedded) |
+| Kept from the old site (2026-10-18) | **Off duty** (hobbies) only. Terminal, engine room, origin route and clocks are dropped. |
+| Funcial links (2026-10-18) | Its project page links both the repo (github.com/bhccob/Funcial) and the download page (https://funcial.vercel.app/get) |
+| Higgsfield | Use it: GPT Image 2.5 for images, Seedance 2.5 for video. Account: Plus, ~686 credits (2026-10-18); about **44 credits spent** on concept images by 2026-10-19 |
 
-Standing rules that still apply:
+**Approved mood images** (Higgsfield job IDs, in Bob's account; reference only, never shipped as-is):
+- calm room: `53a8dbe7-d7b4-47cd-987d-3e55a702bfd9`
+- spotlight state: `b1e35a13-23c9-40b9-bc0a-d0ac4c52c8cc`
+- pick-and-place loader: `8b637719-316f-4110-a9b6-6fda08a5a765`
+- device boot loader: `d584c717-4ee6-4e77-a61e-7bfe659ce5c4`
+
+**Standing rules:**
 - Purple and yellow are the brand colours.
 - Formal first-person copy in NL (default, at `/`) and EN (`/en/`).
 - No game on the site.
-- The real portrait only, no AI version of it.
+- The real portrait only, no AI version of it (and no faces in any generated image).
 - Never fabricate experience.
 - Build, test and audit before any push, and ask before pushing to main.
 
 ## My calls (please check)
 
-1. **Type:**
-   - **Unbounded** (wide, rounded) for titles and names.
-   - **Geist** for body text (fall back to Inter if the fontsource package is unsuitable).
-   - **Martian Mono** (already installed) for the small HUD labels.
-   - Bagel Fat One, Yellowtail and the condensed tile font are removed.
-2. **Palette kept:**
-   - board purples `#140a24` / `#1c1030`
-   - signal yellow `#ffcf33`
-   - cream `#f1e8d3`
-   - PCB purple `#4b2a8a` with gold `#d9a520` contacts (purple boards with gold pads are a real thing)
-3. **The device** is a stylised handheld dev kit, a purple rounded handheld; its yellow power button is the ping-pong ball mark, which stays as the favicon. Its layers, top to bottom, map to sections:
-   - **Screen = About:** the real portrait shows on the screen.
-   - **Board = Projects.**
-   - **Battery = Off duty**, as "what keeps me charged".
-   - **Back plate = What I work with:** a spec label like the one on the back of a real device.
-4. **Order of the home page:** power-on → bench → About (one beat) → Projects (longest dwell) → Off duty → What I work with → Q&A → Contact. About comes first only because the screen lifts off first; it is one short line.
-5. **Routes:**
-   - Each project gets its own page: `/projects/<slug>/` (NL) and `/en/projects/<slug>/`, with the slugs `funcial`, `jontai-energy` and `cookies-clicker`.
-   - Today `/projects/web-development/` is Jontai Energy's canonical page and `/projects/game-development/` is Cookies Clicker's, so links Bob has shared point at specific projects.
-     - Each old address redirects to **its own project's** new page (NL and EN), not to the board.
-   - The old redirect stubs that sit exactly on the new paths are deleted, because real pages replace them:
-     - `public/projects/{cookies-clicker,jontai-energy}/index.html`
-     - `public/en/projects/{cookies-clicker,jontai-energy}/index.html`
-     - the `public/nl/projects/...` stubs
-   - `lighthouserc.json` URLs are updated to the new pages.
-6. **No sound and no discovery counter** (keeps clear of "game on the site").
-7. **The power-on gate** replaces the split-flap loader. It shows a boot counter while the bench frames load, and an ID card with the name, role, "MBO 4 · Rotterdam" and a "BC-2006" model code. It is skipped on repeat visits in the same session, like `bob-booted` today.
+1. **Type:** unchanged from revision 1 and already built.
+   - Unbounded for titles and names, Geist for body text, Martian Mono for HUD labels.
+   - Bagel Fat One, Yellowtail and the condensed tile font go when the old home is replaced.
+2. **Palette:** unchanged.
+   - Board purples `#140a24` / `#1c1030`, signal yellow `#ffcf33`, cream `#f1e8d3`, PCB purple `#4b2a8a`, gold `#d9a520`.
+   - The room's night light is deep purple; warm yellow is the lamp and the spotlight.
+3. **Rendering: a "2.5D room with real 3D objects".**
+   - **The room:**
+     - Built from Higgsfield GPT Image plates generated in the approved room's style.
+     - Split into a far layer (the window view: skyline and bridge) and a room layer (walls, window frame, bench surface), each in a lit and a dark version.
+     - Shown as textured planes in the Three.js scene with gentle parallax.
+     - The camera moves only modestly (dolly along the bench, small push-ins), so the plates stay believable.
+   - **The objects:** real 3D with realistic materials, so they can be lit, hovered and clicked: the device, the projects' objects, the Off duty still life and the whiteboard. Their screens show the real screenshots.
+   - **The spotlight:**
+     - The room plate crossfades from lit to dark as a section starts.
+     - One warm spot light targets the object in focus, and the other objects fall into shadow.
+4. **The device:**
+   - **Model:** a realistic handheld dev kit modelled in code to match the approved loader image. The circuit board's detail (with a "BC-2006" silkscreen) and the brushed-metal grain are GPT Image textures.
+   - **Screen:** shows the boot, then the real portrait (About).
+   - **What I work with:** the device turns over to show a spec label on its back.
+   - **Ball mark:** the ping-pong ball stays as the favicon only.
+5. **Loader sequence:**
+   1. **Pick and place.** A short Seedance clip played as a small frame sequence (about 48 frames at about 960 px, ≤ 1.2 MB), scrubbed by the real loading progress of the room assets. A small label reads "ASSEMBLING · BOB CHUNG" with a percentage.
+   2. **Boot.** At 100% the clip's last frame matches a render of our device's board close-up, so it hands off to the live 3D device seamlessly. The camera pulls back from the chip to the whole device, whose screen shows "BC-2006", a boot bar, then "PRESS POWER".
+   3. **Power on.** The visitor clicks the yellow button (or a real HTML "Power on" button; Enter works). The screen lights, and the camera pulls out to reveal the device on the bench as the lit room fades in.
+   4. **Repeat visits** in the same session skip to the room. **Reduced motion** shows the room still directly.
+6. **Home, as a spotlight sequence** (Lenis + GSAP ScrollTrigger scrub, both directions). Each step dims the room, spotlights one object and floats its text beside it. The text is HTML anchored to the object's projected position.
+   1. **Arrival:** the room lit. "BOB CHUNG" is a 3D text plane set between the window view and the room for depth, with a real `<h1>` in the HTML. The role line sits below it.
+   2. **About:** the device, with the real portrait on its screen. One line, plus born in Aruba · Chinese heritage · Rotterdam since eighteen.
+   3. **Projects (longest dwell):**
+      - 01 Funcial: a phone on a dock.
+      - 02 Jontai Energy: a monitor with a miniature solar panel.
+      - 03 Cookies Clicker: a small arcade cabinet.
+      - Next: an empty dock spot labelled "Bare metal: next".
+      - Each step shows "0X — CATEGORY", the name large, one line, and "Open project". Clicking the object or the link flies the camera in, then navigates to the project page (cross-document view transition).
+   4. **Off duty:** a small still life at the end of the bench (running shoes, a dumbbell, a table tennis paddle). Title "What keeps me charged", with the existing copy shortened.
+   5. **What I work with:** the device turns over and its back label reads "Full-stack foundation / Working with AI", with the existing text trimmed to one line each.
+   6. **Q&A:** a small whiteboard is spotlit. The questions are plain HTML `<details>`, answered with the existing career copy, lightly trimmed:
+      - What do you do now?
+      - What comes after MBO 4?
+      - Which roles interest you? (the four roles, plus fintech as one short line)
+      - Why these directions?
+      - Where does it lead? (a company of my own)
+   7. **Contact:** the room lights up again. The final call, plus a link to `/contact` (the page stays, restyled).
+7. **Routes:** unchanged from revision 1.
+   - Project pages live at `/projects/<slug>/` and `/en/projects/<slug>/`, with the slugs `funcial`, `jontai-energy` and `cookies-clicker`.
+   - The old `/projects/web-development/` and `/projects/game-development/` redirect to Jontai Energy and Cookies Clicker. The stubs that sit on the new paths are deleted, and `lighthouserc.json` is updated.
+8. **No sound and no discovery counter.**
+9. **Calm is enforced:**
+   - At most one spotlit object and one text block on screen at a time.
+   - Unlit objects sit in shadow.
+   - No clutter props beyond the ones listed here.
+10. **Test points attach to an opened object.**
+    - On a project page, the object opens up the way the approved product-launch image did: the phone's back, the monitor's housing and the cabinet's side panel lift away, and their layers separate.
+    - **Screen features:** test points about something on screen (Log, Game layer, Pages, Quote, Click…) point at a zoomed crop of a real screenshot, shown on the object's screen.
+    - **Inner features:** test points about the inner workings (Money rules, Vault, Design system, Languages, Producers, Boosts, Save) sit on labelled inner parts: a chip, a storage block, a small board.
+    - **Data:** `testPoints` in `projects.ts` name either a screen crop or a part.
+    - **Screenshots:** each project gets fresh, properly framed screenshots, captured with headless Edge from the real projects run locally. The current `cookies.png` is a 2267×604 strip and cannot fill an arcade screen.
+11. **The loader runs on the home page only**, on the first visit of a session.
+    - Visitors who land directly on a project page or `/contact` get a short fade-in, not the chip/boot/power sequence.
+    - "Back to the workshop" returns to that project's step on the home without the loader.
+12. **Free CC0 3D models and lighting maps may be used** for props that are hard to model convincingly in code (the running shoes, the dumbbell, the paddle), and for an HDRI lighting map.
+    - **Source:** for example Poly Haven.
+    - **Format:** glTF, compressed (meshopt), within a 2 MB budget for all props together.
+    - **Before downloading:** Bob is told each file's name, source and size.
+    - **Fallback:** Higgsfield's 3D generator still needs his OK.
+13. **The workshop spike starts with a check that costs no credits.** The approved room image is used as a temporary background on `/lab/workshop/`, with the real 3D device and phone in front of it, to prove the layered-image room works before any new images are generated.
 
-## The experience
+## Project pages (Shelby's step bar + Silvia's hotspots)
 
-### Home (one pinned stage, Lenis + GSAP ScrollTrigger scrub, both scroll directions)
-1. **Power on.** The gate: counter, ID card and a **Power on** button. Keyboard accessible, can be skipped.
-2. **Bench (cinematic).** A Higgsfield-made stylised workbench (laptop with code, multimeter, soldering iron, breadboard, the device in the middle).
-   - The camera dives toward the device as you scroll: a Seedance video played as an image sequence on a canvas.
-   - Overlay: the name **BOB CHUNG**, one subtitle line typed in (aengel-style), and a small HUD readout that changes with scroll.
-3. **Handoff.** The video's last frame is the same view as the live Three.js camera, because Seedance gets our device render as its end frame. A thin yellow scan line sweeps across as the canvas crossfades to live 3D, so the swap can't be seen.
-4. **Teardown.** The screen lifts off: About in one line plus age, Aruba-born, Chinese heritage and Rotterdam, with the portrait on the lifted screen.
-5. **The board (projects).** The camera settles over the purple board.
-   - **Chips:** Funcial, Jontai Energy and Cookies Clicker, plus an empty **Next socket** (Bare metal).
-   - Scrolling moves focus chip to chip, "01 / 03" style. The chip in focus rises and lights, and shows its name, electronics category and one line.
-   - Clicking a chip (or "Open project") flies the camera into it, then navigates to the project page (cross-document view transition).
-6. **Battery = Off duty.** Running, gym and gaming now; powerlifting and table tennis formerly. Existing copy, shortened.
-7. **Back plate = What I work with.** Two lines only: Full-stack foundation, and Working with AI (existing text, trimmed).
-8. **Unpin into Q&A.** Plain `<details>` questions, answered with the existing career copy, lightly trimmed:
-   - What do you do now?
-   - What comes after MBO 4?
-   - Which roles interest you? (the four roles, plus fintech as one short line)
-   - Why these directions?
-   - Where does it lead? (a company of my own)
-9. **Contact.** The final call plus a link to `/contact` (the page stays, restyled).
-
-### Project pages (Shelby's step bar + Silvia's hotspots)
 - **Top:**
   - the name, the electronics category label and a one-line summary
-  - facts: year, type ("Personal project" / "School project"), role, stack and repo link
-- **Pinned 3D model of that project,** in the same solid style. Numbered **test points TP1 to TP4** are pinned on its parts.
+  - facts: year, type ("Personal project" / "School project"), role, stack and links
+- **The scene:** the project's object stands on the bench in the dark room under the spotlight, as a pinned close-up 3D model. Numbered **test points TP1 to TP4** are pinned to its parts.
   - Scrolling walks TP1 → TP4, with a step bar at the bottom.
-  - Clicking any test point flies the camera there and opens a short "datasheet" panel: what this part does.
-  - The real screenshot shows on the model's screen and also as a normal image, for accessibility.
-- **End:** the next project (fly to its chip) and back to the board.
+  - Clicking a test point flies the camera there and opens a short "datasheet" panel.
+  - The real screenshot shows on the object's screen and also as a normal image, for accessibility.
+- **End:** the next project, and back to the workshop.
 
-**Models and test points** (copy is honest; Bob approves the final EN/NL wording):
-
-| Project | Model | Test points |
+| Project | Object | Test points (copy honest; Bob approves the final EN/NL wording) |
 |---|---|---|
-| **Funcial**: Secure element · personal project 2026 · React 19, TypeScript, Tailwind CSS, Capacitor (Android), SQLCipher, Vercel functions, Upstash Redis. **No AI**: the advisor was removed on 2026-10-16, Funcial `ec0fb39` | Phone in a dock; exploded layers: screen, game chip, core chip, vault block, small cloud (the account's locked copy) | TP1 **Log** (a spend in seconds) · TP2 **Game layer** (XP, levels, quests, streaks; coins are cosmetic and have no money value) · TP3 **Money rules** (a pure TypeScript core does all the maths, including the offline "Should I buy it?" check) · TP4 **Vault** (local-first and encrypted on the phone; an account keeps only a locked copy, so a friend can move phones) |
-| **Jontai Energy**: Front panel · personal project 2026 | Solar panel beside a monitor showing the site; pages fan out as glass sheets | TP1 **Pages** (15+) · TP2 **Design system** (one Tailwind system) · TP3 **Languages** (EN/ES/ZH, PowerShell automation) · TP4 **Quote** (the main action) |
-| **Cookies Clicker**: Feedback loop (also Front panel) · school project 2025 | A big press button with a cookie, small gear "producers", a boost cell, a memory chip | TP1 **Click** · TP2 **Producers** (shared AutoClicker class) · TP3 **Boosts** (timed boosts, random events) · TP4 **Save** (localStorage) |
+| **Funcial**: Secure element · personal project 2026 · React 19, TypeScript, Tailwind CSS, Capacitor (Android), SQLCipher, Vercel functions, Upstash Redis. **No AI** (the advisor was removed 2026-10-16, Funcial `ec0fb39`) | Phone on a dock | TP1 **Log** (a spend in seconds) · TP2 **Game layer** (XP, levels, quests, streaks; coins are cosmetic and have no money value) · TP3 **Money rules** (a pure TypeScript core does all the maths, including the offline "Should I buy it?" check) · TP4 **Vault** (local-first and encrypted on the phone; an account keeps only a locked copy, so a friend can move phones) |
+| **Jontai Energy**: Front panel · personal project 2026 | Monitor with a miniature solar panel | TP1 **Pages** (15+) · TP2 **Design system** (one Tailwind system) · TP3 **Languages** (EN/ES/ZH, PowerShell automation) · TP4 **Quote** (the main action) |
+| **Cookies Clicker**: Feedback loop (also Front panel) · school project 2025 | Small arcade cabinet | TP1 **Click** · TP2 **Producers** (shared AutoClicker class) · TP3 **Boosts** (timed boosts, random events) · TP4 **Save** (localStorage) |
 
-**Funcial screenshot:** run the app locally (`npm run dev` in `C:\Users\bhcco\Downloads\Funcial`) with demo data, capture it with headless Edge, save it to `src/assets/funcial.png`, and Bob confirms it. If onboarding or the PIN screen blocks a clean capture, ask Bob for a phone screenshot instead.
+**Funcial screenshot:** run the app locally (`npm run dev` in `C:\Users\bhcco\Downloads\Funcial`) with demo data, capture it with headless Edge, save it to `src/assets/funcial.png`, and Bob confirms it. If onboarding or the PIN screen blocks a clean capture, ask Bob for a phone screenshot.
 
-## Assets via Higgsfield (connected Higgsfield tools, same account; no CLI is installed)
+## Assets via Higgsfield (connected Higgsfield tools; no CLI installed)
 
-1. **Render the 3D device** from our Three.js scene (headless Edge), at 16:9 and 9:16, at the exact handoff camera.
-2. **GPT Image 2.5** (quality high, 2k):
-   - the stylised bench key art, with the device render as an `image_references` input so the style and object match
-   - 2–3 options for Bob to pick
-   - then a clean version with no text
-3. **Seedance 2.5** (`omni_reference`, start frame = wide bench, end frame = the device close-up render, 8 s, no audio):
-   - a **480p draft first** (`draft: true`), so Bob can approve the motion
-   - then finalize at 1080p, plus a 9:16 version for phones
-4. **Frames:** split each video with `ffmpeg-static`, run from the scratchpad. WebP frames:
-   - about 120 at 1600 px wide for desktop (≤ 8 MB)
-   - about 120 at 900 px for phones (≤ 3.5 MB)
-   - stored in `public/bench/{desktop,phone}/`
-   - loaded progressively: every 4th frame first, then the rest
-5. **Budget:** about 250 credits. Read the cost of the first generation from `transactions`, and ask Bob before going past the budget.
+1. **Room plates** (GPT Image 2.5, high quality, 2k):
+   - Generated with the approved room image as an `image_references` input.
+   - Plates:
+     - the window view alone
+     - the room without objects, lit
+     - the room without objects, dark
+   - Each at 16:9 for desktop and 9:16 for phones.
+   - About 12–16 images, roughly 35–45 credits.
+2. **Textures** (GPT Image 2.5): a top-down purple circuit board with a "BC-2006" silkscreen, brushed purple aluminium, and dark wood for the bench. Generated with flat, even lighting so they work as material maps. About 4–6 images, roughly 11–17 credits.
+3. **Pick-and-place clip** (Seedance 2.5):
+   - Frames: the start frame is a macro still in the approved loader's style; the end frame is a render of our device's board close-up.
+   - Format: 5 s, no audio.
+   - Process: check the cost first, make a **480p draft** for Bob to approve, then finalize at 1080p.
+4. **Frames:** split the clip with `ffmpeg-static` from the scratchpad into WebP frames in `public/loader/`. They are loaded first, and the clip plays while the room loads.
+5. **3D objects** are modelled in code. Higgsfield's 3D generator is tried only if a coded object looks weak, and only with Bob's OK.
+6. **Budget:** about 250 credits in total (about 44 spent). Ask Bob before going past it.
 
-## Architecture (Astro stays; object-oriented Components, as today)
+## Architecture (Astro stays; object-oriented Components)
 
-**Add:**
-- `three` and `@types/three`
-- `@fontsource-variable/unbounded`
-- a Geist (or Inter) package
+**Reused from milestone 1:**
+- `BenchLayout.astro` (head, fonts, boot failsafe) and `bench-tokens.css` / `bench-base.css`
+- Vitest and the CI step
+- `RenderLoop`, `PixelBudget` (adaptive pixel ratio), `ChipPointer` (generalised to any pickable object) and `labels.ts` (canvas textures)
+- the controller pattern: Lenis + ScrollTrigger + IntersectionObserver + fallback + failsafe + immediate first progress
 
-**Remove:**
-- fonts: Bagel Fat One, Yellowtail, Sofia Sans Extra Condensed (and Sofia Sans if Geist replaces it)
+**Replaced:**
+- `Teardown.ts` becomes `Choreography.ts`, a pure function from scroll progress to a pose: the section, the camera, the spotlight target, the room light level and the text anchor.
+- The toy `Device.ts` gives way to realistic object builders.
+- `DeviceScene.ts` becomes `WorkshopScene.ts` (plates + objects + spotlight).
 
-**New code (`src/scripts/`):**
-- `stage/Stage.ts`: owns the fixed stage (2D frame canvas + WebGL canvas + HTML text layer), the master ScrollTrigger timeline with labels, resize, and pausing when hidden
-- `stage/FrameSequence.ts`: loads and draws the bench frames
-- `three/DeviceScene.ts`: the home device, its layers, camera rig and chip raycasting
-- `three/ProjectScene.ts`: a data-driven project model with test points
-- `three/parts/*.ts`: stylised part builders (rounded chip, board, screen, battery, phone, solar panel, button, gear)
-- `ui/PowerOnGate.ts` (replaces `ui/LoadingScreen.ts`) and `ui/TestPointPanel.ts`
-
-**Keep and reuse:**
-- `core/App.ts`, `core/Component.ts`, `core/Motion.ts` (reduced motion, fine pointer), `core/SafeStorage.ts`
-- `ui/SiteHeader.ts` (restyled), `ui/AgeUpdater.ts`, `contact/ContactForm.ts`
-
-**Remove:**
-- scripts: `FlapBoard`, `BlueprintGrid`, `HeroMascot`, `NameReveal`, `CursorTrail`, `ScrollScenes`, `ScrollEffects`, `TiltCards`, `ProjectSwitcher`, `fun/Terminal`, `fun/StationClock`
-- components: `LineObjects`, `ScrollTapes`, `FlapText`, `EngineRoom`, `Hero`, `Career` (becomes the Q&A), `Skills` (becomes the back plate)
+**New:**
+- `three/RoomPlates.ts`
+- `three/objects/{Handheld,PhoneDock,MonitorPanel,ArcadeCabinet,OffDutyStill,Whiteboard}.ts`
+- `stage/FrameSequence.ts` (the loader clip)
+- `ui/BootLoader.ts` (pick and place → boot → power on)
+- `ui/TestPointPanel.ts`
+- `three/ProjectScene.ts`
 
 **Data:**
-- `src/data/projects.ts`: add Funcial, per-locale `testPoints`, a `model` key and a `kind` ("Personal project" / "School project")
-- `src/data/categories.ts`: the four electronics categories, used as labels
-- `src/i18n/en.ts` and `src/i18n/nl.ts`: rewritten, minimal
+- `src/data/projects.ts`: add Funcial, per-locale `testPoints`, a `model` key and a `kind`
+- `src/data/categories.ts`: the four electronics categories
+- `src/i18n/*.ts`: rewritten, minimal
 
 **Other:**
-- `src/styles/tokens.css` and `src/styles/base.css`: rewritten
-- `src/og/ShareImage.ts`: switched to the new fonts
-- `src/pages/projects/[slug].astro` and `src/pages/en/projects/[slug].astro` replace the `[category]` routes
-- CSP in `astro.config.mjs`: no change needed (everything is self-hosted; Three.js needs no eval)
-- the Python auditor (`tools/`) stays and must pass
-
-**Fallbacks:**
-- **Phones (lite, like aengel):** the 9:16 frames, 3D capped at DPR 1.25, fewer lights, tap instead of hover.
-- **Reduced motion or no WebGL:** no scrubbing. The page stacks normally, with pre-rendered stills of the bench, device and project models (rendered once with headless Edge into `src/assets/renders/`).
-- **Without JavaScript:** all text is real HTML, so the page reads and indexes fine.
-
-**Performance target:**
-- a steady 60 fps scroll on an ordinary laptop
-- home JavaScript about 250 KB gzipped
-- under 1.5 MB before "Power on", including a **first frame pass** (every 8th frame at about 800 px, about 0.5 MB); the boot counter counts that pass
-- the full-size frames stream in behind it while the visitor reads the first beat
-- WebGL sleeps when off-screen
+- **Review page:** `/lab/workshop/` replaces `/lab/device/` during the build (noindex, out of the sitemap). It is removed when the new home ships.
+- **Old code:** the old home's components, scripts and fonts are removed when the new home replaces it. The list is in revision 1 of this spec (`git show 599fa6b:docs/superpowers/specs/2026-10-18-portfolio-redesign-design.md`, section "Architecture → Remove").
+- **Fallbacks:**
+  - **Phones:** the 9:16 plates, DPR capped at 1.25, tap instead of hover.
+  - **Reduced motion or no WebGL:** a stacked page with stills of the room and of each spotlight state, rendered once with headless Edge.
+  - **Without JavaScript:** real HTML text.
+- **Performance:**
+  - a steady 60 fps scroll on an ordinary laptop (PixelBudget steps the pixel ratio down)
+  - home JavaScript about 250 KB gzipped (three.js in its own chunk)
+  - under 1.5 MB before the loader clip plays
+  - plates as compressed WebP, about 300–500 KB each
+  - no heavy post-processing: glows are sprites, not a bloom pass
 
 ## Build order (Bob sees each step before the next)
 
-0. **Hand-off docs:**
-   - save this design to `docs/superpowers/specs/2026-10-18-portfolio-redesign-design.md`
-   - write the implementation plan (superpowers:writing-plans)
-   - work on a branch, not main
-1. **Device spike:** the stylised handheld in Three.js with the new type and colours, its teardown scrubbed by scroll, running in the site. Bob reviews screenshots and a short screen capture.
-2. **Higgsfield assets:** device renders → bench options (Bob picks) → Seedance draft (Bob approves the motion) → finals → frames.
-3. **Home end to end:** gate, bench dive, handoff, About, the board with chips, Off duty, What I work with, Q&A, contact.
-4. **Project pages:** the three models with test points, the Funcial screenshot, EN/NL copy (Bob approves the wording).
-5. **Hardening:** phones/lite, reduced motion, no-WebGL stills, a11y, SEO, redirects, share images, and `PRODUCT.md`/`DESIGN.md` updated. Then verify, and ask Bob before pushing.
+1. **Done:** foundation and the first device spike (milestone 1, 2026-10-19). Its infrastructure is reused.
+2. **Workshop look spike:**
+   - first a check that costs no credits (call 13), then the room plates and textures from Higgsfield
+   - the realistic handheld and one project object (the Funcial phone) in the room
+   - the spotlight moving between them with floating text, scrubbed by scroll on `/lab/workshop/`
+   - Bob reviews screenshots and a recording. This answers "more complex device" and "immersive" before anything else is built on them.
+3. **Loader:** the pick-and-place clip (draft, Bob's OK, final) → device boot → power on → room reveal.
+4. **Home end to end:** every spotlight section, the floating text, the Q&A and contact. The old home is replaced, and the deferred milestone-1 items are closed: the resize "inside" check, PixelBudget restart on resize, the CSP hash for the boot script, the three.js chunk and the shared head partial.
+5. **Project pages:** the three objects with test points, the Funcial screenshot, and EN/NL copy (Bob approves the wording).
+6. **Hardening:** phones, reduced motion, the no-WebGL stills, a11y, SEO, redirects, share images, and `PRODUCT.md`/`DESIGN.md` updated. Then verify, and ask Bob before pushing.
 
 ## Verification
 
-- **Type checks:** `npx -p typescript tsc --noEmit` (`astro check` hangs here) and `npm run build`.
-- **Auditor:** run it through Pyodide (the `unittest discover tools` tests, and `site_audit.main(['dist','--strict'])`), as in CI.
-- **Scroll checks in headless Edge** (`playwright-core` from the scratchpad, `executablePath` = Edge, `page.bringToFront()`, `sessionStorage` set to skip the gate):
-  - scrub the whole home page both ways
-  - check frame loading, the handoff crossfade, chip focus and clicks, and the fly-in navigation
-  - on project pages, step TP1 → TP4 and click a test point
-  - log fps while scrolling
-- **Phone:** a 390 px viewport with touch drags (`Input.dispatchTouchEvent`).
-- **Reduced motion:** emulated; check that the page stacks with the stills.
-- **Lighthouse:** accessibility, SEO and best practices must hold; performance is reported only.
+- **Type checks:** `npx -p typescript tsc --noEmit` (`astro check` hangs here), `npm test` and `npm run build`.
+- **Auditor:** through Pyodide (`unittest discover tools` and `site_audit.main(['dist','--strict'])`).
+- **Headless Edge** (`playwright-core` with Edge, `page.bringToFront()`):
+  - the loader sequence, including skip on repeat visits
+  - the spotlight sequence both ways
+  - the floating text staying beside its object on resize
+  - object hover and click, and the fly-in navigation
+  - stepping TP1 → TP4 on project pages
+  - fps logged on the GPU and on SwiftShader
+- **Phone:** a 390 px viewport with touch drags.
+- **Reduced motion and no WebGL:** check that the page stacks with the stills.
+- **Lighthouse:** accessibility, SEO and best practices must hold.
 - **Proof for Bob:** screenshots and a short recording.
 - **Ask before pushing to main.**
 
 ## Not in scope / anti-goals
 
-- No AI portrait.
+- No AI portrait, and no faces in generated images.
 - No game or discovery counter.
 - No sound.
 - No invented clients, stats or availability claims.
-- No heavy bordered boxes.
+- No clutter: the calm room is a requirement, not a style preference.
 - The career roadmap is never the headline.
