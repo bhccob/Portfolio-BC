@@ -1,12 +1,12 @@
 ---
 import BenchLayout from '../../layouts/BenchLayout.astro';
-import DeviceStage from '../../components/bench/DeviceStage.astro';
+import HubStage from '../../components/bench/HubStage.astro';
 import { Translator } from '../../i18n/Translator';
 
-// A review page for the redesign's device, kept out of search results until it replaces the home page.
+// A review page for the redesign's hub, kept out of search results until it replaces the home page.
 const { t } = new Translator('nl');
 ---
 
 <BenchLayout locale="nl" route="/lab/device/" title={t.bench.meta.title} description={t.bench.meta.description} noindex>
-  <DeviceStage locale="nl" />
+  <HubStage locale="nl" />
 </BenchLayout>

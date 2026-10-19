@@ -2,7 +2,30 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { buildHandheld } from '../../src/scripts/three/device/Handheld';
 import { HUB_LAYERS } from '../../src/scripts/three/HubChoreography';
-import { layerOf } from '../../src/scripts/three/HubScene';
+import { layerOf, onCanvas } from '../../src/scripts/three/HubScene';
+
+describe('onCanvas', () => {
+  it('counts nothing as on a canvas that has no size yet, not even its {0, 0} corner', () => {
+    expect(onCanvas(0, 0, 0, 0, 0)).toBe(false);
+    expect(onCanvas(0, 0, 0, 640, 0)).toBe(false);
+    expect(onCanvas(0, 0, 0, 0, 480)).toBe(false);
+  });
+
+  it('counts a point in front of the camera and inside the canvas, edges included', () => {
+    expect(onCanvas(320, 240, 0.5, 640, 480)).toBe(true);
+    expect(onCanvas(0, 0, 0, 640, 480)).toBe(true);
+    expect(onCanvas(640, 480, 0, 640, 480)).toBe(true);
+  });
+
+  it('leaves out points off the canvas, behind the camera or past the far plane', () => {
+    expect(onCanvas(-1, 240, 0, 640, 480)).toBe(false);
+    expect(onCanvas(641, 240, 0, 640, 480)).toBe(false);
+    expect(onCanvas(320, -1, 0, 640, 480)).toBe(false);
+    expect(onCanvas(320, 481, 0, 640, 480)).toBe(false);
+    expect(onCanvas(320, 240, -1.2, 640, 480)).toBe(false);
+    expect(onCanvas(320, 240, 1.2, 640, 480)).toBe(false);
+  });
+});
 
 describe('layerOf', () => {
   const model = buildHandheld();

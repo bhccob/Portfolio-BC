@@ -192,6 +192,16 @@ function smoothstep(a: number, b: number, x: number): number {
 }
 
 /**
+ * Whether a projected point (x, y in CSS pixels, z in normalised depth) is
+ * in front of the camera and on a canvas that has a size: before the canvas
+ * is laid out, every point projects to {0, 0} on a 0 × 0 canvas, and counts
+ * as off it.
+ */
+export function onCanvas(x: number, y: number, z: number, width: number, height: number): boolean {
+  return width > 0 && height > 0 && z > -1 && z < 1 && x >= 0 && x <= width && y >= 0 && y <= height;
+}
+
+/**
  * The layer `object` belongs to: up through its parents to one of the
  * model's layers (chip leads and decals carry no slug of their own).
  */
@@ -394,7 +404,11 @@ export class HubScene {
     this.frameHandlers.push(handler);
   }
 
-  /** Where each layer's callout attaches (its top face, at the front-right corner), in CSS pixels on the canvas. */
+  /**
+   * Where each layer's callout attaches (its top face, at the front-right
+   * corner), in CSS pixels on the canvas. None is visible before the canvas
+   * has a size (onCanvas).
+   */
   anchors(): Record<HubLayerId, Anchor> {
     const anchors = {} as Record<HubLayerId, Anchor>;
     for (const id of HUB_LAYERS) {
@@ -403,7 +417,7 @@ export class HubScene {
       const p = this.point.set(...ANCHORS[id]).applyMatrix4(layer.matrixWorld).project(this.camera);
       const x = ((p.x + 1) / 2) * this.width;
       const y = ((1 - p.y) / 2) * this.height;
-      const visible = layer.visible && p.z > -1 && p.z < 1 && x >= 0 && x <= this.width && y >= 0 && y <= this.height;
+      const visible = layer.visible && onCanvas(x, y, p.z, this.width, this.height);
       anchors[id] = { x, y, visible };
     }
     return anchors;

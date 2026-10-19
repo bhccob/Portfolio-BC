@@ -140,7 +140,7 @@ const graph = [person, website, ...structuredData];
       so the pinned stage lays out from the first frame. Without the flag (no
       scripts, or reduced motion) the page reads as a plain stacked page.
       Failsafe: unless the bench module has marked the root (data-bench, set
-      by DeviceStageController) within 4 s, the flag comes off again, so a
+      by HubStageController) within 4 s, the flag comes off again, so a
       module that failed to load, was blocked or cannot run in this browser
       leaves the stacked page, not a pinned stage with its text hidden. Plain
       ES5, so it runs where the module cannot. Like BaseLayout's boot script,

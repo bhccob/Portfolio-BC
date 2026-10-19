@@ -8,7 +8,7 @@ import * as THREE from 'three';
  * flat right up to its edge (no faceting, no smoothing across the face). A
  * new strip starts a hard edge, a new material group or a new UV layout.
  *
- * Adapted from milestone 1's `parts/slab.ts`, which a later task removes.
+ * Adapted from milestone 1's `parts/slab.ts` (removed with the toy device in milestone 2).
  */
 
 /** Segments in each rounded corner of an outline. */

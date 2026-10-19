@@ -1,0 +1,306 @@
+---
+import still from '../../assets/renders/hub.webp';
+import { Translator, type Locale } from '../../i18n/Translator';
+import { profile } from '../../data/profile';
+
+/*
+ * The hub: a scroll track with a stage pinned to the viewport, the WebGL
+ * canvas under the vertical name, the role line and the callouts. Scripts
+ * (HubStageController) light the canvas, scrub the handheld open into its
+ * layers and lay the callouts out on it; without them, with reduced motion or
+ * without WebGL, the stage is a plain page: the name, the role line, a still
+ * of the hub and the callouts as a list.
+ */
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const { t } = new Translator(locale);
+const h = t.hub;
+// Top to bottom, as the layers stack; the frame has no callout yet.
+const callouts = (['screen', 'board', 'battery', 'back'] as const).map((id) => ({ id, label: h.callouts[id] }));
+---
+
+<div class="hub" data-hub-track>
+  <div class="hub__stage" data-hub-stage>
+    <canvas class="hub__canvas" data-hub-canvas aria-hidden="true"></canvas>
+
+    <h1 class="title hub__name">{profile.name}</h1>
+    <p class="hud-label hub__role">{h.role}</p>
+
+    <ul class="callouts" data-callouts data-gone aria-label={h.layers}>
+      {
+        callouts.map(({ id, label }) => (
+          <li class="callout" data-callout={id}>
+            <svg class="callout__leader" aria-hidden="true" focusable="false">
+              <path class="callout__line" />
+              <circle class="callout__dot" r="2.5" cx="0" cy="0" />
+            </svg>
+            <button class="callout__label" type="button" aria-pressed="false">
+              {label}
+            </button>
+          </li>
+        ))
+      }
+    </ul>
+
+    <div class="hub__still">
+      <img src={still.src} width={still.width} height={still.height} alt={h.stillAlt} loading="lazy" decoding="async" />
+      <ul class="hub__list" aria-label={h.layers}>
+        {callouts.map(({ label }) => <li class="hud-label">{label}</li>)}
+      </ul>
+    </div>
+  </div>
+</div>
+
+<style>
+  .hub {
+    /*
+     * The vertical name's size: about 80% of the viewport's height, held
+     * narrower where the canvas is tall and narrow, so it stays clear of the
+     * centred device.
+     */
+    --name-size: min(10.4svh, 11.5vw);
+    --role-bottom: clamp(16px, 3.5svh, 40px);
+  }
+
+  /* ---------- stacked: the page without scripts, motion or WebGL ---------- */
+  .hub__stage {
+    display: grid;
+    justify-items: start;
+    gap: 16px;
+    max-width: 1100px;
+    margin-inline: auto;
+    padding: clamp(64px, 12svh, 128px) var(--gutter);
+  }
+
+  .hub__canvas,
+  .callouts {
+    display: none;
+  }
+
+  .hub__name {
+    font-size: clamp(44px, 9vw, 136px);
+    font-weight: 800;
+    line-height: 0.95;
+    color: var(--yellow);
+    text-transform: uppercase;
+  }
+
+  .hub__still {
+    display: grid;
+    gap: 24px;
+    width: 100%;
+    margin-top: clamp(32px, 6svh, 64px);
+  }
+
+  .hub__still img {
+    width: min(760px, 100%);
+    border-radius: 14px;
+    background: var(--board-deep);
+  }
+
+  .hub__list {
+    display: grid;
+    gap: 10px;
+  }
+
+  /* Each callout as a line of text, behind a short gold leader. */
+  .hub__list li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--gold);
+  }
+
+  .hub__list li::before {
+    content: '';
+    flex: none;
+    width: 24px;
+    height: 1px;
+    background: currentColor;
+  }
+
+  /*
+   * ---------- live: the stage sticks to the viewport while the track scrolls past ----------
+   * The first half of the track opens the device, the second holds the hub.
+   * The stage paints the studio's own black under the canvas, so the wait
+   * for the scene's first frame shows no seam. js-motion is set before first
+   * paint and taken off again if the bench module never runs (BenchLayout's
+   * failsafe), so this layout never waits on a script that is not coming.
+   */
+  :global(.js-motion) .hub:not(:has([data-fallback])) {
+    height: 300svh;
+  }
+
+  :global(.js-motion) .hub__stage:not([data-fallback]) {
+    position: sticky;
+    top: 0;
+    display: block;
+    max-width: none;
+    height: 100svh;
+    padding: 0;
+    overflow: hidden;
+    /* HubScene's clear colour. */
+    background: #07040d;
+    /* A vertical swipe scrolls the page; a mostly horizontal drag turns the device. */
+    touch-action: pan-y;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  :global(.js-motion) .hub__stage:not([data-fallback]) .hub__canvas {
+    display: block;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  :global(.js-motion) .hub__stage:not([data-fallback]) .hub__still {
+    display: none;
+  }
+
+  /* The name reads bottom to top along the left edge. */
+  :global(.js-motion) .hub__stage:not([data-fallback]) .hub__name {
+    position: absolute;
+    top: 50%;
+    left: var(--gutter);
+    font-size: var(--name-size);
+    line-height: 0.82;
+    letter-spacing: 0;
+    white-space: nowrap;
+    writing-mode: vertical-rl;
+    transform: translateY(-50%) rotate(180deg);
+    pointer-events: none;
+  }
+
+  :global(.js-motion) .hub__stage:not([data-fallback]) .hub__role {
+    position: absolute;
+    left: var(--gutter);
+    bottom: var(--role-bottom);
+    pointer-events: none;
+  }
+
+  /*
+   * The callouts lie over the canvas and let the pointer through to it, but
+   * for the labels, which take it once they are shown (data-shown). Callouts
+   * places each one with transforms and leader paths, frame by frame.
+   */
+  :global(.js-motion) .hub__stage:not([data-fallback]) .callouts {
+    display: block;
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .callouts[data-gone],
+  .callout[data-off] {
+    visibility: hidden;
+  }
+
+  .callout__leader {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    fill: none;
+    stroke: var(--gold);
+    stroke-width: 1;
+  }
+
+  .callout__dot {
+    fill: var(--gold);
+    stroke: none;
+  }
+
+  .callout__label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    margin: 0;
+    padding: 6px 0;
+    border: 0;
+    background: none;
+    font-family: var(--font-hud);
+    font-size: 12px;
+    font-weight: 450;
+    line-height: 1.5;
+    letter-spacing: var(--hud-tracking);
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--gold);
+    cursor: pointer;
+    pointer-events: none;
+    transition: color 0.2s var(--ease-out);
+  }
+
+  .callouts[data-shown] .callout__label {
+    pointer-events: auto;
+  }
+
+  .callout__line,
+  .callout__dot {
+    transition:
+      stroke 0.2s var(--ease-out),
+      fill 0.2s var(--ease-out);
+  }
+
+  /* The layer under the pointer or focus, or pinned: its callout lights up with it. */
+  .callout[data-active] .callout__label {
+    color: var(--yellow);
+  }
+
+  .callout[data-active] .callout__line {
+    stroke: var(--yellow);
+  }
+
+  .callout[data-active] .callout__dot {
+    fill: var(--yellow);
+  }
+
+  .callout__label[aria-pressed='true'] {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 5px;
+  }
+
+  /*
+   * Narrow, or too cramped for the column: a list under the device, each
+   * label behind a short leader, clear of the vertical name and above the
+   * role line. The list still covers the stage (Callouts measures the stage
+   * by it), its items gathered at the bottom.
+   */
+  :global(.js-motion) .hub__stage:not([data-fallback]) .callouts[data-narrow] {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-start;
+    padding: 0 var(--gutter) calc(var(--role-bottom) + 28px) calc(var(--gutter) + var(--name-size) * 0.82 + 20px);
+  }
+
+  .callouts[data-narrow] .callout__leader {
+    display: none;
+  }
+
+  .callouts[data-narrow] .callout__label {
+    position: static;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding-block: 4px;
+    white-space: normal;
+    text-align: left;
+  }
+
+  .callouts[data-narrow] .callout__label::before {
+    content: '';
+    flex: none;
+    width: 20px;
+    height: 1px;
+    background: currentColor;
+  }
+</style>
