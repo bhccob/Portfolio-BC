@@ -577,8 +577,9 @@ export class HubScene {
       this.model.applyPose(pose);
       this.explode = pose.explode;
       this.posed = this.progress;
-      // The beam ends on the device's top.
+      // The beam ends on the device's top; the floor's shadow pales as the layers rise.
       this.beam?.setStop(Math.max(...HUB_LAYERS.map((id) => pose.offsets[id] + this.boxes[id].max.y)));
+      this.floor?.setRise(pose.explode);
       this.renderer.shadowMap.needsUpdate = true;
       this.pickDirty = true;
     }
@@ -736,6 +737,7 @@ export class HubScene {
     this.floor = buildFloor({
       y: STUDIO.floor,
       pool: [STUDIO.apex[0], STUDIO.apex[2]],
+      poolRadius: STUDIO.beamRadius,
       footprint: [DEVICE.width / 2, DEVICE.depth / 2],
       noise: this.noise
     });
