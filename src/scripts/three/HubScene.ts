@@ -24,7 +24,7 @@ import { glowTexture, noiseTexture } from './studio/noise';
 
 /**
  * The hub on its canvas: the realistic handheld in a dark product-launch
- * studio (a wet, mirrored floor, one gold beam from above with dust in it,
+ * studio (a wet, glossy floor, one gold beam from above with dust in it,
  * purple haze), the camera that follows the scroll from the closed device to
  * the exploded hub, the drag that turns it, and the layers answering the
  * pointer. Scroll sets a target progress, which the scene eases towards on
@@ -40,7 +40,7 @@ import { glowTexture, noiseTexture } from './studio/noise';
  */
 
 export interface HubSceneOptions {
-  /** A mouse or trackpad: the sharper end of the quality ladder, with the floor's reflection. */
+  /** A mouse or trackpad: the sharper end of the quality ladder. */
   finePointer: boolean;
   /** Names printed on the chips, keyed by slug; a chip without one keeps its default. */
   labels?: Readonly<Record<string, string>>;
@@ -92,6 +92,14 @@ const PROGRESS_DAMP = 8;
 /** The longest step the easing takes in one frame, so a tab coming back does not jump. */
 const MAX_STEP = 0.1;
 
+/**
+ * How the quality ladder's budget judges this scene (PixelBudget): a window
+ * must average 56 fps or better, so a GPU holding the mid-50s gives up dust
+ * and then pixels; and three or more frames over 100 ms in a row count as
+ * slow drawing, not a stall, so a GPU under 10 fps steps down too.
+ */
+const BUDGET_OPTIONS = { limit: 1 / 56, slowRun: 3 } as const;
+
 /** Anisotropic filtering for the device's image maps, seen at a slant. */
 const ANISOTROPY = 8;
 
@@ -108,8 +116,15 @@ const STUDIO = {
   exposure: 1
 } as const;
 
-/** The warm key: a spot from the beam's source, wide enough to light every layer, its shadow soft. */
-const KEY = { color: 0xffd9a0, intensity: 70, angle: 0.5, penumbra: 0.85, target: [0, 1.6, 0] as const, shadowRadius: 14, shadowSamples: 16 };
+/**
+ * The warm key: a spot from the beam's source, wide enough to light every
+ * layer. Its shadow is PCF, softened by `shadowRadius` texels: one depth
+ * pass, redrawn only while the device moves, with no blur passes.
+ */
+const KEY = { color: 0xffd9a0, intensity: 70, angle: 0.5, penumbra: 0.85, target: [0, 1.6, 0] as const, shadowRadius: 6 };
+
+/** Parts smaller than this (bounding radius) cast no shadow: screws, leads and decals vanish in a soft shadow. */
+const SHADOW_CASTER = 0.2;
 
 /** The purple rim, from behind and to the left. */
 const RIM = { color: 0x8a5cff, intensity: 2.2, position: [-6, 3.5, -5] as const };
@@ -233,6 +248,8 @@ export class HubScene {
   private environment: THREE.WebGLRenderTarget | null = null;
   /** Image maps that arrived but are not yet handed to the model (their programs compiling). */
   private pending: DeviceTextures | null = null;
+  /** The scene's programs are compiling (compileAsync); no frame is drawn until they are linked. */
+  private compiling = true;
   private readonly target3 = new THREE.Vector3();
   private readonly offset = new THREE.Vector3();
   private readonly spherical = new THREE.Spherical();
@@ -259,7 +276,7 @@ export class HubScene {
     this.finePointer = options.finePointer;
     this.quality = qualityFor(0, this.finePointer);
     const ratios = Array.from({ length: qualitySteps(this.finePointer) }, (_, step) => qualityFor(step, this.finePointer).pixelRatio);
-    this.budget = new PixelBudget(ratios);
+    this.budget = new PixelBudget(ratios, BUDGET_OPTIONS);
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
     try {
       this.renderer.setClearColor(STUDIO.background, 1);
@@ -267,8 +284,7 @@ export class HubScene {
       this.renderer.toneMapping = THREE.NeutralToneMapping;
       this.renderer.toneMappingExposure = STUDIO.exposure;
       this.renderer.shadowMap.enabled = true;
-      // Variance shadows blur wide and cheaply; the map is drawn only when the device moves.
-      this.renderer.shadowMap.type = THREE.VSMShadowMap;
+      this.renderer.shadowMap.type = THREE.PCFShadowMap;
       // The device only moves with the scroll; the shadow is drawn again only then (see update()).
       this.renderer.shadowMap.autoUpdate = false;
       this.renderer.shadowMap.needsUpdate = true;
@@ -282,11 +298,13 @@ export class HubScene {
 
       this.model = buildHandheld(undefined, options.labels);
       this.model.group.traverse((object) => {
-        // Every part casts onto the floor; none takes another's shadow, as in a lit product shot.
-        if ((object as THREE.Mesh).isMesh) {
-          object.castShadow = true;
-          object.receiveShadow = false;
-        }
+        // The larger parts cast onto the floor; none takes another's shadow, as in a lit product shot.
+        const mesh = object as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        mesh.geometry.computeBoundingSphere();
+        const radius = mesh.geometry.boundingSphere?.radius ?? 0;
+        mesh.castShadow = !(mesh as THREE.InstancedMesh).isInstancedMesh && radius > SHADOW_CASTER;
+        mesh.receiveShadow = false;
       });
       this.scene.add(this.model.group);
       this.dimGlass();
@@ -303,6 +321,7 @@ export class HubScene {
 
       this.resize();
       this.update(0);
+      this.precompile();
       void this.texture();
     } catch (error) {
       // Whatever was built goes, and the context with it, rather than stay with the canvas for the
@@ -344,7 +363,7 @@ export class HubScene {
     if (!on) this.canvas.style.cursor = '';
   }
 
-  /** Matches the drawing buffer, the mirror and the camera to the canvas's size on the page. */
+  /** Matches the drawing buffer, the dust and the camera to the canvas's size on the page. */
   resize(): void {
     const width = this.canvas.clientWidth;
     const height = this.canvas.clientHeight;
@@ -354,7 +373,6 @@ export class HubScene {
     const ratio = Math.min(window.devicePixelRatio || 1, this.quality.pixelRatio);
     this.renderer.setPixelRatio(ratio);
     this.renderer.setSize(width, height, false);
-    this.floor?.setSize(width * ratio, height * ratio);
     this.dust?.setScale((height * ratio) / 2);
     this.camera.aspect = width / height;
     this.aim();
@@ -444,6 +462,11 @@ export class HubScene {
   }
 
   private tick(dtSeconds: number): void {
+    if (this.compiling) {
+      // Nothing is drawn (the canvas keeps the studio's clear colour) until the programs are linked.
+      this.update(Math.min(dtSeconds, MAX_STEP));
+      return;
+    }
     // Frames running slow step down the quality ladder; the buffer is resized before this frame draws.
     if (this.budget.sample(dtSeconds) !== null) this.setQuality(qualityFor(this.budget.step, this.finePointer));
     this.update(Math.min(dtSeconds, MAX_STEP));
@@ -527,7 +550,6 @@ export class HubScene {
     key.castShadow = true;
     key.shadow.mapSize.set(1024, 1024);
     key.shadow.radius = KEY.shadowRadius;
-    key.shadow.blurSamples = KEY.shadowSamples;
     key.shadow.bias = -0.0004;
     key.shadow.normalBias = 0.02;
     key.shadow.camera.near = 3;
@@ -553,17 +575,13 @@ export class HubScene {
     this.floor = buildFloor({
       y: STUDIO.floor,
       pool: [STUDIO.apex[0], STUDIO.apex[2]],
-      width: 2,
-      height: 2,
+      footprint: [DEVICE.width / 2, DEVICE.depth / 2],
       noise: this.noise
     });
     this.beam = buildBeam({ apex: STUDIO.apex, floor: STUDIO.floor, radius: STUDIO.beamRadius, noise: this.noise });
     const most = Math.max(...Array.from({ length: qualitySteps(this.finePointer) }, (_, step) => qualityFor(step, this.finePointer).dust));
     this.dust = buildDust({ apex: STUDIO.apex, top: BEAM.top, radius: STUDIO.beamRadius, floor: STUDIO.floor, max: most });
     this.haze = buildHaze();
-    // The haze and the backdrop are the room's air and its far wall, not things on the stage: the
-    // floor mirrors the device, the beam and the dust in the dark.
-    this.floor.exclude(this.haze.group, this.backdrop.mesh);
     this.scene.add(this.backdrop.mesh, this.floor.group, this.beam.mesh, this.dust.points, this.haze.group);
 
     const glow = new THREE.Sprite(
@@ -599,10 +617,9 @@ export class HubScene {
     this.glow.material.opacity = GLOW.opacity * smoothstep(0.05, 0.45, facing);
   }
 
-  /** Applies a step of the quality ladder: the pixel ratio (through resize), the mirror and the dust. */
+  /** Applies a step of the quality ladder: the dust and the pixel ratio (through resize). */
   private setQuality(quality: Quality): void {
     this.quality = quality;
-    this.floor?.setReflection(quality.reflection);
     this.dust?.setCount(quality.dust);
     this.resize();
   }
@@ -630,8 +647,12 @@ export class HubScene {
     }
     this.pending = null;
     this.model.setTextures(textures);
-    // The stand-ins hold the compiled programs until the model's materials have taken them up.
-    this.afterFrame.push(release);
+    // The stand-ins hold the compiled programs until the model's materials have taken them up. The
+    // swap's frame uploads and binds afresh: the budget's count starts over after it.
+    this.afterFrame.push(() => {
+      release();
+      this.budget.restart();
+    });
   }
 
   /**
@@ -639,8 +660,7 @@ export class HubScene {
    * does not stall a visible frame on them: each map is decoded off the main
    * thread and uploaded in its own task, then stand-in materials made and
    * textured exactly as the model's are compiled against this scene (its
-   * lights, fog and environment) for the canvas and, while the floor
-   * mirrors, for the mirror's render target too. The model's materials find
+   * lights, fog and environment). The model's materials find
    * those programs in the cache, provided the stand-ins still hold them: the
    * answer lets them go, to be called once the model has drawn a frame.
    */
@@ -664,8 +684,6 @@ export class HubScene {
         await new Promise((resolve) => setTimeout(resolve, 0));
       }
       if (this.disposed) return release;
-      const variants: (THREE.WebGLRenderTarget | null)[] = [null];
-      if (this.quality.reflection && this.floor) variants.push(this.floor.mirror.getRenderTarget());
       // Each textured material as the model draws it: on a plain mesh, an instanced one (the chamfer's
       // hole lips), or both; an instanced draw is a program of its own.
       const uses = new Set<string>();
@@ -676,26 +694,18 @@ export class HubScene {
           if ((TEXTURED as readonly string[]).includes(material.name)) uses.add(`${material.name}|${(mesh as THREE.InstancedMesh).isInstancedMesh === true}`);
         }
       });
-      const compiling: Promise<unknown>[] = [];
-      for (const renderTarget of variants) {
-        const stand = createMaterials();
-        applyTextures(stand, textures);
-        const group = new THREE.Group();
-        for (const use of uses) {
-          const [name, instanced] = use.split('|') as [(typeof TEXTURED)[number], string];
-          const mesh = instanced === 'true' ? new THREE.InstancedMesh(geometry, stand[name], 1) : new THREE.Mesh(geometry, stand[name]);
-          if (mesh instanceof THREE.InstancedMesh) instances.push(mesh);
-          mesh.castShadow = true;
-          group.add(mesh);
-        }
-        sets.push({ materials: Object.values(stand), flex: stand.flex.map });
-        const previous = this.renderer.getRenderTarget();
-        this.renderer.setRenderTarget(renderTarget);
-        // compileAsync compiles at once (with the render target in place) and resolves when linked.
-        compiling.push(this.renderer.compileAsync(group, this.camera, this.scene));
-        this.renderer.setRenderTarget(previous);
+      const stand = createMaterials();
+      applyTextures(stand, textures);
+      const group = new THREE.Group();
+      for (const use of uses) {
+        const [name, instanced] = use.split('|') as [(typeof TEXTURED)[number], string];
+        const mesh = instanced === 'true' ? new THREE.InstancedMesh(geometry, stand[name], 1) : new THREE.Mesh(geometry, stand[name]);
+        if (mesh instanceof THREE.InstancedMesh) instances.push(mesh);
+        group.add(mesh);
       }
-      await Promise.all(compiling);
+      sets.push({ materials: Object.values(stand), flex: stand.flex.map });
+      // compileAsync resolves once the programs are linked (KHR_parallel_shader_compile where there is one).
+      await this.renderer.compileAsync(group, this.camera, this.scene);
     } catch {
       // A failed warm-up costs only the stall it was meant to save.
     }
@@ -708,6 +718,25 @@ export class HubScene {
     this.light();
     this.dimGlass();
     this.renderer.shadowMap.needsUpdate = true;
+    // Every program is compiled again before the next frame; the budget's count starts over once it is.
+    this.precompile();
+  }
+
+  /**
+   * Compiles every program the scene needs in parallel (compileAsync) and
+   * draws nothing until they are linked, so the first frame does not stall on
+   * them; then starts the budget's count over.
+   */
+  private precompile(): void {
+    this.compiling = true;
+    this.renderer
+      .compileAsync(this.scene, this.camera)
+      .catch(() => undefined)
+      .then(() => {
+        if (this.disposed) return;
+        this.compiling = false;
+        this.budget.restart();
+      });
   }
 
   /** Hands the glass and the display the room at their own strength (SCREEN_ENVIRONMENT). */

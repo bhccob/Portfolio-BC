@@ -3,9 +3,22 @@
  * last `frames` frame times must stay at or under `limit`; a frame longer than
  * `gap` (a tab switch, a stall) is not a measure of drawing and is left out;
  * after a restart or a step the first `warmup` frames (shaders compiling,
- * textures uploading, the buffer resized) are left out too.
+ * textures uploading, the buffer resized) are left out too. A canvas may set
+ * its own limit and count runs of long frames (BudgetOptions).
  */
 export const BUDGET = { frames: 30, limit: 0.02, gap: 0.1, warmup: 10 };
+
+/** What a canvas may judge more strictly than the defaults. */
+export interface BudgetOptions {
+  /** The mean frame time, in seconds, a window must stay at or under (default BUDGET.limit). */
+  limit?: number;
+  /**
+   * How many frames over `gap` in a row stop being a stall and count as slow
+   * drawing, all of them (default: never, so every such frame is left out).
+   * One long frame (a tab switch) or two are still left out.
+   */
+  slowRun?: number;
+}
 
 /**
  * The highest pixel ratio a canvas draws at, stepped down when its frames run
@@ -22,9 +35,20 @@ export class PixelBudget {
   private sum = 0;
   /** Frames still to leave out before counting starts. */
   private skip = 0;
+  /** Long frames in a row, and the ones held back until the run is long enough to count. */
+  private longs = 0;
+  private readonly held: number[] = [];
+  private readonly limit: number;
+  private readonly slowRun: number;
 
   /** `steps` runs from the ratio to start at down to the lowest to fall back to. */
-  constructor(private readonly steps: readonly number[]) {}
+  constructor(
+    private readonly steps: readonly number[],
+    options: BudgetOptions = {}
+  ) {
+    this.limit = options.limit ?? BUDGET.limit;
+    this.slowRun = options.slowRun ?? Infinity;
+  }
 
   /** The highest pixel ratio to draw at now. */
   get ratio(): number {
@@ -41,6 +65,8 @@ export class PixelBudget {
     this.times.length = 0;
     this.sum = 0;
     this.skip = BUDGET.warmup;
+    this.longs = 0;
+    this.held.length = 0;
   }
 
   /**
@@ -51,17 +77,39 @@ export class PixelBudget {
    */
   sample(dtSeconds: number): number | null {
     if (this.index === this.steps.length - 1) return null;
-    if (!(dtSeconds > 0) || dtSeconds > BUDGET.gap) return null;
-    if (this.skip > 0) {
-      this.skip--;
-      return null;
+    if (!(dtSeconds > 0)) return null;
+    if (dtSeconds > BUDGET.gap) {
+      // A stall is left out; a run of them (slowRun or more) is the drawing itself, counted whole.
+      if (this.slowRun === Infinity) return null;
+      if (this.skip > 0) {
+        this.skip--;
+        return null;
+      }
+      this.longs++;
+      if (this.longs < this.slowRun) {
+        this.held.push(dtSeconds);
+        return null;
+      }
+      for (const held of this.held.splice(0)) this.count(held);
+    } else {
+      this.longs = 0;
+      this.held.length = 0;
+      if (this.skip > 0) {
+        this.skip--;
+        return null;
+      }
     }
-    this.times.push(dtSeconds);
-    this.sum += dtSeconds;
-    if (this.times.length > BUDGET.frames) this.sum -= this.times.shift()!;
-    if (this.times.length < BUDGET.frames || this.sum / BUDGET.frames <= BUDGET.limit) return null;
+    this.count(dtSeconds);
+    if (this.times.length < BUDGET.frames || this.sum / BUDGET.frames <= this.limit) return null;
     this.index++;
     this.restart();
     return this.ratio;
+  }
+
+  /** Puts one frame's time in the window, dropping the oldest past `frames`. */
+  private count(dtSeconds: number): void {
+    this.times.push(dtSeconds);
+    this.sum += dtSeconds;
+    if (this.times.length > BUDGET.frames) this.sum -= this.times.shift()!;
   }
 }

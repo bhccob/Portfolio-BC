@@ -1,32 +1,32 @@
 /**
  * The hub's quality ladder: what the studio draws at each step, best first.
  * The scene starts at step 0 and PixelBudget moves it one step down each time
- * its frames run slow; it never climbs back within a page view. A fine
- * pointer (a laptop or desktop) starts sharp with the floor's reflection and
- * gives up pixels and dust first, then the reflection; a coarse pointer (a
- * phone or tablet) never draws the reflection at all.
+ * its frames run slow; it never climbs back within a page view. Each pointer
+ * gives up the cheapest-to-lose cost first: half the dust while the canvas
+ * stays sharp, then the pixel ratio with the dust. (The floor once mirrored
+ * the scene and gave that up first; from the hub's camera the mirror showed
+ * only the back plate's dark underside, so it was removed and its rung with
+ * it.) A coarse pointer (a phone or tablet) starts softer.
  */
 
 export interface Quality {
   /** The highest device pixel ratio the canvas draws at. */
   pixelRatio: number;
-  /** Whether the floor mirrors the scene (a second, half-size render). */
-  reflection: boolean;
   /** How many dust motes drift in the beam. */
   dust: number;
 }
 
 const FINE: readonly Readonly<Quality>[] = [
-  { pixelRatio: 1.75, reflection: true, dust: 600 },
-  { pixelRatio: 1.25, reflection: true, dust: 400 },
-  { pixelRatio: 1.25, reflection: false, dust: 400 },
-  { pixelRatio: 1, reflection: false, dust: 200 }
+  { pixelRatio: 1.75, dust: 600 },
+  { pixelRatio: 1.75, dust: 300 },
+  { pixelRatio: 1.25, dust: 200 },
+  { pixelRatio: 1, dust: 150 }
 ];
 
 const COARSE: readonly Readonly<Quality>[] = [
-  { pixelRatio: 1.25, reflection: false, dust: 300 },
-  { pixelRatio: 1, reflection: false, dust: 200 },
-  { pixelRatio: 1, reflection: false, dust: 120 }
+  { pixelRatio: 1.25, dust: 300 },
+  { pixelRatio: 1.25, dust: 150 },
+  { pixelRatio: 1, dust: 120 }
 ];
 
 /** How many steps the ladder has for this pointer. */

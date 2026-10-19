@@ -80,6 +80,66 @@ describe('PixelBudget', () => {
     expect(budget.step).toBe(2);
   });
 
+  describe('with the hub\'s options (a tighter limit, slow runs counted)', () => {
+    const HUB = { limit: 1 / 56, slowRun: 3 };
+
+    it('steps down at a sustained 8 fps, where every frame is over the gap', () => {
+      const budget = new PixelBudget([1.75, 1.75, 1.25, 1], HUB);
+      expect(feed(budget, BUDGET.frames, 0.125)).toEqual([1.75]);
+      expect(budget.step).toBe(1);
+      // Each next step is judged on its own frames, after the warm-up.
+      expect(feed(budget, BUDGET.warmup + BUDGET.frames, 0.125)).toEqual([1.25]);
+      expect(budget.step).toBe(2);
+    });
+
+    it('steps down at a sustained 18 ms a frame (about 55 fps), which the default limit lets pass', () => {
+      const hub = new PixelBudget([1.75, 1.75, 1.25, 1], HUB);
+      expect(feed(hub, BUDGET.frames, 0.018)).toEqual([1.75]);
+      const plain = new PixelBudget([1.75, 1.25, 1]);
+      expect(feed(plain, BUDGET.frames * 4, 0.018)).toEqual([]);
+    });
+
+    it('holds at a steady 60 fps, and with an odd dropped frame', () => {
+      const budget = new PixelBudget([1.75, 1.75, 1.25, 1], HUB);
+      expect(feed(budget, 600, 1 / 60)).toEqual([]);
+      for (let i = 0; i < 20; i++) {
+        expect(feed(budget, 29, 1 / 60)).toEqual([]);
+        expect(feed(budget, 1, 1 / 30)).toEqual([]);
+      }
+      expect(budget.step).toBe(0);
+    });
+
+    it('leaves out one isolated 300 ms frame (a tab switch), and two in a row', () => {
+      const budget = new PixelBudget([1.75, 1.75, 1.25, 1], HUB);
+      expect(feed(budget, BUDGET.frames - 1, 0.016)).toEqual([]);
+      // Counted, it would lift the mean of the window to about 25 ms.
+      expect(budget.sample(0.3)).toBeNull();
+      expect(feed(budget, BUDGET.frames, 0.016)).toEqual([]);
+      expect(feed(budget, 2, 0.3)).toEqual([]);
+      expect(feed(budget, BUDGET.frames, 0.016)).toEqual([]);
+      expect(budget.step).toBe(0);
+    });
+
+    it('counts a run of three or more long frames whole, the first two included', () => {
+      const budget = new PixelBudget([1.75, 1.75, 1.25, 1], HUB);
+      expect(feed(budget, BUDGET.frames - 3, 0.016)).toEqual([]);
+      // Mean of the window: (27 × 16 ms + 3 × 300 ms) / 30, well over the limit.
+      expect(feed(budget, 3, 0.3)).toEqual([1.75]);
+    });
+
+    it('leaves the warm-up frames out, long ones too, and a restart drops a run in progress', () => {
+      const budget = new PixelBudget([1.75, 1.75, 1.25, 1], HUB);
+      budget.restart();
+      expect(feed(budget, BUDGET.warmup, 0.4)).toEqual([]);
+      expect(feed(budget, 2, 0.3)).toEqual([]);
+      budget.restart();
+      expect(feed(budget, BUDGET.warmup, 0.016)).toEqual([]);
+      expect(feed(budget, 1, 0.3)).toEqual([]);
+      expect(feed(budget, BUDGET.frames, 0.016)).toEqual([]);
+      expect(budget.step).toBe(0);
+    });
+  });
+
   it('does not count a frame of no time (the first after switching on)', () => {
     const budget = new PixelBudget([1.75, 1.25, 1]);
     feed(budget, BUDGET.frames - 1, 0.021);

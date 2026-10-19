@@ -2,17 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { qualityFor, qualitySteps } from '../../src/scripts/three/quality';
 
 describe('qualityFor', () => {
-  it('walks the fine-pointer ladder from best to cheapest', () => {
-    expect(qualityFor(0, true)).toEqual({ pixelRatio: 1.75, reflection: true, dust: 600 });
-    expect(qualityFor(1, true)).toEqual({ pixelRatio: 1.25, reflection: true, dust: 400 });
-    expect(qualityFor(2, true)).toEqual({ pixelRatio: 1.25, reflection: false, dust: 400 });
-    expect(qualityFor(3, true)).toEqual({ pixelRatio: 1, reflection: false, dust: 200 });
+  it('walks the fine-pointer ladder: dust first, then the pixel ratio', () => {
+    expect(qualityFor(0, true)).toEqual({ pixelRatio: 1.75, dust: 600 });
+    expect(qualityFor(1, true)).toEqual({ pixelRatio: 1.75, dust: 300 });
+    expect(qualityFor(2, true)).toEqual({ pixelRatio: 1.25, dust: 200 });
+    expect(qualityFor(3, true)).toEqual({ pixelRatio: 1, dust: 150 });
   });
 
-  it('walks the coarse-pointer ladder from best to cheapest', () => {
-    expect(qualityFor(0, false)).toEqual({ pixelRatio: 1.25, reflection: false, dust: 300 });
-    expect(qualityFor(1, false)).toEqual({ pixelRatio: 1, reflection: false, dust: 200 });
-    expect(qualityFor(2, false)).toEqual({ pixelRatio: 1, reflection: false, dust: 120 });
+  it('walks the coarse-pointer ladder: dust first, then the pixel ratio', () => {
+    expect(qualityFor(0, false)).toEqual({ pixelRatio: 1.25, dust: 300 });
+    expect(qualityFor(1, false)).toEqual({ pixelRatio: 1.25, dust: 150 });
+    expect(qualityFor(2, false)).toEqual({ pixelRatio: 1, dust: 120 });
   });
 
   it('clamps steps past the end to the last entry', () => {
@@ -28,22 +28,17 @@ describe('qualityFor', () => {
     expect(qualityFor(1.6, true)).toEqual(qualityFor(1, true));
   });
 
-  it('drops the reflection from step 2 on a fine pointer, and has none on a coarse one', () => {
-    expect(qualityFor(0, true).reflection).toBe(true);
-    expect(qualityFor(1, true).reflection).toBe(true);
-    for (let step = 2; step < 6; step++) expect(qualityFor(step, true).reflection).toBe(false);
-    for (let step = 0; step < 6; step++) expect(qualityFor(step, false).reflection).toBe(false);
-  });
-
-  it('never raises the cost from one step to the next', () => {
+  it('gives up dust before pixels: the ratio holds while the dust falls, and never rises', () => {
     for (const fine of [true, false]) {
       for (let step = 1; step < qualitySteps(fine); step++) {
         const before = qualityFor(step - 1, fine);
         const after = qualityFor(step, fine);
         expect(after.pixelRatio).toBeLessThanOrEqual(before.pixelRatio);
-        expect(after.dust).toBeLessThanOrEqual(before.dust);
-        expect(Number(after.reflection)).toBeLessThanOrEqual(Number(before.reflection));
+        expect(after.dust).toBeLessThan(before.dust);
       }
+      // The first step down keeps the pixel ratio and halves the dust.
+      expect(qualityFor(1, fine).pixelRatio).toBe(qualityFor(0, fine).pixelRatio);
+      expect(qualityFor(1, fine).dust).toBe(qualityFor(0, fine).dust / 2);
     }
   });
 
