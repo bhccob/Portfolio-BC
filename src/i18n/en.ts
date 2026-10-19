@@ -349,13 +349,14 @@ export const en = {
     sudo: 'Permission granted. Redirecting you to the contact page…',
     moreSoon: '#03 next category: systems & security, on the way…'
   },
-  /** The redesign's compass page (/lab/compass/): its head and the hero's role line. */
+  /** The redesign's compass page (/lab/compass/): its head, the hero's role line and the loader's readout ({n}: the percentage). */
   compass: {
     meta: {
       title: 'Compass study | Bob Chung',
       description: 'A preview of the redesigned portfolio: a compass whose needle follows your cursor.'
     },
-    role: 'Student software engineer · Rotterdam'
+    role: 'Student software engineer · Rotterdam',
+    loader: 'FINDING NORTH · {n}%'
   }
 };
 

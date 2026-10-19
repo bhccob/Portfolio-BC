@@ -139,21 +139,36 @@ const graph = [person, website, ...structuredData];
       Runs before first paint: flags that scripts run and motion is welcome,
       so the pinned stage lays out from the first frame. Without the flag (no
       scripts, or reduced motion) the page reads as a plain stacked page.
+      With motion it also decides the compass loader (CompassLoader): the
+      session's first visit gets `compass-loading` (the loader shows and the
+      page holds still), a later one `compass-seen` (the compass starts at
+      once); the key is loading.ts's SEEN_KEY, and storage that cannot be read
+      counts as a first visit.
       Failsafe: unless the compass module has marked the root (data-bench, set
-      by CompassStageController) within 4 s, the flag comes off again, so a
-      module that failed to load, was blocked or cannot run in this browser
-      leaves the stacked page, not a pinned stage with its text hidden. Plain
-      ES5, so it runs where the module cannot. Like BaseLayout's boot script,
-      it sits above the CSP meta tag Astro adds to the head, which governs
-      only what follows it (Astro does not hash is:inline scripts).
+      by the entry, compass-main, as it starts) within 4 s, both flags come
+      off again, so a module that failed to load, was blocked or cannot run
+      in this browser leaves the stacked page, not a pinned stage with its
+      text hidden or a loader that never ends. Plain ES5, so it runs where the
+      module cannot. Like BaseLayout's boot script, it sits above the CSP meta
+      tag Astro adds to the head, which governs only what follows it (Astro
+      does not hash is:inline scripts).
     -->
     <script is:inline>
       (function () {
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
         var root = document.documentElement;
         root.classList.add('js-motion');
+        var seen = false;
+        try {
+          seen = window.sessionStorage.getItem('bob-compass-seen') !== null;
+        } catch (error) {
+          seen = false;
+        }
+        root.classList.add(seen ? 'compass-seen' : 'compass-loading');
         setTimeout(function () {
-          if (!root.hasAttribute('data-bench')) root.classList.remove('js-motion');
+          if (root.hasAttribute('data-bench')) return;
+          root.classList.remove('js-motion');
+          root.classList.remove('compass-loading');
         }, 4000);
       })();
     </script>

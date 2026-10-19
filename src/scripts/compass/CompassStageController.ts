@@ -20,8 +20,8 @@ export interface CompassStageOptions {
   /**
    * The loader's hand-over (Task 7): given the scene, it matches the dial to
    * the loader's drawing and switches the scene on itself, and resolves once
-   * the scene has taken over. Until then the controller leaves the scene off;
-   * a hand-over that rejects leaves the stacked page.
+   * the scene has taken over. Until then the controller leaves the scene off
+   * and Lenis stopped; a hand-over that rejects leaves the stacked page.
    */
   handOver?: (scene: CompassScene) => Promise<void>;
 }
@@ -111,6 +111,8 @@ export class CompassStageController extends Component {
       gsap.ticker.remove(raf);
       lenis.destroy();
     });
+    // The page holds still while the loader shows; the hand-over's end lets it scroll.
+    if (this.options.handOver) lenis.stop();
 
     const trigger = ScrollTrigger.create({
       trigger: track,
@@ -182,10 +184,13 @@ export class CompassStageController extends Component {
     if (handOver) {
       handOver(scene).then(
         () => {
-          // The hand-over switched the scene on; from here it follows the screen and the tab.
+          // The hand-over switched the scene on; from here it follows the screen and the tab, and the page scrolls.
           if (this.scene !== scene) return;
           this.handedOver = true;
           this.activate(true);
+          lenis.start();
+          // The page's lock lifted, its scrollbar may take (or give back) width without a resize event.
+          onResize();
         },
         (error: unknown) => {
           if (this.scene !== scene) return;
@@ -239,17 +244,29 @@ export class CompassStageController extends Component {
       const y = top <= bottom ? (top + bottom) / 2 : Math.min(Math.max(rect.top, box.top), box.bottom);
       scene.focusAt(x - box.left, y - box.top);
     };
+    // The focused control's wait for its transition's end: one at a time, and dropped on destroy(), so nothing runs after.
+    let waiting: (() => void) | null = null;
+    const stopWaiting = (): void => {
+      waiting?.();
+      waiting = null;
+    };
+    this.onCleanup(stopWaiting);
     this.listen<FocusEvent>(document, 'focusin', (event) => {
       const target = event.target;
       // The keyboard's focus only: a click focuses too (the main element takes it), and the pointer already has the pearl.
       if (!(target instanceof Element) || !focusVisible(target)) return;
       focusOn(target);
       // A control that moves as it takes the focus (the skip link slides into view) is met where it comes to rest.
+      stopWaiting();
       const settle = (): void => {
         if (document.activeElement === target) focusOn(target);
       };
       target.addEventListener('transitionend', settle, { once: true });
-      window.setTimeout(() => target.removeEventListener('transitionend', settle), 1000);
+      const timer = window.setTimeout(stopWaiting, 1000);
+      waiting = () => {
+        target.removeEventListener('transitionend', settle);
+        window.clearTimeout(timer);
+      };
     });
     this.listen(window, 'scroll', () => scene.wake(), passive);
     this.listen(window, 'keydown', () => scene.wake());

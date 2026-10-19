@@ -1,5 +1,6 @@
 ---
 import portrait from '../../assets/portrait-pool.webp';
+import CompassLoader from './CompassLoader.astro';
 import { Translator, type Locale } from '../../i18n/Translator';
 import { profile } from '../../data/profile';
 import { SECTIONS } from '../../scripts/three/Choreography';
@@ -13,6 +14,8 @@ import { SECTIONS } from '../../scripts/three/Choreography';
  * (`--shown`). Without them, with reduced motion or without WebGL, the
  * stage is hidden and the sections read as a plain stacked page. Until the
  * words arrive (Task 8) only the hero carries text: the name and the role.
+ * On the session's first visit the loader (CompassLoader) covers it all
+ * until the live scene takes over.
  */
 
 interface Props {
@@ -23,6 +26,7 @@ const { locale } = Astro.props;
 const { t } = new Translator(locale);
 ---
 
+<CompassLoader locale={locale} />
 <div class="compass" data-compass-track>
   <div class="compass__stage" data-compass-stage data-portrait={portrait.src}>
     <canvas class="compass__canvas" data-compass-canvas aria-hidden="true"></canvas>
@@ -118,6 +122,19 @@ const { t } = new Translator(locale);
 
   :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section :is(a, button) {
     pointer-events: auto;
+  }
+
+  /*
+   * The loader's hand-over (CompassLoader): the text waits while the compass
+   * moves from the loader's place into its pose, then fades in, rather than
+   * appearing over the dial on its way.
+   */
+  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section {
+    transition: opacity 0.6s var(--ease-out);
+  }
+
+  :global(.js-motion.compass-intro) .compass__stage:not([data-fallback]) ~ .compass__section {
+    opacity: 0;
   }
 
   /*

@@ -1,0 +1,103 @@
+---
+import { Translator, type Locale } from '../../i18n/Translator';
+import { format } from '../../scripts/core/dom';
+import { dialSvg } from '../../scripts/three/instrument/dialSvg';
+
+/*
+ * The compass loader: the dial drawn flat (dialSvg), its needle hunting for
+ * north while the live compass loads, the percentage under it and a small
+ * pearl on the pointer (CompassLoader.ts). It shows only on a first visit in
+ * the session, with motion (the boot script's `compass-loading`, BenchLayout),
+ * covers the page and holds it still; the live scene takes over the drawing at
+ * its exact size and place, and the drawing fades, before the compass moves
+ * into its pose. Centred; its rim min(64svh, 80%) wide, the hero's own width
+ * on most screens (CameraRig's dialLayout), so the move is mostly a slide.
+ * Decorative: hidden from assistive technology, which reads the page under it.
+ */
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const { t } = new Translator(locale);
+---
+
+<div class="compass-loader" data-compass-loader aria-hidden="true">
+  <div class="compass-loader__dial">
+    <Fragment set:html={dialSvg()} />
+    <p class="hud-label compass-loader__readout" data-loader-readout data-template={t.compass.loader}>{format(t.compass.loader, { n: 0 })}</p>
+  </div>
+  <span class="compass-loader__pearl" data-loader-pearl></span>
+</div>
+
+<style>
+  .compass-loader {
+    display: none;
+  }
+
+  /*
+   * The page holds still under the loader. The scrollbar's gutter stays, so
+   * the canvas keeps its width when the page may scroll again, and is painted
+   * the loader's black meanwhile (the root's background fills it).
+   */
+  :global(html.js-motion.compass-loading) {
+    overflow: hidden;
+    scrollbar-gutter: stable;
+    background: #07040d;
+  }
+
+  /* Over the stage and the sections, under the skip link (z-index 200). The studio's own black, so the fade shows no seam. */
+  :global(html.js-motion.compass-loading) .compass-loader {
+    position: fixed;
+    inset: 0;
+    z-index: 150;
+    display: grid;
+    place-items: center;
+    background: #07040d;
+    /* CompassLoader.ts fades it (--fade, 1 → 0) once the live scene has drawn. */
+    opacity: var(--fade, 1);
+  }
+
+  /* The drawing's viewBox is the plate (2.4 across), the rim 2.08 of it: the rim is min(64svh, 80%) wide. */
+  .compass-loader__dial {
+    position: relative;
+    width: calc(min(64svh, 80%) * 2.4 / 2.08);
+  }
+
+  .compass-loader__dial :global(svg) {
+    width: 100%;
+    height: auto;
+  }
+
+  .compass-loader__readout {
+    position: absolute;
+    top: calc(100% + clamp(10px, 2.5svh, 24px));
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    color: var(--cream);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* The pearl: a hot cream core in a signal-yellow glow, placed on the pointer by a transform (CompassLoader.ts). */
+  .compass-loader__pearl {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 15px;
+    height: 15px;
+    margin: -7.5px 0 0 -7.5px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--cream) 0 35%, var(--yellow) 80%);
+    box-shadow:
+      0 0 10px 3px rgb(255 207 51 / 0.6),
+      0 0 36px 14px rgb(255 207 51 / 0.2);
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  .compass-loader__pearl[data-placed] {
+    opacity: 1;
+  }
+</style>

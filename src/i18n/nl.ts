@@ -349,6 +349,7 @@ export const nl: Dictionary = {
       title: 'Kompasstudie | Bob Chung',
       description: 'Een voorproef van het vernieuwde portfolio: een kompas waarvan de naald je cursor volgt.'
     },
-    role: 'Student software engineer · Rotterdam'
+    role: 'Student software engineer · Rotterdam',
+    loader: 'ZOEKT HET NOORDEN · {n}%'
   }
 };
