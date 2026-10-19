@@ -25,10 +25,11 @@
  *   PROOF_DIR        where the output goes, default ./proof-out
  *   STEPS            comma list of steps to run, default 1,2,3,4,5,6,7,8,9,10 (add `stills` to capture them)
  *   PLAYWRIGHT_CORE  path to a playwright-core package, outside the repo (else normal resolution)
- *   EDGE             the browser, default C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe
+ *   EDGE             path of a browser executable; unset, the Edge installed on the machine is used (playwright-core's `msedge` channel)
  *
  * The GPU flags are the Windows ANGLE/D3D11 ones; on another system set EDGE
- * to a Chromium and expect the GPU numbers to be that machine's.
+ * to a Chromium and expect the GPU numbers to be that machine's. An unknown
+ * step in STEPS, or none to run, is an error (exit 1).
  */
 
 import { createRequire } from 'node:module';
@@ -42,7 +43,9 @@ const BASE = (process.env.BASE ?? 'http://localhost:4399').replace(/\/$/, '');
 const PAGE_PATH = process.env.COMPASS_PATH ?? '/lab/compass/';
 const URL_PROOF = `${BASE}${PAGE_PATH}?proof`;
 const OUT = resolve(process.env.PROOF_DIR ?? './proof-out');
-const EDGE = process.env.EDGE ?? 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
+// The Edge on the machine (playwright-core finds it by channel), unless EDGE names an executable.
+const BROWSER = process.env.EDGE ? { executablePath: process.env.EDGE } : { channel: 'msedge' };
+const launch = (args) => chromium.launch({ ...BROWSER, headless: true, args });
 const WANTED = new Set((process.env.STEPS ?? '1,2,3,4,5,6,7,8,9,10').split(',').map((s) => s.trim()));
 
 const GPU = ['--use-angle=d3d11', '--ignore-gpu-blocklist', '--enable-gpu-rasterization'];
@@ -239,7 +242,7 @@ async function shotAtMoment(page, when, name) {
 // ---------------------------------------------------------------- browsers, pages, watching
 let gpu = null;
 async function gpuBrowser() {
-  gpu ??= await chromium.launch({ executablePath: EDGE, headless: true, args: GPU });
+  gpu ??= await launch(GPU);
   return gpu;
 }
 
@@ -911,7 +914,7 @@ async function stacked(step, { label, file, context: contextOf }) {
 async function step8(step) {
   const browser = await gpuBrowser();
   await stacked(step, { label: 'reduced motion', file: '15-reduced-motion.png', context: () => newPage(browser, { seen: false, reducedMotion: 'reduce' }) });
-  const noApis = await chromium.launch({ executablePath: EDGE, headless: true, args: [...GPU, '--disable-3d-apis'] });
+  const noApis = await launch([...GPU, '--disable-3d-apis']);
   try {
     await stacked(step, { label: 'disable-3d-apis', file: '15-no-3d-apis.png', context: () => newPage(noApis, { seen: false }) });
   } finally {
@@ -1018,9 +1021,11 @@ async function step9(step) {
     await context.close();
   }
 
-  // SwiftShader: the compass wants a GPU (failIfMajorPerformanceCaveat), so software drawing gets the stacked page.
+  // SwiftShader (software WebGL): reported as the page behaves. The page asks for a GPU (failIfMajorPerformanceCaveat);
+  // whether that test fails under SwiftShader depends on the browser, so both outcomes are handled: the stacked page
+  // (fps n/a), or the live scene drawn in software (measured like the GPU, as seen on this machine's Edge).
   {
-    const soft = await chromium.launch({ executablePath: EDGE, headless: true, args: SOFTWARE });
+    const soft = await launch(SOFTWARE);
     try {
       step.data.softGl = await glInfo(soft);
       step.note(`SwiftShader browser: ${step.data.softGl.renderer}; the page's support test ${step.data.softGl.passesCaveatTest ? 'passes' : 'fails'}`);
@@ -1030,7 +1035,7 @@ async function step9(step) {
       const mode = await bench(page);
       step.data.swiftshader = { bench: mode };
       if (mode === 'fallback') {
-        step.note('SwiftShader: fps n/a: stacked fallback (the page declines software WebGL, as designed)');
+        step.note('SwiftShader: fps n/a: stacked fallback (the page declined this software WebGL)');
         await scrollThrough(page);
         const stills = await stillsState(page);
         step.check(stills.length === 4 && stills.every((s) => s.loaded), 'SwiftShader gets the stacked page with its four stills');
@@ -1044,7 +1049,7 @@ async function step9(step) {
         const r = await scrub(page);
         const s = fpsSummary(r);
         step.data.swiftshader = { bench: mode, ...s };
-        step.note(`SwiftShader (live, unexpectedly): median ${s.medianFps} fps, quality step reached ${s.stepReached}`);
+        step.note(`SwiftShader: the page ran the live scene in software: median ${s.medianFps} fps, quality step reached ${s.stepReached}`);
         step.check(true, 'SwiftShader measured');
       }
       await context.close();
@@ -1186,6 +1191,14 @@ const plan = [
   ['stills', 'capture the four stills (1600x900 PNG)', stills]
 ];
 
+// A step that is not in the plan is a typo, and a run of nothing proves nothing: both are errors.
+const known = plan.map(([id]) => id);
+const unknown = [...WANTED].filter((id) => !known.includes(id));
+if (unknown.length || !plan.some(([id]) => WANTED.has(id))) {
+  console.error(`compass proof: ${unknown.length ? `unknown step ${unknown.map((id) => JSON.stringify(id)).join(', ')}` : 'no step to run'}; the steps are ${known.join(', ')}`);
+  process.exit(1);
+}
+
 console.log(`compass proof: ${URL_PROOF}\noutput: ${OUT}\n`);
 try {
   for (const [id, name, body] of plan) if (WANTED.has(id)) await runStep(id, name, body);
@@ -1198,5 +1211,9 @@ const order = (s) => (s.id === 'stills' ? 99 : Number(s.id));
 results.sort((a, b) => order(a) - order(b));
 writeFileSync(join(OUT, 'results.json'), JSON.stringify({ base: URL_PROOF, steps: results.map((s) => ({ id: s.id, name: s.name, pass: s.pass, seconds: s.seconds, checks: s.checks, notes: s.notes, data: s.data })) }, null, 2));
 const failed = results.filter((s) => !s.pass);
+if (!results.length) {
+  console.error('compass proof: no step ran');
+  process.exit(1);
+}
 console.log(`\n${results.length - failed.length}/${results.length} steps pass${failed.length ? `; failing: ${failed.map((s) => s.id).join(', ')}` : ''}. Results: ${join(OUT, 'results.json')}`);
 process.exit(failed.length ? 1 : 0);
