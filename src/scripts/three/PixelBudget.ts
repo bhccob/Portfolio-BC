@@ -8,6 +8,33 @@
  */
 export const BUDGET = { frames: 30, limit: 0.02, gap: 0.1, warmup: 10 };
 
+/**
+ * The display's refresh, measured on idle frames (nothing drawn), which come
+ * once a refresh or, on a busy main thread, late: the median of their
+ * intervals is its period (the lower median of an even count, since a late
+ * frame only ever lengthens an interval).
+ *   - samples: the fewest intervals that tell it;
+ *   - headroom: how far over the refresh a window may average before it is slow;
+ *   - longest: the longest period taken for a display's (30 Hz); a longer
+ *     median is a busy main thread, read as 30 Hz.
+ */
+export const VSYNC = { samples: 8, headroom: 1.1, longest: 1 / 30 } as const;
+
+/**
+ * The limit a canvas's budget judges by on this display, from its idle frame
+ * intervals in seconds: `floor`, or 10% over the refresh where that is longer,
+ * so a 50 Hz display's healthy 20 ms frames (which fail 1/56 s in every
+ * window) hold. Null when there are too few intervals to tell (fewer than
+ * VSYNC.samples): the budget is then skipped. Intervals that are not positive
+ * and finite (the first frame after switching on is 0) are left out. Pure.
+ */
+export function budgetLimit(intervals: readonly number[], floor: number): number | null {
+  const valid = intervals.filter((dt) => Number.isFinite(dt) && dt > 0).sort((a, b) => a - b);
+  if (valid.length < VSYNC.samples) return null;
+  const median = valid[(valid.length - 1) >> 1];
+  return Math.max(floor, VSYNC.headroom * Math.min(median, VSYNC.longest));
+}
+
 /** What a canvas may judge more strictly than the defaults. */
 export interface BudgetOptions {
   /** The mean frame time, in seconds, a window must stay at or under (default BUDGET.limit). */

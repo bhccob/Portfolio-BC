@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BUDGET, PixelBudget } from '../../src/scripts/three/PixelBudget';
+import { BUDGET, budgetLimit, PixelBudget, VSYNC } from '../../src/scripts/three/PixelBudget';
 
 /** Feeds `count` frames of `dt` seconds and returns every new ratio the budget answered with. */
 function feed(budget: PixelBudget, count: number, dt: number): number[] {
@@ -145,5 +145,57 @@ describe('PixelBudget', () => {
     feed(budget, BUDGET.frames - 1, 0.021);
     expect(budget.sample(0)).toBeNull();
     expect(budget.sample(0.021)).toBe(1.25);
+  });
+});
+
+describe('budgetLimit (the limit for the display, from idle frame intervals)', () => {
+  const FLOOR = 1 / 56;
+  /** `count` idle intervals at `hz`, jittered by up to ±0.2 ms as a real clock's are. */
+  const idle = (hz: number, count = 12): number[] => Array.from({ length: count }, (_, i) => 1 / hz + ((i % 3) - 1) * 0.0002);
+
+  it('on a 60 Hz display, 10% over its refresh, just looser than the floor', () => {
+    expect(budgetLimit(idle(60), FLOOR)).toBeCloseTo(1.1 / 60, 6);
+    expect(budgetLimit(idle(60), FLOOR)!).toBeGreaterThan(FLOOR);
+  });
+
+  it('on a 50 Hz display, 22 ms, so its healthy 20 ms frames never step the ladder', () => {
+    const limit = budgetLimit(idle(50), FLOOR)!;
+    expect(limit).toBeCloseTo(0.022, 6);
+    // Under the floor alone, the same frames walk the whole ladder.
+    const plain = new PixelBudget([1.75, 1.75, 1.25, 1], { limit: FLOOR, slowRun: 3 });
+    expect(feed(plain, (BUDGET.frames + BUDGET.warmup) * 3, 0.02)).toEqual([1.75, 1.25, 1]);
+    const measured = new PixelBudget([1.75, 1.75, 1.25, 1], { limit, slowRun: 3 });
+    expect(feed(measured, 600, 0.02)).toEqual([]);
+    // A 50 Hz GPU that really runs slow still steps down.
+    expect(feed(measured, BUDGET.frames, 0.025)).toEqual([1.75]);
+  });
+
+  it('on a 144 Hz display, the floor: a window must still average 56 fps', () => {
+    expect(budgetLimit(idle(144), FLOOR)).toBe(FLOOR);
+  });
+
+  it('with no samples, or too few to tell, answers null (the budget is skipped)', () => {
+    expect(budgetLimit([], FLOOR)).toBeNull();
+    expect(budgetLimit(idle(50, VSYNC.samples - 1), FLOOR)).toBeNull();
+    expect(budgetLimit(idle(50, VSYNC.samples), FLOOR)).toBeCloseTo(0.022, 6);
+  });
+
+  it('takes the median, so a stalled interval or two (a blocked main thread) do not move it', () => {
+    expect(budgetLimit([0.619, 0.02, 0.02, 0.02, 0.15, 0.02, 0.02, 0.02, 0.02], FLOOR)).toBeCloseTo(0.022, 6);
+  });
+
+  it('takes the lower median of an even count: an idle frame comes late, never early, so half late is still the refresh', () => {
+    // The mean of the two middle values would be 35 ms, a refresh no display has.
+    expect(budgetLimit([0.02, 0.05, 0.02, 0.3, 0.02, 0.619, 0.02, 0.15], FLOOR)).toBeCloseTo(0.022, 6);
+  });
+
+  it('leaves out intervals that are not positive and finite (the first frame after switching on is 0)', () => {
+    expect(budgetLimit([0, Number.NaN, -1, Infinity, ...idle(50, VSYNC.samples)], FLOOR)).toBeCloseTo(0.022, 6);
+    expect(budgetLimit([0, 0, 0, 0, 0, 0, 0, 0], FLOOR)).toBeNull();
+  });
+
+  it('reads a median longer than any display\'s refresh as a busy thread, at 30 Hz', () => {
+    expect(budgetLimit(Array(8).fill(0.1), FLOOR)).toBeCloseTo(1.1 / 30, 6);
+    expect(budgetLimit(idle(30), FLOOR)).toBeCloseTo(1.1 / 30, 6);
   });
 });

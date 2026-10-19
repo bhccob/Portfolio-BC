@@ -3,7 +3,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { ChipPointer } from './ChipPointer';
 import { DragTurn } from './DragTurn';
 import { HUB_LAYERS, hubPoseAt, type HubLayerId } from './HubChoreography';
-import { PixelBudget } from './PixelBudget';
+import { budgetLimit, PixelBudget, VSYNC } from './PixelBudget';
 import { qualityFor, qualitySteps, type Quality } from './quality';
 import { RenderLoop } from './RenderLoop';
 import { BACK_THICKNESS } from './device/BackPlate';
@@ -30,8 +30,9 @@ import { glowTexture, noiseTexture } from './studio/noise';
  * pointer. Scroll sets a target progress, which the scene eases towards on
  * every frame; frames run only while it is switched on (setActive), and the
  * layers answer the pointer only while it is interactive (setInteractive).
- * A weak GPU walks down the quality ladder (quality.ts). Construct it only
- * where `supported()` is true; even then the constructor throws if the
+ * A weak GPU walks down the quality ladder (quality.ts), judged against the
+ * display's refresh, measured before the first frame is drawn. Construct it
+ * only where `supported()` is true; even then the constructor throws if the
  * browser refuses the context, having let go of whatever it had built.
  *
  * Dragging is the caller's: it listens for the pointer (on one pointerId)
@@ -115,8 +116,11 @@ const MAX_STEP = 0.1;
 /**
  * How the quality ladder's budget judges this scene (PixelBudget): a window
  * must average 56 fps or better, so a GPU holding the mid-50s gives up dust
- * and then pixels; and three or more frames over 100 ms in a row count as
- * slow drawing, not a stall, so a GPU under 10 fps steps down too.
+ * and then pixels; on a display slower than about 61 Hz, 10% over its refresh
+ * instead (budgetLimit, from the idle frames before the first is drawn), so a
+ * 50 Hz display's healthy 20 ms frames hold. Three or more frames over 100 ms
+ * in a row count as slow drawing, not a stall, so a GPU under 10 fps steps
+ * down too.
  */
 const BUDGET_OPTIONS = { limit: 1 / 56, slowRun: 3 } as const;
 
@@ -258,7 +262,14 @@ export class HubScene {
   private readonly position = new THREE.Vector3();
   private readonly model: HandheldModel;
   private readonly finePointer: boolean;
-  private readonly budget: PixelBudget;
+  /** The ladder's pixel ratios, best first, for the budget. */
+  private readonly ratios: number[];
+  /** Null until the display's refresh is measured, and for good if it could not be (no budget then). */
+  private budget: PixelBudget | null = null;
+  /** Idle frame intervals (seconds) while nothing is drawn, until there are enough to tell the refresh. */
+  private readonly idle: number[] = [];
+  /** The display's refresh has been measured (measure()); no frame is drawn before. */
+  private measured = false;
   private quality: Quality;
   private readonly loop = new RenderLoop((dt) => this.tick(dt));
   private readonly drag = new DragTurn();
@@ -313,8 +324,7 @@ export class HubScene {
   ) {
     this.finePointer = options.finePointer;
     this.quality = qualityFor(0, this.finePointer);
-    const ratios = Array.from({ length: qualitySteps(this.finePointer) }, (_, step) => qualityFor(step, this.finePointer).pixelRatio);
-    this.budget = new PixelBudget(ratios, BUDGET_OPTIONS);
+    this.ratios = Array.from({ length: qualitySteps(this.finePointer) }, (_, step) => qualityFor(step, this.finePointer).pixelRatio);
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
     try {
       this.renderer.setClearColor(STUDIO.background, 1);
@@ -387,7 +397,7 @@ export class HubScene {
   setActive(active: boolean): void {
     if (this.disposed || active === this.loop.running) return;
     // The first frames back compile, upload and resize; the budget leaves them out.
-    if (active) this.budget.restart();
+    if (active) this.budget?.restart();
     this.loop.setActive(active);
   }
 
@@ -554,17 +564,37 @@ export class HubScene {
   }
 
   private tick(dtSeconds: number): void {
-    if (this.compiling) {
-      // Nothing is drawn (the canvas keeps the studio's clear colour) until the programs are linked.
+    if (this.compiling || !this.measured) {
+      // Nothing is drawn (the canvas keeps the studio's clear colour) until the programs are linked and
+      // the display's refresh is measured on these idle frames.
+      if (!this.measured) this.measure(dtSeconds);
       this.update(Math.min(dtSeconds, MAX_STEP));
       return;
     }
     // Frames running slow step down the quality ladder; the buffer is resized before this frame draws.
-    if (this.budget.sample(dtSeconds) !== null) this.setQuality(qualityFor(this.budget.step, this.finePointer));
+    if (this.budget && this.budget.sample(dtSeconds) !== null) this.setQuality(qualityFor(this.budget.step, this.finePointer));
     this.update(Math.min(dtSeconds, MAX_STEP));
     this.renderer.render(this.scene, this.camera);
     for (const release of this.afterFrame.splice(0)) release();
     for (const handler of this.frameHandlers) handler();
+  }
+
+  /**
+   * Counts one idle frame's interval (nothing drawn: it comes once a refresh)
+   * towards the display's refresh. Once there are enough, the budget judges
+   * by the limit they give (budgetLimit), or there is none if they gave none.
+   * The compile wait usually holds enough; otherwise the first frame waits a
+   * few refreshes more, once per page.
+   */
+  private measure(dtSeconds: number): void {
+    if (dtSeconds > 0) this.idle.push(dtSeconds);
+    if (this.idle.length < VSYNC.samples) return;
+    this.measured = true;
+    const limit = budgetLimit(this.idle, BUDGET_OPTIONS.limit);
+    if (limit === null) return;
+    this.budget = new PixelBudget(this.ratios, { ...BUDGET_OPTIONS, limit });
+    // The first frames drawn (compiling, uploading) are left out of its count.
+    this.budget.restart();
   }
 
   /** Eases the progress, poses the device, turns and aims the camera, moves the studio, and picks. */
@@ -814,7 +844,7 @@ export class HubScene {
     // swap's frame uploads and binds afresh: the budget's count starts over after it.
     this.afterFrame.push(() => {
       release();
-      this.budget.restart();
+      this.budget?.restart();
     });
   }
 
@@ -898,7 +928,7 @@ export class HubScene {
       .then(() => {
         if (this.disposed) return;
         this.compiling = false;
-        this.budget.restart();
+        this.budget?.restart();
       });
   }
 
