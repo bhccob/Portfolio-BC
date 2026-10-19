@@ -153,8 +153,8 @@ The visitor's cursor is the **pearl** that the dragon chases in a dragon dance, 
    Each step names the object that carries over, so no step is a plain cut:
    1. **Hero:** the compass, the needle chasing the pearl, **BOB CHUNG** and the role line ("Student software engineer"), and two small hints, "Scroll" and "Drag to turn". The drag hint is hidden from screen readers, because turning is decoration with no keyboard equivalent.
    2. **About: the three homes.**
-      - The camera pushes in to the heaven pool, the needle swings off the centre, and the real portrait appears under the glass, with the existing About line (age included).
-      - Then the needle leaves the pearl and swings through the homes. At each one, the new pattern paints itself around the ring, spreading both ways from the needle's bearing:
+      - The camera pushes in to the heaven pool, the needle lifts a little off its pin and fades to a faint gold line, and the real portrait appears under the glass, with the existing About line (age included).
+      - Then the needle leaves the pearl and swings through the homes. At each one, the new pattern paints itself around the ring, spreading both ways from the needle's bearing (for Rotterdam, from the visitor's side, since the needle is back on the pearl):
         - to **東 (east)**: the ring turns Chinese red and gold, labelled **Chinese heritage**
         - to **西 (west)**: Aruba's sea and star wash around it, labelled **Born and raised in Aruba**
         - **back to the pearl** ("here"): the bridge cables fan across the ring, labelled **Rotterdam since eighteen** (the current copy's own words)
@@ -260,7 +260,7 @@ The visitor's cursor is the **pearl** that the dragon chases in a dragon dance, 
 - the studio's `Backdrop`, `Haze` and `noise`; `Dust` gains a free-floating volume (it is built around milestone 2's beam and floor)
 - the controller pattern: Lenis → ScrollTrigger, IntersectionObserver, fallback, failsafe, immediate first progress and the resize guard. `CompassStage`/`CompassStageController` are built fresh on it as one fixed canvas with a ScrollTrigger per section, not as a copy of the hub's single pinned track.
 - `DragTurn`'s rule that a drag engages only after a few pixels of mostly horizontal movement. Its ±25° spring is replaced by a new `FreeTurn` (free spin with inertia).
-- `Callouts` stays as it is in milestone 3 (it is typed to the hub's layers) and is generalised for the tracks in milestone 4.
+- `Callouts` is typed to the hub's layers, so it is removed with the hub in milestone 3. It comes back, generalised, for the tracks in milestone 4 (from `051750b`).
 - **Re-tuned:** milestone 2's environment light is almost black. Gilt brass and mirror platters need bright reflections, so it is re-tuned in milestone 3.
 
 **Replaced or new** (following milestone 2's final review):
