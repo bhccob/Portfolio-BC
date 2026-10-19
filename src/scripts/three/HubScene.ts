@@ -577,6 +577,8 @@ export class HubScene {
       this.model.applyPose(pose);
       this.explode = pose.explode;
       this.posed = this.progress;
+      // The beam ends on the device's top.
+      this.beam?.setStop(Math.max(...HUB_LAYERS.map((id) => pose.offsets[id] + this.boxes[id].max.y)));
       this.renderer.shadowMap.needsUpdate = true;
       this.pickDirty = true;
     }

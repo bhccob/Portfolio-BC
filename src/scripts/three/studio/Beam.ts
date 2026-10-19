@@ -2,10 +2,14 @@ import * as THREE from 'three';
 
 /**
  * The one beam of light: an open cone from a point above the stage down to
- * the floor, drawn additively in yellow-gold and over everything (it is the
- * lit air between the camera and the stage). Brightest just under its
+ * the floor, drawn additively in yellow-gold. Brightest just under its
  * source and fading as it falls, soft at its edges (a cone seen side-on is
  * thin at its rims), with faint rays of noise drifting slowly down it.
+ *
+ * It stops at the device: depth-tested (without writing depth), so the
+ * device hides the cone behind it, and faded out just above the device's top
+ * (setStop), so the cone never cuts through a layer, where it would draw a
+ * hard line. Below that, the floor's warm pool shows where it lands.
  */
 
 export interface BeamOptions {
@@ -23,6 +27,8 @@ export interface Beam {
   mesh: THREE.Mesh;
   /** Seconds since the studio began, for the drift. */
   setTime(seconds: number): void;
+  /** The world height of the device's top: the beam fades out above it (BEAM.stop) and ends there. */
+  setStop(y: number): void;
   dispose(): void;
 }
 
@@ -30,7 +36,9 @@ export const BEAM = {
   color: 0xffcf33,
   /** The radius at the source: not a point, so the top is a soft spot, not a needle. */
   top: 0.14,
-  intensity: 0.16
+  intensity: 0.16,
+  /** How far above the device's top the beam fades out. */
+  stop: 0.6
 } as const;
 
 const vertexShader = /* glsl */ `
@@ -52,6 +60,8 @@ const fragmentShader = /* glsl */ `
 uniform vec3 uColor;
 uniform float uIntensity;
 uniform float uTime;
+uniform float uStop;
+uniform float uStopFade;
 uniform sampler2D tNoise;
 varying vec3 vWorld;
 varying vec3 vNormal;
@@ -66,6 +76,8 @@ void main() {
   // Bright under the source, falling away down the cone, faint where it lands.
   // Its very top fades too, so a camera backed far off sees a glow there, not the cone's tip.
   float fall = pow(vHeight, 1.5) * smoothstep(0.0, 0.45, vHeight) * (1.0 - smoothstep(0.8, 1.0, vHeight));
+  // It ends on the device: gone by its top, so where the cone meets a layer it is already dark.
+  fall *= smoothstep(uStop, uStop + uStopFade, vWorld.y);
   // Rays: noise stretched down the cone, drifting slowly.
   float rays = texture2D(tNoise, vec2(vAround * 5.0, vHeight * 0.35 + uTime * 0.012)).g;
   float drift = texture2D(tNoise, vec2(vAround * 2.0 - uTime * 0.004, vHeight * 0.8 - uTime * 0.02)).r;
@@ -85,6 +97,9 @@ export function buildBeam(options: BeamOptions): Beam {
       uColor: { value: new THREE.Color(BEAM.color) },
       uIntensity: { value: BEAM.intensity },
       uTime: { value: 0 },
+      // Until the device is posed, nothing stops it short of the floor.
+      uStop: { value: options.floor },
+      uStopFade: { value: BEAM.stop },
       uHeight: { value: height },
       tNoise: { value: options.noise }
     },
@@ -93,9 +108,6 @@ export function buildBeam(options: BeamOptions): Beam {
     transparent: true,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
-    // Light in the air, over whatever it passes: depth-tested, the cone would cut a hard line where it
-    // goes through the device.
-    depthTest: false,
     side: THREE.DoubleSide,
     fog: false
   });
@@ -107,6 +119,7 @@ export function buildBeam(options: BeamOptions): Beam {
   return {
     mesh,
     setTime: (seconds) => (material.uniforms.uTime.value = seconds),
+    setStop: (y) => (material.uniforms.uStop.value = y),
     dispose: () => {
       geometry.dispose();
       material.dispose();
