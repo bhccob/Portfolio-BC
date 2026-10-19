@@ -139,8 +139,8 @@ const graph = [person, website, ...structuredData];
       Runs before first paint: flags that scripts run and motion is welcome,
       so the pinned stage lays out from the first frame. Without the flag (no
       scripts, or reduced motion) the page reads as a plain stacked page.
-      Failsafe: unless the bench module has marked the root (data-bench, set
-      by HubStageController) within 4 s, the flag comes off again, so a
+      Failsafe: unless the compass module has marked the root (data-bench, set
+      by CompassStageController) within 4 s, the flag comes off again, so a
       module that failed to load, was blocked or cannot run in this browser
       leaves the stacked page, not a pinned stage with its text hidden. Plain
       ES5, so it runs where the module cannot. Like BaseLayout's boot script,
@@ -165,7 +165,7 @@ const graph = [person, website, ...structuredData];
     </main>
     {analyticsToken && <script is:inline defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon={JSON.stringify({ token: analyticsToken })}></script>}
     <script>
-      import { bootstrap } from '../scripts/bench-main';
+      import { bootstrap } from '../scripts/compass-main';
       bootstrap();
     </script>
   </body>

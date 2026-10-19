@@ -349,26 +349,13 @@ export const en = {
     sudo: 'Permission granted. Redirecting you to the contact page…',
     moreSoon: '#03 next category: systems & security, on the way…'
   },
-  /** The redesign ("The Bench"): its pages' head. */
-  bench: {
+  /** The redesign's compass page (/lab/compass/): its head and the hero's role line. */
+  compass: {
     meta: {
-      title: 'Device study | Bob Chung',
-      description: 'A preview of the redesigned portfolio: the device that opens as you scroll.'
-    }
-  },
-  /** The hub: the device taken apart into its layers, a callout on each. */
-  hub: {
-    role: 'Student software engineer · Rotterdam',
-    /** Names the callouts as a group. */
-    layers: 'The layers of the device',
-    /** One per layer; the frame has none yet. */
-    callouts: {
-      screen: 'SCREEN — ABOUT',
-      board: 'BOARD — PROJECTS',
-      battery: 'BATTERY — OFF DUTY',
-      back: 'BACK PLATE — WHAT I WORK WITH'
+      title: 'Compass study | Bob Chung',
+      description: 'A preview of the redesigned portfolio: a compass whose needle follows your cursor.'
     },
-    stillAlt: 'The handheld taken apart into its layers'
+    role: 'Student software engineer · Rotterdam'
   }
 };
 

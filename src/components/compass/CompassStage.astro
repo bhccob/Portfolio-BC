@@ -1,0 +1,154 @@
+---
+import portrait from '../../assets/portrait-pool.webp';
+import { Translator, type Locale } from '../../i18n/Translator';
+import { profile } from '../../data/profile';
+import { SECTIONS } from '../../scripts/three/Choreography';
+
+/*
+ * The compass page: a scroll track with the WebGL stage stuck to the
+ * viewport and one section per step of the choreography (SECTIONS), each as
+ * many svh tall as its share of the scroll, laid over the stage. Scripts
+ * (CompassStageController) light the canvas and scrub the compass through
+ * the sections, and fade each section's text by the choreography's `text`
+ * (`--shown`). Without them, with reduced motion or without WebGL, the
+ * stage is hidden and the sections read as a plain stacked page. Until the
+ * words arrive (Task 8) only the hero carries text: the name and the role.
+ */
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const { t } = new Translator(locale);
+---
+
+<div class="compass" data-compass-track>
+  <div class="compass__stage" data-compass-stage data-portrait={portrait.src}>
+    <canvas class="compass__canvas" data-compass-canvas aria-hidden="true"></canvas>
+  </div>
+  {
+    SECTIONS.map(({ id, length }) => (
+      <section class="compass__section" data-section={id} style={`--len: ${length}`}>
+        {id === 'hero' && (
+          <div class="compass__text">
+            <h1 class="title compass__name">{profile.name}</h1>
+            <p class="hud-label compass__role">{t.compass.role}</p>
+          </div>
+        )}
+      </section>
+    ))
+  }
+</div>
+
+<style>
+  /* ---------- stacked: the page without scripts, motion or WebGL ---------- */
+  .compass__stage {
+    display: none;
+  }
+
+  .compass__text {
+    display: grid;
+    justify-items: start;
+    gap: 16px;
+    max-width: 1100px;
+    margin-inline: auto;
+    padding: clamp(64px, 12svh, 128px) var(--gutter);
+  }
+
+  .compass__name {
+    font-size: clamp(44px, 9vw, 136px);
+    font-weight: 700;
+    line-height: 0.95;
+    letter-spacing: 0.01em;
+    color: var(--yellow);
+    text-transform: uppercase;
+  }
+
+  .compass__role {
+    color: var(--cream);
+  }
+
+  /*
+   * ---------- live: the stage sticks to the viewport while the sections scroll over it ----------
+   * The stage paints the studio's own black under the canvas, so the wait
+   * for the scene's first frame shows no seam, and takes back its own height
+   * (margin-bottom: -100svh), so the sections start at the top of the track.
+   * The track is then the sections' lengths plus a last viewport, and its
+   * scroll runs over exactly SECTIONS' lengths. js-motion is set before first
+   * paint and taken off again if the compass module never runs (BenchLayout's
+   * failsafe), so this layout never waits on a script that is not coming.
+   */
+  :global(.js-motion) .compass__stage:not([data-fallback]) {
+    display: block;
+    position: sticky;
+    top: 0;
+    height: 100svh;
+    margin-bottom: -100svh;
+    overflow: hidden;
+    /* CompassStudio's clear colour. */
+    background: #07040d;
+    /* A vertical swipe scrolls the page and two fingers zoom it; a mostly horizontal drag turns the dial. */
+    touch-action: pan-y pinch-zoom;
+  }
+
+  /* A drag across the canvas turns the dial rather than selecting. */
+  :global(.js-motion) .compass__stage:not([data-fallback]) .compass__canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /*
+   * The sections lie over the canvas and let the pointer through to it (a
+   * press on the stage turns the dial), but for their links and buttons.
+   */
+  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section {
+    position: relative;
+    min-height: calc(var(--len) * 1svh);
+    pointer-events: none;
+  }
+
+  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section:last-child {
+    min-height: calc((var(--len) + 100) * 1svh);
+  }
+
+  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section :is(a, button) {
+    pointer-events: auto;
+  }
+
+  /*
+   * A section's text, faded by the choreography (--shown, set per section by
+   * the controller). Wide (as CameraRig's dialLayout has it, at 1.2 : 1 and
+   * over): a column on the left, centred top to bottom, clear of the dial on
+   * the right. Narrow: in the band under the dial.
+   */
+  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section .compass__text {
+    align-content: center;
+    min-height: 100svh;
+    max-width: min(36vw, 520px);
+    margin: 0;
+    padding: 0 0 0 var(--gutter);
+    opacity: var(--shown, 1);
+  }
+
+  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section .compass__name {
+    font-size: clamp(40px, 5.4vw, 92px);
+  }
+
+  @media (max-aspect-ratio: 6/5) {
+    /* At the top of the band below the dial (dialLayout keeps it above 0.53 of the height), close to it. */
+    :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section .compass__text {
+      align-content: start;
+      max-width: none;
+      padding: 58svh var(--gutter) 0;
+    }
+
+    :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section .compass__name {
+      font-size: clamp(36px, 10.5vw, 72px);
+    }
+  }
+</style>

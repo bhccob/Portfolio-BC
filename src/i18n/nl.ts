@@ -344,21 +344,11 @@ export const nl: Dictionary = {
     sudo: 'Toegang verleend. Je gaat naar de contactpagina…',
     moreSoon: '#03 volgende categorie: systems & security, onderweg…'
   },
-  bench: {
+  compass: {
     meta: {
-      title: 'Apparaatstudie | Bob Chung',
-      description: 'Een voorproef van het vernieuwde portfolio: het apparaat dat tijdens het scrollen opengaat.'
-    }
-  },
-  hub: {
-    role: 'Student software engineer · Rotterdam',
-    layers: 'De lagen van het apparaat',
-    callouts: {
-      screen: 'SCHERM — OVER MIJ',
-      board: 'PRINTPLAAT — PROJECTEN',
-      battery: 'ACCU — BUITEN DIENST',
-      back: 'ACHTERPLAAT — WAARMEE IK WERK'
+      title: 'Kompasstudie | Bob Chung',
+      description: 'Een voorproef van het vernieuwde portfolio: een kompas waarvan de naald je cursor volgt.'
     },
-    stillAlt: 'Het apparaat uit elkaar gehaald in zijn lagen'
+    role: 'Student software engineer · Rotterdam'
   }
 };
