@@ -184,10 +184,11 @@ export class HubStageController extends Component {
   /**
    * The drag that turns the device: one pointer at a time, pressed anywhere
    * on the stage but a label, forwarded to the scene. The stage's
-   * `touch-action: pan-y` leaves a vertical swipe to the page's scroll (the
-   * browser then cancels the pointer); only a mostly horizontal drag turns
-   * the device. The canvas holds the capture, so the click that ends a press
-   * still reaches its picking (which ignores a click that turned).
+   * `touch-action: pan-y pinch-zoom` leaves a vertical swipe to the page's
+   * scroll and two fingers to its zoom (the browser then cancels the
+   * pointer); only a mostly horizontal drag turns the device. The canvas
+   * holds the capture, so the click that ends a press still reaches its
+   * picking (which ignores a click that turned).
    */
   private drag(stage: HTMLElement, canvas: HTMLCanvasElement, scene: HubScene): void {
     let pointer: number | null = null;

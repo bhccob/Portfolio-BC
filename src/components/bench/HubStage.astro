@@ -161,18 +161,19 @@ const callouts = (['screen', 'board', 'battery', 'back'] as const).map((id) => (
     overflow: hidden;
     /* HubScene's clear colour. */
     background: #07040d;
-    /* A vertical swipe scrolls the page; a mostly horizontal drag turns the device. */
-    touch-action: pan-y;
-    -webkit-user-select: none;
-    user-select: none;
+    /* A vertical swipe scrolls the page and two fingers zoom it; a mostly horizontal drag turns the device. */
+    touch-action: pan-y pinch-zoom;
   }
 
+  /* A drag across the canvas turns the device rather than selecting; the name and the role line stay selectable. */
   :global(.js-motion) .hub__stage:not([data-fallback]) .hub__canvas {
     display: block;
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
+    -webkit-user-select: none;
+    user-select: none;
   }
 
   :global(.js-motion) .hub__stage:not([data-fallback]) .hub__still {
@@ -210,6 +211,8 @@ const callouts = (['screen', 'board', 'battery', 'back'] as const).map((id) => (
     position: absolute;
     inset: 0;
     pointer-events: none;
+    -webkit-user-select: none;
+    user-select: none;
   }
 
   .callouts[data-gone],
