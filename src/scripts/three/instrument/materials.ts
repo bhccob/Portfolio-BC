@@ -1,0 +1,236 @@
+import * as THREE from 'three';
+import { TEXTURE_MEANS, type InstrumentTextures } from './textures';
+
+/**
+ * The compass's finishes, made once per model and shared by every part that
+ * wears them. With no textures every finish is a plain colour. The painted
+ * face and the ring strips arrive later as textures; their materials start
+ * on 1 x 1 placeholders, so swapping the real ones in only changes a texture
+ * and never recompiles a program.
+ */
+
+/** The palette (global constraints): the face's lacquer, the plate's, brass, gilt, signal yellow and thread red. */
+const COLOR = {
+  lacquer: 0x140a24,
+  plate: 0x1c1030,
+  brass: 0xc9a24a,
+  gilt: 0xd9a520,
+  needleTip: 0xffcf33,
+  thread: 0xc8102e
+} as const;
+
+/** The pattern ring's sweep: the soft edge sweepCoverage uses, and the seam's strength at the front. */
+export const SWEEP = { soft: 0.015, seam: 0.8 } as const;
+
+/** The face's placeholder roughness (green) and metalness (blue): plain lacquer, as face.ts paints it. */
+const FACE_ROUGHNESS = 0.25;
+
+export interface PatternUniforms {
+  mapTo: THREE.IUniform<THREE.Texture>;
+  uSweep: THREE.IUniform<number>;
+  uOrigin: THREE.IUniform<number>;
+  uSoft: THREE.IUniform<number>;
+}
+
+export interface InstrumentMaterials {
+  /** Deep lacquer: the face's own colour, the pool floor and the bed under the rings. */
+  lacquer: THREE.MeshPhysicalMaterial;
+  /** The same lacquer in the plate's colour. */
+  plate: THREE.MeshPhysicalMaterial;
+  /** Brass: the rim, the plate's edge band, the pool wall and the pin. */
+  brass: THREE.MeshStandardMaterial;
+  /** Gilt: the raised rules between the rings. */
+  gilt: THREE.MeshStandardMaterial;
+  /** The painted face: its canvas as the colour, its mr canvas as roughness (green) and metalness (blue). */
+  face: THREE.MeshStandardMaterial;
+  /** The pattern ring: `map` is the home it sweeps from, `mapTo` (a uniform) the home it sweeps to. */
+  pattern: THREE.MeshPhysicalMaterial;
+  needleTip: THREE.MeshStandardMaterial;
+  needleTail: THREE.MeshStandardMaterial;
+  threads: THREE.MeshStandardMaterial;
+  glass: THREE.MeshPhysicalMaterial;
+  /** The portrait under the pool's glass, unlit. */
+  portrait: THREE.MeshBasicMaterial;
+}
+
+export interface Placeholders {
+  /** The plain ring: the plate's lacquer, for `map` and `mapTo` until the strips arrive. */
+  strip: THREE.DataTexture;
+  /** The face's colour until it is painted: lacquer. */
+  face: THREE.DataTexture;
+  /** The face's roughness/metalness until it is painted: lacquer's (linear). */
+  faceMr: THREE.DataTexture;
+  /** The portrait's map until it arrives (the disc stays hidden meanwhile). */
+  portrait: THREE.DataTexture;
+}
+
+/** A 1 x 1 texture of one colour; `srgb` for a colour map, linear for data. */
+function pixel(r: number, g: number, b: number, srgb: boolean): THREE.DataTexture {
+  const texture = new THREE.DataTexture(new Uint8Array([r, g, b, 255]), 1, 1);
+  if (srgb) texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function hexPixel(hex: number): THREE.DataTexture {
+  return pixel((hex >> 16) & 255, (hex >> 8) & 255, hex & 255, true);
+}
+
+export function createPlaceholders(): Placeholders {
+  return {
+    strip: hexPixel(COLOR.plate),
+    face: hexPixel(COLOR.lacquer),
+    faceMr: pixel(0, Math.round(FACE_ROUGHNESS * 255), 0, false),
+    portrait: hexPixel(COLOR.lacquer)
+  };
+}
+
+/** Writes a linear colour as a GLSL vec3. */
+function vec3(color: THREE.Color): string {
+  return `vec3( ${color.r.toFixed(5)}, ${color.g.toFixed(5)}, ${color.b.toFixed(5)} )`;
+}
+
+/**
+ * The pattern ring's material. Its shader mixes `map` (the home it sweeps
+ * from) with `mapTo` (the home it sweeps to) by the cover sweepCoverage
+ * gives, with u the ring's polar u, and lights a thin gold seam at the
+ * sweep's front while the sweep is under way. The uniforms are the
+ * material's own objects (`userData.uniforms` too), so setting a value needs
+ * no recompile.
+ */
+function createPattern(strip: THREE.Texture): { material: THREE.MeshPhysicalMaterial; uniforms: PatternUniforms } {
+  const material = new THREE.MeshPhysicalMaterial({
+    name: 'compass:pattern',
+    color: 0xffffff,
+    map: strip,
+    roughness: 0.3,
+    metalness: 0.15,
+    clearcoat: 1
+  });
+  const uniforms: PatternUniforms = {
+    mapTo: { value: strip },
+    uSweep: { value: 0 },
+    uOrigin: { value: 0 },
+    uSoft: { value: SWEEP.soft }
+  };
+  const seam = vec3(new THREE.Color(COLOR.gilt));
+  material.userData.uniforms = uniforms;
+  material.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, uniforms);
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        '#include <common>',
+        '#include <common>\nuniform sampler2D mapTo;\nuniform float uSweep;\nuniform float uOrigin;\nuniform float uSoft;'
+      )
+      .replace(
+        '#include <map_fragment>',
+        [
+          'float sweepSeam = 0.0;',
+          '#ifdef USE_MAP',
+          '{',
+          // sweepCoverage(u, origin, sweep, soft), the same steps.
+          '  float around = fract( vMapUv.x - uOrigin );',
+          '  float d = min( around, 1.0 - around );',
+          '  float front = uSweep * ( 0.5 + uSoft );',
+          '  float coverage = 1.0 - smoothstep( front - uSoft, front, d );',
+          '  diffuseColor *= mix( texture2D( map, vMapUv ), texture2D( mapTo, vMapUv ), coverage );',
+          // A bell over the fade, at its middle, sharpened so the seam stays thin.
+          '  if ( uSweep > 0.0 && uSweep < 1.0 ) sweepSeam = pow( 4.0 * coverage * ( 1.0 - coverage ), 3.0 );',
+          '}',
+          '#endif'
+        ].join('\n')
+      )
+      .replace(
+        '#include <emissivemap_fragment>',
+        `#include <emissivemap_fragment>\n  totalEmissiveRadiance += ${seam} * ${SWEEP.seam.toFixed(2)} * sweepSeam;`
+      );
+  };
+  material.customProgramCacheKey = () => 'compass:pattern';
+  return { material, uniforms };
+}
+
+export function createMaterials(placeholders: Placeholders): { materials: InstrumentMaterials; patternUniforms: PatternUniforms } {
+  const lacquer = (name: string, color: number) =>
+    new THREE.MeshPhysicalMaterial({ name, color, metalness: 0, roughness: 0.28, clearcoat: 1, clearcoatRoughness: 0.12 });
+  const pattern = createPattern(placeholders.strip);
+  const materials: InstrumentMaterials = {
+    lacquer: lacquer('compass:lacquer', COLOR.lacquer),
+    plate: lacquer('compass:plate', COLOR.plate),
+    brass: new THREE.MeshStandardMaterial({ name: 'compass:brass', color: COLOR.brass, metalness: 1, roughness: 0.32 }),
+    gilt: new THREE.MeshStandardMaterial({ name: 'compass:gilt', color: COLOR.gilt, metalness: 1, roughness: 0.3 }),
+    face: new THREE.MeshStandardMaterial({
+      name: 'compass:face',
+      color: 0xffffff,
+      map: placeholders.face,
+      roughnessMap: placeholders.faceMr,
+      metalnessMap: placeholders.faceMr,
+      // The maps rule: three multiplies these by the mr canvas.
+      roughness: 1,
+      metalness: 1
+    }),
+    pattern: pattern.material,
+    needleTip: new THREE.MeshStandardMaterial({
+      name: 'compass:needle-tip',
+      color: COLOR.needleTip,
+      emissive: COLOR.needleTip,
+      emissiveIntensity: 1.4,
+      transparent: true
+    }),
+    needleTail: new THREE.MeshStandardMaterial({
+      name: 'compass:needle-tail',
+      color: COLOR.brass,
+      metalness: 1,
+      roughness: 0.32,
+      transparent: true
+    }),
+    threads: new THREE.MeshStandardMaterial({ name: 'compass:threads', color: COLOR.thread, metalness: 0, roughness: 0.6, transparent: true }),
+    glass: new THREE.MeshPhysicalMaterial({
+      name: 'compass:glass',
+      color: 0xffffff,
+      metalness: 0,
+      roughness: 0.05,
+      clearcoat: 1,
+      transparent: true,
+      opacity: 0.15
+    }),
+    portrait: new THREE.MeshBasicMaterial({ name: 'compass:portrait', map: placeholders.portrait, transparent: true, opacity: 0 })
+  };
+  return { materials, patternUniforms: pattern.uniforms };
+}
+
+/** Sets a texture's wrapping, flagging it for upload only when it changes. */
+function wrap(texture: THREE.Texture, s: THREE.Wrapping, t: THREE.Wrapping): void {
+  if (texture.wrapS === s && texture.wrapT === t) return;
+  texture.wrapS = s;
+  texture.wrapT = t;
+  texture.needsUpdate = true;
+}
+
+/** Gives `material` the image `map`, its colour divided by the image's mean so the average stays `target`. */
+function tinted(material: THREE.MeshStandardMaterial, map: THREE.Texture, target: number, mean: readonly [number, number, number]): void {
+  const color = new THREE.Color(target);
+  material.color.setRGB(color.r / mean[0], color.g / mean[1], color.b / mean[2], THREE.LinearSRGBColorSpace);
+  if (material.map === map) return;
+  // A map where there was none is a new program; one map for another is not.
+  if (!material.map) material.needsUpdate = true;
+  material.map = map;
+}
+
+/**
+ * Swaps in the image maps that have arrived. Safe to call more than once; a
+ * texture left out keeps whatever is there. The brushed brass tiles round
+ * (its edges were cross-faded) and mirrors across; the lacquer mirrors both
+ * ways. The textures stay the caller's.
+ */
+export function applyTextures(m: InstrumentMaterials, textures: InstrumentTextures): void {
+  const { brass, lacquer } = textures;
+  if (brass) {
+    wrap(brass, THREE.RepeatWrapping, THREE.MirroredRepeatWrapping);
+    tinted(m.brass, brass, COLOR.brass, TEXTURE_MEANS.brass);
+  }
+  if (lacquer) {
+    wrap(lacquer, THREE.MirroredRepeatWrapping, THREE.MirroredRepeatWrapping);
+    tinted(m.lacquer, lacquer, COLOR.lacquer, TEXTURE_MEANS.lacquer);
+    tinted(m.plate, lacquer, COLOR.plate, TEXTURE_MEANS.lacquer);
+  }
+}
