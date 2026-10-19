@@ -1,9 +1,11 @@
 import * as THREE from 'three';
+import { Handlers } from '../core/Handlers';
 import { AngleSpring, wrapAngle } from './AngleSpring';
 import { dialLayout, lerpShot, placeCamera, type Shot } from './CameraRig';
 import { compassPoseAt, locate, OFF_AXIS, tipLimit, type CompassPose } from './Choreography';
 import { FreeTurn, type PointerKind } from './FreeTurn';
 import { handedNeedle, needleTarget, Pearl, PEARL, PearlTarget, pointerBearing } from './Pearl';
+import { easePearl } from './pearlSpec';
 import { budgetLimit, PixelBudget, VSYNC } from './PixelBudget';
 import { qualityFor, qualitySteps, type Quality } from './quality';
 import { RenderLoop } from './RenderLoop';
@@ -46,9 +48,12 @@ const FOV = 30;
 const NEAR = 0.1;
 const FAR = 100;
 
-/** Progress and the pearl's screen position ease at these rates (MathUtils.damp's λ), at most MAX_STEP s a frame, so a tab coming back does not jump. */
+/**
+ * Progress eases at this rate (MathUtils.damp's λ), the pearl's screen
+ * position at pearlSpec's (the loader's too), at most MAX_STEP s a frame, so
+ * a tab coming back does not jump.
+ */
 const PROGRESS_DAMP = 8;
-const PEARL_DAMP = 10;
 const MAX_STEP = 0.1;
 
 /** Seconds from the matched shot to the pose's own. */
@@ -126,8 +131,10 @@ export class CompassScene {
   private studio: CompassStudio | null = null;
   private pearl: Pearl | null = null;
   private glow: THREE.DataTexture | null = null;
-  private readonly frameHandlers: (() => void)[] = [];
-  private readonly loadHandlers: ((part: LoadPart, share: number) => void)[] = [];
+  private readonly frameHandlers = new Handlers<() => void>();
+  private readonly loadHandlers = new Handlers<(part: LoadPart, share: number) => void>();
+  /** The waits on the intro's end (startIntro's promises). */
+  private readonly introEnded: (() => void)[] = [];
   /** Run once after the next frame drawn (letting go of the clearcoat stand-ins once the lacquer has switched). */
   private readonly afterFrame: (() => void)[] = [];
   private readonly listeners: [string, EventListener][] = [];
@@ -198,10 +205,14 @@ export class CompassScene {
     }
   }
 
-  /** Calls `handler` as each part of the load moves on (0..1), starting with where each part stands now. */
-  onLoad(handler: (part: LoadPart, share: number) => void): void {
-    this.loadHandlers.push(handler);
+  /**
+   * Calls `handler` as each part of the load moves on (0..1), starting with
+   * where each part stands now. Answers its unsubscribe.
+   */
+  onLoad(handler: (part: LoadPart, share: number) => void): () => void {
+    const unsubscribe = this.loadHandlers.add(handler);
     for (const part of ['textures', 'warm'] as const) if (this.shares[part] > 0) tell(handler, part, this.shares[part]);
+    return unsubscribe;
   }
 
   /**
@@ -255,9 +266,9 @@ export class CompassScene {
     this.update(0);
   }
 
-  /** Calls `handler` after every frame drawn. */
-  onFrame(handler: () => void): void {
-    this.frameHandlers.push(handler);
+  /** Calls `handler` after every frame drawn. Answers its unsubscribe. */
+  onFrame(handler: () => void): () => void {
+    return this.frameHandlers.add(handler);
   }
 
   /**
@@ -270,7 +281,9 @@ export class CompassScene {
   matchDial(rim: { x: number; y: number; diameter: number }, needle: { bearing: number; velocity: number }): void {
     if (this.disposed || !(rim.diameter > 0) || !Number.isFinite(rim.x) || !Number.isFinite(rim.y)) return;
     this.matched = { layout: { x: rim.x, y: rim.y, diameter: rim.diameter }, tilt: 0, zoom: 1, near: NEAR };
+    // An intro under way is cut short: its waits are over.
     this.intro = null;
+    this.endIntro();
     const handed = handedNeedle(this.spring, needle);
     this.spring.set(handed.value, handed.velocity);
     this.lastPearl = this.spring.value;
@@ -286,11 +299,18 @@ export class CompassScene {
    * Moves from the matched shot to the pose's own over 1.2 s (smootherstep),
    * the lean easing in with it. The intro's clock runs on drawn frames only,
    * so called before the first frame it still starts on the matched shot.
+   * Resolves when the intro has ended on a drawn frame, at once when there is
+   * no matched shot to leave, and when it can no longer end (a new
+   * matchDial, dispose). Called again while it runs, it waits on the same end.
    */
-  startIntro(): void {
-    if (this.disposed || !this.matched || this.intro !== null) return;
-    this.intro = 0;
-    this.target.wake(this.clock());
+  startIntro(): Promise<void> {
+    if (this.disposed || !this.matched) return Promise.resolve();
+    const ended = new Promise<void>((resolve) => this.introEnded.push(resolve));
+    if (this.intro === null) {
+      this.intro = 0;
+      this.target.wake(this.clock());
+    }
+    return ended;
   }
 
   /** A mouse or pen at (x, y): the pearl follows it. */
@@ -364,8 +384,9 @@ export class CompassScene {
     this.disposed = true;
     this.loop.setActive(false);
     for (const [type, listener] of this.listeners) this.canvas.removeEventListener(type, listener);
-    this.frameHandlers.length = 0;
-    this.loadHandlers.length = 0;
+    this.frameHandlers.clear();
+    this.loadHandlers.clear();
+    this.endIntro();
     this.instrument?.dispose();
     this.freeMaps();
     this.releaseCoat?.();
@@ -397,7 +418,7 @@ export class CompassScene {
     this.dirty = false;
     this.renderer.render(this.scene, this.camera);
     for (const release of this.afterFrame.splice(0)) release();
-    for (const handler of this.frameHandlers) handler();
+    this.frameHandlers.each((handler) => handler());
   }
 
   /**
@@ -438,7 +459,7 @@ export class CompassScene {
     // The pearl, eased toward where it wants to be (and put straight there the first time).
     const [wantX, wantY] = this.target.at(this.clock(), width, height, dialLayout(width, height));
     const ease = (from: number, to: number): number => {
-      const next = this.pearlPlaced ? THREE.MathUtils.damp(from, to, PEARL_DAMP, dt) : to;
+      const next = this.pearlPlaced ? easePearl(from, to, dt) : to;
       return Math.abs(to - next) < STILL.pearl ? to : next;
     };
     if (sized) {
@@ -500,7 +521,13 @@ export class CompassScene {
     if (this.intro < INTRO) return smootherstep(this.intro / INTRO);
     this.matched = null;
     this.intro = null;
+    this.endIntro();
     return 1;
+  }
+
+  /** Settles every wait on the intro's end. */
+  private endIntro(): void {
+    for (const resolve of this.introEnded.splice(0)) resolve();
   }
 
   /** The pose's own shot for the canvas, or `own` of the way there from the matched shot. */
@@ -564,7 +591,7 @@ export class CompassScene {
     const value = Math.min(1, Math.max(0, share));
     if (this.disposed || !(value > this.shares[part])) return;
     this.shares[part] = value;
-    for (const handler of this.loadHandlers) tell(handler, part, value);
+    this.loadHandlers.each((handler) => tell(handler, part, value));
   }
 
   /**

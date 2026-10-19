@@ -54,8 +54,8 @@ export const COMPASS_STUDIO = {
    * surface its colour times intensity · cos / π: the key's 4.35 at cos 0.71
    * gives the face about 0.98 of it, which with the room and the fog lights a
    * face-on dial to one, so its paints render as themselves there (measured
-   * face-on: gilt #daa531 for #d9a520, plate #221633 for #1c1030, face
-   * #190d28 for #140a24).
+   * face-on on the page at 1440 x 900, as the loader hands over: gilt #dca631
+   * for #d9a520, plate #221633 for #1c1030, face #190d28 for #140a24).
    */
   key: { color: 0xffffff, intensity: 4.35, position: [-3, 4, 5] as const },
   rim: { color: 0x8a5cff, intensity: 1.6, position: [2, -1, -4] as const },

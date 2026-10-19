@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { blendBearing, wrapAngle } from './AngleSpring';
 import type { DialLayout } from './CameraRig';
 import { bearingOf, DIAL } from './instrument/dialSpec';
+import { DEAD_ZONE, PEARL_REST, restAt } from './pearlSpec';
 
 /**
  * The pearl: the glowing bead the needle chases, as a dragon chases its pearl
@@ -33,23 +34,12 @@ const TOUCH = { hold: 1.5, back: 1 } as const;
 /** The drift's period in seconds, and its half-extent as a share of the canvas's width and height. */
 const DRIFT = { period: 14, x: 0.18, y: 0.12 } as const;
 
-/** The rest spot sits this many dial diameters right of and below the dial's centre. */
-const REST = 0.42;
-
-/** The pearl stays this many CSS pixels inside the canvas when resting or drifting. */
-const MARGIN = 24;
-
-/** No bearing within this share of the rim of the pivot: the needle would spin on the spot. */
-const DEAD_ZONE = 0.15;
+/** The pearl stays this many CSS pixels inside the canvas when resting or drifting (pearlSpec, which the loader shares). */
+const MARGIN = PEARL_REST.margin;
 
 function smoothstep(t: number): number {
   const x = Math.min(1, Math.max(0, t));
   return x * x * (3 - 2 * x);
-}
-
-/** `value` kept MARGIN inside [0, size]; a canvas too small for the margin gets its middle. */
-function inside(value: number, size: number): number {
-  return size > 2 * MARGIN ? Math.min(size - MARGIN, Math.max(MARGIN, value)) : size / 2;
 }
 
 /** The share of a swing of `reach` either way of `centre` that stays MARGIN inside [0, size]. */
@@ -68,9 +58,9 @@ export function driftAt(t: number, width: number, height: number): [number, numb
   return [DRIFT.x * width * Math.sin(a), DRIFT.y * height * Math.sin(2 * a)];
 }
 
-/** Where the pearl rests: below-right of the dial, (x + 0.42 D, y + 0.42 D), kept 24 px inside the canvas. */
+/** Where the pearl rests: below-right of the dial, (x + 0.42 D, y + 0.42 D), kept 24 px inside the canvas (pearlSpec's restAt, the loader's too). */
 export function restSpot(width: number, height: number, layout: DialLayout): [number, number] {
-  return [inside(layout.x + REST * layout.diameter, width), inside(layout.y + REST * layout.diameter, height)];
+  return restAt(layout.x, layout.y, layout.diameter, width, height);
 }
 
 export class PearlTarget {

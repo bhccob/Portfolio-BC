@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { LOADING, SEEN_KEY, huntAt, huntRate, loadedShare, loaderVerdict, readout, restAt, screenBearing } from '../../src/scripts/compass/loading';
+import { LOADING, SEEN_KEY, huntAt, huntRate, loadedShare, loaderVerdict, readout, screenBearing } from '../../src/scripts/compass/loading';
 describe('the loader', () => {
   it('weighs the parts and clamps them', () => {
     expect(loadedShare({})).toBe(0); expect(loadedShare({ scene: 1, textures: 1, warm: 1 })).toBeCloseTo(1);
@@ -25,11 +25,5 @@ describe('the loader', () => {
   it('marks the session under the key the boot script reads', () => {
     const layout = readFileSync(new URL('../../src/layouts/BenchLayout.astro', import.meta.url), 'utf8');
     expect(layout).toContain(`sessionStorage.getItem('${SEEN_KEY}')`);
-  });
-  it('rests the pearl below-right of the rim, inside the screen', () => {
-    expect(restAt(720, 450, 576, 1440, 900)).toEqual([720 + 0.42 * 576, 450 + 0.42 * 576]);
-    // Near the right edge the rest spot would fall off it, so it is kept 24 px inside.
-    expect(restAt(250, 422, 312, 390, 844)).toEqual([366, 422 + 0.42 * 312]);
-    expect(restAt(10, 10, 10, 40, 40)).toEqual([20, 20]);
   });
 });

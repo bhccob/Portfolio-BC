@@ -32,9 +32,6 @@ const READOUT_RATE = 1.5;
 /** The searching needle: degrees per second, and a wobble of this many degrees at this rate (rad/s). */
 const HUNT = { speed: 220, wobble: 35, rate: 2.3 } as const;
 
-/** The pearl's rest spot sits this many rim diameters right of and below the rim's centre, this many px inside the screen (Pearl's restSpot). */
-const REST = { offset: 0.42, margin: 24 } as const;
-
 function clamp01(value: number): number {
   return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0;
 }
@@ -80,16 +77,4 @@ export function huntRate(t: number): number {
 /** The bearing of a screen offset (dx right, dy down) from a centre: radians clockwise from screen north, atan2(dx, −dy). */
 export function screenBearing(dx: number, dy: number): number {
   return Math.atan2(dx, -dy);
-}
-
-/**
- * Where the loader's pearl rests without a pointer (a touch screen, or a
- * mouse that has not moved): right of and below the rim's centre (x, y) by
- * 0.42 of its `diameter`, kept 24 px inside a `width` × `height` screen, as
- * the scene's pearl rests by its dial (Pearl's restSpot).
- */
-export function restAt(x: number, y: number, diameter: number, width: number, height: number): [number, number] {
-  const inside = (value: number, size: number): number =>
-    size > 2 * REST.margin ? Math.min(size - REST.margin, Math.max(REST.margin, value)) : size / 2;
-  return [inside(x + REST.offset * diameter, width), inside(y + REST.offset * diameter, height)];
 }
