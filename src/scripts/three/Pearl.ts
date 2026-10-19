@@ -209,15 +209,30 @@ export function handedNeedle(
   };
 }
 
-/** The pearl's look: signal yellow, a soft halo, a hot core and a small warm light that moves across the brass. */
+/**
+ * World units spanning `px` CSS pixels at `depth` (along the view) in front
+ * of a perspective camera `fovDeg` tall, drawing on a canvas `heightPx` tall.
+ * Zero for a canvas with no height or a point not in front of the camera.
+ */
+export function worldAcross(px: number, depth: number, fovDeg: number, heightPx: number): number {
+  if (!(heightPx > 0 && depth > 0) || !Number.isFinite(px) || !Number.isFinite(fovDeg)) return 0;
+  return (px * 2 * depth * Math.tan((fovDeg * Math.PI) / 360)) / heightPx;
+}
+
+/**
+ * The pearl's look: signal yellow, a soft halo, a hot core and a small warm
+ * light that moves across the brass. The core and the halo are sized in CSS
+ * pixels, so the pearl looks the same size at every zoom (the about push
+ * comes ever closer to its plane).
+ */
 export const PEARL = {
   color: 0xffcf33,
-  /** The halo sprite's width, world units. */
-  halo: 0.07,
-  /** The core's radius, and how far over its colour it is driven (tone mapping rolls it towards white-hot). */
-  core: 0.022,
-  coreGain: 1.6,
-  light: { color: 0xffd27a, intensity: 2.5, distance: 3, decay: 2 },
+  /** The halo sprite's width, CSS px (its soft falloff shows about half of it). */
+  halo: 72,
+  /** The core's width, CSS px, and how far over its colour it is driven (tone mapping rolls it to a white-hot cream). */
+  core: 15,
+  coreGain: 6,
+  light: { color: 0xffd27a, intensity: 0.5, distance: 3, decay: 2 },
   /** The camera-facing plane it moves on passes this many rims in front of the face centre. */
   plane: 0.6
 } as const;
@@ -254,13 +269,16 @@ export class Pearl {
       })
     );
     this.halo.name = 'pearl:halo';
-    this.halo.scale.setScalar(PEARL.halo);
     this.halo.renderOrder = 5;
+    // A sphere one unit across, scaled to its pixels by place().
     this.core = new THREE.Mesh(
-      new THREE.SphereGeometry(PEARL.core, 24, 16),
+      new THREE.SphereGeometry(0.5, 24, 16),
       new THREE.MeshBasicMaterial({ name: 'pearl:core', color: new THREE.Color(PEARL.color).multiplyScalar(PEARL.coreGain), fog: false })
     );
     this.core.name = 'pearl:core';
+    // About its size at the hero's distance until the first place() measures it.
+    this.core.scale.setScalar(0.044);
+    this.halo.scale.setScalar(0.17);
     const { color, intensity, distance, decay } = PEARL.light;
     this.light = new THREE.PointLight(color, intensity, distance, decay);
     this.light.name = 'pearl:light';
@@ -282,6 +300,10 @@ export class Pearl {
     this.ray.setFromCamera(ndc.set((x / width) * 2 - 1, 1 - (y / height) * 2), camera);
     if (!this.ray.ray.intersectPlane(this.facing, this.point)) return;
     this.object.position.copy(this.point);
+    // The same pixels at any depth: the core and the halo are scaled to the world units their widths span there.
+    const unit = worldAcross(1, this.point.sub(camera.position).dot(view), camera.fov, height) / (camera.zoom || 1);
+    this.core.scale.setScalar(PEARL.core * unit);
+    this.halo.scale.setScalar(PEARL.halo * unit);
   }
 
   /** Frees the core and the halo's material and lets the light go; the glow texture stays the caller's. */

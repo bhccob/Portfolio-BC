@@ -20,10 +20,17 @@ const COLOR = {
 } as const;
 
 /** The pattern ring's sweep: the soft edge sweepCoverage uses, and the seam's strength at the front. */
-export const SWEEP = { soft: 0.015, seam: 0.8 } as const;
+export const SWEEP = { soft: 0.015, seam: 1.8 } as const;
 
 /** The face's placeholder roughness (green) and metalness (blue): plain lacquer, as face.ts paints it. */
-const FACE_ROUGHNESS = 0.25;
+const FACE_ROUGHNESS = 0.08;
+
+/**
+ * The lacquers: a pigment base that barely reflects (specular 0.2 of a plain
+ * dielectric's, a little soft), so its purple is not greyed by the room, under
+ * a glossy coat that gives the crisp highlights.
+ */
+const LACQUER = { roughness: 0.5, specular: 0.2, coat: 0.06 } as const;
 
 export interface PatternUniforms {
   mapTo: THREE.IUniform<THREE.Texture>;
@@ -37,8 +44,10 @@ export interface InstrumentMaterials {
   lacquer: THREE.MeshPhysicalMaterial;
   /** The same lacquer in the plate's colour. */
   plate: THREE.MeshPhysicalMaterial;
-  /** Brass: the rim, the plate's edge band, the pool wall and the pin. */
+  /** Brass: the rim, the plate's edge band and the pool wall. */
   brass: THREE.MeshStandardMaterial;
+  /** The needle's pin, in plain brass: it fades with the needle, so a lifted needle leaves the portrait's centre clear. */
+  pin: THREE.MeshStandardMaterial;
   /** Gilt: the raised rules between the rings. */
   gilt: THREE.MeshStandardMaterial;
   /** The painted face: its canvas as the colour, its mr canvas as roughness (green) and metalness (blue). */
@@ -155,12 +164,13 @@ function createPattern(strip: THREE.Texture): { material: THREE.MeshPhysicalMate
 export function createMaterials(placeholders: Placeholders): { materials: InstrumentMaterials; patternUniforms: PatternUniforms } {
   // The image-mapped finishes start on a white map, so they show their plain colours and the images only swap a texture.
   const lacquer = (name: string, color: number) =>
-    new THREE.MeshPhysicalMaterial({ name, color, map: placeholders.image, metalness: 0, roughness: 0.28, clearcoat: 1, clearcoatRoughness: 0.12 });
+    new THREE.MeshPhysicalMaterial({ name, color, map: placeholders.image, metalness: 0, roughness: LACQUER.roughness, specularIntensity: LACQUER.specular, clearcoat: 1, clearcoatRoughness: LACQUER.coat });
   const pattern = createPattern(placeholders.strip);
   const materials: InstrumentMaterials = {
     lacquer: lacquer('compass:lacquer', COLOR.lacquer),
     plate: lacquer('compass:plate', COLOR.plate),
     brass: new THREE.MeshStandardMaterial({ name: 'compass:brass', color: COLOR.brass, map: placeholders.image, metalness: 1, roughness: 0.32 }),
+    pin: new THREE.MeshStandardMaterial({ name: 'compass:pin', color: COLOR.brass, metalness: 1, roughness: 0.32, transparent: true }),
     gilt: new THREE.MeshStandardMaterial({ name: 'compass:gilt', color: COLOR.gilt, metalness: 1, roughness: 0.3 }),
     face: new THREE.MeshStandardMaterial({
       name: 'compass:face',
@@ -177,25 +187,29 @@ export function createMaterials(placeholders: Placeholders): { materials: Instru
       name: 'compass:needle-tip',
       color: COLOR.needleTip,
       emissive: COLOR.needleTip,
-      emissiveIntensity: 1.4,
+      // About one in all with the key's light, so the tone mapping keeps it signal yellow rather than rolling it to cream.
+      emissiveIntensity: 0.8,
       transparent: true
     }),
     needleTail: new THREE.MeshStandardMaterial({
       name: 'compass:needle-tail',
       color: COLOR.brass,
-      metalness: 1,
-      roughness: 0.32,
+      // Half metal and a little rough, so the key lights it: polished, it would mirror the dark room and read brown,
+      // and faded for the portrait it would be a dark line across it rather than a faint gold one.
+      metalness: 0.5,
+      roughness: 0.4,
       transparent: true
     }),
     threads: new THREE.MeshStandardMaterial({ name: 'compass:threads', color: COLOR.thread, metalness: 0, roughness: 0.6, transparent: true }),
     glass: new THREE.MeshPhysicalMaterial({
       name: 'compass:glass',
-      color: 0xffffff,
+      // Glass has no colour of its own: it darkens the pool a little and shows the room's reflections.
+      color: 0x000000,
       metalness: 0,
       roughness: 0.05,
       clearcoat: 1,
       transparent: true,
-      opacity: 0.15,
+      opacity: 0.12,
       // The needle's lower facets dip below the glass on a tilt: the glass must not clip them.
       depthWrite: false
     }),

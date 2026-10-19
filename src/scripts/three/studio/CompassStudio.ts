@@ -1,27 +1,60 @@
 import * as THREE from 'three';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildBackdrop, type Backdrop } from './Backdrop';
 import { buildDust, type Dust } from './Dust';
 import { buildHaze, type Haze } from './Haze';
 
 /**
  * The compass's studio and its light: the renderer's tone mapping, a dark
- * room's soft-boxes for the reflections, a warm key and a purple rim, fog,
+ * room of light cards for the reflections, a white key and a purple rim, fog,
  * the backdrop glowing behind the dial, the haze and the dust. (The pearl, the
  * third light, is the scene's: it moves.) Everything is in the scene from the
  * start, so nothing here recompiles a program later.
  *
- * These are starting values: Task 6 tunes them against the approved hero
- * frame (refs/compass-hero.png) and records the final numbers here.
+ * The values are tuned against the approved hero frame
+ * (refs/compass-hero.png). Lit face-on, the lacquer and the gilt land close
+ * to the loader's flat colours (plate #1c1030, face #140a24, gilt #d9a520),
+ * which the loader crossfades from:
+ *   - the key is white (a warm one turns the purple brown) and, with the
+ *     room's own light, lights the face to about one, so a lacquer's colour
+ *     renders as itself; the warmth is the soft-box's and the pearl's;
+ *   - the tone mapping is PBR Neutral's shoulder (shoulder()), without the
+ *     toe that would crush the dark lacquer's smallest channel to black;
+ *   - the room is dark straight ahead of the face, where a face-on dial
+ *     reflects it, and its cards sit where the tilted dial, the curved gilt
+ *     and the rims catch them as crisp highlights.
  */
 export const COMPASS_STUDIO = {
   background: 0x07040d,
   exposure: 1,
   fog: { color: 0x160c26, density: 0.03 },
-  /** RoomEnvironment through PMREM: its walls darkened, its soft-boxes kept, its furniture out; `blur` is PMREM's sigma. */
-  room: { walls: 0x100b16, blur: 0.04, intensity: 0.8 },
-  /** The warm key from the upper left, in front; the purple rim from behind and below. Both aim at the face centre. */
-  key: { color: 0xffe2b8, intensity: 2.2, position: [-3, 4, 5] as const },
+  /**
+   * The reflections' room, prefiltered through PMREM (`blur` is its sigma):
+   * dark walls and a few light cards. A card faces the middle from its
+   * bearing (`azimuth` degrees from straight ahead, +Z, toward +X, the right)
+   * and `elevation` (degrees up), `width` × `height` degrees across, glowing
+   * `radiance` times its colour.
+   */
+  room: {
+    walls: 0x0b0713,
+    blur: 0.02,
+    intensity: 1,
+    cards: [
+      // A warm soft-box high and to the left: the key's own reflection in the curved gilt and the rim.
+      { azimuth: -40, elevation: 42, width: 34, height: 22, color: 0xffd9a8, radiance: 2.4 },
+      // A soft card a little low in front and to the left: the gloss on the tilted lacquer's upper left, gliding as it leans.
+      { azimuth: -20, elevation: -14, width: 40, height: 10, color: 0xfff1e0, radiance: 0.8 },
+      // A cool card to the right and a purple one behind: the edges' rim light.
+      { azimuth: 78, elevation: 12, width: 14, height: 36, color: 0xb59cff, radiance: 1.2 },
+      { azimuth: 180, elevation: 20, width: 50, height: 24, color: 0x6a3cff, radiance: 0.6 }
+    ]
+  },
+  /**
+   * The key from the upper left, in front; the purple rim from behind and
+   * below. Both aim at the face centre. A punctual light gives a diffuse
+   * surface its colour times intensity · cos / π: the key's 3 at cos 0.71
+   * gives the face about 0.68 of it, the room the rest.
+   */
+  key: { color: 0xffffff, intensity: 3, position: [-3, 4, 5] as const },
   rim: { color: 0x8a5cff, intensity: 1.6, position: [2, -1, -4] as const },
   /** The backdrop's glow, behind the dial and a little low. */
   backdrop: [0, -0.15, -1] as const,
@@ -38,23 +71,74 @@ export interface CompassStudio {
   dispose(): void;
 }
 
-/** RoomEnvironment with its walls darkened and its furniture out (it would show as hard shapes in the brass); its soft-boxes stay. */
-function darkRoom(): RoomEnvironment {
-  const room = new RoomEnvironment();
-  room.traverse((object) => {
-    if ((object as THREE.InstancedMesh).isInstancedMesh) object.visible = false;
-    const material = (object as THREE.Mesh).material;
-    if (material instanceof THREE.MeshStandardMaterial && material.side === THREE.BackSide) material.color.set(COMPASS_STUDIO.room.walls);
-  });
-  return room;
+/**
+ * The renderer's CustomToneMapping: Khronos PBR Neutral (three's
+ * NeutralToneMapping) without its toe. Below 0.8 a colour is drawn as it is,
+ * so a lacquer lit to its own colour renders as that colour, deep purples
+ * included; above, the highlights roll off and desaturate as Neutral's do.
+ */
+const SHOULDER = /* glsl */ `vec3 CustomToneMapping( vec3 color ) {
+	const float StartCompression = 0.8;
+	const float Desaturation = 0.15;
+	color *= toneMappingExposure;
+	float peak = max( color.r, max( color.g, color.b ) );
+	if ( peak < StartCompression ) return color;
+	float d = 1. - StartCompression;
+	float newPeak = 1. - d * d / ( peak + d - StartCompression );
+	color *= newPeak / peak;
+	float g = 1. - 1. / ( Desaturation * ( peak - newPeak ) + 1. );
+	return mix( color, vec3( newPeak ), g );
+}`;
+
+/** Puts SHOULDER in three's tone mapping chunk (once), for every program compiled after. */
+export function shoulder(): void {
+  const chunk = THREE.ShaderChunk.tonemapping_pars_fragment;
+  const plain = 'vec3 CustomToneMapping( vec3 color ) { return color; }';
+  if (chunk.includes(plain)) THREE.ShaderChunk.tonemapping_pars_fragment = chunk.replace(plain, SHOULDER);
+}
+
+/** The direction a card faces the middle from, unit length. */
+function bearing(azimuth: number, elevation: number): THREE.Vector3 {
+  const a = THREE.MathUtils.degToRad(azimuth);
+  const e = THREE.MathUtils.degToRad(elevation);
+  return new THREE.Vector3(Math.sin(a) * Math.cos(e), Math.sin(e), Math.cos(a) * Math.cos(e));
+}
+
+/** The reflections' room (COMPASS_STUDIO.room) as a scene for PMREM; dispose() frees it. */
+function darkRoom(): { scene: THREE.Scene; dispose(): void } {
+  const { walls, cards } = COMPASS_STUDIO.room;
+  const scene = new THREE.Scene();
+  const radius = 10;
+  const shell = new THREE.Mesh(new THREE.SphereGeometry(radius * 2, 32, 16), new THREE.MeshBasicMaterial({ color: walls, side: THREE.BackSide }));
+  scene.add(shell);
+  const plane = new THREE.PlaneGeometry(1, 1);
+  const materials: THREE.Material[] = [shell.material];
+  for (const card of cards) {
+    const material = new THREE.MeshBasicMaterial({ color: new THREE.Color(card.color).multiplyScalar(card.radiance), side: THREE.DoubleSide });
+    materials.push(material);
+    const mesh = new THREE.Mesh(plane, material);
+    mesh.position.copy(bearing(card.azimuth, card.elevation).multiplyScalar(radius));
+    mesh.scale.set(2 * radius * Math.tan(THREE.MathUtils.degToRad(card.width / 2)), 2 * radius * Math.tan(THREE.MathUtils.degToRad(card.height / 2)), 1);
+    mesh.lookAt(0, 0, 0);
+    scene.add(mesh);
+  }
+  return {
+    scene,
+    dispose() {
+      shell.geometry.dispose();
+      plane.dispose();
+      for (const material of materials) material.dispose();
+    }
+  };
 }
 
 /** Sets up `renderer` and `scene` for the compass and fills the studio, with room for `dust` motes at most. */
 export function buildCompassStudio(renderer: THREE.WebGLRenderer, scene: THREE.Scene, dust: number): CompassStudio {
   const look = COMPASS_STUDIO;
+  shoulder();
   renderer.setClearColor(look.background, 1);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.NeutralToneMapping;
+  renderer.toneMapping = THREE.CustomToneMapping;
   renderer.toneMappingExposure = look.exposure;
   renderer.shadowMap.enabled = false;
   scene.background = new THREE.Color(look.background);
@@ -66,7 +150,7 @@ export function buildCompassStudio(renderer: THREE.WebGLRenderer, scene: THREE.S
     const pmrem = new THREE.PMREMGenerator(renderer);
     const room = darkRoom();
     environment?.dispose();
-    environment = pmrem.fromScene(room, look.room.blur);
+    environment = pmrem.fromScene(room.scene, look.room.blur);
     scene.environment = environment.texture;
     room.dispose();
     pmrem.dispose();

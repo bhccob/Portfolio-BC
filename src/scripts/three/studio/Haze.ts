@@ -3,8 +3,9 @@ import { smokeTexture } from './noise';
 
 /**
  * Purple smoke at the sides of the stage: a few large, soft sprites of
- * billowing noise, drawn additively and very faint, turning and swaying
- * slowly. The scene's FogExp2 does the rest of the haze.
+ * billowing noise, drawn additively as a soft purple nebula (tuned against
+ * the compass's hero frame), turning and swaying slowly. The scene's
+ * FogExp2 does the rest of the haze.
  */
 
 export interface Haze {
@@ -14,12 +15,12 @@ export interface Haze {
 }
 
 export const HAZE = {
-  color: 0x5a2f9a,
+  color: 0x6a35b8,
   /** Each puff: where it hangs, its size, how strong, and its slow turn (radians a second). */
   puffs: [
-    { at: [-4.8, 0.6, -0.6], size: 8, opacity: 0.48, spin: 0.012 },
-    { at: [5.6, 0.7, -4.2], size: 9, opacity: 0.42, spin: -0.009 },
-    { at: [-5.2, 0.4, -7.5], size: 12, opacity: 0.36, spin: 0.006 }
+    { at: [-4.8, 0.6, -0.6], size: 8, opacity: 0.86, spin: 0.012 },
+    { at: [5.6, 0.7, -4.2], size: 9, opacity: 0.76, spin: -0.009 },
+    { at: [-5.2, 0.4, -7.5], size: 12, opacity: 0.65, spin: 0.006 }
   ]
 } as const;
 

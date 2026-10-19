@@ -119,7 +119,7 @@ const ARUBA = {
     [0.8, 0.84]
   ],
   /** Each star's centre and height (its white border included), its inner corners' radius as a share of its tips', and its border as a share of its radius. */
-  star: { y: 0.36, size: 0.34, inner: 1 / 3, border: 0.08 }
+  star: { y: 0.36, size: 0.5, inner: 1 / 3, border: 0.08 }
 } as const;
 
 function aruba(strip: Strip): void {

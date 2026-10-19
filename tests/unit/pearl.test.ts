@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { PearlTarget, driftAt, pointerBearing, restSpot } from '../../src/scripts/three/Pearl';
 import { buildInstrument } from '../../src/scripts/three/instrument/Instrument';
 import { placeCamera } from '../../src/scripts/three/CameraRig';
-import { handedNeedle, needleTarget } from '../../src/scripts/three/Pearl';
+import { handedNeedle, needleTarget, Pearl, PEARL, worldAcross } from '../../src/scripts/three/Pearl';
 import { wrapAngle } from '../../src/scripts/three/AngleSpring';
 describe('the pearl', () => {
   const layout = { x: 700, y: 450, diameter: 500 };
@@ -199,5 +199,39 @@ describe('the needle handed over', () => {
     expect(handedNeedle({ value: 0.2, velocity: 3 }, { bearing: Number.NaN, velocity: -0.5 })).toEqual({ value: 0.2, velocity: -0.5 });
     expect(handedNeedle({ value: 0.2, velocity: 3 }, { bearing: 1.1, velocity: Infinity })).toEqual({ value: 1.1, velocity: 3 });
     expect(handedNeedle({ value: 0.2, velocity: 3 }, { bearing: -Infinity, velocity: Number.NaN })).toEqual({ value: 0.2, velocity: 3 });
+  });
+});
+
+describe('the pearl drawn', () => {
+  it('spans a given number of pixels at any depth', () => {
+    // A 30° camera on a 900 px canvas: at depth d the canvas is 2 d tan 15° tall.
+    expect(worldAcross(900, 4, 30, 900)).toBeCloseTo(2 * 4 * Math.tan(Math.PI / 12), 12);
+    expect(worldAcross(14, 2, 30, 900)).toBeCloseTo(worldAcross(14, 4, 30, 900) / 2, 12);
+    expect(worldAcross(14, 0, 30, 900)).toBe(0);
+    expect(worldAcross(14, 4, 30, 0)).toBe(0);
+  });
+
+  it('looks the same size at the hero and in the about push', () => {
+    const width = 1440;
+    const height = 900;
+    const glow = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
+    const pearl = new Pearl(glow);
+    const core = pearl.object.getObjectByName('pearl:core')!;
+    const across = (zoom: number): number => {
+      const camera = new THREE.PerspectiveCamera(30, width / height, 0.05, 100);
+      placeCamera(camera, { layout: { x: 900, y: 450, diameter: 576 }, tilt: zoom > 1 ? 6 : 22, zoom, near: 0.05 }, width, height);
+      pearl.place(1000, 300, camera, width, height);
+      pearl.object.updateMatrixWorld(true);
+      // The core's width on the canvas: its centre and a point half its scale along the camera's right.
+      const centre = new THREE.Vector3().setFromMatrixPosition(core.matrixWorld);
+      const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0).normalize();
+      const edge = centre.clone().addScaledVector(right, core.scale.x / 2);
+      const toPx = (p: THREE.Vector3): number => ((p.project(camera).x + 1) / 2) * width;
+      return 2 * Math.abs(toPx(edge) - toPx(centre.clone()));
+    };
+    expect(across(1)).toBeCloseTo(PEARL.core, 1);
+    expect(across(3.8)).toBeCloseTo(PEARL.core, 1);
+    pearl.dispose();
+    glow.dispose();
   });
 });

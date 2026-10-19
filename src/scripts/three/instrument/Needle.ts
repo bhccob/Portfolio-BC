@@ -8,7 +8,7 @@ import type { InstrumentMaterials } from './materials';
  * turned about its pin by `rotation.y = −bearing`, which puts the tip at
  * (sin b, −cos b) as the dial frame has it. It rests at y 0.05 on a brass pin
  * standing up from the pool's floor; `lift` raises it by up to 0.05 and fades
- * both halves to 0.15, uncovering the pool.
+ * both halves and the pin to 0.15, uncovering the pool.
  */
 
 /** The needle's centre above the face, how far a full lift raises it, and how faint it is then. */
@@ -17,7 +17,7 @@ export const NEEDLE = { y: 0.05, lift: 0.05, faded: 0.15 } as const;
 export interface Needle {
   /** Turns with the bearing and lifts; holds the two halves and the hub. */
   group: THREE.Group;
-  /** The pin it turns on, from the pool's floor up to the needle at rest; it neither turns nor lifts. */
+  /** The pin it turns on, from the pool's floor up to the needle at rest; it neither turns nor lifts, but fades with the needle. */
   pin: THREE.Mesh;
   pose(bearing: number, lift: number): void;
 }
@@ -61,7 +61,7 @@ export function buildNeedle(m: InstrumentMaterials): Needle {
   group.add(tipHalf, tailHalf, hub);
 
   const pinHeight = NEEDLE.y + DIAL.poolDepth;
-  const pin = new THREE.Mesh(new THREE.CylinderGeometry(pinRadius * 0.6, pinRadius * 0.6, pinHeight, 16), m.brass);
+  const pin = new THREE.Mesh(new THREE.CylinderGeometry(pinRadius * 0.6, pinRadius * 0.6, pinHeight, 16), m.pin);
   pin.position.y = NEEDLE.y - pinHeight / 2;
   pin.name = 'compass:pin';
 
@@ -71,6 +71,7 @@ export function buildNeedle(m: InstrumentMaterials): Needle {
     const opacity = 1 + (NEEDLE.faded - 1) * lift;
     m.needleTip.opacity = opacity;
     m.needleTail.opacity = opacity;
+    m.pin.opacity = opacity;
   };
   pose(0, 0);
 

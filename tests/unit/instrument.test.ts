@@ -177,6 +177,12 @@ describe('the instrument, in detail', () => {
     needleMaterials.forEach((material) => expect(material.opacity).toBeCloseTo(0.15));
     m.applyPose({ bearing: 0, lift: 0.5, portrait: 0.6, threads: 0.25 });
     needleMaterials.forEach((material) => expect(material.opacity).toBeCloseTo(0.575));
+    // The pin fades with it, so a lifted needle leaves the portrait's centre clear.
+    const pin = (m.root.getObjectByName('compass:pin') as THREE.Mesh).material as THREE.Material;
+    expect(pin.transparent).toBe(true); expect(pin.opacity).toBeCloseTo(0.575);
+    m.applyPose({ bearing: 0, lift: 1, portrait: 0.6, threads: 0.25 });
+    expect(pin.opacity).toBeCloseTo(0.15);
+    m.applyPose({ bearing: 0, lift: 0.5, portrait: 0.6, threads: 0.25 });
     const threads = m.root.getObjectByName('compass:threads')!;
     threads.traverse((o) => { const mesh = o as THREE.Mesh; if (mesh.isMesh) expect((mesh.material as THREE.Material).opacity).toBeCloseTo(0.25); });
     // No portrait yet: the pool stays lacquer, whatever the pose asks.

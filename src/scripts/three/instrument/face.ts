@@ -24,8 +24,13 @@ function roughMetal(roughness: number, metalness: number): string {
   return `rgb(0, ${Math.round(roughness * 255)}, ${Math.round(metalness * 255)})`;
 }
 
-/** Gilt is polished metal; lacquer is glossy and not metal. */
-const ROUGH_METAL = { gilt: roughMetal(0.3, 1), lacquer: roughMetal(0.25, 0) } as const;
+/**
+ * The gilt is gold paint: part metal and a little rough, so it reads as gold
+ * by the key's light as well as by what it reflects (polished metal on a
+ * flat face would mirror the dark room and read brown). The lacquer is glossy
+ * and not metal, its highlights crisp.
+ */
+const ROUGH_METAL = { gilt: roughMetal(0.4, 0.1), lacquer: roughMetal(0.08, 0) } as const;
 
 /** The lacquer image is laid over the face as 2 x 2 tiles, this strong. */
 const LACQUER_IMAGE = { tiles: 2, alpha: 0.35 } as const;
