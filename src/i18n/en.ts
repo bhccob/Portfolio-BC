@@ -349,13 +349,31 @@ export const en = {
     sudo: 'Permission granted. Redirecting you to the contact page…',
     moreSoon: '#03 next category: systems & security, on the way…'
   },
-  /** The redesign's compass page (/lab/compass/): its head, the hero's role line and the loader's readout ({n}: the percentage). */
+  /**
+   * The redesign's compass page (/lab/compass/): its head, the hero's role line
+   * and hints, the About heading (its lead is `about.lead`), the three homes'
+   * labels, the stacked page's four stills' alt texts and the loader's readout
+   * ({n}: the percentage).
+   */
   compass: {
     meta: {
       title: 'Compass study | Bob Chung',
       description: 'A preview of the redesigned portfolio: a compass whose needle follows your cursor.'
     },
     role: 'Student software engineer · Rotterdam',
+    hints: { scroll: 'Scroll', drag: 'Drag to turn' },
+    about: { title: 'About me' },
+    homes: {
+      china: 'Chinese heritage',
+      aruba: 'Born and raised in Aruba',
+      rotterdam: 'Rotterdam since eighteen'
+    },
+    stills: {
+      hero: 'A Chinese compass with a glowing yellow needle',
+      china: 'The compass ring in Chinese red and gold',
+      aruba: "The compass ring with Aruba's sea, flag stripes and star",
+      rotterdam: 'The compass ring with the cables of the Erasmus bridge'
+    },
     loader: 'FINDING NORTH · {n}%'
   }
 };

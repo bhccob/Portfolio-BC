@@ -350,6 +350,19 @@ export const nl: Dictionary = {
       description: 'Een voorproef van het vernieuwde portfolio: een kompas waarvan de naald je cursor volgt.'
     },
     role: 'Student software engineer · Rotterdam',
+    hints: { scroll: 'Scroll', drag: 'Sleep om te draaien' },
+    about: { title: 'Over mij' },
+    homes: {
+      china: 'Chinees van afkomst',
+      aruba: 'Geboren en getogen op Aruba',
+      rotterdam: 'Sinds mijn achttiende in Rotterdam'
+    },
+    stills: {
+      hero: 'Een Chinees kompas met een gloeiende gele naald',
+      china: 'De kompasring in Chinees rood en goud',
+      aruba: 'De kompasring met de zee, de vlagstrepen en de ster van Aruba',
+      rotterdam: 'De kompasring met de kabels van de Erasmusbrug'
+    },
     loader: 'ZOEKT HET NOORDEN · {n}%'
   }
 };

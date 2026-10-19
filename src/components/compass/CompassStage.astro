@@ -1,9 +1,15 @@
 ---
-import portrait from '../../assets/portrait-pool.webp';
+import { Picture } from 'astro:assets';
+import pool from '../../assets/portrait-pool.webp';
+import portrait from '../../assets/portrait.jpg';
+import stillHero from '../../assets/renders/compass-hero.webp';
+import stillChina from '../../assets/renders/compass-china.webp';
+import stillAruba from '../../assets/renders/compass-aruba.webp';
+import stillRotterdam from '../../assets/renders/compass-rotterdam.webp';
 import CompassLoader from './CompassLoader.astro';
 import { Translator, type Locale } from '../../i18n/Translator';
 import { profile } from '../../data/profile';
-import { SECTIONS } from '../../scripts/three/Choreography';
+import { SECTIONS, type SectionId } from '../../scripts/three/Choreography';
 
 /*
  * The compass page: a scroll track with the WebGL stage stuck to the
@@ -11,11 +17,14 @@ import { SECTIONS } from '../../scripts/three/Choreography';
  * many svh tall as its share of the scroll, laid over the stage. Scripts
  * (CompassStageController) light the canvas and scrub the compass through
  * the sections, and fade each section's text by the choreography's `text`
- * (`--shown`). Without them, with reduced motion or without WebGL, the
- * stage is hidden and the sections read as a plain stacked page. Until the
- * words arrive (Task 8) only the hero carries text: the name and the role.
- * On the session's first visit the loader (CompassLoader) covers it all
- * until the live scene takes over.
+ * (`--shown`). Each section's text is a sticky block of its own, a viewport
+ * tall, so it holds still while its section scrolls and the fade does the
+ * rest: the hero has the name, the role and two hints, About a heading and
+ * the lead, each home its label. Without scripts, with reduced motion or
+ * without WebGL, the stage is hidden and the sections read as a plain
+ * stacked page, with the portrait and a still of the compass for each home
+ * (and the hero) to show what the stage would. On the session's first visit
+ * the loader (CompassLoader) covers it all until the live scene takes over.
  */
 
 interface Props {
@@ -24,21 +33,73 @@ interface Props {
 
 const { locale } = Astro.props;
 const { t } = new Translator(locale);
+const c = t.compass;
+const lead = t.about.lead.replace('{age}', String(profile.ageOn()));
+
+/** The four stills the stacked page shows, captured from the live scene (Task 9). */
+const stills = {
+  hero: stillHero,
+  china: stillChina,
+  aruba: stillAruba,
+  rotterdam: stillRotterdam
+};
+
+const isHome = (id: SectionId): id is 'china' | 'aruba' | 'rotterdam' => id === 'china' || id === 'aruba' || id === 'rotterdam';
 ---
 
 <CompassLoader locale={locale} />
 <div class="compass" data-compass-track>
-  <div class="compass__stage" data-compass-stage data-portrait={portrait.src}>
+  <div class="compass__stage" data-compass-stage data-portrait={pool.src}>
     <canvas class="compass__canvas" data-compass-canvas aria-hidden="true"></canvas>
   </div>
   {
     SECTIONS.map(({ id, length }) => (
       <section class="compass__section" data-section={id} style={`--len: ${length}`}>
-        {id === 'hero' && (
-          <div class="compass__text">
-            <h1 class="title compass__name">{profile.name}</h1>
-            <p class="hud-label compass__role">{t.compass.role}</p>
+        <div class="compass__text">
+          <div class="compass__copy">
+            {id === 'hero' && (
+              <>
+                <h1 class="title compass__name">{profile.name}</h1>
+                <p class="hud-label compass__role">{c.role}</p>
+                <p class="hud-label compass__hints">
+                  <span>{c.hints.scroll}</span>
+                  <span aria-hidden="true">{c.hints.drag}</span>
+                </p>
+              </>
+            )}
+            {id === 'about' && (
+              <>
+                <h2 class="title compass__heading">{c.about.title}</h2>
+                <p class="lead compass__lead" set:html={lead} />
+              </>
+            )}
+            {isHome(id) && <h3 class="title compass__heading">{c.homes[id]}</h3>}
           </div>
+        </div>
+        {id === 'about' ? (
+          <figure class="compass__portrait">
+            <Picture
+              src={portrait}
+              formats={['avif', 'webp']}
+              widths={[280, 560]}
+              sizes="280px"
+              alt={t.about.portraitAlt}
+              loading="lazy"
+              decoding="async"
+            />
+          </figure>
+        ) : (
+          <Picture
+            pictureAttributes={{ class: 'compass__still' }}
+            src={stills[id]}
+            formats={['webp']}
+            fallbackFormat="webp"
+            widths={[800, 1600]}
+            sizes="(min-width: 1164px) 1100px, 100vw"
+            alt={c.stills[id]}
+            loading="lazy"
+            decoding="async"
+          />
         )}
       </section>
     ))
@@ -51,13 +112,23 @@ const { t } = new Translator(locale);
     display: none;
   }
 
-  .compass__text {
+  .compass__section {
+    display: grid;
+    gap: clamp(24px, 4svh, 40px);
+    align-content: start;
+    max-width: 1100px;
+    margin-inline: auto;
+    padding: clamp(40px, 8svh, 96px) var(--gutter);
+  }
+
+  .compass__section:first-of-type {
+    padding-top: clamp(64px, 12svh, 128px);
+  }
+
+  .compass__copy {
     display: grid;
     justify-items: start;
     gap: 16px;
-    max-width: 1100px;
-    margin-inline: auto;
-    padding: clamp(64px, 12svh, 128px) var(--gutter);
   }
 
   .compass__name {
@@ -71,6 +142,59 @@ const { t } = new Translator(locale);
 
   .compass__role {
     color: var(--cream);
+    text-wrap: balance;
+  }
+
+  /* The hints speak of the live stage (scrolling it, turning the dial), which the stacked page has not. */
+  .compass__hints {
+    display: none;
+    flex-wrap: wrap;
+    gap: 6px 28px;
+    margin-top: 10px;
+    color: var(--lilac);
+  }
+
+  .compass__heading {
+    font-size: clamp(28px, 4.6vw, 52px);
+    font-weight: 600;
+    text-wrap: balance;
+  }
+
+  .compass__lead {
+    max-width: 34em;
+  }
+
+  .compass__portrait {
+    width: min(100%, 280px);
+  }
+
+  .compass__portrait :global(img) {
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+    object-position: 50% 20%;
+    border-radius: 12px;
+  }
+
+  .compass__section :global(.compass__still) {
+    display: block;
+  }
+
+  .compass__section :global(.compass__still img) {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: 12px;
+    background: #07040d;
+  }
+
+  /* About: the words and the portrait side by side when there is room, the DOM order (words, then portrait) kept. */
+  @media (min-width: 760px) {
+    .compass__section[data-section='about'] {
+      grid-template-columns: minmax(0, 1fr) 280px;
+      column-gap: clamp(32px, 6vw, 96px);
+      align-items: start;
+    }
   }
 
   /*
@@ -111,9 +235,19 @@ const { t } = new Translator(locale);
    * press on the stage turns the dial), but for their links and buttons.
    */
   :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section {
+    display: block;
     position: relative;
+    max-width: none;
+    margin: 0;
+    padding: 0;
     min-height: calc(var(--len) * 1svh);
     pointer-events: none;
+    /* Until the controller sets it: the hero's words show, the others wait. */
+    --shown: 0;
+  }
+
+  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section[data-section='hero'] {
+    --shown: 1;
   }
 
   :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section:last-child {
@@ -122,6 +256,15 @@ const { t } = new Translator(locale);
 
   :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section :is(a, button) {
     pointer-events: auto;
+  }
+
+  /* The stills and the portrait are the stacked page's: the live stage shows the compass itself. */
+  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section :is(.compass__still, .compass__portrait, .compass__hints) {
+    display: none;
+  }
+
+  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section[data-section='hero'] .compass__hints {
+    display: flex;
   }
 
   /*
@@ -139,33 +282,94 @@ const { t } = new Translator(locale);
 
   /*
    * A section's text, faded by the choreography (--shown, set per section by
-   * the controller). Wide (as CameraRig's dialLayout has it, at 1.2 : 1 and
-   * over): a column on the left, centred top to bottom, clear of the dial on
-   * the right. Narrow: in the band under the dial.
+   * the controller). It is a block a viewport tall that sticks to the top of
+   * the viewport for the whole of its section: a margin-bottom of minus that
+   * height leaves it no room in the flow, so the section's own length is the
+   * distance it may stick for, and the block below it (the next section's)
+   * slides in over it, unseen until its own fade. Wide (as CameraRig's
+   * dialLayout has it, at 1.2 : 1 and over): a column on the left, centred
+   * top to bottom, clear of the dial, which that layout keeps right of 0.36 of
+   * the width. A scrim behind it, dark at the left edge and clear by 45% of
+   * the width, keeps it readable while the dive fills the screen with brass.
    */
   :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section .compass__text {
+    position: sticky;
+    top: 0;
+    display: grid;
     align-content: center;
-    min-height: 100svh;
-    max-width: min(36vw, 520px);
-    margin: 0;
-    padding: 0 0 0 var(--gutter);
+    height: 100svh;
+    margin-bottom: -100svh;
     opacity: var(--shown, 1);
   }
 
-  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section .compass__name {
-    font-size: clamp(40px, 5.4vw, 92px);
+  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section .compass__text::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, rgb(7 4 13 / 0.88) 0, rgb(7 4 13 / 0.88) 30%, rgb(7 4 13 / 0) 46%);
+    /* Only the dive needs it all: elsewhere the words stand on the void beside a dial that keeps clear of them. */
+    opacity: var(--scrim, 0.3);
+    pointer-events: none;
   }
 
-  @media (max-aspect-ratio: 6/5) {
-    /* At the top of the band below the dial (dialLayout keeps it above 0.53 of the height), close to it. */
+  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section[data-section='about'] {
+    --scrim: 1;
+  }
+
+  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section .compass__copy {
+    position: relative;
+    max-width: min(36vw, 520px);
+    padding: 0 0 0 var(--gutter);
+  }
+
+  /*
+   * The name: 5.4vw, less where the dial's board comes near the column (the
+   * dial is wide-screen's width-bound at 6 : 5): the board's left edge is
+   * 62vw minus 0.63 of the rim's diameter, and the longest word (CHUNG) is
+   * 4.7 em wide from the gutter, with 24px to spare.
+   */
+  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section .compass__name {
+    font-size: clamp(32px, min(5.4vw, (58vw - 0.63 * min(64svh, 52vw) - 24px) / 4.7), 92px);
+  }
+
+  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section .compass__heading {
+    font-size: clamp(28px, 3.4vw, 56px);
+  }
+
+  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section .compass__lead {
+    font-size: clamp(16px, 1.35vw, 21px);
+  }
+
+  /*
+   * Narrow (under 6 : 5: CameraRig's wide layout is inclusive at exactly 6 : 5,
+   * so this one is exclusive, and the two meet there): the dial sits above
+   * 0.53 of the height, so the words are in the band under it, which the
+   * scrim darkens from the bottom up.
+   */
+  @media (aspect-ratio < 6/5) {
     :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section .compass__text {
       align-content: start;
+    }
+
+    :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section .compass__text::before {
+      background: linear-gradient(180deg, rgb(7 4 13 / 0) 47%, rgb(7 4 13 / 0.9) 57%);
+    }
+
+    :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section .compass__copy {
       max-width: none;
       padding: 58svh var(--gutter) 0;
     }
 
     :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section .compass__name {
       font-size: clamp(36px, 10.5vw, 72px);
+    }
+
+    :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section .compass__heading {
+      font-size: clamp(26px, 7.4vw, 48px);
+    }
+
+    :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section .compass__lead {
+      font-size: clamp(15px, 4.2vw, 19px);
     }
   }
 </style>

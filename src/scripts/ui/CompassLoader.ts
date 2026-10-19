@@ -31,6 +31,12 @@ const MAX_FRAME = 0.25;
 /** Seconds of the loader's clock the scene has to draw its first two frames once handed over, before the loader gives up on it. */
 const HAND_OVER_WAIT = 3;
 
+/**
+ * Wall-clock milliseconds after the hand-over's end the page's text waits for the intro at most: a scene whose
+ * intro never ends (one stuck compiling, say) must not keep the words away. The intro's own end is the normal way.
+ */
+const TEXT_BACKSTOP = 3000;
+
 const DEGREES = 180 / Math.PI;
 
 type Phase = 'off' | 'hunt' | 'settle' | 'handing' | 'fading' | 'done' | 'gone';
@@ -53,7 +59,8 @@ export function stackPage(): void {
  * the live scene takes over the drawing's exact size and place (matchDial),
  * the needle carrying on as it was, and once the scene has drawn twice the
  * drawing fades and the compass tilts into its pose (startIntro), the page's
- * text waiting until it is there (`compass-intro`, CompassStage). The pearl
+ * text waiting until it is there (`compass-intro`, CompassStage; at most
+ * three more seconds, whatever the intro does). The pearl
  * eases, rests and steers by the scene's own numbers (pearlSpec). It plays
  * once a session (SEEN_KEY), only where the boot script (BenchLayout) set
  * `compass-loading` (never with reduced motion), and the page cannot scroll
@@ -327,6 +334,8 @@ export class CompassLoader extends Component {
     this.settleHandOver = null;
     const showText = (): void => this.root.classList.remove('compass-intro');
     ended.then(showText, showText);
+    // The loader is gone by now (leave() above), so nothing cancels this; showing the text twice is harmless.
+    window.setTimeout(showText, TEXT_BACKSTOP);
   }
 
   /** Moves to `phase`, shown on the drawing as `data-phase` (for the proof scripts and a look in the inspector). */
