@@ -1,4 +1,5 @@
 ---
+import { Picture } from 'astro:assets';
 import still from '../../assets/renders/hub.webp';
 import { Translator, type Locale } from '../../i18n/Translator';
 import { profile } from '../../data/profile';
@@ -47,7 +48,16 @@ const callouts = (['screen', 'board', 'battery', 'back'] as const).map((id) => (
     </ul>
 
     <div class="hub__still">
-      <img src={still.src} width={still.width} height={still.height} alt={h.stillAlt} loading="lazy" decoding="async" />
+      <Picture
+        src={still}
+        formats={['avif']}
+        fallbackFormat="webp"
+        widths={[480, 760, 1520]}
+        sizes="(max-width: 800px) 100vw, 760px"
+        alt={h.stillAlt}
+        loading="lazy"
+        decoding="async"
+      />
       <ul class="hub__list" aria-label={h.layers}>
         {callouts.map(({ label }) => <li class="hud-label">{label}</li>)}
       </ul>
@@ -96,8 +106,14 @@ const callouts = (['screen', 'board', 'battery', 'back'] as const).map((id) => (
     margin-top: clamp(32px, 6svh, 64px);
   }
 
-  .hub__still img {
+  .hub__still :global(picture) {
+    display: block;
     width: min(760px, 100%);
+  }
+
+  .hub__still :global(img) {
+    display: block;
+    width: 100%;
     border-radius: 14px;
     background: var(--board-deep);
   }
