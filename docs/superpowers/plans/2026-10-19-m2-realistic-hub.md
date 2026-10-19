@@ -437,7 +437,7 @@ export class HubScene {
 ```ts
 export class Callouts {
   constructor(root: HTMLElement); // root contains [data-callout="screen|frame|board|battery|back"] items with a label and an <svg> leader
-  update(anchors: Record<HubLayerId, { x: number; y: number; visible: boolean }>, opacity: number, narrow: boolean): void; // transform/opacity only
+  update(anchors: Record<HubLayerId, { x: number; y: number; visible: boolean }>, opacity: number): void; // layout chosen inside from the stage's own size (chooseLayout), not passed in — amended after Task 5 review
   onHover(handler: (id: HubLayerId | null) => void): void;
   onClick(handler: (id: HubLayerId) => void): void;
 }
