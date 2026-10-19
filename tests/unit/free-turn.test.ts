@@ -69,3 +69,40 @@ describe('FreeTurn, beyond the brief', () => {
     expect(Number.isFinite(run(f, 2).spin)).toBe(true); expect(Number.isFinite(f.step(Number.NaN, Number.NaN).spin)).toBe(true);
   });
 });
+
+describe('FreeTurn, release speed, cancel and re-grab', () => {
+  // The spin gained in the first 1/60 s after release, from where the drag left it.
+  const leaves = (f: FreeTurn) => { const held = f.step(0, 0.14).spin; return Math.abs(f.step(1 / 60, 0.14).spin - held); };
+  const coastFor = (v: number) => (v * (1 - Math.exp(-3 / 60))) / 3;
+  it('caps the release speed at 40 rad/s, however hard and narrow the flick', () => {
+    const f = new FreeTurn(); f.down(0, 0, 'touch'); for (let i = 1; i <= 10; i++) f.move(i * 300, 0, 390, 800, i / 60); f.up(10 / 60);
+    expect(leaves(f)).toBeCloseTo(coastFor(40), 6);
+  });
+  it('leaves the brief\'s ordinary flick at its own speed', () => {
+    const f = new FreeTurn(); f.down(0, 0, 'mouse'); for (let i = 1; i <= 10; i++) f.move(i * 40, 0, 1000, 800, i / 60); f.up(10 / 60);
+    expect(leaves(f)).toBeCloseTo(coastFor(0.05 * 2 * Math.PI * 60), 6);
+  });
+  it('does not read two moves a millisecond apart as an instant flick', () => {
+    const f = new FreeTurn(); f.down(0, 0, 'mouse'); f.move(20, 0, 1000, 800, 1); f.move(24, 0, 1000, 800, 1.001); f.up(1.001);
+    expect(leaves(f)).toBeCloseTo(coastFor(((4 / 800) * 2 * Math.PI) / (1 / 60)), 6);
+    const g = new FreeTurn(); g.down(0, 0, 'mouse'); g.move(20, 0, 1000, 800, 1); g.move(220, 0, 1000, 800, 1.001); g.up(1.001);
+    expect(leaves(g)).toBeCloseTo(coastFor(40), 6);
+  });
+  it('lets a coasting dial run when a cancel follows the release', () => {
+    const f = new FreeTurn(); f.down(0, 0, 'mouse'); for (let i = 1; i <= 10; i++) f.move(i * 40, 0, 1000, 800, i / 60); f.up(10 / 60);
+    const before = run(f, 0.3).spin; f.cancel(); const after = f.step(1 / 60, 0.14).spin;
+    expect(after - before).toBeLessThan(-0.05);
+  });
+  it('continues the tip from where it is on a quick re-grab, with no pop', () => {
+    const f = new FreeTurn(); f.down(0, 0, 'mouse'); f.move(0, 100, 1000, 800, 0.1); f.step(1 / 60, 0.5); f.up(0.1);
+    const springing = run(f, 2 / 60, 0.5).tip; expect(springing).toBeGreaterThan(0.14);
+    f.down(0, 0, 'mouse'); f.move(0, 8, 1000, 800, 0.2);
+    const regrabbed = f.step(1 / 60, 0.5).tip;
+    expect(regrabbed - springing).toBeGreaterThan(0); expect(regrabbed - springing).toBeLessThan(0.02);
+  });
+  it('holds the tip steady, and then lets it spring back, for a touch pressed while it is out', () => {
+    const f = new FreeTurn(); f.down(0, 0, 'mouse'); f.move(0, 100, 1000, 800, 0.1); f.step(1 / 60, 0.5); f.up(0.1); run(f, 2 / 60, 0.5);
+    f.down(0, 0, 'touch'); const held = f.step(1 / 60, 0.5).tip; f.move(60, 0, 1000, 800, 0.2);
+    expect(f.step(1 / 60, 0.5).tip).toBe(held); f.up(0.3); expect(Math.abs(run(f, 2, 0.5).tip)).toBeLessThan(0.001);
+  });
+});

@@ -24,6 +24,19 @@ const TIP_PER_HEIGHT = 1.2;
 /** The velocity at release is measured over the moves this many seconds back. */
 const VELOCITY_WINDOW = 0.1;
 
+/**
+ * The fastest the dial may leave a release at, in rad/s (about 6 turns a
+ * second): a phone is nearly four times as sensitive per pixel as a desktop,
+ * and a hard flick would otherwise spin for seconds.
+ */
+const MAX_RELEASE_SPEED = 40;
+
+/**
+ * The shortest span, in seconds, the release velocity is divided over: moves
+ * bunched together by a stalled main thread must not read as an instant flick.
+ */
+const MIN_VELOCITY_SPAN = 1 / 60;
+
 /** The spin slows by e^(-FRICTION dt) after release. */
 const FRICTION = 3;
 
@@ -58,7 +71,9 @@ export class FreeTurn {
   private startX = 0;
   private startY = 0;
   private lastX = 0;
-  /** The tip the drag asks for before it is held to the limit. */
+  /** The tip when the press began: a drag continues from it, so a quick re-grab does not pop. */
+  private tipAtPress = 0;
+  /** The tip the press asks for before it is held to the limit. */
   private tipAsked = 0;
   /** Recent (time, spin) pairs from the drag's moves, for the velocity at release. */
   private samples: { time: number; spin: number }[] = [];
@@ -77,7 +92,7 @@ export class FreeTurn {
     return this.isEngaged;
   }
 
-  /** A press begins at (x, y). It takes hold of the dial: any spin it had stops. */
+  /** A press begins at (x, y). It takes hold of the dial: any spin it had stops, and the tip stays where it is. */
   down(x: number, y: number, kind: PointerKind): void {
     this.pressed = true;
     this.isEngaged = false;
@@ -85,7 +100,8 @@ export class FreeTurn {
     this.startX = x;
     this.startY = y;
     this.lastX = x;
-    this.tipAsked = 0;
+    this.tipAtPress = this.tip;
+    this.tipAsked = this.tip;
     this.samples = [];
     this.spinVelocity = 0;
     this.restAt = null;
@@ -111,7 +127,7 @@ export class FreeTurn {
 
     this.spin -= ((x - this.lastX) / (WIDTHS_PER_TURN * width)) * TAU;
     this.lastX = x;
-    if (this.kind !== 'touch') this.tipAsked = (dy / height) * TIP_PER_HEIGHT;
+    if (this.kind !== 'touch') this.tipAsked = this.tipAtPress + (dy / height) * TIP_PER_HEIGHT;
 
     if (Number.isFinite(time)) {
       this.samples.push({ time, spin: this.spin });
@@ -122,20 +138,25 @@ export class FreeTurn {
 
   /**
    * The press ends at `time` seconds: the dial keeps the speed it was moving
-   * at over the last tenth of a second, and slows from there.
+   * at over the last tenth of a second (at most 40 rad/s), and slows from there.
    */
   up(time: number): void {
     if (!this.pressed) return;
     let velocity = 0;
     if (this.isEngaged && Number.isFinite(time)) {
       const first = this.samples.find((s) => time - s.time <= VELOCITY_WINDOW);
-      if (first && time - first.time > 0) velocity = (this.spin - first.spin) / (time - first.time);
+      if (first) velocity = (this.spin - first.spin) / Math.max(time - first.time, MIN_VELOCITY_SPAN);
     }
-    this.release(Number.isFinite(velocity) ? velocity : 0);
+    this.release(Number.isFinite(velocity) ? clampTo(MAX_RELEASE_SPEED, velocity) : 0);
   }
 
-  /** The press is taken away (a lost pointer, a scroll): released with no speed. */
+  /**
+   * The press is taken away (a lost pointer, a scroll): released with no
+   * speed. Without a press it does nothing, so a pointer-capture event that
+   * follows `up` leaves a coasting dial alone.
+   */
   cancel(): void {
+    if (!this.pressed) return;
     this.release(0);
   }
 
@@ -146,7 +167,7 @@ export class FreeTurn {
 
     if (live && !this.pressed) this.coast(dt);
 
-    if (this.isEngaged) {
+    if (this.pressed) {
       this.tip = clampTo(limit, this.tipAsked);
       this.tipVelocity = 0;
     } else if (live) {

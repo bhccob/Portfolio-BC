@@ -80,9 +80,11 @@ export function lerpShot(a: Shot, b: Shot, t: number): Shot {
  * and looks at the world origin, the face centre. The camera stands
  * `fitDistance(diameter * zoom)` away, tilted `shot.tilt` degrees up from the
  * dial's axis; the view offset then slides the picture so the face centre lands
- * on the layout's (x, y).
+ * on the layout's (x, y). A canvas with no area, or a shot with no size, leaves
+ * the camera as it was: there is nothing to fit, and the maths would not be finite.
  */
 export function placeCamera(camera: THREE.PerspectiveCamera, shot: Shot, width: number, height: number): void {
+  if (!(width > 0 && height > 0 && shot.layout.diameter * shot.zoom > 0)) return;
   const tilt = (shot.tilt * Math.PI) / 180;
   const distance = fitDistance(shot.layout.diameter * shot.zoom, height, FOV);
 
