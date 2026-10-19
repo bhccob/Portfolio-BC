@@ -167,6 +167,10 @@ export class CompassScene {
   /** The needle as drawn: radians on the dial. */
   private needle = 0;
   private lastSpin = 0;
+  /** The free turn's tip as drawn, radians (without the lean toward the pearl). */
+  private tip = 0;
+  /** Frames drawn so far, for the proof's idle check. */
+  private frames = 0;
   /** The next update puts the needle straight onto its target (an immediate progress). */
   private snapNeedle = false;
   private time = 0;
@@ -360,18 +364,31 @@ export class CompassScene {
   /**
    * For the proof (`?proof`): the section and how far through it, the quality
    * step, the spin and the needle (radians, on the dial), the pearl (CSS px),
-   * and the dial as drawn: its projected centre and rim diameter in CSS px.
+   * and the dial as drawn: its projected centre and rim diameter in CSS px; and
+   * the free turn's tip (radians) and the count of frames drawn.
    */
-  debugState(): { section: string; local: number; step: number; spin: number; bearing: number; pearl: [number, number]; rim: { x: number; y: number; diameter: number } } {
+  debugState(): {
+    section: string;
+    local: number;
+    step: number;
+    spin: number;
+    tip: number;
+    bearing: number;
+    pearl: [number, number];
+    rim: { x: number; y: number; diameter: number };
+    frames: number;
+  } {
     const { id, local } = locate(this.progress);
     return {
       section: id,
       local,
       step: this.budget?.step ?? 0,
       spin: this.instrument.spin.rotation.y,
+      tip: this.tip,
       bearing: this.needle,
       pearl: [this.pearlAt[0], this.pearlAt[1]],
-      rim: this.rim()
+      rim: this.rim(),
+      frames: this.frames
     };
   }
 
@@ -417,6 +434,7 @@ export class CompassScene {
     if (this.budget && this.budget.sample(dtSeconds) !== null) this.setQuality(qualityFor(this.budget.step, this.finePointer));
     this.dirty = false;
     this.renderer.render(this.scene, this.camera);
+    this.frames++;
     for (const release of this.afterFrame.splice(0)) release();
     this.frameHandlers.each((handler) => handler());
   }
@@ -473,6 +491,7 @@ export class CompassScene {
     // The free turn, and the lean toward the pearl on top of the tip.
     const turn = this.turn.step(dt, tipLimit(shot.tilt));
     const spin = wrapAngle(turn.spin);
+    this.tip = turn.tip;
     const lean = LEAN * own;
     const { root, mount, dial } = this.instrument;
     this.instrument.spin.rotation.y = spin;

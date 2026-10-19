@@ -24,5 +24,8 @@ Thumbs.db
 .playwright-mcp/
 .impeccable/review/
 
+# output of tools/proof/compass.mjs
+proof-out/
+
 # Lighthouse CI reports
 .lighthouseci/

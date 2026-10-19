@@ -97,7 +97,7 @@ const isHome = (id: SectionId): id is 'china' | 'aruba' | 'rotterdam' => id === 
             widths={[800, 1600]}
             sizes="(min-width: 1164px) 1100px, 100vw"
             alt={c.stills[id]}
-            loading="lazy"
+            loading={id === 'hero' ? 'eager' : 'lazy'}
             decoding="async"
           />
         )}
