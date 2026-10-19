@@ -11,21 +11,23 @@ import { Callouts } from '../ui/Callouts';
 
 /**
  * Narrower than 760px, or narrower than 6:5 (where the scene centres the
- * device and leaves no room on its right), the callouts are a list under the
- * device instead of leaders to a column.
+ * device and leaves no room on its right), the callouts are a list instead of
+ * leaders to a column: beside the device on a short stage, under it on a
+ * tall one (Callouts).
  */
 const NARROW = '(width < 760px), (aspect-ratio < 6/5)';
 
-/** The layers answer the pointer once the callouts are this far faded in. */
+/** The layers answer the pointer once the callouts are this far faded in, as the scene shows them. */
 const INTERACTIVE_FROM = 0.9;
 
 /**
  * The hub stage (HubStage.astro): Lenis smooth scrolling and one
  * ScrollTrigger over the track scrub the handheld from closed to the
  * exploded hub (the first half of the track), where the callouts fade in and
- * the hub holds. A drag on the stage turns the device; once the callouts
- * show, hovering a label or a layer highlights both, and a click pins the
- * highlight. The scene draws only while the stage is on screen and the tab
+ * the hub holds. The callouts follow the scene's eased progress, not the
+ * scroll's, so after a jump they wait for the device to arrive. A drag on
+ * the stage turns the device; once the callouts show, hovering a label or a
+ * layer highlights both, and a click pins the highlight. The scene draws only while the stage is on screen and the tab
  * is visible. With reduced motion, without WebGL on a GPU, without the boot
  * script's `js-motion` flag (BenchLayout), or if the scene fails to start,
  * the stage is marked `data-fallback` and reads as a plain stacked page.
@@ -39,8 +41,6 @@ export class HubStageController extends Component {
   private onScreen = false;
   private active = false;
   private started = false;
-  /** How far the callouts are faded in at the scroll's progress (0..1). */
-  private shown = 0;
   private interactive: boolean | null = null;
   private narrow = false;
   private labelHover: HubLayerId | null = null;
@@ -74,6 +74,8 @@ export class HubStageController extends Component {
     // Building the scene is about half a second of main-thread work: it is done here, before the first scroll.
     const scene = new HubScene(canvas, { finePointer: Motion.finePointer });
     this.scene = scene;
+    // Nothing answers the pointer until a frame shows the callouts.
+    this.gate(false);
     this.onCleanup(() => {
       scene.dispose();
       this.scene = null;
@@ -102,9 +104,16 @@ export class HubStageController extends Component {
     const narrow = window.matchMedia(NARROW);
     this.narrow = narrow.matches;
     this.listen<MediaQueryListEvent>(narrow, 'change', (event) => (this.narrow = event.matches));
-    // The callouts follow the frame just drawn; none is placed before the first (the scene draws nothing
-    // while its programs compile, so stale anchors are never shown).
-    scene.onFrame(() => this.callouts?.update(scene.anchors(), this.shown, this.narrow));
+    // The callouts follow the frame just drawn, faded in by the progress it shows; none is placed before the
+    // first (the scene draws nothing while its programs compile, so stale anchors are never shown). Under
+    // the device, their list's band is kept free of it.
+    scene.onFrame(() => {
+      const shown = hubPoseAt(scene.currentProgress()).callouts;
+      this.gate(shown > INTERACTIVE_FROM);
+      if (!callouts) return;
+      callouts.update(scene.anchors(), shown, this.narrow, scene.bounds(), scene.hubFrame());
+      scene.setBottomReserve(callouts.bottomBand);
+    });
 
     gsap.registerPlugin(ScrollTrigger);
     const lenis = new Lenis({ autoRaf: false, lerp: 0.1 });
@@ -232,9 +241,10 @@ export class HubStageController extends Component {
     // rather than easing it open from closed.
     this.scene?.setProgress(progress, { immediate: !this.started });
     this.started = true;
-    this.shown = hubPoseAt(progress).callouts;
-    // The layers answer the pointer only once the callouts show; leaving the hub lets go of every highlight.
-    const interactive = this.shown > INTERACTIVE_FROM;
+  }
+
+  /** The layers answer the pointer only while the callouts show; leaving the hub lets go of every highlight. */
+  private gate(interactive: boolean): void {
     if (interactive === this.interactive) return;
     this.interactive = interactive;
     this.scene?.setInteractive(interactive);

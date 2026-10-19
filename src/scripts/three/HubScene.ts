@@ -57,6 +57,23 @@ export interface Anchor {
   visible: boolean;
 }
 
+/** The device's extent on the canvas, in CSS pixels: the projected corners of its layers' boxes. */
+export interface DeviceBounds {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+/** Where the callouts can go at the hub: the device's extent and anchors there, at rest. */
+export interface HubFrame {
+  bounds: DeviceBounds | null;
+  anchors: Record<HubLayerId, Anchor>;
+}
+
+/** No drag. */
+const AT_REST = { yaw: 0, pitch: 0 } as const;
+
 const FOV = 30;
 
 /** Kept at 0.05 or more: the device's decals sit 0.0004 above their surfaces. */
@@ -82,6 +99,9 @@ const SHIFT = 0.045;
 /** The shift comes in between these two aspects, so a canvas resized across them does not jump. */
 const SHIFT_FROM = FRAME_ASPECT;
 const SHIFT_TO = 1.5;
+
+/** The most of the canvas's height a reserved bottom band may take (setBottomReserve). */
+const MAX_RESERVE = 0.45;
 
 /** The polar angle the drag's tip may reach, from the zenith, so it never looks from under the floor or straight down. */
 const PHI_LIMITS = [0.35, 1.45] as const;
@@ -232,6 +252,10 @@ export class HubScene {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.PerspectiveCamera(FOV, 1, NEAR, FAR);
+  /** The camera as it stands at the hub, at rest (hubFrame()). */
+  private readonly hubCamera = new THREE.PerspectiveCamera(FOV, 1, NEAR, FAR);
+  private hubFrameCache: { key: string; frame: HubFrame } | null = null;
+  private readonly position = new THREE.Vector3();
   private readonly model: HandheldModel;
   private readonly finePointer: boolean;
   private readonly budget: PixelBudget;
@@ -264,6 +288,10 @@ export class HubScene {
   private readonly offset = new THREE.Vector3();
   private readonly spherical = new THREE.Spherical();
   private readonly point = new THREE.Vector3();
+  /** Each layer's box in its own frame, for bounds(). */
+  private readonly boxes = {} as Record<HubLayerId, THREE.Box3>;
+  /** CSS pixels at the canvas's bottom kept clear of the device at the hub. */
+  private reserve = 0;
   private target = 0;
   private progress = 0;
   /** The progress the model was last posed at (NaN: not yet). */
@@ -317,6 +345,7 @@ export class HubScene {
         mesh.receiveShadow = false;
       });
       this.scene.add(this.model.group);
+      this.measureLayers();
       this.dimGlass();
       this.studio();
 
@@ -410,17 +439,64 @@ export class HubScene {
    * has a size (onCanvas).
    */
   anchors(): Record<HubLayerId, Anchor> {
-    const anchors = {} as Record<HubLayerId, Anchor>;
+    return this.anchorsFor(this.camera, (id) => this.worldOf(id));
+  }
+
+  /**
+   * The device's extent on the canvas as last posed, in CSS pixels (view
+   * offset included): the projected corners of each layer's box, so it holds
+   * every pixel of the device, a little generously. Null before the canvas
+   * has a size.
+   */
+  bounds(): DeviceBounds | null {
+    return this.boundsFor(this.camera, (id) => this.worldOf(id));
+  }
+
+  /**
+   * The device's extent and the anchors at the hub (fully apart, at rest, as
+   * at any progress from 0.5 on), for the canvas's size now: where the
+   * callouts can go once the device arrives, whatever pose it is passing
+   * through. Worked out without moving the model, once per size.
+   */
+  hubFrame(): HubFrame | null {
+    if (this.disposed || this.width === 0 || this.height === 0) return null;
+    const key = `${this.width}x${this.height}|${this.reserve}`;
+    if (this.hubFrameCache?.key === key) return this.hubFrameCache.frame;
+    this.hubCamera.aspect = this.camera.aspect;
+    this.place(this.hubCamera, 1, 1, AT_REST);
+    const { offsets } = hubPoseAt(1);
+    const matrices = {} as Record<HubLayerId, THREE.Matrix4>;
     for (const id of HUB_LAYERS) {
       const layer = this.model.layers[id];
       layer.updateWorldMatrix(true, false);
-      const p = this.point.set(...ANCHORS[id]).applyMatrix4(layer.matrixWorld).project(this.camera);
-      const x = ((p.x + 1) / 2) * this.width;
-      const y = ((1 - p.y) / 2) * this.height;
-      const visible = layer.visible && onCanvas(x, y, p.z, this.width, this.height);
-      anchors[id] = { x, y, visible };
+      // The layers only rise: each at its hub height, under its parent as it stands.
+      const local = new THREE.Matrix4().compose(this.position.copy(layer.position).setY(offsets[id]), layer.quaternion, layer.scale);
+      matrices[id] = layer.parent ? local.premultiply(layer.parent.matrixWorld) : local;
     }
-    return anchors;
+    const world = (id: HubLayerId): THREE.Matrix4 => matrices[id];
+    const frame = { bounds: this.boundsFor(this.hubCamera, world), anchors: this.anchorsFor(this.hubCamera, world) };
+    this.hubFrameCache = { key, frame };
+    return frame;
+  }
+
+  /** The progress the scene shows now, eased towards the one last set (0..1). */
+  currentProgress(): number {
+    return this.progress;
+  }
+
+  /**
+   * Keeps a band of `pixels` (CSS) at the canvas's bottom clear of the
+   * device at the hub, for the callouts' list under it on a tall canvas: the
+   * camera backs off as far as the device needs to fit above the band and
+   * aims so it centres there. Eased in with the explode, so the closed device
+   * keeps its framing; at most MAX_RESERVE of the height. 0 lets it go.
+   */
+  setBottomReserve(pixels: number): void {
+    const reserve = Number.isFinite(pixels) ? Math.max(0, pixels) : 0;
+    if (reserve === this.reserve) return;
+    this.reserve = reserve;
+    // The device moves under the pointer.
+    this.pickDirty = true;
   }
 
   /** A press at (x, y), in any consistent pixel space (client or canvas), for the drag to turn. */
@@ -522,26 +598,93 @@ export class HubScene {
 
   /**
    * Puts the camera on the pose's shot, orbited about its target by the
-   * drag; backed off on a narrow canvas, and with the target moved left of
-   * centre on a wide one.
+   * drag; backed off on a narrow canvas, with the target moved left of
+   * centre on a wide one, and lifted clear of a reserved bottom band.
    */
   private aim(): void {
-    const { position, target } = hubPoseAt(this.progress).camera;
+    this.place(this.camera, this.progress, this.explode, this.turn);
+  }
+
+  /** Puts `camera` where aim() puts the scene's, for that progress, explode and turn. */
+  private place(camera: THREE.PerspectiveCamera, progress: number, explode: number, turn: { yaw: number; pitch: number }): void {
+    const { position, target } = hubPoseAt(progress).camera;
     this.target3.set(...target);
     this.offset.set(...position).sub(this.target3);
     this.spherical.setFromVector3(this.offset);
-    this.spherical.theta -= this.turn.yaw;
-    this.spherical.phi = THREE.MathUtils.clamp(this.spherical.phi - this.turn.pitch, PHI_LIMITS[0], PHI_LIMITS[1]);
-    const fit = FIT_ASPECT.closed + (FIT_ASPECT.hub - FIT_ASPECT.closed) * this.explode;
-    this.spherical.radius *= Math.max(1, fit / this.camera.aspect);
-    this.camera.position.setFromSpherical(this.spherical).add(this.target3);
-    this.camera.lookAt(this.target3);
+    this.spherical.theta -= turn.yaw;
+    this.spherical.phi = THREE.MathUtils.clamp(this.spherical.phi - turn.pitch, PHI_LIMITS[0], PHI_LIMITS[1]);
+    const fit = FIT_ASPECT.closed + (FIT_ASPECT.hub - FIT_ASPECT.closed) * explode;
+    // The device fills about the canvas's height unbacked: to fit above a reserved band, it backs off by
+    // the height over what is left, unless the width already backs it off further.
+    const reserve = this.height > 0 ? Math.min(this.reserve, this.height * MAX_RESERVE) * explode : 0;
+    const above = reserve > 0 ? this.height / (this.height - reserve) : 1;
+    this.spherical.radius *= Math.max(1, fit / camera.aspect, above);
+    camera.position.setFromSpherical(this.spherical).add(this.target3);
+    camera.lookAt(this.target3);
 
-    const shift = SHIFT * this.explode * smoothstep(SHIFT_FROM, SHIFT_TO, this.camera.aspect);
-    if (shift > 0 && this.width > 0) this.camera.setViewOffset(this.width, this.height, shift * this.width, 0, this.width, this.height);
-    else if (this.camera.view?.enabled) this.camera.clearViewOffset();
-    else this.camera.updateProjectionMatrix();
-    this.camera.updateMatrixWorld();
+    const shift = SHIFT * explode * smoothstep(SHIFT_FROM, SHIFT_TO, camera.aspect);
+    // Over a reserved band, the view moves down by half of it, which lifts the device to the middle of the rest.
+    if ((shift > 0 || reserve > 0) && this.width > 0) camera.setViewOffset(this.width, this.height, shift * this.width, reserve / 2, this.width, this.height);
+    else if (camera.view?.enabled) camera.clearViewOffset();
+    else camera.updateProjectionMatrix();
+    camera.updateMatrixWorld();
+  }
+
+  /** A layer's world matrix as last posed. */
+  private worldOf(id: HubLayerId): THREE.Matrix4 {
+    const layer = this.model.layers[id];
+    layer.updateWorldMatrix(true, false);
+    return layer.matrixWorld;
+  }
+
+  /** Each layer's anchor through `camera`, the layers placed by `world`. */
+  private anchorsFor(camera: THREE.Camera, world: (id: HubLayerId) => THREE.Matrix4): Record<HubLayerId, Anchor> {
+    const anchors = {} as Record<HubLayerId, Anchor>;
+    for (const id of HUB_LAYERS) {
+      const p = this.point.set(...ANCHORS[id]).applyMatrix4(world(id)).project(camera);
+      const x = ((p.x + 1) / 2) * this.width;
+      const y = ((1 - p.y) / 2) * this.height;
+      const visible = this.model.layers[id].visible && onCanvas(x, y, p.z, this.width, this.height);
+      anchors[id] = { x, y, visible };
+    }
+    return anchors;
+  }
+
+  /** The device's extent through `camera`, the layers placed by `world`: the projected corners of their boxes. */
+  private boundsFor(camera: THREE.Camera, world: (id: HubLayerId) => THREE.Matrix4): DeviceBounds | null {
+    if (this.disposed || this.width === 0 || this.height === 0) return null;
+    let left = Infinity;
+    let top = Infinity;
+    let right = -Infinity;
+    let bottom = -Infinity;
+    for (const id of HUB_LAYERS) {
+      if (!this.model.layers[id].visible) continue;
+      const matrix = world(id);
+      const { min, max } = this.boxes[id];
+      for (let corner = 0; corner < 8; corner++) {
+        const p = this.point
+          .set(corner & 1 ? max.x : min.x, corner & 2 ? max.y : min.y, corner & 4 ? max.z : min.z)
+          .applyMatrix4(matrix)
+          .project(camera);
+        const x = ((p.x + 1) / 2) * this.width;
+        const y = ((1 - p.y) / 2) * this.height;
+        left = Math.min(left, x);
+        right = Math.max(right, x);
+        top = Math.min(top, y);
+        bottom = Math.max(bottom, y);
+      }
+    }
+    return left <= right ? { left, top, right, bottom } : null;
+  }
+
+  /** Each layer's box in its own frame (bounds() projects its corners), measured once: the layers only move. */
+  private measureLayers(): void {
+    this.model.group.updateWorldMatrix(true, true);
+    const inverse = new THREE.Matrix4();
+    for (const id of HUB_LAYERS) {
+      const layer = this.model.layers[id];
+      this.boxes[id] = new THREE.Box3().setFromObject(layer).applyMatrix4(inverse.copy(layer.matrixWorld).invert());
+    }
   }
 
   /** The studio's room light, prefiltered for the PBR materials. */

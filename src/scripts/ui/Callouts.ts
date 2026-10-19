@@ -9,6 +9,27 @@ export interface CalloutAnchor {
 
 export type CalloutAnchors = Record<HubLayerId, CalloutAnchor>;
 
+/** Where the callouts can go at the hub, at rest (HubScene.hubFrame()). */
+export interface HubRest {
+  bounds: DeviceRect | null;
+  anchors: CalloutAnchors;
+}
+
+/** The device's extent on the stage, in CSS pixels (HubScene.bounds()). */
+export interface DeviceRect {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+/**
+ * How the callouts lie: leaders to a column right of the device (`column`),
+ * or a list in the free band on the device's right (`right`, a short or
+ * cramped stage) or under it (`bottom`, a tall stage).
+ */
+export type CalloutLayout = 'column' | 'right' | 'bottom';
+
 /** One callout laid out: its leader's path, the dot on the anchor, and the label's left middle. */
 export interface CalloutPlace {
   path: string;
@@ -16,7 +37,7 @@ export interface CalloutPlace {
   label: readonly [number, number];
 }
 
-/** The callouts' geometry on a wide stage, in CSS pixels. */
+/** The callouts' geometry, in CSS pixels. */
 export const CALLOUT_LAYOUT = {
   /** The leaders' horizontal runs end at this share of the stage's width (the labels' column)... */
   column: 0.72,
@@ -31,7 +52,15 @@ export const CALLOUT_LAYOUT = {
   /** Labels keep at least this far apart, top to bottom. */
   spacing: 30,
   /** Labels stay this far inside the stage's top and bottom. */
-  margin: 24
+  margin: 24,
+  /** The column's labels start at least this far right of the device. */
+  clear: 12,
+  /** The list on the device's right: this far from it, and never narrower than `min` (it wraps). */
+  list: { gap: 24, min: 140 },
+  /** The list under the device: the band the scene keeps free reaches this far above it. */
+  below: 20,
+  /** As wide as this many heights or wider, a stage's list goes on the device's right; narrower, under it. */
+  landscape: 1.2
 } as const;
 
 /** Rounded to the middle of a pixel, so a 1px line along it lands on one row of pixels. */
@@ -43,8 +72,27 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+/** Where the column's runs end: at 72% of the width, or further left so the widest label fits. */
+export function columnAt(width: number, labelWidth: number): number {
+  const { column, edge, gap } = CALLOUT_LAYOUT;
+  return Math.round(Math.min(width * column, width - edge - labelWidth - gap));
+}
+
 /**
- * Lays the callouts out on a wide stage, as in the approved hub image: from
+ * Whether the column fits the device as it stands in `hub`: every visible
+ * anchor reaches the column with a diagonal, and the labels start clear of
+ * the device (`clear` right of its extent), so no label covers it.
+ */
+export function columnFits(hub: HubRest, ids: readonly HubLayerId[], width: number, labelWidth: number): boolean {
+  const { gap, run, clear } = CALLOUT_LAYOUT;
+  if (width <= 0) return false;
+  const column = columnAt(width, labelWidth);
+  if (ids.some((id) => hub.anchors[id]?.visible && hub.anchors[id].x > column - run)) return false;
+  return !hub.bounds || column + gap >= hub.bounds.right + clear;
+}
+
+/**
+ * Lays the callouts out in the column, as in the approved hub image: from
  * each anchor a short diagonal, then a horizontal run to a column at about
  * 72% of the width, the label just after it. Labels go top to bottom in
  * `ids`' order and keep `spacing` apart. A callout whose anchor is off the
@@ -58,10 +106,10 @@ export function placeCallouts(
   height: number,
   labelWidth: number
 ): Partial<Record<HubLayerId, CalloutPlace>> {
-  const { column: share, edge, gap, rise, run, spacing, margin } = CALLOUT_LAYOUT;
+  const { gap, rise, run, spacing, margin } = CALLOUT_LAYOUT;
   const places: Partial<Record<HubLayerId, CalloutPlace>> = {};
   if (width <= 0 || height <= 0) return places;
-  const column = Math.round(Math.min(width * share, width - edge - labelWidth - gap));
+  const column = columnAt(width, labelWidth);
   let previous = -Infinity;
   for (const id of ids) {
     const anchor = anchors[id];
@@ -76,6 +124,20 @@ export function placeCallouts(
     };
   }
   return places;
+}
+
+/** The width of the free band on the device's right, for the list there (never under `list.min`). */
+export function rightBand(device: DeviceRect, width: number): number {
+  const { edge, list } = CALLOUT_LAYOUT;
+  return Math.max(list.min, Math.floor(width - edge - Math.ceil(device.right + list.gap)));
+}
+
+/** The list's top left in that band: just right of the device, inside the right edge, centred top to bottom. */
+export function placeRightList(device: DeviceRect, width: number, height: number, listWidth: number, listHeight: number): [number, number] {
+  const { edge, margin, list } = CALLOUT_LAYOUT;
+  const x = Math.min(Math.ceil(device.right + list.gap), width - edge - listWidth);
+  const y = Math.round(clamp(height / 2 - listHeight / 2, margin, Math.max(margin, height - margin - listHeight)));
+  return [x, y];
 }
 
 interface Item {
@@ -93,17 +155,24 @@ interface Item {
  * The hub's callouts (HubStage.astro): one per layer that has one, each a
  * label (a real button) and a gold leader drawn from the layer's projected
  * anchor. `update` runs once a frame, after the scene has drawn: it reads
- * the anchors it is handed and writes transforms, paths and opacity only,
- * never reading layout (sizes are measured by a ResizeObserver, off the
- * frame). On a narrow stage the labels are a list under the device instead
- * (`data-narrow`, laid out by CSS), with short leaders of their own; so they
- * are, too, on a stage too cramped for them to lead off to the right of the
- * device, until the stage is resized or the callouts fade out.
+ * the anchors and the device's extent it is handed and writes transforms,
+ * paths, opacity and attributes only, never reading layout (sizes are
+ * measured by a ResizeObserver, off the frame).
+ *
+ * The callouts never cover the device at rest. In the column (`data-list`
+ * absent) the labels start right of it. Where the column does not fit the
+ * device as it stands at the hub (judged from that rest pose for the stage's
+ * size, so a pose it is passing through, after a jump in the scroll or in a
+ * drag, never decides), and on a narrow stage, they are a list (`data-list`,
+ * laid out by CSS) with short leaders of their own: in the free band on the
+ * device's right on a wide or short stage, under it on a tall one, where
+ * `bottomBand` tells the scene how much to keep free.
  *
  * The root starts hidden (`data-gone`) and every callout unplaced
  * (`data-off`), so nothing shows before the first frame places it.
  */
 export class Callouts {
+  private readonly stage: HTMLElement;
   private readonly items: Item[];
   private readonly ids: HubLayerId[];
   private readonly hoverHandlers: ((id: HubLayerId | null) => void)[] = [];
@@ -111,14 +180,19 @@ export class Callouts {
   private readonly cleanups: (() => void)[] = [];
   private width = 0;
   private height = 0;
+  /** The widest label on one line, as the column lays it out. */
   private labelWidth = 0;
+  private listWidth = 0;
+  private listHeight = 0;
+  private listPlaced = '';
+  /** Under the device: from the list's top to the stage's bottom, and `below` more. */
+  private band = 0;
   private opacity = Number.NaN;
-  private narrow: boolean | null = null;
-  /** The labels did not fit beside the device at this size: a list until the stage is resized. */
-  private cramped = false;
+  private layout: CalloutLayout | null = null;
   private disposed = false;
 
   constructor(private readonly root: HTMLElement) {
+    this.stage = root.parentElement ?? root;
     this.items = Array.from(root.querySelectorAll<HTMLElement>('[data-callout]')).flatMap((element): Item[] => {
       const id = element.dataset.callout as HubLayerId;
       const label = element.querySelector('button');
@@ -147,45 +221,36 @@ export class Callouts {
 
     this.measure();
     if (typeof ResizeObserver !== 'undefined') {
-      // The stage's size and the labels' widths (which change when the font arrives), measured off the frame loop.
+      // The stage's size, the list's, and the labels' (which change with the layout and when the font
+      // arrives), measured off the frame loop.
       const observer = new ResizeObserver(() => this.measure());
-      observer.observe(root);
-      this.items.forEach((item) => observer.observe(item.label));
+      for (const element of [this.stage, root, ...this.items.flatMap((item) => [item.element, item.label])]) observer.observe(element);
       this.cleanups.push(() => observer.disconnect());
     }
   }
 
+  /** CSS pixels at the stage's bottom the scene keeps free of the device: the list's band, while it lies under the device. */
+  get bottomBand(): number {
+    return this.layout === 'bottom' ? this.band : 0;
+  }
+
   /**
-   * Places the callouts for this frame: at the anchors on a wide stage, as a
-   * list on a narrow one, shown at `opacity` (0..1). Interactive only when
-   * nearly opaque (`data-shown`), and out of the page's focus order when
-   * fully transparent (`data-gone`).
+   * Places the callouts for this frame, shown at `opacity` (0..1): in the
+   * column, or as a list where the stage is `narrow` or the column does not
+   * fit the device at the `hub`; the list on its right follows `device` (its
+   * extent in the frame just drawn). Interactive only when nearly opaque
+   * (`data-shown`), and out of the page's focus order when fully
+   * transparent (`data-gone`).
    */
-  update(anchors: CalloutAnchors, opacity: number, narrow: boolean): void {
+  update(anchors: CalloutAnchors, opacity: number, narrow: boolean, device: DeviceRect | null = null, hub: HubRest | null = null): void {
     if (this.disposed) return;
     this.setOpacity(opacity);
-    // Faded out, the callouts try the column again when they come back.
-    if (this.opacity === 0) this.cramped = false;
-    this.setNarrow(narrow || this.cramped);
-    if (this.narrow || this.opacity === 0 || this.width === 0) return;
-    const places = placeCallouts(anchors, this.ids, this.width, this.height, this.labelWidth);
-    if (this.items.some((item) => anchors[item.id]?.visible && !places[item.id])) {
-      this.cramped = true;
-      this.setNarrow(true);
-      return;
-    }
-    for (const item of this.items) {
-      const place = places[item.id];
-      this.setOff(item, !place);
-      if (!place) continue;
-      const key = `${place.path}|${place.label[0]}|${place.label[1]}`;
-      if (key === item.placed) continue;
-      item.placed = key;
-      item.path?.setAttribute('d', place.path);
-      item.dot?.setAttribute('cx', place.dot[0].toFixed(1));
-      item.dot?.setAttribute('cy', place.dot[1].toFixed(1));
-      item.label.style.transform = `translate(${place.label[0]}px, ${place.label[1]}px) translateY(-50%)`;
-    }
+    const shown = this.opacity > 0 && this.width > 0;
+    const cramped = !narrow && hub !== null && !columnFits(hub, this.ids, this.width, this.labelWidth);
+    this.setLayout(narrow || cramped ? (this.width >= this.height * CALLOUT_LAYOUT.landscape ? 'right' : 'bottom') : 'column');
+    if (!shown) return;
+    if (this.layout === 'column') this.placeColumn(anchors);
+    else if (this.layout === 'right' && device) this.placeRight(device);
   }
 
   /** Marks the callout of the layer that is highlighted (null: none), as its layer is. */
@@ -220,26 +285,61 @@ export class Callouts {
     this.hoverHandlers.forEach((handler) => handler(id));
   }
 
-  private measure(): void {
-    const width = this.root.clientWidth;
-    const height = this.root.clientHeight;
-    if (width !== this.width || height !== this.height) this.cramped = false;
-    this.width = width;
-    this.height = height;
-    // The labels' widths on one line, as the column needs them; the list may wrap them.
-    if (!this.narrow) this.labelWidth = Math.max(0, ...this.items.map((item) => item.label.offsetWidth));
+  private placeColumn(anchors: CalloutAnchors): void {
+    const places = placeCallouts(anchors, this.ids, this.width, this.height, this.labelWidth);
+    for (const item of this.items) {
+      const place = places[item.id];
+      this.setOff(item, !place);
+      if (!place) continue;
+      const key = `${place.path}|${place.label[0]}|${place.label[1]}`;
+      if (key === item.placed) continue;
+      item.placed = key;
+      item.path?.setAttribute('d', place.path);
+      item.dot?.setAttribute('cx', place.dot[0].toFixed(1));
+      item.dot?.setAttribute('cy', place.dot[1].toFixed(1));
+      item.label.style.transform = `translate(${place.label[0]}px, ${place.label[1]}px) translateY(-50%)`;
+    }
   }
 
-  private setNarrow(narrow: boolean): void {
-    if (narrow === this.narrow) return;
-    this.narrow = narrow;
-    this.root.toggleAttribute('data-narrow', narrow);
+  /** The list in the band on the device's right: its width set when the band changes, its place every frame. */
+  private placeRight(device: DeviceRect): void {
+    const band = rightBand(device, this.width);
+    // A drag sways the band a little; the list keeps its wrapping until the band really changes.
+    if (Math.abs(band - this.listWidth) > 16) {
+      this.listWidth = band;
+      this.root.style.setProperty('--callouts-width', `${band}px`);
+    }
+    const [x, y] = placeRightList(device, this.width, this.height, this.listWidth, this.listHeight);
+    const key = `${x}|${y}`;
+    if (key === this.listPlaced) return;
+    this.listPlaced = key;
+    this.root.style.transform = `translate(${x}px, ${y}px)`;
+  }
+
+  private measure(): void {
+    this.width = this.stage.clientWidth;
+    this.height = this.stage.clientHeight;
+    // The labels on one line, as the column needs them; a list may wrap them.
+    if (this.layout === null || this.layout === 'column') this.labelWidth = Math.max(0, ...this.items.map((item) => item.label.offsetWidth));
+    this.listHeight = this.root.offsetHeight;
+    const first = this.items[0]?.element;
+    this.band = first ? Math.max(0, this.height - first.offsetTop + CALLOUT_LAYOUT.below) : 0;
+  }
+
+  private setLayout(layout: CalloutLayout): void {
+    if (layout === this.layout) return;
+    this.layout = layout;
+    if (layout === 'column') this.root.removeAttribute('data-list');
+    else this.root.setAttribute('data-list', layout);
+    // Each layout places the callouts afresh: a list is laid out by CSS, without the leaders' paths.
+    this.root.style.transform = '';
+    this.listPlaced = '';
+    this.listWidth = 0;
     for (const item of this.items) {
-      // The list is laid out by CSS: the labels leave their places, the leaders their paths.
       item.placed = '';
       item.label.style.transform = '';
       item.path?.removeAttribute('d');
-      this.setOff(item, !narrow);
+      this.setOff(item, layout === 'column');
     }
   }
 

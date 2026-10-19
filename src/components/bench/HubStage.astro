@@ -269,24 +269,14 @@ const callouts = (['screen', 'board', 'battery', 'back'] as const).map((id) => (
   }
 
   /*
-   * Narrow, or too cramped for the column: a list under the device, each
-   * label behind a short leader, clear of the vertical name and above the
-   * role line. The list still covers the stage (Callouts measures the stage
-   * by it), its items gathered at the bottom.
+   * Lists, where the column does not fit or the stage is narrow: each label
+   * behind a short leader, wrapping where it must. Never over the device.
    */
-  :global(.js-motion) .hub__stage:not([data-fallback]) .callouts[data-narrow] {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    align-items: flex-start;
-    padding: 0 var(--gutter) calc(var(--role-bottom) + 28px) calc(var(--gutter) + var(--name-size) * 0.82 + 20px);
-  }
-
-  .callouts[data-narrow] .callout__leader {
+  .callouts[data-list] .callout__leader {
     display: none;
   }
 
-  .callouts[data-narrow] .callout__label {
+  .callouts[data-list] .callout__label {
     position: static;
     display: inline-flex;
     align-items: center;
@@ -296,11 +286,37 @@ const callouts = (['screen', 'board', 'battery', 'back'] as const).map((id) => (
     text-align: left;
   }
 
-  .callouts[data-narrow] .callout__label::before {
+  .callouts[data-list] .callout__label::before {
     content: '';
     flex: none;
     width: 20px;
     height: 1px;
     background: currentColor;
+  }
+
+  /*
+   * Beside the device, on a wide or short stage: in the free band on its
+   * right, centred top to bottom. Callouts sets the band's width and moves
+   * the list there with a transform.
+   */
+  :global(.js-motion) .hub__stage:not([data-fallback]) .callouts[data-list='right'] {
+    inset: 0 auto auto 0;
+    width: var(--callouts-width, 240px);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  /*
+   * Under the device, on a tall stage: gathered at the bottom, clear of the
+   * vertical name and above the role line. The scene keeps that band free of
+   * the device (HubScene.setBottomReserve, from Callouts.bottomBand).
+   */
+  :global(.js-motion) .hub__stage:not([data-fallback]) .callouts[data-list='bottom'] {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-start;
+    padding: 0 var(--gutter) calc(var(--role-bottom) + 28px) calc(var(--gutter) + var(--name-size) * 0.82 + 20px);
   }
 </style>

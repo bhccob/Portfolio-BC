@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { HubLayerId } from '../../src/scripts/three/HubChoreography';
-import { CALLOUT_LAYOUT, placeCallouts, type CalloutAnchors } from '../../src/scripts/ui/Callouts';
+import {
+  CALLOUT_LAYOUT,
+  columnAt,
+  columnFits,
+  placeCallouts,
+  placeRightList,
+  rightBand,
+  type CalloutAnchors
+} from '../../src/scripts/ui/Callouts';
 
 const IDS: readonly HubLayerId[] = ['screen', 'board', 'battery', 'back'];
 
@@ -84,5 +92,63 @@ describe('placeCallouts', () => {
 
   it('places nothing on a stage that has no size yet', () => {
     expect(placeCallouts(anchors(), IDS, 0, 0, 260)).toEqual({});
+  });
+});
+
+describe('columnFits', () => {
+  // The hub at rest on a 1600 × 900 stage: the device ends at x = 960, the column at 1152.
+  const bounds = { left: 430, top: 60, right: 960, bottom: 790 };
+
+  it('fits when every anchor reaches the column and its labels start clear of the device', () => {
+    expect(columnFits({ anchors: anchors(), bounds }, IDS, 1600, 260)).toBe(true);
+  });
+
+  it('does not fit when a label would start on the device, though every anchor reaches the column', () => {
+    // At 1024 wide the column is at 701: its labels start at 715, clear of a device ending at 701, not at 710.
+    const tight = anchors({
+      screen: { x: 583, y: 190, visible: true },
+      board: { x: 602, y: 470, visible: true },
+      battery: { x: 555, y: 620, visible: true },
+      back: { x: 595, y: 700, visible: true }
+    });
+    expect(columnAt(1024, 285)).toBe(701);
+    expect(columnFits({ anchors: tight, bounds: { ...bounds, right: 701 } }, IDS, 1024, 285)).toBe(true);
+    expect(columnFits({ anchors: tight, bounds: { ...bounds, right: 710 } }, IDS, 1024, 285)).toBe(false);
+  });
+
+  it('does not fit when a visible anchor lies too far right to lead off; an anchor off the canvas does not count', () => {
+    const column = columnAt(1600, 260);
+    const far = { x: column - CALLOUT_LAYOUT.run + 1, y: 470, visible: true };
+    expect(columnFits({ anchors: anchors({ board: far }), bounds }, IDS, 1600, 260)).toBe(false);
+    expect(columnFits({ anchors: anchors({ board: { ...far, visible: false } }), bounds }, IDS, 1600, 260)).toBe(true);
+  });
+
+  it('never fits a stage that has no size yet', () => {
+    expect(columnFits({ anchors: anchors(), bounds }, IDS, 0, 260)).toBe(false);
+  });
+});
+
+describe('the list on the right of the device', () => {
+  it('takes the band between the device and the right edge, never narrower than the minimum', () => {
+    const device = { left: 180, top: 30, right: 400, bottom: 330 };
+    expect(rightBand(device, 667)).toBe(667 - CALLOUT_LAYOUT.edge - (400 + CALLOUT_LAYOUT.list.gap));
+    expect(rightBand({ ...device, right: 600 }, 667)).toBe(CALLOUT_LAYOUT.list.min);
+  });
+
+  it('starts just right of the device and is centred top to bottom, inside the margins', () => {
+    const device = { left: 180, top: 30, right: 400, bottom: 330 };
+    const width = rightBand(device, 667);
+    const [x, y] = placeRightList(device, 667, 375, width, 160);
+    expect(x).toBe(400 + CALLOUT_LAYOUT.list.gap);
+    expect(x + width).toBeLessThanOrEqual(667 - CALLOUT_LAYOUT.edge);
+    expect(y).toBe(Math.round(375 / 2 - 80));
+    expect(placeRightList(device, 667, 375, width, 400)[1]).toBe(CALLOUT_LAYOUT.margin);
+  });
+
+  it('keeps inside the right edge when the device has swung further right than the band it was sized for', () => {
+    const device = { left: 180, top: 30, right: 400, bottom: 330 };
+    const width = rightBand(device, 667);
+    const [x] = placeRightList({ ...device, right: 440 }, 667, 375, width, 160);
+    expect(x + width).toBe(667 - CALLOUT_LAYOUT.edge);
   });
 });
