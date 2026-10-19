@@ -26,11 +26,41 @@ export const SWEEP = { soft: 0.015, seam: 1.8 } as const;
 const FACE_ROUGHNESS = 0.08;
 
 /**
- * The lacquers: a pigment base that barely reflects (specular 0.2 of a plain
- * dielectric's, a little soft), so its purple is not greyed by the room, under
- * a glossy coat that gives the crisp highlights.
+ * The lacquers: a pigment base that barely reflects (specular 0.05 of a plain
+ * dielectric's, a little soft), so its purple is not greyed by the key's
+ * sheen and renders face-on as its own colour, under a glossy coat that
+ * gives the crisp highlights.
  */
-const LACQUER = { roughness: 0.5, specular: 0.2, coat: 0.06 } as const;
+const LACQUER = { roughness: 0.5, specular: 0.05, coat: 0.06 } as const;
+
+/** Where three's lights chunk handles the point lights: from this line to the `#endif` after the loop's end. */
+const POINT_LIGHTS = { start: '#if ( NUM_POINT_LIGHTS > 0 ) && defined( RE_Direct )', loopEnd: '#pragma unroll_loop_end', end: '#endif' } as const;
+
+/**
+ * three's lights chunk (`lights_fragment_begin`) with the point lights'
+ * specular kept out: the direct specular (and the clearcoat's) is put back
+ * after the point-light loop as it was before it, so a point light only
+ * lights the surface. The scene's one point light is the pearl's: on the
+ * glossy lacquers and the glass it warms what it lights rather than shows a
+ * second, mirrored pearl. Every other light, and the pearl on the brass, the
+ * gilt rules and the needle, is untouched. A chunk without the loop is
+ * answered unchanged.
+ */
+export function withoutPointSpecular(chunk: string): string {
+  const start = chunk.indexOf(POINT_LIGHTS.start);
+  const loopEnd = start < 0 ? -1 : chunk.indexOf(POINT_LIGHTS.loopEnd, start);
+  const end = loopEnd < 0 ? -1 : chunk.indexOf(POINT_LIGHTS.end, loopEnd);
+  if (end < 0) return chunk;
+  const after = end + POINT_LIGHTS.end.length;
+  const keep = ['vec3 pearlSpecular = reflectedLight.directSpecular;', '#ifdef USE_CLEARCOAT', '\tvec3 pearlCoat = clearcoatSpecularDirect;', '#endif', ''].join('\n');
+  const restore = ['', 'reflectedLight.directSpecular = pearlSpecular;', '#ifdef USE_CLEARCOAT', '\tclearcoatSpecularDirect = pearlCoat;', '#endif'].join('\n');
+  return chunk.slice(0, start) + keep + chunk.slice(start, after) + restore + chunk.slice(after);
+}
+
+/** A lit material's onBeforeCompile: its lights chunk spelled out without the pearl's specular (withoutPointSpecular). */
+function pearlUnmirrored(shader: { fragmentShader: string }): void {
+  shader.fragmentShader = shader.fragmentShader.replace('#include <lights_fragment_begin>', withoutPointSpecular(THREE.ShaderChunk.lights_fragment_begin));
+}
 
 export interface PatternUniforms {
   mapTo: THREE.IUniform<THREE.Texture>;
@@ -129,6 +159,7 @@ function createPattern(strip: THREE.Texture): { material: THREE.MeshPhysicalMate
   material.userData.uniforms = uniforms;
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
+    pearlUnmirrored(shader);
     shader.fragmentShader = shader.fragmentShader
       .replace(
         '#include <common>',
@@ -162,9 +193,17 @@ function createPattern(strip: THREE.Texture): { material: THREE.MeshPhysicalMate
 }
 
 export function createMaterials(placeholders: Placeholders): { materials: InstrumentMaterials; patternUniforms: PatternUniforms } {
+  // The glossy finishes light up under the pearl but do not mirror it (withoutPointSpecular). One shared patch, so
+  // still one program per kind of material.
+  const unmirrored = <M extends THREE.Material>(material: M): M => {
+    material.onBeforeCompile = pearlUnmirrored;
+    return material;
+  };
   // The image-mapped finishes start on a white map, so they show their plain colours and the images only swap a texture.
   const lacquer = (name: string, color: number) =>
-    new THREE.MeshPhysicalMaterial({ name, color, map: placeholders.image, metalness: 0, roughness: LACQUER.roughness, specularIntensity: LACQUER.specular, clearcoat: 1, clearcoatRoughness: LACQUER.coat });
+    unmirrored(
+      new THREE.MeshPhysicalMaterial({ name, color, map: placeholders.image, metalness: 0, roughness: LACQUER.roughness, specularIntensity: LACQUER.specular, clearcoat: 1, clearcoatRoughness: LACQUER.coat })
+    );
   const pattern = createPattern(placeholders.strip);
   const materials: InstrumentMaterials = {
     lacquer: lacquer('compass:lacquer', COLOR.lacquer),
@@ -172,16 +211,18 @@ export function createMaterials(placeholders: Placeholders): { materials: Instru
     brass: new THREE.MeshStandardMaterial({ name: 'compass:brass', color: COLOR.brass, map: placeholders.image, metalness: 1, roughness: 0.32 }),
     pin: new THREE.MeshStandardMaterial({ name: 'compass:pin', color: COLOR.brass, metalness: 1, roughness: 0.32, transparent: true }),
     gilt: new THREE.MeshStandardMaterial({ name: 'compass:gilt', color: COLOR.gilt, metalness: 1, roughness: 0.3 }),
-    face: new THREE.MeshStandardMaterial({
-      name: 'compass:face',
-      color: 0xffffff,
-      map: placeholders.face,
-      roughnessMap: placeholders.faceMr,
-      metalnessMap: placeholders.faceMr,
-      // The maps rule: three multiplies these by the mr canvas.
-      roughness: 1,
-      metalness: 1
-    }),
+    face: unmirrored(
+      new THREE.MeshStandardMaterial({
+        name: 'compass:face',
+        color: 0xffffff,
+        map: placeholders.face,
+        roughnessMap: placeholders.faceMr,
+        metalnessMap: placeholders.faceMr,
+        // The maps rule: three multiplies these by the mr canvas.
+        roughness: 1,
+        metalness: 1
+      })
+    ),
     pattern: pattern.material,
     needleTip: new THREE.MeshStandardMaterial({
       name: 'compass:needle-tip',
@@ -201,18 +242,20 @@ export function createMaterials(placeholders: Placeholders): { materials: Instru
       transparent: true
     }),
     threads: new THREE.MeshStandardMaterial({ name: 'compass:threads', color: COLOR.thread, metalness: 0, roughness: 0.6, transparent: true }),
-    glass: new THREE.MeshPhysicalMaterial({
-      name: 'compass:glass',
-      // Glass has no colour of its own: it darkens the pool a little and shows the room's reflections.
-      color: 0x000000,
-      metalness: 0,
-      roughness: 0.05,
-      clearcoat: 1,
-      transparent: true,
-      opacity: 0.12,
-      // The needle's lower facets dip below the glass on a tilt: the glass must not clip them.
-      depthWrite: false
-    }),
+    glass: unmirrored(
+      new THREE.MeshPhysicalMaterial({
+        name: 'compass:glass',
+        // Glass has no colour of its own: it darkens the pool a little and shows the room's reflections.
+        color: 0x000000,
+        metalness: 0,
+        roughness: 0.05,
+        clearcoat: 1,
+        transparent: true,
+        opacity: 0.12,
+        // The needle's lower facets dip below the glass on a tilt: the glass must not clip them.
+        depthWrite: false
+      })
+    ),
     portrait: new THREE.MeshBasicMaterial({ name: 'compass:portrait', map: placeholders.portrait, transparent: true, opacity: 0 })
   };
   return { materials, patternUniforms: pattern.uniforms };

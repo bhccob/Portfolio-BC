@@ -6,6 +6,7 @@ import { buildAnnulus } from '../../src/scripts/three/instrument/Annulus';
 import { TEXTURE_FILES } from '../../src/scripts/three/instrument/textures';
 import { DIAL } from '../../src/scripts/three/instrument/dialSpec';
 import { sweepCoverage } from '../../src/scripts/three/instrument/patterns';
+import { withoutPointSpecular } from '../../src/scripts/three/instrument/materials';
 import { loadInstrumentTextures } from '../../src/scripts/three/instrument/textures';
 describe('the instrument', () => {
   const m = buildInstrument();
@@ -366,5 +367,39 @@ describe('the instrument textures', () => {
     expect(none.portrait).toBeUndefined();
     const broken = { loadAsync: () => { throw new Error('no'); } } as unknown as THREE.TextureLoader;
     await expect(loadInstrumentTextures('/p.webp', broken)).resolves.toEqual({});
+  });
+});
+
+describe('the pearl in the lacquer', () => {
+  const compile = (material: THREE.Material) => {
+    const lib = (material as THREE.MeshPhysicalMaterial).isMeshPhysicalMaterial ? THREE.ShaderLib.physical : THREE.ShaderLib.standard;
+    const shader = { uniforms: {} as Record<string, THREE.IUniform>, vertexShader: lib.vertexShader, fragmentShader: lib.fragmentShader };
+    material.onBeforeCompile(shader as unknown as THREE.WebGLProgramParametersWithUniforms, {} as THREE.WebGLRenderer);
+    return shader.fragmentShader;
+  };
+
+  it('lights the glossy finishes but keeps it out of their highlights', () => {
+    const byName = new Map(buildInstrument().materials().map((material) => [material.name, material]));
+    for (const name of ['compass:lacquer', 'compass:plate', 'compass:face', 'compass:glass', 'compass:pattern']) {
+      const fs = compile(byName.get(name)!);
+      expect(fs, name).not.toContain('#include <lights_fragment_begin>');
+      // The specular is kept before the point lights and put back after them, before the other lights.
+      const keep = fs.indexOf('vec3 pearlSpecular = reflectedLight.directSpecular;');
+      const point = fs.indexOf('#if ( NUM_POINT_LIGHTS > 0 ) && defined( RE_Direct )');
+      const back = fs.indexOf('reflectedLight.directSpecular = pearlSpecular;');
+      const spot = fs.indexOf('#if ( NUM_SPOT_LIGHTS > 0 ) && defined( RE_Direct )');
+      const sun = fs.indexOf('#if ( NUM_DIR_LIGHTS > 0 ) && defined( RE_Direct )');
+      expect(keep, name).toBeGreaterThan(-1);
+      expect(keep < point && point < back && back < spot && spot < sun, name).toBe(true);
+      expect(fs.slice(point, back)).toContain('RE_Direct( directLight');
+      expect(fs).toContain('clearcoatSpecularDirect = pearlCoat;');
+    }
+    // The brass, the gilt rules and the needle still catch it.
+    for (const name of ['compass:brass', 'compass:gilt', 'compass:needle-tip', 'compass:needle-tail']) expect(compile(byName.get(name)!), name).toContain('#include <lights_fragment_begin>');
+  });
+
+  it('leaves a lights chunk without point lights as it is', () => {
+    expect(withoutPointSpecular('vec3 a = b;')).toBe('vec3 a = b;');
+    expect(withoutPointSpecular(THREE.ShaderChunk.lights_fragment_begin).length).toBeGreaterThan(THREE.ShaderChunk.lights_fragment_begin.length);
   });
 });

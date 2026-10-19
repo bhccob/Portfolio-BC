@@ -51,10 +51,13 @@ export const COMPASS_STUDIO = {
   /**
    * The key from the upper left, in front; the purple rim from behind and
    * below. Both aim at the face centre. A punctual light gives a diffuse
-   * surface its colour times intensity · cos / π: the key's 3 at cos 0.71
-   * gives the face about 0.68 of it, the room the rest.
+   * surface its colour times intensity · cos / π: the key's 4.35 at cos 0.71
+   * gives the face about 0.98 of it, which with the room and the fog lights a
+   * face-on dial to one, so its paints render as themselves there (measured
+   * face-on: gilt #daa531 for #d9a520, plate #221633 for #1c1030, face
+   * #190d28 for #140a24).
    */
-  key: { color: 0xffffff, intensity: 3, position: [-3, 4, 5] as const },
+  key: { color: 0xffffff, intensity: 4.35, position: [-3, 4, 5] as const },
   rim: { color: 0x8a5cff, intensity: 1.6, position: [2, -1, -4] as const },
   /** The backdrop's glow, behind the dial and a little low. */
   backdrop: [0, -0.15, -1] as const,
