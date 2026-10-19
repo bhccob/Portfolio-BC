@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { PearlTarget, driftAt, pointerBearing, restSpot } from '../../src/scripts/three/Pearl';
 import { buildInstrument } from '../../src/scripts/three/instrument/Instrument';
 import { placeCamera } from '../../src/scripts/three/CameraRig';
-import { needleTarget } from '../../src/scripts/three/Pearl';
+import { handedNeedle, needleTarget } from '../../src/scripts/three/Pearl';
 import { wrapAngle } from '../../src/scripts/three/AngleSpring';
 describe('the pearl', () => {
   const layout = { x: 700, y: 450, diameter: 500 };
@@ -187,5 +187,17 @@ describe('the needle heading', () => {
     expect(Math.abs(wrapAngle(heading - Math.PI))).toBeLessThan(1e-12);
     // And on the dial (heading + spin) it is still east.
     expect(wrapAngle(heading + -Math.PI / 2)).toBeCloseTo(Math.PI / 2, 12);
+  });
+});
+
+describe('the needle handed over', () => {
+  it("takes the loader's bearing and velocity", () => {
+    expect(handedNeedle({ value: 0.2, velocity: 3 }, { bearing: 1.1, velocity: -0.5 })).toEqual({ value: 1.1, velocity: -0.5 });
+  });
+
+  it("keeps the spring's own value for anything that is not a finite number", () => {
+    expect(handedNeedle({ value: 0.2, velocity: 3 }, { bearing: Number.NaN, velocity: -0.5 })).toEqual({ value: 0.2, velocity: -0.5 });
+    expect(handedNeedle({ value: 0.2, velocity: 3 }, { bearing: 1.1, velocity: Infinity })).toEqual({ value: 1.1, velocity: 3 });
+    expect(handedNeedle({ value: 0.2, velocity: 3 }, { bearing: -Infinity, velocity: Number.NaN })).toEqual({ value: 0.2, velocity: 3 });
   });
 });

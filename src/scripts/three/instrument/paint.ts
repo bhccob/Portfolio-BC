@@ -50,39 +50,68 @@ function texture(ctx: CanvasRenderingContext2D, name: string, colour: boolean): 
   return map;
 }
 
+/** What the painting takes beyond the pointer and the image. */
+export interface PaintOptions {
+  /** Hears the share painted (0..1) after each canvas. */
+  progress?: (share: number) => void;
+  /** Asked before each canvas: true stops the painting (the scene was disposed). */
+  cancelled?: () => boolean;
+}
+
+/** What paintInstrument rejects with once `cancelled()` has stopped it; the canvases it had made are emptied. */
+export class PaintCancelled extends Error {
+  constructor() {
+    super('The compass painting was cancelled');
+    this.name = 'PaintCancelled';
+  }
+}
+
 /**
  * Paints the face (2048² on a fine pointer, 1024² on a coarse one, with the
  * lacquer image tiled over it when given) and the strips (STRIP.fine or
- * STRIP.coarse), one canvas per animation frame. `onProgress` hears the share
- * painted (0..1) after each. Throws, having painted nothing more, if the
- * browser gives no 2D canvas.
+ * STRIP.coarse), one canvas per animation frame. Throws if the browser gives
+ * no 2D canvas, and stops between canvases once `cancelled()` (PaintCancelled).
  */
-export async function paintInstrument(fine: boolean, lacquer?: CanvasImageSource, onProgress?: (share: number) => void): Promise<Painted> {
+export async function paintInstrument(fine: boolean, lacquer?: CanvasImageSource, options: PaintOptions = {}): Promise<Painted> {
   const size = fine ? FACE_SIZE.fine : FACE_SIZE.coarse;
   const strip = fine ? STRIP.fine : STRIP.coarse;
+  const made: HTMLCanvasElement[] = [];
+  const make = (width: number, height: number): CanvasRenderingContext2D => {
+    const ctx = context(width, height);
+    made.push(ctx.canvas);
+    return ctx;
+  };
+  const stopIfCancelled = (): void => {
+    if (!options.cancelled?.()) return;
+    // A 2048² canvas holds 16 MB until it is collected; an empty one holds nothing.
+    for (const canvas of made) canvas.width = canvas.height = 0;
+    throw new PaintCancelled();
+  };
   // A decoded image draws without a stall of its own.
   await (lacquer as HTMLImageElement | undefined)?.decode?.().catch(() => undefined);
+  stopIfCancelled();
 
   let painted = 0;
   const done = async (): Promise<void> => {
     painted++;
-    onProgress?.(painted / CANVASES);
+    options.progress?.(painted / CANVASES);
     if (painted < CANVASES) await frame();
+    stopIfCancelled();
   };
 
   // paintFace paints the colour and the mr map in one call: each frame hands it one real canvas and a
   // 1 × 1 scratch canvas for the other half, which clips its drawing to nothing (and the mr pass, no image).
-  const scratch = context(1, 1);
-  const colour = context(size, size);
+  const scratch = make(1, 1);
+  const colour = make(size, size);
   paintFace(colour, scratch, size, lacquer);
   await done();
-  const mr = context(size, size);
+  const mr = make(size, size);
   paintFace(scratch, mr, size);
   await done();
 
   const strips = {} as Record<HomeId, THREE.CanvasTexture>;
   for (const home of HOMES) {
-    const ctx = context(strip.width, strip.height);
+    const ctx = make(strip.width, strip.height);
     paintHome(ctx, home, strip.width, strip.height);
     const map = texture(ctx, `compass:strip-${home}`, true);
     map.wrapS = THREE.RepeatWrapping;

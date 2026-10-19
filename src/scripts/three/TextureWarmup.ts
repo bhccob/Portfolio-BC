@@ -16,8 +16,9 @@ import { createMaterials, createPlaceholders } from './instrument/materials';
  * provided a stand-in still holds it: the answer is the stand-ins' release,
  * to be called once the scene's own materials have drawn with them. The
  * release frees the stand-ins (the materials handed in) and the mesh they sat
- * on; the textures stay the caller's. A failed warm-up costs only the stall it
- * was meant to save: it never rejects.
+ * on; the textures stay the caller's. A warm-up that fails or is cancelled lets
+ * its stand-ins go itself (the release then does nothing): it costs only the
+ * stall it was meant to save, is logged, and never rejects.
  */
 export async function warmUp(
   renderer: THREE.WebGLRenderer,
@@ -36,6 +37,7 @@ export async function warmUp(
     geometry.dispose();
     for (const material of materials) material.dispose();
   };
+  let held = false;
   try {
     for (const texture of textures) {
       await (texture.image as HTMLImageElement | undefined)?.decode?.().catch(() => undefined);
@@ -47,8 +49,13 @@ export async function warmUp(
     const group = new THREE.Group();
     for (const material of materials) group.add(new THREE.Mesh(geometry, material));
     await renderer.compileAsync(group, camera, scene);
-  } catch {
+    held = true;
+  } catch (error) {
     // Nothing is lost but the head start.
+    console.warn('[portfolio] the compass warm-up failed; the first frames may stall', error);
+  } finally {
+    // Stand-ins that compiled nothing, or that nobody will take over, go now.
+    if (!held) release();
   }
   return release;
 }
@@ -74,7 +81,8 @@ export function coatlessStandIns(): THREE.Material[] {
  * The compass's warm-up: every map uploaded with, while `coated` (the lacquer
  * still has its clearcoat), the clearcoat-off stand-ins compiled (warmUp), side
  * by side with the scene's own programs (`compileAsync`). `progress` hears 0.5
- * and then 1 as the two finish. Resolves with the stand-ins' release.
+ * and then 1 as the two finish. Resolves with the stand-ins' release; a
+ * failed compile is logged, and only making the stand-ins can reject.
  */
 export async function warmScene(
   renderer: THREE.WebGLRenderer,
@@ -86,16 +94,25 @@ export async function warmScene(
   progress: (share: number) => void = () => {}
 ): Promise<() => void> {
   let parts = 0;
-  const done = (): void => progress(++parts / 2);
-  const [release] = await Promise.all([
-    warmUp(renderer, scene, camera, maps, coated ? coatlessStandIns() : [], cancelled).then((answer) => {
-      done();
-      return answer;
-    }),
-    renderer
-      .compileAsync(scene, camera)
-      .catch(() => undefined)
-      .then(done)
-  ]);
+  const done = (): void => {
+    try {
+      progress(++parts / 2);
+    } catch (error) {
+      console.error('[portfolio] a compass warm-up listener failed', error);
+    }
+  };
+  const standIns = coated ? coatlessStandIns() : [];
+  // In an async function of its own, so a compile that throws at once is caught like one that rejects.
+  const compiled = (async (): Promise<void> => {
+    try {
+      await renderer.compileAsync(scene, camera);
+    } catch (error) {
+      console.warn('[portfolio] the compass programs could not be compiled ahead; the first frame may stall', error);
+    }
+    done();
+  })();
+  const release = await warmUp(renderer, scene, camera, maps, standIns, cancelled);
+  done();
+  await compiled;
   return release;
 }

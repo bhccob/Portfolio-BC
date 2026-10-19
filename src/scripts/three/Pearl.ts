@@ -193,6 +193,22 @@ export function needleTarget(pearl: number, scripted: number, weight: number, sp
   return blendBearing(pearl, wrapAngle(scripted - spin), weight);
 }
 
+/**
+ * The needle the loader hands over (matchDial): its bearing and velocity
+ * (radians, rad/s) where they are finite numbers, the spring's own where not,
+ * so a broken hand-over can neither throw the needle to north nor poison the
+ * spring.
+ */
+export function handedNeedle(
+  spring: { value: number; velocity: number },
+  given: { bearing: number; velocity: number }
+): { value: number; velocity: number } {
+  return {
+    value: Number.isFinite(given.bearing) ? given.bearing : spring.value,
+    velocity: Number.isFinite(given.velocity) ? given.velocity : spring.velocity
+  };
+}
+
 /** The pearl's look: signal yellow, a soft halo, a hot core and a small warm light that moves across the brass. */
 export const PEARL = {
   color: 0xffcf33,

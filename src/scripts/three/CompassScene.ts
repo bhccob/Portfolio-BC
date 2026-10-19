@@ -3,7 +3,7 @@ import { AngleSpring, wrapAngle } from './AngleSpring';
 import { dialLayout, lerpShot, placeCamera, type Shot } from './CameraRig';
 import { compassPoseAt, locate, OFF_AXIS, tipLimit, type CompassPose } from './Choreography';
 import { FreeTurn, type PointerKind } from './FreeTurn';
-import { needleTarget, Pearl, PEARL, PearlTarget, pointerBearing } from './Pearl';
+import { handedNeedle, needleTarget, Pearl, PEARL, PearlTarget, pointerBearing } from './Pearl';
 import { budgetLimit, PixelBudget, VSYNC } from './PixelBudget';
 import { qualityFor, qualitySteps, type Quality } from './quality';
 import { RenderLoop } from './RenderLoop';
@@ -11,7 +11,7 @@ import { asleep, STILL } from './stillness';
 import { warmScene } from './TextureWarmup';
 import { DIAL } from './instrument/dialSpec';
 import { buildInstrument, type InstrumentModel } from './instrument/Instrument';
-import { paintInstrument, type Painted } from './instrument/paint';
+import { PaintCancelled, paintInstrument, type Painted } from './instrument/paint';
 import { loadInstrumentTextures, type InstrumentTextures } from './instrument/textures';
 import { buildCompassStudio, type CompassStudio } from './studio/CompassStudio';
 import { glowTexture } from './studio/noise';
@@ -69,6 +69,15 @@ const PAINT_SHARE = 0.6;
 function smootherstep(t: number): number {
   const x = Math.min(1, Math.max(0, t));
   return x * x * x * (x * (6 * x - 15) + 10);
+}
+
+/** Calls a load handler on its own: one that throws is logged and cannot derail the load or the others. */
+function tell(handler: (part: LoadPart, share: number) => void, part: LoadPart, share: number): void {
+  try {
+    handler(part, share);
+  } catch (error) {
+    console.error('[portfolio] a compass load handler failed', error);
+  }
 }
 
 /** A TextureLoader that calls `settled` as each file loads or fails. */
@@ -192,7 +201,7 @@ export class CompassScene {
   /** Calls `handler` as each part of the load moves on (0..1), starting with where each part stands now. */
   onLoad(handler: (part: LoadPart, share: number) => void): void {
     this.loadHandlers.push(handler);
-    for (const part of ['textures', 'warm'] as const) if (this.shares[part] > 0) handler(part, this.shares[part]);
+    for (const part of ['textures', 'warm'] as const) if (this.shares[part] > 0) tell(handler, part, this.shares[part]);
   }
 
   /**
@@ -255,13 +264,15 @@ export class CompassScene {
    * The loader's hand-over: the dial face-on with its rim at `rim` (centre
    * and diameter, CSS px relative to the canvas), no lean, and the needle
    * carrying on at the loader's `bearing` (radians, clockwise from screen
-   * north) and `velocity` (rad/s). Held until startIntro().
+   * north) and `velocity` (rad/s); either, if not a finite number, is left as
+   * the scene's needle has it. Held until startIntro().
    */
   matchDial(rim: { x: number; y: number; diameter: number }, needle: { bearing: number; velocity: number }): void {
     if (this.disposed || !(rim.diameter > 0) || !Number.isFinite(rim.x) || !Number.isFinite(rim.y)) return;
     this.matched = { layout: { x: rim.x, y: rim.y, diameter: rim.diameter }, tilt: 0, zoom: 1, near: NEAR };
     this.intro = null;
-    this.spring.set(needle.bearing, needle.velocity);
+    const handed = handedNeedle(this.spring, needle);
+    this.spring.set(handed.value, handed.velocity);
     this.lastPearl = this.spring.value;
     this.snapNeedle = false;
     // The pearl starts where it wants to be, and the frames of the hand-over are drawn whatever else is still.
@@ -271,7 +282,11 @@ export class CompassScene {
     this.update(0);
   }
 
-  /** Moves from the matched shot to the pose's own over 1.2 s (smootherstep), the lean easing in with it. */
+  /**
+   * Moves from the matched shot to the pose's own over 1.2 s (smootherstep),
+   * the lean easing in with it. The intro's clock runs on drawn frames only,
+   * so called before the first frame it still starts on the matched shot.
+   */
   startIntro(): void {
     if (this.disposed || !this.matched || this.intro !== null) return;
     this.intro = 0;
@@ -352,7 +367,7 @@ export class CompassScene {
     this.frameHandlers.length = 0;
     this.loadHandlers.length = 0;
     this.instrument?.dispose();
-    for (const map of this.maps()) map.dispose();
+    this.freeMaps();
     this.releaseCoat?.();
     this.releaseCoat = null;
     for (const release of this.afterFrame.splice(0)) release();
@@ -370,10 +385,13 @@ export class CompassScene {
   private tick(dtSeconds: number): void {
     // The display's refresh is measured on idle frames after the load, whose painting and uploads would lengthen them.
     if (!this.measured && this.loaded && !this.compiling) this.measure(dtSeconds);
-    const still = this.update(Math.min(dtSeconds, MAX_STEP));
     // Nothing is drawn (the canvas keeps the studio's clear colour) until the load is done and the display's refresh is
-    // measured; nor while everything is still and the canvas already shows it.
-    if (!this.loaded || this.compiling || !this.measured || (still && !this.dirty)) return;
+    // measured; nor while everything is still and the canvas already shows it. The intro is never still, so it moves on
+    // exactly when a frame will show it.
+    const drawable = this.loaded && !this.compiling && this.measured;
+    const dt = Math.min(dtSeconds, MAX_STEP);
+    const still = this.update(dt, drawable ? dt : 0);
+    if (!drawable || (still && !this.dirty)) return;
     // Frames running slow step down the quality ladder; the buffer is resized before this frame draws.
     if (this.budget && this.budget.sample(dtSeconds) !== null) this.setQuality(qualityFor(this.budget.step, this.finePointer));
     this.dirty = false;
@@ -401,10 +419,11 @@ export class CompassScene {
   /**
    * One step of `dt` seconds: eases the progress, places the camera, the
    * pearl and the lean, turns the dial, steers the needle and poses the
-   * model. Answers whether everything is still (asleep()); the dust and the
-   * haze move on only when it is not.
+   * model; the intro moves on by `introDt` (the tick's step on a frame that
+   * is drawn, else 0). Answers whether everything is still (asleep()); the
+   * dust and the haze move on only when it is not.
    */
-  private update(dt: number): boolean {
+  private update(dt: number, introDt = 0): boolean {
     const { width, height } = this;
     const sized = width > 0 && height > 0;
     this.progress = THREE.MathUtils.damp(this.progress, this.goal, PROGRESS_DAMP, dt);
@@ -412,7 +431,7 @@ export class CompassScene {
     const pose = compassPoseAt(this.progress);
 
     // The camera, and how much of the pose's own shot (and of the lean) the hand-over lets in.
-    const own = this.intro === null ? (this.matched ? 0 : 1) : this.introStep(dt);
+    const own = this.intro === null ? (this.matched ? 0 : 1) : this.introStep(introDt);
     const shot = this.shotFor(pose, own);
     placeCamera(this.camera, shot, width, height);
 
@@ -528,43 +547,52 @@ export class CompassScene {
     return [...Object.values(this.textures), ...painted].filter((map): map is THREE.Texture => !!map);
   }
 
+  /** Frees every map's GPU side and lets go of them, emptying the painted canvases (some 35 MB on a fine pointer). */
+  private freeMaps(): void {
+    for (const map of this.maps()) map.dispose();
+    const painted = this.painted ? [this.painted.face, this.painted.mr, ...Object.values(this.painted.strips)] : [];
+    for (const map of painted) {
+      const canvas = map.image as HTMLCanvasElement;
+      canvas.width = canvas.height = 0;
+    }
+    this.textures = {};
+    this.painted = null;
+  }
+
   /** Tells the load handlers that `part` has reached `share`, never going back. */
   private report(part: LoadPart, share: number): void {
     const value = Math.min(1, Math.max(0, share));
     if (this.disposed || !(value > this.shares[part])) return;
     this.shares[part] = value;
-    for (const handler of this.loadHandlers) handler(part, value);
+    for (const handler of this.loadHandlers) tell(handler, part, value);
   }
 
   /**
    * The load: the image files (textures 0 → 1 as each settles), the canvases
    * painted one a frame (warm 0 → 0.6), then every map uploaded and every
-   * program compiled (0.6 → 1). Whatever fails is left plain; the scene is
-   * ready either way, unless it was disposed.
+   * program compiled (0.6 → 1). Whatever fails is logged and left plain; the
+   * scene is ready either way, unless it was disposed.
    */
   private async load(portrait?: string): Promise<void> {
+    const disposed = (): boolean => this.disposed;
     try {
       const files = portrait ? 3 : 2;
       let settled = 0;
       this.textures = await loadInstrumentTextures(portrait, new SettlingLoader(() => this.report('textures', ++settled / files)));
-      if (this.disposed) {
-        for (const map of this.maps()) map.dispose();
-        return;
-      }
+      // Disposed meanwhile: dispose() freed what there was then, not what has arrived since.
+      if (this.disposed) return this.freeMaps();
       this.report('textures', 1);
       const anisotropy = Math.min(ANISOTROPY, this.renderer.capabilities.getMaxAnisotropy());
       this.instrument.setTextures(this.textures);
       try {
         const lacquer = this.textures.lacquer?.image as CanvasImageSource | undefined;
-        this.painted = await paintInstrument(this.finePointer, lacquer, (share) => this.report('warm', PAINT_SHARE * share));
-      } catch {
-        // No canvas to paint on: the face and the ring keep their plain placeholders.
+        const progress = (share: number): void => this.report('warm', PAINT_SHARE * share);
+        this.painted = await paintInstrument(this.finePointer, lacquer, { progress, cancelled: disposed });
+      } catch (error) {
+        // The face and the ring keep their plain placeholders.
+        if (!(error instanceof PaintCancelled)) console.warn('[portfolio] the compass face and ring could not be painted; they stay plain', error);
       }
-      // Disposed meanwhile: dispose() has freed what there was, but not maps painted since.
-      if (this.disposed) {
-        for (const map of this.maps()) map.dispose();
-        return;
-      }
+      if (this.disposed) return this.freeMaps();
       for (const map of this.maps()) map.anisotropy = anisotropy;
       if (this.painted) {
         this.instrument.setFace(this.painted.face, this.painted.mr);
@@ -572,15 +600,18 @@ export class CompassScene {
       }
       this.report('warm', PAINT_SHARE);
       await this.warm((share) => this.report('warm', PAINT_SHARE + (1 - PAINT_SHARE) * share));
-    } catch {
-      // Something unforeseen: the scene shows what it has rather than strand the page.
+    } catch (error) {
+      // The scene shows what it has rather than strand the page.
+      console.error('[portfolio] the compass load failed partway; showing what it has', error);
+    } finally {
+      if (!this.disposed) {
+        this.loaded = true;
+        this.dirty = true;
+        this.resolveReady();
+        this.report('textures', 1);
+        this.report('warm', 1);
+      }
     }
-    if (this.disposed) return;
-    this.report('textures', 1);
-    this.report('warm', 1);
-    this.loaded = true;
-    this.dirty = true;
-    this.resolveReady();
   }
 
   /**
@@ -607,10 +638,12 @@ export class CompassScene {
     // A context lost mid-load is warmed by the load itself.
     if (!this.loaded) return;
     this.compiling = true;
-    void this.warm().finally(() => {
-      this.compiling = false;
-      this.dirty = true;
-      this.budget?.restart();
-    });
+    this.warm()
+      .catch((error: unknown) => console.error('[portfolio] the compass could not warm up again after a lost context', error))
+      .finally(() => {
+        this.compiling = false;
+        this.dirty = true;
+        this.budget?.restart();
+      });
   }
 }
