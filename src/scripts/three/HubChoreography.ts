@@ -55,8 +55,8 @@ const CALLOUTS_TO = 0.55;
 /** The camera while the device is closed, and at the hub. Lerped by `explode`. */
 const CLOSED_POSITION: Vec3 = [3.4, 2.6, 4.4];
 const CLOSED_TARGET: Vec3 = [0, 0.15, 0];
-const HUB_POSITION: Vec3 = [5.2, 6.0, 7.4];
-const HUB_TARGET: Vec3 = [0.4, 2.0, 0];
+const HUB_POSITION: Vec3 = [4.2, 8.3, 9.3];
+const HUB_TARGET: Vec3 = [0.2, 1.98, 0];
 
 function clamp01(x: number): number {
   return Math.min(1, Math.max(0, x));

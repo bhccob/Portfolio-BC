@@ -31,6 +31,11 @@ export class PixelBudget {
     return this.steps[this.index];
   }
 
+  /** How many times it has stepped down: the index into `steps` (0 = the first). */
+  get step(): number {
+    return this.index;
+  }
+
   /** Starts the count over, leaving out the first frames: for the loop coming back on. */
   restart(): void {
     this.times.length = 0;
@@ -38,7 +43,12 @@ export class PixelBudget {
     this.skip = BUDGET.warmup;
   }
 
-  /** Counts one frame's time; answers the new, lower ratio when this frame steps it down, else null. */
+  /**
+   * Counts one frame's time; answers the new ratio when this frame steps it
+   * down, else null. Two steps may share a ratio (the hub's quality ladder
+   * gives up something else there), so a step is told by a non-null answer,
+   * not by the ratio changing.
+   */
   sample(dtSeconds: number): number | null {
     if (this.index === this.steps.length - 1) return null;
     if (!(dtSeconds > 0) || dtSeconds > BUDGET.gap) return null;

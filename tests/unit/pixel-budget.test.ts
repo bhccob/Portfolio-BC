@@ -68,6 +68,18 @@ describe('PixelBudget', () => {
     expect(feed(budget, 1, 0.025)).toEqual([1.25]);
   });
 
+  it('counts its steps, a repeated ratio included', () => {
+    const budget = new PixelBudget([1.25, 1.25, 1]);
+    expect(budget.step).toBe(0);
+    const slow = BUDGET.frames + BUDGET.warmup;
+    expect(feed(budget, slow, 0.025)).toEqual([1.25]);
+    expect(budget.step).toBe(1);
+    expect(feed(budget, slow, 0.025)).toEqual([1]);
+    expect(budget.step).toBe(2);
+    expect(feed(budget, slow, 0.025)).toEqual([]);
+    expect(budget.step).toBe(2);
+  });
+
   it('does not count a frame of no time (the first after switching on)', () => {
     const budget = new PixelBudget([1.75, 1.25, 1]);
     feed(budget, BUDGET.frames - 1, 0.021);
