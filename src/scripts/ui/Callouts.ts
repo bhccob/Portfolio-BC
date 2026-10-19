@@ -59,7 +59,13 @@ export const CALLOUT_LAYOUT = {
   list: { gap: 24, min: 140 },
   /** The list under the device: the band the scene keeps free reaches this far above it. */
   below: 20,
-  /** As wide as this many heights or wider, a stage's list goes on the device's right; narrower, under it. */
+  /**
+   * A stage narrower than `narrow` pixels, or than `landscape` times its
+   * height (where the scene centres the device), is narrow: its callouts are
+   * a list. As wide as `landscape` or wider, a list goes on the device's
+   * right; narrower, under it.
+   */
+  narrow: 760,
   landscape: 1.2
 } as const;
 
@@ -89,6 +95,23 @@ export function columnFits(hub: HubRest, ids: readonly HubLayerId[], width: numb
   const column = columnAt(width, labelWidth);
   if (ids.some((id) => hub.anchors[id]?.visible && hub.anchors[id].x > column - run)) return false;
   return !hub.bounds || column + gap >= hub.bounds.right + clear;
+}
+
+/**
+ * How the callouts lie on a stage of this size (the stage's own, not the
+ * viewport's, which counts a scrollbar), given whether the column fits the
+ * device at rest at the hub without any reserved band (`columnFitsAtRest`).
+ * A narrow stage always takes a list; a wide one the column where it fits.
+ * The list goes under the device only on a stage narrower than `landscape`,
+ * which is narrow whatever the column does: so the band the scene then
+ * reserves, which changes the device's framing, can never feed back into
+ * the choice. Pure.
+ */
+export function chooseLayout(width: number, height: number, columnFitsAtRest: boolean): CalloutLayout {
+  const { narrow, landscape } = CALLOUT_LAYOUT;
+  const wide = width >= height * landscape;
+  if (wide && width >= narrow && columnFitsAtRest) return 'column';
+  return wide ? 'right' : 'bottom';
 }
 
 /**
@@ -177,6 +200,9 @@ export class Callouts {
   private readonly ids: HubLayerId[];
   private readonly hoverHandlers: ((id: HubLayerId | null) => void)[] = [];
   private readonly clickHandlers: ((id: HubLayerId) => void)[] = [];
+  private readonly bandHandlers: ((pixels: number) => void)[] = [];
+  /** The band last announced (bottomBand), so a change is announced once. */
+  private announced = 0;
   private readonly cleanups: (() => void)[] = [];
   private width = 0;
   private height = 0;
@@ -185,7 +211,7 @@ export class Callouts {
   private listWidth = 0;
   private listHeight = 0;
   private listPlaced = '';
-  /** Under the device: from the list's top to the stage's bottom, and `below` more. */
+  /** Under the device: from the list's top to the stage's bottom, and `below` more (0 until measured so). */
   private band = 0;
   private opacity = Number.NaN;
   private layout: CalloutLayout | null = null;
@@ -220,6 +246,8 @@ export class Callouts {
     }
 
     this.measure();
+    // A narrow stage's list is laid out before the first frame, so its band is measured by then.
+    if (this.width > 0) this.setLayout(chooseLayout(this.width, this.height, true));
     if (typeof ResizeObserver !== 'undefined') {
       // The stage's size, the list's, and the labels' (which change with the layout and when the font
       // arrives), measured off the frame loop.
@@ -236,18 +264,18 @@ export class Callouts {
 
   /**
    * Places the callouts for this frame, shown at `opacity` (0..1): in the
-   * column, or as a list where the stage is `narrow` or the column does not
-   * fit the device at the `hub`; the list on its right follows `device` (its
-   * extent in the frame just drawn). Interactive only when nearly opaque
-   * (`data-shown`), and out of the page's focus order when fully
-   * transparent (`data-gone`).
+   * column, or as a list where the stage is narrow or the column does not
+   * fit the device at rest at the `hub` (chooseLayout); the list on its
+   * right follows `device` (its extent in the frame just drawn). Interactive
+   * only when nearly opaque (`data-shown`), and out of the page's focus order
+   * when fully transparent (`data-gone`).
    */
-  update(anchors: CalloutAnchors, opacity: number, narrow: boolean, device: DeviceRect | null = null, hub: HubRest | null = null): void {
+  update(anchors: CalloutAnchors, opacity: number, device: DeviceRect | null = null, hub: HubRest | null = null): void {
     if (this.disposed) return;
     this.setOpacity(opacity);
     const shown = this.opacity > 0 && this.width > 0;
-    const cramped = !narrow && hub !== null && !columnFits(hub, this.ids, this.width, this.labelWidth);
-    this.setLayout(narrow || cramped ? (this.width >= this.height * CALLOUT_LAYOUT.landscape ? 'right' : 'bottom') : 'column');
+    const fits = hub === null || columnFits(hub, this.ids, this.width, this.labelWidth);
+    this.setLayout(chooseLayout(this.width, this.height, fits));
     if (!shown) return;
     if (this.layout === 'column') this.placeColumn(anchors);
     else if (this.layout === 'right' && device) this.placeRight(device);
@@ -273,12 +301,23 @@ export class Callouts {
     this.clickHandlers.push(handler);
   }
 
+  /**
+   * Calls `handler` with `bottomBand` whenever it changes: as soon as it is
+   * measured (off the frame loop), so the scene can keep the band free from
+   * the next frame it draws, the very first included.
+   */
+  onBand(handler: (pixels: number) => void): void {
+    this.bandHandlers.push(handler);
+    handler(this.bottomBand);
+  }
+
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
     this.cleanups.splice(0).forEach((cleanup) => cleanup());
     this.hoverHandlers.length = 0;
     this.clickHandlers.length = 0;
+    this.bandHandlers.length = 0;
   }
 
   private hover(id: HubLayerId | null): void {
@@ -322,8 +361,17 @@ export class Callouts {
     // The labels on one line, as the column needs them; a list may wrap them.
     if (this.layout === null || this.layout === 'column') this.labelWidth = Math.max(0, ...this.items.map((item) => item.label.offsetWidth));
     this.listHeight = this.root.offsetHeight;
+    // Only the bottom layout's list says where the band starts.
     const first = this.items[0]?.element;
-    this.band = first ? Math.max(0, this.height - first.offsetTop + CALLOUT_LAYOUT.below) : 0;
+    if (this.layout === 'bottom' && first) this.band = Math.max(0, this.height - first.offsetTop + CALLOUT_LAYOUT.below);
+    this.announce();
+  }
+
+  private announce(): void {
+    const band = this.bottomBand;
+    if (band === this.announced) return;
+    this.announced = band;
+    this.bandHandlers.forEach((handler) => handler(band));
   }
 
   private setLayout(layout: CalloutLayout): void {
@@ -335,12 +383,15 @@ export class Callouts {
     this.root.style.transform = '';
     this.listPlaced = '';
     this.listWidth = 0;
+    // Unknown until the new layout is measured: no band rather than a stale one.
+    this.band = 0;
     for (const item of this.items) {
       item.placed = '';
       item.label.style.transform = '';
       item.path?.removeAttribute('d');
       this.setOff(item, layout === 'column');
     }
+    this.announce();
   }
 
   private setOpacity(opacity: number): void {

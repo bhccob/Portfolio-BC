@@ -456,14 +456,16 @@ export class HubScene {
    * The device's extent and the anchors at the hub (fully apart, at rest, as
    * at any progress from 0.5 on), for the canvas's size now: where the
    * callouts can go once the device arrives, whatever pose it is passing
-   * through. Worked out without moving the model, once per size.
+   * through. Worked out without moving the model, once per size, and without
+   * the reserved bottom band, which the callouts' choice of layout sets: so
+   * that choice never depends on its own outcome.
    */
   hubFrame(): HubFrame | null {
     if (this.disposed || this.width === 0 || this.height === 0) return null;
-    const key = `${this.width}x${this.height}|${this.reserve}`;
+    const key = `${this.width}x${this.height}`;
     if (this.hubFrameCache?.key === key) return this.hubFrameCache.frame;
     this.hubCamera.aspect = this.camera.aspect;
-    this.place(this.hubCamera, 1, 1, AT_REST);
+    this.place(this.hubCamera, 1, 1, AT_REST, 0);
     const { offsets } = hubPoseAt(1);
     const matrices = {} as Record<HubLayerId, THREE.Matrix4>;
     for (const id of HUB_LAYERS) {
@@ -602,11 +604,11 @@ export class HubScene {
    * centre on a wide one, and lifted clear of a reserved bottom band.
    */
   private aim(): void {
-    this.place(this.camera, this.progress, this.explode, this.turn);
+    this.place(this.camera, this.progress, this.explode, this.turn, this.reserve);
   }
 
-  /** Puts `camera` where aim() puts the scene's, for that progress, explode and turn. */
-  private place(camera: THREE.PerspectiveCamera, progress: number, explode: number, turn: { yaw: number; pitch: number }): void {
+  /** Puts `camera` where aim() puts the scene's, for that progress, explode, turn and reserved bottom band (CSS px). */
+  private place(camera: THREE.PerspectiveCamera, progress: number, explode: number, turn: { yaw: number; pitch: number }, band: number): void {
     const { position, target } = hubPoseAt(progress).camera;
     this.target3.set(...target);
     this.offset.set(...position).sub(this.target3);
@@ -616,7 +618,7 @@ export class HubScene {
     const fit = FIT_ASPECT.closed + (FIT_ASPECT.hub - FIT_ASPECT.closed) * explode;
     // The device fills about the canvas's height unbacked: to fit above a reserved band, it backs off by
     // the height over what is left, unless the width already backs it off further.
-    const reserve = this.height > 0 ? Math.min(this.reserve, this.height * MAX_RESERVE) * explode : 0;
+    const reserve = this.height > 0 ? Math.min(band, this.height * MAX_RESERVE) * explode : 0;
     const above = reserve > 0 ? this.height / (this.height - reserve) : 1;
     this.spherical.radius *= Math.max(1, fit / camera.aspect, above);
     camera.position.setFromSpherical(this.spherical).add(this.target3);

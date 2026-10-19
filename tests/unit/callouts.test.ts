@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { HubLayerId } from '../../src/scripts/three/HubChoreography';
 import {
   CALLOUT_LAYOUT,
+  chooseLayout,
   columnAt,
   columnFits,
   placeCallouts,
@@ -150,5 +151,38 @@ describe('the list on the right of the device', () => {
     const width = rightBand(device, 667);
     const [x] = placeRightList({ ...device, right: 440 }, 667, 375, width, 160);
     expect(x + width).toBe(667 - CALLOUT_LAYOUT.edge);
+  });
+});
+
+describe('chooseLayout', () => {
+  it('takes the column on a wide stage where it fits the device at rest, and the list beside the device where not', () => {
+    expect(chooseLayout(1600, 900, true)).toBe('column');
+    expect(chooseLayout(1600, 900, false)).toBe('right');
+  });
+
+  it('lists on a narrow stage whatever the column does: beside a short one, under a tall one', () => {
+    for (const fits of [true, false]) {
+      expect(chooseLayout(667, 375, fits)).toBe('right');
+      expect(chooseLayout(390, 844, fits)).toBe('bottom');
+      expect(chooseLayout(768, 1024, fits)).toBe('bottom');
+    }
+  });
+
+  it("goes by the stage's own size: a stage a scrollbar narrower than 6:5 lists under the device", () => {
+    // A 920 × 760 window is 1.21 wide; its stage, 15px of scrollbar narrower, is 1.19.
+    expect(chooseLayout(920 - 15, 760, true)).toBe('bottom');
+    expect(chooseLayout(920 - 15, 760, false)).toBe('bottom');
+    expect(chooseLayout(920, 760, true)).toBe('column');
+  });
+
+  it('never lets the column fit, all a reserved band could change, decide whether the list goes under the device', () => {
+    // The band is reserved only under 'bottom'; whether a stage gets 'bottom' must not hang on the fit.
+    for (let width = 300; width <= 2600; width += 7) {
+      for (let height = 300; height <= 1500; height += 11) {
+        const under = chooseLayout(width, height, true) === 'bottom';
+        expect(chooseLayout(width, height, false) === 'bottom').toBe(under);
+        expect(under).toBe(width < height * CALLOUT_LAYOUT.landscape);
+      }
+    }
   });
 });

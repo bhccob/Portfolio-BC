@@ -9,14 +9,6 @@ import { hubPoseAt, type HubLayerId } from '../three/HubChoreography';
 import { HubScene } from '../three/HubScene';
 import { Callouts } from '../ui/Callouts';
 
-/**
- * Narrower than 760px, or narrower than 6:5 (where the scene centres the
- * device and leaves no room on its right), the callouts are a list instead of
- * leaders to a column: beside the device on a short stage, under it on a
- * tall one (Callouts).
- */
-const NARROW = '(width < 760px), (aspect-ratio < 6/5)';
-
 /** The layers answer the pointer once the callouts are this far faded in, as the scene shows them. */
 const INTERACTIVE_FROM = 0.9;
 
@@ -42,7 +34,6 @@ export class HubStageController extends Component {
   private active = false;
   private started = false;
   private interactive: boolean | null = null;
-  private narrow = false;
   private labelHover: HubLayerId | null = null;
   private layerHover: HubLayerId | null = null;
   private pinned: HubLayerId | null = null;
@@ -94,6 +85,8 @@ export class HubStageController extends Component {
         this.highlight();
       });
       callouts.onClick((id) => this.pin(this.pinned === id ? null : id));
+      // Under the device, the list's band is kept free of it, from the moment it is measured.
+      callouts.onBand((pixels) => scene.setBottomReserve(pixels));
     }
     scene.onLayer((id, kind) => {
       if (kind === 'click') return this.pin(id);
@@ -101,18 +94,14 @@ export class HubStageController extends Component {
       this.highlight();
     });
 
-    const narrow = window.matchMedia(NARROW);
-    this.narrow = narrow.matches;
-    this.listen<MediaQueryListEvent>(narrow, 'change', (event) => (this.narrow = event.matches));
     // The callouts follow the frame just drawn, faded in by the progress it shows; none is placed before the
-    // first (the scene draws nothing while its programs compile, so stale anchors are never shown). Under
-    // the device, their list's band is kept free of it.
+    // first (the scene draws nothing while its programs compile, so stale anchors are never shown). Their
+    // layout comes from the stage's own size and the hub at rest (Callouts.chooseLayout).
     scene.onFrame(() => {
       const shown = hubPoseAt(scene.currentProgress()).callouts;
       this.gate(shown > INTERACTIVE_FROM);
       if (!callouts) return;
-      callouts.update(scene.anchors(), shown, this.narrow, scene.bounds(), scene.hubFrame());
-      scene.setBottomReserve(callouts.bottomBand);
+      callouts.update(scene.anchors(), shown, scene.bounds(), scene.hubFrame());
     });
 
     gsap.registerPlugin(ScrollTrigger);
