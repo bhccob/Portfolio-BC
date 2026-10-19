@@ -1,4 +1,4 @@
-import { DIAL, DIRECTIONS, TRIGRAMS, onDial } from './dialSpec';
+import { DIAL, DIAL_ART, DIRECTIONS, TRIGRAMS, onDial } from './dialSpec';
 import { GLYPHS } from './glyphs';
 
 /**
@@ -29,17 +29,8 @@ const PLATE_EDGE = 0.012;
 /** The pool's brass wall: a ring this thick that ends at the pool's radius. */
 const POOL_WALL = 0.01;
 
-/** The plain pattern ring's two gilt rules, as the painted strip has them: 0.025 of its width thick, 0.08 and 0.92 of the way in from its outer edge. */
-const PATTERN_RULES = { thick: 0.025, at: [0.08, 0.92] } as const;
-
-/** Degree tick lengths for every 1, 5 and 15 degrees, drawn inwards from the degree ring's outer edge. */
-const TICK = { every1: 0.012, every5: 0.02, every15: 0.03, width: 0.004 } as const;
-
-/** One trigram line is a bar across the radius: its length, thickness and the gap in a broken one, and the radius of each line from the bottom. */
-const BAR = { length: 0.11, thick: 0.022, gap: 0.025, at: [0.27, 0.31, 0.35] } as const;
-
-/** The direction characters stand at this radius, one em this tall. */
-const GLYPH = { at: 0.49, em: 0.11 } as const;
+/** The markings' measurements, the same ones the painted face and pattern ring use. */
+const { patternRules: PATTERN_RULES, tick: TICK, bar: BAR, glyph: GLYPH } = DIAL_ART;
 
 /** A number written short: at most four decimals, no trailing zeros, no "-0". */
 function n(value: number): string {

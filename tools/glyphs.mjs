@@ -66,7 +66,9 @@ function outline(char) {
   const dy = em * 0.5 - (box.y1 + box.y2) / 2;
   const centred = new opentype.Path();
   centred.commands = path.commands.map((command) => place(command, dx, dy));
-  const d = centred.toPathData(4);
+  // Not optimised: opentype.js drops a contour's closing line when it is
+  // under 1 unit long, which on these em-normalised outlines is every one.
+  const d = centred.toPathData({ decimalPlaces: 4, flipY: false, optimize: false });
   if (/NaN|Infinity/.test(d)) fail(`the outline for ${char} holds a bad coordinate`);
   return d;
 }
