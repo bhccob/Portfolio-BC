@@ -18,7 +18,7 @@ export const BACKDROP = {
   radius: 40,
   glow: 0x1c1030,
   edge: 0x07040d,
-  /** Where the glow is centred, from the middle of the stage: straight on past the device from the hub's camera. */
+  /** Where the glow is centred unless a scene says otherwise, from the middle of the stage: straight on past the device from the hub's camera. */
   direction: [-0.34, -0.53, -0.78] as const,
   /** The glow's half-width, as the cosine of the angle off its centre where it has faded out. */
   spread: 0.86
@@ -54,14 +54,20 @@ void main() {
   gl_FragColor.rgb += (hash(gl_FragCoord.xy) - 0.5) / 255.0;
 }`;
 
-export function buildBackdrop(): Backdrop {
+export interface BackdropOptions {
+  /** Where the glow is centred, from the sphere's middle (normalised here); BACKDROP.direction by default. */
+  direction?: readonly [number, number, number];
+}
+
+export function buildBackdrop(options: BackdropOptions = {}): Backdrop {
+  const direction = options.direction ?? BACKDROP.direction;
   const geometry = new THREE.SphereGeometry(BACKDROP.radius, 48, 24);
   const material = new THREE.ShaderMaterial({
     name: 'studio:backdrop',
     uniforms: {
       uGlow: { value: new THREE.Color(BACKDROP.glow) },
       uEdge: { value: new THREE.Color(BACKDROP.edge) },
-      uDirection: { value: new THREE.Vector3(...BACKDROP.direction).normalize() },
+      uDirection: { value: new THREE.Vector3(...direction).normalize() },
       uSpread: { value: BACKDROP.spread }
     },
     vertexShader,

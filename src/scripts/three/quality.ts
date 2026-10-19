@@ -1,32 +1,35 @@
 /**
- * The hub's quality ladder: what the studio draws at each step, best first.
- * The scene starts at step 0 and PixelBudget moves it one step down each time
- * its frames run slow; it never climbs back within a page view. Each pointer
+ * The quality ladder: what the scene draws at each step, best first. The
+ * scene starts at step 0 and PixelBudget moves it one step down each time its
+ * frames run slow; it never climbs back within a page view. Each pointer
  * gives up the cheapest-to-lose cost first: half the dust while the canvas
- * stays sharp, then the pixel ratio with the dust. (The floor once mirrored
- * the scene and gave that up first; from the hub's camera the mirror showed
- * only the back plate's dark underside, so it was removed and its rung with
- * it.) A coarse pointer (a phone or tablet) starts softer.
+ * stays sharp, then the lacquer's clearcoat (a second specular lobe on the
+ * largest surfaces), then the pixel ratio with more dust. A coarse pointer (a
+ * phone or tablet) starts softer and gives up the clearcoat with its first
+ * step. The compass reads all three; milestone 2's hub ignores `clearcoat`.
  */
 
 export interface Quality {
   /** The highest device pixel ratio the canvas draws at. */
   pixelRatio: number;
-  /** How many dust motes drift in the beam. */
+  /** Clearcoat on the lacquer and the pattern ring (the compass only). */
+  clearcoat: boolean;
+  /** How many dust motes drift in the air. */
   dust: number;
 }
 
 const FINE: readonly Readonly<Quality>[] = [
-  { pixelRatio: 1.75, dust: 600 },
-  { pixelRatio: 1.75, dust: 300 },
-  { pixelRatio: 1.25, dust: 200 },
-  { pixelRatio: 1, dust: 150 }
+  { pixelRatio: 1.75, clearcoat: true, dust: 400 },
+  { pixelRatio: 1.75, clearcoat: true, dust: 200 },
+  { pixelRatio: 1.75, clearcoat: false, dust: 200 },
+  { pixelRatio: 1.25, clearcoat: false, dust: 150 },
+  { pixelRatio: 1, clearcoat: false, dust: 100 }
 ];
 
 const COARSE: readonly Readonly<Quality>[] = [
-  { pixelRatio: 1.25, dust: 300 },
-  { pixelRatio: 1.25, dust: 150 },
-  { pixelRatio: 1, dust: 120 }
+  { pixelRatio: 1.25, clearcoat: true, dust: 150 },
+  { pixelRatio: 1.25, clearcoat: false, dust: 100 },
+  { pixelRatio: 1, clearcoat: false, dust: 80 }
 ];
 
 /** How many steps the ladder has for this pointer. */
