@@ -32,8 +32,8 @@ planning" and "Reuse" sections. The Astro site stays intact on `main` and
 
 | What | Why |
 | --- | --- |
-| `src/i18n/{en,nl,Translator}.ts` | today's copy and the locale URLs; a `needle` block is added in Task 4a |
-| `src/data/{profile,projects,categories,qa,tracks}.ts` | the content; `projects` and `categories` lost their Astro types in Task 1 and are reshaped in Task 4a |
+| `src/i18n/{en,nl,Translator}.ts` | today's copy and the locale URLs; a `needle` block was added in Task 4a |
+| `src/data/{profile,projects,categories,qa}.ts` | the content; `projects` and `categories` lost their Astro types in Task 1 and were reshaped in Task 4a, which also merged `tracks.ts` (and its test) into `projects.ts` |
 | `src/assets/**`, `public/**` | screenshots, the real portrait, the renders, icons and `public/textures/instrument/*.webp` |
 | `src/styles/bench-*.css` | mined for tokens in Task 4a, then deleted |
 | `tools/site_audit.py` + its tests, `tools/glyphs.mjs`, `tools/icons.mjs` | the auditor, the real CJK glyph outlines, the raster icons |
@@ -54,14 +54,20 @@ planning" and "Reuse" sections. The Astro site stays intact on `main` and
 Choreography, applyPose, overlay, Pool and Wire move only to pose the M1
 placeholder compass; M2 replaces them.
 
-## Adapted later
+## Adapted
+
+Done in milestone 1:
+
+- The data files moved into the new Project type (Task 4a).
+- The tone shoulder of `CompassStudio` also became a postprocessing effect,
+  `src/scene/ShoulderToneMapping.ts`, which the post chain applies last (Task 7).
+  The studio itself is hosted as it was by `src/scene/Studio.tsx`.
+
+Still to come, after milestone 1:
 
 - A new `engine/pose.ts` is cut out of Choreography.
-- `CompassStudio` is split into a studio module and the tone shoulder, which
-  also becomes a postprocessing effect (Task 7).
 - `patterns.ts` gains `china`, `delft` and `aruba` arm and bezel inlays;
   `rotterdam` is dropped.
-- The data files move into the new Project type (Task 4a).
 
 ## Dropped
 
@@ -81,14 +87,16 @@ placeholder compass; M2 replaces them.
 | tests `reading`, `pearl-spec`, and the `loading` case that read `BenchLayout.astro` | their subjects were deleted |
 
 The brief also drops the Ørsted wire, the heaven-pool portrait, and the Q&A and
-Off duty on the drive (both now on the Lite page). About 210 of the 329 tests
-are expected to survive Task 2.
+Off duty on the drive (both now on the Lite page). At the end of milestone 1 the
+unit suite has 711 tests (Vitest), and `tools/proof/needle.mjs` replaces
+`compass.mjs` as the harness that runs.
 
 ## The toolchain now
 
 React Router + `@react-router/dev` 8.5.0 (`ssr: false`, prerendered), Vite
-8.3.4, React 19.3.1, three 0.186.1, `@react-three/fiber` 9.8.2 (needs React
-below 19.4), drei 10.7.9, `@react-three/postprocessing` 3.2.1 with
-postprocessing 6.39.5, maath, zustand and gsap. The build writes
+8.3.4, React 19.3.1, TypeScript 7.0.2, three 0.186.1, `@react-three/fiber`
+9.8.2 (needs React below 19.4), drei 10.7.9, `@react-three/postprocessing`
+3.2.1 with postprocessing 6.39.5, maath and zustand. gsap is still a
+dependency, but nothing in `src/` imports it yet. The build writes
 `dist/client`; `tools/serve-pages.mjs` serves it on :4399 as GitHub Pages
 would.
