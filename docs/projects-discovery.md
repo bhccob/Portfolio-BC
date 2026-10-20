@@ -146,7 +146,7 @@ committed and pushed. Then a REWARDS test point and new screenshots of the new l
 | Purpose | An incremental browser game: click the cookie, buy producers that bake automatically, add boosts and upgrades, and watch production compound. |
 | Audience | A school project made for Web Game Development (Bob, 2026-10-20). |
 | Stack | HTML, CSS, vanilla JavaScript, Bootstrap 5.3 (from a CDN) and `localStorage`. Bootstrap is not in today's portfolio stack; it is verified in `index.html`. |
-| Role | Made **with a classmate, Yunis** (Bob, 2026-10-20). Bob's own part: `[FILL: which parts Bob built]`. Whether Yunis is named on the public site: `[FILL: ask Bob]`. Today's portfolio says "Design & development". |
+| Role | Made **with a classmate** (Bob, 2026-10-20). Copy refers to them only as "classmate", never by name (Bob, 2026-10-20). Bob's own part: `[FILL: which parts Bob built]`. Today's portfolio says "Design & development". |
 | Links | Repo: https://github.com/bhccob/Cookies-Clicker. No live link: the repo has no GitHub Pages. |
 | Dates | **2025** (confirmed by Bob). The repo history only starts 2026-09-15 ("whole project cloned from my school github"). |
 
@@ -299,10 +299,10 @@ the 16-cell module; the clockwork movement), each with its motion signature anim
 | Cookies: category, object and test points | **Approved as sketched**: `03 — OSCILLATOR`; the clockwork movement; CLICK LOOP · 8 PRODUCERS · BOOSTS & EVENTS · SAVE · STATS; accent `#c69255` |
 | Cookies: the title | **Cookies Clicker** |
 | Cookies: context (asked in addition) | Made for **Web Game Development** at school |
-| Cookies: alone or in a group (asked in addition) | **With a classmate, Yunis**. Bob's own part and whether Yunis is named on the site are still `[FILL]` |
+| Cookies: alone or in a group (asked in addition) | **With a classmate**, referred to only as "classmate". Bob's own part is still `[FILL]` |
 | Cookies: year (asked in addition) | **2025** confirmed |
 
 Still open after this round (none of it blocks M5):
-- Cookies: Bob's own part in the build, and whether to name Yunis on the public site.
+- Cookies: Bob's own part in the build.
 - The glow values marked "art-direction" are taken from `docs/art-direction.md` when it lands.
 - Cookies' ember-orange glow (`≈ #ff8a3d`) is a proposal to check against that palette.

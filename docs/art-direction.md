@@ -170,7 +170,7 @@ All three families are SIL Open Font License 1.1, self-hosted from fontsource (`
 | Technical labels (`01 — SECURE ELEMENT`, TP pins, HUD, `%`, `0/N`) | **Martian Mono** (`@fontsource-variable/martian-mono`, already a dependency) | 300–400, width axis 100 | 0.12–0.2em, uppercase | 11 px minimum (10 px only on the engraved chip) | `--ink` or `--ink-dim` |
 | Reading text (country pages, Lite) | Montserrat | 400 | 0 | 17–19 px, line height 1.55 | `--ink` |
 
-Using Montserrat for reading text keeps the site at three families. Bob can still ask for a separate body face.
+Using Montserrat for reading text keeps the site at three families. Bob had no preference for a separate body face (2026-10-20), so Montserrat stays.
 
 **Name-font comparison.** Ref-02's name is a light, wide geometric sans with round O, C and G. Three fontsource candidates were set into ref-02 at its cap height and line width. On the left they are at 400, the weight the reference shows at that small size; on the right they are 300, the weight a large hero name would use:
 
@@ -254,7 +254,7 @@ The two sound buttons are controls (§11 opt-in), not prose.
 | Tagline | VOLG DE NAALD | FOLLOW THE NEEDLE |
 | Scroll cue | Scroll | Scroll |
 
-Open for Bob: keep FOLLOW THE NEEDLE in English on both, as a signature? The draft translates it, like the rest of the site.
+Bob confirmed VOLG DE NAALD for NL on 2026-10-20.
 
 ### Compass parts (dissect) — part name + function line of ≤ 10 words
 
@@ -290,29 +290,31 @@ The south arm has no card (§5.6).
 | Page | Beat | NL | EN |
 | --- | --- | --- | --- |
 | `/about/china/` | 1 | Mijn familie is Chinees van afkomst. | My family is of Chinese heritage. |
-| | 2 | [FILL: wat deze afkomst voor je betekent, één zin] | [FILL: what this heritage means to you, one line] |
-| | 3 | [FILL: een gewoonte, taal of plek die je meeneemt] | [FILL: a custom, language or place you carry with you] |
+| | 2 | Die afkomst is voor mij een bron van identiteit en verbondenheid. | That heritage is a source of identity and belonging for me. |
+| | 3 | Hakka, een Chinees dialect, is mijn moedertaal. | Hakka, a Chinese dialect, is my mother tongue. |
 | `/about/netherlands/` | 1 | Op mijn achttiende verhuisde ik van Aruba naar Nederland. | At eighteen I moved from Aruba to the Netherlands. |
-| | 2 | In Rotterdam studeer ik software engineering op MBO 4-niveau. | In Rotterdam I study software engineering at MBO level 4. |
-| | 3 | Hierna wil ik doorstromen naar het HBO, in een technische richting. | Next, I plan to continue to HBO in a technical field. |
+| | 2 | Hier ben ik gaan hardlopen en leer ik financieel zelfstandig te zijn. | Here I took up running and am learning to be financially independent. |
+| | 3 | In Rotterdam studeer ik software engineering (MBO 4) en verken ik vervolgstudies. | In Rotterdam I study software engineering (MBO 4) and explore further studies. |
 | `/about/aruba/` | 1 | Ik ben geboren en getogen op Aruba. | I was born and raised in Aruba. |
-| | 2 | [FILL: wat het eiland je heeft meegegeven, één zin] | [FILL: what the island gave you, one line] |
-| | 3 | [FILL: een plek of herinnering op Aruba] | [FILL: a place or memory in Aruba] |
+| | 2 | Aruba leerde mij meerdere talen spreken en verbinding maken met mensen. | Aruba taught me to speak several languages and to connect with people. |
+| | 3 | De sportschool gaf mij een doel, een actiever leven en vrienden. | The gym gave me purpose, a more active life and friends. |
+
+The beats were written from Bob's own notes on 2026-10-20 and put into formal NL and EN. Bob confirmed that he speaks Hakka ("Hakka is my mother tongue"). The Netherlands page used to end on "HBO next"; his notes (running, financial independence, exploring further studies) replace that. The HBO plan stays on the Lite page.
 
 ### Projects
 
 | Screen | NL | EN |
 | --- | --- | --- |
-| In space (Funcial) | `01 — SECURE ELEMENT` · FUNCIAL | `01 — SECURE ELEMENT` · FUNCIAL |
+| In space (Funcial) | `01 — BEVEILIGD ELEMENT` · FUNCIAL | `01 — SECURE ELEMENT` · FUNCIAL |
 | In space (others) | `02 — [FILL: from docs/projects-discovery.md]` · JONTAI ENERGY; `03 — [FILL]` · [FILL: Cookie Clicker or Cookies Clicker, Bob confirms] | the same |
 | Focus: one line (Funcial) | Een financiële tracker met spelelementen, lokaal en versleuteld op je telefoon. | A finance tracker with game elements, local-first and encrypted on your phone. |
 | Focus: test points (Funcial) | LOG · SPELLAAG · GELDREGELS · KLUIS · UITKOMST | LOG · GAME LAYER · MONEY RULES · VAULT · RESULT |
 | Focus: stack tags (Funcial) | React · TypeScript · Tailwind · Capacitor · SQLCipher | the same |
-| Focus: links | Downloaden (funcial.vercel.app/get) · Code [FILL: only if the repo is public] | Download · Code |
+| Focus: links | Downloaden (funcial.vercel.app/get) · Code (github.com/bhccob/Funcial, public) | Download · Code |
 
 Category labels, objects and test points for Jontai Energy and Cookies Clicker come from the discovery proposal (`docs/projects-discovery.md`), which Bob approves first. RESULT is only partly real in Funcial's code (the buy-meter verdict), so it waits for that approval as well. Funcial's stack never lists AI.
 
-Open for Bob: technical labels (test points, HUD categories) are translated in the NL draft. They could stay English in both languages, like the references.
+Bob decided on 2026-10-20 that technical labels (test points, HUD categories, section labels) are translated in NL. The category names from the discovery proposal get an NL form too.
 
 ### Always-on UI
 

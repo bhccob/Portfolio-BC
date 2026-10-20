@@ -245,7 +245,7 @@
   - `src/i18n/{en,nl}.ts`: add a `needle` block, typed in `en.ts`
   - `src/data/categories.ts`: replace the old web/game shelves with the approved void categories from `docs/projects-discovery.md` ("Proposed `src/data/projects.ts` block"):
     - `secure-element` (1, `SECURE ELEMENT`), `front-panel` (2, `FRONT PANEL`), `oscillator` (3, `OSCILLATOR`)
-    - Labels stay English in NL too, until Bob answers the open label question.
+    - Labels are per locale. Category and test-point labels are translated in NL, in the style of `docs/art-direction.md` § Copy budget (`BEVEILIGD ELEMENT`; `LOG · SPELLAAG · GELDREGELS · KLUIS · UITKOMST`). Translate the other two projects' labels the same way.
   - `src/data/projects.ts`: adopt the approved block's fields on each entry: `categoryId`, `order`, `object.fallbackGeometry`, `testPoints` (labels and placeholder positions exactly as approved), `palette`, `motion` and `links { live?, repo? }`.
     - Keep the existing per-locale copy (`type`, `role`, `summary`, …) for the pages and Lite.
     - Add Funcial:
@@ -296,15 +296,25 @@
       - south: `kind: 'portal'`, `南`, `#efb53d`
       - Accents come from `docs/art-direction.md`.
     - `export function countryDirection(id: CountryId): Direction`
+  - **Copy source:** every `needle` string is copied verbatim from the NL and EN columns of `docs/art-direction.md` § Copy budget, Bob-approved on 2026-10-20. That covers:
+    - loader and failure
+    - hero (NL tagline `VOLG DE NAALD`)
+    - the compass-part lines
+    - the morph line
+    - country cards and the three beats per country page (Hakka, the gym, running, etc.)
+    - project lines
+    - Use `[FILL: …]` only where that doc still has one.
   - `needle` dictionary block (EN shown; NL formal equivalents):
     - `hero: { name: 'BOB CHUNG', tagline: 'FOLLOW THE NEEDLE', scrollCue }`
-    - `loader: { caption }`
-    - `fallback: { title: 'THE NEEDLE LOST NORTH', body, lite }`
+    - `loader: { caption, enterSilent, enterSound }`
+    - `fallback: { title: 'THE NEEDLE LOST NORTH', lite }`
     - `toggle: { on, off }`
+    - `parts: Record<PartId, { name: string; line: string }>`: the 11 parts as in the doc; M4 uses them.
+    - `morph: string`
     - `countries: Record<CountryId, { name: string; teaser: string; beats: [string, string, string]; metaDescription: string }>`
-      - Real facts only: China = Chinese heritage; Aruba = born and raised; Netherlands = moved at eighteen, Rotterdam, MBO 4, HBO next.
-      - Everything else is `[FILL: …]`.
-    - `project: { open, repo, live, back }`
+      - teaser and beats exactly as in the doc
+      - `metaDescription` = teaser
+    - `project: { open, download, code, back }`
   - Each route module exports `meta` built with `head()`, and `handle = { scene: 'home' | 'country' | 'project' | null }`.
   - The home page renders:
     - `h1` "BOB CHUNG", the tagline and the scroll cue
