@@ -126,13 +126,13 @@ assignment to count the loop's own frames apart from the canvas's.
 | `lang-keeps-phase` | on `/about/china/` the phase is `COUNTRY_PAGE china`; after a client-side switch to `/en/about/china/` (and back) it is still that very state, `canvasMounts` is 1; the same on a project page |
 | `not-found` | unknown URLs answer 404 with the build's `404.html` and show the not-found `<h1>` once the router has taken over, with no reload loop; no scene file is asked for and no Stage mounts |
 | `case-variant` | a real page under another spelling (`/About/China/`) is a 404 and shows the not-found page, with no scene |
-| `home-nav` | the home page's six links: hidden but focusable with 3D on, shown with 3D off, the choice stored across a reload, no WebGL mounted with 3D off |
+| `home-nav` | the home page's six links: hidden but focusable with 3D on, shown with 3D off, the choice stored across a reload, no WebGL mounted with 3D off; the 3D switch is named "3D" in both states |
 | `mobile` | every page at 390 px wide has no horizontal scroll |
 | `esc` | the back link: Escape and a click go home or back by client navigation, also after a replace; not in a text field; a modified click is left alone |
 | `nav-focus` | a link opens the new page at its top with the focus moved to `<main>` (on `/lite/` scrolled down, a project's `<h1>` in view at scrollY 0); Back returns to the place left; the language switch keeps the place; a push to `/en/lite/#career` (through React Router's own `window.__reactRouterDataRouter`) scrolls to it |
-| `lite` | `/lite/` and `/en/lite/` complete without script (headings, portrait, details, `#career`); `/contact/` and its form (mailto fallback, a key, the guards, the 15 s timeout) |
+| `lite` | `/lite/` and `/en/lite/` complete without script (headings, portrait, details, `#career`); `/contact/` and its form (mailto fallback; with a key in the build: the honeypot, the pause, a form sent at once waiting out three seconds and then posting, the 15 s timeout) |
 | `scroll` | the home page does not scroll natively with 3D on; wheel, keys and touch move the story; the loop sleeps at rest and asks for one frame at a time; text fields, pinch and 3D off are the browser's; coming back from a page keeps the story; touch drag and glide |
-| `keyboard` | Tab reaches the skip link, the language switch and the 3D toggle in order, each ringed and on screen; End goes to the last chapter, Home returns |
+| `keyboard` | Tab reaches the skip link, the language switch and the 3D toggle in order, each ringed and on screen; the language switch's name begins with the "EN" it shows; End goes to the last chapter, Home returns |
 | `reduced-motion` | with reduced motion (emulated), one wheel event moves `target` to exactly the next stop, down through every stop and back |
 | `loaded` | a direct load goes from `LOADING` to `HOME_IDLE` once the scene is ready; the canvas draws on demand and sleeps when idle; 3D stored off mounts no WebGL |
 | `no-scene` | a direct load of Lite or contact (NL and EN) asks for none of the scene's files (Stage chunk, three.js, maath, textures), mounts no canvas, shows no card and leaves `LOADING`; home → Lite by client navigation keeps the one canvas, asleep (no `requestAnimationFrame` through 1.5 s of mouse moves), and home wakes it |
@@ -142,6 +142,7 @@ assignment to count the loop's own frames apart from the canvas's.
 | `title-ij` | Dutch text in Unbounded with an IJ is shaped without the font's IJ digraph; a crop of the NL card title into `m1/` |
 | `stills` | every built page at 1440x900 and 390x844, and the fallback at both, into `m1/`; on a country or project page the page scrim is over the scene, and before the scene shows only the poster's own (the Stage chunk is held while that is measured); on Lite and contact no scene loads and the poster carries the page scrim |
 | `load-throw` | the real Stage chunk patched so one call in the compass's load throws: the fallback card well inside the load timeout, 3D off and not stored, one reported error |
+| `csp-enforced` | the policy is in force: on `/` and `/lite/` an injected inline `<script>` and an inline handler do not run, and each is reported as a `securitypolicyviolation` |
 
 `stills` writes the screenshots of the milestone review into `PROOF_DIR/m1/`,
 named after the page: `nl-home-1440x900.png`, `nl-about-china-1440x900.png`,
@@ -153,10 +154,15 @@ named after the page: `nl-home-1440x900.png`, `nl-about-china-1440x900.png`,
 
 - The frame rate and the quality tier are reported (`results.json` keeps them
   in the `fps` step), never gated: they are the machine's.
-- `not-found` and `load-throw` each expect console errors that are the designed
-  outcome (the browser's "Failed to load resource" for a 404 document, the
-  host's report of a failed scene). They are counted and kept apart in
-  `expected`; every other console message is an error.
+- `not-found`, `load-throw` and `csp-enforced` each expect console errors that
+  are the designed outcome (the browser's "Failed to load resource" for a 404
+  document, the host's report of a failed scene, the browser's refusal of an
+  injected script). They are counted and kept apart in `expected`; every other
+  console message is an error. `csp-enforced` reads its own violations, so
+  they never reach the step's `csp` list.
+- The keyed contact checks (`lite`) run only on a build with
+  `PUBLIC_WEB3FORMS_KEY` set; Web3Forms is answered by the harness, so a dummy
+  key is enough and nothing is sent.
 - `load-throw` finds the call to make throw (`.instrument.setStrips(`) in the
   built Stage chunk (`assets/Stage-<hash>.js`); the step fails if that is not
   there exactly once.

@@ -51,7 +51,8 @@
  *   home-nav   the home page's links to the three countries and three projects: visually hidden but
  *              reachable by keyboard while 3D is on (and shown while one has focus), visible once the
  *              3D switch is turned off, and the choice persists in localStorage across a reload, where
- *              the page with 3D off mounts no WebGL at all and still leaves LOADING
+ *              the page with 3D off mounts no WebGL at all and still leaves LOADING; the 3D switch is named
+ *              "3D" on and off (role=switch and aria-checked carry the state, WCAG 2.5.3)
  *   mobile     every page at 390 px wide has no horizontal scroll
  *   case-variant  a real page under another spelling (/About/China/, /en/projects/FUNCIAL/) is a 404 on
  *              GitHub Pages and shows the not-found page, not an error screen (the server here is
@@ -82,9 +83,11 @@
  *              form navigates to a mailto: link to Bob (the navigation is cancelled in the page, so no mail
  *              client opens) and shows the "almost there" panel; with a key (a CI build) the form carries
  *              it and, with Web3Forms answered by this harness (nothing is sent), posts once, shows
- *              success, holds the guards against scripts and the pause, shows the error of a failed post
- *              and moves focus to it, and, for a post nobody answers, sends one post for two submits and
- *              fails it after the 15 s timeout (Playwright's clock moved forward) so it can be retried
+ *              success, holds the honeypot (success shown, nothing posted) and the pause, sends a form sent
+ *              at once after the rest of three seconds (saying it is sending meanwhile; never dropped), shows
+ *              the error of a failed post and moves focus to it, and, for a post nobody answers, sends one
+ *              post for two submits and fails it after the 15 s timeout (Playwright's clock moved forward) so
+ *              it can be retried
  *   scroll     the home page with 3D on does not scroll natively: <html data-route="home"> locks the root
  *              (overflow hidden, no overscroll, pinch-zoom only) and the wheel, the keys and a finger move
  *              `target` in viewport heights instead (window.__needleDebug). A direct load of / reaches HOME_IDLE
@@ -102,7 +105,8 @@
  *              (CDP touch events) a drag moves it, a flick glides on after the finger lifts, a tap and a
  *              sideways swipe do not move it, and the 3D switch still takes a tap
  *   keyboard   Tab from the top of the home page reaches the skip link, then the language switch and the 3D toggle in
- *              that order, each with a focus ring (outline 2 px or more) and on screen, and Shift+Tab goes back; End
+ *              that order, each with a focus ring (outline 2 px or more) and on screen, and Shift+Tab goes back; the
+ *              language switch shows "EN" and its name begins with it (WCAG 2.5.3, label in name); End
  *              jumps to the last chapter (the end of the story, the last project category) and Home returns to the
  *              start, both with the focus on the toggle
  *   reduced-motion  with prefers-reduced-motion: reduce (page.emulateMedia, before the load) one wheel event moves
@@ -138,6 +142,10 @@
  *              `fallback-390x844.png`); on a country or project page the poster's scrim is over the scene once it
  *              shows, and before then only the poster's own (the Stage chunk is held while that is measured, so it
  *              cannot race); on Lite and contact no scene loads and the poster carries the page scrim
+ *   csp-enforced  the policy is in force, not only unbroken: on / and /lite/ after hydration, an injected inline
+ *              <script> and an inline handler (<img onerror>) do not run, and the page reports a
+ *              securitypolicyviolation for each (script-src-elem, script-src-attr); the browser's console refusal of
+ *              each is expected and counted
  *   fps        on / (the GPU), 3 s after the scene is ready: 120 requestAnimationFrame frames while the scene
  *              draws, and their mean frame rate is reported, not gated, with the scene's own rolling fps, tier and
  *              pixel ratio from the bridge; it passes when the canvas holds the scene: a pixel read back through
@@ -180,7 +188,7 @@ const DIST = resolve(fileURLToPath(new URL('../../dist/client', import.meta.url)
 const { PAGES: SITE_PAGES, pagePaths } = await tsImport('../../src/data/pages.ts', import.meta.url);
 const { Translator, locales } = await tsImport('../../src/i18n/Translator.ts', import.meta.url);
 const { HANDLES, PAGE_KINDS } = await tsImport('../../src/app/handle.ts', import.meta.url);
-const { SEND_TIMEOUT_MS } = await tsImport('../../src/ui/contactSubmit.ts', import.meta.url);
+const { MIN_FILL_MS, SEND_TIMEOUT_MS } = await tsImport('../../src/ui/contactSubmit.ts', import.meta.url);
 const { LOAD_TIMEOUT_MS, RESTORE_TIMEOUT_MS } = await tsImport('../../src/scene/timeouts.ts', import.meta.url);
 const { HOME_CHAPTERS, chapterAt, stops } = await tsImport('../../src/state/chapters.ts', import.meta.url);
 /**
@@ -781,9 +789,17 @@ async function homeNav(browser, step) {
   step.check(shown !== null && shown.height > 100, `the nav is shown while a link has focus (got ${JSON.stringify(shown)})`);
   await page.evaluate(() => document.activeElement?.blur());
 
+  // The switch is named "3D" whatever its state (WCAG 2.5.3): role=switch and aria-checked say whether it is on.
+  const named = async (state) => {
+    const control = page.getByRole('switch', { name: '3D', exact: true });
+    return (await control.count()) === 1 && (await control.getAttribute('aria-checked')) === state;
+  };
+  step.check(await named('true'), 'the 3D switch is named "3D", aria-checked="true" (its visible words are not its name)');
+
   // 3D off: the nav is shown, and the choice survives a reload.
   await page.click('button[role="switch"]');
   step.check((await page.getAttribute('html', 'data-3d')) === 'off', 'the switch sets data-3d="off"');
+  step.check(await named('false'), 'switched off it is still named "3D", now aria-checked="false"');
   step.check((await page.evaluate(() => localStorage.getItem('needle-3d'))) === 'off', 'the switch stores needle-3d = off');
   const open = await boxOf(page, '.home-nav');
   step.check(open !== null && open.height > 100, `with 3D off, the home nav is shown (got ${JSON.stringify(open)})`);
@@ -1074,15 +1090,8 @@ async function contactKeyed(browser, step, lang) {
   };
   const title = () => page.evaluate(() => document.querySelector('.form-done h2')?.textContent ?? null);
 
-  // A form filled in at once is a script: it is told it worked, and nothing is posted.
+  // A ticked honeypot is a script: it is told it worked, and nothing is posted, however long it took.
   await open();
-  await fill();
-  await page.click('button[type="submit"]');
-  step.check((await title()) === c.successTitle && posts.length === 0, `${path}: a form filled in at once shows success and posts nothing (posted ${posts.length})`);
-
-  // A ticked honeypot is a script too, however long it took.
-  await open();
-  await page.waitForTimeout(3_200);
   await fill();
   await page.evaluate(() => document.querySelector('input[name="botcheck"]').click());
   await page.click('button[type="submit"]');
@@ -1110,6 +1119,42 @@ async function contactKeyed(browser, step, lang) {
   step.check(await page.evaluate(() => document.activeElement?.classList.contains('form-status')), `${path}: the pause notice takes focus`);
   await takeCsp(page, step);
   await context.close();
+
+  // A form sent at once (a quick writer, the browser's autofill) is not dropped: it shows that it is sending, waits out
+  // the rest of MIN_FILL_MS from the page opening, then posts. A tab of its own: the pause above is this tab's.
+  const quick = await openPage(browser, step, failing);
+  const quickPosts = [];
+  await quick.context.route('https://api.web3forms.com/**', async (route) => {
+    const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST' };
+    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    quickPosts.push(Date.now());
+    return route.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify({ success: true }) });
+  });
+  const fast = quick.page;
+  await fast.goto(BASE + path, { waitUntil: 'load' });
+  await fast.waitForFunction(() => document.querySelector('form.form')?.noValidate === true, null, { timeout: 10_000 });
+  const readyAt = Date.now();
+  await fast.fill('#contact-name', 'Ada Lovelace');
+  await fast.fill('#contact-email', 'ada@example.com');
+  await fast.fill('#contact-message', 'Hello Bob, I would like to talk about a project.');
+  await fast.click('button[type="submit"]');
+  const waiting = await fast.evaluate(() => {
+    const button = document.querySelector('form.form button[type="submit"]');
+    return { text: button?.textContent ?? null, disabled: button?.disabled ?? null, done: document.querySelector('.form-done') !== null };
+  });
+  step.check(
+    waiting.text === c.sending && waiting.disabled === true && !waiting.done && quickPosts.length === 0,
+    `${path}: a form sent at once says "${c.sending}" and waits, nothing posted yet (got ${JSON.stringify(waiting)}, posted ${quickPosts.length})`,
+  );
+  await fast.waitForFunction(() => document.querySelector('.form-done'), null, { timeout: MIN_FILL_MS + 5_000 }).catch(() => {});
+  const quickTitle = await fast.evaluate(() => document.querySelector('.form-done h2')?.textContent ?? null);
+  const after = quickPosts.length === 1 ? quickPosts[0] - readyAt : null;
+  step.check(
+    quickPosts.length === 1 && quickTitle === c.successTitle && after !== null && after >= MIN_FILL_MS - 200,
+    `${path}: then it posts once, ${after} ms after the form was ready (no sooner than ${MIN_FILL_MS} ms after the page opened), and shows "${c.successTitle}" (posted ${quickPosts.length}, got "${quickTitle}")`,
+  );
+  await takeCsp(fast, step);
+  await quick.context.close();
 
   // An answer that fails: the visitor is told, the form keeps what they wrote, and they can try again.
   answer = { status: 500, body: { success: false } };
@@ -1649,6 +1694,46 @@ async function loaded(browser, step) {
   await takeCsp(off.page, step);
   await off.context.close();
   return `LOADING → HOME_IDLE in ${at} ms on a direct load, the wheel moves the story, the canvas sleeps ${slept} ms after the last input and wakes on the pointer; 3D off: HOME_IDLE in ${offAt} ms, no WebGL`;
+}
+
+/**
+ * The policy is in force, not only unbroken: every other step proves no violation happens, this one that a violation
+ * is caught. On a page with a scene and one without, after hydration, an inline <script> is injected and an inline
+ * event handler (an <img onerror>, on an image that cannot decode) is added: neither runs, and the page reports a
+ * `securitypolicyviolation` for each (script-src-elem, script-src-attr). The browser's console refusal for each is the
+ * expected outcome, counted, not an error.
+ */
+async function cspEnforced(browser, step) {
+  const refused = (message) => /Content Security Policy/i.test(message.text());
+  const summary = [];
+  for (const path of ['/', '/lite/']) {
+    const { context, page } = await openPage(browser, step, refused);
+    await page.goto(`${BASE}${path}?proof`, { waitUntil: 'load' });
+    await pageReady(page, path);
+    await takeCsp(page, step); // the page's own load: no violation
+    const before = step.expected.length;
+    await page.evaluate(() => {
+      const script = document.createElement('script');
+      script.textContent = 'window.__injectedRan = true;';
+      document.body.append(script);
+      document.body.insertAdjacentHTML('beforeend', '<img alt="" src="data:image/png;base64,AAAA" onerror="window.__handlerRan = true">');
+    });
+    await page.waitForFunction(() => window.__cspViolations.length >= 2, null, { timeout: 5_000 }).catch(() => {});
+    await page.waitForTimeout(300);
+    const caught = await page.evaluate(() => ({
+      ran: { script: window.__injectedRan === true, handler: window.__handlerRan === true },
+      violations: window.__cspViolations.splice(0).map((v) => `${v.directive} ${v.blocked}`),
+    }));
+    step.check(!caught.ran.script && !caught.ran.handler, `${path}: an injected inline script and an inline handler do not run (got ${JSON.stringify(caught.ran)})`);
+    step.check(
+      caught.violations.some((v) => v.startsWith('script-src-elem inline')) && caught.violations.some((v) => v.startsWith('script-src-attr inline')),
+      `${path}: the page reports both as policy violations (got ${caught.violations.join(', ') || 'none'})`,
+    );
+    step.check(step.expected.length - before === caught.violations.length, `${path}: the browser's console refused each once (got ${step.expected.length - before} for ${caught.violations.length} violations)`);
+    summary.push(`${path} ${caught.violations.join(', ')}`);
+    await context.close();
+  }
+  return `the policy refuses what it should: ${summary.join('; ')}`;
 }
 
 /** The pages of text alone a visit can begin on, in both languages: Lite and contact. */
@@ -2429,6 +2514,13 @@ async function keyboard(browser, step) {
   for (const [name, control] of [['the language switch', reached[langAt]], ['the 3D toggle', reached[toggleAt]]]) {
     step.check(control?.ring && control.onScreen, `${name} shows a focus ring (outline 2px or more) and is on screen when focused (got ${JSON.stringify(control)})`);
   }
+  // The language switch shows "EN" and its name begins with it (WCAG 2.5.3, label in name).
+  const lang = page.locator('.header-nav a[hreflang="en"]');
+  const langName = await lang.getAttribute('aria-label');
+  step.check(
+    (await lang.textContent()) === 'EN' && /^EN – \S/.test(langName ?? '') && (await page.getByRole('link', { name: langName ?? '', exact: true }).count()) === 1,
+    `the language switch shows "EN" and is named "${langName}", which begins with it`,
+  );
   await page.keyboard.press('Shift+Tab');
   step.check(isLang(await focused()), 'Shift+Tab from the 3D toggle goes back to the language switch');
   await page.keyboard.press('Tab');
@@ -2578,6 +2670,7 @@ const STEPS = {
   'title-ij': titleIj,
   stills,
   'load-throw': loadThrow,
+  'csp-enforced': cspEnforced,
 };
 
 // ---------------------------------------------------------------- run
