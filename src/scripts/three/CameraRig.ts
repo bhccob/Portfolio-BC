@@ -38,6 +38,31 @@ export function dialLayout(width: number, height: number): DialLayout {
 }
 
 /**
+ * Where the dial sits on a `width` by `height` canvas for the Q&A: small, at
+ * the right edge on a wide canvas so the questions flow in a column beside it,
+ * and at the top right on a narrow one, above the questions' column.
+ */
+export function sideLayout(width: number, height: number): DialLayout {
+  if (width >= 1.2 * height) {
+    return { x: width * 0.8, y: height * 0.5, diameter: Math.min(height * 0.36, width * 0.28) };
+  }
+  return { x: width * 0.78, y: height * 0.17, diameter: Math.min(width * 0.34, height * 0.22) };
+}
+
+/**
+ * The layout `side` of the way from the dial's own layout (0) to the side
+ * layout (1); `side` is clamped to 0..1, and NaN counts as 0.
+ */
+export function layoutFor(width: number, height: number, side: number): DialLayout {
+  const t = Number.isNaN(side) ? 0 : Math.min(1, Math.max(0, side));
+  const dial = dialLayout(width, height);
+  if (t <= 0) return dial;
+  const beside = sideLayout(width, height);
+  if (t >= 1) return beside;
+  return { x: lerp(dial.x, beside.x, t), y: lerp(dial.y, beside.y, t), diameter: lerp(dial.diameter, beside.diameter, t) };
+}
+
+/**
  * How far a camera `fovDeg` degrees tall must stand from the face so that a
  * disc of `radius` draws `diameterPx` wide on a canvas `heightPx` tall,
  * looking straight at it.

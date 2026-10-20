@@ -45,6 +45,15 @@ const stills = {
 };
 
 const isHome = (id: SectionId): id is 'china' | 'aruba' | 'rotterdam' => id === 'china' || id === 'aruba' || id === 'rotterdam';
+
+/**
+ * The sections this page renders until the page tasks bring in the rest of the
+ * story (the current, the change, the tracks, the Q&A): milestone 3's five.
+ */
+type RenderedId = 'hero' | 'about' | 'china' | 'aruba' | 'rotterdam';
+const rendered = SECTIONS.filter((section): section is { id: RenderedId; length: number } =>
+  ['hero', 'about', 'china', 'aruba', 'rotterdam'].includes(section.id)
+);
 ---
 
 <CompassLoader locale={locale} />
@@ -53,7 +62,7 @@ const isHome = (id: SectionId): id is 'china' | 'aruba' | 'rotterdam' => id === 
     <canvas class="compass__canvas" data-compass-canvas aria-hidden="true"></canvas>
   </div>
   {
-    SECTIONS.map(({ id, length }) => (
+    rendered.map(({ id, length }) => (
       <section class="compass__section" data-section={id} style={`--len: ${length}`}>
         <div class="compass__text">
           <div class="compass__copy">

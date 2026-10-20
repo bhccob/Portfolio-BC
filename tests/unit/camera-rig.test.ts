@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { dialLayout, fitDistance, lerpShot, placeCamera } from '../../src/scripts/three/CameraRig';
+import { dialLayout, fitDistance, layoutFor, lerpShot, placeCamera, sideLayout } from '../../src/scripts/three/CameraRig';
 const project = (camera: THREE.PerspectiveCamera, p: THREE.Vector3, w: number, h: number) => { const v = p.clone().project(camera); return [(v.x + 1) / 2 * w, (1 - v.y) / 2 * h]; };
 describe('CameraRig', () => {
   it('lays the dial out wide and narrow', () => {
@@ -49,6 +49,34 @@ describe('CameraRig, tilted and blended', () => {
     expect(lerpShot(a, b, 0)).toEqual(a); expect(lerpShot(a, b, 1)).toEqual(b);
     const mid = lerpShot(a, b, 0.5);
     expect(mid.layout).toEqual({ x: 50, y: 20, diameter: 200 }); expect(mid.tilt).toBe(14); expect(mid.zoom).toBe(2); expect(mid.near).toBeCloseTo(0.075, 9);
+  });
+});
+
+describe('CameraRig, the side layout', () => {
+  it('puts the dial at the right of the screen beside the Q&A, wide and narrow', () => {
+    expect(sideLayout(1440, 900)).toEqual({ x: 1440 * 0.8, y: 450, diameter: Math.min(900 * 0.36, 1440 * 0.28) });
+    expect(sideLayout(1440, 900)).toEqual({ x: 1152, y: 450, diameter: 324 });
+    expect(sideLayout(390, 844)).toEqual({ x: 390 * 0.78, y: 844 * 0.17, diameter: Math.min(390 * 0.34, 844 * 0.22) });
+    const narrow = sideLayout(390, 844);
+    expect(narrow.x).toBeCloseTo(304.2, 9); expect(narrow.y).toBeCloseTo(143.48, 9); expect(narrow.diameter).toBeCloseTo(132.6, 9);
+  });
+  it('switches between wide and narrow where the dial layout does', () => {
+    expect(sideLayout(1080, 900).x).toBe(1080 * 0.8); expect(sideLayout(1079, 900).x).toBe(1079 * 0.78);
+  });
+  it('keeps the whole rim inside the canvas', () => {
+    for (const [w, h] of [[1440, 900], [1920, 1080], [390, 844], [844, 390], [768, 1024]]) {
+      const { x, y, diameter } = sideLayout(w, h);
+      expect(x + diameter / 2).toBeLessThanOrEqual(w); expect(x - diameter / 2).toBeGreaterThanOrEqual(0);
+      expect(y + diameter / 2).toBeLessThanOrEqual(h); expect(y - diameter / 2).toBeGreaterThanOrEqual(0);
+    }
+  });
+  it('blends from the dial layout to the side layout by `side`, clamped to 0..1', () => {
+    for (const [w, h] of [[1440, 900], [390, 844]]) {
+      expect(layoutFor(w, h, 0)).toEqual(dialLayout(w, h)); expect(layoutFor(w, h, 1)).toEqual(sideLayout(w, h));
+      const a = dialLayout(w, h); const b = sideLayout(w, h); const mid = layoutFor(w, h, 0.5);
+      expect(mid.x).toBeCloseTo((a.x + b.x) / 2, 9); expect(mid.y).toBeCloseTo((a.y + b.y) / 2, 9); expect(mid.diameter).toBeCloseTo((a.diameter + b.diameter) / 2, 9);
+      expect(layoutFor(w, h, -2)).toEqual(a); expect(layoutFor(w, h, 7)).toEqual(b); expect(layoutFor(w, h, Number.NaN)).toEqual(a);
+    }
   });
 });
 
