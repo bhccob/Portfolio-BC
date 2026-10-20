@@ -55,8 +55,9 @@ node tools/proof/compass.mjs
 
 The page is opened with `?proof`, which makes the page expose
 `window.__compassDebug()`: the section and how far through it, the quality step,
-the spin, the tip, the needle's bearing, the pearl, the dial's drawn rim and the
-count of frames drawn. The checks read their numbers from it.
+the spin, the tip, the needle's bearing, the pearl, the dial's drawn rim, the
+count of frames drawn and the image maps the scene holds. The checks read their
+numbers from it.
 
 ## The steps
 
@@ -68,7 +69,7 @@ count of frames drawn. The checks read their numbers from it.
 | 4 | A 400 px drag spins the dial clockwise, it coasts, and settles on a whole turn within 5 s; a vertical drag tips it, held to `tipLimit`, and it springs back. `10-spin.png`, `10-tip.png`. |
 | 5 | A phone (390x844 and 844x390, touch): a vertical swipe scrolls, a horizontal one spins, a touch never tips, the pearl drifts and goes to a tap. `11-phone-*.png`. |
 | 6 | Reloads at aruba in the same session: no loader, aruba's ring and needle from the first frame. `12-reload.png`. |
-| 7 | Refuses the textures and the portrait (a plain scene), and then the three.js chunk (the stacked page at once). `13-*.png`, `14-no-chunk.png`. |
+| 7 | Refuses the textures and the portrait (a plain scene), and then the three.js chunk (the stacked page at once). Then holds the chunk on a later visit (no loader): the stacked page at 10 s, and the chunk let through after that starts nothing. Then holds the textures and the portrait on a first visit: the scene stops waiting at 7 s and the loader hands over to it in plain materials; the brass let through afterwards is taken in. `13-*.png`, `14-no-chunk.png`, `14-hung-chunk-seen.png`. |
 | 8 | Reduced motion, and a browser started with `--disable-3d-apis`: the stacked page with the four stills, the real portrait, no loader. `15-*.png`. |
 | 9 | The frame rate over a full scrub on the GPU and on SwiftShader, the quality step reached, and the idle stop (no frames drawn after 25 s untouched). If SwiftShader gets the stacked page, `9-swiftshader-stacked.png` shows it. |
 | 10 | Records `scrub.webm` at 1440x900: the first visit through the loader, a slow scroll down and back up, a drag spin at the hero, and a tip drag. |

@@ -30,9 +30,15 @@ export interface InstrumentTextures { brass?: THREE.Texture; lacquer?: THREE.Tex
  * Loads the brass, the lacquer and (when a URL is given) the portrait, all in
  * sRGB. It never rejects: a file that fails to load is simply absent from the
  * result, and its parts keep their plain colours (the pool stays lacquer).
- * Anisotropy is left to the caller, which has the renderer.
+ * `arrived`, when given, is handed each map the moment it loads, for a caller
+ * that will not wait for them all (CompassScene). Anisotropy is left to the
+ * caller, which has the renderer.
  */
-export async function loadInstrumentTextures(portraitUrl?: string, loader?: THREE.TextureLoader): Promise<InstrumentTextures> {
+export async function loadInstrumentTextures(
+  portraitUrl?: string,
+  loader?: THREE.TextureLoader,
+  arrived?: (key: keyof InstrumentTextures, texture: THREE.Texture) => void
+): Promise<InstrumentTextures> {
   const textures: InstrumentTextures = {};
   const files: [keyof InstrumentTextures, string][] = [
     ['brass', TEXTURE_FILES.brass],
@@ -46,6 +52,7 @@ export async function loadInstrumentTextures(portraitUrl?: string, loader?: THRE
         const texture = await textureLoader.loadAsync(url);
         texture.colorSpace = THREE.SRGBColorSpace;
         textures[key] = texture;
+        arrived?.(key, texture);
       } catch {
         // a missing or broken file leaves this one texture out
       }

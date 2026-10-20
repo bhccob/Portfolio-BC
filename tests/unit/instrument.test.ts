@@ -368,6 +368,27 @@ describe('the instrument textures', () => {
     const broken = { loadAsync: () => { throw new Error('no'); } } as unknown as THREE.TextureLoader;
     await expect(loadInstrumentTextures('/p.webp', broken)).resolves.toEqual({});
   });
+
+  it('hands over each map as it arrives, before the rest have settled', async () => {
+    const pending = new Map<string, (texture: THREE.Texture) => void>();
+    const loader = {
+      loadAsync: (url: string) => new Promise<THREE.Texture>((resolve) => pending.set(url, resolve))
+    } as unknown as THREE.TextureLoader;
+    const arrived: [string, THREE.Texture][] = [];
+    let all: unknown = null;
+    void loadInstrumentTextures('/portrait.webp', loader, (key, texture) => arrived.push([key, texture])).then((textures) => (all = textures));
+    const lacquer = new THREE.Texture();
+    pending.get(TEXTURE_FILES.lacquer)!(lacquer);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(arrived).toEqual([['lacquer', lacquer]]);
+    expect(lacquer.colorSpace).toBe(THREE.SRGBColorSpace);
+    expect(all).toBeNull();
+    pending.get(TEXTURE_FILES.brass)!(new THREE.Texture());
+    pending.get('/portrait.webp')!(new THREE.Texture());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(arrived.map(([key]) => key).sort()).toEqual(['brass', 'lacquer', 'portrait']);
+    expect(Object.keys(all as object).sort()).toEqual(['brass', 'lacquer', 'portrait']);
+  });
 });
 
 describe('the pearl in the lacquer', () => {

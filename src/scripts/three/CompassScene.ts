@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { settlesWithin } from '../core/deadline';
 import { Handlers } from '../core/Handlers';
 import { AngleSpring, wrapAngle } from './AngleSpring';
 import { dialLayout, lerpShot, placeCamera, type Shot } from './CameraRig';
@@ -27,9 +28,10 @@ import { glowTexture } from './studio/noise';
  * leans toward it, and a drag spins it (FreeTurn).
  *
  * The load (onLoad, ready()) loads, paints, uploads and compiles before any
- * frame is drawn. Frames run only while it is switched on (setActive), and
- * none is drawn while nothing moves (stillness.ts). The loader hands over
- * through matchDial() and startIntro(). Construct it only where `supported()`
+ * frame is drawn, waiting 7 s at most for the image files. Frames run only
+ * while it is switched on (setActive), and none is drawn while nothing moves
+ * (stillness.ts). The loader hands over through matchDial() and
+ * startIntro(). Construct it only where `supported()`
  * is true; even then the constructor throws if the browser refuses the
  * context, having let go of whatever it had built. Pointer positions are CSS
  * pixels relative to the canvas.
@@ -70,6 +72,14 @@ const LEAN = (OFF_AXIS.lean * Math.PI) / 180;
 
 /** The share of the warm-up the painting takes; the uploads and the compile take the rest. */
 const PAINT_SHARE = 0.6;
+
+/**
+ * Seconds the load waits for the image files before it carries on with what
+ * has arrived (a map that comes later is swapped in when it lands): short of
+ * the loader's ten (LOADING.giveUp), so a slow network gets the live scene in
+ * plain materials rather than the stacked page.
+ */
+const TEXTURE_WAIT = 7;
 
 function smootherstep(t: number): number {
   const x = Math.min(1, Math.max(0, t));
@@ -141,6 +151,8 @@ export class CompassScene {
   private readonly shares: Record<LoadPart, number> = { textures: 0, warm: 0 };
   /** The image maps and painted canvases, the scene's to free (the model never frees what it is handed). */
   private textures: InstrumentTextures = {};
+  /** The load has stopped waiting for the image files: one arriving from now on is swapped in on its own (arrived). */
+  private texturesWaited = false;
   private painted: Painted | null = null;
   /** Lets go of the stand-ins holding the clearcoat-off programs; null once let go, or when none are held. */
   private releaseCoat: (() => void) | null = null;
@@ -220,9 +232,9 @@ export class CompassScene {
   }
 
   /**
-   * Resolves once the textures have settled (loaded or failed), the canvases
-   * are painted and the programs compiled; no frame is drawn before. A scene
-   * disposed before then never resolves.
+   * Resolves once the textures have settled (loaded or failed) or 7 s have
+   * passed, the canvases are painted and the programs compiled; no frame is
+   * drawn before. A scene disposed before then never resolves.
    */
   ready(): Promise<void> {
     return this.whenReady;
@@ -364,8 +376,9 @@ export class CompassScene {
   /**
    * For the proof (`?proof`): the section and how far through it, the quality
    * step, the spin and the needle (radians, on the dial), the pearl (CSS px),
-   * and the dial as drawn: its projected centre and rim diameter in CSS px; and
-   * the free turn's tip (radians) and the count of frames drawn.
+   * and the dial as drawn: its projected centre and rim diameter in CSS px; the
+   * free turn's tip (radians), the count of frames drawn, and the image maps
+   * the scene holds (brass, lacquer, portrait).
    */
   debugState(): {
     section: string;
@@ -377,6 +390,7 @@ export class CompassScene {
     pearl: [number, number];
     rim: { x: number; y: number; diameter: number };
     frames: number;
+    maps: string[];
   } {
     const { id, local } = locate(this.progress);
     return {
@@ -388,7 +402,8 @@ export class CompassScene {
       bearing: this.needle,
       pearl: [this.pearlAt[0], this.pearlAt[1]],
       rim: this.rim(),
-      frames: this.frames
+      frames: this.frames,
+      maps: Object.keys(this.textures).sort()
     };
   }
 
@@ -614,19 +629,45 @@ export class CompassScene {
   }
 
   /**
-   * The load: the image files (textures 0 → 1 as each settles), the canvases
-   * painted one a frame (warm 0 → 0.6), then every map uploaded and every
-   * program compiled (0.6 → 1). Whatever fails is logged and left plain; the
-   * scene is ready either way, unless it was disposed.
+   * An image map has loaded: the scene's from now on, for dispose() to free,
+   * or freed at once if the scene is already gone. Within the load's wait the
+   * load applies it with the others; after it, it is swapped in here (the
+   * materials already have a map, so nothing recompiles) and drawn.
+   */
+  private arrived(key: keyof InstrumentTextures, texture: THREE.Texture): void {
+    if (this.disposed) {
+      texture.dispose();
+      return;
+    }
+    this.textures[key] = texture;
+    if (!this.texturesWaited) return;
+    texture.anisotropy = Math.min(ANISOTROPY, this.renderer.capabilities.getMaxAnisotropy());
+    this.instrument.setTextures({ [key]: texture });
+    this.dirty = true;
+  }
+
+  /**
+   * The load: the image files (textures 0 → 1 as each settles, waited on for
+   * TEXTURE_WAIT seconds at most, then on with what has arrived), the
+   * canvases painted one a frame (warm 0 → 0.6), then every map uploaded and
+   * every program compiled (0.6 → 1). Whatever fails is logged and left
+   * plain; the scene is ready either way, unless it was disposed.
    */
   private async load(portrait?: string): Promise<void> {
     const disposed = (): boolean => this.disposed;
     try {
       const files = portrait ? 3 : 2;
       let settled = 0;
-      this.textures = await loadInstrumentTextures(portrait, new SettlingLoader(() => this.report('textures', ++settled / files)));
-      // Disposed meanwhile: dispose() freed what there was then, not what has arrived since.
+      const loading = loadInstrumentTextures(
+        portrait,
+        new SettlingLoader(() => this.report('textures', ++settled / files)),
+        (key, texture) => this.arrived(key, texture)
+      );
+      const inTime = await settlesWithin(loading, TEXTURE_WAIT * 1000);
+      // Disposed meanwhile: dispose() freed what had arrived, and arrived() frees what comes after.
       if (this.disposed) return this.freeMaps();
+      if (!inTime) console.warn(`[portfolio] the compass textures took over ${TEXTURE_WAIT} s; going on without those still loading`);
+      this.texturesWaited = true;
       this.report('textures', 1);
       const anisotropy = Math.min(ANISOTROPY, this.renderer.capabilities.getMaxAnisotropy());
       this.instrument.setTextures(this.textures);

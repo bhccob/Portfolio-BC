@@ -7,13 +7,14 @@
  * screenshots, `scrub.webm` and `results.json` to PROOF_DIR, and exits 1 if a
  * step failed. Frame rates and the quality step are reported, never gated.
  *
- *   1  first visit: the loader hunts, settles on the pearl, hands over, the intro lands
+ *   1  first visit: the loader hunts, settles on the pearl, hands over with the words out, the intro lands
  *   2  scrub down and back up through the sections
  *   3  the pearl and the needle follow the mouse; Tab moves the pearl to the focused control
  *   4  drag: spin clockwise, coast, settle on a whole turn; tip, never past tipLimit
  *   5  phone (390x844 and 844x390, touch): swipe scrolls, sideways spins, touch never tips
  *   6  reload at aruba: no loader, aruba's ring and needle at once
- *   7  failures: no textures (plain materials); no three.js chunk (the stacked page)
+ *   7  failures: no textures (plain materials); no three.js chunk (the stacked page); a hanging chunk on a
+ *      later visit (the stacked page at 10 s); hanging textures on a first visit (live at 7 s, late maps taken in)
  *   8  reduced motion and --disable-3d-apis: the stacked page with the stills, no loader
  *   9  fps over a full scrub (GPU, SwiftShader), the quality step, the idle check
  *   10 record scrub.webm (1440x900)
@@ -127,12 +128,13 @@ const shot = async (page, name, options = {}) => {
 // ---------------------------------------------------------------- the page's side of the harness
 /**
  * Runs in every page before the page's own scripts. Seeds the session's
- * "seen" mark (skipping the loader), watches the loader's phases and the
- * hand-over's two needles, samples the scene's first frames after a load,
- * and (with `hold`) lets the harness freeze requestAnimationFrame for a
- * clean screenshot of a moment that lasts a few frames.
+ * "seen" mark (skipping the loader), watches the loader's phases, the page's
+ * words under it and the hand-over's two needles, samples the scene's first
+ * frames after a load (for `pollFor` ms), and (with `hold`) lets the harness
+ * freeze requestAnimationFrame for a clean screenshot of a moment that lasts
+ * a few frames.
  */
-function pageRecorder({ seen, hold, poll }) {
+function pageRecorder({ seen, hold, poll, pollFor }) {
   try {
     if (seen) window.sessionStorage.setItem('bob-compass-seen', '1');
   } catch {
@@ -180,7 +182,7 @@ function pageRecorder({ seen, hold, poll }) {
   let lastFrames = 0;
   const step = () => {
     const t = now();
-    if (t > 9000) return;
+    if (t > pollFor) return;
     raf(step);
     const overlay = document.querySelector('[data-compass-loader]');
     if (overlay) overlaySeen = true;
@@ -284,9 +286,9 @@ const warningSummary = (w) => {
   return { shaderCompilerWarnings: noise, otherWarnings: other };
 };
 
-async function newPage(browser, { seen = true, hold = false, poll = true, viewport = { width: 1440, height: 900 }, ...options } = {}) {
+async function newPage(browser, { seen = true, hold = false, poll = true, pollFor = 9000, viewport = { width: 1440, height: 900 }, ...options } = {}) {
   const context = await browser.newContext({ viewport, ...options });
-  await context.addInitScript(pageRecorder, { seen, hold, poll });
+  await context.addInitScript(pageRecorder, { seen, hold, poll, pollFor });
   const page = await context.newPage();
   await page.bringToFront();
   return { context, page, w: watch(page) };
@@ -867,6 +869,68 @@ async function step7(step) {
     step.check(w.errors.filter((e) => e.startsWith('pageerror')).length === 0, 'no uncaught errors with the chunk refused');
     await context.close();
   }
+
+  // 7c: a later visit (no loader) whose three.js chunk hangs: the boot script's failsafe is met by the entry's mark, so
+  // the entry's own wait stacks the page at the loader's ten seconds; the chunk let through after that starts nothing.
+  {
+    const { context, page, w } = await newPage(browser, { seen: true });
+    let hung = null;
+    await context.route(/\/_astro\/live\.[^/]*\.js/, (route) => {
+      hung = route;
+    });
+    const started = Date.now();
+    await openCompass(page);
+    await sleep(5000);
+    const waiting = await page.evaluate(() => ({ bench: document.documentElement.dataset.bench ?? null, classes: document.documentElement.className }));
+    step.check(hung !== null && waiting.bench === 'loading' && /js-motion/.test(waiting.classes) && !/compass-loading/.test(waiting.classes), `a later visit with the chunk hanging: no loader, the stage still waiting at 5 s, past the boot failsafe (bench ${waiting.bench}; ${waiting.classes})`);
+    await page.waitForFunction(() => document.documentElement.dataset.bench === 'fallback', null, { polling: 50, timeout: 15000 });
+    const seconds = (Date.now() - started) / 1000;
+    step.data.hungChunkSeenSeconds = fix(seconds, 2);
+    const stage = () => page.evaluate(() => ({ display: getComputedStyle(document.querySelector('[data-compass-stage]')).display, fallback: document.querySelector('[data-compass-stage]').hasAttribute('data-fallback'), debug: typeof window.__compassDebug }));
+    const stacked = await stage();
+    step.check(seconds >= 9.5 && seconds < 12 && stacked.fallback && stacked.display === 'none', `...the stacked page ${fix(seconds, 1)} s after the load, at the ten seconds (stage ${stacked.display})`);
+    step.check(w.warnings.some((t) => /did not load within 10 s/.test(t)), 'it says why in the console (a warning)');
+    await sleep(300);
+    await shot(page, '14-hung-chunk-seen.png');
+    await hung?.continue();
+    await sleep(2500);
+    const late = await stage();
+    step.data.hungChunkLate = late;
+    step.check((await bench(page)) === 'fallback' && late.fallback && late.display === 'none' && late.debug === 'undefined', `the chunk let through late starts no compass over the stacked page (bench ${await bench(page)}; stage ${late.display})`);
+    step.check(w.errors.length === 0, `no console errors (${w.errors.slice(0, 3).join(' | ')})`);
+    await context.close();
+  }
+
+  // 7d: a first visit whose textures and portrait hang: the scene stops waiting for them at 7 s, and the loader hands
+  // over to it in plain materials inside its ten seconds; a map let through after that is swapped in when it lands.
+  {
+    const { context, page, w } = await newPage(browser, { seen: false, pollFor: 25000 });
+    const hung = [];
+    await context.route(/\/textures\/instrument\/|portrait-pool/, (route) => {
+      hung.push(route);
+    });
+    const started = Date.now();
+    await openCompass(page);
+    await waitLive(page, 25000);
+    step.data.hungTexturesSecondsToHero = fix((Date.now() - started) / 1000, 1);
+    const phases = (await page.evaluate(() => window.__proof.phases)).map((p) => p[0]);
+    step.data.hungTexturesPhases = phases;
+    step.check(phases.includes('fading') && phases.includes('gone') && (await bench(page)) === 'live', `with the textures hanging the loader still hands over and the scene is live, in ${step.data.hungTexturesSecondsToHero} s to the hero (${phases.join(' > ')})`);
+    step.check(w.warnings.some((t) => /textures took over 7 s/.test(t)), 'the scene went on without them at 7 s (its warning)');
+    const before = await debug(page);
+    step.check(hung.length >= 3 && before.maps.length === 0, `the brass, the lacquer and the portrait were held, and the scene holds none of them (${hung.length} held; maps: ${before.maps.join(', ') || 'none'})`);
+    await shot(page, '13-hung-textures.png');
+    const brass = hung.find((route) => /brass/.test(route.request().url()));
+    await brass?.continue();
+    await page.waitForFunction(() => (window.__compassDebug?.().maps ?? []).includes('brass'), null, { polling: 50, timeout: 10000 }).catch(() => {});
+    await sleep(800);
+    const after = await debug(page);
+    step.data.lateBrass = { maps: after.maps, framesSince: after.frames - before.frames };
+    step.check(after.maps.includes('brass') && after.frames > before.frames, `the brass let through late is taken in and drawn (maps: ${after.maps.join(', ')}; ${after.frames - before.frames} frames since)`);
+    await shot(page, '13-late-brass.png');
+    step.check(w.errors.length === 0, `no console errors (${w.errors.slice(0, 3).join(' | ')})`);
+    await context.close();
+  }
 }
 
 /** Scrolls the stacked page top to bottom, so its lazy stills load. */
@@ -1208,7 +1272,7 @@ const plan = [
   ['4', 'drag: spin, coast, settle, tip', step4],
   ['6', 'reload at aruba', step6],
   ['5', 'phone: swipe, spin, drift, tap', step5],
-  ['7', 'failures: no textures, no chunk', step7],
+  ['7', 'failures: no textures, no chunk, hanging chunk, hanging textures', step7],
   ['8', 'reduced motion and no 3D APIs', step8],
   ['9', 'fps, quality step, idle', step9],
   ['10', 'record scrub.webm', step10],
