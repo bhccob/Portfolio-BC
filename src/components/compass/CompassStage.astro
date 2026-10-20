@@ -270,7 +270,11 @@ const isHome = (id: SectionId): id is 'china' | 'aruba' | 'rotterdam' => id === 
   /*
    * The loader's hand-over (CompassLoader): the text waits while the compass
    * moves from the loader's place into its pose, then fades in, rather than
-   * appearing over the dial on its way.
+   * appearing over the dial on its way. While the loader shows (the boot
+   * script's `compass-loading`, from before first paint) the text is already
+   * out, with no transition, so nothing of it shows through the drawing's
+   * fade; the hand-over's `compass-intro` holds it out once the loader has
+   * gone, and the fade-in, when that comes off, is the only transition.
    */
   :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section {
     transition: opacity 0.6s var(--ease-out);
@@ -278,6 +282,11 @@ const isHome = (id: SectionId): id is 'china' | 'aruba' | 'rotterdam' => id === 
 
   :global(.js-motion.compass-intro) .compass__stage:not([data-fallback]) ~ .compass__section {
     opacity: 0;
+  }
+
+  :global(html.js-motion.compass-loading) .compass__stage:not([data-fallback]) ~ .compass__section {
+    opacity: 0;
+    transition: none;
   }
 
   /*

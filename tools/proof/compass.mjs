@@ -140,7 +140,7 @@ function pageRecorder({ seen, hold, poll }) {
   }
   const raf = window.requestAnimationFrame.bind(window);
   const caf = window.cancelAnimationFrame.bind(window);
-  const proof = (window.__proof = { phases: [], needle: [], boot: [], hunt: [], held: null });
+  const proof = (window.__proof = { phases: [], needle: [], boot: [], hunt: [], held: null, words: {} });
   const t0 = performance.now();
   const now = () => Math.round(performance.now() - t0);
 
@@ -193,6 +193,14 @@ function pageRecorder({ seen, hold, poll }) {
     const turn = svg ? /rotate\(([-\d.]+)\)/.exec(svg.getAttribute('transform') ?? '') : null;
     if (phase === 'hunt' && turn) proof.hunt.push(Number(turn[1]));
 
+    // The page's words while the drawing is up, per phase: the most any section shows (computed opacity, mid-transition included).
+    if (overlay) {
+      const shown = Math.max(0, ...[...document.querySelectorAll('[data-section]')].map((s) => Number(getComputedStyle(s).opacity)));
+      const row = (proof.words[phase] ??= { samples: 0, max: 0 });
+      row.samples++;
+      row.max = Math.max(row.max, shown);
+    }
+
     const hw = window.__holdWhen;
     if (hw && overlay && overlay.dataset.phase === hw.phase && t >= (hw.after ?? 0)) {
       const fade = Number(overlay.style.getPropertyValue('--fade') || 1);
@@ -227,7 +235,13 @@ function pageRecorder({ seen, hold, poll }) {
   raf(step);
 }
 
-/** Freezes the page's animation frames when `when` is met, screenshots, and lets them go. */
+/** The most any of the page's sections shows: their largest computed opacity (a transition's current value). */
+const wordsShown = () => Math.max(0, ...[...document.querySelectorAll('[data-section]')].map((s) => Number(getComputedStyle(s).opacity)));
+
+/**
+ * Freezes the page's animation frames when `when` is met, screenshots, and lets them go. Answers the moment held, with
+ * `words`: the sections' largest computed opacity just after the screenshot, still held (CSS transitions run on).
+ */
 async function shotAtMoment(page, when, name) {
   await page.evaluate((w) => {
     window.__holdWhen = w;
@@ -235,8 +249,9 @@ async function shotAtMoment(page, when, name) {
   await page.waitForFunction(() => window.__held === true, null, { polling: 20, timeout: 15000 });
   await shot(page, name);
   const held = await page.evaluate(() => window.__proof?.held ?? null);
+  const words = await page.evaluate(wordsShown);
   await page.evaluate(() => window.__release());
-  return held;
+  return held && { ...held, words };
 }
 
 // ---------------------------------------------------------------- browsers, pages, watching
@@ -462,6 +477,8 @@ async function step1(step) {
   // The hand-over: the drawing half faded, the live dial under it.
   const faded = await shotAtMoment(page, { phase: 'fading', fadeBelow: 0.65 }, '2-handover.png');
   step.data.handoverFrozenAt = faded;
+  // The swap is hidden: none of the page's words shows through the half-faded drawing.
+  step.check(faded !== null && faded.words === 0, `the page's words are out at the hand-over (2-handover.png: the sections' opacity is ${faded?.words} with the drawing at ${faded?.fade})`);
 
   await page.waitForFunction(() => document.documentElement.dataset.bench === 'live' && !document.querySelector('[data-compass-loader]') && !document.documentElement.classList.contains('compass-intro'), null, { polling: 50, timeout: 20000 });
   step.data.secondsToHero = fix((Date.now() - started) / 1000, 1);
@@ -474,6 +491,13 @@ async function step1(step) {
   step.check(['hunt', 'settle', 'fading', 'gone'].every((p) => seq.includes(p)) && seq.indexOf('hunt') < seq.indexOf('settle') && seq.indexOf('settle') < seq.indexOf('fading') && seq.indexOf('fading') < seq.indexOf('gone'), `the loader runs hunt, settle, hand-over, gone in order (${seq.join(' > ')})`);
   const hunt = proof.hunt;
   step.check(hunt.length > 5 && Math.max(...hunt) - Math.min(...hunt) > 90, `the needle hunts (${hunt.length} samples spanning ${fix(Math.max(...hunt) - Math.min(...hunt), 0)} degrees)`);
+  // Every frame the drawing was up, its fade included: the sections' largest opacity, per loader phase.
+  const words = proof.words;
+  step.data.wordsUnderLoader = words;
+  step.check(
+    (words.fading?.samples ?? 0) > 0 && Object.values(words).every((row) => row.max === 0),
+    `the words stay out on every frame the drawing is up, through its fade (${Object.entries(words).map(([p, row]) => `${p}: max ${fix(row.max, 3)} over ${row.samples} frames`).join('; ')})`
+  );
 
   const session = await page.evaluate(() => ({
     seen: window.sessionStorage.getItem('bob-compass-seen'),

@@ -62,7 +62,7 @@ count of frames drawn. The checks read their numbers from it.
 
 | step | what it does |
 | --- | --- |
-| 1 | A fresh context (a first visit): the loader hunts, settles on the pearl and hands over, the intro lands on the hero; no console errors. Reads both needles, the drawing's and the scene's, in the same animation frame at the first 3D frame after the hand-over (the difference should be 0). `1-loader.png`, `2-handover.png`, `3-hero.png`. |
+| 1 | A fresh context (a first visit): the loader hunts, settles on the pearl and hands over, the intro lands on the hero; no console errors. Reads both needles, the drawing's and the scene's, in the same animation frame at the first 3D frame after the hand-over (the difference should be 0). Checks the swap is hidden: the page's sections have a computed opacity of 0 at the moment `2-handover.png` is taken (the drawing half faded) and on every frame the drawing is up, its fade included. `1-loader.png`, `2-handover.png`, `3-hero.png`. |
 | 2 | Scrubs down and back up through about, china, aruba (mid-sweep and painted) and rotterdam. `4-pool.png` to `8-sweep.png`. |
 | 3 | The mouse to four points round the dial: the needle follows within 0.1 rad. Tab to the page's focusable controls: the pearl goes to each. `9-focus.png`, `9-pearl-west.png`. |
 | 4 | A 400 px drag spins the dial clockwise, it coasts, and settles on a whole turn within 5 s; a vertical drag tips it, held to `tipLimit`, and it springs back. `10-spin.png`, `10-tip.png`. |
