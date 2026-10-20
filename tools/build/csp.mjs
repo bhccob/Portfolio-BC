@@ -104,7 +104,11 @@ export function applyCsp(html) {
   if (at === -1) throw new Error(`applyCsp: the page has no ${PLACEHOLDER} placeholder`);
   if (html.indexOf(PLACEHOLDER, at + PLACEHOLDER.length) !== -1) throw new Error(`applyCsp: the page has more than one ${PLACEHOLDER}`);
 
-  // The policy only governs what loads after its tag, so no <script> may come first.
+  // The policy only governs what loads after its tag, so no <script> may come first. Only scripts are checked
+  // (Ruling 7): React puts the charset and viewport metas first and hoists the poster's
+  // <link rel="preload" as="image"> above this tag too. That is acceptable: those are links and metas, not
+  // scripts; the preload is a same-origin image the build itself wrote into the page, which fetches but runs
+  // nothing (and 'self' in img-src would allow it anyway).
   const script = html.search(/<script\b/i);
   if (script !== -1 && script < at) throw new Error(`applyCsp: a <script> comes before the ${PLACEHOLDER} meta`);
 

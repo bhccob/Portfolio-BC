@@ -42,7 +42,7 @@ export function Layout({ children }: { children: ReactNode }) {
             when hydrating, so a client copy would be appended as a second, unfilled
             policy once the build has rewritten the first. */}
         {import.meta.env.PROD && import.meta.env.SSR && (
-          <meta httpEquiv="Content-Security-Policy" content="__CSP__" suppressHydrationWarning />
+          <meta httpEquiv="Content-Security-Policy" content="__CSP__" />
         )}
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#0a0510" />
