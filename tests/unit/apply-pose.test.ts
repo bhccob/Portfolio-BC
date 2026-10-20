@@ -4,7 +4,7 @@ import { applyPose, carryProgress, freeTurnLocked, tracksShown } from '../../src
 import { compassPoseAt, locate, nominalSpans, poseAt, SECTIONS, spansFromOffsets, type CompassPose } from '../../src/scripts/three/Choreography';
 import { TRACKS, type TrackId } from '../../src/scripts/three/instrument/drive';
 import { buildInstrument, type InstrumentModel } from '../../src/scripts/three/instrument/Instrument';
-import { buildTracks, PIN, type TracksModel } from '../../src/scripts/three/instrument/Tracks';
+import { buildTracks, HOVER_LIT, PIN, type TracksModel } from '../../src/scripts/three/instrument/Tracks';
 import { buildWire, type WireModel } from '../../src/scripts/three/instrument/Wire';
 
 const DEG = Math.PI / 180;
@@ -114,12 +114,12 @@ describe('applyPose', () => {
     expect(glowing.emissiveIntensity).toBe(PIN.glow);
   });
 
-  it('brightens the hovered track only while the pose answers the pointer', () => {
+  it('lights the hovered track (up to HOVER_LIT) only while the pose answers the pointer', () => {
     const r = rig();
     const tracksPose = poseAt('funcial', 0.5);
     expect(tracksPose.interactive).toBe(true);
     pose(r, tracksPose, 'jontai-energy');
-    expect(opacityOf(ringOf(r, 'jontai-energy'))).toBeCloseTo(Math.min(1, tracksPose.tracks.lit['jontai-energy'] * 1.2), 12);
+    expect(opacityOf(ringOf(r, 'jontai-energy'))).toBeCloseTo(Math.max(tracksPose.tracks.lit['jontai-energy'], HOVER_LIT), 12);
     expect(opacityOf(ringOf(r, 'cookies-clicker'))).toBeCloseTo(tracksPose.tracks.lit['cookies-clicker'], 12);
     const parked = poseAt('offduty', 0.5);
     expect(parked.interactive).toBe(false);

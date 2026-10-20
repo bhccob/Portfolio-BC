@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { buildInstrument, type InstrumentPose } from '../../src/scripts/three/instrument/Instrument';
 import { DRIVE, TRACKS, headBearing, type TrackId } from '../../src/scripts/three/instrument/drive';
-import { buildTracks, tpBearing } from '../../src/scripts/three/instrument/Tracks';
+import { buildTracks, HOVER_LIT, tpBearing } from '../../src/scripts/three/instrument/Tracks';
 import { palette } from '../../src/scripts/three/palette';
 
 const DEG = Math.PI / 180;
@@ -243,7 +243,7 @@ describe('the sectors', () => {
 });
 
 describe('setting the tracks', () => {
-  it('lights each ring by its own value, a fifth more for the one under the pointer, up to one', () => {
+  it('lights each ring by its own value, and a hovered one up to HOVER_LIT at least', () => {
     const tracks = buildTracks();
     tracks.set({ funcial: 1, 'jontai-energy': 0.5, 'cookies-clicker': 0.2, next: 0 }, { track: null, index: null }, null);
     const opacity = (id: TrackId): number => material(ringOf(tracks.group, id)).opacity;
@@ -251,14 +251,38 @@ describe('setting the tracks', () => {
     expect(opacity('jontai-energy')).toBeCloseTo(0.5, 9);
     expect(opacity('cookies-clicker')).toBeCloseTo(0.2, 9);
     expect(opacity('next')).toBe(0);
+    // A dim track under the pointer comes up to HOVER_LIT, however dim (0.5 and 0.2 here), and no other track moves.
     tracks.set({ funcial: 1, 'jontai-energy': 0.5, 'cookies-clicker': 0.2, next: 0.4 }, { track: null, index: null }, 'jontai-energy');
-    expect(opacity('jontai-energy')).toBeCloseTo(0.6, 9);
+    expect(opacity('jontai-energy')).toBeCloseTo(HOVER_LIT, 9);
     expect(opacity('cookies-clicker')).toBeCloseTo(0.2, 9);
+    expect(opacity('next')).toBeCloseTo(0.4, 9);
+    tracks.set({ funcial: 1, 'jontai-energy': 0.3, 'cookies-clicker': 0.3, next: 0.3 }, { track: null, index: null }, 'cookies-clicker');
+    expect(opacity('cookies-clicker')).toBeCloseTo(HOVER_LIT, 9);
+    expect(opacity('jontai-energy')).toBeCloseTo(0.3, 9);
+    // One already brighter than that stays as it is: the light is never lowered, and the lit current track is full.
+    tracks.set({ funcial: 1, 'jontai-energy': 0.9, 'cookies-clicker': 0.2, next: 0.4 }, { track: null, index: null }, 'jontai-energy');
+    expect(opacity('jontai-energy')).toBeCloseTo(0.9, 9);
     tracks.set({ funcial: 1, 'jontai-energy': 0.5, 'cookies-clicker': 0.2, next: 0.4 }, { track: null, index: null }, 'funcial');
     expect(opacity('funcial')).toBe(1);
     expect(opacity('jontai-energy')).toBeCloseTo(0.5, 9);
     tracks.set(all(0.9), { track: null, index: null }, 'next');
-    expect(opacity('next')).toBe(1);
+    expect(opacity('next')).toBeCloseTo(0.9, 9);
+    tracks.dispose();
+  });
+  it('lights a hovered dim track visibly: well above its own light', () => {
+    // The finding this pins: a hover of x1.2 took a dim track from 0.3 to 0.36 and left the lit one at 1, so it read as no change.
+    expect(HOVER_LIT).toBeGreaterThanOrEqual(0.6);
+    expect(HOVER_LIT).toBeLessThan(1);
+    const tracks = buildTracks();
+    tracks.set(all(0.3), { track: null, index: null }, 'jontai-energy');
+    expect(material(ringOf(tracks.group, 'jontai-energy')).opacity - 0.3).toBeGreaterThan(0.3);
+    tracks.dispose();
+  });
+  it('keeps a dark track dark under the pointer: nothing lights it', () => {
+    const tracks = buildTracks();
+    tracks.set({ funcial: 1, 'jontai-energy': 0, 'cookies-clicker': 0.3, next: 0.3 }, { track: null, index: null }, 'jontai-energy');
+    expect(material(ringOf(tracks.group, 'jontai-energy')).opacity).toBe(0);
+    expect(ringOf(tracks.group, 'jontai-energy').visible).toBe(false);
     tracks.dispose();
   });
   it('hides a ring at nothing and shows it again with any light', () => {

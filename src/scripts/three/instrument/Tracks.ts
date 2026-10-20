@@ -31,8 +31,12 @@ export const SECTOR = { inner: 0.3, outer: 0.95, opacity: 0.32 } as const;
 /** The empty track's dashes round it, and the share of each that is drawn. */
 export const DASHES = { count: 24, duty: 0.5 } as const;
 
-/** What a hovered track's light is multiplied by. */
-const HOVER = 1.2;
+/**
+ * How lit a track under the pointer is at least (0..1): a dim track comes up to
+ * this, one already brighter stays as it is. A track that is dark (nothing lights
+ * it) stays dark. Bob's to tune.
+ */
+export const HOVER_LIT = 0.7;
 
 const DEG = Math.PI / 180;
 
@@ -217,7 +221,8 @@ export function buildTracks(): TracksModel {
 
   const set: TracksModel['set'] = (lit, tp, hover) => {
     for (const id of TRACKS) {
-      const opacity = Math.min(1, unit(lit[id]) * (hover === id ? HOVER : 1));
+      const light = unit(lit[id]);
+      const opacity = hover === id && light > 0 ? Math.max(light, HOVER_LIT) : light;
       ringMaterials[id].opacity = opacity;
       rings[id].visible = opacity > 0;
     }
