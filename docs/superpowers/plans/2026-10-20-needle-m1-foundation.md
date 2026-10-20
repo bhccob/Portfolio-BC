@@ -64,7 +64,7 @@
 - Modify:
   - `package.json`: scripts and dependencies.
   - `tsconfig.json`
-  - `.gitignore`: add `.react-router/`, `assets/raw/`.
+  - `.gitignore`: add `.react-router/` (`assets/raw/` is already ignored).
   - `vitest.config.ts`: add the `~` alias for `src`.
   - `src/data/projects.ts`: replace Astro's `ImageMetadata` with URL strings from `import.meta.glob('../assets/*.{png,jpg,jpeg,webp}', { query: '?url', import: 'default', eager: true })`. The `image` getter returns `string`.
   - `src/data/categories.ts`: drop the `icon` field and the `IconName` import.
@@ -101,6 +101,8 @@
 - [ ] **Step 1: Swap dependencies.**
   - Remove `astro`, `@astrojs/sitemap`, `lenis`, `@fontsource/bagel-fat-one`, `@fontsource/yellowtail`, `@fontsource-variable/sofia-sans`, `@fontsource-variable/sofia-sans-extra-condensed`, and the devDependencies `@fontsource/martian-mono` and `@fontsource/sofia-sans`.
   - Add the exact Tech Stack versions above, plus `@types/react`, `@types/react-dom`, `typescript` and `sharp` (dev).
+  - Add `@fontsource-variable/montserrat` 5.3.0, Bob's pick for the name, tagline and reading text.
+  - Remove `@fontsource-variable/geist`; Montserrat replaces it.
   - Run `npm install`. Expected: no peer-dependency errors. If `@react-three/postprocessing` and `three` conflict, pin the newest `postprocessing` 6.x that accepts three 0.186, and note it in the commit message.
 - [ ] **Step 2: Write the framework config.**
   - `react-router.config.ts`: `appDirectory: 'src/app'`, `buildDirectory: 'dist'`, `ssr: false`, `prerender: ['/', '/probe/', '/en/', '/en/probe/']`. Task 3 replaces this with `pagePaths()`.
@@ -273,10 +275,11 @@
     - `export type CountryId = 'china' | 'netherlands' | 'aruba'`
     - `export interface Direction { id: DirId; kind: 'country' | 'portal'; country?: CountryId; engraving: string; accent: string }`
     - `export const DIRECTIONS: readonly Direction[]`:
-      - east: China, `東`, `#b3261e`
-      - north: Netherlands, `Noord`, `#1f4e9c`
-      - west: Aruba, `[FILL: Papiamento word for west]`, `#1aa6a0`
-      - south: `kind: 'portal'`, `南`, `#ffcf33`
+      - east: China, `東`, `#a8352a`
+      - north: Netherlands, `Noord`, `#1d5fa8`
+      - west: Aruba, `[FILL: Papiamento word for west]`, `#2db3a8`
+      - south: `kind: 'portal'`, `南`, `#efb53d`
+      - Accents come from `docs/art-direction.md`.
     - `export function countryDirection(id: CountryId): Direction`
   - `needle` dictionary block (EN shown; NL formal equivalents):
     - `hero: { name: 'BOB CHUNG', tagline: 'FOLLOW THE NEEDLE', scrollCue }`
@@ -311,7 +314,7 @@
     - the three countries appear once each
     - every engraving is non-empty
 - [ ] **Step 2: Run them and see FAIL.**
-- [ ] **Step 3: Implement the modules and the pages.** Styles: tokens copied from `src/styles/bench-tokens.css` (purple `#140a24`/`#1c1030`, gold `#ffcf33`, cream). Fonts are Unbounded, Geist and Martian Mono via fontsource imports in `root.tsx`. Delete `bench-*.css` once the tokens are copied.
+- [ ] **Step 3: Implement the modules and the pages.** Styles: tokens are taken from `docs/art-direction.md` and `docs/art-direction/palette.json` (void `#0a0510`, nebula `#331846`, brass `#936233`, name gold `#e4be7f`, title gold `#f9dc87`, track gold `#efb53d`), and follow its ratio rule of about 60 % near-black, 30 % purple and at most 6 % gold. Fonts are Montserrat (name, tagline, reading text), Unbounded (heavy titles) and Martian Mono (labels), via fontsource imports in `root.tsx`. Delete `src/styles/bench-*.css`.
 - [ ] **Step 4: Run `npm test`, `npx tsc --noEmit`, `npm run build`, then the Pyodide auditor `--strict` on `dist/client`.** Expected: all PASS, 0 issues.
 - [ ] **Step 5: Run proof `STEPS=routes,slash,persist`.** Expected: PASS. The persist step navigates home → `/about/china/` → `/en/about/china/` → back.
 - [ ] **Step 6: Commit:** `Needle: every page in NL and EN with real DOM copy and SEO`.
