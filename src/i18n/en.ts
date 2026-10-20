@@ -1,3 +1,71 @@
+import type { CountryId } from '../data/directions';
+import type { PartId } from '../data/parts';
+
+/** One compass part in the dissect: its name and a line of at most ten words. */
+export interface PartCopy {
+  name: string;
+  line: string;
+}
+
+/** One country: its card on the compass, its page's three beats and its meta description. */
+export interface CountryCopy {
+  name: string;
+  /** The line on the country's focus card. */
+  teaser: string;
+  beats: [string, string, string];
+  metaDescription: string;
+}
+
+// The eleven parts and three countries, copied verbatim from the NL and EN columns
+// of docs/art-direction.md § Copy budget (Bob approved them on 2026-10-20).
+// tests/unit/needle-copy.test.ts compares them with that table.
+const parts: Record<PartId, PartCopy> = {
+  lid: { name: 'Lid', line: 'Protects the dial while the compass travels.' },
+  rim: { name: 'Dragon-relief rim', line: 'Holds the glass and gives the hand a grip.' },
+  crystal: { name: 'Crystal', line: 'Keeps wind and dust away from the needle.' },
+  strings: { name: 'Red sighting strings', line: 'Two crossed threads read the bearing off the rings.' },
+  bagua: { name: 'Bagua ring', line: 'Eight trigrams divide the horizon into eight directions.' },
+  degrees: { name: 'Degree ring', line: '360 ticks turn a direction into a number.' },
+  dial: { name: 'Heaven plate', line: 'The turning dial you line up with a bearing.' },
+  jewel: { name: 'Pivot jewel', line: 'A hard jewel lets the needle turn almost without friction.' },
+  needle: { name: 'Needle', line: "Magnetised steel that lines up with Earth's magnetic field." },
+  plate: { name: 'Earth plate', line: 'The fixed square base that keeps the compass level.' },
+  housing: { name: 'Housing', line: 'Carries every ring; next, it becomes the hard drive.' }
+};
+
+const countries: Record<CountryId, CountryCopy> = {
+  china: {
+    name: 'China',
+    teaser: 'I am of Chinese heritage; this compass comes from that tradition.',
+    beats: [
+      'My family is of Chinese heritage.',
+      'That heritage is a source of identity and belonging for me.',
+      'Hakka, a Chinese dialect, is my mother tongue.'
+    ],
+    metaDescription: 'I am of Chinese heritage; this compass comes from that tradition.'
+  },
+  netherlands: {
+    name: 'The Netherlands',
+    teaser: 'At eighteen I moved to the Netherlands. I now study in Rotterdam.',
+    beats: [
+      'At eighteen I moved from Aruba to the Netherlands.',
+      'Here I took up running and am learning to be financially independent.',
+      'In Rotterdam I study software engineering (MBO 4) and explore further studies.'
+    ],
+    metaDescription: 'At eighteen I moved to the Netherlands. I now study in Rotterdam.'
+  },
+  aruba: {
+    name: 'Aruba',
+    teaser: 'I was born and raised here, between trade winds and sea.',
+    beats: [
+      'I was born and raised in Aruba.',
+      'Aruba taught me to speak several languages and to connect with people.',
+      'The gym gave me purpose, a more active life and friends.'
+    ],
+    metaDescription: 'I was born and raised here, between trade winds and sea.'
+  }
+};
+
 /**
  * English copy. This object defines the shape of every dictionary:
  * `nl.ts` is typed against it, so a missing Dutch key fails type-checking.
@@ -5,13 +73,19 @@
  * come from this file, never from user input.
  */
 export const en = {
+  /**
+   * The head of each page. A title here is the page's own words: `head()`
+   * (src/seo/head.ts) adds " | Bob Chung" after it. `homeTitle` is the one
+   * complete title, used as it is.
+   */
   meta: {
     homeTitle: 'Bob Chung | Student Software Engineer in Rotterdam',
     homeDescription:
       'Portfolio of Bob Chung, a student software engineer in Rotterdam: game and web projects, and a route toward systems and firmware security engineering.',
-    contactTitle: 'Contact | Bob Chung',
+    liteDescription: 'The Lite version of the portfolio of Bob Chung: all of the content as plain text, without 3D.',
+    contactTitle: 'Contact',
     contactDescription: 'Send Bob Chung a message straight from his portfolio, or find him on GitHub and Instagram.',
-    notFoundTitle: 'Page not found | Bob Chung',
+    notFoundTitle: 'Page not found',
     notFoundDescription: 'This page does not exist. Head back to the portfolio of Bob Chung.'
   },
   nav: {
@@ -350,13 +424,37 @@ export const en = {
     moreSoon: '#03 next category: systems & security, on the way…'
   },
   /**
+   * The words of the needle redesign, copied verbatim from the NL and EN columns of
+   * docs/art-direction.md § Copy budget (Bob approved them on 2026-10-20):
+   * the loader and its failure, the hero, the always-on controls, the eleven compass
+   * parts, the morph line, the three countries (card line and the beats of their pages)
+   * and the words around a project. `projects` and `categories` (src/data) hold the
+   * project lines and labels.
+   */
+  needle: {
+    hero: { name: 'BOB CHUNG', tagline: 'FOLLOW THE NEEDLE', scrollCue: 'Scroll' },
+    loader: {
+      caption: 'The needle is finding north',
+      enterSilent: 'Enter without sound',
+      enterSound: 'Enter with sound'
+    },
+    fallback: { title: 'THE NEEDLE LOST NORTH', lite: 'Open the Lite version' },
+    toggle: { on: '3D on', off: '3D off' },
+    /** The link to the Lite page that every page shows. */
+    liteLink: 'Lite version',
+    parts,
+    morph: 'The same force that guided ships now stores our data.',
+    countries,
+    project: { open: 'Open', download: 'Download', code: 'Code', back: 'Esc · back' }
+  },
+  /**
    * The redesign's compass page (/lab/compass/): its head, the hero's role line
    * and hints, the About heading (its lead is `about.lead`), the three homes'
    * labels, the stacked page's six stills' alt texts and the loader's readout
    * ({n}: the percentage). The drive's sections add the work heading and its
    * caption (the stack and AI rows are `skills.rows`), the change line, the
    * hidden projects heading, the test-point label ({n}: the number, {label}:
-   * the test point; the tracks' own words are `src/data/tracks.ts`), Off duty
+   * the test point; the projects' own words are `src/data/projects.ts`), Off duty
    * (its lists are `life.current` and `life.former`), the Q&A's questions (its
    * answers are `career`) and the greeting.
    */

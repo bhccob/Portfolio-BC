@@ -1,0 +1,64 @@
+/*
+ * Design tokens of the needle redesign, sampled from the references
+ * (docs/art-direction.md § 1, docs/art-direction/palette.json). The scene reads the same
+ * values through the engine's palette module.
+ *
+ * The ratio rule: about 60 % near-black, 30 % purple, at most 6 % gold. Gold is
+ * precious: if a screen shows more, something is lit that should not be.
+ */
+:root {
+  color-scheme: dark;
+
+  /* void and atmosphere */
+  --void: #0a0510;
+  --void-deep: #07020b;
+  --nebula-deep: #0c0515;
+  --nebula: #331846;
+  --nebula-hi: #401f57;
+  --field-violet: #b47ed4;
+  --pcb: #190624;
+  --lacquer: #120418;
+  --lacquer-hi: #735488;
+
+  /* brass, gold and type */
+  --dial: #1a1517;
+  --brass-shadow: #331e12;
+  --brass: #936233;
+  --brass-hi: #b58854;
+  --gold-ink: #e4be7f; /* the name; 11.5:1 on --void */
+  --gold-ink-75: rgb(228 190 127 / 0.75); /* the tagline; 6.6:1 on --void */
+  --gold-title: #f9dc87; /* heavy titles; 15.0:1 */
+  --ink: #fcedc0; /* reading text and labels; 17.3:1 */
+  --ink-dim: #8c8879; /* secondary text; 5.7:1 */
+  --string-red: #7a2126;
+
+  /* glow: emissive colours for the scene and for rules and focus rings, never for text */
+  --amber-spill: #edab35;
+  --gold-glow: #efb53d;
+  --gold-core: #fef0a9;
+
+  /* country accents: each lives on its own arm and its own page */
+  --cn-cinnabar: #a8352a;
+  --cn-cinnabar-hi: #d0563c;
+  --nl-delft-deep: #123a72;
+  --nl-delft: #1d5fa8;
+  --nl-glaze: #e8edf5;
+  --aw-sea-deep: #0c6467;
+  --aw-sea: #2db3a8;
+  --aw-gold: #f2b950;
+
+  /* type: Montserrat for the name, tagline and reading text, Unbounded for heavy titles, Martian Mono for labels */
+  --font-name: 'Montserrat Variable', 'Montserrat', system-ui, sans-serif;
+  --font-title: 'Unbounded Variable', 'Montserrat Variable', system-ui, sans-serif;
+  --font-label: 'Martian Mono Variable', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --text-size: clamp(17px, 16.2px + 0.2vw, 19px);
+  --label-size: 11px; /* the minimum for a technical label */
+
+  /* layout */
+  --gutter: clamp(16px, 5vw, 64px);
+  --header-height: 64px;
+
+  /* the easing vocabulary of docs/art-direction.md § 5, nothing else */
+  --ease-reveal: cubic-bezier(0.165, 0.84, 0.44, 1);
+  --ease-hud: cubic-bezier(0.16, 1, 0.3, 1);
+}

@@ -1,45 +1,32 @@
 import type { Locale } from '../i18n/Translator';
 
-export type CategoryId = 'web-development' | 'game-development';
-
-export interface CategoryCopy {
-  title: string;
-  /** One or two sentences about the kind of work on this shelf. */
-  intro: string;
-  metaDescription: string;
-}
+export type CategoryId = 'secure-element' | 'front-panel' | 'oscillator';
 
 export interface CategoryData {
   id: CategoryId;
   number: number;
-  /** Short code shown on flap tiles, e.g. "WEB". */
-  code: string;
-  copy: Record<Locale, CategoryCopy>;
+  /** The technical label shown with the number, per language (a HUD label, so it is translated too). */
+  label: Record<Locale, string>;
 }
 
 /**
- * A software discipline the projects are grouped under. The home page shows
- * one print per category; each category has its own page where visitors
- * switch between the projects on that shelf.
+ * A kind of device part that a project is filed under in the void: the secure
+ * element keeps keys, the front panel is what the public touches, the
+ * oscillator makes a device tick (docs/projects-discovery.md).
  */
 export class Category {
   constructor(private readonly data: CategoryData) {}
 
   get id() { return this.data.id; }
   get number() { return this.data.number; }
-  get code() { return this.data.code; }
 
-  /** "#01", "#02", … */
-  get label(): string {
-    return `#${String(this.data.number).padStart(2, '0')}`;
+  label(locale: Locale): string {
+    return this.data.label[locale];
   }
 
-  route(): string {
-    return `/projects/${this.data.id}/`;
-  }
-
-  copy(locale: Locale): CategoryCopy {
-    return this.data.copy[locale];
+  /** "01 — SECURE ELEMENT": the number and the label, as the focus screen shows them. */
+  heading(locale: Locale): string {
+    return `${String(this.data.number).padStart(2, '0')} — ${this.label(locale)}`;
   }
 }
 
@@ -61,45 +48,10 @@ export class CategoryCatalog {
   }
 }
 
+// The English labels are the approved ones (docs/projects-discovery.md); the Dutch ones follow the
+// copy budget (docs/art-direction.md: BEVEILIGD ELEMENT) and the discovery's suggested Dutch labels.
 export const categories = new CategoryCatalog([
-  {
-    id: 'web-development',
-    number: 1,
-    code: 'WEB',
-    copy: {
-      en: {
-        title: 'Web development',
-        intro:
-          'Websites and browser applications, from a multi-page company website to a game that runs in the browser. Built with HTML, CSS and JavaScript, with Tailwind CSS where it fits.',
-        metaDescription:
-          'Web development projects by Bob Chung, student software engineer in Rotterdam: what each project is, how it was built and what he focused on.'
-      },
-      nl: {
-        title: 'Webontwikkeling',
-        intro:
-          'Websites en browserapplicaties, van een bedrijfswebsite met meerdere pagina’s tot een game die in de browser draait. Gebouwd met HTML, CSS en JavaScript, met Tailwind CSS waar dat past.',
-        metaDescription:
-          'Webontwikkelingsprojecten van Bob Chung, student software engineer in Rotterdam: wat elk project is, hoe het gebouwd is en waar hij op focuste.'
-      }
-    }
-  },
-  {
-    id: 'game-development',
-    number: 2,
-    code: 'GAME',
-    copy: {
-      en: {
-        title: 'Game development',
-        intro: 'Games and the systems behind them: the game loop, progression and economy, and the feel of every click.',
-        metaDescription:
-          'Game development projects by Bob Chung, student software engineer in Rotterdam: what each game is, how it was built and what he focused on.'
-      },
-      nl: {
-        title: 'Gameontwikkeling',
-        intro: 'Games en de systemen erachter: de gameloop, voortgang en economie, en het gevoel van elke klik.',
-        metaDescription:
-          'Gameontwikkelingsprojecten van Bob Chung, student software engineer in Rotterdam: wat elke game is, hoe die gebouwd is en waar hij op focuste.'
-      }
-    }
-  }
+  { id: 'secure-element', number: 1, label: { en: 'SECURE ELEMENT', nl: 'BEVEILIGD ELEMENT' } },
+  { id: 'front-panel', number: 2, label: { en: 'FRONT PANEL', nl: 'FRONTPANEEL' } },
+  { id: 'oscillator', number: 3, label: { en: 'OSCILLATOR', nl: 'OSCILLATOR' } }
 ]);

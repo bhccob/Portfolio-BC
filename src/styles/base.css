@@ -1,0 +1,489 @@
+/* ---------- reset ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  background: var(--void);
+  scrollbar-color: var(--nebula) var(--void);
+}
+
+body {
+  margin: 0;
+  min-height: 100svh;
+  background: var(--void);
+  color: var(--ink);
+  font: 400 var(--text-size) / 1.55 var(--font-name);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: clip;
+}
+
+img,
+svg,
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+h1,
+h2,
+p,
+ul,
+ol,
+dl,
+dd {
+  margin: 0;
+}
+
+ul,
+ol {
+  padding: 0;
+  list-style: none;
+}
+
+a {
+  color: var(--gold-ink);
+  text-underline-offset: 0.2em;
+}
+
+::selection {
+  background: var(--gold-glow);
+  color: var(--void);
+}
+
+/* ---------- focus: a gold ring on whatever the keyboard reaches ---------- */
+:focus-visible {
+  outline: 2px solid var(--gold-glow);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+main:focus {
+  outline: none;
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 10;
+  top: 8px;
+  left: 8px;
+  padding: 10px 16px;
+  background: var(--gold-glow);
+  color: var(--void);
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+/* ---------- the layers: poster, scene, then the page ---------- */
+.poster {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 70% 50%;
+  /* The compass sits right of centre; a little more scale, from the left edge, moves it further from the name. */
+  transform: scale(1.1);
+  transform-origin: 0 50%;
+}
+
+/* A scrim keeps the text legible where the poster is lit. */
+.poster::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgb(10 5 16 / 0.9) 0%, rgb(10 5 16 / 0.6) 45%, rgb(10 5 16 / 0.2) 100%),
+    linear-gradient(0deg, rgb(10 5 16 / 0.7) 0%, transparent 40%);
+}
+
+/* A page of text (a country, a project) has text over most of the poster, so its scrim is stronger. */
+body:has(.page) .poster::after {
+  background: linear-gradient(90deg, rgb(10 5 16 / 0.94) 0%, rgb(10 5 16 / 0.78) 55%, rgb(10 5 16 / 0.5) 100%);
+}
+
+.scene-host {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+}
+
+/* 3D off: the poster stays, the canvas is out of sight. */
+html[data-3d='off'] .scene-host {
+  display: none;
+}
+
+.site-header,
+main {
+  position: relative;
+  z-index: 2;
+}
+
+/* ---------- type ---------- */
+
+/* Technical labels: Martian Mono, capitals, tracked. */
+.label,
+.header-control,
+.tags li,
+.test-points li,
+.back,
+.links a {
+  font-family: var(--font-label);
+  font-size: var(--label-size);
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.label {
+  color: var(--ink-dim);
+}
+
+/* ---------- the header ---------- */
+.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 24px;
+  min-height: var(--header-height);
+  padding: 8px var(--gutter);
+}
+
+.site-name {
+  color: var(--gold-ink);
+  font-weight: 400;
+  font-size: 13px;
+  letter-spacing: 0.32em;
+  text-decoration: none;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.header-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 12px;
+  margin-left: auto;
+}
+
+.header-control {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 6px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.header-control:hover {
+  color: var(--gold-title);
+}
+
+/* The 3D switch shows its state as a lit or an empty bead. */
+.header-control[role='switch']::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  margin-right: 8px;
+  border: 1px solid var(--gold-glow);
+  border-radius: 50%;
+}
+
+.header-control[role='switch'][aria-checked='true']::before {
+  background: var(--gold-glow);
+}
+
+/* ---------- the home page ---------- */
+.hero {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: calc(100svh - var(--header-height));
+  max-width: calc(44rem + 2 * var(--gutter)); /* the text column is 44rem wide inside the gutters */
+  padding: 0 var(--gutter) 10svh;
+}
+
+.hero-name {
+  font-family: var(--font-name);
+  font-size: clamp(28px, 4.2vw, 64px);
+  font-weight: 300;
+  line-height: 1.15;
+  letter-spacing: 0.32em;
+  color: var(--gold-ink);
+}
+
+.hero-tagline {
+  margin-top: 16px;
+  font-size: clamp(11px, 0.9vw, 13px);
+  font-weight: 400;
+  letter-spacing: 0.36em;
+  color: var(--gold-ink-75);
+}
+
+.hero-cue {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 56px;
+  font-family: var(--font-label);
+  font-size: var(--label-size);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.hero-cue::before {
+  content: '';
+  width: 40px;
+  height: 1px;
+  background: var(--ink-dim);
+}
+
+@media (max-width: 720px) {
+  .hero {
+    justify-content: flex-end;
+    padding-bottom: 12svh;
+  }
+
+  .poster::after {
+    background: linear-gradient(0deg, rgb(10 5 16 / 0.92) 0%, rgb(10 5 16 / 0.55) 55%, rgb(10 5 16 / 0.3) 100%);
+  }
+
+  body:has(.page) .poster::after {
+    background: rgb(10 5 16 / 0.82);
+  }
+
+  /* On a phone the header's controls sit on a row of their own, left aligned and close together. */
+  .header-nav {
+    margin-left: 0;
+    gap: 0 4px;
+  }
+
+  .header-control {
+    padding: 0 4px;
+    letter-spacing: 0.1em;
+  }
+}
+
+.home-nav {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: 40px;
+  max-width: 64rem;
+  padding: 0 var(--gutter) 96px;
+}
+
+.home-nav h2 {
+  margin-bottom: 8px;
+}
+
+.home-nav a {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  min-height: 44px;
+  padding: 8px 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.home-nav a:hover .nav-title {
+  color: var(--gold-title);
+}
+
+.nav-title {
+  font-family: var(--font-title);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* While 3D is on, the scene is the way in: the links stay for crawlers and keyboards,
+   visually hidden and shown again while one of them has focus. */
+html[data-3d='on'] .home-nav:not(:focus-within) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- a page: a country, a project, Lite, contact ---------- */
+.page {
+  max-width: calc(44rem + 2 * var(--gutter)); /* the text column is 44rem wide inside the gutters */
+  padding: 16px var(--gutter) 96px;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ink-dim);
+  text-decoration: none;
+}
+
+.back:hover {
+  color: var(--gold-ink);
+}
+
+.page-title {
+  margin: 16px 0 24px;
+  font-family: var(--font-title);
+  /* Unbounded 800 is wide (about 0.9 em a letter): the longest title, NETHERLANDS, fits the 44rem column at 64 px. */
+  font-size: clamp(30px, 5.5vw, 64px);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--gold-title);
+  overflow-wrap: break-word;
+  text-wrap: balance;
+}
+
+.page > .label + .page-title {
+  margin-top: 4px;
+}
+
+.lead {
+  max-width: 34em;
+  font-size: clamp(18px, 1.1vw + 14px, 22px);
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.beats {
+  display: grid;
+  gap: 20px;
+  max-width: 30em;
+  font-size: clamp(19px, 1.2vw + 14px, 23px);
+  line-height: 1.5;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 24px 32px;
+  margin: 40px 0 32px;
+}
+
+.facts dt {
+  margin-bottom: 4px;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tags li {
+  padding: 3px 10px;
+  border: 1px solid rgb(228 190 127 / 0.35);
+  border-radius: 2px;
+  color: var(--ink);
+  letter-spacing: 0.08em;
+  text-transform: none;
+}
+
+.test-points {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 0 0 32px;
+}
+
+.test-points li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+}
+
+.test-points li::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gold-glow);
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+
+.links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 20px;
+  border: 1px solid var(--gold-ink);
+  border-radius: 2px;
+  color: var(--gold-ink);
+  text-decoration: none;
+}
+
+.links a:hover {
+  background: var(--gold-glow);
+  border-color: var(--gold-glow);
+  color: var(--void);
+}
+
+.page > .links {
+  margin-top: 0;
+}
+
+.case {
+  max-width: 34em;
+  margin-top: 40px;
+}
+
+.case-title {
+  margin-bottom: 8px;
+  font-family: var(--font-label);
+  font-size: var(--label-size);
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

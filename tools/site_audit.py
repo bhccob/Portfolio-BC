@@ -1,4 +1,4 @@
-"""Site auditor: checks the built site (``dist/``) before it is deployed.
+"""Site auditor: checks the built site (``dist/client/``) before it is deployed.
 
 Every HTML page is parsed and run through a set of rules: titles, meta
 descriptions, a single h1, alt text, canonical and hreflang links, Open Graph
@@ -10,7 +10,7 @@ Errors fail the build, so a broken page never reaches bhccob.me.
 
 Standard library only. Usage::
 
-    python tools/site_audit.py dist [--origin https://bhccob.me] [--strict] [--json]
+    python tools/site_audit.py dist/client [--origin https://bhccob.me] [--strict] [--json]
 """
 
 from __future__ import annotations
@@ -547,7 +547,7 @@ class SiteAuditor:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Audit the built portfolio before deploying it.")
-    parser.add_argument("root", nargs="?", default="dist", type=Path, help="build directory (default: dist)")
+    parser.add_argument("root", nargs="?", default="dist/client", type=Path, help="build directory (default: dist/client)")
     parser.add_argument("--origin", default=DEFAULT_ORIGIN, help=f"site origin (default: {DEFAULT_ORIGIN})")
     parser.add_argument("--strict", action="store_true", help="treat warnings as errors")
     parser.add_argument("--json", action="store_true", help="print the report as JSON")

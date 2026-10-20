@@ -5,9 +5,10 @@ export const nl: Dictionary = {
     homeTitle: 'Bob Chung | Software engineering-student in Rotterdam',
     homeDescription:
       'Portfolio van Bob Chung, student software engineer in Rotterdam: game- en webprojecten, op weg naar systems- en firmware-security-engineering.',
-    contactTitle: 'Contact opnemen | Bob Chung',
+    liteDescription: 'De lichte versie van het portfolio van Bob Chung: alle inhoud als gewone tekst, zonder 3D.',
+    contactTitle: 'Contact opnemen',
     contactDescription: 'Stuur Bob Chung direct een bericht via zijn portfolio, of vind hem op GitHub en Instagram.',
-    notFoundTitle: 'Pagina niet gevonden | Bob Chung',
+    notFoundTitle: 'Pagina niet gevonden',
     notFoundDescription: 'Deze pagina bestaat niet. Ga terug naar het portfolio van Bob Chung.'
   },
   nav: {
@@ -343,6 +344,65 @@ export const nl: Dictionary = {
     opening: '{page} openen…',
     sudo: 'Toegang verleend. Je gaat naar de contactpagina…',
     moreSoon: '#03 volgende categorie: systems & security, onderweg…'
+  },
+  // Verbatim from the NL column of docs/art-direction.md § Copy budget (Bob approved it on 2026-10-20).
+  needle: {
+    hero: { name: 'BOB CHUNG', tagline: 'VOLG DE NAALD', scrollCue: 'Scroll' },
+    loader: {
+      caption: 'De naald zoekt het noorden',
+      enterSilent: 'Binnenkomen zonder geluid',
+      enterSound: 'Binnenkomen met geluid'
+    },
+    fallback: { title: 'DE NAALD IS HET NOORDEN KWIJT', lite: 'Open de lichte versie' },
+    toggle: { on: '3D aan', off: '3D uit' },
+    liteLink: 'Lichte versie',
+    parts: {
+      lid: { name: 'Deksel', line: 'Beschermt de wijzerplaat als het kompas reist.' },
+      rim: { name: 'Rand met drakenreliëf', line: 'Houdt het glas vast en geeft de hand grip.' },
+      crystal: { name: 'Glas', line: 'Houdt wind en stof weg van de naald.' },
+      strings: { name: 'Rode richtdraden', line: 'Twee gekruiste draden lezen de richting af op de ringen.' },
+      bagua: { name: 'Bagua-ring', line: 'Acht trigrammen verdelen de horizon in acht richtingen.' },
+      degrees: { name: 'Graadring', line: '360 streepjes maken van een richting een getal.' },
+      dial: { name: 'Hemelplaat', line: 'De draaiende schijf die je op een richting uitlijnt.' },
+      jewel: { name: 'Draaisteen', line: 'Een harde steen laat de naald bijna wrijvingsloos draaien.' },
+      needle: { name: 'Naald', line: 'Gemagnetiseerd staal dat zich naar het aardmagnetisch veld richt.' },
+      plate: { name: 'Aardplaat', line: 'De vaste vierkante basis die het kompas waterpas houdt.' },
+      housing: { name: 'Behuizing', line: 'Draagt alle ringen; zo meteen wordt dit de harde schijf.' }
+    },
+    morph: 'Dezelfde kracht die schepen stuurde, bewaart nu onze data.',
+    countries: {
+      china: {
+        name: 'China',
+        teaser: 'Ik ben Chinees van afkomst; dit kompas komt uit dezelfde traditie.',
+        beats: [
+          'Mijn familie is Chinees van afkomst.',
+          'Die afkomst is voor mij een bron van identiteit en verbondenheid.',
+          'Hakka, een Chinees dialect, is mijn moedertaal.'
+        ],
+        metaDescription: 'Ik ben Chinees van afkomst; dit kompas komt uit dezelfde traditie.'
+      },
+      netherlands: {
+        name: 'Nederland',
+        teaser: 'Op mijn achttiende verhuisde ik naar Nederland. Nu studeer ik in Rotterdam.',
+        beats: [
+          'Op mijn achttiende verhuisde ik van Aruba naar Nederland.',
+          'Hier ben ik gaan hardlopen en leer ik financieel zelfstandig te zijn.',
+          'In Rotterdam studeer ik software engineering (MBO 4) en verken ik vervolgstudies.'
+        ],
+        metaDescription: 'Op mijn achttiende verhuisde ik naar Nederland. Nu studeer ik in Rotterdam.'
+      },
+      aruba: {
+        name: 'Aruba',
+        teaser: 'Hier ben ik geboren en getogen, tussen passaatwind en zee.',
+        beats: [
+          'Ik ben geboren en getogen op Aruba.',
+          'Aruba leerde mij meerdere talen spreken en verbinding maken met mensen.',
+          'De sportschool gaf mij een doel, een actiever leven en vrienden.'
+        ],
+        metaDescription: 'Hier ben ik geboren en getogen, tussen passaatwind en zee.'
+      }
+    },
+    project: { open: 'Openen', download: 'Downloaden', code: 'Code', back: 'Esc · terug' }
   },
   compass: {
     meta: {

@@ -14,15 +14,20 @@
  * one console message a step may expect is named in the step itself and counted
  * (not-found: the browser's own "Failed to load resource" for each 404 document).
  *
- *   routes     every page of pagePaths() that the build produced (plus the throwaway probe pages),
- *              each answers 200 with one <h1> (in its HTML and after hydration) and the right
- *              <html lang>; the pages not built yet are listed and skipped
- *   slash      GET /probe answers 301 to /probe/; a browser opening /probe loads /probe/ once, with no reload
- *   persist    client links / → /probe/ → /en/probe/, then history.back(): the Stage mounted once and
- *              the same <canvas> node throughout, with no document load after the first
+ *   routes     every page of pagePaths() that the build produced, each answers 200 with one <h1>
+ *              (in its HTML and after hydration) and the right <html lang>; a page the build did
+ *              not produce is listed and skipped
+ *   slash      GET /about/china answers 301 to /about/china/; a browser opening /about/china loads
+ *              /about/china/ once, with no reload
+ *   persist    client navigation / → /about/china/ → /en/about/china/, then history.back(): the Stage
+ *              mounted once and the same <canvas> node throughout, with no document load after the first
  *   not-found  an unknown URL (/does-not-exist/, /en/does-not-exist/) answers 404 with the build's
  *              404.html; after hydration it shows the not-found route's <h1> and the right <html lang>,
  *              and the browser loads one document, with no reload loop
+ *   home-nav   the home page's links to the three countries and three projects: visually hidden but
+ *              reachable by keyboard while 3D is on (and shown while one has focus), visible once the
+ *              3D switch is turned off, and the choice persists in localStorage across a reload
+ *   mobile     every page at 390 px wide has no horizontal scroll
  *
  * The harness reads src/data/pages.ts (through tsx) and the build in dist/client
  * to know which pages to expect.
@@ -50,21 +55,25 @@ const GPU = ['--use-angle=d3d11', '--enable-gpu'];
 const langOf = (path) => (path === '/en/' || path.startsWith('/en/') ? 'en' : 'nl');
 
 // The site's pages come from src/data/pages.ts. A page the build has not produced
-// yet (Task 4a builds them) is skipped, and listed when the harness starts. The
-// build is read from disk, so a page the build made but the server fails to
-// answer still fails; BASE only changes who is asked, not what is expected.
+// is skipped, and listed when the harness starts. The build is read from disk, so a
+// page the build made but the server fails to answer still fails; BASE only changes
+// who is asked, not what is expected.
 const DIST = resolve(fileURLToPath(new URL('../../dist/client', import.meta.url)));
 const { pagePaths } = await tsImport('../../src/data/pages.ts', import.meta.url);
 const built = (path) => existsSync(join(DIST, path, 'index.html'));
-/** The throwaway probe pages of Task 1, which Task 4a deletes together with the steps that name them. */
-const PROBES = ['/probe/', '/en/probe/'];
 const SKIPPED = pagePaths().filter((path) => !built(path));
-const PAGES = [...pagePaths().filter(built), ...PROBES].map((path) => ({ path, lang: langOf(path) }));
-const PROBE_H1 = 'Needle probe';
-/** The h1 of the not-found route (src/app/routes/not-found.tsx), as opposed to the root's HydrateFallback. */
-const NOT_FOUND_H1 = '404';
+const PAGES = pagePaths()
+  .filter(built)
+  .map((path) => ({ path, lang: langOf(path) }));
+/** The h1 of the home page, and of the country page used to move between pages and languages. */
+const HOME_H1 = 'BOB CHUNG';
+const CHINA_H1 = 'China';
+/** The h1 of the not-found route (src/app/routes/not-found.tsx, in each language), as opposed to the root's HydrateFallback. */
+const NOT_FOUND_H1 = { nl: 'Pagina niet gevonden', en: 'Page not found' };
 /** Two URLs no page answers, one per language. */
 const UNKNOWN = ['/does-not-exist/', '/en/does-not-exist/'];
+/** The links the home page lists: three countries and three projects. */
+const HOME_LINKS = ['/about/china/', '/about/netherlands/', '/about/aruba/', '/projects/funcial/', '/projects/jontai-energy/', '/projects/cookies-clicker/'];
 
 // ---------------------------------------------------------------- the step runner
 
@@ -90,8 +99,8 @@ class Step {
  * `expected(message)` names a console error that is the designed outcome of the step, not a failure;
  * it is kept apart in step.expected, and the step must check that it happened as often as it should.
  */
-async function openPage(browser, step, expected = () => false) {
-  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+async function openPage(browser, step, expected = () => false, viewport = { width: 1440, height: 900 }) {
+  const context = await browser.newContext({ viewport });
   await context.addInitScript(() => {
     window.__cspViolations = [];
     document.addEventListener('securitypolicyviolation', (e) => {
@@ -142,10 +151,10 @@ async function routes(browser, step) {
 }
 
 async function slash(browser, step) {
-  const bare = await fetch(`${BASE}/probe`, { redirect: 'manual' });
+  const bare = await fetch(`${BASE}/about/china`, { redirect: 'manual' });
   const location = bare.headers.get('location');
   const target = location ? new URL(location, BASE).href : null;
-  step.check(bare.status === 301 && target === `${BASE}/probe/`, `GET /probe answers 301 to /probe/ (got ${bare.status} ${location})`);
+  step.check(bare.status === 301 && target === `${BASE}/about/china/`, `GET /about/china answers 301 to /about/china/ (got ${bare.status} ${location})`);
 
   const { context, page } = await openPage(browser, step);
   const documents = [];
@@ -155,21 +164,21 @@ async function slash(browser, step) {
   });
   page.on('load', () => loads++);
 
-  await page.goto(`${BASE}/probe`, { waitUntil: 'load' });
+  await page.goto(`${BASE}/about/china`, { waitUntil: 'load' });
   await stageReady(page);
   await page.waitForTimeout(1_500); // a reload loop would show by now
-  const landed = documents.filter((url) => url === `${BASE}/probe/`).length;
+  const landed = documents.filter((url) => url === `${BASE}/about/china/`).length;
   const { type, mounts } = await page.evaluate(() => ({
     type: performance.getEntriesByType('navigation')[0]?.type,
     mounts: window.__needleMounts,
   }));
-  step.check(page.url() === `${BASE}/probe/`, `the browser ends at /probe/ (got ${page.url()})`);
-  step.check(landed === 1 && documents.length === 2, `one document load of /probe/, after the 301 (got ${documents.join(' → ')})`);
+  step.check(page.url() === `${BASE}/about/china/`, `the browser ends at /about/china/ (got ${page.url()})`);
+  step.check(landed === 1 && documents.length === 2, `one document load of /about/china/, after the 301 (got ${documents.join(' → ')})`);
   step.check(loads === 1 && type === 'navigate', `one load event, not a reload (got ${loads}, ${type})`);
   step.check(mounts === 1, `the Stage mounted once (got ${mounts})`);
   await takeCsp(page, step);
   await context.close();
-  return `/probe → 301 /probe/, loaded once (${documents.join(' → ')})`;
+  return `/about/china → 301 /about/china/, loaded once (${documents.join(' → ')})`;
 }
 
 async function persist(browser, step) {
@@ -204,16 +213,19 @@ async function persist(browser, step) {
     );
   };
 
-  await expectSame('/', 'nl', 'Bob Chung');
-  await page.click('a[href="/probe/"]');
-  await page.waitForURL(`${BASE}/probe/`);
-  await expectSame('link to /probe/', 'nl', PROBE_H1);
-  await page.click('a[href="/en/probe/"]');
-  await page.waitForURL(`${BASE}/en/probe/`);
-  await expectSame('link to /en/probe/', 'en', PROBE_H1);
+  await expectSame('/', 'nl', HOME_H1);
+  // The home page lists its pages in a nav that is visually hidden while 3D is on, so the way
+  // to the country page is the keyboard's: focus its link and press Enter.
+  await page.focus('a[href="/about/china/"]');
+  await page.keyboard.press('Enter');
+  await page.waitForURL(`${BASE}/about/china/`);
+  await expectSame('link to /about/china/', 'nl', CHINA_H1);
+  await page.click('a[href="/en/about/china/"]'); // the header's language switch
+  await page.waitForURL(`${BASE}/en/about/china/`);
+  await expectSame('link to /en/about/china/', 'en', CHINA_H1);
   await page.evaluate(() => history.back());
-  await page.waitForURL(`${BASE}/probe/`);
-  await expectSame('history.back() to /probe/', 'nl', PROBE_H1);
+  await page.waitForURL(`${BASE}/about/china/`);
+  await expectSame('history.back() to /about/china/', 'nl', CHINA_H1);
 
   step.check(documents.length === 0, `client navigation only, no document load (got ${documents.join(', ') || 'none'})`);
   await takeCsp(page, step);
@@ -256,7 +268,7 @@ async function notFound(browser, step) {
       mounts: window.__needleMounts,
       url: location.pathname,
     }));
-    step.check(state.h1.length === 1 && state.h1[0] === NOT_FOUND_H1, `${path} shows the not-found route's <h1> "${NOT_FOUND_H1}" after hydration (got ${JSON.stringify(state.h1)})`);
+    step.check(state.h1.length === 1 && state.h1[0] === NOT_FOUND_H1[lang], `${path} shows the not-found route's <h1> "${NOT_FOUND_H1[lang]}" after hydration (got ${JSON.stringify(state.h1)})`);
     step.check(state.titles <= 1, `${path} has at most one <title> after hydration (got ${state.titles})`);
     step.check(state.lang === lang, `${path} has <html lang="${lang}"> after hydration (got ${state.lang})`);
     step.check(state.url === path, `the browser stays at ${path} (got ${state.url})`);
@@ -269,7 +281,79 @@ async function notFound(browser, step) {
   return `${UNKNOWN.join(', ')}: 404, the not-found <h1>, one document load`;
 }
 
-const STEPS = { routes, slash, persist, 'not-found': notFound };
+/** The size of the first element matching `selector`, in CSS pixels; null if there is none. */
+const boxOf = (page, selector) =>
+  page.evaluate((selector) => {
+    const element = document.querySelector(selector);
+    if (!element) return null;
+    const { width, height } = element.getBoundingClientRect();
+    return { width, height };
+  }, selector);
+const visuallyHidden = (box) => box !== null && box.width <= 1 && box.height <= 1;
+
+async function homeNav(browser, step) {
+  const { context, page } = await openPage(browser, step);
+  await page.goto(`${BASE}/`, { waitUntil: 'load' });
+  await stageReady(page);
+
+  // 3D on (the default): the six links are in the HTML and reachable by keyboard, but not shown.
+  const hrefs = await page.$$eval('.home-nav a', (links) => links.map((link) => link.getAttribute('href')));
+  step.check(JSON.stringify(hrefs) === JSON.stringify(HOME_LINKS), `the home nav links the three countries and three projects (got ${hrefs.join(' ')})`);
+  step.check((await page.getAttribute('html', 'data-3d')) === 'on', 'the page says data-3d="on" after hydration');
+  step.check(visuallyHidden(await boxOf(page, '.home-nav')), 'with 3D on, the home nav is visually hidden');
+  await page.focus('.home-nav a');
+  const focused = await page.evaluate(() => document.activeElement?.getAttribute('href'));
+  step.check(focused === HOME_LINKS[0], `a hidden link can take focus (got ${focused})`);
+  const shown = await boxOf(page, '.home-nav');
+  step.check(shown !== null && shown.height > 100, `the nav is shown while a link has focus (got ${JSON.stringify(shown)})`);
+  await page.evaluate(() => document.activeElement?.blur());
+
+  // 3D off: the nav is shown, and the choice survives a reload.
+  await page.click('button[role="switch"]');
+  step.check((await page.getAttribute('html', 'data-3d')) === 'off', 'the switch sets data-3d="off"');
+  step.check((await page.evaluate(() => localStorage.getItem('needle-3d'))) === 'off', 'the switch stores needle-3d = off');
+  const open = await boxOf(page, '.home-nav');
+  step.check(open !== null && open.height > 100, `with 3D off, the home nav is shown (got ${JSON.stringify(open)})`);
+  await takeCsp(page, step);
+  await page.reload({ waitUntil: 'load' });
+  await stageReady(page);
+  await page.waitForFunction(() => document.documentElement.getAttribute('data-3d') === 'off', null, { timeout: 5_000 });
+  step.check((await page.textContent('button[role="switch"]')) === '3D uit', 'after a reload, the switch still says "3D uit"');
+
+  // And back on.
+  await page.click('button[role="switch"]');
+  step.check((await page.evaluate(() => localStorage.getItem('needle-3d'))) === 'on', 'switching back stores needle-3d = on');
+  step.check(visuallyHidden(await boxOf(page, '.home-nav')), 'with 3D on again, the home nav is hidden again');
+  await takeCsp(page, step);
+  await context.close();
+  return 'six links; hidden but focusable with 3D on, shown with 3D off, the choice stored';
+}
+
+async function mobile(browser, step) {
+  const { context, page } = await openPage(browser, step, () => false, { width: 390, height: 844 });
+  for (const { path } of PAGES) {
+    await page.goto(BASE + path, { waitUntil: 'load' });
+    await stageReady(page);
+    // The page clips sideways overflow (body { overflow-x: clip }), so scrollWidth alone proves nothing:
+    // look for content that reaches past the right edge as well.
+    const { scroll, client, wide } = await page.evaluate(() => {
+      const client = document.documentElement.clientWidth;
+      const wide = [...document.querySelectorAll('header *, main *')]
+        .filter((element) => {
+          const { width, right } = element.getBoundingClientRect();
+          return width > 1 && right > client + 0.5;
+        })
+        .map((element) => `${element.tagName.toLowerCase()}.${element.className}`);
+      return { scroll: document.documentElement.scrollWidth, client, wide };
+    });
+    step.check(scroll <= client && wide.length === 0, `${path} has no horizontal overflow at 390 px (scrollWidth ${scroll}, clientWidth ${client}, past the edge: ${wide.join(' ') || 'none'})`);
+    await takeCsp(page, step);
+  }
+  await context.close();
+  return `${PAGES.length} pages at 390 px: no horizontal scroll`;
+}
+
+const STEPS = { routes, slash, persist, 'not-found': notFound, 'home-nav': homeNav, mobile };
 
 // ---------------------------------------------------------------- run
 

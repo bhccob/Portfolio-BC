@@ -47,6 +47,7 @@ A student software engineer building toward systems and firmware security work, 
   - No collaboration wording for now.
   - The site stays highly interactive, SEO-friendly and object-oriented in code.
   - No playable game on the site itself (owner, 2026-10-13): the off-duty physics playground, its trick-shots mini-game, the C/WebAssembly engine behind it and the Konami code were removed at the owner's request. Game projects such as Cookies Clicker stay listed.
+  - Hidden-interaction easter eggs, with a `0/N` counter of those found, are allowed and are not a game (art direction, 2026-10-20).
   - Scrolling should be fun and hold attention on each section (owner, 2026-10-13): sections answer the scroll position in both directions (crossing tapes under the hero, dealt prints and rows, the portrait swinging into its frame, receding sections). The project prints are a scroll-driven gallery (owner, 2026-10-14).
     - The owner asked for GSAP ScrollTrigger, which the other scenes already use.
     - The section holds still while the prints travel, and the page moves on only once the last print has arrived.

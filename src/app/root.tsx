@@ -1,13 +1,27 @@
+import '@fontsource-variable/martian-mono';
+import '@fontsource-variable/montserrat';
+import '@fontsource-variable/unbounded';
+import montserratLatin from '@fontsource-variable/montserrat/files/montserrat-latin-wght-normal.woff2?url';
 import { type ReactNode, useEffect } from 'react';
 import { Links, type LinksFunction, Meta, Outlet, Scripts, useLocation } from 'react-router';
+import { localeFromPath } from '~/i18n/locale';
+import '~/styles/tokens.css';
+import '~/styles/base.css';
 import { Shell } from './Shell';
 
-// Without an icon link the browser asks for /favicon.ico, which does not exist.
-export const links: LinksFunction = () => [{ rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' }];
+export const links: LinksFunction = () => [
+  // Without an icon link the browser asks for /favicon.ico, which does not exist.
+  { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
+  { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
+  { rel: 'manifest', href: '/site.webmanifest' },
+  // The name is set in Montserrat's latin file, so the hero never swaps its font. (The poster needs no
+  // link here: React preloads an <img fetchPriority="high"> by itself.)
+  { rel: 'preload', href: montserratLatin, as: 'font', type: 'font/woff2', crossOrigin: 'anonymous' },
+];
 
 export function Layout({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
-  const lang = pathname === '/en' || pathname.startsWith('/en/') ? 'en' : 'nl';
+  const lang = localeFromPath(pathname);
 
   // The 404 page is one file for every unknown URL, written in Dutch. React does not
   // patch a differing attribute when it hydrates, so /en/... would keep lang="nl".
@@ -27,6 +41,8 @@ export function Layout({ children }: { children: ReactNode }) {
           <meta httpEquiv="Content-Security-Policy" content="__CSP__" suppressHydrationWarning />
         )}
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="theme-color" content="#0a0510" />
+        <meta name="color-scheme" content="dark" />
         <Meta />
         <Links />
       </head>
@@ -47,7 +63,9 @@ export function HydrateFallback() {
     <>
       <title>Pagina niet gevonden · Page not found | Bob Chung</title>
       <main>
-        <h1>Pagina niet gevonden · Page not found</h1>
+        <h1>
+          Pagina niet gevonden · <span lang="en">Page not found</span>
+        </h1>
       </main>
     </>
   );

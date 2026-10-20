@@ -42,8 +42,9 @@ To run the Python tests: `python -m unittest discover tools`.
 5. writes the Content-Security-Policy into every `.html` file (see Security)
 6. copies `CNAME`
 
-A page is built only if `react-router.config.ts` prerenders it, and it is listed in the sitemap only if it is in
-`pagePaths()`. A new route needs both.
+`react-router.config.ts` prerenders every path of `pagePaths()`, and the sitemap lists the same paths, so a page is
+built and listed by having an entry in `PAGES` (`src/data/pages.ts`). Each entry also needs a route in
+`src/app/routes.ts` and its words in both languages; `tests/unit/routes.test.ts` fails if a page has no route.
 
 ## Project structure
 
@@ -65,10 +66,12 @@ public/            Static files: CNAME, icons, manifest, security.txt, robots.tx
 ### Editing content
 
 - **Text** (both languages): `src/i18n/en.ts` and `src/i18n/nl.ts`
-- **Projects**: `src/data/projects.ts`. Put the screenshot in `src/assets/`, name its file in `image`, and list the
-  categories the project belongs to (the first one is its home). It appears on that category's page in both
-  languages, gets its own share image, and the category print on the home page counts it.
-- **Categories**: `src/data/categories.ts` (title, intro and icon per category)
+- **Projects**: `src/data/projects.ts`: for each project its category, test points (labelled in both languages), palette,
+  links and the words of its page in both languages. A screenshot, if it has one, goes in `src/assets/` and is named in
+  `image`. A new project also needs a `project-<id>` entry in `PAGES` (`src/data/pages.ts`).
+- **Categories**: `src/data/categories.ts` (a number and a label in each language)
+- **The needle redesign's words** (hero, loader, compass parts, countries and their pages): the `needle` block of the
+  dictionaries; they are copied from `docs/art-direction.md` § Copy budget, and `tests/unit/needle-copy.test.ts` checks that they match it.
 - **Links / email / birthday**: `src/data/profile.ts` (the age on the site is calculated from the birthday)
 
 ## Contact form
