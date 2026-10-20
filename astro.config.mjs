@@ -73,7 +73,13 @@ export default defineConfig({
   vite: {
     // Fonts ship as files, never inlined as data: URIs: the CSP only allows fonts
     // from 'self', and inlining every unicode-range subset bloated the CSS.
-    build: { assetsInlineLimit: 0 }
+    build: { assetsInlineLimit: 0 },
+    // Media queries ship as written (min-width, max-width, min-aspect-ratio):
+    // the CSS minifier (Lightning CSS) would otherwise rewrite them in the range
+    // syntax (width<=900px), which Safari before 16.4 and Chrome before 104
+    // skip, leaving a phone the desktop layout. 128 is Lightning CSS's
+    // Features.MediaRangeSyntax (lightningcss is Vite's, not a dependency here).
+    css: { lightningcss: { include: 128 } }
   },
   devToolbar: { enabled: false }
 });

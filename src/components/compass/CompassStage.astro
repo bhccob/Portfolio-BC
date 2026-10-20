@@ -353,9 +353,11 @@ const isHome = (id: SectionId): id is 'china' | 'aruba' | 'rotterdam' => id === 
    * Narrow (under 6 : 5: CameraRig's wide layout is inclusive at exactly 6 : 5,
    * so this one is exclusive, and the two meet there): the dial sits above
    * 0.53 of the height, so the words are in the band under it, which the
-   * scrim darkens from the bottom up.
+   * scrim darkens from the bottom up. Written in Media Queries Level 3 (not
+   * the range syntax, which Safari before 16.4 and Chrome before 104 skip):
+   * min-aspect-ratio is inclusive, so its negation is exclusive at 6 : 5.
    */
-  @media (aspect-ratio < 6/5) {
+  @media not all and (min-aspect-ratio: 6/5) {
     :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section .compass__text {
       align-content: start;
     }
