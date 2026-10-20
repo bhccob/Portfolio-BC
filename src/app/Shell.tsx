@@ -21,7 +21,7 @@ export function Shell({ children }: { children: ReactNode }): JSX.Element {
 
   // Temporary, for the proof harness (`?proof` in the first URL); Task 8 replaces it with `window.__needleDebug`.
   useEffect(() => {
-    if (!window.location.search.includes('proof')) return;
+    if (!new URLSearchParams(window.location.search).has('proof')) return;
     window.__needleScene = () => useScene.getState().phase;
     return () => {
       delete window.__needleScene;

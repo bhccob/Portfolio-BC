@@ -48,6 +48,13 @@ export function readClientPrefs(win: PrefsSource | undefined): { threeD: boolean
  * own settings are put in at the bottom of this module, when it loads on the client and before any canvas
  * mounts. React reads `getInitialState()` (the defaults) while it hydrates and the real state right after,
  * so a switch that says "3D off" for a visitor who turned it off hydrates without a mismatch.
+ *
+ * HYDRATION GATING (read this before gating anything on `threeD`): `useScene((s) => s.threeD)` sees the
+ * default, `true`, during the hydration commit and the stored value only on the render after it. Whatever
+ * mounts the WebGL Stage must therefore not gate on the hook's value in the first commit: a visitor who
+ * switched 3D off would get a Stage mounted and torn down. Gate on `useScene.getState().threeD` read in an
+ * effect after hydration, or on a hydrated flag (SceneHost's `useSyncExternalStore` one) combined with the
+ * hook, never on the hook value alone.
  */
 export const useScene = create<SceneState>()((set) => ({
   phase: { kind: 'LOADING' },

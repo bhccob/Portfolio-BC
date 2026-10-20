@@ -19,10 +19,11 @@
  *              not produce is listed and skipped
  *   slash      GET /about/china answers 301 to /about/china/; a browser opening /about/china loads
  *              /about/china/ once, with no reload
- *   persist    client navigation / → /about/china/ → /en/about/china/, then history.back(): the Stage
- *              mounted once and the same <canvas> node throughout, with no document load after the first;
- *              the scene's phase is COUNTRY_PAGE china on the country page and the language switch keeps
- *              that very phase (no new transition)
+ *   persist    client navigation / → /about/china/ → /en/about/china/ (the language switch replaces the
+ *              history entry), then history.back() to / and history.forward(): the Stage mounted once and
+ *              the same <canvas> node throughout, with no document load after the first; the scene's phase
+ *              is COUNTRY_PAGE china on the country page, the language switch keeps that very phase (no new
+ *              transition), going back to / puts it on the scroll's phase and going forward restores it
  *   not-found  an unknown URL (/does-not-exist/, /en/does-not-exist/) answers 404 with the build's
  *              404.html; after hydration it shows the not-found route's <h1> and the right <html lang>,
  *              and the browser loads one document, with no reload loop
@@ -36,9 +37,12 @@
  *   esc        the back link on a country or project page: Escape goes by client navigation, unless focus is
  *              in a text field or the key was already handled. On a page the visit began on (a direct load)
  *              it goes to the home page of that language; on a page reached from the home page it steps back
- *              through the history (the page forward is still there). The scene's phase follows: the page's
- *              on the page, the scroll's (HOME_IDLE) on the home page. The "Esc" hint is aria-hidden and
- *              hidden on a touch screen
+ *              through the history (the page forward is still there). A replace navigation keeps a page the
+ *              visit began on its place: after the language switch, or the contact form's ?sent=1 replaced by
+ *              /contact/, Escape still goes home (in the current language). Clicking the link does what Escape
+ *              does, in both cases, but a ctrl-, meta- or shift-click is left to the browser (its default is
+ *              not prevented). The scene's phase follows: the page's on the page, the scroll's (HOME_IDLE) on
+ *              the home page. The "Esc" hint is aria-hidden and hidden on a touch screen
  *   lite       /lite/ and /en/lite/: one <h1>, every section's heading (from the dictionary) in order and
  *              no skipped level, the real portrait loaded with its alt text and size, at least five
  *              <details> that open by keyboard with a visible focus ring, #career where the old /career/
@@ -278,10 +282,18 @@ async function persist(browser, step) {
   await page.waitForURL(`${BASE}/en/about/china/`);
   await expectSame('link to /en/about/china/', 'en', CHINA_H1);
   await keptPhase('switching to English');
+  // The switch replaces the history entry (it is not a step in the story), so Back from the English
+  // page is the home page, not the Dutch page; Forward is the English page again.
   await page.evaluate(() => history.back());
-  await page.waitForURL(`${BASE}/about/china/`);
-  await expectSame('history.back() to /about/china/', 'nl', CHINA_H1);
-  await keptPhase('history.back() to the Dutch page');
+  await page.waitForURL((url) => url.pathname === '/'); // the first URL was /?proof
+  await expectSame('history.back() past the replaced entry to /', 'nl', HOME_H1);
+  const afterBack = await waitForPhase(page, 'HOME_IDLE');
+  step.check(afterBack.kind === 'HOME_IDLE', `going back to / puts the scene on the scroll's phase (got ${JSON.stringify(afterBack)})`);
+  await page.evaluate(() => history.forward());
+  await page.waitForURL(`${BASE}/en/about/china/`);
+  await expectSame('history.forward() to /en/about/china/', 'en', CHINA_H1);
+  const afterForward = await waitForPhase(page, 'COUNTRY_PAGE');
+  step.check(afterForward.dir === 'china', `going forward puts the scene back on COUNTRY_PAGE china (got ${JSON.stringify(afterForward)})`);
 
   step.check(documents.length === 0, `client navigation only, no document load (got ${documents.join(', ') || 'none'})`);
   await takeCsp(page, step);
@@ -413,6 +425,76 @@ async function esc(browser, step) {
   }
   await takeCsp(page, step);
 
+  // A replace navigation keeps a page the visit began on "the first page of the visit". The language switch
+  // is one (it is not a step in the story), so Escape after it goes home in the current language and does
+  // not undo the switch.
+  await page.goto(`${BASE}/about/china/?proof`, { waitUntil: 'load' });
+  await stageReady(page);
+  documents.length = 0;
+  await waitForPhase(page, 'COUNTRY_PAGE');
+  await page.click('a[href="/en/about/china/"]');
+  await page.waitForFunction(() => location.pathname === '/en/about/china/' && document.documentElement.lang === 'en', null, { timeout: 5_000 });
+  await pressEscape();
+  step.check(pathname() === '/en/', `a direct load + the language switch + Escape lands on /en/, not back on the Dutch page (got ${pathname()})`);
+  step.check(documents.length === 0, `by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
+  await takeCsp(page, step);
+
+  // The contact form is the other one: a visitor who posted without script comes back to /contact/?sent=1,
+  // and the page replaces that with /contact/.
+  await page.goto(`${BASE}/contact/?sent=1`, { waitUntil: 'load' });
+  await stageReady(page);
+  await page.waitForFunction(() => location.pathname === '/contact/' && location.search === '', null, { timeout: 5_000 });
+  documents.length = 0;
+  await pressEscape();
+  step.check(pathname() === '/', `a direct load of /contact/?sent=1, replaced by /contact/, + Escape lands on the home page (got ${pathname()})`);
+  step.check(documents.length === 0, `by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
+  await takeCsp(page, step);
+
+  // The link is Escape for the mouse: it goes where Escape goes. A click that opens it elsewhere (ctrl, meta,
+  // shift) is the browser's: the page must not prevent its default. A listener on window sees every click after
+  // the page's own handlers; it records whether the click was already handled and then cancels it, so no tab opens.
+  const watchClicks = () =>
+    page.evaluate(() => {
+      window.__clicks = [];
+      window.addEventListener('click', (event) => {
+        window.__clicks.push(event.defaultPrevented);
+        event.preventDefault();
+      });
+    });
+  await page.goto(`${BASE}/about/china/?proof`, { waitUntil: 'load' });
+  await stageReady(page);
+  await watchClicks();
+  for (const modifier of ['Control', 'Meta', 'Shift']) await page.click('a.back', { modifiers: [modifier] });
+  step.check(
+    JSON.stringify(await page.evaluate(() => window.__clicks)) === JSON.stringify([false, false, false]),
+    'a ctrl-, meta- or shift-click on the back link is not prevented: the page does not intercept it',
+  );
+  step.check(pathname() === '/about/china/', `and the click does not navigate in the page (got ${pathname()})`);
+  documents.length = 0;
+  await page.evaluate(() => (window.__clicks.length = 0));
+  await page.click('a.back');
+  await page.waitForURL(`${BASE}/`, { timeout: 5_000 });
+  step.check((await page.evaluate(() => window.__clicks)).join() === 'true', 'a plain click on the back link is handled by the page (default prevented)');
+  step.check((await page.textContent('h1')) === HOME_H1, 'a direct load of /about/china/ + a click on the back link lands on the home page');
+  step.check(documents.length === 0, `by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
+  await takeCsp(page, step);
+
+  await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+  await stageReady(page);
+  documents.length = 0;
+  await page.focus('a[href="/about/china/"]');
+  await page.keyboard.press('Enter');
+  await page.waitForURL(`${BASE}/about/china/`, { timeout: 5_000 });
+  await page.click('a.back');
+  await page.waitForURL((url) => url.pathname === '/', { timeout: 5_000 }); // back to /?proof
+  step.check(documents.length === 0, `by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
+  await page.evaluate(() => history.forward());
+  step.check(
+    await page.waitForURL(`${BASE}/about/china/`, { timeout: 5_000 }).then(() => true, () => false),
+    'a click on the back link of a page reached from the home page steps back, like Escape (the page forward is still there)',
+  );
+  await takeCsp(page, step);
+
   // The English pages go to the English home page.
   await page.goto(`${BASE}/en/projects/funcial/`, { waitUntil: 'load' });
   await stageReady(page);
@@ -434,7 +516,7 @@ async function esc(browser, step) {
   step.check(hint === 'none', `on a coarse pointer the Esc hint is hidden (display ${hint})`);
   step.check((await phone.locator('a.back').isVisible()) === true, 'the back link itself stays visible on a phone');
   await touch.close();
-  return 'Escape goes home (/ and /en/) by client navigation; not in a field, not once handled; the hint is hidden on touch';
+  return 'Escape and a click go home (/ and /en/) or back by client navigation, also after a replace; not in a field, not once handled; a modified click is left alone; the hint is hidden on touch';
 }
 
 /** The size of the first element matching `selector`, in CSS pixels; null if there is none. */

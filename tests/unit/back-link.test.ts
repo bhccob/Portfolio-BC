@@ -1,10 +1,12 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { MemoryRouter, type NavigateFunction } from 'react-router';
+import { MemoryRouter, type NavigateFunction, NavigationType } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { en } from '../../src/i18n/en';
+import { localeFromPath } from '../../src/i18n/locale';
 import { nl } from '../../src/i18n/nl';
 import { Translator } from '../../src/i18n/Translator';
+import { translatorFor } from '../../src/i18n/useTranslator';
 import { resetRouteSync, syncRoute } from '../../src/state/routeSync';
 import { BackLink, goBack, homeTarget, isEditableTarget, isPlainClick, splitBackLabel } from '../../src/ui/BackLink';
 
@@ -34,10 +36,28 @@ describe('goBack', () => {
     expect(calls).toEqual(['/']);
   });
 
-  it('goes home in the language of the page', () => {
-    syncRoute({ pathname: '/en/projects/funcial/', key: 'default' });
-    goBack(navigate, '/en/');
+  it.each([
+    ['/about/china/', '/'],
+    ['/en/projects/funcial/', '/en/'],
+  ])('goes home in the language of the page at %s, as the link does (%s)', (pathname, home) => {
+    syncRoute({ pathname, key: 'default' });
+    goBack(navigate, homeTarget(translatorFor(localeFromPath(pathname))));
+    expect(calls).toEqual([home]);
+  });
+
+  it('goes home in the current language after a language switch on the page the visit began on', () => {
+    syncRoute({ pathname: '/about/china/', key: 'default' }, NavigationType.Pop);
+    // The switch replaces the entry (LangSwitch): the page in the other language, still the first page of the visit.
+    syncRoute({ pathname: '/en/about/china/', key: 'r1' }, NavigationType.Replace);
+    goBack(navigate, homeTarget(translatorFor(localeFromPath('/en/about/china/'))));
     expect(calls).toEqual(['/en/']);
+  });
+
+  it('goes home after the contact form replaces ?sent=1 on a direct load', () => {
+    syncRoute({ pathname: '/contact/', key: 'default' }, NavigationType.Pop);
+    syncRoute({ pathname: '/contact/', key: 'r1' }, NavigationType.Replace);
+    goBack(navigate, '/');
+    expect(calls).toEqual(['/']);
   });
 
   it('goes back through the history when the visitor came from another page', () => {

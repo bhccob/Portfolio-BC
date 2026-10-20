@@ -1,3 +1,4 @@
+import { createMemoryRouter, NavigationType } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { frame } from '../../../src/state/frame';
 import { arrivedDirectly, backTarget, pathForPhase, phaseForPath, resetRouteSync, syncRoute } from '../../../src/state/routeSync';
@@ -182,5 +183,71 @@ describe('arrivedDirectly', () => {
     syncRoute({ pathname: '/about/china/', key: 'default' });
     syncRoute({ pathname: '/about/china/', key: 'default' });
     expect(arrivedDirectly()).toBe(true);
+  });
+
+  describe('a replace navigation (the entry keeps its place in the history and gets a new key)', () => {
+    it('keeps a direct arrival direct when it replaces the entry the document loaded on', () => {
+      // The contact form's ?sent=1 to /contact/, and the language switch.
+      syncRoute({ pathname: '/contact/', key: 'default' }, NavigationType.Pop);
+      syncRoute({ pathname: '/contact/', key: 'r1' }, NavigationType.Replace);
+      expect(arrivedDirectly()).toBe(true);
+    });
+
+    it('follows the loaded entry through several replaces', () => {
+      syncRoute({ pathname: '/about/china/', key: 'default' }, NavigationType.Pop);
+      syncRoute({ pathname: '/en/about/china/', key: 'r1' }, NavigationType.Replace);
+      syncRoute({ pathname: '/about/china/', key: 'r2' }, NavigationType.Replace);
+      expect(arrivedDirectly()).toBe(true);
+    });
+
+    it('is still the entry the document loaded on after leaving it and coming back', () => {
+      syncRoute({ pathname: '/contact/', key: 'default' }, NavigationType.Pop);
+      syncRoute({ pathname: '/contact/', key: 'r1' }, NavigationType.Replace);
+      syncRoute({ pathname: '/', key: 'k2' }, NavigationType.Push);
+      expect(arrivedDirectly()).toBe(false);
+      syncRoute({ pathname: '/contact/', key: 'r1' }, NavigationType.Pop);
+      expect(arrivedDirectly()).toBe(true);
+    });
+
+    it('does not move the loaded entry when some other entry is replaced', () => {
+      syncRoute({ pathname: '/', key: 'default' }, NavigationType.Pop);
+      syncRoute({ pathname: '/about/china/', key: 'k1' }, NavigationType.Push);
+      syncRoute({ pathname: '/en/about/china/', key: 'r1' }, NavigationType.Replace);
+      expect(arrivedDirectly()).toBe(false);
+      syncRoute({ pathname: '/', key: 'default' }, NavigationType.Pop);
+      expect(arrivedDirectly()).toBe(true);
+    });
+
+    it('takes a replace on the very first sync for the first entry', () => {
+      syncRoute({ pathname: '/contact/', key: 'r1' }, NavigationType.Replace);
+      expect(arrivedDirectly()).toBe(true);
+    });
+
+    it('is not told apart from a push when the type is not given', () => {
+      syncRoute({ pathname: '/', key: 'default' });
+      syncRoute({ pathname: '/about/china/', key: 'k1' });
+      expect(arrivedDirectly()).toBe(false);
+    });
+  });
+});
+
+describe('React Router and the entry key', () => {
+  it('gives a replaced entry a new key and reports REPLACE, which is why syncRoute needs the navigation type', async () => {
+    const router = createMemoryRouter([{ path: '*', element: null }], { initialEntries: ['/contact/?sent=1'] });
+    const first = router.state.location.key;
+    await router.navigate({ pathname: '/contact/', search: '' }, { replace: true });
+    expect(router.state.historyAction).toBe('REPLACE');
+    expect(router.state.location.key).not.toBe(first);
+    expect(router.state.location.pathname).toBe('/contact/');
+    router.dispose();
+  });
+
+  it('gives a pushed entry a new key and reports PUSH', async () => {
+    const router = createMemoryRouter([{ path: '*', element: null }], { initialEntries: ['/'] });
+    const first = router.state.location.key;
+    await router.navigate('/about/china/');
+    expect(router.state.historyAction).toBe('PUSH');
+    expect(router.state.location.key).not.toBe(first);
+    router.dispose();
   });
 });

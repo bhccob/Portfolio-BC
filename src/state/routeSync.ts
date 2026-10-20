@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useLocation } from 'react-router';
+import { NavigationType, useLocation, useNavigationType } from 'react-router';
 import { countryFromRoute } from '~/data/directions';
 import { PAGES, type PageId } from '~/data/pages';
 import { projects } from '~/data/projects';
@@ -59,6 +59,10 @@ let shown: string | null = null;
  * True when the page being shown is the one the visit began on: the document was loaded on this history
  * entry, so no client-side navigation came before it. It is true again after navigating away and back to
  * that entry, and after a reload (the document loads on whichever entry was open).
+ *
+ * A `replace` navigation (the contact form dropping `?sent=1`, the language switch) puts a new page in the
+ * same history entry, and the router gives that entry a new key; `syncRoute` follows it, so a visit that
+ * began on the replaced entry is still a direct arrival.
  */
 export function arrivedDirectly(): boolean {
   return loadedOn === null || loadedOn === shown;
@@ -72,7 +76,13 @@ export function resetRouteSync(): void {
 
 // ---------------------------------------------------------------- URL to phase
 
-/** The phase the scroll is in, the one the home page shows at the current progress. */
+/**
+ * The phase the scroll is in: the one the home page shows at the current progress.
+ *
+ * It relies on two things outside this module. `frame.progress` survives a visit to a page (the canvas and
+ * the frame object live as long as the document, so scrolling resumes where it stopped), and the scroll
+ * input (Task 6) keeps `frame.chapterIndex` in step with `chapterAt`, since it is the hysteresis's `previous`.
+ */
 function phaseFromScroll(): Phase {
   const at = chapterAt(HOME_CHAPTERS, frame.progress, { index: frame.chapterIndex });
   return transition({ kind: 'HOME_IDLE' }, { type: 'CHAPTER', chapter: at.id, category: at.category });
@@ -84,9 +94,16 @@ function phaseFromScroll(): Phase {
  *   the phase and its transition);
  * - any other location leaves a page phase for the phase the scroll is in. A scene that is not on a page
  *   (loading, or already on the scroll) is left alone: the scroll and the scene's own events own those.
+ *
+ * A direct load of a page takes LOADING straight to that page's phase, and the scene's `LOADED` is then ignored
+ * (it applies from LOADING only): leaving LOADING does not mean the scene's assets are ready.
+ *
+ * `navigationType` is the router's (`useNavigationType`). A `REPLACE` that replaces the entry the document
+ * loaded on moves `loadedOn` to the entry's new key, so `arrivedDirectly()` stays true. Without a type the
+ * navigation counts as a push.
  */
-export function syncRoute(location: { pathname: string; key: string }): void {
-  if (loadedOn === null) loadedOn = location.key;
+export function syncRoute(location: { pathname: string; key: string }, navigationType?: NavigationType): void {
+  if (loadedOn === null || (navigationType === NavigationType.Replace && shown === loadedOn)) loadedOn = location.key;
   shown = location.key;
 
   const { phase, dispatch } = useScene.getState();
@@ -101,7 +118,8 @@ export function syncRoute(location: { pathname: string; key: string }): void {
 /** Syncs the scene's phase to the URL after every navigation, the first load included. */
 export function useRouteSync(): void {
   const { pathname, key } = useLocation();
+  const navigationType = useNavigationType();
   useEffect(() => {
-    syncRoute({ pathname, key });
-  }, [pathname, key]);
+    syncRoute({ pathname, key }, navigationType);
+  }, [pathname, key, navigationType]);
 }
