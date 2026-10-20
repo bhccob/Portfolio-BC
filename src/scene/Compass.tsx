@@ -14,6 +14,7 @@ import { warmScene } from '~/engine/TextureWarmup';
 import { frame } from '~/state/frame';
 import { useScene } from '~/state/store';
 import { motion } from './motion';
+import { settleLoad } from './settleLoad';
 
 /**
  * Milestone 1's subject: the top of revision 4's story, the luopan lying wide in the studio with its red threads.
@@ -36,8 +37,8 @@ const MAX_STEP = 0.1;
 /**
  * The needle's idle drift, in place of revision 4's pearl. It rests at `bearing` (radians clockwise from north on
  * the dial, its glowing tip to the lower right as in the hero render) and wanders `amplitude` radians either side,
- * slowly, for `seconds` after the scene last stirred (it became ready, the pointer moved, the story scrolled, the
- * phase changed). Then it settles and the scene sleeps. On reveal it swings in from `find` radians off, finding its
+ * slowly, for `seconds` after the scene last stirred (it became ready, the story scrolled, the phase changed; the
+ * pointer only moves the parallax). Then it settles and the scene sleeps. On reveal it swings in from `find` radians off, finding its
  * bearing. Reduced motion: no drift and no swing, the needle simply rests.
  */
 export const DRIFT = { bearing: (142 * Math.PI) / 180, amplitude: 0.12, seconds: 10, find: -0.55 } as const;
@@ -130,7 +131,7 @@ export function Compass({ clearcoat, finePointer, onReady, onFail }: CompassProp
   /** The drift's own clock (seconds of drift so far) and when it ends (performance.now() ms). */
   const drift = useRef({ time: 0, until: 0 });
   /** What the scene last saw of the things that stir it. */
-  const seen = useRef({ x: 0, y: 0, target: 0, transition: -1 });
+  const seen = useRef({ target: 0, transition: -1 });
   /** The latest props, for the load, which outlives the render that started it. */
   const latest = useRef({ clearcoat, onReady, onFail });
   useLayoutEffect(() => {
@@ -174,52 +175,54 @@ export function Compass({ clearcoat, finePointer, onReady, onFail }: CompassProp
       invalidate();
     };
 
+    // Two soft failures are the load's own: a face that cannot be painted stays plain, and a warm-up that fails only
+    // costs the first frame a stall. Anything else that throws fails the scene (settleLoad): no partial compass.
     const load = async (): Promise<void> => {
+      const inTime = await settlesWithin(loadInstrumentTextures(undefined, undefined, arrived), TEXTURE_WAIT_MS);
+      if (disposed) return freeMaps(built);
+      if (!inTime) console.warn(`[needle] the compass textures took over ${TEXTURE_WAIT_MS / 1000} s; going on without those still loading`);
+      built.waited = true;
+      built.instrument.setTextures(built.textures);
       try {
-        const inTime = await settlesWithin(loadInstrumentTextures(undefined, undefined, arrived), TEXTURE_WAIT_MS);
-        if (disposed) return freeMaps(built);
-        if (!inTime) console.warn(`[needle] the compass textures took over ${TEXTURE_WAIT_MS / 1000} s; going on without those still loading`);
-        built.waited = true;
-        built.instrument.setTextures(built.textures);
-        try {
-          const lacquer = built.textures.lacquer?.image as CanvasImageSource | undefined;
-          built.painted = await paintInstrument(finePointer, lacquer, { cancelled: () => disposed });
-        } catch (error) {
-          // The face and the ring keep their plain placeholders.
-          if (!(error instanceof PaintCancelled)) console.warn('[needle] the compass face and ring could not be painted; they stay plain', error);
-        }
-        if (disposed) return freeMaps(built);
-        for (const map of mapsOf(built)) map.anisotropy = anisotropy;
-        if (built.painted) {
-          built.instrument.setFace(built.painted.face, built.painted.mr);
-          built.instrument.setStrips(built.painted.strips);
-        }
-        const coated = latest.current.clearcoat;
-        const warming = warmingRenderer(gl, useScene.getState().tier !== 'low');
-        try {
-          const release = await warmScene(warming.renderer, scene, camera, mapsOf(built), coated, () => disposed);
-          if (disposed || !coated || !latest.current.clearcoat) release();
-          else built.release = release;
-        } finally {
-          warming.dispose();
-        }
+        const lacquer = built.textures.lacquer?.image as CanvasImageSource | undefined;
+        built.painted = await paintInstrument(finePointer, lacquer, { cancelled: () => disposed });
       } catch (error) {
-        // The scene shows what it has rather than strand the page.
-        console.error('[needle] the compass load failed partway; showing what it has', error);
+        // The face and the ring keep their plain placeholders.
+        if (!(error instanceof PaintCancelled)) console.warn('[needle] the compass face and ring could not be painted; they stay plain', error);
+      }
+      if (disposed) return freeMaps(built);
+      for (const map of mapsOf(built)) map.anisotropy = anisotropy;
+      if (built.painted) {
+        built.instrument.setFace(built.painted.face, built.painted.mr);
+        built.instrument.setStrips(built.painted.strips);
+      }
+      const coated = latest.current.clearcoat;
+      const warming = warmingRenderer(gl, useScene.getState().tier !== 'low');
+      try {
+        const release = await warmScene(warming.renderer, scene, camera, mapsOf(built), coated, () => disposed);
+        if (disposed || !coated || !latest.current.clearcoat) release();
+        else built.release = release;
+      } catch (error) {
+        console.warn('[needle] the compass could not be warmed up; the first frame may stall', error);
       } finally {
-        if (!disposed) {
-          built.ready = true;
-          built.instrument.root.visible = true;
-          const reduced = useScene.getState().reducedMotion;
-          // It finds its bearing as the canvas fades in, and drifts for a while after.
-          spring.current.set(reduced ? DRIFT.bearing : DRIFT.bearing + DRIFT.find, 0);
-          drift.current.until = performance.now() + DRIFT.seconds * 1000;
-          invalidate();
-          latest.current.onReady();
-        }
+        warming.dispose();
       }
     };
-    void load();
+
+    void settleLoad(load, {
+      disposed: () => disposed,
+      ready: () => {
+        built.ready = true;
+        built.instrument.root.visible = true;
+        const reduced = useScene.getState().reducedMotion;
+        // It finds its bearing as the canvas fades in, and drifts for a while after.
+        spring.current.set(reduced ? DRIFT.bearing : DRIFT.bearing + DRIFT.find, 0);
+        drift.current.until = performance.now() + DRIFT.seconds * 1000;
+        invalidate();
+        latest.current.onReady();
+      },
+      fail: (error) => latest.current.onFail('the compass load failed', error),
+    });
 
     return () => {
       disposed = true;
@@ -259,11 +262,12 @@ export function Compass({ clearcoat, finePointer, onReady, onFail }: CompassProp
     const now = performance.now();
     const { reducedMotion, transitionId } = useScene.getState();
 
-    // Anything that stirred the scene starts the drift's while again.
+    // The story moving or the phase changing starts the drift's while again. The pointer does not: it wakes only the
+    // parallax (Rig), about a second, so a mouse idling over a page of text does not keep the scene drawing.
     const last = seen.current;
-    if (last.x !== frame.pointer.x || last.y !== frame.pointer.y || last.target !== frame.target || last.transition !== transitionId) {
+    if (last.target !== frame.target || last.transition !== transitionId) {
       if (last.transition !== -1) drift.current.until = now + DRIFT.seconds * 1000;
-      Object.assign(last, { x: frame.pointer.x, y: frame.pointer.y, target: frame.target, transition: transitionId });
+      Object.assign(last, { target: frame.target, transition: transitionId });
     }
 
     const drifting = !reducedMotion && now < drift.current.until;

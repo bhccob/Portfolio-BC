@@ -1426,6 +1426,20 @@ async function loaded(browser, step) {
   await page.waitForTimeout(300);
   const after = await page.evaluate(() => window.__allRaf);
   step.check(after > before, `a pointer move wakes the canvas (${after - before} frames asked for in 300 ms)`);
+
+  // Over a page of text a mouse idling about wakes only the parallax, about a second, never the needle's 10 s drift.
+  await page.focus('a[href="/about/china/"]');
+  await page.keyboard.press('Enter');
+  await page.waitForURL((url) => url.pathname === '/about/china/', { timeout: 5_000 });
+  const settled = await sleepWithin(page, SLEEP_WITHIN_MS); // the phase change's own while first
+  const wiggleFrom = await page.evaluate(() => window.__allRaf);
+  for (const [x, y] of [[400, 300], [460, 340], [520, 300], [480, 360]]) await page.mouse.move(x, y, { steps: 3 });
+  const woke = (await page.evaluate(() => window.__allRaf)) > wiggleFrom;
+  const resettled = await sleepWithin(page, 4_000);
+  step.check(
+    settled !== null && woke && resettled !== null,
+    `on /about/china/ a mouse wiggle wakes the parallax only: the canvas sleeps again ${resettled} ms after it (limit 3000 ms, the drift is 10 s)`,
+  );
   await takeCsp(page, step);
   await context.close();
 
@@ -1617,6 +1631,204 @@ async function noWebgl(browser, step) {
   return results.join('; ');
 }
 
+/**
+ * Opens pages of `context` as a background tab: `document.visibilityState` is 'hidden' and requestAnimationFrame
+ * callbacks are held, as a browser does for a tab that is not in front (headless Edge never hides a page itself).
+ * `window.__toFront()` shows the page: 'visible', a `visibilitychange`, and the held callbacks run.
+ */
+const asBackgroundTab = (context) =>
+  context.addInitScript(() => {
+    const tab = { hidden: true, held: [], next: 1 };
+    Object.defineProperty(Document.prototype, 'visibilityState', { configurable: true, get: () => (tab.hidden ? 'hidden' : 'visible') });
+    Object.defineProperty(Document.prototype, 'hidden', { configurable: true, get: () => tab.hidden });
+    const raf = window.requestAnimationFrame.bind(window);
+    const caf = window.cancelAnimationFrame.bind(window);
+    window.requestAnimationFrame = (callback) => {
+      if (!tab.hidden) return raf(callback);
+      const id = -tab.next++;
+      tab.held.push([id, callback]);
+      return id;
+    };
+    window.cancelAnimationFrame = (id) => {
+      if (id >= 0) return caf(id);
+      const at = tab.held.findIndex(([held]) => held === id);
+      if (at >= 0) tab.held.splice(at, 1);
+    };
+    window.__heldFrames = () => tab.held.length;
+    window.__toFront = () => {
+      tab.hidden = false;
+      document.dispatchEvent(new Event('visibilitychange'));
+      for (const [, callback] of tab.held.splice(0)) raf(callback);
+    };
+  });
+
+/** A page opened in a background tab (a middle click) is not given up on while it waits there, however long. */
+async function background(browser, step) {
+  const { context, page } = await openPage(browser, step);
+  await asBackgroundTab(context);
+  await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+  await page.waitForTimeout(LOAD_TIMEOUT_MS + 2_000); // past the load timeout, all of it hidden
+  const waiting = await page.evaluate(() => ({
+    hidden: document.visibilityState,
+    held: window.__heldFrames(),
+    card: document.querySelector('.scene-fallback') !== null,
+    threeD: document.documentElement.dataset['3d'],
+    phase: window.__needleScene?.().kind ?? null,
+  }));
+  step.check(waiting.hidden === 'hidden' && waiting.held > 0, `the page waited in the background, its frames held (${JSON.stringify(waiting)})`);
+  step.check(!waiting.card && waiting.threeD === 'on', `${(LOAD_TIMEOUT_MS + 2_000) / 1000} s in the background: no fallback card, 3D still on (got ${JSON.stringify(waiting)})`);
+  await page.evaluate(() => window.__toFront());
+  await page.bringToFront();
+  const shownAt = Date.now();
+  const reached = await reachHomeIdle(page).then(() => true, () => false);
+  const after = await page.evaluate(() => ({
+    phase: window.__needleScene?.().kind ?? null,
+    ready: document.querySelector('.scene-host')?.hasAttribute('data-ready'),
+    card: document.querySelector('.scene-fallback') !== null,
+    threeD: document.documentElement.dataset['3d'],
+    stored: localStorage.getItem('needle-3d'),
+  }));
+  step.check(
+    reached && after.ready && !after.card && after.threeD === 'on' && after.stored === null,
+    `brought to the front, the scene loads: HOME_IDLE ${Date.now() - shownAt} ms later, shown, 3D on, no card (got ${JSON.stringify(after)})`,
+  );
+  await takeCsp(page, step);
+  await context.close();
+  return `${(LOAD_TIMEOUT_MS + 2_000) / 1000} s in a background tab, then in front: the scene loads, no fallback`;
+}
+
+/**
+ * Dutch text set in Unbounded with an IJ in it (the fallback card's KWIJT, any title): it is shaped with the font's
+ * Dutch `locl` off, which would draw I + J as one glyph that reads as a U. Each such element is measured as shown, with
+ * `locl` off and with it on; shown must equal off. Run without WebGL, so the NL card is on the home page.
+ */
+async function titleIj(_browser, step) {
+  const own = await chromium.launch({ channel: 'msedge', headless: true, args: NO_WEBGL });
+  const found = [];
+  try {
+    const { context, page } = await openPage(own, step);
+    for (const { path } of PAGES.filter((p) => p.lang === 'nl')) {
+      await page.goto(BASE + path, { waitUntil: 'load' });
+      if (path === '/') await page.waitForSelector('.scene-fallback', { timeout: 10_000 });
+      await page.evaluate(() => document.fonts.ready);
+      const rows = await page.evaluate(() => {
+        const measured = [];
+        for (const element of document.querySelectorAll('body *')) {
+          if (!/Unbounded/.test(getComputedStyle(element).fontFamily)) continue;
+          const text = [...element.childNodes].filter((node) => node.nodeType === Node.TEXT_NODE).map((node) => node.textContent).join('');
+          if (!/ij/i.test(text) || element.getBoundingClientRect().width === 0) continue;
+          const width = (features) => {
+            const clone = element.cloneNode(true);
+            if (features !== null) clone.style.fontFeatureSettings = features;
+            Object.assign(clone.style, { position: 'absolute', visibility: 'hidden', width: 'auto', maxWidth: 'none', whiteSpace: 'nowrap' });
+            element.parentElement.append(clone);
+            const w = clone.getBoundingClientRect().width;
+            clone.remove();
+            return w;
+          };
+          measured.push({ text: text.trim().slice(0, 48), lang: element.closest('[lang]')?.getAttribute('lang'), shown: width(null), off: width('"locl" 0'), on: width('normal') });
+        }
+        return measured;
+      });
+      for (const row of rows) found.push({ path, ...row });
+      if (path === '/') {
+        mkdirSync(join(OUT, 'm1'), { recursive: true });
+        await page.locator('.scene-fallback').screenshot({ path: join(OUT, 'm1', 'fallback-card-nl.png') });
+      }
+    }
+    await takeCsp(page, step);
+    await context.close();
+  } finally {
+    await own.close();
+  }
+  const card = found.find((row) => row.path === '/' && /KWIJT/i.test(row.text));
+  step.check(card !== undefined, `the NL fallback title is among the Unbounded texts with an IJ (found ${found.length}: ${found.map((row) => `${row.path} "${row.text}"`).join(', ')})`);
+  step.check(card !== undefined && Math.abs(card.on - card.off) > 1, `the check bites: with locl on, "${card?.text}" is ${card?.on.toFixed(1)} px, with it off ${card?.off.toFixed(1)} px`);
+  for (const row of found) {
+    step.check(Math.abs(row.shown - row.off) < 0.01, `${row.path} "${row.text}" (lang ${row.lang}) is shaped with locl off: ${row.shown.toFixed(2)} px shown, ${row.off.toFixed(2)} px off, ${row.on.toFixed(2)} px on`);
+  }
+  return `${found.length} Dutch Unbounded texts with an IJ, all shaped without the IJ digraph (card crop: ${join(OUT, 'm1', 'fallback-card-nl.png')})`;
+}
+
+/** The scrim's backgrounds of the poster and of the scene host on the page shown, as computed. */
+const scrims = (page) =>
+  page.evaluate(() => {
+    const host = getComputedStyle(document.querySelector('.scene-host'), '::after');
+    const poster = getComputedStyle(document.querySelector('.poster'), '::after');
+    const alphas = (image) => [...image.matchAll(/rgba\([^)]*,\s*([\d.]+)\)/g)].map((m) => Number(m[1]));
+    return {
+      content: host.content,
+      host: host.backgroundImage,
+      poster: poster.backgroundImage,
+      least: Math.min(...alphas(host.backgroundImage)),
+      position: host.position,
+      inset: [host.top, host.right, host.bottom, host.left].join(' '),
+    };
+  });
+
+/**
+ * Stills of the live scene, and of the fallback, at 1440x900 and 390x844 (a phone: touch, coarse pointer), into
+ * PROOF_DIR/m1/. On a page of text the scene is under the same scrim as the poster: the scene host's ::after carries
+ * the poster's page scrim over the whole canvas; the home page keeps the scene unveiled.
+ */
+async function sceneStills(browser, step) {
+  const sizes = [
+    { width: 1440, height: 900, options: {} },
+    { width: 390, height: 844, options: { isMobile: true, hasTouch: true, deviceScaleFactor: 2 } },
+  ];
+  const pages = [
+    { name: 'home', path: '/', text: false },
+    { name: 'about-china', path: '/about/china/', text: true },
+    { name: 'en-projects-funcial', path: '/en/projects/funcial/', text: true },
+    { name: 'lite', path: '/lite/', text: true },
+  ];
+  const dir = join(OUT, 'm1');
+  mkdirSync(dir, { recursive: true });
+  const shots = [];
+  for (const { width, height, options } of sizes) {
+    const { context, page } = await openPage(browser, step, () => false, { width, height }, options);
+    for (const { name, path, text } of pages) {
+      await page.goto(`${BASE}${path}?proof`, { waitUntil: 'load' });
+      await page.bringToFront();
+      await page.waitForFunction(() => document.querySelector('.scene-host')?.hasAttribute('data-ready'), null, { timeout: LOAD_TIMEOUT_MS + 3_000 });
+      await page.evaluate(() => document.fonts.ready);
+      await page.waitForTimeout(1_200); // the canvas's fade-in
+      const scrim = await scrims(page);
+      if (text) {
+        step.check(
+          scrim.content !== 'none' && scrim.position === 'absolute' && scrim.inset === '0px 0px 0px 0px' && scrim.host === scrim.poster && scrim.least >= 0.5,
+          `${path} at ${width}x${height}: the scene is under the page scrim, the poster's own (${scrim.host}; least alpha ${scrim.least})`,
+        );
+      } else {
+        step.check(scrim.content === 'none', `${path} at ${width}x${height}: the home page keeps the scene unveiled (::after content ${scrim.content})`);
+      }
+      const file = join(dir, `${name}-${width}x${height}.png`);
+      await page.screenshot({ path: file });
+      shots.push(file);
+      await takeCsp(page, step);
+    }
+    await context.close();
+  }
+  const own = await chromium.launch({ channel: 'msedge', headless: true, args: NO_WEBGL });
+  try {
+    for (const { width, height, options } of sizes) {
+      const { context, page } = await openPage(own, step, () => false, { width, height }, options);
+      await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+      await page.waitForSelector('.scene-fallback', { timeout: 10_000 });
+      await page.evaluate(() => document.fonts.ready);
+      const file = join(dir, `fallback-${width}x${height}.png`);
+      await page.screenshot({ path: file });
+      shots.push(file);
+      await takeCsp(page, step);
+      await context.close();
+    }
+  } finally {
+    await own.close();
+  }
+  console.log(`note: stills: ${shots.join(' ')}`);
+  return `${shots.length} stills in ${dir}; the page scrim over the scene on every page of text`;
+}
+
 async function fps(browser, step) {
   const { context, page } = await openPage(browser, step);
   await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
@@ -1664,6 +1876,9 @@ const STEPS = {
   loaded,
   'no-webgl': noWebgl,
   fps,
+  background,
+  'title-ij': titleIj,
+  'scene-stills': sceneStills,
 };
 
 // ---------------------------------------------------------------- run

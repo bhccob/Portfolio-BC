@@ -51,6 +51,9 @@
   /* type: Montserrat for the name, tagline and reading text, Unbounded for heavy titles, Martian Mono for labels */
   --font-name: 'Montserrat Variable', 'Montserrat', system-ui, sans-serif;
   --font-title: 'Unbounded Variable', 'Montserrat Variable', system-ui, sans-serif;
+  /* Every rule that sets --font-title sets these too. Unbounded's Dutch `locl` turns I + J into one digraph glyph that
+     reads as a U in capitals ("KWIJT" as "KWUT", "MIJN" as "MUN"); `font-variant-ligatures` does not reach it. */
+  --font-title-features: 'locl' 0;
   --font-label: 'Martian Mono Variable', ui-monospace, 'Cascadia Mono', Consolas, monospace;
   --text-size: clamp(17px, 16.2px + 0.2vw, 19px);
   --label-size: 11px; /* the minimum for a technical label */

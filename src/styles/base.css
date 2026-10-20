@@ -115,15 +115,30 @@ main:focus {
     linear-gradient(0deg, rgb(10 5 16 / 0.7) 0%, transparent 40%);
 }
 
-/* A page of text (a country, a project) has text over most of the poster, so its scrim is stronger. */
+/* A page of text (a country, a project, Lite, contact) has text over most of the picture, so its scrim is stronger.
+   One value for both pictures: the poster and the live scene over it. */
+:root {
+  --scrim-page: linear-gradient(90deg, rgb(10 5 16 / 0.94) 0%, rgb(10 5 16 / 0.78) 55%, rgb(10 5 16 / 0.5) 100%);
+}
+
 body:has(.page) .poster::after {
-  background: linear-gradient(90deg, rgb(10 5 16 / 0.94) 0%, rgb(10 5 16 / 0.78) 55%, rgb(10 5 16 / 0.5) 100%);
+  background: var(--scrim-page);
 }
 
 .scene-host {
   position: fixed;
   inset: 0;
   z-index: 1;
+}
+
+/* The canvas is opaque and above the poster, so on a page of text the scrim is drawn again over the scene: above
+   the canvas, below the page. The home page keeps the scene unveiled. */
+body:has(.page) .scene-host::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--scrim-page);
+  pointer-events: none;
 }
 
 /* The canvas shows once the scene is ready (SceneHost sets data-ready): until then the poster is the picture, and
@@ -159,6 +174,7 @@ body:has(.page) .poster::after {
 
 .scene-fallback-title {
   font-family: var(--font-title);
+  font-feature-settings: var(--font-title-features);
   font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -358,8 +374,9 @@ main {
     background: linear-gradient(0deg, rgb(10 5 16 / 0.92) 0%, rgb(10 5 16 / 0.55) 55%, rgb(10 5 16 / 0.3) 100%);
   }
 
-  body:has(.page) .poster::after {
-    background: rgb(10 5 16 / 0.82);
+  /* On a phone the text column is the whole width: an even scrim, poster and scene alike. */
+  :root {
+    --scrim-page: linear-gradient(rgb(10 5 16 / 0.82), rgb(10 5 16 / 0.82));
   }
 
   /* On a phone the header's controls sit on a row of their own, left aligned and close together. */
@@ -403,6 +420,7 @@ main {
 
 .nav-title {
   font-family: var(--font-title);
+  font-feature-settings: var(--font-title-features);
   font-size: 15px;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -451,6 +469,7 @@ html[data-3d='on'] .home-nav:not(:focus-within) {
 .page-title {
   margin: 16px 0 24px;
   font-family: var(--font-title);
+  font-feature-settings: var(--font-title-features);
   /* Unbounded 800 is wide (about 0.9 em a letter): the longest title, NETHERLANDS, fits the 44rem column at 64 px. */
   font-size: clamp(30px, 5.5vw, 64px);
   font-weight: 800;
@@ -603,6 +622,7 @@ html[data-3d='on'] .home-nav:not(:focus-within) {
 
 .lite-heading {
   font-family: var(--font-title);
+  font-feature-settings: var(--font-title-features);
   font-size: clamp(22px, 3.4vw, 32px);
   font-weight: 800;
   line-height: 1.15;
@@ -624,6 +644,7 @@ html[data-3d='on'] .home-nav:not(:focus-within) {
 
 .lite-item-title {
   font-family: var(--font-title);
+  font-feature-settings: var(--font-title-features);
   font-size: 15px;
   font-weight: 600;
   line-height: 1.3;
@@ -819,6 +840,7 @@ html[data-3d='on'] .home-nav:not(:focus-within) {
 
 .quote p {
   font-family: var(--font-title);
+  font-feature-settings: var(--font-title-features);
   font-size: clamp(17px, 2.4vw, 22px);
   font-weight: 600;
   line-height: 1.35;
@@ -861,6 +883,7 @@ html[data-3d='on'] .home-nav:not(:focus-within) {
 
 .hobby-name {
   font-family: var(--font-title);
+  font-feature-settings: var(--font-title-features);
   font-size: 15px;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -880,6 +903,7 @@ html[data-3d='on'] .home-nav:not(:focus-within) {
 .form-title {
   margin-bottom: 20px;
   font-family: var(--font-title);
+  font-feature-settings: var(--font-title-features);
   font-size: clamp(18px, 2.6vw, 24px);
   font-weight: 800;
   line-height: 1.2;

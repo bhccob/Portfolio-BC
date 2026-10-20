@@ -12,9 +12,10 @@ export default defineConfig({
     assetsInlineLimit: 0,
     // three.js gets a chunk of its own (core and WebGL renderer), shared by the
     // scene and by the scroll's lazily loaded maath easing. It is one library of
-    // about 700 KB minified that does not split further, fetched only after
-    // hydration and only while 3D is on, so its chunk is the one allowed over
-    // Vite's default 500 KB warning; anything else that size still warns.
+    // about 740 KB minified that does not split further, fetched only after
+    // hydration and only while 3D is on. The limit is global, not per chunk: it
+    // is raised to just above three's chunk, so any chunk up to 760 KB passes
+    // unwarned. Today every other chunk is under 350 KB.
     chunkSizeWarningLimit: 760,
     rolldownOptions: {
       output: {
