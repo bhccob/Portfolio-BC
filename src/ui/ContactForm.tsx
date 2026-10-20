@@ -12,6 +12,7 @@ import {
   contactPayload,
   coolingDown,
   fieldIsValid,
+  fillWait,
   invalidFields,
   looksAutomated,
   sendToWeb3Forms,
@@ -50,8 +51,9 @@ function writeLastSent(time: number): void {
  * leaves the form out, and shows it once the page has hydrated; the direct links below it (the
  * `mailto:` link among them) are the way until then.
  *
- * The guards against scripts are invisible to people: a honeypot box, a minimum time between opening
- * the page and sending, and a pause of a minute after a message has gone out.
+ * The guards against scripts are invisible to people: a honeypot box (ticked, the form says it sent and
+ * sends nothing), a minimum time between opening the page and sending (a message sent sooner shows that it
+ * is sending and waits out the rest: it is never dropped), and a pause of a minute after a message has gone out.
  */
 export function ContactForm({ accessKey }: { accessKey?: string }): JSX.Element | null {
   const i18n = useTranslator();
@@ -134,8 +136,8 @@ export function ContactForm({ accessKey }: { accessKey?: string }): JSX.Element 
       return;
     }
 
-    // A script ticked the honeypot or filled the form at once: it is told it worked, and nothing is sent.
-    if (looksAutomated({ honeypot: data.has('botcheck'), elapsedMs: performance.now() - openedAt.current })) {
+    // A script ticked the honeypot: it is told it worked, and nothing is sent.
+    if (looksAutomated({ honeypot: data.has('botcheck') })) {
       setStatus('sent');
       return;
     }
@@ -148,6 +150,9 @@ export function ContactForm({ accessKey }: { accessKey?: string }): JSX.Element 
     inFlight.current = true;
     setStatus('sending');
     try {
+      // Sent within MIN_FILL_MS of the page opening (a quick writer, the browser's autofill): it waits out the rest.
+      const wait = fillWait(performance.now() - openedAt.current);
+      if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
       await sendToWeb3Forms(payload.body);
       writeLastSent(Date.now());
       setStatus('sent');

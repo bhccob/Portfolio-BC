@@ -9,6 +9,7 @@ import {
   contactPayload,
   coolingDown,
   fieldIsValid,
+  fillWait,
   invalidFields,
   looksAutomated,
   sendToWeb3Forms,
@@ -111,11 +112,23 @@ describe('invalidFields', () => {
 });
 
 describe('the guards against scripts', () => {
-  it('takes a ticked honeypot, or a form filled in under three seconds, for a script', () => {
+  it('takes a ticked honeypot for a script, however long the form took', () => {
+    expect(looksAutomated({ honeypot: true })).toBe(true);
+    expect(looksAutomated({ honeypot: false })).toBe(false);
+  });
+
+  it('never drops a message for being quick: one sent within three seconds of the page opening waits out the rest', () => {
     expect(MIN_FILL_MS).toBe(3000);
-    expect(looksAutomated({ honeypot: true, elapsedMs: 60_000 })).toBe(true);
-    expect(looksAutomated({ honeypot: false, elapsedMs: 2_999 })).toBe(true);
-    expect(looksAutomated({ honeypot: false, elapsedMs: 3_000 })).toBe(false);
+    expect(fillWait(0)).toBe(3000);
+    expect(fillWait(1_200)).toBe(1_800);
+    expect(fillWait(2_999)).toBe(1);
+    expect(fillWait(3_000)).toBe(0);
+    expect(fillWait(60_000)).toBe(0);
+  });
+
+  it('waits no longer than the three seconds, whatever the clock says', () => {
+    expect(fillWait(-500)).toBe(3000);
+    expect(fillWait(Number.NaN)).toBe(3000);
   });
 
   it('asks the visitor to wait a minute after a message has gone out', () => {

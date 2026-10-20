@@ -25,7 +25,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const MIN_LENGTH: Record<Exclude<ContactField, 'email'>, number> = { name: 2, message: 10 };
 export const MESSAGE_MAX = 3000;
 
-/** Nobody reads the page and writes a message in under this many milliseconds. */
+/** No message goes out sooner than this many milliseconds after the page opened (`fillWait`). */
 export const MIN_FILL_MS = 3000;
 /** After a message has gone out, the next one waits this long. */
 export const COOLDOWN_MS = 60_000;
@@ -43,9 +43,18 @@ export function invalidFields(fields: ContactFields): ContactField[] {
   return (['name', 'email', 'message'] as const).filter((field) => !fieldIsValid(field, fields[field]));
 }
 
-/** A ticked honeypot box or a form filled in too fast is a script, not a person. */
-export function looksAutomated({ honeypot, elapsedMs }: { honeypot: boolean; elapsedMs: number }): boolean {
-  return honeypot || elapsedMs < MIN_FILL_MS;
+/** A ticked honeypot box (hidden from people) is a script: it is told the message went, and nothing is sent. */
+export function looksAutomated({ honeypot }: { honeypot: boolean }): boolean {
+  return honeypot;
+}
+
+/**
+ * How long a message sent `elapsedMs` after the page opened waits before it goes: what is left of MIN_FILL_MS, and 0
+ * after that. Speed alone never drops a message (a person who writes fast, or lets the browser fill the form in, would
+ * lose theirs without knowing): the form shows that it is sending, waits out the rest, then sends.
+ */
+export function fillWait(elapsedMs: number): number {
+  return Number.isFinite(elapsedMs) ? Math.min(MIN_FILL_MS, Math.max(0, MIN_FILL_MS - elapsedMs)) : MIN_FILL_MS;
 }
 
 /** True while the pause after the last sent message (`lastSent`, 0 for none) has not run out. */
