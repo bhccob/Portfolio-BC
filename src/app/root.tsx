@@ -5,6 +5,7 @@ import montserratLatin from '@fontsource-variable/montserrat/files/montserrat-la
 import { type ReactNode, useEffect } from 'react';
 import { Links, type LinksFunction, Meta, Outlet, Scripts, ScrollRestoration, useLocation } from 'react-router';
 import { localeFromPath } from '~/i18n/locale';
+import { cfBeacon } from '~/seo/analytics';
 import '~/styles/tokens.css';
 import '~/styles/base.css';
 import { Shell } from './Shell';
@@ -18,6 +19,9 @@ export const links: LinksFunction = () => [
   // link here: React preloads an <img fetchPriority="high"> by itself.)
   { rel: 'preload', href: montserratLatin, as: 'font', type: 'font/woff2', crossOrigin: 'anonymous' },
 ];
+
+/** Cloudflare Web Analytics, when the build has a site token (PUBLIC_CF_ANALYTICS_TOKEN); without one, nothing. */
+const BEACON = cfBeacon(import.meta.env.PUBLIC_CF_ANALYTICS_TOKEN);
 
 export function Layout({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
@@ -54,6 +58,7 @@ export function Layout({ children }: { children: ReactNode }) {
             (useNavigationFocus). */}
         <ScrollRestoration />
         <Scripts />
+        {BEACON && <script defer {...BEACON} />}
       </body>
     </html>
   );
