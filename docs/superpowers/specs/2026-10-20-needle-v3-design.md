@@ -1,6 +1,6 @@
 # Follow the Needle, v3: design
 
-Date: 2026-10-20. Owner: Bob Chung. Status: agreed in a visual brainstorm with Bob, revised after his review of the first draft. This document is the build target.
+Date: 2026-10-20. Owner: Bob Chung. Status: agreed in a visual brainstorm with Bob, revised after his review of the first draft, and **approved by Bob on 2026-10-20**. This document is the build target.
 
 **Supersedes:**
 - Bob's earlier brief `C:\Users\bhcco\Downloads\portfolio-prompt-v2-pack\MASTER-PROMPT-v2.md` wherever the two differ. The brief stays useful background.
@@ -37,7 +37,7 @@ They remember Bob, his three homes and his work.
 - Text-heavy pages, or scrolling that just scrolls a document.
 - Decorative details with no meaning: random dots, filler particles, generic template elements.
 - AI pseudo-characters or typos anywhere. Every letter and every engraved symbol is real.
-- Too bright. Bob wants the loader and the world dark and moody, never over-exposed.
+- Too bright or too busy. Bob wants the whole site dark, mysterious and cinematic, with nothing that distracts: never over-exposed, never several things glowing or moving for attention at once (see §4, Restraint).
 
 ---
 
@@ -191,6 +191,13 @@ If a screen needs more words than this, the visual has to say it instead.
 
 - **Colour:** about 60 % near-black, 30 % purple, at most 6 % gold. Gold is the only warm light. The three constellation tints (turquoise, blue, red) are small accents.
 - **Exposure:** dark and low-key throughout, with haze and mist rather than glare. Highlights never clip.
+- **Restraint** (Bob, on approving this design: not too bright, not too much going on, so the visitor is not distracted; dark, mysterious, very cinematic):
+  - One focal point per scene. Everything else sits in shadow or soft focus.
+  - At rest, only slow things move: the needle's breathing, drifting mist and a few twinkling stars.
+  - The constellations rest dim. Only the one the needle points at brightens; the others stay faint.
+  - The chip city under the glass glows faintly. It is a hint of light below, not a light show.
+  - Bloom, particles and colour stay sparse. When in doubt, take light away.
+  - The concept frames, frame 04 especially, are brighter and busier than the target. The built site is darker and calmer than they are.
 - **Fonts:**
   - Montserrat (Bob's pick) for the name, tagline and reading text.
   - Unbounded for heavy titles: the 3D extruded titles and the bead labels.
