@@ -569,8 +569,9 @@ export class CompassScene {
     const shot = this.shotFor(pose, own);
     placeCamera(this.camera, shot, width, height);
 
-    // The pearl, eased toward where it wants to be (and put straight there the first time).
-    const [wantX, wantY] = this.target.at(this.clock(), width, height, layoutFor(width, height, pose.framing.side));
+    // The pearl, eased toward where it wants to be (and put straight there the first time); its rest spot goes round to the
+    // drive's lower left as the chassis comes, clear of the actuator.
+    const [wantX, wantY] = this.target.at(this.clock(), width, height, layoutFor(width, height, pose.framing.side), pose.drive.chassis);
     const ease = (from: number, to: number): number => {
       const next = this.pearlPlaced ? easePearl(from, to, dt) : to;
       return Math.abs(to - next) < STILL.pearl ? to : next;

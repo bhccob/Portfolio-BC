@@ -8,6 +8,7 @@ import { armState, buildNeedle, type ArmState } from './Needle';
 import { buildPool } from './Pool';
 import { applyTextures, createMaterials, createPlaceholders, SWEEP } from './materials';
 import type { InstrumentTextures } from './textures';
+import { WIRE } from './wirePath';
 
 /**
  * The compass: a luopan in dark lacquer and gilt on a square base plate, its
@@ -64,7 +65,10 @@ export interface InstrumentModel {
   platter: THREE.Group;
   /** The frame the tracks sit in: on the top platter's face, turning with it. */
   topPlatter(): THREE.Object3D;
-  /** Dial-local: the arm's tail point (the needle's, as the compass) and its direction toward the head, a unit vector. */
+  /**
+   * Dial-local: where the coil is wound, its middle on the tail half its length (WIRE.coil.length) in from the tail's end
+   * (the arm's, or the needle's as the compass), and the arm's direction toward the head, a unit vector.
+   */
   coilAnchor(): { anchor: [number, number, number]; axis: [number, number, number] };
   /** The read head's (the needle tip's) world position, written into `target`. */
   headWorld(target: THREE.Vector3): THREE.Vector3;
@@ -219,10 +223,12 @@ export function buildInstrument(): InstrumentModel {
   threads.add(northSouth, eastWest);
   dial.add(threads);
 
-  // The drive's own parts: each platter's edge under its ring, the hub on the axis, the magnets and the ramp on the chassis.
+  // The drive's own parts: each platter's edge under its ring, the hub on the axis, the clamp's band round it and its
+  // screws on the turning platter, the magnets, the ramp and the cover screws on the chassis.
   const parts = buildDriveParts(m);
   for (const id of platterIds) rings[id].mesh.add(parts.edges[id]);
-  dial.add(parts.hub, parts.magnets, parts.ramp);
+  dial.add(parts.hub, parts.clampBand, parts.magnets, parts.ramp, parts.screws);
+  platter.add(parts.clampScrews);
 
   let disposed = false;
   let hasPortrait = false;
@@ -283,9 +289,12 @@ export function buildInstrument(): InstrumentModel {
     m.threads.opacity = threadsShown * (1 - mirror);
     northSouth.visible = eastWest.visible = m.threads.opacity > 0;
 
-    // The trigram ring closes into the clamp above the top platter; the pool closes in round the rising hub.
-    setRadii(rings.trigram, lerp(DIAL.rings.trigram[0], DRIVE.clamp[0], clamp), lerp(DIAL.rings.trigram[1], DRIVE.clamp[1], clamp));
+    // The trigram ring closes into the clamp above the top platter, a steel band under its edge down to the platter and
+    // its screws coming in; the pool closes in round the rising hub.
+    const clampOuter = lerp(DIAL.rings.trigram[1], DRIVE.clamp[1], clamp);
+    setRadii(rings.trigram, lerp(DIAL.rings.trigram[0], DRIVE.clamp[0], clamp), clampOuter);
     rings.trigram.mesh.position.y = CLAMP_HEIGHT * clamp;
+    parts.setClamp(clampOuter, PLATTER_Y.pattern * stack, CLAMP_HEIGHT * clamp, clamp);
     pool.pose(clamp);
     // Its top starts just under the pool's floor, so it never lies flush with it.
     parts.setHub(bedY, lerp(-DIAL.poolDepth - 0.002, HUB_TOP, clamp));
@@ -311,7 +320,10 @@ export function buildInstrument(): InstrumentModel {
   const coilAnchor = (): { anchor: [number, number, number]; axis: [number, number, number] } => {
     const x = Math.sin(arm.bearing);
     const z = -Math.cos(arm.bearing);
-    return { anchor: [arm.x - arm.tail * x, arm.y, arm.z - arm.tail * z], axis: [x, 0, z] };
+    // Half the coil's length in from the tail's end, so the coil is wound wholly on the tail: its far end is the tail's
+    // end, and on the drive it stays on the chassis, between the magnets.
+    const back = arm.tail - WIRE.coil.length / 2;
+    return { anchor: [arm.x - back * x, arm.y, arm.z - back * z], axis: [x, 0, z] };
   };
 
   const setPattern = (from: HomeId, to: HomeId, sweep: number, originDeg: number): void => {

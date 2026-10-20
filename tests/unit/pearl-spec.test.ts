@@ -15,6 +15,27 @@ describe("the pearl's shared numbers", () => {
     expect(PEARL_REST).toEqual({ offset: 0.42, margin: 24 });
   });
 
+  it('rests below-left of the drive, clear of its actuator, going round under the dial on the way', () => {
+    const [x, y, d] = [900, 450, 530];
+    // Turned 0 (the compass, as the loader has it), exactly the compass's spot; a turn out of range is held to it.
+    expect(restAt(x, y, d, 1440, 900, 0)).toEqual(restAt(x, y, d, 1440, 900));
+    expect(restAt(x, y, d, 1440, 900, Number.NaN)).toEqual(restAt(x, y, d, 1440, 900));
+    expect(restAt(x, y, d, 1440, 900, -1)).toEqual(restAt(x, y, d, 1440, 900));
+    // Turned 1 (the drive), mirrored to the lower left; held there beyond.
+    const [lx, ly] = restAt(x, y, d, 1440, 900, 1);
+    expect(lx).toBeCloseTo(x - PEARL_REST.offset * d, 9);
+    expect(ly).toBeCloseTo(y + PEARL_REST.offset * d, 9);
+    expect(restAt(x, y, d, 1440, 900, 3)).toEqual([lx, ly]);
+    // On the way it keeps its distance from the dial's centre, so it passes under the rim, never over the platter.
+    for (let k = 0; k <= 20; k++) {
+      const [px, py] = restAt(x, y, d, 1440, 900, k / 20);
+      expect(Math.hypot(px - x, py - y)).toBeCloseTo(Math.SQRT2 * PEARL_REST.offset * d, 6);
+      expect(py).toBeGreaterThan(y + PEARL_REST.offset * d - 1e-6);
+    }
+    // Still kept 24 px inside the canvas.
+    expect(restAt(100, 450, 400, 1440, 900, 1)[0]).toBe(24);
+  });
+
   it("is the scene's rest spot, and its ease is MathUtils.damp's", () => {
     for (const layout of [{ x: 700, y: 450, diameter: 500 }, { x: 195, y: 253, diameter: 312 }, { x: 700, y: 500, diameter: 400 }]) {
       expect(restSpot(800, 600, layout)).toEqual(restAt(layout.x, layout.y, layout.diameter, 800, 600));

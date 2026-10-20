@@ -21,8 +21,14 @@ import { WIRE, clamp01, wirePath, type Point } from './wirePath';
 /** The palette (global constraints): cream wire, gold coil, signal yellow pulses. */
 const COLOR = { cream: palette.cream, gold: palette.gold, pulse: palette.yellow } as const;
 
-/** How hard the pulse glows: about the needle tip's emissive, with room for the tone mapping. */
-const PULSE_STRENGTH = 2.4;
+/**
+ * The pulse: how hard its core glows (a white-hot middle whose soft edges,
+ * falling off, stay signal yellow), how far the wire's own colour gives way
+ * under it to a deep yellow (so the glow keeps its hue rather than adding to
+ * a cream the tone mapping would roll to white), and how much it swells the
+ * tube at its middle, in radii: a bead of current running along the wire.
+ */
+const PULSE = { strength: 2.4, base: 0.35, swell: 1.4 } as const;
 
 const SIDES = 8;
 const RING_VERTICES = WIRE.points * SIDES;
@@ -177,8 +183,17 @@ export function buildWire(): WireModel {
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying float vWireU;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvWireU = uv.x;');
+      .replace('#include <common>', '#include <common>\nvarying float vWireU;\nuniform float uPulse;\nuniform float uPulseWidth;')
+      .replace(
+        '#include <begin_vertex>',
+        [
+          '#include <begin_vertex>',
+          '\tvWireU = uv.x;',
+          // The glow's own band: the tube swells under it, out along its normals.
+          '\tfloat wireSwell = step( 0.0, uPulse ) * ( 1.0 - smoothstep( 0.0, 0.5 * uPulseWidth, abs( uv.x - uPulse ) ) );',
+          `\ttransformed += objectNormal * ${(WIRE.radius * PULSE.swell).toFixed(5)} * wireSwell;`
+        ].join('\n')
+      );
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\nvarying float vWireU;\nuniform float uPulse;\nuniform float uPulseWidth;')
       .replace(
@@ -187,7 +202,8 @@ export function buildWire(): WireModel {
           '#include <emissivemap_fragment>',
           // A band of signal yellow, centred on uPulse and uPulseWidth wide, strongest in the middle and soft to its edges; none below 0.
           '\tfloat wirePulse = step( 0.0, uPulse ) * ( 1.0 - smoothstep( 0.0, 0.5 * uPulseWidth, abs( vWireU - uPulse ) ) );',
-          `\ttotalEmissiveRadiance += ${glow} * ${PULSE_STRENGTH.toFixed(1)} * wirePulse;`
+          `\tdiffuseColor.rgb = mix( diffuseColor.rgb, ${glow} * ${PULSE.base.toFixed(2)}, wirePulse );`,
+          `\ttotalEmissiveRadiance += ${glow} * ${PULSE.strength.toFixed(1)} * wirePulse;`
         ].join('\n')
       );
   };

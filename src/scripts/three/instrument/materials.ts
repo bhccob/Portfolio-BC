@@ -3,12 +3,15 @@ import { palette } from '../palette';
 import { DIAL } from './dialSpec';
 import {
   ALUMINIUM,
+  DRIVE_ROOM,
   MAGNET,
   STEEL,
   bladeUniforms,
   mirrorUniforms,
   patchBlade,
   patchMirror,
+  patchRoom,
+  patchTail,
   type BladeUniforms,
   type MirrorUniforms
 } from './DriveParts';
@@ -42,6 +45,15 @@ export const GLASS_OPACITY = 0.12;
 
 /** The pattern ring's sweep: the soft edge sweepCoverage uses, and the seam's strength at the front. */
 export const SWEEP = { soft: 0.015, seam: 1.8 } as const;
+
+/**
+ * How the aluminium's image is read as a grey: its red and blue alone. The
+ * image is anodised purple; its green is a sliver (a mean of 0.018) whose
+ * noise a per-channel tint multiplied some eighteen times into green and
+ * purple speckle. Red and blue carry the brushing; read as one grey and
+ * tinted as a whole, the brushing stays and the speckle goes.
+ */
+export const ALUMINIUM_GREY = [0.5, 0, 0.5] as const;
 
 /** The face's placeholder roughness (green) and metalness (blue): plain lacquer, as face.ts paints it. */
 const FACE_ROUGHNESS = 0.08;
@@ -114,11 +126,11 @@ export interface InstrumentMaterials {
   glass: THREE.MeshPhysicalMaterial;
   /** The portrait under the pool's glass, unlit. */
   portrait: THREE.MeshBasicMaterial;
-  /** Steel: the platters' edges and the hub. */
+  /** Steel: the platters' edges, the hub, the clamp and the screws, the drive's room in its reflections. */
   steel: THREE.MeshStandardMaterial;
-  /** The chassis's brushed aluminium, over the plate's lacquer as it fades in. */
+  /** The chassis's brushed aluminium, over the plate's lacquer as it fades in; its image read as a grey (ALUMINIUM_GREY). */
   aluminium: THREE.MeshStandardMaterial;
-  /** The magnets' near-black metal, and the park ramp's. */
+  /** The magnets' near-black metal, and the park ramp's, with a faint sheen of the drive's room. */
   magnet: THREE.MeshStandardMaterial;
 }
 
@@ -252,6 +264,60 @@ function createFace(placeholders: Placeholders, mirror: MirrorUniforms): THREE.M
   return material;
 }
 
+/** A drive metal: `material` with the drive's room in its reflections (patchRoom) as much as `cover` says, in a program of its own (`key`). */
+function inRoom<M extends THREE.Material>(material: M, cover: number, key: string): M {
+  material.onBeforeCompile = (shader) => patchRoom(shader, cover.toFixed(3));
+  material.customProgramCacheKey = () => key;
+  return material;
+}
+
+/** The chassis's aluminium: its image read as one grey (ALUMINIUM_GREY), so the tint keeps the brushing and adds no speckle. */
+function createAluminium(placeholder: THREE.Texture): THREE.MeshStandardMaterial {
+  const material = new THREE.MeshStandardMaterial({
+    name: 'compass:aluminium',
+    color: ALUMINIUM.color,
+    map: placeholder,
+    metalness: 1,
+    roughness: ALUMINIUM.roughness,
+    // It fades in over the plate's lacquer, drawn on the same faces: it wins their depth by a hair.
+    transparent: true,
+    opacity: 0,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1
+  });
+  const grey = ALUMINIUM_GREY.map((w) => w.toFixed(3)).join(', ');
+  material.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <map_fragment>',
+      [
+        '#ifdef USE_MAP',
+        '\tvec4 sampledDiffuseColor = texture2D( map, vMapUv );',
+        `\tdiffuseColor *= vec4( vec3( dot( sampledDiffuseColor.rgb, vec3( ${grey} ) ) ), sampledDiffuseColor.a );`,
+        '#endif'
+      ].join('\n')
+    );
+  };
+  material.customProgramCacheKey = () => 'compass:aluminium';
+  return material;
+}
+
+/** The needle's tail half and hub: brass, turning to steel with the blade (Needle), the drive's room in it as far as it has (patchTail). */
+function createNeedleTail(blade: BladeUniforms): THREE.MeshStandardMaterial {
+  const material = new THREE.MeshStandardMaterial({
+    name: 'compass:needle-tail',
+    color: COLOR.brass,
+    // Half metal and a little rough, so the key lights it: polished, it would mirror the dark room and read brown,
+    // and faded for the portrait it would be a dark line across it rather than a faint gold one.
+    metalness: 0.5,
+    roughness: 0.4,
+    transparent: true
+  });
+  material.onBeforeCompile = (shader) => patchTail(shader, blade);
+  material.customProgramCacheKey = () => 'compass:needle-tail';
+  return material;
+}
+
 /** The needle's tip half: signal yellow and aglow, turning to steel but for its head as the arm forms (patchBlade). */
 function createNeedleTip(blade: BladeUniforms): THREE.MeshStandardMaterial {
   const material = new THREE.MeshStandardMaterial({
@@ -293,15 +359,7 @@ export function createMaterials(placeholders: Placeholders): { materials: Instru
     face: createFace(placeholders, mirror),
     pattern: pattern.material,
     needleTip: createNeedleTip(blade),
-    needleTail: new THREE.MeshStandardMaterial({
-      name: 'compass:needle-tail',
-      color: COLOR.brass,
-      // Half metal and a little rough, so the key lights it: polished, it would mirror the dark room and read brown,
-      // and faded for the portrait it would be a dark line across it rather than a faint gold one.
-      metalness: 0.5,
-      roughness: 0.4,
-      transparent: true
-    }),
+    needleTail: createNeedleTail(blade),
     threads: new THREE.MeshStandardMaterial({ name: 'compass:threads', color: COLOR.thread, metalness: 0, roughness: 0.6, transparent: true }),
     glass: unmirrored(
       new THREE.MeshPhysicalMaterial({
@@ -318,21 +376,13 @@ export function createMaterials(placeholders: Placeholders): { materials: Instru
       })
     ),
     portrait: new THREE.MeshBasicMaterial({ name: 'compass:portrait', map: placeholders.portrait, transparent: true, opacity: 0 }),
-    steel: new THREE.MeshStandardMaterial({ name: 'compass:steel', color: STEEL.color, metalness: 1, roughness: STEEL.roughness }),
-    aluminium: new THREE.MeshStandardMaterial({
-      name: 'compass:aluminium',
-      color: ALUMINIUM.color,
-      map: placeholders.image,
-      metalness: 1,
-      roughness: ALUMINIUM.roughness,
-      // It fades in over the plate's lacquer, drawn on the same faces: it wins their depth by a hair.
-      transparent: true,
-      opacity: 0,
-      polygonOffset: true,
-      polygonOffsetFactor: -1,
-      polygonOffsetUnits: -1
-    }),
-    magnet: new THREE.MeshStandardMaterial({ name: 'compass:magnet', color: MAGNET.color, metalness: MAGNET.metalness, roughness: MAGNET.roughness })
+    steel: inRoom(new THREE.MeshStandardMaterial({ name: 'compass:steel', color: STEEL.color, metalness: 1, roughness: STEEL.roughness }), DRIVE_ROOM.cover.steel, 'compass:steel'),
+    aluminium: createAluminium(placeholders.image),
+    magnet: inRoom(
+      new THREE.MeshStandardMaterial({ name: 'compass:magnet', color: MAGNET.color, metalness: MAGNET.metalness, roughness: MAGNET.roughness }),
+      DRIVE_ROOM.cover.magnet,
+      'compass:magnet'
+    )
   };
   return { materials, uniforms: { pattern: pattern.uniforms, mirror, blade } };
 }
@@ -371,7 +421,11 @@ export function applyTextures(m: InstrumentMaterials, textures: InstrumentTextur
   }
   if (aluminium) {
     wrap(aluminium, THREE.MirroredRepeatWrapping, THREE.MirroredRepeatWrapping);
-    tinted(m.aluminium, aluminium, ALUMINIUM.color, TEXTURE_MEANS.aluminium);
+    // Read as one grey (createAluminium), so its colour is divided by the grey's mean, the same in every channel.
+    const [r, g, b] = TEXTURE_MEANS.aluminium;
+    const [wr, wg, wb] = ALUMINIUM_GREY;
+    const grey = r * wr + g * wg + b * wb;
+    tinted(m.aluminium, aluminium, ALUMINIUM.color, [grey, grey, grey]);
   }
   if (lacquer) {
     wrap(lacquer, THREE.MirroredRepeatWrapping, THREE.MirroredRepeatWrapping);

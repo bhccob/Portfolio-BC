@@ -23,7 +23,7 @@ export const WIRE = {
   /** The voice coil: a helix of `turns` turns of `radius`, `length` long along the arm. */
   coil: { radius: 0.03, turns: 8, length: 0.12 },
   /** How wide a pulse of current is, as a fraction of the wire's length. */
-  pulseWidth: 0.08
+  pulseWidth: 0.12
 } as const;
 
 /** A point `[x, y, z]`, dial-local. */

@@ -32,8 +32,17 @@ export function inside(value: number, size: number): number {
 /**
  * Where the pearl rests on a `width` × `height` canvas for a dial centred at
  * (x, y) with a rim `diameter` across: (x + 0.42 D, y + 0.42 D), kept 24 px
- * inside the canvas.
+ * inside the canvas. `turn` (0..1; the loader leaves it out) takes it round
+ * under the dial, at the same distance from its centre, to the mirrored spot
+ * (x − 0.42 D, y + 0.42 D) at 1: the hard drive's actuator stands at the
+ * lower right, and the pearl rests clear of it. Out of range is held to
+ * 0..1, and NaN reads as 0.
  */
-export function restAt(x: number, y: number, diameter: number, width: number, height: number): [number, number] {
-  return [inside(x + PEARL_REST.offset * diameter, width), inside(y + PEARL_REST.offset * diameter, height)];
+export function restAt(x: number, y: number, diameter: number, width: number, height: number, turn = 0): [number, number] {
+  const t = turn > 0 ? Math.min(1, turn) : 0;
+  const reach = PEARL_REST.offset * diameter;
+  if (t === 0) return [inside(x + reach, width), inside(y + reach, height)];
+  // From the lower right (45° below the right) round through straight below to the lower left.
+  const a = (Math.PI / 4) * (1 + 2 * t);
+  return [inside(x + (reach * Math.cos(a)) / Math.SQRT1_2, width), inside(y + (reach * Math.sin(a)) / Math.SQRT1_2, height)];
 }

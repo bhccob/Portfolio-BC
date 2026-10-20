@@ -7,6 +7,19 @@ import { handedNeedle, needleTarget, Pearl, PEARL, worldAcross } from '../../src
 import { wrapAngle } from '../../src/scripts/three/AngleSpring';
 describe('the pearl', () => {
   const layout = { x: 700, y: 450, diameter: 500 };
+  it('rests below-left of the drive, its rest spot turned with the chassis, on a fine pointer and on touch', () => {
+    const fine = new PearlTarget(true);
+    expect(fine.at(0, 1440, 900, layout, 1)).toEqual(restSpot(1440, 900, layout, 1));
+    expect(fine.at(0, 1440, 900, layout, 1)[0]).toBeLessThan(layout.x);
+    expect(fine.at(0, 1440, 900, layout, 0.5)).toEqual(restSpot(1440, 900, layout, 0.5));
+    // The pointer, once it has moved, wins whatever the turn.
+    fine.pointer(100, 200, 1); expect(fine.at(1.1, 1440, 900, layout, 1)).toEqual([100, 200]);
+    // On touch the drift is about the turned spot.
+    const touch = new PearlTarget(false);
+    const [dx, dy] = driftAt(0, 1440, 900);
+    const [rx, ry] = restSpot(1440, 900, layout, 1);
+    expect(touch.at(0, 1440, 900, layout, 1)).toEqual([rx + dx, ry + dy]);
+  });
   it('rests below-right of the dial on a fine pointer, then follows it', () => {
     const p = new PearlTarget(true); expect(p.at(0, 1440, 900, layout)).toEqual(restSpot(1440, 900, layout));
     p.pointer(100, 200, 1); expect(p.at(1.1, 1440, 900, layout)).toEqual([100, 200]);

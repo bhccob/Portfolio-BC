@@ -27,6 +27,15 @@ export const NEEDLE = { y: 0.05, lift: 0.05, faded: 0.15 } as const;
  */
 export const ARM_PHASES = { slide: [0, 0.4], travel: [0.3, 0.8], turn: [0.7, 1] } as const;
 
+/**
+ * The arm's shape once formed, as the pivot travels: the tip half widens to
+ * `width` times the needle's across (a flat blade broad at the pivot and
+ * tapering to the head, a drive's actuator arm) and flattens to `height`
+ * times its depth; the hub over the pivot grows `hub` times round, the
+ * pivot's bearing. The tail stays as narrow as it was, inside the coil.
+ */
+export const ARM_SHAPE = { width: 3.2, height: 0.25, hub: 1.5 } as const;
+
 /** Where the needle (or the arm) is, in the dial's frame. */
 export interface ArmState {
   /** The pivot. */
@@ -86,10 +95,12 @@ export function armTarget(head: number, park: number): number {
  *   - slide (arm 0–0.4): the pivot stays on the pin while the tail shortens
  *     from DIAL.needle.tail to DRIVE.yoke and the tip side grows from
  *     DIAL.needle.tip to DRIVE.armLength;
- *   - travel (0.3–0.8): the pivot moves from the centre to DRIVE.pivot, hopping
- *     up to DRIVE.travelLift halfway so it clears the rings;
+ *   - travel (0.3–0.8): the pivot moves from the centre to DRIVE.pivot, from
+ *     the needle's height to DRIVE.armHeight, hopping up to DRIVE.travelLift
+ *     halfway so it clears the rings; it lands at the arm's height, and only
+ *     comes down after the top of the hop;
  *   - turn (0.7–1): the blade turns from the needle's bearing (the short way)
- *     to the arm's onto its track or ramp, and settles at DRIVE.armHeight.
+ *     to the arm's onto its track or ramp.
  *
  * At arm 0 it is exactly the needle: on the pin at NEEDLE.y plus its lift,
  * along `bearing`, at its own lengths.
@@ -101,9 +112,11 @@ export function armState(bearing: number, lift: number, arm: number, head: numbe
   const travel = smooth(ARM_PHASES.travel, t);
   const turn = smooth(ARM_PHASES.turn, t);
   const rest = NEEDLE.y + NEEDLE.lift * unit(lift);
+  // The height the pivot travels at, the needle's to the arm's, and the hop over it toward travelLift.
+  const base = rest + (DRIVE.armHeight - rest) * travel;
   return {
     x: DRIVE.pivot[0] * travel,
-    y: rest + (DRIVE.armHeight - rest) * turn + 4 * travel * (1 - travel) * (DRIVE.travelLift - rest),
+    y: base + 4 * travel * (1 - travel) * (DRIVE.travelLift - base),
     z: DRIVE.pivot[1] * travel,
     bearing: needle + wrapPi(armTarget(head, park) - needle) * turn,
     tip: DIAL.needle.tip + (DRIVE.armLength - DIAL.needle.tip) * slide,
@@ -185,8 +198,13 @@ export function buildNeedle(m: InstrumentMaterials, uniforms: InstrumentUniforms
   const pose = (state: ArmState, lift: number): void => {
     group.position.set(state.x, state.y, state.z);
     group.rotation.y = -state.bearing;
-    tipHalf.scale.z = state.tip / tip;
+    // The blade broadens and flattens into the arm as the pivot travels (exactly the needle's at travel 0).
+    const across = 1 + (ARM_SHAPE.width - 1) * state.travel;
+    const deep = 1 + (ARM_SHAPE.height - 1) * state.travel;
+    tipHalf.scale.set(across, deep, state.tip / tip);
     tailHalf.scale.z = state.tail / tail;
+    const round = 1 + (ARM_SHAPE.hub - 1) * state.travel;
+    hub.scale.set(round, 1, round);
 
     const opacity = 1 + (NEEDLE.faded - 1) * lift;
     m.needleTip.opacity = opacity;
@@ -199,7 +217,9 @@ export function buildNeedle(m: InstrumentMaterials, uniforms: InstrumentUniforms
     uniforms.blade.uSteel.value = state.travel;
     uniforms.blade.uHeadFrom.value = 1 - READ_HEAD.glow / state.tip;
     slider.visible = state.travel > 0;
-    slider.scale.set(Math.max(state.travel, 1e-4), Math.max(state.travel, 1e-4), 1);
+    // Its own size whatever the blade's breadth and depth round it.
+    const grown = Math.max(state.travel, 1e-4);
+    slider.scale.set(grown / across, grown / deep, 1);
     m.needleTail.color.lerpColors(brass.color, steel, state.travel);
     m.needleTail.metalness = brass.metalness + (1 - brass.metalness) * state.travel;
     m.needleTail.roughness = brass.roughness + (STEEL.roughness - brass.roughness) * state.travel;

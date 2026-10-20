@@ -59,8 +59,12 @@ export const COMPASS_STUDIO = {
    */
   key: { color: 0xffffff, intensity: 4.35, position: [-3, 4, 5] as const },
   rim: { color: 0x8a5cff, intensity: 1.6, position: [2, -1, -4] as const },
-  /** How much of the key, the rim and the room's light is left with the drive dimmed for the Q&A (the pose's `dim` at 1). */
-  dim: 0.45,
+  /**
+   * How much of the key, the rim and the room's light (the drive's own room in its metal too) is left with the drive
+   * dimmed for the Q&A (the pose's `dim` at 1): low enough that the small drive is clearly secondary to the questions;
+   * the tracks' and the sector's glow are their own and stay.
+   */
+  dim: 0.3,
   /** The backdrop's glow, behind the dial and a little low. */
   backdrop: [0, -0.15, -1] as const,
   /** The box the dust fills, round the dial and in front of it. */

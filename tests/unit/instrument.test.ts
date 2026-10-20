@@ -7,10 +7,11 @@ import { TEXTURE_FILES } from '../../src/scripts/three/instrument/textures';
 import { DIAL, bearingOf } from '../../src/scripts/three/instrument/dialSpec';
 import { DRIVE, armBearing, headPoint } from '../../src/scripts/three/instrument/drive';
 import { armState } from '../../src/scripts/three/instrument/Needle';
-import { RAMP } from '../../src/scripts/three/instrument/DriveParts';
+import { MIRROR, RAMP } from '../../src/scripts/three/instrument/DriveParts';
 import { sweepCoverage } from '../../src/scripts/three/instrument/patterns';
 import { withoutPointSpecular } from '../../src/scripts/three/instrument/materials';
 import { loadInstrumentTextures } from '../../src/scripts/three/instrument/textures';
+import { WIRE } from '../../src/scripts/three/instrument/wirePath';
 
 type Drive = InstrumentPose['drive'];
 const DRIVE_FIELDS = ['stack', 'mirror', 'grow', 'clamp', 'arm', 'chassis'] as const;
@@ -543,7 +544,8 @@ describe('the drive inside the instrument', () => {
     const m = buildInstrument();
     m.applyPose(pose({ drive: driveOf(1), head: DRIVE.tracks.funcial }));
     const { anchor, axis } = m.coilAnchor();
-    expect(Math.hypot(anchor[0] - DRIVE.pivot[0], anchor[2] - DRIVE.pivot[1])).toBeCloseTo(DRIVE.yoke, 9);
+    // Its middle half its length in from the tail's end, so it is wound wholly on the tail.
+    expect(Math.hypot(anchor[0] - DRIVE.pivot[0], anchor[2] - DRIVE.pivot[1])).toBeCloseTo(DRIVE.yoke - WIRE.coil.length / 2, 9);
     expect(anchor[1]).toBeCloseTo(DRIVE.armHeight, 9);
     expect(Math.hypot(...axis)).toBeCloseTo(1, 9);
     // The axis runs from the tail through the pivot to the head.
@@ -552,10 +554,10 @@ describe('the drive inside the instrument', () => {
     expect(toHead.dot(new THREE.Vector3(...axis))).toBeCloseTo(1, 9);
     const a = (armBearing(DRIVE.tracks.funcial)! * Math.PI) / 180;
     expect(axis[0]).toBeCloseTo(Math.sin(a), 9); expect(axis[2]).toBeCloseTo(-Math.cos(a), 9);
-    // As the compass, the needle's tail point.
+    // As the compass, on the needle's tail, as far in from its end.
     m.applyPose(pose({ bearing: 0 }));
     const rest = m.coilAnchor();
-    expect(rest.anchor[0]).toBeCloseTo(0, 9); expect(rest.anchor[1]).toBeCloseTo(0.05, 9); expect(rest.anchor[2]).toBeCloseTo(DIAL.needle.tail, 9);
+    expect(rest.anchor[0]).toBeCloseTo(0, 9); expect(rest.anchor[1]).toBeCloseTo(0.05, 9); expect(rest.anchor[2]).toBeCloseTo(DIAL.needle.tail - WIRE.coil.length / 2, 9);
     expect(rest.axis[2]).toBeCloseTo(-1, 9);
   });
 
@@ -575,6 +577,14 @@ describe('the drive inside the instrument', () => {
     expect(Math.hypot(...headPoint((landed.bearing * 180) / Math.PI))).toBeCloseTo(0.76, 9);
     const parked = armState(0.3, 0, 1, 0.76, 1);
     expect(parked.bearing).toBeCloseTo((armBearing(DRIVE.parkRadius)! * Math.PI) / 180, 12);
+    // Past the top of its hop the pivot only comes down, and lands at the arm's height: it never dips under it and rises again.
+    let height = armState(0.3, 0, 0.55, 0.76, 0).y;
+    for (let k = 551; k <= 1000; k++) {
+      const y = armState(0.3, 0, k / 1000, 0.76, 0).y;
+      expect(y, `arm ${k / 1000}`).toBeLessThanOrEqual(height + 1e-12);
+      expect(y, `arm ${k / 1000}`).toBeGreaterThanOrEqual(DRIVE.armHeight - 1e-12);
+      height = y;
+    }
     // It never jumps: small steps of `arm` move every value a little.
     let last = armState(2.5, 0, 0, 0.88, 0.3);
     for (let k = 1; k <= 1000; k++) {
@@ -627,7 +637,9 @@ describe('the drive inside the instrument', () => {
       expect(shader.fragmentShader, material.name).toContain('uniform float uMirror;');
       expect(shader.fragmentShader).toContain('atan( vDialPos.x, -vDialPos.z )');
       expect(shader.fragmentShader).toContain('uMirror * ( 0.5 + ');
-      expect(shader.fragmentShader).toContain('floor( length( vDialPos.xz ) * 600.0 )');
+      expect(shader.fragmentShader).toContain(`float grainRing = length( vDialPos.xz ) * ${MIRROR.grainRings.toFixed(1)};`);
+      // Faded out where a ring is finer than the screen draws, so it never shimmers.
+      expect(shader.fragmentShader).toContain('fwidth( grainRing )');
       expect(shader.fragmentShader).toContain('metalnessFactor = mix( metalnessFactor, 1.0, mirrorCover );');
       for (const name of ['uMirror', 'uMirrorOrigin']) expect(shader.uniforms[name]).toBe((material.userData.uniforms as Record<string, unknown>)[name]);
       // Still the pearl's patch, and (the pattern) still its sweep.
@@ -677,7 +689,9 @@ describe('the drive inside the instrument', () => {
     expect(chassis.visible).toBe(true); expect(plate.visible).toBe(true);
     expect(aluminium.opacity).toBeCloseTo(0.5);
     const magnets = m.root.getObjectByName('compass:magnets')!;
-    expect(magnets.visible).toBe(true); expect(magnets.scale.x).toBeCloseTo(0.5);
+    // Each block grows in its own place, about its own foot, so none passes through the coil on its way.
+    expect(magnets.visible).toBe(true);
+    for (const block of magnets.children) expect(block.scale.x, block.name).toBeCloseTo(0.5);
     m.applyPose(pose({ drive: { chassis: 1 } }));
     expect(aluminium.opacity).toBe(1); expect(plate.visible).toBe(false);
     // The magnets stand round the pivot, on the chassis.
@@ -685,7 +699,8 @@ describe('the drive inside the instrument', () => {
     expect(centre.x).toBeCloseTo(DRIVE.pivot[0], 9); expect(centre.z).toBeCloseTo(DRIVE.pivot[1], 9); expect(centre.y).toBeCloseTo(0, 9);
     let blocks = 0;
     magnets.traverse((o) => { if ((o as THREE.Mesh).isMesh) blocks++; });
-    expect(blocks).toBe(2);
+    // Two blocks either side of the coil, on the plate under it.
+    expect(blocks).toBe(3);
     m.applyPose(pose());
     expect(chassis.visible).toBe(false); expect(plate.visible).toBe(true); expect(magnets.visible).toBe(false);
     expect(named(m, 'compass:ramp').visible).toBe(false);

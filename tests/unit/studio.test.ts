@@ -80,13 +80,13 @@ describe("the compass studio's tone mapping", () => {
 });
 
 describe("the compass studio's dimming", () => {
-  it('takes the key, the rim and the room from full strength down to 45% for the Q&A', () => {
-    expect(COMPASS_STUDIO.dim).toBe(0.45);
+  it('takes the key, the rim and the room from full strength down to 30% for the Q&A, so the drive there is clearly secondary', () => {
+    expect(COMPASS_STUDIO.dim).toBe(0.3);
     expect(dimmed(0)).toBe(1);
-    expect(dimmed(1)).toBe(0.45);
-    expect(dimmed(0.5)).toBeCloseTo(0.725, 12);
+    expect(dimmed(1)).toBe(0.3);
+    expect(dimmed(0.5)).toBeCloseTo(0.65, 12);
     expect(dimmed(-1)).toBe(1);
-    expect(dimmed(2)).toBe(0.45);
+    expect(dimmed(2)).toBe(0.3);
     expect(dimmed(Number.NaN)).toBe(1);
   });
 });

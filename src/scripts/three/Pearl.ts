@@ -13,8 +13,9 @@ import { DEAD_ZONE, PEARL_REST, restAt } from './pearlSpec';
  * for the needle.
  *
  * Where the pearl wants to be:
- *   - a fine pointer (mouse, trackpad): at rest below-right of the dial until
- *     the pointer first moves, then on the pointer;
+ *   - a fine pointer (mouse, trackpad): at rest below-right of the dial (below-left
+ *     of the hard drive, clear of its actuator) until the pointer first moves,
+ *     then on the pointer;
  *   - a coarse one (touch): drifting on a slow figure-eight about that rest
  *     spot (narrowed to fit near an edge); a touch holds it where it touched
  *     for 1.5 s, then it eases back to the drift;
@@ -58,9 +59,13 @@ export function driftAt(t: number, width: number, height: number): [number, numb
   return [DRIFT.x * width * Math.sin(a), DRIFT.y * height * Math.sin(2 * a)];
 }
 
-/** Where the pearl rests: below-right of the dial, (x + 0.42 D, y + 0.42 D), kept 24 px inside the canvas (pearlSpec's restAt, the loader's too). */
-export function restSpot(width: number, height: number, layout: DialLayout): [number, number] {
-  return restAt(layout.x, layout.y, layout.diameter, width, height);
+/**
+ * Where the pearl rests: below-right of the dial, (x + 0.42 D, y + 0.42 D), kept 24 px inside the canvas (pearlSpec's
+ * restAt, the loader's too); `turn` (the drive's chassis, 0..1) takes it round under the dial to the lower left, clear of
+ * the drive's actuator.
+ */
+export function restSpot(width: number, height: number, layout: DialLayout, turn = 0): [number, number] {
+  return restAt(layout.x, layout.y, layout.diameter, width, height, turn);
 }
 
 export class PearlTarget {
@@ -99,10 +104,13 @@ export class PearlTarget {
     this.input(t);
   }
 
-  /** Where the pearl wants to be at `t` on a `width` × `height` canvas with the dial at `layout`, in CSS pixels. */
-  at(t: number, width: number, height: number, layout: DialLayout): [number, number] {
+  /**
+   * Where the pearl wants to be at `t` on a `width` × `height` canvas with the dial at `layout`, in CSS pixels; `turn`
+   * moves its rest spot round under the dial (restSpot).
+   */
+  at(t: number, width: number, height: number, layout: DialLayout, turn = 0): [number, number] {
     const now = Number.isFinite(t) ? t : this.last;
-    const base = this.base(now, width, height, layout);
+    const base = this.base(now, width, height, layout, turn);
     const hold = this.hold;
     if (!hold) return base;
     if (now < hold.until) return [hold.x, hold.y];
@@ -117,9 +125,9 @@ export class PearlTarget {
   }
 
   /** Where the pearl goes with nothing holding it: the pointer, the rest spot, or the drift about it. */
-  private base(t: number, width: number, height: number, layout: DialLayout): [number, number] {
-    if (this.finePointer) return this.seen ? [this.seen[0], this.seen[1]] : restSpot(width, height, layout);
-    const [x, y] = restSpot(width, height, layout);
+  private base(t: number, width: number, height: number, layout: DialLayout, turn: number): [number, number] {
+    if (this.finePointer) return this.seen ? [this.seen[0], this.seen[1]] : restSpot(width, height, layout, turn);
+    const [x, y] = restSpot(width, height, layout, turn);
     const [dx, dy] = driftAt(this.clock(t), width, height);
     // Near an edge the eight is made narrower (or shorter) to fit, rather than flattened against it.
     return [x + dx * fit(x, width, DRIFT.x * width), y + dy * fit(y, height, DRIFT.y * height)];
