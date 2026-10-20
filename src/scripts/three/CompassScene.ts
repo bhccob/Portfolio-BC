@@ -190,6 +190,8 @@ export class CompassScene {
   private tip = 0;
   /** Frames drawn so far, for the proof's idle check. */
   private frames = 0;
+  /** The Q&A's sector last asked for (setSector), for the proof. */
+  private sector: number | null = null;
   /** The next update puts the needle straight onto its target (an immediate progress). */
   private snapNeedle = false;
   private time = 0;
@@ -292,6 +294,7 @@ export class CompassScene {
   setSector(index: number | null): void {
     if (this.disposed) return;
     this.tracks.setSector(index);
+    this.sector = index;
     this.dirty = true;
   }
 
@@ -439,7 +442,8 @@ export class CompassScene {
    * and the dial as drawn: its projected centre and rim diameter in CSS px; the
    * free turn's tip (radians), the count of frames drawn, and the image maps
    * the scene holds (brass, lacquer, portrait); the pose's drive, head, park,
-   * platter, test point, interactivity and dimming; and the programs compiled.
+   * platter, test point, how lit each track is, interactivity and dimming;
+   * the Q&A's lit sector; and the programs compiled.
    */
   debugState(): {
     section: string;
@@ -453,8 +457,8 @@ export class CompassScene {
     frames: number;
     maps: string[];
     drive: CompassPose['drive'];
-    head: number; park: number; platter: number; tp: CompassPose['tracks']['tp'];
-    interactive: boolean; dim: number; programs: number;
+    head: number; park: number; platter: number; tp: CompassPose['tracks']['tp']; lit: CompassPose['tracks']['lit'];
+    interactive: boolean; dim: number; sector: number | null; programs: number;
   } {
     const { id, local } = locate(this.progress, this.spans);
     const { drive, head, park, platter, tracks, interactive, dim } = this.pose;
@@ -474,8 +478,10 @@ export class CompassScene {
       park,
       platter,
       tp: tracks.tp,
+      lit: { ...tracks.lit },
       interactive,
       dim,
+      sector: this.sector,
       programs: this.renderer.info.programs?.length ?? 0
     };
   }

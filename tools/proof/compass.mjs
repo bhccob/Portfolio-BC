@@ -3,7 +3,7 @@
  * Proof harness for the compass review page (/lab/compass/, /en/lab/compass/).
  *
  * Drives a real (headless) Edge through the page and checks, step by step,
- * what milestone 3 promises. It prints one PASS or FAIL line per step, writes
+ * what milestones 3 and 4 promise. It prints one PASS or FAIL line per step, writes
  * screenshots, `scrub.webm` and `results.json` to PROOF_DIR, and exits 1 if a
  * step failed. Frame rates and the quality step are reported, never gated.
  *
@@ -17,14 +17,20 @@
  *      later visit (the stacked page at 10 s); hanging textures on a first visit (live at 7 s, late maps taken in)
  *   8  reduced motion and --disable-3d-apis: the stacked page with the stills, no loader
  *   9  fps over a full scrub (GPU, SwiftShader), the quality step, the idle check
- *   10 record scrub.webm (1440x900)
- *   stills  (not in the default run) capture the four stills at 1600x900 as PNG
+ *   10 record scrub.webm (1440x900): the whole story down and back up, a track hovered, an answer opened, Say hello
+ *   11 the whole story down and back up: a screenshot at every boundary and mid-change, the pose continuous
+ *   12 a link to /#cookies-clicker: the head on that track and the track lit from the first frame
+ *   13 tracks: no hover before the change, a label in a track section; a click on Jontai's track navigates
+ *   14 each Q&A answer opened and closed mid-Q&A: its sector lights, the scene and the words stay in step
+ *   15 Tab reaches the links and questions in order, each one's words shown (wide and narrow)
+ *   16 the phone (390x844, 844x390): the Q&A beside the small drive, its words clear of it, a swipe scrolls
+ *   stills  (not in the default run) capture the six stills at 1600x900 as PNG
  *
  * Environment:
  *   BASE             site to test, default http://localhost:4399 (npm run build, then astro preview --port 4399)
  *   COMPASS_PATH     page to test, default /lab/compass/ (use /en/lab/compass/ for English)
  *   PROOF_DIR        where the output goes, default ./proof-out
- *   STEPS            comma list of steps to run, default 1,2,3,4,5,6,7,8,9,10 (add `stills` to capture them)
+ *   STEPS            comma list of steps to run, default 1 to 16 (add `stills` to capture them)
  *   PLAYWRIGHT_CORE  path to a playwright-core package, outside the repo (else normal resolution)
  *   EDGE             path of a browser executable; unset, the Edge installed on the machine is used (playwright-core's `msedge` channel)
  *
@@ -47,7 +53,7 @@ const OUT = resolve(process.env.PROOF_DIR ?? './proof-out');
 // The Edge on the machine (playwright-core finds it by channel), unless EDGE names an executable.
 const BROWSER = process.env.EDGE ? { executablePath: process.env.EDGE } : { channel: 'msedge' };
 const launch = (args) => chromium.launch({ ...BROWSER, headless: true, args });
-const WANTED = new Set((process.env.STEPS ?? '1,2,3,4,5,6,7,8,9,10').split(',').map((s) => s.trim()));
+const WANTED = new Set((process.env.STEPS ?? '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16').split(',').map((s) => s.trim()));
 
 const GPU = ['--use-angle=d3d11', '--ignore-gpu-blocklist', '--enable-gpu-rasterization'];
 const SOFTWARE = ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
@@ -62,6 +68,13 @@ const HERO_TILT = 22;
 const SETTLED_TILT = 18;
 const TAU = Math.PI * 2;
 const dialLayout = (w, h) => (w >= 1.2 * h ? { x: w * 0.62, y: h * 0.5, diameter: Math.min(h * 0.64, w * 0.52) } : { x: w * 0.5, y: h * 0.3, diameter: Math.min(w * 0.8, h * 0.46) });
+const sideLayout = (w, h) => (w >= 1.2 * h ? { x: w * 0.8, y: h * 0.5, diameter: Math.min(h * 0.36, w * 0.28) } : { x: w * 0.78, y: h * 0.17, diameter: Math.min(w * 0.34, h * 0.22) });
+/** The sections in order (Choreography's SECTIONS), the tracks' radii (drive.ts), and the stills the stacked page shows. */
+const SECTION_IDS = ['hero', 'about', 'china', 'aruba', 'rotterdam', 'current', 'stack', 'ai', 'change', 'funcial', 'jontai-energy', 'cookies-clicker', 'next', 'offduty', 'qa', 'hello'];
+const TRACK_RADIUS = { funcial: 0.88, 'jontai-energy': 0.76, 'cookies-clicker': 0.64, next: 0.52 };
+const STILLS = ['hero', 'china', 'aruba', 'rotterdam', 'change', 'offduty'];
+/** On a narrow screen the Q&A's words fade as they rise into the top 34% of the viewport, the small drive's band (CompassStage.astro). */
+const QA_BAND = 0.34;
 
 // ---------------------------------------------------------------- small helpers
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
@@ -77,6 +90,7 @@ const median = (xs) => {
   const s = [...xs].sort((a, b) => a - b);
   return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : NaN;
 };
+const sameList = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
 const percentile = (xs, p) => {
   const s = [...xs].sort((a, b) => a - b);
   return s.length ? s[Math.min(s.length - 1, Math.floor(p * s.length))] : NaN;
@@ -216,7 +230,7 @@ function pageRecorder({ seen, hold, poll, pollFor }) {
     const debug = typeof window.__compassDebug === 'function' ? window.__compassDebug() : null;
     if (debug) {
       // The first moments after a load, for the reload check.
-      if (proof.boot.length < 200) proof.boot.push({ t, section: debug.section, local: debug.local, bearing: debug.bearing, frames: debug.frames });
+      if (proof.boot.length < 200) proof.boot.push({ t, section: debug.section, local: debug.local, bearing: debug.bearing, frames: debug.frames, head: debug.head, tp: debug.tp, lit: debug.lit, arm: debug.drive?.arm });
       // The first 3D frames drawn while the drawing is still there: both needles read in the same callback.
       if (overlay && debug.frames > lastFrames && proof.needle.length < 6) {
         const rim = overlay.querySelector('[data-dial-rim]')?.getBoundingClientRect();
@@ -336,17 +350,19 @@ async function waitLive(page, timeout = 30000) {
 }
 
 // ---------------------------------------------------------------- the track, scroll and touch
+/**
+ * The page's sections as laid out now, measured as the controller measures them (the Q&A is as tall as its content
+ * and has no `--len`): each one's start and length in px of scroll from the track's top, the last one running to the
+ * end of the track's scroll range (`span`).
+ */
 async function layout(page) {
   return page.evaluate(() => {
     const track = document.querySelector('[data-compass-track]');
     const top = track.getBoundingClientRect().top + window.scrollY;
-    const secs = [...track.querySelectorAll('[data-section]')].map((s) => ({ id: s.dataset.section, len: Number(s.style.getPropertyValue('--len')) }));
-    let at = 0;
-    for (const s of secs) {
-      s.start = at;
-      at += s.len;
-    }
-    return { top, span: track.offsetHeight - window.innerHeight, inner: window.innerHeight, secs, total: at };
+    const span = track.offsetHeight - window.innerHeight;
+    const secs = [...track.querySelectorAll('[data-section]')].map((s) => ({ id: s.dataset.section, start: s.getBoundingClientRect().top + window.scrollY - top }));
+    secs.forEach((s, k) => (s.len = (k + 1 < secs.length ? secs[k + 1].start : span) - s.start));
+    return { top, span, inner: window.innerHeight, secs };
   });
 }
 
@@ -354,8 +370,17 @@ async function layout(page) {
 function scrollYFor(L, id, local) {
   const i = L.secs.findIndex((s) => s.id === id);
   const s = L.secs[i];
-  const y = L.top + ((s.start + Math.min(1, local) * s.len) / L.total) * L.span;
+  const y = L.top + s.start + Math.min(1, local) * s.len;
   return Math.round(local >= 1 && i < L.secs.length - 1 ? y - 1 : y);
+}
+
+/** The section and how far through it a scrollY is, read off a layout the way the controller reads it. */
+function localAt(L, y) {
+  const at = y - L.top;
+  let k = L.secs.length - 1;
+  while (k > 0 && at < L.secs[k].start) k--;
+  const s = L.secs[k];
+  return { id: s.id, local: Math.min(1, Math.max(0, (at - s.start) / s.len)) };
 }
 
 /** Scrolls to a section's `local` and waits for the eased progress; answers the scene's state. */
@@ -562,7 +587,8 @@ async function step2(step) {
     { id: 'china', local: 0.85, file: '5-china.png' },
     { id: 'aruba', local: 0.6, file: '8-sweep.png' },
     { id: 'aruba', local: 0.85, file: '6-aruba.png' },
-    { id: 'rotterdam', local: 0.9, file: '7-rotterdam.png' }
+    // Rotterdam painted and its words still in: since milestone 4 they fade out over its last 0.15, for the current's.
+    { id: 'rotterdam', local: 0.8, file: '7-rotterdam.png' }
   ];
   const down = {};
   let heroDiameter = (await debug(page)).rim.diameter;
@@ -861,7 +887,7 @@ async function step7(step) {
     await scrollThrough(page);
     const stills = await stillsState(page);
     step.data.noChunkStills = stills;
-    step.check(stills.length === 4 && stills.every((s) => s.loaded && s.width > 200), `the four stills show (${stills.map((s) => `${s.id} ${s.width}px`).join(', ')})`);
+    step.check(sameList(stills.map((s) => s.id), STILLS) && stills.every((s) => s.loaded && s.width > 200), `the six stills show (${stills.map((s) => `${s.id} ${s.width}px`).join(', ')})`);
     await page.evaluate(() => window.scrollTo(0, 0));
     await sleep(300);
     await shot(page, '14-no-chunk.png', { fullPage: true });
@@ -982,7 +1008,7 @@ async function stacked(step, { label, file, context: contextOf }) {
     await scrollThrough(page);
     const stills = await stillsState(page);
     step.data[`${label}Stills`] = stills;
-    step.check(stills.length === 4 && stills.every((s) => s.loaded && s.width > 200), `${label}: the four stills show (${stills.map((s) => `${s.id} ${s.natural}`).join(', ')})`);
+    step.check(sameList(stills.map((s) => s.id), STILLS) && stills.every((s) => s.loaded && s.width > 200), `${label}: the six stills show (${stills.map((s) => `${s.id} ${s.natural}`).join(', ')})`);
     const heroEager = stills.find((s) => s.id === 'hero')?.eager;
     step.check(heroEager === 'eager' && stills.filter((s) => s.id !== 'hero').every((s) => s.eager === 'lazy'), `${label}: the hero still is eager, the others lazy (${stills.map((s) => `${s.id}:${s.eager}`).join(' ')})`);
     const portrait = await page.evaluate(() => {
@@ -1126,7 +1152,7 @@ async function step9(step) {
         step.note('SwiftShader: fps n/a: stacked fallback (the page declined this software WebGL)');
         await scrollThrough(page);
         const stills = await stillsState(page);
-        step.check(stills.length === 4 && stills.every((s) => s.loaded), 'SwiftShader gets the stacked page with its four stills');
+        step.check(sameList(stills.map((s) => s.id), STILLS) && stills.every((s) => s.loaded), 'SwiftShader gets the stacked page with its six stills');
         await page.evaluate(() => window.scrollTo(0, 0));
         await sleep(300);
         await shot(page, '9-swiftshader-stacked.png', { fullPage: true });
@@ -1175,26 +1201,53 @@ async function step10(step) {
     await page.mouse.move(centre.x + centre.diameter * 0.5, centre.y);
     while (await page.evaluate(() => !!document.querySelector('[data-compass-loader]'))) await orbit(0.2);
     await page.waitForFunction(() => !document.documentElement.classList.contains('compass-intro'), null, { polling: 50, timeout: 10000 });
-    await orbit(3.5);
+    await orbit(3);
 
-    // A slow scroll down through the sections, pausing in each, and back up.
-    const L = await layout(page);
+    // The whole story, down: a pause in every section (three in the change), the mouse circling the dial.
+    let L = await layout(page);
     const stops = [
-      ['about', 0.55, 1.6],
-      ['china', 0.85, 1.6],
-      ['aruba', 0.85, 1.6],
-      ['rotterdam', 0.9, 1.6]
-    ].map(([id, local, pause]) => ({ y: scrollYFor(L, id, local), pause }));
-    for (const stop of stops) {
-      await wheelTo(page, stop.y);
+      ['about', 0.55], ['china', 0.85], ['aruba', 0.85], ['rotterdam', 0.9], ['current', 0.6], ['stack', 0.45], ['ai', 0.45],
+      ['change', 0.3], ['change', 0.6], ['change', 0.95], ['funcial', 0.45], ['jontai-energy', 0.5], ['cookies-clicker', 0.45],
+      ['next', 0.6], ['offduty', 0.6], ['qa', 0.15], ['hello', 0.85]
+    ];
+    const done = { hover: false, answer: false, hello: false };
+    for (const [id, local] of stops) {
+      await wheelTo(page, scrollYFor(L, id, local));
       await waitScrollRest(page);
-      await orbit(stop.pause, 0.55, 1);
+      if (id === 'jontai-energy') {
+        // One hover on a track: the pointer onto the track under the head, its name beside it.
+        const head = await page.evaluate(() => {
+          const e = document.querySelector('[data-compass-head]');
+          return { x: Number(e.style.getPropertyValue('--x')), y: Number(e.style.getPropertyValue('--y')) };
+        });
+        await page.mouse.move(head.x - 120, head.y + 60, { steps: 6 });
+        await page.mouse.move(head.x, head.y, { steps: 18 });
+        await sleep(1800);
+        done.hover = await page.evaluate(() => document.querySelector('[data-compass-hover]')?.hasAttribute('data-shown') ?? false);
+      } else if (id === 'qa') {
+        // One answer opened, its sector lit on the small drive, read a moment and closed.
+        const summary = '[data-section="qa"] details[data-question="2"] > summary';
+        await page.hover(summary);
+        await sleep(500);
+        await page.click(summary);
+        await sleep(2600);
+        done.answer = (await debug(page)).sector === 2;
+        await page.click(summary);
+        await sleep(1200);
+        L = await layout(page);
+      } else if (id === 'hello') {
+        // Say hello: the pointer onto the link.
+        await page.hover('[data-section="hello"] .compass__hello a');
+        await sleep(2200);
+        done.hello = await page.evaluate(() => document.querySelector('[data-section="hello"] .compass__hello a')?.matches(':hover') ?? false);
+      } else {
+        await orbit(id === 'change' ? 1.1 : 1.4, 0.55, 1);
+      }
     }
-    await wheelTo(page, L.top + L.span);
-    await waitScrollRest(page);
-    await orbit(1.2, 0.55, 2);
-    for (const stop of [...stops].reverse().slice(1)) {
-      await wheelTo(page, stop.y, { dy: 30, every: 24 });
+
+    // And back up, pausing on the way at the drive and the compass's homes.
+    for (const [id, local] of [['offduty', 0.3], ['cookies-clicker', 0.5], ['change', 0.6], ['change', 0.2], ['current', 0.5], ['aruba', 0.85]]) {
+      await wheelTo(page, scrollYFor(L, id, local), { dy: 30, every: 24 });
       await waitScrollRest(page);
       await orbit(0.9, 0.55, 3);
     }
@@ -1202,7 +1255,7 @@ async function step10(step) {
     await waitScrollRest(page);
     await orbit(1.8, 0.5, 0);
 
-    // A drag spin at the hero, then a tip.
+    // A drag spin at the hero.
     const grab = [centre.x + centre.diameter * 0.15, centre.y + centre.diameter * 0.55];
     await page.mouse.move(grab[0], grab[1], { steps: 8 });
     await sleep(500);
@@ -1213,16 +1266,11 @@ async function step10(step) {
     }
     await page.mouse.up();
     await sleep(4200);
-    await page.mouse.move(grab[0], grab[1] - 120, { steps: 8 });
-    await page.mouse.down();
-    for (let i = 1; i <= 15; i++) {
-      await page.mouse.move(grab[0], grab[1] - 120 + (260 * i) / 15);
-      await sleep(14);
-    }
-    await sleep(900);
-    await page.mouse.up();
-    await sleep(1500);
-    await orbit(2.5, 0.5, 4);
+    await orbit(2, 0.5, 4);
+    step.data.recorded = done;
+    step.check(done.hover, 'the recording hovers a track (Jontai Energy, its name beside the pointer)');
+    step.check(done.answer, 'the recording opens an answer (the third question; its sector lit)');
+    step.check(done.hello, 'the recording reaches Say hello (the pointer on its link)');
     step.check(w.errors.length === 0, `no console errors while recording (${w.errors.slice(0, 3).join(' | ')})`);
   } finally {
     await context.close();
@@ -1233,6 +1281,348 @@ async function step10(step) {
   step.check(true, `scrub.webm written (1440x900)`);
 }
 
+// ---------------------------------------------------------------- 11. the whole story, down and back up
+/** The pose values that must not jump, as __compassDebug() has them: the drive, the head, the park, the dimming, the platter and the dial as drawn. */
+const poseOf = (d) => ({
+  stack: d.drive.stack, mirror: d.drive.mirror, grow: d.drive.grow, clamp: d.drive.clamp, arm: d.drive.arm, chassis: d.drive.chassis,
+  head: d.head, park: d.park, dim: d.dim, platter: d.platter, rimX: d.rim.x, rimY: d.rim.y, rimD: d.rim.diameter
+});
+/** How far each may move across a boundary's 4 px of scroll (the platter turns steadily in Off duty: about 3 degrees there). */
+const ACROSS = { stack: 0.01, mirror: 0.01, grow: 0.01, clamp: 0.01, arm: 0.01, chassis: 0.01, head: 0.005, park: 0.01, dim: 0.01, platter: 5, rimX: 3, rimY: 3, rimD: 3 };
+/** How far each may move in one animation frame of a wheel scrub (the platter and the camera apart: they turn and zoom fast). */
+const PER_FRAME = { stack: 0.1, mirror: 0.1, grow: 0.1, clamp: 0.1, arm: 0.1, chassis: 0.1, head: 0.05, park: 0.1, dim: 0.1 };
+
+async function step11(step) {
+  await closeMain();
+  const { page, w } = await mainPage();
+  const L = await layout(page);
+  step.data.programsAtLoad = (await debug(page)).programs;
+  const settled = async (y) => {
+    await page.evaluate((v) => window.scrollTo(0, v), y);
+    await sleep(1600);
+    return debug(page);
+  };
+  const boundaries = L.secs.slice(1).map((s, k) => ({ from: L.secs[k].id, to: s.id, y: Math.round(L.top + s.start) }));
+  const rows = [];
+  for (const direction of ['down', 'up']) {
+    const list = direction === 'down' ? boundaries : [...boundaries].reverse();
+    for (const [k, b] of list.entries()) {
+      // Mid-change, on the way: the drive half formed.
+      if ((direction === 'down' && b.from === 'change') || (direction === 'up' && b.to === 'funcial')) {
+        await settled(scrollYFor(L, 'change', 0.5));
+        await shot(page, `11-${direction}-change-mid.jpg`, { type: 'jpeg', quality: 75 });
+      }
+      // 2 px either side of the boundary, from the side the scroll comes from.
+      const [first, second] = direction === 'down' ? [b.y - 2, b.y + 2] : [b.y + 2, b.y - 2];
+      const one = await settled(first);
+      const two = await settled(second);
+      await shot(page, `11-${direction}-${String(k + 1).padStart(2, '0')}-${b.from}-${b.to}.jpg`, { type: 'jpeg', quality: 75 });
+      const [before, after] = direction === 'down' ? [one, two] : [two, one];
+      const a = poseOf(before);
+      const c = poseOf(after);
+      const off = Object.keys(ACROSS).filter((key) => !(Math.abs(c[key] - a[key]) <= ACROSS[key]));
+      rows.push({ direction, boundary: `${b.from} | ${b.to}`, sections: [before.section, after.section], moved: Object.fromEntries(Object.keys(ACROSS).map((key) => [key, fix(c[key] - a[key], 4)])) });
+      step.check(
+        before.section === b.from && after.section === b.to && off.length === 0,
+        `${direction}: ${b.from} | ${b.to}, the scene is at ${before.section} then ${after.section}, nothing jumps${off.length ? ` (jumped: ${off.map((key) => `${key} ${fix(a[key])} to ${fix(c[key])}`).join(', ')})` : ''}`
+      );
+    }
+  }
+  step.data.boundaries = rows;
+
+  // A wheel scrub through the whole story and back, the pose read on every animation frame.
+  await settled(L.top);
+  await page.evaluate(() => {
+    const samples = [];
+    let running = true;
+    const tick = () => {
+      if (!running) return;
+      const d = window.__compassDebug();
+      samples.push({ section: d.section, stack: d.drive.stack, mirror: d.drive.mirror, grow: d.drive.grow, clamp: d.drive.clamp, arm: d.drive.arm, chassis: d.drive.chassis, head: d.head, park: d.park, dim: d.dim });
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    window.__stopSamples = () => {
+      running = false;
+      return samples;
+    };
+  });
+  await wheelTo(page, L.top + L.span, { dy: 24, every: 24 });
+  await sleep(900);
+  await wheelTo(page, L.top, { dy: 24, every: 24 });
+  await sleep(1500);
+  const samples = await page.evaluate(() => window.__stopSamples());
+  const worst = Object.fromEntries(Object.keys(PER_FRAME).map((key) => [key, 0]));
+  for (let i = 1; i < samples.length; i++) for (const key of Object.keys(PER_FRAME)) worst[key] = Math.max(worst[key], Math.abs(samples[i][key] - samples[i - 1][key]));
+  const seen = samples.map((s) => s.section).filter((id, i, all) => i === 0 || id !== all[i - 1]);
+  const expected = [...SECTION_IDS, ...SECTION_IDS.slice(0, -1).reverse()];
+  step.data.scrub = { frames: samples.length, sections: seen, worstPerFrame: Object.fromEntries(Object.entries(worst).map(([k, v]) => [k, fix(v, 4)])) };
+  step.check(sameList(seen, expected), `a wheel scrub passes every section in order, down and back up (${seen.length} section changes over ${samples.length} frames)`);
+  step.check(Object.keys(PER_FRAME).every((key) => worst[key] <= PER_FRAME[key]), `the pose never jumps from one frame to the next (largest steps: ${Object.entries(worst).map(([k, v]) => `${k} ${fix(v, 3)}`).join(', ')})`);
+  const programs = (await debug(page)).programs;
+  step.data.programsAfterScroll = programs;
+  step.note(`programs: ${step.data.programsAtLoad} after the load, ${programs} after the whole story down and back up (twice)`);
+  step.check(programs === step.data.programsAtLoad, `no program is compiled on the way (${step.data.programsAtLoad} then ${programs})`);
+  step.check(w.errors.length === 0, `no console errors (${w.errors.slice(0, 3).join(' | ')})`);
+}
+
+// ---------------------------------------------------------------- 12. a link to a track
+async function step12(step) {
+  await closeMain();
+  const browser = await gpuBrowser();
+  const { context, page, w } = await newPage(browser, { seen: true });
+  try {
+    await page.goto(`${BASE}${PAGE_PATH}?proof#cookies-clicker`, { waitUntil: 'domcontentloaded' });
+    await waitLive(page);
+    await sleep(1200);
+    const drawn = (await page.evaluate(() => window.__proof.boot)).filter((b) => b.frames > 0);
+    const want = TRACK_RADIUS['cookies-clicker'];
+    step.data.firstDrawn = drawn[0];
+    step.data.drawnSamples = drawn.length;
+    step.check(drawn.length > 10 && drawn.every((b) => b.section === 'cookies-clicker'), `the scene is at cookies-clicker from its first frame drawn (${drawn.length} frames sampled, ${[...new Set(drawn.map((b) => b.section))].join(', ')})`);
+    step.check(drawn.every((b) => Math.abs(b.head - want) < 1e-3 && b.arm === 1), `the head is on that track (${want}) from the first frame (heads seen ${[...new Set(drawn.map((b) => fix(b.head, 3)))].join(', ')})`);
+    step.check(drawn.every((b) => b.lit?.['cookies-clicker'] === 1), `the track is lit from the first frame (${[...new Set(drawn.map((b) => fix(b.lit?.['cookies-clicker'], 2)))].join(', ')})`);
+    const locals = drawn.map((b) => b.local);
+    step.check(Math.max(...locals) - Math.min(...locals) < 0.02, `no motion is replayed: it lands at its reading place and stays (local ${fix(Math.min(...locals), 3)} to ${fix(Math.max(...locals), 3)})`);
+    const words = await page.evaluate(() => ({
+      text: Number(getComputedStyle(document.querySelector('#cookies-clicker .compass__text')).opacity),
+      label: document.querySelector('[data-compass-head]')?.hasAttribute('data-shown') ? document.querySelector('[data-compass-head]').textContent : null
+    }));
+    step.data.words = words;
+    step.check(words.text > 0.95 && /^TP\d/.test(words.label ?? ''), `its words show and the head's label reads ${words.label}`);
+    await shot(page, '12-anchor.png');
+    step.check(w.errors.length === 0, `no console errors (${w.errors.slice(0, 3).join(' | ')})`);
+  } finally {
+    await context.close();
+  }
+}
+
+// ---------------------------------------------------------------- 13. the tracks and the pointer
+async function step13(step) {
+  await closeMain();
+  const { page, w } = await mainPage();
+  const state = () =>
+    page.evaluate(() => {
+      const hover = document.querySelector('[data-compass-hover]');
+      return { shown: hover.hasAttribute('data-shown'), text: hover.textContent, cursor: document.querySelector('[data-compass-canvas]').style.cursor, names: JSON.parse(hover.dataset.names ?? '{}') };
+    });
+  // Before the change, and through it until the drive is formed: a sweep across the dial's rings, where the tracks will be, answers nothing.
+  for (const [id, local] of [['hero', 0.3], ['current', 0.5], ['change', 0.5]]) {
+    const d = await goTo(page, id, local, 1500);
+    let hits = 0;
+    for (let k = 0; k <= 24; k++) {
+      await page.mouse.move(d.rim.x + (d.rim.diameter / 2) * 0.98 * (k / 24), d.rim.y + 3);
+      await sleep(40);
+      const s = await state();
+      if (s.shown || s.cursor === 'pointer') hits++;
+    }
+    step.check(hits === 0, `${id} ${local}: a sweep across the dial shows no track's name and no pointer cursor (${hits} of 25 places)`);
+  }
+  // In a track section: on the track under the head, its name beside the pointer.
+  await goTo(page, 'jontai-energy', 0.5, 1800);
+  const head = await page.evaluate(() => {
+    const e = document.querySelector('[data-compass-head]');
+    return { x: Number(e.style.getPropertyValue('--x')), y: Number(e.style.getPropertyValue('--y')) };
+  });
+  await page.mouse.move(head.x - 80, head.y + 40, { steps: 4 });
+  await page.mouse.move(head.x, head.y, { steps: 8 });
+  await sleep(500);
+  const over = await state();
+  step.data.hover = { at: head, ...over, names: undefined };
+  step.check(over.shown && over.text === over.names['jontai-energy'] && over.cursor === 'pointer', `jontai-energy 0.5: on its track the label reads "${over.text}" and the cursor is a pointer (${over.cursor || 'none'})`);
+  await shot(page, '13-hover.png');
+  // A click there opens the project, as its link does.
+  const href = await page.evaluate(() => document.querySelector('#jontai-energy a[data-track-link]')?.href ?? null);
+  const navigated = page.waitForURL((url) => url.href === href, { timeout: 10000 }).then(() => true, () => false);
+  await page.mouse.click(head.x, head.y);
+  step.check((await navigated) && page.url() === href, `a click on Jontai Energy's track opens its project (${href}; now at ${page.url()})`);
+  step.check(w.errors.length === 0, `no console errors (${w.errors.slice(0, 3).join(' | ')})`);
+  await closeMain();
+}
+
+// ---------------------------------------------------------------- 14. the Q&A's answers
+async function step14(step) {
+  await closeMain();
+  const { page, w } = await mainPage();
+  /** The scene, the page's own place among its sections as measured now, the scroll and the Q&A's words. */
+  const at = async () => {
+    const d = await debug(page);
+    const L = await layout(page);
+    const y = await page.evaluate(() => window.scrollY);
+    const words = await page.evaluate(() => Number(getComputedStyle(document.querySelector('[data-section="qa"] .compass__text')).opacity));
+    return { d, y, page: localAt(L, y), words };
+  };
+  // The questions take the pointer only while the Q&A's words show: coming up under Off duty's words they are faded and
+  // the pointer goes through them to the stage; in the Q&A it lands on them.
+  const underPointer = () =>
+    page.evaluate(() =>
+      [...document.querySelectorAll('[data-section="qa"] summary')]
+        .map((e) => {
+          const r = e.getBoundingClientRect();
+          const x = r.left + Math.min(r.width / 2, 120);
+          const y = r.top + r.height / 2;
+          return y > 0 && y < innerHeight ? { onIt: e.contains(document.elementFromPoint(x, y)), shown: Number(getComputedStyle(e.closest('.compass__text')).opacity) } : null;
+        })
+        .filter(Boolean)
+    );
+  await goTo(page, 'offduty', 0.85, 1800);
+  const faded = await underPointer();
+  step.check(faded.length > 0 && faded.every((s) => !s.onIt && s.shown === 0), `offduty 0.85: ${faded.length} of the questions on screen, faded, and the pointer goes through them (${faded.filter((s) => s.onIt).length} take it)`);
+  await goTo(page, 'qa', 0.2, 1800);
+  const shown = await underPointer();
+  step.check(shown.length === 5 && shown.every((s) => s.onIt && s.shown === 1), `qa 0.2: the five questions shown take the pointer (${shown.filter((s) => s.onIt).length} of ${shown.length})`);
+  const rows = [];
+  for (let k = 0; k < 5; k++) {
+    const summary = `[data-section="qa"] details[data-question="${k}"] > summary`;
+    const before = await at();
+    await page.click(summary);
+    await sleep(1500);
+    const open = await at();
+    await shot(page, `14-qa-open-${k}.png`);
+    await page.click(summary);
+    await sleep(1500);
+    const closed = await at();
+    rows.push({ k, before: { local: fix(before.d.local), y: before.y }, open: { local: fix(open.d.local), page: fix(open.page.local), sector: open.d.sector, y: open.y }, closed: { local: fix(closed.d.local), sector: closed.d.sector, y: closed.y } });
+    step.check(open.d.sector === k && closed.d.sector === null, `question ${k + 1}: its sector lights while it is open, and goes out when it closes (${open.d.sector}, then ${closed.d.sector})`);
+    step.check(
+      [before, open, closed].every((s) => s.d.section === 'qa') && Math.abs(closed.d.local - before.d.local) <= 0.02 && Math.abs(open.y - before.y) <= 2 && Math.abs(closed.y - before.y) <= 2,
+      `question ${k + 1}: the scene stays in the Q&A and the page holds still (local ${fix(before.d.local)}, open ${fix(open.d.local)}, closed ${fix(closed.d.local)}; scroll ${before.y}, ${open.y}, ${closed.y})`
+    );
+    step.check(
+      Math.abs(open.d.local - open.page.local) <= 0.02 && Math.abs(closed.d.local - closed.page.local) <= 0.02 && open.words > 0.95 && closed.words > 0.95,
+      `question ${k + 1}: the scene and the words stay in step (scene ${fix(open.d.local)} for the page's ${fix(open.page.local)} open; words ${fix(open.words, 2)})`
+    );
+  }
+  step.data.toggles = rows;
+  step.note('an open answer lengthens the Q&A while the page holds its scroll, so its local reads lower while open (the scene follows the page there) and returns when it closes');
+  step.check(w.errors.length === 0, `no console errors (${w.errors.slice(0, 3).join(' | ')})`);
+}
+
+// ---------------------------------------------------------------- 15. Tab order
+async function tabWalk(step, { width, height, tag }) {
+  const browser = await gpuBrowser();
+  const { context, page, w } = await newPage(browser, { seen: true, viewport: { width, height } });
+  try {
+    await openCompass(page);
+    await waitLive(page);
+    await sleep(1000);
+    const FOCUSABLE = 'a[href], summary, button, input, select, textarea, [tabindex]:not([tabindex="-1"])';
+    const order = await page.evaluate((sel) => [...document.querySelectorAll(sel)].map((e) => `${e.tagName.toLowerCase()} "${(e.textContent ?? '').trim().slice(0, 32)}"`), FOCUSABLE);
+    step.data[`${tag}Order`] = order;
+    const rows = [];
+    for (let i = 0; i < order.length; i++) {
+      await page.keyboard.press('Tab');
+      await sleep(1600);
+      const f = await page.evaluate(({ sel, band }) => {
+        const a = document.activeElement;
+        const r = a.getBoundingClientRect();
+        const section = a.closest('[data-section]');
+        const text = section?.querySelector('.compass__text');
+        return {
+          index: [...document.querySelectorAll(sel)].indexOf(a),
+          visible: a.matches(':focus-visible'),
+          top: r.top,
+          inView: r.bottom > 0 && r.top < innerHeight,
+          section: section?.dataset.section ?? null,
+          words: text ? Number(getComputedStyle(text).opacity) * Number(getComputedStyle(a).opacity) : 1,
+          clearOfBand: section?.dataset.section !== 'qa' || innerWidth >= 1.2 * innerHeight || r.top >= band * innerHeight - 1
+        };
+      }, { sel: FOCUSABLE, band: QA_BAND });
+      rows.push({ i, ...f, top: fix(f.top, 0), words: fix(f.words, 2) });
+      step.check(
+        f.index === i && f.visible && f.inView && f.words > 0.95 && f.clearOfBand,
+        `${tag}: Tab ${i + 1} reaches ${order[i]}${f.section ? ` (${f.section})` : ''}, on screen with its words shown${f.section === 'qa' && width < 1.2 * height ? ', below the drive\'s band' : ''} (index ${f.index}, words ${fix(f.words, 2)}, top ${fix(f.top, 0)})`
+      );
+      if (f.section === 'qa' && tag === 'narrow' && i === order.length - 2) await shot(page, '15-narrow-tab-qa.png');
+    }
+    step.data[`${tag}Tabs`] = rows;
+    if (width < 1.2 * height) {
+      // A question the keyboard focuses where it lies under the small drive's band (on screen, so the browser does not
+      // scroll to it) comes down below the band, where its words show.
+      const moved = await page.evaluate(async (band) => {
+        const summary = document.querySelector('[data-section="qa"] details[data-question="2"] > summary');
+        const frame = () => new Promise((done) => requestAnimationFrame(() => done()));
+        window.scrollBy(0, summary.getBoundingClientRect().top - 0.15 * innerHeight);
+        for (let i = 0; i < 30; i++) await frame();
+        const before = summary.getBoundingClientRect().top;
+        const opacityBefore = Number(getComputedStyle(summary).opacity);
+        summary.focus({ focusVisible: true });
+        for (let i = 0; i < 30; i++) await frame();
+        return { before, opacityBefore, after: summary.getBoundingClientRect().top, opacity: Number(getComputedStyle(summary).opacity), line: band * innerHeight };
+      }, QA_BAND);
+      step.data[`${tag}UnderBand`] = moved;
+      step.check(moved.before < moved.line && moved.after >= moved.line - 1 && moved.opacity > 0.95, `${tag}: a question focused under the drive's band (top ${fix(moved.before, 0)} px, opacity ${fix(moved.opacityBefore, 2)}) comes down below it (top ${fix(moved.after, 0)} px, opacity ${fix(moved.opacity, 2)})`);
+      await shot(page, '15-narrow-focus-under-band.png');
+    }
+    step.check(w.errors.length === 0, `${tag}: no console errors (${w.errors.slice(0, 3).join(' | ')})`);
+  } finally {
+    await context.close();
+  }
+}
+
+async function step15(step) {
+  await closeMain();
+  await tabWalk(step, { width: 1440, height: 900, tag: 'wide' });
+  await tabWalk(step, { width: 390, height: 844, tag: 'narrow' });
+}
+
+// ---------------------------------------------------------------- 16. the phone in the Q&A
+async function phoneQa(step, { width, height, tag }) {
+  const browser = await gpuBrowser();
+  const { context, page, w } = await newPage(browser, { seen: true, viewport: { width, height }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  try {
+    await openCompass(page);
+    await waitLive(page);
+    await sleep(1000);
+    const finger = new Finger(await context.newCDPSession(page));
+    const d = await goTo(page, 'qa', 0.15, 2200);
+    const want = sideLayout(width, height);
+    step.data[`${tag}Rim`] = { drawn: d.rim, side: want };
+    step.check(d.section === 'qa' && Math.abs(d.rim.x - want.x) < 3 && Math.abs(d.rim.y - want.y) < 3 && Math.abs(d.rim.diameter - want.diameter) < 3, `${tag}: the small drive is at its side place (${fix(d.rim.x, 0)}, ${fix(d.rim.y, 0)}, ${fix(d.rim.diameter, 0)} px for ${fix(want.x, 0)}, ${fix(want.y, 0)}, ${fix(want.diameter, 0)})`);
+    // The drive on screen, its chassis about 0.6 of the rim's diameter either side of its centre; no word shown over it.
+    const box = { left: d.rim.x - 0.62 * d.rim.diameter, right: d.rim.x + 0.62 * d.rim.diameter, top: d.rim.y - 0.62 * d.rim.diameter, bottom: d.rim.y + 0.62 * d.rim.diameter };
+    const words = await page.evaluate(() =>
+      [...document.querySelectorAll('[data-section="qa"] :is(h2, summary, .compass__answer > *)')]
+        .map((e) => {
+          const r = e.getBoundingClientRect();
+          return { text: (e.textContent ?? '').trim().slice(0, 24), shown: Number(getComputedStyle(e).opacity) * Number(getComputedStyle(e.closest('.compass__text')).opacity), l: r.left, t: r.top, r: r.right, b: r.bottom };
+        })
+        .filter((x) => x.b > 0 && x.t < innerHeight && x.r > x.l)
+    );
+    const over = words.filter((x) => x.shown > 0.05 && x.l < box.right && x.r > box.left && x.t < box.bottom && x.b > box.top);
+    step.data[`${tag}Words`] = { onScreen: words.length, overTheDrive: over };
+    step.check(words.length > 0 && over.length === 0, `${tag}: ${words.length} of the Q&A's lines on screen, none shown over the drive (${over.map((x) => x.text).join(' | ') || 'none'})`);
+    await shot(page, `16-phone-${tag}-qa.png`);
+    // A vertical swipe that starts on a question scrolls the page, and opens nothing.
+    const from = (await page.evaluate(() => {
+      const e = [...document.querySelectorAll('[data-section="qa"] summary')].find((x) => {
+        const r = x.getBoundingClientRect();
+        return r.top > innerHeight * 0.45 && r.bottom < innerHeight * 0.9;
+      });
+      const r = e?.getBoundingClientRect();
+      return r ? [Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2)] : null;
+    })) ?? [Math.round(width / 2), Math.round(height * 0.75)];
+    const y0 = await page.evaluate(() => window.scrollY);
+    await finger.swipe(from, [from[0], Math.round(from[1] - height * 0.35)], { steps: 14, every: 16 });
+    await sleep(900);
+    const y1 = await page.evaluate(() => window.scrollY);
+    const opened = await page.evaluate(() => document.querySelectorAll('[data-section="qa"] details[open]').length);
+    step.data[`${tag}Swipe`] = { from, scroll: [y0, y1], opened };
+    step.check(y1 > y0 + 60 && opened === 0, `${tag}: a vertical swipe from a question scrolls the page (${fix(y0, 0)} to ${fix(y1, 0)}) and opens nothing (${opened} open)`);
+    await sleep(900);
+    await shot(page, `16-phone-${tag}-qa-swiped.png`);
+    step.check(w.errors.length === 0, `${tag}: no console errors (${w.errors.slice(0, 3).join(' | ')})`);
+  } finally {
+    await context.close();
+  }
+}
+
+async function step16(step) {
+  await closeMain();
+  await phoneQa(step, { width: 390, height: 844, tag: 'portrait' });
+  await phoneQa(step, { width: 844, height: 390, tag: 'landscape' });
+}
+
 // ---------------------------------------------------------------- stills
 async function stills(step) {
   const browser = await gpuBrowser();
@@ -1241,16 +1631,19 @@ async function stills(step) {
     await openCompass(page);
     await waitLive(page);
     await sleep(1500);
-    // The words are the page's, not the picture's: hidden through the style API, which the page's CSP does not govern.
+    // The words are the page's, not the picture's (the head's label among them: the stills serve both languages):
+    // hidden through the style API, which the page's CSP does not govern.
     await page.evaluate(() => {
-      for (const text of document.querySelectorAll('.compass__text')) text.style.visibility = 'hidden';
+      for (const text of document.querySelectorAll('.compass__text, .compass__label')) text.style.visibility = 'hidden';
     });
     mkdirSync(join(OUT, 'stills'), { recursive: true });
     const stops = [
       { name: 'hero', id: 'hero', local: 0.5 },
       { name: 'china', id: 'china', local: 1 },
       { name: 'aruba', id: 'aruba', local: 1 },
-      { name: 'rotterdam', id: 'rotterdam', local: 1 }
+      { name: 'rotterdam', id: 'rotterdam', local: 1 },
+      { name: 'drive', id: 'funcial', local: 0.3 },
+      { name: 'offduty', id: 'offduty', local: 0.6 }
     ];
     for (const s of stops) {
       const d = await goTo(page, s.id, s.local, 2600);
@@ -1275,8 +1668,14 @@ const plan = [
   ['7', 'failures: no textures, no chunk, hanging chunk, hanging textures', step7],
   ['8', 'reduced motion and no 3D APIs', step8],
   ['9', 'fps, quality step, idle', step9],
+  ['11', 'the whole story down and back up: boundaries, continuity, programs', step11],
+  ['12', 'a link to /#cookies-clicker lands on its track', step12],
+  ['13', 'tracks and the pointer: hover, label, click', step13],
+  ['14', 'the Q&A answers: sector, scene and words in step', step14],
+  ['15', 'Tab order, wide and narrow', step15],
+  ['16', 'the phone in the Q&A: the small drive, the words clear, a swipe scrolls', step16],
   ['10', 'record scrub.webm', step10],
-  ['stills', 'capture the four stills (1600x900 PNG)', stills]
+  ['stills', 'capture the six stills (1600x900 PNG)', stills]
 ];
 
 // A step that is not in the plan is a typo, and a run of nothing proves nothing: both are errors.
