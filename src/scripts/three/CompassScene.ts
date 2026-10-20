@@ -109,7 +109,7 @@ export class CompassScene {
    * `failIfMajorPerformanceCaveat`. The browser decides what counts as a
    * major caveat, and it is no software-renderer check: the proof's Edge
    * (tools/proof, step 9) passes it under SwiftShader, and the live scene
-   * runs there in software, at about 9.5 fps on the quality ladder's last
+   * runs there in software, at about 9 fps on the quality ladder's last
    * step. Where it fails, or WebGL2 is missing, the page is stacked.
    */
   static supported(): boolean {
@@ -441,8 +441,8 @@ export class CompassScene {
    * For the proof (`?proof`): the section and how far through it, the quality
    * step, the spin and the needle (radians, on the dial), the pearl (CSS px),
    * and the dial as drawn: its projected centre and rim diameter in CSS px; the
-   * free turn's tip (radians), the count of frames drawn, and the image maps
-   * the scene holds (brass, lacquer, portrait); the pose's drive, head, park,
+   * free turn's tip (radians), the count of frames drawn, and the names of
+   * the image maps the scene holds (InstrumentTextures); the pose's drive, head, park,
    * platter, test point, how lit each track is, interactivity and dimming;
    * the Q&A's lit sector; and the programs compiled.
    */

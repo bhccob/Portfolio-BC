@@ -104,7 +104,7 @@ by setting `bob-compass-seen` in the session before the page loads.
   than forcing an outcome: the renderer's name, whether the page's own support
   test passes, and then either the stacked page (fps n/a) or the live scene drawn
   in software, measured like the GPU. On this machine's Edge the test passes and
-  the live scene runs in software, at about 9.5 fps and the last quality step.
+  the live scene runs in software, at about 9 fps and the last quality step.
 - Step 7's refused chunk is found by a route on `/_astro/live.<hash>.js`, the
   chunk that `src/scripts/compass-main.ts` imports as `./compass/live`
   (`src/scripts/compass/live.ts`). If that module is renamed or bundled into
