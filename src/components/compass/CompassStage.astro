@@ -171,7 +171,7 @@ const questions = c.qa.items.map((question, k) => ({ question, answer: answers[k
                   <p class="compass__line">{line.text}</p>
                 </>
               )}
-              {id === 'change' && <p class="title compass__heading">{c.change}</p>}
+              {id === 'change' && <p class="title compass__heading compass__heading--caption">{c.change}</p>}
               {track && (
                 <>
                   {id === 'funcial' && <h2 class="compass__hidden">{c.projects}</h2>}
@@ -184,7 +184,7 @@ const questions = c.qa.items.map((question, k) => ({ question, answer: answers[k
                       href={track.link.href}
                       data-track-link
                       target={track.link.external ? '_blank' : undefined}
-                      rel={track.link.external ? 'noopener' : undefined}
+                      rel={track.link.external ? 'noopener noreferrer' : undefined}
                     >
                       {track.link.label}
                       <Icon name="arrow" size={14} strokeWidth={1.8} />
@@ -328,6 +328,12 @@ const questions = c.qa.items.map((question, k) => ({ question, answer: answers[k
     font-size: clamp(28px, 4.6vw, 52px);
     font-weight: 600;
     text-wrap: balance;
+  }
+
+  /* The change's one sentence is a caption, not a heading: about a small heading's size, so it sits in three lines. */
+  .compass__heading--caption {
+    font-size: clamp(22px, 2.8vw, 34px);
+    line-height: 1.15;
   }
 
   .compass__lead {
@@ -793,8 +799,12 @@ const questions = c.qa.items.map((question, k) => ({ question, answer: answers[k
     min-height: 0;
   }
 
-  /* The questions take the pointer whole, so their words can be selected as well as opened. */
-  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section :is(a, button, .compass__questions) {
+  /*
+   * The questions take the pointer whole, so their words can be selected as well as opened; they and the links take it
+   * only while their section's words show at all (`data-on`, set by the controller with `--shown`), so a faded one is
+   * never clicked or hovered through the words on screen.
+   */
+  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section[data-on] :is(a, button, .compass__questions) {
     pointer-events: auto;
   }
 
@@ -903,6 +913,10 @@ const questions = c.qa.items.map((question, k) => ({ question, answer: answers[k
     font-size: clamp(28px, 3.4vw, 56px);
   }
 
+  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section .compass__heading--caption {
+    font-size: clamp(22px, 2.2vw, 34px);
+  }
+
   :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section .compass__lead {
     font-size: clamp(16px, 1.35vw, 21px);
   }
@@ -962,6 +976,10 @@ const questions = c.qa.items.map((question, k) => ({ question, answer: answers[k
       font-size: clamp(26px, 7.4vw, 48px);
     }
 
+    :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section .compass__heading--caption {
+      font-size: clamp(20px, 5.6vw, 30px);
+    }
+
     :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section :is(.compass__lead, .compass__line) {
       font-size: clamp(15px, 4.2vw, 19px);
     }
@@ -970,6 +988,11 @@ const questions = c.qa.items.map((question, k) => ({ question, answer: answers[k
     :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section[data-section='qa'] .compass__copy {
       max-width: none;
       padding: 36svh var(--gutter) 12svh;
+    }
+
+    /* A question the browser scrolls to for the keyboard's focus stops below the drive's band, where it is read in full. */
+    :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section[data-section='qa'] summary {
+      scroll-margin-top: 38svh;
     }
   }
 

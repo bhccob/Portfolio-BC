@@ -6,7 +6,7 @@ import { Component } from '../core/Component';
 import { Motion } from '../core/Motion';
 import { $, $$, readJson } from '../core/dom';
 import { carryProgress } from '../three/applyPose';
-import { compassPoseAt, nominalSpans, spansFromOffsets, type SectionId, type Span } from '../three/Choreography';
+import { compassPoseAt, locate, nominalSpans, spansFromOffsets, type SectionId, type Span } from '../three/Choreography';
 import { CompassScene } from '../three/CompassScene';
 import type { PointerKind } from '../three/FreeTurn';
 import type { TrackId } from '../three/instrument/drive';
@@ -15,6 +15,13 @@ import { readingProgress } from './reading';
 /** How far right of its point each label stands, px (CompassStage.astro's `.compass__label--head` and `--hover`). */
 const HEAD_OFFSET = 18;
 const HOVER_OFFSET = 14;
+
+/**
+ * On a narrow screen, the share of the viewport's height a focused question
+ * is kept below: under the small drive's band, where the Q&A's words fade
+ * (CompassStage.astro's 34%), with a little room.
+ */
+const QA_BAND = 0.38;
 
 declare global {
   interface Window {
@@ -45,7 +52,9 @@ export interface CompassStageOptions {
  * The pearl follows a mouse or pen anywhere on the page, goes to a touch and
  * to the focused control, and wakes on a scroll or a key; a control the
  * keyboard reaches where its section's words are faded out brings them in
- * (reading.ts). A drag on the stage turns the dial. After every frame the
+ * (reading.ts), as a link to a section (`#cookies-clicker`) does on arrival;
+ * a section's links and questions take the pointer only while its words show.
+ * A drag on the stage turns the dial. After every frame the
  * stage's overlays follow the scene (CompassScene.overlay): the test point's
  * label at the read head, the hovered track's name at the pointer, the Off
  * duty orbit round the spindle. A click on a track opens its project, as its
@@ -73,6 +82,8 @@ export class CompassStageController extends Component {
   private spans: readonly Span[] = nominalSpans();
   /** The Off duty orbit over the canvas, whose opacity follows Off duty's words. */
   private orbit: HTMLElement | null = null;
+  /** The canvas's size in CSS px, as last measured on start or a resize (the overlays read it every frame). */
+  private canvasSize = { width: 0, height: 0 };
 
   constructor(private readonly options: CompassStageOptions = {}) {
     super();
@@ -123,6 +134,7 @@ export class CompassStageController extends Component {
 
     this.sections = $$('[data-section]', track).map((section) => [section, section.dataset.section as SectionId]);
     this.orbit = $('[data-compass-orbit]', stage);
+    this.canvasSize = { width: canvas.clientWidth, height: canvas.clientHeight };
 
     gsap.registerPlugin(ScrollTrigger);
     const lenis = new Lenis({ autoRaf: false, lerp: 0.1 });
@@ -152,6 +164,20 @@ export class CompassStageController extends Component {
     // Measured before the first frame and set there, so a reload mid-page shows the compass where the scroll is, with no
     // sweep replayed.
     measure();
+    // A link to one of the sections (/#cookies-clicker) lands where its words show and its pose is whole (on a track,
+    // the head on it and the track lit), not at the section's very top, where the browser's jump to the anchor puts it
+    // and the head is still on its way there; moved on before the first frame. A scroll the browser restored elsewhere
+    // (a reload after scrolling on) is left where it is.
+    const anchored = anchorTarget(this.sections, location.hash);
+    const range = trigger.end - trigger.start;
+    if (anchored && range > 0) {
+      const now = Math.min(1, Math.max(0, (window.scrollY - trigger.start) / range));
+      const to = locate(now, this.spans).id === anchored ? readingProgress(anchored, now, this.spans) : null;
+      if (to !== null && to !== now) {
+        lenis.scrollTo(trigger.start + to * range, { immediate: true, force: true });
+        ScrollTrigger.update();
+      }
+    }
     this.progress(trigger.progress);
     // Every refresh (a resize, the page's load) may have moved the sections: measured again, the text faded again.
     const refreshed = (): void => {
@@ -207,7 +233,8 @@ export class CompassStageController extends Component {
 
     /**
      * Where the keyboard's focus lands in a section whose words are faded out there (a link the browser scrolled to
-     * the edge of its section), the scroll moves to the nearest place they show. Answers whether it moved.
+     * the edge of its section), the scroll moves to the nearest place they show; on a narrow screen, a question under
+     * the small drive's band, where the Q&A's words fade, comes down below it. Answers whether it moved.
      */
     const reveal = (target: Element): boolean => {
       const id = target.closest<HTMLElement>('[data-section]')?.dataset.section as SectionId | undefined;
@@ -215,8 +242,17 @@ export class CompassStageController extends Component {
       if (!id || !(range > 0)) return false;
       const now = Math.min(1, Math.max(0, (window.scrollY - trigger.start) / range));
       const to = readingProgress(id, now, this.spans);
-      if (to === null || to === now) return false;
-      lenis.scrollTo(trigger.start + to * range, { immediate: true });
+      if (to !== null && to !== now) {
+        lenis.scrollTo(trigger.start + to * range, { immediate: true });
+        return true;
+      }
+      // Narrow as the dial's layout has it (CameraRig: under 6 : 5).
+      const { width, height } = this.canvasSize;
+      if (id !== 'qa' || !(width < 1.2 * height)) return false;
+      const band = QA_BAND * window.innerHeight;
+      const top = target.getBoundingClientRect().top;
+      if (!(top < band)) return false;
+      lenis.scrollTo(window.scrollY + top - band, { immediate: true });
       return true;
     };
 
@@ -231,6 +267,7 @@ export class CompassStageController extends Component {
       if (canvas.clientWidth === width && canvas.clientHeight === height) return;
       width = canvas.clientWidth;
       height = canvas.clientHeight;
+      this.canvasSize = { width, height };
       // The track is measured in viewport heights: inside it, hold the visitor's place (the section and how far through
       // it, among the spans before and after the change: the Q&A's height reflows with the width), not the pixel
       // offset. Above or below it (content before or after the stage), the scroll is left where it is.
@@ -431,7 +468,8 @@ export class CompassStageController extends Component {
       if (element.hasAttribute('data-shown') !== shown) element.toggleAttribute('data-shown', shown);
     };
     // A label's width, read when its words change; one that would run off the canvas's right edge from `x` (its
-    // offset and a margin of 8px) stands left of its point instead.
+    // offset and a margin of 8px) stands left of its point instead. The canvas's width is the one the resize path
+    // measured, so a frame reads no layout after its style writes.
     const widths = new Map<HTMLElement, number>();
     const write = (element: HTMLElement, text: string): void => {
       if (element.textContent === text) return;
@@ -439,7 +477,7 @@ export class CompassStageController extends Component {
       widths.set(element, element.offsetWidth);
     };
     const flip = (element: HTMLElement, x: number, offset: number): void => {
-      const flipped = x + offset + (widths.get(element) ?? 0) > canvas.clientWidth - 8;
+      const flipped = x + offset + (widths.get(element) ?? 0) > this.canvasSize.width - 8;
       if (element.hasAttribute('data-flip') !== flipped) element.toggleAttribute('data-flip', flipped);
     };
 
@@ -506,7 +544,7 @@ export class CompassStageController extends Component {
         }
         const link = under === null ? undefined : links.get(under);
         if (!link) return;
-        if (link.target === '_blank') window.open(link.href, '_blank', 'noopener');
+        if (link.target === '_blank') window.open(link.href, '_blank', 'noopener,noreferrer');
         else location.assign(link.href);
       })
     );
@@ -526,14 +564,22 @@ export class CompassStageController extends Component {
     this.scene?.setActive(active);
   }
 
-  /** Moves the scene to `progress` and fades each section's text as the choreography has it there, among the measured spans. */
+  /**
+   * Moves the scene to `progress` and fades each section's text as the choreography has it there, among the measured
+   * spans; a section whose words show at all is marked `data-on`, and only there do its links and questions take the
+   * pointer (a faded one is neither clicked nor hovered through the words on screen).
+   */
   private progress(progress: number): void {
     // The first call (a page opening partway down, as after a reload) puts the compass where the scroll is,
     // rather than easing it there from the top.
     this.scene?.setProgress(progress, { immediate: !this.started });
     this.started = true;
     const { text } = compassPoseAt(progress, this.spans);
-    for (const [section, id] of this.sections) section.style.setProperty('--shown', String(text[id] ?? 1));
+    for (const [section, id] of this.sections) {
+      const shown = text[id] ?? 1;
+      section.style.setProperty('--shown', String(shown));
+      if (section.hasAttribute('data-on') !== shown > 0) section.toggleAttribute('data-on', shown > 0);
+    }
     this.orbit?.style.setProperty('--shown', String(text.offduty));
   }
 }
@@ -552,6 +598,18 @@ function measuredSpans(track: HTMLElement, sections: readonly [HTMLElement, Sect
     sections.map(([section, id]) => ({ id, top: section.getBoundingClientRect().top - top })),
     range
   );
+}
+
+/** The section the address's fragment names (`#cookies-clicker`), by its element's id, or null. */
+function anchorTarget(sections: readonly [HTMLElement, SectionId][], hash: string): SectionId | null {
+  if (hash.length < 2) return null;
+  let id: string;
+  try {
+    id = decodeURIComponent(hash.slice(1));
+  } catch {
+    return null;
+  }
+  return sections.find(([section]) => section.id === id)?.[1] ?? null;
 }
 
 /** Whether `element` has the keyboard's focus ring (`:focus-visible`); true where a browser cannot tell. */
