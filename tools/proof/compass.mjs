@@ -1367,33 +1367,61 @@ async function step11(step) {
 }
 
 // ---------------------------------------------------------------- 12. a link to a track
+/**
+ * The sizes a link to a track is opened at: the reference, a height that puts the section's start between two
+ * pixels, a phone at three device pixels to the CSS pixel, a laptop at one and a half (device-pixel snapping), and
+ * the reference with a scroll padding at the top (as the old site's base.css sets for its header), so the browser's
+ * jump stops short of the section's first pixel.
+ */
+const ANCHOR_SIZES = [
+  { width: 1440, height: 900, scale: 1 },
+  { width: 1440, height: 900, scale: 1, padding: 64 },
+  { width: 1440, height: 899, scale: 1 },
+  { width: 390, height: 844, scale: 3, phone: true },
+  { width: 1280, height: 937, scale: 1.5 }
+];
+
 async function step12(step) {
   await closeMain();
   const browser = await gpuBrowser();
-  const { context, page, w } = await newPage(browser, { seen: true });
-  try {
-    await page.goto(`${BASE}${PAGE_PATH}?proof#cookies-clicker`, { waitUntil: 'domcontentloaded' });
-    await waitLive(page);
-    await sleep(1200);
-    const drawn = (await page.evaluate(() => window.__proof.boot)).filter((b) => b.frames > 0);
-    const want = TRACK_RADIUS['cookies-clicker'];
-    step.data.firstDrawn = drawn[0];
-    step.data.drawnSamples = drawn.length;
-    step.check(drawn.length > 10 && drawn.every((b) => b.section === 'cookies-clicker'), `the scene is at cookies-clicker from its first frame drawn (${drawn.length} frames sampled, ${[...new Set(drawn.map((b) => b.section))].join(', ')})`);
-    step.check(drawn.every((b) => Math.abs(b.head - want) < 1e-3 && b.arm === 1), `the head is on that track (${want}) from the first frame (heads seen ${[...new Set(drawn.map((b) => fix(b.head, 3)))].join(', ')})`);
-    step.check(drawn.every((b) => b.lit?.['cookies-clicker'] === 1), `the track is lit from the first frame (${[...new Set(drawn.map((b) => fix(b.lit?.['cookies-clicker'], 2)))].join(', ')})`);
-    const locals = drawn.map((b) => b.local);
-    step.check(Math.max(...locals) - Math.min(...locals) < 0.02, `no motion is replayed: it lands at its reading place and stays (local ${fix(Math.min(...locals), 3)} to ${fix(Math.max(...locals), 3)})`);
-    const words = await page.evaluate(() => ({
-      text: Number(getComputedStyle(document.querySelector('#cookies-clicker .compass__text')).opacity),
-      label: document.querySelector('[data-compass-head]')?.hasAttribute('data-shown') ? document.querySelector('[data-compass-head]').textContent : null
-    }));
-    step.data.words = words;
-    step.check(words.text > 0.95 && /^TP\d/.test(words.label ?? ''), `its words show and the head's label reads ${words.label}`);
-    await shot(page, '12-anchor.png');
-    step.check(w.errors.length === 0, `no console errors (${w.errors.slice(0, 3).join(' | ')})`);
-  } finally {
-    await context.close();
+  const want = TRACK_RADIUS['cookies-clicker'];
+  step.data.sizes = [];
+  for (const [k, size] of ANCHOR_SIZES.entries()) {
+    const tag = `${size.width}x${size.height}@${size.scale}${size.padding ? `+pad${size.padding}` : ''}`;
+    const { context, page, w } = await newPage(browser, {
+      seen: true,
+      viewport: { width: size.width, height: size.height },
+      deviceScaleFactor: size.scale,
+      ...(size.phone ? { isMobile: true, hasTouch: true } : {})
+    });
+    // Through the style API (the CSP governs style attributes, not the CSSOM), as soon as the root element exists.
+    if (size.padding) {
+      await context.addInitScript((padding) => {
+        const pad = () => !!document.documentElement && ((document.documentElement.style.scrollPaddingTop = `${padding}px`), true);
+        if (!pad()) new MutationObserver((_, observer) => pad() && observer.disconnect()).observe(document, { childList: true });
+      }, size.padding);
+    }
+    try {
+      await page.goto(`${BASE}${PAGE_PATH}?proof#cookies-clicker`, { waitUntil: 'domcontentloaded' });
+      await waitLive(page);
+      await sleep(1200);
+      const drawn = (await page.evaluate(() => window.__proof.boot)).filter((b) => b.frames > 0);
+      const locals = drawn.map((b) => b.local);
+      const words = await page.evaluate(() => ({
+        text: Number(getComputedStyle(document.querySelector('#cookies-clicker .compass__text')).opacity),
+        label: document.querySelector('[data-compass-head]')?.hasAttribute('data-shown') ? document.querySelector('[data-compass-head]').textContent : null
+      }));
+      step.data.sizes.push({ tag, firstDrawn: drawn[0], samples: drawn.length, local: [fix(Math.min(...locals), 3), fix(Math.max(...locals), 3)], words });
+      step.check(drawn.length > 10 && drawn.every((b) => b.section === 'cookies-clicker'), `${tag}: the scene is at cookies-clicker from its first frame drawn (${drawn.length} frames sampled, ${[...new Set(drawn.map((b) => b.section))].join(', ')})`);
+      step.check(drawn.every((b) => Math.abs(b.head - want) < 1e-3 && b.arm === 1), `${tag}: the head is on that track (${want}) from the first frame (heads seen ${[...new Set(drawn.map((b) => fix(b.head, 3)))].join(', ')})`);
+      step.check(drawn.every((b) => b.lit?.['cookies-clicker'] === 1), `${tag}: the track is lit from the first frame (${[...new Set(drawn.map((b) => fix(b.lit?.['cookies-clicker'], 2)))].join(', ')})`);
+      step.check(Math.max(...locals) - Math.min(...locals) < 0.02, `${tag}: no motion is replayed: it lands at its reading place and stays (local ${fix(Math.min(...locals), 3)} to ${fix(Math.max(...locals), 3)})`);
+      step.check(words.text > 0.95 && /^TP\d/.test(words.label ?? ''), `${tag}: its words show and the head's label reads ${words.label}`);
+      await shot(page, k === 0 ? '12-anchor.png' : `12-anchor-${tag}.png`);
+      step.check(w.errors.length === 0, `${tag}: no console errors (${w.errors.slice(0, 3).join(' | ')})`);
+    } finally {
+      await context.close();
+    }
   }
 }
 
@@ -1474,6 +1502,9 @@ async function step14(step) {
   const rows = [];
   for (let k = 0; k < 5; k++) {
     const summary = `[data-section="qa"] details[data-question="${k}"] > summary`;
+    // The pointer onto the question first, so the dial's lean toward the pearl is the same before, open and closed.
+    await page.hover(summary);
+    await sleep(900);
     const before = await at();
     await page.click(summary);
     await sleep(1500);
@@ -1482,6 +1513,11 @@ async function step14(step) {
     await page.click(summary);
     await sleep(1500);
     const closed = await at();
+    // The Q&A's pose is the same throughout it: the small drive does not move while an answer is open (nor after).
+    const held = (s) =>
+      Math.abs(s.d.rim.x - before.d.rim.x) <= 1 && Math.abs(s.d.rim.y - before.d.rim.y) <= 1 && Math.abs(s.d.rim.diameter - before.d.rim.diameter) <= 1 &&
+      s.d.dim === before.d.dim && Object.keys(before.d.drive).every((key) => s.d.drive[key] === before.d.drive[key]);
+    step.check(held(open) && held(closed), `question ${k + 1}: the small drive holds still while it is open and after (rim ${fix(before.d.rim.x, 1)}, ${fix(before.d.rim.y, 1)}, ${fix(before.d.rim.diameter, 1)} then ${fix(open.d.rim.x, 1)}, ${fix(open.d.rim.y, 1)}, ${fix(open.d.rim.diameter, 1)}; dim ${before.d.dim}, ${open.d.dim}; drive ${Object.values(open.d.drive).join(' ')})`);
     rows.push({ k, before: { local: fix(before.d.local), y: before.y }, open: { local: fix(open.d.local), page: fix(open.page.local), sector: open.d.sector, y: open.y }, closed: { local: fix(closed.d.local), sector: closed.d.sector, y: closed.y } });
     step.check(open.d.sector === k && closed.d.sector === null, `question ${k + 1}: its sector lights while it is open, and goes out when it closes (${open.d.sector}, then ${closed.d.sector})`);
     step.check(
@@ -1593,6 +1629,26 @@ async function phoneQa(step, { width, height, tag }) {
     step.data[`${tag}Words`] = { onScreen: words.length, overTheDrive: over };
     step.check(words.length > 0 && over.length === 0, `${tag}: ${words.length} of the Q&A's lines on screen, none shown over the drive (${over.map((x) => x.text).join(' | ') || 'none'})`);
     await shot(page, `16-phone-${tag}-qa.png`);
+    if (width < 1.2 * height) {
+      // A question faded into the drive's band takes no tap: brought under the drive's centre and tapped there, it stays shut.
+      await page.evaluate((y) => {
+        const summary = document.querySelector('[data-section="qa"] details[data-question="1"] > summary');
+        const box = summary.getBoundingClientRect();
+        window.scrollBy(0, box.top + box.height / 2 - y);
+      }, d.rim.y);
+      await sleep(900);
+      const faded = await page.evaluate(() => {
+        const summary = document.querySelector('[data-section="qa"] details[data-question="1"] > summary');
+        const box = summary.getBoundingClientRect();
+        return { under: summary.hasAttribute('data-under'), opacity: Number(getComputedStyle(summary).opacity), top: box.top, bottom: box.bottom };
+      });
+      await finger.tap(Math.round(d.rim.x), Math.round(d.rim.y));
+      await sleep(700);
+      const shut = await page.evaluate(() => document.querySelectorAll('[data-section="qa"] details[open]').length === 0);
+      step.data[`${tag}TapOnDrive`] = { faded, shut };
+      step.check(faded.top < d.rim.y && faded.bottom > d.rim.y && faded.opacity < 0.05 && shut, `${tag}: a tap on the small drive, over a question faded under it (opacity ${fix(faded.opacity, 2)}, ${faded.under ? 'marked under the band' : 'not marked'}), opens nothing`);
+      await goTo(page, 'qa', 0.15, 1500);
+    }
     // A vertical swipe that starts on a question scrolls the page, and opens nothing.
     const from = (await page.evaluate(() => {
       const e = [...document.querySelectorAll('[data-section="qa"] summary')].find((x) => {

@@ -68,13 +68,16 @@ export const DRIVE_ROOM = {
  * The actuator's magnet, dark metal, a U round the coil's sweep behind the
  * pivot: two blocks either side of it (their size: long side north-south,
  * then height, then across; where each stands from the pivot, west and east
- * of it and both south of the arm's broad root) on a low plate under the
- * coil joining them (`plate`: its height). Clear of the arm and of its coil
- * on every track and on the ramp, and inside the chassis's corner.
+ * of it and both south of the pivot) on a low plate under the coil joining
+ * them (`plate`: its height). Clear of the arm and of its coil on every
+ * track and on the ramp (the instrument test checks it: the arm's broad root
+ * swings westward of the pivot on the inner tracks, to x 0.924 at
+ * cookies-clicker, so the west block stands off to 0.92), and inside the
+ * chassis's corner.
  */
 export const MAGNET = {
   size: [0.17, 0.09, 0.06],
-  west: -0.095,
+  west: -0.11,
   east: 0.125,
   south: 0.105,
   plate: 0.02,

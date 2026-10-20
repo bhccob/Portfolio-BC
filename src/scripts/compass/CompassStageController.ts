@@ -17,11 +17,15 @@ const HEAD_OFFSET = 18;
 const HOVER_OFFSET = 14;
 
 /**
- * On a narrow screen, the share of the viewport's height a focused question
- * is kept below: under the small drive's band, where the Q&A's words fade
- * (CompassStage.astro's 34%), with a little room.
+ * On a narrow screen, the small drive's band: the top share of the viewport
+ * where the Q&A's words fade as they rise (CompassStage.astro's 34%); and the
+ * share a focused question is kept below, with a little room.
  */
+const QA_FADE = 0.34;
 const QA_BAND = 0.38;
+
+/** How far (CSS px) a section's top may be from the scroll padding and still count as the browser's jump to its anchor. */
+const ANCHOR_SLACK = 2;
 
 declare global {
   interface Window {
@@ -134,6 +138,7 @@ export class CompassStageController extends Component {
 
     this.sections = $$('[data-section]', track).map((section) => [section, section.dataset.section as SectionId]);
     this.orbit = $('[data-compass-orbit]', stage);
+    this.underBand(track);
     this.canvasSize = { width: canvas.clientWidth, height: canvas.clientHeight };
 
     gsap.registerPlugin(ScrollTrigger);
@@ -166,14 +171,18 @@ export class CompassStageController extends Component {
     measure();
     // A link to one of the sections (/#cookies-clicker) lands where its words show and its pose is whole (on a track,
     // the head on it and the track lit), not at the section's very top, where the browser's jump to the anchor puts it
-    // and the head is still on its way there; moved on before the first frame. A scroll the browser restored elsewhere
-    // (a reload after scrolling on) is left where it is.
+    // and the head is still on its way there; moved on before the first frame. The jump is read off the section
+    // itself: its top at the scroll padding, within a pixel or two (rounding, device pixels), which may leave the
+    // scroll just short of the section; or the scroll inside it. A scroll the browser restored elsewhere (a reload
+    // after scrolling on) is left where it is.
     const anchored = anchorTarget(this.sections, location.hash);
     const range = trigger.end - trigger.start;
     let landed: number | null = null;
     if (anchored && range > 0) {
+      const [element, id] = anchored;
       const now = Math.min(1, Math.max(0, (window.scrollY - trigger.start) / range));
-      const to = locate(now, this.spans).id === anchored ? readingProgress(anchored, now, this.spans) : null;
+      const jumped = Math.abs(element.getBoundingClientRect().top - scrollPaddingTop()) <= ANCHOR_SLACK || locate(now, this.spans).id === id;
+      const to = jumped ? readingProgress(id, now, this.spans) : null;
       if (to !== null && to !== now) {
         lenis.scrollTo(trigger.start + to * range, { immediate: true, force: true });
         landed = to;
@@ -330,6 +339,29 @@ export class CompassStageController extends Component {
         }
       );
     }
+  }
+
+  /**
+   * Marks each of the Q&A's questions `data-under` while any of it lies in the top QA_FADE of the viewport, the small
+   * drive's band on a narrow screen, where its words fade as they rise (CompassStage.astro). There, in the narrow
+   * layout of browsers that run that fade, a marked question takes no tap, so a tap on the drive cannot open or
+   * close a question that is not to be seen.
+   */
+  private underBand(track: HTMLElement): void {
+    const summaries = $$('[data-section="qa"] summary', track);
+    if (summaries.length === 0 || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          // Not wholly below the band's line, and not because it is below the viewport: some of it is in the band.
+          const under = entry.intersectionRatio < 1 && entry.boundingClientRect.top < (entry.rootBounds?.top ?? 0);
+          if (entry.target.hasAttribute('data-under') !== under) entry.target.toggleAttribute('data-under', under);
+        }
+      },
+      { rootMargin: `-${QA_FADE * 100}% 0px 0px 0px`, threshold: [0, 1] }
+    );
+    for (const summary of summaries) observer.observe(summary);
+    this.onCleanup(() => observer.disconnect());
   }
 
   /**
@@ -605,7 +637,7 @@ function measuredSpans(track: HTMLElement, sections: readonly [HTMLElement, Sect
 }
 
 /** The section the address's fragment names (`#cookies-clicker`), by its element's id, or null. */
-function anchorTarget(sections: readonly [HTMLElement, SectionId][], hash: string): SectionId | null {
+function anchorTarget(sections: readonly [HTMLElement, SectionId][], hash: string): [HTMLElement, SectionId] | null {
   if (hash.length < 2) return null;
   let id: string;
   try {
@@ -613,7 +645,15 @@ function anchorTarget(sections: readonly [HTMLElement, SectionId][], hash: strin
   } catch {
     return null;
   }
-  return sections.find(([section]) => section.id === id)?.[1] ?? null;
+  return sections.find(([section]) => section.id === id) ?? null;
+}
+
+/** The root's scroll padding at the top in px, where the browser's jump to an anchor puts it (0 for `auto`). */
+function scrollPaddingTop(): number {
+  const value = getComputedStyle(document.documentElement).scrollPaddingTop;
+  const px = parseFloat(value);
+  if (!Number.isFinite(px)) return 0;
+  return value.trim().endsWith('%') ? (px / 100) * window.innerHeight : px;
 }
 
 /** Whether `element` has the keyboard's focus ring (`:focus-visible`); true where a browser cannot tell. */

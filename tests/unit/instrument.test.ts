@@ -5,13 +5,13 @@ import { buildInstrument, type InstrumentPose } from '../../src/scripts/three/in
 import { buildAnnulus } from '../../src/scripts/three/instrument/Annulus';
 import { TEXTURE_FILES } from '../../src/scripts/three/instrument/textures';
 import { DIAL, bearingOf } from '../../src/scripts/three/instrument/dialSpec';
-import { DRIVE, armBearing, headPoint } from '../../src/scripts/three/instrument/drive';
+import { DRIVE, TRACKS, armBearing, headPoint } from '../../src/scripts/three/instrument/drive';
 import { armState } from '../../src/scripts/three/instrument/Needle';
 import { MIRROR, RAMP } from '../../src/scripts/three/instrument/DriveParts';
 import { sweepCoverage } from '../../src/scripts/three/instrument/patterns';
 import { withoutPointSpecular } from '../../src/scripts/three/instrument/materials';
 import { loadInstrumentTextures } from '../../src/scripts/three/instrument/textures';
-import { WIRE } from '../../src/scripts/three/instrument/wirePath';
+import { WIRE, coilPath } from '../../src/scripts/three/instrument/wirePath';
 
 type Drive = InstrumentPose['drive'];
 const DRIVE_FIELDS = ['stack', 'mirror', 'grow', 'clamp', 'arm', 'chassis'] as const;
@@ -559,6 +559,44 @@ describe('the drive inside the instrument', () => {
     const rest = m.coilAnchor();
     expect(rest.anchor[0]).toBeCloseTo(0, 9); expect(rest.anchor[1]).toBeCloseTo(0.05, 9); expect(rest.anchor[2]).toBeCloseTo(DIAL.needle.tail - WIRE.coil.length / 2, 9);
     expect(rest.axis[2]).toBeCloseTo(-1, 9);
+  });
+
+  it('keeps the arm and its coil clear of the magnets on every track and on the ramp', () => {
+    const m = buildInstrument();
+    /** Points over every face of a mesh, in world space: each triangle's corners and a grid inside it. */
+    const over = (mesh: THREE.Mesh): THREE.Vector3[] => {
+      const pos = (mesh.geometry as THREE.BufferGeometry).getAttribute('position');
+      const index = (mesh.geometry as THREE.BufferGeometry).getIndex();
+      const count = index ? index.count : pos.count;
+      const at = (k: number) => new THREE.Vector3().fromBufferAttribute(pos, index ? index.getX(k) : k);
+      const points: THREE.Vector3[] = [];
+      for (let t = 0; t < count; t += 3) {
+        const [a, b, c] = [at(t), at(t + 1), at(t + 2)];
+        for (let i = 0; i <= 8; i++) for (let j = 0; j <= 8 - i; j++) {
+          const p = a.clone().multiplyScalar(1 - (i + j) / 8).addScaledVector(b, i / 8).addScaledVector(c, j / 8);
+          points.push(p.applyMatrix4(mesh.matrixWorld));
+        }
+      }
+      return points;
+    };
+    const stops: [string, number, number][] = [...TRACKS.map((id): [string, number, number] => [id, DRIVE.tracks[id], 0]), ['the ramp', DRIVE.tracks.next, 1]];
+    for (const [label, head, park] of stops) {
+      m.applyPose(pose({ drive: driveOf(1), head, park }));
+      m.root.updateMatrixWorld(true);
+      const boxes = ['compass:magnet-west', 'compass:magnet-east', 'compass:magnet-plate'].map((name) => [name, new THREE.Box3().setFromObject(named(m, name))] as const);
+      // The blade (its broad root most of all), its tail and the pivot's hub.
+      for (const name of ['compass:needle-tip', 'compass:needle-tail', 'compass:needle-hub']) {
+        const inside = over(named(m, name)).filter((p) => boxes.some(([, box]) => box.containsPoint(p)));
+        expect(inside.length, `${label}: ${name} inside a magnet`).toBe(0);
+      }
+      // The coil: the wire's tube round its helix.
+      const { anchor, axis } = m.coilAnchor();
+      const coil = coilPath(anchor, axis).map((q) => m.dial.localToWorld(new THREE.Vector3(...q)));
+      for (const [name, box] of boxes) {
+        const tube = box.clone().expandByScalar(WIRE.radius);
+        expect(coil.filter((p) => tube.containsPoint(p)).length, `${label}: the coil inside ${name}`).toBe(0);
+      }
+    }
   });
 
   it('moves the arm in three phases: the blade slides, the pivot hops to the corner, the blade turns and settles', () => {

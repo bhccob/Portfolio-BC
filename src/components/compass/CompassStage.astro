@@ -1012,6 +1012,11 @@ const questions = c.qa.items.map((question, k) => ({ question, answer: answers[k
         animation-timeline: view(block 34% 0%);
         animation-range: exit 0% exit 60%;
       }
+
+      /* A question fading in that band takes no tap (the controller marks it `data-under`): a tap on the drive opens nothing unseen. */
+      :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section[data-section='qa'] summary[data-under] {
+        pointer-events: none;
+      }
     }
   }
 
