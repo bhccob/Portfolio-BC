@@ -22,9 +22,11 @@ export type PlatterId = 'pattern' | 'direction' | 'degree';
  * The platters' mirror steel: its colour, roughness with a fine concentric
  * grain of ± `grain` (one value per 1/`grainRings` of radius, faded out where
  * a ring would be finer than the screen can draw it, so it never shimmers),
- * and the soft edge of the wipe, the pattern sweep's own (sweepCoverage).
+ * the grain's share ± `sheen` of the drive's room it reflects (so the grain
+ * shows as faint turned rings in the soft boxes, whose edges stay clean), and
+ * the soft edge of the wipe, the pattern sweep's own (sweepCoverage).
  */
-export const MIRROR = { color: 0xe4e6ec, roughness: 0.06, grain: 0.012, grainRings: 160, soft: 0.015 } as const;
+export const MIRROR = { color: 0xe4e6ec, roughness: 0.06, grain: 0.012, grainRings: 160, sheen: 0.1, soft: 0.015 } as const;
 
 /** Steel: the platters' edges, the hub, the clamp, the screws, and the arm once it has formed. */
 export const STEEL = { color: 0xc4c8d0, roughness: 0.28 } as const;
@@ -165,12 +167,13 @@ function driveRoomGlsl(): string {
 /**
  * The drive's light room (DRIVE_ROOM) in a lit material's reflections, as
  * much as `cover` (a GLSL float expression, evaluated after the lights'
- * setup) says: added to the image-based radiance the material's specular
- * then takes, so its colour, Fresnel and roughness apply as to any
- * reflection, and scaled by the environment's intensity, so it dims with
- * the studio. At cover 0 nothing changes.
+ * setup) says, its soft boxes' edges as soft as `roughness` (a GLSL float;
+ * the surface's own by default): added to the image-based radiance the
+ * material's specular then takes, so its colour, Fresnel and roughness apply
+ * as to any reflection, and scaled by the environment's intensity, so it
+ * dims with the studio. At cover 0 nothing changes.
  */
-export function patchRoom(shader: Shader, cover: string): void {
+export function patchRoom(shader: Shader, cover: string, roughness = 'material.roughness'): void {
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <common>', `#include <common>\n${driveRoomGlsl()}`)
     .replace(
@@ -182,7 +185,7 @@ export function patchRoom(shader: Shader, cover: string): void {
         `\tfloat roomCover = ${cover};`,
         '\tif ( roomCover > 0.0 ) {',
         '\t\tvec3 roomDir = inverseTransformDirection( reflect( - geometryViewDir, geometryNormal ), viewMatrix );',
-        '\t\tvec3 roomLight = roomCover * driveRoom( roomDir, material.roughness );',
+        `\t\tvec3 roomLight = roomCover * driveRoom( roomDir, ${roughness} );`,
         '#ifdef USE_ENVMAP',
         '\t\troomLight *= envMapIntensity;',
         '#endif',
@@ -227,6 +230,7 @@ export function patchMirror(shader: Shader, uniforms: MirrorUniforms): void {
       [
         '#include <metalnessmap_fragment>',
         'float mirrorCover = 0.0;',
+        'float mirrorGrain = 0.0;',
         '{',
         // sweepCoverage(u, origin, sweep, soft), the same steps as the pattern's sweep.
         '  float around = fract( atan( vDialPos.x, -vDialPos.z ) / 6.283185307179586 - uMirrorOrigin );',
@@ -237,10 +241,10 @@ export function patchMirror(shader: Shader, uniforms: MirrorUniforms): void {
         // about two pixels, so the grain shows close up and never shimmers from afar.
         `  float grainRing = length( vDialPos.xz ) * ${glsl(MIRROR.grainRings)};`,
         '  float grainShown = 1.0 - smoothstep( 0.25, 0.6, fwidth( grainRing ) );',
-        '  float grain = fract( sin( floor( grainRing ) * 12.9898 ) * 43758.5453 );',
+        '  mirrorGrain = ( 2.0 * fract( sin( floor( grainRing ) * 12.9898 ) * 43758.5453 ) - 1.0 ) * grainShown;',
         `  diffuseColor.rgb = mix( diffuseColor.rgb, ${vec3(MIRROR.color)}, mirrorCover );`,
         '  metalnessFactor = mix( metalnessFactor, 1.0, mirrorCover );',
-        `  roughnessFactor = mix( roughnessFactor, ${glsl(MIRROR.roughness)} + ${glsl(MIRROR.grain)} * ( 2.0 * grain - 1.0 ) * grainShown, mirrorCover );`,
+        `  roughnessFactor = mix( roughnessFactor, ${glsl(MIRROR.roughness)} + ${glsl(MIRROR.grain)} * mirrorGrain, mirrorCover );`,
         '}'
       ].join('\n')
     )
@@ -248,7 +252,8 @@ export function patchMirror(shader: Shader, uniforms: MirrorUniforms): void {
       '#include <lights_physical_fragment>',
       ['#include <lights_physical_fragment>', '#ifdef USE_CLEARCOAT', '\tmaterial.clearcoat *= 1.0 - mirrorCover;', '#endif'].join('\n')
     );
-  patchRoom(shader, `mirrorCover * ${glsl(DRIVE_ROOM.cover.mirror)}`);
+  // The soft boxes keep the mirror's own clean edges; the grain shows in them as faint turned rings.
+  patchRoom(shader, `mirrorCover * ${glsl(DRIVE_ROOM.cover.mirror)} * ( 1.0 + ${glsl(MIRROR.sheen)} * mirrorGrain )`, `max( ${glsl(MIRROR.roughness)}, 0.0525 )`);
 }
 
 export interface BladeUniforms {
