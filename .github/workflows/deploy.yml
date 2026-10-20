@@ -51,7 +51,7 @@ jobs:
         run: python -m unittest discover tools -v
 
       - name: Audit the built site
-        run: python tools/site_audit.py dist --strict
+        run: python tools/site_audit.py dist/client --strict
 
       # Accessibility, SEO and best practices must hold; performance is reported as a warning
       # (CI machines vary too much for a hard limit). Thresholds live in lighthouserc.json.
@@ -61,7 +61,7 @@ jobs:
       - uses: actions/upload-pages-artifact@v5
         if: github.event_name != 'pull_request'
         with:
-          path: dist
+          path: dist/client
           # Keeps public/.well-known/security.txt in the deployed site.
           include-hidden-files: true
 

@@ -7,10 +7,10 @@
   "author": "Bob Chung",
   "scripts": {
     "dev": "react-router dev --port 5173",
-    "build": "react-router build",
+    "build": "react-router build && tsx tools/build/postbuild.mjs",
     "preview": "node tools/serve-pages.mjs",
     "typecheck": "react-router typegen && tsc --noEmit",
-    "audit": "python tools/site_audit.py dist",
+    "audit": "python tools/site_audit.py dist/client",
     "build:icons": "node tools/icons.mjs",
     "test": "vitest run"
   },
@@ -41,6 +41,7 @@
     "@types/three": "0.186.0",
     "opentype.js": "2.0.0",
     "sharp": "0.35.5",
+    "tsx": "4.23.15",
     "typescript": "7.0.2",
     "vite": "8.3.4",
     "vitest": "5.0.3"

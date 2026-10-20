@@ -5,6 +5,8 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
+    // Lets tests import the JSDoc-typed build tools (tools/build/*.mjs); they are not checked.
+    "allowJs": true,
     "strict": true,
     "noEmit": true,
     "isolatedModules": true,

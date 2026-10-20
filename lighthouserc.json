@@ -1,8 +1,8 @@
 {
   "ci": {
     "collect": {
-      "staticDistDir": "./dist",
-      "url": ["/", "/en/", "/projects/web-development/", "/contact/"],
+      "staticDistDir": "./dist/client",
+      "url": ["/", "/en/", "/about/china/", "/projects/funcial/", "/lite/", "/contact/"],
       "numberOfRuns": 1,
       "settings": { "preset": "desktop" }
     },

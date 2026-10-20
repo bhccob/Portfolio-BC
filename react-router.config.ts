@@ -6,5 +6,6 @@ export default {
   appDirectory: 'src/app',
   buildDirectory: 'dist',
   ssr: false,
+  // Task 4a switches this to pagePaths() (src/data/pages.ts) once those pages exist.
   prerender: ['/', '/probe/', '/en/', '/en/probe/'],
 } satisfies Config;

@@ -17,17 +17,33 @@ npm install
 npm run dev
 ```
 
-The dev server runs at `http://localhost:4321`.
+The dev server runs at `http://localhost:5173`.
 
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | Starts the dev server |
-| `npm run build` | Builds the static site into `dist/`, share images included |
-| `npm run preview` | Serves the production build locally |
-| `npm run audit` | Runs the Python site auditor on `dist/` (needs Python 3.10+) |
+| `npm run build` | `react-router build` (prerenders every page), then `tools/build/postbuild.mjs`; the site is `dist/client/` |
+| `npm run preview` | Serves `dist/client/` at `http://localhost:4399/` the way GitHub Pages does (`/x` redirects to `/x/`, unknown URLs get `404.html`) |
+| `npm run audit` | Runs the Python site auditor on `dist/client/` (needs Python 3.10+) |
+| `npm test` | Runs the unit tests (Vitest) |
 | `npm run build:icons -- --force` | Re-renders the app icons from `public/favicon.svg` |
 
 To run the Python tests: `python -m unittest discover tools`.
+
+### What the build does after the prerender
+
+`tools/build/postbuild.mjs` (run with `tsx`, as it reads `src/data/*.ts`) finishes `dist/client/`, in this order:
+
+1. renames React Router's `__spa-fallback.html` to `404.html` and marks it `noindex`
+2. writes a redirect page for every old URL in `src/data/redirects.ts` (they are generated, never kept in `public/`)
+3. writes `sitemap-index.xml` and `sitemap-0.xml` with Dutch, English and `x-default` alternates for every path in
+   `pagePaths()` (`src/data/pages.ts`)
+4. renders `og.jpg` (1200 × 630) from `src/assets/renders/compass-hero.webp`
+5. writes the Content-Security-Policy into every `.html` file (see Security)
+6. copies `CNAME`
+
+A page is built only if `react-router.config.ts` prerenders it, and it is listed in the sitemap only if it is in
+`pagePaths()`. A new route needs both.
 
 ## Project structure
 
@@ -74,9 +90,12 @@ script is loaded and the footer does not mention statistics.
 
 ## Security
 
-- **Content-Security-Policy**: GitHub Pages cannot send response headers, so Astro writes the policy into a
-  `<meta>` tag on every page, with hashes of every script and style it emits (`security.csp` in
-  `astro.config.mjs`). Only same-origin resources load, plus Web3Forms and the Cloudflare beacon.
+- **Content-Security-Policy**: GitHub Pages cannot send response headers, so the build writes the policy into a
+  `<meta>` tag on every page (`tools/build/csp.mjs`: the root layout renders the tag with a `__CSP__` placeholder,
+  `applyCsp` fills it with the sha256 of every inline script and style the page holds). No `'unsafe-inline'` or
+  `'unsafe-eval'` for scripts, no workers. `applyCsp` fails the build if a script comes before the tag or the page has
+  an inline event handler or a `javascript:` URL. Only same-origin resources load, plus Web3Forms and the Cloudflare
+  beacon.
 - **What a meta tag cannot do**: `frame-ancestors` (clickjacking protection) and HSTS only work as headers. If the
   site ever moves behind a host or proxy that can set headers (for example Cloudflare), add them there.
 - `public/.well-known/security.txt` tells people how to report a problem.
@@ -87,8 +106,8 @@ script is loaded and the footer does not mention statistics.
 ## Deployment
 
 Every push to `main` runs `.github/workflows/deploy.yml`: it checks dependencies with `npm audit`, builds, runs
-the auditor tests, audits `dist/`, runs Lighthouse (accessibility, SEO and best practices must
-score 95+, 95+ and 90+) and publishes the site to GitHub Pages. One-time setup: **Settings → Pages → Build and
+the auditor tests, audits `dist/client/`, runs Lighthouse (accessibility, SEO and best practices must
+score 95+, 95+ and 90+) and publishes `dist/client/` to GitHub Pages. One-time setup: **Settings → Pages → Build and
 deployment → Source: GitHub Actions**, and tick **Enforce HTTPS**.
 
 ## Easter eggs
