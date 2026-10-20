@@ -243,16 +243,31 @@
   - `tests/unit/head.test.ts`, `tests/unit/locale.test.ts`, `tests/unit/directions.test.ts`
 - Modify:
   - `src/i18n/{en,nl}.ts`: add a `needle` block, typed in `en.ts`
-  - `src/data/projects.ts`:
-    - Add an optional `live?: string`.
-    - Add `voidCategory: { id: string; label: Record<Locale, string> }`. These are provisional until Bob approves the discovery proposal, which M5 adopts. They come from `tracks.ts` nicknames: `secure-element` "Secure element", `front-panel` "Front panel", `feedback-loop` "Feedback loop", with NL labels as in `tracks.ts`.
-    - Add the `funcial` entry:
-      - copy from `tracks.ts` and `src/i18n/*` `compass` block
-      - `repo` `https://github.com/bhccob/Funcial`, `live` `https://funcial.vercel.app/get`
-      - `categories: []`
-      - stack: React 19, TypeScript, Tailwind v4, Capacitor (Android), SQLCipher, Vercel functions, Upstash Redis
-      - no image yet: make `image` optional
+  - `src/data/categories.ts`: replace the old web/game shelves with the approved void categories from `docs/projects-discovery.md` ("Proposed `src/data/projects.ts` block"):
+    - `secure-element` (1, `SECURE ELEMENT`), `front-panel` (2, `FRONT PANEL`), `oscillator` (3, `OSCILLATOR`)
+    - Labels stay English in NL too, until Bob answers the open label question.
+  - `src/data/projects.ts`: adopt the approved block's fields on each entry: `categoryId`, `order`, `object.fallbackGeometry`, `testPoints` (labels and placeholder positions exactly as approved), `palette`, `motion` and `links { live?, repo? }`.
+    - Keep the existing per-locale copy (`type`, `role`, `summary`, …) for the pages and Lite.
+    - Add Funcial:
+      - stack and summary from the approved block
+      - EN/NL copy from `tracks.ts` and the `compass` i18n block
+      - no screenshot: make `image` optional
+    - Cookies Clicker:
+      - add `Bootstrap 5` to its stack
+      - never name the classmate (Bob has not decided)
+      - the school subject is Web Game Development
+    - Jontai Energy:
+      - no `live` link (jontaienergy.com is not Bob's build)
+      - nothing from the uncommitted Rewards work
     - Order: funcial, jontai-energy, cookies-clicker.
+    - The glow values marked "art-direction" in the doc take the art-direction track gold `#efb53d`. Cookies' glow takes `#ff8a3d`, marked provisional in a comment.
+  - Delete `src/data/tracks.ts` and `tests/unit/tracks-data.test.ts` once their copy is merged into `projects.ts`. Add `tests/unit/projects.test.ts`:
+    - three projects
+    - unique ids
+    - each `categoryId` exists in `categories`
+    - 4–5 test points each
+    - Funcial's labels are exactly `LOG, GAME LAYER, MONEY RULES, VAULT, RESULT`
+    - no stack contains `AI` or `Claude`
   - `src/app/routes.ts`: replace the probe routes with the real pages
   - `PRODUCT.md`: one line saying hidden-interaction easter eggs (a `0/N` counter) are allowed and are not a game
 - Delete: `src/app/routes/probe.tsx` and the probe steps' paths in `tools/proof/needle.mjs` (point them at `/about/china/`).
@@ -297,7 +312,7 @@
     - The nav is visible when 3D is off, and visually hidden but focusable when 3D is on, so the page stays crawlable and keyboard-reachable.
   - Country and project pages render all their text as DOM:
     - country: `h1` = the country name, three beats
-    - project: `h1` = the title, the category label, summary, stack tags, links, and test-point labels from `tracks.ts`
+    - project: `h1` = the title, the category label, summary, stack tags, links, and the test-point labels from `projects.ts`
   - `ThreeDToggle` persists `needle-3d` = `on|off` through `SafeStorage` (`~/engine/core/SafeStorage`). The store wiring comes in Task 5; here it only reads and writes storage and sets `data-3d` on `<html>`.
   - `Poster` renders `src/assets/renders/compass-hero.webp` as `<img>` behind the canvas; it is the first paint.
 
@@ -442,7 +457,7 @@
     - A `useFrame`-free rAF in Shell damps `frame.progress` toward `frame.target` with maath `damp(frame, 'progress', frame.target, 0.25, dt)`.
     - When `chapterAt` changes index, it dispatches `CHAPTER`.
     - `enabled()` is true only when `threeD` is on and the phase is HOME_IDLE, DISSECT, MORPH, VOID_ENTRY or PROJECTS.
-    - The chapter spec for M1 is `{ parts: 11, categories: [unique voidCategory ids in projects.ts order] }`.
+    - The chapter spec for M1 is `{ parts: 11, categories: categories.map((c) => c.id) }`, which gives `secure-element`, `front-panel` and `oscillator`.
 
 - [ ] **Step 1: Write the failing tests.**
   - `normalize-wheel.test.ts`:
