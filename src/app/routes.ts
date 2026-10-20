@@ -25,7 +25,9 @@ const pages = ordered.flatMap((locale) =>
   (Object.keys(PAGES) as PageId[]).map((page) => {
     const id = `${page}-${locale}`;
     const path = Translator.pathFor(locale, PAGES[page]); // '/', '/en/about/china/', ...
-    return path === '/' ? index(MODULES[page], { id }) : route(path.slice(1), MODULES[page], { id });
+    // Case-sensitive, like the host: GitHub Pages has no /About/China/, so the router must not match one
+    // either (it falls through to the not-found route, and its scene is none).
+    return path === '/' ? index(MODULES[page], { id }) : route(path.slice(1), MODULES[page], { id, caseSensitive: true });
   }),
 );
 

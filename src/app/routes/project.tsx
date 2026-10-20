@@ -1,25 +1,23 @@
-import { Link, type MetaFunction, useLocation } from 'react-router';
+import { type MetaFunction, useLocation } from 'react-router';
 import { PAGES } from '~/data/pages';
 import { profile } from '~/data/profile';
-import { type Project, projects } from '~/data/projects';
+import { projects } from '~/data/projects';
 import { localeFromPath, routeFromPath } from '~/i18n/locale';
 import { translatorFor, useTranslator } from '~/i18n/useTranslator';
 import { head } from '~/seo/head';
+import { notFoundMeta } from '~/seo/notFound';
 import { breadcrumbLd, projectLd } from '~/seo/structured';
+import { BackLink } from '~/ui/BackLink';
+import { NotFoundPage } from '~/ui/NotFoundPage';
 import type { RouteHandle } from '../handle';
-
-/** The project a URL path is the page of. The three projects share this module, so the path says which. */
-function projectOf(pathname: string): Project {
-  const route = routeFromPath(pathname);
-  const project = projects.all().find((candidate) => projects.route(candidate) === route);
-  if (!project) throw new Error(`${pathname} is not a project page`);
-  return project;
-}
 
 export const meta: MetaFunction = ({ location }) => {
   const locale = localeFromPath(location.pathname);
   const { t } = translatorFor(locale);
-  const project = projectOf(location.pathname);
+  // The three projects share this module, so the path says which. A path that names none of them
+  // (a real page under another spelling) gets the not-found page, never an error.
+  const project = projects.byRoute(routeFromPath(location.pathname));
+  if (!project) return notFoundMeta(locale);
   const route = projects.route(project);
   return head({
     locale,
@@ -42,7 +40,8 @@ export const handle: RouteHandle = { scene: 'project' };
 export default function ProjectPage() {
   const i18n = useTranslator();
   const { t, locale } = i18n;
-  const project = projectOf(useLocation().pathname);
+  const project = projects.byRoute(routeFromPath(useLocation().pathname));
+  if (!project) return <NotFoundPage />;
   const copy = project.copy(locale);
   const sections = [
     { title: t.project.overview, text: copy.overview },
@@ -52,9 +51,7 @@ export default function ProjectPage() {
 
   return (
     <article className="page">
-      <Link className="back" to={i18n.path(PAGES.home)}>
-        {t.needle.project.back}
-      </Link>
+      <BackLink />
       <p className="label">{project.category.heading(locale)}</p>
       <h1 className="page-title">{project.title}</h1>
       <p className="lead">{copy.summary}</p>

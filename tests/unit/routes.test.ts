@@ -26,6 +26,12 @@ describe('routes', () => {
     expect(config.at(-1)?.path).toBe('*');
   });
 
+  it('matches every page route case-sensitively, so /About/China/ is no page (the host has none either)', () => {
+    const pageRoutes = config.filter((entry) => !entry.index && entry.path !== '*');
+    expect(pageRoutes).toHaveLength(pagePaths().length - 1); // all but the Dutch home page, which is the index route
+    for (const entry of pageRoutes) expect(entry.caseSensitive, entry.path).toBe(true);
+  });
+
   it('gives every route an id of its own', () => {
     const ids = config.map((entry) => entry.id);
     expect(ids.every(Boolean)).toBe(true);

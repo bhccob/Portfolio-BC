@@ -1,8 +1,9 @@
-import { Link, type MetaFunction } from 'react-router';
+import type { MetaFunction } from 'react-router';
 import { PAGES } from '~/data/pages';
 import { localeFromPath } from '~/i18n/locale';
 import { translatorFor, useTranslator } from '~/i18n/useTranslator';
 import { head } from '~/seo/head';
+import { BackLink } from '~/ui/BackLink';
 import type { RouteHandle } from '../handle';
 
 export const meta: MetaFunction = ({ location }) => {
@@ -16,14 +17,11 @@ export const handle: RouteHandle = { scene: null };
 // A placeholder until Task 4b builds the Lite page with the site's full copy. It already has the
 // `#career` section the old /career/*.html addresses redirect to, so those redirects resolve.
 export default function Lite() {
-  const i18n = useTranslator();
-  const { t } = i18n;
+  const { t } = useTranslator();
 
   return (
     <article className="page">
-      <Link className="back" to={i18n.path(PAGES.home)}>
-        {t.needle.project.back}
-      </Link>
+      <BackLink />
       <h1 className="page-title">{t.needle.liteLink}</h1>
       <p className="lead">{t.meta.liteDescription}</p>
 

@@ -8,16 +8,20 @@
  *   a file is served as is, with its MIME type
  *   anything else gets 404.html with status 404
  *
+ * Paths are case-sensitive, as on GitHub Pages: /About/China/ is a 404 even on a
+ * Windows or macOS disk, whose file system would find about/china/ for it.
+ *
  * Environment: PORT (default 4399). It listens on 127.0.0.1 only.
  */
 
 import { createReadStream } from 'node:fs';
-import { stat } from 'node:fs/promises';
+import { realpath, stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
-import { extname, join, resolve, sep } from 'node:path';
+import { extname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(fileURLToPath(new URL('../dist/client', import.meta.url)));
+const REAL_ROOT = await realpath(ROOT);
 const PORT = Number(process.env.PORT ?? 4399);
 
 const TYPES = {
@@ -46,9 +50,11 @@ function fileFor(pathname) {
   return file === ROOT || file.startsWith(ROOT + sep) ? file : null;
 }
 
+/** True if `file` exists under exactly this spelling: its real path under the root reads the same, letter for letter. */
 async function isFile(file) {
   try {
-    return (await stat(file)).isFile();
+    if (!(await stat(file)).isFile()) return false;
+    return relative(REAL_ROOT, await realpath(file)) === relative(ROOT, file);
   } catch {
     return false;
   }

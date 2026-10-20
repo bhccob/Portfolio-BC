@@ -28,6 +28,12 @@
  *              reachable by keyboard while 3D is on (and shown while one has focus), visible once the
  *              3D switch is turned off, and the choice persists in localStorage across a reload
  *   mobile     every page at 390 px wide has no horizontal scroll
+ *   case-variant  a real page under another spelling (/About/China/, /en/projects/FUNCIAL/) is a 404 on
+ *              GitHub Pages and shows the not-found page, not an error screen (the server here is
+ *              case-sensitive too, so the fallback is what answers)
+ *   esc        the back link on a country or project page: Escape goes to the home page of that
+ *              language by client navigation, unless focus is in a text field or the key was already
+ *              handled; the "Esc" hint is aria-hidden and hidden on a touch screen
  *
  * The harness reads src/data/pages.ts (through tsx) and the build in dist/client
  * to know which pages to expect.
@@ -72,6 +78,11 @@ const CHINA_H1 = 'China';
 const NOT_FOUND_H1 = { nl: 'Pagina niet gevonden', en: 'Page not found' };
 /** Two URLs no page answers, one per language. */
 const UNKNOWN = ['/does-not-exist/', '/en/does-not-exist/'];
+/**
+ * Real pages under another spelling. GitHub Pages is case-sensitive, so each is a 404 served the
+ * fallback, but the router used to match them case-insensitively and a route module threw on them.
+ */
+const CASE_VARIANTS = ['/About/China/', '/en/About/China/', '/Projects/Funcial/', '/en/projects/FUNCIAL/'];
 /** The links the home page lists: three countries and three projects. */
 const HOME_LINKS = ['/about/china/', '/about/netherlands/', '/about/aruba/', '/projects/funcial/', '/projects/jontai-energy/', '/projects/cookies-clicker/'];
 
@@ -233,8 +244,9 @@ async function persist(browser, step) {
   return `${visited.join(' → ')}: one mount, one <canvas>`;
 }
 
-async function notFound(browser, step) {
-  // The one console error this step expects: Edge reports a document that answers 404 as
+/** Each URL answers 404 with the fallback, and the not-found page shows once the router has taken over. */
+async function expectNotFound(browser, step, urls) {
+  // The one console error this check expects: Edge reports a document that answers 404 as
   // "Failed to load resource", for the page being loaded and for nothing else.
   let asking = null;
   const documentNotFound = (message) => /status of 404/.test(message.text()) && message.location().url === BASE + asking;
@@ -246,7 +258,7 @@ async function notFound(browser, step) {
   });
   page.on('load', () => loads++);
 
-  for (const path of UNKNOWN) {
+  for (const path of urls) {
     documents = [];
     loads = 0;
     const lang = langOf(path);
@@ -276,9 +288,82 @@ async function notFound(browser, step) {
     step.check(state.mounts === 1, `${path}: the Stage mounted once (got ${state.mounts})`);
     await takeCsp(page, step);
   }
-  step.check(step.expected.length === UNKNOWN.length, `the browser reported the 404 of each unknown URL once, and only those (got ${step.expected.length} for ${UNKNOWN.length} URLs)`);
+  step.check(step.expected.length === urls.length, `the browser reported the 404 of each URL once, and only those (got ${step.expected.length} for ${urls.length} URLs)`);
   await context.close();
-  return `${UNKNOWN.join(', ')}: 404, the not-found <h1>, one document load`;
+  return `${urls.join(', ')}: 404, the not-found <h1>, one document load`;
+}
+
+const notFound = (browser, step) => expectNotFound(browser, step, UNKNOWN);
+const caseVariant = (browser, step) => expectNotFound(browser, step, CASE_VARIANTS);
+
+async function esc(browser, step) {
+  const { context, page } = await openPage(browser, step);
+  const documents = [];
+  page.on('request', (request) => {
+    if (request.isNavigationRequest() && request.frame() === page.mainFrame()) documents.push(request.url());
+  });
+  const pathname = () => new URL(page.url()).pathname;
+  const pressEscape = async () => {
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(400); // a navigation would have happened by now
+  };
+
+  // On a country page the back link says what Escape does, and Escape does it through the router.
+  await page.goto(`${BASE}/about/china/`, { waitUntil: 'load' });
+  await stageReady(page);
+  documents.length = 0;
+  step.check((await page.getByRole('link', { name: 'terug', exact: true }).count()) === 1, 'the back link is named "terug": the "Esc" hint is not part of its name');
+  step.check((await page.getAttribute('a.back', 'aria-keyshortcuts')) === 'Escape', 'the back link names its shortcut, aria-keyshortcuts="Escape"');
+  step.check((await page.getAttribute('a.back .back-hint', 'aria-hidden')) === 'true', 'the visible "Esc" hint is aria-hidden');
+
+  // Not while someone is typing...
+  await page.evaluate(() => {
+    const input = document.createElement('input');
+    input.id = 'esc-probe';
+    document.body.append(input);
+    input.focus();
+  });
+  await pressEscape();
+  step.check(pathname() === '/about/china/', `Escape in a text field stays on the page (got ${pathname()})`);
+  await page.evaluate(() => document.getElementById('esc-probe')?.remove());
+
+  // ... nor when something else has already handled the key.
+  await page.evaluate(() => {
+    window.__eatEscape = (event) => event.preventDefault();
+    window.addEventListener('keydown', window.__eatEscape, true);
+  });
+  await pressEscape();
+  step.check(pathname() === '/about/china/', `Escape that was already handled stays on the page (got ${pathname()})`);
+  await page.evaluate(() => window.removeEventListener('keydown', window.__eatEscape, true));
+
+  await page.keyboard.press('Escape');
+  await page.waitForURL(`${BASE}/`, { timeout: 5_000 });
+  step.check((await page.textContent('h1')) === HOME_H1, 'Escape on /about/china/ lands on the home page');
+  step.check(documents.length === 0, `by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
+  await takeCsp(page, step);
+
+  // The English pages go to the English home page.
+  await page.goto(`${BASE}/en/projects/funcial/`, { waitUntil: 'load' });
+  await stageReady(page);
+  step.check((await page.getByRole('link', { name: 'back', exact: true }).count()) === 1, 'the English back link is named "back"');
+  await page.keyboard.press('Escape');
+  await page.waitForURL(`${BASE}/en/`, { timeout: 5_000 });
+  step.check((await page.textContent('h1')) === HOME_H1 && (await page.getAttribute('html', 'lang')) === 'en', 'Escape on /en/projects/funcial/ lands on /en/');
+  await takeCsp(page, step);
+  await context.close();
+
+  // A touch screen has no Escape key: the hint is hidden there, the link stays.
+  const touch = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  const phone = await touch.newPage();
+  phone.on('console', (message) => message.type() === 'error' && step.errors.push(message.text()));
+  phone.on('pageerror', (error) => step.errors.push(error.message));
+  await phone.goto(`${BASE}/about/china/`, { waitUntil: 'load' });
+  await stageReady(phone);
+  const hint = await phone.evaluate(() => getComputedStyle(document.querySelector('.back-hint')).display);
+  step.check(hint === 'none', `on a coarse pointer the Esc hint is hidden (display ${hint})`);
+  step.check((await phone.locator('a.back').isVisible()) === true, 'the back link itself stays visible on a phone');
+  await touch.close();
+  return 'Escape goes home (/ and /en/) by client navigation; not in a field, not once handled; the hint is hidden on touch';
 }
 
 /** The size of the first element matching `selector`, in CSS pixels; null if there is none. */
@@ -353,7 +438,7 @@ async function mobile(browser, step) {
   return `${PAGES.length} pages at 390 px: no horizontal scroll`;
 }
 
-const STEPS = { routes, slash, persist, 'not-found': notFound, 'home-nav': homeNav, mobile };
+const STEPS = { routes, slash, persist, 'not-found': notFound, 'case-variant': caseVariant, 'home-nav': homeNav, mobile, esc };
 
 // ---------------------------------------------------------------- run
 

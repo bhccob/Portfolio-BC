@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { COUNTRY_IDS, countryDirection, DIRECTIONS } from '../../src/data/directions';
+import { COUNTRY_IDS, countryDirection, countryFromRoute, DIRECTIONS } from '../../src/data/directions';
 
 describe('DIRECTIONS', () => {
   it('has the four directions of the compass, once each', () => {
@@ -34,6 +34,22 @@ describe('DIRECTIONS', () => {
     expect(engravings.east).toBe('東');
     expect(engravings.north).toBe('Noord');
     expect(engravings.south).toBe('南');
+  });
+});
+
+describe('countryFromRoute', () => {
+  it('finds the country whose page a route is', () => {
+    expect(countryFromRoute('/about/china/')).toBe('china');
+    expect(countryFromRoute('/about/netherlands/')).toBe('netherlands');
+    expect(countryFromRoute('/about/aruba/')).toBe('aruba');
+  });
+
+  it('finds none for anything else, including a real page under another spelling', () => {
+    expect(countryFromRoute('/about/')).toBeUndefined();
+    expect(countryFromRoute('/about/narnia/')).toBeUndefined();
+    expect(countryFromRoute('/About/China/')).toBeUndefined();
+    expect(countryFromRoute('/about/CHINA/')).toBeUndefined();
+    expect(countryFromRoute('/projects/funcial/')).toBeUndefined();
   });
 });
 

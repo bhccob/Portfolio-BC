@@ -345,6 +345,7 @@ html[data-3d='on'] .home-nav:not(:focus-within) {
 .back {
   display: inline-flex;
   align-items: center;
+  gap: 0.6em; /* between the "Esc ·" hint and the label: a flex item loses its trailing space */
   min-height: 44px;
   color: var(--ink-dim);
   text-decoration: none;
@@ -352,6 +353,13 @@ html[data-3d='on'] .home-nav:not(:focus-within) {
 
 .back:hover {
   color: var(--gold-ink);
+}
+
+/* "Esc ·" tells a keyboard what the key does; a touch screen has no such key. */
+@media (pointer: coarse) {
+  .back-hint {
+    display: none;
+  }
 }
 
 .page-title {

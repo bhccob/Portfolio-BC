@@ -101,6 +101,14 @@ export class ProjectCatalog {
     return this.items.find((project) => project.id === id);
   }
 
+  /**
+   * The project whose page a route is (`/projects/funcial/`), or undefined for any other route,
+   * which includes a real page under another spelling (`/Projects/Funcial/`): the page lives at one URL.
+   */
+  byRoute(route: string): Project | undefined {
+    return this.items.find((project) => this.route(project) === route);
+  }
+
   /** The locale-neutral route of a project's page (see `PAGES`). */
   route(project: Project): string {
     // Typed as a PageId: a project without a page in PAGES does not compile.
@@ -230,7 +238,8 @@ export const projects = new ProjectCatalog([
       en: {
         // Made for the school subject Web Game Development, together with a classmate (never named).
         type: 'School project · Web Game Development',
-        role: 'Development, with a classmate',
+        // Bob's own part in it is not known yet, so the role says only that he made it with a classmate.
+        role: 'With a classmate',
         summary:
           'A browser-based incremental game, built as a school project around one satisfying loop: click, earn cookies, reinvest in upgrades and watch production compound.',
         overview:
@@ -245,7 +254,7 @@ export const projects = new ProjectCatalog([
       },
       nl: {
         type: 'Schoolproject · Web Game Development',
-        role: 'Ontwikkeling, met een klasgenoot',
+        role: 'Samen met een klasgenoot',
         summary:
           'Een incrementele browsergame, gebouwd als schoolproject rond één bevredigende loop: klik, verdien koekjes, investeer in upgrades en zie de productie groeien.',
         overview:

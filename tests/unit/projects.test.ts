@@ -160,8 +160,18 @@ describe('projects', () => {
     expect(cookies.copy('en').type).toMatch(/Web Game Development/);
     expect(cookies.copy('nl').type).toMatch(/Web Game Development/);
     // The classmate is never named (Bob has not decided): the only word for them is "classmate" / "klasgenoot".
-    expect(cookies.copy('en').role).toMatch(/with a classmate/);
-    expect(cookies.copy('nl').role).toMatch(/met een klasgenoot/);
+    // His own part is not known either, so the role claims nothing about it.
+    expect(cookies.copy('en').role).toBe('With a classmate');
+    expect(cookies.copy('nl').role).toBe('Samen met een klasgenoot');
+  });
+
+  it('find a project by the route of its page, and none by a route that only differs in case', () => {
+    expect(projects.byRoute('/projects/funcial/')?.id).toBe('funcial');
+    expect(projects.byRoute('/projects/jontai-energy/')?.id).toBe('jontai-energy');
+    expect(projects.byRoute('/projects/cookies-clicker/')?.id).toBe('cookies-clicker');
+    expect(projects.byRoute('/Projects/Funcial/')).toBeUndefined();
+    expect(projects.byRoute('/projects/FUNCIAL/')).toBeUndefined();
+    expect(projects.byRoute('/projects/')).toBeUndefined();
   });
 
   it('write every project’s page copy in both languages', () => {

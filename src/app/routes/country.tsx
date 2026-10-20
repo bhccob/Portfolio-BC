@@ -1,27 +1,25 @@
-import { Link, type MetaFunction, useLocation } from 'react-router';
-import { COUNTRY_IDS, type CountryId } from '~/data/directions';
+import { type MetaFunction, useLocation } from 'react-router';
+import { countryFromRoute, type CountryId } from '~/data/directions';
 import { PAGES, type PageId } from '~/data/pages';
 import { profile } from '~/data/profile';
 import { localeFromPath, routeFromPath } from '~/i18n/locale';
 import { translatorFor, useTranslator } from '~/i18n/useTranslator';
 import { head } from '~/seo/head';
+import { notFoundMeta } from '~/seo/notFound';
 import { breadcrumbLd } from '~/seo/structured';
+import { BackLink } from '~/ui/BackLink';
+import { NotFoundPage } from '~/ui/NotFoundPage';
 import type { RouteHandle } from '../handle';
 
 const pageOf = (id: CountryId): PageId => `about-${id}`;
 
-/** The country a URL path is the page of. The three countries share this module, so the path says which. */
-function countryOf(pathname: string): CountryId {
-  const route = routeFromPath(pathname);
-  const id = COUNTRY_IDS.find((candidate) => PAGES[pageOf(candidate)] === route);
-  if (!id) throw new Error(`${pathname} is not a country page`);
-  return id;
-}
-
 export const meta: MetaFunction = ({ location }) => {
   const locale = localeFromPath(location.pathname);
   const { t } = translatorFor(locale);
-  const id = countryOf(location.pathname);
+  // The three countries share this module, so the path says which. A path that names none of them
+  // (a real page under another spelling) gets the not-found page, never an error.
+  const id = countryFromRoute(routeFromPath(location.pathname));
+  if (!id) return notFoundMeta(locale);
   const country = t.needle.countries[id];
   const route = PAGES[pageOf(id)];
   return head({
@@ -42,15 +40,14 @@ export const meta: MetaFunction = ({ location }) => {
 export const handle: RouteHandle = { scene: 'country' };
 
 export default function Country() {
-  const i18n = useTranslator();
-  const { t } = i18n;
-  const country = t.needle.countries[countryOf(useLocation().pathname)];
+  const { t } = useTranslator();
+  const id = countryFromRoute(routeFromPath(useLocation().pathname));
+  if (!id) return <NotFoundPage />;
+  const country = t.needle.countries[id];
 
   return (
     <article className="page">
-      <Link className="back" to={i18n.path(PAGES.home)}>
-        {t.needle.project.back}
-      </Link>
+      <BackLink />
       <h1 className="page-title">{country.name}</h1>
       <div className="beats">
         {country.beats.map((beat) => (

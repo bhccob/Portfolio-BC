@@ -1,3 +1,5 @@
+import { PAGES, type PageId } from './pages';
+
 export type DirId = 'east' | 'north' | 'west' | 'south';
 export type CountryId = 'china' | 'netherlands' | 'aruba';
 
@@ -25,6 +27,17 @@ export const DIRECTIONS: readonly Direction[] = [
   { id: 'west', kind: 'country', country: 'aruba', engraving: '[FILL: Papiamento word for west]', accent: '#2db3a8' },
   { id: 'south', kind: 'portal', engraving: '南', accent: '#efb53d' },
 ];
+
+/**
+ * The country whose page a route is (`/about/china/`), or undefined for any other route, which
+ * includes a real page under another spelling (`/About/China/`): the page lives at one URL.
+ */
+export function countryFromRoute(route: string): CountryId | undefined {
+  return COUNTRY_IDS.find((id) => {
+    const page: PageId = `about-${id}`;
+    return PAGES[page] === route;
+  });
+}
 
 /** The arm that stands for a country. */
 export function countryDirection(id: CountryId): Direction {

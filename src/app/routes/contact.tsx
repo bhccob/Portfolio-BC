@@ -1,9 +1,10 @@
-import { Link, type MetaFunction } from 'react-router';
+import type { MetaFunction } from 'react-router';
 import { PAGES } from '~/data/pages';
 import { profile } from '~/data/profile';
 import { localeFromPath } from '~/i18n/locale';
 import { translatorFor, useTranslator } from '~/i18n/useTranslator';
 import { head } from '~/seo/head';
+import { BackLink } from '~/ui/BackLink';
 import type { RouteHandle } from '../handle';
 
 export const meta: MetaFunction = ({ location }) => {
@@ -16,14 +17,11 @@ export const handle: RouteHandle = { scene: null };
 
 // A placeholder until Task 4b builds the contact form. Until then the page shows the direct ways to reach Bob.
 export default function Contact() {
-  const i18n = useTranslator();
-  const { t } = i18n;
+  const { t } = useTranslator();
 
   return (
     <article className="page">
-      <Link className="back" to={i18n.path(PAGES.home)}>
-        {t.needle.project.back}
-      </Link>
+      <BackLink />
       <h1 className="page-title">{t.nav.contact}</h1>
       <p className="lead">{t.contact.intro}</p>
       <p className="label">{t.contact.direct}</p>
