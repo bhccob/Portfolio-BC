@@ -1,43 +1,22 @@
-import { type JSX, useEffect, useState } from 'react';
-import { SafeStorage } from '~/engine/core/SafeStorage';
+import type { JSX } from 'react';
 import { useTranslator } from '~/i18n/useTranslator';
-
-/** The storage key of the visitor's choice. */
-export const THREE_D_KEY = 'needle-3d';
-
-export type ThreeDMode = 'on' | 'off';
+import { useScene } from '~/state/store';
 
 /**
- * The header's 3D switch. It keeps the choice in storage (`needle-3d`: "on" or "off")
- * and puts it on <html> as `data-3d`, which the styles read. The scene's store reads the
- * same key from Task 5 on; here the switch only reads and writes storage and the attribute.
+ * The header's 3D switch. The choice is the scene store's `threeD`: it is kept in storage (`needle-3d`,
+ * "on" or "off") and put on <html> as `data-3d` by `useThreeDAttribute` in the Shell, which the styles read.
  *
- * The prerendered HTML and the first client render both say "on" (there is no storage on the
- * server), and the stored choice is applied after hydration.
+ * The prerendered HTML says "on" (there is no storage on the server). The store hands React its defaults
+ * while it hydrates, so the first client render says "on" as well, and the stored choice shows right after.
  */
 export function ThreeDToggle(): JSX.Element {
   const { t } = useTranslator();
-  const [mode, setMode] = useState<ThreeDMode | null>(null);
-
-  useEffect(() => {
-    setMode(SafeStorage.local().get(THREE_D_KEY) === 'off' ? 'off' : 'on');
-  }, []);
-
-  useEffect(() => {
-    if (mode) document.documentElement.setAttribute('data-3d', mode);
-  }, [mode]);
-
-  const shown: ThreeDMode = mode ?? 'on';
-
-  function toggle(): void {
-    const next: ThreeDMode = shown === 'on' ? 'off' : 'on';
-    SafeStorage.local().set(THREE_D_KEY, next);
-    setMode(next);
-  }
+  const threeD = useScene((state) => state.threeD);
+  const setThreeD = useScene((state) => state.setThreeD);
 
   return (
-    <button type="button" role="switch" aria-checked={shown === 'on'} className="header-control" onClick={toggle}>
-      {shown === 'on' ? t.needle.toggle.on : t.needle.toggle.off}
+    <button type="button" role="switch" aria-checked={threeD} className="header-control" onClick={() => setThreeD(!threeD)}>
+      {threeD ? t.needle.toggle.on : t.needle.toggle.off}
     </button>
   );
 }

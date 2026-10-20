@@ -1,19 +1,74 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { MemoryRouter } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { MemoryRouter, type NavigateFunction } from 'react-router';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { en } from '../../src/i18n/en';
 import { nl } from '../../src/i18n/nl';
 import { Translator } from '../../src/i18n/Translator';
-import { BackLink, backTarget, isEditableTarget, splitBackLabel } from '../../src/ui/BackLink';
+import { resetRouteSync, syncRoute } from '../../src/state/routeSync';
+import { BackLink, goBack, homeTarget, isEditableTarget, isPlainClick, splitBackLabel } from '../../src/ui/BackLink';
 
 /** The back link as the server renders it, on a page at `path`. */
 const render = (path: string): string => renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: [path] }, createElement(BackLink)));
 
-describe('backTarget', () => {
+describe('homeTarget', () => {
   it('is the home page of the language', () => {
-    expect(backTarget(new Translator('nl'))).toBe('/');
-    expect(backTarget(new Translator('en'))).toBe('/en/');
+    expect(homeTarget(new Translator('nl'))).toBe('/');
+    expect(homeTarget(new Translator('en'))).toBe('/en/');
+  });
+});
+
+describe('goBack', () => {
+  const calls: unknown[] = [];
+  const navigate = ((to: unknown) => void calls.push(to)) as NavigateFunction;
+
+  beforeEach(() => {
+    calls.length = 0;
+    resetRouteSync();
+  });
+  afterEach(resetRouteSync);
+
+  it('goes home when the visit began on this page', () => {
+    syncRoute({ pathname: '/about/china/', key: 'default' });
+    goBack(navigate, '/');
+    expect(calls).toEqual(['/']);
+  });
+
+  it('goes home in the language of the page', () => {
+    syncRoute({ pathname: '/en/projects/funcial/', key: 'default' });
+    goBack(navigate, '/en/');
+    expect(calls).toEqual(['/en/']);
+  });
+
+  it('goes back through the history when the visitor came from another page', () => {
+    syncRoute({ pathname: '/', key: 'default' });
+    syncRoute({ pathname: '/about/china/', key: 'k1' });
+    goBack(navigate, '/');
+    expect(calls).toEqual([-1]);
+  });
+
+  it('goes home again on the page the document loaded on, after a round trip', () => {
+    syncRoute({ pathname: '/about/china/', key: 'default' });
+    syncRoute({ pathname: '/', key: 'k1' });
+    syncRoute({ pathname: '/about/china/', key: 'default' });
+    goBack(navigate, '/');
+    expect(calls).toEqual(['/']);
+  });
+});
+
+describe('isPlainClick', () => {
+  const click = { button: 0, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false };
+
+  it('is true for a left click with no modifier key', () => {
+    expect(isPlainClick(click)).toBe(true);
+  });
+
+  it('is false for a click that opens the link elsewhere', () => {
+    expect(isPlainClick({ ...click, button: 1 })).toBe(false);
+    expect(isPlainClick({ ...click, metaKey: true })).toBe(false);
+    expect(isPlainClick({ ...click, ctrlKey: true })).toBe(false);
+    expect(isPlainClick({ ...click, shiftKey: true })).toBe(false);
+    expect(isPlainClick({ ...click, altKey: true })).toBe(false);
   });
 });
 

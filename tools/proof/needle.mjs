@@ -20,7 +20,9 @@
  *   slash      GET /about/china answers 301 to /about/china/; a browser opening /about/china loads
  *              /about/china/ once, with no reload
  *   persist    client navigation / → /about/china/ → /en/about/china/, then history.back(): the Stage
- *              mounted once and the same <canvas> node throughout, with no document load after the first
+ *              mounted once and the same <canvas> node throughout, with no document load after the first;
+ *              the scene's phase is COUNTRY_PAGE china on the country page and the language switch keeps
+ *              that very phase (no new transition)
  *   not-found  an unknown URL (/does-not-exist/, /en/does-not-exist/) answers 404 with the build's
  *              404.html; after hydration it shows the not-found route's <h1> and the right <html lang>,
  *              and the browser loads one document, with no reload loop
@@ -31,9 +33,12 @@
  *   case-variant  a real page under another spelling (/About/China/, /en/projects/FUNCIAL/) is a 404 on
  *              GitHub Pages and shows the not-found page, not an error screen (the server here is
  *              case-sensitive too, so the fallback is what answers)
- *   esc        the back link on a country or project page: Escape goes to the home page of that
- *              language by client navigation, unless focus is in a text field or the key was already
- *              handled; the "Esc" hint is aria-hidden and hidden on a touch screen
+ *   esc        the back link on a country or project page: Escape goes by client navigation, unless focus is
+ *              in a text field or the key was already handled. On a page the visit began on (a direct load)
+ *              it goes to the home page of that language; on a page reached from the home page it steps back
+ *              through the history (the page forward is still there). The scene's phase follows: the page's
+ *              on the page, the scroll's (HOME_IDLE) on the home page. The "Esc" hint is aria-hidden and
+ *              hidden on a touch screen
  *   lite       /lite/ and /en/lite/: one <h1>, every section's heading (from the dictionary) in order and
  *              no skipped level, the real portrait loaded with its alt text and size, at least five
  *              <details> that open by keyboard with a visible focus ring, #career where the old /career/
@@ -208,9 +213,21 @@ async function slash(browser, step) {
   return `/about/china → 301 /about/china/, loaded once (${documents.join(' → ')})`;
 }
 
+/**
+ * The scene's phase as `{ kind, dir }`, once it is `kind`. `?proof` in the first URL of the page makes the Shell
+ * expose it (window.__needleScene, temporary: Task 8 replaces it with window.__needleDebug().phase).
+ */
+const waitForPhase = async (page, kind) => {
+  await page.waitForFunction((kind) => window.__needleScene?.().kind === kind, kind, { timeout: 5_000 });
+  return page.evaluate(() => {
+    const { kind, dir } = window.__needleScene();
+    return { kind, dir };
+  });
+};
+
 async function persist(browser, step) {
   const { context, page } = await openPage(browser, step);
-  await page.goto(`${BASE}/`, { waitUntil: 'load' });
+  await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
   await stageReady(page);
   await page.evaluate(() => {
     document.querySelector('.scene-host canvas').dataset.id = 'needle-canvas';
@@ -247,12 +264,24 @@ async function persist(browser, step) {
   await page.keyboard.press('Enter');
   await page.waitForURL(`${BASE}/about/china/`);
   await expectSame('link to /about/china/', 'nl', CHINA_H1);
+  const phase = await waitForPhase(page, 'COUNTRY_PAGE');
+  step.check(phase.dir === 'china', `on /about/china/ the scene's phase is COUNTRY_PAGE china (got ${JSON.stringify(phase)})`);
+  await page.evaluate(() => {
+    window.__keptPhase = window.__needleScene();
+  });
+  // The scene keeps its phase, the very same state, while the language or the history changes under it.
+  const keptPhase = async (where) => {
+    await page.waitForTimeout(250); // a sync that wrongly moved the phase would have by now
+    step.check(await page.evaluate(() => window.__needleScene() === window.__keptPhase), `${where}: the scene keeps its phase, with no new transition`);
+  };
   await page.click('a[href="/en/about/china/"]'); // the header's language switch
   await page.waitForURL(`${BASE}/en/about/china/`);
   await expectSame('link to /en/about/china/', 'en', CHINA_H1);
+  await keptPhase('switching to English');
   await page.evaluate(() => history.back());
   await page.waitForURL(`${BASE}/about/china/`);
   await expectSame('history.back() to /about/china/', 'nl', CHINA_H1);
+  await keptPhase('history.back() to the Dutch page');
 
   step.check(documents.length === 0, `client navigation only, no document load (got ${documents.join(', ') || 'none'})`);
   await takeCsp(page, step);
@@ -325,9 +354,11 @@ async function esc(browser, step) {
   };
 
   // On a country page the back link says what Escape does, and Escape does it through the router.
-  await page.goto(`${BASE}/about/china/`, { waitUntil: 'load' });
+  await page.goto(`${BASE}/about/china/?proof`, { waitUntil: 'load' });
   await stageReady(page);
   documents.length = 0;
+  const onChina = await waitForPhase(page, 'COUNTRY_PAGE');
+  step.check(onChina.dir === 'china', `a direct load of /about/china/ puts the scene on COUNTRY_PAGE china (got ${JSON.stringify(onChina)})`);
   step.check((await page.getByRole('link', { name: 'terug', exact: true }).count()) === 1, 'the back link is named "terug": the "Esc" hint is not part of its name');
   step.check((await page.getAttribute('a.back', 'aria-keyshortcuts')) === 'Escape', 'the back link names its shortcut, aria-keyshortcuts="Escape"');
   step.check((await page.getAttribute('a.back .back-hint', 'aria-hidden')) === 'true', 'the visible "Esc" hint is aria-hidden');
@@ -352,10 +383,34 @@ async function esc(browser, step) {
   step.check(pathname() === '/about/china/', `Escape that was already handled stays on the page (got ${pathname()})`);
   await page.evaluate(() => window.removeEventListener('keydown', window.__eatEscape, true));
 
+  // A direct load has no page before it in the visit, so Escape goes to the home page.
   await page.keyboard.press('Escape');
   await page.waitForURL(`${BASE}/`, { timeout: 5_000 });
-  step.check((await page.textContent('h1')) === HOME_H1, 'Escape on /about/china/ lands on the home page');
+  step.check((await page.textContent('h1')) === HOME_H1, 'a direct load of /about/china/ + Escape lands on the home page');
   step.check(documents.length === 0, `by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
+  const afterDirect = await waitForPhase(page, 'HOME_IDLE');
+  step.check(afterDirect.kind === 'HOME_IDLE', `leaving the page for the home page puts the scene back on the scroll's phase (got ${JSON.stringify(afterDirect)})`);
+  await takeCsp(page, step);
+
+  // A page reached from the home page has one before it: Escape steps back, it does not push the home page.
+  await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+  await stageReady(page);
+  documents.length = 0;
+  await page.focus('a[href="/about/china/"]'); // the home page's links are hidden while 3D is on, but take focus
+  await page.keyboard.press('Enter');
+  await page.waitForURL(`${BASE}/about/china/`, { timeout: 5_000 });
+  await waitForPhase(page, 'COUNTRY_PAGE');
+  await pressEscape();
+  step.check(pathname() === '/', `a country page reached from the home page + Escape steps back to the home page (got ${pathname()})`);
+  step.check(documents.length === 0, `by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
+  await waitForPhase(page, 'HOME_IDLE');
+  await page.evaluate(() => history.forward());
+  const forwarded = await page.waitForURL(`${BASE}/about/china/`, { timeout: 5_000 }).then(() => true, () => false);
+  step.check(forwarded, 'the page forward is still in the history, so Escape went back and did not add the home page');
+  if (forwarded) {
+    const forward = await waitForPhase(page, 'COUNTRY_PAGE');
+    step.check(forward.dir === 'china', `going forward again puts the scene back on COUNTRY_PAGE china (got ${JSON.stringify(forward)})`);
+  }
   await takeCsp(page, step);
 
   // The English pages go to the English home page.
