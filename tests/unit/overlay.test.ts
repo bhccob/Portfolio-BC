@@ -78,6 +78,15 @@ describe('the overlay', () => {
     expect(overlayOf(between.model, between.pose, between.camera, W, H, 'next').hover).toBe('next');
   });
 
+  it('hides the head where it is over no track: parked in Off duty, in the Q&A, and where the change has just formed the arm', () => {
+    for (const [id, local] of [['offduty', 0.1], ['offduty', 0.6], ['qa', 0.5], ['change', 1]] as const) {
+      const { pose, camera, model } = posed(id, local);
+      expect(pose.drive.arm, id).toBe(1);
+      expect(pose.tracks.current, id).toBeNull();
+      expect(overlayOf(model, pose, camera, W, H, null).head.visible, `${id} ${local}`).toBe(false);
+    }
+  });
+
   it('centres the spindle on the hub in Off duty, its radius 0.42 world units across, turning with the platter and the spin', () => {
     const { pose, camera, model } = posed('offduty', 0.5, 0.5);
     const overlay = overlayOf(model, pose, camera, W, H, null);

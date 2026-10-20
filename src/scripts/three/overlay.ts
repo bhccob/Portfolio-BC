@@ -21,7 +21,7 @@ export interface ScreenPoint {
 }
 
 export interface Overlay {
-  /** The read head, while the needle is the arm; with the track and the test point (0..3) under it, or null. */
+  /** The read head, while the needle is the arm and over a track; with the track and the test point (0..3) under it, or null. */
   head: { x: number; y: number; visible: boolean; track: TrackId | null; tp: number | null };
   /**
    * The hub in Off duty: its centre, the length of SPINDLE_REACH world units
@@ -73,8 +73,9 @@ export function rimOf(dial: THREE.Object3D, camera: THREE.Camera, width: number,
 
 /**
  * The overlay for `pose` with the model as posed and `camera` as placed: the
- * head shows once the arm has formed (drive.arm 1), the spindle in Off duty
- * alone, each only where it is on the canvas in front of the camera.
+ * head shows once the arm has formed (drive.arm 1) and only over a track (not
+ * parked, in Off duty and after), the spindle in Off duty alone, each only
+ * where it is on the canvas in front of the camera.
  */
 export function overlayOf(model: InstrumentModel, pose: CompassPose, camera: THREE.Camera, width: number, height: number, hover: TrackId | null): Overlay {
   const head = toScreen(model.headWorld(headAt), camera, width, height);
@@ -82,7 +83,13 @@ export function overlayOf(model: InstrumentModel, pose: CompassPose, camera: THR
   const hub = model.dial.localToWorld(hubAt.set(0, HUB_TOP, 0));
   const spindle = toScreen(hub, camera, width, height);
   return {
-    head: { x: head.x, y: head.y, visible: head.visible && pose.drive.arm >= 1, track: pose.tracks.current, tp: pose.tracks.tp },
+    head: {
+      x: head.x,
+      y: head.y,
+      visible: head.visible && pose.drive.arm >= 1 && pose.tracks.current !== null,
+      track: pose.tracks.current,
+      tp: pose.tracks.tp
+    },
     spindle: {
       x: spindle.x,
       y: spindle.y,

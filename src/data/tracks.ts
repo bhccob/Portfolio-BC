@@ -42,7 +42,7 @@ const text: Record<TrackId, Record<Locale, TrackText>> = {
       name: 'Funcial',
       category: 'Secure element',
       kind: 'Eigen project · 2026',
-      line: 'Een gamified app voor persoonlijke financiën op Android: leg een uitgave in seconden vast, stijg in level en houd je geldgegevens versleuteld op je telefoon.',
+      line: 'Een gamified app voor persoonlijke financiën op Android: leg een uitgave in seconden vast, stijg in level en houd je financiële gegevens versleuteld op je telefoon.',
       tps: ['Vastleggen', 'Spellaag', 'Geldregels', 'Kluis']
     }
   },
@@ -58,7 +58,7 @@ const text: Record<TrackId, Record<Locale, TrackText>> = {
       name: 'Jontai Energy',
       category: 'Front panel',
       kind: 'Eigen project · 2026',
-      line: 'Een website met meerdere pagina’s voor een zonne-energiebedrijf, die bezoekers door de diensten leidt en een offerte aanvragen moeiteloos maakt.',
+      line: 'Een website met meerdere pagina’s voor een zonne-energiebedrijf, die bezoekers door de diensten leidt en het aanvragen van een offerte moeiteloos maakt.',
       tps: ['Pagina’s', 'Designsysteem', 'Talen', 'Offerte']
     }
   },

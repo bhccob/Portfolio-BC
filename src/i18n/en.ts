@@ -375,7 +375,7 @@ export const en = {
     },
     work: {
       title: 'What I work with',
-      caption: '1820: a current moved a compass needle.'
+      caption: '1820: an electric current moved a compass needle.'
     },
     change: 'The same force that guided ships now stores data.',
     projects: 'Projects',

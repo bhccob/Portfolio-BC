@@ -359,9 +359,9 @@ export const nl: Dictionary = {
     },
     work: {
       title: 'Waar ik mee werk',
-      caption: '1820: een stroom liet een kompasnaald bewegen.'
+      caption: '1820: een elektrische stroom liet een kompasnaald bewegen.'
     },
-    change: 'Dezelfde kracht die schepen leidde, slaat nu data op.',
+    change: 'Dezelfde kracht die schepen de weg wees, slaat nu data op.',
     projects: 'Projecten',
     tp: 'TP{n} · {label}',
     offduty: {

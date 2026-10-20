@@ -87,6 +87,12 @@ describe('trackCopy', () => {
     expect(trackCopy('cookies-clicker', 'nl')).toMatchObject({ kind: 'Schoolproject · 2025', tps: ['Klikken', 'Producenten', 'Boosts', 'Opslaan'] });
     expect(trackCopy('next', 'en')).toMatchObject({ name: 'Bare metal', category: 'Next' });
     expect(trackCopy('next', 'nl')).toMatchObject({ name: 'Bare metal', category: 'Volgende' });
+    expect(trackCopy('jontai-energy', 'nl').line).toBe(
+      'Een website met meerdere pagina’s voor een zonne-energiebedrijf, die bezoekers door de diensten leidt en het aanvragen van een offerte moeiteloos maakt.'
+    );
+    expect(trackCopy('funcial', 'nl').line).toBe(
+      'Een gamified app voor persoonlijke financiën op Android: leg een uitgave in seconden vast, stijg in level en houd je financiële gegevens versleuteld op je telefoon.'
+    );
   });
 });
 
@@ -94,7 +100,7 @@ describe('the compass copy for the drive', () => {
   it('has the new keys in English', () => {
     const c = new Translator('en').t.compass;
     expect(c.work.title).toBe('What I work with');
-    expect(c.work.caption).toBe('1820: a current moved a compass needle.');
+    expect(c.work.caption).toBe('1820: an electric current moved a compass needle.');
     expect(c.change).toBe('The same force that guided ships now stores data.');
     expect(c.projects).toBe('Projects');
     expect(c.tp).toBe('TP{n} · {label}');
@@ -108,8 +114,8 @@ describe('the compass copy for the drive', () => {
   it('has the new keys in Dutch', () => {
     const c = new Translator('nl').t.compass;
     expect(c.work.title).toBe('Waar ik mee werk');
-    expect(c.work.caption).toBe('1820: een stroom liet een kompasnaald bewegen.');
-    expect(c.change).toBe('Dezelfde kracht die schepen leidde, slaat nu data op.');
+    expect(c.work.caption).toBe('1820: een elektrische stroom liet een kompasnaald bewegen.');
+    expect(c.change).toBe('Dezelfde kracht die schepen de weg wees, slaat nu data op.');
     expect(c.projects).toBe('Projecten');
     expect(c.tp).toBe('TP{n} · {label}');
     expect(c.offduty).toEqual({ title: 'Buiten dienst', spin: 'Wat mij draaiende houdt' });

@@ -34,15 +34,6 @@ export const TEXTURE_MEANS = {
 
 export interface InstrumentTextures { brass?: THREE.Texture; lacquer?: THREE.Texture; aluminium?: THREE.Texture; portrait?: THREE.Texture }
 
-/**
- * Loads the brass, the lacquer, the aluminium and (when a URL is given) the
- * portrait, all in sRGB. It never rejects: a file that fails to load is simply
- * absent from the result, and its parts keep their plain colours (the pool
- * stays lacquer).
- * `arrived`, when given, is handed each map the moment it loads, for a caller
- * that will not wait for them all (CompassScene). Anisotropy is left to the
- * caller, which has the renderer.
- */
 /** A TextureLoader that calls `settled` as each file loads or fails (the load's progress). */
 export class SettlingLoader extends THREE.TextureLoader {
   constructor(private readonly settled: () => void) {
@@ -54,6 +45,15 @@ export class SettlingLoader extends THREE.TextureLoader {
   }
 }
 
+/**
+ * Loads the brass, the lacquer, the aluminium and (when a URL is given) the
+ * portrait, all in sRGB. It never rejects: a file that fails to load is simply
+ * absent from the result, and its parts keep their plain colours (the pool
+ * stays lacquer).
+ * `arrived`, when given, is handed each map the moment it loads, for a caller
+ * that will not wait for them all (CompassScene). Anisotropy is left to the
+ * caller, which has the renderer.
+ */
 export async function loadInstrumentTextures(
   portraitUrl?: string,
   loader?: THREE.TextureLoader,
