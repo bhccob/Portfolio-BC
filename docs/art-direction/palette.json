@@ -1,0 +1,481 @@
+{
+  "dominant": {
+    "ref-01-chip-loader": [
+      {
+        "hex": "#140c16",
+        "share": 0.348
+      },
+      {
+        "hex": "#230c34",
+        "share": 0.236
+      },
+      {
+        "hex": "#402538",
+        "share": 0.156
+      },
+      {
+        "hex": "#5d362e",
+        "share": 0.098
+      },
+      {
+        "hex": "#431d66",
+        "share": 0.068
+      },
+      {
+        "hex": "#a17159",
+        "share": 0.062
+      },
+      {
+        "hex": "#e3a53b",
+        "share": 0.031
+      }
+    ],
+    "ref-02-hero-compass": [
+      {
+        "hex": "#0d0712",
+        "share": 0.512
+      },
+      {
+        "hex": "#190b26",
+        "share": 0.201
+      },
+      {
+        "hex": "#311745",
+        "share": 0.134
+      },
+      {
+        "hex": "#301f1d",
+        "share": 0.068
+      },
+      {
+        "hex": "#6f4a3b",
+        "share": 0.043
+      },
+      {
+        "hex": "#402d3b",
+        "share": 0.036
+      },
+      {
+        "hex": "#d5ae7a",
+        "share": 0.006
+      }
+    ],
+    "ref-03-compass-to-harddrive": [
+      {
+        "hex": "#14090e",
+        "share": 0.344
+      },
+      {
+        "hex": "#44281e",
+        "share": 0.213
+      },
+      {
+        "hex": "#241224",
+        "share": 0.177
+      },
+      {
+        "hex": "#825132",
+        "share": 0.121
+      },
+      {
+        "hex": "#dba566",
+        "share": 0.061
+      },
+      {
+        "hex": "#4a2152",
+        "share": 0.045
+      },
+      {
+        "hex": "#ae8e95",
+        "share": 0.038
+      }
+    ],
+    "ref-04-platter-test-points": [
+      {
+        "hex": "#0c040c",
+        "share": 0.346
+      },
+      {
+        "hex": "#1f0e2c",
+        "share": 0.245
+      },
+      {
+        "hex": "#351857",
+        "share": 0.168
+      },
+      {
+        "hex": "#462827",
+        "share": 0.089
+      },
+      {
+        "hex": "#6f42aa",
+        "share": 0.072
+      },
+      {
+        "hex": "#9b623a",
+        "share": 0.041
+      },
+      {
+        "hex": "#f1c56b",
+        "share": 0.04
+      }
+    ],
+    "ref-05-abacus-phone": [
+      {
+        "hex": "#0f0712",
+        "share": 0.414
+      },
+      {
+        "hex": "#190d23",
+        "share": 0.32
+      },
+      {
+        "hex": "#2f1a40",
+        "share": 0.124
+      },
+      {
+        "hex": "#4c2b26",
+        "share": 0.067
+      },
+      {
+        "hex": "#9e6838",
+        "share": 0.028
+      },
+      {
+        "hex": "#f0c35a",
+        "share": 0.028
+      },
+      {
+        "hex": "#897095",
+        "share": 0.02
+      }
+    ]
+  },
+  "tokens": [
+    {
+      "id": "void-0",
+      "hex": "#0a0510",
+      "source": "ref-02-hero-compass",
+      "box": [
+        640,
+        10,
+        830,
+        120
+      ],
+      "n": 20900,
+      "note": "empty sky right of the name"
+    },
+    {
+      "id": "void-1",
+      "hex": "#07020b",
+      "source": "ref-04-platter-test-points",
+      "box": [
+        0,
+        330,
+        140,
+        470
+      ],
+      "n": 18059,
+      "note": "shadowed chassis, bottom left"
+    },
+    {
+      "id": "nebula-deep",
+      "hex": "#0c0515",
+      "source": "ref-02-hero-compass",
+      "box": [
+        0,
+        260,
+        140,
+        460
+      ],
+      "n": 26846,
+      "note": "nebula body, lower left"
+    },
+    {
+      "id": "nebula",
+      "hex": "#331846",
+      "source": "ref-02-hero-compass",
+      "box": [
+        380,
+        300,
+        720,
+        460
+      ],
+      "n": 47304,
+      "note": "lit nebula wisps under the compass"
+    },
+    {
+      "id": "field-violet",
+      "hex": "#b47ed4",
+      "source": "ref-03-compass-to-harddrive",
+      "box": [
+        470,
+        80,
+        650,
+        320
+      ],
+      "n": 883,
+      "note": "magnetic field lines off the platter"
+    },
+    {
+      "id": "pcb-purple",
+      "hex": "#190624",
+      "source": "ref-01-chip-loader",
+      "box": [
+        0,
+        120,
+        160,
+        255
+      ],
+      "n": 7641,
+      "note": "PCB solder mask"
+    },
+    {
+      "id": "lacquer-purple",
+      "hex": "#120418",
+      "source": "ref-05-abacus-phone",
+      "box": [
+        170,
+        0,
+        255,
+        160
+      ],
+      "n": 8139,
+      "note": "abacus bead lacquer"
+    },
+    {
+      "id": "dial-black",
+      "hex": "#1a1517",
+      "source": "ref-02-hero-compass",
+      "box": [
+        190,
+        90,
+        430,
+        280
+      ],
+      "n": 32104,
+      "note": "dial face between engravings"
+    },
+    {
+      "id": "brass-shadow",
+      "hex": "#331e12",
+      "source": "ref-03-compass-to-harddrive",
+      "box": [
+        40,
+        80,
+        400,
+        400
+      ],
+      "n": 52978,
+      "note": "compass body in shadow"
+    },
+    {
+      "id": "brass",
+      "hex": "#936233",
+      "source": "ref-03-compass-to-harddrive",
+      "box": [
+        40,
+        80,
+        400,
+        400
+      ],
+      "n": 25248,
+      "note": "compass body, lit brass"
+    },
+    {
+      "id": "brass-hi",
+      "hex": "#b58854",
+      "source": "ref-02-hero-compass",
+      "box": [
+        90,
+        40,
+        500,
+        380
+      ],
+      "n": 5849,
+      "note": "rim and engraving highlights"
+    },
+    {
+      "id": "gold-type",
+      "hex": "#e4be7f",
+      "source": "ref-02-hero-compass",
+      "box": [
+        550,
+        165,
+        805,
+        195
+      ],
+      "n": 654,
+      "note": "BOB CHUNG letterforms"
+    },
+    {
+      "id": "gold-title",
+      "hex": "#f9dc87",
+      "source": "ref-04-platter-test-points",
+      "box": [
+        33,
+        92,
+        322,
+        132
+      ],
+      "n": 3021,
+      "note": "FUNCIAL title"
+    },
+    {
+      "id": "gold-glow",
+      "hex": "#efb53d",
+      "source": "ref-04-platter-test-points",
+      "box": [
+        200,
+        180,
+        500,
+        330
+      ],
+      "n": 3803,
+      "note": "track glow"
+    },
+    {
+      "id": "amber-spill",
+      "hex": "#edab35",
+      "source": "ref-01-chip-loader",
+      "box": [
+        160,
+        120,
+        340,
+        175
+      ],
+      "n": 2132,
+      "note": "light under the probed chip"
+    },
+    {
+      "id": "gold-core",
+      "hex": "#fef0a9",
+      "source": "ref-04-platter-test-points",
+      "box": [
+        200,
+        180,
+        500,
+        330
+      ],
+      "n": 3082,
+      "note": "hottest part of the track"
+    },
+    {
+      "id": "sun",
+      "hex": "#fdfdf5",
+      "source": "ref-02-hero-compass",
+      "box": [
+        712,
+        392,
+        734,
+        412
+      ],
+      "n": 440,
+      "note": "distant sun core"
+    },
+    {
+      "id": "sun-halo",
+      "hex": "#b48151",
+      "source": "ref-02-hero-compass",
+      "box": [
+        700,
+        380,
+        746,
+        424
+      ],
+      "n": 108,
+      "note": "sun halo"
+    },
+    {
+      "id": "string-red",
+      "hex": "#7a2126",
+      "source": "ref-02-hero-compass",
+      "box": [
+        100,
+        50,
+        500,
+        360
+      ],
+      "n": 657,
+      "note": "red sighting strings"
+    },
+    {
+      "id": "platter",
+      "hex": "#644087",
+      "source": "ref-04-platter-test-points",
+      "box": [
+        600,
+        200,
+        840,
+        320
+      ],
+      "n": 10990,
+      "note": "spindle and platter metal"
+    },
+    {
+      "id": "label-ink",
+      "hex": "#fcedc0",
+      "source": "ref-04-platter-test-points",
+      "box": [
+        250,
+        155,
+        480,
+        300
+      ],
+      "n": 206,
+      "note": "TP caption text"
+    },
+    {
+      "id": "nebula-hi",
+      "hex": "#401f57",
+      "source": "ref-02-hero-compass",
+      "box": [
+        380,
+        300,
+        720,
+        460
+      ],
+      "n": 47304,
+      "note": "brightest nebula wisps"
+    },
+    {
+      "id": "lacquer-hi",
+      "hex": "#735488",
+      "source": "ref-05-abacus-phone",
+      "box": [
+        170,
+        0,
+        255,
+        160
+      ],
+      "n": 8139,
+      "note": "lit side of the lacquer beads"
+    },
+    {
+      "id": "platter-hi",
+      "hex": "#ebb9e0",
+      "source": "ref-04-platter-test-points",
+      "box": [
+        600,
+        200,
+        840,
+        320
+      ],
+      "n": 28800,
+      "note": "specular on the platter and spindle"
+    },
+    {
+      "id": "tagline",
+      "hex": "#8c8879",
+      "source": "ref-02-hero-compass",
+      "box": [
+        615,
+        199,
+        730,
+        211
+      ],
+      "n": 70,
+      "note": "FOLLOW THE NEEDLE letterforms"
+    }
+  ]
+}

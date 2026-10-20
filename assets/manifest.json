@@ -1,0 +1,40 @@
+{
+  "budget": {
+    "cap": 400,
+    "spent": 0.25,
+    "remaining": 399.75,
+    "balance_before_redesign": 592.85,
+    "balance_now": 592.6,
+    "checked_at": "2026-10-20T09:36:00Z"
+  },
+  "generations": [
+    {
+      "id": "M1-T01",
+      "purpose": "M1 pipeline test: a cheap text-free draft of the A02 hero plate (compass in a purple nebula, negative space on the right)",
+      "model": "gpt_image_2_5",
+      "prompt": "Text-free cinematic hero plate. A Chinese luopan feng-shui compass made of antique brass and dark lacquer floats in deep space, tilted about 35 degrees toward the viewer and turned slightly, filling the left half of the frame. Concentric engraved rings: a fine degree-tick ring, a ring of the eight bagua trigrams drawn only as solid and broken gold bars, a heaven-plate dial, a dragon relief around the thick rim. Two thin red silk sighting strings cross over the face; a slim golden needle on a polished pivot jewel. Background: near-black void with a violet-purple nebula of soft volumetric haze, sparse floating gold dust, and one small distant gold sun low on the right. Lighting: warm gold key light from upper left, crisp specular rim light on the brass edge, cool purple fill from the nebula; gold is the only warm light. Macro-lens look, shallow depth of field, slight film grain. The right 45 percent of the frame is calm empty space for typography that will be added later. Absolutely no text: no letters, no words, no numerals, no Chinese or other characters, no logos, no watermark, no signature anywhere in the image. Match the colour palette, materials and mood of the reference image, but remove all of its text.",
+      "refs": [
+        {
+          "file": "references/ref-02-hero-compass.png",
+          "role": "image_references",
+          "media_id": "6e39a93f-079c-4448-a297-d83ff3062124"
+        }
+      ],
+      "params": {
+        "variant": "flare",
+        "aspect_ratio": "16:9",
+        "resolution": "1k",
+        "quality": "low"
+      },
+      "job_id": "0aa60c4c-b31f-4161-904b-b9aa60f24732",
+      "result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3KYDNurc8MJlaw2CecA4B23Bx9F/hf_20261020_093539_0aa60c4c-b31f-4161-904b-b9aa60f24732.png",
+      "output": "assets/raw/m1-test-hero-plate-01.png",
+      "output_size": [1344, 752],
+      "status": "completed",
+      "credits": 0.25,
+      "credits_quoted": 0.25,
+      "created_at": "2026-10-20T09:35:39Z",
+      "review": "Text-free: no letters, numerals or characters on the rings or rim. The compass fills the left 60 percent and the right 40 percent is clear. The trigram bars are not reliable (some groups have four bars), which is expected: the live model engraves them procedurally. Usable as a look-dev target only; the final A02 plate is framed to the live camera in M2."
+    }
+  ]
+}

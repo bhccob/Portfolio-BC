@@ -29,3 +29,6 @@ proof-out/
 
 # Lighthouse CI reports
 .lighthouseci/
+
+# generated Higgsfield originals (kept on disk; the manifest records them)
+assets/raw/
