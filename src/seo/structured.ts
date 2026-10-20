@@ -38,7 +38,10 @@ export function websiteLd(): Record<string, unknown> {
   };
 }
 
-/** A project as source code, with its repository. */
+/**
+ * A project as source code, with its repository. Its stack is `keywords` (schema.org: comma-separated text):
+ * it names frameworks, libraries and services as well as languages, so it is not `programmingLanguage`.
+ */
 export function projectLd(project: Project, locale: Locale): Record<string, unknown> {
   return {
     '@context': 'https://schema.org',
@@ -47,7 +50,7 @@ export function projectLd(project: Project, locale: Locale): Record<string, unkn
     description: project.copy(locale).summary,
     url: absolute(locale, projects.route(project)),
     ...(project.links.repo ? { codeRepository: project.links.repo } : {}),
-    programmingLanguage: project.stack,
+    keywords: project.stack.join(', '),
     dateCreated: String(project.year),
     inLanguage: locale,
     author: { '@id': PERSON_ID }

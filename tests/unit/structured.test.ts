@@ -23,7 +23,7 @@ describe('structured data', () => {
     expect(site.author).toEqual({ '@id': personLd()['@id'] });
   });
 
-  it('describes a project as source code, with its repository and no AI in its languages', () => {
+  it('describes a project as source code, with its repository and no AI in its keywords', () => {
     const ld = projectLd(funcial, 'en');
     expect(ld['@type']).toBe('SoftwareSourceCode');
     expect(ld.name).toBe('Funcial');
@@ -31,7 +31,15 @@ describe('structured data', () => {
     expect(ld.codeRepository).toBe('https://github.com/bhccob/Funcial');
     expect(ld.dateCreated).toBe('2026');
     expect(ld.inLanguage).toBe('en');
-    expect(JSON.stringify(ld.programmingLanguage)).not.toMatch(/\bAI\b|Claude/);
+    expect(JSON.stringify(ld.keywords)).not.toMatch(/\bAI\b|Claude/);
+  });
+
+  it('lists the stack as keywords, not as programming languages (React, Tailwind and Vercel are not languages)', () => {
+    for (const project of projects.all()) {
+      const ld = projectLd(project, 'nl');
+      expect(ld.keywords, project.id).toBe(project.stack.join(', '));
+      expect(ld, project.id).not.toHaveProperty('programmingLanguage');
+    }
   });
 
   it('writes a breadcrumb trail of absolute URLs', () => {
