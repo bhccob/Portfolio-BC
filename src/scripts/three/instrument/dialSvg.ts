@@ -1,3 +1,4 @@
+import { paletteCss } from '../palette';
 import { DIAL, DIAL_ART, DIRECTIONS, TRIGRAMS, onDial } from './dialSpec';
 import { GLYPHS } from './glyphs';
 
@@ -14,13 +15,13 @@ import { GLYPHS } from './glyphs';
  */
 
 const COLOR = {
-  plate: '#1c1030',
-  face: '#140a24',
-  brass: '#c9a24a',
-  gilt: '#d9a520',
-  thread: '#c8102e',
-  needleTip: '#ffcf33',
-  pin: '#f1e8d3'
+  plate: paletteCss.board,
+  face: paletteCss.boardDeep,
+  brass: paletteCss.brass,
+  gilt: paletteCss.gold,
+  thread: paletteCss.thread,
+  needleTip: paletteCss.yellow,
+  pin: paletteCss.cream
 } as const;
 
 /** The plate's brass edge: drawn inside the plate's outline so none of it is clipped by the viewBox. */

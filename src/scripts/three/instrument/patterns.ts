@@ -1,3 +1,4 @@
+import { paletteCss } from '../palette';
 import { DIAL, DIAL_ART, type HomeId } from './dialSpec';
 
 /**
@@ -24,8 +25,8 @@ export const STRIP = { fine: { width: 4096, height: 256 }, coarse: { width: 2048
 /** How many times each motif repeats round the ring, and the bearings of Aruba's four stars. */
 export const REPEATS = { china: 64, arubaWaves: 48, arubaStars: [45, 135, 225, 315], rotterdam: 6 } as const;
 
-const GILT = '#d9a520';
-const CREAM = '#f1e8d3';
+const GILT = paletteCss.gold;
+const CREAM = paletteCss.cream;
 
 interface Strip {
   ctx: CanvasRenderingContext2D;
@@ -51,7 +52,7 @@ function vertical({ ctx, w }: Strip, from: string, to: string, top: number, bott
 
 /** Nothing yet: the plate's lacquer. */
 function plain({ ctx, w, h }: Strip): void {
-  ctx.fillStyle = '#1c1030';
+  ctx.fillStyle = paletteCss.board;
   ctx.fillRect(0, 0, w, h);
 }
 
@@ -126,7 +127,7 @@ function aruba(strip: Strip): void {
   const { ctx, w, h } = strip;
   vertical(strip, '#418fde', '#2b6cb3', 0, h);
   for (const row of ARUBA.waves) crests(strip, row.y * h, row.phase);
-  ctx.fillStyle = '#ffcf33';
+  ctx.fillStyle = paletteCss.yellow;
   for (const [top, bottom] of ARUBA.stripes) ctx.fillRect(0, top * h, w, (bottom - top) * h);
   for (const bearing of REPEATS.arubaStars) star(strip, (bearing / 360) * w);
 }
@@ -334,7 +335,7 @@ function pylons({ ctx }: Strip, { feet, at }: Bridges): void {
     shape(foot, BRIDGE.pylon);
     ctx.save();
     ctx.globalAlpha = ROTTERDAM.shade;
-    ctx.fillStyle = '#140a24';
+    ctx.fillStyle = paletteCss.boardDeep;
     shape(foot, BRIDGE.shade);
     shape(foot, BRIDGE.pier);
     ctx.restore();
@@ -344,7 +345,7 @@ function pylons({ ctx }: Strip, { feet, at }: Bridges): void {
 function rotterdam(strip: Strip): void {
   const { ctx, w, h } = strip;
   const river = ROTTERDAM.river * h;
-  vertical(strip, '#140a24', '#1c1030', 0, river);
+  vertical(strip, paletteCss.boardDeep, paletteCss.board, 0, river);
   ctx.fillStyle = '#1f2650';
   ctx.fillRect(0, river, w, h - river);
   // Back to front: the lights, the stays, the deck over the stays' ends, then the piers and pylons over the deck.

@@ -1,12 +1,17 @@
 import * as THREE from 'three';
 import { DIAL } from './dialSpec';
-import type { InstrumentMaterials } from './materials';
+import { DRIVE } from './drive';
+import { GLASS_OPACITY, type InstrumentMaterials } from './materials';
 
 /**
  * The heaven pool at the dial's centre: a lacquer floor DIAL.poolDepth below
  * the face, the portrait disc just above the floor (hidden until a portrait
  * has arrived, then as opaque as the pose's `portrait`), a brass wall round
  * it, and a disc of glass above the face at y 0.03, under the needle.
+ *
+ * In the change to the hard drive the pool closes in to the hub's radius
+ * (the steel hub rises over its floor and wall, DriveParts) and its glass
+ * fades away.
  */
 
 export const POOL = { glass: 0.03, portraitLift: 0.001, segments: 96 } as const;
@@ -14,6 +19,8 @@ export const POOL = { glass: 0.03, portraitLift: 0.001, segments: 96 } as const;
 export interface Pool {
   object: THREE.Group;
   portrait: THREE.Mesh;
+  /** 0 the pool … 1 closed in to DRIVE.hub, its glass gone. */
+  pose(clamp: number): void;
 }
 
 /** A disc of radius r facing +Y at height y. */
@@ -47,5 +54,13 @@ export function buildPool(m: InstrumentMaterials): Pool {
   glass.renderOrder = 1;
 
   object.add(floor, portrait, wall, glass);
-  return { object, portrait };
+
+  const pose = (clamp: number): void => {
+    const scale = 1 + (DRIVE.hub / DIAL.pool - 1) * clamp;
+    object.scale.set(scale, 1, scale);
+    m.glass.opacity = GLASS_OPACITY * (1 - clamp);
+    glass.visible = clamp < 1;
+  };
+
+  return { object, portrait, pose };
 }

@@ -1,3 +1,4 @@
+import { paletteCss } from '../palette';
 import { DIAL, DIAL_ART, DIRECTIONS, TRIGRAMS, onDial } from './dialSpec';
 import { GLYPHS } from './glyphs';
 
@@ -16,8 +17,8 @@ import { GLYPHS } from './glyphs';
  * characters need Path2D and are left out where it is missing (node).
  */
 
-const GILT = '#d9a520';
-const LACQUER = '#140a24';
+const GILT = paletteCss.gold;
+const LACQUER = paletteCss.boardDeep;
 
 /** A colour holding roughness in green and metalness in blue. */
 function roughMetal(roughness: number, metalness: number): string {

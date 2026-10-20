@@ -13,9 +13,9 @@ import { RenderLoop } from './RenderLoop';
 import { asleep, STILL } from './stillness';
 import { warmScene } from './TextureWarmup';
 import { DIAL } from './instrument/dialSpec';
-import { buildInstrument, type InstrumentModel } from './instrument/Instrument';
+import { buildInstrument, FOLDED_DRIVE, type InstrumentModel } from './instrument/Instrument';
 import { PaintCancelled, paintInstrument, type Painted } from './instrument/paint';
-import { loadInstrumentTextures, type InstrumentTextures } from './instrument/textures';
+import { loadInstrumentTextures, TEXTURE_FILES, type InstrumentTextures } from './instrument/textures';
 import { buildCompassStudio, type CompassStudio } from './studio/CompassStudio';
 import { glowTexture } from './studio/noise';
 
@@ -529,7 +529,8 @@ export class CompassScene {
     if (this.snapNeedle) this.spring.set(heading, 0);
     this.snapNeedle = false;
     this.needle = wrapAngle(this.spring.step(heading, dt) + spin);
-    this.instrument.applyPose({ bearing: this.needle, lift: pose.needle.lift, portrait: pose.portrait, threads: pose.threads });
+    // The drive stays folded away here: the scene does not carry the drive's sections yet.
+    this.instrument.applyPose({ bearing: this.needle, lift: pose.needle.lift, portrait: pose.portrait, threads: pose.threads, ...FOLDED_DRIVE });
     this.instrument.setPattern(pose.pattern.from, pose.pattern.to, pose.pattern.sweep, pose.pattern.origin);
 
     const still = asleep({
@@ -659,7 +660,7 @@ export class CompassScene {
   private async load(portrait?: string): Promise<void> {
     const disposed = (): boolean => this.disposed;
     try {
-      const files = portrait ? 3 : 2;
+      const files = Object.keys(TEXTURE_FILES).length + (portrait ? 1 : 0);
       let settled = 0;
       const loading = loadInstrumentTextures(
         portrait,

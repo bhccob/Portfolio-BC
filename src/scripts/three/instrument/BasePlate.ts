@@ -8,7 +8,8 @@ import type { InstrumentMaterials } from './materials';
  * y = 0, with a round hole for the dial and a small bevel on every edge. Its
  * top and bottom are the plate's lacquer; its sides and bevels are a brass
  * band, which face-on reads as the thin brass edge of the loader's drawing.
- * A lacquer disc closes the hole underneath.
+ * A lacquer disc closes the hole underneath. In the change to the hard drive
+ * the plate becomes the drive's aluminium chassis.
  */
 
 /** The bevel on every edge, its size and depth alike. */
@@ -60,13 +61,29 @@ function plateGeometry(): THREE.BufferGeometry {
   return geometry.rotateX(Math.PI / 2).translate(0, -BEVEL, 0);
 }
 
-export function buildBasePlate(m: InstrumentMaterials): THREE.Group {
+export interface BasePlate {
+  object: THREE.Group;
+  /** The lacquer plate with its brass edge. */
+  plate: THREE.Mesh;
+  /**
+   * The drive's chassis: the same plate all in aluminium, drawn over the
+   * lacquer one as it fades in (so the plate never shows through to the
+   * room), hidden until then.
+   */
+  chassis: THREE.Mesh;
+}
+
+export function buildBasePlate(m: InstrumentMaterials): BasePlate {
   const object = new THREE.Group();
   object.name = 'compass:base';
 
   // ExtrudeGeometry's groups: 0 the caps, 1 the sides and bevels.
-  const plate = new THREE.Mesh(plateGeometry(), [m.plate, m.brass]);
+  const geometry = plateGeometry();
+  const plate = new THREE.Mesh(geometry, [m.plate, m.brass]);
   plate.name = 'compass:plate';
+  const chassis = new THREE.Mesh(geometry, m.aluminium);
+  chassis.name = 'compass:chassis';
+  chassis.visible = false;
 
   // The underside of the hole, the same polygon, facing down.
   const back = new THREE.Mesh(
@@ -75,6 +92,6 @@ export function buildBasePlate(m: InstrumentMaterials): THREE.Group {
   );
   back.name = 'compass:plate-back';
 
-  object.add(plate, back);
-  return object;
+  object.add(plate, chassis, back);
+  return { object, plate, chassis };
 }

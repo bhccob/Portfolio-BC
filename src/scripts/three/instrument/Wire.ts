@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { palette } from '../palette';
 import { WIRE, clamp01, wirePath, type Point } from './wirePath';
 
 /**
@@ -18,7 +19,7 @@ import { WIRE, clamp01, wirePath, type Point } from './wirePath';
  */
 
 /** The palette (global constraints): cream wire, gold coil, signal yellow pulses. */
-const COLOR = { cream: 0xf1e8d3, gold: 0xd9a520, pulse: 0xffcf33 } as const;
+const COLOR = { cream: palette.cream, gold: palette.gold, pulse: palette.yellow } as const;
 
 /** How hard the pulse glows: about the needle tip's emissive, with room for the tone mapping. */
 const PULSE_STRENGTH = 2.4;

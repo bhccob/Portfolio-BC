@@ -28,6 +28,8 @@ export interface AnnulusOptions {
   uv: 'polar' | 'planar';
   /** The radius the planar UVs span 0..1 over (default DIAL.face). */
   faceRadius?: number;
+  /** What the ring wears. Left out, three gives the mesh a default material of its own. */
+  material?: THREE.Material;
 }
 
 function checkRadii(inner: number, outer: number): void {
@@ -37,7 +39,7 @@ function checkRadii(inner: number, outer: number): void {
 }
 
 export function buildAnnulus(options: AnnulusOptions): Annulus {
-  const { inner, outer, segments = 256, uv: layout, faceRadius = DIAL.face } = options;
+  const { inner, outer, segments = 256, uv: layout, faceRadius = DIAL.face, material } = options;
   checkRadii(inner, outer);
   if (!Number.isInteger(segments) || segments < 3) throw new RangeError(`An annulus needs at least 3 segments, not ${segments}`);
   if (!(faceRadius > 0) || !Number.isFinite(faceRadius)) throw new RangeError(`A face radius must be positive, not ${faceRadius}`);
@@ -86,7 +88,7 @@ export function buildAnnulus(options: AnnulusOptions): Annulus {
   };
   fill(inner, outer);
 
-  const mesh = new THREE.Mesh(geometry);
+  const mesh = new THREE.Mesh(geometry, material);
   return {
     mesh,
     setRadii(r0: number, r1: number): void {

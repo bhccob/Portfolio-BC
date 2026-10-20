@@ -1,24 +1,41 @@
 /**
- * The device's colours as three.js hex numbers. They are the site's own
- * tokens (src/styles/tokens.css), so the model and the page around it agree.
+ * The site's colours, the one place the 3D scenes and the drawings take them
+ * from: `palette` as three.js hex numbers, `paletteCss` the same colours as
+ * CSS strings (`#rrggbb`) for the canvas painters and the loader's SVG. The
+ * purples, yellow, cream and lilacs are the site's own tokens
+ * (src/styles/tokens.css), so the model and the page around it agree; gold,
+ * brass and thread red are the compass's own. It imports nothing, so the
+ * loader's bundle (dialSvg) can read it without pulling in three.
  */
 export const palette = {
-  /** Board purple (--board): the back plate. */
+  /** Board purple (--board): the base plate's lacquer and the plain pattern ring. */
   board: 0x1c1030,
-  /** The deepest board purple (--board-deep): the screen module and recesses. */
+  /** The deepest board purple (--board-deep): the face's lacquer and the drive's magnets. */
   boardDeep: 0x140a24,
-  /** Signal yellow: the power ball and the battery band. */
+  /** Signal yellow: the needle's tip and the read head, the tracks and the wire's pulses. */
   yellow: 0xffcf33,
-  /** Cream: the controls, the battery and the screws. */
+  /** Cream: the wire, the loader's pin and the patterns' fine lines. */
   cream: 0xf1e8d3,
-  /** PCB purple: the shell and the board. */
-  pcb: 0x4b2a8a,
-  /** Gold contacts: pins, traces and tabs. */
+  /** Gold: the gilt rules and markings, and the voice coil. */
   gold: 0xd9a520,
-  /** Lilac (--lilac, the site's text): the silkscreen names on the chips. */
+  /** Brass: the rim, the plate's edge, the pool's wall and the needle's tail. */
+  brass: 0xc9a24a,
+  /** Thread red: the red threads across the dial. */
+  thread: 0xc8102e,
+  /** Lilac (--lilac, the site's text). */
   lilac: 0xb8aad8,
-  /** Dim lilac (--dim, the site's quiet text): the empty socket's outline. */
+  /** Dim lilac (--dim, the site's quiet text). */
   dim: 0x9789bb,
-  /** Near-black (--split): chip bodies and the screen while it is off. */
+  /** Near-black (--split). */
   ink: 0x0b0516
 } as const;
+
+export type PaletteColour = keyof typeof palette;
+
+/** A hex number as a CSS colour: `#` and six lower-case digits. */
+function css(hex: number): string {
+  return `#${hex.toString(16).padStart(6, '0')}`;
+}
+
+/** The palette as CSS strings, made from the numbers so the two cannot drift apart. */
+export const paletteCss = Object.fromEntries(Object.entries(palette).map(([name, hex]) => [name, css(hex)])) as Readonly<Record<PaletteColour, string>>;

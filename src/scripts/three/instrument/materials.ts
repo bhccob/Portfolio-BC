@@ -1,4 +1,17 @@
 import * as THREE from 'three';
+import { palette } from '../palette';
+import { DIAL } from './dialSpec';
+import {
+  ALUMINIUM,
+  MAGNET,
+  STEEL,
+  bladeUniforms,
+  mirrorUniforms,
+  patchBlade,
+  patchMirror,
+  type BladeUniforms,
+  type MirrorUniforms
+} from './DriveParts';
 import { TEXTURE_MEANS, type InstrumentTextures } from './textures';
 
 /**
@@ -7,17 +20,25 @@ import { TEXTURE_MEANS, type InstrumentTextures } from './textures';
  * face and the ring strips arrive later as textures; their materials start
  * on 1 x 1 placeholders, so swapping the real ones in only changes a texture
  * and never recompiles a program.
+ *
+ * The drive's finishes are here too, and every finish that fades in the
+ * change to the drive (or crossfades) is transparent from the start, its
+ * depth writing fixed, so a pose only moves opacities, colours and uniforms
+ * and never recompiles a program.
  */
 
 /** The palette (global constraints): the face's lacquer, the plate's, brass, gilt, signal yellow and thread red. */
 const COLOR = {
-  lacquer: 0x140a24,
-  plate: 0x1c1030,
-  brass: 0xc9a24a,
-  gilt: 0xd9a520,
-  needleTip: 0xffcf33,
-  thread: 0xc8102e
+  lacquer: palette.boardDeep,
+  plate: palette.board,
+  brass: palette.brass,
+  gilt: palette.gold,
+  needleTip: palette.yellow,
+  thread: palette.thread
 } as const;
+
+/** The glass over the pool: this faint while the pool is a pool. */
+export const GLASS_OPACITY = 0.12;
 
 /** The pattern ring's sweep: the soft edge sweepCoverage uses, and the seam's strength at the front. */
 export const SWEEP = { soft: 0.015, seam: 1.8 } as const;
@@ -74,22 +95,39 @@ export interface InstrumentMaterials {
   lacquer: THREE.MeshPhysicalMaterial;
   /** The same lacquer in the plate's colour. */
   plate: THREE.MeshPhysicalMaterial;
-  /** Brass: the rim, the plate's edge band and the pool wall. */
+  /** Brass: the plate's edge band and the pool wall. */
   brass: THREE.MeshStandardMaterial;
+  /** The rim's brass, its own so it can fade as the platters turn to mirror. */
+  rim: THREE.MeshStandardMaterial;
   /** The needle's pin, in plain brass: it fades with the needle, so a lifted needle leaves the portrait's centre clear. */
   pin: THREE.MeshStandardMaterial;
-  /** Gilt: the raised rules between the rings. */
+  /** Gilt: the raised rules between the rings, which fade as the platters turn to mirror. */
   gilt: THREE.MeshStandardMaterial;
-  /** The painted face: its canvas as the colour, its mr canvas as roughness (green) and metalness (blue). */
+  /** The painted face: its canvas as the colour, its mr canvas as roughness (green) and metalness (blue); it wipes to mirror. */
   face: THREE.MeshStandardMaterial;
-  /** The pattern ring: `map` is the home it sweeps from, `mapTo` (a uniform) the home it sweeps to. */
+  /** The pattern ring: `map` is the home it sweeps from, `mapTo` (a uniform) the home it sweeps to; it wipes to mirror. */
   pattern: THREE.MeshPhysicalMaterial;
+  /** The needle's tip half, signal yellow and aglow; as the arm forms it turns to steel but for its head. */
   needleTip: THREE.MeshStandardMaterial;
   needleTail: THREE.MeshStandardMaterial;
   threads: THREE.MeshStandardMaterial;
   glass: THREE.MeshPhysicalMaterial;
   /** The portrait under the pool's glass, unlit. */
   portrait: THREE.MeshBasicMaterial;
+  /** Steel: the platters' edges and the hub. */
+  steel: THREE.MeshStandardMaterial;
+  /** The chassis's brushed aluminium, over the plate's lacquer as it fades in. */
+  aluminium: THREE.MeshStandardMaterial;
+  /** The magnets' near-black metal, and the park ramp's. */
+  magnet: THREE.MeshStandardMaterial;
+}
+
+/** The uniforms the poses set, each the materials' own object (and their `userData.uniforms`). */
+export interface InstrumentUniforms {
+  pattern: PatternUniforms;
+  /** Shared by the face and the pattern ring. */
+  mirror: MirrorUniforms;
+  blade: BladeUniforms;
 }
 
 export interface Placeholders {
@@ -136,11 +174,11 @@ function vec3(color: THREE.Color): string {
  * The pattern ring's material. Its shader mixes `map` (the home it sweeps
  * from) with `mapTo` (the home it sweeps to) by the cover sweepCoverage
  * gives, with u the ring's polar u, and lights a thin gold seam at the
- * sweep's front while the sweep is under way. The uniforms are the
- * material's own objects (`userData.uniforms` too), so setting a value needs
- * no recompile.
+ * sweep's front while the sweep is under way; over that, the mirror wipe
+ * (patchMirror). The uniforms are the material's own objects
+ * (`userData.uniforms` too), so setting a value needs no recompile.
  */
-function createPattern(strip: THREE.Texture): { material: THREE.MeshPhysicalMaterial; uniforms: PatternUniforms } {
+function createPattern(strip: THREE.Texture, mirror: MirrorUniforms): { material: THREE.MeshPhysicalMaterial; uniforms: PatternUniforms } {
   const material = new THREE.MeshPhysicalMaterial({
     name: 'compass:pattern',
     color: 0xffffff,
@@ -156,10 +194,11 @@ function createPattern(strip: THREE.Texture): { material: THREE.MeshPhysicalMate
     uSoft: { value: SWEEP.soft }
   };
   const seam = vec3(new THREE.Color(COLOR.gilt));
-  material.userData.uniforms = uniforms;
+  material.userData.uniforms = { ...uniforms, ...mirror };
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
     pearlUnmirrored(shader);
+    patchMirror(shader, mirror);
     shader.fragmentShader = shader.fragmentShader
       .replace(
         '#include <common>',
@@ -192,7 +231,44 @@ function createPattern(strip: THREE.Texture): { material: THREE.MeshPhysicalMate
   return { material, uniforms };
 }
 
-export function createMaterials(placeholders: Placeholders): { materials: InstrumentMaterials; patternUniforms: PatternUniforms } {
+/** The painted face, with the mirror wipe over it and the pearl kept out of its highlights. */
+function createFace(placeholders: Placeholders, mirror: MirrorUniforms): THREE.MeshStandardMaterial {
+  const material = new THREE.MeshStandardMaterial({
+    name: 'compass:face',
+    color: 0xffffff,
+    map: placeholders.face,
+    roughnessMap: placeholders.faceMr,
+    metalnessMap: placeholders.faceMr,
+    // The maps rule: three multiplies these by the mr canvas.
+    roughness: 1,
+    metalness: 1
+  });
+  material.userData.uniforms = mirror;
+  material.onBeforeCompile = (shader) => {
+    pearlUnmirrored(shader);
+    patchMirror(shader, mirror);
+  };
+  material.customProgramCacheKey = () => 'compass:face';
+  return material;
+}
+
+/** The needle's tip half: signal yellow and aglow, turning to steel but for its head as the arm forms (patchBlade). */
+function createNeedleTip(blade: BladeUniforms): THREE.MeshStandardMaterial {
+  const material = new THREE.MeshStandardMaterial({
+    name: 'compass:needle-tip',
+    color: COLOR.needleTip,
+    emissive: COLOR.needleTip,
+    // About one in all with the key's light, so the tone mapping keeps it signal yellow rather than rolling it to cream.
+    emissiveIntensity: 0.8,
+    transparent: true
+  });
+  material.userData.uniforms = blade;
+  material.onBeforeCompile = (shader) => patchBlade(shader, blade, DIAL.needle.tip);
+  material.customProgramCacheKey = () => 'compass:needle-tip';
+  return material;
+}
+
+export function createMaterials(placeholders: Placeholders): { materials: InstrumentMaterials; uniforms: InstrumentUniforms } {
   // The glossy finishes light up under the pearl but do not mirror it (withoutPointSpecular). One shared patch, so
   // still one program per kind of material.
   const unmirrored = <M extends THREE.Material>(material: M): M => {
@@ -204,34 +280,19 @@ export function createMaterials(placeholders: Placeholders): { materials: Instru
     unmirrored(
       new THREE.MeshPhysicalMaterial({ name, color, map: placeholders.image, metalness: 0, roughness: LACQUER.roughness, specularIntensity: LACQUER.specular, clearcoat: 1, clearcoatRoughness: LACQUER.coat })
     );
-  const pattern = createPattern(placeholders.strip);
+  const mirror = mirrorUniforms();
+  const blade = bladeUniforms();
+  const pattern = createPattern(placeholders.strip, mirror);
   const materials: InstrumentMaterials = {
     lacquer: lacquer('compass:lacquer', COLOR.lacquer),
     plate: lacquer('compass:plate', COLOR.plate),
     brass: new THREE.MeshStandardMaterial({ name: 'compass:brass', color: COLOR.brass, map: placeholders.image, metalness: 1, roughness: 0.32 }),
+    rim: new THREE.MeshStandardMaterial({ name: 'compass:rim', color: COLOR.brass, map: placeholders.image, metalness: 1, roughness: 0.32, transparent: true }),
     pin: new THREE.MeshStandardMaterial({ name: 'compass:pin', color: COLOR.brass, metalness: 1, roughness: 0.32, transparent: true }),
-    gilt: new THREE.MeshStandardMaterial({ name: 'compass:gilt', color: COLOR.gilt, metalness: 1, roughness: 0.3 }),
-    face: unmirrored(
-      new THREE.MeshStandardMaterial({
-        name: 'compass:face',
-        color: 0xffffff,
-        map: placeholders.face,
-        roughnessMap: placeholders.faceMr,
-        metalnessMap: placeholders.faceMr,
-        // The maps rule: three multiplies these by the mr canvas.
-        roughness: 1,
-        metalness: 1
-      })
-    ),
+    gilt: new THREE.MeshStandardMaterial({ name: 'compass:gilt', color: COLOR.gilt, metalness: 1, roughness: 0.3, transparent: true }),
+    face: createFace(placeholders, mirror),
     pattern: pattern.material,
-    needleTip: new THREE.MeshStandardMaterial({
-      name: 'compass:needle-tip',
-      color: COLOR.needleTip,
-      emissive: COLOR.needleTip,
-      // About one in all with the key's light, so the tone mapping keeps it signal yellow rather than rolling it to cream.
-      emissiveIntensity: 0.8,
-      transparent: true
-    }),
+    needleTip: createNeedleTip(blade),
     needleTail: new THREE.MeshStandardMaterial({
       name: 'compass:needle-tail',
       color: COLOR.brass,
@@ -251,14 +312,29 @@ export function createMaterials(placeholders: Placeholders): { materials: Instru
         roughness: 0.05,
         clearcoat: 1,
         transparent: true,
-        opacity: 0.12,
+        opacity: GLASS_OPACITY,
         // The needle's lower facets dip below the glass on a tilt: the glass must not clip them.
         depthWrite: false
       })
     ),
-    portrait: new THREE.MeshBasicMaterial({ name: 'compass:portrait', map: placeholders.portrait, transparent: true, opacity: 0 })
+    portrait: new THREE.MeshBasicMaterial({ name: 'compass:portrait', map: placeholders.portrait, transparent: true, opacity: 0 }),
+    steel: new THREE.MeshStandardMaterial({ name: 'compass:steel', color: STEEL.color, metalness: 1, roughness: STEEL.roughness }),
+    aluminium: new THREE.MeshStandardMaterial({
+      name: 'compass:aluminium',
+      color: ALUMINIUM.color,
+      map: placeholders.image,
+      metalness: 1,
+      roughness: ALUMINIUM.roughness,
+      // It fades in over the plate's lacquer, drawn on the same faces: it wins their depth by a hair.
+      transparent: true,
+      opacity: 0,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -1
+    }),
+    magnet: new THREE.MeshStandardMaterial({ name: 'compass:magnet', color: MAGNET.color, metalness: MAGNET.metalness, roughness: MAGNET.roughness })
   };
-  return { materials, patternUniforms: pattern.uniforms };
+  return { materials, uniforms: { pattern: pattern.uniforms, mirror, blade } };
 }
 
 /** Sets a texture's wrapping, flagging it for upload only when it changes. */
@@ -283,14 +359,19 @@ function tinted(material: THREE.MeshStandardMaterial, map: THREE.Texture, target
 /**
  * Swaps in the image maps that have arrived. Safe to call more than once; a
  * texture left out keeps whatever is there. The brushed brass tiles round
- * (its edges were cross-faded) and mirrors across; the lacquer mirrors both
- * ways. The textures stay the caller's.
+ * (its edges were cross-faded) and mirrors across; the lacquer and the
+ * aluminium mirror both ways. The textures stay the caller's.
  */
 export function applyTextures(m: InstrumentMaterials, textures: InstrumentTextures): void {
-  const { brass, lacquer } = textures;
+  const { brass, lacquer, aluminium } = textures;
   if (brass) {
     wrap(brass, THREE.RepeatWrapping, THREE.MirroredRepeatWrapping);
     tinted(m.brass, brass, COLOR.brass, TEXTURE_MEANS.brass);
+    tinted(m.rim, brass, COLOR.brass, TEXTURE_MEANS.brass);
+  }
+  if (aluminium) {
+    wrap(aluminium, THREE.MirroredRepeatWrapping, THREE.MirroredRepeatWrapping);
+    tinted(m.aluminium, aluminium, ALUMINIUM.color, TEXTURE_MEANS.aluminium);
   }
   if (lacquer) {
     wrap(lacquer, THREE.MirroredRepeatWrapping, THREE.MirroredRepeatWrapping);
