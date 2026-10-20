@@ -2,9 +2,11 @@ import * as THREE from 'three';
 import { settlesWithin } from '../core/deadline';
 import { Handlers } from '../core/Handlers';
 import { AngleSpring, wrapAngle } from './AngleSpring';
-import { dialLayout, lerpShot, placeCamera, type Shot } from './CameraRig';
-import { compassPoseAt, locate, OFF_AXIS, tipLimit, type CompassPose } from './Choreography';
+import { applyPose, carryProgress, freeTurnLocked } from './applyPose';
+import { layoutFor, lerpShot, placeCamera, type Shot } from './CameraRig';
+import { compassPoseAt, locate, nominalSpans, OFF_AXIS, tipLimit, type CompassPose, type Span } from './Choreography';
 import { FreeTurn, type PointerKind } from './FreeTurn';
+import { overlayOf, rimOf, type Overlay } from './overlay';
 import { handedNeedle, needleTarget, Pearl, PEARL, PearlTarget, pointerBearing } from './Pearl';
 import { easePearl } from './pearlSpec';
 import { budgetLimit, PixelBudget, VSYNC } from './PixelBudget';
@@ -12,20 +14,26 @@ import { qualityFor, qualitySteps, type Quality } from './quality';
 import { RenderLoop } from './RenderLoop';
 import { asleep, STILL } from './stillness';
 import { warmScene } from './TextureWarmup';
+import { TrackPointer, type TrackHandler } from './TrackPointer';
 import { DIAL } from './instrument/dialSpec';
-import { buildInstrument, FOLDED_DRIVE, type InstrumentModel } from './instrument/Instrument';
-import { PaintCancelled, paintInstrument, type Painted } from './instrument/paint';
-import { loadInstrumentTextures, TEXTURE_FILES, type InstrumentTextures } from './instrument/textures';
+import { buildInstrument, type InstrumentModel } from './instrument/Instrument';
+import { PaintCancelled, paintedMaps, paintInstrument, type Painted } from './instrument/paint';
+import { loadInstrumentTextures, SettlingLoader, TEXTURE_FILES, type InstrumentTextures } from './instrument/textures';
+import { buildTracks, type TracksModel } from './instrument/Tracks';
+import { buildWire, type WireModel } from './instrument/Wire';
 import { buildCompassStudio, type CompassStudio } from './studio/CompassStudio';
 import { glowTexture } from './studio/noise';
 
 /**
  * The compass on its canvas: the luopan in its dark studio (CompassStudio),
- * the pearl the needle chases, and the camera. Scroll sets a target progress
- * the scene eases towards; every frame poses the camera, the ring pattern, the
- * needle, the portrait and the threads from the choreography at the eased
- * progress. The pearl follows the pointer (or drifts, on touch), the dial
- * leans toward it, and a drag spins it (FreeTurn).
+ * Ørsted's wire, the hard drive's tracks, the pearl the needle chases, and the
+ * camera. Scroll sets a target progress the scene eases towards, among the
+ * sections' spans (setSpans); every frame poses the camera, the studio's dim
+ * and (applyPose) the instrument, the wire and the tracks from the
+ * choreography there. The pearl follows the pointer (or drifts, on touch), the
+ * dial leans toward it, and a drag spins it (FreeTurn) but while the needle
+ * becomes the arm. The tracks answer the pointer (onTrack); overlay() says
+ * where the head and the spindle are drawn.
  *
  * The load (onLoad, ready()) loads, paints, uploads and compiles before any
  * frame is drawn, waiting 7 s at most for the image files. Frames run only
@@ -95,17 +103,6 @@ function tell(handler: (part: LoadPart, share: number) => void, part: LoadPart, 
   }
 }
 
-/** A TextureLoader that calls `settled` as each file loads or fails. */
-class SettlingLoader extends THREE.TextureLoader {
-  constructor(private readonly settled: () => void) {
-    super();
-  }
-
-  override loadAsync(url: string, onProgress?: (event: ProgressEvent) => void): Promise<THREE.Texture<HTMLImageElement>> {
-    return super.loadAsync(url, onProgress).finally(this.settled);
-  }
-}
-
 export class CompassScene {
   /**
    * Whether a WebGL2 context can be created here with
@@ -129,6 +126,8 @@ export class CompassScene {
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.PerspectiveCamera(FOV, 1, NEAR, FAR);
   private readonly instrument: InstrumentModel;
+  private readonly wire: WireModel;
+  private readonly tracks: TracksModel;
   private readonly finePointer: boolean;
   /** Null until the display's refresh is measured, and for good if it could not be (no budget then). */
   private budget: PixelBudget | null = null;
@@ -146,6 +145,11 @@ export class CompassScene {
   private glow: THREE.DataTexture | null = null;
   private readonly frameHandlers = new Handlers<() => void>();
   private readonly loadHandlers = new Handlers<(part: LoadPart, share: number) => void>();
+  /** The pointer over the tracks, answering only while the pose lets it. */
+  private readonly picker: TrackPointer;
+  /** Where each section stands in the scroll (setSpans), and the pose last drawn up from it. */
+  private spans: readonly Span[] = nominalSpans();
+  private pose: CompassPose = compassPoseAt(0);
   /** The waits on the intro's end (startIntro's promises). */
   private readonly introEnded: (() => void)[] = [];
   /** Run once after the next frame drawn (letting go of the clearcoat stand-ins once the lacquer has switched). */
@@ -207,12 +211,26 @@ export class CompassScene {
     try {
       this.studio = buildCompassStudio(this.renderer, this.scene, Math.max(...this.ladder().map((step) => step.dust)));
       this.instrument = buildInstrument();
+      this.wire = buildWire();
+      this.tracks = buildTracks();
+      // In the scene from the start, hidden until a pose shows them, so the warm-up compiles their programs with the rest.
+      this.instrument.dial.add(this.wire.mesh);
+      this.instrument.topPlatter().add(this.tracks.group);
+      this.picker = new TrackPointer(this.tracks.hits, this.camera, (track) => {
+        this.canvas.style.cursor = track ? 'pointer' : '';
+        this.dirty = true;
+      });
       this.glow = glowTexture();
       this.pearl = new Pearl(this.glow);
       this.scene.add(this.instrument.root, this.pearl.object);
 
-      // A restored context has lost the environment map and every program and upload, which live only on the GPU.
-      this.listeners.push(['webglcontextrestored', () => this.restore()]);
+      this.listeners.push(
+        ['click', (event) => this.picker.click((event as MouseEvent).offsetX, (event as MouseEvent).offsetY, this.width, this.height)],
+        // Out of the window (no element after it): the tracks lose the pointer. Onto a link over the canvas, pointerAt tells.
+        ['pointerout', (event) => (event as PointerEvent).relatedTarget === null && this.picker.leave()],
+        // A restored context has lost the environment map and every program and upload, which live only on the GPU.
+        ['webglcontextrestored', () => this.restore()]
+      );
       for (const [type, listener] of this.listeners) canvas.addEventListener(type, listener);
 
       this.setQuality(this.quality);
@@ -256,6 +274,38 @@ export class CompassScene {
     this.snapNeedle = this.matched === null;
     this.dirty = true;
     this.update(0);
+  }
+
+  /**
+   * The sections' places in the scroll as the page measured them; until called, the nominal ones. The progress
+   * shown and the one eased towards are carried to the same place among them (carryProgress), so the pose holds.
+   */
+  setSpans(spans: readonly Span[]): void {
+    if (this.disposed || spans.length === 0) return;
+    this.progress = carryProgress(this.progress, this.spans, spans);
+    this.goal = carryProgress(this.goal, this.spans, spans);
+    this.spans = spans;
+    this.dirty = true;
+  }
+
+  /** Lights the top platter's sector `index` for the Q&A's opened question, or none (null). */
+  setSector(index: number | null): void {
+    if (this.disposed) return;
+    this.tracks.setSector(index);
+    this.dirty = true;
+  }
+
+  /**
+   * Calls `handler` as the track under the pointer changes (null included) and on a click on a track, only while
+   * the pose lets the tracks answer (pose.interactive); a click that ends a drag is none. Answers its unsubscribe.
+   */
+  onTrack(handler: TrackHandler): () => void {
+    return this.picker.on(handler);
+  }
+
+  /** Where the read head and the spindle are drawn now (CSS px on the canvas, overlay.ts), and the hovered track. */
+  overlay(): Overlay {
+    return overlayOf(this.instrument, this.pose, this.camera, this.width, this.height, this.picker.hovered);
   }
 
   /** Starts or stops drawing frames, as the canvas comes on screen or leaves it. */
@@ -332,9 +382,11 @@ export class CompassScene {
     return ended;
   }
 
-  /** A mouse or pen at (x, y): the pearl follows it. */
+  /** A mouse or pen at (x, y): the pearl follows it, and the tracks are picked under it while it is on the canvas. */
   pointerAt(x: number, y: number): void {
-    if (!this.disposed) this.target.pointer(x, y, this.clock());
+    if (this.disposed) return;
+    this.target.pointer(x, y, this.clock());
+    this.picker.move(x, y, this.width, this.height);
   }
 
   /** A finger down at (x, y): the pearl goes there for a moment. */
@@ -352,10 +404,11 @@ export class CompassScene {
     if (!this.disposed) this.target.wake(this.clock());
   }
 
-  /** A press at (x, y) of `kind`, in CSS px (client or canvas, as long as the moves match), for the free turn. */
+  /** A press at (x, y) of `kind`, in CSS px (client or canvas, as long as the moves match), for the free turn; none takes hold while the needle becomes the arm. */
   dragStart(x: number, y: number, kind: PointerKind): void {
     if (this.disposed) return;
-    this.turn.down(x, y, kind);
+    this.picker.pressed();
+    if (!freeTurnLocked(this.pose.drive.arm)) this.turn.down(x, y, kind);
     this.target.wake(this.clock());
   }
 
@@ -366,14 +419,18 @@ export class CompassScene {
     this.target.wake(this.clock());
   }
 
-  /** The press ends: the dial coasts and settles on a whole turn, the tip springs back. */
+  /** The press ends: the dial coasts and settles on a whole turn, the tip springs back; a click after a turn is ignored. */
   dragEnd(): void {
-    if (!this.disposed) this.turn.up(this.clock());
+    if (this.disposed) return;
+    this.picker.released(this.turn.engaged);
+    this.turn.up(this.clock());
   }
 
   /** The press was taken away (pointercancel, lostpointercapture): released with no speed. */
   dragCancel(): void {
-    if (!this.disposed) this.turn.cancel();
+    if (this.disposed) return;
+    this.picker.released(this.turn.engaged);
+    this.turn.cancel();
   }
 
   /**
@@ -381,7 +438,8 @@ export class CompassScene {
    * step, the spin and the needle (radians, on the dial), the pearl (CSS px),
    * and the dial as drawn: its projected centre and rim diameter in CSS px; the
    * free turn's tip (radians), the count of frames drawn, and the image maps
-   * the scene holds (brass, lacquer, portrait).
+   * the scene holds (brass, lacquer, portrait); the pose's drive, head, park,
+   * platter, test point, interactivity and dimming; and the programs compiled.
    */
   debugState(): {
     section: string;
@@ -394,8 +452,12 @@ export class CompassScene {
     rim: { x: number; y: number; diameter: number };
     frames: number;
     maps: string[];
+    drive: CompassPose['drive'];
+    head: number; park: number; platter: number; tp: CompassPose['tracks']['tp'];
+    interactive: boolean; dim: number; programs: number;
   } {
-    const { id, local } = locate(this.progress);
+    const { id, local } = locate(this.progress, this.spans);
+    const { drive, head, park, platter, tracks, interactive, dim } = this.pose;
     return {
       section: id,
       local,
@@ -404,9 +466,17 @@ export class CompassScene {
       tip: this.tip,
       bearing: this.needle,
       pearl: [this.pearlAt[0], this.pearlAt[1]],
-      rim: this.rim(),
+      rim: rimOf(this.instrument.dial, this.camera, this.width, this.height),
       frames: this.frames,
-      maps: Object.keys(this.textures).sort()
+      maps: Object.keys(this.textures).sort(),
+      drive: { ...drive },
+      head,
+      park,
+      platter,
+      tp: tracks.tp,
+      interactive,
+      dim,
+      programs: this.renderer.info.programs?.length ?? 0
     };
   }
 
@@ -421,7 +491,13 @@ export class CompassScene {
     for (const [type, listener] of this.listeners) this.canvas.removeEventListener(type, listener);
     this.frameHandlers.clear();
     this.loadHandlers.clear();
+    this.picker?.clear();
+    this.canvas.style.cursor = '';
     this.endIntro();
+    // The wire and the tracks first, out of the model, so each frees its own once.
+    this.wire?.mesh.removeFromParent();
+    this.wire?.dispose();
+    this.tracks?.dispose();
     this.instrument?.dispose();
     this.freeMaps();
     this.releaseCoat?.();
@@ -475,17 +551,18 @@ export class CompassScene {
 
   /**
    * One step of `dt` seconds: eases the progress, places the camera, the
-   * pearl and the lean, turns the dial, steers the needle and poses the
-   * model; the intro moves on by `introDt` (the tick's step on a frame that
-   * is drawn, else 0). Answers whether everything is still (asleep()); the
-   * dust and the haze move on only when it is not.
+   * pearl and the lean, turns the dial, picks the tracks, steers the needle,
+   * poses the parts (applyPose) and dims the studio; the intro moves on by
+   * `introDt` (the tick's step on a frame that is drawn, else 0). Answers
+   * whether everything is still (asleep()); the dust and the haze move on only when it is not.
    */
   private update(dt: number, introDt = 0): boolean {
     const { width, height } = this;
     const sized = width > 0 && height > 0;
     this.progress = THREE.MathUtils.damp(this.progress, this.goal, PROGRESS_DAMP, dt);
     if (Math.abs(this.goal - this.progress) < 1e-5) this.progress = this.goal;
-    const pose = compassPoseAt(this.progress);
+    const pose = compassPoseAt(this.progress, this.spans);
+    this.pose = pose;
 
     // The camera, and how much of the pose's own shot (and of the lean) the hand-over lets in.
     const own = this.intro === null ? (this.matched ? 0 : 1) : this.introStep(introDt);
@@ -493,7 +570,7 @@ export class CompassScene {
     placeCamera(this.camera, shot, width, height);
 
     // The pearl, eased toward where it wants to be (and put straight there the first time).
-    const [wantX, wantY] = this.target.at(this.clock(), width, height, dialLayout(width, height));
+    const [wantX, wantY] = this.target.at(this.clock(), width, height, layoutFor(width, height, pose.framing.side));
     const ease = (from: number, to: number): number => {
       const next = this.pearlPlaced ? easePearl(from, to, dt) : to;
       return Math.abs(to - next) < STILL.pearl ? to : next;
@@ -506,7 +583,8 @@ export class CompassScene {
     const ndcX = sized ? (this.pearlAt[0] / width) * 2 - 1 : 0;
     const ndcY = sized ? 1 - (this.pearlAt[1] / height) * 2 : 0;
 
-    // The free turn, and the lean toward the pearl on top of the tip.
+    // The free turn (a drag let go while the needle becomes the arm), and the lean toward the pearl on top of the tip.
+    if (freeTurnLocked(pose.drive.arm)) this.turn.cancel();
     const turn = this.turn.step(dt, tipLimit(shot.tilt));
     const spin = wrapAngle(turn.spin);
     this.tip = turn.tip;
@@ -515,6 +593,10 @@ export class CompassScene {
     this.instrument.spin.rotation.y = spin;
     root.rotation.set(-lean * THREE.MathUtils.clamp(ndcY, -1, 1) + turn.tip, lean * THREE.MathUtils.clamp(ndcX, -1, 1), 0);
     root.updateMatrixWorld(true);
+
+    // The tracks answer the pointer while the pose says, picked again every step (they move under a still pointer); before
+    // the pose, so a new hover is lit on this step's frame.
+    this.picker.step(pose.interactive);
 
     // The pearl on its plane, 0.6 rim in front of the face centre along the face's normal.
     this.anchor.set(0, 1, 0).transformDirection(dial.matrixWorld).multiplyScalar(PEARL.plane * DIAL.rim);
@@ -529,9 +611,9 @@ export class CompassScene {
     if (this.snapNeedle) this.spring.set(heading, 0);
     this.snapNeedle = false;
     this.needle = wrapAngle(this.spring.step(heading, dt) + spin);
-    // The drive stays folded away here: the scene does not carry the drive's sections yet.
-    this.instrument.applyPose({ bearing: this.needle, lift: pose.needle.lift, portrait: pose.portrait, threads: pose.threads, ...FOLDED_DRIVE });
-    this.instrument.setPattern(pose.pattern.from, pose.pattern.to, pose.pattern.sweep, pose.pattern.origin);
+    // Once the arm turns onto its track, the instrument steers it itself.
+    applyPose(this.instrument, this.wire, this.tracks, pose, this.needle, this.picker.hovered);
+    this.studio?.setDim(pose.dim);
 
     const still = asleep({
       idle: this.target.idle(this.clock()),
@@ -568,23 +650,14 @@ export class CompassScene {
     for (const resolve of this.introEnded.splice(0)) resolve();
   }
 
-  /** The pose's own shot for the canvas, or `own` of the way there from the matched shot. */
+  /** The pose's own shot for the canvas (its layout `side` of the way to the Q&A's), or `own` of the way there from the matched shot. */
   private shotFor(pose: CompassPose, own: number): Shot {
-    const current: Shot = { layout: dialLayout(this.width, this.height), ...pose.framing };
+    const { tilt, zoom, near, side } = pose.framing;
+    const current: Shot = { layout: layoutFor(this.width, this.height, side), tilt, zoom, near };
     if (!this.matched) return current;
     return own <= 0 ? this.matched : lerpShot(this.matched, current, own);
   }
 
-  /** The dial as drawn: the face centre and a rim point along the camera's right, projected to CSS px. */
-  private rim(): { x: number; y: number; diameter: number } {
-    if (!(this.width > 0 && this.height > 0)) return { x: 0, y: 0, diameter: 0 };
-    const toPixels = (p: THREE.Vector3): [number, number] => [((p.x + 1) / 2) * this.width, ((1 - p.y) / 2) * this.height];
-    const centre = new THREE.Vector3().setFromMatrixPosition(this.instrument.dial.matrixWorld);
-    const edge = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 0).normalize().multiplyScalar(DIAL.rim).add(centre);
-    const [x, y] = toPixels(centre.project(this.camera));
-    const [ex, ey] = toPixels(edge.project(this.camera));
-    return { x, y, diameter: 2 * Math.hypot(ex - x, ey - y) };
-  }
 
   /** The quality ladder for this pointer, best first. */
   private ladder(): Quality[] {
@@ -608,15 +681,13 @@ export class CompassScene {
 
   /** Every map the scene holds: the image textures and the painted canvases. */
   private maps(): THREE.Texture[] {
-    const painted = this.painted ? [this.painted.face, this.painted.mr, ...Object.values(this.painted.strips)] : [];
-    return [...Object.values(this.textures), ...painted].filter((map): map is THREE.Texture => !!map);
+    return [...Object.values(this.textures), ...paintedMaps(this.painted)].filter((map): map is THREE.Texture => !!map);
   }
 
   /** Frees every map's GPU side and lets go of them, emptying the painted canvases (some 35 MB on a fine pointer). */
   private freeMaps(): void {
     for (const map of this.maps()) map.dispose();
-    const painted = this.painted ? [this.painted.face, this.painted.mr, ...Object.values(this.painted.strips)] : [];
-    for (const map of painted) {
+    for (const map of paintedMaps(this.painted)) {
       const canvas = map.image as HTMLCanvasElement;
       canvas.width = canvas.height = 0;
     }

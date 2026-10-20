@@ -5,7 +5,7 @@ import 'lenis/dist/lenis.css';
 import { Component } from '../core/Component';
 import { Motion } from '../core/Motion';
 import { $, $$ } from '../core/dom';
-import { compassPoseAt, type SectionId } from '../three/Choreography';
+import { compassPoseAt, nominalSpans, spansFromOffsets, type SectionId, type Span } from '../three/Choreography';
 import { CompassScene } from '../three/CompassScene';
 import type { PointerKind } from '../three/FreeTurn';
 
@@ -30,10 +30,13 @@ export interface CompassStageOptions {
  * The compass stage (CompassStage.astro): Lenis smooth scrolling and one
  * ScrollTrigger over the track scrub the compass through the sections
  * (CompassScene.setProgress), and fade each section's text by the
- * choreography (`--shown`). The pearl follows a mouse or pen anywhere on the
- * page, goes to a touch and to the focused control, and wakes on a scroll or
- * a key; a drag on the stage turns the dial. The scene draws only while the
- * stage is on screen and the tab is visible. With reduced motion, where
+ * choreography (`--shown`), each section's share of the scroll measured off
+ * the page (the Q&A is as tall as its content) and handed to the scene
+ * (setSpans): on start, after every ScrollTrigger refresh (a resize among
+ * them) and on a `toggle` inside the track. The pearl follows a mouse or pen
+ * anywhere on the page, goes to a touch and to the focused control, and wakes
+ * on a scroll or a key; a drag on the stage turns the dial. The scene draws
+ * only while the stage is on screen and the tab is visible. With reduced motion, where
  * CompassScene.supported() is false, without the boot script's `js-motion`
  * flag (BenchLayout), or if the scene fails to start, the stage is marked
  * `data-fallback` and the sections read as a plain stacked page.
@@ -51,6 +54,8 @@ export class CompassStageController extends Component {
   /** False while a hand-over is under way: the scene is the loader's to switch on until then. */
   private handedOver: boolean;
   private sections: [HTMLElement, SectionId][] = [];
+  /** Each section's place in the scroll, as last measured (measuredSpans); the scene locates its pose among the same. */
+  private spans: readonly Span[] = nominalSpans();
 
   constructor(private readonly options: CompassStageOptions = {}) {
     super();
@@ -122,8 +127,32 @@ export class CompassStageController extends Component {
       onUpdate: (self) => this.progress(self.progress)
     });
     this.onCleanup(() => trigger.kill());
-    // Set before the first frame, so a reload mid-page shows the compass where the scroll is, with no sweep replayed.
+    const measure = (): void => {
+      this.spans = measuredSpans(track, this.sections) ?? nominalSpans();
+      scene.setSpans(this.spans);
+    };
+    // Measured before the first frame and set there, so a reload mid-page shows the compass where the scroll is, with no
+    // sweep replayed.
+    measure();
     this.progress(trigger.progress);
+    // Every refresh (a resize, the page's load) may have moved the sections: measured again, the text faded again.
+    const refreshed = (): void => {
+      measure();
+      this.progress(trigger.progress);
+    };
+    ScrollTrigger.addEventListener('refresh', refreshed);
+    this.onCleanup(() => ScrollTrigger.removeEventListener('refresh', refreshed));
+    // A question opened or closed (the Q&A's <details>; `toggle` does not bubble, so it is caught on the way down): the
+    // track's height has changed, so the trigger is refreshed, and the spans with it.
+    this.listen(
+      track,
+      'toggle',
+      () => {
+        ScrollTrigger.refresh();
+        lenis.resize();
+      },
+      { capture: true }
+    );
 
     // A batch can hold several changes for the stage; the last is where it is now.
     const observer = new IntersectionObserver((entries) => {
@@ -149,6 +178,7 @@ export class CompassStageController extends Component {
       const progress = trigger.progress;
       const inside = trigger.isActive && progress > 0 && progress < 1;
       scene.resize();
+      // Its refresh event measures the spans again (refreshed).
       ScrollTrigger.refresh();
       lenis.resize();
       if (inside) lenis.scrollTo(trigger.start + progress * (trigger.end - trigger.start), { immediate: true });
@@ -322,15 +352,31 @@ export class CompassStageController extends Component {
     this.scene?.setActive(active);
   }
 
-  /** Moves the scene to `progress` and fades each section's text as the choreography has it there. */
+  /** Moves the scene to `progress` and fades each section's text as the choreography has it there, among the measured spans. */
   private progress(progress: number): void {
     // The first call (a page opening partway down, as after a reload) puts the compass where the scroll is,
     // rather than easing it there from the top.
     this.scene?.setProgress(progress, { immediate: !this.started });
     this.started = true;
-    const { text } = compassPoseAt(progress);
+    const { text } = compassPoseAt(progress, this.spans);
     for (const [section, id] of this.sections) section.style.setProperty('--shown', String(text[id] ?? 1));
   }
+}
+
+/**
+ * The sections' spans as laid out now: each one's top from the track's top (as
+ * an offsetTop from the track would read, sub-pixel), over the track's scroll
+ * range, its height less the viewport's (the ScrollTrigger runs `top top` to
+ * `bottom bottom`). Null where there is no range to scroll or no section.
+ */
+function measuredSpans(track: HTMLElement, sections: readonly [HTMLElement, SectionId][]): Span[] | null {
+  const range = track.offsetHeight - window.innerHeight;
+  if (!(range > 0) || sections.length === 0) return null;
+  const top = track.getBoundingClientRect().top;
+  return spansFromOffsets(
+    sections.map(([section, id]) => ({ id, top: section.getBoundingClientRect().top - top })),
+    range
+  );
 }
 
 /** Whether `element` has the keyboard's focus ring (`:focus-visible`); true where a browser cannot tell. */

@@ -21,6 +21,11 @@ export interface Painted {
   strips: Record<HomeId, THREE.CanvasTexture>;
 }
 
+/** Every canvas texture painted (none for null): the face, its roughness/metalness map and the strips. */
+export function paintedMaps(painted: Painted | null): THREE.CanvasTexture[] {
+  return painted ? [painted.face, painted.mr, ...Object.values(painted.strips)] : [];
+}
+
 /** The face's canvas size, for a fine and a coarse pointer. */
 export const FACE_SIZE = { fine: 2048, coarse: 1024 } as const;
 

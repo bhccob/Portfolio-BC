@@ -59,6 +59,8 @@ export const COMPASS_STUDIO = {
    */
   key: { color: 0xffffff, intensity: 4.35, position: [-3, 4, 5] as const },
   rim: { color: 0x8a5cff, intensity: 1.6, position: [2, -1, -4] as const },
+  /** How much of the key, the rim and the room's light is left with the drive dimmed for the Q&A (the pose's `dim` at 1). */
+  dim: 0.45,
   /** The backdrop's glow, behind the dial and a little low. */
   backdrop: [0, -0.15, -1] as const,
   /** The box the dust fills, round the dial and in front of it. */
@@ -69,6 +71,8 @@ export interface CompassStudio {
   dust: Dust;
   /** Moves the dust and the haze on to `seconds`. */
   setTime(seconds: number): void;
+  /** Dims the key, the rim and the room's light: 0 full strength … 1 to COMPASS_STUDIO.dim of it (dimmed). */
+  setDim(t: number): void;
   /** Prefilters the room again: after a lost context, whose copy lived only on the GPU. */
   relight(): void;
   dispose(): void;
@@ -98,6 +102,14 @@ export function shoulder(): void {
   const chunk = THREE.ShaderChunk.tonemapping_pars_fragment;
   const plain = 'vec3 CustomToneMapping( vec3 color ) { return color; }';
   if (chunk.includes(plain)) THREE.ShaderChunk.tonemapping_pars_fragment = chunk.replace(plain, SHOULDER);
+}
+
+/** What the studio's light is multiplied by at dim `t` (0..1, held there; NaN reads as 0): 1 down to COMPASS_STUDIO.dim. */
+export function dimmed(t: number): number {
+  const x = Number.isNaN(t) ? 0 : Math.min(1, Math.max(0, t));
+  if (x <= 0) return 1;
+  if (x >= 1) return COMPASS_STUDIO.dim;
+  return 1 + (COMPASS_STUDIO.dim - 1) * x;
 }
 
 /** The direction a card faces the middle from, unit length. */
@@ -160,13 +172,14 @@ export function buildCompassStudio(renderer: THREE.WebGLRenderer, scene: THREE.S
   };
   relight();
 
-  const lights = (['key', 'rim'] as const).map((name) => {
+  const lit = (['key', 'rim'] as const).map((name): ['key' | 'rim', THREE.DirectionalLight] => {
     const { color, intensity, position } = look[name];
     const light = new THREE.DirectionalLight(color, intensity);
     light.name = name;
     light.position.set(position[0], position[1], position[2]);
-    return light;
+    return [name, light];
   });
+  const lights = lit.map(([, light]) => light);
   const backdrop: Backdrop = buildBackdrop({ direction: look.backdrop });
   const motes = buildDust({ max: dust, volume: look.dust });
   const haze: Haze = buildHaze();
@@ -177,6 +190,12 @@ export function buildCompassStudio(renderer: THREE.WebGLRenderer, scene: THREE.S
     setTime(seconds) {
       motes.setTime(seconds);
       haze.setTime(seconds);
+    },
+    setDim(t) {
+      // Intensities are uniforms: no program changes.
+      const factor = dimmed(t);
+      for (const [name, light] of lit) light.intensity = look[name].intensity * factor;
+      scene.environmentIntensity = look.room.intensity * factor;
     },
     relight,
     dispose() {

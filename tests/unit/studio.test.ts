@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { BACKDROP, buildBackdrop } from '../../src/scripts/three/studio/Backdrop';
 import { buildDust } from '../../src/scripts/three/studio/Dust';
-import { shoulder } from '../../src/scripts/three/studio/CompassStudio';
+import { COMPASS_STUDIO, dimmed, shoulder } from '../../src/scripts/three/studio/CompassStudio';
 
 describe('the backdrop', () => {
   const direction = (backdrop: ReturnType<typeof buildBackdrop>): THREE.Vector3 =>
@@ -76,5 +76,17 @@ describe("the compass studio's tone mapping", () => {
     expect(custom).not.toContain('offset');
     // Neutral itself is left as it was.
     expect(chunk).toContain('float offset = x < 0.08 ? x - 6.25 * x * x : 0.04;');
+  });
+});
+
+describe("the compass studio's dimming", () => {
+  it('takes the key, the rim and the room from full strength down to 45% for the Q&A', () => {
+    expect(COMPASS_STUDIO.dim).toBe(0.45);
+    expect(dimmed(0)).toBe(1);
+    expect(dimmed(1)).toBe(0.45);
+    expect(dimmed(0.5)).toBeCloseTo(0.725, 12);
+    expect(dimmed(-1)).toBe(1);
+    expect(dimmed(2)).toBe(0.45);
+    expect(dimmed(Number.NaN)).toBe(1);
   });
 });

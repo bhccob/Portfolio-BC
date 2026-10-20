@@ -43,6 +43,17 @@ export interface InstrumentTextures { brass?: THREE.Texture; lacquer?: THREE.Tex
  * that will not wait for them all (CompassScene). Anisotropy is left to the
  * caller, which has the renderer.
  */
+/** A TextureLoader that calls `settled` as each file loads or fails (the load's progress). */
+export class SettlingLoader extends THREE.TextureLoader {
+  constructor(private readonly settled: () => void) {
+    super();
+  }
+
+  override loadAsync(url: string, onProgress?: (event: ProgressEvent) => void): Promise<THREE.Texture<HTMLImageElement>> {
+    return super.loadAsync(url, onProgress).finally(this.settled);
+  }
+}
+
 export async function loadInstrumentTextures(
   portraitUrl?: string,
   loader?: THREE.TextureLoader,
