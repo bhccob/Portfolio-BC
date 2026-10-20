@@ -439,7 +439,8 @@ export const en = {
       enterSound: 'Enter with sound'
     },
     fallback: { title: 'THE NEEDLE LOST NORTH', lite: 'Open the Lite version' },
-    toggle: { on: '3D on', off: '3D off' },
+    /** The 3D switch: `label` is its accessible name, the same in both states (the switch's checked state says which); `on` and `off` are what it shows. */
+    toggle: { label: '3D', on: '3D on', off: '3D off' },
     /** The link to the Lite page that every page shows. */
     liteLink: 'Lite version',
     parts,

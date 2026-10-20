@@ -354,7 +354,7 @@ export const nl: Dictionary = {
       enterSound: 'Binnenkomen met geluid'
     },
     fallback: { title: 'DE NAALD IS HET NOORDEN KWIJT', lite: 'Open de lichte versie' },
-    toggle: { on: '3D aan', off: '3D uit' },
+    toggle: { label: '3D', on: '3D aan', off: '3D uit' },
     liteLink: 'Lichte versie',
     parts: {
       lid: { name: 'Deksel', line: 'Beschermt de wijzerplaat als het kompas reist.' },
