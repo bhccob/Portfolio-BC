@@ -179,7 +179,7 @@ The visitor's cursor is the **pearl** that the dragon chases in a dragon dance, 
       - The tracks run from the outer edge inwards, as a drive counts its tracks.
       - Scrolling steps the arm from track to track. On each track, the platter turns the project's four test points (TP1–TP4) under the head one by one, the way a drive reads.
       - In the text column, for the track under the head only: the name, the category, one line and "Open project".
-      - Hovering a track lights it and shows only its name, as a small label; clicking a track or the link opens the project.
+      - Hovering a track lights it and shows only its name, as a small label; clicking a track (with a mouse or pen) or the link opens the project. On touch, a tap on the platter opens nothing, so a stray tap never leaves the page; the link in the text opens it.
       - Until milestone 6 builds the project pages, a track links where its project lives today: Jontai Energy and Cookies Clicker their current pages, Funcial its repository. Bare metal has no link.
       - Each track has a real anchor at its scroll position, so `/#<slug>` lands on it.
    6. **Off duty: the spindle.** *(Carries over: the heaven pool, now the spindle motor.)*
