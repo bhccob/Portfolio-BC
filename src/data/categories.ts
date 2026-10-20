@@ -1,5 +1,4 @@
 import type { Locale } from '../i18n/Translator';
-import type { IconName } from '../components/ui/icons';
 
 export type CategoryId = 'web-development' | 'game-development';
 
@@ -13,7 +12,6 @@ export interface CategoryCopy {
 export interface CategoryData {
   id: CategoryId;
   number: number;
-  icon: IconName;
   /** Short code shown on flap tiles, e.g. "WEB". */
   code: string;
   copy: Record<Locale, CategoryCopy>;
@@ -29,7 +27,6 @@ export class Category {
 
   get id() { return this.data.id; }
   get number() { return this.data.number; }
-  get icon() { return this.data.icon; }
   get code() { return this.data.code; }
 
   /** "#01", "#02", … */
@@ -68,7 +65,6 @@ export const categories = new CategoryCatalog([
   {
     id: 'web-development',
     number: 1,
-    icon: 'braces',
     code: 'WEB',
     copy: {
       en: {
@@ -90,7 +86,6 @@ export const categories = new CategoryCatalog([
   {
     id: 'game-development',
     number: 2,
-    icon: 'controller',
     code: 'GAME',
     copy: {
       en: {

@@ -2,16 +2,16 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "astro-dev",
+      "name": "needle-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 4321
+      "port": 5173
     },
     {
-      "name": "astro-preview",
+      "name": "needle-pages",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "preview"],
-      "port": 4321
+      "port": 4399
     }
   ]
 }

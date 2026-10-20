@@ -1,6 +1,5 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { LOADING, SEEN_KEY, huntAt, huntRate, loadedShare, loaderVerdict, readout, screenBearing } from '../../src/scripts/compass/loading';
+import { LOADING, huntAt, huntRate, loadedShare, loaderVerdict, readout, screenBearing } from '../../src/scripts/compass/loading';
 describe('the loader', () => {
   it('weighs the parts and clamps them', () => {
     expect(loadedShare({})).toBe(0); expect(loadedShare({ scene: 1, textures: 1, warm: 1 })).toBeCloseTo(1);
@@ -21,9 +20,5 @@ describe('the loader', () => {
   it('hands over the hunt at its own speed', () => {
     // The derivative, by a central difference.
     for (const t of [0, 0.7, 2.5]) expect(huntRate(t)).toBeCloseTo((huntAt(t + 1e-4) - huntAt(t - 1e-4)) / 2e-4, 2);
-  });
-  it('marks the session under the key the boot script reads', () => {
-    const layout = readFileSync(new URL('../../src/layouts/BenchLayout.astro', import.meta.url), 'utf8');
-    expect(layout).toContain(`sessionStorage.getItem('${SEEN_KEY}')`);
   });
 });

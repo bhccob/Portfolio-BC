@@ -1,0 +1,94 @@
+# Audit: from revision 4 to Needle
+
+Branch `needle` (from `redesign-bench`), 2026-10-20. This page records what the
+rebuild started from, and what was kept, moved, adapted or dropped, and why. It
+draws on the approved roadmap ("Follow the Needle"), its "Facts found while
+planning" and "Reuse" sections. The Astro site stays intact on `main` and
+`redesign-bench`.
+
+## What existed
+
+- **Revision 4** on `redesign-bench`: Astro + TypeScript with a vanilla three.js
+  compass (M3) that turns into a hard drive (M4), Lenis scrolling, 329 unit
+  tests, the Python auditor `tools/site_audit.py`, and the proof harness
+  `tools/proof/compass.mjs` (playwright-core outside the repo, headless Edge).
+- **Tools:** no Higgsfield CLI, ffmpeg or Blender. The Higgsfield tools are
+  connected and replace the brief's CLI steps with the same models
+  (`gpt_image_2_5`, `seedance_2_5`).
+- **Projects:** Funcial (verified layers: LOG, GAME LAYER, MONEY RULES, VAULT;
+  RESULT only partly real), Jontai Energy (committed state only; the live site
+  is his brother's build and is not linked as Bob's), Cookies Clicker (the
+  GitHub repo; the local clone is stale).
+- **Bio facts:** born and raised in Aruba, Chinese heritage, moved to the
+  Netherlands at 18, Rotterdam, MBO 4, HBO next. Everything else is `[FILL]`.
+- **Old URLs that must keep working:** `/contact/`, `/projects/web-development/`,
+  `/projects/game-development/`, `/projects/web-development/cookies-clicker/`,
+  `/career/*.html`, `/nl/**`, `/jontai-energy.html`, `/cookies-clicker.html`.
+  Task 3 generates their redirect stubs from `src/data/redirects.ts`.
+- Bob's `astro dev` runs on :4321 from the main checkout, so all work happens
+  in the `needle` worktree and never touches that port.
+
+## Kept in place
+
+| What | Why |
+| --- | --- |
+| `src/i18n/{en,nl,Translator}.ts` | today's copy and the locale URLs; a `needle` block is added in Task 4a |
+| `src/data/{profile,projects,categories,qa,tracks}.ts` | the content; `projects` and `categories` lost their Astro types in Task 1 and are reshaped in Task 4a |
+| `src/assets/**`, `public/**` | screenshots, the real portrait, the renders, icons and `public/textures/instrument/*.webp` |
+| `src/styles/bench-*.css` | mined for tokens in Task 4a, then deleted |
+| `tools/site_audit.py` + its tests, `tools/glyphs.mjs`, `tools/icons.mjs` | the auditor, the real CJK glyph outlines, the raster icons |
+| `tools/proof/compass.mjs` | the model for `tools/proof/needle.mjs`; it remains as the revision-4 harness |
+
+## Moved unchanged (Task 2, `git mv`)
+
+`src/scripts/three/**` → `src/engine/**`, tests → `tests/unit/engine/**`:
+
+- all of `instrument/*`: dialSpec, glyphs, dialSvg, face, patterns, paint,
+  textures, Annulus, Instrument, Needle + armState, BasePlate, drive,
+  DriveParts, Tracks, materials, Pool, Wire, wirePath
+- `studio/{Backdrop,Dust,Haze,noise,CompassStudio}`
+- AngleSpring (needle settle), FreeTurn, CameraRig, palette, quality,
+  stillness, TextureWarmup
+- `core/{Handlers,deadline,SafeStorage}` and `compass/loading.ts`
+
+Choreography, applyPose, overlay, Pool and Wire move only to pose the M1
+placeholder compass; M2 replaces them.
+
+## Adapted later
+
+- A new `engine/pose.ts` is cut out of Choreography.
+- `CompassStudio` is split into a studio module and the tone shoulder, which
+  also becomes a postprocessing effect (Task 7).
+- `patterns.ts` gains `china`, `delft` and `aruba` arm and bezel inlays;
+  `rotterdam` is dropped.
+- The data files move into the new Project type (Task 4a).
+
+## Dropped
+
+| What | Why |
+| --- | --- |
+| Astro, `@astrojs/sitemap`, `astro.config.mjs` | React Router 8 framework mode prerenders every page instead; the sitemap becomes a post-build script |
+| every `.astro` file: `src/pages`, `layouts`, `views`, `components`; `src/og` | pages become React routes; the share image becomes a post-build crop |
+| `src/scripts/{main,compass-main}.ts`, `src/scripts/{ui,fun,hero,contact}/**` | the old DOM components; the contact logic returns as `src/ui/contactSubmit.ts` (Task 4b) |
+| `core/{App,Component,dom,Motion,Signal}` | the vanilla component layer, replaced by React |
+| `compass/{CompassStageController,live,reading}` | the Lenis-driven controller and reading model; replaced by the state machine, chapters and virtual scroll (Tasks 5 and 6) |
+| CompassScene, RenderLoop, PixelBudget (Task 2) | R3F's Canvas, demand frameloop and quality governor take over |
+| Choreography's 16 sections | the brief's phases and chapters replace them |
+| Pearl, pearlSpec, ChipPointer, TrackPointer (Task 2) | the pearl cursor and track pointers are not in the brief |
+| Lenis | banned; scrolling is virtual on home |
+| `src/styles/{base,tokens}.css` | rewritten from the art-direction palette in Task 4a |
+| Bagel Fat One, Yellowtail, Sofia Sans (+ Extra Condensed), Geist, the static Martian Mono and Sofia Sans | Montserrat (name, tagline, reading text), Unbounded (heavy titles) and Martian Mono (labels) replace them |
+| tests `reading`, `pearl-spec`, and the `loading` case that read `BenchLayout.astro` | their subjects were deleted |
+
+The brief also drops the Ørsted wire, the heaven-pool portrait, and the Q&A and
+Off duty on the drive (both now on the Lite page). About 210 of the 329 tests
+are expected to survive Task 2.
+
+## The toolchain now
+
+React Router + `@react-router/dev` 8.5.0 (`ssr: false`, prerendered), Vite
+8.3.4, React 19.3.1, three 0.186.1, `@react-three/fiber` 9.8.2 (needs React
+below 19.4), drei 10.7.9, `@react-three/postprocessing` 3.2.1 with
+postprocessing 6.39.5, maath, zustand and gsap. The build writes
+`dist/client`; `tools/serve-pages.mjs` serves it on :4399 as GitHub Pages
+would.

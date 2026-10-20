@@ -1,11 +1,9 @@
-import type { ImageMetadata } from 'astro';
 import type { Locale } from '../i18n/Translator';
 import { categories, type Category, type CategoryId } from './categories';
 
 // Screenshots live in src/assets. A project names its file once; that name
-// gives both the optimised image for <Picture> and the source file the
-// build-time share image (src/og/) reads.
-const screenshots = import.meta.glob<{ default: ImageMetadata }>('../assets/*.{png,jpg,jpeg,webp}', { eager: true });
+// gives both the built image URL and the source file build-time tools read.
+const screenshots = import.meta.glob<string>('../assets/*.{png,jpg,jpeg,webp}', { query: '?url', import: 'default', eager: true });
 
 export interface ProjectCopy {
   /** Kind of work and context, e.g. "Web game · School project". */
@@ -48,10 +46,10 @@ export class Project {
   get title() { return this.data.title; }
   get year() { return this.data.year; }
   get repo() { return this.data.repo; }
-  get image(): ImageMetadata {
-    const module = screenshots[`../assets/${this.data.image}`];
-    if (!module) throw new Error(`Missing screenshot src/assets/${this.data.image} for ${this.data.slug}`);
-    return module.default;
+  get image(): string {
+    const url = screenshots[`../assets/${this.data.image}`];
+    if (!url) throw new Error(`Missing screenshot src/assets/${this.data.image} for ${this.data.slug}`);
+    return url;
   }
 
   /** Repository-relative path of the screenshot, for build-time tools. */
