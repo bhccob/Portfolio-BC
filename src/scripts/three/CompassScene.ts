@@ -300,7 +300,8 @@ export class CompassScene {
 
   /**
    * Calls `handler` as the track under the pointer changes (null included) and on a click on a track, only while
-   * the pose lets the tracks answer (pose.interactive); a click that ends a drag is none. Answers its unsubscribe.
+   * the pose lets the tracks answer (pose.interactive); a click that ends a drag is none, and so is a finger's tap (the
+   * section's own link is the way on touch; TrackPointer.clickOpens). Answers its unsubscribe.
    */
   onTrack(handler: TrackHandler): () => void {
     return this.picker.on(handler);
@@ -410,7 +411,7 @@ export class CompassScene {
   /** A press at (x, y) of `kind`, in CSS px (client or canvas, as long as the moves match), for the free turn; none takes hold while the needle becomes the arm. */
   dragStart(x: number, y: number, kind: PointerKind): void {
     if (this.disposed) return;
-    this.picker.pressed();
+    this.picker.pressed(kind);
     if (!freeTurnLocked(this.pose.drive.arm)) this.turn.down(x, y, kind);
     this.target.wake(this.clock());
   }

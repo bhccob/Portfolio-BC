@@ -7,7 +7,7 @@ import { buildInstrument } from '../../src/scripts/three/instrument/Instrument';
 import { buildTracks } from '../../src/scripts/three/instrument/Tracks';
 import { buildWire } from '../../src/scripts/three/instrument/Wire';
 import { toScreen } from '../../src/scripts/three/overlay';
-import { TrackPointer } from '../../src/scripts/three/TrackPointer';
+import { clickOpens, TrackPointer } from '../../src/scripts/three/TrackPointer';
 
 const W = 1440;
 const H = 900;
@@ -87,16 +87,57 @@ describe('TrackPointer', () => {
     expect(handler.mock.calls).toEqual([['jontai-energy', 'click']]);
     pointer.click(between.x, between.y, W, H);
     expect(handler).toHaveBeenCalledTimes(1);
-    pointer.pressed();
+    pointer.pressed('mouse');
     pointer.released(true);
     pointer.click(jontai.x, jontai.y, W, H);
     expect(handler).toHaveBeenCalledTimes(1);
     // Only that one click: the next counts again, as does one after a press that did not turn.
     pointer.click(jontai.x, jontai.y, W, H);
-    pointer.pressed();
+    pointer.pressed('mouse');
     pointer.released(false);
     pointer.click(jontai.x, jontai.y, W, H);
     expect(handler).toHaveBeenCalledTimes(3);
+  });
+
+  it('answers no click for a finger: a tap on a track opens nothing, while a mouse or pen click does', () => {
+    const { pointer, handler, jontai } = setUp();
+    pointer.step(true);
+    // A tap: the finger comes down and goes up without turning the dial, then the click arrives.
+    pointer.pressed('touch');
+    pointer.released(false);
+    pointer.click(jontai.x, jontai.y, W, H);
+    expect(handler).not.toHaveBeenCalled();
+    // The next press decides its own click: a pen, then a mouse, open the track; a finger again does not.
+    pointer.pressed('pen');
+    pointer.released(false);
+    pointer.click(jontai.x, jontai.y, W, H);
+    expect(handler.mock.calls).toEqual([['jontai-energy', 'click']]);
+    pointer.pressed('touch');
+    pointer.released(false);
+    pointer.click(jontai.x, jontai.y, W, H);
+    pointer.pressed('mouse');
+    pointer.released(false);
+    pointer.click(jontai.x, jontai.y, W, H);
+    expect(handler.mock.calls).toEqual([['jontai-energy', 'click'], ['jontai-energy', 'click']]);
+    expect(clickOpens('mouse')).toBe(true);
+    expect(clickOpens('pen')).toBe(true);
+    expect(clickOpens('touch')).toBe(false);
+  });
+
+  it('opens on a click when no press was told, as a mouse does, and a finger that turned the dial still spends the turn', () => {
+    const { pointer, handler, jontai } = setUp();
+    pointer.step(true);
+    pointer.click(jontai.x, jontai.y, W, H);
+    expect(handler).toHaveBeenCalledTimes(1);
+    // A finger's swipe that turned the dial: its click is none, and the next press (a mouse) clicks as usual.
+    pointer.pressed('touch');
+    pointer.released(true);
+    pointer.click(jontai.x, jontai.y, W, H);
+    expect(handler).toHaveBeenCalledTimes(1);
+    pointer.pressed('mouse');
+    pointer.released(false);
+    pointer.click(jontai.x, jontai.y, W, H);
+    expect(handler).toHaveBeenCalledTimes(2);
   });
 
   it('keeps telling the other handlers when one throws, and lets them go on clear', () => {

@@ -484,8 +484,9 @@ export class CompassStageController extends Component {
    * at build time per track and test point) at the read head while a test
    * point is under it, and the orbit on the spindle in Off duty (its centre,
    * reach and turn). The hovered track's name follows the pointer while the
-   * scene reports one. A click on a track goes where its section's link goes:
-   * a new tab for one that leaves the site; the unwritten track has none.
+   * scene reports one. A mouse or pen click on a track goes where its section's link goes:
+   * a new tab for one that leaves the site; the unwritten track has none. A tap does not (there is no hover to
+   * warn what it opens; the scene tells no click for it), the section's own link being the way on a phone.
    * Positions are CSS custom properties (unitless canvas px and degrees); the
    * elements show by `data-shown`.
    */
