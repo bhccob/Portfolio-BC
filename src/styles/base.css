@@ -132,13 +132,20 @@ body:has(.page) .poster::after {
 }
 
 /* The canvas is opaque and above the poster, so on a page of text the scrim is drawn again over the scene: above
-   the canvas, below the page. The home page keeps the scene unveiled. */
+   the canvas, below the page. Only once the scene shows (data-ready), and fading in with the canvas, so there is one
+   scrim at a time: the poster's while the scene loads, this one over the scene. The home page keeps the scene unveiled. */
 body:has(.page) .scene-host::after {
   content: '';
   position: absolute;
   inset: 0;
   background: var(--scrim-page);
   pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.9s var(--ease-reveal);
+}
+
+body:has(.page) .scene-host[data-ready]::after {
+  opacity: 1;
 }
 
 /* The canvas shows once the scene is ready (SceneHost sets data-ready): until then the poster is the picture, and
@@ -153,7 +160,8 @@ body:has(.page) .scene-host::after {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .scene-host canvas {
+  .scene-host canvas,
+  body:has(.page) .scene-host::after {
     transition: none;
   }
 }

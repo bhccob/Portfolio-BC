@@ -87,6 +87,16 @@
  *              context lost for good (after the restore timeout) and a scene never ready (its chunk never
  *              answers, after the load timeout); switching 3D back on tries again, and a context that comes
  *              back draws again with no card. Zero console errors throughout
+ *   load-throw the real Stage chunk served with one call inside the compass's load made to throw: the fallback
+ *              card well inside the load timeout, 3D off and not stored, HOME_IDLE, no data-ready and no canvas, and
+ *              exactly one console error, the host's report of the failure
+ *   background a direct load of / waiting in a background tab past the load timeout (visibility and frames
+ *              emulated, as headless Edge never hides a page): no fallback; in front, the scene loads
+ *   title-ij   every Dutch text set in Unbounded with an IJ is shaped with the font's Dutch locl off (no IJ digraph
+ *              reading as a U); a crop of the NL card title into PROOF_DIR/m1/
+ *   scene-stills  stills of /, a country, a project and Lite with 3D on, and of the fallback, at 1440x900 and
+ *              390x844 into PROOF_DIR/m1/; on a page of text the poster's scrim is over the scene once it shows,
+ *              and before then only the poster's own
  *   fps        on / (the GPU), 3 s after the scene is ready: 120 requestAnimationFrame frames while the scene
  *              draws, and their mean frame rate is reported, not gated; it passes when the canvas holds the
  *              scene: a pixel read back through toDataURL right after a drawn frame is not blank
@@ -1435,10 +1445,12 @@ async function loaded(browser, step) {
   const wiggleFrom = await page.evaluate(() => window.__allRaf);
   for (const [x, y] of [[400, 300], [460, 340], [520, 300], [480, 360]]) await page.mouse.move(x, y, { steps: 3 });
   const woke = (await page.evaluate(() => window.__allRaf)) > wiggleFrom;
-  const resettled = await sleepWithin(page, 4_000);
+  // sleepWithin asks for a whole quiet second, so a limit of RESETTLE_MS + 1 s means quiet from at most RESETTLE_MS on.
+  const RESETTLE_MS = 3_000;
+  const resettled = await sleepWithin(page, RESETTLE_MS + 1_000);
   step.check(
     settled !== null && woke && resettled !== null,
-    `on /about/china/ a mouse wiggle wakes the parallax only: the canvas sleeps again ${resettled} ms after it (limit 3000 ms, the drift is 10 s)`,
+    `on /about/china/ a mouse wiggle wakes the parallax only: the canvas falls quiet ${resettled} ms after it and stays so for 1 s (it must fall quiet within ${RESETTLE_MS} ms; the drift is 10 s)`,
   );
   await takeCsp(page, step);
   await context.close();
@@ -1709,7 +1721,8 @@ async function titleIj(_browser, step) {
     const { context, page } = await openPage(own, step);
     for (const { path } of PAGES.filter((p) => p.lang === 'nl')) {
       await page.goto(BASE + path, { waitUntil: 'load' });
-      if (path === '/') await page.waitForSelector('.scene-fallback', { timeout: 10_000 });
+      // The card is on every page once the probe has run (hidden by CSS on Lite): measure only after it is there.
+      await page.waitForSelector('.scene-fallback', { state: 'attached', timeout: 10_000 });
       await page.evaluate(() => document.fonts.ready);
       const rows = await page.evaluate(() => {
         const measured = [];
@@ -1757,7 +1770,9 @@ const scrims = (page) =>
     const poster = getComputedStyle(document.querySelector('.poster'), '::after');
     const alphas = (image) => [...image.matchAll(/rgba\([^)]*,\s*([\d.]+)\)/g)].map((m) => Number(m[1]));
     return {
+      ready: document.querySelector('.scene-host').hasAttribute('data-ready'),
       content: host.content,
+      opacity: host.opacity,
       host: host.backgroundImage,
       poster: poster.backgroundImage,
       least: Math.min(...alphas(host.backgroundImage)),
@@ -1790,14 +1805,21 @@ async function sceneStills(browser, step) {
     for (const { name, path, text } of pages) {
       await page.goto(`${BASE}${path}?proof`, { waitUntil: 'load' });
       await page.bringToFront();
+      // While the scene loads the poster's scrim is the only one: the host's waits, invisible, for the scene to show.
+      const loading = await scrims(page);
+      if (text && !loading.ready) {
+        step.check(loading.opacity === '0', `${path} at ${width}x${height}: while the scene loads only the poster's scrim shows (the host's opacity ${loading.opacity})`);
+      } else if (text) {
+        step.check(false, `${path} at ${width}x${height}: the scene was ready at the load event already, so the scrim before it could not be checked`);
+      }
       await page.waitForFunction(() => document.querySelector('.scene-host')?.hasAttribute('data-ready'), null, { timeout: LOAD_TIMEOUT_MS + 3_000 });
       await page.evaluate(() => document.fonts.ready);
-      await page.waitForTimeout(1_200); // the canvas's fade-in
+      await page.waitForTimeout(1_200); // the canvas's and the scrim's fade-in
       const scrim = await scrims(page);
       if (text) {
         step.check(
-          scrim.content !== 'none' && scrim.position === 'absolute' && scrim.inset === '0px 0px 0px 0px' && scrim.host === scrim.poster && scrim.least >= 0.5,
-          `${path} at ${width}x${height}: the scene is under the page scrim, the poster's own (${scrim.host}; least alpha ${scrim.least})`,
+          scrim.content !== 'none' && scrim.opacity === '1' && scrim.position === 'absolute' && scrim.inset === '0px 0px 0px 0px' && scrim.host === scrim.poster && scrim.least >= 0.5,
+          `${path} at ${width}x${height}: the shown scene is under the page scrim, the poster's own, fully (opacity ${scrim.opacity}; ${scrim.host}; least alpha ${scrim.least})`,
         );
       } else {
         step.check(scrim.content === 'none', `${path} at ${width}x${height}: the home page keeps the scene unveiled (::after content ${scrim.content})`);
@@ -1827,6 +1849,63 @@ async function sceneStills(browser, step) {
   }
   console.log(`note: stills: ${shots.join(' ')}`);
   return `${shots.length} stills in ${dir}; the page scrim over the scene on every page of text`;
+}
+
+/**
+ * The call in the compass's load that the `load-throw` step makes throw: the painted strips handed to the instrument,
+ * which runs only after the model is built, its textures settled and its canvases painted (src/scene/Compass.tsx). It
+ * is a property call, so minifying keeps its name; the step fails if the built Stage chunk has it other than once.
+ */
+const LOAD_THROW_AT = '.instrument.setStrips(';
+const LOAD_THROW_MESSAGE = 'load-throw: the proof makes the compass load throw';
+
+/**
+ * A throw inside the compass's real load fails the scene: the real Stage chunk is served with that one call patched
+ * to throw (no fault hook in the site). Expected: the fallback card, 3D off for the visit and not stored, LOADED
+ * (HOME_IDLE), no `data-ready` and no canvas, all well inside the load timeout, and exactly one console error: the
+ * host's own report of the failure.
+ */
+async function loadThrow(browser, step) {
+  const reported = (message) => /^\[needle\] the compass load failed; showing the poster/.test(message.text());
+  const { context, page } = await openPage(browser, step, reported);
+  let patched = 0;
+  let found = -1;
+  await page.route(/\/assets\/Stage-[^/]+\.js$/, async (route) => {
+    const response = await route.fetch();
+    const body = await response.text();
+    found = body.split(LOAD_THROW_AT).length - 1;
+    patched++;
+    await route.fulfill({
+      response,
+      body: body.replace(LOAD_THROW_AT, `${LOAD_THROW_AT}(() => { throw new Error(${JSON.stringify(LOAD_THROW_MESSAGE)}); })(), `),
+    });
+  });
+  const started = Date.now();
+  await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+  const card = await page.waitForSelector('.scene-fallback', { timeout: LOAD_TIMEOUT_MS / 2 }).then(() => true, () => false);
+  const tookMs = Date.now() - started;
+  await page.waitForTimeout(500); // anything late (a scene shown after all, a second report) would be here by now
+  const state = await page.evaluate(() => ({
+    title: document.querySelector('.scene-fallback-title')?.textContent ?? null,
+    threeD: document.documentElement.dataset['3d'],
+    stored: localStorage.getItem('needle-3d'),
+    phase: window.__needleScene?.().kind ?? null,
+    ready: document.querySelector('.scene-host')?.hasAttribute('data-ready') ?? null,
+    canvases: document.querySelectorAll('canvas').length,
+    mounts: window.__needleMounts ?? 0,
+  }));
+  step.check(patched === 1 && found === 1, `the real Stage chunk was served with its one "${LOAD_THROW_AT}" call made to throw (served ${patched}, call found ${found} times)`);
+  step.check(card, `a throwing load shows the fallback card, ${tookMs} ms after the page started (well inside the ${LOAD_TIMEOUT_MS / 1000} s load timeout: the throw, not the timer)`);
+  step.check(state.threeD === 'off' && state.stored === null, `3D off for the visit, the stored choice untouched (data-3d ${state.threeD}, needle-3d ${state.stored})`);
+  step.check(state.phase === 'HOME_IDLE', `LOADED was dispatched: the phase is HOME_IDLE (got ${state.phase})`);
+  step.check(state.ready === false && state.canvases === 0 && state.mounts === 1, `no partial scene: no data-ready, the Stage that mounted is gone with its canvas (ready ${state.ready}, ${state.canvases} canvas, ${state.mounts} mount)`);
+  step.check(
+    step.expected.length === 1 && step.expected[0].includes(LOAD_THROW_MESSAGE),
+    `exactly one console error, the host's report of the failed load with the thrown error (got ${step.expected.length}: ${step.expected.map((text) => text.split('\n')[0]).join(' | ')})`,
+  );
+  await takeCsp(page, step);
+  await context.close();
+  return `a throw inside the compass load: the card in ${tookMs} ms, 3D off and not stored, HOME_IDLE, no partial scene, one reported error`;
 }
 
 async function fps(browser, step) {
@@ -1879,6 +1958,7 @@ const STEPS = {
   background,
   'title-ij': titleIj,
   'scene-stills': sceneStills,
+  'load-throw': loadThrow,
 };
 
 // ---------------------------------------------------------------- run
