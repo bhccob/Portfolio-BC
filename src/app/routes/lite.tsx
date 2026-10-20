@@ -12,7 +12,7 @@ import { LiteQa } from '~/ui/lite/LiteQa';
 import { LiteSkills } from '~/ui/lite/LiteSkills';
 import { LiteWork } from '~/ui/lite/LiteWork';
 import { LiteWorld } from '~/ui/lite/LiteWorld';
-import type { RouteHandle } from '../handle';
+import { HANDLES, type RouteHandle } from '../handle';
 
 export const meta: MetaFunction = ({ location }) => {
   const locale = localeFromPath(location.pathname);
@@ -20,7 +20,7 @@ export const meta: MetaFunction = ({ location }) => {
   return head({ locale, route: PAGES.lite, title: t.needle.liteLink, description: t.meta.liteDescription });
 };
 
-export const handle: RouteHandle = { scene: null };
+export const handle: RouteHandle = HANDLES.lite;
 
 /**
  * The Lite version: the whole portfolio as one page of text, with no 3D. It is where a visitor lands

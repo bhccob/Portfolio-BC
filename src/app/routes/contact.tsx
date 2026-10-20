@@ -7,7 +7,7 @@ import { head } from '~/seo/head';
 import { BackLink } from '~/ui/BackLink';
 import { ContactForm } from '~/ui/ContactForm';
 import { Markup } from '~/ui/Markup';
-import type { RouteHandle } from '../handle';
+import { HANDLES, type RouteHandle } from '../handle';
 
 export const meta: MetaFunction = ({ location }) => {
   const locale = localeFromPath(location.pathname);
@@ -15,7 +15,7 @@ export const meta: MetaFunction = ({ location }) => {
   return head({ locale, route: PAGES.contact, title: t.meta.contactTitle, description: t.meta.contactDescription });
 };
 
-export const handle: RouteHandle = { scene: null };
+export const handle: RouteHandle = HANDLES.contact;
 
 // The Web3Forms access key (a public key, set in the deploy). Without it the form opens the visitor's email app.
 const ACCESS_KEY: string | undefined = import.meta.env.PUBLIC_WEB3FORMS_KEY;

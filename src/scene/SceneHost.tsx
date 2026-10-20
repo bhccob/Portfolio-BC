@@ -1,8 +1,10 @@
-import { Component, type JSX, lazy, memo, type ReactNode, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { Component, type JSX, lazy, memo, type ReactNode, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Link } from 'react-router';
+import type { SceneKind } from '~/app/handle';
 import { PAGES } from '~/data/pages';
 import { useTranslator } from '~/i18n/useTranslator';
 import { useScene } from '~/state/store';
+import { stageWanted } from './gate';
 import { LOAD_TIMEOUT_MS, visibleTimeout } from './timeouts';
 import { type WebGLSupport, webglSupport } from './webgl';
 
@@ -50,6 +52,11 @@ function FallbackCard(): JSX.Element {
   );
 }
 
+export interface SceneHostProps {
+  /** The scene of the page shown: its route's `handle.scene` (src/app/handle.ts), read by the Shell. */
+  scene: SceneKind | null;
+}
+
 /**
  * The scene's place in the page: the canvas over the poster, or the poster alone.
  *
@@ -57,6 +64,11 @@ function FallbackCard(): JSX.Element {
  * (`webglSupport()` is 'ok'). HYDRATION GATING (store.ts): `threeD` from the hook says "on" during the hydration
  * commit whatever the visitor stored, so the gate also needs the hydrated flag and the store's live value; a visitor
  * who switched 3D off never mounts WebGL, not even once.
+ *
+ * The first Stage waits for a page with a scene (`stageWanted`): a visit that begins on Lite, contact or the not-found
+ * page probes no WebGL, fetches no Stage chunk, three.js or texture, and says LOADED at once. Once a Stage is up it
+ * stays from page to page; on a page without a scene it sleeps behind the page (the parts inside the canvas read the
+ * page's `scene` from the store, where this host puts it, and wake nothing there).
  *
  * Whenever it settles on no Stage (3D off, no WebGL, a software renderer, a failed scene) it says LOADED, so a
  * direct load of `/` leaves LOADING; with a Stage, LOADED waits until the scene is ready. Without WebGL to speak of,
@@ -69,11 +81,13 @@ function FallbackCard(): JSX.Element {
  * The canvas stays invisible (`data-ready` unset) until the scene is ready, so the poster is the picture meanwhile.
  * `data-webgl` says what the probe found ('ok', 'none' or 'software'), once it has run.
  */
-function SceneHostView(): JSX.Element {
+function SceneHostView({ scene }: SceneHostProps): JSX.Element {
   // false on the server and during hydration, true from the first client render after it.
   const hydrated = useSyncExternalStore(subscribe, onClient, onServer);
   const threeD = useScene((state) => state.threeD);
-  const wanted = hydrated && threeD && useScene.getState().threeD;
+  // A Stage is mounted, so it stays on a page without a scene; kept in step with showStage, during render.
+  const [up, setUp] = useState(false);
+  const wanted = stageWanted({ hydrated, threeD: threeD && useScene.getState().threeD, scene, up });
   const [support, setSupport] = useState<WebGLSupport | null>(probed);
   const [failed, setFailed] = useState(false);
   const [ready, setReady] = useState(false);
@@ -82,6 +96,12 @@ function SceneHostView(): JSX.Element {
   const unsupported = support === 'none' || support === 'software';
   const showStage = wanted && support === 'ok' && !failed;
   const deciding = wanted && support === null;
+  if (up !== showStage) setUp(showStage);
+
+  // The parts inside the canvas read the page's scene from the store, from before they draw the page's first frame.
+  useLayoutEffect(() => {
+    useScene.getState().setScene(scene);
+  }, [scene]);
 
   useEffect(() => {
     if (wanted && support === null) setSupport((probed ??= webglSupport()));
@@ -156,5 +176,8 @@ function SceneHostView(): JSX.Element {
   );
 }
 
-/** Memoised: the Shell re-renders on every navigation, and nothing of that reaches the Stage. */
+/**
+ * Memoised: the Shell re-renders on every navigation, and only a change of the page's scene reaches the host. The Stage
+ * is never handed it as a prop (a Stage render re-renders the post chain): its parts read it from the store.
+ */
 export const SceneHost = memo(SceneHostView);

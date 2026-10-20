@@ -71,6 +71,18 @@ describe('useScene', () => {
     useScene.getState().setTier('low');
     expect(useScene.getState().tier).toBe('low');
   });
+
+  it('holds the scene of the page shown, none until the host says, and notifies only on a change', () => {
+    expect(useScene.getInitialState().scene).toBeNull();
+    const listener = vi.fn();
+    const unsubscribe = useScene.subscribe(listener);
+    useScene.getState().setScene('home');
+    useScene.getState().setScene('home');
+    useScene.getState().setScene(null);
+    unsubscribe();
+    expect(useScene.getState().scene).toBeNull();
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe('setThreeD', () => {

@@ -70,10 +70,11 @@ For example, the milestone 1 review's run:
 STEPS=routes,slash,persist,scroll,no-webgl,fps,keyboard,reduced-motion,stills node tools/proof/needle.mjs
 ```
 
-The harness reads `src/data/pages.ts` and `src/state/chapters.ts` (through
-`tsx`) and the build in `dist/client` to know which pages and which scroll stops
-to expect. A page of `pagePaths()` the build did not produce is listed when the
-run starts and skipped.
+The harness reads `src/data/pages.ts`, `src/app/handle.ts` (which pages have a
+scene) and `src/state/chapters.ts` (through `tsx`) and the build in
+`dist/client` to know which pages, scenes and scroll stops to expect. A page of
+`pagePaths()` the build did not produce is listed when the run starts and
+skipped.
 
 A run that cannot begin (nothing built, the preview server not answering, Edge
 not starting) prints `FAIL setup <reason>`, writes a `results.json` that holds
@@ -118,13 +119,13 @@ assignment to count the loop's own frames apart from the canvas's.
 
 | step | what it checks |
 | --- | --- |
-| `routes` | every page the build produced answers 200 with one `<h1>`, in its HTML and after hydration, and the right `<html lang>` |
+| `routes` | every page the build produced answers 200 with one `<h1>`, in its HTML and after hydration, and the right `<html lang>`; a page without a scene has no `<canvas>` |
 | `slash` | `/about/china` answers 301 to `/about/china/`; a browser opening it loads it once, with no reload |
 | `bridge` | the debug bridge: absent, and nothing touched, without `?proof`; with it the state has exactly its fields, `.set`, `.dispatch` and `.scrollRequest` act, the old hooks are gone |
 | `persist` | client navigation `/` to a country to its English page, back and forward: one Stage, the same `<canvas>`, no document load, the phase right at each place |
 | `lang-keeps-phase` | on `/about/china/` the phase is `COUNTRY_PAGE china`; after a client-side switch to `/en/about/china/` (and back) it is still that very state, `canvasMounts` is 1; the same on a project page |
-| `not-found` | unknown URLs answer 404 with the build's `404.html` and show the not-found `<h1>` once the router has taken over, with no reload loop |
-| `case-variant` | a real page under another spelling (`/About/China/`) is a 404 and shows the not-found page |
+| `not-found` | unknown URLs answer 404 with the build's `404.html` and show the not-found `<h1>` once the router has taken over, with no reload loop; no scene file is asked for and no Stage mounts |
+| `case-variant` | a real page under another spelling (`/About/China/`) is a 404 and shows the not-found page, with no scene |
 | `home-nav` | the home page's six links: hidden but focusable with 3D on, shown with 3D off, the choice stored across a reload, no WebGL mounted with 3D off |
 | `mobile` | every page at 390 px wide has no horizontal scroll |
 | `esc` | the back link: Escape and a click go home or back by client navigation, also after a replace; not in a text field; a modified click is left alone |
@@ -133,11 +134,12 @@ assignment to count the loop's own frames apart from the canvas's.
 | `keyboard` | Tab reaches the skip link, the language switch and the 3D toggle in order, each ringed and on screen; End goes to the last chapter, Home returns |
 | `reduced-motion` | with reduced motion (emulated), one wheel event moves `target` to exactly the next stop, down through every stop and back |
 | `loaded` | a direct load goes from `LOADING` to `HOME_IDLE` once the scene is ready; the canvas draws on demand and sleeps when idle; 3D stored off mounts no WebGL |
+| `no-scene` | a direct load of Lite or contact (NL and EN) asks for none of the scene's files (Stage chunk, three.js, maath, textures), mounts no canvas, shows no card and leaves `LOADING`; home → Lite by client navigation keeps the one canvas, asleep (no `requestAnimationFrame` through 1.5 s of mouse moves), and home wakes it |
 | `no-webgl` | WebGL off, and software-only: the poster and the fallback card, no canvas; on the GPU, a context lost for good and a scene never ready fall back to the card, a restored context draws again |
 | `fps` | the frame rate on `/` (120 frames, reported, not gated) with the scene's own rolling `fps`, tier and pixel ratio; the canvas is not blank |
 | `background` | a page opened in a background tab is not given up on past the load timeout; in front, the scene loads |
 | `title-ij` | Dutch text in Unbounded with an IJ is shaped without the font's IJ digraph; a crop of the NL card title into `m1/` |
-| `stills` | every built page at 1440x900 and 390x844, and the fallback at both, into `m1/`; on a page of text the page scrim is over the scene, and before the scene shows only the poster's own (the Stage chunk is held while that is measured) |
+| `stills` | every built page at 1440x900 and 390x844, and the fallback at both, into `m1/`; on a country or project page the page scrim is over the scene, and before the scene shows only the poster's own (the Stage chunk is held while that is measured); on Lite and contact no scene loads and the poster carries the page scrim |
 | `load-throw` | the real Stage chunk patched so one call in the compass's load throws: the fallback card well inside the load timeout, 3D off and not stored, one reported error |
 
 `stills` writes the screenshots of the milestone review into `PROOF_DIR/m1/`,

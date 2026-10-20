@@ -28,25 +28,35 @@ const SCROLL_GRACE_MS = 250;
  * When all are still it asks for none, and the canvas draws nothing until something wakes it: the scroll loop
  * (`wakeScene`), a phase change (subscribed here), the pointer (Rig), a resize or a texture arriving.
  * While the context is lost nothing is asked for.
+ *
+ * On a page without a scene (the store's `scene` is null: Lite, contact, not found) the canvas sleeps behind the page:
+ * nothing here asks for a frame, neither the scroll loop's wake nor a phase change, whatever still moves. Back on a page
+ * with a scene it draws again from where it was.
  */
 export function Heartbeat(): null {
   const invalidate = useThree((state) => state.invalidate);
   const transitionUntil = useRef(0);
 
-  useEffect(() => onWakeScene(() => invalidate()), [invalidate]);
+  useEffect(
+    () =>
+      onWakeScene(() => {
+        if (useScene.getState().scene !== null) invalidate();
+      }),
+    [invalidate],
+  );
 
   useEffect(
     () =>
       useScene.subscribe((state, previous) => {
-        if (state.transitionId === previous.transitionId) return;
-        transitionUntil.current = performance.now() + TRANSITION_MS;
-        invalidate();
+        const transition = state.transitionId !== previous.transitionId;
+        if (transition) transitionUntil.current = performance.now() + TRANSITION_MS;
+        if (state.scene !== null && (transition || previous.scene === null)) invalidate();
       }),
     [invalidate],
   );
 
   useFrame(() => {
-    if (frame.contextLost) return;
+    if (frame.contextLost || useScene.getState().scene === null) return;
     const now = performance.now();
     const scrolling = now - motion.scrolledAt < SCROLL_GRACE_MS && (frame.progress !== frame.target || Math.abs(frame.velocity) > 0);
     if (!asleep(motion.compass) || motion.parallax || scrolling || now < transitionUntil.current) invalidate();

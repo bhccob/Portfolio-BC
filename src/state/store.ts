@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { create } from 'zustand';
+import type { SceneKind } from '~/app/handle';
 import { SafeStorage } from '~/engine/core/SafeStorage';
 import { type Phase, type SceneEvent, transition } from './machine';
 
@@ -16,8 +17,14 @@ export interface SceneState {
   reducedMotion: boolean;
   /** Counts the phase changes, so the scene can tell a new transition from the same phase asked for again. */
   transitionId: number;
+  /**
+   * The scene of the page shown: its route's `handle.scene` (src/app/handle.ts), which SceneHost puts here for the
+   * parts inside the canvas. Null on a page of text alone (and until SceneHost says): nothing wakes the canvas then.
+   */
+  scene: SceneKind | null;
   dispatch(event: SceneEvent): void;
   setTier(tier: Tier): void;
+  setScene(scene: SceneKind | null): void;
   /**
    * Switches 3D on or off. The visitor's switch stores the choice (`needle-3d`); the scene's own reasons (no WebGL,
    * a scene that failed or never got ready) pass `{ persist: false }`, so the page falls back for this visit and the
@@ -67,6 +74,7 @@ export const useScene = create<SceneState>()((set) => ({
   threeD: true,
   reducedMotion: false,
   transitionId: 0,
+  scene: null,
 
   dispatch: (event) =>
     set((state) => {
@@ -76,6 +84,9 @@ export const useScene = create<SceneState>()((set) => ({
     }),
 
   setTier: (tier) => set({ tier }),
+
+  // The same scene again is no change: returning the state notifies nobody.
+  setScene: (scene) => set((state) => (state.scene === scene ? state : { scene })),
 
   setThreeD: (on, { persist = true } = {}) => {
     if (persist) SafeStorage.local().set(THREE_D_KEY, on ? 'on' : 'off');

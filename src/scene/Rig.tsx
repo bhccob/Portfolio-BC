@@ -30,7 +30,8 @@ const clamp = (value: number): number => Math.min(1, Math.max(-1, value));
  *
  * The pointer is read from `pointermove` on the window into `frame.pointer` (-1..1, up is +1): a mouse or a pen only,
  * a finger has no hover to follow. With reduced motion the camera stays put. M1 has no hit targets in the scene; the
- * page above the canvas keeps its pointer events (M3 adds the raycast hover).
+ * page above the canvas keeps its pointer events (M3 adds the raycast hover). On a page without a scene (the store's
+ * `scene` is null) the pointer is still noted, so the camera is right when the scene shows again, but wakes nothing.
  */
 export function Rig(): null {
   const camera = useThree((state) => state.camera) as THREE.PerspectiveCamera;
@@ -49,7 +50,8 @@ export function Rig(): null {
       if (!(w > 0 && h > 0)) return;
       frame.pointer.x = clamp((event.clientX / w) * 2 - 1);
       frame.pointer.y = clamp(1 - (event.clientY / h) * 2);
-      if (!useScene.getState().reducedMotion) invalidate();
+      const { reducedMotion, scene } = useScene.getState();
+      if (!reducedMotion && scene !== null) invalidate();
     };
     window.addEventListener('pointermove', move, { passive: true });
     return () => window.removeEventListener('pointermove', move);
@@ -70,11 +72,12 @@ export function Rig(): null {
     camera.updateMatrixWorld();
   };
 
-  // A new size is framed before the frame it draws.
+  // A new size is framed before the frame it draws. Only a new size or camera (what `place` reads): a render for
+  // anything else draws nothing.
   useLayoutEffect(() => {
     place();
     invalidate();
-  });
+  }, [camera, width, height, invalidate]);
 
   useFrame((_, delta) => {
     const reduced = useScene.getState().reducedMotion;

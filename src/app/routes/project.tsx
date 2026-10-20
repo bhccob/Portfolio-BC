@@ -9,7 +9,7 @@ import { notFoundMeta } from '~/seo/notFound';
 import { breadcrumbLd, projectLd } from '~/seo/structured';
 import { BackLink } from '~/ui/BackLink';
 import { NotFoundPage } from '~/ui/NotFoundPage';
-import type { RouteHandle } from '../handle';
+import { HANDLES, type RouteHandle } from '../handle';
 
 export const meta: MetaFunction = ({ location }) => {
   const locale = localeFromPath(location.pathname);
@@ -35,7 +35,7 @@ export const meta: MetaFunction = ({ location }) => {
   });
 };
 
-export const handle: RouteHandle = { scene: 'project' };
+export const handle: RouteHandle = HANDLES.project;
 
 export default function ProjectPage() {
   const i18n = useTranslator();

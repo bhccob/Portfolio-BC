@@ -9,7 +9,7 @@ import { notFoundMeta } from '~/seo/notFound';
 import { breadcrumbLd } from '~/seo/structured';
 import { BackLink } from '~/ui/BackLink';
 import { NotFoundPage } from '~/ui/NotFoundPage';
-import type { RouteHandle } from '../handle';
+import { HANDLES, type RouteHandle } from '../handle';
 
 const pageOf = (id: CountryId): PageId => `about-${id}`;
 
@@ -37,7 +37,7 @@ export const meta: MetaFunction = ({ location }) => {
   });
 };
 
-export const handle: RouteHandle = { scene: 'country' };
+export const handle: RouteHandle = HANDLES.country;
 
 export default function Country() {
   const { t } = useTranslator();

@@ -26,7 +26,8 @@
  * `?proof` there is no bridge and nothing of the site reads or writes a hook (step bridge).
  *
  *   routes     every page of pagePaths() that the build produced, each answers 200 with one <h1>
- *              (in its HTML and after hydration) and the right <html lang>; a page the build did
+ *              (in its HTML and after hydration) and the right <html lang>, and a page without a scene
+ *              (its route's handle.scene is null: Lite, contact) has no <canvas>; a page the build did
  *              not produce is listed and skipped
  *   slash      GET /about/china answers 301 to /about/china/; a browser opening /about/china loads
  *              /about/china/ once, with no reload
@@ -45,7 +46,8 @@
  *              route right, canvasMounts 1 and the same <canvas>; the same on /projects/funcial/ (PROJECT_FOCUS)
  *   not-found  an unknown URL (/does-not-exist/, /en/does-not-exist/) answers 404 with the build's
  *              404.html; after hydration it shows the not-found route's <h1> and the right <html lang>,
- *              and the browser loads one document, with no reload loop
+ *              and the browser loads one document, with no reload loop; the page has no scene, so it
+ *              asks for none of the scene's files, mounts no Stage and still leaves LOADING
  *   home-nav   the home page's links to the three countries and three projects: visually hidden but
  *              reachable by keyboard while 3D is on (and shown while one has focus), visible once the
  *              3D switch is turned off, and the choice persists in localStorage across a reload, where
@@ -53,7 +55,8 @@
  *   mobile     every page at 390 px wide has no horizontal scroll
  *   case-variant  a real page under another spelling (/About/China/, /en/projects/FUNCIAL/) is a 404 on
  *              GitHub Pages and shows the not-found page, not an error screen (the server here is
- *              case-sensitive too, so the fallback is what answers)
+ *              case-sensitive too, so the fallback is what answers), with no scene, like any not-found page
+ *              (the client router matches it to the page's route, ignoring case; the handle does not)
  *   esc        the back link on a country or project page: Escape goes by client navigation, unless focus is
  *              in a text field or the key was already handled. On a page the visit began on (a direct load)
  *              it goes to the home page of that language; on a page reached from the home page it steps back
@@ -105,6 +108,11 @@
  *              `frame.progress` straight away. The canvas renders on demand: after the needle's idle drift it
  *              asks for no frame at all, and the pointer wakes it. With 3D stored off, a direct load mounts no
  *              WebGL and leaves LOADING all the same
+ *   no-scene   Lite is the light version: a direct load of a page without a scene (/lite/, /contact/, /en/lite/,
+ *              /en/contact/) asks for none of the scene's files (the Stage chunk, three.js, maath, the textures),
+ *              mounts no <canvas>, probes no WebGL, shows no fallback card and leaves LOADING with 3D still on; from
+ *              the home page to Lite by client navigation the one canvas stays (canvasMounts 1, the same node) and
+ *              sleeps: no requestAnimationFrame at all through 1.5 s of mouse moves; back home the pointer wakes it
  *   no-webgl   Edge with WebGL switched off (--disable-webgl --disable-3d-apis): / and /en/ show the poster and
  *              the fallback card (THE NEEDLE LOST NORTH, in the page's language) with its link to Lite, no
  *              <canvas>, 3D off for the visit without touching the stored choice, the home page's links shown
@@ -122,15 +130,16 @@
  *              reading as a U); a crop of the NL card title into PROOF_DIR/m1/
  *   stills     every page of pagePaths() that the build produced, with 3D on, at 1440x900 and 390x844, and the fallback
  *              at both, into PROOF_DIR/m1/ (`nl-about-china-1440x900.png`, `en-home-390x844.png`,
- *              `fallback-390x844.png`); on a page of text the poster's scrim is over the scene once it shows, and
- *              before then only the poster's own (the Stage chunk is held while that is measured, so it cannot race)
+ *              `fallback-390x844.png`); on a country or project page the poster's scrim is over the scene once it
+ *              shows, and before then only the poster's own (the Stage chunk is held while that is measured, so it
+ *              cannot race); on Lite and contact no scene loads and the poster carries the page scrim
  *   fps        on / (the GPU), 3 s after the scene is ready: 120 requestAnimationFrame frames while the scene
  *              draws, and their mean frame rate is reported, not gated, with the scene's own rolling fps, tier and
  *              pixel ratio from the bridge; it passes when the canvas holds the scene: a pixel read back through
  *              toDataURL right after a drawn frame is not blank
  *
- * The harness reads src/data/pages.ts and src/state/chapters.ts (through tsx) and the build in dist/client
- * to know which pages and which stops to expect.
+ * The harness reads src/data/pages.ts, src/app/handle.ts (which pages have a scene) and src/state/chapters.ts (through
+ * tsx) and the build in dist/client to know which pages, scenes and stops to expect.
  *
  * Environment:
  *   BASE             site to test, default http://localhost:4399
@@ -163,8 +172,9 @@ const langOf = (path) => (path === '/en/' || path.startsWith('/en/') ? 'en' : 'n
 // page the build made but the server fails to answer still fails; BASE only changes
 // who is asked, not what is expected.
 const DIST = resolve(fileURLToPath(new URL('../../dist/client', import.meta.url)));
-const { pagePaths } = await tsImport('../../src/data/pages.ts', import.meta.url);
-const { Translator } = await tsImport('../../src/i18n/Translator.ts', import.meta.url);
+const { PAGES: SITE_PAGES, pagePaths } = await tsImport('../../src/data/pages.ts', import.meta.url);
+const { Translator, locales } = await tsImport('../../src/i18n/Translator.ts', import.meta.url);
+const { HANDLES, PAGE_KINDS } = await tsImport('../../src/app/handle.ts', import.meta.url);
 const { SEND_TIMEOUT_MS } = await tsImport('../../src/ui/contactSubmit.ts', import.meta.url);
 const { LOAD_TIMEOUT_MS, RESTORE_TIMEOUT_MS } = await tsImport('../../src/scene/timeouts.ts', import.meta.url);
 const { HOME_CHAPTERS, chapterAt, stops } = await tsImport('../../src/state/chapters.ts', import.meta.url);
@@ -174,10 +184,18 @@ const { HOME_CHAPTERS, chapterAt, stops } = await tsImport('../../src/state/chap
  */
 const SLEEP_WITHIN_MS = 20_000;
 const built = (path) => existsSync(join(DIST, path, 'index.html'));
+/**
+ * The scene of every page path: its route's `handle.scene`, from the site's one table (src/app/handle.ts). Null for a
+ * page of text alone (Lite, contact), which loads no WebGL; an unknown URL (the not-found page) has none either.
+ */
+const SCENE_OF = new Map(
+  locales.flatMap((locale) => Object.keys(SITE_PAGES).map((page) => [Translator.pathFor(locale, SITE_PAGES[page]), HANDLES[PAGE_KINDS[page]].scene])),
+);
+const hasScene = (path) => (SCENE_OF.get(path) ?? null) !== null;
 const SKIPPED = pagePaths().filter((path) => !built(path));
 const PAGES = pagePaths()
   .filter(built)
-  .map((path) => ({ path, lang: langOf(path) }));
+  .map((path) => ({ path, lang: langOf(path), scene: hasScene(path) }));
 /** The h1 of the home page, and of the country page used to move between pages and languages. */
 const HOME_H1 = 'BOB CHUNG';
 const CHINA_H1 = 'China';
@@ -246,6 +264,29 @@ async function stageReady(page) {
 }
 
 /**
+ * Waits until the page at `path` has settled: on a page with a scene, until its Stage has mounted (stageReady); on a
+ * page without one (Lite, contact, not found), which never mounts a Stage on a direct load, until it has hydrated
+ * (`data-route` is set after hydration), then a moment for late errors.
+ */
+async function pageReady(page, path) {
+  if (hasScene(path)) return stageReady(page);
+  await page.waitForFunction(() => document.documentElement.hasAttribute('data-route'), null, { timeout: 15_000 });
+  await page.waitForTimeout(500);
+}
+
+/** The files only the scene loads: the Stage chunk, three.js (its own chunk), maath (the scroll's easing) and the textures. */
+const SCENE_FILE = /\/assets\/(?:Stage|three|maath[^/]*)-[^/]+\.js$|\/textures\//;
+
+/** Records the URLs of the scene's files (SCENE_FILE) the page asks for, from now on; answers the list, which grows. */
+const sceneRequests = (page) => {
+  const asked = [];
+  page.on('request', (request) => {
+    if (SCENE_FILE.test(new URL(request.url()).pathname)) asked.push(new URL(request.url()).pathname);
+  });
+  return asked;
+};
+
+/**
  * The debug state of the page (window.__needleDebug(), present only when the page's first URL has `?proof`) as plain
  * data, or null where there is no bridge. The bridge's state is the site's one proof hook: see src/debug/needleDebug.ts.
  */
@@ -260,21 +301,25 @@ const count = (text, pattern) => (text.match(pattern) ?? []).length;
 
 async function routes(browser, step) {
   const { context, page } = await openPage(browser, step);
-  for (const { path, lang } of PAGES) {
+  for (const { path, lang, scene } of PAGES) {
     const response = await page.goto(BASE + path, { waitUntil: 'load' });
     step.check(response?.status() === 200, `${path} answers 200 (got ${response?.status()})`);
     const html = (await response?.text()) ?? '';
     const prerendered = count(html, /<h1[\s>]/g);
     step.check(prerendered === 1, `${path} has one <h1> in its HTML (got ${prerendered})`);
-    await stageReady(page);
+    await pageReady(page, path);
     const hydrated = await page.locator('h1').count();
     step.check(hydrated === 1, `${path} has one <h1> after hydration (got ${hydrated})`);
     const htmlLang = await page.getAttribute('html', 'lang');
     step.check(htmlLang === lang, `${path} has <html lang="${lang}"> (got ${htmlLang})`);
+    if (!scene) {
+      const canvases = await page.locator('canvas').count();
+      step.check(canvases === 0, `${path} shows no scene: no <canvas> (got ${canvases})`);
+    }
     await takeCsp(page, step);
   }
   await context.close();
-  return `${PAGES.length} pages: 200, one <h1>, <html lang>`;
+  return `${PAGES.length} pages: 200, one <h1>, <html lang>; no canvas on ${PAGES.filter((p) => !p.scene).length} pages of text alone`;
 }
 
 async function slash(browser, step) {
@@ -403,10 +448,12 @@ async function expectNotFound(browser, step, urls) {
     if (request.isNavigationRequest() && request.frame() === page.mainFrame()) documents.push(request.url());
   });
   page.on('load', () => loads++);
+  const scenery = sceneRequests(page);
 
   for (const path of urls) {
     documents = [];
     loads = 0;
+    scenery.length = 0;
     const lang = langOf(path);
     asking = path;
     const response = await page.goto(`${BASE}${path}?proof`, { waitUntil: 'load' });
@@ -416,7 +463,7 @@ async function expectNotFound(browser, step, urls) {
     step.check(count(html, /<title>[^<]+<\/title>/g) === 1, `${path} has one <title> in its HTML`);
     step.check(!html.includes('__CSP__'), `${path} carries its real policy`);
 
-    await stageReady(page);
+    await pageReady(page, path);
     await page.waitForTimeout(1_500); // a reload loop would show by now
     const state = await page.evaluate(() => ({
       titles: document.querySelectorAll('title').length,
@@ -424,6 +471,8 @@ async function expectNotFound(browser, step, urls) {
       lang: document.documentElement.lang,
       type: performance.getEntriesByType('navigation')[0]?.type,
       mounts: window.__needleDebug?.().canvasMounts,
+      canvases: document.querySelectorAll('canvas').length,
+      phase: window.__needleDebug?.().phase.kind,
       url: location.pathname,
     }));
     step.check(state.h1.length === 1 && state.h1[0] === NOT_FOUND_H1[lang], `${path} shows the not-found route's <h1> "${NOT_FOUND_H1[lang]}" after hydration (got ${JSON.stringify(state.h1)})`);
@@ -431,7 +480,10 @@ async function expectNotFound(browser, step, urls) {
     step.check(state.lang === lang, `${path} has <html lang="${lang}"> after hydration (got ${state.lang})`);
     step.check(state.url === path, `the browser stays at ${path} (got ${state.url})`);
     step.check(documents.length === 1 && loads === 1 && state.type === 'navigate', `${path} loads one document, no reload (got ${documents.length} requests, ${loads} loads, ${state.type})`);
-    step.check(state.mounts === 1, `${path}: the Stage mounted once (got ${state.mounts})`);
+    // The not-found page has no scene: a visit that begins there loads no WebGL, and still leaves LOADING.
+    step.check(state.mounts === 0 && state.canvases === 0, `${path}: no Stage and no <canvas> (got ${state.mounts} mounts, ${state.canvases} canvas)`);
+    step.check(scenery.length === 0, `${path}: none of the scene's files asked for (got ${scenery.join(' ') || 'none'})`);
+    step.check(state.phase === 'HOME_IDLE', `${path}: the phase leaves LOADING all the same (got ${state.phase})`);
     await takeCsp(page, step);
   }
   step.check(step.expected.length === urls.length, `the browser reported the 404 of each URL once, and only those (got ${step.expected.length} for ${urls.length} URLs)`);
@@ -531,7 +583,7 @@ async function esc(browser, step) {
   // The contact form is the other one: a visitor who posted without script comes back to /contact/?sent=1,
   // and the page replaces that with /contact/.
   await page.goto(`${BASE}/contact/?sent=1&proof`, { waitUntil: 'load' });
-  await stageReady(page);
+  await pageReady(page, '/contact/');
   await page.waitForFunction(() => location.pathname === '/contact/' && location.search === '', null, { timeout: 5_000 });
   documents.length = 0;
   await pressEscape();
@@ -667,7 +719,7 @@ async function mobile(browser, step) {
   const { context, page } = await openPage(browser, step, () => false, { width: 390, height: 844 });
   for (const { path } of PAGES) {
     await page.goto(BASE + path, { waitUntil: 'load' });
-    await stageReady(page);
+    await pageReady(page, path);
     // The page clips sideways overflow (body { overflow-x: clip }), so scrollWidth alone proves nothing:
     // look for content that reaches past the right edge as well.
     const { scroll, client, wide } = await page.evaluate(() => {
@@ -698,7 +750,7 @@ async function liteOne(browser, step, lang) {
   const path = LITE[lang];
   const { context, page } = await openPage(browser, step);
   await page.goto(BASE + path, { waitUntil: 'load' });
-  await stageReady(page);
+  await pageReady(page, path);
 
   // The sections, by their headings (the dictionary's own words), in the order of the page.
   const headings = [t.nav.about, t.work.title, t.about.title, t.skills.title, t.career.title, t.life.title, t.compass.qa.title, t.cta.title].map(plain);
@@ -756,7 +808,7 @@ async function liteOne(browser, step, lang) {
   const career = await page.$eval('#career', (el) => ({ tag: el.tagName, heading: el.querySelector('h2')?.textContent })).catch(() => null);
   step.check(career?.tag === 'SECTION' && career.heading === plain(t.career.title), `${path} has #career, a section headed "${plain(t.career.title)}" (got ${JSON.stringify(career)})`);
   await page.goto(`${BASE}${path}#career`, { waitUntil: 'load' });
-  await stageReady(page);
+  await pageReady(page, path);
   const top = await page.$eval('#career', (el) => el.getBoundingClientRect().top);
   step.check(top > -5 && top < 450, `${path}#career scrolls the section into view (top ${Math.round(top)} px)`);
 
@@ -834,7 +886,7 @@ async function contactOne(browser, step, lang) {
     });
   });
   await page.goto(BASE + path, { waitUntil: 'load' });
-  await stageReady(page);
+  await pageReady(page, path);
   // The form is there, and the page has hydrated: from then on the page validates, not the browser (noValidate).
   await page.waitForFunction(() => document.querySelector('form.form')?.noValidate === true, null, { timeout: 10_000 });
   const h1 = await page.$$eval('h1', (els) => els.map((el) => el.textContent));
@@ -1505,6 +1557,83 @@ async function loaded(browser, step) {
   return `LOADING → HOME_IDLE in ${at} ms on a direct load, the wheel moves the story, the canvas sleeps ${slept} ms after the last input and wakes on the pointer; 3D off: HOME_IDLE in ${offAt} ms, no WebGL`;
 }
 
+/** The pages of text alone a visit can begin on, in both languages: Lite and contact. */
+const SCENELESS = PAGES.filter((p) => !p.scene).map((p) => p.path);
+
+/**
+ * Lite is the light version, and every page without a scene with it (Ruling 27). A visit that begins on one fetches
+ * none of the scene's files (the Stage chunk, three.js, maath, the textures), mounts no <canvas>, probes no WebGL and
+ * shows no fallback card, and still leaves LOADING, with 3D left on. A canvas that came from the home page by client
+ * navigation stays (one Stage, the same <canvas>) and sleeps behind the page: no requestAnimationFrame at all while the
+ * mouse moves over it for 1.5 s. Back on the home page, the pointer wakes it again.
+ */
+async function noScene(browser, step) {
+  for (const path of SCENELESS) {
+    const { context, page } = await openPage(browser, step);
+    const scenery = sceneRequests(page);
+    await page.goto(`${BASE}${path}?proof`, { waitUntil: 'load' });
+    const left = await page.waitForFunction(() => window.__needleDebug?.().phase.kind === 'HOME_IDLE', null, { timeout: 5_000 }).then(() => true, () => false);
+    await page.mouse.move(400, 300);
+    await page.mouse.move(700, 500, { steps: 5 });
+    await page.waitForTimeout(1_500); // a Stage on its way would have asked for its chunk by now
+    const state = await page.evaluate(() => ({
+      canvases: document.querySelectorAll('canvas').length,
+      mounts: window.__needleDebug?.().canvasMounts ?? null,
+      webgl: document.querySelector('.scene-host')?.getAttribute('data-webgl') ?? null,
+      card: document.querySelector('.scene-fallback') !== null,
+      threeD: document.documentElement.dataset['3d'],
+      phase: window.__needleDebug?.().phase.kind ?? null,
+    }));
+    step.check(scenery.length === 0, `${path}: a direct load asks for none of the scene's files (got ${scenery.join(' ') || 'none'})`);
+    step.check(state.canvases === 0 && state.mounts === 0 && state.webgl === null, `${path}: no <canvas>, no Stage, no WebGL probe (got ${JSON.stringify(state)})`);
+    step.check(left && state.phase === 'HOME_IDLE' && !state.card && state.threeD === 'on', `${path}: out of LOADING, no fallback card, 3D still on (got ${JSON.stringify(state)})`);
+    await takeCsp(page, step);
+    await context.close();
+  }
+
+  // From the home page to Lite by client navigation: the canvas stays, and sleeps there.
+  const { context, page } = await openPage(browser, step);
+  await countAllFrames(context);
+  await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+  await page.bringToFront();
+  await reachHomeIdle(page);
+  await page.waitForFunction(() => document.querySelector('.scene-host')?.hasAttribute('data-ready'), null, { timeout: LOAD_TIMEOUT_MS + 3_000 });
+  await page.evaluate(() => {
+    document.querySelector('.scene-host canvas').dataset.id = 'home-canvas';
+  });
+  await page.mouse.move(700, 400, { steps: 4 }); // the parallax and the needle are moving as the visitor leaves
+  await page.click('.site-header a[href="/lite/"]');
+  await page.waitForURL(`${BASE}/lite/`, { timeout: 5_000 });
+  await page.waitForTimeout(300); // the frame already asked for when the page changed runs
+  const from = await page.evaluate(() => window.__allRaf);
+  for (let i = 0; i < 15; i++) {
+    await page.mouse.move(300 + ((i * 53) % 700), 200 + ((i * 37) % 500), { steps: 3 });
+    await page.waitForTimeout(100);
+  }
+  const slept = (await page.evaluate(() => window.__allRaf)) - from;
+  const kept = await page.evaluate(() => ({
+    mounts: window.__needleDebug().canvasMounts,
+    canvases: document.querySelectorAll('canvas').length,
+    tag: document.querySelector('.scene-host canvas')?.dataset.id ?? null,
+    route: window.__needleDebug().route,
+  }));
+  step.check(kept.route === 'lite' && kept.mounts === 1 && kept.canvases === 1 && kept.tag === 'home-canvas', `home → Lite by client navigation: one Stage, the same <canvas> (got ${JSON.stringify(kept)})`);
+  step.check(slept === 0, `on Lite the canvas sleeps: no requestAnimationFrame in 1.5 s of the mouse moving over the page (got ${slept})`);
+
+  // Back on the home page the scene is shown again, and the pointer wakes it.
+  await page.click('.site-header a.site-name');
+  await page.waitForURL(`${BASE}/`, { timeout: 5_000 });
+  await page.waitForTimeout(300);
+  const before = await page.evaluate(() => window.__allRaf);
+  await page.mouse.move(900, 300, { steps: 4 });
+  await page.waitForTimeout(300);
+  const woke = (await page.evaluate(() => window.__allRaf)) - before;
+  step.check(woke > 0, `back on the home page the pointer wakes the canvas again (${woke} frames asked for in 300 ms)`);
+  await takeCsp(page, step);
+  await context.close();
+  return `${SCENELESS.join(', ')}: no scene file, no canvas, out of LOADING; home → Lite keeps the one canvas asleep (0 frames in 1.5 s of mouse moves), and home wakes it`;
+}
+
 async function noWebglOne(browser, step, label, expected) {
   const summary = [];
   for (const lang of ['nl', 'en']) {
@@ -1756,10 +1885,12 @@ async function titleIj(_browser, step) {
   const found = [];
   try {
     const { context, page } = await openPage(own, step);
-    for (const { path } of PAGES.filter((p) => p.lang === 'nl')) {
+    for (const { path, scene } of PAGES.filter((p) => p.lang === 'nl')) {
       await page.goto(BASE + path, { waitUntil: 'load' });
-      // The card is on every page once the probe has run (hidden by CSS on Lite): measure only after it is there.
-      await page.waitForSelector('.scene-fallback', { state: 'attached', timeout: 10_000 });
+      // On a page with a scene the card is there once the probe has run: measure only after it is. A page without a
+      // scene probes nothing and has no card: measure once it has hydrated.
+      if (scene) await page.waitForSelector('.scene-fallback', { state: 'attached', timeout: 10_000 });
+      else await pageReady(page, path);
       await page.evaluate(() => document.fonts.ready);
       const rows = await page.evaluate(() => {
         const measured = [];
@@ -1864,9 +1995,31 @@ async function stills(browser, step) {
   const shots = [];
   for (const { width, height, options } of sizes) {
     const { context, page } = await openPage(browser, step, () => false, { width, height }, options);
-    for (const { path } of PAGES) {
+    const scenery = sceneRequests(page);
+    for (const { path, scene } of PAGES) {
       const text = !isHome(path);
       const at = `${path} at ${width}x${height}`;
+      scenery.length = 0;
+      if (!scene) {
+        // A page of text alone (Lite, contact): no scene ever comes. The poster under the page's scrim is the picture.
+        await page.goto(`${BASE}${path}?proof`, { waitUntil: 'load' });
+        await page.bringToFront();
+        await pageReady(page, path);
+        await page.evaluate(() => document.fonts.ready);
+        await page.waitForTimeout(1_200); // as long as a scene page is given to fade in: one would have come by now
+        const plain = await scrims(page);
+        const debug = await debugOf(page);
+        const canvases = await page.locator('canvas').count();
+        step.check(
+          !plain.ready && canvases === 0 && debug?.canvasMounts === 0 && scenery.length === 0 && plain.posterLeast >= 0.5,
+          `${at}: no scene loads (ready ${plain.ready}, ${canvases} canvas, ${debug?.canvasMounts} mounts, scene files ${scenery.join(' ') || 'none'}) and the poster carries the page's scrim (least alpha ${plain.posterLeast})`,
+        );
+        const file = join(dir, `${stillName(path)}-${width}x${height}.png`);
+        await page.screenshot({ path: file });
+        shots.push(file);
+        await takeCsp(page, step);
+        continue;
+      }
       const release = text ? await holdStage(page) : async () => {};
       try {
         await page.goto(`${BASE}${path}?proof`, { waitUntil: 'load' });
@@ -2323,6 +2476,7 @@ const STEPS = {
   keyboard,
   'reduced-motion': reducedMotion,
   loaded,
+  'no-scene': noScene,
   'no-webgl': noWebgl,
   fps,
   background,

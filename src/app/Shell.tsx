@@ -7,12 +7,13 @@ import { useRouteSync } from '~/state/routeSync';
 import { useThreeDAttribute } from '~/state/store';
 import { Poster } from '~/ui/Poster';
 import { SiteHeader } from '~/ui/SiteHeader';
-import { useRouteAttribute, useRouteName } from './routeName';
+import { useRouteAttribute, useRouteHandle } from './routeName';
 
 // The root layout's frame. It never unmounts, so neither does the canvas in
 // SceneHost: route changes swap only what is inside <main>.
 export function Shell({ children }: { children: ReactNode }): JSX.Element {
-  const route = useRouteName();
+  // The matched route's handle (src/app/handle.ts): the kind of page, and the scene it shows, if any.
+  const { route, scene } = useRouteHandle();
   const { locale } = useTranslator();
   useRouteSync();
   useThreeDAttribute();
@@ -31,7 +32,7 @@ export function Shell({ children }: { children: ReactNode }): JSX.Element {
       <main id="main" tabIndex={-1}>
         {children}
       </main>
-      <SceneHost />
+      <SceneHost scene={scene} />
     </>
   );
 }

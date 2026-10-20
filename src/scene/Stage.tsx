@@ -1,5 +1,5 @@
 import { Canvas, useThree } from '@react-three/fiber';
-import { type JSX, useCallback, useEffect, useMemo, useState } from 'react';
+import { type JSX, memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { debugBridge } from '~/debug/needleDebug';
 import { StageProbe } from '~/debug/StageProbe';
 import { countCanvasMount } from '~/debug/stageReport';
@@ -75,8 +75,12 @@ function ContextWatch({ onFail }: Pick<StageProps, 'onFail'>): null {
  * The persistent canvas and the scene in it: the studio, the compass, the camera rig, the post chain, the quality
  * governor and the heartbeat of the demand frame loop. SceneHost mounts it once 3D is on and WebGL is there, and
  * gives it LOAD_TIMEOUT_MS to say it is ready.
+ *
+ * Memoised (its two callbacks are stable): a host render, as when the page's scene changes, never re-renders the
+ * canvas's tree, whose post chain would rebuild its passes. The parts read what changes (the page's scene, the tier,
+ * 3D, the phase) from the store.
  */
-export default function Stage({ onReady, onFail }: StageProps): JSX.Element {
+export default memo(function Stage({ onReady, onFail }: StageProps): JSX.Element {
   const [step, setStep] = useState(() => reached);
   const quality = qualityFor(step, FINE_POINTER);
   // The Canvas's dpr follows the rung, so a Stage render never puts back a ratio the governor has lowered.
@@ -108,4 +112,4 @@ export default function Stage({ onReady, onFail }: StageProps): JSX.Element {
       {probe && <StageProbe />}
     </Canvas>
   );
-}
+});

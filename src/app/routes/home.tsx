@@ -6,7 +6,7 @@ import { localeFromPath } from '~/i18n/locale';
 import { translatorFor, useTranslator } from '~/i18n/useTranslator';
 import { head } from '~/seo/head';
 import { personLd, websiteLd } from '~/seo/structured';
-import type { RouteHandle } from '../handle';
+import { HANDLES, type RouteHandle } from '../handle';
 
 export const meta: MetaFunction = ({ location }) => {
   const locale = localeFromPath(location.pathname);
@@ -20,7 +20,7 @@ export const meta: MetaFunction = ({ location }) => {
   });
 };
 
-export const handle: RouteHandle = { scene: 'home' };
+export const handle: RouteHandle = HANDLES.home;
 
 export default function Home() {
   const i18n = useTranslator();
