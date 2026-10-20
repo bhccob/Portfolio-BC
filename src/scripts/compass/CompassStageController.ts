@@ -4,10 +4,17 @@ import Lenis from 'lenis';
 import 'lenis/dist/lenis.css';
 import { Component } from '../core/Component';
 import { Motion } from '../core/Motion';
-import { $, $$ } from '../core/dom';
+import { $, $$, readJson } from '../core/dom';
+import { carryProgress } from '../three/applyPose';
 import { compassPoseAt, nominalSpans, spansFromOffsets, type SectionId, type Span } from '../three/Choreography';
 import { CompassScene } from '../three/CompassScene';
 import type { PointerKind } from '../three/FreeTurn';
+import type { TrackId } from '../three/instrument/drive';
+import { readingProgress } from './reading';
+
+/** How far right of its point each label stands, px (CompassStage.astro's `.compass__label--head` and `--hover`). */
+const HEAD_OFFSET = 18;
+const HOVER_OFFSET = 14;
 
 declare global {
   interface Window {
@@ -33,13 +40,21 @@ export interface CompassStageOptions {
  * choreography (`--shown`), each section's share of the scroll measured off
  * the page (the Q&A is as tall as its content) and handed to the scene
  * (setSpans): on start, after every ScrollTrigger refresh (a resize among
- * them) and on a `toggle` inside the track. The pearl follows a mouse or pen
- * anywhere on the page, goes to a touch and to the focused control, and wakes
- * on a scroll or a key; a drag on the stage turns the dial. The scene draws
- * only while the stage is on screen and the tab is visible. With reduced motion, where
- * CompassScene.supported() is false, without the boot script's `js-motion`
- * flag (BenchLayout), or if the scene fails to start, the stage is marked
- * `data-fallback` and the sections read as a plain stacked page.
+ * them, which holds the visitor's place among the spans), on a `toggle`
+ * inside the track and whenever the track's size changes (fonts, images).
+ * The pearl follows a mouse or pen anywhere on the page, goes to a touch and
+ * to the focused control, and wakes on a scroll or a key; a control the
+ * keyboard reaches where its section's words are faded out brings them in
+ * (reading.ts). A drag on the stage turns the dial. After every frame the
+ * stage's overlays follow the scene (CompassScene.overlay): the test point's
+ * label at the read head, the hovered track's name at the pointer, the Off
+ * duty orbit round the spindle. A click on a track opens its project, as its
+ * link does; an opened question lights its sector of the platter. The scene
+ * draws only while the stage is on screen and the tab is visible. With
+ * reduced motion, where CompassScene.supported() is false, without the boot
+ * script's `js-motion` flag (BenchLayout), or if the scene fails to start,
+ * the stage is marked `data-fallback` and the sections read as a plain
+ * stacked page.
  *
  * Either way the root is marked `data-bench` ("live" or "fallback"), which
  * tells the boot script's failsafe that this module ran. With `?proof` in the
@@ -56,6 +71,8 @@ export class CompassStageController extends Component {
   private sections: [HTMLElement, SectionId][] = [];
   /** Each section's place in the scroll, as last measured (measuredSpans); the scene locates its pose among the same. */
   private spans: readonly Span[] = nominalSpans();
+  /** The Off duty orbit over the canvas, whose opacity follows Off duty's words. */
+  private orbit: HTMLElement | null = null;
 
   constructor(private readonly options: CompassStageOptions = {}) {
     super();
@@ -105,6 +122,7 @@ export class CompassStageController extends Component {
     }
 
     this.sections = $$('[data-section]', track).map((section) => [section, section.dataset.section as SectionId]);
+    this.orbit = $('[data-compass-orbit]', stage);
 
     gsap.registerPlugin(ScrollTrigger);
     const lenis = new Lenis({ autoRaf: false, lerp: 0.1 });
@@ -142,17 +160,41 @@ export class CompassStageController extends Component {
     };
     ScrollTrigger.addEventListener('refresh', refreshed);
     this.onCleanup(() => ScrollTrigger.removeEventListener('refresh', refreshed));
-    // A question opened or closed (the Q&A's <details>; `toggle` does not bubble, so it is caught on the way down): the
-    // track's height has changed, so the trigger is refreshed, and the spans with it.
+    // A question opened or closed (the Q&A's <details>; `toggle` does not bubble, so it is caught on the way down): its
+    // sector lights, the last opened of those still open, or none; and the track's height has changed, so the trigger is
+    // refreshed, and the spans with it.
+    const opened: number[] = [];
     this.listen(
       track,
       'toggle',
-      () => {
+      (event) => {
+        const item = event.target;
+        if (item instanceof HTMLDetailsElement && item.dataset.question !== undefined) {
+          const index = Number(item.dataset.question);
+          if (opened.includes(index)) opened.splice(opened.indexOf(index), 1);
+          if (item.open) opened.push(index);
+          scene.setSector(opened.length > 0 ? opened[opened.length - 1] : null);
+        }
         ScrollTrigger.refresh();
         lenis.resize();
       },
       { capture: true }
     );
+    // The track's size changing for any other reason (fonts arriving, a late reflow): measured again, once a frame at most.
+    let reflow = 0;
+    const sized = new ResizeObserver(() => {
+      if (reflow) return;
+      reflow = requestAnimationFrame(() => {
+        reflow = 0;
+        ScrollTrigger.refresh();
+        lenis.resize();
+      });
+    });
+    sized.observe(track);
+    this.onCleanup(() => {
+      sized.disconnect();
+      cancelAnimationFrame(reflow);
+    });
 
     // A batch can hold several changes for the stage; the last is where it is now.
     const observer = new IntersectionObserver((entries) => {
@@ -163,8 +205,24 @@ export class CompassStageController extends Component {
     this.onCleanup(() => observer.disconnect());
     this.listen(document, 'visibilitychange', () => this.activate());
 
-    this.pearl(canvas, scene);
+    /**
+     * Where the keyboard's focus lands in a section whose words are faded out there (a link the browser scrolled to
+     * the edge of its section), the scroll moves to the nearest place they show. Answers whether it moved.
+     */
+    const reveal = (target: Element): boolean => {
+      const id = target.closest<HTMLElement>('[data-section]')?.dataset.section as SectionId | undefined;
+      const range = trigger.end - trigger.start;
+      if (!id || !(range > 0)) return false;
+      const now = Math.min(1, Math.max(0, (window.scrollY - trigger.start) / range));
+      const to = readingProgress(id, now, this.spans);
+      if (to === null || to === now) return false;
+      lenis.scrollTo(trigger.start + to * range, { immediate: true });
+      return true;
+    };
+
+    this.pearl(canvas, scene, reveal);
     this.drag(stage, canvas, scene);
+    this.overlays(stage, canvas, scene);
 
     let width = canvas.clientWidth;
     let height = canvas.clientHeight;
@@ -173,15 +231,17 @@ export class CompassStageController extends Component {
       if (canvas.clientWidth === width && canvas.clientHeight === height) return;
       width = canvas.clientWidth;
       height = canvas.clientHeight;
-      // The track is measured in viewport heights: inside it, hold the progress, not the pixel offset.
-      // Above or below it (content before or after the stage), the scroll is left where it is.
+      // The track is measured in viewport heights: inside it, hold the visitor's place (the section and how far through
+      // it, among the spans before and after the change: the Q&A's height reflows with the width), not the pixel
+      // offset. Above or below it (content before or after the stage), the scroll is left where it is.
       const progress = trigger.progress;
       const inside = trigger.isActive && progress > 0 && progress < 1;
+      const before = this.spans;
       scene.resize();
       // Its refresh event measures the spans again (refreshed).
       ScrollTrigger.refresh();
       lenis.resize();
-      if (inside) lenis.scrollTo(trigger.start + progress * (trigger.end - trigger.start), { immediate: true });
+      if (inside) lenis.scrollTo(trigger.start + carryProgress(progress, before, this.spans) * (trigger.end - trigger.start), { immediate: true });
     };
     // One run per frame. The first resize event of a frame is handled at once, while the progress is
     // still the visitor's: a turn between portrait and landscape makes ScrollTrigger refresh itself (its
@@ -235,10 +295,11 @@ export class CompassStageController extends Component {
   /**
    * The pearl's inputs, in CSS pixels relative to the canvas: a mouse or pen
    * moving anywhere on the page, a finger coming down, the centre of the
-   * control the keyboard focuses (as much of it as is on the canvas); a
-   * scroll or a key only wakes it.
+   * control the keyboard focuses (as much of it as is on the canvas; met
+   * again where `reveal` scrolls it into its words' place, once the browser
+   * has scrolled it into view); a scroll or a key only wakes it.
    */
-  private pearl(canvas: HTMLCanvasElement, scene: CompassScene): void {
+  private pearl(canvas: HTMLCanvasElement, scene: CompassScene, reveal: (target: Element) => boolean): void {
     const passive = { passive: true };
     this.listen<PointerEvent>(
       window,
@@ -274,7 +335,8 @@ export class CompassStageController extends Component {
       const y = top <= bottom ? (top + bottom) / 2 : Math.min(Math.max(rect.top, box.top), box.bottom);
       scene.focusAt(x - box.left, y - box.top);
     };
-    // The focused control's wait for its transition's end: one at a time, and dropped on destroy(), so nothing runs after.
+    // The focused control's waits, for its transition's end and for the frame after the browser's scroll to it: one
+    // control at a time, and dropped on destroy(), so nothing runs after.
     let waiting: (() => void) | null = null;
     const stopWaiting = (): void => {
       waiting?.();
@@ -293,9 +355,15 @@ export class CompassStageController extends Component {
       };
       target.addEventListener('transitionend', settle, { once: true });
       const timer = window.setTimeout(stopWaiting, 1000);
+      // The browser scrolls a control into view after its focus event: a frame later the words around it are brought
+      // in where they are faded out there, and the pearl meets the control where that leaves it.
+      const frame = requestAnimationFrame(() => {
+        if (document.activeElement === target && reveal(target)) focusOn(target);
+      });
       waiting = () => {
         target.removeEventListener('transitionend', settle);
         window.clearTimeout(timer);
+        cancelAnimationFrame(frame);
       };
     });
     this.listen(window, 'scroll', () => scene.wake(), passive);
@@ -339,6 +407,112 @@ export class CompassStageController extends Component {
   }
 
   /**
+   * The stage's decorative overlays and the tracks' clicks. After every frame
+   * drawn, from the scene's overlay(): the head's label ("TP1 · LOG", written
+   * at build time per track and test point) at the read head while a test
+   * point is under it, and the orbit on the spindle in Off duty (its centre,
+   * reach and turn). The hovered track's name follows the pointer while the
+   * scene reports one. A click on a track goes where its section's link goes:
+   * a new tab for one that leaves the site; the unwritten track has none.
+   * Positions are CSS custom properties (unitless canvas px and degrees); the
+   * elements show by `data-shown`.
+   */
+  private overlays(stage: HTMLElement, canvas: HTMLCanvasElement, scene: CompassScene): void {
+    const head = $('[data-compass-head]', stage);
+    const hover = $('[data-compass-hover]', stage);
+    const orbit = this.orbit;
+    const labels = head ? readJson<Partial<Record<TrackId, string[]>>>(head, 'data-labels', {}) : {};
+    const names = hover ? readJson<Partial<Record<TrackId, string>>>(hover, 'data-names', {}) : {};
+    const place = (element: HTMLElement, x: number, y: number): void => {
+      element.style.setProperty('--x', x.toFixed(1));
+      element.style.setProperty('--y', y.toFixed(1));
+    };
+    const show = (element: HTMLElement, shown: boolean): void => {
+      if (element.hasAttribute('data-shown') !== shown) element.toggleAttribute('data-shown', shown);
+    };
+    // A label's width, read when its words change; one that would run off the canvas's right edge from `x` (its
+    // offset and a margin of 8px) stands left of its point instead.
+    const widths = new Map<HTMLElement, number>();
+    const write = (element: HTMLElement, text: string): void => {
+      if (element.textContent === text) return;
+      element.textContent = text;
+      widths.set(element, element.offsetWidth);
+    };
+    const flip = (element: HTMLElement, x: number, offset: number): void => {
+      const flipped = x + offset + (widths.get(element) ?? 0) > canvas.clientWidth - 8;
+      if (element.hasAttribute('data-flip') !== flipped) element.toggleAttribute('data-flip', flipped);
+    };
+
+    this.onCleanup(
+      scene.onFrame(() => {
+        const overlay = scene.overlay();
+        if (head) {
+          const { x, y, visible, track: under, tp } = overlay.head;
+          const text = visible && under !== null && tp !== null ? (labels[under]?.[tp] ?? '') : '';
+          // Fading out, the label keeps its last words and stays with the head.
+          if (text) write(head, text);
+          if (visible) {
+            flip(head, x, HEAD_OFFSET);
+            place(head, x, y);
+          }
+          show(head, text !== '');
+        }
+        if (orbit) {
+          const { x, y, radius, angle, visible } = overlay.spindle;
+          if (visible) {
+            place(orbit, x, y);
+            orbit.style.setProperty('--r', radius.toFixed(1));
+            orbit.style.setProperty('--a', angle.toFixed(2));
+          }
+          show(orbit, visible);
+        }
+      })
+    );
+
+    // The pointer, as the pearl has it (a mouse or pen, CSS px on the canvas): the hover label stands beside it.
+    const pointer = { x: 0, y: 0 };
+    this.listen<PointerEvent>(
+      window,
+      'pointermove',
+      (event) => {
+        if (event.pointerType === 'touch') return;
+        const box = canvas.getBoundingClientRect();
+        pointer.x = event.clientX - box.left;
+        pointer.y = event.clientY - box.top;
+        if (!hover?.hasAttribute('data-shown')) return;
+        flip(hover, pointer.x, HOVER_OFFSET);
+        place(hover, pointer.x, pointer.y);
+      },
+      { passive: true }
+    );
+
+    const links = new Map<TrackId, HTMLAnchorElement>();
+    for (const [section, id] of this.sections) {
+      const link = $<HTMLAnchorElement>('a[data-track-link]', section);
+      if (link) links.set(id as TrackId, link);
+    }
+    this.onCleanup(
+      scene.onTrack((under, kind) => {
+        if (kind === 'hover') {
+          if (!hover) return;
+          const name = under === null ? '' : (names[under] ?? '');
+          if (name) {
+            write(hover, name);
+            flip(hover, pointer.x, HOVER_OFFSET);
+            place(hover, pointer.x, pointer.y);
+          }
+          show(hover, name !== '');
+          return;
+        }
+        const link = under === null ? undefined : links.get(under);
+        if (!link) return;
+        if (link.target === '_blank') window.open(link.href, '_blank', 'noopener');
+        else location.assign(link.href);
+      })
+    );
+  }
+
+  /**
    * Draws frames only while the stage is on screen in a visible tab (and,
    * with a hand-over, once it is done), sized afresh each time it starts.
    * `force` applies the state even where it seems unchanged: the hand-over
@@ -360,6 +534,7 @@ export class CompassStageController extends Component {
     this.started = true;
     const { text } = compassPoseAt(progress, this.spans);
     for (const [section, id] of this.sections) section.style.setProperty('--shown', String(text[id] ?? 1));
+    this.orbit?.style.setProperty('--shown', String(text.offduty));
   }
 }
 

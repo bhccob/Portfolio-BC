@@ -6,9 +6,14 @@ import stillHero from '../../assets/renders/compass-hero.webp';
 import stillChina from '../../assets/renders/compass-china.webp';
 import stillAruba from '../../assets/renders/compass-aruba.webp';
 import stillRotterdam from '../../assets/renders/compass-rotterdam.webp';
+import stillDrive from '../../assets/renders/compass-drive.webp';
+import stillOffduty from '../../assets/renders/compass-offduty.webp';
 import CompassLoader from './CompassLoader.astro';
+import Icon from '../ui/Icon.astro';
+import type { IconName } from '../ui/icons';
 import { Translator, type Locale } from '../../i18n/Translator';
 import { profile } from '../../data/profile';
+import { trackCopy, type TrackCopy } from '../../data/tracks';
 import { SECTIONS, type SectionId } from '../../scripts/three/Choreography';
 import { TRACKS, type TrackId } from '../../scripts/three/instrument/drive';
 
@@ -22,12 +27,19 @@ import { TRACKS, type TrackId } from '../../scripts/three/instrument/drive';
  * text by the choreography's `text` (`--shown`). Each section's text is a
  * sticky block of its own, a viewport tall, so it holds still while its
  * section scrolls and the fade does the rest: the hero has the name, the role
- * and two hints, About a heading and the lead, each home its label; the
- * drive's sections are there, empty, until their words come. Without scripts,
- * with reduced motion or without WebGL, the stage is hidden and the sections read as a plain
- * stacked page, with the portrait and a still of the compass for each home
- * (and the hero) to show what the stage would. On the session's first visit
- * the loader (CompassLoader) covers it all until the live scene takes over.
+ * and two hints, About a heading and the lead, each home its label, the
+ * current and its two lines what I work with, the change its caption, each
+ * track its project (name, category, line and link), Off duty the hobbies,
+ * and Say hello its link. The Q&A alone is no sticky block: it flows as a
+ * column of questions (<details>) beside the small drive. Over the canvas,
+ * decorative and placed by the controller each frame: the test point's label
+ * at the read head, the hovered track's name at the pointer, and the Off duty
+ * orbit of hobbies round the spindle. Without scripts, with reduced motion or
+ * without WebGL, the stage is hidden and the sections read as a plain stacked
+ * page, with the portrait and six stills of the compass (the hero, each home,
+ * the drive after the change and the spindle after Off duty) to show what the
+ * stage would. On the session's first visit the loader (CompassLoader) covers
+ * it all until the live scene takes over.
  */
 
 interface Props {
@@ -35,7 +47,8 @@ interface Props {
 }
 
 const { locale } = Astro.props;
-const { t } = new Translator(locale);
+const i18n = new Translator(locale);
+const { t } = i18n;
 const c = t.compass;
 const lead = t.about.lead.replace('{age}', String(profile.ageOn()));
 
@@ -44,72 +57,222 @@ const stills: Partial<Record<SectionId, typeof stillHero>> = {
   hero: stillHero,
   china: stillChina,
   aruba: stillAruba,
-  rotterdam: stillRotterdam
+  rotterdam: stillRotterdam,
+  change: stillDrive,
+  offduty: stillOffduty
 };
-const alts: Partial<Record<SectionId, string>> = c.stills;
+const alts: Partial<Record<SectionId, string>> = {
+  hero: c.stills.hero,
+  china: c.stills.china,
+  aruba: c.stills.aruba,
+  rotterdam: c.stills.rotterdam,
+  change: c.stills.drive,
+  offduty: c.stills.offduty
+};
 
 const isHome = (id: SectionId): id is 'china' | 'aruba' | 'rotterdam' => id === 'china' || id === 'aruba' || id === 'rotterdam';
 const isTrack = (id: SectionId): id is TrackId => (TRACKS as readonly SectionId[]).includes(id);
+
+/** What I work with: its two lines are the skills' foundation and AI rows. */
+const lines: Partial<Record<SectionId, { title: string; text: string }>> = { stack: t.skills.rows[0], ai: t.skills.rows[2] };
+
+const tracks = Object.fromEntries(TRACKS.map((id) => [id, trackCopy(id, locale)])) as Record<TrackId, TrackCopy>;
+/** The read head's labels, per track and test point ("TP1 · LOG"), and the tracks' names for the hover label. */
+const headLabels = Object.fromEntries(
+  TRACKS.map((id) => [id, tracks[id].tps.map((label, k) => i18n.format(c.tp, { n: k + 1, label: label.toLocaleUpperCase(i18n.intlLocale) }))])
+);
+const trackNames = Object.fromEntries(TRACKS.map((id) => [id, tracks[id].name]));
+
+const life = t.life;
+const hobbies: { icon: IconName; name: string; text: string }[] = [
+  { icon: 'shoe', name: life.hobbies.running, text: life.hobbies.runningText },
+  { icon: 'dumbbell', name: life.hobbies.gym, text: life.hobbies.gymText },
+  { icon: 'controller', name: life.hobbies.gaming, text: life.hobbies.gamingText }
+];
+const former = `${life.former}: ${life.hobbies.powerlifting} · ${life.hobbies.tableTennis}`;
+/** The orbit round the spindle, the faint former hobbies between the current ones. */
+const orbit: { icon: IconName; former: boolean }[] = [
+  { icon: 'shoe', former: false },
+  { icon: 'plate', former: true },
+  { icon: 'dumbbell', former: false },
+  { icon: 'paddle', former: true },
+  { icon: 'controller', former: false }
+];
+
+/** The Q&A's answers, in the questions' order, from the career copy: a label, paragraphs, then terms with their text. */
+const career = t.career;
+const answers: { label?: string; paragraphs: readonly string[]; terms?: { term: string; text: string; sector?: boolean }[] }[] = [
+  { label: `${career.currentRole} · ${career.currentOrg}`, paragraphs: [career.currentText] },
+  { paragraphs: [career.hboText] },
+  {
+    paragraphs: [career.roadmapNote],
+    terms: [
+      ...career.roleGroups.flatMap((group) => group.roles.map((role) => ({ term: role.title, text: role.text }))),
+      { term: career.sector.title, text: career.sector.text, sector: true }
+    ]
+  },
+  { paragraphs: career.why },
+  { paragraphs: [career.goalText] }
+];
+const questions = c.qa.items.map((question, k) => ({ question, answer: answers[k] }));
 ---
 
 <CompassLoader locale={locale} />
 <div class="compass" data-compass-track>
   <div class="compass__stage" data-compass-stage data-portrait={pool.src}>
     <canvas class="compass__canvas" data-compass-canvas aria-hidden="true"></canvas>
+    <div class="compass__orbit" data-compass-orbit aria-hidden="true">
+      <span class="compass__orbit-ring"></span>
+      {
+        orbit.map(({ icon, former: faint }) => (
+          <span class:list={['compass__orbit-icon', { 'compass__orbit-icon--former': faint }]}>
+            <Icon name={icon} size={34} strokeWidth={1.5} />
+          </span>
+        ))
+      }
+    </div>
+    <div class="compass__label compass__label--head" data-compass-head data-labels={JSON.stringify(headLabels)} aria-hidden="true"></div>
+    <div class="compass__label compass__label--hover" data-compass-hover data-names={JSON.stringify(trackNames)} aria-hidden="true"></div>
   </div>
   {
-    SECTIONS.map(({ id, length }) => (
-      <section class="compass__section" data-section={id} id={isTrack(id) ? id : undefined} style={length === null ? undefined : `--len: ${length}`}>
-        <div class="compass__text">
-          <div class="compass__copy">
-            {id === 'hero' && (
-              <>
-                <h1 class="title compass__name">{profile.name}</h1>
-                <p class="hud-label compass__role">{c.role}</p>
-                <p class="hud-label compass__hints">
-                  <span>{c.hints.scroll}</span>
-                  <span aria-hidden="true">{c.hints.drag}</span>
-                </p>
-              </>
-            )}
-            {id === 'about' && (
-              <>
-                <h2 class="title compass__heading">{c.about.title}</h2>
-                <p class="lead compass__lead" set:html={lead} />
-              </>
-            )}
-            {isHome(id) && <h3 class="title compass__heading">{c.homes[id]}</h3>}
+    SECTIONS.map(({ id, length }) => {
+      const line = lines[id];
+      const track = isTrack(id) ? tracks[id] : null;
+      return (
+        <section class="compass__section" data-section={id} id={isTrack(id) ? id : undefined} style={length === null ? undefined : `--len: ${length}`}>
+          <div class="compass__text">
+            <div class="compass__copy">
+              {id === 'hero' && (
+                <>
+                  <h1 class="title compass__name">{profile.name}</h1>
+                  <p class="hud-label compass__role">{c.role}</p>
+                  <p class="hud-label compass__hints">
+                    <span>{c.hints.scroll}</span>
+                    <span aria-hidden="true">{c.hints.drag}</span>
+                  </p>
+                </>
+              )}
+              {id === 'about' && (
+                <>
+                  <h2 class="title compass__heading">{c.about.title}</h2>
+                  <p class="lead compass__lead" set:html={lead} />
+                </>
+              )}
+              {isHome(id) && <h3 class="title compass__heading">{c.homes[id]}</h3>}
+              {id === 'current' && (
+                <>
+                  <h2 class="title compass__heading">{c.work.title}</h2>
+                  <p class="hud-label compass__caption">{c.work.caption}</p>
+                </>
+              )}
+              {line && (
+                <>
+                  <h3 class="title compass__heading">{line.title}</h3>
+                  <p class="compass__line">{line.text}</p>
+                </>
+              )}
+              {id === 'change' && <p class="title compass__heading">{c.change}</p>}
+              {track && (
+                <>
+                  {id === 'funcial' && <h2 class="compass__hidden">{c.projects}</h2>}
+                  <h3 class="title compass__heading">{track.name}</h3>
+                  <p class="hud-label compass__meta">{[track.category, track.kind].filter(Boolean).join(' · ')}</p>
+                  <p class="compass__line">{track.line}</p>
+                  {track.link && (
+                    <a
+                      class="compass__link"
+                      href={track.link.href}
+                      data-track-link
+                      target={track.link.external ? '_blank' : undefined}
+                      rel={track.link.external ? 'noopener' : undefined}
+                    >
+                      {track.link.label}
+                      <Icon name="arrow" size={14} strokeWidth={1.8} />
+                    </a>
+                  )}
+                </>
+              )}
+              {id === 'offduty' && (
+                <>
+                  <h2 class="title compass__heading">{c.offduty.title}</h2>
+                  <p class="compass__spin">{c.offduty.spin}</p>
+                  <ul class="compass__hobbies">
+                    {hobbies.map((hobby) => (
+                      <li class="compass__hobby">
+                        <Icon name={hobby.icon} size={26} strokeWidth={1.5} />
+                        <span class="compass__hobby-name">{hobby.name}</span>
+                        <span class="compass__hobby-text">{hobby.text}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p class="hud-label compass__former">{former}</p>
+                </>
+              )}
+              {id === 'qa' && (
+                <>
+                  <h2 class="title compass__heading">{c.qa.title}</h2>
+                  <div class="compass__questions">
+                    {questions.map(({ question, answer }, k) => (
+                      <details class="compass__question" data-question={k}>
+                        <summary>{question}</summary>
+                        <div class="compass__answer">
+                          {answer.label && <p class="hud-label compass__answer-label">{answer.label}</p>}
+                          {answer.paragraphs.map((paragraph) => (
+                            <p>{paragraph}</p>
+                          ))}
+                          {answer.terms && (
+                            <dl class="compass__terms">
+                              {answer.terms.map(({ term, text, sector }) => (
+                                <div class:list={['compass__term', { 'compass__term--sector': sector }]}>
+                                  <dt>{term}</dt>
+                                  <dd>{text}</dd>
+                                </div>
+                              ))}
+                            </dl>
+                          )}
+                        </div>
+                      </details>
+                    ))}
+                  </div>
+                </>
+              )}
+              {id === 'hello' && (
+                <h2 class="title compass__hello">
+                  <a href={i18n.path('/contact/')}>{c.hello}</a>
+                </h2>
+              )}
+            </div>
           </div>
-        </div>
-        {id === 'about' ? (
-          <figure class="compass__portrait">
-            <Picture
-              src={portrait}
-              formats={['avif', 'webp']}
-              widths={[280, 560]}
-              sizes="280px"
-              alt={t.about.portraitAlt}
-              loading="lazy"
-              decoding="async"
-            />
-          </figure>
-        ) : (
-          stills[id] && (
-            <Picture
-              pictureAttributes={{ class: 'compass__still' }}
-              src={stills[id]}
-              formats={['webp']}
-              fallbackFormat="webp"
-              widths={[800, 1600]}
-              sizes="(min-width: 1164px) 1100px, 100vw"
-              alt={alts[id] ?? ''}
-              loading={id === 'hero' ? 'eager' : 'lazy'}
-              decoding="async"
-            />
-          )
-        )}
-      </section>
-    ))
+          {id === 'about' ? (
+            <figure class="compass__portrait">
+              <Picture
+                src={portrait}
+                formats={['avif', 'webp']}
+                widths={[280, 560]}
+                sizes="280px"
+                alt={t.about.portraitAlt}
+                loading="lazy"
+                decoding="async"
+              />
+            </figure>
+          ) : (
+            stills[id] && (
+              <Picture
+                pictureAttributes={{ class: 'compass__still' }}
+                src={stills[id]}
+                formats={['webp']}
+                fallbackFormat="webp"
+                widths={[800, 1600]}
+                sizes="(min-width: 1164px) 1100px, 100vw"
+                alt={alts[id] ?? ''}
+                loading={id === 'hero' ? 'eager' : 'lazy'}
+                decoding="async"
+              />
+            )
+          )}
+        </section>
+      );
+    })
   }
 </div>
 
@@ -169,6 +332,232 @@ const isTrack = (id: SectionId): id is TrackId => (TRACKS as readonly SectionId[
 
   .compass__lead {
     max-width: 34em;
+  }
+
+  /* The drive's words: a caption, a line of text, a project's category and kind, its link. */
+  .compass__caption,
+  .compass__meta {
+    color: var(--gold);
+  }
+
+  .compass__line {
+    max-width: 34em;
+    font-size: clamp(16px, 1.25vw, 19px);
+    line-height: 1.55;
+    color: var(--cream);
+    text-wrap: pretty;
+  }
+
+  .compass__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    font-family: var(--font-hud);
+    font-size: var(--hud-size);
+    font-weight: 500;
+    letter-spacing: var(--hud-tracking);
+    text-transform: uppercase;
+    color: var(--yellow);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 7px;
+  }
+
+  .compass__link :global(.icon) {
+    transition: transform 0.25s var(--ease-out);
+  }
+
+  .compass__link:hover :global(.icon),
+  .compass__link:focus-visible :global(.icon) {
+    transform: translate(2px, -2px);
+  }
+
+  /* The projects' heading, for the outline and screen readers: the tracks' names say it on screen. */
+  .compass__hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* Off duty: what keeps me spinning, the three hobbies now, the two before. */
+  .compass__spin {
+    font-size: clamp(18px, 1.4vw, 22px);
+    line-height: 1.4;
+    color: var(--cream);
+  }
+
+  .compass__hobbies {
+    display: grid;
+    gap: 14px;
+    justify-self: stretch;
+  }
+
+  .compass__hobby {
+    display: grid;
+    grid-template-columns: 26px minmax(0, 1fr);
+    column-gap: 14px;
+    row-gap: 2px;
+  }
+
+  .compass__hobby :global(.icon) {
+    grid-row: span 2;
+    color: var(--gold);
+  }
+
+  .compass__hobby-name {
+    font-family: var(--font-title);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--cream);
+  }
+
+  .compass__hobby-text {
+    font-size: 15px;
+    line-height: 1.45;
+  }
+
+  /* The Q&A: plain <details>, a question to a row, its answer from the career copy. */
+  .compass__questions {
+    display: grid;
+    justify-self: stretch;
+    max-width: 640px;
+  }
+
+  /*
+   * The rules between the questions are their summaries' and their answers'
+   * own, so they fade with the words as these rise under the drive (below):
+   * one above each question, and the closing one under the last question, or
+   * under its answer while that is open.
+   */
+  .compass__question summary,
+  .compass__question:last-child[open] .compass__answer > :last-child {
+    border-color: rgb(184 170 216 / 0.2);
+    border-style: solid;
+    border-width: 0;
+  }
+
+  .compass__question summary {
+    border-top-width: 1px;
+  }
+
+  .compass__question:last-child:not([open]) summary,
+  .compass__question:last-child[open] .compass__answer > :last-child {
+    border-bottom-width: 1px;
+  }
+
+  .compass__question:last-child[open] .compass__answer {
+    padding-bottom: 0;
+  }
+
+  .compass__question:last-child[open] .compass__answer > :last-child {
+    padding-bottom: 24px;
+  }
+
+  .compass__question summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 18px 0;
+    font-family: var(--font-title);
+    font-size: clamp(17px, 1.3vw, 21px);
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--cream);
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .compass__question summary::-webkit-details-marker {
+    display: none;
+  }
+
+  /* A plus drawn in gold, turned to a cross while the answer is open; empty content, so nothing of it is read out. */
+  .compass__question summary::after {
+    content: '';
+    flex: none;
+    width: 14px;
+    height: 14px;
+    background:
+      linear-gradient(var(--gold), var(--gold)) center / 100% 1.5px no-repeat,
+      linear-gradient(var(--gold), var(--gold)) center / 1.5px 100% no-repeat;
+    transition: transform 0.3s var(--ease-out);
+  }
+
+  .compass__question[open] summary::after {
+    transform: rotate(45deg);
+  }
+
+  .compass__question summary:hover {
+    color: var(--yellow);
+  }
+
+  .compass__answer {
+    display: grid;
+    gap: 14px;
+    max-width: 36em;
+    padding-bottom: 24px;
+    font-size: 16px;
+    line-height: 1.6;
+    text-wrap: pretty;
+  }
+
+  .compass__answer-label {
+    color: var(--gold);
+  }
+
+  .compass__terms {
+    display: grid;
+    gap: 14px;
+  }
+
+  .compass__term dt {
+    font-family: var(--font-title);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--cream);
+  }
+
+  .compass__term dd {
+    margin-top: 2px;
+  }
+
+  .compass__term--sector {
+    padding-top: 14px;
+    border-top: 1px solid rgb(184 170 216 / 0.2);
+  }
+
+  .compass__term--sector dt {
+    color: var(--gold);
+  }
+
+  /* Say hello: the contact page, in the name's own size and yellow. */
+  .compass__hello {
+    font-size: clamp(44px, 9vw, 136px);
+    font-weight: 700;
+    line-height: 0.95;
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
+  }
+
+  .compass__hello a {
+    color: var(--yellow);
+    text-decoration: none;
+  }
+
+  .compass__hello a:hover {
+    text-decoration: underline;
+    text-decoration-thickness: 0.05em;
+    text-underline-offset: 0.12em;
   }
 
   .compass__portrait {
@@ -238,6 +627,144 @@ const isTrack = (id: SectionId): id is TrackId => (TRACKS as readonly SectionId[
   }
 
   /*
+   * The overlays on the canvas, decorative and out of the pointer's way, placed
+   * after every frame by the controller in canvas px (--x, --y, from the
+   * scene's overlay()) and shown by `data-shown`: the test point's label up
+   * and right of the read head, the hovered track's name up and right of the
+   * pointer, and the Off duty orbit centred on the spindle, --r px out and
+   * turned with the platter (--a, degrees counter-clockwise; CSS turns
+   * clockwise), each icon turned back so it stays upright, its opacity Off
+   * duty's text (--shown). No transition on the orbit's turn: --a can jump a
+   * whole turn.
+   */
+  .compass__orbit,
+  .compass__label {
+    position: absolute;
+    left: 0;
+    top: 0;
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  .compass__label {
+    font-family: var(--font-hud);
+    font-size: var(--hud-size);
+    font-weight: 500;
+    line-height: 1.4;
+    letter-spacing: var(--hud-tracking);
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--gold);
+    text-shadow:
+      0 0 2px rgb(7 4 13 / 0.9),
+      0 0 10px rgb(7 4 13 / 0.9);
+    transition: opacity 0.2s var(--ease-out);
+  }
+
+  .compass__label[data-shown] {
+    opacity: 1;
+  }
+
+  .compass__label--head {
+    transform: translate(calc(var(--x, 0) * 1px + 18px), calc(var(--y, 0) * 1px - 100% - 18px));
+  }
+
+  /* A leader from the head's point to the label's lower left corner. */
+  .compass__label--head::before {
+    content: '';
+    position: absolute;
+    left: -18px;
+    bottom: -18px;
+    width: 25.5px;
+    height: 1px;
+    background: currentColor;
+    opacity: 0.7;
+    transform: rotate(-45deg);
+    transform-origin: 0 50%;
+  }
+
+  .compass__label--hover {
+    transform: translate(calc(var(--x, 0) * 1px + 14px), calc(var(--y, 0) * 1px - 100% - 10px));
+  }
+
+  /* A label that would run off the canvas's right edge stands up and left of its point instead (`data-flip`). */
+  .compass__label--head[data-flip] {
+    transform: translate(calc(var(--x, 0) * 1px - 100% - 18px), calc(var(--y, 0) * 1px - 100% - 18px));
+  }
+
+  .compass__label--head[data-flip]::before {
+    left: auto;
+    right: -18px;
+    transform: rotate(45deg);
+    transform-origin: 100% 50%;
+  }
+
+  .compass__label--hover[data-flip] {
+    transform: translate(calc(var(--x, 0) * 1px - 100% - 14px), calc(var(--y, 0) * 1px - 100% - 10px));
+  }
+
+  .compass__orbit {
+    width: 0;
+    height: 0;
+    color: var(--gold);
+    transform: translate(calc(var(--x, 0) * 1px), calc(var(--y, 0) * 1px)) rotate(calc(-1deg * var(--a, 0)));
+  }
+
+  .compass__orbit[data-shown] {
+    opacity: var(--shown, 0);
+  }
+
+  /* The orbit's path: a ring 150px round, scaled to --r (a transform, so the dots grow a little with it). */
+  .compass__orbit-ring {
+    position: absolute;
+    left: -150px;
+    top: -150px;
+    width: 300px;
+    height: 300px;
+    border: 1px dotted currentColor;
+    border-radius: 50%;
+    opacity: 0.5;
+    transform: scale(calc(var(--r, 150) / 150));
+  }
+
+  .compass__orbit-icon {
+    position: absolute;
+    left: -27px;
+    top: -27px;
+    display: grid;
+    place-items: center;
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgb(7 4 13 / 0.8) 50%, rgb(7 4 13 / 0) 70%);
+    transform: rotate(calc(var(--i) * 72deg)) translateY(calc(var(--r, 100) * -1px)) rotate(calc(var(--i) * -72deg + var(--a, 0) * 1deg));
+  }
+
+  .compass__orbit-icon:nth-child(2) {
+    --i: 0;
+  }
+
+  .compass__orbit-icon:nth-child(3) {
+    --i: 1;
+  }
+
+  .compass__orbit-icon:nth-child(4) {
+    --i: 2;
+  }
+
+  .compass__orbit-icon:nth-child(5) {
+    --i: 3;
+  }
+
+  .compass__orbit-icon:nth-child(6) {
+    --i: 4;
+  }
+
+  .compass__orbit-icon--former :global(.icon) {
+    opacity: 0.35;
+  }
+
+  /*
    * The sections lie over the canvas and let the pointer through to it (a
    * press on the stage turns the dial), but for their links and buttons.
    */
@@ -261,12 +788,13 @@ const isTrack = (id: SectionId): id is TrackId => (TRACKS as readonly SectionId[
     min-height: calc((var(--len) + 100) * 1svh);
   }
 
-  /* The Q&A has no length of its own: it is as tall as its content, and a viewport at least until its questions come. */
+  /* The Q&A has no length of its own: it is as tall as its content. */
   :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section[data-section='qa'] {
-    min-height: 100svh;
+    min-height: 0;
   }
 
-  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section :is(a, button) {
+  /* The questions take the pointer whole, so their words can be selected as well as opened. */
+  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section :is(a, button, .compass__questions) {
     pointer-events: auto;
   }
 
@@ -333,8 +861,14 @@ const isTrack = (id: SectionId): id is TrackId => (TRACKS as readonly SectionId[
     pointer-events: none;
   }
 
-  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section[data-section='about'] {
+  /* The spindle's close-up fills the screen with metal too. */
+  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section[data-section='offduty'] {
     --scrim: 1;
+  }
+
+  /* The drive's chassis reaches to the column's edge on a track. */
+  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section:is([data-section='funcial'], [data-section='jontai-energy'], [data-section='cookies-clicker'], [data-section='next']) {
+    --scrim: 0.75;
   }
 
   :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section .compass__copy {
@@ -344,12 +878,24 @@ const isTrack = (id: SectionId): id is TrackId => (TRACKS as readonly SectionId[
   }
 
   /*
-   * The name: 5.4vw, less where the dial's board comes near the column (the
-   * dial is wide-screen's width-bound at 6 : 5): the board's left edge is
-   * 62vw minus 0.63 of the rim's diameter, and the longest word (CHUNG) is
-   * 4.7 em wide from the gutter, with 24px to spare.
+   * On a track the drive comes closer (the choreography's TRACK framing, zoom
+   * 1.15): its chassis's left edge is 62vw less 0.73 of the dial's diameter
+   * (min(64svh, 52vw)), and the column stops 24px short of it, 340px at least.
    */
-  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section .compass__name {
+  @media (min-aspect-ratio: 6/5) {
+    :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section:is([data-section='funcial'], [data-section='jontai-energy'], [data-section='cookies-clicker'], [data-section='next']) .compass__copy {
+      max-width: clamp(340px, 62vw - 0.73 * min(64svh, 52vw) - 24px, min(36vw, 520px));
+    }
+  }
+
+  /*
+   * The name, and Say hello where the compass is back in the same place: 5.4vw,
+   * less where the dial's board comes near the column (the dial is
+   * wide-screen's width-bound at 6 : 5): the board's left edge is 62vw minus
+   * 0.63 of the rim's diameter, and the longest word (CHUNG) is 4.7 em wide
+   * from the gutter, with 24px to spare.
+   */
+  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section :is(.compass__name, .compass__hello) {
     font-size: clamp(32px, min(5.4vw, (58vw - 0.63 * min(64svh, 52vw) - 24px) / 4.7), 92px);
   }
 
@@ -359,6 +905,31 @@ const isTrack = (id: SectionId): id is TrackId => (TRACKS as readonly SectionId[
 
   :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section .compass__lead {
     font-size: clamp(16px, 1.35vw, 21px);
+  }
+
+  /*
+   * The Q&A unpins: no sticky block, but a column as tall as its questions,
+   * beside the small dimmed drive (CameraRig's sideLayout, at 0.8 of the width,
+   * clear of min(46vw, 640px)). It starts a quarter of the way down, so the
+   * questions come in under the Off duty words' place rather than at the top
+   * edge, and its words fade in once the Q&A begins. No scrim: they stand on
+   * the void.
+   */
+  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section[data-section='qa'] .compass__text {
+    position: relative;
+    display: block;
+    height: auto;
+    margin-bottom: 0;
+    transition: opacity 0.4s var(--ease-out);
+  }
+
+  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section[data-section='qa'] .compass__text::before {
+    display: none;
+  }
+
+  :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section[data-section='qa'] .compass__copy {
+    max-width: min(46vw, 640px);
+    padding: 24svh 0 12svh var(--gutter);
   }
 
   /*
@@ -383,7 +954,7 @@ const isTrack = (id: SectionId): id is TrackId => (TRACKS as readonly SectionId[
       padding: 58svh var(--gutter) 0;
     }
 
-    :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section .compass__name {
+    :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section :is(.compass__name, .compass__hello) {
       font-size: clamp(36px, 10.5vw, 72px);
     }
 
@@ -391,8 +962,39 @@ const isTrack = (id: SectionId): id is TrackId => (TRACKS as readonly SectionId[
       font-size: clamp(26px, 7.4vw, 48px);
     }
 
-    :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section .compass__lead {
+    :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section :is(.compass__lead, .compass__line) {
       font-size: clamp(15px, 4.2vw, 19px);
+    }
+
+    /* The Q&A, full width under the small drive at the top right (sideLayout's narrow place, above 0.3 of the height). */
+    :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section[data-section='qa'] .compass__copy {
+      max-width: none;
+      padding: 36svh var(--gutter) 12svh;
+    }
+  }
+
+  /*
+   * Narrow, where the browser ties animations to the scroll: the questions'
+   * words fade as they rise into the band of the small drive (the top 34% of
+   * the viewport), so none passes under it. Opacity only; elsewhere they
+   * scroll by under the dimmed drive as a plain column would.
+   */
+  @supports (animation-timeline: view()) {
+    @media not all and (min-aspect-ratio: 6/5) {
+      :global(.js-motion) .compass__stage:not([data-fallback]) ~ .compass__section[data-section='qa'] :is(h2, summary, .compass__answer > :not(dl), .compass__term) {
+        /* Longhands, so the minifier cannot fold the timeline into an `animation` shorthand, which drops it. */
+        animation-name: compass-under-drive;
+        animation-timing-function: linear;
+        animation-fill-mode: both;
+        animation-timeline: view(block 34% 0%);
+        animation-range: exit 0% exit 60%;
+      }
+    }
+  }
+
+  @keyframes compass-under-drive {
+    to {
+      opacity: 0;
     }
   }
 </style>
