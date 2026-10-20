@@ -129,6 +129,7 @@ assignment to count the loop's own frames apart from the canvas's.
 | `home-nav` | the home page's six links: hidden but focusable with 3D on, shown with 3D off, the choice stored across a reload, no WebGL mounted with 3D off |
 | `mobile` | every page at 390 px wide has no horizontal scroll |
 | `esc` | the back link: Escape and a click go home or back by client navigation, also after a replace; not in a text field; a modified click is left alone |
+| `nav-focus` | a link opens the new page at its top with the focus moved to `<main>` (on `/lite/` scrolled down, a project's `<h1>` in view at scrollY 0); Back returns to the place left; the language switch keeps the place; a push to `/en/lite/#career` (through React Router's own `window.__reactRouterDataRouter`) scrolls to it |
 | `lite` | `/lite/` and `/en/lite/` complete without script (headings, portrait, details, `#career`); `/contact/` and its form (mailto fallback, a key, the guards, the 15 s timeout) |
 | `scroll` | the home page does not scroll natively with 3D on; wheel, keys and touch move the story; the loop sleeps at rest and asks for one frame at a time; text fields, pinch and 3D off are the browser's; coming back from a page keeps the story; touch drag and glide |
 | `keyboard` | Tab reaches the skip link, the language switch and the 3D toggle in order, each ringed and on screen; End goes to the last chapter, Home returns |

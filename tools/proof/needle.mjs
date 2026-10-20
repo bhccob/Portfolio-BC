@@ -66,6 +66,11 @@
  *              does, in both cases, but a ctrl-, meta- or shift-click is left to the browser (its default is
  *              not prevented). The scene's phase follows: the page's on the page, the scroll's (HOME_IDLE) on
  *              the home page. The "Esc" hint is aria-hidden and hidden on a touch screen
+ *   nav-focus  a link (a push) opens the new page at its top with the focus moved to <main>: on /lite/ scrolled down to
+ *              the projects, a click on one shows its <h1> at scrollY 0, and Tab goes on inside the new page; Back (a
+ *              pop) returns near the place left; the language switch (a replace) keeps the place, the project on screen
+ *              where it was; a push to a place in a page (/en/lite/#career, through React Router's own
+ *              window.__reactRouterDataRouter) scrolls to it
  *   lite       /lite/ and /en/lite/: one <h1>, every section's heading (from the dictionary) in order and
  *              no skipped level, the real portrait loaded with its alt text and size, at least five
  *              <details> that open by keyboard with a visible focus ring, #career where the old /career/
@@ -658,6 +663,95 @@ async function esc(browser, step) {
   step.check((await phone.locator('a.back').isVisible()) === true, 'the back link itself stays visible on a phone');
   await touch.close();
   return 'Escape and a click go home (/ and /en/) or back by client navigation, also after a replace; not in a field, not once handled; a modified click is left alone; the hint is hidden on touch';
+}
+
+/** Where the page is: its scroll, whether its <h1> is in view, and where the focus is (in <main>, or on <main> itself). */
+const placeOf = (page) =>
+  page.evaluate(() => {
+    const main = document.querySelector('main');
+    const h1 = document.querySelector('h1');
+    const box = h1?.getBoundingClientRect();
+    return {
+      path: location.pathname,
+      y: Math.round(window.scrollY),
+      h1InView: !!box && box.top >= 0 && box.bottom <= window.innerHeight,
+      inMain: !!main && main.contains(document.activeElement),
+      focus: document.activeElement === main ? 'main' : (document.activeElement?.tagName ?? null),
+    };
+  });
+
+/**
+ * A client navigation and the visitor's place. A link (a push) opens the new page at its top with the focus moved into
+ * <main>: on /lite/ scrolled down to the projects, a click on one shows the project's <h1>, at scrollY 0, and Tab goes on
+ * inside the new page. Back (a pop) is the browser's and returns near the place left; the language switch (a replace)
+ * keeps the place; a push to a place in a page (/en/lite/#career, through the router) scrolls to it.
+ */
+async function navFocus(browser, step) {
+  const { context, page } = await openPage(browser, step);
+  const documents = [];
+  page.on('request', (request) => {
+    if (request.isNavigationRequest() && request.frame() === page.mainFrame()) documents.push(request.url());
+  });
+  const project = '#work a[href="/projects/jontai-energy/"]';
+  await page.goto(`${BASE}/lite/?proof`, { waitUntil: 'load' });
+  await pageReady(page, '/lite/');
+  await page.evaluate((selector) => document.querySelector(selector).scrollIntoView({ block: 'center' }), project);
+  await page.waitForTimeout(200);
+  const left = await placeOf(page);
+  step.check(left.y > 300, `on /lite/ the visitor has scrolled down to the projects (scrollY ${left.y})`);
+
+  // A link: the project page from its top, the focus in it.
+  documents.length = 0;
+  await page.click(project);
+  await page.waitForFunction(() => location.pathname === '/projects/jontai-energy/' && document.documentElement.dataset.route === 'project', null, { timeout: 5_000 });
+  await page.waitForTimeout(150);
+  const opened = await placeOf(page);
+  step.check(opened.y === 0 && opened.h1InView, `a click on a project opens its page at the top, its <h1> in view (got scrollY ${opened.y}, h1 in view ${opened.h1InView})`);
+  step.check(opened.inMain && opened.focus === 'main', `and the focus is moved to <main>, not left on <body> (got ${opened.focus})`);
+  await page.keyboard.press('Tab');
+  const tabbed = await placeOf(page);
+  step.check(tabbed.inMain, `Tab from there goes on inside the new page (got ${tabbed.focus}, in <main> ${tabbed.inMain})`);
+  step.check(documents.length === 0, `by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
+
+  // Back: the browser puts the visitor where they were.
+  await page.evaluate(() => history.back());
+  await page.waitForFunction(() => location.pathname === '/lite/' && document.documentElement.dataset.route === 'lite', null, { timeout: 5_000 });
+  await page.waitForTimeout(500);
+  const back = await placeOf(page);
+  step.check(Math.abs(back.y - left.y) <= 50, `Back returns near the place left (scrollY ${back.y}, left at ${left.y})`);
+
+  // The language switch replaces the page with itself in the other language: the place stays, the project the visitor
+  // was at still in view where it was (the English copy above it is a little shorter, and the browser's scroll anchoring
+  // keeps what is on screen in place). Clicked in the page, as Playwright's own click would first scroll the header
+  // (which scrolls with the page) back into view.
+  const topOf = (href) => page.evaluate((href) => Math.round(document.querySelector(`#work a[href="${href}"]`).getBoundingClientRect().top), href);
+  const wasAt = await topOf('/projects/jontai-energy/');
+  await page.evaluate(() => document.querySelector('.header-nav a[hreflang="en"]').click());
+  await page.waitForFunction(() => location.pathname === '/en/lite/' && document.documentElement.lang === 'en', null, { timeout: 5_000 });
+  await page.waitForTimeout(200);
+  const switched = await placeOf(page);
+  const nowAt = await topOf('/en/projects/jontai-energy/');
+  step.check(
+    switched.y > 300 && Math.abs(nowAt - wasAt) <= 40,
+    `the language switch keeps the place: not reset to the top (scrollY ${switched.y}, was ${back.y}), the project still where it was on screen (top ${nowAt} px, was ${wasAt} px)`,
+  );
+
+  // A push to a place in a page goes to that place, not to the top.
+  await page.click('#work a[href="/en/projects/funcial/"]');
+  await page.waitForFunction(() => location.pathname === '/en/projects/funcial/', null, { timeout: 5_000 });
+  const routed = await page.evaluate(() => typeof window.__reactRouterDataRouter?.navigate === 'function');
+  step.check(routed, "the router is there to push a place in a page (React Router's window.__reactRouterDataRouter)");
+  if (routed) {
+    await page.evaluate(() => window.__reactRouterDataRouter.navigate('/en/lite/#career'));
+    await page.waitForFunction(() => location.pathname === '/en/lite/' && location.hash === '#career', null, { timeout: 5_000 });
+    await page.waitForTimeout(200);
+    const career = await page.evaluate(() => ({ top: Math.round(document.querySelector('#career').getBoundingClientRect().top), y: Math.round(window.scrollY) }));
+    step.check(career.y > 0 && career.top > -5 && career.top < 450, `a push to /en/lite/#career scrolls #career into view (top ${career.top} px, scrollY ${career.y})`);
+  }
+  step.check(documents.length === 0, `all of it by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
+  await takeCsp(page, step);
+  await context.close();
+  return `a link opens the page at its top with the focus in <main> (from scrollY ${left.y}); Back returns to ${back.y}; the language switch keeps it; a push to #career scrolls there`;
 }
 
 /** The size of the first element matching `selector`, in CSS pixels; null if there is none. */
@@ -2471,6 +2565,7 @@ const STEPS = {
   'home-nav': homeNav,
   mobile,
   esc,
+  'nav-focus': navFocus,
   lite,
   scroll,
   keyboard,

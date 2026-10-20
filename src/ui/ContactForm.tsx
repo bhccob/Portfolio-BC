@@ -82,7 +82,7 @@ export function ContactForm({ accessKey }: { accessKey?: string }): JSX.Element 
   useEffect(() => {
     if (new URLSearchParams(search).get('sent') !== '1') return;
     setStatus('sent');
-    navigate({ pathname, search: '' }, { replace: true });
+    navigate({ pathname, search: '' }, { replace: true, preventScrollReset: true });
   }, [search, pathname, navigate]);
 
   // The success panel takes focus, so a screen reader reads it; Send another message puts focus back in the form.

@@ -3,7 +3,7 @@ import '@fontsource-variable/montserrat';
 import '@fontsource-variable/unbounded';
 import montserratLatin from '@fontsource-variable/montserrat/files/montserrat-latin-wght-normal.woff2?url';
 import { type ReactNode, useEffect } from 'react';
-import { Links, type LinksFunction, Meta, Outlet, Scripts, useLocation } from 'react-router';
+import { Links, type LinksFunction, Meta, Outlet, Scripts, ScrollRestoration, useLocation } from 'react-router';
 import { localeFromPath } from '~/i18n/locale';
 import '~/styles/tokens.css';
 import '~/styles/base.css';
@@ -48,6 +48,11 @@ export function Layout({ children }: { children: ReactNode }) {
       </head>
       <body>
         {children}
+        {/* The scroll on a client navigation: a push starts at the top (or at its #place), Back and Forward return to
+            the place saved when the page was left (the router saves it before the page changes, so a shorter page in
+            between cannot clamp it), and a replace marked preventScrollReset stays put. The focus is the Shell's
+            (useNavigationFocus). */}
+        <ScrollRestoration />
         <Scripts />
       </body>
     </html>

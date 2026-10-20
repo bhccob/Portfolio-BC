@@ -7,6 +7,7 @@ import { useRouteSync } from '~/state/routeSync';
 import { useThreeDAttribute } from '~/state/store';
 import { Poster } from '~/ui/Poster';
 import { SiteHeader } from '~/ui/SiteHeader';
+import { useNavigationFocus } from './navigationFocus';
 import { useRouteAttribute, useRouteHandle } from './routeName';
 
 // The root layout's frame. It never unmounts, so neither does the canvas in
@@ -18,6 +19,8 @@ export function Shell({ children }: { children: ReactNode }): JSX.Element {
   useRouteSync();
   useThreeDAttribute();
   useRouteAttribute(route);
+  // A page reached by a link takes the focus to <main> (the scroll is root.tsx's ScrollRestoration).
+  useNavigationFocus();
   // Behind `?proof` only: window.__needleDebug for the proof harness. Before useHomeScroll, whose loop asks for the bridge when it mounts.
   useNeedleDebug(route, locale);
   // The home page does not scroll natively while 3D is on: wheel, touch and keys drive the story instead.
