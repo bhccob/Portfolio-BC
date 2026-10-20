@@ -146,6 +146,7 @@ main {
 .test-points li,
 .back,
 .links a,
+.lite-more,
 .button {
   font-family: var(--font-label);
   font-size: var(--label-size);
@@ -532,7 +533,9 @@ html[data-3d='on'] .home-nav:not(:focus-within) {
 }
 
 /* The heading's <em> is the light half of the pair: the same words, a thin weight and the reading colour. */
-.lite-heading em {
+.page-title em,
+.lite-heading em,
+.lite-item-title em {
   font-style: normal;
   font-weight: 300;
   color: var(--ink);
@@ -572,6 +575,34 @@ html[data-3d='on'] .home-nav:not(:focus-within) {
   gap: 4px;
   padding-left: 16px;
   border-left: 3px solid var(--accent, rgb(228 190 127 / 0.35));
+}
+
+/* The slot for the next category is not a project: its rule is dashed, and it points on to the roadmap. */
+.lite-list > li.is-next {
+  border-left-style: dashed;
+  border-left-color: rgb(228 190 127 / 0.3);
+}
+
+.lite-more {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  min-height: 44px;
+  color: var(--gold-ink);
+}
+
+.lite-more:hover {
+  color: var(--gold-title);
+}
+
+/* What is held back is a note under the list, quieter than the list. */
+.held {
+  color: var(--ink-dim);
+}
+
+.held strong {
+  color: var(--ink);
+  font-weight: 600;
 }
 
 /* Skills and career: rows with a rule between them. */

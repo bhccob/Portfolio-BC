@@ -37,13 +37,17 @@
  *   lite       /lite/ and /en/lite/: one <h1>, every section's heading (from the dictionary) in order and
  *              no skipped level, the real portrait loaded with its alt text and size, at least five
  *              <details> that open by keyboard with a visible focus ring, #career where the old /career/
- *              addresses land, no terminal or engine-room copy, and the page complete with JavaScript off.
- *              /contact/ and /en/contact/: an empty submit names the first bad field and moves focus to
- *              it; with no access key in the build, a filled form navigates to a mailto: link to Bob (the
- *              navigation is cancelled in the page, so no mail client opens) and shows the "almost
- *              there" panel; with a key (a CI build) the form carries it and, with Web3Forms answered by
- *              this harness (nothing is sent), posts once, shows success, holds the guards against scripts
- *              and the pause, and shows the error of a failed post
+ *              addresses land, the work section's own copy (intro, next slot linking to #career, the
+ *              held-back note) around the projects in the old order, no terminal or engine-room copy,
+ *              and the page complete with JavaScript off.
+ *              /contact/ and /en/contact/: the one <h1> is the contact copy's title; an empty submit
+ *              names the first bad field and moves focus to it; with no access key in the build, a filled
+ *              form navigates to a mailto: link to Bob (the navigation is cancelled in the page, so no mail
+ *              client opens) and shows the "almost there" panel; with a key (a CI build) the form carries
+ *              it and, with Web3Forms answered by this harness (nothing is sent), posts once, shows
+ *              success, holds the guards against scripts and the pause, shows the error of a failed post
+ *              and moves focus to it, and, for a post nobody answers, sends one post for two submits and
+ *              fails it after the 15 s timeout (Playwright's clock moved forward) so it can be retried
  *
  * The harness reads src/data/pages.ts (through tsx) and the build in dist/client
  * to know which pages to expect.
@@ -77,6 +81,7 @@ const langOf = (path) => (path === '/en/' || path.startsWith('/en/') ? 'en' : 'n
 const DIST = resolve(fileURLToPath(new URL('../../dist/client', import.meta.url)));
 const { pagePaths } = await tsImport('../../src/data/pages.ts', import.meta.url);
 const { Translator } = await tsImport('../../src/i18n/Translator.ts', import.meta.url);
+const { SEND_TIMEOUT_MS } = await tsImport('../../src/ui/contactSubmit.ts', import.meta.url);
 const built = (path) => existsSync(join(DIST, path, 'index.html'));
 const SKIPPED = pagePaths().filter((path) => !built(path));
 const PAGES = pagePaths()
@@ -463,7 +468,7 @@ async function liteOne(browser, step, lang) {
   await stageReady(page);
 
   // The sections, by their headings (the dictionary's own words), in the order of the page.
-  const headings = [t.nav.about, t.nav.work, t.about.title, t.skills.title, t.career.title, t.life.title, t.compass.qa.title, t.cta.title].map(plain);
+  const headings = [t.nav.about, t.work.title, t.about.title, t.skills.title, t.career.title, t.life.title, t.compass.qa.title, t.cta.title].map(plain);
   const h1 = await page.$$eval('h1', (els) => els.map((el) => el.textContent));
   step.check(h1.length === 1 && h1[0] === t.needle.liteLink, `${path} has one <h1> "${t.needle.liteLink}" (got ${JSON.stringify(h1)})`);
   const h2 = await page.$$eval('main h2', (els) => els.map((el) => el.textContent));
@@ -522,8 +527,20 @@ async function liteOne(browser, step, lang) {
   const top = await page.$eval('#career', (el) => el.getBoundingClientRect().top);
   step.check(top > -5 && top < 450, `${path}#career scrolls the section into view (top ${Math.round(top)} px)`);
 
+  // The work section carries the old Projects section's own copy: the intro, the next slot (pointing on to the
+  // career) and what is held back, with the three projects between them.
+  // textContent, not innerText: the titles and labels are set in capitals by CSS, which innerText would apply.
+  const work = await page.$eval('#work', (el) => el.textContent);
+  const workOrder = [t.work.intro, ...['Funcial', 'Jontai Energy', 'Cookies Clicker'], plain(t.work.nextTitle), t.work.nextText, t.work.nextLink, t.work.heldTitle, t.work.heldText].map((string) => work.indexOf(string));
+  step.check(workOrder.every((place) => place >= 0) && workOrder.every((place, index) => index === 0 || place > workOrder[index - 1]), `${path}: #work has the intro, the projects, the next slot and the held-back note, in that order (${workOrder.join(' ')})`);
+  step.check((await page.getAttribute('#work a.lite-more', 'href')) === '#career', `${path}: the next slot's link goes to #career`);
+  await page.click('#work a.lite-more');
+  await page.waitForFunction(() => location.hash === '#career', null, { timeout: 3_000 }).catch(() => {});
+  const jumped = await page.$eval('#career', (el) => el.getBoundingClientRect().top);
+  step.check(new URL(page.url()).hash === '#career' && jumped > -5 && jumped < 450, `${path}: following it lands on #career (${page.url()}, top ${Math.round(jumped)} px)`);
+
   // The words of the engine room and the terminal are not here.
-  const body = await page.innerText('main');
+  const body = await page.$eval('main', (el) => el.textContent);
   for (const string of [t.hood.title, t.hood.intro, t.terminal.welcome, t.about.clock.label].map(plain)) {
     step.check(!body.includes(string), `${path} does not carry "${string}"`);
   }
@@ -587,7 +604,9 @@ async function contactOne(browser, step, lang) {
   await stageReady(page);
   // The form is there, and the page has hydrated: from then on the page validates, not the browser (noValidate).
   await page.waitForFunction(() => document.querySelector('form.form')?.noValidate === true, null, { timeout: 10_000 });
-  step.check((await page.locator('h1').count()) === 1, `${path} has one <h1>`);
+  const h1 = await page.$$eval('h1', (els) => els.map((el) => el.textContent));
+  step.check(h1.length === 1 && h1[0] === plain(c.title), `${path} has one <h1>, the contact copy's title "${plain(c.title)}" (got ${JSON.stringify(h1)})`);
+  step.check((await page.title()) === `${t.meta.contactTitle} | Bob Chung`, `${path}: the <title> stays "${t.meta.contactTitle} | Bob Chung" (got "${await page.title()}")`);
   const keyed = (await page.locator('input[name="access_key"]').count()) > 0;
 
   // An empty submit names the first bad field, in the dictionary's words, and moves focus to it.
@@ -646,7 +665,8 @@ async function contactOne(browser, step, lang) {
 /**
  * A build with a Web3Forms key: the form posts in the background. Web3Forms is answered by this harness (the
  * request never leaves the machine), so nothing is sent: a post that works, the two guards against scripts
- * (a form filled in at once, a ticked honeypot), the pause after a sent message, and an answer that fails.
+ * (a form filled in at once, a ticked honeypot), the pause after a sent message, an answer that fails, and
+ * a post nobody answers (one post for two submits, the timeout, a retry).
  */
 async function contactKeyed(browser, step, lang) {
   const { t } = new Translator(lang);
@@ -654,7 +674,8 @@ async function contactKeyed(browser, step, lang) {
   const path = CONTACT[lang];
   const posts = [];
   let answer = { status: 200, body: { success: true } };
-  const failing = (message) => /Web3Forms answered 500|status of 500/.test(message.text());
+  // The console errors these posts are meant to end in: the page logs a failed post, and the browser logs the 500 or the abort.
+  const failing = (message) => /Web3Forms answered 500|status of 500|abort|ERR_ABORTED/i.test(message.text());
   const { context, page } = await openPage(browser, step, failing);
   await context.route('https://api.web3forms.com/**', async (route) => {
     const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST' };
@@ -707,6 +728,7 @@ async function contactKeyed(browser, step, lang) {
   await page.click('button[type="submit"]');
   await page.waitForTimeout(300);
   step.check(posts.length === 1 && (await page.textContent('.form-status')) === c.errors.cooldown, `${path}: a second message within a minute gets the pause notice and is not posted (posted ${posts.length})`);
+  step.check(await page.evaluate(() => document.activeElement?.classList.contains('form-status')), `${path}: the pause notice takes focus`);
   await takeCsp(page, step);
   await context.close();
 
@@ -729,8 +751,48 @@ async function contactKeyed(browser, step, lang) {
   await retry.waitForFunction(() => document.querySelector('.form-status')?.textContent, null, { timeout: 5_000 }).catch(() => {});
   step.check((await retry.textContent('.form-status')) === c.errors.generic, `${path}: a failing post shows the generic error (got "${await retry.textContent('.form-status')}")`);
   step.check((await retry.inputValue('#contact-name')) === 'Ada Lovelace' && (await retry.locator('button[type="submit"]').isEnabled()), `${path}: the form keeps what was written and can send again`);
+  const failFocus = await retry.evaluate(() => ({ alert: document.activeElement?.classList.contains('form-status'), role: document.activeElement?.getAttribute('role') }));
+  step.check(failFocus.alert === true && failFocus.role === 'alert', `${path}: after a failed post focus is on the alert, not lost to <body> (got ${JSON.stringify(failFocus)})`);
   await takeCsp(retry, step);
   await failed.context.close();
+
+  // A post that is never answered: one goes out however often the form is submitted, and after fifteen seconds
+  // (the page's clock is Playwright's, moved forward past the timeout) it fails like any other and can be retried.
+  const hung = await openPage(browser, step, failing);
+  const hangs = [];
+  await hung.context.route('https://api.web3forms.com/**', async (route) => {
+    const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST' };
+    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    hangs.push(route.request().postData());
+    await new Promise(() => {}); // no answer, ever: the page's own timeout has to end it
+  });
+  const stuck = hung.page;
+  await stuck.clock.install();
+  await stuck.goto(BASE + path, { waitUntil: 'load' });
+  await stuck.waitForFunction(() => document.querySelector('form.form')?.noValidate === true, null, { timeout: 10_000 });
+  await stuck.waitForTimeout(3_200);
+  await stuck.fill('#contact-name', 'Ada Lovelace');
+  await stuck.fill('#contact-email', 'ada@example.com');
+  await stuck.fill('#contact-message', 'Hello Bob, I would like to talk about a project.');
+  // Two submit events in one go, as Enter pressed twice or a script would send them: the button cannot stop the second.
+  await stuck.evaluate(() => {
+    const form = document.querySelector('form.form');
+    form.requestSubmit();
+    form.requestSubmit();
+  });
+  await stuck.waitForFunction(() => document.querySelector('form.form button[type="submit"]')?.disabled, null, { timeout: 3_000 }).catch(() => {});
+  await stuck.waitForTimeout(400);
+  step.check(hangs.length === 1, `${path}: two submits at once post once (posted ${hangs.length})`);
+  step.check((await stuck.textContent('form.form button[type="submit"]')) === c.sending, `${path}: while the post is out the button says "${c.sending}" and is off`);
+  await stuck.clock.fastForward(SEND_TIMEOUT_MS + 1_000);
+  await stuck.waitForFunction(() => document.querySelector('.form-status')?.textContent, null, { timeout: 5_000 }).catch(() => {});
+  step.check((await stuck.textContent('.form-status')) === c.errors.generic, `${path}: a post nobody answers fails after fifteen seconds with the generic error (got "${await stuck.textContent('.form-status')}")`);
+  step.check((await stuck.inputValue('#contact-message')).startsWith('Hello Bob') && (await stuck.locator('button[type="submit"]').isEnabled()), `${path}: after the timeout the form keeps the message and the button is on again`);
+  step.check(await stuck.evaluate(() => document.activeElement?.classList.contains('form-status')), `${path}: after the timeout focus is on the alert`);
+  await stuck.evaluate(() => document.querySelector('form.form').requestSubmit());
+  await stuck.waitForTimeout(400);
+  step.check(hangs.length === 2, `${path}: after a failure the form can send again (posted ${hangs.length})`);
+  await hung.context.close();
 }
 
 async function lite(browser, step) {

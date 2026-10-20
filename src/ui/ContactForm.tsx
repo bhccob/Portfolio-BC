@@ -1,4 +1,5 @@
 import { type FormEvent, type JSX, useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router';
 import { PAGES } from '~/data/pages';
 import { profile } from '~/data/profile';
@@ -13,6 +14,7 @@ import {
   fieldIsValid,
   invalidFields,
   looksAutomated,
+  sendToWeb3Forms,
 } from './contactSubmit';
 
 type Status = 'idle' | 'sending' | 'sent' | 'mailto';
@@ -66,6 +68,8 @@ export function ContactForm({ accessKey }: { accessKey?: string }): JSX.Element 
 
   const formRef = useRef<HTMLFormElement>(null);
   const doneRef = useRef<HTMLDivElement>(null);
+  const noticeRef = useRef<HTMLParagraphElement>(null);
+  const inFlight = useRef(false);
   const openedAt = useRef(0);
   const refocus = useRef(false);
 
@@ -97,8 +101,19 @@ export function ContactForm({ accessKey }: { accessKey?: string }): JSX.Element 
     if (errors[field] && fieldIsValid(field, target.value)) setErrors((current) => ({ ...current, [field]: false }));
   }
 
+  /** Shows a notice in the form's alert and moves focus to it, so it is read and focus is not left on a button that has just been enabled again. */
+  function showNotice(message: string): void {
+    flushSync(() => {
+      setNotice(message);
+      setStatus('idle');
+    });
+    noticeRef.current?.focus();
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    // One post at a time: the disabled button stops a click, this stops a second submit event (Enter, a script).
+    if (inFlight.current) return;
     const form = event.currentTarget;
     const data = new FormData(form);
     const text = (name: string): string => String(data.get(name) ?? '');
@@ -125,25 +140,22 @@ export function ContactForm({ accessKey }: { accessKey?: string }): JSX.Element 
       return;
     }
     if (coolingDown(readLastSent(), Date.now())) {
-      setNotice(c.errors.cooldown);
+      showNotice(c.errors.cooldown);
       return;
     }
 
+    // From here until the answer (or the timeout) there is one post in flight, whatever sends the form again.
+    inFlight.current = true;
     setStatus('sending');
     try {
-      const response = await fetch(WEB3FORMS_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify(payload.body),
-      });
-      const result = (await response.json().catch(() => ({}))) as { success?: boolean };
-      if (!response.ok || !result.success) throw new Error(`Web3Forms answered ${response.status}`);
+      await sendToWeb3Forms(payload.body);
       writeLastSent(Date.now());
       setStatus('sent');
     } catch (error) {
       console.error(error);
-      setNotice(c.errors.generic);
-      setStatus('idle');
+      showNotice(c.errors.generic);
+    } finally {
+      inFlight.current = false;
     }
   }
 
@@ -266,7 +278,7 @@ export function ContactForm({ accessKey }: { accessKey?: string }): JSX.Element 
           </button>
           <p className="form-privacy">{c.privacy}</p>
         </div>
-        <p className="form-status" role="alert">
+        <p className="form-status" role="alert" tabIndex={-1} ref={noticeRef}>
           {notice}
         </p>
       </form>

@@ -35,6 +35,14 @@ const textOf = (html: string): string =>
     .replace(/&amp;/g, '&')
     .replace(/\s+/g, ' ');
 
+/** Every string in a piece of the dictionary, with its path (`career.roleGroups.0.field`). */
+const leaves = (value: unknown, path: string): [string, string][] => {
+  if (typeof value === 'string') return [[path, value]];
+  if (Array.isArray(value)) return value.flatMap((item, index) => leaves(item, `${path}.${index}`));
+  if (value && typeof value === 'object') return Object.entries(value).flatMap(([key, item]) => leaves(item, `${path}.${key}`));
+  return [];
+};
+
 describe('the Lite page', () => {
   for (const [name, t, path, prefix] of dictionaries) {
     const html = render(path, Lite);
@@ -56,8 +64,8 @@ describe('the Lite page', () => {
         expect(html).toContain('id="career"');
       });
 
-      it('shows each section\u2019s heading', () => {
-        const headings = [t.nav.about, t.nav.work, t.about.title, t.skills.title, t.career.title, t.life.title, t.compass.qa.title, t.cta.title];
+      it('shows each section\u2019s heading (the work section keeps its old heading, "Projects, one build at a time")', () => {
+        const headings = [t.nav.about, t.work.title, t.about.title, t.skills.title, t.career.title, t.life.title, t.compass.qa.title, t.cta.title];
         const found = [...html.matchAll(/<h2[^>]*>(.*?)<\/h2>/g)].map((match) => textOf(match[1]));
         expect(found).toEqual(headings.map(stripMarkup));
       });
@@ -72,30 +80,48 @@ describe('the Lite page', () => {
         expect(html).toContain(`href="${prefix}/contact/"`);
       });
 
-      it('carries the About copy, the skills, the whole career, off duty and the Q&A', () => {
-        const a = t.about;
-        const copy = [
-          a.body, a.quote, a.thoughtLabel, a.thought, a.route.heritage, a.route.born, a.route.now,
-          a.facts.bornValue, a.facts.heritageValue, a.facts.basedValue, a.facts.studyingValue,
-          t.skills.statementSpoken, ...t.skills.rows.flatMap((row) => [row.status, row.title, row.text]),
-          t.career.roadmapNote, t.career.currentStatus, t.career.currentRole, t.career.currentOrg, t.career.currentText,
-          t.career.hboStatus, t.career.hboRole, t.career.hboOrg, t.career.hboText,
-          t.career.nextStatus, t.career.rolesToggle, t.career.rolesHint,
-          ...t.career.roleGroups.flatMap((group) => [group.field, ...group.roles.flatMap((role) => [role.title, role.text])]),
-          t.career.sector.label, t.career.sector.title, t.career.sector.text,
-          t.career.goalStatus, t.career.goalRole, t.career.goalOrg, t.career.goalText, t.career.whyToggle, ...t.career.why,
-          t.life.text, t.life.current, t.life.former, ...Object.values(t.life.hobbies),
-          ...t.compass.qa.items,
-          t.cta.text, t.cta.button, t.cta.or,
-        ];
-        for (const string of copy) expect(text, string).toContain(string);
-        expect(text).toContain(stripMarkup(a.lead).replace('{age}', String(profile.ageOn())));
-        expect(html).toContain(`aria-label="${a.route.label}"`); // the origin route is a list named for assistive technology
+      it('carries every string of today’s sections: about, skills, off duty, career, the call to write and the work section', () => {
+        // Every string of these parts of the dictionary is on the page, but the ones named here: the styled word-by-word
+        // versions of the lead and of the skills statement (the plain sentences are shown), and the clock (not Lite's).
+        const skipped = ['about.mixed', 'about.clock', 'skills.statement'];
+        const sections = { about: t.about, skills: t.skills, life: t.life, career: t.career, cta: t.cta };
+        const strings = Object.entries(sections).flatMap(([key, section]) => leaves(section, key)).filter(([path]) => !skipped.some((skip) => path.startsWith(skip)));
+        expect(strings.length).toBeGreaterThan(80);
+        for (const [path, string] of strings) {
+          const shown = stripMarkup(string).replace('{age}', String(profile.ageOn()));
+          // Two are not visible text: the origin route's label (the list's accessible name) and the portrait's alt text.
+          expect(text.includes(shown) || html.includes(`aria-label="${string}"`) || html.includes(`alt="${string}"`), `${path}: "${shown}"`).toBe(true);
+        }
+        expect(text).toContain(t.compass.qa.items.at(-1));
+      });
+
+      it('carries the work section’s own copy around the projects, in the old order: the intro, the projects, the next slot, then what is held back', () => {
+        const w = t.work;
+        const titles = projects.all().map((project) => project.title);
+        const at = (string: string): number => text.indexOf(string);
+        const order = [w.title, w.intro, ...titles, stripMarkup(w.nextTitle), w.nextText, w.nextLink, w.heldTitle, w.heldText].map((string) => at(stripMarkup(string)));
+        expect(order.every((place) => place >= 0), JSON.stringify(order)).toBe(true);
+        expect([...order].sort((a, b) => a - b)).toEqual(order);
+        // The next slot points on to the career, where the roadmap is.
+        expect(html).toMatch(new RegExp(`<a[^>]*href="#career"[^>]*>${w.nextLink}</a>`));
+        // The work section holds all of it, and nothing of the other sections.
+        const work = html.slice(html.indexOf('<section id="work"'), html.indexOf('<section id="about"'));
+        for (const string of [w.intro, w.nextText, w.heldText]) expect(textOf(work)).toContain(string);
       });
 
       it('has the five questions as <details>, and the roles and the reasons folded the same way', () => {
         expect(html.match(/<details[\s>]/g)?.length).toBe(qaEntries(t).length + 2);
-        for (const question of t.compass.qa.items) expect(html).toMatch(new RegExp(`<summary[^>]*>.*${question.replace(/[?]/g, '\\?')}.*</summary>`));
+        // Each <summary> is read on its own (never a span across the page). The questions section holds the five, in order.
+        const summariesOf = (markup: string): string[] => [...markup.matchAll(/<summary[^>]*>(.*?)<\/summary>/g)].map((match) => textOf(match[1]));
+        expect(summariesOf(html)).toHaveLength(qaEntries(t).length + 2);
+        const questions = html.slice(html.indexOf('<section id="questions"'), html.indexOf('<section id="contact"'));
+        expect(summariesOf(questions)).toEqual([...t.compass.qa.items]);
+        // The career section folds its roles and its reasons ("why these directions" is also the fourth question).
+        const career = html.slice(html.indexOf('<section id="career"'), html.indexOf('<section id="off-duty"'));
+        const folded = summariesOf(career);
+        expect(folded).toHaveLength(2);
+        expect(folded[0]).toContain(t.career.rolesToggle);
+        expect(folded[1]).toContain(t.career.whyToggle);
       });
 
       it('shows the real portrait with its size and a meaningful alt text', () => {
@@ -124,8 +150,10 @@ describe('the Lite page', () => {
       it('spells Funcial so, claims no AI for it, and never calls Jontai Energy client work', () => {
         expect(text).toContain('Funcial');
         expect(text).not.toMatch(/Funancial/);
-        const funcial = projects.byId('funcial')?.copy(name);
-        expect(`${funcial?.summary} ${funcial?.metaDescription}`).not.toMatch(/\bAI\b/);
+        const funcial = projects.byId('funcial');
+        expect(funcial, 'the funcial project').toBeDefined();
+        const copy = funcial?.copy(name);
+        expect(`${copy?.summary} ${copy?.metaDescription}`).not.toMatch(/\bAI\b/);
         expect(text).not.toMatch(/\b(client work|klantwerk)\b/i);
       });
     });
@@ -151,6 +179,10 @@ describe('the contact page', () => {
       const html = render(path, Contact);
       const text = textOf(html);
       expect(html.match(/<h1[\s>]/g)).toHaveLength(1);
+      // The one h1 is the contact copy's own title, "Send a message." (its <em> is an element), not the nav label.
+      expect(html).toMatch(/<h1[^>]*>.*<\/h1>/);
+      expect(textOf(html.match(/<h1[^>]*>(.*?)<\/h1>/)?.[1] ?? '')).toBe(stripMarkup(t.contact.title));
+      expect(html.match(/<h1[^>]*>(.*?)<\/h1>/)?.[1]).toContain('<em>');
       expect(text).toContain(t.contact.intro);
       expect(text).toContain(t.contact.direct);
       for (const social of profile.socials) expect(html).toContain(`href="${social.url}"`);

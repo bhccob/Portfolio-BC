@@ -29,6 +29,8 @@ export const MESSAGE_MAX = 3000;
 export const MIN_FILL_MS = 3000;
 /** After a message has gone out, the next one waits this long. */
 export const COOLDOWN_MS = 60_000;
+/** A post that Web3Forms has not answered in this long has failed (the visitor can send again). */
+export const SEND_TIMEOUT_MS = 15_000;
 
 /** True where the text, without the spaces around it, is good enough for the field. */
 export function fieldIsValid(field: ContactField, value: string): boolean {
@@ -69,4 +71,29 @@ export function contactPayload(fields: ContactFields, key: string | undefined): 
 
   const body = `${message}\n\n— ${name} (${email})`;
   return { mode: 'mailto', href: `mailto:${profile.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}` };
+}
+
+/**
+ * Posts a `web3forms` body in the background. It resolves when Web3Forms says the message was sent, and
+ * rejects when the network fails, the answer is an error or says it did not succeed, or nothing answers in
+ * `timeoutMs`: then the request is aborted, so a hung connection ends as a failure the visitor can retry.
+ */
+export async function sendToWeb3Forms(
+  body: Record<string, string>,
+  { fetchImpl = fetch, timeoutMs = SEND_TIMEOUT_MS }: { fetchImpl?: typeof fetch; timeoutMs?: number } = {},
+): Promise<void> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetchImpl(WEB3FORMS_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const result = (await response.json().catch(() => ({}))) as { success?: boolean };
+    if (!response.ok || !result.success) throw new Error(`Web3Forms answered ${response.status}`);
+  } finally {
+    clearTimeout(timer);
+  }
 }

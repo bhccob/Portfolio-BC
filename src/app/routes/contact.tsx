@@ -6,6 +6,7 @@ import { translatorFor, useTranslator } from '~/i18n/useTranslator';
 import { head } from '~/seo/head';
 import { BackLink } from '~/ui/BackLink';
 import { ContactForm } from '~/ui/ContactForm';
+import { Markup } from '~/ui/Markup';
 import type { RouteHandle } from '../handle';
 
 export const meta: MetaFunction = ({ location }) => {
@@ -25,7 +26,9 @@ export default function Contact() {
   return (
     <article className="page contact">
       <BackLink />
-      <h1 className="page-title">{t.nav.contact}</h1>
+      <h1 className="page-title">
+        <Markup text={t.contact.title} />
+      </h1>
       <p className="lead">{t.contact.intro}</p>
 
       <ContactForm accessKey={ACCESS_KEY} />

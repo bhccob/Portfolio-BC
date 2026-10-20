@@ -1,15 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { profile } from '../../src/data/profile';
 import {
   COOLDOWN_MS,
   MESSAGE_MAX,
   MIN_FILL_MS,
+  SEND_TIMEOUT_MS,
   WEB3FORMS_ENDPOINT,
   contactPayload,
   coolingDown,
   fieldIsValid,
   invalidFields,
   looksAutomated,
+  sendToWeb3Forms,
 } from '../../src/ui/contactSubmit';
 
 const fields = { name: 'Ada Lovelace', email: 'ada@example.com', message: 'Hello Bob, I would like to talk about a project.' };
@@ -121,5 +123,88 @@ describe('the guards against scripts', () => {
     expect(coolingDown(1_000_000, 1_000_000 + 59_999)).toBe(true);
     expect(coolingDown(1_000_000, 1_000_000 + 60_000)).toBe(false);
     expect(coolingDown(0, 1_000_000)).toBe(false); // never sent
+  });
+});
+
+describe('sendToWeb3Forms', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const body = { access_key: 'k', name: 'Ada', email: 'ada@example.com', message: 'Hello Bob, a message.' };
+  const answer = (init: { ok: boolean; status: number; json: () => Promise<unknown> }) => vi.fn(async () => init as unknown as Response);
+  /** A fetch that never answers on its own and fails the way the browser's does when its signal aborts. */
+  const silent = () =>
+    vi.fn(
+      (_url: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(new DOMException('The operation was aborted.', 'AbortError')));
+        }),
+    );
+
+  it('waits no longer than fifteen seconds for an answer', () => {
+    expect(SEND_TIMEOUT_MS).toBe(15_000);
+  });
+
+  it('posts the body as JSON to the endpoint and resolves when Web3Forms says success', async () => {
+    const fetchImpl = answer({ ok: true, status: 200, json: async () => ({ success: true }) });
+    await expect(sendToWeb3Forms(body, { fetchImpl })).resolves.toBeUndefined();
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe(WEB3FORMS_ENDPOINT);
+    expect(init.method).toBe('POST');
+    expect(init.headers).toEqual({ 'Content-Type': 'application/json', Accept: 'application/json' });
+    expect(JSON.parse(init.body as string)).toEqual(body);
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('fails on an error status, on success: false and on an answer that is not JSON', async () => {
+    await expect(sendToWeb3Forms(body, { fetchImpl: answer({ ok: false, status: 500, json: async () => ({ success: false }) }) })).rejects.toThrow('Web3Forms answered 500');
+    await expect(sendToWeb3Forms(body, { fetchImpl: answer({ ok: true, status: 200, json: async () => ({ success: false }) }) })).rejects.toThrow('Web3Forms answered 200');
+    const notJson = answer({
+      ok: true,
+      status: 200,
+      json: async () => {
+        throw new SyntaxError('not JSON');
+      },
+    });
+    await expect(sendToWeb3Forms(body, { fetchImpl: notJson })).rejects.toThrow('Web3Forms answered 200');
+  });
+
+  it('fails when the network does', async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new TypeError('Failed to fetch');
+    });
+    await expect(sendToWeb3Forms(body, { fetchImpl })).rejects.toThrow('Failed to fetch');
+  });
+
+  it('gives up when nothing answers in time: the request is aborted at the timeout and not before', async () => {
+    vi.useFakeTimers();
+    const fetchImpl = silent();
+    let outcome: 'pending' | 'resolved' | 'rejected' = 'pending';
+    const sending = sendToWeb3Forms(body, { fetchImpl, timeoutMs: 1_000 }).then(
+      () => (outcome = 'resolved'),
+      () => (outcome = 'rejected'),
+    );
+    await vi.advanceTimersByTimeAsync(999);
+    expect(outcome).toBe('pending');
+    await vi.advanceTimersByTimeAsync(1);
+    await sending;
+    expect(outcome).toBe('rejected');
+    expect((fetchImpl.mock.calls[0]?.[1] as RequestInit).signal?.aborted).toBe(true);
+  });
+
+  it('waits the fifteen seconds by default', async () => {
+    vi.useFakeTimers();
+    const settled = expect(sendToWeb3Forms(body, { fetchImpl: silent() })).rejects.toThrow('aborted');
+    await vi.advanceTimersByTimeAsync(SEND_TIMEOUT_MS);
+    await settled;
+  });
+
+  it('stops its timer once Web3Forms has answered, so an answered post is never aborted later', async () => {
+    vi.useFakeTimers();
+    await sendToWeb3Forms(body, { fetchImpl: answer({ ok: true, status: 200, json: async () => ({ success: true }) }) });
+    expect(vi.getTimerCount()).toBe(0);
+    await expect(sendToWeb3Forms(body, { fetchImpl: answer({ ok: false, status: 429, json: async () => ({}) }) })).rejects.toThrow();
+    expect(vi.getTimerCount()).toBe(0);
   });
 });
