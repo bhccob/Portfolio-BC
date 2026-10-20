@@ -333,6 +333,31 @@ describe('VirtualScroll: touch', () => {
   });
 });
 
+describe('VirtualScroll: stopGlide', () => {
+  it('ends a glide that is going', () => {
+    const s = setup();
+    touch(s, 'touchstart', 500, 0);
+    for (let y = 460, t = 16; y >= 100; y -= 40, t += 16) touch(s, 'touchmove', y, t);
+    touch(s, 'touchend', 100, 164);
+    expect(s.scroll.busy).toBe(true);
+    s.scroll.stopGlide();
+    expect(s.scroll.busy).toBe(false);
+  });
+
+  it('keeps the touch in progress: the finger is still the scroll\'s, and a drag that is pinned gives no glide', () => {
+    const s = setup();
+    touch(s, 'touchstart', 500, 0);
+    touch(s, 'touchmove', 400, 16);
+    s.scroll.stopGlide();
+    s.deltas.length = 0;
+    expect(touch(s, 'touchmove', 380, 32).defaultPrevented).toBe(true);
+    expect(s.deltas).toEqual([0.02]);
+    s.scroll.stopGlide(); // what a caller whose target is pinned does at each delta
+    touch(s, 'touchend', 380, 40);
+    expect(s.scroll.busy).toBe(false);
+  });
+});
+
 describe('VirtualScroll: dispose', () => {
   it('takes every listener off', () => {
     const s = setup();

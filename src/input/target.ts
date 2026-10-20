@@ -30,6 +30,14 @@ export function changedChapter(c: Chapters, progress: number, chapterIndex: numb
   return at.index === chapterIndex ? null : at;
 }
 
+/**
+ * True when a delta of `units` has left `target` against an end of the story: a delta up at 0, or down at the end.
+ * A glide that is pushing into the wall has nowhere to go, so it is ended instead of keeping the frame loop awake.
+ */
+export function pinnedAtEnd(target: number, units: number, c: Chapters): boolean {
+  return (units < 0 && target <= 0) || (units > 0 && target >= c.total);
+}
+
 /** Where Home and End go: the start of the story and its end. */
 export function jumpTarget(to: 'home' | 'end', c: Chapters): number {
   return to === 'home' ? 0 : c.total;

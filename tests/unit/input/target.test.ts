@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { changedChapter, jumpTarget, moveTarget, scrollEnabled } from '../../../src/input/target';
+import { changedChapter, jumpTarget, moveTarget, pinnedAtEnd, scrollEnabled } from '../../../src/input/target';
 import { buildChapters } from '../../../src/state/chapters';
 import type { Phase } from '../../../src/state/machine';
 
@@ -78,6 +78,21 @@ describe('changedChapter', () => {
   it('reads a story at rest just short of a boundary as the chapter it is in', () => {
     expect(changedChapter(c, 11.995, 2, true)).toMatchObject({ index: 1, id: 'DISSECT' });
     expect(changedChapter(c, 11.995, 1, true)).toBeNull();
+  });
+});
+
+describe('pinnedAtEnd', () => {
+  it('is true when a delta up leaves the target at the start, or a delta down at the end', () => {
+    expect(pinnedAtEnd(0, -0.04, c)).toBe(true);
+    expect(pinnedAtEnd(18, 0.04, c)).toBe(true);
+  });
+
+  it('is false anywhere else, and for a delta away from the end it stands at', () => {
+    expect(pinnedAtEnd(0.2, -0.04, c)).toBe(false);
+    expect(pinnedAtEnd(17.9, 0.04, c)).toBe(false);
+    expect(pinnedAtEnd(0, 0.04, c)).toBe(false);
+    expect(pinnedAtEnd(18, -0.04, c)).toBe(false);
+    expect(pinnedAtEnd(0, 0, c)).toBe(false);
   });
 });
 

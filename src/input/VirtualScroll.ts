@@ -84,6 +84,11 @@ export class VirtualScroll {
     if (px !== 0) this.opts.onDelta(px / this.opts.unitPx());
   }
 
+  /** Ends the glide that is going, or the speed a drag in progress has built up; the touch itself carries on. */
+  stopGlide(): void {
+    this.inertia.stop();
+  }
+
   /** Ends any glide and forgets the touch in progress. */
   stop(): void {
     this.inertia.stop();

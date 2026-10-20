@@ -62,7 +62,8 @@
  *              `frame.target` in viewport heights instead (window.__needleFrame, temporary: Task 8's
  *              __needleDebug replaces it). 10 wheel events of 120 px raise it by 1200 px, the damped
  *              `progress` catches up, the phase leaves HOME_IDLE for DISSECT and the frame loop goes back to
- *              sleep (no requestAnimationFrame at rest); Home, End, Page Down and the arrows move it; a text
+ *              sleep (no requestAnimationFrame at rest, and only one asked for at a time while it runs: through a
+ *              wheel gesture and through a touch glide, which lasts over a second); Home, End, Page Down and the arrows move it; a text
  *              field keeps its keys, a pinch (ctrl+wheel) is the browser's, and with 3D off nothing is
  *              prevented and the page scrolls natively; `frame.chapterIndex` stays in step, so coming back
  *              from a country page puts the scene on the scroll's phase, not HOME_IDLE. With reduced motion a
@@ -996,18 +997,36 @@ async function expectPhase(page, step, kind, message) {
   step.check(reached, `${message} (phase ${JSON.stringify(await phaseOf(page))})`);
 }
 
-/** Counts the requestAnimationFrame calls from now on in window.__raf, and records whether each wheel was prevented in window.__wheels. */
+/**
+ * Counts the requestAnimationFrame calls from now on in window.__raf, how many callbacks run at each frame time in
+ * window.__rafRuns (two callbacks at one time are two frames asked for in the same frame), and records whether each
+ * wheel was prevented in window.__wheels.
+ */
 const watchFrames = (page) =>
   page.evaluate(() => {
     window.__raf = 0;
+    window.__rafRuns = {};
     const raf = window.requestAnimationFrame.bind(window);
     window.requestAnimationFrame = (callback) => {
       window.__raf++;
-      return raf(callback);
+      return raf((now) => {
+        window.__rafRuns[now] = (window.__rafRuns[now] ?? 0) + 1;
+        callback(now);
+      });
     };
     window.__wheels = [];
     // A listener on window runs after the input's on the document element, so it sees the final defaultPrevented.
     window.addEventListener('wheel', (event) => window.__wheels.push(event.defaultPrevented), { passive: true });
+  });
+
+/** What watchFrames saw since it was started or last read: calls asked for, frames that ran, and the most callbacks in one frame. */
+const takeFrames = (page) =>
+  page.evaluate(() => {
+    const runs = Object.values(window.__rafRuns);
+    const report = { requests: window.__raf, frames: runs.length, most: Math.max(0, ...runs) };
+    window.__raf = 0;
+    window.__rafRuns = {};
+    return report;
   });
 
 const near = (a, b, tolerance = 1e-6) => Math.abs(a - b) <= tolerance;
@@ -1047,9 +1066,11 @@ async function scrollDesktop(browser, step) {
   const left = await phaseOf(page);
   step.check(left.kind === 'DISSECT', `the phase leaves HOME_IDLE for DISSECT (got ${JSON.stringify(left)})`);
   step.check((await page.evaluate(() => window.scrollY)) === 0, 'the page itself did not scroll');
+  await page.waitForTimeout(150);
+  const ran = await takeFrames(page);
+  step.check(ran.most === 1 && ran.requests === ran.frames, `one frame asked for at a time through the wheel gesture: ${ran.requests} asked for, ${ran.frames} frames, at most ${ran.most} callback in one`);
 
   // Asleep at rest: no requestAnimationFrame at all while nothing moves.
-  await page.evaluate(() => (window.__raf = 0));
   await page.waitForTimeout(600);
   step.check((await page.evaluate(() => window.__raf)) === 0, `the frame loop sleeps at rest: no requestAnimationFrame in 600 ms (got ${await page.evaluate(() => window.__raf)})`);
   step.check((await frameOf(page)).velocity === 0, 'and the velocity is 0');
@@ -1214,6 +1235,7 @@ async function scrollTouch(browser, step) {
   await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
   await stageReady(page);
   await reachHomeIdle(page);
+  await watchFrames(page);
   const cdp = await context.newCDPSession(page);
   const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
   const vh = await page.evaluate(() => window.innerHeight);
@@ -1233,6 +1255,10 @@ async function scrollTouch(browser, step) {
       await touch('touchMove', x, y);
       await page.waitForTimeout(12);
     }
+    await page.evaluate(() => {
+      window.__raf = 0; // from the lift on: what the glide asks for
+      window.__rafRuns = {};
+    });
     await touch('touchEnd');
   };
   await drag(700, 300);
@@ -1242,6 +1268,12 @@ async function scrollTouch(browser, step) {
   step.check(lifted.target >= 400 / vh - 1e-6, `the drag moved the story at least its length, ${400 / vh} units (got ${lifted.target})`);
   const rested = await restAt(page);
   step.check(rested.target > lifted.target + 0.05, `the flick glides on after the finger lifts: ${lifted.target} then ${rested.target}`);
+  await page.waitForTimeout(150);
+  const glide = await takeFrames(page);
+  // (the counters were reset at the lift, when one frame was already waiting: it runs without having been counted as asked for)
+  step.check(glide.most === 1 && Math.abs(glide.requests - glide.frames) <= 1, `one frame asked for at a time through the glide: ${glide.requests} asked for, ${glide.frames} frames, at most ${glide.most} callback in one`);
+  step.check(glide.frames >= 40, `and the glide goes on for dozens of frames, not the handful a re-entrant wake left it (${glide.frames} frames from the lift to rest)`);
+  step.check((await frameOf(page)).velocity === 0, 'and the velocity is 0 at rest');
   await drag(700, 300);
   await restAt(page);
   await drag(700, 300);
