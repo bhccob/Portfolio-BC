@@ -108,9 +108,12 @@ class SettlingLoader extends THREE.TextureLoader {
 
 export class CompassScene {
   /**
-   * Whether a WebGL2 context can be created here on a GPU. A browser drawing
-   * WebGL in software (SwiftShader standing in for a missing or blocklisted
-   * GPU) reports a major performance caveat and gets the stacked page.
+   * Whether a WebGL2 context can be created here with
+   * `failIfMajorPerformanceCaveat`. The browser decides what counts as a
+   * major caveat, and it is no software-renderer check: the proof's Edge
+   * (tools/proof, step 9) passes it under SwiftShader, and the live scene
+   * runs there in software, at about 9.5 fps on the quality ladder's last
+   * step. Where it fails, or WebGL2 is missing, the page is stacked.
    */
   static supported(): boolean {
     try {

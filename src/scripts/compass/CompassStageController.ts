@@ -33,10 +33,10 @@ export interface CompassStageOptions {
  * choreography (`--shown`). The pearl follows a mouse or pen anywhere on the
  * page, goes to a touch and to the focused control, and wakes on a scroll or
  * a key; a drag on the stage turns the dial. The scene draws only while the
- * stage is on screen and the tab is visible. With reduced motion, without
- * WebGL on a GPU, without the boot script's `js-motion` flag (BenchLayout), or
- * if the scene fails to start, the stage is marked `data-fallback` and the
- * sections read as a plain stacked page.
+ * stage is on screen and the tab is visible. With reduced motion, where
+ * CompassScene.supported() is false, without the boot script's `js-motion`
+ * flag (BenchLayout), or if the scene fails to start, the stage is marked
+ * `data-fallback` and the sections read as a plain stacked page.
  *
  * Either way the root is marked `data-bench` ("live" or "fallback"), which
  * tells the boot script's failsafe that this module ran. With `?proof` in the
