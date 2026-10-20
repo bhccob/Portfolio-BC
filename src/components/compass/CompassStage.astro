@@ -13,6 +13,7 @@ import Icon from '../ui/Icon.astro';
 import type { IconName } from '../ui/icons';
 import { Translator, type Locale } from '../../i18n/Translator';
 import { profile } from '../../data/profile';
+import { qaEntries } from '../../data/qa';
 import { trackCopy, type TrackCopy } from '../../data/tracks';
 import { SECTIONS, type SectionId } from '../../scripts/three/Choreography';
 import { TRACKS, type TrackId } from '../../scripts/three/instrument/drive';
@@ -99,22 +100,8 @@ const orbit: { icon: IconName; former: boolean }[] = [
   { icon: 'controller', former: false }
 ];
 
-/** The Q&A's answers, in the questions' order, from the career copy: a label, paragraphs, then terms with their text. */
-const career = t.career;
-const answers: { label?: string; paragraphs: readonly string[]; terms?: { term: string; text: string; sector?: boolean }[] }[] = [
-  { label: `${career.currentRole} · ${career.currentOrg}`, paragraphs: [career.currentText] },
-  { paragraphs: [career.hboText] },
-  {
-    paragraphs: [career.roadmapNote],
-    terms: [
-      ...career.roleGroups.flatMap((group) => group.roles.map((role) => ({ term: role.title, text: role.text }))),
-      { term: career.sector.title, text: career.sector.text, sector: true }
-    ]
-  },
-  { paragraphs: career.why },
-  { paragraphs: [career.goalText] }
-];
-const questions = c.qa.items.map((question, k) => ({ question, answer: answers[k] }));
+/** The Q&A: each question with its answer, from the career copy (src/data/qa.ts types them as a pair per question). */
+const questions = qaEntries(t);
 ---
 
 <CompassLoader locale={locale} />

@@ -392,7 +392,7 @@ export const en = {
         'Which roles interest you?',
         'Why these directions?',
         'Where does it lead?'
-      ]
+      ] satisfies QaItems
     },
     hello: 'Say hello',
     stills: {
@@ -408,3 +408,6 @@ export const en = {
 };
 
 export type Dictionary = typeof en;
+
+/** The Q&A's questions: five, each answered in its place (src/data/qa.ts), so a translation must have exactly these five. */
+export type QaItems = [string, string, string, string, string];
