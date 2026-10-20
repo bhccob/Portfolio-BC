@@ -1,5 +1,8 @@
 import { Canvas, useThree } from '@react-three/fiber';
 import { type JSX, useCallback, useEffect, useMemo, useState } from 'react';
+import { debugBridge } from '~/debug/needleDebug';
+import { StageProbe } from '~/debug/StageProbe';
+import { countCanvasMount } from '~/debug/stageReport';
 import { qualityFor, qualitySteps } from '~/engine/quality';
 import { frame } from '~/state/frame';
 import { Compass } from './Compass';
@@ -10,13 +13,6 @@ import { QualityGovernor } from './QualityGovernor';
 import { Rig } from './Rig';
 import { Studio } from './Studio';
 import { RESTORE_TIMEOUT_MS, visibleTimeout } from './timeouts';
-
-declare global {
-  interface Window {
-    /** How many times the Stage has mounted; the proof harness expects 1 across navigation. */
-    __needleMounts?: number;
-  }
-}
 
 /** A mouse or trackpad: the finer ladder and paint. Read once, when the Stage's chunk loads (in the browser only). */
 const FINE_POINTER = typeof window !== 'undefined' && window.matchMedia?.('(pointer: fine)').matches === true;
@@ -86,8 +82,11 @@ export default function Stage({ onReady, onFail }: StageProps): JSX.Element {
   // The Canvas's dpr follows the rung, so a Stage render never puts back a ratio the governor has lowered.
   const dpr = useMemo((): [number, number] => [1, quality.pixelRatio], [quality.pixelRatio]);
 
+  // Behind `?proof` the debug bridge is there, and the Stage mounts a probe for it (fps, pixel ratio, camera). Asked once, at mount.
+  const [probe] = useState(() => debugBridge() !== null);
+
   useEffect(() => {
-    window.__needleMounts = (window.__needleMounts ?? 0) + 1;
+    countCanvasMount(); // a counter, once a mount: the bridge reports it as canvasMounts
     return resetMotion;
   }, []);
 
@@ -106,6 +105,7 @@ export default function Stage({ onReady, onFail }: StageProps): JSX.Element {
       <Effects />
       <QualityGovernor step={step} finePointer={FINE_POINTER} onStep={stepDown} />
       <Heartbeat />
+      {probe && <StageProbe />}
     </Canvas>
   );
 }

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { debugBridge } from '~/debug/needleDebug';
 import { wakeScene } from '~/scene/motion';
 import { HOME_CHAPTERS } from '~/state/chapters';
 import { frame } from '~/state/frame';
@@ -42,6 +43,11 @@ export function useHomeScroll(onHome: boolean): void {
   useEffect(() => {
     if (!onHome) return;
 
+    // Behind `?proof` there is a debug bridge, and the loop's frames are asked for through it so the harness can count them
+    // apart from the canvas's. Looked up here, once, and never again: without a bridge a frame costs no read of anything.
+    const bridge = debugBridge();
+    const requestFrame = bridge ? (callback: FrameRequestCallback) => bridge.scrollRequest(callback) : (callback: FrameRequestCallback) => requestAnimationFrame(callback);
+
     const home = startHomeScroll({
       el: document.documentElement,
       frame,
@@ -55,8 +61,7 @@ export function useHomeScroll(onHome: boolean): void {
       loadSmooth: loadDamp,
       request: (callback) => {
         wakeScene();
-        // Behind `?proof` the Shell exposes the request, so the harness can count the loop's frames apart from the canvas's.
-        return (window.__needleScrollRequest ?? requestAnimationFrame)(callback);
+        return requestFrame(callback);
       },
       cancel: (id) => cancelAnimationFrame(id),
     });

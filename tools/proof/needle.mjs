@@ -14,16 +14,35 @@
  * one console message a step may expect is named in the step itself and counted
  * (not-found: the browser's own "Failed to load resource" for each 404 document).
  *
+ * A run that cannot begin (nothing built, the preview server not answering, Edge not starting) prints
+ * `FAIL setup <reason>`, writes a results.json that holds that failure, and exits 1.
+ *
+ * THE DEBUG BRIDGE. The page's one proof hook is `window.__needleDebug()` (src/debug/needleDebug.ts), which the site
+ * installs only when the first URL of the page has `?proof`. Every step that reads the site opens its page with
+ * `?proof`. It answers the scene's phase, `progress`, `target`, `velocity`, the chapter (`index`, `id`, `local`,
+ * `category`), the route and locale, the quality `tier`, the canvas's `dpr`, a rolling `fps`, the `camera`,
+ * `canvasMounts`, `contextLost` and `threeD`; `.set({ progress })` puts the story somewhere, `.dispatch(event)` sends a
+ * scene event, and `.scrollRequest` is the scroll loop's requestAnimationFrame, which `watchFrames` wraps. Without
+ * `?proof` there is no bridge and nothing of the site reads or writes a hook (step bridge).
+ *
  *   routes     every page of pagePaths() that the build produced, each answers 200 with one <h1>
  *              (in its HTML and after hydration) and the right <html lang>; a page the build did
  *              not produce is listed and skipped
  *   slash      GET /about/china answers 301 to /about/china/; a browser opening /about/china loads
  *              /about/china/ once, with no reload
+ *   bridge     the debug bridge: absent without ?proof, and with no proof hook of the site read or written through
+ *              a load, a scene and a wheel gesture's frames (every hook name is trapped on the window); with
+ *              ?proof the old hooks are gone, the state has exactly its fields and sensible values, `.set` puts the
+ *              story in a chapter (and stops at the end), `.dispatch` sends an event, a wheel's frames go through
+ *              `.scrollRequest`, and the language switch shows in the state
  *   persist    client navigation / → /about/china/ → /en/about/china/ (the language switch replaces the
  *              history entry), then history.back() to / and history.forward(): the Stage mounted once and
  *              the same <canvas> node throughout, with no document load after the first; the scene's phase
  *              is COUNTRY_PAGE china on the country page, the language switch keeps that very phase (no new
  *              transition), going back to / puts it on the scroll's phase and going forward restores it
+ *   lang-keeps-phase  on /about/china/ the phase is COUNTRY_PAGE china; after a client-side switch to
+ *              /en/about/china/ (and back) it is still COUNTRY_PAGE china, the very same state, with locale and
+ *              route right, canvasMounts 1 and the same <canvas>; the same on /projects/funcial/ (PROJECT_FOCUS)
  *   not-found  an unknown URL (/does-not-exist/, /en/does-not-exist/) answers 404 with the build's
  *              404.html; after hydration it shows the not-found route's <h1> and the right <html lang>,
  *              and the browser loads one document, with no reload loop
@@ -60,20 +79,27 @@
  *              fails it after the 15 s timeout (Playwright's clock moved forward) so it can be retried
  *   scroll     the home page with 3D on does not scroll natively: <html data-route="home"> locks the root
  *              (overflow hidden, no overscroll, pinch-zoom only) and the wheel, the keys and a finger move
- *              `frame.target` in viewport heights instead (window.__needleFrame, temporary: Task 8's
- *              __needleDebug replaces it). A direct load of / reaches HOME_IDLE once the scene is ready. 10
+ *              `target` in viewport heights instead (window.__needleDebug). A direct load of / reaches HOME_IDLE
+ *              once the scene is ready. 10
  *              wheel events of 120 px raise it by 1200 px, the damped
  *              `progress` catches up, the phase leaves HOME_IDLE for DISSECT and the scroll loop goes back to
  *              sleep (no frame asked for at rest, and only one at a time while it runs: through a wheel gesture
  *              and through a touch glide, which lasts over a second; the loop's own requests are counted through
- *              window.__needleScrollRequest, apart from the canvas's, which renders on demand through R3F's own
+ *              window.__needleDebug.scrollRequest, apart from the canvas's, which renders on demand through R3F's own
  *              requestAnimationFrame); Home, End, Page Down and the arrows move it; a text
  *              field keeps its keys, a pinch (ctrl+wheel) is the browser's, and with 3D off nothing is
- *              prevented and the page scrolls natively; `frame.chapterIndex` stays in step, so coming back
+ *              prevented and the page scrolls natively; `chapter.index` stays in step, so coming back
  *              from a country page puts the scene on the scroll's phase, not HOME_IDLE. With reduced motion a
  *              whole wheel gesture is one stop (1, 12, 14, ...) and so is a key press. On a touch screen
  *              (CDP touch events) a drag moves it, a flick glides on after the finger lifts, a tap and a
  *              sideways swipe do not move it, and the 3D switch still takes a tap
+ *   keyboard   Tab from the top of the home page reaches the skip link, then the language switch and the 3D toggle in
+ *              that order, each with a focus ring (outline 2 px or more) and on screen, and Shift+Tab goes back; End
+ *              jumps to the last chapter (the end of the story, the last project category) and Home returns to the
+ *              start, both with the focus on the toggle
+ *   reduced-motion  with prefers-reduced-motion: reduce (page.emulateMedia, before the load) one wheel event moves
+ *              `target` to exactly the next stop, through every stop of the story to its end and back, and the
+ *              story arrives at each, in the right chapter
  *   loaded     a direct load of / goes from LOADING to HOME_IDLE once the scene is ready, within the load
  *              timeout and with no navigation on the way; the canvas is shown then, and the wheel moves
  *              `frame.progress` straight away. The canvas renders on demand: after the needle's idle drift it
@@ -94,19 +120,21 @@
  *              emulated, as headless Edge never hides a page): no fallback; in front, the scene loads
  *   title-ij   every Dutch text set in Unbounded with an IJ is shaped with the font's Dutch locl off (no IJ digraph
  *              reading as a U); a crop of the NL card title into PROOF_DIR/m1/
- *   scene-stills  stills of /, a country, a project and Lite with 3D on, and of the fallback, at 1440x900 and
- *              390x844 into PROOF_DIR/m1/; on a page of text the poster's scrim is over the scene once it shows,
- *              and before then only the poster's own
+ *   stills     every page of pagePaths() that the build produced, with 3D on, at 1440x900 and 390x844, and the fallback
+ *              at both, into PROOF_DIR/m1/ (`nl-about-china-1440x900.png`, `en-home-390x844.png`,
+ *              `fallback-390x844.png`); on a page of text the poster's scrim is over the scene once it shows, and
+ *              before then only the poster's own (the Stage chunk is held while that is measured, so it cannot race)
  *   fps        on / (the GPU), 3 s after the scene is ready: 120 requestAnimationFrame frames while the scene
- *              draws, and their mean frame rate is reported, not gated; it passes when the canvas holds the
- *              scene: a pixel read back through toDataURL right after a drawn frame is not blank
+ *              draws, and their mean frame rate is reported, not gated, with the scene's own rolling fps, tier and
+ *              pixel ratio from the bridge; it passes when the canvas holds the scene: a pixel read back through
+ *              toDataURL right after a drawn frame is not blank
  *
- * The harness reads src/data/pages.ts (through tsx) and the build in dist/client
- * to know which pages to expect.
+ * The harness reads src/data/pages.ts and src/state/chapters.ts (through tsx) and the build in dist/client
+ * to know which pages and which stops to expect.
  *
  * Environment:
  *   BASE             site to test, default http://localhost:4399
- *   PROOF_DIR        where results.json goes, default ./proof-out
+ *   PROOF_DIR        where results.json and the stills (m1/) go, default ./proof-out
  *   STEPS            comma list of steps to run, default all; an unknown step, or none, exits 1
  *   PLAYWRIGHT_CORE  path to a playwright-core package outside the repo (else normal resolution)
  */
@@ -139,6 +167,7 @@ const { pagePaths } = await tsImport('../../src/data/pages.ts', import.meta.url)
 const { Translator } = await tsImport('../../src/i18n/Translator.ts', import.meta.url);
 const { SEND_TIMEOUT_MS } = await tsImport('../../src/ui/contactSubmit.ts', import.meta.url);
 const { LOAD_TIMEOUT_MS, RESTORE_TIMEOUT_MS } = await tsImport('../../src/scene/timeouts.ts', import.meta.url);
+const { HOME_CHAPTERS, chapterAt, stops } = await tsImport('../../src/state/chapters.ts', import.meta.url);
 /**
  * How long the canvas may keep drawing after the last thing that stirred it, ms: the needle's idle drift
  * (src/scene/Compass, DRIFT.seconds: 10 s) and its spring settling, with room to spare.
@@ -212,9 +241,18 @@ async function takeCsp(page, step) {
 
 /** Waits until the lazy Stage has mounted its <canvas>, then a moment for late errors. */
 async function stageReady(page) {
-  await page.waitForFunction(() => (window.__needleMounts ?? 0) >= 1 && document.querySelector('.scene-host canvas'), null, { timeout: 15_000 });
+  await page.waitForFunction(() => document.querySelector('.scene-host canvas'), null, { timeout: 15_000 });
   await page.waitForTimeout(500);
 }
+
+/**
+ * The debug state of the page (window.__needleDebug(), present only when the page's first URL has `?proof`) as plain
+ * data, or null where there is no bridge. The bridge's state is the site's one proof hook: see src/debug/needleDebug.ts.
+ */
+const debugOf = (page) => page.evaluate(() => (typeof window.__needleDebug === 'function' ? JSON.parse(JSON.stringify(window.__needleDebug())) : null));
+
+/** The Stage chunk the site loads after hydration (a route on it holds, patches or refuses the scene). */
+const STAGE_CHUNK = /\/assets\/Stage-[^/]+\.js$/;
 
 const count = (text, pattern) => (text.match(pattern) ?? []).length;
 
@@ -253,15 +291,16 @@ async function slash(browser, step) {
   });
   page.on('load', () => loads++);
 
-  await page.goto(`${BASE}/about/china`, { waitUntil: 'load' });
+  // `?proof` rides along: the server keeps the query through its 301, and the page can then answer for its Stage's mounts.
+  await page.goto(`${BASE}/about/china?proof`, { waitUntil: 'load' });
   await stageReady(page);
   await page.waitForTimeout(1_500); // a reload loop would show by now
-  const landed = documents.filter((url) => url === `${BASE}/about/china/`).length;
+  const landed = documents.filter((url) => url === `${BASE}/about/china/?proof`).length;
   const { type, mounts } = await page.evaluate(() => ({
     type: performance.getEntriesByType('navigation')[0]?.type,
-    mounts: window.__needleMounts,
+    mounts: window.__needleDebug?.().canvasMounts,
   }));
-  step.check(page.url() === `${BASE}/about/china/`, `the browser ends at /about/china/ (got ${page.url()})`);
+  step.check(page.url() === `${BASE}/about/china/?proof`, `the browser ends at /about/china/ (got ${page.url()})`);
   step.check(landed === 1 && documents.length === 2, `one document load of /about/china/, after the 301 (got ${documents.join(' → ')})`);
   step.check(loads === 1 && type === 'navigate', `one load event, not a reload (got ${loads}, ${type})`);
   step.check(mounts === 1, `the Stage mounted once (got ${mounts})`);
@@ -270,14 +309,11 @@ async function slash(browser, step) {
   return `/about/china → 301 /about/china/, loaded once (${documents.join(' → ')})`;
 }
 
-/**
- * The scene's phase as `{ kind, dir }`, once it is `kind`. `?proof` in the first URL of the page makes the Shell
- * expose it (window.__needleScene, temporary: Task 8 replaces it with window.__needleDebug().phase).
- */
+/** The scene's phase as `{ kind, dir }`, once it is `kind` (window.__needleDebug().phase: `?proof` in the page's first URL). */
 const waitForPhase = async (page, kind) => {
-  await page.waitForFunction((kind) => window.__needleScene?.().kind === kind, kind, { timeout: 5_000 });
+  await page.waitForFunction((kind) => window.__needleDebug?.().phase.kind === kind, kind, { timeout: 5_000 });
   return page.evaluate(() => {
-    const { kind, dir } = window.__needleScene();
+    const { kind, dir } = window.__needleDebug().phase;
     return { kind, dir };
   });
 };
@@ -303,7 +339,7 @@ async function persist(browser, step) {
     );
     const state = await page.evaluate(() => ({
       path: location.pathname,
-      mounts: window.__needleMounts,
+      mounts: window.__needleDebug().canvasMounts,
       canvases: document.querySelectorAll('canvas').length,
       tag: document.querySelector('.scene-host canvas')?.dataset.id ?? null,
     }));
@@ -324,12 +360,12 @@ async function persist(browser, step) {
   const phase = await waitForPhase(page, 'COUNTRY_PAGE');
   step.check(phase.dir === 'china', `on /about/china/ the scene's phase is COUNTRY_PAGE china (got ${JSON.stringify(phase)})`);
   await page.evaluate(() => {
-    window.__keptPhase = window.__needleScene();
+    window.__keptPhase = window.__needleDebug().phase;
   });
   // The scene keeps its phase, the very same state, while the language or the history changes under it.
   const keptPhase = async (where) => {
     await page.waitForTimeout(250); // a sync that wrongly moved the phase would have by now
-    step.check(await page.evaluate(() => window.__needleScene() === window.__keptPhase), `${where}: the scene keeps its phase, with no new transition`);
+    step.check(await page.evaluate(() => window.__needleDebug().phase === window.__keptPhase), `${where}: the scene keeps its phase, with no new transition`);
   };
   await page.click('a[href="/en/about/china/"]'); // the header's language switch
   await page.waitForURL(`${BASE}/en/about/china/`);
@@ -359,7 +395,7 @@ async function expectNotFound(browser, step, urls) {
   // The one console error this check expects: Edge reports a document that answers 404 as
   // "Failed to load resource", for the page being loaded and for nothing else.
   let asking = null;
-  const documentNotFound = (message) => /status of 404/.test(message.text()) && message.location().url === BASE + asking;
+  const documentNotFound = (message) => /status of 404/.test(message.text()) && message.location().url === BASE + asking + '?proof';
   const { context, page } = await openPage(browser, step, documentNotFound);
   let documents = [];
   let loads = 0;
@@ -373,7 +409,7 @@ async function expectNotFound(browser, step, urls) {
     loads = 0;
     const lang = langOf(path);
     asking = path;
-    const response = await page.goto(BASE + path, { waitUntil: 'load' });
+    const response = await page.goto(`${BASE}${path}?proof`, { waitUntil: 'load' });
     step.check(response?.status() === 404, `${path} answers 404 (got ${response?.status()})`);
     const html = (await response?.text()) ?? '';
     step.check(html.includes('name="robots" content="noindex"'), `${path} is served noindex`);
@@ -387,7 +423,7 @@ async function expectNotFound(browser, step, urls) {
       h1: [...document.querySelectorAll('h1')].map((h1) => h1.textContent),
       lang: document.documentElement.lang,
       type: performance.getEntriesByType('navigation')[0]?.type,
-      mounts: window.__needleMounts,
+      mounts: window.__needleDebug?.().canvasMounts,
       url: location.pathname,
     }));
     step.check(state.h1.length === 1 && state.h1[0] === NOT_FOUND_H1[lang], `${path} shows the not-found route's <h1> "${NOT_FOUND_H1[lang]}" after hydration (got ${JSON.stringify(state.h1)})`);
@@ -494,7 +530,7 @@ async function esc(browser, step) {
 
   // The contact form is the other one: a visitor who posted without script comes back to /contact/?sent=1,
   // and the page replaces that with /contact/.
-  await page.goto(`${BASE}/contact/?sent=1`, { waitUntil: 'load' });
+  await page.goto(`${BASE}/contact/?sent=1&proof`, { waitUntil: 'load' });
   await stageReady(page);
   await page.waitForFunction(() => location.pathname === '/contact/' && location.search === '', null, { timeout: 5_000 });
   documents.length = 0;
@@ -611,17 +647,17 @@ async function homeNav(browser, step) {
   step.check((await page.textContent('button[role="switch"]')) === '3D uit', 'after a reload, the switch still says "3D uit"');
   // A visitor who switched 3D off never mounts WebGL, not even during hydration, and the page still leaves LOADING.
   await page.waitForTimeout(1_000); // a Stage mounted by mistake would have its canvas by now
-  const off = await page.evaluate(() => ({ mounts: window.__needleMounts ?? 0, canvases: document.querySelectorAll('canvas').length }));
+  const off = await page.evaluate(() => ({ mounts: window.__needleDebug?.().canvasMounts ?? 0, canvases: document.querySelectorAll('canvas').length }));
   step.check(off.mounts === 0 && off.canvases === 0, `with 3D stored off, no Stage and no <canvas> (got ${off.mounts} mounts, ${off.canvases} canvas)`);
   const offPhase = await waitForPhase(page, 'HOME_IDLE').then((phase) => phase.kind, () => null);
-  step.check(offPhase === 'HOME_IDLE', `with 3D stored off, the phase still leaves LOADING for HOME_IDLE (got ${JSON.stringify(await page.evaluate(() => window.__needleScene?.()))})`);
+  step.check(offPhase === 'HOME_IDLE', `with 3D stored off, the phase still leaves LOADING for HOME_IDLE (got ${JSON.stringify(await page.evaluate(() => window.__needleDebug?.().phase))})`);
 
   // And back on: the Stage mounts now.
   await page.click('button[role="switch"]');
   step.check((await page.evaluate(() => localStorage.getItem('needle-3d'))) === 'on', 'switching back stores needle-3d = on');
   step.check(visuallyHidden(await boxOf(page, '.home-nav')), 'with 3D on again, the home nav is hidden again');
   await stageReady(page);
-  step.check((await page.evaluate(() => window.__needleMounts)) === 1, 'switched on, the Stage mounts');
+  step.check((await page.evaluate(() => window.__needleDebug?.().canvasMounts)) === 1, 'switched on, the Stage mounts');
   await takeCsp(page, step);
   await context.close();
   return 'six links; hidden but focusable with 3D on, shown with 3D off, the choice stored';
@@ -1002,14 +1038,14 @@ async function lite(browser, step) {
 
 // ---------------------------------------------------------------- scroll
 
-/** The per-frame values of the scroll. `?proof` in the first URL makes the Shell expose them as window.__needleFrame (temporary: Task 8's __needleDebug replaces it). */
+/** The per-frame values of the scroll, from window.__needleDebug(): `chapterIndex` is its `chapter.index`. */
 const frameOf = (page) =>
   page.evaluate(() => {
-    const { progress, target, velocity, chapterIndex } = window.__needleFrame;
-    return { progress, target, velocity, chapterIndex };
+    const { progress, target, velocity, chapter } = window.__needleDebug();
+    return { progress, target, velocity, chapterIndex: chapter.index };
   });
 /** The scene's whole phase, as `{ kind, dir?, category?, id? }`. */
-const phaseOf = (page) => page.evaluate(() => JSON.parse(JSON.stringify(window.__needleScene())));
+const phaseOf = (page) => page.evaluate(() => JSON.parse(JSON.stringify(window.__needleDebug().phase)));
 
 /** Waits until the story is at rest: progress on its target and the target no longer moving (a glide is over). */
 async function restAt(page) {
@@ -1029,7 +1065,7 @@ async function restAt(page) {
  * document's start.
  */
 async function reachHomeIdle(page) {
-  await page.waitForFunction(() => window.__needleScene?.().kind === 'HOME_IDLE', null, { timeout: LOAD_TIMEOUT_MS + 3_000 });
+  await page.waitForFunction(() => window.__needleDebug?.().phase.kind === 'HOME_IDLE', null, { timeout: LOAD_TIMEOUT_MS + 3_000 });
   return page.evaluate(() => Math.round(performance.now()));
 }
 
@@ -1043,16 +1079,17 @@ async function expectPhase(page, step, kind, message) {
  * Counts the scroll loop's frame requests from now on in window.__raf, how many of its callbacks run at each frame
  * time in window.__rafRuns (two callbacks at one time are two frames asked for in the same frame), and records
  * whether each wheel was prevented in window.__wheels. Only the scroll loop's own requests are counted: it asks
- * through window.__needleScrollRequest (exposed behind ?proof), while the canvas renders on demand through R3F's own
- * requestAnimationFrame, which may land in the same frame and is no business of the scroll's.
+ * through window.__needleDebug.scrollRequest (the bridge behind ?proof), which is wrapped here, while the canvas renders
+ * on demand through R3F's own requestAnimationFrame, which may land in the same frame and is no business of the scroll's.
  */
 const watchFrames = (page) =>
   page.evaluate(() => {
     window.__raf = 0;
     window.__rafRuns = {};
-    const request = window.__needleScrollRequest;
-    if (!request) throw new Error('window.__needleScrollRequest is missing: open the page with ?proof');
-    window.__needleScrollRequest = (callback) => {
+    const bridge = window.__needleDebug;
+    if (!bridge) throw new Error('window.__needleDebug is missing: open the page with ?proof');
+    const request = bridge.scrollRequest;
+    bridge.scrollRequest = (callback) => {
       window.__raf++;
       return request((now) => {
         window.__rafRuns[now] = (window.__rafRuns[now] ?? 0) + 1;
@@ -1402,8 +1439,8 @@ async function loaded(browser, step) {
   });
   await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
   await page.bringToFront();
-  await page.waitForFunction(() => typeof window.__needleScene === 'function', null, { timeout: 5_000 });
-  const first = await page.evaluate(() => window.__needleScene().kind);
+  await page.waitForFunction(() => typeof window.__needleDebug === 'function', null, { timeout: 5_000 });
+  const first = await page.evaluate(() => window.__needleDebug().phase.kind);
   step.check(first === 'LOADING', `a direct load of / starts in LOADING (got ${first})`);
   const at = await reachHomeIdle(page);
   step.check(at <= LOAD_TIMEOUT_MS, `and reaches HOME_IDLE once the scene is ready, ${at} ms after the document started (the timeout is ${LOAD_TIMEOUT_MS} ms)`);
@@ -1412,7 +1449,7 @@ async function loaded(browser, step) {
     ready: document.querySelector('.scene-host')?.hasAttribute('data-ready'),
     webgl: document.querySelector('.scene-host')?.getAttribute('data-webgl'),
     canvases: document.querySelectorAll('.scene-host canvas').length,
-    mounts: window.__needleMounts,
+    mounts: window.__needleDebug().canvasMounts,
     card: document.querySelector('.scene-fallback') !== null,
   }));
   step.check(shown.ready && shown.webgl === 'ok' && shown.canvases === 1 && shown.mounts === 1 && !shown.card, `the scene is ready and shown, on WebGL 'ok', with no fallback card (got ${JSON.stringify(shown)})`);
@@ -1461,7 +1498,7 @@ async function loaded(browser, step) {
   await off.page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
   const offAt = await reachHomeIdle(off.page);
   await off.page.waitForTimeout(500);
-  const none = await off.page.evaluate(() => ({ mounts: window.__needleMounts ?? 0, canvases: document.querySelectorAll('canvas').length, card: document.querySelector('.scene-fallback') !== null }));
+  const none = await off.page.evaluate(() => ({ mounts: window.__needleDebug?.().canvasMounts ?? 0, canvases: document.querySelectorAll('canvas').length, card: document.querySelector('.scene-fallback') !== null }));
   step.check(none.mounts === 0 && none.canvases === 0 && !none.card, `with 3D stored off: HOME_IDLE after ${offAt} ms, no Stage, no <canvas>, no card (got ${JSON.stringify(none)})`);
   await takeCsp(off.page, step);
   await off.context.close();
@@ -1484,7 +1521,7 @@ async function noWebglOne(browser, step, label, expected) {
       linkText: document.querySelector('.scene-fallback a')?.textContent ?? null,
       role: document.querySelector('.scene-fallback')?.getAttribute('role') ?? null,
       canvases: document.querySelectorAll('canvas').length,
-      mounts: window.__needleMounts ?? 0,
+      mounts: window.__needleDebug?.().canvasMounts ?? 0,
       webgl: document.querySelector('.scene-host')?.getAttribute('data-webgl') ?? null,
       threeD: document.documentElement.dataset['3d'],
       stored: localStorage.getItem('needle-3d'),
@@ -1494,7 +1531,7 @@ async function noWebglOne(browser, step, label, expected) {
         const img = document.querySelector('.poster img');
         return !!img && img.complete && img.naturalWidth > 0;
       })(),
-      phase: window.__needleScene?.().kind ?? null,
+      phase: window.__needleDebug?.().phase.kind ?? null,
     }));
     const lite = lang === 'nl' ? '/lite/' : '/en/lite/';
     step.check(state.title === t.needle.fallback.title, `${label}, ${path}: the card says "${t.needle.fallback.title}" (got ${state.title})`);
@@ -1575,7 +1612,7 @@ async function sceneFailures(browser, step) {
       canvases: document.querySelectorAll('canvas').length,
       threeD: document.documentElement.dataset['3d'],
       stored: localStorage.getItem('needle-3d'),
-      phase: window.__needleScene?.().kind ?? null,
+      phase: window.__needleDebug?.().phase.kind ?? null,
     }));
     step.check(
       shown && state.canvases === 0 && state.threeD === 'off' && state.stored === null && state.phase === 'HOME_IDLE',
@@ -1592,7 +1629,7 @@ async function sceneFailures(browser, step) {
     await fellBack(page, 'a context lost for good', RESTORE_TIMEOUT_MS + 3_000);
     await page.click('button[role="switch"]');
     await page.waitForFunction(() => document.querySelector('.scene-host')?.hasAttribute('data-ready'), null, { timeout: LOAD_TIMEOUT_MS });
-    const again = await page.evaluate(() => ({ mounts: window.__needleMounts, card: document.querySelector('.scene-fallback') !== null, stored: localStorage.getItem('needle-3d') }));
+    const again = await page.evaluate(() => ({ mounts: window.__needleDebug?.().canvasMounts, card: document.querySelector('.scene-fallback') !== null, stored: localStorage.getItem('needle-3d') }));
     step.check(again.mounts === 2 && !again.card && again.stored === 'on', `switched back on, a new Stage draws and the card goes (got ${JSON.stringify(again)})`);
     await takeCsp(page, step);
     await context.close();
@@ -1605,7 +1642,7 @@ async function sceneFailures(browser, step) {
     await page.bringToFront();
     await reachHomeIdle(page);
     await loseContext(page, true);
-    await page.waitForFunction(() => window.__needleFrame?.contextLost === false, null, { timeout: 5_000 });
+    await page.waitForFunction(() => window.__needleDebug?.().contextLost === false, null, { timeout: 5_000 });
     await page.waitForTimeout(RESTORE_TIMEOUT_MS + 500); // past the point where a context still lost would have failed it
     const pixel = await readCanvas(page);
     const card = await page.evaluate(() => document.querySelector('.scene-fallback') !== null);
@@ -1617,7 +1654,7 @@ async function sceneFailures(browser, step) {
   // A scene that never arrives (its chunk never answers): the card after LOAD_TIMEOUT_MS.
   {
     const { context, page } = await openPage(browser, step);
-    await page.route(/\/assets\/Stage-[^/]+\.js$/, () => {}); // never fulfilled
+    await page.route(STAGE_CHUNK, () => {}); // never fulfilled
     await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
     await fellBack(page, 'a scene that is never ready', LOAD_TIMEOUT_MS + 3_000);
     await takeCsp(page, step);
@@ -1685,7 +1722,7 @@ async function background(browser, step) {
     held: window.__heldFrames(),
     card: document.querySelector('.scene-fallback') !== null,
     threeD: document.documentElement.dataset['3d'],
-    phase: window.__needleScene?.().kind ?? null,
+    phase: window.__needleDebug?.().phase.kind ?? null,
   }));
   step.check(waiting.hidden === 'hidden' && waiting.held > 0, `the page waited in the background, its frames held (${JSON.stringify(waiting)})`);
   step.check(!waiting.card && waiting.threeD === 'on', `${(LOAD_TIMEOUT_MS + 2_000) / 1000} s in the background: no fallback card, 3D still on (got ${JSON.stringify(waiting)})`);
@@ -1694,7 +1731,7 @@ async function background(browser, step) {
   const shownAt = Date.now();
   const reached = await reachHomeIdle(page).then(() => true, () => false);
   const after = await page.evaluate(() => ({
-    phase: window.__needleScene?.().kind ?? null,
+    phase: window.__needleDebug?.().phase.kind ?? null,
     ready: document.querySelector('.scene-host')?.hasAttribute('data-ready'),
     card: document.querySelector('.scene-fallback') !== null,
     threeD: document.documentElement.dataset['3d'],
@@ -1776,41 +1813,74 @@ const scrims = (page) =>
       host: host.backgroundImage,
       poster: poster.backgroundImage,
       least: Math.min(...alphas(host.backgroundImage)),
+      posterLeast: Math.min(...alphas(poster.backgroundImage)),
       position: host.position,
       inset: [host.top, host.right, host.bottom, host.left].join(' '),
     };
   });
 
 /**
- * Stills of the live scene, and of the fallback, at 1440x900 and 390x844 (a phone: touch, coarse pointer), into
- * PROOF_DIR/m1/. On a page of text the scene is under the same scrim as the poster: the scene host's ::after carries
- * the poster's page scrim over the whole canvas; the home page keeps the scene unveiled.
+ * Holds the Stage chunk's response until the answered `release()` is called, so the scene cannot become ready meanwhile:
+ * a moment that is otherwise a race (the page's `load` against the scene's readiness) lasts as long as the harness needs.
+ * Call it before the page navigates. `release()` lets the chunk through and takes the route down.
  */
-async function sceneStills(browser, step) {
+async function holdStage(page) {
+  let open = () => {};
+  const gate = new Promise((resolve) => (open = resolve));
+  const handler = async (route) => {
+    await gate;
+    await route.continue().catch(() => {}); // the page may have gone by now
+  };
+  await page.route(STAGE_CHUNK, handler);
+  return async () => {
+    open();
+    await page.unroute(STAGE_CHUNK, handler);
+  };
+}
+
+/** A page's file name stem from its path: its language, then the path with dashes: `nl-about-china`, `en-home`. */
+const stillName = (path) => `${langOf(path)}-${path.replace(/^\/en(?=\/|$)/, '').split('/').filter(Boolean).join('-') || 'home'}`;
+
+/** The home page, in either language; every other page is a page of text. */
+const isHome = (path) => path === '/' || path === '/en/';
+
+/**
+ * Stills of every page of pagePaths() that the build produced, with the live scene, at 1440x900 and 390x844 (a phone:
+ * touch, coarse pointer, two device pixels), and of the fallback, into PROOF_DIR/m1/, named after the page: `nl-home-1440x900.png`,
+ * `en-about-china-390x844.png`, `fallback-1440x900.png`.
+ *
+ * On a page of text the scene is under the same scrim as the poster: the scene host's ::after carries the poster's page
+ * scrim over the whole canvas once the scene shows; the home page keeps the scene unveiled. Before the scene shows, only
+ * the poster's own scrim is there: the Stage chunk is held (holdStage) while that is measured, so the scene cannot be
+ * ready at the time, and then released.
+ */
+async function stills(browser, step) {
   const sizes = [
     { width: 1440, height: 900, options: {} },
     { width: 390, height: 844, options: { isMobile: true, hasTouch: true, deviceScaleFactor: 2 } },
-  ];
-  const pages = [
-    { name: 'home', path: '/', text: false },
-    { name: 'about-china', path: '/about/china/', text: true },
-    { name: 'en-projects-funcial', path: '/en/projects/funcial/', text: true },
-    { name: 'lite', path: '/lite/', text: true },
   ];
   const dir = join(OUT, 'm1');
   mkdirSync(dir, { recursive: true });
   const shots = [];
   for (const { width, height, options } of sizes) {
     const { context, page } = await openPage(browser, step, () => false, { width, height }, options);
-    for (const { name, path, text } of pages) {
-      await page.goto(`${BASE}${path}?proof`, { waitUntil: 'load' });
-      await page.bringToFront();
-      // While the scene loads the poster's scrim is the only one: the host's waits, invisible, for the scene to show.
-      const loading = await scrims(page);
-      if (text && !loading.ready) {
-        step.check(loading.opacity === '0', `${path} at ${width}x${height}: while the scene loads only the poster's scrim shows (the host's opacity ${loading.opacity})`);
-      } else if (text) {
-        step.check(false, `${path} at ${width}x${height}: the scene was ready at the load event already, so the scrim before it could not be checked`);
+    for (const { path } of PAGES) {
+      const text = !isHome(path);
+      const at = `${path} at ${width}x${height}`;
+      const release = text ? await holdStage(page) : async () => {};
+      try {
+        await page.goto(`${BASE}${path}?proof`, { waitUntil: 'load' });
+        await page.bringToFront();
+        if (text) {
+          // While the scene is not there only the poster's scrim shows: the host's waits, invisible, for the scene.
+          const loading = await scrims(page);
+          step.check(
+            !loading.ready && loading.opacity === '0' && loading.posterLeast >= 0.5,
+            `${at}: while the scene loads only the poster's scrim shows, and it is the page's (ready ${loading.ready}, the host's opacity ${loading.opacity}, the poster's least alpha ${loading.posterLeast})`,
+          );
+        }
+      } finally {
+        await release();
       }
       await page.waitForFunction(() => document.querySelector('.scene-host')?.hasAttribute('data-ready'), null, { timeout: LOAD_TIMEOUT_MS + 3_000 });
       await page.evaluate(() => document.fonts.ready);
@@ -1819,12 +1889,14 @@ async function sceneStills(browser, step) {
       if (text) {
         step.check(
           scrim.content !== 'none' && scrim.opacity === '1' && scrim.position === 'absolute' && scrim.inset === '0px 0px 0px 0px' && scrim.host === scrim.poster && scrim.least >= 0.5,
-          `${path} at ${width}x${height}: the shown scene is under the page scrim, the poster's own, fully (opacity ${scrim.opacity}; ${scrim.host}; least alpha ${scrim.least})`,
+          `${at}: the shown scene is under the page scrim, the poster's own, fully (opacity ${scrim.opacity}; ${scrim.host}; least alpha ${scrim.least})`,
         );
       } else {
-        step.check(scrim.content === 'none', `${path} at ${width}x${height}: the home page keeps the scene unveiled (::after content ${scrim.content})`);
+        step.check(scrim.content === 'none', `${at}: the home page keeps the scene unveiled (::after content ${scrim.content})`);
       }
-      const file = join(dir, `${name}-${width}x${height}.png`);
+      const debug = await debugOf(page);
+      step.check(debug !== null && debug.canvasMounts === 1 && !debug.contextLost && debug.threeD, `${at}: one Stage, its context there, 3D on (got ${JSON.stringify(debug && { mounts: debug.canvasMounts, lost: debug.contextLost, threeD: debug.threeD })})`);
+      const file = join(dir, `${stillName(path)}-${width}x${height}.png`);
       await page.screenshot({ path: file });
       shots.push(file);
       await takeCsp(page, step);
@@ -1847,8 +1919,9 @@ async function sceneStills(browser, step) {
   } finally {
     await own.close();
   }
-  console.log(`note: stills: ${shots.join(' ')}`);
-  return `${shots.length} stills in ${dir}; the page scrim over the scene on every page of text`;
+  step.check(shots.length === PAGES.length * sizes.length + sizes.length, `${shots.length} stills: ${PAGES.length} pages at ${sizes.length} sizes, and the fallback at each`);
+  console.log(`note: stills (${shots.length}) in ${dir}`);
+  return `${shots.length} stills in ${dir}: ${PAGES.length} pages at 1440x900 and 390x844, the fallback; the page scrim over the scene on every page of text`;
 }
 
 /**
@@ -1870,7 +1943,7 @@ async function loadThrow(browser, step) {
   const { context, page } = await openPage(browser, step, reported);
   let patched = 0;
   let found = -1;
-  await page.route(/\/assets\/Stage-[^/]+\.js$/, async (route) => {
+  await page.route(STAGE_CHUNK, async (route) => {
     const response = await route.fetch();
     const body = await response.text();
     found = body.split(LOAD_THROW_AT).length - 1;
@@ -1889,10 +1962,10 @@ async function loadThrow(browser, step) {
     title: document.querySelector('.scene-fallback-title')?.textContent ?? null,
     threeD: document.documentElement.dataset['3d'],
     stored: localStorage.getItem('needle-3d'),
-    phase: window.__needleScene?.().kind ?? null,
+    phase: window.__needleDebug?.().phase.kind ?? null,
     ready: document.querySelector('.scene-host')?.hasAttribute('data-ready') ?? null,
     canvases: document.querySelectorAll('canvas').length,
-    mounts: window.__needleMounts ?? 0,
+    mounts: window.__needleDebug?.().canvasMounts ?? 0,
   }));
   step.check(patched === 1 && found === 1, `the real Stage chunk was served with its one "${LOAD_THROW_AT}" call made to throw (served ${patched}, call found ${found} times)`);
   step.check(card, `a throwing load shows the fallback card, ${tookMs} ms after the page started (well inside the ${LOAD_TIMEOUT_MS / 1000} s load timeout: the throw, not the timer)`);
@@ -1934,17 +2007,312 @@ async function fps(browser, step) {
   const pixel = await readCanvas(page);
   step.check(drawn(pixel), `the canvas holds the scene: read back through toDataURL, its brightest channel is ${pixel?.max}, the dial's centre rgb(${pixel?.centre?.join(', ')})`);
   step.check(Number.isFinite(mean) && mean > 0, `120 frames sampled over ${Math.round(span)} ms`);
-  console.log(`note: fps on / at 1440x900 (GPU): mean ${mean} over 120 frames (${Math.round(span)} ms)`);
+
+  // The site's own meter (window.__needleDebug().fps, a rolling mean over the last 60 frames the canvas drew) and what
+  // else the bridge reports of the canvas. Reported, not gated, except that they are there.
+  const debug = await debugOf(page);
+  step.check(debug !== null && debug.fps > 0, `the bridge reports the canvas's own rolling fps (got ${debug?.fps})`);
+  step.check(debug !== null && debug.dpr >= 1 && debug.dpr <= 1.75, `and its pixel ratio, within the ladder's 1 to 1.75 (got ${debug?.dpr})`);
+  step.check(debug !== null && debug.camera.fov > 0 && debug.camera.position.every(Number.isFinite), `and its camera (got ${JSON.stringify(debug?.camera)})`);
+  step.check(debug !== null && ['high', 'medium', 'low'].includes(debug.tier), `and the quality tier (got ${debug?.tier})`);
+  console.log(`note: fps on / at 1440x900 (GPU): mean ${mean} over 120 frames (${Math.round(span)} ms); the scene's own meter ${debug?.fps?.toFixed(1)} fps, dpr ${debug?.dpr}, tier ${debug?.tier}`);
   step.fps = mean;
+  step.rollingFps = debug?.fps ?? null;
+  step.quality = debug ? { tier: debug.tier, dpr: debug.dpr } : null;
   await takeCsp(page, step);
   await context.close();
-  return `mean ${mean} fps over 120 frames, the canvas is not blank (brightest ${pixel?.max})`;
+  return `mean ${mean} fps over 120 frames (the scene's own meter ${debug?.fps?.toFixed(1)}), tier ${debug?.tier}, dpr ${debug?.dpr}, the canvas is not blank (brightest ${pixel?.max})`;
+}
+
+// ---------------------------------------------------------------- the debug bridge, the keyboard, a language switch, reduced motion
+
+/** Every proof hook the site has had; today the bridge is the only one. */
+const HOOK_NAMES = ['__needleDebug', '__needleScene', '__needleFrame', '__needleMounts', '__needleScrollRequest'];
+/** The fields of the bridge's state (src/debug/needleDebug.ts, NeedleDebugState). */
+const STATE_KEYS = ['camera', 'canvasMounts', 'chapter', 'contextLost', 'dpr', 'fps', 'locale', 'phase', 'progress', 'route', 'target', 'threeD', 'tier', 'velocity'];
+/** The last chapter of the home scroll, and the place its story ends. */
+const LAST_UNIT = HOME_CHAPTERS.units.length - 1;
+const STORY_END = HOME_CHAPTERS.total;
+const LAST_CATEGORY = HOME_CHAPTERS.units[LAST_UNIT].category;
+
+/**
+ * The debug bridge exists under `?proof` and nowhere else. Without it, nothing of the site reads or writes a proof hook,
+ * not even through a scroll gesture's frames (every hook the site has had is trapped on the window, and a gesture and a pause
+ * go by); with it, the state has every field and the actions act: `.set` puts the story somewhere, `.dispatch` sends an
+ * event, and the old hooks are gone.
+ */
+async function bridge(browser, step) {
+  // No ?proof: a trap on every hook name records any read or write of it.
+  {
+    const { context, page } = await openPage(browser, step);
+    await context.addInitScript((names) => {
+      window.__touched = [];
+      for (const name of names) {
+        Object.defineProperty(window, name, {
+          configurable: true,
+          get() {
+            window.__touched.push(`get ${name}`);
+            return undefined;
+          },
+          set() {
+            window.__touched.push(`set ${name}`);
+          },
+        });
+      }
+    }, HOOK_NAMES);
+    await page.goto(`${BASE}/`, { waitUntil: 'load' });
+    await page.waitForFunction(() => document.querySelector('.scene-host')?.hasAttribute('data-ready'), null, { timeout: LOAD_TIMEOUT_MS + 3_000 });
+    await page.evaluate(() => {
+      window.__wheels = [];
+      window.addEventListener('wheel', (event) => window.__wheels.push(event.defaultPrevented), { passive: true });
+    });
+    await page.mouse.move(720, 450);
+    for (let i = 0; i < 10; i++) {
+      await page.mouse.wheel(0, 120);
+      await page.waitForTimeout(16);
+    }
+    await page.waitForTimeout(1_500); // the glide and the damping run their frames
+    const wheels = await page.evaluate(() => window.__wheels);
+    step.check(wheels.length === 10 && wheels.every(Boolean), 'without ?proof the scroll loop still runs: the wheel is taken (10 of 10 prevented)');
+    const touched = await page.evaluate(() => window.__touched);
+    step.check(touched.length === 0, `without ?proof nothing of the site reads or writes a proof hook, through load, a scene, a wheel gesture and its frames (touched: ${touched.join(', ') || 'nothing'})`);
+    await takeCsp(page, step);
+    await context.close();
+  }
+
+  // ?proof: the bridge, the state, the actions.
+  const { context, page } = await openPage(browser, step);
+  await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+  await stageReady(page);
+  await reachHomeIdle(page);
+  await page.waitForFunction(() => document.querySelector('.scene-host')?.hasAttribute('data-ready'), null, { timeout: LOAD_TIMEOUT_MS + 3_000 });
+  const old = await page.evaluate((names) => names.filter((name) => name !== '__needleDebug' && name in window), HOOK_NAMES);
+  step.check(old.length === 0, `with ?proof the old hooks are gone (found: ${old.join(', ') || 'none'})`);
+  const shape = await page.evaluate(() => ({
+    isFunction: typeof window.__needleDebug === 'function',
+    actions: [typeof window.__needleDebug.set, typeof window.__needleDebug.dispatch, typeof window.__needleDebug.scrollRequest],
+  }));
+  step.check(shape.isFunction && shape.actions.join() === 'function,function,function', `window.__needleDebug is a function with .set, .dispatch and .scrollRequest (got ${JSON.stringify(shape)})`);
+
+  const at = await debugOf(page);
+  step.check(JSON.stringify(Object.keys(at).sort()) === JSON.stringify(STATE_KEYS), `its state has exactly these fields: ${STATE_KEYS.join(', ')} (got ${Object.keys(at).sort().join(', ')})`);
+  step.check(at.phase.kind === 'HOME_IDLE' && at.progress === 0 && at.target === 0 && at.velocity === 0, `on / at rest: HOME_IDLE, progress 0, target 0, velocity 0 (got ${JSON.stringify([at.phase, at.progress, at.target, at.velocity])})`);
+  step.check(JSON.stringify(at.chapter) === JSON.stringify({ index: 0, id: 'HOME', local: 0, category: null }), `the chapter is HOME, index 0, local 0 (got ${JSON.stringify(at.chapter)})`);
+  step.check(at.route === 'home' && at.locale === 'nl' && at.threeD === true && at.contextLost === false && at.canvasMounts === 1, `route home, locale nl, 3D on, context there, one Stage (got ${JSON.stringify([at.route, at.locale, at.threeD, at.contextLost, at.canvasMounts])})`);
+  step.check(['high', 'medium', 'low'].includes(at.tier) && at.dpr >= 1 && at.camera.fov > 0 && at.camera.position.length === 3, `a tier, a pixel ratio and a camera from the Stage (got ${at.tier}, dpr ${at.dpr}, ${JSON.stringify(at.camera)})`);
+
+  // .set puts the story somewhere at once: progress and target there, nothing moving, the chapter and the phase with it.
+  await page.evaluate(() => window.__needleDebug.set({ progress: 2.5 }));
+  const mid = await debugOf(page);
+  step.check(mid.progress === 2.5 && mid.target === 2.5 && mid.velocity === 0 && mid.chapter.index === 1 && mid.chapter.id === 'DISSECT' && mid.phase.kind === 'DISSECT', `.set({ progress: 2.5 }) puts the story in DISSECT at 2.5 (got ${JSON.stringify([mid.progress, mid.target, mid.chapter, mid.phase])})`);
+  step.check(near(mid.chapter.local, (2.5 - 1) / 11, 1e-9), `and the chapter's local is how far through it (got ${mid.chapter.local})`);
+  await page.evaluate(() => window.__needleDebug.set({ progress: 999 }));
+  const end = await debugOf(page);
+  step.check(end.target === STORY_END && end.chapter.index === LAST_UNIT && end.phase.kind === 'PROJECTS' && end.phase.category === LAST_CATEGORY, `.set past the end stops at the end, in the last chapter (got ${JSON.stringify([end.target, end.chapter.index, end.phase])})`);
+  await page.evaluate(() => window.__needleDebug.set({ progress: 0 }));
+  const start = await debugOf(page);
+  step.check(start.target === 0 && start.chapter.index === 0 && start.phase.kind === 'HOME_IDLE', `.set({ progress: 0 }) is the start again (got ${JSON.stringify([start.target, start.chapter.index, start.phase])})`);
+
+  // .dispatch sends a scene event, as the app's own parts do; the phase is the store's own object.
+  await page.evaluate(() => window.__needleDebug.dispatch({ type: 'FOCUS_COUNTRY', dir: 'aruba' }));
+  const focus = await debugOf(page);
+  step.check(focus.phase.kind === 'FOCUS_COUNTRY' && focus.phase.dir === 'aruba', `.dispatch({ type: 'FOCUS_COUNTRY', dir: 'aruba' }) focuses Aruba (got ${JSON.stringify(focus.phase)})`);
+  step.check(await page.evaluate(() => window.__needleDebug().phase === window.__needleDebug().phase), 'two reads of the phase are the same object while nothing changed');
+  await page.evaluate(() => window.__needleDebug.dispatch({ type: 'BACK' }));
+  step.check((await debugOf(page)).phase.kind === 'HOME_IDLE', '.dispatch({ type: BACK }) goes back to HOME_IDLE');
+
+  // The scroll loop's frames go through .scrollRequest: wrapped, the wrapper sees them.
+  await watchFrames(page);
+  await page.mouse.move(720, 450);
+  await page.mouse.wheel(0, 120);
+  await restAt(page);
+  const frames = await takeFrames(page);
+  step.check(frames.requests > 0 && frames.most === 1, `a wheel's frames are asked for through .scrollRequest, one at a time (${frames.requests} asked for, at most ${frames.most} callback in one frame)`);
+  await page.keyboard.press('Home');
+  await restAt(page);
+
+  // The language is the page's.
+  await page.click('a[href="/en/"]');
+  await page.waitForFunction(() => document.documentElement.lang === 'en', null, { timeout: 5_000 });
+  const en = await debugOf(page);
+  step.check(en.locale === 'en' && en.route === 'home' && en.canvasMounts === 1, `after the language switch: locale en, route home, still one Stage (got ${JSON.stringify([en.locale, en.route, en.canvasMounts])})`);
+  await takeCsp(page, step);
+  await context.close();
+  return 'no bridge and no hook touched without ?proof; with it the state has every field, .set and .dispatch act, the loop asks its frames through .scrollRequest';
+}
+
+/**
+ * The keyboard on the home page with 3D on: Tab from the top reaches the skip link, then the language switch and the 3D
+ * toggle, in that order, each with a visible focus ring on screen, and Shift+Tab goes back; End goes to the last
+ * chapter (the end of the story, the last project category) and Home returns to the start, both from a focused control.
+ */
+async function keyboard(browser, step) {
+  const { context, page } = await openPage(browser, step);
+  await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+  await stageReady(page);
+  await reachHomeIdle(page);
+
+  const focused = () =>
+    page.evaluate(() => {
+      const element = document.activeElement;
+      const style = getComputedStyle(element);
+      const { top, bottom, left, right } = element.getBoundingClientRect();
+      return {
+        tag: element.tagName,
+        href: element.getAttribute('href'),
+        role: element.getAttribute('role'),
+        hreflang: element.getAttribute('hreflang'),
+        ring: style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) >= 2,
+        onScreen: top >= 0 && left >= 0 && bottom <= window.innerHeight && right <= window.innerWidth && bottom > top,
+      };
+    });
+  const isLang = (control) => control.tag === 'A' && control.hreflang === 'en';
+  const isToggle = (control) => control.role === 'switch';
+
+  const reached = [];
+  for (let press = 0; press < 12; press++) {
+    await page.keyboard.press('Tab');
+    reached.push(await focused());
+    if (isToggle(reached.at(-1))) break;
+  }
+  const langAt = reached.findIndex(isLang);
+  const toggleAt = reached.findIndex(isToggle);
+  step.check(reached[0]?.href === '#main', `the first Tab lands on the skip link (got ${JSON.stringify(reached[0])})`);
+  step.check(langAt > 0 && toggleAt > langAt, `Tab reaches the language switch and then the 3D toggle (language switch at press ${langAt + 1}, toggle at press ${toggleAt + 1} of ${reached.length})`);
+  for (const [name, control] of [['the language switch', reached[langAt]], ['the 3D toggle', reached[toggleAt]]]) {
+    step.check(control?.ring && control.onScreen, `${name} shows a focus ring (outline 2px or more) and is on screen when focused (got ${JSON.stringify(control)})`);
+  }
+  await page.keyboard.press('Shift+Tab');
+  step.check(isLang(await focused()), 'Shift+Tab from the 3D toggle goes back to the language switch');
+  await page.keyboard.press('Tab');
+  step.check(isToggle(await focused()), 'and Tab to the toggle again');
+
+  // End and Home work from a focused control: a button keeps Space and Enter, not these.
+  await page.keyboard.press('End');
+  const last = await restAt(page);
+  step.check(last.target === STORY_END && last.progress === STORY_END && last.chapterIndex === LAST_UNIT, `End jumps to the last chapter: the end of the story, ${STORY_END}, chapter ${LAST_UNIT} (got ${JSON.stringify(last)})`);
+  await waitForPhase(page, 'PROJECTS');
+  const atEnd = await debugOf(page);
+  step.check(atEnd.chapter.id === 'PROJECTS' && atEnd.chapter.category === LAST_CATEGORY && atEnd.phase.category === LAST_CATEGORY, `and it is the last project category, ${LAST_CATEGORY} (got ${JSON.stringify([atEnd.chapter, atEnd.phase])})`);
+  step.check(isToggle(await focused()), 'with the focus still on the 3D toggle');
+  await page.keyboard.press('Home');
+  const first = await restAt(page);
+  step.check(first.target === 0 && first.progress === 0 && first.chapterIndex === 0, `Home returns to the start (got ${JSON.stringify(first)})`);
+  await waitForPhase(page, 'HOME_IDLE');
+  const atStart = await debugOf(page);
+  step.check(atStart.chapter.id === 'HOME' && atStart.phase.kind === 'HOME_IDLE', `and to HOME, HOME_IDLE (got ${JSON.stringify([atStart.chapter, atStart.phase])})`);
+  await takeCsp(page, step);
+  await context.close();
+  return `Tab: skip link, language switch (press ${langAt + 1}), 3D toggle (press ${toggleAt + 1}), each ringed and on screen; End goes to ${STORY_END} (${LAST_CATEGORY}), Home back to 0`;
+}
+
+/**
+ * A language switch is not a step in the story: on /about/china/ the phase is COUNTRY_PAGE china, and after a client-side
+ * switch to /en/about/china/ (and back) it is still COUNTRY_PAGE china, the very same state with no new transition, in the
+ * other language, with the one canvas still the one Stage. The same on a project page.
+ */
+async function langKeepsPhase(browser, step) {
+  const { context, page } = await openPage(browser, step);
+  const documents = [];
+  page.on('request', (request) => {
+    if (request.isNavigationRequest() && request.frame() === page.mainFrame()) documents.push(request.url());
+  });
+  const summary = [];
+
+  for (const { path, other, route, phase, label } of [
+    { path: '/about/china/', other: '/en/about/china/', route: 'country', phase: { kind: 'COUNTRY_PAGE', dir: 'china' }, label: 'COUNTRY_PAGE china' },
+    { path: '/projects/funcial/', other: '/en/projects/funcial/', route: 'project', phase: { kind: 'PROJECT_FOCUS', id: 'funcial' }, label: 'PROJECT_FOCUS funcial' },
+  ]) {
+    await page.goto(`${BASE}${path}?proof`, { waitUntil: 'load' });
+    await stageReady(page);
+    await page.evaluate(() => {
+      document.querySelector('.scene-host canvas').dataset.id = 'lang-canvas';
+    });
+    documents.length = 0;
+    await waitForPhase(page, phase.kind);
+    const sameAs = (state) => state.phase.kind === phase.kind && state.phase.dir === phase.dir && state.phase.id === phase.id;
+    const dutch = await debugOf(page);
+    step.check(sameAs(dutch) && dutch.locale === 'nl' && dutch.route === route && dutch.canvasMounts === 1, `${path}: the phase is ${label}, locale nl, route ${route}, one Stage (got ${JSON.stringify([dutch.phase, dutch.locale, dutch.route, dutch.canvasMounts])})`);
+    await page.evaluate(() => {
+      window.__keptPhase = window.__needleDebug().phase;
+    });
+
+    for (const [to, lang] of [[other, 'en'], [path, 'nl']]) {
+      await page.click(`.header-nav a[hreflang="${lang}"]`);
+      await page.waitForFunction(([to, lang]) => location.pathname === to && document.documentElement.lang === lang, [to, lang], { timeout: 5_000 });
+      await page.waitForTimeout(250); // a sync that wrongly moved the phase would have by now
+      const now = await debugOf(page);
+      const same = await page.evaluate(() => window.__needleDebug().phase === window.__keptPhase);
+      const canvas = await page.evaluate(() => ({ canvases: document.querySelectorAll('canvas').length, tag: document.querySelector('.scene-host canvas')?.dataset.id ?? null }));
+      step.check(sameAs(now) && same, `after the client-side switch to ${to}: the phase is still ${label}, the very same state with no new transition (got ${JSON.stringify(now.phase)}, same object ${same})`);
+      step.check(now.locale === lang && now.route === route, `and the bridge says locale ${lang}, route ${route} (got ${now.locale}, ${now.route})`);
+      step.check(now.canvasMounts === 1 && canvas.canvases === 1 && canvas.tag === 'lang-canvas', `and canvasMounts is 1, the same <canvas> (got ${now.canvasMounts} mounts, ${canvas.canvases} canvas, tag ${canvas.tag})`);
+    }
+    step.check(documents.length === 0, `${path}: switching language and back is client navigation, no document load (got ${documents.join(', ') || 'none'})`);
+    summary.push(label);
+    await takeCsp(page, step);
+  }
+  await context.close();
+  return `${summary.join(' and ')} survive a switch to English and back: the same phase, one Stage, one canvas`;
+}
+
+/**
+ * With `prefers-reduced-motion: reduce` (emulated before the page loads) a wheel event is a step, not a distance: one
+ * event moves `target` to exactly the next stop, down through every stop of the story to its end, and one event up goes back
+ * through them; the story arrives at each, and the chapter and phase are those of the stop.
+ */
+async function reducedMotion(browser, step) {
+  const { context, page } = await openPage(browser, step);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+  await stageReady(page);
+  step.check(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches), 'the page asks for reduced motion');
+  await reachHomeIdle(page);
+  await page.mouse.move(720, 450);
+
+  const places = stops(HOME_CHAPTERS); // 0, 1, 12, 14, 15, 16, 17, 18
+  step.check(JSON.stringify(places) === '[0,1,12,14,15,16,17,18]', `the story's stops are as the plan has them (got ${JSON.stringify(places)})`);
+  const arrive = async (stop, how) => {
+    const rested = await restAt(page);
+    const at = await debugOf(page);
+    const unit = chapterAt(HOME_CHAPTERS, stop);
+    step.check(
+      rested.progress === stop && at.chapter.index === unit.index && at.chapter.id === unit.id && at.chapter.category === unit.category,
+      `${how}: the story arrives at ${stop}, in chapter ${unit.index} (${unit.id}) (got progress ${rested.progress}, chapter ${JSON.stringify(at.chapter)})`,
+    );
+  };
+
+  for (const stop of places.slice(1)) {
+    await page.mouse.wheel(0, 40); // one event
+    const target = (await frameOf(page)).target;
+    step.check(target === stop, `one wheel event down moves the target to exactly the next stop, ${stop} (got ${target})`);
+    await arrive(stop, 'down');
+    await page.waitForTimeout(300); // the next event is the next gesture
+  }
+  await page.mouse.wheel(0, 40);
+  step.check((await frameOf(page)).target === STORY_END, 'and one more at the end stays at the end');
+  await page.waitForTimeout(300);
+  for (const stop of places.slice(0, -1).reverse()) {
+    await page.mouse.wheel(0, -40);
+    const target = (await frameOf(page)).target;
+    step.check(target === stop, `one wheel event up moves the target to exactly the previous stop, ${stop} (got ${target})`);
+    await arrive(stop, 'up');
+    await page.waitForTimeout(300);
+  }
+  await page.mouse.wheel(0, -40);
+  step.check((await frameOf(page)).target === 0, 'and one more at the start stays at the start');
+  await expectPhase(page, step, 'HOME_IDLE', 'and the phase is HOME_IDLE again');
+  await takeCsp(page, step);
+  await context.close();
+  return `one wheel event a stop: ${places.join(', ')} down and back up, each arrived at`;
 }
 
 const STEPS = {
   routes,
   slash,
+  bridge,
   persist,
+  'lang-keeps-phase': langKeepsPhase,
   'not-found': notFound,
   'case-variant': caseVariant,
   'home-nav': homeNav,
@@ -1952,12 +2320,14 @@ const STEPS = {
   esc,
   lite,
   scroll,
+  keyboard,
+  'reduced-motion': reducedMotion,
   loaded,
   'no-webgl': noWebgl,
   fps,
   background,
   'title-ij': titleIj,
-  'scene-stills': sceneStills,
+  stills,
   'load-throw': loadThrow,
 };
 
@@ -1973,44 +2343,98 @@ if (wanted.length === 0 || unknown.length > 0) {
   process.exit(1);
 }
 
+/** A thrown error as one line: its message, and the system error under it (`fetch failed (ECONNREFUSED)`). */
+const reasonOf = (error) => {
+  const cause = error?.cause?.code ?? error?.cause?.message;
+  return `${String(error?.message ?? error).split('\n')[0]}${cause ? ` (${cause})` : ''}`;
+};
+
+/** Writes results.json, whatever ran: the steps, or the setup failure that stopped them. */
+function writeResults(results) {
+  writeFileSync(
+    join(OUT, 'results.json'),
+    JSON.stringify(
+      {
+        base: BASE,
+        ranAt: new Date().toISOString(),
+        pages: PAGES.map((p) => p.path),
+        skipped: SKIPPED,
+        steps: results.map(({ id, pass, checks, errors, expected, csp, seconds, fps, rollingFps, quality }) => ({
+          id,
+          pass,
+          seconds,
+          ...(fps === undefined ? {} : { fps, rollingFps, quality }),
+          checks,
+          errors,
+          expected,
+          csp,
+        })),
+      },
+      null,
+      2,
+    ),
+  );
+}
+
 mkdirSync(OUT, { recursive: true });
 console.log(`note: ${PAGES.length} pages checked: ${PAGES.map((p) => p.path).join(' ')}`);
 console.log(`note: ${SKIPPED.length} pages of pagePaths() not built yet, skipped: ${SKIPPED.join(' ') || 'none'}`);
-const browser = await chromium.launch({ channel: 'msedge', headless: true, args: GPU });
-const results = [];
-try {
-  for (const id of wanted) {
-    const step = new Step(id);
-    const started = Date.now();
-    let summary = '';
-    try {
-      summary = await STEPS[id](browser, step);
-    } catch (error) {
-      step.check(false, `the step threw: ${error?.message?.split('\n')[0] ?? error}`);
-    }
-    step.check(step.errors.length === 0, `no console or page errors (got ${step.errors.length}: ${step.errors.join(' | ')})`);
-    step.check(step.csp.length === 0, `no CSP violations (got ${step.csp.length}: ${JSON.stringify(step.csp)})`);
-    step.seconds = Math.round((Date.now() - started) / 100) / 10;
-    results.push(step);
-    const failed = step.checks.filter((c) => !c.ok).map((c) => c.message);
-    console.log(`${step.pass ? 'PASS' : 'FAIL'} ${id} ${step.pass ? `${summary} (${step.checks.length} checks, ${step.seconds}s)` : failed.join('; ')}`);
+
+/**
+ * Everything the steps need before the first one: a build to test, a server that answers, and an Edge that starts. A
+ * failure here is reported like any step, as `FAIL setup <reason>`, with a results.json that holds it, so a run that could
+ * not begin leaves a record instead of a stack trace. Answers the browser.
+ */
+async function setup() {
+  if (PAGES.length === 0) throw new Error(`dist/client has none of the site's pages (${DIST}): run npm run build`);
+  let response;
+  try {
+    response = await fetch(`${BASE}/`, { redirect: 'manual' });
+  } catch (error) {
+    throw new Error(`${BASE} does not answer: ${reasonOf(error)}; start it with npm run preview`);
   }
-} finally {
-  await browser.close();
+  if (response.status !== 200) throw new Error(`${BASE}/ answered ${response.status}, not 200: is npm run preview serving this build?`);
+  try {
+    return await chromium.launch({ channel: 'msedge', headless: true, args: GPU });
+  } catch (error) {
+    throw new Error(`Edge did not start: ${reasonOf(error)}`);
+  }
 }
 
-writeFileSync(
-  join(OUT, 'results.json'),
-  JSON.stringify(
-    {
-      base: BASE,
-      ranAt: new Date().toISOString(),
-      pages: PAGES.map((p) => p.path),
-      skipped: SKIPPED,
-      steps: results.map(({ id, pass, checks, errors, expected, csp, seconds, fps }) => ({ id, pass, seconds, ...(fps === undefined ? {} : { fps }), checks, errors, expected, csp })),
-    },
-    null,
-    2,
-  ),
-);
-process.exitCode = results.every((step) => step.pass) ? 0 : 1;
+const results = [];
+let browser = null;
+try {
+  browser = await setup();
+} catch (error) {
+  const step = new Step('setup');
+  step.check(false, reasonOf(error));
+  step.seconds = 0;
+  results.push(step);
+  console.log(`FAIL setup ${reasonOf(error)}`);
+}
+
+if (browser) {
+  try {
+    for (const id of wanted) {
+      const step = new Step(id);
+      const started = Date.now();
+      let summary = '';
+      try {
+        summary = await STEPS[id](browser, step);
+      } catch (error) {
+        step.check(false, `the step threw: ${error?.message?.split('\n')[0] ?? error}`);
+      }
+      step.check(step.errors.length === 0, `no console or page errors (got ${step.errors.length}: ${step.errors.join(' | ')})`);
+      step.check(step.csp.length === 0, `no CSP violations (got ${step.csp.length}: ${JSON.stringify(step.csp)})`);
+      step.seconds = Math.round((Date.now() - started) / 100) / 10;
+      results.push(step);
+      const failed = step.checks.filter((c) => !c.ok).map((c) => c.message);
+      console.log(`${step.pass ? 'PASS' : 'FAIL'} ${id} ${step.pass ? `${summary} (${step.checks.length} checks, ${step.seconds}s)` : failed.join('; ')}`);
+    }
+  } finally {
+    await browser.close();
+  }
+}
+
+writeResults(results);
+process.exitCode = results.length > 0 && results.every((step) => step.pass) ? 0 : 1;

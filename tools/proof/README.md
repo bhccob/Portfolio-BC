@@ -1,22 +1,31 @@
-# Compass proof harness
+# Proof harness
 
-`compass.mjs` drives a real headless Edge through the compass review page
-(`/lab/compass/`, `/en/lab/compass/`) and checks what the page promises: the
-loader and its hand-over, the scrub through the sections, the pearl and the
-needle, the drag, the phone, a reload part-way down, the failure paths, the
-stacked page, the frame rate and the idle stop, and the hard drive's story:
-every boundary both ways, a link to a track, the tracks under the pointer, the
-Q&A's answers, the Tab order and the phone in the Q&A. It prints one PASS or FAIL line
-per step, writes screenshots and `scrub.webm` to a folder, and exits 1 if a
-step failed. Frame rates and the quality step are reported, never gated.
+`needle.mjs` is the proof harness of the Needle site (React Router and React
+Three Fiber, `npm run build`). It drives a real headless Edge through the built
+site, served the way GitHub Pages serves it, and checks what the site promises:
+every page, the persistent canvas, the scene's state machine, the virtual
+scroll, the keyboard, the fallbacks and the frame rate. It prints one `PASS` or
+`FAIL` line per step, writes `results.json` (and the stills) to a folder, and
+exits 1 if a step failed. Every step also fails on a console error, a page error
+or a CSP violation, so a clean `results.json` has `errors: []` and `csp: []` in
+every step.
 
 It is not part of the site or its tests, and it adds no dependency to the repo:
 Playwright lives outside it.
 
+`compass.mjs` in the same folder is the **old revision-4 harness**, for the
+compass review page (`/lab/compass/`) of the Astro site. It does not run
+against this build (that page and the `__compassDebug()` it reads are gone) and
+nothing calls it. It is kept for reference, not deleted: `needle.mjs` took its
+shape from it (a step runner, one `PASS` or `FAIL` line per step, a
+`results.json`, the `msedge` channel, the `STEPS` and `PROOF_DIR` variables),
+and `docs/audit.md` points at it as the revision-4 harness. Its own header
+lists what it checks.
+
 ## Set up once
 
-Install `playwright-core` in a folder of your own (it needs no browser download;
-the harness launches the Edge that is already on the machine, which
+Install `playwright-core` in a folder of your own (it needs no browser
+download; the harness launches the Edge that is already on the machine, which
 `playwright-core` finds by its `msedge` channel):
 
 ```
@@ -33,100 +42,118 @@ set PLAYWRIGHT_CORE=C:\tools\playwright-check\node_modules\playwright-core
 
 ## Run
 
-Build the site and serve the build on port 4399 (4321 is left to `astro dev`):
+Build the site and serve the build on port 4399 (the preview server,
+`tools/serve-pages.mjs`, is case-sensitive and answers 404 with `404.html`, as
+GitHub Pages does):
 
 ```
 npm run build
-npx astro preview --port 4399
+npm run preview
 ```
 
 then, from the repo root, in another terminal:
 
 ```
-node tools/proof/compass.mjs
+node tools/proof/needle.mjs
 ```
 
 | variable | what | default |
 | --- | --- | --- |
 | `BASE` | the site to test | `http://localhost:4399` |
-| `COMPASS_PATH` | the page; `/en/lab/compass/` for English | `/lab/compass/` |
-| `PROOF_DIR` | where screenshots, `scrub.webm` and `results.json` go | `./proof-out` (ignored by git) |
-| `STEPS` | comma list of steps to run (`1` to `16`, and `stills`); an unknown step, or none, exits 1 | `1` to `16` |
-| `EDGE` | path of a browser executable, to use instead of the installed Edge | the installed Edge (`msedge` channel) |
+| `PROOF_DIR` | where `results.json` and the stills (`m1/`) go | `./proof-out` (ignored by git) |
+| `STEPS` | comma list of steps to run; an unknown step, or none, exits 1 | all |
 | `PLAYWRIGHT_CORE` | path of the `playwright-core` package | normal resolution |
 
-The page is opened with `?proof`, which makes the page expose
-`window.__compassDebug()`: the section and how far through it, the quality step,
-the spin, the tip, the needle's bearing, the pearl, the dial's drawn rim, the
-count of frames drawn and the image maps the scene holds; and, for the drive,
-the pose's drive values, head, park, platter, test point, how lit each track is,
-interactivity, dimming, the Q&A's lit sector and the programs compiled. The
-checks read their numbers from it. The sections' places are measured off the
-page as the controller measures them (the Q&A is as tall as its content), so
-`goTo(id, local)` lands where the scene says it is.
+For example, the milestone 1 review's run:
+
+```
+STEPS=routes,slash,persist,scroll,no-webgl,fps,keyboard,reduced-motion,stills node tools/proof/needle.mjs
+```
+
+The harness reads `src/data/pages.ts` and `src/state/chapters.ts` (through
+`tsx`) and the build in `dist/client` to know which pages and which scroll stops
+to expect. A page of `pagePaths()` the build did not produce is listed when the
+run starts and skipped.
+
+A run that cannot begin (nothing built, the preview server not answering, Edge
+not starting) prints `FAIL setup <reason>`, writes a `results.json` that holds
+that one failure, and exits 1.
+
+The GPU flags are the Windows ANGLE/D3D11 ones. On another system change
+`GPU` at the top of `needle.mjs` and read the frame rate as that machine's. A
+headless browser does not wait for a display's refresh, so frames can be drawn
+faster than a screen would show them. The `no-webgl` step starts two more
+Edges of its own, one with WebGL off and one with only SwiftShader.
+
+## `?proof` and `window.__needleDebug`
+
+The site has one proof hook, `window.__needleDebug`, and it exists only when
+the first URL of the page has `?proof` (`src/debug/needleDebug.ts`). Without
+`?proof` there is no bridge, and nothing of the site reads or writes one: the
+`bridge` step traps every hook name the site has ever had and runs a wheel
+gesture to prove it. The steps open their pages with `?proof` (the query
+survives the server's 301 and a `reload`; a client-side navigation drops it, but
+the bridge is installed from the first URL and stays).
+
+`window.__needleDebug()` answers the state:
+
+| field | what |
+| --- | --- |
+| `phase` | the scene's phase (`{ kind, dir?, category?, id? }`): the store's own object, so two reads are the same object while nothing changed |
+| `progress`, `target`, `velocity` | the story's place, where the input has asked it to be, and its speed (exactly 0 at rest) |
+| `chapter` | `{ index, id, local, category }`: the chapter `progress` is in |
+| `route`, `locale` | the kind of page the router shows (`home`, `country`, `project`, `lite`, `contact`, `not-found`) and its language |
+| `tier`, `dpr` | the quality tier and the canvas's pixel ratio (0 while no Stage is mounted) |
+| `fps` | the rolling mean over the last 60 frames the canvas drew (0 without a Stage) |
+| `camera` | `{ position, fov }` |
+| `canvasMounts` | how many Stages have mounted in this page view; the proof expects 1 across navigation |
+| `contextLost`, `threeD` | the WebGL context is lost; the visitor's 3D switch |
+
+and has `.set({ progress })` (puts the story at a place at once, the chapter and
+phase with it), `.dispatch(event)` (sends a scene event) and `.scrollRequest`,
+the scroll loop's `requestAnimationFrame`, which the harness wraps by
+assignment to count the loop's own frames apart from the canvas's.
 
 ## The steps
 
-| step | what it does |
+| step | what it checks |
 | --- | --- |
-| 1 | A fresh context (a first visit): the loader hunts, settles on the pearl and hands over, the intro lands on the hero; no console errors. Reads both needles, the drawing's and the scene's, in the same animation frame at the first 3D frame after the hand-over (the difference should be 0). Checks the swap is hidden: the page's sections have a computed opacity of 0 at the moment `2-handover.png` is taken (the drawing half faded) and on every frame the drawing is up, its fade included. `1-loader.png`, `2-handover.png`, `3-hero.png`. |
-| 2 | Scrubs down and back up through about, china, aruba (mid-sweep and painted) and rotterdam. `4-pool.png` to `8-sweep.png`. |
-| 3 | The mouse to four points round the dial: the needle follows within 0.1 rad. Tab to the page's focusable controls: the pearl goes to each. `9-focus.png`, `9-pearl-west.png`. |
-| 4 | A 400 px drag spins the dial clockwise, it coasts, and settles on a whole turn within 5 s; a vertical drag tips it, held to `tipLimit`, and it springs back. `10-spin.png`, `10-tip.png`. |
-| 5 | A phone (390x844 and 844x390, touch): a vertical swipe scrolls, a horizontal one spins, a touch never tips, the pearl drifts and goes to a tap. `11-phone-*.png`. |
-| 6 | Reloads at aruba in the same session: no loader, aruba's ring and needle from the first frame. `12-reload.png`. |
-| 7 | Refuses the textures and the portrait (a plain scene), and then the three.js chunk (the stacked page at once). Then holds the chunk on a later visit (no loader): the stacked page at 10 s, and the chunk let through after that starts nothing. Then holds the textures and the portrait on a first visit: the scene stops waiting at 7 s and the loader hands over to it in plain materials; the brass let through afterwards is taken in. `13-*.png`, `14-no-chunk.png`, `14-hung-chunk-seen.png`. |
-| 8 | Reduced motion, and a browser started with `--disable-3d-apis`: the stacked page with the six stills, the real portrait, no loader. `15-reduced-motion.png`, `15-no-3d-apis.png`. |
-| 9 | The frame rate over a full scrub on the GPU and on SwiftShader, the quality step reached, and the idle stop (no frames drawn after 25 s untouched). If SwiftShader gets the stacked page, `9-swiftshader-stacked.png` shows it. |
-| 10 | Records `scrub.webm` at 1440x900 (run last): the first visit through the loader, then the whole story down with a pause in every section (three in the change), one hover on a track (Jontai Energy, its name beside the pointer), one answer opened and closed (the third question, its sector lit), Say hello under the pointer; back up with pauses at the drive and the homes, and a drag spin at the hero. |
-| 11 | The whole story down and back up: at every one of the 15 boundaries, 2 px either side, the scene is in the right section and nothing jumps (the drive's six values, the head, the park, the dimming, the platter and the drawn rim); a screenshot at each boundary both ways and mid-change (`11-*.jpg`). Then a wheel scrub down and back up, every animation frame read: the sections pass in order and no drive value, head, park or dimming jumps from one frame to the next. The programs compiled after the load and after it all are the same (no compile on the way). |
-| 12 | A later visit to `/#cookies-clicker`, at 1440x900, the same with a 64 px scroll padding at the top (the browser's jump then stops short of the section), 1440x899, a phone at 390x844 and 3 device pixels to the pixel, and 1280x937 at 1.5: from the first frame drawn the scene is at cookies-clicker, the head on its track (0.64) and the track lit, landing at its reading place with no motion replayed; its words and the head's label show. `12-anchor*.png`. |
-| 13 | Before the change (hero, current, mid-change) a sweep across the dial's rings shows no track's name and no pointer cursor; in jontai-energy the pointer on the track under the head shows its name and the pointer cursor (`13-hover.png`); a click there opens the project, as its link does. |
-| 14 | The Q&A's questions: under Off duty's words (offduty 0.85) they are faded and the pointer goes through them; in the Q&A they take it. Each of the five answers opened and closed at qa 0.2: its sector lights and goes out (`__compassDebug().sector`), the scene stays in the Q&A, the page holds its scroll, the small drive holds still (its drawn rim, the dimming and the drive's values, with the pointer on the question throughout), and the scene's local matches the page's own (an open answer lengthens the Q&A, so the local reads lower while it is open and returns when it closes). `14-qa-open-*.png`. |
-| 15 | Tab from the top at 1440x900 and at 390x844: it reaches the skip link, the three track links, the five questions and Say hello in document order, each with its focus ring, on screen with its words shown (on the narrow screen the questions below the drive's band). On the narrow screen a question focused while under the band comes down below it. `15-narrow-tab-qa.png`, `15-narrow-focus-under-band.png`. |
-| 16 | A phone at 390x844 and 844x390 (touch) in the Q&A: the small drive is at its side place, none of the Q&A's words shown lies over it; at 390x844 a tap on the drive over a question faded under it opens nothing; a vertical swipe that starts on a question scrolls the page and opens nothing. `16-phone-*.png`. |
-| stills | Not in the default run (`STEPS=stills`): captures the six stills as PNG at 1600x900 into `PROOF_DIR/stills`, with the loader skipped and the page's words and labels hidden (through the style API; the page's CSP blocks an injected `<style>`), at hero local 0.5, at the end of china, aruba and rotterdam, the drive at funcial 0.3 and the spindle at offduty 0.6. |
+| `routes` | every page the build produced answers 200 with one `<h1>`, in its HTML and after hydration, and the right `<html lang>` |
+| `slash` | `/about/china` answers 301 to `/about/china/`; a browser opening it loads it once, with no reload |
+| `bridge` | the debug bridge: absent, and nothing touched, without `?proof`; with it the state has exactly its fields, `.set`, `.dispatch` and `.scrollRequest` act, the old hooks are gone |
+| `persist` | client navigation `/` to a country to its English page, back and forward: one Stage, the same `<canvas>`, no document load, the phase right at each place |
+| `lang-keeps-phase` | on `/about/china/` the phase is `COUNTRY_PAGE china`; after a client-side switch to `/en/about/china/` (and back) it is still that very state, `canvasMounts` is 1; the same on a project page |
+| `not-found` | unknown URLs answer 404 with the build's `404.html` and show the not-found `<h1>` once the router has taken over, with no reload loop |
+| `case-variant` | a real page under another spelling (`/About/China/`) is a 404 and shows the not-found page |
+| `home-nav` | the home page's six links: hidden but focusable with 3D on, shown with 3D off, the choice stored across a reload, no WebGL mounted with 3D off |
+| `mobile` | every page at 390 px wide has no horizontal scroll |
+| `esc` | the back link: Escape and a click go home or back by client navigation, also after a replace; not in a text field; a modified click is left alone |
+| `lite` | `/lite/` and `/en/lite/` complete without script (headings, portrait, details, `#career`); `/contact/` and its form (mailto fallback, a key, the guards, the 15 s timeout) |
+| `scroll` | the home page does not scroll natively with 3D on; wheel, keys and touch move the story; the loop sleeps at rest and asks for one frame at a time; text fields, pinch and 3D off are the browser's; coming back from a page keeps the story; touch drag and glide |
+| `keyboard` | Tab reaches the skip link, the language switch and the 3D toggle in order, each ringed and on screen; End goes to the last chapter, Home returns |
+| `reduced-motion` | with reduced motion (emulated), one wheel event moves `target` to exactly the next stop, down through every stop and back |
+| `loaded` | a direct load goes from `LOADING` to `HOME_IDLE` once the scene is ready; the canvas draws on demand and sleeps when idle; 3D stored off mounts no WebGL |
+| `no-webgl` | WebGL off, and software-only: the poster and the fallback card, no canvas; on the GPU, a context lost for good and a scene never ready fall back to the card, a restored context draws again |
+| `fps` | the frame rate on `/` (120 frames, reported, not gated) with the scene's own rolling `fps`, tier and pixel ratio; the canvas is not blank |
+| `background` | a page opened in a background tab is not given up on past the load timeout; in front, the scene loads |
+| `title-ij` | Dutch text in Unbounded with an IJ is shaped without the font's IJ digraph; a crop of the NL card title into `m1/` |
+| `stills` | every built page at 1440x900 and 390x844, and the fallback at both, into `m1/`; on a page of text the page scrim is over the scene, and before the scene shows only the poster's own (the Stage chunk is held while that is measured) |
+| `load-throw` | the real Stage chunk patched so one call in the compass's load throws: the fallback card well inside the load timeout, 3D off and not stored, one reported error |
 
-Two things the harness does so a screenshot can show a moment that lasts a few
-frames: it freezes `requestAnimationFrame` for the loader's hunt and the
-hand-over's fade (`1-loader.png`, `2-handover.png`). Only steps 1, 7 and 8 and
-the recording run a first visit, so the loader plays; every other step skips it
-by setting `bob-compass-seen` in the session before the page loads.
+`stills` writes the screenshots of the milestone review into `PROOF_DIR/m1/`,
+named after the page: `nl-home-1440x900.png`, `nl-about-china-1440x900.png`,
+`en-projects-funcial-390x844.png`, and `fallback-1440x900.png`,
+`fallback-390x844.png`. (The step that took stills of four pages before it,
+`scene-stills`, is folded into it.)
 
 ## Notes
 
-- The GPU flags are the Windows ANGLE/D3D11 ones. On another system set `EDGE`
-  to a Chromium and read the GPU numbers as that machine's. A headless browser
-  does not wait for a display's refresh, so frames can be drawn faster than a
-  screen would show them.
-- The page asks for a GPU (a WebGL2 context with `failIfMajorPerformanceCaveat`).
-  Step 9 reports what the page does under SwiftShader (software WebGL) rather
-  than forcing an outcome: the renderer's name, whether the page's own support
-  test passes, and then either the stacked page (fps n/a) or the live scene drawn
-  in software, measured like the GPU. On this machine's Edge the test passes and
-  the live scene runs in software, at about 9 fps and the last quality step.
-- Step 7's refused chunk is found by a route on `/_astro/live.<hash>.js`, the
-  chunk that `src/scripts/compass-main.ts` imports as `./compass/live`
-  (`src/scripts/compass/live.ts`). If that module is renamed or bundled into
-  another chunk, the route no longer matches and the step fails with it.
-- The numbers the harness repeats from the product (`OFF_AXIS`, the hero's and
-  the settled tilt, the dial's layout and its side layout for the Q&A, the
-  sections in order, the tracks' radii, the stills, the Q&A's 34% band on a
-  narrow screen) are at the top of `compass.mjs`; a drift shows as a failing
-  check.
-- Steps 11 to 16 and the recording need the drive's fields in
-  `__compassDebug()` (`drive`, `head`, `lit`, `sector`, `programs`, ...); the
-  milestone 3 steps need only the compass's.
-
-## Making the stills
-
-`STEPS=stills` writes PNGs. The site's stills are WebP, 1600x900, quality 82; the
-repo's `sharp` (a dependency of Astro) converts them:
-
-```js
-import { createRequire } from 'node:module';
-const sharp = createRequire('<repo>/package.json')('sharp');
-for (const name of ['hero', 'china', 'aruba', 'rotterdam', 'drive', 'offduty']) {
-  await sharp(`proof-out/stills/compass-${name}.png`).resize(1600, 900).webp({ quality: 82 }).toFile(`<repo>/src/assets/renders/compass-${name}.webp`);
-}
-```
+- The frame rate and the quality tier are reported (`results.json` keeps them
+  in the `fps` step), never gated: they are the machine's.
+- `not-found` and `load-throw` each expect console errors that are the designed
+  outcome (the browser's "Failed to load resource" for a 404 document, the
+  host's report of a failed scene). They are counted and kept apart in
+  `expected`; every other console message is an error.
+- `load-throw` finds the call to make throw (`.instrument.setStrips(`) in the
+  built Stage chunk (`assets/Stage-<hash>.js`); the step fails if that is not
+  there exactly once.
