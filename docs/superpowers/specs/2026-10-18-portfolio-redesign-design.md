@@ -107,7 +107,7 @@ The visitor's cursor is the **pearl** that the dragon chases in a dragon dance, 
    | Trigram ring | the ring around the heaven pool | the clamp that holds the platters on the spindle |
    | Heaven pool | the round centre under the needle (where the portrait shows) | the spindle motor |
    | Needle | the magnetic needle, pivoting at its middle | the read/write arm: its tail half shortens into the coil's yoke while the pivot moves to the tail end, then the pivot lifts clear of the dial and lands at the drive's corner, so it never sweeps through the rings |
-   | Wire | Ørsted's wire, laid over the needle | the voice coil at the arm's tail, between the actuator's magnets |
+   | Wire | Ørsted's wire, laid over the needle | the voice coil (gold) at the arm's tail, between the actuator's magnets |
    | Base plate | the square base plate a luopan sits on | the drive's chassis |
 
    So the rings are built as **parametric rings whose radii can animate**, not as fixed geometry.
@@ -163,7 +163,7 @@ The visitor's cursor is the **pearl** that the dragon chases in a dragon dance, 
       - One stay cable lifts off the Rotterdam ring and pulls straight across the dial, just above the needle and along it, as Ørsted laid his wire.
       - A pulse of current runs along it, and the needle swings across, taken from the visitor's pearl. Between the pulses it tugs back toward the pearl.
       - A caption: "1820: a current moved a compass needle."
-      - Two pulses, two lines: **Full-stack foundation**, then **Working with AI**, each with its existing one line. Each line appears in the text column as its pulse runs.
+      - Two pulses, two lines: **Full-stack foundation**, then **Working with AI**, each with its existing one line. Each line appears in the text column as its pulse runs. (Three short sections: the current with its caption, then one per line, so only one text shows at a time.)
    4. **The change: compass → hard drive.** *(Carries over: every part, as in the table in call 5.)*
       - The wire winds itself into a coil at the needle's tail.
       - The three outer rings grow into full discs, slide apart in depth and wipe to mirror platters; the trigram ring closes into the clamp.
@@ -180,6 +180,7 @@ The visitor's cursor is the **pearl** that the dragon chases in a dragon dance, 
       - Scrolling steps the arm from track to track. On each track, the platter turns the project's four test points (TP1–TP4) under the head one by one, the way a drive reads.
       - In the text column, for the track under the head only: the name, the category, one line and "Open project".
       - Hovering a track lights it and shows only its name, as a small label; clicking a track or the link opens the project.
+      - Until milestone 6 builds the project pages, a track links where its project lives today: Jontai Energy and Cookies Clicker their current pages, Funcial its repository. Bare metal has no link.
       - Each track has a real anchor at its scroll position, so `/#<slug>` lands on it.
    6. **Off duty: the spindle.** *(Carries over: the heaven pool, now the spindle motor.)*
       - The head parks on its ramp off the platter's edge, as a drive's does, and the camera sinks to the spindle at the centre, the spot where the portrait was.
@@ -191,7 +192,7 @@ The visitor's cursor is the **pearl** that the dragon chases in a dragon dance, 
       - Which roles interest you? (the four roles, plus fintech as one short line)
       - Why these directions?
       - Where does it lead? (a company of my own)
-   8. **Say hello.** *(Carries over: the whole instrument, in reverse.)* The platters stack back into the dial, the chassis back into the base plate, and the needle returns to the centre and points at the visitor's pearl. **SAY HELLO** links to `/contact` (the page stays, restyled). The ring still shows Rotterdam.
+   8. **Say hello.** *(Carries over: the whole instrument, in reverse.)* The platters stack back into the dial, the chassis back into the base plate, the needle returns to the centre and points at the visitor's pearl, and the portrait returns to the heaven pool. **SAY HELLO** links to `/contact` (the page stays, restyled). The ring still shows Rotterdam.
 8. **The loader** (first visit to the home page only; repeat visits in a session and direct visits to other pages skip it):
    - **The drawing:** a flat SVG of the dial, face-on, made from the same `dialSpec.ts` as the 3D compass. It weighs only a few kilobytes.
    - **The code:** a small loader module of its own draws it before three.js arrives; the 3D scene loads behind it as a separate chunk. So the three.js chunk split happens in milestone 3, not later.
@@ -260,7 +261,7 @@ The visitor's cursor is the **pearl** that the dragon chases in a dragon dance, 
 - the studio's `Backdrop`, `Haze` and `noise`; `Dust` gains a free-floating volume (it is built around milestone 2's beam and floor)
 - the controller pattern: Lenis → ScrollTrigger, IntersectionObserver, fallback, failsafe, immediate first progress and the resize guard. `CompassStage`/`CompassStageController` are built fresh on it as one fixed canvas with a ScrollTrigger per section, not as a copy of the hub's single pinned track.
 - `DragTurn`'s rule that a drag engages only after a few pixels of mostly horizontal movement. Its ±25° spring is replaced by a new `FreeTurn` (free spin with inertia).
-- `Callouts` is typed to the hub's layers, so it is removed with the hub in milestone 3. It comes back, generalised, for the tracks in milestone 4 (from `051750b`).
+- `Callouts` is typed to the hub's layers, so it is removed with the hub in milestone 3. It does not come back: a track's hover is a single small label that follows the pointer.
 - **Re-tuned:** milestone 2's environment light is almost black. Gilt brass and mirror platters need bright reflections, so it is re-tuned in milestone 3.
 
 **Replaced or new** (following milestone 2's final review):
