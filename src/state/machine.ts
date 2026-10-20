@@ -41,8 +41,8 @@ export function samePhase(a: Phase, b: Phase): boolean {
   }
 }
 
-/** The phases the scroll moves through: CHAPTER events apply from these and nowhere else. */
-const SCROLL_PHASES: ReadonlySet<Phase['kind']> = new Set<Phase['kind']>(['HOME_IDLE', 'DISSECT', 'MORPH', 'VOID_ENTRY', 'PROJECTS']);
+/** The phases the scroll moves through: CHAPTER events apply from these and nowhere else, and the scroll input takes the wheel only in these. */
+export const SCROLL_PHASES: ReadonlySet<Phase['kind']> = new Set<Phase['kind']>(['HOME_IDLE', 'DISSECT', 'MORPH', 'VOID_ENTRY', 'PROJECTS']);
 
 function phaseOfChapter(chapter: ChapterId, category: string | null): Phase {
   switch (chapter) {

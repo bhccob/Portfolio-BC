@@ -126,6 +126,16 @@ body:has(.page) .poster::after {
   z-index: 1;
 }
 
+/* The home page with 3D on does not scroll: the wheel, a finger and the keys move the story (src/input), and the
+   page itself has nothing to scroll. The root is the scroll surface, not .scene-host: the page covers the canvas,
+   so a touch or a wheel never reaches it. `pinch-zoom` takes the one-finger pan away from the browser (the input
+   gets the touch) and leaves it the pinch, so the page can still be zoomed. With 3D off the page scrolls natively. */
+html[data-route='home'][data-3d='on'] {
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: pinch-zoom;
+}
+
 /* 3D off: the poster stays, the canvas is out of sight. */
 html[data-3d='off'] .scene-host {
   display: none;

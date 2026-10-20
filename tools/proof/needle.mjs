@@ -57,6 +57,18 @@
  *              success, holds the guards against scripts and the pause, shows the error of a failed post
  *              and moves focus to it, and, for a post nobody answers, sends one post for two submits and
  *              fails it after the 15 s timeout (Playwright's clock moved forward) so it can be retried
+ *   scroll     the home page with 3D on does not scroll natively: <html data-route="home"> locks the root
+ *              (overflow hidden, no overscroll, pinch-zoom only) and the wheel, the keys and a finger move
+ *              `frame.target` in viewport heights instead (window.__needleFrame, temporary: Task 8's
+ *              __needleDebug replaces it). 10 wheel events of 120 px raise it by 1200 px, the damped
+ *              `progress` catches up, the phase leaves HOME_IDLE for DISSECT and the frame loop goes back to
+ *              sleep (no requestAnimationFrame at rest); Home, End, Page Down and the arrows move it; a text
+ *              field keeps its keys, a pinch (ctrl+wheel) is the browser's, and with 3D off nothing is
+ *              prevented and the page scrolls natively; `frame.chapterIndex` stays in step, so coming back
+ *              from a country page puts the scene on the scroll's phase, not HOME_IDLE. With reduced motion a
+ *              whole wheel gesture is one stop (1, 12, 14, ...) and so is a key press. On a touch screen
+ *              (CDP touch events) a drag moves it, a flick glides on after the finger lifts, a tap and a
+ *              sideways swipe do not move it, and the 3D switch still takes a tap
  *
  * The harness reads src/data/pages.ts (through tsx) and the build in dist/client
  * to know which pages to expect.
@@ -135,8 +147,8 @@ class Step {
  * `expected(message)` names a console error that is the designed outcome of the step, not a failure;
  * it is kept apart in step.expected, and the step must check that it happened as often as it should.
  */
-async function openPage(browser, step, expected = () => false, viewport = { width: 1440, height: 900 }) {
-  const context = await browser.newContext({ viewport });
+async function openPage(browser, step, expected = () => false, viewport = { width: 1440, height: 900 }, contextOptions = {}) {
+  const context = await browser.newContext({ viewport, ...contextOptions });
   await context.addInitScript(() => {
     window.__cspViolations = [];
     document.addEventListener('securitypolicyviolation', (e) => {
@@ -940,7 +952,336 @@ async function lite(browser, step) {
   return `/lite/ and /en/lite/: eight sections, portrait, details, #career, no script needed; ${summaries.join('; ')}`;
 }
 
-const STEPS = { routes, slash, persist, 'not-found': notFound, 'case-variant': caseVariant, 'home-nav': homeNav, mobile, esc, lite };
+// ---------------------------------------------------------------- scroll
+
+/** The per-frame values of the scroll. `?proof` in the first URL makes the Shell expose them as window.__needleFrame (temporary: Task 8's __needleDebug replaces it). */
+const frameOf = (page) =>
+  page.evaluate(() => {
+    const { progress, target, velocity, chapterIndex } = window.__needleFrame;
+    return { progress, target, velocity, chapterIndex };
+  });
+/** The scene's whole phase, as `{ kind, dir?, category?, id? }`. */
+const phaseOf = (page) => page.evaluate(() => JSON.parse(JSON.stringify(window.__needleScene())));
+
+/** Waits until the story is at rest: progress on its target and the target no longer moving (a glide is over). */
+async function restAt(page) {
+  let previous = null;
+  for (let i = 0; i < 80; i++) {
+    const f = await frameOf(page);
+    if (previous !== null && f.target === previous && Math.abs(f.target - f.progress) < 1e-4) return f;
+    previous = f.target;
+    await page.waitForTimeout(100);
+  }
+  throw new Error(`the story did not come to rest (${JSON.stringify(await frameOf(page))})`);
+}
+
+/**
+ * Puts the scene on HOME_IDLE, the phase the scroll moves from. Nothing dispatches LOADED until the scene
+ * (Task 7) does, so a direct load of / is still LOADING and the input rightly leaves the wheel alone; a visit
+ * to a country and back puts the scene on the scroll's phase, which is HOME_IDLE at the start of the story.
+ */
+async function reachHomeIdle(page) {
+  await page.focus('a[href="/about/china/"]'); // the home page's links are hidden while 3D is on, but take focus
+  await page.keyboard.press('Enter');
+  await page.waitForURL((url) => url.pathname === '/about/china/', { timeout: 5_000 });
+  await waitForPhase(page, 'COUNTRY_PAGE');
+  await page.click('a.back');
+  await page.waitForURL((url) => url.pathname === '/', { timeout: 5_000 });
+  await waitForPhase(page, 'HOME_IDLE');
+}
+
+/** Waits for the scene to be in a phase of `kind` and says so as a check. */
+async function expectPhase(page, step, kind, message) {
+  const reached = await waitForPhase(page, kind).then(() => true, () => false);
+  step.check(reached, `${message} (phase ${JSON.stringify(await phaseOf(page))})`);
+}
+
+/** Counts the requestAnimationFrame calls from now on in window.__raf, and records whether each wheel was prevented in window.__wheels. */
+const watchFrames = (page) =>
+  page.evaluate(() => {
+    window.__raf = 0;
+    const raf = window.requestAnimationFrame.bind(window);
+    window.requestAnimationFrame = (callback) => {
+      window.__raf++;
+      return raf(callback);
+    };
+    window.__wheels = [];
+    // A listener on window runs after the input's on the document element, so it sees the final defaultPrevented.
+    window.addEventListener('wheel', (event) => window.__wheels.push(event.defaultPrevented), { passive: true });
+  });
+
+const near = (a, b, tolerance = 1e-6) => Math.abs(a - b) <= tolerance;
+
+async function scrollDesktop(browser, step) {
+  const { context, page } = await openPage(browser, step);
+  await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+  await stageReady(page);
+  await reachHomeIdle(page);
+  await watchFrames(page);
+  const vh = await page.evaluate(() => window.innerHeight);
+
+  // The root is the scroll surface, and it is locked.
+  const style = await page.evaluate(() => {
+    const css = getComputedStyle(document.documentElement);
+    return { route: document.documentElement.dataset.route, overflow: css.overflow, overscroll: css.overscrollBehaviorY, touchAction: css.touchAction };
+  });
+  step.check(style.route === 'home', `the home page says data-route="home" (got ${style.route})`);
+  step.check(style.overflow === 'hidden' && style.overscroll === 'none', `with 3D on the root does not scroll and does not overscroll (got ${style.overflow}, ${style.overscroll})`);
+  step.check(style.touchAction === 'pinch-zoom', `with 3D on a finger does not pan the page, a pinch still zooms it (touch-action ${style.touchAction})`);
+  const start = await frameOf(page);
+  step.check(start.progress === 0 && start.target === 0 && start.chapterIndex === 0, `the story starts at 0 (got ${JSON.stringify(start)})`);
+
+  // 10 wheel events of 120 px: 1200 px of scroll, in viewport heights.
+  await page.mouse.move(720, 450);
+  for (let i = 0; i < 10; i++) {
+    await page.mouse.wheel(0, 120);
+    await page.waitForTimeout(16);
+  }
+  const pushed = await frameOf(page);
+  step.check(near(pushed.target, 1200 / vh, 1e-9), `10 wheel events of 120 px move the target by 1200 px = ${1200 / vh} units (got ${pushed.target})`);
+  step.check((await page.evaluate(() => window.__wheels)).length === 10 && (await page.evaluate(() => window.__wheels.every(Boolean))), 'every wheel event is prevented while the scroll is enabled');
+  step.check((await page.evaluate(() => window.__raf)) > 0, 'the wheel woke the frame loop');
+  const rested = await restAt(page);
+  step.check(near(rested.progress, rested.target, 1e-4) && rested.progress > 1, `progress catches up with the target and passes the first unit (got ${rested.progress})`);
+  step.check(rested.chapterIndex === 1, `frame.chapterIndex is in step with the chapter: DISSECT is 1 (got ${rested.chapterIndex})`);
+  const left = await phaseOf(page);
+  step.check(left.kind === 'DISSECT', `the phase leaves HOME_IDLE for DISSECT (got ${JSON.stringify(left)})`);
+  step.check((await page.evaluate(() => window.scrollY)) === 0, 'the page itself did not scroll');
+
+  // Asleep at rest: no requestAnimationFrame at all while nothing moves.
+  await page.evaluate(() => (window.__raf = 0));
+  await page.waitForTimeout(600);
+  step.check((await page.evaluate(() => window.__raf)) === 0, `the frame loop sleeps at rest: no requestAnimationFrame in 600 ms (got ${await page.evaluate(() => window.__raf)})`);
+  step.check((await frameOf(page)).velocity === 0, 'and the velocity is 0');
+
+  // Keys. Home goes back to the start of the story and the phase with it.
+  await page.keyboard.press('Home');
+  const home = await restAt(page);
+  step.check(home.progress === 0 && home.target === 0 && home.chapterIndex === 0, `Home goes to the start (got ${JSON.stringify(home)})`);
+  await expectPhase(page, step, 'HOME_IDLE', 'and the phase is HOME_IDLE again');
+  await page.keyboard.press('PageDown');
+  step.check(near((await frameOf(page)).target, 0.9), 'Page Down moves 0.9 of a viewport');
+  await page.keyboard.press('ArrowDown');
+  step.check(near((await frameOf(page)).target, 1.05), 'an arrow moves 0.15 of a viewport');
+  await page.keyboard.press('Space');
+  step.check(near((await frameOf(page)).target, 1.95), 'Space moves a page');
+  await page.keyboard.press('Shift+Space');
+  step.check(near((await frameOf(page)).target, 1.05), 'Shift+Space moves a page back');
+  await page.keyboard.press('PageUp');
+  step.check(near((await frameOf(page)).target, 0.15), 'Page Up moves a page back');
+  await page.keyboard.press('ArrowUp');
+  step.check(near((await frameOf(page)).target, 0), 'and the target stops at 0');
+  await page.keyboard.press('End');
+  const end = await restAt(page);
+  step.check(end.target === 18 && end.progress === 18, `End goes to the end of the story (got ${JSON.stringify(end)})`);
+  const last = await waitForPhase(page, 'PROJECTS').then(() => phaseOf(page));
+  step.check(last.category === 'oscillator', `the story ends in the last project category (got ${JSON.stringify(last)})`);
+  await page.mouse.wheel(0, 240);
+  step.check((await frameOf(page)).target === 18, 'and the target stops at the end');
+  await page.keyboard.press('Home');
+  await restAt(page);
+  await waitForPhase(page, 'HOME_IDLE');
+  await page.mouse.wheel(0, -120);
+  step.check((await frameOf(page)).target === 0, 'a wheel up at the start stays at 0');
+
+  // A visit to a page and back: the scene returns to the phase the scroll is in, and the scroll goes on from there.
+  for (const key of ['PageDown', 'PageDown', 'ArrowDown', 'ArrowDown']) await page.keyboard.press(key);
+  const mid = await restAt(page);
+  step.check(near(mid.progress, 2.1) && mid.chapterIndex === 1, `the story rests part way through DISSECT (got ${JSON.stringify(mid)})`);
+  await page.focus('a[href="/about/china/"]');
+  await page.keyboard.press('Enter');
+  await page.waitForURL((url) => url.pathname === '/about/china/', { timeout: 5_000 });
+  await waitForPhase(page, 'COUNTRY_PAGE');
+  const onPage = await frameOf(page);
+  await page.keyboard.press('PageDown'); // on the country page the keys are the page's
+  step.check((await frameOf(page)).target === onPage.target, 'on a country page the keys do not move the story');
+  await page.click('a.back');
+  await page.waitForURL((url) => url.pathname === '/', { timeout: 5_000 });
+  await expectPhase(page, step, 'DISSECT', "coming back to / puts the scene on the scroll's phase, DISSECT, and not on HOME_IDLE");
+  const back = await frameOf(page);
+  step.check(near(back.progress, mid.progress) && back.chapterIndex === 1, `the story is where it was left (got ${JSON.stringify(back)})`);
+  await page.keyboard.press('PageDown');
+  const resumed = await restAt(page);
+  step.check(near(resumed.target, 3), `and the scroll goes on from there (got ${resumed.target})`);
+  await page.keyboard.press('Home');
+  await restAt(page);
+
+  // A text field keeps its keys.
+  await page.evaluate(() => {
+    const input = document.createElement('input');
+    input.id = 'scroll-probe';
+    document.body.append(input);
+    input.focus();
+  });
+  const before = await frameOf(page);
+  await page.keyboard.press('PageDown');
+  await page.keyboard.press('Space');
+  await page.keyboard.press('End');
+  step.check((await frameOf(page)).target === before.target, 'Page Down, Space and End typed into a text field do not move the story');
+  step.check((await page.inputValue('#scroll-probe')) === ' ', 'and Space is typed into it');
+  await page.evaluate(() => document.getElementById('scroll-probe')?.remove());
+
+  // A pinch is the browser's.
+  await page.evaluate(() => (window.__wheels.length = 0));
+  await page.keyboard.down('Control');
+  await page.mouse.wheel(0, 100);
+  await page.keyboard.up('Control');
+  step.check(JSON.stringify(await page.evaluate(() => window.__wheels)) === '[false]', 'a wheel with ctrl held (a pinch) is not prevented');
+  step.check((await frameOf(page)).target === 0, 'and it does not move the story');
+
+  // The 3D switch takes Space (a button press), and with 3D off nothing is prevented: the page scrolls natively.
+  await page.focus('button[role="switch"]');
+  await page.keyboard.press('Space');
+  await page.waitForFunction(() => document.documentElement.dataset['3d'] === 'off', null, { timeout: 5_000 });
+  step.check((await frameOf(page)).target === 0, 'Space on the 3D switch presses it and does not move the story');
+  await page.evaluate(() => {
+    window.__wheels.length = 0;
+    document.activeElement?.blur();
+  });
+  await page.mouse.wheel(0, 300);
+  await page.waitForTimeout(300);
+  step.check(JSON.stringify(await page.evaluate(() => window.__wheels)) === '[false]', 'with 3D off a wheel is not prevented');
+  const natural = await page.evaluate(() => ({ y: window.scrollY, overflow: getComputedStyle(document.documentElement).overflow }));
+  step.check(natural.y > 0 && natural.overflow === 'visible', `with 3D off the home page scrolls natively (scrollY ${natural.y}, overflow ${natural.overflow})`);
+  await page.keyboard.press('PageDown');
+  step.check((await frameOf(page)).target === 0, 'and the keys do not move the story');
+
+  // Switched back on, the root is locked again and the wheel is the scene's.
+  await page.focus('button[role="switch"]');
+  await page.keyboard.press('Space');
+  await page.waitForFunction(() => document.documentElement.dataset['3d'] === 'on', null, { timeout: 5_000 });
+  await page.evaluate(() => {
+    window.__wheels.length = 0;
+    document.activeElement?.blur();
+  });
+  step.check((await page.evaluate(() => window.scrollY)) === 0, 'with 3D on again the page is back at the top');
+  await page.mouse.wheel(0, 120);
+  step.check((await frameOf(page)).target > 0 && JSON.stringify(await page.evaluate(() => window.__wheels)) === '[true]', 'and the wheel moves the story again');
+  await takeCsp(page, step);
+  await context.close();
+}
+
+/** With reduced motion every wheel gesture, swipe and key press is one stop: the start of the next chapter. */
+async function scrollReduced(browser, step) {
+  const { context, page } = await openPage(browser, step, () => false, { width: 1440, height: 900 }, { reducedMotion: 'reduce' });
+  await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+  await stageReady(page);
+  step.check(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches), 'the page asks for reduced motion');
+  await reachHomeIdle(page);
+  await page.mouse.move(720, 450);
+
+  // A gesture: ten events 16 ms apart. Then 300 ms of quiet, then another.
+  for (let i = 0; i < 10; i++) {
+    await page.mouse.wheel(0, 40);
+    await page.waitForTimeout(16);
+  }
+  step.check((await frameOf(page)).target === 1, `a whole wheel gesture is one stop: the start of DISSECT (got ${(await frameOf(page)).target})`);
+  await page.waitForTimeout(300);
+  for (let i = 0; i < 10; i++) {
+    await page.mouse.wheel(0, 40);
+    await page.waitForTimeout(16);
+  }
+  step.check((await frameOf(page)).target === 12, `the next gesture, after a quiet gap, is the next stop: MORPH (got ${(await frameOf(page)).target})`);
+  const rested = await restAt(page);
+  step.check(rested.progress === 12 && rested.chapterIndex === 2, `the story arrives at the stop (got ${JSON.stringify(rested)})`);
+  await expectPhase(page, step, 'MORPH', 'and the phase is MORPH');
+
+  // Keys: one stop a press, and a held key is one press.
+  const stops = [];
+  for (const key of ['PageDown', 'PageDown', 'PageDown']) {
+    await page.keyboard.press(key);
+    stops.push((await frameOf(page)).target);
+  }
+  step.check(JSON.stringify(stops) === '[14,15,16]', `Page Down is a stop a press (got ${JSON.stringify(stops)})`);
+  await page.keyboard.press('ArrowUp');
+  step.check((await frameOf(page)).target === 15, 'an arrow up is the previous stop');
+  await page.keyboard.down('PageDown');
+  await page.keyboard.down('PageDown'); // auto-repeat: keydown with repeat = true
+  await page.keyboard.down('PageDown');
+  await page.keyboard.up('PageDown');
+  step.check((await frameOf(page)).target === 16, `a held key is one step (got ${(await frameOf(page)).target})`);
+  await page.keyboard.press('Home');
+  step.check((await frameOf(page)).target === 0, 'Home still goes to the start');
+  await restAt(page);
+  await expectPhase(page, step, 'HOME_IDLE', 'and the phase is HOME_IDLE again');
+  await takeCsp(page, step);
+  await context.close();
+}
+
+/** A finger on a touch screen (Chrome DevTools Protocol touch events). */
+async function scrollTouch(browser, step) {
+  const { context, page } = await openPage(browser, step, () => false, { width: 390, height: 844 }, { hasTouch: true, isMobile: true });
+  await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+  await stageReady(page);
+  await reachHomeIdle(page);
+  const cdp = await context.newCDPSession(page);
+  const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+  const vh = await page.evaluate(() => window.innerHeight);
+  // What the page sees of each touchmove: was it cancelable, and did the input prevent it?
+  await page.evaluate(() => {
+    window.__moves = [];
+    window.addEventListener('touchmove', (event) => window.__moves.push({ cancelable: event.cancelable, prevented: event.defaultPrevented }), { passive: true });
+  });
+  const style = await page.evaluate(() => getComputedStyle(document.documentElement).touchAction);
+  step.check(style === 'pinch-zoom', `on a touch screen the root takes no one-finger pan (touch-action ${style})`);
+
+  // A drag of 400 px up moves the story 400 / vh, and a finger that lets go while moving glides on.
+  const drag = async (from, to, x = 195, stepPx = 40) => {
+    await touch('touchStart', x, from);
+    const sign = Math.sign(to - from);
+    for (let y = from + sign * stepPx; sign > 0 ? y <= to : y >= to; y += sign * stepPx) {
+      await touch('touchMove', x, y);
+      await page.waitForTimeout(12);
+    }
+    await touch('touchEnd');
+  };
+  await drag(700, 300);
+  const lifted = await frameOf(page);
+  const moves = await page.evaluate(() => window.__moves);
+  step.check(moves.length > 0 && moves.every((m) => m.cancelable && m.prevented), `every touchmove of the drag is cancelable and the input prevents it (${JSON.stringify(moves.slice(0, 2))} ...)`);
+  step.check(lifted.target >= 400 / vh - 1e-6, `the drag moved the story at least its length, ${400 / vh} units (got ${lifted.target})`);
+  const rested = await restAt(page);
+  step.check(rested.target > lifted.target + 0.05, `the flick glides on after the finger lifts: ${lifted.target} then ${rested.target}`);
+  await drag(700, 300);
+  await restAt(page);
+  await drag(700, 300);
+  const far = await restAt(page);
+  await expectPhase(page, step, 'DISSECT', 'the phase leaves HOME_IDLE for DISSECT');
+  step.check(far.target > 1 && far.chapterIndex >= 1, `flicks take the story out of HOME_IDLE into DISSECT (got ${JSON.stringify(far)})`);
+  step.check((await page.evaluate(() => window.scrollY)) === 0, 'the page itself did not scroll');
+
+  // A drag down goes back.
+  await drag(200, 700);
+  const returned = await restAt(page);
+  step.check(returned.target < far.target, `a drag down goes back (${far.target} then ${returned.target})`);
+
+  // A sideways swipe is not the scroll's, and a tap is nobody's but the page's.
+  const before = await frameOf(page);
+  await touch('touchStart', 300, 400);
+  for (const x of [270, 230, 190, 150, 110]) {
+    await touch('touchMove', x, 395);
+    await page.waitForTimeout(40);
+  }
+  await touch('touchEnd');
+  await page.waitForTimeout(600); // a tap straight after a swipe is taken by the browser for the one that stops a fling
+  step.check((await frameOf(page)).target === before.target, 'a swipe sideways does not move the story');
+  await page.tap('button[role="switch"]');
+  await page.waitForFunction(() => document.documentElement.dataset['3d'] === 'off', null, { timeout: 5_000 });
+  step.check((await page.getAttribute('html', 'data-3d')) === 'off', 'a tap on the 3D switch still presses it');
+  await page.tap('button[role="switch"]');
+  await page.waitForFunction(() => document.documentElement.dataset['3d'] === 'on', null, { timeout: 5_000 });
+  await takeCsp(page, step);
+  await context.close();
+}
+
+async function scroll(browser, step) {
+  await scrollDesktop(browser, step);
+  await scrollReduced(browser, step);
+  await scrollTouch(browser, step);
+  return 'locked root; 10 wheel events of 120 px reach DISSECT; the loop sleeps at rest; keys, Home and End; text fields, pinch and 3D off left to the browser; reduced motion steps by stops; touch drag, glide, tap';
+}
+
+const STEPS = { routes, slash, persist, 'not-found': notFound, 'case-variant': caseVariant, 'home-nav': homeNav, mobile, esc, lite, scroll };
 
 // ---------------------------------------------------------------- run
 
