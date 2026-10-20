@@ -170,15 +170,18 @@ export class CompassStageController extends Component {
     // (a reload after scrolling on) is left where it is.
     const anchored = anchorTarget(this.sections, location.hash);
     const range = trigger.end - trigger.start;
+    let landed: number | null = null;
     if (anchored && range > 0) {
       const now = Math.min(1, Math.max(0, (window.scrollY - trigger.start) / range));
       const to = locate(now, this.spans).id === anchored ? readingProgress(anchored, now, this.spans) : null;
       if (to !== null && to !== now) {
         lenis.scrollTo(trigger.start + to * range, { immediate: true, force: true });
-        ScrollTrigger.update();
+        landed = to;
       }
     }
-    this.progress(trigger.progress);
+    // ScrollTrigger reads the scroll it cached until the browser's scroll event comes: a place just landed on is set as
+    // it is, at once, so the scene does not start from the old one and ease over.
+    this.progress(landed ?? trigger.progress, true);
     // Every refresh (a resize, the page's load) may have moved the sections: measured again, the text faded again.
     const refreshed = (): void => {
       measure();
@@ -565,14 +568,15 @@ export class CompassStageController extends Component {
   }
 
   /**
-   * Moves the scene to `progress` and fades each section's text as the choreography has it there, among the measured
-   * spans; a section whose words show at all is marked `data-on`, and only there do its links and questions take the
-   * pointer (a faded one is neither clicked nor hovered through the words on screen).
+   * Moves the scene to `progress` (at once when `immediate`: the first call, and the start's) and fades each section's
+   * text as the choreography has it there, among the measured spans; a section whose words show at all is marked
+   * `data-on`, and only there do its links and questions take the pointer (a faded one is neither clicked nor hovered
+   * through the words on screen).
    */
-  private progress(progress: number): void {
+  private progress(progress: number, immediate = !this.started): void {
     // The first call (a page opening partway down, as after a reload) puts the compass where the scroll is,
     // rather than easing it there from the top.
-    this.scene?.setProgress(progress, { immediate: !this.started });
+    this.scene?.setProgress(progress, { immediate });
     this.started = true;
     const { text } = compassPoseAt(progress, this.spans);
     for (const [section, id] of this.sections) {
