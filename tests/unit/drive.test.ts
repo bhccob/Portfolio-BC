@@ -22,6 +22,10 @@ describe('the drive geometry', () => {
     for (const r of radii) expect(headBearing(r)).toBeCloseTo((bearingOf(...headPoint(armBearing(r)!)) * 180) / Math.PI, 9);
     expect(Number.isNaN(headBearing(3))).toBe(true);
   });
+  it('pins the arm to known bearings, not only to its own formulas', () => {
+    expect(Math.abs(armBearing(0.88)! - -7.2)).toBeLessThan(0.1); expect(Math.abs(headBearing(0.88) - 72.8)).toBeLessThan(0.2);
+    expect(Math.abs(armBearing(DRIVE.parkRadius)! - 3.0)).toBeLessThan(0.1);
+  });
   it('measures the head from the pivot along the arm', () => {
     const [px, pz] = DRIVE.pivot;
     for (const a of [0, 45, -24, 267, 180]) {

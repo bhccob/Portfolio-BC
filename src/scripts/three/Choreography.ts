@@ -99,7 +99,7 @@ export function nominalSpans(qaLength: number = NOMINAL_QA): Span[] {
 export function spansFromOffsets(tops: readonly { id: SectionId; top: number }[], scrollRange: number): Span[] {
   const range = positive(scrollRange, TINY);
   return tops.map(({ id, top }, k) => {
-    const next = k + 1 < tops.length ? tops[k + 1].top : scrollRange;
+    const next = k + 1 < tops.length ? tops[k + 1].top : range;
     return { id, start: Number.isFinite(top) ? top / range : 0, length: positive((next - top) / range, TINY) };
   });
 }
@@ -358,7 +358,7 @@ export function poseAt(id: SectionId, local: number): CompassPose {
       pose.needle.bearing = ARUBA_BEARING;
       pose.portrait = 1;
       pose.pattern = { from: 'aruba', to: 'rotterdam', sweep: s(0.2, 0.7), origin: HOMES.rotterdam.sweepFrom };
-      text.rotterdam = textOpacity(l, [0.3, 0.45]);
+      text.rotterdam = textOpacity(l, [0.3, 0.45], [0.85, 1]);
       break;
 
     case 'current':
@@ -476,6 +476,13 @@ export function poseAt(id: SectionId, local: number): CompassPose {
       pose.platter = 2520;
       text.hello = textOpacity(l, [0.55, 0.7]);
       break;
+
+    default: {
+      // A section added to SectionId without a pose here is a compile error, not a silent default pose. (At run time an id
+      // the page read off the DOM that is not one of ours gets the defaults, rather than ending the frame loop with a throw.)
+      const unreachable: never = id;
+      void unreachable;
+    }
   }
 
   return pose;

@@ -36,7 +36,7 @@ export const DRIVE = {
   parkRadius: 1.1,
   mirrorFrom: 135,
   /** Each track's radius, outer to inner. */
-  tracks: { funcial: 0.88, 'jontai-energy': 0.76, 'cookies-clicker': 0.64, next: 0.52 },
+  tracks: { funcial: 0.88, 'jontai-energy': 0.76, 'cookies-clicker': 0.64, next: 0.52 } as const satisfies Record<TrackId, number>,
   /** A track's drawn width, the wider ring that answers the pointer, and the sectors a track divides into. */
   trackWidth: 0.012,
   hitWidth: 0.07,

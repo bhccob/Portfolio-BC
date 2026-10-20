@@ -64,7 +64,9 @@ describe('compass choreography, ramp by ramp', () => {
   it('fades each section\'s text in and out over its own ranges', () => {
     expect(at('hero', 0).text.hero).toBe(1); expect(at('hero', 0.6).text.hero).toBe(1); expect(at('hero', 0.725).text.hero).toBeCloseTo(0.5, 6); expect(at('hero', 0.9).text.hero).toBe(0);
     expect(at('about', 0.3).text.about).toBe(0); expect(at('about', 0.45).text.about).toBeCloseTo(0.5, 6); expect(at('about', 0.7).text.about).toBe(1); expect(at('about', 1).text.about).toBe(0);
-    expect(at('china', 0.55).text.china).toBe(1); expect(at('aruba', 0.5).text.aruba).toBe(1); expect(at('rotterdam', 0.45).text.rotterdam).toBe(1); expect(at('rotterdam', 1).text.rotterdam).toBe(1);
+    expect(at('china', 0.55).text.china).toBe(1); expect(at('aruba', 0.5).text.aruba).toBe(1); expect(at('rotterdam', 0.45).text.rotterdam).toBe(1);
+    // It fades out like the others, so it does not hard-cut when the current's section takes over.
+    expect(at('rotterdam', 0.925).text.rotterdam).toBeCloseTo(0.5, 6); expect(at('rotterdam', 1).text.rotterdam).toBe(0);
   });
   it('reads out-of-range and NaN progress as the ends', () => {
     expect(compassPoseAt(Number.NaN)).toEqual(compassPoseAt(0)); expect(compassPoseAt(-1)).toEqual(compassPoseAt(0)); expect(compassPoseAt(2)).toEqual(compassPoseAt(1));
@@ -110,6 +112,10 @@ describe('the whole story', () => {
     const qa = a.findIndex((s) => s.id === 'qa');
     for (let k = 0; k <= qa; k++) expect(b[k].start * 21800).toBeCloseTo(a[k].start * 20000, 3);
     expect(spansFromOffsets([{ id: 'hero', top: 0 }], 0)[0].length).toBeGreaterThan(0);
+  });
+  it('divides the last section by the same guarded scroll range as every start', () => {
+    expect(spansFromOffsets([{ id: 'hero', top: 0 }], 0)).toEqual([{ id: 'hero', start: 0, length: 1 }]);
+    expect(spansFromOffsets([{ id: 'hero', top: 0 }, { id: 'about', top: 3 }], 0)[1].start).toBeCloseTo(3e6, 0);
   });
   it('keeps the pose a pure function of position', () => {
     const spans = nominalSpans(); const p = spans.find((s) => s.id === 'cookies-clicker')!;
