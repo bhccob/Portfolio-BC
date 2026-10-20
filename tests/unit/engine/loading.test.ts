@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LOADING, huntAt, huntRate, loadedShare, loaderVerdict, readout, screenBearing } from '../../src/scripts/compass/loading';
+import { LOADING, huntAt, huntRate, loadedShare, loaderVerdict, readout, screenBearing } from '~/engine/loading';
 describe('the loader', () => {
   it('weighs the parts and clamps them', () => {
     expect(loadedShare({})).toBe(0); expect(loadedShare({ scene: 1, textures: 1, warm: 1 })).toBeCloseTo(1);

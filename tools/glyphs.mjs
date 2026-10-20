@@ -1,5 +1,5 @@
 // Extracts the four compass characters (北 東 南 西) from a font as SVG path
-// data and writes src/scripts/three/instrument/glyphs.ts, which is committed.
+// data and writes src/engine/instrument/glyphs.ts, which is committed.
 // The site ships no webfont for them: the dial draws these outlines only.
 //
 //   node tools/glyphs.mjs <font.ttf>
@@ -18,7 +18,7 @@ import opentype from 'opentype.js';
 
 const CHARS = ['北', '東', '南', '西'];
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const out = join(root, 'src', 'scripts', 'three', 'instrument', 'glyphs.ts');
+const out = join(root, 'src', 'engine', 'instrument', 'glyphs.ts');
 
 function fail(message) {
   console.error(`[glyphs] ${message}`);

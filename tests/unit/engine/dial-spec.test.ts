@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { DIAL, DIRECTIONS, HOMES, TRIGRAMS, bearingOf, onDial } from '../../src/scripts/three/instrument/dialSpec';
-import { GLYPHS, GLYPH_CREDIT } from '../../src/scripts/three/instrument/glyphs';
-import { dialSvg } from '../../src/scripts/three/instrument/dialSvg';
+import { DIAL, DIRECTIONS, HOMES, TRIGRAMS, bearingOf, onDial } from '~/engine/instrument/dialSpec';
+import { GLYPHS, GLYPH_CREDIT } from '~/engine/instrument/glyphs';
+import { dialSvg } from '~/engine/instrument/dialSvg';
 describe('dialSpec', () => {
   it('nests the rings without overlap, inside the rim', () => {
     const r = DIAL.rings; const order = [[0, DIAL.pool], r.trigram, r.direction, r.degree, r.pattern];

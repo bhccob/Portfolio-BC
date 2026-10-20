@@ -1,17 +1,17 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { existsSync } from 'node:fs';
-import { buildInstrument, type InstrumentPose } from '../../src/scripts/three/instrument/Instrument';
-import { buildAnnulus } from '../../src/scripts/three/instrument/Annulus';
-import { TEXTURE_FILES } from '../../src/scripts/three/instrument/textures';
-import { DIAL, bearingOf } from '../../src/scripts/three/instrument/dialSpec';
-import { DRIVE, TRACKS, armBearing, headPoint } from '../../src/scripts/three/instrument/drive';
-import { armState } from '../../src/scripts/three/instrument/Needle';
-import { MIRROR, RAMP } from '../../src/scripts/three/instrument/DriveParts';
-import { sweepCoverage } from '../../src/scripts/three/instrument/patterns';
-import { withoutPointSpecular } from '../../src/scripts/three/instrument/materials';
-import { loadInstrumentTextures } from '../../src/scripts/three/instrument/textures';
-import { WIRE, coilPath } from '../../src/scripts/three/instrument/wirePath';
+import { buildInstrument, type InstrumentPose } from '~/engine/instrument/Instrument';
+import { buildAnnulus } from '~/engine/instrument/Annulus';
+import { TEXTURE_FILES } from '~/engine/instrument/textures';
+import { DIAL, bearingOf } from '~/engine/instrument/dialSpec';
+import { DRIVE, TRACKS, armBearing, headPoint } from '~/engine/instrument/drive';
+import { armState } from '~/engine/instrument/Needle';
+import { MIRROR, RAMP } from '~/engine/instrument/DriveParts';
+import { sweepCoverage } from '~/engine/instrument/patterns';
+import { withoutPointSpecular } from '~/engine/instrument/materials';
+import { loadInstrumentTextures } from '~/engine/instrument/textures';
+import { WIRE, coilPath } from '~/engine/instrument/wirePath';
 
 type Drive = InstrumentPose['drive'];
 const DRIVE_FIELDS = ['stack', 'mirror', 'grow', 'clamp', 'arm', 'chassis'] as const;

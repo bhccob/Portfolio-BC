@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { asleep, STILL, type Stillness } from '../../src/scripts/three/stillness';
+import { asleep, STILL, type Stillness } from '~/engine/stillness';
 
 const still: Stillness = {
   idle: true,

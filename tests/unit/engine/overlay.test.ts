@@ -1,13 +1,13 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { applyPose } from '../../src/scripts/three/applyPose';
-import { layoutFor, placeCamera } from '../../src/scripts/three/CameraRig';
-import { poseAt, type CompassPose, type SectionId } from '../../src/scripts/three/Choreography';
-import { DIAL } from '../../src/scripts/three/instrument/dialSpec';
-import { buildInstrument } from '../../src/scripts/three/instrument/Instrument';
-import { buildTracks } from '../../src/scripts/three/instrument/Tracks';
-import { buildWire } from '../../src/scripts/three/instrument/Wire';
-import { overlayOf, rimOf, SPINDLE_REACH, toScreen } from '../../src/scripts/three/overlay';
+import { applyPose } from '~/engine/applyPose';
+import { layoutFor, placeCamera } from '~/engine/CameraRig';
+import { poseAt, type CompassPose, type SectionId } from '~/engine/Choreography';
+import { DIAL } from '~/engine/instrument/dialSpec';
+import { buildInstrument } from '~/engine/instrument/Instrument';
+import { buildTracks } from '~/engine/instrument/Tracks';
+import { buildWire } from '~/engine/instrument/Wire';
+import { overlayOf, rimOf, SPINDLE_REACH, toScreen } from '~/engine/overlay';
 
 const W = 1440;
 const H = 900;

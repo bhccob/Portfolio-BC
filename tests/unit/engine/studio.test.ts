@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { BACKDROP, buildBackdrop } from '../../src/scripts/three/studio/Backdrop';
-import { buildDust } from '../../src/scripts/three/studio/Dust';
-import { COMPASS_STUDIO, dimmed, shoulder } from '../../src/scripts/three/studio/CompassStudio';
+import { BACKDROP, buildBackdrop } from '~/engine/studio/Backdrop';
+import { buildDust } from '~/engine/studio/Dust';
+import { COMPASS_STUDIO, dimmed, shoulder } from '~/engine/studio/CompassStudio';
 
 describe('the backdrop', () => {
   const direction = (backdrop: ReturnType<typeof buildBackdrop>): THREE.Vector3 =>

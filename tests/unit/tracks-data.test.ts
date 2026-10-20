@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { projects } from '../../src/data/projects';
 import { trackCopy } from '../../src/data/tracks';
 import { Translator, locales, type Locale } from '../../src/i18n/Translator';
-import { TRACKS, type TrackId } from '../../src/scripts/three/instrument/drive';
+import { TRACKS, type TrackId } from '~/engine/instrument/drive';
 
 const PROJECT_TRACKS: readonly TrackId[] = ['funcial', 'jontai-energy', 'cookies-clicker'];
 

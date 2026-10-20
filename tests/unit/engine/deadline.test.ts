@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { settlesWithin } from '../../src/scripts/core/deadline';
+import { settlesWithin } from '~/engine/core/deadline';
 
 describe('a wait with a deadline', () => {
   beforeEach(() => vi.useFakeTimers());

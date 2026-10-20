@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { SECTIONS, compassPoseAt, locate, nominalSpans, poseAt, spansFromOffsets, tipLimit, visibleHome } from '../../src/scripts/three/Choreography';
-import { DRIVE, TRACKS } from '../../src/scripts/three/instrument/drive';
+import { SECTIONS, compassPoseAt, locate, nominalSpans, poseAt, spansFromOffsets, tipLimit, visibleHome } from '~/engine/Choreography';
+import { DRIVE, TRACKS } from '~/engine/instrument/drive';
 const NUMERIC = (p: ReturnType<typeof poseAt>) => [p.framing.tilt, p.framing.zoom, p.framing.near, p.framing.side, p.needle.weight, p.needle.lift,
   p.portrait, p.threads, p.wire.show, p.wire.lift, p.wire.wind, ...Object.values(p.drive), p.head, p.park, p.platter, ...Object.values(p.tracks.lit), p.dim];
 const boundaries = nominalSpans().slice(1).map((s) => s.start);

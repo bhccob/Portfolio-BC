@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { buildInstrument, type InstrumentPose } from '../../src/scripts/three/instrument/Instrument';
-import { DRIVE, TRACKS, headBearing, type TrackId } from '../../src/scripts/three/instrument/drive';
-import { buildTracks, HOVER_LIT, tpBearing } from '../../src/scripts/three/instrument/Tracks';
-import { palette } from '../../src/scripts/three/palette';
+import { buildInstrument, type InstrumentPose } from '~/engine/instrument/Instrument';
+import { DRIVE, TRACKS, headBearing, type TrackId } from '~/engine/instrument/drive';
+import { buildTracks, HOVER_LIT, tpBearing } from '~/engine/instrument/Tracks';
+import { palette } from '~/engine/palette';
 
 const DEG = Math.PI / 180;
 const PINNED: readonly TrackId[] = ['funcial', 'jontai-energy', 'cookies-clicker'];

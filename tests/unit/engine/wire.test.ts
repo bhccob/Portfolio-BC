@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { DIAL, onDial } from '../../src/scripts/three/instrument/dialSpec';
-import { WIRE, coilPath, lyingPath, straightPath, wirePath, type Point } from '../../src/scripts/three/instrument/wirePath';
-import { buildWire } from '../../src/scripts/three/instrument/Wire';
+import { DIAL, onDial } from '~/engine/instrument/dialSpec';
+import { WIRE, coilPath, lyingPath, straightPath, wirePath, type Point } from '~/engine/instrument/wirePath';
+import { buildWire } from '~/engine/instrument/Wire';
 
 const ANCHOR: Point = [0.6, 0.06, 0.55];
 const AXIS: Point = [0.6, 0, 0.8];

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { bearingOf } from '../../src/scripts/three/instrument/dialSpec';
-import { DRIVE, TRACKS, armBearing, headBearing, headPoint } from '../../src/scripts/three/instrument/drive';
+import { bearingOf } from '~/engine/instrument/dialSpec';
+import { DRIVE, TRACKS, armBearing, headBearing, headPoint } from '~/engine/instrument/drive';
 const radii = [...TRACKS.map((id) => DRIVE.tracks[id]), DRIVE.parkRadius];
 describe('the drive geometry', () => {
   it('puts the head exactly on the radius the arm is asked for', () => {

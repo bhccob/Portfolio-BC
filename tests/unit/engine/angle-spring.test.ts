@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AngleSpring, blendBearing, wrapAngle } from '../../src/scripts/three/AngleSpring';
+import { AngleSpring, blendBearing, wrapAngle } from '~/engine/AngleSpring';
 describe('AngleSpring', () => {
   it('overshoots a little, then settles', () => {
     const s = new AngleSpring(); let peak = 0;

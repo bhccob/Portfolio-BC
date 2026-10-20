@@ -1,5 +1,5 @@
 import { Translator, type Locale } from '../i18n/Translator';
-import type { TrackId } from '../scripts/three/instrument/drive';
+import type { TrackId } from '../engine/instrument/drive';
 import { projects } from './projects';
 
 export interface TrackLink {

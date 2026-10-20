@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PaintCancelled, paintInstrument } from '../../src/scripts/three/instrument/paint';
-import { STRIP } from '../../src/scripts/three/instrument/patterns';
+import { PaintCancelled, paintInstrument } from '~/engine/instrument/paint';
+import { STRIP } from '~/engine/instrument/patterns';
 
 /** A canvas whose 2D context takes any drawing call and does nothing, as the patterns tests' mock does. */
 interface FakeCanvas {

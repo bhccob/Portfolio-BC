@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FreeTurn } from '../../src/scripts/three/FreeTurn';
+import { FreeTurn } from '~/engine/FreeTurn';
 const run = (f: FreeTurn, seconds: number, limit = 0.14) => { let r = { spin: 0, tip: 0 }; for (let i = 0; i < seconds * 60; i++) r = f.step(1 / 60, limit); return r; };
 describe('FreeTurn', () => {
   it('ignores small and mostly vertical moves', () => {

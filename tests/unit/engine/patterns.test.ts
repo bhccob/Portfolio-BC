@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { REPEATS, STRIP, paintHome, sweepCoverage } from '../../src/scripts/three/instrument/patterns';
-import { paintFace } from '../../src/scripts/three/instrument/face';
+import { REPEATS, STRIP, paintHome, sweepCoverage } from '~/engine/instrument/patterns';
+import { paintFace } from '~/engine/instrument/face';
 function mockCtx() { const calls: string[] = []; const fills: string[] = [];
   const ctx = new Proxy({} as Record<string, unknown>, { get: (t, k) => k in t ? t[k as string] : (...a: unknown[]) => { calls.push(String(k)); return { addColorStop: () => {} }; },
     set: (t, k, v) => { if ((k === 'fillStyle' || k === 'strokeStyle') && typeof v === 'string') fills.push(v.toLowerCase()); t[k as string] = v; return true; } });

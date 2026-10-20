@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { warmScene, warmUp } from '../../src/scripts/three/TextureWarmup';
+import { warmScene, warmUp } from '~/engine/TextureWarmup';
 
 /** Just enough of a renderer: uploads are counted, and compiles answer as `compile` says. */
 function fakeRenderer(compile: () => Promise<unknown>): THREE.WebGLRenderer & { uploads: number } {

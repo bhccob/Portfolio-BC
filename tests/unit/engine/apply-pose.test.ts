@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
-import { applyPose, carryProgress, freeTurnLocked, tracksShown } from '../../src/scripts/three/applyPose';
-import { compassPoseAt, locate, nominalSpans, poseAt, SECTIONS, spansFromOffsets, type CompassPose } from '../../src/scripts/three/Choreography';
-import { TRACKS, type TrackId } from '../../src/scripts/three/instrument/drive';
-import { buildInstrument, type InstrumentModel } from '../../src/scripts/three/instrument/Instrument';
-import { buildTracks, HOVER_LIT, PIN, type TracksModel } from '../../src/scripts/three/instrument/Tracks';
-import { buildWire, type WireModel } from '../../src/scripts/three/instrument/Wire';
+import { applyPose, carryProgress, freeTurnLocked, tracksShown } from '~/engine/applyPose';
+import { compassPoseAt, locate, nominalSpans, poseAt, SECTIONS, spansFromOffsets, type CompassPose } from '~/engine/Choreography';
+import { TRACKS, type TrackId } from '~/engine/instrument/drive';
+import { buildInstrument, type InstrumentModel } from '~/engine/instrument/Instrument';
+import { buildTracks, HOVER_LIT, PIN, type TracksModel } from '~/engine/instrument/Tracks';
+import { buildWire, type WireModel } from '~/engine/instrument/Wire';
 
 const DEG = Math.PI / 180;
 const LOCALS = [0, 0.5, 1] as const;

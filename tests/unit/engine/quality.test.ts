@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { qualityFor, qualitySteps } from '../../src/scripts/three/quality';
+import { qualityFor, qualitySteps } from '~/engine/quality';
 
 describe('qualityFor', () => {
   it('walks the fine-pointer ladder: dust, then clearcoat, then the pixel ratio with the dust', () => {

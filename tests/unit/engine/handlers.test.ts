@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Handlers } from '../../src/scripts/core/Handlers';
+import { Handlers } from '~/engine/core/Handlers';
 
 describe('a list of handlers', () => {
   it('calls each handler added, until it unsubscribes', () => {

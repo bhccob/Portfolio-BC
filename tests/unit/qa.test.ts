@@ -2,7 +2,7 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 import { qaEntries, type QaEntry } from '../../src/data/qa';
 import { en, type Dictionary, type QaItems } from '../../src/i18n/en';
 import { nl } from '../../src/i18n/nl';
-import { DRIVE } from '../../src/scripts/three/instrument/drive';
+import { DRIVE } from '~/engine/instrument/drive';
 
 type Items = Dictionary['compass']['qa']['items'];
 

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { dialLayout, fitDistance, layoutFor, lerpShot, placeCamera, sideLayout } from '../../src/scripts/three/CameraRig';
+import { dialLayout, fitDistance, layoutFor, lerpShot, placeCamera, sideLayout } from '~/engine/CameraRig';
 const project = (camera: THREE.PerspectiveCamera, p: THREE.Vector3, w: number, h: number) => { const v = p.clone().project(camera); return [(v.x + 1) / 2 * w, (1 - v.y) / 2 * h]; };
 describe('CameraRig', () => {
   it('lays the dial out wide and narrow', () => {
