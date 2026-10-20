@@ -352,8 +352,13 @@ export const en = {
   /**
    * The redesign's compass page (/lab/compass/): its head, the hero's role line
    * and hints, the About heading (its lead is `about.lead`), the three homes'
-   * labels, the stacked page's four stills' alt texts and the loader's readout
-   * ({n}: the percentage).
+   * labels, the stacked page's six stills' alt texts and the loader's readout
+   * ({n}: the percentage). The drive's sections add the work heading and its
+   * caption (the stack and AI rows are `skills.rows`), the change line, the
+   * hidden projects heading, the test-point label ({n}: the number, {label}:
+   * the test point; the tracks' own words are `src/data/tracks.ts`), Off duty
+   * (its lists are `life.current` and `life.former`), the Q&A's questions (its
+   * answers are `career`) and the greeting.
    */
   compass: {
     meta: {
@@ -368,11 +373,35 @@ export const en = {
       aruba: 'Born and raised in Aruba',
       rotterdam: 'Rotterdam since eighteen'
     },
+    work: {
+      title: 'What I work with',
+      caption: '1820: a current moved a compass needle.'
+    },
+    change: 'The same force that guided ships now stores data.',
+    projects: 'Projects',
+    tp: 'TP{n} · {label}',
+    offduty: {
+      title: 'Off duty',
+      spin: 'What keeps me spinning'
+    },
+    qa: {
+      title: 'Questions',
+      items: [
+        'What do you do now?',
+        'What comes after MBO 4?',
+        'Which roles interest you?',
+        'Why these directions?',
+        'Where does it lead?'
+      ]
+    },
+    hello: 'Say hello',
     stills: {
       hero: 'A Chinese compass with a glowing yellow needle',
       china: 'The compass ring in Chinese red and gold',
       aruba: "The compass ring with Aruba's sea, flag stripes and star",
-      rotterdam: 'The compass ring with the cables of the Erasmus bridge'
+      rotterdam: 'The compass ring with the cables of the Erasmus bridge',
+      drive: 'The compass turned into a hard drive, its tracks lit',
+      offduty: "The drive's spindle, close up"
     },
     loader: 'FINDING NORTH · {n}%'
   }

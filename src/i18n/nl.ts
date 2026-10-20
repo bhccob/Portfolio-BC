@@ -357,11 +357,35 @@ export const nl: Dictionary = {
       aruba: 'Geboren en getogen op Aruba',
       rotterdam: 'Sinds mijn achttiende in Rotterdam'
     },
+    work: {
+      title: 'Waar ik mee werk',
+      caption: '1820: een stroom liet een kompasnaald bewegen.'
+    },
+    change: 'Dezelfde kracht die schepen leidde, slaat nu data op.',
+    projects: 'Projecten',
+    tp: 'TP{n} · {label}',
+    offduty: {
+      title: 'Buiten dienst',
+      spin: 'Wat mij draaiende houdt'
+    },
+    qa: {
+      title: 'Vragen',
+      items: [
+        'Wat doe je nu?',
+        'Wat komt er na MBO 4?',
+        'Welke rollen interesseren je?',
+        'Waarom deze richtingen?',
+        'Waar leidt het naartoe?'
+      ]
+    },
+    hello: 'Zeg hallo',
     stills: {
       hero: 'Een Chinees kompas met een gloeiende gele naald',
       china: 'De kompasring in Chinees rood en goud',
       aruba: 'De kompasring met de zee, de vlagstrepen en de ster van Aruba',
-      rotterdam: 'De kompasring met de kabels van de Erasmusbrug'
+      rotterdam: 'De kompasring met de kabels van de Erasmusbrug',
+      drive: 'Het kompas als harde schijf, met verlichte sporen',
+      offduty: 'De spindel van de schijf, van dichtbij'
     },
     loader: 'ZOEKT HET NOORDEN · {n}%'
   }
