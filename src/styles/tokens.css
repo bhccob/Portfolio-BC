@@ -31,6 +31,7 @@
   --ink: #fcedc0; /* reading text and labels; 17.3:1 */
   --ink-dim: #8c8879; /* secondary text; 5.7:1 */
   --string-red: #7a2126;
+  --error: #ff9d8f; /* a field's error and the form's notice; 10:1 on --void */
 
   /* glow: emissive colours for the scene and for rules and focus rings, never for text */
   --amber-spill: #edab35;

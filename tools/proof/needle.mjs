@@ -34,6 +34,16 @@
  *   esc        the back link on a country or project page: Escape goes to the home page of that
  *              language by client navigation, unless focus is in a text field or the key was already
  *              handled; the "Esc" hint is aria-hidden and hidden on a touch screen
+ *   lite       /lite/ and /en/lite/: one <h1>, every section's heading (from the dictionary) in order and
+ *              no skipped level, the real portrait loaded with its alt text and size, at least five
+ *              <details> that open by keyboard with a visible focus ring, #career where the old /career/
+ *              addresses land, no terminal or engine-room copy, and the page complete with JavaScript off.
+ *              /contact/ and /en/contact/: an empty submit names the first bad field and moves focus to
+ *              it; with no access key in the build, a filled form navigates to a mailto: link to Bob (the
+ *              navigation is cancelled in the page, so no mail client opens) and shows the "almost
+ *              there" panel; with a key (a CI build) the form carries it and, with Web3Forms answered by
+ *              this harness (nothing is sent), posts once, shows success, holds the guards against scripts
+ *              and the pause, and shows the error of a failed post
  *
  * The harness reads src/data/pages.ts (through tsx) and the build in dist/client
  * to know which pages to expect.
@@ -66,6 +76,7 @@ const langOf = (path) => (path === '/en/' || path.startsWith('/en/') ? 'en' : 'n
 // who is asked, not what is expected.
 const DIST = resolve(fileURLToPath(new URL('../../dist/client', import.meta.url)));
 const { pagePaths } = await tsImport('../../src/data/pages.ts', import.meta.url);
+const { Translator } = await tsImport('../../src/i18n/Translator.ts', import.meta.url);
 const built = (path) => existsSync(join(DIST, path, 'index.html'));
 const SKIPPED = pagePaths().filter((path) => !built(path));
 const PAGES = pagePaths()
@@ -438,7 +449,299 @@ async function mobile(browser, step) {
   return `${PAGES.length} pages at 390 px: no horizontal scroll`;
 }
 
-const STEPS = { routes, slash, persist, 'not-found': notFound, 'case-variant': caseVariant, 'home-nav': homeNav, mobile, esc };
+/** The copy of a heading as text: the dictionaries' only markup is <em>. */
+const plain = (copy) => copy.replace(/<[^>]*>/g, '');
+const LITE = { nl: '/lite/', en: '/en/lite/' };
+const CONTACT = { nl: '/contact/', en: '/en/contact/' };
+
+/** Lite: all the copy, in order, as plain HTML that needs no script and no 3D. */
+async function liteOne(browser, step, lang) {
+  const { t } = new Translator(lang);
+  const path = LITE[lang];
+  const { context, page } = await openPage(browser, step);
+  await page.goto(BASE + path, { waitUntil: 'load' });
+  await stageReady(page);
+
+  // The sections, by their headings (the dictionary's own words), in the order of the page.
+  const headings = [t.nav.about, t.nav.work, t.about.title, t.skills.title, t.career.title, t.life.title, t.compass.qa.title, t.cta.title].map(plain);
+  const h1 = await page.$$eval('h1', (els) => els.map((el) => el.textContent));
+  step.check(h1.length === 1 && h1[0] === t.needle.liteLink, `${path} has one <h1> "${t.needle.liteLink}" (got ${JSON.stringify(h1)})`);
+  const h2 = await page.$$eval('main h2', (els) => els.map((el) => el.textContent));
+  step.check(JSON.stringify(h2) === JSON.stringify(headings), `${path} has the section headings in order (got ${JSON.stringify(h2)})`);
+  const levels = await page.$$eval('main h1, main h2, main h3, main h4, main h5, main h6', (els) => els.map((el) => Number(el.tagName[1])));
+  const skipped = levels.filter((level, index) => index > 0 && level - levels[index - 1] > 1);
+  step.check(levels[0] === 1 && skipped.length === 0, `${path} skips no heading level (levels ${levels.join('')})`);
+
+  // The real portrait, loaded, with its alt text and the size it reserves.
+  await page.locator('figure.portrait img').scrollIntoViewIfNeeded();
+  await page.waitForFunction(() => {
+    const image = document.querySelector('figure.portrait img');
+    return Boolean(image && image.complete && image.naturalWidth > 0);
+  }, null, { timeout: 10_000 }).catch(() => {});
+  const portrait = await page.$eval('figure.portrait img', (image) => ({
+    natural: image.naturalWidth,
+    alt: image.alt,
+    width: image.getAttribute('width'),
+    height: image.getAttribute('height'),
+    src: image.currentSrc,
+  }));
+  step.check(portrait.natural > 0, `${path}: the portrait loaded (naturalWidth ${portrait.natural}, ${portrait.src})`);
+  step.check(portrait.alt === t.about.portraitAlt, `${path}: the portrait's alt text is the dictionary's "${t.about.portraitAlt}" (got "${portrait.alt}")`);
+  step.check(portrait.width === '572' && portrait.height === '1024', `${path}: the portrait has width and height attributes (got ${portrait.width}x${portrait.height})`);
+  step.check(/portrait/.test(portrait.src) && !/pool/.test(portrait.src), `${path}: it is the real portrait file, not the pool image (${portrait.src})`);
+
+  // The Q&A and the folded rows are <details>; the five questions are among them.
+  const summaries = await page.$$eval('main details > summary', (els) => els.map((el) => el.textContent));
+  step.check(summaries.length >= 5, `${path} has at least five <details> (got ${summaries.length})`);
+  for (const question of t.compass.qa.items) step.check(summaries.some((text) => text.includes(question)), `${path}: "${question}" is a <summary>`);
+
+  // Counted by the keyboard: Tab reaches a summary with a visible focus ring, and Enter opens it.
+  let reached = null;
+  for (let press = 0; press < 80 && !reached; press++) {
+    await page.keyboard.press('Tab');
+    reached = await page.evaluate(() => {
+      const active = document.activeElement;
+      if (active?.tagName !== 'SUMMARY') return null;
+      const style = getComputedStyle(active);
+      return { outline: style.outlineStyle, width: parseFloat(style.outlineWidth), open: active.parentElement.open };
+    });
+  }
+  step.check(reached !== null, `${path}: Tab reaches a <summary>`);
+  if (reached) {
+    step.check(reached.outline !== 'none' && reached.width >= 2, `${path}: the focused <summary> has a visible ring (${reached.outline} ${reached.width}px)`);
+    await page.keyboard.press('Enter');
+    const opened = await page.evaluate(() => document.activeElement.parentElement.open);
+    step.check(opened === !reached.open, `${path}: Enter toggles the focused <details> (open ${reached.open} -> ${opened})`);
+  }
+
+  // #career: the section the old /career/ addresses redirect to.
+  const career = await page.$eval('#career', (el) => ({ tag: el.tagName, heading: el.querySelector('h2')?.textContent })).catch(() => null);
+  step.check(career?.tag === 'SECTION' && career.heading === plain(t.career.title), `${path} has #career, a section headed "${plain(t.career.title)}" (got ${JSON.stringify(career)})`);
+  await page.goto(`${BASE}${path}#career`, { waitUntil: 'load' });
+  await stageReady(page);
+  const top = await page.$eval('#career', (el) => el.getBoundingClientRect().top);
+  step.check(top > -5 && top < 450, `${path}#career scrolls the section into view (top ${Math.round(top)} px)`);
+
+  // The words of the engine room and the terminal are not here.
+  const body = await page.innerText('main');
+  for (const string of [t.hood.title, t.hood.intro, t.terminal.welcome, t.about.clock.label].map(plain)) {
+    step.check(!body.includes(string), `${path} does not carry "${string}"`);
+  }
+
+  // Every link in the page's own lists goes to a page of the site.
+  const internal = await page.$$eval('main a[href^="/"]', (links) => links.map((link) => link.getAttribute('href')));
+  const prefix = lang === 'en' ? '/en' : '';
+  for (const href of [`${prefix}/about/china/`, `${prefix}/about/netherlands/`, `${prefix}/about/aruba/`, `${prefix}/projects/funcial/`, `${prefix}/projects/jontai-energy/`, `${prefix}/projects/cookies-clicker/`, `${prefix}/contact/`]) {
+    step.check(internal.includes(href), `${path} links to ${href}`);
+  }
+  await takeCsp(page, step);
+  await context.close();
+}
+
+/** With no script at all the page is the same: the HTML the build wrote carries every section. */
+async function liteWithoutScript(browser, step) {
+  const context = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } });
+  const page = await context.newPage();
+  for (const lang of ['nl', 'en']) {
+    const path = LITE[lang];
+    const response = await page.goto(BASE + path, { waitUntil: 'load' });
+    step.check(response?.status() === 200, `${path} answers 200 with JavaScript off`);
+    step.check((await page.locator('h1').count()) === 1, `${path} has one <h1> with JavaScript off`);
+    step.check((await page.locator('main h2').count()) === 8, `${path} has all eight sections with JavaScript off (got ${await page.locator('main h2').count()})`);
+    step.check((await page.locator('main details').count()) >= 5, `${path} has its <details> with JavaScript off`);
+    step.check((await page.locator('#career').count()) === 1, `${path} has #career with JavaScript off`);
+    step.check((await page.locator('figure.portrait img').count()) === 1, `${path} has the portrait with JavaScript off`);
+    // A <details> opens without script: that is the element's own behaviour.
+    await page.locator('main details > summary').first().click();
+    step.check(await page.$eval('main details', (el) => el.open), `${path}: a <summary> opens its <details> with JavaScript off`);
+    const contact = await page.goto(BASE + CONTACT[lang], { waitUntil: 'load' });
+    step.check(contact?.status() === 200, `${CONTACT[lang]} answers 200 with JavaScript off`);
+    step.check((await page.locator('a[href="mailto:bhccob@gmail.com"]').count()) === 1, `${CONTACT[lang]} carries the direct mailto: link with JavaScript off`);
+    const keyed = (await page.locator('input[name="access_key"]').count()) > 0;
+    // With a key the form is plain HTML that posts to Web3Forms; without one there is no form until the page hydrates.
+    step.check(
+      keyed ? (await page.getAttribute('form.form', 'action')) === 'https://api.web3forms.com/submit' : (await page.locator('form').count()) === 0,
+      `${CONTACT[lang]} with JavaScript off: ${keyed ? 'the form posts to Web3Forms' : 'no dead form without a key'}`,
+    );
+  }
+  await context.close();
+}
+
+/** The contact form, with the Web3Forms key the build has (none on a local build) in a language. */
+async function contactOne(browser, step, lang) {
+  const { t } = new Translator(lang);
+  const path = CONTACT[lang];
+  const c = t.contact;
+  const { context, page } = await openPage(browser, step);
+  // The Navigation API sees every navigation before it happens, including one to mailto:, and a script can cancel it:
+  // the link is recorded and no mail client opens.
+  await context.addInitScript(() => {
+    window.__mailto = [];
+    navigation.addEventListener('navigate', (event) => {
+      if (!event.destination.url.startsWith('mailto:')) return;
+      window.__mailto.push(event.destination.url);
+      event.preventDefault();
+    });
+  });
+  await page.goto(BASE + path, { waitUntil: 'load' });
+  await stageReady(page);
+  // The form is there, and the page has hydrated: from then on the page validates, not the browser (noValidate).
+  await page.waitForFunction(() => document.querySelector('form.form')?.noValidate === true, null, { timeout: 10_000 });
+  step.check((await page.locator('h1').count()) === 1, `${path} has one <h1>`);
+  const keyed = (await page.locator('input[name="access_key"]').count()) > 0;
+
+  // An empty submit names the first bad field, in the dictionary's words, and moves focus to it.
+  await page.click('button[type="submit"]');
+  await page.waitForTimeout(200);
+  const empty = await page.evaluate(() => ({
+    focus: document.activeElement?.id,
+    invalid: [...document.querySelectorAll('[aria-invalid="true"]')].map((el) => el.id),
+    errors: [...document.querySelectorAll('.field-error')].map((el) => el.textContent),
+    mailto: window.__mailto.length,
+  }));
+  step.check(empty.focus === 'contact-name', `${path}: an empty submit focuses the name field (got ${empty.focus})`);
+  step.check(JSON.stringify(empty.invalid) === JSON.stringify(['contact-name', 'contact-email', 'contact-message']), `${path}: name, email and message are marked invalid (got ${empty.invalid.join(' ')})`);
+  step.check(empty.errors[0] === c.errors.name && empty.errors[1] === c.errors.email && empty.errors[2] === c.errors.message, `${path}: the errors are the dictionary's (got ${JSON.stringify(empty.errors)})`);
+  step.check(empty.mailto === 0, `${path}: an empty submit navigates nowhere`);
+  const described = await page.getAttribute('#contact-name', 'aria-describedby');
+  step.check(described === 'contact-name-error', `${path}: the name field points at its error with aria-describedby (got ${described})`);
+
+  // An error goes as soon as its field is good enough.
+  await page.fill('#contact-name', 'Ada Lovelace');
+  step.check((await page.getAttribute('#contact-name', 'aria-invalid')) === null, `${path}: the name's error clears once the name is valid`);
+
+  if (keyed) {
+    const hidden = await page.$$eval('form.form input[type="hidden"]', (els) => Object.fromEntries(els.map((el) => [el.name, el.value])));
+    step.check(Boolean(hidden.access_key) && hidden.redirect?.endsWith(`${path}?sent=1`), `${path}: the build's key is in the form, with the way back to ${path}?sent=1`);
+    await takeCsp(page, step);
+    await context.close();
+    await contactKeyed(browser, step, lang);
+    return `${path}: key present, posts to a mocked Web3Forms (success, guards, cooldown, failure)`;
+  }
+
+  // No key: a valid form hands the message to the email app. The mailto: navigation is cancelled above.
+  await page.fill('#contact-email', 'ada@example.com');
+  await page.fill('#contact-subject', 'A question');
+  await page.fill('#contact-message', 'Hello Bob, I would like to talk about a project.');
+  await page.click('button[type="submit"]');
+  await page.waitForFunction(() => window.__mailto.length > 0, null, { timeout: 5_000 }).catch(() => {});
+  const mailto = await page.evaluate(() => window.__mailto);
+  step.check(mailto.length === 1, `${path}: submitting a filled form navigates to a mailto: link once (got ${mailto.length})`);
+  if (mailto.length > 0) {
+    const url = new URL(mailto[0]);
+    step.check(url.protocol === 'mailto:' && url.pathname === 'bhccob@gmail.com', `${path}: the link is to bhccob@gmail.com (got ${url.protocol}${url.pathname})`);
+    step.check(url.searchParams.get('subject') === 'Portfolio: A question', `${path}: the subject is "Portfolio: A question" (got ${url.searchParams.get('subject')})`);
+    const body = url.searchParams.get('body') ?? '';
+    step.check(body.startsWith('Hello Bob, I would like to talk about a project.') && body.includes('Ada Lovelace') && body.includes('ada@example.com'), `${path}: the body has the message, the name and the address (got ${JSON.stringify(body)})`);
+  }
+  const done = await page.evaluate(() => ({ title: document.querySelector('.form-done h2')?.textContent, focused: document.activeElement?.classList.contains('form-done') }));
+  step.check(done.title === c.mailtoTitle && done.focused === true, `${path}: the "${c.mailtoTitle}" panel is shown and focused (got ${JSON.stringify(done)})`);
+  await page.click('.form-done button');
+  step.check((await page.evaluate(() => document.activeElement?.id)) === 'contact-name', `${path}: "${c.again}" puts focus back in the name field`);
+  await takeCsp(page, step);
+  await context.close();
+  return `${path}: no key, mailto: navigation recorded and cancelled`;
+}
+
+/**
+ * A build with a Web3Forms key: the form posts in the background. Web3Forms is answered by this harness (the
+ * request never leaves the machine), so nothing is sent: a post that works, the two guards against scripts
+ * (a form filled in at once, a ticked honeypot), the pause after a sent message, and an answer that fails.
+ */
+async function contactKeyed(browser, step, lang) {
+  const { t } = new Translator(lang);
+  const c = t.contact;
+  const path = CONTACT[lang];
+  const posts = [];
+  let answer = { status: 200, body: { success: true } };
+  const failing = (message) => /Web3Forms answered 500|status of 500/.test(message.text());
+  const { context, page } = await openPage(browser, step, failing);
+  await context.route('https://api.web3forms.com/**', async (route) => {
+    const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST' };
+    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    posts.push(JSON.parse(route.request().postData() ?? '{}'));
+    return route.fulfill({ status: answer.status, headers: cors, contentType: 'application/json', body: JSON.stringify(answer.body) });
+  });
+  const open = async () => {
+    await page.goto(BASE + path, { waitUntil: 'load' });
+    await page.waitForFunction(() => document.querySelector('form.form')?.noValidate === true, null, { timeout: 10_000 });
+  };
+  const fill = async () => {
+    await page.fill('#contact-name', 'Ada Lovelace');
+    await page.fill('#contact-email', 'ada@example.com');
+    await page.fill('#contact-subject', 'A question');
+    await page.fill('#contact-message', 'Hello Bob, I would like to talk about a project.');
+  };
+  const title = () => page.evaluate(() => document.querySelector('.form-done h2')?.textContent ?? null);
+
+  // A form filled in at once is a script: it is told it worked, and nothing is posted.
+  await open();
+  await fill();
+  await page.click('button[type="submit"]');
+  step.check((await title()) === c.successTitle && posts.length === 0, `${path}: a form filled in at once shows success and posts nothing (posted ${posts.length})`);
+
+  // A ticked honeypot is a script too, however long it took.
+  await open();
+  await page.waitForTimeout(3_200);
+  await fill();
+  await page.evaluate(() => document.querySelector('input[name="botcheck"]').click());
+  await page.click('button[type="submit"]');
+  step.check((await title()) === c.successTitle && posts.length === 0, `${path}: a ticked honeypot shows success and posts nothing (posted ${posts.length})`);
+
+  // A person: after three seconds, the post goes out with the key and the fields.
+  await open();
+  await page.waitForTimeout(3_200);
+  await fill();
+  await page.click('button[type="submit"]');
+  await page.waitForFunction(() => document.querySelector('.form-done'), null, { timeout: 5_000 }).catch(() => {});
+  step.check(posts.length === 1, `${path}: a filled form posts once (posted ${posts.length})`);
+  const sent = posts[0] ?? {};
+  step.check(Boolean(sent.access_key) && sent.name === 'Ada Lovelace' && sent.email === 'ada@example.com' && sent.message?.startsWith('Hello Bob'), `${path}: the post carries the key and the three fields (got ${JSON.stringify(Object.keys(sent))})`);
+  step.check(sent.subject === 'Portfolio: A question' && sent.from_name === 'bhccob.me portfolio', `${path}: the post has the site's subject and sender (got ${sent.subject}, ${sent.from_name})`);
+  step.check((await title()) === c.successTitle, `${path}: the "${c.successTitle}" panel is shown`);
+
+  // The next message waits a minute.
+  await page.click('.form-done button');
+  await page.waitForTimeout(3_200);
+  await fill();
+  await page.click('button[type="submit"]');
+  await page.waitForTimeout(300);
+  step.check(posts.length === 1 && (await page.textContent('.form-status')) === c.errors.cooldown, `${path}: a second message within a minute gets the pause notice and is not posted (posted ${posts.length})`);
+  await takeCsp(page, step);
+  await context.close();
+
+  // An answer that fails: the visitor is told, the form keeps what they wrote, and they can try again.
+  answer = { status: 500, body: { success: false } };
+  const failed = await openPage(browser, step, failing);
+  await failed.context.route('https://api.web3forms.com/**', async (route) => {
+    const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST' };
+    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    return route.fulfill({ status: answer.status, headers: cors, contentType: 'application/json', body: JSON.stringify(answer.body) });
+  });
+  const retry = failed.page;
+  await retry.goto(BASE + path, { waitUntil: 'load' });
+  await retry.waitForFunction(() => document.querySelector('form.form')?.noValidate === true, null, { timeout: 10_000 });
+  await retry.waitForTimeout(3_200);
+  await retry.fill('#contact-name', 'Ada Lovelace');
+  await retry.fill('#contact-email', 'ada@example.com');
+  await retry.fill('#contact-message', 'Hello Bob, I would like to talk about a project.');
+  await retry.click('button[type="submit"]');
+  await retry.waitForFunction(() => document.querySelector('.form-status')?.textContent, null, { timeout: 5_000 }).catch(() => {});
+  step.check((await retry.textContent('.form-status')) === c.errors.generic, `${path}: a failing post shows the generic error (got "${await retry.textContent('.form-status')}")`);
+  step.check((await retry.inputValue('#contact-name')) === 'Ada Lovelace' && (await retry.locator('button[type="submit"]').isEnabled()), `${path}: the form keeps what was written and can send again`);
+  await takeCsp(retry, step);
+  await failed.context.close();
+}
+
+async function lite(browser, step) {
+  for (const lang of ['nl', 'en']) await liteOne(browser, step, lang);
+  await liteWithoutScript(browser, step);
+  const summaries = [];
+  for (const lang of ['nl', 'en']) summaries.push(await contactOne(browser, step, lang));
+  return `/lite/ and /en/lite/: eight sections, portrait, details, #career, no script needed; ${summaries.join('; ')}`;
+}
+
+const STEPS = { routes, slash, persist, 'not-found': notFound, 'case-variant': caseVariant, 'home-nav': homeNav, mobile, esc, lite };
 
 // ---------------------------------------------------------------- run
 

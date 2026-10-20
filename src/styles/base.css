@@ -32,11 +32,14 @@ canvas {
 
 h1,
 h2,
+h3,
 p,
 ul,
 ol,
 dl,
-dd {
+dd,
+figure,
+blockquote {
   margin: 0;
 }
 
@@ -142,7 +145,8 @@ main {
 .tags li,
 .test-points li,
 .back,
-.links a {
+.links a,
+.button {
   font-family: var(--font-label);
   font-size: var(--label-size);
   font-weight: 400;
@@ -449,7 +453,8 @@ html[data-3d='on'] .home-nav:not(:focus-within) {
   gap: 12px 16px;
 }
 
-.links a {
+.links a,
+.button {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
@@ -460,10 +465,22 @@ html[data-3d='on'] .home-nav:not(:focus-within) {
   text-decoration: none;
 }
 
-.links a:hover {
+.links a:hover,
+.button:hover:not(:disabled) {
   background: var(--gold-glow);
   border-color: var(--gold-glow);
   color: var(--void);
+}
+
+/* A button is the same pill as a link; it only has to drop the browser's own look. */
+.button {
+  background: none;
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: progress;
 }
 
 .page > .links {
@@ -483,6 +500,383 @@ html[data-3d='on'] .home-nav:not(:focus-within) {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--gold-ink);
+}
+
+/* ---------- Lite: the whole portfolio as one page of text ---------- */
+.lite-section {
+  margin-top: 72px;
+  padding-top: 32px;
+  border-top: 1px solid rgb(228 190 127 / 0.2);
+  scroll-margin-top: 16px;
+}
+
+/* The rhythm inside a section: one gap between neighbours. */
+.lite-section > * + * {
+  margin-top: 20px;
+}
+
+.lite-section p {
+  max-width: 36em;
+}
+
+.lite-heading {
+  font-family: var(--font-title);
+  font-size: clamp(22px, 3.4vw, 32px);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--gold-title);
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+/* The heading's <em> is the light half of the pair: the same words, a thin weight and the reading colour. */
+.lite-heading em {
+  font-style: normal;
+  font-weight: 300;
+  color: var(--ink);
+}
+
+.lite-item-title {
+  font-family: var(--font-title);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.lite-item-title a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.lite-item-title a:hover {
+  color: var(--gold-title);
+}
+
+/* The countries and the projects: a list of entries, each marked by a rule (a country's rule is its accent). */
+.lite-list {
+  display: grid;
+  gap: 28px;
+}
+
+.lite-list > li {
+  display: grid;
+  gap: 4px;
+  padding-left: 16px;
+  border-left: 3px solid var(--accent, rgb(228 190 127 / 0.35));
+}
+
+/* Skills and career: rows with a rule between them. */
+.lite-rows > li {
+  display: grid;
+  gap: 6px;
+  padding: 20px 0;
+  border-top: 1px solid rgb(228 190 127 / 0.15);
+}
+
+.lite-rows > li:first-child {
+  border-top: 0;
+}
+
+.lite-rows > li:has(> .lite-details) {
+  padding: 4px 0;
+}
+
+/* A folded answer, role list or reason: the whole row is the button, and the chevron says which way it goes. */
+.lite-details {
+  border-top: 1px solid rgb(228 190 127 / 0.2);
+}
+
+.lite-rows .lite-details {
+  border-top: 0;
+}
+
+.lite-details > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 56px;
+  padding: 8px 0;
+  color: var(--ink);
+  font-weight: 600;
+  list-style: none;
+  cursor: pointer;
+}
+
+.lite-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.lite-details > summary::after {
+  content: '';
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid var(--gold-ink);
+  border-bottom: 2px solid var(--gold-ink);
+  transform: rotate(45deg);
+  transition: transform 0.3s var(--ease-hud);
+}
+
+.lite-details[open] > summary::after {
+  transform: rotate(-135deg);
+}
+
+.lite-details > summary:hover {
+  color: var(--gold-title);
+}
+
+.summary-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.details-body {
+  display: grid;
+  gap: 16px;
+  padding: 4px 0 24px;
+}
+
+.qa {
+  border-bottom: 1px solid rgb(228 190 127 / 0.2);
+}
+
+.role-group {
+  display: grid;
+  gap: 8px;
+}
+
+.role-group ul {
+  display: grid;
+  gap: 16px;
+}
+
+.role-group li {
+  display: grid;
+  gap: 4px;
+}
+
+/* The sector is the one answer that is not a role; it is set in the gold of the brass, not the white of the roles. */
+.role-group.is-sector > .label,
+.role-group.is-sector .lite-item-title,
+.terms .is-sector dt {
+  color: var(--gold-ink);
+}
+
+.terms {
+  display: grid;
+  gap: 16px;
+}
+
+.terms dt {
+  font-weight: 600;
+}
+
+/* About */
+.portrait {
+  width: min(100%, 16rem);
+}
+
+.portrait img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  object-position: 50% 20%;
+  border-radius: 2px;
+}
+
+.portrait figcaption {
+  margin-top: 10px;
+}
+
+.quote {
+  padding-left: 20px;
+  border-left: 2px solid var(--gold-glow);
+}
+
+.quote p {
+  font-family: var(--font-title);
+  font-size: clamp(17px, 2.4vw, 22px);
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.quote p::before {
+  content: '\201C';
+}
+
+.quote p::after {
+  content: '\201D';
+}
+
+.lite-section > .facts {
+  margin: 28px 0 0;
+}
+
+.origin {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 32px;
+}
+
+.origin li,
+.thought {
+  display: grid;
+  gap: 2px;
+}
+
+/* Off duty */
+.lite-hobbies > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 4px 16px;
+  padding: 14px 0;
+  border-top: 1px solid rgb(228 190 127 / 0.15);
+}
+
+.hobby-name {
+  font-family: var(--font-title);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.hobby-text {
+  grid-column: 1 / -1;
+}
+
+/* ---------- the contact form ---------- */
+.contact .lead {
+  margin-bottom: 40px;
+}
+
+.form-title {
+  margin-bottom: 20px;
+  font-family: var(--font-title);
+  font-size: clamp(18px, 2.6vw, 24px);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--gold-title);
+  overflow-wrap: anywhere;
+}
+
+.form {
+  display: grid;
+  gap: 24px;
+  max-width: 34em;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field .optional {
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+.field input,
+.field textarea {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid rgb(228 190 127 / 0.4);
+  border-radius: 2px;
+  background: rgb(10 5 16 / 0.7);
+  color: var(--ink);
+  font: inherit;
+}
+
+.field textarea {
+  min-height: 9rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.field input::placeholder,
+.field textarea::placeholder {
+  color: var(--ink-dim);
+  opacity: 1;
+}
+
+.field input:focus,
+.field textarea:focus {
+  border-color: var(--gold-ink);
+}
+
+.field input[aria-invalid='true'],
+.field textarea[aria-invalid='true'] {
+  border-color: var(--error);
+}
+
+.field-error,
+.form-status {
+  font-size: 15px;
+  color: var(--error);
+}
+
+.field-error:empty,
+.form-status:empty {
+  display: none;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 24px;
+}
+
+.form-privacy {
+  max-width: 24em;
+  font-size: 15px;
+  color: var(--ink-dim);
+}
+
+/* The honeypot: a box a person never sees, which a script fills in. */
+.honey {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.form-done {
+  display: grid;
+  justify-items: start;
+  gap: 16px;
+  max-width: 34em;
+}
+
+.form-done:focus {
+  outline: none;
+}
+
+.form-done .form-title {
+  margin-bottom: 0;
+}
+
+.direct {
+  margin: 56px 0 12px;
 }
 
 @media (prefers-reduced-motion: reduce) {

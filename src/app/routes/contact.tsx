@@ -5,6 +5,7 @@ import { localeFromPath } from '~/i18n/locale';
 import { translatorFor, useTranslator } from '~/i18n/useTranslator';
 import { head } from '~/seo/head';
 import { BackLink } from '~/ui/BackLink';
+import { ContactForm } from '~/ui/ContactForm';
 import type { RouteHandle } from '../handle';
 
 export const meta: MetaFunction = ({ location }) => {
@@ -15,20 +16,25 @@ export const meta: MetaFunction = ({ location }) => {
 
 export const handle: RouteHandle = { scene: null };
 
-// A placeholder until Task 4b builds the contact form. Until then the page shows the direct ways to reach Bob.
+// The Web3Forms access key (a public key, set in the deploy). Without it the form opens the visitor's email app.
+const ACCESS_KEY: string | undefined = import.meta.env.PUBLIC_WEB3FORMS_KEY;
+
 export default function Contact() {
   const { t } = useTranslator();
 
   return (
-    <article className="page">
+    <article className="page contact">
       <BackLink />
       <h1 className="page-title">{t.nav.contact}</h1>
       <p className="lead">{t.contact.intro}</p>
-      <p className="label">{t.contact.direct}</p>
+
+      <ContactForm accessKey={ACCESS_KEY} />
+
+      <p className="label direct">{t.contact.direct}</p>
       <ul className="links">
         {profile.socials.map((social) => (
           <li key={social.id}>
-            <a href={social.url}>
+            <a href={social.url} {...(social.url.startsWith('mailto:') ? {} : { target: '_blank', rel: 'noopener noreferrer' })}>
               {social.label} · {social.handle}
             </a>
           </li>
