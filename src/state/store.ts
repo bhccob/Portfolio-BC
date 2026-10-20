@@ -18,7 +18,12 @@ export interface SceneState {
   transitionId: number;
   dispatch(event: SceneEvent): void;
   setTier(tier: Tier): void;
-  setThreeD(on: boolean): void;
+  /**
+   * Switches 3D on or off. The visitor's switch stores the choice (`needle-3d`); the scene's own reasons (no WebGL,
+   * a scene that failed or never got ready) pass `{ persist: false }`, so the page falls back for this visit and the
+   * visitor's stored choice stays as it was.
+   */
+  setThreeD(on: boolean, options?: { persist?: boolean }): void;
 }
 
 /** What the store reads from the browser; a `Window` has all of it. */
@@ -72,8 +77,8 @@ export const useScene = create<SceneState>()((set) => ({
 
   setTier: (tier) => set({ tier }),
 
-  setThreeD: (on) => {
-    SafeStorage.local().set(THREE_D_KEY, on ? 'on' : 'off');
+  setThreeD: (on, { persist = true } = {}) => {
+    if (persist) SafeStorage.local().set(THREE_D_KEY, on ? 'on' : 'off');
     set({ threeD: on });
   },
 }));

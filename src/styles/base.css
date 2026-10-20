@@ -126,6 +126,77 @@ body:has(.page) .poster::after {
   z-index: 1;
 }
 
+/* The canvas shows once the scene is ready (SceneHost sets data-ready): until then the poster is the picture, and
+   the canvas fades in over it rather than show an empty studio first. */
+.scene-host canvas {
+  opacity: 0;
+  transition: opacity 0.9s var(--ease-reveal);
+}
+
+.scene-host[data-ready] canvas {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene-host canvas {
+    transition: none;
+  }
+}
+
+/* No WebGL, or a scene that failed: the poster stays, and this card says so with a way to Lite. */
+.scene-fallback {
+  position: fixed;
+  z-index: 3;
+  left: var(--gutter);
+  bottom: 24px;
+  display: grid;
+  gap: 4px;
+  max-width: min(26rem, calc(100vw - 2 * var(--gutter)));
+  padding: 14px 20px 8px;
+  border: 1px solid rgb(228 190 127 / 0.35);
+  background: rgb(10 5 16 / 0.88);
+}
+
+.scene-fallback-title {
+  font-family: var(--font-title);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--gold-title);
+}
+
+.scene-fallback-link {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  min-height: 44px;
+  font-family: var(--font-label);
+  font-size: var(--label-size);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* The card covers the bottom of the viewport: the page keeps its last lines clear of it. */
+body:has(.scene-fallback) main {
+  padding-bottom: 120px;
+}
+
+/* On a phone the hero's name sits at the bottom of the first screen: it moves up above the card. */
+@media (max-width: 720px) {
+  body:has(.scene-fallback) .hero {
+    padding-bottom: calc(12svh + 104px);
+  }
+}
+
+/* Lite is where the card points: on Lite itself it says nothing new. */
+html[data-route='lite'] .scene-fallback {
+  display: none;
+}
+
+html[data-route='lite'] body:has(.scene-fallback) main {
+  padding-bottom: 0;
+}
+
 /* The home page with 3D on does not scroll: the wheel, a finger and the keys move the story (src/input), and the
    page itself has nothing to scroll. The root is the scroll surface, not .scene-host: the page covers the canvas,
    so a touch or a wheel never reaches it. `pinch-zoom` takes the one-finger pan away from the browser (the input

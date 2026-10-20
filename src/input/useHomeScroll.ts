@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { wakeScene } from '~/scene/motion';
 import { HOME_CHAPTERS } from '~/state/chapters';
 import { frame } from '~/state/frame';
 import { useScene } from '~/state/store';
@@ -34,7 +35,8 @@ function loadDamp(): Promise<Smooth> {
  * A requestAnimationFrame loop (not R3F's `useFrame`: the canvas renders on demand) moves `frame.progress`
  * toward `frame.target` and sleeps when it arrives and no glide is going; an input wakes it. It dispatches
  * `CHAPTER` when `progress` crosses into another chapter, and keeps `frame.chapterIndex` in step with
- * `chapterAt` (the route sync reads it when a visitor comes back to `/`).
+ * `chapterAt` (the route sync reads it when a visitor comes back to `/`). Each frame it asks for also wakes the
+ * canvas (`wakeScene`), so the scene draws the frames in which the story moves.
  */
 export function useHomeScroll(onHome: boolean): void {
   useEffect(() => {
@@ -51,7 +53,11 @@ export function useHomeScroll(onHome: boolean): void {
       threeD: () => useScene.getState().threeD,
       onChapter: (at) => useScene.getState().dispatch({ type: 'CHAPTER', chapter: at.id, category: at.category }),
       loadSmooth: loadDamp,
-      request: (callback) => requestAnimationFrame(callback),
+      request: (callback) => {
+        wakeScene();
+        // Behind `?proof` the Shell exposes the request, so the harness can count the loop's frames apart from the canvas's.
+        return (window.__needleScrollRequest ?? requestAnimationFrame)(callback);
+      },
       cancel: (id) => cancelAnimationFrame(id),
     });
 

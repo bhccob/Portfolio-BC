@@ -1,5 +1,37 @@
 import { describe, expect, it } from 'vitest';
-import { qualityFor, qualitySteps } from '~/engine/quality';
+import { qualityFor, qualitySteps, tierFor } from '~/engine/quality';
+
+describe('tierFor', () => {
+  it('cuts the fine-pointer ladder into high (steps 0-1), medium (2-3) and low (4)', () => {
+    expect([0, 1, 2, 3, 4].map((step) => tierFor(step, true))).toEqual(['high', 'high', 'medium', 'medium', 'low']);
+  });
+
+  it('cuts the coarse-pointer ladder into high (0), medium (1) and low (2)', () => {
+    expect([0, 1, 2].map((step) => tierFor(step, false))).toEqual(['high', 'medium', 'low']);
+  });
+
+  it('gives the last rung, and only the last, the low tier: the one without a composer', () => {
+    for (const fine of [true, false]) {
+      const last = qualitySteps(fine) - 1;
+      expect(tierFor(last, fine)).toBe('low');
+      for (let step = 0; step < last; step++) expect(tierFor(step, fine)).not.toBe('low');
+    }
+  });
+
+  it('reads a step as qualityFor does: past the end is the last, NaN or negative the first', () => {
+    expect(tierFor(99, true)).toBe('low');
+    expect(tierFor(-1, true)).toBe('high');
+    expect(tierFor(Number.NaN, false)).toBe('high');
+    expect(tierFor(1.6, true)).toBe('high');
+  });
+
+  it('never climbs back: a later step is never a better tier', () => {
+    const rank = { high: 0, medium: 1, low: 2 } as const;
+    for (const fine of [true, false]) {
+      for (let step = 1; step < qualitySteps(fine); step++) expect(rank[tierFor(step, fine)]).toBeGreaterThanOrEqual(rank[tierFor(step - 1, fine)]);
+    }
+  });
+});
 
 describe('qualityFor', () => {
   it('walks the fine-pointer ladder: dust, then clearcoat, then the pixel ratio with the dust', () => {

@@ -87,8 +87,10 @@ export interface CompassStudio {
  * NeutralToneMapping) without its toe. Below 0.8 a colour is drawn as it is,
  * so a lacquer lit to its own colour renders as that colour, deep purples
  * included; above, the highlights roll off and desaturate as Neutral's do.
+ * Exported for the post chain's last effect (src/scene/ShoulderToneMapping),
+ * which runs this very source on the composer's linear buffer.
  */
-const SHOULDER = /* glsl */ `vec3 CustomToneMapping( vec3 color ) {
+export const SHOULDER = /* glsl */ `vec3 CustomToneMapping( vec3 color ) {
 	const float StartCompression = 0.8;
 	const float Desaturation = 0.15;
 	color *= toneMappingExposure;

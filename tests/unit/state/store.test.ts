@@ -90,6 +90,18 @@ describe('setThreeD', () => {
     expect(data.get(THREE_D_KEY)).toBe('on');
   });
 
+  it("switches 3D off for the scene's own reasons without touching the visitor's stored choice", () => {
+    const { win, data } = fakeWindow({ stored: 'on' });
+    vi.stubGlobal('window', win);
+    useScene.getState().setThreeD(false, { persist: false });
+    expect(useScene.getState().threeD).toBe(false);
+    expect(data.get(THREE_D_KEY)).toBe('on');
+    const empty = fakeWindow();
+    vi.stubGlobal('window', empty.win);
+    useScene.getState().setThreeD(false, { persist: false });
+    expect(empty.data.has(THREE_D_KEY)).toBe(false);
+  });
+
   it('works where storage is unavailable', () => {
     vi.stubGlobal('window', fakeWindow({ storageThrows: true }).win);
     expect(() => useScene.getState().setThreeD(false)).not.toThrow();

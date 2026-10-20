@@ -29,7 +29,8 @@
  *              and the browser loads one document, with no reload loop
  *   home-nav   the home page's links to the three countries and three projects: visually hidden but
  *              reachable by keyboard while 3D is on (and shown while one has focus), visible once the
- *              3D switch is turned off, and the choice persists in localStorage across a reload
+ *              3D switch is turned off, and the choice persists in localStorage across a reload, where
+ *              the page with 3D off mounts no WebGL at all and still leaves LOADING
  *   mobile     every page at 390 px wide has no horizontal scroll
  *   case-variant  a real page under another spelling (/About/China/, /en/projects/FUNCIAL/) is a 404 on
  *              GitHub Pages and shows the not-found page, not an error screen (the server here is
@@ -60,16 +61,35 @@
  *   scroll     the home page with 3D on does not scroll natively: <html data-route="home"> locks the root
  *              (overflow hidden, no overscroll, pinch-zoom only) and the wheel, the keys and a finger move
  *              `frame.target` in viewport heights instead (window.__needleFrame, temporary: Task 8's
- *              __needleDebug replaces it). 10 wheel events of 120 px raise it by 1200 px, the damped
- *              `progress` catches up, the phase leaves HOME_IDLE for DISSECT and the frame loop goes back to
- *              sleep (no requestAnimationFrame at rest, and only one asked for at a time while it runs: through a
- *              wheel gesture and through a touch glide, which lasts over a second); Home, End, Page Down and the arrows move it; a text
+ *              __needleDebug replaces it). A direct load of / reaches HOME_IDLE once the scene is ready. 10
+ *              wheel events of 120 px raise it by 1200 px, the damped
+ *              `progress` catches up, the phase leaves HOME_IDLE for DISSECT and the scroll loop goes back to
+ *              sleep (no frame asked for at rest, and only one at a time while it runs: through a wheel gesture
+ *              and through a touch glide, which lasts over a second; the loop's own requests are counted through
+ *              window.__needleScrollRequest, apart from the canvas's, which renders on demand through R3F's own
+ *              requestAnimationFrame); Home, End, Page Down and the arrows move it; a text
  *              field keeps its keys, a pinch (ctrl+wheel) is the browser's, and with 3D off nothing is
  *              prevented and the page scrolls natively; `frame.chapterIndex` stays in step, so coming back
  *              from a country page puts the scene on the scroll's phase, not HOME_IDLE. With reduced motion a
  *              whole wheel gesture is one stop (1, 12, 14, ...) and so is a key press. On a touch screen
  *              (CDP touch events) a drag moves it, a flick glides on after the finger lifts, a tap and a
  *              sideways swipe do not move it, and the 3D switch still takes a tap
+ *   loaded     a direct load of / goes from LOADING to HOME_IDLE once the scene is ready, within the load
+ *              timeout and with no navigation on the way; the canvas is shown then, and the wheel moves
+ *              `frame.progress` straight away. The canvas renders on demand: after the needle's idle drift it
+ *              asks for no frame at all, and the pointer wakes it. With 3D stored off, a direct load mounts no
+ *              WebGL and leaves LOADING all the same
+ *   no-webgl   Edge with WebGL switched off (--disable-webgl --disable-3d-apis): / and /en/ show the poster and
+ *              the fallback card (THE NEEDLE LOST NORTH, in the page's language) with its link to Lite, no
+ *              <canvas>, 3D off for the visit without touching the stored choice, the home page's links shown
+ *              and the page scrolling natively, the phase out of LOADING; and with only a software rasteriser
+ *              (SwiftShader) the same card. On the GPU the scene's own failures fall back to the same card: a
+ *              context lost for good (after the restore timeout) and a scene never ready (its chunk never
+ *              answers, after the load timeout); switching 3D back on tries again, and a context that comes
+ *              back draws again with no card. Zero console errors throughout
+ *   fps        on / (the GPU), 3 s after the scene is ready: 120 requestAnimationFrame frames while the scene
+ *              draws, and their mean frame rate is reported, not gated; it passes when the canvas holds the
+ *              scene: a pixel read back through toDataURL right after a drawn frame is not blank
  *
  * The harness reads src/data/pages.ts (through tsx) and the build in dist/client
  * to know which pages to expect.
@@ -93,6 +113,10 @@ const { chromium } = process.env.PLAYWRIGHT_CORE ? require(resolve(process.env.P
 const BASE = (process.env.BASE ?? 'http://localhost:4399').replace(/\/$/, '');
 const OUT = resolve(process.env.PROOF_DIR ?? './proof-out');
 const GPU = ['--use-angle=d3d11', '--enable-gpu'];
+/** Edge with no WebGL at all, as Lighthouse's headless run or a locked-down machine has it. */
+const NO_WEBGL = ['--disable-webgl', '--disable-3d-apis'];
+/** Edge drawing WebGL in software only (SwiftShader), as a machine without a usable GPU does. */
+const SOFTWARE_GL = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
 
 const langOf = (path) => (path === '/en/' || path.startsWith('/en/') ? 'en' : 'nl');
 
@@ -104,6 +128,12 @@ const DIST = resolve(fileURLToPath(new URL('../../dist/client', import.meta.url)
 const { pagePaths } = await tsImport('../../src/data/pages.ts', import.meta.url);
 const { Translator } = await tsImport('../../src/i18n/Translator.ts', import.meta.url);
 const { SEND_TIMEOUT_MS } = await tsImport('../../src/ui/contactSubmit.ts', import.meta.url);
+const { LOAD_TIMEOUT_MS, RESTORE_TIMEOUT_MS } = await tsImport('../../src/scene/timeouts.ts', import.meta.url);
+/**
+ * How long the canvas may keep drawing after the last thing that stirred it, ms: the needle's idle drift
+ * (src/scene/Compass, DRIFT.seconds: 10 s) and its spring settling, with room to spare.
+ */
+const SLEEP_WITHIN_MS = 20_000;
 const built = (path) => existsSync(join(DIST, path, 'index.html'));
 const SKIPPED = pagePaths().filter((path) => !built(path));
 const PAGES = pagePaths()
@@ -544,7 +574,7 @@ const visuallyHidden = (box) => box !== null && box.width <= 1 && box.height <= 
 
 async function homeNav(browser, step) {
   const { context, page } = await openPage(browser, step);
-  await page.goto(`${BASE}/`, { waitUntil: 'load' });
+  await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
   await stageReady(page);
 
   // 3D on (the default): the six links are in the HTML and reachable by keyboard, but not shown.
@@ -567,14 +597,21 @@ async function homeNav(browser, step) {
   step.check(open !== null && open.height > 100, `with 3D off, the home nav is shown (got ${JSON.stringify(open)})`);
   await takeCsp(page, step);
   await page.reload({ waitUntil: 'load' });
-  await stageReady(page);
   await page.waitForFunction(() => document.documentElement.getAttribute('data-3d') === 'off', null, { timeout: 5_000 });
   step.check((await page.textContent('button[role="switch"]')) === '3D uit', 'after a reload, the switch still says "3D uit"');
+  // A visitor who switched 3D off never mounts WebGL, not even during hydration, and the page still leaves LOADING.
+  await page.waitForTimeout(1_000); // a Stage mounted by mistake would have its canvas by now
+  const off = await page.evaluate(() => ({ mounts: window.__needleMounts ?? 0, canvases: document.querySelectorAll('canvas').length }));
+  step.check(off.mounts === 0 && off.canvases === 0, `with 3D stored off, no Stage and no <canvas> (got ${off.mounts} mounts, ${off.canvases} canvas)`);
+  const offPhase = await waitForPhase(page, 'HOME_IDLE').then((phase) => phase.kind, () => null);
+  step.check(offPhase === 'HOME_IDLE', `with 3D stored off, the phase still leaves LOADING for HOME_IDLE (got ${JSON.stringify(await page.evaluate(() => window.__needleScene?.()))})`);
 
-  // And back on.
+  // And back on: the Stage mounts now.
   await page.click('button[role="switch"]');
   step.check((await page.evaluate(() => localStorage.getItem('needle-3d'))) === 'on', 'switching back stores needle-3d = on');
   step.check(visuallyHidden(await boxOf(page, '.home-nav')), 'with 3D on again, the home nav is hidden again');
+  await stageReady(page);
+  step.check((await page.evaluate(() => window.__needleMounts)) === 1, 'switched on, the Stage mounts');
   await takeCsp(page, step);
   await context.close();
   return 'six links; hidden but focusable with 3D on, shown with 3D off, the choice stored';
@@ -977,18 +1014,13 @@ async function restAt(page) {
 }
 
 /**
- * Puts the scene on HOME_IDLE, the phase the scroll moves from. Nothing dispatches LOADED until the scene
- * (Task 7) does, so a direct load of / is still LOADING and the input rightly leaves the wheel alone; a visit
- * to a country and back puts the scene on the scroll's phase, which is HOME_IDLE at the start of the story.
+ * Waits until a direct load of / is on HOME_IDLE, the phase the scroll moves from: the scene says LOADED once it is
+ * ready (or the host once it settles on no scene), within the load timeout. Answers how long it took, in ms from the
+ * document's start.
  */
 async function reachHomeIdle(page) {
-  await page.focus('a[href="/about/china/"]'); // the home page's links are hidden while 3D is on, but take focus
-  await page.keyboard.press('Enter');
-  await page.waitForURL((url) => url.pathname === '/about/china/', { timeout: 5_000 });
-  await waitForPhase(page, 'COUNTRY_PAGE');
-  await page.click('a.back');
-  await page.waitForURL((url) => url.pathname === '/', { timeout: 5_000 });
-  await waitForPhase(page, 'HOME_IDLE');
+  await page.waitForFunction(() => window.__needleScene?.().kind === 'HOME_IDLE', null, { timeout: LOAD_TIMEOUT_MS + 3_000 });
+  return page.evaluate(() => Math.round(performance.now()));
 }
 
 /** Waits for the scene to be in a phase of `kind` and says so as a check. */
@@ -998,18 +1030,21 @@ async function expectPhase(page, step, kind, message) {
 }
 
 /**
- * Counts the requestAnimationFrame calls from now on in window.__raf, how many callbacks run at each frame time in
- * window.__rafRuns (two callbacks at one time are two frames asked for in the same frame), and records whether each
- * wheel was prevented in window.__wheels.
+ * Counts the scroll loop's frame requests from now on in window.__raf, how many of its callbacks run at each frame
+ * time in window.__rafRuns (two callbacks at one time are two frames asked for in the same frame), and records
+ * whether each wheel was prevented in window.__wheels. Only the scroll loop's own requests are counted: it asks
+ * through window.__needleScrollRequest (exposed behind ?proof), while the canvas renders on demand through R3F's own
+ * requestAnimationFrame, which may land in the same frame and is no business of the scroll's.
  */
 const watchFrames = (page) =>
   page.evaluate(() => {
     window.__raf = 0;
     window.__rafRuns = {};
-    const raf = window.requestAnimationFrame.bind(window);
-    window.requestAnimationFrame = (callback) => {
+    const request = window.__needleScrollRequest;
+    if (!request) throw new Error('window.__needleScrollRequest is missing: open the page with ?proof');
+    window.__needleScrollRequest = (callback) => {
       window.__raf++;
-      return raf((now) => {
+      return request((now) => {
         window.__rafRuns[now] = (window.__rafRuns[now] ?? 0) + 1;
         callback(now);
       });
@@ -1059,7 +1094,7 @@ async function scrollDesktop(browser, step) {
   const pushed = await frameOf(page);
   step.check(near(pushed.target, 1200 / vh, 1e-9), `10 wheel events of 120 px move the target by 1200 px = ${1200 / vh} units (got ${pushed.target})`);
   step.check((await page.evaluate(() => window.__wheels)).length === 10 && (await page.evaluate(() => window.__wheels.every(Boolean))), 'every wheel event is prevented while the scroll is enabled');
-  step.check((await page.evaluate(() => window.__raf)) > 0, 'the wheel woke the frame loop');
+  step.check((await page.evaluate(() => window.__raf)) > 0, 'the wheel woke the scroll loop');
   const rested = await restAt(page);
   step.check(near(rested.progress, rested.target, 1e-4) && rested.progress > 1, `progress catches up with the target and passes the first unit (got ${rested.progress})`);
   step.check(rested.chapterIndex === 1, `frame.chapterIndex is in step with the chapter: DISSECT is 1 (got ${rested.chapterIndex})`);
@@ -1070,9 +1105,9 @@ async function scrollDesktop(browser, step) {
   const ran = await takeFrames(page);
   step.check(ran.most === 1 && ran.requests === ran.frames, `one frame asked for at a time through the wheel gesture: ${ran.requests} asked for, ${ran.frames} frames, at most ${ran.most} callback in one`);
 
-  // Asleep at rest: no requestAnimationFrame at all while nothing moves.
+  // Asleep at rest: the scroll loop asks for no frame at all while nothing moves (the canvas has its own sleep: step loaded).
   await page.waitForTimeout(600);
-  step.check((await page.evaluate(() => window.__raf)) === 0, `the frame loop sleeps at rest: no requestAnimationFrame in 600 ms (got ${await page.evaluate(() => window.__raf)})`);
+  step.check((await page.evaluate(() => window.__raf)) === 0, `the scroll loop sleeps at rest: no frame asked for in 600 ms (got ${await page.evaluate(() => window.__raf)})`);
   step.check((await frameOf(page)).velocity === 0, 'and the velocity is 0');
 
   // Keys. Home goes back to the start of the story and the phase with it.
@@ -1313,7 +1348,323 @@ async function scroll(browser, step) {
   return 'locked root; 10 wheel events of 120 px reach DISSECT; the loop sleeps at rest; keys, Home and End; text fields, pinch and 3D off left to the browser; reduced motion steps by stops; touch drag, glide, tap';
 }
 
-const STEPS = { routes, slash, persist, 'not-found': notFound, 'case-variant': caseVariant, 'home-nav': homeNav, mobile, esc, lite, scroll };
+// ---------------------------------------------------------------- the scene: loaded, no-webgl, fps
+
+/** Counts every requestAnimationFrame call of the page from its start in window.__allRaf: the canvas's (R3F's) included. */
+const countAllFrames = (context) =>
+  context.addInitScript(() => {
+    window.__allRaf = 0;
+    const raf = window.requestAnimationFrame.bind(window);
+    window.requestAnimationFrame = (callback) => {
+      window.__allRaf++;
+      return raf(callback);
+    };
+  });
+
+/**
+ * Waits until the page asks for no frame at all for a whole second; answers how long that took to begin (ms from
+ * the call), or null if it did not within `limit` ms. Only page.evaluate and timers here: no requestAnimationFrame
+ * polling of the harness's own.
+ */
+async function sleepWithin(page, limit) {
+  const start = Date.now();
+  let last = await page.evaluate(() => window.__allRaf);
+  let quietSince = Date.now();
+  while (Date.now() - start < limit) {
+    await page.waitForTimeout(200);
+    const now = await page.evaluate(() => window.__allRaf);
+    if (now !== last) {
+      last = now;
+      quietSince = Date.now();
+    } else if (Date.now() - quietSince >= 1_000) {
+      return quietSince - start;
+    }
+  }
+  return null;
+}
+
+async function loaded(browser, step) {
+  const { context, page } = await openPage(browser, step);
+  await countAllFrames(context);
+  const documents = [];
+  page.on('request', (request) => {
+    if (request.isNavigationRequest() && request.frame() === page.mainFrame()) documents.push(request.url());
+  });
+  await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+  await page.bringToFront();
+  await page.waitForFunction(() => typeof window.__needleScene === 'function', null, { timeout: 5_000 });
+  const first = await page.evaluate(() => window.__needleScene().kind);
+  step.check(first === 'LOADING', `a direct load of / starts in LOADING (got ${first})`);
+  const at = await reachHomeIdle(page);
+  step.check(at <= LOAD_TIMEOUT_MS, `and reaches HOME_IDLE once the scene is ready, ${at} ms after the document started (the timeout is ${LOAD_TIMEOUT_MS} ms)`);
+  step.check(documents.length === 1 && new URL(page.url()).pathname === '/', `with no detour: one document, still on / (got ${documents.join(' → ')}, ${page.url()})`);
+  const shown = await page.evaluate(() => ({
+    ready: document.querySelector('.scene-host')?.hasAttribute('data-ready'),
+    webgl: document.querySelector('.scene-host')?.getAttribute('data-webgl'),
+    canvases: document.querySelectorAll('.scene-host canvas').length,
+    mounts: window.__needleMounts,
+    card: document.querySelector('.scene-fallback') !== null,
+  }));
+  step.check(shown.ready && shown.webgl === 'ok' && shown.canvases === 1 && shown.mounts === 1 && !shown.card, `the scene is ready and shown, on WebGL 'ok', with no fallback card (got ${JSON.stringify(shown)})`);
+
+  // The wheel moves the story straight away.
+  await page.mouse.move(720, 450);
+  for (let i = 0; i < 5; i++) {
+    await page.mouse.wheel(0, 120);
+    await page.waitForTimeout(16);
+  }
+  const moved = await restAt(page);
+  step.check(moved.target > 0 && near(moved.progress, moved.target, 1e-4), `wheel events on the freshly loaded / move frame.progress (target ${moved.target}, progress ${moved.progress})`);
+  await page.keyboard.press('Home');
+  await restAt(page);
+
+  // The canvas renders on demand: once the needle's drift is over, nothing asks for a frame; the pointer wakes it.
+  const slept = await sleepWithin(page, SLEEP_WITHIN_MS);
+  step.check(slept !== null, `an idle page draws nothing: no requestAnimationFrame at all for 1 s, from ${slept} ms after the last input (limit ${SLEEP_WITHIN_MS} ms)`);
+  const before = await page.evaluate(() => window.__allRaf);
+  await page.mouse.move(980, 320, { steps: 4 });
+  await page.waitForTimeout(300);
+  const after = await page.evaluate(() => window.__allRaf);
+  step.check(after > before, `a pointer move wakes the canvas (${after - before} frames asked for in 300 ms)`);
+  await takeCsp(page, step);
+  await context.close();
+
+  // 3D stored off: no WebGL, and the phase still leaves LOADING.
+  const off = await openPage(browser, step);
+  await off.context.addInitScript(() => localStorage.setItem('needle-3d', 'off'));
+  await off.page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+  const offAt = await reachHomeIdle(off.page);
+  await off.page.waitForTimeout(500);
+  const none = await off.page.evaluate(() => ({ mounts: window.__needleMounts ?? 0, canvases: document.querySelectorAll('canvas').length, card: document.querySelector('.scene-fallback') !== null }));
+  step.check(none.mounts === 0 && none.canvases === 0 && !none.card, `with 3D stored off: HOME_IDLE after ${offAt} ms, no Stage, no <canvas>, no card (got ${JSON.stringify(none)})`);
+  await takeCsp(off.page, step);
+  await off.context.close();
+  return `LOADING → HOME_IDLE in ${at} ms on a direct load, the wheel moves the story, the canvas sleeps ${slept} ms after the last input and wakes on the pointer; 3D off: HOME_IDLE in ${offAt} ms, no WebGL`;
+}
+
+async function noWebglOne(browser, step, label, expected) {
+  const summary = [];
+  for (const lang of ['nl', 'en']) {
+    const { context, page } = await openPage(browser, step);
+    const path = lang === 'nl' ? '/' : '/en/';
+    const { t } = new Translator(lang);
+    await page.goto(`${BASE}${path}?proof`, { waitUntil: 'load' });
+    const card = await page.waitForSelector('.scene-fallback', { timeout: 10_000 }).then(() => true, () => false);
+    step.check(card, `${label}, ${path}: the fallback card shows`);
+    await page.waitForTimeout(1_000); // a Stage mounted by mistake would have its canvas by now
+    const state = await page.evaluate(() => ({
+      title: document.querySelector('.scene-fallback-title')?.textContent ?? null,
+      link: document.querySelector('.scene-fallback a')?.getAttribute('href') ?? null,
+      linkText: document.querySelector('.scene-fallback a')?.textContent ?? null,
+      role: document.querySelector('.scene-fallback')?.getAttribute('role') ?? null,
+      canvases: document.querySelectorAll('canvas').length,
+      mounts: window.__needleMounts ?? 0,
+      webgl: document.querySelector('.scene-host')?.getAttribute('data-webgl') ?? null,
+      threeD: document.documentElement.dataset['3d'],
+      stored: localStorage.getItem('needle-3d'),
+      overflow: getComputedStyle(document.documentElement).overflow,
+      nav: document.querySelector('.home-nav')?.getBoundingClientRect().height ?? 0,
+      poster: (() => {
+        const img = document.querySelector('.poster img');
+        return !!img && img.complete && img.naturalWidth > 0;
+      })(),
+      phase: window.__needleScene?.().kind ?? null,
+    }));
+    const lite = lang === 'nl' ? '/lite/' : '/en/lite/';
+    step.check(state.title === t.needle.fallback.title, `${label}, ${path}: the card says "${t.needle.fallback.title}" (got ${state.title})`);
+    step.check(state.link === lite && state.linkText === t.needle.fallback.lite && state.role === 'status', `${label}, ${path}: with a link to ${lite}, "${t.needle.fallback.lite}", as a status (got ${state.link}, ${state.linkText}, role ${state.role})`);
+    step.check(state.canvases === 0 && state.mounts === 0, `${label}, ${path}: no <canvas> and no Stage (got ${state.canvases} canvas, ${state.mounts} mounts)`);
+    step.check(state.webgl === expected, `${label}, ${path}: the probe found '${expected}' (got ${state.webgl})`);
+    step.check(state.threeD === 'off' && state.stored === null, `${label}, ${path}: 3D off for the visit, the stored choice untouched (data-3d ${state.threeD}, needle-3d ${state.stored})`);
+    step.check(state.overflow === 'visible' && state.nav > 100, `${label}, ${path}: the page scrolls natively and the home page's links show (overflow ${state.overflow}, nav ${Math.round(state.nav)} px)`);
+    step.check(state.poster, `${label}, ${path}: the poster is there`);
+    step.check(state.phase === 'HOME_IDLE', `${label}, ${path}: the phase leaves LOADING (got ${state.phase})`);
+    summary.push(`${path} "${state.title}"`);
+    await takeCsp(page, step);
+    await context.close();
+  }
+  return `${label}: ${summary.join(', ')}`;
+}
+
+/**
+ * One pixel (and the brightest channel) of the scene's canvas, read back through toDataURL in a frame callback right
+ * after the canvas drew (its drawing buffer is not kept past the frame). The pointer is moved first, so the scene is
+ * drawing; tried a few times. Answers { max, centre: [r, g, b] }, or null without a canvas.
+ */
+async function readCanvas(page) {
+  let pixel = null;
+  for (let attempt = 0; attempt < 5 && !(pixel && pixel.max > 60); attempt++) {
+    await page.mouse.move(760 + attempt * 7, 440, { steps: 2 }); // keep it drawing
+    pixel = await page.evaluate(
+      () =>
+        new Promise((resolve, reject) => {
+          requestAnimationFrame(() => {
+            const canvas = document.querySelector('.scene-host canvas');
+            if (!canvas) return resolve(null);
+            const url = canvas.toDataURL('image/png');
+            const image = new Image();
+            image.onload = () => {
+              const w = 96;
+              const h = 54;
+              const scratch = document.createElement('canvas');
+              scratch.width = w;
+              scratch.height = h;
+              const ctx = scratch.getContext('2d');
+              ctx.drawImage(image, 0, 0, w, h);
+              const data = ctx.getImageData(0, 0, w, h).data;
+              let max = 0;
+              for (let i = 0; i < data.length; i += 4) max = Math.max(max, data[i], data[i + 1], data[i + 2]);
+              // The dial's centre on a wide canvas (engine/CameraRig dialLayout: 62 % across, half way down).
+              const k = (Math.round(0.5 * h) * w + Math.round(0.62 * w)) * 4;
+              resolve({ max, centre: [data[k], data[k + 1], data[k + 2]] });
+            };
+            image.onerror = () => reject(new Error('the data URL did not load'));
+            image.src = url;
+          });
+        }),
+    );
+    if (pixel === null) return null;
+  }
+  return pixel;
+}
+
+/** The canvas read back holds the scene: something bright (the gilt, the needle) and not black at the dial's centre. */
+const drawn = (pixel) => pixel !== null && pixel.max > 60 && pixel.centre.some((v) => v > 0);
+
+/** Loses the live canvas's WebGL context (WEBGL_lose_context); `restore` brings it back half a second later. */
+const loseContext = (page, restore) =>
+  page.evaluate(async (restore) => {
+    const lose = document.querySelector('.scene-host canvas').getContext('webgl2').getExtension('WEBGL_lose_context');
+    lose.loseContext();
+    if (!restore) return;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    lose.restoreContext();
+  }, restore);
+
+/** The scene's own failures, on the GPU: a context lost for good, a context that comes back, a scene that never loads. */
+async function sceneFailures(browser, step) {
+  const fellBack = async (page, what, within) => {
+    const shown = await page.waitForSelector('.scene-fallback', { timeout: within }).then(() => true, () => false);
+    const state = await page.evaluate(() => ({
+      canvases: document.querySelectorAll('canvas').length,
+      threeD: document.documentElement.dataset['3d'],
+      stored: localStorage.getItem('needle-3d'),
+      phase: window.__needleScene?.().kind ?? null,
+    }));
+    step.check(
+      shown && state.canvases === 0 && state.threeD === 'off' && state.stored === null && state.phase === 'HOME_IDLE',
+      `${what}: the fallback card within ${within} ms, no <canvas>, 3D off for the visit and not stored, out of LOADING (got ${JSON.stringify({ shown, ...state })})`,
+    );
+  };
+
+  // A context lost for good: the card after RESTORE_TIMEOUT_MS. Switching 3D back on tries again, with a new Stage.
+  {
+    const { context, page } = await openPage(browser, step);
+    await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+    await reachHomeIdle(page);
+    await loseContext(page, false);
+    await fellBack(page, 'a context lost for good', RESTORE_TIMEOUT_MS + 3_000);
+    await page.click('button[role="switch"]');
+    await page.waitForFunction(() => document.querySelector('.scene-host')?.hasAttribute('data-ready'), null, { timeout: LOAD_TIMEOUT_MS });
+    const again = await page.evaluate(() => ({ mounts: window.__needleMounts, card: document.querySelector('.scene-fallback') !== null, stored: localStorage.getItem('needle-3d') }));
+    step.check(again.mounts === 2 && !again.card && again.stored === 'on', `switched back on, a new Stage draws and the card goes (got ${JSON.stringify(again)})`);
+    await takeCsp(page, step);
+    await context.close();
+  }
+
+  // A context that comes back: the scene draws again, with no card.
+  {
+    const { context, page } = await openPage(browser, step);
+    await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+    await page.bringToFront();
+    await reachHomeIdle(page);
+    await loseContext(page, true);
+    await page.waitForFunction(() => window.__needleFrame?.contextLost === false, null, { timeout: 5_000 });
+    await page.waitForTimeout(RESTORE_TIMEOUT_MS + 500); // past the point where a context still lost would have failed it
+    const pixel = await readCanvas(page);
+    const card = await page.evaluate(() => document.querySelector('.scene-fallback') !== null);
+    step.check(!card && drawn(pixel), `a restored context: no card, and the scene draws again (brightest ${pixel?.max}, centre rgb(${pixel?.centre?.join(', ')}))`);
+    await takeCsp(page, step);
+    await context.close();
+  }
+
+  // A scene that never arrives (its chunk never answers): the card after LOAD_TIMEOUT_MS.
+  {
+    const { context, page } = await openPage(browser, step);
+    await page.route(/\/assets\/Stage-[^/]+\.js$/, () => {}); // never fulfilled
+    await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+    await fellBack(page, 'a scene that is never ready', LOAD_TIMEOUT_MS + 3_000);
+    await takeCsp(page, step);
+    await context.close();
+  }
+  return `a context lost for good, and a scene not ready in ${LOAD_TIMEOUT_MS / 1000} s, fall back to the card; a restored context draws again; 3D back on retries`;
+}
+
+async function noWebgl(browser, step) {
+  const results = [];
+  for (const [label, args, expected] of [
+    ['WebGL off', NO_WEBGL, 'none'],
+    ['software only', SOFTWARE_GL, 'software'],
+  ]) {
+    const own = await chromium.launch({ channel: 'msedge', headless: true, args });
+    try {
+      results.push(await noWebglOne(own, step, label, expected));
+    } finally {
+      await own.close();
+    }
+  }
+  results.push(await sceneFailures(browser, step));
+  return results.join('; ');
+}
+
+async function fps(browser, step) {
+  const { context, page } = await openPage(browser, step);
+  await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+  await page.bringToFront(); // a page in the background has its frames throttled
+  await reachHomeIdle(page);
+  await page.waitForTimeout(3_000);
+  // The scene draws while the needle drifts; a pointer move starts its drift (and the parallax) again.
+  await page.mouse.move(700, 420);
+  await page.mouse.move(760, 440, { steps: 6 });
+  const times = await page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        const seen = [];
+        const tick = (now) => {
+          seen.push(now);
+          if (seen.length < 121) requestAnimationFrame(tick);
+          else resolve(seen);
+        };
+        requestAnimationFrame(tick);
+      }),
+  );
+  const span = times[times.length - 1] - times[0];
+  const mean = Math.round((120 / span) * 1000 * 10) / 10;
+  const pixel = await readCanvas(page);
+  step.check(drawn(pixel), `the canvas holds the scene: read back through toDataURL, its brightest channel is ${pixel?.max}, the dial's centre rgb(${pixel?.centre?.join(', ')})`);
+  step.check(Number.isFinite(mean) && mean > 0, `120 frames sampled over ${Math.round(span)} ms`);
+  console.log(`note: fps on / at 1440x900 (GPU): mean ${mean} over 120 frames (${Math.round(span)} ms)`);
+  step.fps = mean;
+  await takeCsp(page, step);
+  await context.close();
+  return `mean ${mean} fps over 120 frames, the canvas is not blank (brightest ${pixel?.max})`;
+}
+
+const STEPS = {
+  routes,
+  slash,
+  persist,
+  'not-found': notFound,
+  'case-variant': caseVariant,
+  'home-nav': homeNav,
+  mobile,
+  esc,
+  lite,
+  scroll,
+  loaded,
+  'no-webgl': noWebgl,
+  fps,
+};
 
 // ---------------------------------------------------------------- run
 
@@ -1361,7 +1712,7 @@ writeFileSync(
       ranAt: new Date().toISOString(),
       pages: PAGES.map((p) => p.path),
       skipped: SKIPPED,
-      steps: results.map(({ id, pass, checks, errors, expected, csp, seconds }) => ({ id, pass, seconds, checks, errors, expected, csp })),
+      steps: results.map(({ id, pass, checks, errors, expected, csp, seconds, fps }) => ({ id, pass, seconds, ...(fps === undefined ? {} : { fps }), checks, errors, expected, csp })),
     },
     null,
     2,

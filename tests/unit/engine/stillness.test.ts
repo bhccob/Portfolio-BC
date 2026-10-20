@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { asleep, STILL, type Stillness } from '~/engine/stillness';
+import { asleep, AT_REST, STILL, type Stillness } from '~/engine/stillness';
+
+describe('AT_REST', () => {
+  it('is asleep, so a scene without a pearl, a drag or a turn fills in only what it has', () => {
+    expect(asleep(AT_REST)).toBe(true);
+    expect(asleep({ ...AT_REST, needle: 0.2 })).toBe(false);
+    expect(asleep({ ...AT_REST, idle: false })).toBe(false);
+  });
+
+  it('cannot be changed by a caller', () => {
+    expect(Object.isFrozen(AT_REST)).toBe(true);
+  });
+});
 
 const still: Stillness = {
   idle: true,
