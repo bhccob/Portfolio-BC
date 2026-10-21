@@ -195,6 +195,19 @@ export interface GlassModel {
   /** Lights the tunnel, 0..1: the wall's glow and the warm light below it. It starts at 0, dark. */
   setGlow(level: number): void;
   /**
+   * Shows or hides the gold lip round the opening (`lip`), which builds shown. It has no light of its own, so
+   * hiding it changes no program; the Opening shows it with the opening, so it does not draw the O before the laser
+   * has cut the circle.
+   */
+  setLip(shown: boolean): void;
+  /**
+   * Turns the reflection off for good (the quality ladder's reflector rung, Ruling 25): `false` takes the mirror out
+   * of the group, frees it and its ring, and makes the floor, its edge and the cap opaque glass, as the tiers without a
+   * mirror build it (their programs compile once more, at that step). `true` changes nothing: the ladder never
+   * climbs back within a page view, and a mirror once gone is not rebuilt. Nothing happens on a tier built without one.
+   */
+  setReflector(on: boolean): void;
+  /**
    * Sizes the reflection to `GLASS_LOOK.reflection.resolution` of the
    * renderer's drawing buffer (call it again after a resize). Nothing happens
    * on a tier without a reflector. The reflector itself is built with the
@@ -328,6 +341,22 @@ export function buildGlass(tier: QualityTier): GlassModel {
       const g = clamp01(level);
       wellMaterial.emissiveIntensity = look.well.emissive * g;
       light.intensity = look.well.light.intensity * g;
+    },
+    setLip(shown) {
+      lip.visible = shown;
+    },
+    setReflector(on) {
+      if (on || !reflector) return;
+      group.remove(reflector);
+      reflector.dispose();
+      mirror?.dispose();
+      reflector = undefined;
+      mirror = undefined;
+      for (const material of [glass, wallMaterial]) {
+        material.transparent = false;
+        material.opacity = 1;
+        material.needsUpdate = true;
+      }
     },
     setRenderer(renderer) {
       if (!reflector) return;

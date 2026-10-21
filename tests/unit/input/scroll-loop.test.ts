@@ -1,6 +1,7 @@
 import { damp } from 'maath/easing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Inertia } from '../../../src/input/Inertia';
+import { SKIP_QUIET_MS, skipSwallower } from '../../../src/input/loaderSkip';
 import { type Smooth, startHomeScroll } from '../../../src/input/scrollLoop';
 import { buildChapters, type ChapterAt } from '../../../src/state/chapters';
 
@@ -59,6 +60,8 @@ interface SetupOptions {
   threeD?: boolean;
   reduced?: boolean;
   swallow?: boolean;
+  /** A swallow predicate of the test's own, in place of `state.swallow`. */
+  swallowWith?: () => boolean;
   loadSmooth?: () => Promise<Smooth>;
 }
 
@@ -77,7 +80,7 @@ function setup(options: SetupOptions = {}) {
     unitPx: () => VH,
     enabled: () => state.threeD,
     reducedMotion: () => state.reduced,
-    swallow: () => state.swallow,
+    swallow: options.swallowWith ?? (() => state.swallow),
     threeD: () => state.threeD,
     onChapter: (at) => changes.push(at),
     loadSmooth: options.loadSmooth ?? (() => Promise.resolve(damp)),
@@ -320,6 +323,40 @@ describe('the scroll loop: the input that skipped the loader', () => {
     await flush();
     expect(s.frame.target).toBeCloseTo(0.9, 12);
     expect(s.frames.size).toBe(1);
+  });
+
+  it("drops a trackpad's decaying 2.5 s momentum tail after a skip whole, then takes a fresh scroll after 200 ms of quiet (Ruling 24)", async () => {
+    const clock = { now: 0 };
+    const landed = 1000;
+    const s = setup({
+      swallowWith: skipSwallower(
+        () => clock.now,
+        () => landed,
+      ),
+    });
+    // The momentum: from the landing on, events 16 ms apart at first and 190 ms by the end, their deltas dying away.
+    let gap = 16;
+    let events = 0;
+    for (clock.now = landed; clock.now < landed + 2500; clock.now += gap, gap = Math.min(190, gap * 1.08)) {
+      const deltaY = Math.max(2, 120 * Math.exp(-(clock.now - landed) / 700));
+      const wheel = fire(s.el, 'wheel', { deltaY, deltaMode: 0, ctrlKey: false, timeStamp: clock.now });
+      expect(wheel.defaultPrevented).toBe(true);
+      events++;
+      if (events === 1) await flush();
+      if (s.frames.size > 0) s.frames.frame(gap);
+    }
+    expect(events).toBeGreaterThan(30);
+    await flush();
+    s.drain();
+    expect(s.frame.target).toBe(0);
+    expect(s.frame.progress).toBe(0);
+    // The pad let go for 200 ms: the next turn of the wheel is the visitor's, and the story moves.
+    clock.now += SKIP_QUIET_MS;
+    fire(s.el, 'wheel', { deltaY: 100, deltaMode: 0, ctrlKey: false, timeStamp: clock.now });
+    expect(s.frame.target).toBeCloseTo(0.1, 12);
+    await flush();
+    s.drain();
+    expect(s.frame.progress).toBeGreaterThan(0);
   });
 
   it('swallows nothing unless asked to: the option is optional', () => {

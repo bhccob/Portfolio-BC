@@ -15,7 +15,7 @@ export interface QualityGovernorProps {
 /**
  * Walks the quality ladder down, never up, as drei's PerformanceMonitor judges the frame rate: each decline is one
  * rung (engine/quality's `qualitySteps`), which sets the pixel ratio (`setDpr`, never above the device's), the tier
- * (`tierFor`: high, medium, low; the store's `setTier`), and through the Stage the dust and the clearcoat. An incline
+ * (`tierFor`: high, medium, low; the store's `setTier`), and through the Stage the glass floor's reflection. An incline
  * is ignored: a page view never climbs back.
  *
  * The canvas renders on demand, so the monitor sees only the frames that are drawn. A sleep between two of them is

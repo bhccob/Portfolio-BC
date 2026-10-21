@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { attachLoaderSkip, SKIP_EVENTS, SKIP_SWALLOW_MS, skipSwallows } from '../../../src/input/loaderSkip';
+import { attachLoaderSkip, SKIP_EVENTS, SKIP_QUIET_MS, SKIP_SWALLOW_CAP_MS, SKIP_SWALLOW_MS, skipSwallower, skipSwallows } from '../../../src/input/loaderSkip';
 
 /** Dispatches a cancelable event carrying `props`; the returned event says whether it was prevented. */
 function fire(target: EventTarget, type: string, props: Record<string, unknown> = {}, cancelable = true): Event {
@@ -31,6 +31,77 @@ describe('skipSwallows', () => {
   it('reads a time that is not a number as not swallowing', () => {
     expect(skipSwallows(Number.NaN, 1000)).toBe(false);
     expect(skipSwallows(1000, Number.NaN)).toBe(false);
+    expect(skipSwallows(Number.NaN, 1000, 900)).toBe(false);
+  });
+
+  it('rolls on past the first 400 ms while the input keeps coming, until it has been quiet for 200 ms (Ruling 24)', () => {
+    expect(SKIP_QUIET_MS).toBe(200);
+    // The last input swallowed 150 ms ago: still the same stream.
+    expect(skipSwallows(1600, 1000, 1450)).toBe(true);
+    expect(skipSwallows(1600, 1000, 1401)).toBe(true);
+    // 200 ms of quiet ends it.
+    expect(skipSwallows(1600, 1000, 1400)).toBe(false);
+    expect(skipSwallows(1600, 1000, null)).toBe(false);
+  });
+
+  it('stops 3 s after the landing however long the input keeps coming', () => {
+    expect(SKIP_SWALLOW_CAP_MS).toBe(3000);
+    expect(skipSwallows(1000 + SKIP_SWALLOW_CAP_MS - 1, 1000, 1000 + SKIP_SWALLOW_CAP_MS - 20)).toBe(true);
+    expect(skipSwallows(1000 + SKIP_SWALLOW_CAP_MS, 1000, 1000 + SKIP_SWALLOW_CAP_MS - 20)).toBe(false);
+    expect(skipSwallows(9000, 1000, 8990)).toBe(false);
+  });
+});
+
+describe('skipSwallower', () => {
+  /** A swallower on a clock the test moves, for a landing the test sets. */
+  function make(landing: number | null) {
+    const clock = { now: 0, landing };
+    const swallow = skipSwallower(
+      () => clock.now,
+      () => clock.landing,
+    );
+    return { clock, swallow };
+  }
+
+  it('swallows a decaying 2.5 s momentum tail whole: each input it swallows holds it open', () => {
+    const { clock, swallow } = make(1000);
+    // Events from the landing on, 16 ms apart at first and 190 ms apart by the end, for 2.5 s.
+    let gap = 16;
+    for (clock.now = 1000; clock.now < 3500; clock.now += gap, gap = Math.min(190, gap * 1.08)) expect(swallow(), `at ${clock.now}`).toBe(true);
+    // Then the pad is let go: 200 ms of quiet, and the next input is the visitor's.
+    clock.now += SKIP_QUIET_MS;
+    expect(swallow()).toBe(false);
+  });
+
+  it('ends after the first 400 ms when the input stops at the landing', () => {
+    const { clock, swallow } = make(1000);
+    clock.now = 1100;
+    expect(swallow()).toBe(true);
+    clock.now = 1401;
+    expect(swallow()).toBe(false);
+  });
+
+  it('stops at the cap even with no pause at all', () => {
+    const { clock, swallow } = make(1000);
+    let last = true;
+    for (clock.now = 1000; clock.now < 5000; clock.now += 50) {
+      last = swallow();
+      if (clock.now >= 1000 + SKIP_SWALLOW_CAP_MS) expect(last).toBe(false);
+      else expect(last).toBe(true);
+    }
+  });
+
+  it('swallows nothing while no skip has landed, and forgets the last input when a new landing comes', () => {
+    const { clock, swallow } = make(null);
+    clock.now = 500;
+    expect(swallow()).toBe(false);
+    clock.landing = 1000;
+    clock.now = 1300;
+    expect(swallow()).toBe(true);
+    // A second skip lands much later: the stream of the first does not carry over.
+    clock.landing = 10_000;
+    clock.now = 10_450;
+    expect(swallow()).toBe(false);
   });
 });
 

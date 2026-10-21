@@ -508,6 +508,64 @@ describe('the glass', () => {
     low.dispose();
   });
 
+  it('turns the reflection off for good (Ruling 25): the mirror out and freed, the glass solid as the other tiers build it', () => {
+    const high = buildGlass('high');
+    const reflector = objectNamed(high.group, 'floor:reflector') as Reflector;
+    const ring = reflector.geometry;
+    const freed = vi.spyOn(reflector, 'dispose');
+    const ringFreed = vi.spyOn(ring, 'dispose');
+    const floor = meshNamed(high.group, 'floor').material as THREE.MeshPhysicalMaterial;
+    const edge = meshNamed(high.group, 'floor:edge').material as THREE.MeshPhysicalMaterial;
+    const cap = meshNamed(high.group, 'cap').material as THREE.MeshPhysicalMaterial;
+    const versions = [floor.version, edge.version];
+    high.setReflector(false);
+    expect(hasNamed(high.group, 'floor:reflector')).toBe(false);
+    expect(freed).toHaveBeenCalledOnce();
+    expect(ringFreed).toHaveBeenCalledOnce();
+    const solid = meshNamed(buildGlass('medium').group, 'floor').material as THREE.MeshPhysicalMaterial;
+    for (const material of [floor, edge, cap]) {
+      expect(material.transparent).toBe(solid.transparent);
+      expect(material.opacity).toBe(solid.opacity);
+    }
+    // Opaque glass is another program: both materials are marked for it.
+    expect(floor.version).toBeGreaterThan(versions[0]);
+    expect(edge.version).toBeGreaterThan(versions[1]);
+    // The renderer no longer sizes anything, and freeing the glass frees the mirror no second time.
+    expect(() => high.setRenderer({ getDrawingBufferSize: (t: THREE.Vector2) => t.set(800, 600) })).not.toThrow();
+    high.dispose();
+    expect(freed).toHaveBeenCalledOnce();
+    expect(ringFreed).toHaveBeenCalledOnce();
+  });
+
+  it('never brings the reflection back, and turning it off twice or on a tier without one does nothing', () => {
+    const high = buildGlass('high');
+    high.setReflector(true);
+    expect(hasNamed(high.group, 'floor:reflector')).toBe(true);
+    high.setReflector(false);
+    high.setReflector(false);
+    high.setReflector(true);
+    expect(hasNamed(high.group, 'floor:reflector')).toBe(false);
+    expect((meshNamed(high.group, 'floor').material as THREE.MeshPhysicalMaterial).transparent).toBe(false);
+    high.dispose();
+    const medium = buildGlass('medium');
+    const before = (meshNamed(medium.group, 'floor').material as THREE.MeshPhysicalMaterial).version;
+    medium.setReflector(false);
+    expect((meshNamed(medium.group, 'floor').material as THREE.MeshPhysicalMaterial).version).toBe(before);
+    medium.dispose();
+  });
+
+  it('shows and hides the gold lip by setLip, which builds shown, and keeps it in the group under its name', () => {
+    const g = buildGlass('low');
+    const lip = meshNamed(g.group, 'lip');
+    expect(lip.visible).toBe(true);
+    g.setLip(false);
+    expect(lip.visible).toBe(false);
+    expect(g.group.getObjectByName('lip')).toBe(lip);
+    g.setLip(true);
+    expect(lip.visible).toBe(true);
+    g.dispose();
+  });
+
   it('digs the well 1.12 deep from just under the floor, an open cylinder seen from inside', () => {
     const g = buildGlass('low');
     const well = meshNamed(g.group, 'well');

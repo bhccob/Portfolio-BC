@@ -415,6 +415,55 @@ describe('the compass', () => {
     c.dispose();
   });
 
+  it('steps its glass down to a lower tier as a compass built for it would have it (Ruling 25)', () => {
+    const glassOf = (c: CompassModel) => [1, 2, 3, 4].map((k) => bandMaterial(c, k));
+    const looks = (c: CompassModel) => glassOf(c).map((g) => ({ transmission: g.transmission, opacity: g.opacity, depthWrite: g.depthWrite, transparent: g.transparent }));
+    for (const [from, to] of [['high', 'medium'], ['high', 'low'], ['medium', 'low']] as const) {
+      const c = loadCompass(fakeGltf(), from, stripStub);
+      const built = loadCompass(fakeGltf(), to, stripStub);
+      c.setTier(to);
+      expect(looks(c), `${from} to ${to}`).toEqual(looks(built));
+      c.dispose();
+      built.dispose();
+    }
+  });
+
+  it('compiles the bands once more only when transmission goes off, and keeps the reveal through the step', () => {
+    const c = loadCompass(fakeGltf(), 'high', stripStub);
+    const glass = bandMaterial(c);
+    const version = glass.version;
+    c.setTier('medium');
+    // A lower transmission is a uniform: the same program.
+    expect(glass.version).toBe(version);
+    c.setReveal(0.5);
+    c.setTier('low');
+    expect(glass.version).toBeGreaterThan(version);
+    expect(glass.transmission).toBe(0);
+    expect(glass.opacity).toBeCloseTo(0.35 * 0.5, 9);
+    c.setReveal(1);
+    expect(glass.opacity).toBeCloseTo(0.35, 9);
+    c.dispose();
+  });
+
+  it('never steps back up: the ladder only goes down within a page view', () => {
+    const c = loadCompass(fakeGltf(), 'medium', stripStub);
+    c.setTier('high');
+    expect(bandMaterial(c).transmission).toBe(0.6);
+    c.setTier('low');
+    c.setTier('medium');
+    c.setTier('high');
+    expect(bandMaterial(c).transmission).toBe(0);
+    expect(bandMaterial(c).depthWrite).toBe(false);
+    c.dispose();
+  });
+
+  it("hands over its pivot, the GLB's 'pivot', where the home aims the needle from", () => {
+    const c = loadCompass(fakeGltf(), 'high', stripStub);
+    expect(c.pivot).toBe(mesh(c, 'pivot'));
+    expect(c.pivot.name).toBe('pivot');
+    c.dispose();
+  });
+
   it('builds at home: risen, shown, the needle up and the bands at rest', () => {
     const gltf = fakeGltf();
     const rest = (gltf.scene.getObjectByName('band_2') as THREE.Object3D).quaternion.clone();
@@ -495,6 +544,17 @@ describe('the compass', () => {
     const world = tip.clone().applyMatrix4(needle.matrixWorld).sub(new THREE.Vector3().setFromMatrixPosition(needle.matrixWorld));
     expect(world.x).toBeCloseTo(1.15, 3);
     expect(world.y).toBeCloseTo(0, 3);
+    c.dispose();
+  });
+
+  it("finds the real GLB's pivot by its name, at the armillary's origin: 0.55 above the glass at home", async () => {
+    const c = loadCompass(await loadRealGlb(), 'high', stripStub);
+    expect(c.pivot.name).toBe('pivot');
+    c.group.updateMatrixWorld(true);
+    const at = c.pivot.getWorldPosition(new THREE.Vector3());
+    expect(at.x).toBeCloseTo(0, 6);
+    expect(at.y).toBeCloseTo(COMPASS_LOOK.homeY, 6);
+    expect(at.z).toBeCloseTo(0, 6);
     c.dispose();
   });
 
@@ -743,6 +803,31 @@ describe('the probe', () => {
     b.dispose();
   });
 
+  it("hides and shows its shaft by setShown, which builds shown, and keeps the light the group's own, never the shaft's", () => {
+    const p = buildProbe();
+    const body = named<THREE.Mesh>(p, 'probe:body');
+    const light = named<THREE.PointLight>(p, 'probe:light');
+    // The Opening hides the shaft once the probe is parked: its light must not go with it, or the light count would
+    // change and every lit program with it (three gathers lights with traverseVisible).
+    expect(light.parent).toBe(p.group);
+    let under = light.parent;
+    while (under) {
+      expect(under).not.toBe(body);
+      under = under.parent;
+    }
+    expect(body.visible).toBe(true);
+    p.setShown(false);
+    expect(body.visible).toBe(false);
+    const lights: THREE.Light[] = [];
+    p.group.traverseVisible((o) => {
+      if ((o as THREE.Light).isLight) lights.push(o as THREE.Light);
+    });
+    expect(lights).toEqual([light]);
+    p.setShown(true);
+    expect(body.visible).toBe(true);
+    p.dispose();
+  });
+
   it('draws after the glass and before the smoke, as one group', () => {
     const p = buildProbe();
     expect(PROBE_RENDER_ORDER).toBe(1);
@@ -874,6 +959,41 @@ describe('the smoke', () => {
     expect(picture()).toEqual(zero);
     s.dispose();
     other.dispose();
+  });
+
+  it("sheds the low tier's layers when it steps down to it (Ruling 25): the same smoke as one built low, the rest freed", () => {
+    for (const from of ['high', 'medium'] as const) {
+      const s = buildSmoke(from);
+      const shed = sprites(s).filter((o) => (o.userData.layer as number) % 2 === 1);
+      const freed = shed.map((o) => vi.spyOn(o.material, 'dispose'));
+      s.setTier('low');
+      for (const spy of freed) expect(spy).toHaveBeenCalledOnce();
+      for (const o of shed) expect(o.parent).toBeNull();
+      const low = buildSmoke('low');
+      for (const smoke of [s, low]) {
+        smoke.setDensity(0.6);
+        smoke.setTime(23);
+      }
+      const picture = (smoke: SmokeModel) => sprites(smoke).map((o) => [o.userData.layer, ...o.position.toArray(), o.material.opacity, o.scale.x]);
+      expect(picture(s), from).toEqual(picture(low));
+      s.dispose();
+      low.dispose();
+    }
+  });
+
+  it('keeps every puff on a step to medium, and never takes a layer back: the ladder only goes down', () => {
+    const s = buildSmoke('high');
+    const all = sprites(s).length;
+    s.setTier('medium');
+    expect(sprites(s)).toHaveLength(all);
+    s.setTier('low');
+    s.setTier('high');
+    s.setTier('medium');
+    expect(sprites(s)).toHaveLength(all / 2);
+    // Freeing the smoke frees the puffs it still holds, and the ones it shed no second time.
+    const kept = sprites(s).map((o) => vi.spyOn(o.material, 'dispose'));
+    s.dispose();
+    for (const spy of kept) expect(spy).toHaveBeenCalledOnce();
   });
 
   it('thickens with setDensity, held to 0..1, and keeps its density through the drift', () => {

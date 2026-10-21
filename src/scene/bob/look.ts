@@ -10,13 +10,14 @@ import { palette } from '~/engine/palette';
  * colour is a palette token.
  *
  * - `background`: the clear colour and the scene's background, the night.
- * - `fog`: linear fog in the palette's violet haze (`palette.fog`, a breath of
- *   violet over the night), none nearer than `near` and all of it at `far`:
- *   the home camera stands 8.8 from the compass and the loader's 13.8, so the
- *   name and the compass stay clear, and the far glass, out to the slab's edge
- *   at 60, sinks into the haze rather than ending against black. Not the
- *   palette's bright `violet`, which at the far edge would paint the glass
- *   purple.
+ * - `fog`: linear fog in the background's own night (Ruling 26), none nearer
+ *   than `near` and all of it at `far`: the home camera stands 8.8 from the
+ *   compass and the loader's 13.8, so the name and the compass stay clear, and
+ *   the far glass fades into the very black the sky is. `far` lies inside the
+ *   slab (GLASS_LOOK.floor.outer, 60), so the glass is all night well before
+ *   its edge: the nearest edge any shot sees is about 67 away. A fog of any
+ *   other colour left the edge as a line where the fogged glass met the night,
+ *   worst on a phone, whose camera stands back far enough to see it.
  * - `exposure`: the shoulder tone mapping's (the renderer's on the low tier,
  *   the post chain's last effect otherwise).
  * - `bloom`: from 0.7 in linear light, so the engraving's softly glowing lines
@@ -32,7 +33,7 @@ import { palette } from '~/engine/palette';
  */
 export const LOOK = {
   background: palette.night,
-  fog: { color: palette.fog, near: 14, far: 60 },
+  fog: { color: palette.night, near: 14, far: 50 },
   exposure: 0.85,
   bloom: { threshold: 0.7, smoothing: 0.12, radius: 0.55, intensity: { high: 0.45, medium: 0.32 } },
   vignette: { offset: 0.22, darkness: 0.82 },

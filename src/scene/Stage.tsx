@@ -3,7 +3,7 @@ import { type JSX, memo, useCallback, useEffect, useMemo, useState } from 'react
 import { debugBridge } from '~/debug/needleDebug';
 import { StageProbe } from '~/debug/StageProbe';
 import { countCanvasMount } from '~/debug/stageReport';
-import { qualityFor } from '~/engine/quality';
+import { qualityFor, tierFor } from '~/engine/quality';
 import { frame } from '~/state/frame';
 import { Opening } from './bob/Opening';
 import { Effects } from './Effects';
@@ -93,6 +93,9 @@ function ContextWatch({ onFail }: Pick<StageProps, 'onFail'>): null {
 export default memo(function Stage({ onStarted, onReady, onFail }: StageProps): JSX.Element {
   const [step, setStep] = useState(() => reached);
   const quality = qualityFor(step, FINE_POINTER);
+  // The tier the QualityGovernor writes into the store for this rung, handed to the Opening from this render, so its
+  // first build has it before the governor's effect has run.
+  const tier = tierFor(step, FINE_POINTER);
   // The Canvas's dpr follows the rung, so a Stage render never puts back a ratio the governor has lowered.
   const dpr = useMemo((): [number, number] => [1, quality.pixelRatio], [quality.pixelRatio]);
 
@@ -114,7 +117,7 @@ export default memo(function Stage({ onStarted, onReady, onFail }: StageProps): 
     <Canvas dpr={dpr} frameloop="demand" flat gl={GL} camera={CAMERA}>
       <ContextWatch onFail={onFail} />
       <Studio />
-      <Opening onStarted={onStarted} onReady={onReady} onFail={onFail} />
+      <Opening tier={tier} reflector={quality.reflector} onStarted={onStarted} onReady={onReady} onFail={onFail} />
       <Rig />
       <Effects />
       <QualityGovernor step={step} finePointer={FINE_POINTER} onStep={stepDown} />

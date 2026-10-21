@@ -2,9 +2,10 @@ import { useEffect, useRef } from 'react';
 import { type KeyTarget, keyDelta } from './keyDelta';
 
 /**
- * How long after the loader's fast-forward ends the home's scroll input goes on dropping what it hears, in ms. A
- * trackpad that skipped the loader keeps sending wheel events (its momentum) for about a second; without this the tail
- * of them would land on the home and carry the story part-way into the next chapter.
+ * How long after the loader's fast-forward ends the home's scroll input goes on dropping what it hears at least, in
+ * ms; after it the swallowing rolls on while the input keeps coming (SKIP_QUIET_MS, SKIP_SWALLOW_CAP_MS). A trackpad
+ * that skipped the loader keeps sending wheel events (its momentum) for one to three seconds; without this the tail of
+ * them would land on the home and carry the story part-way into the next chapter.
  */
 export const SKIP_SWALLOW_MS = 400;
 
@@ -15,13 +16,56 @@ export const SKIP_SWALLOW_MS = 400;
 export const SKIP_EVENTS = ['pointerdown', 'wheel', 'keydown', 'touchstart'] as const;
 
 /**
- * Whether the home's scroll input must drop the input it hears now: from the moment the visitor skips the loader
- * through its fast-forward and `SKIP_SWALLOW_MS` after it. `skipEndsMs` is `frame.loaderSkipEndsMs`, in the clock of
- * `performance.now()`: when the fast-forward ends, or null while no skip was asked for. A time that is not a number
- * does not swallow.
+ * How long the input must have been quiet before a skip's swallowing ends, once its first SKIP_SWALLOW_MS are over,
+ * in ms (Ruling 24). A trackpad's momentum sends its wheel events a frame or a few apart, slower as it dies away, but
+ * never this far apart; a visitor who scrolls again on purpose has let go of the pad first.
  */
-export function skipSwallows(nowMs: number, skipEndsMs: number | null): boolean {
-  return skipEndsMs !== null && nowMs < skipEndsMs + SKIP_SWALLOW_MS;
+export const SKIP_QUIET_MS = 200;
+
+/**
+ * The longest a skip's swallowing lasts after the skip landed, in ms, however long the input keeps coming (Ruling 24):
+ * a momentum tail runs 1.5 to 3 s, and a visitor scrolling without a pause after that means it.
+ */
+export const SKIP_SWALLOW_CAP_MS = 3_000;
+
+/**
+ * Whether the home's scroll input must drop the input it hears now. `skipEndsMs` is `frame.loaderSkipEndsMs`, in the
+ * clock of `performance.now()`: when the skipped loader landed, or null while no skip has. It swallows:
+ * - from the moment the skip is asked for, through the fast-forward, until SKIP_SWALLOW_MS after the landing;
+ * - and after that, rolling (Ruling 24): while the input has not been quiet for SKIP_QUIET_MS since the last input it
+ *   swallowed (`lastSwallowedMs`, null for none), so a momentum tail that keeps coming is swallowed whole;
+ * - but never from SKIP_SWALLOW_CAP_MS after the landing on.
+ *
+ * Pure: the caller keeps `lastSwallowedMs` (`skipSwallower`). A time that is not a number does not swallow.
+ */
+export function skipSwallows(nowMs: number, skipEndsMs: number | null, lastSwallowedMs: number | null = null): boolean {
+  if (skipEndsMs === null) return false;
+  if (nowMs < skipEndsMs + SKIP_SWALLOW_MS) return true;
+  if (!(nowMs < skipEndsMs + SKIP_SWALLOW_CAP_MS)) return false;
+  return lastSwallowedMs !== null && nowMs - lastSwallowedMs < SKIP_QUIET_MS;
+}
+
+/**
+ * The home scroll's swallow predicate (`VirtualScrollOptions.swallow`): `skipSwallows` at `now()` for the landing
+ * `skipEndsMs()` says, remembering the last time it swallowed, so each input it swallows holds the swallowing open
+ * for SKIP_QUIET_MS more (Ruling 24). A new landing starts with nothing remembered. The scroll asks it at every input
+ * it takes (and once more as it ends a glide, which a swallow stops); each answer of true counts as an input
+ * swallowed.
+ */
+export function skipSwallower(now: () => number, skipEndsMs: () => number | null): () => boolean {
+  let landing: number | null = null;
+  let last: number | null = null;
+  return () => {
+    const ends = skipEndsMs();
+    if (ends !== landing) {
+      landing = ends;
+      last = null;
+    }
+    const at = now();
+    const swallows = skipSwallows(at, ends, last);
+    if (swallows) last = at;
+    return swallows;
+  };
 }
 
 /** The keys that are only a modifier: pressing one is the start of a shortcut, not a key press of the visitor's. */

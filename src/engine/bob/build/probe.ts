@@ -96,6 +96,12 @@ export interface ProbeModel {
    * every lit material's program, at each cut's start and end.
    */
   setOn(on: boolean): void;
+  /**
+   * Shows or hides the probe's shaft (`probe:body`), which builds shown: the Opening hides it once the probe has
+   * left the picture, as a parked probe can still hang into a far camera's frame. The light is the group's own child,
+   * not the shaft's, so it stays in the scene either way (Ruling 15); the rest of the probe goes dark through `setOn`.
+   */
+  setShown(shown: boolean): void;
   /** How hard it cuts, 0..1 (how many of the sparks fly, and how thick the wisp), at `time` seconds. */
   setSparks(intensity: number, time: number): void;
   /** Frees every geometry, material and texture the probe made, and its light. */
@@ -291,6 +297,9 @@ export function buildProbe(): ProbeModel {
       sparks.visible = on;
       smoke.visible = on;
       light.intensity = on ? look.light.intensity : 0;
+    },
+    setShown(shown) {
+      body.visible = shown;
     },
     setSparks(intensity, time) {
       const amount = clamp01(intensity);

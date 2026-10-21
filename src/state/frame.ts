@@ -64,8 +64,9 @@ export const frame = {
    * When the fast-forward of a skipped loader ended, in the clock of `performance.now()` (ms), or null while no skip has
    * landed. The Opening writes it on the frame a skipped loader reaches the home (the skip's own listener prevents the
    * input until then), and sets it back to null when it mounts; the home's scroll input (src/input/useHomeScroll.ts)
-   * reads it and, until `SKIP_SWALLOW_MS` after it (`skipSwallows`), drops the wheel, touch and keys it hears, still
-   * preventing them, so the tail of the gesture that skipped does not scroll the home or the page.
+   * reads it and, for `SKIP_SWALLOW_MS` after it and on while the input keeps coming (`skipSwallower`, Ruling 24),
+   * drops the wheel, touch and keys it hears, still preventing them, so the tail of the gesture that skipped does not
+   * scroll the home or the page.
    */
   loaderSkipEndsMs: null as number | null,
 };

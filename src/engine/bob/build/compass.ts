@@ -15,7 +15,7 @@
 import * as THREE from 'three';
 import { BAND_STRIP, paintBandStrip } from '~/engine/bob/paintBand';
 import { palette } from '~/engine/palette';
-import type { QualityTier } from '~/engine/quality';
+import { lowerTier, type QualityTier } from '~/engine/quality';
 
 /**
  * How the compass looks and turns. The numbers are first values: a later task
@@ -75,6 +75,8 @@ export interface CompassModel {
    * so the group is best hidden while the opening is shut over it.
    */
   group: THREE.Group;
+  /** The gold pivot the needle turns on (`pivot`), at the armillary's origin: where the home aims the needle from. */
+  pivot: THREE.Object3D;
   /** Poses the rise, 0..1 (NaN reads as 0): the `rise` clip at `t` of its length, the armillary `homeY` higher. 0 is 2.7 below the glass, 1 is home. */
   setRise(t: number): void;
   /** Turns every band from its rest by its own pace over `time` seconds (NaN reads as 0); the same time is the same picture. */
@@ -93,6 +95,14 @@ export interface CompassModel {
    * nothing is drawn.
    */
   setReveal(level: number): void;
+  /**
+   * Steps the bands' glass down to `tier`'s (the quality ladder's step, Ruling 25), as a compass built for it would
+   * have: its transmission, its opacity (at the reveal it shows) and whether it writes depth. Dropping to the low tier
+   * turns transmission off, so the bands compile once more and three runs no transmission pass after it (Ruling 16);
+   * medium only lowers the transmission. A tier above the one it stands at changes nothing: the ladder never climbs
+   * back within a page view.
+   */
+  setTier(tier: QualityTier): void;
   /** Frees the materials it made and the strips it asked for; the glTF's geometries stay the loader's. */
   dispose(): void;
 }
@@ -234,8 +244,9 @@ export function loadCompass(
   const marks: THREE.IUniform<THREE.Color> = { value: new THREE.Color(look.bandMarks.colour).multiplyScalar(look.bandMarks.intensity) };
   const reveal: THREE.IUniform<number> = { value: 1 };
   const onBeforeCompile = patchMarks(marks, reveal);
+  let standing: QualityTier = tier;
   const transmission = look.bandGlass.transmission[tier];
-  const glassOpacity = look.bandGlass.opacity[tier];
+  let glassOpacity: number = look.bandGlass.opacity[tier];
   const bands = [1, 2, 3, 4].map((k, i) => {
     const mesh = part(`band_${k}` as (typeof COMPASS_PARTS)[number]);
     const map = strip(i);
@@ -303,6 +314,7 @@ export function loadCompass(
 
   const model: CompassModel = {
     group,
+    pivot: part('pivot'),
     setRise(t) {
       // With no time passing, the mixer samples the clip at the action's own time and nothing else: no looping, no
       // clamping at the end, so the rise can be posed back down after it has reached the top.
@@ -333,6 +345,21 @@ export function loadCompass(
       for (let i = 0; i < bands.length; i++) bands[i].glass.opacity = glassOpacity * r;
       reveal.value = r;
       armillary.visible = r > 0;
+    },
+    setTier(next) {
+      const to = lowerTier(standing, next);
+      if (to === standing) return;
+      standing = to;
+      glassOpacity = look.bandGlass.opacity[to];
+      const passes = look.bandGlass.transmission[to];
+      for (let i = 0; i < bands.length; i++) {
+        const glass = bands[i].glass;
+        // Transmission on or off is another program; a lower amount of it is a uniform.
+        if ((glass.transmission > 0) !== (passes > 0)) glass.needsUpdate = true;
+        glass.transmission = passes;
+        glass.depthWrite = passes > 0;
+        glass.opacity = glassOpacity * reveal.value;
+      }
     },
     dispose() {
       gold.dispose();

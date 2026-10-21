@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { qualityFor, qualitySteps, tierFor } from '~/engine/quality';
+import { lowerTier, qualityFor, qualitySteps, type QualityTier, tierFor } from '~/engine/quality';
 
 describe('tierFor', () => {
   it('cuts the fine-pointer ladder into high (steps 0-1), medium (2-3) and low (4)', () => {
@@ -34,18 +34,18 @@ describe('tierFor', () => {
 });
 
 describe('qualityFor', () => {
-  it('walks the fine-pointer ladder: dust, then clearcoat, then the pixel ratio with the dust', () => {
-    expect(qualityFor(0, true)).toEqual({ pixelRatio: 1.75, clearcoat: true, dust: 400 });
-    expect(qualityFor(1, true)).toEqual({ pixelRatio: 1.75, clearcoat: true, dust: 200 });
-    expect(qualityFor(2, true)).toEqual({ pixelRatio: 1.75, clearcoat: false, dust: 200 });
-    expect(qualityFor(3, true)).toEqual({ pixelRatio: 1.25, clearcoat: false, dust: 150 });
-    expect(qualityFor(4, true)).toEqual({ pixelRatio: 1, clearcoat: false, dust: 100 });
+  it('walks the fine-pointer ladder: dust, then the reflection, then the pixel ratio with the dust', () => {
+    expect(qualityFor(0, true)).toEqual({ pixelRatio: 1.75, reflector: true, dust: 400 });
+    expect(qualityFor(1, true)).toEqual({ pixelRatio: 1.75, reflector: true, dust: 200 });
+    expect(qualityFor(2, true)).toEqual({ pixelRatio: 1.75, reflector: false, dust: 200 });
+    expect(qualityFor(3, true)).toEqual({ pixelRatio: 1.25, reflector: false, dust: 150 });
+    expect(qualityFor(4, true)).toEqual({ pixelRatio: 1, reflector: false, dust: 100 });
   });
 
-  it('walks the coarse-pointer ladder: clearcoat and dust, then the pixel ratio', () => {
-    expect(qualityFor(0, false)).toEqual({ pixelRatio: 1.25, clearcoat: true, dust: 150 });
-    expect(qualityFor(1, false)).toEqual({ pixelRatio: 1.25, clearcoat: false, dust: 100 });
-    expect(qualityFor(2, false)).toEqual({ pixelRatio: 1, clearcoat: false, dust: 80 });
+  it('walks the coarse-pointer ladder: the reflection and dust, then the pixel ratio', () => {
+    expect(qualityFor(0, false)).toEqual({ pixelRatio: 1.25, reflector: true, dust: 150 });
+    expect(qualityFor(1, false)).toEqual({ pixelRatio: 1.25, reflector: false, dust: 100 });
+    expect(qualityFor(2, false)).toEqual({ pixelRatio: 1, reflector: false, dust: 80 });
   });
 
   it('clamps steps past the end to the last entry', () => {
@@ -62,9 +62,15 @@ describe('qualityFor', () => {
     expect(qualityFor(1.6, true)).toEqual(qualityFor(1, true));
   });
 
-  it('turns clearcoat off from step 2 on a fine pointer and from step 1 on a coarse one, and never back on', () => {
-    expect([0, 1, 2, 3, 4].map((step) => qualityFor(step, true).clearcoat)).toEqual([true, true, false, false, false]);
-    expect([0, 1, 2].map((step) => qualityFor(step, false).clearcoat)).toEqual([true, false, false]);
+  it('turns the reflection off from step 2 on a fine pointer and from step 1 on a coarse one, and never back on', () => {
+    expect([0, 1, 2, 3, 4].map((step) => qualityFor(step, true).reflector)).toEqual([true, true, false, false, false]);
+    expect([0, 1, 2].map((step) => qualityFor(step, false).reflector)).toEqual([true, false, false]);
+  });
+
+  it('keeps the reflection exactly on the high tier: the rung that turns it off is the one that leaves high', () => {
+    for (const fine of [true, false]) {
+      for (let step = 0; step < qualitySteps(fine); step++) expect(qualityFor(step, fine).reflector, `${fine} ${step}`).toBe(tierFor(step, fine) === 'high');
+    }
   });
 
   it('only ever gives something up: no step raises the ratio or the dust', () => {
@@ -87,7 +93,24 @@ describe('qualityFor', () => {
   it('answers a fresh object, so a caller cannot change the ladder', () => {
     const quality = qualityFor(0, true);
     quality.dust = 0;
-    quality.clearcoat = false;
-    expect(qualityFor(0, true)).toEqual({ pixelRatio: 1.75, clearcoat: true, dust: 400 });
+    quality.reflector = false;
+    expect(qualityFor(0, true)).toEqual({ pixelRatio: 1.75, reflector: true, dust: 400 });
+  });
+});
+
+describe('lowerTier', () => {
+  const TIERS: QualityTier[] = ['high', 'medium', 'low'];
+
+  it('steps down to the lower of the two', () => {
+    expect(lowerTier('high', 'medium')).toBe('medium');
+    expect(lowerTier('high', 'low')).toBe('low');
+    expect(lowerTier('medium', 'low')).toBe('low');
+  });
+
+  it('never steps up: parts cannot grow back what they shed', () => {
+    expect(lowerTier('low', 'high')).toBe('low');
+    expect(lowerTier('medium', 'high')).toBe('medium');
+    expect(lowerTier('low', 'medium')).toBe('low');
+    for (const tier of TIERS) expect(lowerTier(tier, tier)).toBe(tier);
   });
 });

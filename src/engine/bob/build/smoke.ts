@@ -13,7 +13,7 @@
 import * as THREE from 'three';
 import { random, smokeTexture } from '~/engine/studio/noise';
 import { palette } from '~/engine/palette';
-import type { QualityTier } from '~/engine/quality';
+import { lowerTier, type QualityTier } from '~/engine/quality';
 
 /**
  * How the smoke looks and drifts, in metres and seconds. The numbers are first
@@ -66,6 +66,13 @@ export interface SmokeModel {
   setDensity(level: number): void;
   /** Drifts the puffs to where they are at `time` seconds (NaN reads as 0); the same time is the same picture. */
   setTime(time: number): void;
+  /**
+   * Steps the smoke down to `tier`'s (the quality ladder's step, Ruling 25), as a smoke built for it would be: on
+   * the low tier it sheds every other layer from the front, taking those puffs out of the group and freeing their
+   * materials; the others keep their places, so the haze thins where it was. A tier above the one it stands at
+   * changes nothing: the ladder never climbs back within a page view.
+   */
+  setTier(tier: QualityTier): void;
   /** Frees the materials and the smoke texture; the sprites' quad is three's own. */
   dispose(): void;
 }
@@ -142,10 +149,13 @@ export function buildSmoke(tier: QualityTier): SmokeModel {
   group.renderOrder = SMOKE_RENDER_ORDER;
   const texture = smokeTexture(128, 27);
   const colour = new THREE.Color(look.colour).multiplyScalar(look.dim);
-  const kept = puffs().filter((puff) => tier !== 'low' || puff.layer % 2 === 0);
+  /** Whether a tier keeps a puff: the low tier, every other layer from the front. */
+  const keeps = (on: QualityTier, puff: Puff): boolean => on !== 'low' || puff.layer % 2 === 0;
+  let standing: QualityTier = tier;
+  let kept = puffs().filter((puff) => keeps(tier, puff));
   const omega = (2 * Math.PI) / look.period;
 
-  const sprites = kept.map((puff, i) => {
+  let sprites = kept.map((puff, i) => {
     const material = new THREE.SpriteMaterial({
       name: `smoke:${i}`,
       map: texture,
@@ -192,6 +202,20 @@ export function buildSmoke(tier: QualityTier): SmokeModel {
     },
     setTime(time) {
       seconds = Number.isFinite(time) ? time : 0;
+      pose();
+    },
+    setTier(next) {
+      const to = lowerTier(standing, next);
+      if (to === standing) return;
+      standing = to;
+      const stay = kept.map((puff) => keeps(to, puff));
+      for (let i = 0; i < sprites.length; i++) {
+        if (stay[i]) continue;
+        group.remove(sprites[i]);
+        sprites[i].material.dispose();
+      }
+      sprites = sprites.filter((_, i) => stay[i]);
+      kept = kept.filter((_, i) => stay[i]);
       pose();
     },
     dispose() {

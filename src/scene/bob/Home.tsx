@@ -1,5 +1,5 @@
-import { useFrame } from '@react-three/fiber';
-import { useEffect, useMemo, useState } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
+import { useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { AngleSpring, wrapAngle } from '~/engine/AngleSpring';
 import type { CompassModel } from '~/engine/bob/build/compass';
@@ -99,8 +99,9 @@ export function Home({ models, handover }: HomeProps): null {
     pointerAt: frame.pointerAt,
     transition: useScene.getState().transitionId,
   }));
-  /** The pivot the needle turns on: the needle's own centre, the armillary's origin. */
-  const pivot = useMemo(() => models.compass.group.getObjectByName('pivot') ?? models.compass.group, [models]);
+  const invalidate = useThree((three) => three.invalidate);
+  /** The pivot the needle turns on (`CompassModel.pivot`): the needle's own centre, the armillary's origin. */
+  const pivot = models.compass.pivot;
 
   // Gone: nothing of the home's keeps the canvas drawing.
   useEffect(
@@ -142,6 +143,9 @@ export function Home({ models, handover }: HomeProps): null {
     if (stirred) {
       state.idleUntil = now + IDLE_SECONDS * 1000;
       state.driftUntil = nextDriftRest(state.idleTime + IDLE_SECONDS);
+      // The next frame, for the idle motion this starts: the Heartbeat has already run this frame, on the stillness
+      // Home wrote the frame before (at rest), and a skipped mount has no phase change to wake it.
+      invalidate();
     }
 
     const pointing = aiming && Number.isFinite(frame.pointerAt);

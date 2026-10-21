@@ -4,33 +4,34 @@
  * PerformanceMonitor) moves it one step down each time its frames run slow; it
  * never climbs back within a page view. Each pointer
  * gives up the cheapest-to-lose cost first: half the dust while the canvas
- * stays sharp, then the lacquer's clearcoat (a second specular lobe on the
- * largest surfaces), then the pixel ratio with more dust. A coarse pointer (a
- * phone or tablet) starts softer and gives up the clearcoat with its first
- * step. The compass reads all three; milestone 2's hub ignores `clearcoat`.
+ * stays sharp, then the glass floor's reflection (a second render of the whole
+ * scene every frame; the rung was v3's clearcoat, Ruling 25), then the pixel
+ * ratio with more dust. A coarse pointer (a phone or tablet) starts softer and
+ * gives up the reflection with its first step. The BOB scene reads the pixel
+ * ratio and the reflection (src/scene/bob/Opening.tsx); nothing draws dust.
  */
 
 export interface Quality {
   /** The highest device pixel ratio the canvas draws at. */
   pixelRatio: number;
-  /** Clearcoat on the lacquer and the pattern ring (the compass only). */
-  clearcoat: boolean;
+  /** The glass floor's reflection (GlassModel's reflector, high tier only): once off, it is gone for the page view. */
+  reflector: boolean;
   /** How many dust motes drift in the air. */
   dust: number;
 }
 
 const FINE: readonly Readonly<Quality>[] = [
-  { pixelRatio: 1.75, clearcoat: true, dust: 400 },
-  { pixelRatio: 1.75, clearcoat: true, dust: 200 },
-  { pixelRatio: 1.75, clearcoat: false, dust: 200 },
-  { pixelRatio: 1.25, clearcoat: false, dust: 150 },
-  { pixelRatio: 1, clearcoat: false, dust: 100 }
+  { pixelRatio: 1.75, reflector: true, dust: 400 },
+  { pixelRatio: 1.75, reflector: true, dust: 200 },
+  { pixelRatio: 1.75, reflector: false, dust: 200 },
+  { pixelRatio: 1.25, reflector: false, dust: 150 },
+  { pixelRatio: 1, reflector: false, dust: 100 }
 ];
 
 const COARSE: readonly Readonly<Quality>[] = [
-  { pixelRatio: 1.25, clearcoat: true, dust: 150 },
-  { pixelRatio: 1.25, clearcoat: false, dust: 100 },
-  { pixelRatio: 1, clearcoat: false, dust: 80 }
+  { pixelRatio: 1.25, reflector: true, dust: 150 },
+  { pixelRatio: 1.25, reflector: false, dust: 100 },
+  { pixelRatio: 1, reflector: false, dust: 80 }
 ];
 
 /** How many steps the ladder has for this pointer. */
@@ -55,17 +56,29 @@ export function qualityFor(step: number, finePointer: boolean): Quality {
 /** The scene's post-processing tier: the store's `Tier`, named here so this module stays free of the app's state. */
 export type QualityTier = 'high' | 'medium' | 'low';
 
+/** The tiers best first, for `lowerTier`. */
+const TIER_RANK: Readonly<Record<QualityTier, number>> = { high: 0, medium: 1, low: 2 };
+
+/**
+ * The lower of two tiers: what parts built at `a` drop to when the ladder now says `b`. The ladder only steps down
+ * within a page view, and a part built for one tier can give up what a lower tier lacks but cannot grow back what it
+ * shed, so a tier above `a` leaves `a` as it is.
+ */
+export function lowerTier(a: QualityTier, b: QualityTier): QualityTier {
+  return TIER_RANK[b] > TIER_RANK[a] ? b : a;
+}
+
 /**
  * The tier each rung draws with (Effects): `high` and `medium` run the post chain (EffectComposer), `low` has
  * none and tone-maps in the materials. The cut points follow what each rung gives up:
- *   - fine pointer: steps 0-1 high (full pixel ratio, clearcoat; only dust goes), 2-3 medium (clearcoat off,
- *     then the ratio drops to 1.25), 4 low (ratio 1, the last rung);
- *   - coarse pointer: 0 high, 1 medium (clearcoat off), 2 low (ratio 1, the last rung).
+ *   - fine pointer: steps 0-1 high (full pixel ratio, the reflection; only dust goes), 2-3 medium (the reflection
+ *     off, then the ratio drops to 1.25), 4 low (ratio 1, the last rung);
+ *   - coarse pointer: 0 high, 1 medium (the reflection off), 2 low (ratio 1, the last rung).
  * Only the last rung is low, so the composer goes only when nothing cheaper is left.
  */
 export function tierFor(step: number, finePointer: boolean): QualityTier {
   const ladder = finePointer ? FINE : COARSE;
   const index = rung(step, ladder);
   if (index === ladder.length - 1) return 'low';
-  return ladder[index].clearcoat ? 'high' : 'medium';
+  return ladder[index].reflector ? 'high' : 'medium';
 }

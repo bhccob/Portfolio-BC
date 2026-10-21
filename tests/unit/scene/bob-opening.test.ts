@@ -5,6 +5,7 @@ import { cameraShotAt, HOME_POSE, openingPoseAt } from '~/scene/bob/openingPose'
 import {
   HOME_CLOCK,
   heldLoaderInput,
+  marksSeen,
   openingReadiness,
   openingStartFor,
   SKIPPED_HOME_BUDGET_MS,
@@ -42,6 +43,21 @@ describe('where an opening starts (Ruling 9c)', () => {
     expect(openingStartFor('PROJECT_FOCUS', false, false)).toEqual({ skip: false, path: 'full' });
     // Every phase has an answer.
     expect(KINDS.filter(skipsLoader)).toEqual(['HOME_IDLE', 'FOCUS_COUNTRY', 'DISSECT', 'MORPH', 'VOID_ENTRY', 'PROJECTS']);
+  });
+});
+
+describe('marksSeen', () => {
+  it('marks the loader seen when the full show or the quick one lands, never the reduced fade', () => {
+    expect(marksSeen('full')).toBe(true);
+    expect(marksSeen('quick')).toBe(true);
+    expect(marksSeen('reduced')).toBe(false);
+  });
+
+  it('so a reduced-motion visit that never saw the show leaves it to come: a later visit with motion plays it whole', () => {
+    const start = openingStartFor('LOADING', false, true);
+    expect(start.path).toBe('reduced');
+    const seen = marksSeen(start.path);
+    expect(openingStartFor('LOADING', seen, false).path).toBe('full');
   });
 });
 

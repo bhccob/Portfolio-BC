@@ -14,7 +14,7 @@ import { traceLayout } from '~/engine/bob/traces';
 import { STROKE_ORDER } from '~/engine/bob/wordmark';
 import { SafeStorage } from '~/engine/core/SafeStorage';
 import { readout } from '~/engine/loading';
-import type { QualityTier } from '~/engine/quality';
+import { lowerTier, type QualityTier } from '~/engine/quality';
 import { useLoaderSkip } from '~/input/loaderSkip';
 import { frame } from '~/state/frame';
 import { useScene } from '~/state/store';
@@ -23,7 +23,16 @@ import { settleLoad } from '../settleLoad';
 import { visibleTimeout } from '../timeouts';
 import { type Handover, Home, type HomeModels } from './Home';
 import { cameraShotAt, loadShare, type OpeningPose, openingPoseAt } from './openingPose';
-import { HOME_CLOCK, heldLoaderInput, openingReadiness, openingStartFor, SKIPPED_HOME_BUDGET_MS, skipAtFor, skipsLoader } from './openingStart';
+import {
+  HOME_CLOCK,
+  heldLoaderInput,
+  marksSeen,
+  openingReadiness,
+  openingStartFor,
+  SKIPPED_HOME_BUDGET_MS,
+  skipAtFor,
+  skipsLoader,
+} from './openingStart';
 
 /** Why the opening fails when its home has not loaded in time: the loader's give-up, and a skipped home's budget. */
 const GAVE_UP = `the compass did not load within ${LOADER.giveUp} s of the page being visible`;
@@ -73,22 +82,9 @@ function freeFileGeometries(file: GLTF): void {
 /** The loader's own objects: built, compiled and shown before the loader says it can show. */
 interface LoaderParts {
   glass: GlassModel;
-  /**
-   * The opening's gold lip (the glass's `lip`), which has no setter of its own: it is shown with the opening, from the
-   * iris's start, and not before, where it would draw the O as a lit gold ring before the laser has cut the circle
-   * (the preview's p02 and p03 show no lip until the opening).
-   */
-  lip: THREE.Object3D | null;
   engraving: EngravingModel;
   traces: TracesModel;
   probe: ProbeModel;
-  /**
-   * The probe's shaft (`probe:body`), drawn only while the pose shows the probe. Parked at PROBE.outY it is out of the
-   * landscape shots, but a phone's home camera stands far enough back (about 23 m, at a 50 degree field) to see the
-   * 9 m shaft hang into the top of the picture. The rest of the probe goes dark through `setOn`, and the group stays
-   * visible so its light stays in the scene (Ruling 15).
-   */
-  shaft: THREE.Object3D | null;
   smoke: SmokeModel;
 }
 
@@ -209,6 +205,14 @@ interface Run {
 
 export interface OpeningProps {
   /**
+   * The quality tier the ladder is on (`tierFor` of the Stage's rung, which the QualityGovernor also writes into the
+   * store): the parts are built for it at mount and step down with it after (Ruling 25). Handed in by the Stage, so
+   * the first build has it before the governor's effect has written it into the store.
+   */
+  tier: QualityTier;
+  /** The rung's glass-floor reflection (`Quality.reflector`): once false, the reflector goes for good (Ruling 25). */
+  reflector: boolean;
+  /**
    * Its loader's objects are built and their programs compiled, but the canvas is not to show yet: said once, by an
    * opening that skips its loader, at the point a normal one says `onReady` (`openingReadiness`).
    */
@@ -223,10 +227,11 @@ export interface OpeningProps {
  * The BOB opening (spec §2.1), in the persistent canvas: a laser engraves B, B and a circle into dark glass, the glass
  * inside the circle opens like an iris, and an armillary compass rises out of it as the O; then the Home.
  *
- * **Build.** On mount it builds the loader's parts at once for the store's quality tier (read then): the glass
+ * **Build.** On mount it builds the loader's parts at once for the ladder's tier (`tier`, from the Stage): the glass
  * (`buildGlass`, sized to the drawing buffer through `setRenderer`, again on every resize), the engraving, the traces
  * (`traceLayout()`), the probe and the smoke. It adds them, compiles their programs and calls `onReady`: the canvas
- * fades in over the poster and the loader begins.
+ * fades in over the poster and the loader begins. When the ladder steps down later, the parts step down in place
+ * (Ruling 25: `setReflector`, `setTier` on the compass and the smoke), never up.
  *
  * **Load.** Meanwhile it fetches the compass's GLB (`loadCompassFile`: three's GLTFLoader, once a page view) and paints
  * the four bands' strips (`bandStrip`), one a frame: `paint`, 0.6 of the load. Once the file is in, it builds the
@@ -250,9 +255,10 @@ export interface OpeningProps {
  * it, `frame.loaderSkipEndsMs` is set to now, so the home's scroll input swallows the rest of the gesture for
  * SKIP_SWALLOW_MS more. It is null from each mount until then.
  *
- * **Landing.** At `home` it marks the loader seen in this browser (`markLoaderSeen(SafeStorage.local())`) and dispatches
- * `LOADED` (the only place it is sent while a Stage is up), once. From then on the Opening poses the home once each time
- * the clock reaches `home` and hands it over (`handover`) to Home (Home.tsx), which drives the needle, the bands' turn,
+ * **Landing.** At `home` it marks the loader seen in this browser (`markLoaderSeen(SafeStorage.local())`; on the full
+ * and quick paths, not the reduced fade: `marksSeen`) and dispatches `LOADED` (the only place it is sent while a Stage
+ * is up), once. From then on the Opening poses the home once each time the clock reaches `home`, asks for one more
+ * frame, and hands it over (`handover`) to Home (Home.tsx), which drives the needle, the bands' turn,
  * the smoke and the engraving's breath from there, starting where the Opening left them. It frames the home shot again
  * on a resize. On a project page it lands on the home view under that page's scrim.
  *
@@ -276,13 +282,14 @@ export interface OpeningProps {
  * Unmounting frees every object, material, texture and canvas it made, and the GPU side of the compass file's
  * geometries.
  */
-export function Opening({ onStarted, onReady, onFail }: OpeningProps): JSX.Element | null {
+export function Opening({ tier, reflector, onStarted, onReady, onFail }: OpeningProps): JSX.Element | null {
   const gl = useThree((state) => state.gl);
   const scene = useThree((state) => state.scene);
   const camera = useThree((state) => state.camera);
   const invalidate = useThree((state) => state.invalidate);
-  const tier = useScene((state) => state.tier);
   const loader = useRef<LoaderParts | null>(null);
+  /** The tier the parts now stand at: built at the mount's, stepped down since (`lowerTier`), never up. */
+  const standing = useRef<QualityTier>(tier);
   const home = useRef<HomeParts | null>(null);
   const run = useRef<Run | null>(null);
   /** The drawing buffer's size the glass's reflection was last sized for. */
@@ -293,9 +300,9 @@ export function Opening({ onStarted, onReady, onFail }: OpeningProps): JSX.Eleme
   /** The full show is playing, so any input skips it (`useLoaderSkip`). */
   const [skippable, setSkippable] = useState(false);
   /** The latest props, for the load, which outlives the render that started it. */
-  const latest = useRef({ onStarted, onReady, onFail });
+  const latest = useRef({ tier, onStarted, onReady, onFail });
   useLayoutEffect(() => {
-    latest.current = { onStarted, onReady, onFail };
+    latest.current = { tier, onStarted, onReady, onFail };
   });
 
   useLoaderSkip(skippable, () => {
@@ -315,10 +322,28 @@ export function Opening({ onStarted, onReady, onFail }: OpeningProps): JSX.Eleme
     };
   }, [gl, tier, invalidate]);
 
+  // The ladder steps down while the scene is up (Ruling 25): the parts built for a better tier give up what the new one
+  // lacks, in place, without the Opening mounting again (which would play the loader again). The smoke sheds its low
+  // tier's layers and the band glass drops to the tier's (no transmission on low); the reflector goes with its rung.
+  // Never back up: the ladder does not climb within a page view, and `lowerTier` holds the parts where they are if it did.
+  useEffect(() => {
+    const parts = loader.current;
+    if (!parts) return;
+    const to = lowerTier(standing.current, tier);
+    if (to !== standing.current) {
+      standing.current = to;
+      parts.smoke.setTier(to);
+      home.current?.compass?.setTier(to);
+    }
+    if (!reflector) parts.glass.setReflector(false);
+    invalidate();
+  }, [tier, reflector, invalidate]);
+
   useEffect(() => {
     let disposed = false;
-    // The tier the parts are built for: the store's, as the quality ladder last set it.
-    const built: QualityTier = useScene.getState().tier;
+    // The tier the parts are built for: the ladder's at this mount (a mount after a step down starts there).
+    const built: QualityTier = latest.current.tier;
+    standing.current = built;
     let parts: LoaderParts;
     // What has been built so far, freed again if a later part throws.
     const made: { dispose(): void }[] = [];
@@ -334,15 +359,7 @@ export function Opening({ onStarted, onReady, onFail }: OpeningProps): JSX.Eleme
       const smoke = buildSmoke(built);
       made.push(smoke);
       scene.add(glass.group, traces.group, engraving.group, probe.group, smoke.group);
-      parts = {
-        glass,
-        lip: glass.group.getObjectByName('lip') ?? null,
-        engraving,
-        traces,
-        probe,
-        shaft: probe.group.getObjectByName('probe:body') ?? null,
-        smoke,
-      };
+      parts = { glass, engraving, traces, probe, smoke };
     } catch (error) {
       for (const part of made) part.dispose();
       latest.current.onFail('the loader could not be built', error);
@@ -444,7 +461,8 @@ export function Opening({ onStarted, onReady, onFail }: OpeningProps): JSX.Eleme
       const gltf = await file;
       if (disposed) return;
       homeParts.file = gltf;
-      const compass = loadCompass(gltf, built, (band) => homeParts.strips[band]);
+      // Built for the tier the parts stand at now: the ladder may have stepped down while the file was on its way.
+      const compass = loadCompass(gltf, standing.current, (band) => homeParts.strips[band]);
       homeParts.compass = compass;
       scene.add(compass.group);
       // Posed as the clock now has it (hidden while the cap is shut), before a frame can show it.
@@ -548,6 +566,9 @@ export function Opening({ onStarted, onReady, onFail }: OpeningProps): JSX.Eleme
         state.posedHome = true;
         handover.time = time;
         handover.needle = needle;
+        // One more frame, for Home's first: nothing else may ask for it (a skipped mount sends no LOADED, so no phase
+        // change wakes the Heartbeat), and the Heartbeat has run this frame before Home could start its idle motion.
+        invalidate();
       }
     }
     // Home's frame runs after this one (it mounted later), and reads this.
@@ -565,7 +586,8 @@ export function Opening({ onStarted, onReady, onFail }: OpeningProps): JSX.Eleme
       }
       if (!state.landed) {
         state.landed = true;
-        markLoaderSeen(SafeStorage.local());
+        // A later visit is one after the show has played (spec §2.1): the reduced fade marks nothing.
+        if (marksSeen(state.path)) markLoaderSeen(SafeStorage.local());
         useScene.getState().dispatch({ type: 'LOADED' });
       }
     }
@@ -591,10 +613,10 @@ function clamp01(x: number): number {
  * `frame.needleAngle` too.
  *
  * - The engraving's five strokes in `STROKE_ORDER`, its ticks, outer ring and glow; the traces; the iris and the
- *   tunnel's light, and the lip, shown from the iris's start (`LoaderParts.lip`); the smoke.
- * - The probe stands where `probeAt` puts it, and its shaft is drawn only while it is shown (`LoaderParts.shaft`); the
- *   group is never hidden, so its light stays in the scene and goes dark by intensity (Ruling 15). Its sparks fly while
- *   it cuts and the cut is moving.
+ *   tunnel's light, and the lip, shown from the iris's start (`setLip`); the smoke.
+ * - The probe stands where `probeAt` puts it, and its shaft is drawn only while it is shown (`setShown`); its light is
+ *   the probe group's own and never hidden, so it stays in the scene and goes dark by intensity (Ruling 15). Its
+ *   sparks fly while it cuts and the cut is moving.
  * - The compass is hidden until the iris starts to open, then risen, revealed and turned as the pose says, the needle at
  *   `settleAngle` of its settle.
  */
@@ -611,14 +633,18 @@ function pose(parts: LoaderParts, compass: CompassModel | null, at: OpeningPose,
   traces.setLevel(at.traces);
   glass.setIris(at.iris);
   glass.setGlow(at.wellGlow);
-  if (parts.lip) parts.lip.visible = at.iris > 0;
+  // The lip is the opening's: shown from the iris's start, not before, where it would draw the O as a lit gold ring
+  // before the laser has cut the circle (the preview's p02 and p03 show no lip until the opening).
+  glass.setLip(at.iris > 0);
   smoke.setDensity(at.smoke);
   smoke.setTime(time);
 
   const tip = at.probe;
   probe.setTip(tip.x, tip.y, tip.z);
   probe.setOn(tip.cutting);
-  if (parts.shaft) parts.shaft.visible = tip.shown;
+  // Parked at PROBE.outY the probe is out of the landscape shots, but a phone's home camera stands far enough back
+  // (about 23 m, at a 50 degree field) to see its 9 m shaft hang into the top of the picture.
+  probe.setShown(tip.shown);
   if (cut !== state.cut) {
     state.cut = cut;
     state.cutAt = time;

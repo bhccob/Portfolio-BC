@@ -4,7 +4,7 @@ import { wakeScene } from '~/scene/motion';
 import { HOME_CHAPTERS } from '~/state/chapters';
 import { frame } from '~/state/frame';
 import { useScene } from '~/state/store';
-import { skipSwallows } from './loaderSkip';
+import { skipSwallower } from './loaderSkip';
 import { type Smooth, startHomeScroll } from './scrollLoop';
 import { scrollEnabled } from './target';
 
@@ -34,9 +34,10 @@ function loadDamp(): Promise<Smooth> {
  * only while `scrollEnabled` (3D on, the scroll's phases), read live from the store at each event: with 3D
  * off the page scrolls natively and nothing here prevents anything.
  *
- * While a skipped loader's input is still arriving (`skipSwallows`, from `frame.loaderSkipEndsMs`: the fast-forward
- * and `SKIP_SWALLOW_MS` after it) the input drops what it hears but still prevents it, so the tail of the wheel or the
- * swipe that skipped neither moves the story nor scrolls the page. It is the input that does this, not `enabled`,
+ * While a skipped loader's input is still arriving (`skipSwallower`, from `frame.loaderSkipEndsMs`: the fast-forward
+ * and `SKIP_SWALLOW_MS` after the landing, then on while the input keeps coming without SKIP_QUIET_MS of quiet, for
+ * SKIP_SWALLOW_CAP_MS after the landing at most, Ruling 24) the input drops what it hears but still prevents it, so the
+ * tail of the wheel or the swipe that skipped neither moves the story nor scrolls the page. It is the input that does this, not `enabled`,
  * because an event `enabled` turns away is left to the browser, and the browser would scroll with it.
  *
  * A requestAnimationFrame loop (not R3F's `useFrame`: the canvas renders on demand) moves `frame.progress`
@@ -61,7 +62,10 @@ export function useHomeScroll(onHome: boolean): void {
       unitPx: () => Math.max(window.innerHeight, 1),
       // Live from the store, never a value captured at render: during hydration the hook's `threeD` is the default.
       enabled: () => scrollEnabled(useScene.getState()),
-      swallow: () => skipSwallows(performance.now(), frame.loaderSkipEndsMs),
+      swallow: skipSwallower(
+        () => performance.now(),
+        () => frame.loaderSkipEndsMs,
+      ),
       reducedMotion: () => useScene.getState().reducedMotion,
       threeD: () => useScene.getState().threeD,
       onChapter: (at) => useScene.getState().dispatch({ type: 'CHAPTER', chapter: at.id, category: at.category }),
