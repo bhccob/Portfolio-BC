@@ -407,13 +407,18 @@ describe('traces', () => {
     - netherlands: a sailing ship (hull, two masts, sails)
     - aruba: a divi-divi tree, its crown swept hard to one side by the wind
     - Each figure has 10–24 stars, and every star is on at least one line. The figure must read at a glance; Bob reviews it in the Task 14 stills.
-  - `interface Placement { bearing: number; span: number; radius: number; base: number; height: number; swing: number }` (degrees and world units)
+  - `interface Placement { bearing: number; distance: number; width: number; height: number; base: number; bend: number; inward: number }` (degrees and world units). Each figure stands on a vertical plane that faces the camera (normal +Z, south), centred at `onDial(bearing, distance)`. Its lower stars curve forward around the rim. (Ruling 5: the plan's first placement laid the figures along the shell, which turned China and Aruba nearly edge-on to a camera in the south.)
   - `PLACEMENTS: Readonly<Record<CountryId, Placement>>`:
-    - china `{ bearing: 90, span: 46, radius: 1.42, base: 0.04, height: 0.95, swing: 38 }`
-    - netherlands `{ bearing: 0, span: 30, radius: 2.7, base: 0.55, height: 0.9, swing: 0 }`
-    - aruba `{ bearing: 270, span: 46, radius: 1.42, base: 0.04, height: 0.95, swing: 38 }`
-  - `starPositions(id: CountryId): Float32Array`: xyz per star. The bearing is `P.bearing + (u − 0.5)·P.span`, plus `P.swing·(1 − v)²` turned toward south (180°): + for china, − for aruba. `y = P.base + v·P.height`, and xz comes from `onDial(bearing, P.radius)`.
-  - `bearingRange(id: CountryId): readonly [from: number, to: number]`: radians, the span of its stars' bearings widened by 10° each side. The margin absorbs the aim's offset for the ship: the aim reads the ship's stars on the 1.42 shell, not at their 2.7 radius, so a ship star at 15° aims at about 22°.
+    - china `{ bearing: 90, distance: 1.65, width: 0.85, height: 0.95, base: 0.04, bend: 0.95, inward: 0.5 }`
+    - netherlands `{ bearing: 0, distance: 2.7, width: 0.75, height: 0.9, base: 0.55, bend: 0, inward: 0 }`
+    - aruba `{ bearing: 270, distance: 1.65, width: 0.85, height: 0.95, base: 0.04, bend: 0.95, inward: 0.5 }`
+  - `starPositions(id: CountryId): Float32Array`: xyz per star, with `[cx, cz] = onDial(P.bearing, P.distance)` and `w = (1 − v)²`:
+    - `x = cx + (u − 0.5)·P.width − sign(cx)·P.inward·w`
+    - `y = P.base + v·P.height`
+    - `z = cz + P.bend·w`
+
+    `u` runs left to right as the camera sees it, for every figure.
+  - `bearingRange(id: CountryId): readonly [from: number, to: number]`: radians, the span of its stars' bearings widened by 10° each side. Task 7's aim snaps the needle to a star's own bearing, and the margin covers the ground and sky rules between stars.
   - `pointedAt(needle: number): CountryId | null`: the constellation whose range holds `needle` (radians), with wrap at ±π.
 
 - [ ] **Step 1: Write the failing tests**
@@ -592,7 +597,7 @@ describe('the loader shot', () => {
     3. **The sky.** Otherwise (the cursor above the horizon), it returns the bearing of the ray's far (exit) intersection with the vertical cylinder of radius `shell`, the side the cursor looks toward. It returns null only if none of the three applies.
 
     All bearings are `bearingOf(x, z)`. This replaces the plan's first two-rule version (Ruling 1 in the ledger).
-  - `AIM_SHELL = 1.42`: the inner constellations' radius.
+  - `AIM_SHELL = 1.65`: the side constellations' centre distance (`PLACEMENTS.china.distance`), the cylinder the sky rule uses.
   - `NEEDLE_SPRING = { zeta: 0.55, omega: 3.2 }`: heavier and slower than milestone 1's 0.4/7, for Bob's "slight delay". Passed to `new AngleSpring(zeta, omega)`.
   - `touchDrift(t: number): number`, in radians:
     - It visits Netherlands → China → Netherlands → Aruba, 7 s per leg: 4.5 s resting on a constellation's bearing, then 2.5 s of smootherstep travel.
