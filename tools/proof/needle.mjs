@@ -2694,7 +2694,9 @@ async function homeLook(browser, step) {
     await reachHomeIdle(page);
     const hero = await page.waitForFunction(() => getComputedStyle(document.querySelector('.hero')).opacity === '1', null, { timeout: 5_000 }).then(() => true, () => false);
     await page.evaluate(() => document.fonts.ready);
-    await page.waitForTimeout(500); // the pointed constellation's glow has arrived
+    // The first still is the needle as it landed: the drift rests it there 4.5 s, side-on, lighting nothing; the later
+    // samples catch it on its way to China and resting there, lit.
+    await page.waitForTimeout(500);
     step.check(hero, `${at}: landed on the home, the hero shown whole`);
     for (let k = 0; k < HOME_SAMPLES; k++) {
       if (k > 0) await page.waitForTimeout((PULSE.period * 1000) / HOME_SAMPLES);

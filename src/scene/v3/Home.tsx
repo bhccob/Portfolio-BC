@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { COUNTRY_IDS, type CountryId } from '~/data/directions';
 import { AngleSpring, wrapAngle } from '~/engine/AngleSpring';
 import { AT_REST } from '~/engine/stillness';
-import { AIM_SHELL, DRIFT_CYCLE, NEEDLE_SPRING, pointerBearing, touchDrift, touchDriftRests } from '~/engine/v3/aim';
+import { AIM_SHELL, DRIFT_CYCLE, LANDING_BEARING, NEEDLE_SPRING, pointerBearing, touchDrift, touchDriftRests } from '~/engine/v3/aim';
 import type { CityModel } from '~/engine/v3/build/city';
 import { type ConstellationsModel, STARS_LOOK } from '~/engine/v3/build/constellations';
 import type { NeedleModel } from '~/engine/v3/build/needle';
@@ -16,7 +16,6 @@ import { useScene } from '~/state/store';
 import { motion } from '../motion';
 import { aimSource, breathAt, clearOfHero, glowToward, IDLE_SECONDS, idleRuns, isAiming, type LabelSide, labelSide, labelSpot, layoutWakes, pulseAt, type ScreenBox } from './homePose';
 import { LOOK } from './look';
-import { LANDING_BEARING } from './openingPose';
 
 /** The longest step the needle, the glows and the idle clock take in one frame, seconds: a wake from sleep jumps none. */
 const MAX_STEP = 0.1;
@@ -144,8 +143,9 @@ interface HomeState {
  * at `pointerBearing(frame.pointer, camera, AIM_SHELL)`, on any screen (`aimSource`); until one has, and so always on a
  * touch screen, the needle follows `touchDrift`, which visits the three constellations. A pointer that finds no bearing, or has left the window
  * (it sends no more moves), keeps the last target; anywhere else the needle holds where it points. The needle follows
- * its target through `new AngleSpring(NEEDLE_SPRING.zeta, NEEDLE_SPRING.omega)`, from north (LANDING_BEARING, where it
- * grew) at each hand-over; with reduced motion the spring is set straight to the target, with no animation.
+ * its target through `new AngleSpring(NEEDLE_SPRING.zeta, NEEDLE_SPRING.omega)`, from LANDING_BEARING (where it grew,
+ * side-on to the camera in the dark between the ship and China, and where the drift starts) at each hand-over; with
+ * reduced motion the spring is set straight to the target, with no animation.
  *
  * **Pointing.** `pointedAt(needle)` goes into `frame.pointed`; that constellation's glow fades to STARS_LOOK.pointed
  * over 0.4 s (`glowToward`) and the others' to STARS_LOOK.rest (at once with reduced motion). At home at rest its name
@@ -295,13 +295,15 @@ export function Home({ models, handover }: HomeProps): JSX.Element {
     const { reducedMotion: reduced, transitionId, phase, scene } = useScene.getState();
     const aiming = isAiming(phase.kind, scene);
 
-    // What stirs the idle motion: the hand-over (the needle starts as the opening left it, pointing north, still, and
-    // the glows at rest), a phase change, and a pointer move at home. A pointer anywhere else wakes only the parallax.
+    // What stirs the idle motion: the hand-over (the needle starts as the opening left it, at LANDING_BEARING, still,
+    // the glows at rest, and the idle clock at its start, where the touch drift sets off from that same bearing), a
+    // phase change, and a pointer move at home. A pointer anywhere else wakes only the parallax.
     let stirred = false;
     if (!state.live) {
       state.live = true;
       stirred = true;
       state.target = LANDING_BEARING;
+      state.idleTime = 0;
       spring.set(LANDING_BEARING, 0);
       for (const id of COUNTRY_IDS) state.glow[id] = STARS_LOOK.rest;
     }

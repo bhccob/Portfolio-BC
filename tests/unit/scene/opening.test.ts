@@ -1,8 +1,13 @@
+import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
+import { DIAL } from '~/engine/instrument/dialSpec';
+import { LANDING_BEARING, touchDrift } from '~/engine/v3/aim';
 import { MIST_LOOK } from '~/engine/v3/build/mist';
+import { NEEDLE_LOOK } from '~/engine/v3/build/needle';
 import { engraved, ON_STROKES, PIN_COUNT, strokeLengths } from '~/engine/v3/chipSpec';
+import { bearingRange, pointedAt } from '~/engine/v3/constellations';
 import { type LoaderClock, type LoaderStage, LOADER, loaderAt } from '~/engine/v3/loaderTimeline';
-import { type CameraShot, DESIGN_ASPECT, homeShotFor, loaderShotFor, SHOTS } from '~/engine/v3/shots';
+import { applyCameraShot, type CameraShot, DESIGN_ASPECT, homeShotFor, loaderShotFor, SHOTS } from '~/engine/v3/shots';
 import { LOOK } from '~/scene/v3/look';
 import {
   cameraShotAt,
@@ -359,5 +364,48 @@ describe('where an opening starts (Ruling 9c)', () => {
     const FULL = { quick: false, reduced: false };
     const landed = loaderAt({ elapsed: 99, shown: 1, loadedAt: 1, quick: false, reduced: false });
     expect(openingPoseAt(HOME_CLOCK, FULL)).toEqual(openingPoseAt(landed, FULL));
+  });
+});
+
+describe('the bearing the needle lands at', () => {
+  const RAD = Math.PI / 180;
+
+  /**
+   * The needle's length on the screen at `bearing` (radians), CSS px, as the home camera frames it for a screen
+   * `width` x `height`: from its tip to its tail, at the pivot's height.
+   */
+  function drawnLength(bearing: number, width: number, height: number): number {
+    const aspect = width / height;
+    const camera = new THREE.PerspectiveCamera();
+    applyCameraShot(camera, homeShotFor(aspect), aspect);
+    camera.updateMatrixWorld();
+    const along = (reach: number) => new THREE.Vector3(Math.sin(bearing) * reach, NEEDLE_LOOK.pivot, -Math.cos(bearing) * reach).project(camera);
+    const tip = along(DIAL.needle.tip);
+    const tail = along(-DIAL.needle.tail);
+    return Math.hypot(((tip.x - tail.x) / 2) * width, ((tip.y - tail.y) / 2) * height);
+  }
+
+  it('is in the dark between the ship and China: no constellation is lit as the needle lands', () => {
+    expect(pointedAt(LANDING_BEARING)).toBeNull();
+    expect(LANDING_BEARING).toBeGreaterThan(bearingRange('netherlands')[1]);
+    expect(LANDING_BEARING).toBeLessThan(bearingRange('china')[0]);
+  });
+
+  it("keeps clear of both figures' ranges by their own margin, 10 degrees, so it reads as the empty sky", () => {
+    expect(LANDING_BEARING - bearingRange('netherlands')[1]).toBeGreaterThanOrEqual(10 * RAD - 1e-9);
+    expect(bearingRange('china')[0] - LANDING_BEARING).toBeGreaterThanOrEqual(10 * RAD - 1e-9);
+  });
+
+  it('lies side-on to the home camera, its length read on a laptop and on a phone, not end-on as a spire', () => {
+    for (const [width, height] of [[1440, 900], [390, 844]] as const) {
+      const landed = drawnLength(LANDING_BEARING, width, height);
+      // Pointing north, straight away from the camera, the needle is a short spire.
+      expect(landed, `${width}x${height}`).toBeGreaterThan(2 * drawnLength(0, width, height));
+      expect(landed, `${width}x${height}`).toBeGreaterThan(0.6 * drawnLength(90 * RAD, width, height));
+    }
+  });
+
+  it('is where the touch drift starts, so the needle does not jump at the hand-over', () => {
+    expect(touchDrift(0)).toBe(LANDING_BEARING);
   });
 });

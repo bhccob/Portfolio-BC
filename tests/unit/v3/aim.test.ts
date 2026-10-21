@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { COUNTRY_IDS } from '~/data/directions';
 import { AngleSpring, wrapAngle } from '~/engine/AngleSpring';
-import { AIM_SHELL, AIM_SNAP, DRIFT_CYCLE, NEEDLE_SPRING, pointerBearing, touchDrift, touchDriftRests } from '~/engine/v3/aim';
+import { AIM_SHELL, AIM_SNAP, DRIFT_CYCLE, LANDING_BEARING, NEEDLE_SPRING, pointerBearing, touchDrift, touchDriftRests } from '~/engine/v3/aim';
 import { bearingRange, PLACEMENTS, pointedAt, starPositions } from '~/engine/v3/constellations';
 import { applyCameraShot, homeShotFor } from '~/engine/v3/shots';
 import { bearingOf } from '~/engine/instrument/dialSpec';
@@ -44,14 +44,37 @@ describe('pointerBearing', () => {
 });
 
 describe('touchDrift', () => {
-  it('rests on the Netherlands, then China, the Netherlands, Aruba, every 28 s', () => {
-    expect(touchDrift(1)).toBeCloseTo(0, 6);
+  it('rests where the needle landed, then on China, the Netherlands, Aruba and the Netherlands, every 28 s from then on', () => {
+    expect(touchDrift(1)).toBeCloseTo(LANDING_BEARING, 6);
     expect(touchDrift(8)).toBeCloseTo(Math.PI / 2, 6);
+    expect(touchDrift(15)).toBeCloseTo(0, 6);
     expect(touchDrift(22)).toBeCloseTo(-Math.PI / 2, 6);
-    expect(touchDrift(29)).toBeCloseTo(touchDrift(1), 6);
+    expect(touchDrift(29)).toBeCloseTo(0, 6);
+    expect(touchDrift(36)).toBeCloseTo(touchDrift(8), 6);
   });
   it('moves without jumps', () => {
-    for (let t = 0; t < 28; t += 0.05) expect(Math.abs(touchDrift(t + 0.05) - touchDrift(t))).toBeLessThan(0.08);
+    for (let t = 0; t < 56; t += 0.05) expect(Math.abs(touchDrift(t + 0.05) - touchDrift(t))).toBeLessThan(0.08);
+  });
+});
+
+describe('touchDrift from the landing', () => {
+  it('starts where the landing left the needle and rests there for 4.5 s, so the needle does not jump at the hand-over', () => {
+    expect(touchDrift(0)).toBe(LANDING_BEARING);
+    for (let t = 0; t <= 4.5; t += 0.25) expect(touchDrift(t)).toBe(LANDING_BEARING);
+    // That rest is in the dark between the ship and China, where no scene may fall asleep.
+    expect(pointedAt(LANDING_BEARING)).toBeNull();
+  });
+  it('then travels on to China for 2.5 s, eased at both ends, and joins the cycle at its rest there', () => {
+    const china = (PLACEMENTS.china.bearing * Math.PI) / 180;
+    expect(touchDrift(4.5 + 1.25)).toBeCloseTo((LANDING_BEARING + china) / 2, 9);
+    let last = LANDING_BEARING;
+    for (let t = 4.5; t <= 7; t += 0.05) {
+      expect(touchDrift(t)).toBeGreaterThanOrEqual(last - 1e-12);
+      last = touchDrift(t);
+    }
+    expect(touchDrift(7)).toBeCloseTo(china, 9);
+    expect(Math.abs(touchDrift(6.999) - touchDrift(7.001))).toBeLessThan(1e-3);
+    expect(Math.abs(touchDrift(4.55) - touchDrift(4.5))).toBeLessThan(Math.abs(touchDrift(5.775) - touchDrift(5.725)) / 20);
   });
 });
 
@@ -332,12 +355,13 @@ describe('NEEDLE_SPRING', () => {
 });
 
 describe('touchDrift in full', () => {
-  it('rests for 4.5 s on each constellation\'s bearing, in the Netherlands, China, Netherlands, Aruba order', () => {
+  it('rests for 4.5 s on each constellation\'s bearing, in the China, Netherlands, Aruba, Netherlands order after the landing', () => {
     const rests: [number, number, ReturnType<typeof pointedAt>][] = [
-      [0, 4.5, 'netherlands'],
       [7, 11.5, 'china'],
       [14, 18.5, 'netherlands'],
-      [21, 25.5, 'aruba']
+      [21, 25.5, 'aruba'],
+      [28, 32.5, 'netherlands'],
+      [35, 39.5, 'china']
     ];
     for (const [from, to, country] of rests) {
       for (let t = from; t <= to; t += 0.25) {
@@ -345,12 +369,12 @@ describe('touchDrift in full', () => {
         expect(pointedAt(touchDrift(t))).toBe(country);
       }
     }
-    expect(touchDrift(0)).toBeCloseTo((PLACEMENTS.netherlands.bearing * Math.PI) / 180, 9);
+    expect(touchDrift(28)).toBeCloseTo((PLACEMENTS.netherlands.bearing * Math.PI) / 180, 9);
     expect(touchDrift(7)).toBeCloseTo((PLACEMENTS.china.bearing * Math.PI) / 180, 9);
     expect(touchDrift(21)).toBeCloseTo(wrapAngle((PLACEMENTS.aruba.bearing * Math.PI) / 180), 9);
   });
   it('travels for 2.5 s between them, by the short arc, and only there', () => {
-    const legs: [number, number, number][] = [[4.5, 0, Math.PI / 2], [11.5, Math.PI / 2, 0], [18.5, 0, -Math.PI / 2], [25.5, -Math.PI / 2, 0]];
+    const legs: [number, number, number][] = [[4.5, LANDING_BEARING, Math.PI / 2], [11.5, Math.PI / 2, 0], [18.5, 0, -Math.PI / 2], [25.5, -Math.PI / 2, 0], [32.5, 0, Math.PI / 2]];
     for (const [from, a, b] of legs) {
       expect(touchDrift(from)).toBeCloseTo(a, 9);
       expect(touchDrift(from + 2.5)).toBeCloseTo(b, 9);
@@ -371,14 +395,14 @@ describe('touchDrift in full', () => {
     expect(slowest).toBeLessThan(fastest / 20);
   });
   it('never leaves the arc between west and east, so it never sweeps through south', () => {
-    for (let t = 0; t < 28; t += 0.05) expect(Math.abs(touchDrift(t))).toBeLessThanOrEqual(Math.PI / 2 + 1e-12);
+    for (let t = 0; t < 56; t += 0.05) expect(Math.abs(touchDrift(t))).toBeLessThanOrEqual(Math.PI / 2 + 1e-12);
   });
-  it('repeats exactly every 28 s, before zero as well, and reads a NaN time as the start', () => {
-    for (const t of [0.3, 5.1, 12.7, 20.2, 27.9]) {
+  it('repeats exactly every 28 s once past the landing\'s leg, wraps a time before zero into that cycle, and reads a NaN time as the start', () => {
+    for (const t of [7.3, 12.7, 20.2, 27.9, 30.1, 33.5]) {
       expect(touchDrift(t + 28)).toBeCloseTo(touchDrift(t), 9);
-      expect(touchDrift(t - 28)).toBeCloseTo(touchDrift(t), 9);
       expect(touchDrift(t + 280)).toBeCloseTo(touchDrift(t), 6);
     }
+    for (const t of [0.3, 5.1, 12.7, 20.2, 27.9]) expect(touchDrift(t - 28)).toBeCloseTo(touchDrift(t + 28), 9);
     expect(touchDrift(Number.NaN)).toBe(touchDrift(0));
     expect(Number.isFinite(touchDrift(Number.POSITIVE_INFINITY))).toBe(true);
   });
@@ -393,16 +417,17 @@ describe('touchDrift in full', () => {
 describe('touchDriftRests', () => {
   it('is true while the drift rests on a constellation and false while it travels, so a sleep can wait for a rest', () => {
     // Sampled between the legs' ends (every 0.05 s, a quarter-step off the half seconds they fall on), where the drift
-    // either holds still or moves on both sides of the moment.
+    // either holds still or moves on both sides of the moment. The landing's leg (its first 7 s) never rests: its
+    // stop is in the dark between the ship and China.
     for (let k = 0; k < 56 / 0.05; k++) {
       const t = k * 0.05 + 0.025;
       const travelling = Math.abs(touchDrift(t + 0.01) - touchDrift(t - 0.01)) > 1e-6;
-      expect(touchDriftRests(t), `t ${t.toFixed(3)}`).toBe(!travelling);
+      expect(touchDriftRests(t), `t ${t.toFixed(3)}`).toBe(!travelling && t >= 7);
       // Wherever it rests, the needle points into a constellation.
       if (touchDriftRests(t)) expect(pointedAt(touchDrift(t)), `t ${t.toFixed(3)}`).not.toBeNull();
     }
-    expect(touchDriftRests(0)).toBe(true);
-    expect(touchDriftRests(4.5)).toBe(true);
+    expect(touchDriftRests(0)).toBe(false);
+    expect(touchDriftRests(4.5)).toBe(false);
     expect(touchDriftRests(4.6)).toBe(false);
     expect(touchDriftRests(6.9)).toBe(false);
     expect(touchDriftRests(7)).toBe(true);

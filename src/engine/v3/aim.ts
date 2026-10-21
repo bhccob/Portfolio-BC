@@ -1,7 +1,8 @@
 /**
  * How the v3 needle is aimed: from the pointer's place on the screen to a
- * bearing round the compass, how heavily the needle follows it, and the slow
- * drift that stands in for a pointer on a touch screen. It imports three only
+ * bearing round the compass, how heavily the needle follows it, the bearing
+ * it lands at, and the slow drift that stands in for a pointer on a touch
+ * screen, which sets off from there. It imports three only
  * for the camera maths (a ray through the pointer, a plane, a screen
  * projection) and no scene, so the aim is tested against the exact numbers
  * the scene draws.
@@ -177,6 +178,21 @@ export function pointerBearing(ndc: { x: number; y: number }, camera: THREE.Pers
   return sky === null ? null : bearingOf(origin.x + direction.x * sky, origin.z + direction.z * sky);
 }
 
+/**
+ * The bearing the needle lands at, radians: 40 degrees, east of north, in the dark between the ship and China. The
+ * Opening grows the needle out of the laser's probe turned this way, and the touch drift starts from it, so the Home's
+ * spring takes the needle over where it grew, with no jump.
+ *
+ * The home camera stands due south of the compass and looks north, so a needle landing north (as it once did) points
+ * straight away from it and reads as a short spire; turned 40 degrees it lies across the picture, about three times
+ * as long on the screen (365 px against 115 at 1440 x 900, 65 % of its length side-on). It is as near side-on as the
+ * gap allows: the gap between the ship's bearing range and China's runs from about 18 to 50 degrees
+ * (constellations.ts `bearingRange`, China's western peak stands at 60), and 40 keeps the ranges' own 10 degree margin
+ * from China's, so the needle lands lighting no constellation. It is also about where the sky halfway between the two
+ * figures on the screen points (39 degrees at 1440 x 900, 36 on a phone).
+ */
+export const LANDING_BEARING = (40 * Math.PI) / 180;
+
 /** The smootherstep of `x`, 0 to 1: zero slope at both ends, so a leg of the drift starts and arrives without a jerk. */
 function smootherstep(x: number): number {
   return x * x * x * (x * (x * 6 - 15) + 10);
@@ -186,9 +202,10 @@ function smootherstep(x: number): number {
  * The drift's legs, in order. Each rests on the constellation it starts from
  * for `DRIFT.rest` seconds, then travels to the next stop for `DRIFT.travel`:
  * Netherlands to China, China back to the Netherlands, the Netherlands to
- * Aruba, Aruba back to the Netherlands. The bearings are the placements' own,
- * Aruba's wrapped to -90 degrees, so every leg is the short arc and the needle
- * never sweeps through south.
+ * Aruba, Aruba back to the Netherlands. The very first leg, the landing's,
+ * starts from LANDING_BEARING instead of the Netherlands (`touchDrift`). The
+ * bearings are the placements' own, Aruba's wrapped to -90 degrees, so every
+ * leg is the short arc and the needle never sweeps through south.
  */
 const DRIFT = {
   rest: 4.5,
@@ -218,17 +235,20 @@ function placementBearing(id: CountryId): number {
 /**
  * Where the needle aims `t` seconds in, with no pointer to follow, as a
  * bearing in radians: on a touch screen the page plays this instead of a
- * pointer so the needle visits all three constellations. It visits the
- * Netherlands, China, the Netherlands, Aruba, 7 seconds each: 4.5 s resting
- * on a constellation's bearing, then 2.5 s of smootherstep travel to the next.
- * The cycle is 28 s and the motion is continuous, so the needle (which
- * follows it through its spring) never jumps. A time before zero wraps into
- * the cycle, and a NaN time reads as the start.
+ * pointer so the needle visits all three constellations. It starts where the
+ * needle landed (LANDING_BEARING), rests there 4.5 s and travels on to China;
+ * from then on it visits China, the Netherlands, Aruba and the Netherlands,
+ * 7 seconds each: 4.5 s resting on a constellation's bearing, then 2.5 s of
+ * smootherstep travel to the next. The cycle is 28 s (the landing's leg takes
+ * the place of the first one's rest on the Netherlands) and the motion is
+ * continuous, so the needle (which follows it through its spring) never
+ * jumps, at the hand-over either. A time before zero wraps into the cycle as
+ * it runs after the landing's leg, and a NaN time reads as the start.
  */
 export function touchDrift(t: number): number {
-  if (!Number.isFinite(t)) return placementBearing('netherlands');
+  if (!Number.isFinite(t)) return LANDING_BEARING;
   const { leg, into } = driftLeg(t);
-  const from = placementBearing(DRIFT.legs[leg].from);
+  const from = onLandingLeg(t) ? LANDING_BEARING : placementBearing(DRIFT.legs[leg].from);
   if (into <= DRIFT.rest) return from;
   const to = placementBearing(DRIFT.legs[leg].to);
   return from + (to - from) * smootherstep((into - DRIFT.rest) / DRIFT.travel);
@@ -241,12 +261,18 @@ function driftLeg(t: number): { leg: number; into: number } {
   return { leg, into: inCycle - leg * DRIFT_LEG };
 }
 
+/** Whether `t` (finite) seconds fall in the drift's very first leg, the landing's, which sets off from LANDING_BEARING. */
+function onLandingLeg(t: number): boolean {
+  return t >= 0 && t < DRIFT_LEG;
+}
+
 /**
  * Whether `touchDrift` is resting on a constellation at `t` seconds (its 4.5 s on each), not travelling between two.
  * The home lets its idle while run on until the drift rests, so a scene that falls asleep leaves its needle on a
- * constellation, named, and not stopped in the dark between. A time that is not finite reads as the start, which rests.
+ * constellation, named, and not stopped in the dark between: the landing's rest, in the dark between the ship and
+ * China, is not one. A time that is not finite counts as a rest, so a clock gone wrong never keeps the scene awake.
  */
 export function touchDriftRests(t: number): boolean {
   if (!Number.isFinite(t)) return true;
-  return driftLeg(t).into <= DRIFT.rest;
+  return !onLandingLeg(t) && driftLeg(t).into <= DRIFT.rest;
 }

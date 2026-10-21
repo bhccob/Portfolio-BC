@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { COUNTRY_IDS } from '~/data/directions';
 import { SafeStorage } from '~/engine/core/SafeStorage';
 import { readout } from '~/engine/loading';
+import { LANDING_BEARING } from '~/engine/v3/aim';
 import { buildChip, type ChipModel } from '~/engine/v3/build/chip';
 import { buildCase, type CaseModel } from '~/engine/v3/build/case';
 import { buildCity, type CityModel } from '~/engine/v3/build/city';
@@ -29,7 +30,6 @@ import {
   cameraShotAt,
   HOME_CLOCK,
   heldClockInput,
-  LANDING_BEARING,
   loadShare,
   type OpeningPath,
   type OpeningPose,
@@ -552,7 +552,9 @@ function clockOf(state: Run): LoaderClock {
  * Applies a pose to the loader's objects (`parts`; null for a home just built, which only takes the pose the loader
  * already shows) and, once they exist, the home's (`built`). The laser's tip stands at the cut (`tipAt`) and glides
  * from there to the chip's centre; its sparks fly while the cut moves, at the loader's `elapsed` seconds. Short of the
- * home (`atHome` false) the needle is turned to LANDING_BEARING, north, as it grows; at home its bearing is Home's.
+ * home (`atHome` false) the needle is turned to LANDING_BEARING (aim.ts: 40 degrees, side-on to the home camera, in the
+ * dark between the ship and China) as it grows, so a seek back shows the landing as it played; at home its bearing is
+ * Home's, whose spring starts from it at each hand-over.
  */
 function pose(parts: LoaderParts | null, built: HomeParts | null, at: OpeningPose, elapsed: number, state: Run, atHome: boolean): void {
   if (parts !== null) {

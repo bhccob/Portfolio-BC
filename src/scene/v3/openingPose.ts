@@ -128,13 +128,6 @@ export interface OpeningPath {
   reduced: boolean;
 }
 
-/**
- * The needle's bearing while the opening poses it, radians: north, ahead, the way the probe's spike grows into it
- * (`setForm`) and the home camera looks. The Opening turns it there on every pose short of the home, so a seek back
- * shows the landing as it played, and the Home's spring starts from it whenever it takes the needle over.
- */
-export const LANDING_BEARING = 0;
-
 /** How an opening begins: straight at the home (`skip`), or playing the loader on its `path`. */
 export interface OpeningStart {
   skip: boolean;
