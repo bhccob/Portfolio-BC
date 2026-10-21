@@ -12,13 +12,13 @@
  * north in the tables and in radians in (-PI, PI] at runtime.
  */
 import { COUNTRY_IDS, type CountryId } from '~/data/directions';
-import { onDial } from '~/engine/instrument/dialSpec';
+import { bearingOf, onDial } from '~/engine/instrument/dialSpec';
 
 /**
  * One constellation's drawing before it is placed: each star is
- * `[u, v, mag]`, with u and v in 0..1 (u to the right as the camera sees the
+ * `[u, v, mag]`, with u and v in 0..1 (u left to right as the camera sees the
  * figure, v up) and mag in 0.4..1 its size against the brightest, and each
- * line joins two stars by index. A Placement bends this square round the
+ * line joins two stars by index. A Placement stands this square up round the
  * compass, so the drawing stays a plain table of numbers.
  */
 export interface Figure {
@@ -30,70 +30,67 @@ export interface Figure {
  * The three figures, each to read at a glance from the home camera (Bob judges
  * them in the Task 14 stills), with 10 to 24 stars and every star on a line.
  *
- * China and Aruba are drawn for how the camera, low in the south, sees their
- * shells: almost edge on. Their wide tops stay wide on screen, but lower down
- * the swing (see PLACEMENTS) turns the stars toward the camera and against the
- * shell's outline, so the space a figure can use narrows into a neck and then
- * curls round the front of the rim. So the mountains stand at the top on a
- * band of cloud whose end pours down that neck and curls back on itself, a
- * Chinese cloud scroll; and the tree spreads its crown at the top, its trunk
- * runs down the neck and its roots reach round the front. Their low stars are
- * placed knowing the swing will move them, so the (u, v) square shows them
- * leaning where the screen shows them upright.
+ * Each stands on a plane facing the camera, so it is seen as drawn, except
+ * that its lower stars curve forward round the rim and in toward the compass
+ * (see PLACEMENTS). That curve sweeps through the glass on the compass side of
+ * China and Aruba, so their lower inner corner stays empty: China keeps its
+ * low stars at u >= 0.2, Aruba at u <= 0.8.
  *
- * The tree's crown streams to the right, toward the compass. Aruba's real
- * divi-divi trees lean south-west with the trade wind, which on this shell
- * is to the left, but there the shell's outline folds a crown into a line.
- * The ship's bow points east, to the right.
+ * The tree's crown is swept hard to the left, west, away from the compass, as
+ * Aruba's divi-divi trees lean west and south-west with the trade wind; the
+ * inward curve of its foot turns the trunk the same way. The ship's bow points
+ * east, to the right.
  */
 export const FIGURES: Readonly<Record<CountryId, Figure>> = {
   china: {
     stars: [
-      [0.19, 0.82, 0.65], // 0 the western peak, the farthest and smallest
-      [0.41, 1, 1], // 1 the main peak
-      [0.66, 0.87, 0.85], // 2 the eastern peak
-      [0, 0.58, 0.45], // 3 the cloud band, from its west end
-      [0.12, 0.64, 0.4], // 4
-      [0.2, 0.59, 0.5], // 5
-      [0.34, 0.66, 0.45], // 6
-      [0.46, 0.63, 0.5], // 7
-      [0.63, 0.69, 0.45], // 8
-      [0.77, 0.64, 0.55], // 9 its east end, where the scroll begins
-      [0.98, 0.56, 0.5], // 10 the scroll pouring down the near side
-      [0.87, 0.42, 0.6], // 11
-      [0.63, 0.27, 0.5], // 12 round the front of the rim
-      [0.19, 0.17, 0.55], // 13
-      [0.18, 0.25, 0.45], // 14 curling back up
-      [0.38, 0.35, 0.4] // 15 the scroll's inner end
+      [0.26, 0.74, 0.65], // 0 the western peak
+      [0.5, 1, 1], // 1 the main peak
+      [0.76, 0.84, 0.85], // 2 the eastern peak
+      [0.38, 0.48, 0.5], // 3 the saddle west of the main peak
+      [0.63, 0.52, 0.5], // 4 the saddle east of it
+      [0.2, 0.3, 0.45], // 5 the cloud band, from its west end
+      [0.3, 0.38, 0.45], // 6
+      [0.41, 0.3, 0.5], // 7
+      [0.52, 0.39, 0.5], // 8
+      [0.64, 0.3, 0.5], // 9
+      [0.76, 0.38, 0.5], // 10
+      [0.87, 0.3, 0.55], // 11 its east end, where the scroll begins
+      [0.97, 0.2, 0.6], // 12 the scroll, curling down
+      [0.92, 0.06, 0.55], // 13
+      [0.8, 0.07, 0.5], // 14
+      [0.76, 0.17, 0.45], // 15
+      [0.83, 0.22, 0.45], // 16
+      [0.88, 0.15, 0.4] // 17 its inner end
     ],
     lines: [
-      // The three peaks, each standing on the band.
-      [3, 0], [0, 5], [5, 1], [1, 7], [7, 2], [2, 9],
-      // The cloud band, its crests between the peaks' feet.
-      [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9],
+      // The ridge: up from the band's west end over the three peaks and down to its east end.
+      [5, 0], [0, 3], [3, 1], [1, 4], [4, 2], [2, 11],
+      // The cloud band, its crests and troughs under the peaks.
+      [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 11],
       // The scroll.
-      [9, 10], [10, 11], [11, 12], [12, 13], [13, 14], [14, 15]
+      [11, 12], [12, 13], [13, 14], [14, 15], [15, 16], [16, 17]
     ]
   },
   netherlands: {
     stars: [
-      [0.03, 0.42, 0.6], // 0 the stern, raised
-      [0.17, 0.06, 0.5], // 1 the keel, aft
-      [0.76, 0.06, 0.5], // 2 the keel, forward
-      [0.93, 0.3, 0.7], // 3 the bow
-      [0.32, 0.22, 0.45], // 4 the mainmast's foot, on deck
-      [0.68, 0.22, 0.45], // 5 the foremast's foot, on deck
-      [0.32, 1, 1], // 6 the mainmast's top
-      [0.68, 0.86, 0.85], // 7 the foremast's top
-      [0.18, 0.86, 0.6], // 8 the mainsail: yard, aft end
-      [0.46, 0.86, 0.6], // 9 yard, forward end
-      [0.16, 0.44, 0.55], // 10 foot, aft corner
-      [0.48, 0.44, 0.55], // 11 foot, forward corner
-      [0.58, 0.72, 0.55], // 12 the foresail: yard, aft end
-      [0.78, 0.72, 0.55], // 13 yard, forward end
-      [0.56, 0.44, 0.5], // 14 foot, aft corner
-      [0.8, 0.44, 0.5], // 15 foot, forward corner
-      [0.44, 0.97, 0.45], // 16 the pennant's tail
+      [0.02, 0.36, 0.6], // 0 the stern, raised
+      [0.14, 0.04, 0.5], // 1 the keel, aft
+      [0.82, 0.04, 0.5], // 2 the keel, forward
+      [0.96, 0.28, 0.7], // 3 the bow
+      [0.27, 0.2, 0.45], // 4 the mainmast's foot, on deck
+      [0.69, 0.2, 0.45], // 5 the foremast's foot, on deck
+      [0.27, 1, 1], // 6 the mainmast's top
+      [0.69, 0.88, 0.85], // 7 the foremast's top
+      [0.14, 0.84, 0.6], // 8 the mainsail: yard, aft end
+      [0.4, 0.84, 0.6], // 9 yard, forward end
+      [0.12, 0.44, 0.55], // 10 foot, aft corner
+      [0.42, 0.44, 0.55], // 11 foot, forward corner
+      [0.58, 0.74, 0.55], // 12 the foresail: yard, aft end
+      [0.8, 0.74, 0.55], // 13 yard, forward end
+      [0.56, 0.46, 0.5], // 14 foot, aft corner
+      [0.82, 0.46, 0.5], // 15 foot, forward corner
+      [0.4, 0.96, 0.45], // 16 the pennant's tail
       [1, 0.4, 0.5] // 17 the bowsprit's tip
     ],
     lines: [
@@ -104,65 +101,67 @@ export const FIGURES: Readonly<Record<CountryId, Figure>> = {
       // The mainsail and the foresail.
       [8, 9], [9, 11], [11, 10], [10, 8],
       [12, 13], [13, 15], [15, 14], [14, 12],
-      // The bowsprit and the stay up to the foremast, and the pennant.
-      [3, 17], [17, 7], [6, 16]
+      // The bowsprit and the pennant.
+      [3, 17], [6, 16]
     ]
   },
   aruba: {
     stars: [
-      [0.33, 0.24, 0.8], // 0 the trunk's foot
-      [0.37, 0.11, 0.45], // 1 a root reaching round the front of the rim
-      [0.9, 0.08, 0.45], // 2 a root reaching back
-      [0.31, 0.38, 0.55], // 3 the trunk
-      [0.36, 0.51, 0.6], // 4
-      [0.5, 0.63, 0.75], // 5 where the trunk bends into the crown
-      [0.27, 0.74, 0.5], // 6 the crown's short windward end
-      [0.38, 0.82, 0.7], // 7 its flat top
-      [0.62, 0.83, 0.85], // 8
-      [0.83, 0.81, 0.6], // 9
-      [1, 0.73, 1], // 10 its tip, streaming downwind
-      [0.86, 0.69, 0.5], // 11 its underside
-      [0.67, 0.67, 0.5], // 12
-      [0.71, 0.75, 0.45] // 13 the main limb through the crown
+      [0.66, 0.06, 0.8], // 0 the trunk's foot
+      [0.5, 0.02, 0.45], // 1 a root, west
+      [0.8, 0.04, 0.45], // 2 a root, east
+      [0.63, 0.26, 0.55], // 3 the trunk, leaning west
+      [0.56, 0.44, 0.6], // 4
+      [0.47, 0.56, 0.75], // 5 where the trunk bends into the crown
+      [0.57, 0.66, 0.5], // 6 the crown's short windward end
+      [0.48, 0.75, 0.7], // 7 its top
+      [0.34, 0.79, 0.85], // 8
+      [0.19, 0.77, 0.6], // 9
+      [0.07, 0.71, 0.6], // 10
+      [0, 0.6, 1], // 11 its tip, streaming downwind
+      [0.12, 0.56, 0.5], // 12 its underside
+      [0.27, 0.55, 0.5], // 13
+      [0.27, 0.67, 0.45] // 14 the main limb through the crown
     ],
     lines: [
       // The roots and the trunk.
       [1, 0], [0, 2], [0, 3], [3, 4], [4, 5],
       // The crown, round from the bend.
-      [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 11], [11, 12], [12, 5],
+      [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 11], [11, 12], [12, 13], [13, 5],
       // The limb from the bend to the tip.
-      [5, 13], [13, 10]
+      [5, 14], [14, 11]
     ]
   }
 };
 
 /**
- * Where a figure stands round the compass, in degrees and world units: its
- * centre `bearing`, the `span` of bearings its width covers, the `radius` of
- * the upright cylinder it is drawn on, the height of its foot (`base`), how
- * tall it stands (`height`), and `swing`, how far its lowest stars turn round
- * toward the camera's side (south). The swing is what wraps China and Aruba
- * round the rim instead of hanging them flat beside it.
+ * Where a figure stands, in degrees and world units (Ruling 5). It stands on a
+ * vertical plane facing the camera (normal +Z, south), centred on the point
+ * `onDial(bearing, distance)`, `width` wide and `height` tall from `base` up.
+ * Its lower stars curve toward the camera by up to `bend` and in toward the
+ * compass by up to `inward`, which wraps China and Aruba round the rim. A
+ * plane along the bearing's circle would turn the side figures nearly edge on
+ * to a camera in the south; facing the camera, each is seen as drawn.
  */
 export interface Placement {
   bearing: number;
-  span: number;
-  radius: number;
-  base: number;
+  distance: number;
+  width: number;
   height: number;
-  swing: number;
+  base: number;
+  bend: number;
+  inward: number;
 }
 
 /**
- * The three placements. China and Aruba stand close (1.42, just outside the
- * glass) in the east and the west and swing their low stars round the front
- * of the rim; the ship stands farther off (2.7) and higher, beyond the far
- * edge, straight ahead in the north, and does not swing.
+ * The three placements. China and Aruba stand 1.65 out in the east and the
+ * west, their feet curving round the front of the rim; the ship stands farther
+ * off (2.7) and higher, beyond the far edge, straight ahead in the north, flat.
  */
 export const PLACEMENTS: Readonly<Record<CountryId, Placement>> = {
-  china: { bearing: 90, span: 46, radius: 1.42, base: 0.04, height: 0.95, swing: 38 },
-  netherlands: { bearing: 0, span: 30, radius: 2.7, base: 0.55, height: 0.9, swing: 0 },
-  aruba: { bearing: 270, span: 46, radius: 1.42, base: 0.04, height: 0.95, swing: 38 }
+  china: { bearing: 90, distance: 1.65, width: 0.85, height: 0.95, base: 0.04, bend: 0.95, inward: 0.5 },
+  netherlands: { bearing: 0, distance: 2.7, width: 0.75, height: 0.9, base: 0.55, bend: 0, inward: 0 },
+  aruba: { bearing: 270, distance: 1.65, width: 0.85, height: 0.95, base: 0.04, bend: 0.95, inward: 0.5 }
 };
 
 /** How far a range reaches past its outermost stars, in degrees, so a needle that lands just off the figure still points into it. */
@@ -176,22 +175,15 @@ function wrapPi(a: number): number {
   return a - TAU * Math.ceil((a - Math.PI) / TAU);
 }
 
-/**
- * Which way a figure's low stars turn to reach south: clockwise (+1) from the
- * east half, counter-clockwise (-1) from the west half, and not at all from
- * due north or due south, where neither way is the nearer.
- */
-function towardSouth(bearingDeg: number): -1 | 0 | 1 {
-  const b = ((bearingDeg % 360) + 360) % 360;
-  if (b === 0 || b === 180) return 0;
-  return b < 180 ? 1 : -1;
-}
-
-/** Each star's bearing as degrees off its placement's own, swing included. Not wrapped: a figure stays well within a half turn of its centre. */
-function offsetsOf(id: CountryId): number[] {
+/** Each star's x, y, z in double precision, as the placement puts it: the one place the formula lives. */
+function placeStars(id: CountryId): [x: number, y: number, z: number][] {
   const p = PLACEMENTS[id];
-  const turn = towardSouth(p.bearing) * p.swing;
-  return FIGURES[id].stars.map(([u, v]) => (u - 0.5) * p.span + turn * (1 - v) ** 2);
+  const [cx, cz] = onDial(p.bearing, p.distance);
+  const inward = Math.sign(cx) * p.inward;
+  return FIGURES[id].stars.map(([u, v]) => {
+    const w = (1 - v) ** 2;
+    return [cx + (u - 0.5) * p.width - inward * w, p.base + v * p.height, cz + p.bend * w];
+  });
 }
 
 /** The positions and ranges are built once, on first use: the aim reads them on every pointer move. */
@@ -200,28 +192,19 @@ const ranges = new Map<CountryId, readonly [from: number, to: number]>();
 
 /**
  * Where each star of a constellation stands, as x, y, z triples in the
- * figure's order. A star at `[u, v]` stands at the bearing
- * `P.bearing + (u - 0.5) * P.span`, turned a further `P.swing * (1 - v)^2`
- * toward south (clockwise for China, counter-clockwise for Aruba, not at all
- * for the ship), on the cylinder of radius `P.radius` (`onDial`), at the
- * height `P.base + v * P.height`. The square keeps a figure's top where it was
- * drawn and swings its foot round in front of the rim.
+ * figure's order. With `[cx, cz] = onDial(P.bearing, P.distance)` and
+ * `w = (1 - v)^2`, a star at `[u, v]` stands at
+ * `x = cx + (u - 0.5) * P.width - sign(cx) * P.inward * w`,
+ * `y = P.base + v * P.height` and `z = cz + P.bend * w`. The square keeps a
+ * figure's top flat on its plane and curves its foot forward and inward round
+ * the rim; the ship, centred due north (cx = 0, bend 0), stays flat.
  *
  * Returns a copy, so a caller may write to it.
  */
 export function starPositions(id: CountryId): Float32Array {
   let out = positions.get(id);
   if (!out) {
-    const p = PLACEMENTS[id];
-    const offsets = offsetsOf(id);
-    const stars = FIGURES[id].stars;
-    out = new Float32Array(stars.length * 3);
-    for (let k = 0; k < stars.length; k++) {
-      const [x, z] = onDial(p.bearing + offsets[k], p.radius);
-      out[k * 3] = x;
-      out[k * 3 + 1] = p.base + stars[k][1] * p.height;
-      out[k * 3 + 2] = z;
-    }
+    out = new Float32Array(placeStars(id).flat());
     positions.set(id, out);
   }
   return out.slice();
@@ -230,9 +213,8 @@ export function starPositions(id: CountryId): Float32Array {
 /**
  * The bearings the needle counts as pointing into a constellation, in
  * radians: the span of its stars' bearings, widened by 10 degrees each side.
- * The aim snaps the needle to a star's own bearing, which is always inside;
- * the margin catches a needle still settling just off the figure, and a ship
- * star read on the nearer 1.42 shell (a star at 15 degrees aims at about 22).
+ * Task 7's aim snaps the needle to a star's own bearing, which is always
+ * inside; the margin covers its ground and sky rules between the stars.
  *
  * The convention is a start and a width. `from` is the range's
  * counter-clockwise end, wrapped into (-PI, PI] as bearingOf answers, and
@@ -248,11 +230,13 @@ export function starPositions(id: CountryId): Float32Array {
 export function bearingRange(id: CountryId): readonly [from: number, to: number] {
   let range = ranges.get(id);
   if (!range) {
-    const offsets = offsetsOf(id);
-    const lo = Math.min(...offsets) - MARGIN_DEG;
-    const hi = Math.max(...offsets) + MARGIN_DEG;
-    const from = wrapPi((PLACEMENTS[id].bearing + lo) * RAD);
-    range = [from, from + (hi - lo) * RAD] as const;
+    // Each star's bearing as a turn off the placement's own, so a figure across the seam still has one span.
+    const centre = PLACEMENTS[id].bearing * RAD;
+    const offsets = placeStars(id).map(([x, , z]) => wrapPi(bearingOf(x, z) - centre));
+    const lo = Math.min(...offsets) - MARGIN_DEG * RAD;
+    const hi = Math.max(...offsets) + MARGIN_DEG * RAD;
+    const from = wrapPi(centre + lo);
+    range = [from, from + (hi - lo)] as const;
     ranges.set(id, range);
   }
   return range;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { COUNTRY_IDS, countryDirection, type CountryId, type DirId } from '~/data/directions';
-import { bearingOf, DIAL } from '~/engine/instrument/dialSpec';
+import { bearingOf, DIAL, onDial } from '~/engine/instrument/dialSpec';
 import { bearingRange, FIGURES, PLACEMENTS, pointedAt, starPositions } from '~/engine/v3/constellations';
 
 const deg = (d: number) => (d * Math.PI) / 180;
@@ -77,16 +77,29 @@ describe('placement', () => {
     const bearingOfDir: Record<DirId, number> = { north: 0, east: 90, south: 180, west: 270 };
     for (const id of COUNTRY_IDS) expect(PLACEMENTS[id].bearing).toBe(bearingOfDir[countryDirection(id).id]);
   });
-  it('puts each star where the placement formula says, the swing turning China clockwise and Aruba counter-clockwise', () => {
-    const toSouth = { china: 1, netherlands: 0, aruba: -1 } as const;
+  it('puts each star where the placement formula says: on a plane facing the camera, its foot curved forward and inward', () => {
     for (const id of COUNTRY_IDS) {
+      const P = PLACEMENTS[id];
+      const [cx, cz] = onDial(P.bearing, P.distance);
+      const p = starPositions(id);
+      FIGURES[id].stars.forEach(([u, v], k) => {
+        const w = (1 - v) ** 2;
+        expect(p[k * 3]).toBeCloseTo(cx + (u - 0.5) * P.width - Math.sign(cx) * P.inward * w, 5);
+        expect(p[k * 3 + 1]).toBeCloseTo(P.base + v * P.height, 5);
+        expect(p[k * 3 + 2]).toBeCloseTo(cz + P.bend * w, 5);
+      });
+    }
+  });
+  it('stands China east of the compass and Aruba west, their tops on the east-west line, their feet curving in toward it', () => {
+    for (const [id, side] of [['china', 1], ['aruba', -1]] as const) {
       const P = PLACEMENTS[id];
       const p = starPositions(id);
       FIGURES[id].stars.forEach(([u, v], k) => {
-        const bearing = P.bearing + (u - 0.5) * P.span + toSouth[id] * P.swing * (1 - v) ** 2;
-        expect(Math.hypot(p[k * 3], p[k * 3 + 2])).toBeCloseTo(P.radius, 5);
-        expect(p[k * 3 + 1]).toBeCloseTo(P.base + v * P.height, 6);
-        expect(turn(bearingOf(p[k * 3], p[k * 3 + 2]), deg(bearing))).toBeCloseTo(0, 5);
+        const flat = side * P.distance + (u - 0.5) * P.width;
+        expect(Math.sign(p[k * 3])).toBe(side);
+        expect(Math.abs(p[k * 3])).toBeLessThanOrEqual(Math.abs(flat) + 1e-6);
+        if (v === 1) expect(p[k * 3 + 2]).toBeCloseTo(0, 6);
+        else expect(p[k * 3 + 2]).toBeGreaterThan(0);
       });
     }
   });
@@ -135,10 +148,10 @@ describe('pointedAt', () => {
     const [from, to] = bearingRange('netherlands');
     expect(from).toBeLessThan(0);
     expect(to).toBeGreaterThan(0);
-    for (const d of [-20, -5, -0.001, 0.001, 5, 20, 340, 355, 365, 380]) expect(pointedAt(deg(d))).toBe('netherlands');
+    for (const d of [-15, -5, -0.001, 0.001, 5, 15, 345, 355, 365, 375]) expect(pointedAt(deg(d))).toBe('netherlands');
   });
   it('reads a needle on any turn the same, and NaN as pointing at nothing', () => {
-    // Away from the ranges' ends, where adding whole turns rounds a needle an ulp either side (the ship's range ends at exactly 25 degrees).
+    // Away from the ranges' ends, where adding whole turns rounds a needle an ulp either side (China's range starts at 80 degrees, on this sweep's grid).
     const ends = COUNTRY_IDS.flatMap(bearingRange);
     for (let d = -180; d <= 180; d += 0.5) {
       const b = deg(d);
@@ -149,6 +162,6 @@ describe('pointedAt', () => {
     expect(pointedAt(Number.NaN)).toBeNull();
   });
   it('leaves the dark between the constellations empty: north-east, south-east, south, south-west and north-west', () => {
-    for (const d of [30, 45, 57, 160, 180, -160, -55]) expect(pointedAt(deg(d))).toBeNull();
+    for (const d of [30, 45, 57, 75, 135, 160, 180, -160, -70, -55]) expect(pointedAt(deg(d))).toBeNull();
   });
 });
