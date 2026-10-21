@@ -21,8 +21,10 @@
  * installs only when the first URL of the page has `?proof`. Every step that reads the site opens its page with
  * `?proof`. It answers the scene's phase, `progress`, `target`, `velocity`, the chapter (`index`, `id`, `local`,
  * `category`), the route and locale, the quality `tier`, the canvas's `dpr`, a rolling `fps`, the `camera`,
- * `canvasMounts`, `contextLost` and `threeD`; `.set({ progress })` puts the story somewhere, `.dispatch(event)` sends a
- * scene event, and `.scrollRequest` is the scroll loop's requestAnimationFrame, which `watchFrames` wraps. Without
+ * `canvasMounts`, `contextLost`, `threeD`, the opening's `loader` (`stage`, `elapsed`, `pins`), the constellation the
+ * needle is `pointed` at and where each of the `constellations` is on the screen; `.set({ progress })` puts the story
+ * somewhere, `.dispatch(event)` sends a scene event, `.seekLoader(seconds)` holds the opening's clock at a moment (-1
+ * lets go), and `.scrollRequest` is the scroll loop's requestAnimationFrame, which `watchFrames` wraps. Without
  * `?proof` there is no bridge and nothing of the site reads or writes a hook (step bridge).
  *
  *   routes     every page of pagePaths() that the build produced, each answers 200 with one <h1>
@@ -32,9 +34,9 @@
  *   slash      GET /about/china answers 301 to /about/china/; a browser opening /about/china loads
  *              /about/china/ once, with no reload
  *   bridge     the debug bridge: absent without ?proof, and with no proof hook of the site read or written through
- *              a load, a scene and a wheel gesture's frames (every hook name is trapped on the window); with
- *              ?proof the old hooks are gone, the state has exactly its fields and sensible values, `.set` puts the
- *              story in a chapter (and stops at the end), `.dispatch` sends an event, a wheel's frames go through
+ *              a load, the opening's landing and a wheel gesture's frames (every hook name is trapped on the window);
+ *              with ?proof the old hooks are gone, the state has exactly its fields and sensible values, `.set` puts
+ *              the story in a chapter (and stops at the end), `.dispatch` sends an event, a wheel's frames go through
  *              `.scrollRequest`, and the language switch shows in the state
  *   persist    client navigation / → /about/china/ → /en/about/china/ (the language switch replaces the
  *              history entry), then history.back() to / and history.forward(): the Stage mounted once and
@@ -112,9 +114,9 @@
  *   reduced-motion  with prefers-reduced-motion: reduce (page.emulateMedia, before the load) one wheel event moves
  *              `target` to exactly the next stop, through every stop of the story to its end and back, and the
  *              story arrives at each, in the right chapter
- *   loaded     a direct load of / goes from LOADING to HOME_IDLE once the scene is ready, within the load
+ *   loaded     a direct load of / goes from LOADING to HOME_IDLE once the opening has landed, within the load
  *              timeout and with no navigation on the way; the canvas is shown then, and the wheel moves
- *              `frame.progress` straight away. The canvas renders on demand: after the needle's idle drift it
+ *              `frame.progress` straight away. The canvas renders on demand: after the home's idle motion it
  *              asks for no frame at all, and the pointer wakes it. With 3D stored off, a direct load mounts no
  *              WebGL and leaves LOADING all the same
  *   no-scene   Lite is the light version: a direct load of a page without a scene (/lite/, /contact/, /en/lite/,
@@ -122,7 +124,8 @@
  *              mounts no <canvas>, probes no WebGL, shows no fallback card and leaves LOADING with 3D still on; from
  *              the home page to Lite by client navigation the one canvas stays (canvasMounts 1, the same node) and
  *              sleeps: no requestAnimationFrame at all through 1.5 s of mouse moves; back home the pointer wakes it
- *   no-webgl   Edge with WebGL switched off (--disable-webgl --disable-3d-apis): / and /en/ show the poster and
+ *   no-webgl   Edge with WebGL switched off (--disable-webgl --disable-3d-apis): / and /en/ show the poster (the
+ *              CSS panel of the night, no image, over the whole viewport) and
  *              the fallback card (THE NEEDLE LOST NORTH, in the page's language) with its link to Lite, no
  *              <canvas>, 3D off for the visit without touching the stored choice, the home page's links shown
  *              and the page scrolling natively, the phase out of LOADING; and with only a software rasteriser
@@ -130,38 +133,62 @@
  *              context lost for good (after the restore timeout) and a scene never ready (its chunk never
  *              answers, after the load timeout); switching 3D back on tries again, and a context that comes
  *              back draws again with no card. Zero console errors throughout
- *   load-throw the real Stage chunk served with one call inside the compass's load made to throw: the fallback
- *              card well inside the load timeout, 3D off and not stored, HOME_IDLE, no data-ready and no canvas, and
- *              exactly one console error, the host's report of the failure
+ *   load-throw the real Stage chunk served with one call inside the opening's load (the painted ring masks handed
+ *              to the glass compass) made to throw: the fallback card well inside the load timeout, 3D off and not
+ *              stored, HOME_IDLE, no data-ready and no canvas, and exactly one console error, the host's report of the
+ *              failure
  *   background a direct load of / waiting in a background tab past the load timeout (visibility and frames
  *              emulated, as headless Edge never hides a page): no fallback; in front, the scene loads
  *   title-ij   every Dutch text set in Unbounded with an IJ is shaped with the font's Dutch locl off (no IJ digraph
- *              reading as a U); a crop of the NL card title into PROOF_DIR/m1/
- *   stills     every page of pagePaths() that the build produced, with 3D on, at 1440x900 and 390x844, and the fallback
- *              at both, into PROOF_DIR/m1/ (`nl-about-china-1440x900.png`, `en-home-390x844.png`,
- *              `fallback-390x844.png`); on a country or project page the poster's scrim is over the scene once it
- *              shows, and before then only the poster's own (the Stage chunk is held while that is measured, so it
- *              cannot race); on Lite and contact no scene loads and the poster carries the page scrim
+ *              reading as a U); a crop of the NL card title into PROOF_DIR/m2/
+ *   stills     every page of pagePaths() that the build produced, with 3D on, at 1440x900 and 390x844, once the
+ *              opening has landed, and the fallback at both, into PROOF_DIR/m2/ (`nl-about-china-1440x900.png`,
+ *              `en-home-390x844.png`, `fallback-390x844.png`); on a country or project page the poster's scrim is
+ *              over the scene once it shows, and before then only the poster's own (the Stage chunk is held while
+ *              that is measured, so it cannot race); on Lite and contact no scene loads and the poster carries the
+ *              page scrim
+ *   loader-stills  at 1440x900 and 390x844, in a fresh context, once the real load has landed (HOME_IDLE): the
+ *              opening's clock held (`seekLoader`) at five moments, 0.6 s and 1.6 s (engrave), engraveMin + 0.4
+ *              (power), engraveMin + power + 0.8 (circuit) and engraveMin + power + circuit + 0.7 (land), each moment's
+ *              `loader.stage` checked and a still taken (`m2/loader-<n>-<size>.png`); the phase stays HOME_IDLE
+ *              throughout, and let go the opening is back at home
+ *   home-look  the home once landed at both sizes (`m2/home-<size>.png`), and the luminance of every home and
+ *              loader still, measured in a page (the PNG as a data URL in an <img>, drawn on a canvas, read with
+ *              getImageData): mean Rec. 709 luma of the sRGB values (0..1) at most 0.11 on the home and 0.07 on the
+ *              loader, and at most 0.4 % of the pixels at luma 0.98 or more (the dark look's gate)
+ *   point      at 1440x900, once landed: the mouse on each constellation (`constellations[id]`) points the needle
+ *              at it (`pointed`) within 1.5 s and shows its name, and that name alone (`t.needle.countries[id].name`),
+ *              on screen; a still each (`m2/point-<id>.png`); the mouse in the empty sky between the ship and
+ *              China points at nothing and shows no name (`m2/point-none.png`)
+ *   quick-loader  a reload of a landed / in the same tab (the loader was seen this session) never engraves and
+ *              lands within LOADER.quick + 2 s of the scene being ready; a new context plays the engraving again
+ *   loader-reduced  with reduced motion the opening shows only `engrave` (the static ON, its pins filling), `land`
+ *              and `home`, in that order, and its lit pins never decrease (sampled every 100 ms)
+ *   sleep      landed and left alone (no input at all), the canvas runs its idle motion and then draws nothing:
+ *              no requestAnimationFrame for a whole second within IDLE_SECONDS + SLEEP_WITHIN_MS
+ *   hero-failsafe  with JavaScript on but the entry chunk aborted (the page never hydrates), the hero is hidden and
+ *              then shown by the CSS fail-safe about 8 s in; with the page working, the hero stays hidden until the
+ *              phase is HOME_IDLE and then shows
  *   csp-enforced  the policy is in force, not only unbroken: on / and /lite/ after hydration, an injected inline
  *              <script> and an inline handler (<img onerror>) do not run, and the page reports a
  *              securitypolicyviolation for each (script-src-elem, script-src-attr); the browser's console refusal of
  *              each is expected and counted
  *   fps        on / (the GPU), 3 s after the scene is ready: 120 requestAnimationFrame frames while the scene
  *              draws, and their mean frame rate is reported, not gated, with the scene's own rolling fps, tier and
- *              pixel ratio from the bridge; it passes when the canvas holds the scene: a pixel read back through
- *              toDataURL right after a drawn frame is not blank
+ *              pixel ratio from the bridge; it passes when the canvas holds the scene: read back through toDataURL
+ *              right after a drawn frame, it has something bright, and the compass on its axis (the middle column)
  *
  * The harness reads src/data/pages.ts, src/app/handle.ts (which pages have a scene) and src/state/chapters.ts (through
  * tsx) and the build in dist/client to know which pages, scenes and stops to expect.
  *
  * Environment:
  *   BASE             site to test, default http://localhost:4399
- *   PROOF_DIR        where results.json and the stills (m1/) go, default ./proof-out
+ *   PROOF_DIR        where results.json and the stills (m2/) go, default ./proof-out
  *   STEPS            comma list of steps to run, default all; an unknown step, or none, exits 1
  *   PLAYWRIGHT_CORE  path to a playwright-core package outside the repo (else normal resolution)
  */
 
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -191,11 +218,23 @@ const { HANDLES, PAGE_KINDS } = await tsImport('../../src/app/handle.ts', import
 const { MIN_FILL_MS, SEND_TIMEOUT_MS } = await tsImport('../../src/ui/contactSubmit.ts', import.meta.url);
 const { LOAD_TIMEOUT_MS, RESTORE_TIMEOUT_MS } = await tsImport('../../src/scene/timeouts.ts', import.meta.url);
 const { HOME_CHAPTERS, chapterAt, stops } = await tsImport('../../src/state/chapters.ts', import.meta.url);
+const { LOADER, LOADER_SEEN_KEY } = await tsImport('../../src/engine/v3/loaderTimeline.ts', import.meta.url);
+const { IDLE_SECONDS } = await tsImport('../../src/scene/v3/homePose.ts', import.meta.url);
+const { COUNTRY_IDS } = await tsImport('../../src/data/directions.ts', import.meta.url);
 /**
- * How long the canvas may keep drawing after the last thing that stirred it, ms: the needle's idle drift
- * (src/scene/Compass, DRIFT.seconds: 10 s) and its spring settling, with room to spare.
+ * How long the canvas may keep drawing after the last thing that stirred it, ms: the home's idle motion
+ * (src/scene/v3/homePose.ts, IDLE_SECONDS: 12 s), the touch drift resting and the needle's spring settling, with room
+ * to spare. Counted from the stir, or from the landing for a home left alone (step sleep adds IDLE_SECONDS to it).
  */
 const SLEEP_WITHIN_MS = 20_000;
+/** The milestone's stills: PROOF_DIR/m2/. */
+const STILLS = join(OUT, 'm2');
+/** The two sizes of the stills: a laptop, and a phone (touch, coarse pointer, two device pixels). */
+const STILL_SIZES = [
+  { width: 1440, height: 900, options: {} },
+  { width: 390, height: 844, options: { isMobile: true, hasTouch: true, deviceScaleFactor: 2 } },
+];
+const sizeName = ({ width, height }) => `${width}x${height}`;
 const built = (path) => existsSync(join(DIST, path, 'index.html'));
 /**
  * The scene of every page path: its route's `handle.scene`, from the site's one table (src/app/handle.ts). Null for a
@@ -1251,9 +1290,9 @@ async function restAt(page) {
 }
 
 /**
- * Waits until a direct load of / is on HOME_IDLE, the phase the scroll moves from: the scene says LOADED once it is
- * ready (or the host once it settles on no scene), within the load timeout. Answers how long it took, in ms from the
- * document's start.
+ * Waits until a direct load of / is on HOME_IDLE, the phase the scroll moves from: the opening says LOADED once it has
+ * landed on the home (or the host once it settles on no scene). Answers how long it took, in ms from the document's
+ * start.
  */
 async function reachHomeIdle(page) {
   await page.waitForFunction(() => window.__needleDebug?.().phase.kind === 'HOME_IDLE', null, { timeout: LOAD_TIMEOUT_MS + 3_000 });
@@ -1656,7 +1695,7 @@ async function loaded(browser, step) {
   await page.keyboard.press('Home');
   await restAt(page);
 
-  // The canvas renders on demand: once the needle's drift is over, nothing asks for a frame; the pointer wakes it.
+  // The canvas renders on demand: once the home's idle motion is over, nothing asks for a frame; the pointer wakes it.
   const slept = await sleepWithin(page, SLEEP_WITHIN_MS);
   step.check(slept !== null, `an idle page draws nothing: no requestAnimationFrame at all for 1 s, from ${slept} ms after the last input (limit ${SLEEP_WITHIN_MS} ms)`);
   const before = await page.evaluate(() => window.__allRaf);
@@ -1665,7 +1704,7 @@ async function loaded(browser, step) {
   const after = await page.evaluate(() => window.__allRaf);
   step.check(after > before, `a pointer move wakes the canvas (${after - before} frames asked for in 300 ms)`);
 
-  // Over a page of text a mouse idling about wakes only the parallax, about a second, never the needle's 10 s drift.
+  // Over a page of text a mouse idling about wakes only the parallax, about a second, never the home's 12 s idle.
   await page.focus('a[href="/about/china/"]');
   await page.keyboard.press('Enter');
   await page.waitForURL((url) => url.pathname === '/about/china/', { timeout: 5_000 });
@@ -1678,7 +1717,7 @@ async function loaded(browser, step) {
   const resettled = await sleepWithin(page, RESETTLE_MS + 1_000);
   step.check(
     settled !== null && woke && resettled !== null,
-    `on /about/china/ a mouse wiggle wakes the parallax only: the canvas falls quiet ${resettled} ms after it and stays so for 1 s (it must fall quiet within ${RESETTLE_MS} ms; the drift is 10 s)`,
+    `on /about/china/ a mouse wiggle wakes the parallax only: the canvas falls quiet ${resettled} ms after it and stays so for 1 s (it must fall quiet within ${RESETTLE_MS} ms; the home's idle is ${IDLE_SECONDS} s)`,
   );
   await takeCsp(page, step);
   await context.close();
@@ -1813,6 +1852,12 @@ async function noScene(browser, step) {
   return `${SCENELESS.join(', ')}: no scene file, no canvas, out of LOADING; home → Lite keeps the one canvas asleep (0 frames in 1.5 s of mouse moves), and home wakes it`;
 }
 
+/** A token's `#rrggbb` as the computed style writes the colour (`rgb(r, g, b)`); anything else as it is. */
+const rgbOf = (hex) => {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex ?? '');
+  return m ? `rgb(${m.slice(1).map((h) => parseInt(h, 16)).join(', ')})` : hex;
+};
+
 async function noWebglOne(browser, step, label, expected) {
   const summary = [];
   for (const lang of ['nl', 'en']) {
@@ -1836,8 +1881,19 @@ async function noWebglOne(browser, step, label, expected) {
       overflow: getComputedStyle(document.documentElement).overflow,
       nav: document.querySelector('.home-nav')?.getBoundingClientRect().height ?? 0,
       poster: (() => {
-        const img = document.querySelector('.poster img');
-        return !!img && img.complete && img.naturalWidth > 0;
+        const poster = document.querySelector('.poster');
+        if (!poster) return null;
+        const css = getComputedStyle(poster);
+        const box = poster.getBoundingClientRect();
+        const { clientWidth, clientHeight } = document.documentElement;
+        return {
+          images: poster.querySelectorAll('img, picture, video').length,
+          colour: css.backgroundColor,
+          image: css.backgroundImage,
+          night: getComputedStyle(document.documentElement).getPropertyValue('--night').trim(),
+          covers: box.left === 0 && box.top === 0 && box.width === clientWidth && box.height === clientHeight,
+          shown: css.display !== 'none' && css.visibility === 'visible' && css.opacity === '1',
+        };
       })(),
       phase: window.__needleDebug?.().phase.kind ?? null,
     }));
@@ -1848,7 +1904,11 @@ async function noWebglOne(browser, step, label, expected) {
     step.check(state.webgl === expected, `${label}, ${path}: the probe found '${expected}' (got ${state.webgl})`);
     step.check(state.threeD === 'off' && state.stored === null, `${label}, ${path}: 3D off for the visit, the stored choice untouched (data-3d ${state.threeD}, needle-3d ${state.stored})`);
     step.check(state.overflow === 'visible' && state.nav > 100, `${label}, ${path}: the page scrolls natively and the home page's links show (overflow ${state.overflow}, nav ${Math.round(state.nav)} px)`);
-    step.check(state.poster, `${label}, ${path}: the poster is there`);
+    const poster = state.poster;
+    step.check(
+      poster !== null && poster.images === 0 && poster.colour === rgbOf(poster.night) && /radial-gradient/.test(poster.image) && poster.covers && poster.shown,
+      `${label}, ${path}: the poster is there, the CSS panel of the night (${poster?.night}) with its faint glow over the whole viewport, no image (got ${JSON.stringify(poster)})`,
+    );
     step.check(state.phase === 'HOME_IDLE', `${label}, ${path}: the phase leaves LOADING (got ${state.phase})`);
     summary.push(`${path} "${state.title}"`);
     await takeCsp(page, step);
@@ -1858,9 +1918,11 @@ async function noWebglOne(browser, step, label, expected) {
 }
 
 /**
- * One pixel (and the brightest channel) of the scene's canvas, read back through toDataURL in a frame callback right
- * after the canvas drew (its drawing buffer is not kept past the frame). The pointer is moved first, so the scene is
- * drawing; tried a few times. Answers { max, centre: [r, g, b] }, or null without a canvas.
+ * The scene's canvas read back through toDataURL in a frame callback right after the canvas drew (its drawing buffer is
+ * not kept past the frame), at 96x54: its brightest channel (`max`) and the brightest channel on the compass's axis
+ * (`axis`). The home camera stands on the compass's north-south line and looks along it (src/engine/v3/shots.ts), so the
+ * axis is the picture's middle column; the hub, the needle and the rings lie on it between half way and four fifths
+ * down. The pointer is moved first, so the scene is drawing; tried a few times. Answers null without a canvas.
  */
 async function readCanvas(page) {
   let pixel = null;
@@ -1885,9 +1947,12 @@ async function readCanvas(page) {
               const data = ctx.getImageData(0, 0, w, h).data;
               let max = 0;
               for (let i = 0; i < data.length; i += 4) max = Math.max(max, data[i], data[i + 1], data[i + 2]);
-              // The dial's centre on a wide canvas (engine/CameraRig dialLayout: 62 % across, half way down).
-              const k = (Math.round(0.5 * h) * w + Math.round(0.62 * w)) * 4;
-              resolve({ max, centre: [data[k], data[k + 1], data[k + 2]] });
+              let axis = 0;
+              for (let row = Math.round(0.5 * h); row <= Math.round(0.8 * h); row++) {
+                const k = (row * w + w / 2) * 4;
+                axis = Math.max(axis, data[k], data[k + 1], data[k + 2]);
+              }
+              resolve({ max, axis });
             };
             image.onerror = () => reject(new Error('the data URL did not load'));
             image.src = url;
@@ -1899,8 +1964,11 @@ async function readCanvas(page) {
   return pixel;
 }
 
-/** The canvas read back holds the scene: something bright (the gilt, the needle) and not black at the dial's centre. */
-const drawn = (pixel) => pixel !== null && pixel.max > 60 && pixel.centre.some((v) => v > 0);
+/**
+ * The canvas read back holds the scene: something bright (the gilt, the city) and the compass on its axis, well above
+ * the night's own channels (palette.night, #040209: at most 9).
+ */
+const drawn = (pixel) => pixel !== null && pixel.max > 60 && pixel.axis > 30;
 
 /** Loses the live canvas's WebGL context (WEBGL_lose_context); `restore` brings it back half a second later. */
 const loseContext = (page, restore) =>
@@ -1954,7 +2022,7 @@ async function sceneFailures(browser, step) {
     await page.waitForTimeout(RESTORE_TIMEOUT_MS + 500); // past the point where a context still lost would have failed it
     const pixel = await readCanvas(page);
     const card = await page.evaluate(() => document.querySelector('.scene-fallback') !== null);
-    step.check(!card && drawn(pixel), `a restored context: no card, and the scene draws again (brightest ${pixel?.max}, centre rgb(${pixel?.centre?.join(', ')}))`);
+    step.check(!card && drawn(pixel), `a restored context: no card, and the scene draws again (brightest ${pixel?.max}, on the compass's axis ${pixel?.axis})`);
     await takeCsp(page, step);
     await context.close();
   }
@@ -2092,8 +2160,8 @@ async function titleIj(_browser, step) {
       });
       for (const row of rows) found.push({ path, ...row });
       if (path === '/') {
-        mkdirSync(join(OUT, 'm1'), { recursive: true });
-        await page.locator('.scene-fallback').screenshot({ path: join(OUT, 'm1', 'fallback-card-nl.png') });
+        mkdirSync(STILLS, { recursive: true });
+        await page.locator('.scene-fallback').screenshot({ path: join(STILLS, 'fallback-card-nl.png') });
       }
     }
     await takeCsp(page, step);
@@ -2107,7 +2175,7 @@ async function titleIj(_browser, step) {
   for (const row of found) {
     step.check(Math.abs(row.shown - row.off) < 0.01, `${row.path} "${row.text}" (lang ${row.lang}) is shaped with locl off: ${row.shown.toFixed(2)} px shown, ${row.off.toFixed(2)} px off, ${row.on.toFixed(2)} px on`);
   }
-  return `${found.length} Dutch Unbounded texts with an IJ, all shaped without the IJ digraph (card crop: ${join(OUT, 'm1', 'fallback-card-nl.png')})`;
+  return `${found.length} Dutch Unbounded texts with an IJ, all shaped without the IJ digraph (card crop: ${join(STILLS, 'fallback-card-nl.png')})`;
 }
 
 /** The scrim's backgrounds of the poster and of the scene host on the page shown, as computed. */
@@ -2155,9 +2223,18 @@ const stillName = (path) => `${langOf(path)}-${path.replace(/^\/en(?=\/|$)/, '')
 const isHome = (path) => path === '/' || path === '/en/';
 
 /**
+ * Waits until the page's opening has landed: its loader stands at `home` (on the home page the phase is HOME_IDLE with
+ * it; on a country or project page the route has left LOADING already and the opening lands under the page's scrim).
+ * The first page of a context plays the whole loader; later ones in it take the quick path.
+ */
+const landed = (page) =>
+  page.waitForFunction(() => window.__needleDebug?.().loader.stage === 'home', null, { timeout: LOAD_TIMEOUT_MS + LOADER.giveUp * 1000 });
+
+/**
  * Stills of every page of pagePaths() that the build produced, with the live scene, at 1440x900 and 390x844 (a phone:
- * touch, coarse pointer, two device pixels), and of the fallback, into PROOF_DIR/m1/, named after the page: `nl-home-1440x900.png`,
- * `en-about-china-390x844.png`, `fallback-1440x900.png`.
+ * touch, coarse pointer, two device pixels), and of the fallback, into PROOF_DIR/m2/, named after the page: `nl-home-1440x900.png`,
+ * `en-about-china-390x844.png`, `fallback-1440x900.png`. A page with a scene is taken once its opening has landed and the
+ * hero (on the home page) has faded in; the fallback once its hero has.
  *
  * On a page of text the scene is under the same scrim as the poster: the scene host's ::after carries the poster's page
  * scrim over the whole canvas once the scene shows; the home page keeps the scene unveiled. Before the scene shows, only
@@ -2165,11 +2242,8 @@ const isHome = (path) => path === '/' || path === '/en/';
  * ready at the time, and then released.
  */
 async function stills(browser, step) {
-  const sizes = [
-    { width: 1440, height: 900, options: {} },
-    { width: 390, height: 844, options: { isMobile: true, hasTouch: true, deviceScaleFactor: 2 } },
-  ];
-  const dir = join(OUT, 'm1');
+  const sizes = STILL_SIZES;
+  const dir = STILLS;
   mkdirSync(dir, { recursive: true });
   const shots = [];
   for (const { width, height, options } of sizes) {
@@ -2215,8 +2289,10 @@ async function stills(browser, step) {
         await release();
       }
       await page.waitForFunction(() => document.querySelector('.scene-host')?.hasAttribute('data-ready'), null, { timeout: LOAD_TIMEOUT_MS + 3_000 });
+      const arrived = await landed(page).then(() => true, () => false);
+      step.check(arrived, `${at}: the opening lands (loader ${JSON.stringify((await debugOf(page))?.loader)})`);
       await page.evaluate(() => document.fonts.ready);
-      await page.waitForTimeout(1_200); // the canvas's and the scrim's fade-in
+      await page.waitForTimeout(1_200); // the canvas's and the scrim's fade-in, and the hero's after the landing
       const scrim = await scrims(page);
       if (text) {
         step.check(
@@ -2242,6 +2318,9 @@ async function stills(browser, step) {
       await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
       await page.waitForSelector('.scene-fallback', { timeout: 10_000 });
       await page.evaluate(() => document.fonts.ready);
+      // The hero fades in once the phase leaves LOADING: the still is of it whole, not half way.
+      const hero = await page.waitForFunction(() => getComputedStyle(document.querySelector('.hero')).opacity === '1', null, { timeout: 5_000 }).then(() => true, () => false);
+      step.check(hero, `the fallback at ${width}x${height}: the hero is shown whole`);
       const file = join(dir, `fallback-${width}x${height}.png`);
       await page.screenshot({ path: file });
       shots.push(file);
@@ -2253,19 +2332,20 @@ async function stills(browser, step) {
   }
   step.check(shots.length === PAGES.length * sizes.length + sizes.length, `${shots.length} stills: ${PAGES.length} pages at ${sizes.length} sizes, and the fallback at each`);
   console.log(`note: stills (${shots.length}) in ${dir}`);
-  return `${shots.length} stills in ${dir}: ${PAGES.length} pages at 1440x900 and 390x844, the fallback; the page scrim over the scene on every page of text`;
+  return `${shots.length} stills in ${dir}: ${PAGES.length} pages at 1440x900 and 390x844 once landed, the fallback; the page scrim over the scene on every page of text`;
 }
 
 /**
- * The call in the compass's load that the `load-throw` step makes throw: the painted strips handed to the instrument,
- * which runs only after the model is built, its textures settled and its canvases painted (src/scene/Compass.tsx). It
- * is a property call, so minifying keeps its name; the step fails if the built Stage chunk has it other than once.
+ * The call in the opening's load that the `load-throw` step makes throw: the four painted ring masks handed to the glass
+ * compass (`compass.setRingMasks(masks)`, src/scene/v3/Opening.tsx), which runs once, only after the loader is shown,
+ * the home's objects are built and the masks are painted. It is a property call, so minifying keeps its name (the
+ * method's own definition has no dot before it); the step fails if the built Stage chunk has it other than once.
  */
-const LOAD_THROW_AT = '.instrument.setStrips(';
+const LOAD_THROW_AT = '.setRingMasks(';
 const LOAD_THROW_MESSAGE = 'load-throw: the proof makes the compass load throw';
 
 /**
- * A throw inside the compass's real load fails the scene: the real Stage chunk is served with that one call patched
+ * A throw inside the opening's real load fails the scene: the real Stage chunk is served with that one call patched
  * to throw (no fault hook in the site). Expected: the fallback card, 3D off for the visit and not stored, LOADED
  * (HOME_IDLE), no `data-ready` and no canvas, all well inside the load timeout, and exactly one console error: the
  * host's own report of the failure.
@@ -2310,7 +2390,7 @@ async function loadThrow(browser, step) {
   );
   await takeCsp(page, step);
   await context.close();
-  return `a throw inside the compass load: the card in ${tookMs} ms, 3D off and not stored, HOME_IDLE, no partial scene, one reported error`;
+  return `a throw inside the opening's load (${LOAD_THROW_AT}): the card in ${tookMs} ms, 3D off and not stored, HOME_IDLE, no partial scene, one reported error`;
 }
 
 async function fps(browser, step) {
@@ -2319,7 +2399,7 @@ async function fps(browser, step) {
   await page.bringToFront(); // a page in the background has its frames throttled
   await reachHomeIdle(page);
   await page.waitForTimeout(3_000);
-  // The scene draws while the needle drifts; a pointer move starts its drift (and the parallax) again.
+  // The scene draws while the home's idle motion runs; a pointer move stirs it (and the parallax) again.
   await page.mouse.move(700, 420);
   await page.mouse.move(760, 440, { steps: 6 });
   const times = await page.evaluate(
@@ -2337,7 +2417,7 @@ async function fps(browser, step) {
   const span = times[times.length - 1] - times[0];
   const mean = Math.round((120 / span) * 1000 * 10) / 10;
   const pixel = await readCanvas(page);
-  step.check(drawn(pixel), `the canvas holds the scene: read back through toDataURL, its brightest channel is ${pixel?.max}, the dial's centre rgb(${pixel?.centre?.join(', ')})`);
+  step.check(drawn(pixel), `the canvas holds the scene: read back through toDataURL, its brightest channel is ${pixel?.max}, ${pixel?.axis} on the compass's axis`);
   step.check(Number.isFinite(mean) && mean > 0, `120 frames sampled over ${Math.round(span)} ms`);
 
   // The site's own meter (window.__needleDebug().fps, a rolling mean over the last 60 frames the canvas drew) and what
@@ -2356,12 +2436,450 @@ async function fps(browser, step) {
   return `mean ${mean} fps over 120 frames (the scene's own meter ${debug?.fps?.toFixed(1)}), tier ${debug?.tier}, dpr ${debug?.dpr}, the canvas is not blank (brightest ${pixel?.max})`;
 }
 
+// ---------------------------------------------------------------- milestone 2: the opening, the dark look, pointing, the hero
+
+/**
+ * The opening's five moments for the stills: the loader's clock held at each (`seekLoader`, Ruling 2: a load that
+ * filled in step with the engraving), and the stage each must show. Two in the engraving, then one in each of the
+ * power-on, the circuit and the landing (src/engine/v3/loaderTimeline.ts, LOADER).
+ */
+const LOADER_MOMENTS = [
+  { seconds: 0.6, stage: 'engrave' },
+  { seconds: 1.6, stage: 'engrave' },
+  { seconds: LOADER.engraveMin + 0.4, stage: 'power' },
+  { seconds: LOADER.engraveMin + LOADER.power + 0.8, stage: 'circuit' },
+  { seconds: LOADER.engraveMin + LOADER.power + LOADER.circuit + 0.7, stage: 'land' },
+];
+
+/**
+ * Holds the opening's clock at `seconds` through the bridge (`seekLoader`; -1 lets go) and waits until the scene has
+ * drawn that moment: the bridge reports it (the held seconds, or the live clock at home again), then a few frames go
+ * by. Answers `loader` as the bridge then reports it. Seek only after HOME_IDLE: the real load is done by then.
+ */
+async function seekLoader(page, seconds) {
+  await page.evaluate((s) => window.__needleDebug.seekLoader(s), seconds);
+  if (seconds >= 0) await page.waitForFunction((s) => window.__needleDebug().loader.elapsed === s, seconds, { timeout: 5_000 });
+  else await page.waitForFunction(() => window.__needleDebug().loader.stage === 'home', null, { timeout: 5_000 });
+  await page.waitForTimeout(400); // the held moment drawn through the post chain
+  return (await debugOf(page)).loader;
+}
+
+/**
+ * The loader stills of this run, once taken: `loader-stills` takes them, `home-look` gates their luminance (and, run
+ * without `loader-stills`, takes them itself first).
+ */
+let loaderShots = null;
+
+/**
+ * At each still size, in a fresh context: `/?proof` loaded and landed (HOME_IDLE, so the real load is done), then the
+ * opening's clock held at each of LOADER_MOMENTS, its `loader.stage` checked and a still taken into
+ * `m2/loader-<n>-<size>.png`; then let go. The phase stays HOME_IDLE throughout (Ruling 2), so the page would show the
+ * hero over the held loader, which no visitor sees: while the clock is held the harness sets `<html data-loading>`, the
+ * page's own mark of a playing opening, which hides the hero as it does while the phase is LOADING. Answers the stills.
+ */
+async function takeLoaderStills(browser, step) {
+  if (loaderShots) return loaderShots;
+  mkdirSync(STILLS, { recursive: true });
+  const shots = [];
+  for (const size of STILL_SIZES) {
+    const at = sizeName(size);
+    const { context, page } = await openPage(browser, step, () => false, { width: size.width, height: size.height }, size.options);
+    await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+    await page.bringToFront();
+    await reachHomeIdle(page);
+    await page.evaluate(() => document.fonts.ready);
+    await page.evaluate(() => document.documentElement.setAttribute('data-loading', ''));
+    for (const [index, { seconds, stage }] of LOADER_MOMENTS.entries()) {
+      const loader = await seekLoader(page, seconds);
+      const phase = (await debugOf(page)).phase.kind;
+      step.check(
+        loader.stage === stage && phase === 'HOME_IDLE',
+        `${at}: the clock held at ${seconds.toFixed(1)} s shows ${stage}, the phase still HOME_IDLE (got ${loader.stage}, ${loader.pins} pins, ${phase})`,
+      );
+      const file = join(STILLS, `loader-${index + 1}-${at}.png`);
+      await page.screenshot({ path: file });
+      shots.push({ file, size: at, seconds, stage: loader.stage, pins: loader.pins });
+    }
+    await page.evaluate(() => document.documentElement.removeAttribute('data-loading'));
+    const back = await seekLoader(page, -1);
+    const after = await debugOf(page);
+    step.check(back.stage === 'home' && after.phase.kind === 'HOME_IDLE', `${at}: let go, the opening is back at home, HOME_IDLE (got ${back.stage}, ${after.phase.kind})`);
+    await takeCsp(page, step);
+    await context.close();
+  }
+  loaderShots = shots;
+  return shots;
+}
+
+async function loaderStills(browser, step) {
+  const shots = await takeLoaderStills(browser, step);
+  console.log(`note: loader stills (${shots.length}) in ${STILLS}`);
+  return `${shots.length} stills of the held opening in ${STILLS}: ${shots
+    .filter((shot) => shot.size === sizeName(STILL_SIZES[0]))
+    .map((shot) => `${shot.seconds.toFixed(1)} s ${shot.stage} (${shot.pins} pins)`)
+    .join(', ')}, at ${STILL_SIZES.map(sizeName).join(' and ')}`;
+}
+
+/**
+ * The dark look's gate (spec §4, the plan's global constraints): the mean Rec. 709 luma of a home still and of a loader
+ * still at most `home` and `loader`, and at most `clipped` of any still's pixels at luma `clip` or more. Only the look
+ * may be turned down to pass it (LOOK's exposure, the bloom, the city's glow), never these numbers.
+ */
+const LUMA_GATE = { home: 0.11, loader: 0.07, clip: 0.98, clipped: 0.004 };
+
+/**
+ * The luminance of a PNG, measured in `page` with no image library: the file as a data URL in an <img>, drawn on a
+ * canvas at its own size and read back with getImageData. Luma is Rec. 709's weights on the stored sRGB values, 0..1:
+ * `mean` over every pixel, and `clipped`, the share of pixels at LUMA_GATE.clip or more.
+ */
+async function lumaOf(page, file) {
+  const url = `data:image/png;base64,${readFileSync(file).toString('base64')}`;
+  return page.evaluate(
+    async ([url, clip]) => {
+      const image = new Image();
+      image.src = url;
+      await image.decode();
+      const canvas = document.createElement('canvas');
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(image, 0, 0);
+      const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      let sum = 0;
+      let clipped = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        const y = (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) / 255;
+        sum += y;
+        if (y >= clip) clipped++;
+      }
+      const pixels = data.length / 4;
+      return { mean: sum / pixels, clipped: clipped / pixels, width: canvas.width, height: canvas.height };
+    },
+    [url, LUMA_GATE.clip],
+  );
+}
+
+/**
+ * The home once landed, at each still size in a fresh context (`m2/home-<size>.png`, the hero shown whole), and the
+ * luminance of every home and loader still gated by LUMA_GATE. The numbers are printed and kept in results.json.
+ */
+async function homeLook(browser, step) {
+  mkdirSync(STILLS, { recursive: true });
+  const homes = [];
+  for (const size of STILL_SIZES) {
+    const at = sizeName(size);
+    const { context, page } = await openPage(browser, step, () => false, { width: size.width, height: size.height }, size.options);
+    await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+    await page.bringToFront();
+    await reachHomeIdle(page);
+    const hero = await page.waitForFunction(() => getComputedStyle(document.querySelector('.hero')).opacity === '1', null, { timeout: 5_000 }).then(() => true, () => false);
+    await page.evaluate(() => document.fonts.ready);
+    await page.waitForTimeout(500); // the pointed constellation's glow has arrived
+    step.check(hero, `${at}: landed on the home, the hero shown whole`);
+    const file = join(STILLS, `home-${at}.png`);
+    await page.screenshot({ path: file });
+    homes.push({ file, size: at, kind: 'home' });
+    await takeCsp(page, step);
+    await context.close();
+  }
+  const loaders = (await takeLoaderStills(browser, step)).map((shot) => ({ ...shot, kind: 'loader' }));
+
+  const meter = await browser.newContext();
+  const page = await meter.newPage();
+  const rows = [];
+  for (const shot of [...homes, ...loaders]) {
+    const name = shot.file.split(/[\\/]/).pop();
+    const luma = await lumaOf(page, shot.file);
+    const limit = LUMA_GATE[shot.kind];
+    const percent = (share) => `${(share * 100).toFixed(3)} %`;
+    rows.push({ still: name, kind: shot.kind, mean: Number(luma.mean.toFixed(4)), clipped: Number(luma.clipped.toFixed(6)), pixels: `${luma.width}x${luma.height}` });
+    step.check(luma.mean <= limit, `${name}: mean luma ${luma.mean.toFixed(4)}, at most ${limit} for a ${shot.kind} still`);
+    step.check(luma.clipped <= LUMA_GATE.clipped, `${name}: ${percent(luma.clipped)} of the pixels at luma ${LUMA_GATE.clip} or more, at most ${percent(LUMA_GATE.clipped)}`);
+    console.log(`note: luma ${name} (${luma.width}x${luma.height}): mean ${luma.mean.toFixed(4)} (gate ${limit}), clipped ${percent(luma.clipped)} (gate ${percent(LUMA_GATE.clipped)})`);
+  }
+  await meter.close();
+  step.luma = rows;
+  const worst = (kind) => Math.max(...rows.filter((row) => row.kind === kind).map((row) => row.mean)).toFixed(4);
+  return `${rows.length} stills measured: home mean luma at most ${worst('home')} (gate ${LUMA_GATE.home}), loader at most ${worst('loader')} (gate ${LUMA_GATE.loader}), clipped at most ${(Math.max(...rows.map((row) => row.clipped)) * 100).toFixed(3)} % (gate ${LUMA_GATE.clipped * 100} %)`;
+}
+
+/** The constellation names shown on the page now: each label the visitor can see (visible, not faded out), with its text and whether it is on screen. */
+const shownLabels = (page) =>
+  page.evaluate(() =>
+    [...document.querySelectorAll('.constellation-label')]
+      .map((label) => {
+        const css = getComputedStyle(label);
+        const box = label.getBoundingClientRect();
+        return {
+          text: label.textContent,
+          visible: css.visibility === 'visible' && Number(css.opacity) > 0.5,
+          onScreen: box.width > 0 && box.left >= 0 && box.top >= 0 && box.right <= innerWidth && box.bottom <= innerHeight,
+        };
+      })
+      .filter((label) => label.visible),
+  );
+
+/**
+ * Pointing, at 1440x900 once landed: the mouse on each constellation's place on the screen (the bridge's
+ * `constellations[id]`) turns the needle to it within 1.5 s (`pointed`), and its name, and only its name, shows on screen
+ * (`t.needle.countries[id].name`); a still each, `m2/point-<id>.png`. The mouse half way between the ship and China on
+ * the screen, in the sky between their bearing ranges, points at nothing and shows no name (`m2/point-none.png`).
+ */
+async function point(browser, step) {
+  const { t } = new Translator('nl');
+  mkdirSync(STILLS, { recursive: true });
+  const { context, page } = await openPage(browser, step);
+  await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+  await page.bringToFront();
+  await reachHomeIdle(page);
+  await page.waitForFunction(() => getComputedStyle(document.querySelector('.hero')).opacity === '1', null, { timeout: 5_000 }).catch(() => {});
+  const summary = [];
+  for (const id of COUNTRY_IDS) {
+    const name = t.needle.countries[id].name;
+    const [x, y] = (await debugOf(page)).constellations[id];
+    await page.mouse.move(x, y, { steps: 8 });
+    await page.waitForTimeout(1_500);
+    const { pointed } = await debugOf(page);
+    const labels = await shownLabels(page);
+    step.check(pointed === id, `the mouse on ${id} at (${Math.round(x)}, ${Math.round(y)}): the needle points at it within 1.5 s (pointed ${pointed})`);
+    step.check(
+      labels.length === 1 && labels[0].text === name && labels[0].onScreen,
+      `and "${name}" shows on screen, the one name shown (got ${JSON.stringify(labels)})`,
+    );
+    await page.screenshot({ path: join(STILLS, `point-${id}.png`) });
+    summary.push(`${id} "${name}"`);
+  }
+  const places = (await debugOf(page)).constellations;
+  const sky = [(places.netherlands[0] + places.china[0]) / 2, (places.netherlands[1] + places.china[1]) / 2];
+  await page.mouse.move(sky[0], sky[1], { steps: 8 });
+  await page.waitForTimeout(1_500);
+  const empty = await debugOf(page);
+  const none = await shownLabels(page);
+  step.check(empty.pointed === null && none.length === 0, `the mouse in the empty sky between the ship and China at (${Math.round(sky[0])}, ${Math.round(sky[1])}): pointed is null and no name shows (got ${empty.pointed}, ${JSON.stringify(none)})`);
+  await page.screenshot({ path: join(STILLS, `point-none.png`) });
+  await takeCsp(page, step);
+  await context.close();
+  return `the mouse on each constellation points the needle at it and shows its name: ${summary.join(', ')}; the sky between the ship and China points at nothing`;
+}
+
+/**
+ * Records, from the document's start, what the opening shows every `everyMs` ms until the phase is HOME_IDLE:
+ * `window.__loaderSamples` (performance.now() ms, the bridge's loader stage and pins, the phase), when the scene first
+ * showed (`window.__readyAt`, `data-ready` on the scene host) and when HOME_IDLE came (`window.__idleAt`). A timer, not
+ * frames: it asks for no frame of its own.
+ */
+const watchLoader = (context, everyMs) =>
+  context.addInitScript((everyMs) => {
+    window.__loaderSamples = [];
+    window.__readyAt = null;
+    window.__idleAt = null;
+    const timer = setInterval(() => {
+      const now = performance.now();
+      if (window.__readyAt === null && document.querySelector('.scene-host')?.hasAttribute('data-ready')) window.__readyAt = now;
+      if (typeof window.__needleDebug !== 'function') return;
+      const { loader, phase } = window.__needleDebug();
+      window.__loaderSamples.push({ t: Math.round(now), stage: loader.stage, pins: loader.pins, phase: phase.kind });
+      if (phase.kind === 'HOME_IDLE') {
+        window.__idleAt = now;
+        clearInterval(timer);
+      }
+    }, everyMs);
+  }, everyMs);
+
+/** What watchLoader recorded, once its own sample has seen HOME_IDLE (it may lag the phase by one interval). */
+async function loaderRecord(page) {
+  await page.waitForFunction(() => window.__idleAt !== null, null, { timeout: 5_000 });
+  return page.evaluate(() => ({ samples: window.__loaderSamples, readyAt: window.__readyAt, idleAt: window.__idleAt }));
+}
+
+/** The stages a record went through, in order, each once per run of it; the null before an opening mounts is no stage. */
+const stagesOf = (samples) => {
+  const stages = [];
+  for (const { stage } of samples) if (stage !== null && stage !== stages.at(-1)) stages.push(stage);
+  return stages;
+};
+
+/**
+ * The quick path: a landed / reloaded in the same tab (the loader was marked seen for the session) never engraves and
+ * lands within LOADER.quick + 2 s of the scene being ready; a new context, a new session, engraves again.
+ */
+async function quickLoader(browser, step) {
+  const { context, page } = await openPage(browser, step);
+  await watchLoader(context, 50);
+  await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+  await page.bringToFront();
+  await reachHomeIdle(page);
+  const first = stagesOf((await loaderRecord(page)).samples);
+  const seen = await page.evaluate((key) => sessionStorage.getItem(key), LOADER_SEEN_KEY);
+  step.check(first.includes('engrave') && seen === '1', `the first load engraves (${first.join(' → ')}) and marks the loader seen for the session (${LOADER_SEEN_KEY} ${seen})`);
+  await takeCsp(page, step);
+
+  await page.reload({ waitUntil: 'load' });
+  await reachHomeIdle(page);
+  const again = await loaderRecord(page);
+  const stages = stagesOf(again.samples);
+  step.check(stages.length > 0 && !stages.includes('engrave') && stages.at(-1) === 'home', `reloaded in the same tab it never engraves: the quick path (${stages.join(' → ')})`);
+  const took = again.readyAt !== null && again.idleAt !== null ? Math.round(again.idleAt - again.readyAt) : null;
+  const limit = (LOADER.quick + 2) * 1000;
+  step.check(
+    took !== null && took >= 0 && took <= limit,
+    `and HOME_IDLE comes ${took} ms after the scene is ready, within LOADER.quick + 2 s = ${limit} ms (ready at ${Math.round(again.readyAt)} ms, HOME_IDLE at ${Math.round(again.idleAt)} ms)`,
+  );
+  await takeCsp(page, step);
+  await context.close();
+
+  const fresh = await openPage(browser, step);
+  await watchLoader(fresh.context, 50);
+  await fresh.page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+  await fresh.page.bringToFront();
+  await reachHomeIdle(fresh.page);
+  const anew = stagesOf((await loaderRecord(fresh.page)).samples);
+  step.check(anew.includes('engrave'), `a new context engraves again (${anew.join(' → ')})`);
+  await takeCsp(fresh.page, step);
+  await fresh.context.close();
+  return `a reload in the session: ${stages.join(' → ')}, HOME_IDLE ${took} ms after ready (limit ${limit}); a new context: ${anew.join(' → ')}`;
+}
+
+/**
+ * Reduced motion: the opening is the static engraved chip with its pins filling, then a fade (spec, Ruling 4). Sampled
+ * every 100 ms until HOME_IDLE, it shows only `engrave`, `land` and `home`, in that order, and its lit pins never
+ * decrease.
+ */
+async function loaderReduced(browser, step) {
+  const { context, page } = await openPage(browser, step, () => false, { width: 1440, height: 900 }, { reducedMotion: 'reduce' });
+  await watchLoader(context, 100);
+  await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+  await page.bringToFront();
+  step.check(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches), 'the page asks for reduced motion');
+  await reachHomeIdle(page);
+  const { samples } = await loaderRecord(page);
+  const stages = stagesOf(samples);
+  step.check(JSON.stringify(stages) === JSON.stringify(['engrave', 'land', 'home']), `the opening shows engrave, land and home, in that order, and nothing else (got ${stages.join(' → ')} over ${samples.length} samples)`);
+  const pins = samples.map((sample) => sample.pins);
+  const drops = pins.filter((lit, i) => i > 0 && lit < pins[i - 1]).length;
+  step.check(drops === 0 && pins.at(-1) === 64, `its lit pins never decrease: ${pins[0]} to ${pins.at(-1)}, ${drops} drops (${[...new Set(pins)].join(' ')})`);
+  await takeCsp(page, step);
+  await context.close();
+  return `${stages.join(' → ')}, pins ${[...new Set(pins)].join(' ')} over ${samples.length} samples`;
+}
+
+/**
+ * Landed and left alone, with no input at all, the canvas runs the home's idle motion (IDLE_SECONDS after the landing)
+ * and then draws nothing: no requestAnimationFrame of the page's for a whole second, within IDLE_SECONDS +
+ * SLEEP_WITHIN_MS of the landing.
+ */
+async function sleep(browser, step) {
+  const { context, page } = await openPage(browser, step);
+  await countAllFrames(context);
+  await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+  await page.bringToFront();
+  await reachHomeIdle(page);
+  const limit = IDLE_SECONDS * 1000 + SLEEP_WITHIN_MS;
+  const slept = await sleepWithin(page, limit);
+  step.check(slept !== null, `landed and left alone, the canvas draws nothing for a whole second from ${slept} ms after the landing (within IDLE_SECONDS + SLEEP_WITHIN_MS = ${limit} ms)`);
+  step.check(slept !== null && slept >= (IDLE_SECONDS - 2) * 1000, `and it ran the idle motion first: it fell quiet ${slept} ms after the landing (the idle runs ${IDLE_SECONDS} s)`);
+  await takeCsp(page, step);
+  await context.close();
+  return `the idle motion ran, then the canvas slept ${slept} ms after the landing (limit ${limit} ms)`;
+}
+
+/** The entry chunk of the client bundle: without it the page never hydrates. */
+const ENTRY_CHUNK = /\/assets\/entry\.client-[^/]+\.js$/;
+
+/**
+ * Records the hero every 50 ms from the document's start in `window.__heroSamples`: performance.now() ms, its computed
+ * opacity, the page's `data-route` (set once it hydrates) and the phase where the bridge answers.
+ */
+const watchHero = (context) =>
+  context.addInitScript(() => {
+    window.__heroSamples = [];
+    setInterval(() => {
+      const hero = document.querySelector('.hero');
+      if (!hero) return;
+      window.__heroSamples.push({
+        t: Math.round(performance.now()),
+        opacity: Number(getComputedStyle(hero).opacity),
+        route: document.documentElement.getAttribute('data-route'),
+        phase: window.__needleDebug?.().phase.kind ?? null,
+      });
+    }, 50);
+  });
+
+/** Whether watchHero has recorded the hero whole (opacity 1) within `timeout` ms: read from its samples, not the live style, which they may lag. */
+const heroWhole = (page, timeout) =>
+  page.waitForFunction(() => window.__heroSamples.some((sample) => sample.opacity === 1), null, { timeout, polling: 100 }).then(() => true, () => false);
+
+/**
+ * The hero's CSS fail-safe (Ruling 9a). With JavaScript on but the entry chunk refused (the route aborts it), the page
+ * never hydrates: the hero is hidden (scripting is on, so the page waits for the bundle) and then shown by the fail-safe,
+ * 8 s in, faded in over 0.9 s. The step expects the browser's report of the refused chunk and of the failed import,
+ * and nothing else. With the page working, the hero stays hidden until the phase is HOME_IDLE (the opening has landed)
+ * and then shows.
+ */
+async function heroFailsafe(browser, step) {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  await context.addInitScript(() => {
+    window.__cspViolations = [];
+    document.addEventListener('securitypolicyviolation', (e) => {
+      window.__cspViolations.push({ directive: e.violatedDirective, blocked: e.blockedURI, sample: e.sample });
+    });
+  });
+  await watchHero(context);
+  const page = await context.newPage();
+  const reports = { load: 0, import: 0 };
+  page.on('console', (message) => {
+    if (message.type() !== 'error') return;
+    const refused = message.text() === 'Failed to load resource: net::ERR_FAILED' && ENTRY_CHUNK.test(message.location().url ?? '');
+    if (refused) reports.load++;
+    (refused ? step.expected : step.errors).push(message.text());
+  });
+  page.on('pageerror', (error) => {
+    const failed = /^Failed to fetch dynamically imported module: \S*\/assets\/entry\.client-/.test(error.message);
+    if (failed) reports.import++;
+    (failed ? step.expected : step.errors).push(error.message);
+  });
+  let refused = 0;
+  await page.route(ENTRY_CHUNK, (route) => {
+    refused++;
+    return route.abort();
+  });
+  await page.goto(`${BASE}/`, { waitUntil: 'load' });
+  const shown = await heroWhole(page, 12_000);
+  const broken = await page.evaluate(() => ({ samples: window.__heroSamples, name: document.querySelector('.hero-name')?.textContent ?? null }));
+  const firstShown = broken.samples.find((sample) => sample.opacity > 0)?.t ?? null;
+  const whole = broken.samples.find((sample) => sample.opacity === 1)?.t ?? null;
+  step.check(refused >= 1 && broken.samples.length > 0 && broken.samples.every((sample) => sample.route === null), `the entry chunk refused (${refused} requests): the page never hydrates (no data-route in ${broken.samples.length} samples)`);
+  step.check(reports.load >= 1 && reports.import === 1, `the browser reports the refused chunk and the failed import, and nothing else (${reports.load} "Failed to load resource", ${reports.import} failed import)`);
+  step.check(firstShown !== null && firstShown >= 7_900, `the hero stays hidden until the fail-safe, about 8 s in: first shown at ${firstShown} ms`);
+  step.check(shown && whole !== null && whole <= 10_500 && broken.name === HOME_H1, `then it shows, whole at ${whole} ms (8 s and a 0.9 s fade), "${broken.name}"`);
+  await takeCsp(page, step);
+  await context.close();
+
+  // Working: the hero waits for the landing.
+  const working = await openPage(browser, step);
+  await watchHero(working.context);
+  await working.page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+  await working.page.bringToFront();
+  await reachHomeIdle(working.page);
+  const appears = await heroWhole(working.page, 3_000);
+  const { samples } = await working.page.evaluate(() => ({ samples: window.__heroSamples }));
+  const before = samples.filter((sample) => sample.phase !== 'HOME_IDLE');
+  const idleAt = samples.find((sample) => sample.phase === 'HOME_IDLE')?.t ?? null;
+  const wholeAt = samples.find((sample) => sample.opacity === 1)?.t ?? null;
+  const peeked = before.filter((sample) => sample.opacity > 0);
+  step.check(before.length > 10 && peeked.length === 0, `working, the hero is hidden until HOME_IDLE: ${before.length} samples before it (from the first paint, through hydration and the opening), ${peeked.length} with the hero showing (${JSON.stringify(peeked.slice(0, 2))})`);
+  step.check(appears && idleAt !== null && wholeAt !== null && wholeAt - idleAt <= 1_500, `and it shows once landed: HOME_IDLE at ${idleAt} ms, the hero whole at ${wholeAt} ms`);
+  await takeCsp(working.page, step);
+  await working.context.close();
+  return `entry chunk refused: the hero hidden, then shown by the fail-safe at ${firstShown} ms (whole at ${whole} ms); working: hidden until HOME_IDLE (${idleAt} ms), whole at ${wholeAt} ms`;
+}
+
 // ---------------------------------------------------------------- the debug bridge, the keyboard, a language switch, reduced motion
 
 /** Every proof hook the site has had; today the bridge is the only one. */
 const HOOK_NAMES = ['__needleDebug', '__needleScene', '__needleFrame', '__needleMounts', '__needleScrollRequest'];
-/** The fields of the bridge's state (src/debug/needleDebug.ts, NeedleDebugState). */
-const STATE_KEYS = ['camera', 'canvasMounts', 'chapter', 'contextLost', 'dpr', 'fps', 'locale', 'phase', 'progress', 'route', 'target', 'threeD', 'tier', 'velocity'];
+/** The fields of the bridge's state (src/debug/needleDebug.ts, NeedleDebugState), sorted. */
+const STATE_KEYS = ['camera', 'canvasMounts', 'chapter', 'constellations', 'contextLost', 'dpr', 'fps', 'loader', 'locale', 'phase', 'pointed', 'progress', 'route', 'target', 'threeD', 'tier', 'velocity'];
 /** The last chapter of the home scroll, and the place its story ends. */
 const LAST_UNIT = HOME_CHAPTERS.units.length - 1;
 const STORY_END = HOME_CHAPTERS.total;
@@ -2369,9 +2887,9 @@ const LAST_CATEGORY = HOME_CHAPTERS.units[LAST_UNIT].category;
 
 /**
  * The debug bridge exists under `?proof` and nowhere else. Without it, nothing of the site reads or writes a proof hook,
- * not even through a scroll gesture's frames (every hook the site has had is trapped on the window, and a gesture and a pause
- * go by); with it, the state has every field and the actions act: `.set` puts the story somewhere, `.dispatch` sends an
- * event, and the old hooks are gone.
+ * not even through the opening's landing and a scroll gesture's frames (every hook the site has had is trapped on the
+ * window, and a gesture and a pause go by); with it, the state has every field and the actions act: `.set` puts the
+ * story somewhere, `.dispatch` sends an event, and the old hooks are gone.
  */
 async function bridge(browser, step) {
   // No ?proof: a trap on every hook name records any read or write of it.
@@ -2393,7 +2911,16 @@ async function bridge(browser, step) {
       }
     }, HOOK_NAMES);
     await page.goto(`${BASE}/`, { waitUntil: 'load' });
-    await page.waitForFunction(() => document.querySelector('.scene-host')?.hasAttribute('data-ready'), null, { timeout: LOAD_TIMEOUT_MS + 3_000 });
+    // The wheel moves the story from HOME_IDLE on, not while the opening plays. With no bridge to read the phase, the
+    // page says it: the scene shows (data-ready) and <html data-loading> (set while the phase is LOADING) is gone.
+    const landedAt = await page
+      .waitForFunction(
+        () => document.querySelector('.scene-host')?.hasAttribute('data-ready') && document.documentElement.hasAttribute('data-route') && !document.documentElement.hasAttribute('data-loading'),
+        null,
+        { timeout: LOAD_TIMEOUT_MS + 3_000 },
+      )
+      .then(() => true, () => false);
+    step.check(landedAt, 'without ?proof the opening lands: the scene shows and the page is no longer data-loading');
     await page.evaluate(() => {
       window.__wheels = [];
       window.addEventListener('wheel', (event) => window.__wheels.push(event.defaultPrevented), { passive: true });
@@ -2422,9 +2949,9 @@ async function bridge(browser, step) {
   step.check(old.length === 0, `with ?proof the old hooks are gone (found: ${old.join(', ') || 'none'})`);
   const shape = await page.evaluate(() => ({
     isFunction: typeof window.__needleDebug === 'function',
-    actions: [typeof window.__needleDebug.set, typeof window.__needleDebug.dispatch, typeof window.__needleDebug.scrollRequest],
+    actions: [typeof window.__needleDebug.set, typeof window.__needleDebug.dispatch, typeof window.__needleDebug.seekLoader, typeof window.__needleDebug.scrollRequest],
   }));
-  step.check(shape.isFunction && shape.actions.join() === 'function,function,function', `window.__needleDebug is a function with .set, .dispatch and .scrollRequest (got ${JSON.stringify(shape)})`);
+  step.check(shape.isFunction && shape.actions.join() === 'function,function,function,function', `window.__needleDebug is a function with .set, .dispatch, .seekLoader and .scrollRequest (got ${JSON.stringify(shape)})`);
 
   const at = await debugOf(page);
   step.check(JSON.stringify(Object.keys(at).sort()) === JSON.stringify(STATE_KEYS), `its state has exactly these fields: ${STATE_KEYS.join(', ')} (got ${Object.keys(at).sort().join(', ')})`);
@@ -2432,6 +2959,14 @@ async function bridge(browser, step) {
   step.check(JSON.stringify(at.chapter) === JSON.stringify({ index: 0, id: 'HOME', local: 0, category: null }), `the chapter is HOME, index 0, local 0 (got ${JSON.stringify(at.chapter)})`);
   step.check(at.route === 'home' && at.locale === 'nl' && at.threeD === true && at.contextLost === false && at.canvasMounts === 1, `route home, locale nl, 3D on, context there, one Stage (got ${JSON.stringify([at.route, at.locale, at.threeD, at.contextLost, at.canvasMounts])})`);
   step.check(['high', 'medium', 'low'].includes(at.tier) && at.dpr >= 1 && at.camera.fov > 0 && at.camera.position.length === 3, `a tier, a pixel ratio and a camera from the Stage (got ${at.tier}, dpr ${at.dpr}, ${JSON.stringify(at.camera)})`);
+  step.check(at.loader.stage === 'home' && at.loader.pins === 64 && at.loader.elapsed > 0, `landed, the opening stands at home with its 64 pins lit (got ${JSON.stringify(at.loader)})`);
+  step.check(at.pointed === null || COUNTRY_IDS.includes(at.pointed), `pointed is a constellation or null (got ${JSON.stringify(at.pointed)})`);
+  const view = page.viewportSize();
+  const onScreen = ([x, y]) => Number.isFinite(x) && Number.isFinite(y) && x > 0 && x < view.width && y > 0 && y < view.height;
+  step.check(
+    JSON.stringify(Object.keys(at.constellations).sort()) === JSON.stringify([...COUNTRY_IDS].sort()) && Object.values(at.constellations).every(onScreen),
+    `each constellation has a place on the screen (got ${JSON.stringify(at.constellations)})`,
+  );
 
   // .set puts the story somewhere at once: progress and target there, nothing moving, the chapter and the phase with it.
   await page.evaluate(() => window.__needleDebug.set({ progress: 2.5 }));
@@ -2669,6 +3204,13 @@ const STEPS = {
   background,
   'title-ij': titleIj,
   stills,
+  'loader-stills': loaderStills,
+  'home-look': homeLook,
+  point,
+  'quick-loader': quickLoader,
+  'loader-reduced': loaderReduced,
+  sleep,
+  'hero-failsafe': heroFailsafe,
   'load-throw': loadThrow,
   'csp-enforced': cspEnforced,
 };
@@ -2701,11 +3243,12 @@ function writeResults(results) {
         ranAt: new Date().toISOString(),
         pages: PAGES.map((p) => p.path),
         skipped: SKIPPED,
-        steps: results.map(({ id, pass, checks, errors, expected, csp, seconds, fps, rollingFps, quality }) => ({
+        steps: results.map(({ id, pass, checks, errors, expected, csp, seconds, fps, rollingFps, quality, luma }) => ({
           id,
           pass,
           seconds,
           ...(fps === undefined ? {} : { fps, rollingFps, quality }),
+          ...(luma === undefined ? {} : { luma }),
           checks,
           errors,
           expected,
