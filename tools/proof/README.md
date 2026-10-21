@@ -156,8 +156,8 @@ wraps by assignment to count the loop's own frames apart from the canvas's.
 | `title-ij` | Dutch text in Unbounded with an IJ is shaped without the font's IJ digraph; a crop of the NL card title into `m2/` |
 | `stills` | every built page at 1440x900 and 390x844 once its opening has landed, and the fallback at both (its hero shown whole), into `m2/`; on a country or project page the page scrim is over the scene, and before the scene shows only the poster's own (the Stage chunk is held while that is measured); on Lite and contact no scene loads and the poster carries the page scrim |
 | `loader-stills` | at both sizes, once landed (`HOME_IDLE`, the real load done): the opening's clock held by `seekLoader` at 0.6 s and 1.6 s (`engrave`), `engraveMin + 0.4` (`power`), `engraveMin + power + 0.8` (`circuit`) and `engraveMin + power + circuit + 0.7` (`land`), each moment's `loader.stage` checked and a still taken into `m2/loader-<n>-<size>.png`; the phase stays `HOME_IDLE`, and let go the opening is back at home |
-| `home-look` | the home once landed at both sizes (`m2/home-<size>.png`), and the dark look's gate on every home and loader still, measured in a page: mean Rec. 709 luma at most 0.11 (home) and 0.07 (loader), at most 0.4 % of the pixels at luma 0.98 or more; the numbers are printed and kept in `results.json` (`luma`) |
-| `point` | at 1440x900, once landed: the mouse on each constellation's place (`constellations[id]`) points the needle at it within 1.5 s and shows its name alone, on screen (`m2/point-<id>.png`); the mouse in the empty sky between the ship and China points at nothing and shows no name (`m2/point-none.png`) |
+| `home-look` | the home once landed at both sizes (`m2/home-<size>.png`, and three more samples a quarter of the city's 9 s pulse apart in `m2/samples/`), and the dark look's gate on every home and loader still, measured in a page: mean Rec. 709 luma at most 0.11 (home, every sample, so the pulse's peak) and 0.07 (loader), at most 0.4 % of the pixels at luma 0.98 or more, and its floor, dark but drawn: mean above 0.002 and some pixel of the scene's middle (15-85 % across, 48-85 % down, where no page text stands) at luma 0.3 or more; the numbers are printed and kept in `results.json` (`luma`) |
+| `point` | at 1440x900, once landed: the mouse on each constellation's place (`constellations[id]`) points the needle at it within 1.5 s and shows its name alone, on screen (`m2/point-<id>.png`); the mouse in the empty sky between the ship and China points at nothing and shows no name (`m2/point-none.png`); the four stills gated as home stills, floor and all (`luma`) |
 | `quick-loader` | a landed `/` reloaded in the same tab (the loader was seen this session) never engraves and reaches `HOME_IDLE` within `LOADER.quick + 2` s of the scene being ready; a new context engraves again |
 | `loader-reduced` | with reduced motion, sampled every 100 ms until `HOME_IDLE`: the opening shows only `engrave`, `land` and `home`, in that order, and its lit pins never decrease |
 | `sleep` | landed and left alone, with no input at all: the idle motion runs, then the canvas asks for no frame for a whole second, within `IDLE_SECONDS + SLEEP_WITHIN_MS` of the landing |
@@ -171,8 +171,9 @@ them after the page: `nl-home-1440x900.png`, `nl-about-china-1440x900.png`,
 `fallback-390x844.png`. `loader-stills`, `home-look` and `point` add
 `loader-1-1440x900.png` to `loader-5-390x844.png`, `home-1440x900.png`,
 `home-390x844.png`, `point-china.png`, `point-netherlands.png`,
-`point-aruba.png` and `point-none.png`. (The step that took stills of four
-pages before it, `scene-stills`, is folded into `stills`.)
+`point-aruba.png` and `point-none.png`, and `home-look` its pulse samples in
+`m2/samples/` (`home-<size>-1.png` to `-3.png`). (The step that took stills of
+four pages before it, `scene-stills`, is folded into `stills`.)
 
 The loader stills are of the opening as a visitor sees it: while the clock is
 held the phase stays `HOME_IDLE`, which would show the hero over the loader, so
@@ -193,9 +194,13 @@ without it, it takes them first.
   and kept apart in `expected`; every other console message is an error.
   `csp-enforced` reads its own violations, so they never reach the step's `csp`
   list.
-- The luminance gate (`home-look`) is the spec's restraint, measured: if it
-  fails, turn the look down (`LOOK.exposure`, the bloom, the city's glow in
-  `src/scene/v3/look.ts`), never the gate's numbers (`LUMA_GATE`).
+- The luminance gate (`home-look`, and `point` for its stills) is the spec's
+  restraint, measured: if it fails, turn the look down (`LOOK.exposure`, the
+  bloom, the city's glow in `src/scene/v3/look.ts`), never the gate's numbers
+  (`LUMA_GATE`). Its floor (mean above 0.002, some pixel of the scene's middle at
+  0.3) is there so a
+  canvas that drew nothing cannot pass for a dark one; a still under it is a
+  scene that failed, not a look to brighten.
 - Console warnings are not errors and fail no step. On the D3D11 backend three's
   own `PMREMGGXConvolution` shader (the reflection room's PMREM) logs an HLSL
   warning `X4122 ... cannot be represented accurately in double precision` when

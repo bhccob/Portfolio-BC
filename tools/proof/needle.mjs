@@ -152,14 +152,18 @@
  *              (power), engraveMin + power + 0.8 (circuit) and engraveMin + power + circuit + 0.7 (land), each moment's
  *              `loader.stage` checked and a still taken (`m2/loader-<n>-<size>.png`); the phase stays HOME_IDLE
  *              throughout, and let go the opening is back at home
- *   home-look  the home once landed at both sizes (`m2/home-<size>.png`), and the luminance of every home and
- *              loader still, measured in a page (the PNG as a data URL in an <img>, drawn on a canvas, read with
- *              getImageData): mean Rec. 709 luma of the sRGB values (0..1) at most 0.11 on the home and 0.07 on the
- *              loader, and at most 0.4 % of the pixels at luma 0.98 or more (the dark look's gate)
+ *   home-look  the home once landed at both sizes (`m2/home-<size>.png`, and three more samples a quarter of the
+ *              city's 9 s pulse apart in `m2/samples/`), and the luminance of every home and loader still, measured
+ *              in a page (the PNG as a data URL in an <img>, drawn on a canvas, read with getImageData): mean
+ *              Rec. 709 luma of the sRGB values (0..1) at most 0.11 on the home (every sample, so the pulse's peak)
+ *              and 0.07 on the loader, at most 0.4 % of the pixels at luma 0.98 or more (the dark look's gate), and
+ *              dark but drawn: mean above 0.002 and some pixel of the scene's middle (where no page text stands)
+ *              at luma 0.3 or more (its floor, Ruling 13)
  *   point      at 1440x900, once landed: the mouse on each constellation (`constellations[id]`) points the needle
  *              at it (`pointed`) within 1.5 s and shows its name, and that name alone (`t.needle.countries[id].name`),
  *              on screen; a still each (`m2/point-<id>.png`); the mouse in the empty sky between the ship and
- *              China points at nothing and shows no name (`m2/point-none.png`)
+ *              China points at nothing and shows no name (`m2/point-none.png`); the four stills gated as home
+ *              stills, floor and all
  *   quick-loader  a reload of a landed / in the same tab (the loader was seen this session) never engraves and
  *              lands within LOADER.quick + 2 s of the scene being ready; a new context plays the engraving again
  *   loader-reduced  with reduced motion the opening shows only `engrave` (the static ON, its pins filling), `land`
@@ -219,7 +223,7 @@ const { MIN_FILL_MS, SEND_TIMEOUT_MS } = await tsImport('../../src/ui/contactSub
 const { LOAD_TIMEOUT_MS, RESTORE_TIMEOUT_MS } = await tsImport('../../src/scene/timeouts.ts', import.meta.url);
 const { HOME_CHAPTERS, chapterAt, stops } = await tsImport('../../src/state/chapters.ts', import.meta.url);
 const { LOADER, LOADER_SEEN_KEY } = await tsImport('../../src/engine/v3/loaderTimeline.ts', import.meta.url);
-const { IDLE_SECONDS } = await tsImport('../../src/scene/v3/homePose.ts', import.meta.url);
+const { IDLE_SECONDS, PULSE } = await tsImport('../../src/scene/v3/homePose.ts', import.meta.url);
 const { COUNTRY_IDS } = await tsImport('../../src/data/directions.ts', import.meta.url);
 /**
  * How long the canvas may keep drawing after the last thing that stirred it, ms: the home's idle motion
@@ -2524,18 +2528,38 @@ async function loaderStills(browser, step) {
  * The dark look's gate (spec §4, the plan's global constraints): the mean Rec. 709 luma of a home still and of a loader
  * still at most `home` and `loader`, and at most `clipped` of any still's pixels at luma `clip` or more. Only the look
  * may be turned down to pass it (LOOK's exposure, the bloom, the city's glow), never these numbers.
+ *
+ * And its floor (Ruling 13, Task 14b): dark but real. Every gated still's mean is above `floor.mean`, and at least one
+ * pixel of the scene's middle (`floor.region`, shares of the still's width and height: below the hero's name and the
+ * header, above the scroll cue, clear of the constellations' names, at both sizes) reaches `floor.peak`. The page's
+ * own text is bright (the header, the hero), so a peak taken over the whole still would pass a canvas that drew
+ * nothing; in the middle only the scene can make it. (The night alone is a mean of about 0.0115.)
  */
-const LUMA_GATE = { home: 0.11, loader: 0.07, clip: 0.98, clipped: 0.004 };
+const LUMA_GATE = {
+  home: 0.11,
+  loader: 0.07,
+  clip: 0.98,
+  clipped: 0.004,
+  floor: { mean: 0.002, peak: 0.3, region: { x: [0.15, 0.85], y: [0.48, 0.85] } },
+};
+
+/**
+ * How many home stills the gate takes at each size, a quarter of the city's pulse apart (src/scene/v3/homePose.ts,
+ * PULSE: ±5 % over 9 s), all within the idle motion's IDLE_SECONDS: the gate holds for the worst of them, so it sees the
+ * pulse's peak and not one moment of it (Ruling 13). The first is `m2/home-<size>.png`; the rest go to `m2/samples/`.
+ */
+const HOME_SAMPLES = 4;
 
 /**
  * The luminance of a PNG, measured in `page` with no image library: the file as a data URL in an <img>, drawn on a
  * canvas at its own size and read back with getImageData. Luma is Rec. 709's weights on the stored sRGB values, 0..1:
- * `mean` over every pixel, and `clipped`, the share of pixels at LUMA_GATE.clip or more.
+ * `mean` over every pixel, `clipped`, the share of pixels at LUMA_GATE.clip or more, and `peak`, the luma of the
+ * brightest pixel in the scene's middle (LUMA_GATE.floor.region).
  */
 async function lumaOf(page, file) {
   const url = `data:image/png;base64,${readFileSync(file).toString('base64')}`;
   return page.evaluate(
-    async ([url, clip]) => {
+    async ([url, clip, region]) => {
       const image = new Image();
       image.src = url;
       await image.decode();
@@ -2547,24 +2571,67 @@ async function lumaOf(page, file) {
       const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
       let sum = 0;
       let clipped = 0;
+      let peak = 0;
+      const [x0, x1] = region.x.map((share) => Math.round(share * canvas.width));
+      const [y0, y1] = region.y.map((share) => Math.round(share * canvas.height));
       for (let i = 0; i < data.length; i += 4) {
         const y = (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) / 255;
         sum += y;
         if (y >= clip) clipped++;
+        const p = i / 4;
+        const px = p % canvas.width;
+        const py = (p - px) / canvas.width;
+        if (y > peak && px >= x0 && px < x1 && py >= y0 && py < y1) peak = y;
       }
       const pixels = data.length / 4;
-      return { mean: sum / pixels, clipped: clipped / pixels, width: canvas.width, height: canvas.height };
+      return { mean: sum / pixels, clipped: clipped / pixels, peak, width: canvas.width, height: canvas.height };
     },
-    [url, LUMA_GATE.clip],
+    [url, LUMA_GATE.clip, LUMA_GATE.floor.region],
   );
 }
 
 /**
- * The home once landed, at each still size in a fresh context (`m2/home-<size>.png`, the hero shown whole), and the
- * luminance of every home and loader still gated by LUMA_GATE. The numbers are printed and kept in results.json.
+ * Measures each still in `shots` (`{ file, kind }`, kind `home` or `loader`) in a page of its own context (no site
+ * page, so no policy of the site's stands between the data URL and the canvas) and gates it by LUMA_GATE: its kind's
+ * ceiling, the clipped share, and the floor. Prints each still's numbers and answers their rows, for results.json.
+ */
+async function gateLuma(browser, step, shots) {
+  const meter = await browser.newContext();
+  const page = await meter.newPage();
+  const percent = (share) => `${(share * 100).toFixed(3)} %`;
+  const { floor } = LUMA_GATE;
+  const rows = [];
+  for (const shot of shots) {
+    const name = shot.file.split(/[\\/]/).pop();
+    const luma = await lumaOf(page, shot.file);
+    const limit = LUMA_GATE[shot.kind];
+    rows.push({ still: name, kind: shot.kind, mean: Number(luma.mean.toFixed(4)), peak: Number(luma.peak.toFixed(3)), clipped: Number(luma.clipped.toFixed(6)), pixels: `${luma.width}x${luma.height}` });
+    step.check(luma.mean <= limit, `${name}: mean luma ${luma.mean.toFixed(4)}, at most ${limit} for a ${shot.kind} still`);
+    step.check(luma.clipped <= LUMA_GATE.clipped, `${name}: ${percent(luma.clipped)} of the pixels at luma ${LUMA_GATE.clip} or more, at most ${percent(LUMA_GATE.clipped)}`);
+    step.check(
+      luma.mean > floor.mean && luma.peak >= floor.peak,
+      `${name}: dark but drawn, mean luma ${luma.mean.toFixed(4)} above ${floor.mean} and the brightest pixel of the scene's middle at luma ${luma.peak.toFixed(3)}, ${floor.peak} or more`,
+    );
+    console.log(`note: luma ${name} (${luma.width}x${luma.height}): mean ${luma.mean.toFixed(4)} (gate ${limit}, floor ${floor.mean}), scene peak ${luma.peak.toFixed(3)} (floor ${floor.peak}), clipped ${percent(luma.clipped)} (gate ${percent(LUMA_GATE.clipped)})`);
+  }
+  await meter.close();
+  return rows;
+}
+
+/** The worst mean luma of the rows of a kind, and the brightest pixel over them, as the steps' summaries print them. */
+const lumaSummary = (rows, kind) => {
+  const of = rows.filter((row) => row.kind === kind);
+  return `${kind} mean luma at most ${Math.max(...of.map((row) => row.mean)).toFixed(4)} (gate ${LUMA_GATE[kind]}) and at least ${Math.min(...of.map((row) => row.mean)).toFixed(4)} (floor ${LUMA_GATE.floor.mean})`;
+};
+
+/**
+ * The home once landed, at each still size in a fresh context (`m2/home-<size>.png`, the hero shown whole, and
+ * HOME_SAMPLES - 1 more a quarter of the city's pulse apart in `m2/samples/`), and the luminance of every home and
+ * loader still gated by LUMA_GATE, its floor too: the home's ceiling holds for the worst of its samples. The numbers
+ * are printed and kept in results.json.
  */
 async function homeLook(browser, step) {
-  mkdirSync(STILLS, { recursive: true });
+  mkdirSync(join(STILLS, 'samples'), { recursive: true });
   const homes = [];
   for (const size of STILL_SIZES) {
     const at = sizeName(size);
@@ -2576,31 +2643,19 @@ async function homeLook(browser, step) {
     await page.evaluate(() => document.fonts.ready);
     await page.waitForTimeout(500); // the pointed constellation's glow has arrived
     step.check(hero, `${at}: landed on the home, the hero shown whole`);
-    const file = join(STILLS, `home-${at}.png`);
-    await page.screenshot({ path: file });
-    homes.push({ file, size: at, kind: 'home' });
+    for (let k = 0; k < HOME_SAMPLES; k++) {
+      if (k > 0) await page.waitForTimeout((PULSE.period * 1000) / HOME_SAMPLES);
+      const file = k === 0 ? join(STILLS, `home-${at}.png`) : join(STILLS, 'samples', `home-${at}-${k}.png`);
+      await page.screenshot({ path: file });
+      homes.push({ file, size: at, kind: 'home' });
+    }
     await takeCsp(page, step);
     await context.close();
   }
   const loaders = (await takeLoaderStills(browser, step)).map((shot) => ({ ...shot, kind: 'loader' }));
-
-  const meter = await browser.newContext();
-  const page = await meter.newPage();
-  const rows = [];
-  for (const shot of [...homes, ...loaders]) {
-    const name = shot.file.split(/[\\/]/).pop();
-    const luma = await lumaOf(page, shot.file);
-    const limit = LUMA_GATE[shot.kind];
-    const percent = (share) => `${(share * 100).toFixed(3)} %`;
-    rows.push({ still: name, kind: shot.kind, mean: Number(luma.mean.toFixed(4)), clipped: Number(luma.clipped.toFixed(6)), pixels: `${luma.width}x${luma.height}` });
-    step.check(luma.mean <= limit, `${name}: mean luma ${luma.mean.toFixed(4)}, at most ${limit} for a ${shot.kind} still`);
-    step.check(luma.clipped <= LUMA_GATE.clipped, `${name}: ${percent(luma.clipped)} of the pixels at luma ${LUMA_GATE.clip} or more, at most ${percent(LUMA_GATE.clipped)}`);
-    console.log(`note: luma ${name} (${luma.width}x${luma.height}): mean ${luma.mean.toFixed(4)} (gate ${limit}), clipped ${percent(luma.clipped)} (gate ${percent(LUMA_GATE.clipped)})`);
-  }
-  await meter.close();
+  const rows = await gateLuma(browser, step, [...homes, ...loaders]);
   step.luma = rows;
-  const worst = (kind) => Math.max(...rows.filter((row) => row.kind === kind).map((row) => row.mean)).toFixed(4);
-  return `${rows.length} stills measured: home mean luma at most ${worst('home')} (gate ${LUMA_GATE.home}), loader at most ${worst('loader')} (gate ${LUMA_GATE.loader}), clipped at most ${(Math.max(...rows.map((row) => row.clipped)) * 100).toFixed(3)} % (gate ${LUMA_GATE.clipped * 100} %)`;
+  return `${rows.length} stills measured (${HOME_SAMPLES} home samples a size): ${lumaSummary(rows, 'home')}, ${lumaSummary(rows, 'loader')}, the scene's peak at least ${Math.min(...rows.map((row) => row.peak)).toFixed(3)} (floor ${LUMA_GATE.floor.peak}), clipped at most ${(Math.max(...rows.map((row) => row.clipped)) * 100).toFixed(3)} % (gate ${LUMA_GATE.clipped * 100} %)`;
 }
 
 /** The constellation names shown on the page now: each label the visitor can see (visible, not faded out), with its text and whether it is on screen. */
@@ -2624,6 +2679,8 @@ const shownLabels = (page) =>
  * `constellations[id]`) turns the needle to it within 1.5 s (`pointed`), and its name, and only its name, shows on screen
  * (`t.needle.countries[id].name`); a still each, `m2/point-<id>.png`. The mouse half way between the ship and China on
  * the screen, in the sky between their bearing ranges, points at nothing and shows no name (`m2/point-none.png`).
+ * Each still is gated as a home still by LUMA_GATE, its floor too (Ruling 13): a pointed constellation is the
+ * brightest the home's stars get.
  */
 async function point(browser, step) {
   const { t } = new Translator('nl');
@@ -2634,6 +2691,7 @@ async function point(browser, step) {
   await reachHomeIdle(page);
   await page.waitForFunction(() => getComputedStyle(document.querySelector('.hero')).opacity === '1', null, { timeout: 5_000 }).catch(() => {});
   const summary = [];
+  const shots = [];
   for (const id of COUNTRY_IDS) {
     const name = t.needle.countries[id].name;
     const [x, y] = (await debugOf(page)).constellations[id];
@@ -2646,7 +2704,9 @@ async function point(browser, step) {
       labels.length === 1 && labels[0].text === name && labels[0].onScreen,
       `and "${name}" shows on screen, the one name shown (got ${JSON.stringify(labels)})`,
     );
-    await page.screenshot({ path: join(STILLS, `point-${id}.png`) });
+    const file = join(STILLS, `point-${id}.png`);
+    await page.screenshot({ path: file });
+    shots.push({ file, kind: 'home' });
     summary.push(`${id} "${name}"`);
   }
   const places = (await debugOf(page)).constellations;
@@ -2656,10 +2716,14 @@ async function point(browser, step) {
   const empty = await debugOf(page);
   const none = await shownLabels(page);
   step.check(empty.pointed === null && none.length === 0, `the mouse in the empty sky between the ship and China at (${Math.round(sky[0])}, ${Math.round(sky[1])}): pointed is null and no name shows (got ${empty.pointed}, ${JSON.stringify(none)})`);
-  await page.screenshot({ path: join(STILLS, `point-none.png`) });
+  const file = join(STILLS, `point-none.png`);
+  await page.screenshot({ path: file });
+  shots.push({ file, kind: 'home' });
   await takeCsp(page, step);
   await context.close();
-  return `the mouse on each constellation points the needle at it and shows its name: ${summary.join(', ')}; the sky between the ship and China points at nothing`;
+  const rows = await gateLuma(browser, step, shots);
+  step.luma = rows;
+  return `the mouse on each constellation points the needle at it and shows its name: ${summary.join(', ')}; the sky between the ship and China points at nothing; ${lumaSummary(rows, 'home')} over the ${rows.length} stills`;
 }
 
 /**
