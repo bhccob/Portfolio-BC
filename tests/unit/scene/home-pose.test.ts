@@ -4,8 +4,10 @@ import {
   aimSource,
   BREATHE,
   breathAt,
+  clearOfHero,
   GLOW_FADE,
   glowToward,
+  HERO_ROOM,
   IDLE_SECONDS,
   idleRuns,
   isAiming,
@@ -189,5 +191,78 @@ describe('labelSpot', () => {
     const out: [number, number] = [0, 0];
     expect(labelSpot('east', china, { x: 1238, y: 423 }, label, view, out)).toBe(out);
     expect(out).toEqual([1334 + LABEL.gap, 415]);
+  });
+});
+
+describe('clearOfHero', () => {
+  const view = { width: 1440, height: 900 };
+  // The hero's three lines as the 1440 x 900 home lays them out (CSS px): the name and tagline at the upper left, the
+  // scroll cue low in the middle. The tagline is its English wording's; the name is wide-tracked, 567 px.
+  const hero: ScreenBox[] = [
+    { left: 64, top: 133, right: 631, bottom: 207 },
+    { left: 64, top: 223, right: 297, bottom: 239 },
+    { left: 687, top: 811, right: 756, bottom: 824 },
+  ];
+  const ship: ScreenBox = { left: 659, top: 174, right: 783, bottom: 323 };
+  const aruba: ScreenBox = { left: 97, top: 289, right: 358, bottom: 581 };
+  const china: ScreenBox = { left: 1111, top: 228, right: 1334, bottom: 559 };
+  const nothing: ScreenBox = { left: Number.POSITIVE_INFINITY, top: Number.POSITIVE_INFINITY, right: Number.NEGATIVE_INFINITY, bottom: Number.NEGATIVE_INFINITY };
+  /** labelSpot, then clearOfHero, as Home's placer does. */
+  const place = (side: Parameters<typeof labelSpot>[0], figure: ScreenBox, anchor: { x: number; y: number }, label: { width: number; height: number }, size = view, lines: readonly ScreenBox[] = hero): [number, number] => {
+    const spot = labelSpot(side, figure, anchor, label, size, [0, 0]);
+    return clearOfHero(spot, figure, anchor, label, size, lines, spot);
+  };
+
+  it('keeps 80 px of clear sky between a name and the hero', () => {
+    expect(HERO_ROOM).toBe(80);
+  });
+
+  it("moves the ship's name under the ship where it would stand beside the hero's name, in either language", () => {
+    // Above the masts the English name would begin 19 px right of BOB CHUNG's last letter, the Dutch one 46 px.
+    for (const width of [141, 89]) expect(place('north', ship, { x: 721, y: 250 }, { width, height: 16 })).toEqual([721 - width / 2, 323 + LABEL.gap]);
+  });
+
+  it('leaves a name that is far from the hero where it stands', () => {
+    const label = { width: 70, height: 16 };
+    expect(place('east', china, { x: 1238, y: 423 }, label)).toEqual([1334 + LABEL.gap, 415]);
+    // Aruba's, 136 px below the tagline at the design size.
+    expect(place('west', aruba, { x: 206, y: 382 }, label)).toEqual([97 - LABEL.gap - 70, 374]);
+    // The ship's on a wide screen: BOB CHUNG ends at 664 and the name begins at 917.
+    const wide: ScreenBox[] = [{ left: 64, top: 147, right: 664, bottom: 225 }, { left: 64, top: 245, right: 322, bottom: 262 }, { left: 951, top: 1010, right: 1020, bottom: 1023 }];
+    expect(place('north', { left: 899, top: 237, right: 1021, bottom: 500 }, { x: 960, y: 330 }, { width: 89, height: 16 }, { width: 1920, height: 1080 }, wide)).toEqual([960 - 44.5, 237 - LABEL.gap - 16]);
+  });
+
+  it("moves Aruba's name under its figure when the hero's tagline is within 80 px, as at 1024 x 768", () => {
+    const small = { width: 1024, height: 768 };
+    const lines: ScreenBox[] = [{ left: 51, top: 123, right: 454, bottom: 176 }, { left: 51, top: 190, right: 220, bottom: 203 }, { left: 480, top: 700, right: 540, bottom: 712 }];
+    const figure: ScreenBox = { left: 100, top: 226, right: 290, bottom: 421 };
+    // Beside the figure (level with its anchor, at y 252) the name would be 49 px below the tagline.
+    expect(labelSpot('west', figure, { x: 190, y: 260 }, { width: 50, height: 16 }, small, [0, 0])).toEqual([100 - LABEL.gap - 50, 252]);
+    expect(place('west', figure, { x: 190, y: 260 }, { width: 50, height: 16 }, small, lines)).toEqual([190 - 25, 421 + LABEL.gap]);
+  });
+
+  it('meets nothing where the hero is not on the page', () => {
+    expect(place('north', ship, { x: 721, y: 250 }, { width: 141, height: 16 }, view, [nothing, nothing, nothing])).toEqual([721 - 70.5, 174 - LABEL.gap - 16]);
+    expect(place('north', ship, { x: 721, y: 250 }, { width: 141, height: 16 }, view, [])).toEqual([721 - 70.5, 174 - LABEL.gap - 16]);
+  });
+
+  it('keeps the name where it was if under the figure is within reach of a line too', () => {
+    const block: ScreenBox = { left: 500, top: 330, right: 900, bottom: 400 };
+    expect(place('north', ship, { x: 721, y: 250 }, { width: 141, height: 16 }, view, [...hero, block])).toEqual([721 - 70.5, 174 - LABEL.gap - 16]);
+  });
+
+  it('holds the name inside the screen, as the margin does for labelSpot', () => {
+    const low: ScreenBox = { left: 650, top: 700, right: 790, bottom: 890 };
+    const [, y] = clearOfHero([650, 690], low, { x: 720 }, { width: 140, height: 16 }, view, [{ left: 600, top: 650, right: 800, bottom: 700 }], [0, 0]);
+    expect(y).toBe(view.height - LABEL.margin - 16);
+  });
+
+  it('writes into the pair it is given (the spot itself, or another) and answers it', () => {
+    const spot: [number, number] = [650.5, 146];
+    expect(clearOfHero(spot, ship, { x: 721 }, { width: 141, height: 16 }, view, hero, spot)).toBe(spot);
+    expect(spot).toEqual([650.5, 323 + LABEL.gap]);
+    const out: [number, number] = [0, 0];
+    expect(clearOfHero([1346, 415], china, { x: 1238 }, { width: 70, height: 16 }, view, hero, out)).toBe(out);
+    expect(out).toEqual([1346, 415]);
   });
 });

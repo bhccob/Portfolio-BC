@@ -158,6 +158,41 @@ export function labelSpot(
   return set(out, x, Math.max(margin, figure.top - gap - label.height));
 }
 
+/**
+ * How much clear sky a name keeps from the hero's lines (CSS px, between the boxes): nearer than this it would read as
+ * a word of the hero's, not a constellation's name. The hero's name runs to about 44 % of a laptop's width and the
+ * ship's name is centred on the screen, so at the design size (1440 x 900) the two share a band with only a few
+ * dozen px between them; 80 keeps both languages' names clear.
+ */
+export const HERO_ROOM = 80;
+
+/**
+ * Keeps a constellation's name off the hero's text. `lines` are the boxes of the hero's lines on the screen, CSS px
+ * from the canvas's top left (a line that is not on the page is a box with no extent, left and top at +Infinity,
+ * right and bottom at -Infinity, which meets nothing). A name at `spot` (as `labelSpot` placed it) that comes within
+ * HERO_ROOM of a line stands under its figure instead: centred on the anchor, `LABEL.gap` below the figure's lowest
+ * star, held inside the screen. If that spot is within reach of a line too, the name stays where it was, as there is
+ * no better one. Writes into `out` (which may be `spot` itself) and answers it.
+ */
+export function clearOfHero(
+  spot: readonly [number, number],
+  figure: ScreenBox,
+  anchor: { x: number },
+  label: { width: number; height: number },
+  view: { width: number; height: number },
+  lines: readonly ScreenBox[],
+  out: [number, number],
+): [number, number] {
+  const { gap, margin } = LABEL;
+  const near = (x: number, y: number): boolean =>
+    lines.some((line) => x < line.right + HERO_ROOM && x + label.width > line.left - HERO_ROOM && y < line.bottom + HERO_ROOM && y + label.height > line.top - HERO_ROOM);
+  const [x, y] = spot;
+  if (!near(x, y)) return set(out, x, y);
+  const belowX = hold(anchor.x - label.width / 2, margin, view.width - margin - label.width);
+  const belowY = hold(figure.bottom + gap, margin, view.height - margin - label.height);
+  return near(belowX, belowY) ? set(out, x, y) : set(out, belowX, belowY);
+}
+
 function set(out: [number, number], x: number, y: number): [number, number] {
   out[0] = x;
   out[1] = y;

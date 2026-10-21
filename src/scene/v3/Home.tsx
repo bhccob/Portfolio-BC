@@ -14,7 +14,7 @@ import { useTranslator } from '~/i18n/useTranslator';
 import { frame } from '~/state/frame';
 import { useScene } from '~/state/store';
 import { motion } from '../motion';
-import { aimSource, breathAt, glowToward, IDLE_SECONDS, idleRuns, isAiming, type LabelSide, labelSide, labelSpot, pulseAt, type ScreenBox } from './homePose';
+import { aimSource, breathAt, clearOfHero, glowToward, IDLE_SECONDS, idleRuns, isAiming, type LabelSide, labelSide, labelSpot, pulseAt, type ScreenBox } from './homePose';
 import { LOOK } from './look';
 import { LANDING_BEARING } from './openingPose';
 
@@ -49,11 +49,40 @@ export interface HomeProps {
 
 type Placer = NonNullable<ComponentProps<typeof Html>['calculatePosition']>;
 
-/** Scratch for the labels' placing, which runs in drei's frame and allocates nothing. */
+/** Scratch for the labels' placing, which runs in drei's frame and makes no objects of its own (the hero's boxes below are the browser's, read as they stand). */
 const probe = new THREE.Vector3();
 const box: ScreenBox = { left: 0, top: 0, right: 0, bottom: 0 };
 const anchor = { x: 0, y: 0 };
 const measured = { width: 0, height: 0 };
+
+/**
+ * The hero's three lines (base.css): the name and the tagline at the upper left, the scroll cue at the foot. A name
+ * keeps clear of them (`clearOfHero`). The scene host covers the viewport (`.scene-host`), so the page's pixels are the
+ * canvas's and a line's box is read as it stands.
+ */
+const HERO_LINES = ['.hero-name', '.hero-tagline', '.hero-cue'] as const;
+const heroElements: (Element | null)[] = HERO_LINES.map(() => null);
+const heroBoxes: ScreenBox[] = HERO_LINES.map(() => ({ left: 0, top: 0, right: 0, bottom: 0 }));
+
+/** Reads the hero's lines' boxes into `heroBoxes`: each as it is on the page now, or a box that meets nothing where it is not. */
+function readHero(): readonly ScreenBox[] {
+  for (let i = 0; i < HERO_LINES.length; i++) {
+    let element = heroElements[i];
+    if (!element?.isConnected) element = heroElements[i] = document.querySelector(HERO_LINES[i]);
+    const line = heroBoxes[i];
+    if (element) {
+      const rect = element.getBoundingClientRect();
+      line.left = rect.left;
+      line.top = rect.top;
+      line.right = rect.right;
+      line.bottom = rect.bottom;
+    } else {
+      line.left = line.top = Number.POSITIVE_INFINITY;
+      line.right = line.bottom = Number.NEGATIVE_INFINITY;
+    }
+  }
+  return heroBoxes;
+}
 
 /** Puts the world point `probe` on the screen of `size`, CSS px from the canvas's top left, into `into`. */
 function onScreen(camera: THREE.Camera, size: { width: number; height: number }, into: { x: number; y: number }): void {
@@ -96,7 +125,8 @@ interface HomeState {
  * over 0.4 s (`glowToward`) and the others' to STARS_LOOK.rest (at once with reduced motion). At home at rest its name
  * shows beside it on its outer side (`labelSpot`), from `t.needle.countries[id].name`, in a drei Html label that is
  * aria-hidden, takes no pointer and fades in and out over 0.3 s (base.css `.constellation-label`). Nothing else is
- * named.
+ * named. A name that would stand within `HERO_ROOM` of the hero's text (the name and tagline at the upper left, the
+ * scroll cue below) stands under its figure instead (`clearOfHero`), so it never reads as a word of the hero's.
  *
  * **Idle.** For IDLE_SECONDS after the last stir (the hand-over, a phase change, a pointer move at home) and on until
  * the touch drift rests on a constellation, the stars twinkle, the needle's tip breathes (±10 %, 4 s) and the city
@@ -160,7 +190,8 @@ export function Home({ models, handover, finePointer }: HomeProps): JSX.Element 
           measured.width = element?.offsetWidth ?? 0;
           measured.height = element?.offsetHeight ?? 0;
           turn ^= 1;
-          return labelSpot(side, box, anchor, measured, size, pairs[turn]);
+          const spot = labelSpot(side, box, anchor, measured, size, pairs[turn]);
+          return clearOfHero(spot, box, anchor, measured, size, readHero(), spot);
         },
       };
     }
