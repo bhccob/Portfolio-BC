@@ -586,10 +586,12 @@ describe('the loader shot', () => {
 **Interfaces:**
 - Consumes: `bearingOf` (dialSpec); `PLACEMENTS`, `starPositions` (Task 5); `homeShotFor`, `applyCameraShot` (Task 6).
 - Produces:
-  - `pointerBearing(ndc: { x: number; y: number }, camera: THREE.PerspectiveCamera, shell: number): number | null`: casts a ray from the camera through `ndc`, then:
-    1. Let E be the ray's **far** (exit) intersection with the vertical cylinder of radius `shell` about the y axis. If E exists and `E.y ≥ 0`, it uses E. The camera stands outside the cylinder, so E is on the side the cursor looks toward: the east and west constellations' upper stars, and the ship beyond the far edge. The ground is not used first here because a ray dipping past an upper star would reach the ground far beyond it, at the wrong bearing.
-    2. Otherwise, if the ray meets the dial plane `y = 0` ahead of the camera, it uses that point. This covers the cursor over the dial (the ray reaches the ground inside the cylinder, so E is below it) and on China's and Aruba's low stars that wrap in front of the rim (the ray reaches the ground just past them).
-    3. It returns `bearingOf(x, z)` of that point, or null only if neither applies.
+  - `pointerBearing(ndc: { x: number; y: number }, camera: THREE.PerspectiveCamera, shell: number): number | null`. It tries three rules in order:
+    1. **Snap to a star.** If any constellation star (all three countries' `starPositions`) projects within `AIM_SNAP = 0.07` of `ndc`, it returns that nearest star's own bearing. The distance is measured with x scaled by `camera.aspect`, so it is round on screen. This rule comes first because the shell is a cylinder: one pixel can lie on both its near and far side. A side constellation is seen on both sides of the tangent line from the camera (about 119° for China), so geometry alone cannot tell which star the cursor means, and the stars are what the visitor aims at.
+    2. **The ground.** Otherwise, if the ray from the camera through `ndc` meets the dial plane `y = 0` ahead of the camera, it returns the bearing of that point.
+    3. **The sky.** Otherwise (the cursor above the horizon), it returns the bearing of the ray's far (exit) intersection with the vertical cylinder of radius `shell`, the side the cursor looks toward. It returns null only if none of the three applies.
+
+    All bearings are `bearingOf(x, z)`. This replaces the plan's first two-rule version (Ruling 1 in the ledger).
   - `AIM_SHELL = 1.42`: the inner constellations' radius.
   - `NEEDLE_SPRING = { zeta: 0.55, omega: 3.2 }`: heavier and slower than milestone 1's 0.4/7, for Bob's "slight delay". Passed to `new AngleSpring(zeta, omega)`.
   - `touchDrift(t: number): number`, in radians:
@@ -1002,6 +1004,10 @@ it('rests every constellation dim and lights only the one asked', () => {
     - `pointed: CountryId | null`
     - `constellations: Record<CountryId, [x: number, y: number]>`: each anchor in CSS pixels, so the harness can move the mouse onto a constellation.
   - It gains the action `seekLoader(seconds: number): void`, which holds the loader's clock at `seconds` and stops it advancing, for the stills. It is only under `?proof`, like the rest of the bridge.
+    - The held clock uses a synthetic load, `shown = min(1, seconds / LOADER.engraveMin)` and `loadedAt = LOADER.engraveMin`, so a still shows the pins filling in step with the engraving, whatever the real load did.
+    - The Opening poses everything from the held clock every frame, so seeking back from the home to an engraving moment shows the chip, the laser and the traces again. The phase stays `HOME_IDLE`.
+    - `seekLoader(-1)` releases the hold and goes back to the live clock, which is already at `home`.
+    - (Ruling 2 in the ledger.)
 
 - [ ] **Step 1:** Extend `tests/unit/debug/needle-debug.test.ts`: the state has `loader`, `pointed` and `constellations`, and `seekLoader` reaches the act it was given. Run it. Expected: FAIL.
 - [ ] **Step 2:** Implement `Home.tsx` and the frame and debug changes.
@@ -1038,7 +1044,7 @@ it('rests every constellation dim and lights only the one asked', () => {
 
 **New and changed steps:**
 - `loader-stills`:
-  - For each of 1440 × 900 and 390 × 844, open `/?proof` in a fresh context.
+  - For each of 1440 × 900 and 390 × 844, open `/?proof` in a fresh context and wait for `HOME_IDLE`, so the real load is done.
   - Call `seekLoader` at 0.6 s, 1.6 s (engraving), `engraveMin + 0.4` (power), `engraveMin + power + 0.8` (circuit) and `engraveMin + power + circuit + 0.7` (land), and take a still at each into `PROOF_DIR/m2/loader-<n>-<size>.png`.
   - Check each still's `loader.stage`.
 - `home-look`:
