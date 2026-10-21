@@ -364,7 +364,8 @@ describe('the glass', () => {
     expect(map.wrapS).toBe(THREE.RepeatWrapping);
     expect(map.wrapT).toBe(THREE.RepeatWrapping);
     expect(map.colorSpace).toBe(THREE.NoColorSpace);
-    expect(material.clearcoatRoughnessMap).toBe(map);
+    // Identity checks on textures: `toBe` deep-compares them when it fails, and `not.toBe` always does, which is slow over a 1 MB map.
+    expect(material.clearcoatRoughnessMap === map).toBe(true);
 
     const data = map.image.data as Uint8Array;
     const green = (x: number, y: number) => data[(y * 512 + x) * 4 + 1] / 255;
@@ -409,8 +410,8 @@ describe('the glass', () => {
     const first = textureOf(a);
     const second = textureOf(b);
     // Two textures over one array: not copied, and so the same seeded map every time.
-    expect(second).not.toBe(first);
-    expect(second.image.data).toBe(first.image.data);
+    expect(second === first).toBe(false);
+    expect(second.image.data === first.image.data).toBe(true);
     const data = first.image.data as Uint8Array;
     const before = sum(data);
     expect(before).toBeGreaterThan(0);
@@ -420,12 +421,12 @@ describe('the glass', () => {
     a.dispose();
     // Only the first build's texture is freed, and the texels the second still reads are untouched.
     expect(freed).toBe(1);
-    expect(textureOf(b).image.data).toBe(data);
+    expect(textureOf(b).image.data === data).toBe(true);
     expect(data).toHaveLength(512 * 512 * 4);
     expect(sum(data)).toBe(before);
     // A build made after the first is gone still has the map.
     const c = buildGlass('medium');
-    expect(textureOf(c).image.data).toBe(data);
+    expect(textureOf(c).image.data === data).toBe(true);
     b.dispose();
     c.dispose();
     expect(freed).toBe(11);
