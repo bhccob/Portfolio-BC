@@ -1,13 +1,17 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { countCanvasMount, registerStageProbe } from '../../../src/debug/stageReport';
-import { readNeedleDebugState, setStoryProgress } from '../../../src/debug/useNeedleDebug';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { countCanvasMount, registerStageProbe, type StageSnapshot } from '../../../src/debug/stageReport';
+import { holdLoader, readNeedleDebugState, setStoryProgress } from '../../../src/debug/useNeedleDebug';
+import { onWakeScene } from '../../../src/scene/motion';
 import { HOME_CHAPTERS } from '../../../src/state/chapters';
 import { frame } from '../../../src/state/frame';
 import { useScene } from '../../../src/state/store';
 
 function resetFrame(): void {
-  Object.assign(frame, { progress: 0, target: 0, velocity: 0, chapterIndex: 0, contextLost: false });
+  Object.assign(frame, { progress: 0, target: 0, velocity: 0, chapterIndex: 0, contextLost: false, pointed: null, loaderHold: null });
+  Object.assign(frame.loader, { stage: null, elapsed: 0, pins: 0 });
 }
+
+const NO_PLACES = { china: [0, 0], netherlands: [0, 0], aruba: [0, 0] };
 
 describe('readNeedleDebugState', () => {
   beforeEach(() => {
@@ -48,10 +52,60 @@ describe('readNeedleDebugState', () => {
     const none = readNeedleDebugState({ route: 'lite', locale: 'nl' });
     expect(none.canvasMounts).toBeGreaterThanOrEqual(1);
     expect(none.dpr).toBe(0);
-    const stop = registerStageProbe(() => ({ dpr: 1.75, fps: 59, camera: { position: [0, 0, 5], fov: 30 } }));
+    expect(none.constellations).toEqual(NO_PLACES);
+    const places: StageSnapshot['constellations'] = { china: [1238, 423], netherlands: [721, 250], aruba: [206, 382] };
+    const stop = registerStageProbe(() => ({ dpr: 1.75, fps: 59, camera: { position: [0, 0, 5], fov: 30 }, constellations: places }));
     try {
       const live = readNeedleDebugState({ route: 'lite', locale: 'nl' });
       expect(live).toMatchObject({ dpr: 1.75, fps: 59, camera: { position: [0, 0, 5], fov: 30 } });
+      expect(live.constellations).toEqual(places);
+    } finally {
+      stop();
+    }
+  });
+
+  it("reports where the opening stands and the constellation pointed at, from the frame, as a copy of the opening's fields", () => {
+    const before = readNeedleDebugState({ route: 'home', locale: 'nl' });
+    expect(before.loader).toEqual({ stage: null, elapsed: 0, pins: 0 });
+    expect(before.pointed).toBeNull();
+    Object.assign(frame.loader, { stage: 'engrave', elapsed: 0.6, pins: 17 });
+    frame.pointed = 'aruba';
+    frame.loaderHold = 0.6;
+    const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
+    // The three fields the brief names and nothing else of the frame's (the hold is the bridge's own business).
+    expect(state.loader).toEqual({ stage: 'engrave', elapsed: 0.6, pins: 17 });
+    expect(state.loader).not.toBe(frame.loader);
+    expect(state.pointed).toBe('aruba');
+  });
+});
+
+describe('holdLoader', () => {
+  beforeEach(() => resetFrame());
+
+  it("holds the opening's clock at a time, and wakes the canvas to draw it", () => {
+    const wake = vi.fn();
+    const stop = onWakeScene(wake);
+    try {
+      holdLoader(1.6);
+      expect(frame.loaderHold).toBe(1.6);
+      expect(wake).toHaveBeenCalledOnce();
+      holdLoader(0);
+      expect(frame.loaderHold).toBe(0);
+    } finally {
+      stop();
+    }
+  });
+
+  it('lets go for -1, any negative time or a time that is not a number, and wakes the canvas for that too', () => {
+    const wake = vi.fn();
+    const stop = onWakeScene(wake);
+    try {
+      for (const seconds of [-1, -0.001, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+        frame.loaderHold = 2;
+        holdLoader(seconds);
+        expect(frame.loaderHold, `seconds ${seconds}`).toBeNull();
+      }
+      expect(wake).toHaveBeenCalledTimes(5);
     } finally {
       stop();
     }

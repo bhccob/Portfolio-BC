@@ -220,11 +220,26 @@ function placementBearing(id: CountryId): number {
  */
 export function touchDrift(t: number): number {
   if (!Number.isFinite(t)) return placementBearing('netherlands');
-  const inCycle = ((t % DRIFT_CYCLE) + DRIFT_CYCLE) % DRIFT_CYCLE;
-  const leg = Math.min(DRIFT.legs.length - 1, Math.floor(inCycle / DRIFT_LEG));
-  const into = inCycle - leg * DRIFT_LEG;
+  const { leg, into } = driftLeg(t);
   const from = placementBearing(DRIFT.legs[leg].from);
   if (into <= DRIFT.rest) return from;
   const to = placementBearing(DRIFT.legs[leg].to);
   return from + (to - from) * smootherstep((into - DRIFT.rest) / DRIFT.travel);
+}
+
+/** Which leg of the drift `t` (finite) seconds fall in, wrapped into the cycle, and how far into it. */
+function driftLeg(t: number): { leg: number; into: number } {
+  const inCycle = ((t % DRIFT_CYCLE) + DRIFT_CYCLE) % DRIFT_CYCLE;
+  const leg = Math.min(DRIFT.legs.length - 1, Math.floor(inCycle / DRIFT_LEG));
+  return { leg, into: inCycle - leg * DRIFT_LEG };
+}
+
+/**
+ * Whether `touchDrift` is resting on a constellation at `t` seconds (its 4.5 s on each), not travelling between two.
+ * The home lets its idle while run on until the drift rests, so a scene that falls asleep leaves its needle on a
+ * constellation, named, and not stopped in the dark between. A time that is not finite reads as the start, which rests.
+ */
+export function touchDriftRests(t: number): boolean {
+  if (!Number.isFinite(t)) return true;
+  return driftLeg(t).into <= DRIFT.rest;
 }

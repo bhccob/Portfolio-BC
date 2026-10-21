@@ -1,4 +1,4 @@
-import type { DirId } from '~/data/directions';
+import type { CountryId, DirId } from '~/data/directions';
 // Types only: this module is in the entry bundle, which must not pull in three.js (shots.ts places a camera with it).
 import type { LoaderStage } from '~/engine/v3/loaderTimeline';
 import type { CameraShot } from '~/engine/v3/shots';
@@ -17,8 +17,19 @@ export const frame = {
   velocity: 0,
   /** The pointer in normalised device coordinates, -1 to 1. */
   pointer: { x: 0, y: 0 },
+  /**
+   * When a mouse or pen last moved over the page (`performance.now()` ms; the Rig writes it with `pointer`), or
+   * -Infinity before the first move. The home's needle follows the pointer only once it has moved (a pointer still at
+   * its starting {0, 0} has said nothing), and a move at home starts its idle while again.
+   */
+  pointerAt: Number.NEGATIVE_INFINITY,
   /** The compass arm under the pointer, or null. */
   hoverDir: null as DirId | null,
+  /**
+   * The constellation the home's needle points at (src/scene/v3/Home.tsx, by `pointedAt`), or null: the needle points
+   * into the dark between them, or there is no home to point in (no Stage, the loader still playing, or held by a seek).
+   */
+  pointed: null as CountryId | null,
   /** The index of the chapter `progress` is in (`chapterAt(...).index`). */
   chapterIndex: 0,
   /** True while the WebGL context is lost. */
@@ -31,8 +42,14 @@ export const frame = {
   shot: null as CameraShot | null,
   /**
    * Where the opening stands, as the Opening last posed it: its stage (null while no Opening is mounted), the loader's
-   * visible seconds and the pins lit. The Rig reads the stage (the parallax is the home's alone); Task 12b's debug
-   * bridge reports all three.
+   * visible seconds and the pins lit. The Rig reads the stage (the parallax is the home's alone); the debug bridge
+   * reports all three.
    */
   loader: { stage: null as LoaderStage | null, elapsed: 0, pins: 0 },
+  /**
+   * The loader time the proof bridge holds the opening at (`seekLoader`, behind `?proof` only), seconds, or null for
+   * the live clock. While it is set the Opening poses the whole scene at that moment on every frame and the home's
+   * needle waits (Ruling 2). Nothing but the bridge sets it.
+   */
+  loaderHold: null as number | null,
 };

@@ -421,6 +421,31 @@ describe('the needle', () => {
     needle.dispose();
   });
 
+  it("breathes its tip's glow as a share of its own, whatever its form, without touching its shape", () => {
+    const needle = buildNeedle();
+    const material = named<THREE.Mesh>(needle.group, 'needle:tip').material as THREE.MeshStandardMaterial;
+    const glow = compiled(material).uniforms.uTipGlow;
+    const tip = point(needle, 'tip');
+    needle.setTipGlow(1.1);
+    expect(glow.value).toBeCloseTo(NEEDLE_LOOK.tip.glow * 1.1, 12);
+    needle.setTipGlow(0.9);
+    expect(glow.value).toBeCloseTo(NEEDLE_LOOK.tip.glow * 0.9, 12);
+    expect(point(needle, 'tip').equals(tip)).toBe(true);
+    // The form still scales it: no glow as the probe, the breath's share of it once grown.
+    needle.setForm(0);
+    expect(glow.value).toBe(0);
+    needle.setForm(1);
+    expect(glow.value).toBeCloseTo(NEEDLE_LOOK.tip.glow * 0.9, 12);
+    // 1 is the glow as built; a share that is not a number reads as 1, and none is below 0.
+    needle.setTipGlow(1);
+    expect(glow.value).toBe(NEEDLE_LOOK.tip.glow);
+    needle.setTipGlow(Number.NaN);
+    expect(glow.value).toBe(NEEDLE_LOOK.tip.glow);
+    needle.setTipGlow(-2);
+    expect(glow.value).toBe(0);
+    needle.dispose();
+  });
+
   it('frees its geometries and its material', () => {
     const needle = buildNeedle();
     const parts = drawn(needle.group);

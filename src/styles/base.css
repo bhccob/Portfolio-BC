@@ -159,6 +159,47 @@ body:has(.page) .scene-host[data-ready]::after {
   }
 }
 
+/* The name of the constellation the needle points at (src/scene/v3/Home.tsx places it beside its figure, in drei's
+   Html): Montserrat in small caps, lilac at 0.85, fading in and out over 0.3 s. Only the pointed one shows; the others
+   are hidden once faded, so nothing reads them as shown. Part of the picture, not of the page: it takes no pointer and
+   is aria-hidden, as the whole canvas is. */
+.constellation-label-anchor,
+.constellation-label {
+  pointer-events: none;
+}
+
+.constellation-label {
+  font-family: var(--font-name);
+  font-size: 13px;
+  font-weight: 400;
+  font-variant-caps: small-caps;
+  line-height: 1.2;
+  letter-spacing: 0.22em;
+  white-space: nowrap;
+  color: var(--lilac);
+  user-select: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.3s var(--ease-reveal),
+    visibility 0s linear 0.3s;
+}
+
+.constellation-label[data-shown] {
+  opacity: 0.85;
+  visibility: visible;
+  transition:
+    opacity 0.3s var(--ease-reveal),
+    visibility 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .constellation-label,
+  .constellation-label[data-shown] {
+    transition: none;
+  }
+}
+
 /* No WebGL, or a scene that failed: the poster stays, and this card says so with a way to Lite. */
 .scene-fallback {
   position: fixed;

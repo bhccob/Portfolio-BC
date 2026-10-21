@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { canvasMounts, countCanvasMount, MAX_GAP_MS, readStageProbe, registerStageProbe, ROLLING_FRAMES, RollingFps } from '../../../src/debug/stageReport';
+import { canvasMounts, countCanvasMount, MAX_GAP_MS, readStageProbe, registerStageProbe, ROLLING_FRAMES, RollingFps, type StageSnapshot } from '../../../src/debug/stageReport';
 
 describe('RollingFps', () => {
   it('reads 0 until it has seen two frames', () => {
@@ -49,21 +49,25 @@ describe('the stage probe', () => {
   let unregister = (): void => {};
   afterEach(() => unregister());
 
-  it('reads zeros while no Stage is mounted', () => {
-    expect(readStageProbe()).toEqual({ dpr: 0, fps: 0, camera: { position: [0, 0, 0], fov: 0 } });
+  /** No constellation anywhere: what a test Stage reports when it has none to place. */
+  const nowhere: StageSnapshot['constellations'] = { china: [0, 0], netherlands: [0, 0], aruba: [0, 0] };
+
+  it('reads zeros while no Stage is mounted, every constellation at [0, 0]', () => {
+    expect(readStageProbe()).toEqual({ dpr: 0, fps: 0, camera: { position: [0, 0, 0], fov: 0 }, constellations: nowhere });
   });
 
   it('reads what the mounted Stage reports, and zeros again once it unregisters', () => {
-    const snapshot = { dpr: 1.25, fps: 58.5, camera: { position: [0, 0.1, 5] as [number, number, number], fov: 30 } };
+    const snapshot: StageSnapshot = { dpr: 1.25, fps: 58.5, camera: { position: [0, 0.1, 5], fov: 30 }, constellations: { ...nowhere, china: [1200, 400] } };
     unregister = registerStageProbe(() => snapshot);
     expect(readStageProbe()).toBe(snapshot);
     unregister();
     expect(readStageProbe().dpr).toBe(0);
+    expect(readStageProbe().constellations.china).toEqual([0, 0]);
   });
 
   it('does not let an old Stage unregister the one that replaced it', () => {
-    const old = registerStageProbe(() => ({ dpr: 1, fps: 1, camera: { position: [0, 0, 1], fov: 1 } }));
-    const next = { dpr: 2, fps: 2, camera: { position: [0, 0, 2] as [number, number, number], fov: 2 } };
+    const old = registerStageProbe(() => ({ dpr: 1, fps: 1, camera: { position: [0, 0, 1], fov: 1 }, constellations: nowhere }));
+    const next: StageSnapshot = { dpr: 2, fps: 2, camera: { position: [0, 0, 2], fov: 2 }, constellations: nowhere };
     unregister = registerStageProbe(() => next);
     old();
     expect(readStageProbe()).toBe(next);

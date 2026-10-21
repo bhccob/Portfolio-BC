@@ -4,7 +4,19 @@ import { engraved, ON_STROKES, PIN_COUNT, strokeLengths } from '~/engine/v3/chip
 import { type LoaderClock, type LoaderStage, LOADER, loaderAt } from '~/engine/v3/loaderTimeline';
 import { type CameraShot, DESIGN_ASPECT, homeShotFor, loaderShotFor, SHOTS } from '~/engine/v3/shots';
 import { LOOK } from '~/scene/v3/look';
-import { cameraShotAt, LOAD_SHARES, loadShare, type OpeningPose, openingPoseAt, tipAt } from '~/scene/v3/openingPose';
+import {
+  cameraShotAt,
+  HOME_CLOCK,
+  heldClockInput,
+  LOAD_SHARES,
+  loadShare,
+  type OpeningPose,
+  openingPoseAt,
+  skipsLoader,
+  startPathFor,
+  tipAt,
+} from '~/scene/v3/openingPose';
+import type { Phase } from '~/state/machine';
 
 const LANDSCAPE = DESIGN_ASPECT;
 const PORTRAIT = 390 / 844;
@@ -251,5 +263,81 @@ describe('the load shares', () => {
     expect(loadShare({ paint: false, warm: false })).toBe(0);
     expect(loadShare({ paint: true, warm: false })).toBeCloseTo(0.6, 12);
     expect(loadShare({ paint: true, warm: true })).toBe(1);
+  });
+});
+
+describe('the held clock (seekLoader, Ruling 2)', () => {
+  const FULL = { quick: false, reduced: false };
+  const E = LOADER.engraveMin;
+  const held = (seconds: number, path = FULL): LoaderClock => loaderAt(heldClockInput(seconds, path));
+
+  it('fakes a load that fills in step with the engraving, whole at the least engraving time', () => {
+    expect(heldClockInput(0.6, FULL)).toEqual({ elapsed: 0.6, shown: 0.6 / E, loadedAt: E, quick: false, reduced: false });
+    expect(heldClockInput(E, FULL).shown).toBe(1);
+    expect(heldClockInput(9, FULL).shown).toBe(1);
+    expect(heldClockInput(0, FULL).shown).toBe(0);
+    expect(heldClockInput(1, { quick: true, reduced: true })).toMatchObject({ quick: true, reduced: true });
+  });
+
+  it("shows the pins filling with the engraving, not a finished load's 64 at an early moment", () => {
+    for (const seconds of [0.6, 1.6]) {
+      const at = held(seconds);
+      expect(at.stage).toBe('engrave');
+      expect(at.engraving).toBeCloseTo(seconds / E, 12);
+      expect(at.pins).toBe(loaderAt({ elapsed: seconds, shown: seconds / E, loadedAt: null, quick: false, reduced: false }).pins);
+      expect(at.pins).toBeGreaterThan(0);
+      expect(at.pins).toBeLessThan(PIN_COUNT);
+    }
+    expect(held(0.6).pins).toBeLessThan(held(1.6).pins);
+  });
+
+  it("lands each of Task 14's still moments in the stage it is named for, and the end at home", () => {
+    expect(held(E + 0.4).stage).toBe('power');
+    expect(held(E + LOADER.power + 0.8).stage).toBe('circuit');
+    expect(held(E + LOADER.power + LOADER.circuit + 0.7).stage).toBe('land');
+    expect(held(E + LOADER.power + LOADER.circuit + LOADER.land).stage).toBe('home');
+    expect(held(60).stage).toBe('home');
+  });
+
+  it("takes the visit's own path: a quick visit's held moments are the night, then its landing", () => {
+    const QUICK = { quick: true, reduced: false };
+    expect(held(1, QUICK).stage).toBe('dark');
+    expect(held(E + LOADER.quick / 2, QUICK).stage).toBe('land');
+    expect(held(E + LOADER.quick, QUICK).stage).toBe('home');
+  });
+});
+
+describe('where an opening starts (Ruling 9c)', () => {
+  const KINDS: Phase['kind'][] = ['LOADING', 'HOME_IDLE', 'FOCUS_COUNTRY', 'COUNTRY_PAGE', 'DISSECT', 'MORPH', 'VOID_ENTRY', 'PROJECTS', 'PROJECT_FOCUS'];
+
+  it('plays the loader while the page is loading, on the path the visit and the visitor ask for', () => {
+    expect(startPathFor('LOADING', false, false)).toEqual({ skip: false, path: { quick: false, reduced: false } });
+    expect(startPathFor('LOADING', true, false)).toEqual({ skip: false, path: { quick: true, reduced: false } });
+    expect(startPathFor('LOADING', false, true)).toEqual({ skip: false, path: { quick: false, reduced: true } });
+  });
+
+  it('goes straight to the home once the home page has left LOADING: its hero shows, so no loader replays under it', () => {
+    for (const seen of [false, true]) {
+      for (const reduced of [false, true]) {
+        expect(startPathFor('HOME_IDLE', seen, reduced)).toEqual({ skip: true, path: { quick: seen, reduced } });
+      }
+    }
+    for (const kind of ['FOCUS_COUNTRY', 'DISSECT', 'MORPH', 'VOID_ENTRY', 'PROJECTS'] as const) expect(skipsLoader(kind), kind).toBe(true);
+  });
+
+  it("still plays it on a country or project page, where it runs under the page's scrim as a direct arrival does", () => {
+    expect(skipsLoader('COUNTRY_PAGE')).toBe(false);
+    expect(skipsLoader('PROJECT_FOCUS')).toBe(false);
+    expect(skipsLoader('LOADING')).toBe(false);
+    // Every phase has an answer.
+    expect(KINDS.filter(skipsLoader)).toEqual(['HOME_IDLE', 'FOCUS_COUNTRY', 'DISSECT', 'MORPH', 'VOID_ENTRY', 'PROJECTS']);
+  });
+
+  it('starts a skipped opening on a clock already at home, all its pins lit, posed as every path lands', () => {
+    expect(HOME_CLOCK).toEqual({ stage: 'home', local: 0, engraving: 1, pins: PIN_COUNT });
+    expect(Object.isFrozen(HOME_CLOCK)).toBe(true);
+    const FULL = { quick: false, reduced: false };
+    const landed = loaderAt({ elapsed: 99, shown: 1, loadedAt: 1, quick: false, reduced: false });
+    expect(openingPoseAt(HOME_CLOCK, FULL)).toEqual(openingPoseAt(landed, FULL));
   });
 });

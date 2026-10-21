@@ -1,5 +1,5 @@
 import { useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { type JSX, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { COUNTRY_IDS } from '~/data/directions';
 import { SafeStorage } from '~/engine/core/SafeStorage';
@@ -15,14 +15,27 @@ import { buildTraces, type TracesModel } from '~/engine/v3/build/traces';
 import { CITY_BLOCKS, cityLayout } from '~/engine/v3/chipCity';
 import { CHIP, engraved, ON_STROKES } from '~/engine/v3/chipSpec';
 import { GLASS_RINGS, type RingId } from '~/engine/v3/compassSpec';
-import { advanceClock, LOADER, loaderAt, loaderGaveUp, loaderSeen, markLoaderSeen } from '~/engine/v3/loaderTimeline';
+import { advanceClock, LOADER, type LoaderClock, loaderAt, loaderGaveUp, loaderSeen, markLoaderSeen } from '~/engine/v3/loaderTimeline';
 import { paintRingStrip, RING_STRIP } from '~/engine/v3/paintRings';
 import { frame } from '~/state/frame';
 import { useScene } from '~/state/store';
 import { motion } from '../motion';
 import { settleLoad } from '../settleLoad';
+import { type Handover, Home } from './Home';
 import { LOOK } from './look';
-import { cameraShotAt, loadShare, type OpeningPath, type OpeningPose, openingPoseAt, tipAt } from './openingPose';
+import {
+  cameraShotAt,
+  HOME_CLOCK,
+  heldClockInput,
+  LANDING_BEARING,
+  loadShare,
+  type OpeningPath,
+  type OpeningPose,
+  openingPoseAt,
+  skipsLoader,
+  startPathFor,
+  tipAt,
+} from './openingPose';
 
 /** The longest step the mist's drift takes in one frame, seconds: a scene waking from sleep does not jump it. */
 const MAX_STEP = 0.1;
@@ -204,10 +217,16 @@ interface Run {
   loadedAt: number | null;
   /** Which path plays: read once at mount. */
   path: OpeningPath;
+  /**
+   * The loader is skipped (Ruling 9c): the clock stands at home (HOME_CLOCK). Set at mount when the home page has already
+   * left LOADING (`startPathFor`), so the canvas shows only once the home is loaded, straight onto it; or mid-opening,
+   * once the load is done, when the visitor comes back to the home page (`skipsLoader`), whose hero now shows.
+   */
+  skip: boolean;
   /** Where the cut stood, and when it last moved (loader seconds): the sparks fly while it moves. */
   cut: number;
   cutAt: number;
-  /** The landing has happened: LOADED is sent and the loader marked seen, once. */
+  /** The landing has happened: LOADED is sent and the loader marked seen, once. A skipped opening has none to announce. */
   landed: boolean;
   /** The home's pose has been applied since the clock last reached `home`: the home's parts are Home's (12b) from there. */
   posedHome: boolean;
@@ -253,14 +272,28 @@ export interface OpeningProps {
  * **Landing.** At `home` it dispatches `LOADED` (the only place it is sent while a Stage is up) and marks the loader
  * seen for the session, once. The laser is hidden, the chip lies dimmed under the hub with ON whole and all 64 pins lit,
  * the traces stay at t = 1 as the dim gilt rules, and from then on the Opening poses the home's parts once each time the
- * clock reaches `home`, leaving them to Home (12b) in between; it keeps the mist drifting and frames the home shot again
- * on a resize. On a country or project page it lands on the home view under that page's scrim, as milestone 1 did.
+ * clock reaches `home` and hands them over (`handover.live`) to Home (Home.tsx), which it mounts as soon as they are
+ * built and which drives the needle, the constellations' glow and names and the idle motion from then on. It keeps the
+ * mist drifting and frames the home shot again on a resize. On a country or project page it lands on the home view
+ * under that page's scrim, as milestone 1 did.
+ *
+ * **Skip** (Ruling 9c). Mounted while the home page has already left LOADING (`startPathFor`: 3D back on after a
+ * failure or a toggle, a visit that began on Lite), it plays no loader under the hero that now shows: it builds
+ * everything as before, but says it is ready only once the home is loaded too, and its clock stands at home from the
+ * start, so the canvas fades in straight onto the home. It sends no LOADED (the phase has left LOADING) and marks
+ * nothing seen. Back on the home page mid-opening (`skipsLoader`), it skips the rest once the load is done.
+ *
+ * **Seek** (Ruling 2, `?proof` only). While the debug bridge holds the loader's clock (`frame.loaderHold`), the live
+ * clock stops and every frame poses the whole scene, camera included, from the held moment of a load that filled in
+ * step with the engraving (`heldClockInput`), on the visit's path: a seek back from the home shows the chip, the laser
+ * and the traces again. Home lets go of its parts meanwhile; the phase stays as it is. Let go, the live clock (long at
+ * home) poses the home once more and hands it back.
  *
  * **Give-up.** If the load has not finished after LOADER.giveUp visible seconds it calls `onFail`.
  *
  * Unmounting frees every object, material, texture and canvas it made.
  */
-export function Opening({ clearcoat, finePointer, onReady, onFail }: OpeningProps): null {
+export function Opening({ clearcoat, finePointer, onReady, onFail }: OpeningProps): JSX.Element | null {
   const gl = useThree((state) => state.gl);
   const scene = useThree((state) => state.scene);
   const camera = useThree((state) => state.camera);
@@ -268,6 +301,9 @@ export function Opening({ clearcoat, finePointer, onReady, onFail }: OpeningProp
   const loader = useRef<LoaderParts | null>(null);
   const home = useRef<HomeParts | null>(null);
   const run = useRef<Run | null>(null);
+  /** The home's parts once built, which mount Home; and whether Home drives them, set on each frame drawn. */
+  const [models, setModels] = useState<HomeParts | null>(null);
+  const [handover] = useState<Handover>(() => ({ live: false }));
   /** The latest props, for the load, which outlives the render that started it. */
   const latest = useRef({ clearcoat, onReady, onFail });
   useLayoutEffect(() => {
@@ -291,7 +327,8 @@ export function Opening({ clearcoat, finePointer, onReady, onFail }: OpeningProp
     }
     loader.current = parts;
 
-    const { reducedMotion } = useScene.getState();
+    const { reducedMotion, phase } = useScene.getState();
+    const start = startPathFor(phase.kind, loaderSeen(SafeStorage.session()), reducedMotion);
     const state: Run = {
       ready: false,
       failed: false,
@@ -299,10 +336,11 @@ export function Opening({ clearcoat, finePointer, onReady, onFail }: OpeningProp
       shown: 0,
       done: { paint: false, warm: false },
       loadedAt: null,
-      path: { quick: loaderSeen(SafeStorage.session()), reduced: reducedMotion },
+      path: start.path,
+      skip: start.skip,
       cut: 0,
       cutAt: Number.NEGATIVE_INFINITY,
-      landed: false,
+      landed: start.skip,
       posedHome: false,
       homeAspect: Number.NaN,
       mist: 0,
@@ -310,23 +348,31 @@ export function Opening({ clearcoat, finePointer, onReady, onFail }: OpeningProp
         if (disposed || state.failed) return;
         state.failed = true;
         motion.loader = false;
+        handover.live = false;
         latest.current.onFail(reason, error);
       },
     };
     run.current = state;
-    // The first moment of the opening, posed before anything is drawn: a dark board, or the night of the quick path.
-    const first = loaderAt({ elapsed: 0, shown: 0, loadedAt: null, quick: state.path.quick, reduced: state.path.reduced });
-    pose(parts, null, openingPoseAt(first, state.path), 0, state);
+    // The first moment of the opening, posed before anything is drawn: a dark board, the night of the quick path, or
+    // the home's ground for a skipped one.
+    const first = clockOf(state);
+    pose(parts, null, openingPoseAt(first, state.path), 0, state, first.stage === 'home');
     frame.loader.stage = first.stage;
 
-    const load = async (): Promise<void> => {
-      // The loader's own programs first, so its first frame does not stall; then it can show.
-      await warm(gl, scene, camera, 'the loader');
-      if (disposed) return;
+    /** The canvas can show and the clock runs: the loader's first frame, or a skipped opening's home. */
+    const show = (): void => {
       state.ready = true;
-      motion.loader = true;
+      motion.loader = !state.skip;
       invalidate();
       latest.current.onReady();
+    };
+
+    const load = async (): Promise<void> => {
+      // The loader's own programs first, so its first frame does not stall; then it can show (a skipped opening waits
+      // for the home below, so it shows straight onto it).
+      await warm(gl, scene, camera, 'the loader');
+      if (disposed) return;
+      if (!state.skip) show();
 
       const blocks = cityLayout(CITY_BLOCKS[finePointer ? 'fine' : 'coarse']);
       const compass = buildGlassCompass();
@@ -339,7 +385,10 @@ export function Opening({ clearcoat, finePointer, onReady, onFail }: OpeningProp
       scene.add(compass.group, needle.group, city.mesh, constellations.group);
       // Hidden as the clock now has them, before a frame can show them.
       state.posedHome = false;
-      pose(null, built, openingPoseAt(loaderAt(clockInput(state)), state.path), state.elapsed, state);
+      const now = clockOf(state);
+      pose(null, built, openingPoseAt(now, state.path), state.elapsed, state, now.stage === 'home');
+      // Home mounts now, its labels hidden; it drives nothing until the Opening hands the home over.
+      setModels(built);
 
       const masks = await paintMasks(finePointer, () => disposed);
       if (!masks) return;
@@ -354,6 +403,7 @@ export function Opening({ clearcoat, finePointer, onReady, onFail }: OpeningProp
       await warm(gl, scene, camera, 'the compass');
       if (disposed) return;
       state.done.warm = true;
+      if (state.skip && !state.ready) show();
       invalidate();
     };
 
@@ -367,6 +417,8 @@ export function Opening({ clearcoat, finePointer, onReady, onFail }: OpeningProp
       disposed = true;
       loader.current = null;
       run.current = null;
+      handover.live = false;
+      setModels(null);
       motion.loader = false;
       frame.shot = null;
       frame.loader.stage = null;
@@ -387,7 +439,7 @@ export function Opening({ clearcoat, finePointer, onReady, onFail }: OpeningProp
         freeMasks(built.masks);
       }
     };
-  }, [gl, scene, camera, finePointer, invalidate]);
+  }, [gl, scene, camera, finePointer, invalidate, handover]);
 
   // The quality ladder turns the clearcoat off (never back on): three compiles the glass once more.
   useEffect(() => {
@@ -400,19 +452,26 @@ export function Opening({ clearcoat, finePointer, onReady, onFail }: OpeningProp
     const parts = loader.current;
     if (!state?.ready || state.failed || !parts) return;
 
-    state.elapsed = advanceClock(state.elapsed, delta);
-    state.shown = readout(state.shown, loadShare(state.done), delta);
-    if (state.loadedAt === null && state.shown >= 1) state.loadedAt = state.elapsed;
-    if (loaderGaveUp(state.elapsed, state.loadedAt)) {
-      state.fail(`the compass did not load within ${LOADER.giveUp} s of the page being visible`);
-      return;
+    // A seek holds the clock (Ruling 2): the live one stops where it is until it is let go.
+    const held = frame.loaderHold;
+    if (held === null && !state.skip) {
+      state.elapsed = advanceClock(state.elapsed, delta);
+      state.shown = readout(state.shown, loadShare(state.done), delta);
+      if (state.loadedAt === null && state.shown >= 1) state.loadedAt = state.elapsed;
+      if (loaderGaveUp(state.elapsed, state.loadedAt)) {
+        state.fail(`the compass did not load within ${LOADER.giveUp} s of the page being visible`);
+        return;
+      }
+      // Back on the home page mid-opening, whose hero now shows: the rest of the loader is skipped once the load is done.
+      if (state.loadedAt !== null && skipsLoader(useScene.getState().phase.kind)) state.skip = true;
     }
 
-    const clock = loaderAt(clockInput(state));
+    const clock = held === null ? clockOf(state) : loaderAt(heldClockInput(held, state.path));
+    const elapsed = held ?? state.elapsed;
     const aspect = three.size.width / three.size.height;
     const atHome = clock.stage === 'home';
     frame.loader.stage = clock.stage;
-    frame.loader.elapsed = state.elapsed;
+    frame.loader.elapsed = elapsed;
     frame.loader.pins = clock.pins;
     motion.loader = !atHome;
 
@@ -420,38 +479,43 @@ export function Opening({ clearcoat, finePointer, onReady, onFail }: OpeningProp
     state.mist += Math.min(Math.max(delta, 0), MAX_STEP);
     parts.mist.setTime(state.mist);
 
-    if (!atHome || state.homeAspect !== aspect) {
+    if (held !== null || !atHome || state.homeAspect !== aspect) {
       frame.shot = cameraShotAt(clock, aspect, state.path.reduced);
-      state.homeAspect = atHome ? aspect : Number.NaN;
+      state.homeAspect = atHome && held === null ? aspect : Number.NaN;
     }
-    if (!atHome) state.posedHome = false;
+    // A held clock poses every frame; the live one poses the home once, when it gets there.
+    if (held !== null || !atHome) state.posedHome = false;
     if (!state.posedHome) {
-      pose(parts, home.current, openingPoseAt(clock, state.path), state.elapsed, state);
+      pose(parts, home.current, openingPoseAt(clock, state.path), elapsed, state, atHome);
       // The home's pose is applied once, and only once its parts exist; then they are Home's.
-      if (atHome && home.current) state.posedHome = true;
+      if (atHome && held === null && home.current) state.posedHome = true;
     }
+    // Home's frame runs after this one (it mounted later), and reads this.
+    handover.live = state.posedHome;
 
-    if (atHome && !state.landed) {
+    if (atHome && held === null && !state.landed) {
       state.landed = true;
       markLoaderSeen(SafeStorage.session());
       useScene.getState().dispatch({ type: 'LOADED' });
     }
   });
 
-  return null;
+  return models ? <Home models={models} handover={handover} finePointer={finePointer} /> : null;
 }
 
-/** What `loaderAt` is asked, from the running state. */
-function clockInput(state: Run): Parameters<typeof loaderAt>[0] {
-  return { elapsed: state.elapsed, shown: state.shown, loadedAt: state.loadedAt, quick: state.path.quick, reduced: state.path.reduced };
+/** Where the live opening stands: at home once it skips its loader, else as the loader's timeline says. */
+function clockOf(state: Run): LoaderClock {
+  if (state.skip) return HOME_CLOCK;
+  return loaderAt({ elapsed: state.elapsed, shown: state.shown, loadedAt: state.loadedAt, quick: state.path.quick, reduced: state.path.reduced });
 }
 
 /**
  * Applies a pose to the loader's objects (`parts`; null for a home just built, which only takes the pose the loader
  * already shows) and, once they exist, the home's (`built`). The laser's tip stands at the cut (`tipAt`) and glides
- * from there to the chip's centre; its sparks fly while the cut moves, at the loader's `elapsed` seconds.
+ * from there to the chip's centre; its sparks fly while the cut moves, at the loader's `elapsed` seconds. Short of the
+ * home (`atHome` false) the needle is turned to LANDING_BEARING, north, as it grows; at home its bearing is Home's.
  */
-function pose(parts: LoaderParts | null, built: HomeParts | null, at: OpeningPose, elapsed: number, state: Run): void {
+function pose(parts: LoaderParts | null, built: HomeParts | null, at: OpeningPose, elapsed: number, state: Run, atHome: boolean): void {
   if (parts !== null) {
     const { chip, laser, traces, mist, veil } = parts;
     veil.set(at.veil);
@@ -482,6 +546,7 @@ function pose(parts: LoaderParts | null, built: HomeParts | null, at: OpeningPos
   built.compass.setFormed(at.formed);
   built.needle.group.visible = at.needle !== null;
   if (at.needle !== null) built.needle.setForm(at.needle);
+  if (!atHome) built.needle.setBearing(LANDING_BEARING);
   // The city rises out of the board plane: its height scaled about y = CHIP.board (never to zero, whose normal matrix
   // would be singular), its glow with it.
   const rise = Math.max(at.city, 1e-4);

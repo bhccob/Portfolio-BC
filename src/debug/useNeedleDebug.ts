@@ -21,7 +21,8 @@ export interface ShellView {
 export function readNeedleDebugState(view: ShellView): NeedleDebugState {
   const { phase, tier, threeD } = useScene.getState();
   const at = chapterAt(HOME_CHAPTERS, frame.progress, { index: frame.chapterIndex });
-  const { dpr, fps, camera } = readStageProbe();
+  const { dpr, fps, camera, constellations } = readStageProbe();
+  const { stage, elapsed, pins } = frame.loader;
   return {
     phase,
     progress: frame.progress,
@@ -37,7 +38,20 @@ export function readNeedleDebugState(view: ShellView): NeedleDebugState {
     canvasMounts: canvasMounts(),
     contextLost: frame.contextLost,
     threeD,
+    loader: { stage, elapsed, pins },
+    pointed: frame.pointed,
+    constellations,
   };
+}
+
+/**
+ * Holds the opening's clock at `seconds` (the bridge's `seekLoader`, Ruling 2), or lets it go: a negative time (-1)
+ * or one that is not a finite number goes back to the live clock. The Opening reads the hold on every frame it draws
+ * (`frame.loaderHold`), so the scene is woken to draw the held moment, or the live one again.
+ */
+export function holdLoader(seconds: number): void {
+  frame.loaderHold = Number.isFinite(seconds) && seconds >= 0 ? seconds : null;
+  wakeScene();
 }
 
 /**
@@ -74,6 +88,7 @@ export function useNeedleDebug(route: string, locale: Locale): void {
       installNeedleDebug(window.location.search, () => readNeedleDebugState(view.current), {
         set: ({ progress }) => setStoryProgress(progress),
         dispatch: (event) => useScene.getState().dispatch(event),
+        seekLoader: (seconds) => holdLoader(seconds),
       }),
     [],
   );

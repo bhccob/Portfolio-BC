@@ -6,6 +6,7 @@ import { applyCameraShot } from '~/engine/v3/shots';
 import { frame } from '~/state/frame';
 import { useScene } from '~/state/store';
 import { motion } from './motion';
+import { isAiming } from './v3/homePose';
 
 /** The most the pointer turns the camera about the shot's look-at point, radians, either way on each axis. */
 export const PARALLAX = 0.04;
@@ -32,9 +33,10 @@ const clamp = (value: number): number => Math.min(1, Math.max(-1, value));
  * against each other and their depth reads (spec §2.2). During the opening the camera flies the Opening's path and
  * nothing else; with reduced motion there is no parallax at all.
  *
- * The pointer is read from `pointermove` on the window into `frame.pointer` (-1..1, up is +1): a mouse or a pen only,
- * a finger has no hover to follow. On a page without a scene (the store's `scene` is null) the pointer is still noted,
- * so the camera is right when the scene shows again, but wakes nothing.
+ * The pointer is read from `pointermove` on the window into `frame.pointer` (-1..1, up is +1) and the time of the move
+ * into `frame.pointerAt`, for the home's needle (src/scene/v3/Home.tsx): a mouse or a pen only, a finger has no hover
+ * to follow. On a page without a scene (the store's `scene` is null) the pointer is still noted, so the camera is right
+ * when the scene shows again, but wakes nothing.
  */
 export function Rig(): null {
   const camera = useThree((state) => state.camera) as THREE.PerspectiveCamera;
@@ -55,8 +57,11 @@ export function Rig(): null {
       if (!(w > 0 && h > 0)) return;
       frame.pointer.x = clamp((event.clientX / w) * 2 - 1);
       frame.pointer.y = clamp(1 - (event.clientY / h) * 2);
-      const { reducedMotion, scene } = useScene.getState();
-      if (!reducedMotion && scene !== null) invalidate();
+      frame.pointerAt = performance.now();
+      // A frame for the parallax, and for the home's needle, which follows the pointer with reduced motion too (it is
+      // set straight to its target then).
+      const { reducedMotion, scene, phase } = useScene.getState();
+      if (scene !== null && (!reducedMotion || isAiming(phase.kind, scene))) invalidate();
     };
     window.addEventListener('pointermove', move, { passive: true });
     return () => window.removeEventListener('pointermove', move);

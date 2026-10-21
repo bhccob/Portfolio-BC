@@ -1,3 +1,6 @@
+import type { CountryId } from '~/data/directions';
+// Types only: the bridge is in the entry bundle, which must not pull in the loader's timeline or three.js.
+import type { LoaderStage } from '~/engine/v3/loaderTimeline';
 import type { Locale } from '~/i18n/Translator';
 import type { ChapterId } from '~/state/chapters';
 import type { Phase, SceneEvent } from '~/state/machine';
@@ -36,6 +39,20 @@ export interface NeedleDebugState {
   /** True while the WebGL context is lost. */
   contextLost: boolean;
   threeD: boolean;
+  /**
+   * Where the opening stands, as it last posed the scene (`frame.loader`): its stage, the loader's visible seconds and
+   * the pins lit. While `seekLoader` holds the clock, these are the held moment's. The stage is null while no opening is
+   * mounted (3D off, no WebGL, a failed scene), so a harness can tell "no loader" from any moment of one.
+   */
+  loader: { stage: LoaderStage | null; elapsed: number; pins: number };
+  /** The constellation the needle points at (`frame.pointed`), or null: between them, or no home to point in. */
+  pointed: CountryId | null;
+  /**
+   * Each constellation's anchor (its stars' centroid, where its label hangs from) on the screen now, in CSS pixels from
+   * the viewport's top left, so the harness can move the mouse onto a constellation. [0, 0] each while no Stage is
+   * mounted.
+   */
+  constellations: Record<CountryId, [x: number, y: number]>;
 }
 
 /** What the bridge does to the site, besides reading it. */
@@ -44,6 +61,12 @@ export interface NeedleDebugActions {
   set(p: { progress: number }): void;
   /** Sends a scene event, as the app's own parts do. */
   dispatch(e: SceneEvent): void;
+  /**
+   * Holds the opening's clock at `seconds` and stops it advancing, for the stills (Ruling 2): the opening poses the whole
+   * scene at that moment of a load that filled in step with the engraving, every frame, until it is let go. Any
+   * negative time (-1) lets go, back to the live clock.
+   */
+  seekLoader(seconds: number): void;
 }
 
 /** `window.__needleDebug`: a function that reads the state, with the actions as properties. */
@@ -89,6 +112,7 @@ export function installNeedleDebug(search: string, read: () => NeedleDebugState,
   const bridge: NeedleDebug = Object.assign(() => read(), {
     set: (p: { progress: number }) => act.set(p),
     dispatch: (e: SceneEvent) => act.dispatch(e),
+    seekLoader: (seconds: number) => act.seekLoader(seconds),
     scrollRequest: (callback: FrameRequestCallback) => window.requestAnimationFrame(callback),
   });
   window.__needleDebug = bridge;

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { COUNTRY_IDS } from '~/data/directions';
 import { AngleSpring, wrapAngle } from '~/engine/AngleSpring';
-import { AIM_SHELL, AIM_SNAP, NEEDLE_SPRING, pointerBearing, touchDrift } from '~/engine/v3/aim';
+import { AIM_SHELL, AIM_SNAP, NEEDLE_SPRING, pointerBearing, touchDrift, touchDriftRests } from '~/engine/v3/aim';
 import { bearingRange, PLACEMENTS, pointedAt, starPositions } from '~/engine/v3/constellations';
 import { applyCameraShot, homeShotFor } from '~/engine/v3/shots';
 import { bearingOf } from '~/engine/instrument/dialSpec';
@@ -386,5 +386,33 @@ describe('touchDrift in full', () => {
   });
   it('is continuous across the seam of the cycle', () => {
     expect(Math.abs(touchDrift(27.999) - touchDrift(28.001))).toBeLessThan(1e-3);
+  });
+});
+
+describe('touchDriftRests', () => {
+  it('is true while the drift rests on a constellation and false while it travels, so a sleep can wait for a rest', () => {
+    // Sampled between the legs' ends (every 0.05 s, a quarter-step off the half seconds they fall on), where the drift
+    // either holds still or moves on both sides of the moment.
+    for (let k = 0; k < 56 / 0.05; k++) {
+      const t = k * 0.05 + 0.025;
+      const travelling = Math.abs(touchDrift(t + 0.01) - touchDrift(t - 0.01)) > 1e-6;
+      expect(touchDriftRests(t), `t ${t.toFixed(3)}`).toBe(!travelling);
+      // Wherever it rests, the needle points into a constellation.
+      if (touchDriftRests(t)) expect(pointedAt(touchDrift(t)), `t ${t.toFixed(3)}`).not.toBeNull();
+    }
+    expect(touchDriftRests(0)).toBe(true);
+    expect(touchDriftRests(4.5)).toBe(true);
+    expect(touchDriftRests(4.6)).toBe(false);
+    expect(touchDriftRests(6.9)).toBe(false);
+    expect(touchDriftRests(7)).toBe(true);
+    expect(touchDriftRests(12)).toBe(false);
+    expect(touchDriftRests(14)).toBe(true);
+    expect(touchDriftRests(28 + 3)).toBe(true);
+    expect(touchDriftRests(-1)).toBe(false);
+  });
+
+  it('reads a time that is not finite as the start, which rests', () => {
+    expect(touchDriftRests(Number.NaN)).toBe(true);
+    expect(touchDriftRests(Number.POSITIVE_INFINITY)).toBe(true);
   });
 });

@@ -88,6 +88,11 @@ export interface NeedleModel {
    * it never cuts into the chip.
    */
   setForm(t: number): void;
+  /**
+   * The tip's glow as a share of its own, 1 as built (NaN reads as 1, and none is below 0): the home's idle motion
+   * breathes it (src/scene/v3/homePose.ts, ±10 % over 4 s). The form still scales it, so the probe never glows.
+   */
+  setTipGlow(share: number): void;
   /** Frees the three geometries and the material. */
   dispose(): void;
 }
@@ -193,6 +198,13 @@ export function buildNeedle(): NeedleModel {
   cap.name = 'needle:pivot';
   group.add(blade, cap);
 
+  /** How far the needle has grown (the pose's `late`), and the tip's breath, which the tip's glow is the product of. */
+  let grown = 1;
+  let breath = 1;
+  const glow = (): void => {
+    uniforms.uTipGlow.value = look.tip.glow * grown * breath;
+  };
+
   /**
    * The pose at form `t`. On an eased `s`, the blade swings up from pointing
    * down early (its pitch falls with (1 - s)^2), while the pivot sinks and the
@@ -212,7 +224,8 @@ export function buildNeedle(): NeedleModel {
     tailHalf.scale.set(across, across, Math.max(late, 1e-4));
     tailHalf.visible = late > 0;
     cap.scale.setScalar(mix(look.probe.cap, 1, s));
-    uniforms.uTipGlow.value = look.tip.glow * late;
+    grown = late;
+    glow();
   };
   pose(1);
 
@@ -222,6 +235,10 @@ export function buildNeedle(): NeedleModel {
       if (Number.isFinite(rad)) group.rotation.y = -rad;
     },
     setForm: pose,
+    setTipGlow(share) {
+      breath = Number.isNaN(share) ? 1 : Math.max(0, share);
+      glow();
+    },
     dispose() {
       tipHalf.geometry.dispose();
       tailHalf.geometry.dispose();

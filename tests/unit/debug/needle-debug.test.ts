@@ -18,6 +18,9 @@ function state(over: Partial<NeedleDebugState> = {}): NeedleDebugState {
     canvasMounts: 1,
     contextLost: false,
     threeD: true,
+    loader: { stage: 'home', elapsed: 7.1, pins: 64 },
+    pointed: 'china',
+    constellations: { china: [1238, 423], netherlands: [721, 250], aruba: [206, 382] },
     ...over,
   };
 }
@@ -28,7 +31,7 @@ type FakeWindow = { __needleDebug?: unknown; requestAnimationFrame: (callback: F
 describe('installNeedleDebug', () => {
   let win: FakeWindow;
   let uninstalls: (() => void)[] = [];
-  const act = { set: vi.fn(), dispatch: vi.fn() };
+  const act = { set: vi.fn(), dispatch: vi.fn(), seekLoader: vi.fn() };
   /** installNeedleDebug, with its uninstall kept so no test leaves a bridge behind for the next. */
   const installNeedleDebug: typeof install = (...args) => {
     const uninstall = install(...args);
@@ -41,6 +44,7 @@ describe('installNeedleDebug', () => {
     vi.stubGlobal('window', win);
     act.set.mockClear();
     act.dispatch.mockClear();
+    act.seekLoader.mockClear();
   });
   afterEach(() => {
     for (const uninstall of uninstalls) uninstall();
@@ -98,6 +102,28 @@ describe('installNeedleDebug', () => {
     expect(act.set).toHaveBeenCalledExactlyOnceWith({ progress: 3.5 });
     debug.dispatch({ type: 'FOCUS_COUNTRY', dir: 'aruba' });
     expect(act.dispatch).toHaveBeenCalledExactlyOnceWith({ type: 'FOCUS_COUNTRY', dir: 'aruba' });
+  });
+
+  it('forwards .seekLoader to the act it was given, the seconds as they came: a time to hold, or -1 to let go', () => {
+    installNeedleDebug('?proof', () => state(), act);
+    const debug = win.__needleDebug as { seekLoader(seconds: number): void };
+    expect(typeof debug.seekLoader).toBe('function');
+    debug.seekLoader(1.6);
+    expect(act.seekLoader).toHaveBeenCalledExactlyOnceWith(1.6);
+    debug.seekLoader(-1);
+    expect(act.seekLoader).toHaveBeenLastCalledWith(-1);
+    expect(act.set).not.toHaveBeenCalled();
+    expect(act.dispatch).not.toHaveBeenCalled();
+  });
+
+  it("hands the opening's clock, the constellation pointed at and the constellations' places on the screen through", () => {
+    const made = state({ loader: { stage: 'engrave', elapsed: 0.6, pins: 17 }, pointed: null });
+    installNeedleDebug('?proof', () => made, act);
+    const at = (win.__needleDebug as () => NeedleDebugState)();
+    expect(at.loader).toEqual({ stage: 'engrave', elapsed: 0.6, pins: 17 });
+    expect(at.pointed).toBeNull();
+    expect(Object.keys(at.constellations).sort()).toEqual(['aruba', 'china', 'netherlands']);
+    expect(at.constellations.china).toEqual([1238, 423]);
   });
 
   it("has a scrollRequest the scroll loop asks its frames through, the window's requestAnimationFrame until replaced", () => {

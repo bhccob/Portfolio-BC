@@ -17,8 +17,9 @@
  */
 import { MIST_LOOK } from '~/engine/v3/build/mist';
 import { ON_STROKES, PIN_COUNT, type Point2, strokeLengths } from '~/engine/v3/chipSpec';
-import type { LoaderClock } from '~/engine/v3/loaderTimeline';
+import { LOADER, type LoaderClock, type LoaderInput } from '~/engine/v3/loaderTimeline';
 import { type CameraShot, homeShotFor, lerpCameraShot, loaderShotFor } from '~/engine/v3/shots';
+import type { Phase } from '~/state/machine';
 import { LOOK } from './look';
 
 /** `x` held to [0, 1]; NaN reads as 0. */
@@ -125,6 +126,57 @@ export interface OpeningPose {
 export interface OpeningPath {
   quick: boolean;
   reduced: boolean;
+}
+
+/**
+ * The needle's bearing while the opening poses it, radians: north, ahead, the way the probe's spike grows into it
+ * (`setForm`) and the home camera looks. The Opening turns it there on every pose short of the home, so a seek back
+ * shows the landing as it played, and the Home's spring starts from it whenever it takes the needle over.
+ */
+export const LANDING_BEARING = 0;
+
+/** How an opening begins: straight at the home (`skip`), or playing the loader on its `path`. */
+export interface OpeningStart {
+  skip: boolean;
+  path: OpeningPath;
+}
+
+/**
+ * Whether an opening goes straight to the home and plays no loader (Ruling 9c): the phase has already left LOADING for
+ * one of the home page's own phases (HOME_IDLE, a constellation in focus, a scroll chapter). Its hero then shows
+ * (`data-loading` is off), so a loader played now would run under it: 3D switched back on after a failure or a
+ * toggle, a visit that began on Lite, or a visitor back on the home after leaving the opening mid-way. LOADING plays the
+ * loader, and so do a country or project page: there it runs under the page's scrim, as a direct arrival's does
+ * (spec §2.1), and lands on the home view behind the page.
+ */
+export function skipsLoader(phase: Phase['kind']): boolean {
+  return phase !== 'LOADING' && phase !== 'COUNTRY_PAGE' && phase !== 'PROJECT_FOCUS';
+}
+
+/**
+ * How an opening mounted in this phase begins: `skip` as `skipsLoader` says, and the loader's path otherwise, the quick
+ * one if the loader was `seen` this session and under `reduced` motion if the visitor asks for it. The path is kept
+ * for a skipped opening too: a seek (`heldClockInput`) still plays it.
+ */
+export function startPathFor(phase: Phase['kind'], seen: boolean, reduced: boolean): OpeningStart {
+  return { skip: skipsLoader(phase), path: { quick: seen, reduced } };
+}
+
+/**
+ * The clock of an opening that skipped its loader: at home, ON whole and all 64 pins lit, so it poses the same home
+ * every path lands on (Ruling 3) and reports its pins as the full path's home does.
+ */
+export const HOME_CLOCK: Readonly<LoaderClock> = Object.freeze({ stage: 'home', local: 0, engraving: 1, pins: PIN_COUNT });
+
+/**
+ * What the loader's timeline is asked for a clock the proof bridge holds at `seconds` (`seekLoader`, Ruling 2): that
+ * many visible seconds of a load that filled in step with the engraving, `shown = min(1, seconds / LOADER.engraveMin)`,
+ * done at `loadedAt = LOADER.engraveMin`, on the visit's own path. So a still at any moment shows the pins as far along
+ * as the engraving, whatever the real load did (it is long done by the time the harness seeks): a held moment poses
+ * exactly as a load finishing on the least engraving time would.
+ */
+export function heldClockInput(seconds: number, path: OpeningPath): LoaderInput {
+  return { elapsed: seconds, shown: Math.min(1, seconds / LOADER.engraveMin), loadedAt: LOADER.engraveMin, quick: path.quick, reduced: path.reduced };
 }
 
 const NO_LASER: LaserPose = { shown: false, on: false, lift: 0, glide: 1 };
