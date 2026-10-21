@@ -465,23 +465,38 @@ main {
 }
 
 /* While the opening plays (<html data-loading>: the phase is LOADING) the hero is hidden, at once, and it fades in over
-   0.9 s as the loader lands (none with reduced motion). The attribute is set after hydration, so where scripts run the
-   hero also waits hidden from the first paint until the page has hydrated (`data-route` unset), instead of showing and
-   vanishing; without scripts it shows at once. It is hidden by opacity only, so a screen reader still has the name.
-   Where scripts are on but the bundle never runs (so `data-route` is never set), the hero still shows: a CSS-only
-   fail-safe fades it in 8 s after the first paint (at once then, with reduced motion). Once the page hydrates the
+   0.9 s as the loader lands (none with reduced motion). The header (Lite, contact, the language and 3D switches) goes
+   and comes with it, so the loader shows no text but its engraved ON (spec §2.1). The attribute is set after
+   hydration, so where scripts run the hero, and on the home page the header, also wait hidden from the first paint
+   until the page has hydrated (`data-route` unset), instead of showing and vanishing; without scripts they show at
+   once. A page without a hero never plays the loader under its header, so its header shows from the first paint.
+   Both are hidden by opacity only, so a screen reader still has them and Tab still reaches the skip link and the
+   header's links: the header shows at once whenever the keyboard is in it (`:focus-within`), and while hidden it takes
+   no click. Where scripts are on but the bundle never runs (so `data-route` is never set), they still show: a CSS-only
+   fail-safe fades them in 8 s after the first paint (at once then, with reduced motion). Once the page hydrates the
    rule stops matching and the loader's own hiding and fade take over. */
-.hero {
+.hero,
+.site-header {
   transition: opacity 0.9s var(--ease-reveal);
 }
 
-html[data-loading] .hero {
+.site-header:focus-within {
+  transition: none;
+}
+
+html[data-loading] .hero,
+html[data-loading] .site-header:not(:focus-within) {
   opacity: 0;
   transition: none;
 }
 
+html[data-loading] .site-header:not(:focus-within) {
+  pointer-events: none;
+}
+
 @media (scripting: enabled) {
-  html:not([data-route]) .hero {
+  html:not([data-route]) .hero,
+  html:not([data-route]):has(.hero) .site-header:not(:focus-within) {
     opacity: 0;
     transition: none;
     animation: hero-late 0.9s var(--ease-reveal) 8s forwards;
@@ -495,11 +510,13 @@ html[data-loading] .hero {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero {
+  .hero,
+  .site-header {
     transition: none;
   }
 
-  html:not([data-route]) .hero {
+  html:not([data-route]) .hero,
+  html:not([data-route]):has(.hero) .site-header:not(:focus-within) {
     animation-duration: 0s;
   }
 }

@@ -161,7 +161,7 @@ wraps by assignment to count the loop's own frames apart from the canvas's.
 | `quick-loader` | a landed `/` reloaded in the same tab (the loader was seen this session) never engraves and reaches `HOME_IDLE` within `LOADER.quick + 2` s of the scene being ready; a new context engraves again |
 | `loader-reduced` | with reduced motion, sampled every 100 ms until `HOME_IDLE`: the opening shows only `engrave`, `land` and `home`, in that order, and its lit pins never decrease |
 | `sleep` | landed and left alone, with no input at all (so the needle drifts): the idle motion runs a whole cycle of the drift, then the canvas asks for no frame for a whole second, within `DRIFT_CYCLE + SLEEP_WITHIN_MS` of the landing and not before `DRIFT_CYCLE - 2` s |
-| `hero-failsafe` | with JavaScript on but the entry chunk aborted (the page never hydrates), the hero is hidden, then shown by the CSS fail-safe about 8 s in; with the page working, it is hidden from the first paint until `HOME_IDLE` and shows once landed |
+| `hero-failsafe` | with JavaScript on but the entry chunk aborted (the page never hydrates), the hero and the header are hidden, then shown by the CSS fail-safe about 8 s in; with the page working, both are hidden from the first paint until `HOME_IDLE` (the loader has no text but its ON) and show once landed |
 | `load-throw` | the real Stage chunk patched so one call in the opening's load throws: the fallback card well inside the load timeout, 3D off and not stored, one reported error |
 | `csp-enforced` | the policy is in force: on `/` and `/lite/` an injected inline `<script>` and an inline handler do not run, and each is reported as a `securitypolicyviolation` |
 
@@ -176,9 +176,10 @@ them after the page: `nl-home-1440x900.png`, `nl-about-china-1440x900.png`,
 four pages before it, `scene-stills`, is folded into `stills`.)
 
 The loader stills are of the opening as a visitor sees it: while the clock is
-held the phase stays `HOME_IDLE`, which would show the hero over the loader, so
-the harness sets `<html data-loading>` (the page's own mark of a playing
-opening, which hides the hero) for the held moments and takes it off again.
+held the phase stays `HOME_IDLE`, which would show the hero and the header over
+the loader, so the harness sets `<html data-loading>` (the page's own mark of a
+playing opening, which hides them both) for the held moments, checks the header
+is gone, and takes it off again.
 `home-look` gates the loader stills `loader-stills` took in the same run; run
 without it, it takes them first.
 

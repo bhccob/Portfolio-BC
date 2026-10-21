@@ -18,7 +18,8 @@ export function Shell({ children }: { children: ReactNode }): JSX.Element {
   const { locale } = useTranslator();
   useRouteSync();
   useThreeDAttribute();
-  // Before data-route, in the same effects: the hero, hidden until hydration, stays hidden while the opening plays.
+  // Before data-route, in the same effects: the hero and the home's header, hidden until hydration, stay hidden while
+  // the opening plays.
   useLoadingAttribute();
   useRouteAttribute(route);
   // A page reached by a link takes the focus to <main> (the scroll is root.tsx's ScrollRestoration).

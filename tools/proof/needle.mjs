@@ -173,9 +173,9 @@
  *   sleep      landed and left alone (no input at all, so the needle drifts), the canvas runs its idle motion for a
  *              whole cycle of the touch drift and then draws nothing: no requestAnimationFrame for a whole second
  *              within DRIFT_CYCLE + SLEEP_WITHIN_MS, and not before DRIFT_CYCLE - 2 s
- *   hero-failsafe  with JavaScript on but the entry chunk aborted (the page never hydrates), the hero is hidden and
- *              then shown by the CSS fail-safe about 8 s in; with the page working, the hero stays hidden until the
- *              phase is HOME_IDLE and then shows
+ *   hero-failsafe  with JavaScript on but the entry chunk aborted (the page never hydrates), the hero and the header
+ *              are hidden and then shown by the CSS fail-safe about 8 s in; with the page working, both stay hidden
+ *              until the phase is HOME_IDLE and then show
  *   csp-enforced  the policy is in force, not only unbroken: on / and /lite/ after hydration, an injected inline
  *              <script> and an inline handler (<img onerror>) do not run, and the page reports a
  *              securitypolicyviolation for each (script-src-elem, script-src-attr); the browser's console refusal of
@@ -2528,8 +2528,9 @@ let loaderShots = null;
  * At each still size, in a fresh context: `/?proof` loaded and landed (HOME_IDLE, so the real load is done), then the
  * opening's clock held at each of LOADER_MOMENTS, its `loader.stage` checked and a still taken into
  * `m2/loader-<n>-<size>.png`; then let go. The phase stays HOME_IDLE throughout (Ruling 2), so the page would show the
- * hero over the held loader, which no visitor sees: while the clock is held the harness sets `<html data-loading>`, the
- * page's own mark of a playing opening, which hides the hero as it does while the phase is LOADING. Answers the stills.
+ * hero and the header over the held loader, which no visitor sees: while the clock is held the harness sets
+ * `<html data-loading>`, the page's own mark of a playing opening, which hides them as it does while the phase is
+ * LOADING, and checks that the header is gone, so the stills show no text but the engraved ON. Answers the stills.
  */
 async function takeLoaderStills(browser, step) {
   if (loaderShots) return loaderShots;
@@ -2543,6 +2544,8 @@ async function takeLoaderStills(browser, step) {
     await reachHomeIdle(page);
     await page.evaluate(() => document.fonts.ready);
     await page.evaluate(() => document.documentElement.setAttribute('data-loading', ''));
+    const hidden = await page.evaluate(() => ({ header: getComputedStyle(document.querySelector('.site-header')).opacity, hero: getComputedStyle(document.querySelector('.hero')).opacity }));
+    step.check(hidden.header === '0' && hidden.hero === '0', `${at}: under <html data-loading> the header and the hero are hidden, so the loader shows no text but its ON (opacity ${hidden.header}, ${hidden.hero})`);
     for (const [index, { seconds, stage }] of LOADER_MOMENTS.entries()) {
       const loader = await seekLoader(page, seconds);
       const phase = (await debugOf(page)).phase.kind;
@@ -2903,33 +2906,36 @@ const ENTRY_CHUNK = /\/assets\/entry\.client-[^/]+\.js$/;
 
 /**
  * Records the hero every 50 ms from the document's start in `window.__heroSamples`: performance.now() ms, its computed
- * opacity, the page's `data-route` (set once it hydrates) and the phase where the bridge answers.
+ * opacity and the header's (`header`, which goes and comes with it on the home page), the page's `data-route` (set once
+ * it hydrates) and the phase where the bridge answers.
  */
 const watchHero = (context) =>
   context.addInitScript(() => {
     window.__heroSamples = [];
     setInterval(() => {
       const hero = document.querySelector('.hero');
-      if (!hero) return;
+      const header = document.querySelector('.site-header');
+      if (!hero || !header) return;
       window.__heroSamples.push({
         t: Math.round(performance.now()),
         opacity: Number(getComputedStyle(hero).opacity),
+        header: Number(getComputedStyle(header).opacity),
         route: document.documentElement.getAttribute('data-route'),
         phase: window.__needleDebug?.().phase.kind ?? null,
       });
     }, 50);
   });
 
-/** Whether watchHero has recorded the hero whole (opacity 1) within `timeout` ms: read from its samples, not the live style, which they may lag. */
+/** Whether watchHero has recorded the hero and the header whole (opacity 1) within `timeout` ms: read from its samples, not the live style, which they may lag. */
 const heroWhole = (page, timeout) =>
-  page.waitForFunction(() => window.__heroSamples.some((sample) => sample.opacity === 1), null, { timeout, polling: 100 }).then(() => true, () => false);
+  page.waitForFunction(() => window.__heroSamples.some((sample) => sample.opacity === 1 && sample.header === 1), null, { timeout, polling: 100 }).then(() => true, () => false);
 
 /**
- * The hero's CSS fail-safe (Ruling 9a). With JavaScript on but the entry chunk refused (the route aborts it), the page
- * never hydrates: the hero is hidden (scripting is on, so the page waits for the bundle) and then shown by the fail-safe,
- * 8 s in, faded in over 0.9 s. The step expects the browser's report of the refused chunk and of the failed import,
- * and nothing else. With the page working, the hero stays hidden until the phase is HOME_IDLE (the opening has landed)
- * and then shows.
+ * The hero's CSS fail-safe (Ruling 9a), and the header's with it. With JavaScript on but the entry chunk refused (the
+ * route aborts it), the page never hydrates: the hero and the header are hidden (scripting is on, so the page waits for
+ * the bundle) and then shown by the fail-safe, 8 s in, faded in over 0.9 s. The step expects the browser's report of
+ * the refused chunk and of the failed import, and nothing else. With the page working, the hero and the header stay
+ * hidden until the phase is HOME_IDLE (the opening has landed: the loader has no text but its ON) and then show.
  */
 async function heroFailsafe(browser, step) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
@@ -2963,14 +2969,20 @@ async function heroFailsafe(browser, step) {
   const broken = await page.evaluate(() => ({ samples: window.__heroSamples, name: document.querySelector('.hero-name')?.textContent ?? null }));
   const firstShown = broken.samples.find((sample) => sample.opacity > 0)?.t ?? null;
   const whole = broken.samples.find((sample) => sample.opacity === 1)?.t ?? null;
+  const headerFirst = broken.samples.find((sample) => sample.header > 0)?.t ?? null;
+  const headerWhole = broken.samples.find((sample) => sample.header === 1)?.t ?? null;
   step.check(refused >= 1 && broken.samples.length > 0 && broken.samples.every((sample) => sample.route === null), `the entry chunk refused (${refused} requests): the page never hydrates (no data-route in ${broken.samples.length} samples)`);
   step.check(reports.load >= 1 && reports.import === 1, `the browser reports the refused chunk and the failed import, and nothing else (${reports.load} "Failed to load resource", ${reports.import} failed import)`);
   step.check(firstShown !== null && firstShown >= 7_900, `the hero stays hidden until the fail-safe, about 8 s in: first shown at ${firstShown} ms`);
   step.check(shown && whole !== null && whole <= 10_500 && broken.name === HOME_H1, `then it shows, whole at ${whole} ms (8 s and a 0.9 s fade), "${broken.name}"`);
+  step.check(
+    headerFirst !== null && headerFirst >= 7_900 && headerWhole !== null && headerWhole <= 10_500,
+    `the header goes with it: hidden until the fail-safe (first shown at ${headerFirst} ms), then whole at ${headerWhole} ms`,
+  );
   await takeCsp(page, step);
   await context.close();
 
-  // Working: the hero waits for the landing.
+  // Working: the hero and the header wait for the landing.
   const working = await openPage(browser, step);
   await watchHero(working.context);
   await working.page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
@@ -2981,12 +2993,18 @@ async function heroFailsafe(browser, step) {
   const before = samples.filter((sample) => sample.phase !== 'HOME_IDLE');
   const idleAt = samples.find((sample) => sample.phase === 'HOME_IDLE')?.t ?? null;
   const wholeAt = samples.find((sample) => sample.opacity === 1)?.t ?? null;
+  const headerAt = samples.find((sample) => sample.header === 1)?.t ?? null;
   const peeked = before.filter((sample) => sample.opacity > 0);
+  const headerPeeked = before.filter((sample) => sample.header > 0);
   step.check(before.length > 10 && peeked.length === 0, `working, the hero is hidden until HOME_IDLE: ${before.length} samples before it (from the first paint, through hydration and the opening), ${peeked.length} with the hero showing (${JSON.stringify(peeked.slice(0, 2))})`);
   step.check(appears && idleAt !== null && wholeAt !== null && wholeAt - idleAt <= 1_500, `and it shows once landed: HOME_IDLE at ${idleAt} ms, the hero whole at ${wholeAt} ms`);
+  step.check(
+    headerPeeked.length === 0 && headerAt !== null && idleAt !== null && headerAt - idleAt <= 1_500,
+    `the header too: the loader shows no text but its ON (${headerPeeked.length} of ${before.length} samples before HOME_IDLE with the header showing), and it is whole at ${headerAt} ms`,
+  );
   await takeCsp(working.page, step);
   await working.context.close();
-  return `entry chunk refused: the hero hidden, then shown by the fail-safe at ${firstShown} ms (whole at ${whole} ms); working: hidden until HOME_IDLE (${idleAt} ms), whole at ${wholeAt} ms`;
+  return `entry chunk refused: the hero and the header hidden, then shown by the fail-safe at ${firstShown} / ${headerFirst} ms (whole at ${whole} / ${headerWhole} ms); working: both hidden until HOME_IDLE (${idleAt} ms), whole at ${wholeAt} / ${headerAt} ms`;
 }
 
 // ---------------------------------------------------------------- the debug bridge, the keyboard, a language switch, reduced motion

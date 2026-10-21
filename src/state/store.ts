@@ -113,7 +113,7 @@ export function useThreeDAttribute(): void {
 
 /**
  * Keeps `data-loading` on <html> while the phase is LOADING, and off from the moment it leaves it: the styles hide the
- * home's hero while the opening plays and fade it in as the loader lands (src/styles/base.css). Built like
+ * home's hero and the header while the opening plays and fade them in as the loader lands (src/styles/base.css). Built like
  * `useThreeDAttribute`: set after hydration from the store's real phase (a visit with no scene has already left
  * LOADING by then), then kept in step with every phase change.
  */
