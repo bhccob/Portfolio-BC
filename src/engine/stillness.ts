@@ -1,17 +1,20 @@
 /**
- * When the compass may stop drawing: the pearl idle (20 s without input),
- * nothing dragging, no hand-over under way, the progress eased all the way,
- * and the pearl, the needle and the turn come to rest. A frame would then
- * draw nothing new, so the scene draws none, and the dust and the haze stand
- * still, until something moves again. Pure and DOM-free; it imports nothing
- * from three.
+ * When the v3 home may stop drawing. Home (src/scene/v3/Home.tsx) writes its
+ * state into `motion.compass` (src/scene/motion.ts) every frame it drives the
+ * needle: `idle` (its idle motion is over and the glows have arrived),
+ * `needle` and `needleSpeed`; the Heartbeat (src/scene/Heartbeat.tsx) lets the
+ * canvas sleep once `asleep` says nothing would move, until something stirs
+ * it again. The other fields (the pearl, the drag, the spin, the tip, the
+ * progress, the intro) have no writer since revision 4's compass went: they
+ * stay at AT_REST's values and always read as still. Pure and DOM-free; it
+ * imports nothing from three.
  */
 
 /** Below these the scene counts as still: CSS px, radians and radians a second. */
 export const STILL = { pearl: 0.05, needle: 1e-3, needleSpeed: 1e-2, spin: 1e-4, spinSpeed: 1e-3, tip: 1e-4 } as const;
 
 export interface Stillness {
-  /** Nothing has stirred the scene for a while: revision 4's pearl had no input for 20 s (PearlTarget.idle); the v3 home's needle has ended its idle motion (src/scene/v3/Home.tsx). */
+  /** Nothing has stirred the scene for a while: the v3 home's idle motion is over and its glows have arrived (src/scene/v3/Home.tsx). */
   idle: boolean;
   /** CSS px between the drawn pearl and where it wants to be. */
   pearl: number;
@@ -31,9 +34,9 @@ export interface Stillness {
 }
 
 /**
- * Everything at rest. Milestone 1's placeholder compass has no pearl, no drag, no free turn and no hand-over, so
- * it spreads this and fills in only what it has (`idle`: its needle's drift is over; `needle`, `needleSpeed`;
- * `progressed`), rather than this module losing the fields milestone 2's compass may want back.
+ * Everything at rest: what `motion.compass` holds before Home first drives the needle, and again once Home has gone
+ * (src/scene/motion.ts, src/scene/v3/Home.tsx). Home writes only `idle`, `needle` and `needleSpeed` over it; the
+ * rest stays as here.
  */
 export const AT_REST: Readonly<Stillness> = Object.freeze({
   idle: true,

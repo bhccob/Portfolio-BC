@@ -46,7 +46,10 @@ export interface HomeProps {
 
 type Placer = NonNullable<ComponentProps<typeof Html>['calculatePosition']>;
 
-/** Scratch for the labels' placing, which runs in drei's frame and makes no objects of its own. */
+/**
+ * Scratch for the labels' placing, which runs in drei's frame: it reuses these rather than make a vector or a box each
+ * frame. Only a read of the page after the layout moved (`readHero`) takes new rects from the browser.
+ */
 const probe = new THREE.Vector3();
 const box: ScreenBox = { left: 0, top: 0, right: 0, bottom: 0 };
 const anchor = { x: 0, y: 0 };

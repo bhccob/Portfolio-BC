@@ -1,5 +1,6 @@
 import type { CountryId } from '~/data/directions';
-// Types only: the bridge is in the entry bundle, which must not pull in the loader's timeline or three.js.
+// Types only: the bridge is in the entry bundle and needs only these modules' shapes, none of their code. (The loader's
+// timeline is in that bundle anyway, through src/scene/timeouts.ts; three.js must stay out of it.)
 import type { LoaderStage } from '~/engine/v3/loaderTimeline';
 import type { Locale } from '~/i18n/Translator';
 import type { ChapterId } from '~/state/chapters';

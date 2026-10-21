@@ -136,10 +136,11 @@ function skyDistance(origin: THREE.Vector3, direction: THREE.Vector3, shell: num
  *    it (`hypot(x, z) <= shell`) and the ground in front of it, between the
  *    camera and the shell; the ground beyond the shell, on the far side, is
  *    the sky's, so that the needle is continuous as the cursor rises through
- *    the horizon. (Ruling 6: the ground point counts only inside the shell.
- *    Read as the plain radius test it would also send the board in front of
- *    the shell, the bottom fifth of the home picture, to the far side of the
- *    cylinder, a half-turn from the point under the cursor.)
+ *    the horizon. The test is the order along the ray, not the ground
+ *    point's radius: a plain `hypot(x, z) <= shell` would also hand the
+ *    board in front of the shell, the bottom fifth of the home picture, to
+ *    the sky rule, which reads it on the far side of the cylinder, a
+ *    half-turn from the point under the cursor.
  * 3. The sky. Otherwise (the cursor is above the horizon, or the ground is
  *    beyond the sky point) the answer is the bearing of the ray's far (exit)
  *    intersection with the vertical cylinder of radius `shell`, the side the

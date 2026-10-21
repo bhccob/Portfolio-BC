@@ -1,14 +1,16 @@
 import * as THREE from 'three';
 
 /**
- * Procedural noise for the studio, made on the CPU once and DOM-free: a
- * seeded, tileable fractal value noise. The floor's wet streaks, the beam's
- * drifting rays and the smoke all sample one of these textures instead of
- * computing noise per pixel, which a weak GPU could not afford across the
- * whole screen.
+ * Procedural noise for the v3 scene's soft sprites, made on the CPU once and
+ * DOM-free: a seeded, tileable fractal value noise and the textures made from
+ * it. The laser's smoke, the mist over the board and the sky's nebula clouds
+ * are each a `smokeTexture`; the laser's point, nozzle and sparks and the
+ * sky's fixed stars a `glowTexture`; the sky scatters its stars with
+ * `random`. A texture made once, not noise computed per pixel, which a weak
+ * GPU could not afford across the whole screen.
  */
 
-/** A small, fast, seeded PRNG (mulberry32): the same seed, the same studio. */
+/** A small, fast, seeded PRNG (mulberry32): the same seed, the same picture. */
 export function random(seed: number): () => number {
   let a = seed >>> 0;
   return () => {
@@ -64,32 +66,9 @@ export function fractalNoise(size: number, period: number, octaves: number, seed
 }
 
 /**
- * A repeating noise texture: red is broad, green finer and blue finer still,
- * each from its own seed. Linear data, not a colour.
- */
-export function noiseTexture(size = 256, seed = 7): THREE.DataTexture {
-  const channels = [fractalNoise(size, 4, 5, seed), fractalNoise(size, 8, 5, seed + 1), fractalNoise(size, 16, 4, seed + 2)];
-  const data = new Uint8Array(size * size * 4);
-  for (let i = 0; i < size * size; i++) {
-    data[i * 4] = Math.round(channels[0][i] * 255);
-    data[i * 4 + 1] = Math.round(channels[1][i] * 255);
-    data[i * 4 + 2] = Math.round(channels[2][i] * 255);
-    data[i * 4 + 3] = 255;
-  }
-  const texture = new THREE.DataTexture(data, size, size);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.magFilter = THREE.LinearFilter;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.generateMipmaps = true;
-  texture.needsUpdate = true;
-  texture.name = 'studio:noise';
-  return texture;
-}
-
-/**
  * A soft puff of smoke: white, its alpha a billow of noise that thins to
- * nothing at the edge of a circle. For the haze sprites.
+ * nothing at the edge of a circle. For the laser's smoke, the mist and the
+ * sky's nebula clouds.
  */
 export function smokeTexture(size = 128, seed = 21): THREE.DataTexture {
   const billow = fractalNoise(size, 3, 5, seed);

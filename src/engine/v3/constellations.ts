@@ -36,9 +36,8 @@ export interface Figure {
  * clear of it: China keeps its low stars at u >= 0.2, Aruba at u <= 0.8.
  *
  * The tree's crown is swept hard to the left, west, away from the compass, as
- * Aruba's divi-divi trees lean west and south-west with the trade wind; the
- * inward curve of its foot turns the trunk the same way. The ship's bow points
- * east, to the right.
+ * Aruba's divi-divi trees lean west and south-west with the trade wind; its
+ * trunk leans the same way as drawn. The ship's bow points east, to the right.
  */
 export const FIGURES: Readonly<Record<CountryId, Figure>> = {
   china: {
@@ -138,12 +137,14 @@ export const FIGURES: Readonly<Record<CountryId, Figure>> = {
  * stands on a vertical plane facing the camera (normal +Z, south), centred
  * across on the point `onDial(bearing, distance)` and set `back` behind it
  * (north, away from the camera), `width` wide and `height` tall from `base`
- * up. Its lower stars curve toward the camera by up to `bend` and in toward
- * the compass by up to `inward`. So China and Aruba wrap round the rim in 3D,
- * as frame 04 has them and spec §2.2 asks: their upper stars stand behind the
- * compass's sides and their feet sweep forward, in front of the rim. A plane
- * along the bearing's circle would turn the side figures nearly edge on to a
- * camera in the south; facing the camera, each is seen as drawn.
+ * up. Its lower stars curve toward the camera by up to `bend`, and could curve
+ * in toward the compass by up to `inward`, which is 0 for all three since
+ * Task 14b brought China and Aruba in to the rim and set them `back` instead. So
+ * China and Aruba wrap round the rim in 3D, as frame 04 has them and spec
+ * §2.2 asks: their upper stars stand behind the compass's sides and their feet
+ * sweep forward, in front of the rim. A plane along the bearing's circle would
+ * turn the side figures nearly edge on to a camera in the south; facing the
+ * camera, each is seen as drawn.
  */
 export interface Placement {
   bearing: number;
@@ -210,8 +211,8 @@ const ranges = new Map<CountryId, readonly [from: number, to: number]>();
  * `x = cx + (u - 0.5) * P.width - sign(cx) * P.inward * w`,
  * `y = P.base + v * P.height` and `z = cz - P.back + P.bend * w`. The square
  * keeps a figure's top flat on its plane, set back behind the compass, and
- * curves its foot forward and inward round the rim; the ship, centred due
- * north (cx = 0, no set-back, bend 0), stays flat.
+ * curves its foot forward round the rim (and inward, were `inward` not 0);
+ * the ship, centred due north (cx = 0, no set-back, bend 0), stays flat.
  *
  * Returns a copy, so a caller may write to it.
  */

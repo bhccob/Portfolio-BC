@@ -19,7 +19,7 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
 }`;
 
 export interface ShoulderToneMappingOptions {
-  /** Multiplies the light before the shoulder, as the renderer's toneMappingExposure did; 1 (COMPASS_STUDIO.exposure). */
+  /** Multiplies the light before the shoulder, as the renderer's toneMappingExposure does; Effects passes LOOK.exposure, 1 if not given. */
   exposure?: number;
 }
 
