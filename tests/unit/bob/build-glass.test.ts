@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
 import { describe, expect, it, vi } from 'vitest';
 import { buildEngraving, ENGRAVING_LOOK, revealCount } from '~/engine/bob/build/engraving';
-import { buildGlass, GLASS_LOOK } from '~/engine/bob/build/glassFloor';
+import { buildGlass, GLASS_LOOK, GLASS_RENDER_ORDER } from '~/engine/bob/build/glassFloor';
 import { buildTraces, TRACES_LOOK } from '~/engine/bob/build/traces';
 import { traceLayout, TRACE } from '~/engine/bob/traces';
 import { circlePath, STROKE_ORDER, strokeLength, strokePath, tickSegments, WORDMARK } from '~/engine/bob/wordmark';
@@ -390,12 +390,56 @@ describe('the glass', () => {
     expect(along).toBeLessThan(across / 3);
     expect(highest - lowest).toBeGreaterThan(0.3);
 
-    // The same map every time.
-    const again = buildGlass('low');
-    const other = (meshNamed(again.group, 'floor').material as THREE.MeshPhysicalMaterial).roughnessMap as THREE.DataTexture;
-    expect(Buffer.from(other.image.data as Uint8Array).equals(Buffer.from(data))).toBe(true);
-    again.dispose();
     g.dispose();
+  });
+
+  it('reads the scratch map at anisotropy 4, as v3 does for its glass', () => {
+    const g = buildGlass('low');
+    const map = (meshNamed(g.group, 'floor').material as THREE.MeshPhysicalMaterial).roughnessMap as THREE.DataTexture;
+    expect(GLASS_LOOK.scratch.anisotropy).toBe(4);
+    expect(map.anisotropy).toBe(4);
+    g.dispose();
+  });
+
+  it('makes the scratch map once: every build holds the same texels, and each frees only its own texture', () => {
+    const textureOf = (model: ReturnType<typeof buildGlass>) => (meshNamed(model.group, 'floor').material as THREE.MeshPhysicalMaterial).roughnessMap as THREE.DataTexture;
+    const sum = (data: Uint8Array) => data.reduce((total, v) => total + v, 0);
+    const a = buildGlass('low');
+    const b = buildGlass('high');
+    const first = textureOf(a);
+    const second = textureOf(b);
+    // Two textures over one array: not copied, and so the same seeded map every time.
+    expect(second).not.toBe(first);
+    expect(second.image.data).toBe(first.image.data);
+    const data = first.image.data as Uint8Array;
+    const before = sum(data);
+    expect(before).toBeGreaterThan(0);
+    let freed = 0;
+    first.addEventListener('dispose', () => freed++);
+    second.addEventListener('dispose', () => freed += 10);
+    a.dispose();
+    // Only the first build's texture is freed, and the texels the second still reads are untouched.
+    expect(freed).toBe(1);
+    expect(textureOf(b).image.data).toBe(data);
+    expect(data).toHaveLength(512 * 512 * 4);
+    expect(sum(data)).toBe(before);
+    // A build made after the first is gone still has the map.
+    const c = buildGlass('medium');
+    expect(textureOf(c).image.data).toBe(data);
+    b.dispose();
+    c.dispose();
+    expect(freed).toBe(11);
+  });
+
+  it('draws the floor, its edge and the cap at render order -5 on every tier, after the sky and before the laser and the mist', () => {
+    expect(GLASS_RENDER_ORDER).toBe(-5);
+    expect(GLASS_RENDER_ORDER).toBeGreaterThan(-10);
+    expect(GLASS_RENDER_ORDER).toBeLessThan(1);
+    for (const tier of ['high', 'medium', 'low'] as const) {
+      const g = buildGlass(tier);
+      for (const name of ['floor', 'floor:edge', 'cap']) expect(objectNamed(g.group, name).renderOrder, `${tier} ${name}`).toBe(GLASS_RENDER_ORDER);
+      g.dispose();
+    }
   });
 
   it('adds the reflector on the high tier only', () => {
@@ -437,6 +481,13 @@ describe('the glass', () => {
     expect(solid.transparent).toBe(false);
     expect(solid.opacity).toBe(1);
     low.dispose();
+  });
+
+  it('renders the mirror without multisampling, since it shows only 15 % of itself at half resolution', () => {
+    const high = buildGlass('high');
+    expect(GLASS_LOOK.reflection.multisample).toBe(0);
+    expect((objectNamed(high.group, 'floor:reflector') as Reflector).getRenderTarget().samples).toBe(0);
+    high.dispose();
   });
 
   it('sizes the reflection to half the renderer, and ignores the renderer on a tier without one', () => {

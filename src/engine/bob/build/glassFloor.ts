@@ -29,13 +29,17 @@ import { WORDMARK } from '~/engine/bob/wordmark';
  *   out to `outer`, `thickness` deep under y = 0.
  * - `scratch`: fine streaks of rougher glass, all running one way, `angle`
  *   degrees from the floor's x. The map is `size` pixels square, tiled `repeat`
- *   times over the floor, and a streak is up to `contrast` times as rough as
- *   clean glass (see `scratchTexture`).
+ *   times over the floor and read at `anisotropy` (as v3's glass does), and a
+ *   streak is up to `contrast` times as rough as clean glass (see
+ *   `scratchData`).
  * - `reflection`: on the high tier, a mirror of `resolution` of the drawing
  *   buffer (half), `depth` under the glass top so the two do not z-fight, with
  *   the floor on top of it at `opacity`, so the reflection shows through the
- *   rest. `tint` is the mirror's colour (the reflector's own blend), and
- *   `size` the render target it has before a renderer tells it better.
+ *   rest. `tint` is the mirror's colour (the reflector's own blend), `size`
+ *   the render target it has before a renderer tells it better, and
+ *   `multisample` its MSAA samples: none, since the mirror shows only 15 % of
+ *   itself at half resolution, and 4 samples on a half-float target would cost
+ *   about 50 MB of video memory at a pixel ratio of 2.
  * - `well`: an open cylinder `depth` tall standing on `bottom`, so its top is
  *   just under the floor (-0.08), seen from inside. Its wall glows `emissive` at the foot, falling as (1 - v)^3 up the
  *   wall (v is 0 at the foot, 1 at the top). Its warm point `light` stands at
@@ -46,8 +50,8 @@ import { WORDMARK } from '~/engine/bob/wordmark';
 export const GLASS_LOOK = {
   segments: 256,
   floor: { colour: palette.night, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.025, outer: 60, thickness: 0.08 },
-  scratch: { size: 512, angle: 28, contrast: 4, repeat: 20, seed: 2006 },
-  reflection: { resolution: 0.5, opacity: 0.85, depth: 0.003, tint: 0x7f7f7f, size: [960, 540], multisample: 4 },
+  scratch: { size: 512, angle: 28, contrast: 4, repeat: 20, seed: 2006, anisotropy: 4 },
+  reflection: { resolution: 0.5, opacity: 0.85, depth: 0.003, tint: 0x7f7f7f, size: [960, 540], multisample: 0 },
   well: {
     bottom: -1.2,
     depth: 1.12,
@@ -58,6 +62,17 @@ export const GLASS_LOOK = {
   },
   lip: { radius: WORDMARK.hole + 0.012, tube: 0.02, y: -0.004, colour: palette.brass, emissive: palette.gold, emissiveIntensity: 0.5 }
 } as const;
+
+/**
+ * The draw order of the floor, its edge and the cap. On the high tier they are
+ * transparent (opacity 0.85), and three sorts transparent objects by the
+ * distance of their origin, which for a ring 120 wide says nothing: the floor
+ * could draw after the compass's glass or the smoke and paint 85 % over them.
+ * -5 puts it after the sky (-10) and before the laser (1) and the mist (2),
+ * following v3's `*_RENDER_ORDER` convention. It is set on every tier, where
+ * it changes nothing because the glass is opaque.
+ */
+export const GLASS_RENDER_ORDER = -5;
 
 /** `x` held to [0, 1]; NaN reads as 0. */
 function clamp01(x: number): number {
@@ -88,20 +103,27 @@ function noise(cols: number, rows: number, seed: number, u: number, v: number): 
   return top + (bottom - top) * sy;
 }
 
+/** The scratch map's texels, made once: the map is seeded, so every build would make the same ones. */
+let scratchTexels: Uint8Array | undefined;
+
 /**
- * The scratch roughness map, made on the CPU so no canvas is needed: a square
- * `DataTexture` whose green channel (the one three reads) holds the glass's
- * roughness as a share of `peak`, the roughest it gets. Clean glass is
- * `floor.roughness` with a slow swell to a little more; a scratch is a thin
+ * The scratch roughness map's texels, made on the CPU so no canvas is needed
+ * and kept for every later build (generating them takes tens of milliseconds
+ * here and more on a phone, in the loader). It is square, and its green channel
+ * (the one three reads) holds the glass's roughness as a share of the peak, the
+ * roughest it gets (`floor.roughness` times `scratch.contrast`). Clean glass
+ * is `floor.roughness` with a slow swell to a little more; a scratch is a thin
  * band of the noise stretched along the x axis (a lattice of a few long cells
  * across many thin ones), thresholded to the rare high values and added on top.
  * The streaks' angle is the texture's own rotation, so the lattice still
- * tiles. The same seed makes the same map.
+ * tiles. The same seed makes the same map. Callers must not write to it.
  */
-function scratchTexture(peak: number): THREE.DataTexture {
-  const { size, angle, repeat, seed } = GLASS_LOOK.scratch;
-  const data = new Uint8Array(size * size * 4);
+function scratchData(): Uint8Array {
+  if (scratchTexels) return scratchTexels;
+  const { size, seed, contrast } = GLASS_LOOK.scratch;
   const clean = GLASS_LOOK.floor.roughness;
+  const peak = clean * contrast;
+  const data = new Uint8Array(size * size * 4);
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       const u = x / size;
@@ -118,13 +140,25 @@ function scratchTexture(peak: number): THREE.DataTexture {
       data[at + 3] = 255;
     }
   }
-  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+  scratchTexels = data;
+  return data;
+}
+
+/**
+ * A texture over the shared scratch texels. Each build gets its own, so
+ * freeing one build's glass frees its upload and leaves another build's alone;
+ * the texels are not copied and not freed.
+ */
+function scratchTexture(): THREE.DataTexture {
+  const { size, angle, repeat, anisotropy } = GLASS_LOOK.scratch;
+  const texture = new THREE.DataTexture(scratchData(), size, size, THREE.RGBAFormat);
   texture.name = 'glass:scratch';
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
   texture.magFilter = THREE.LinearFilter;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.generateMipmaps = true;
+  texture.anisotropy = anisotropy;
   texture.repeat.set(repeat, repeat);
   texture.rotation = (angle * Math.PI) / 180;
   texture.needsUpdate = true;
@@ -195,7 +229,7 @@ export function buildGlass(tier: QualityTier): GlassModel {
 
   const reflected = tier === 'high';
   const peak = look.floor.roughness * look.scratch.contrast;
-  const scratch = scratchTexture(peak);
+  const scratch = scratchTexture();
   // The map is the roughness as a share of its peak, so the material holds the peak and the map brings it down to the clean glass.
   const glass = new THREE.MeshPhysicalMaterial({
     name: 'glass:floor',
@@ -212,6 +246,7 @@ export function buildGlass(tier: QualityTier): GlassModel {
 
   const floor = new THREE.Mesh(ring, glass);
   floor.name = 'floor';
+  floor.renderOrder = GLASS_RENDER_ORDER;
 
   // The thickness: a wall round the hole, 0.08 deep, seen from inside the opening.
   const wallGeometry = new THREE.CylinderGeometry(hole, hole, look.floor.thickness, look.segments, 1, true);
@@ -221,9 +256,11 @@ export function buildGlass(tier: QualityTier): GlassModel {
   wallMaterial.side = THREE.BackSide;
   const edge = new THREE.Mesh(wallGeometry, wallMaterial);
   edge.name = 'floor:edge';
+  edge.renderOrder = GLASS_RENDER_ORDER;
 
   const capMesh = new THREE.Mesh(cap, glass);
   capMesh.name = 'cap';
+  capMesh.renderOrder = GLASS_RENDER_ORDER;
 
   const wellGeometry = new THREE.CylinderGeometry(hole, hole, look.well.depth, look.segments, 1, true);
   wellGeometry.translate(0, look.well.bottom + look.well.depth / 2, 0);
