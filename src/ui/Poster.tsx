@@ -1,19 +1,11 @@
 import type { JSX } from 'react';
-import hero from '~/assets/renders/compass-hero.webp';
-
-/** The render's size in pixels, so the browser reserves its box before it loads. */
-const WIDTH = 1600;
-const HEIGHT = 900;
 
 /**
- * The first paint: the hero render, as a plain image behind the canvas. It is in the
- * prerendered HTML, so the page has its picture before any script runs, and it is what
- * stays visible when 3D is off or WebGL is missing. The canvas covers it once it draws.
+ * The first paint: a dark panel behind the canvas, the scene's own night with a faint violet glow (src/styles/base.css,
+ * `.poster`), so the page opens as dark as the loader that fades in over it and nothing bright shows first. It is in
+ * the prerendered HTML and loads nothing, and it is what stays when 3D is off or WebGL is missing, under the page's
+ * scrim on a page of text. The canvas covers it once the loader can show.
  */
 export function Poster(): JSX.Element {
-  return (
-    <div className="poster">
-      <img src={hero} alt="" width={WIDTH} height={HEIGHT} fetchPriority="high" decoding="async" />
-    </div>
-  );
+  return <div className="poster" />;
 }

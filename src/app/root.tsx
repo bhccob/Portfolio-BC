@@ -15,8 +15,8 @@ export const links: LinksFunction = () => [
   { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
   { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
   { rel: 'manifest', href: '/site.webmanifest' },
-  // The name is set in Montserrat's latin file, so the hero never swaps its font. (The poster needs no
-  // link here: React preloads an <img fetchPriority="high"> by itself.)
+  // The name is set in Montserrat's latin file, so the hero never swaps its font. (The poster is a CSS panel and
+  // loads nothing.)
   { rel: 'preload', href: montserratLatin, as: 'font', type: 'font/woff2', crossOrigin: 'anonymous' },
 ];
 

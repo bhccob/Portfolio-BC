@@ -110,3 +110,21 @@ export function useThreeDAttribute(): void {
     });
   }, []);
 }
+
+/**
+ * Keeps `data-loading` on <html> while the phase is LOADING, and off from the moment it leaves it: the styles hide the
+ * home's hero while the opening plays and fade it in as the loader lands (src/styles/base.css). Built like
+ * `useThreeDAttribute`: set after hydration from the store's real phase (a visit with no scene has already left
+ * LOADING by then), then kept in step with every phase change.
+ */
+export function useLoadingAttribute(): void {
+  useEffect(() => {
+    const apply = (loading: boolean): void => {
+      document.documentElement.toggleAttribute('data-loading', loading);
+    };
+    apply(useScene.getState().phase.kind === 'LOADING');
+    return useScene.subscribe((state, previous) => {
+      if (state.phase !== previous.phase) apply(state.phase.kind === 'LOADING');
+    });
+  }, []);
+}

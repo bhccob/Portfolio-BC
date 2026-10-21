@@ -88,24 +88,17 @@ main:focus {
 }
 
 /* ---------- the layers: poster, scene, then the page ---------- */
+/* The first paint is the scene's own night with a faint violet glow low in the middle, where the chip will be: no
+   image, so the page opens as dark as the loader that fades in over it. */
 .poster {
   position: fixed;
   inset: 0;
   z-index: 0;
   overflow: hidden;
+  background: radial-gradient(ellipse 60% 50% at 50% 58%, var(--night-glow), transparent 70%), var(--night);
 }
 
-.poster img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: 70% 50%;
-  /* The compass sits right of centre; a little more scale, from the left edge, moves it further from the name. */
-  transform: scale(1.1);
-  transform-origin: 0 50%;
-}
-
-/* A scrim keeps the text legible where the poster is lit. */
+/* A scrim keeps the text legible over the poster and, on a page of text, over the scene. */
 .poster::after {
   content: '';
   position: absolute;
@@ -370,6 +363,32 @@ main {
   width: 40px;
   height: 1px;
   background: var(--ink-dim);
+}
+
+/* While the opening plays (<html data-loading>: the phase is LOADING) the hero is hidden, at once, and it fades in over
+   0.9 s as the loader lands (none with reduced motion). The attribute is set after hydration, so where scripts run the
+   hero also waits hidden from the first paint until the page has hydrated (`data-route` unset), instead of showing and
+   vanishing; without scripts it shows at once. It is hidden by opacity only, so a screen reader still has the name. */
+.hero {
+  transition: opacity 0.9s var(--ease-reveal);
+}
+
+html[data-loading] .hero {
+  opacity: 0;
+  transition: none;
+}
+
+@media (scripting: enabled) {
+  html:not([data-route]) .hero {
+    opacity: 0;
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero {
+    transition: none;
+  }
 }
 
 @media (max-width: 720px) {

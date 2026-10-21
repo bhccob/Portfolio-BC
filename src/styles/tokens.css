@@ -10,6 +10,8 @@
   color-scheme: dark;
 
   /* void and atmosphere */
+  --night: #040209; /* the v3 scene's night (palette.night): the poster's ground, as dark as the loader */
+  --night-glow: rgb(42 18 80 / 0.32); /* the nebula's deep violet (palette.nebula), faint, for the poster's glow */
   --void: #0a0510;
   --void-deep: #07020b;
   --nebula-deep: #0c0515;

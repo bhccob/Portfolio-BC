@@ -4,7 +4,7 @@ import { useTranslator } from '~/i18n/useTranslator';
 import { useHomeScroll } from '~/input/useHomeScroll';
 import { SceneHost } from '~/scene/SceneHost';
 import { useRouteSync } from '~/state/routeSync';
-import { useThreeDAttribute } from '~/state/store';
+import { useLoadingAttribute, useThreeDAttribute } from '~/state/store';
 import { Poster } from '~/ui/Poster';
 import { SiteHeader } from '~/ui/SiteHeader';
 import { useNavigationFocus } from './navigationFocus';
@@ -18,6 +18,8 @@ export function Shell({ children }: { children: ReactNode }): JSX.Element {
   const { locale } = useTranslator();
   useRouteSync();
   useThreeDAttribute();
+  // Before data-route, in the same effects: the hero, hidden until hydration, stays hidden while the opening plays.
+  useLoadingAttribute();
   useRouteAttribute(route);
   // A page reached by a link takes the focus to <main> (the scroll is root.tsx's ScrollRestoration).
   useNavigationFocus();
