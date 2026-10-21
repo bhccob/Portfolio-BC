@@ -41,7 +41,8 @@ import { palette } from '~/engine/palette';
  *   darkened by `shade`, so it reads as the scene's violet haze.
  * - `light`: the warm point light `y` above the tip (the preview's
  *   `bob_probe_light`), the amber `whiten` of the way to cream, at `intensity`
- *   while cutting, reaching `distance` with three's physical `decay`.
+ *   while cutting and 0 otherwise, reaching `distance` with three's physical
+ *   `decay`.
  */
 export const PROBE_LOOK = {
   colour: palette.amber,
@@ -87,12 +88,12 @@ export interface ProbeModel {
   /** Puts the tip at (x, y, z), `y` its height over the glass; a coordinate that is not finite is ignored. */
   setTip(x: number, y: number, z: number): void;
   /**
-   * Turns the cutting on or off: off hides the beam, the tip's glow and light,
-   * the point, the sparks and the wisp, and leaves the probe.
+   * Turns the cutting on or off: off hides the beam, the tip's glow, the
+   * point, the sparks and the wisp, puts the light out, and leaves the probe.
    *
-   * The light comes and goes with it, which changes the lit materials'
-   * programs: the scene is best compiled once with the probe on as well as
-   * off, so the first cut compiles nothing.
+   * The light stays in the scene at intensity 0 rather than hiding (Ruling
+   * 15): a light that came and went would change the number of lights, and so
+   * every lit material's program, at each cut's start and end.
    */
   setOn(on: boolean): void;
   /** How hard it cuts, 0..1 (how many of the sparks fly, and how thick the wisp), at `time` seconds. */
@@ -289,7 +290,6 @@ export function buildProbe(): ProbeModel {
       point.visible = on;
       sparks.visible = on;
       smoke.visible = on;
-      light.visible = on;
       light.intensity = on ? look.light.intensity : 0;
     },
     setSparks(intensity, time) {

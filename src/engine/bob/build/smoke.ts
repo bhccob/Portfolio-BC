@@ -24,7 +24,9 @@ import type { QualityTier } from '~/engine/quality';
  * - `layers` of `puffs` each, the layers spread evenly from the front of the
  *   `box` to its back (z), the puffs across it (x); every puff lies wholly
  *   between the glass and the box's top (y). The low tier keeps every other
- *   layer, half of them. The layers stand clear of the compass, whose bands
+ *   layer from the front, half of them: its haze thins evenly through the box
+ *   and gives up the back layer, the farthest and the most fogged, last in
+ *   line. The layers stand clear of the compass, whose bands
  *   reach 1.56 from the axis: with six, none comes within 2 of it.
  * - `width` and `height`: each puff's size, ranges: a layer, far wider than
  *   tall. `opacity`: each puff's at density 1 (all very low).

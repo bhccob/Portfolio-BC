@@ -22,11 +22,13 @@ import type { QualityTier } from '~/engine/quality';
  * tunes them under the luminance gate.
  *
  * - `bandGlass`: the bands' smoked glass, the palette's violet, seen through
- *   by physical transmission (`transmission`, by tier: all of it on high, less
- *   below), glossy (`roughness`), refracting as glass (`ior`) through the
+ *   by physical transmission (`transmission`, by tier: all of it on high, 0.6
+ *   on medium), glossy (`roughness`), refracting as glass (`ior`) through the
  *   band's own `thickness`, with a thin-film sheen (`iridescence`) and a faint
  *   violet light of its own (`emissive` at `emissiveIntensity`) so a band
- *   still reads where the room gives it nothing to transmit.
+ *   still reads where the room gives it nothing to transmit. The low tier has
+ *   no transmission, so no transmission pass runs (Ruling 16): its glass is
+ *   plain see-through glass of the same tint at `opacity`.
  * - `bandMarks`: the engraving, the hot amber at `intensity`, lit where the
  *   painted strip covers the band (it is the band glass's emissive map, see
  *   `patchMarks`), read at `anisotropy` so the fine ticks stay sharp on a band
@@ -36,13 +38,14 @@ import type { QualityTier } from '~/engine/quality';
  *   ARM_Z), added to the clip's own height, which ends at 0.
  * - `spin`: band `k` (0 for band_1 up to 3 for band_4) turns at `base` +
  *   `step` * k degrees a second about its own axis, band_1 one way and each
- *   next band the other, as the preview's rings do (tools/blender/bob_animate.py,
- *   which turns them by these numbers a frame, 24 times as fast).
+ *   next band the other, as the preview's rings do (tools/blender/bob_animate.py
+ *   turns them (0.25 + 0.1k) degrees a frame, four times this pace; Ruling 17).
  */
 export const COMPASS_LOOK = {
   bandGlass: {
     colour: palette.violet,
-    transmission: { high: 1, medium: 0.6, low: 0.6 },
+    transmission: { high: 1, medium: 0.6, low: 0 },
+    opacity: { high: 1, medium: 1, low: 0.35 },
     roughness: 0.04,
     ior: 1.5,
     thickness: 0.045,
@@ -53,7 +56,7 @@ export const COMPASS_LOOK = {
   bandMarks: { colour: palette.amber, intensity: 1.6, anisotropy: 4 },
   gold: { colour: palette.brass, metalness: 1, roughness: 0.22 },
   homeY: 0.55,
-  spin: { base: 0.25, step: 0.1 }
+  spin: { base: 1.5, step: 0.6 }
 } as const;
 
 /** The GLB's parts, each a node `loadCompass` needs: the armillary, its four bands, their rims, the needle, the pivot and the axis. */
@@ -67,9 +70,9 @@ export interface CompassModel {
    * and the `axis`. Built at home: risen, shown, the needle up the screen and
    * the bands at rest.
    *
-   * While the bands are drawn, their transmission costs three a second render
-   * of the opaque scene every frame, so the group is best hidden while the
-   * opening is shut over it.
+   * While the bands are drawn on the high and medium tiers, their
+   * transmission costs three a second render of the opaque scene every frame,
+   * so the group is best hidden while the opening is shut over it.
    */
   group: THREE.Group;
   /** Poses the rise, 0..1 (NaN reads as 0): the `rise` clip at `t` of its length, the armillary `homeY` higher. 0 is 2.7 below the glass, 1 is home. */
@@ -77,9 +80,11 @@ export interface CompassModel {
   /** Turns every band from its rest by its own pace over `time` seconds (NaN reads as 0); the same time is the same picture. */
   setSpin(time: number): void;
   /**
-   * Turns the needle to `angle` radians about the view axis (the armillary's
-   * Z, the world's at home): 0 up the screen, positive clockwise as the camera
-   * sees it. A value that is not finite reads as 0.
+   * Turns the needle to `angle` radians about the view axis, the world's Z,
+   * whatever the rise has turned the armillary to: 0 up the screen, positive
+   * clockwise as the camera sees it. A value that is not finite reads as 0.
+   * `setRise` keeps the needle at its angle as it turns the armillary; a move
+   * of the group itself is taken up at the next call.
    */
   setNeedle(angle: number): void;
   /**
@@ -126,15 +131,27 @@ export function bandStrip(band: number, canvas: HTMLCanvasElement = document.cre
  * canvas is uploaded un-premultiplied, so an anti-aliased edge pixel arrives
  * as full white at part alpha, and its colour would draw every mark bold (the
  * same reason v3's gold read its masks' alpha).
+ *
+ * Where a mark covers the band, its alpha is raised from the glass's own
+ * opacity to the reveal (`uReveal`), so the low tier's thin glass (0.35) still
+ * shows its engraving whole. On the other tiers the glass's opacity is the
+ * reveal, and the raise changes nothing.
  */
-function patchMarks(marks: THREE.IUniform<THREE.Color>) {
+function patchMarks(marks: THREE.IUniform<THREE.Color>, reveal: THREE.IUniform<number>) {
   return (shader: { uniforms: Record<string, THREE.IUniform>; fragmentShader: string }): void => {
     shader.uniforms.uMarks = marks;
+    shader.uniforms.uReveal = reveal;
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform vec3 uMarks;')
+      .replace('#include <common>', '#include <common>\nuniform vec3 uMarks;\nuniform float uReveal;')
       .replace(
         '#include <emissivemap_fragment>',
-        ['#ifdef USE_EMISSIVEMAP', '\ttotalEmissiveRadiance += uMarks * texture2D( emissiveMap, vEmissiveMapUv ).a;', '#endif'].join('\n')
+        [
+          '#ifdef USE_EMISSIVEMAP',
+          '\tfloat markCover = texture2D( emissiveMap, vEmissiveMapUv ).a;',
+          '\ttotalEmissiveRadiance += uMarks * markCover;',
+          '\tdiffuseColor.a = mix( diffuseColor.a, uReveal, markCover );',
+          '#endif'
+        ].join('\n')
       );
   };
 }
@@ -166,7 +183,8 @@ function readyStrip(texture: THREE.Texture): void {
  * every material applied for `tier`, built at home. `strip(i)` is called once
  * for each band, i = 0..3 for band_1..band_4, and the compass owns the
  * texture it returns: in the browser `bandStrip`, a painted canvas; in a test,
- * a stub. Only the high tier sees all the way through the glass.
+ * a stub. Only the high tier sees all the way through the glass, and the low
+ * tier's glass has no transmission at all.
  *
  * The glTF's scene is copied, sharing its geometries, so a cached model (drei
  * keeps one per URL) builds the same compass every time: the spin, the needle
@@ -176,12 +194,17 @@ function readyStrip(texture: THREE.Texture): void {
  * - Each band has its own glass (it carries its own strip), all four one
  *   program. The glass is `transparent` at every reveal, so the fade changes
  *   no program: three draws transmissive objects in a list of their own
- *   whatever `transparent` says, and at full reveal their alpha is 1.
+ *   whatever `transparent` says, and at full reveal their alpha is 1. The low
+ *   tier's thin glass writes no depth: the four bands share one centre, so
+ *   three cannot sort them, and a near band drawn first would hide the far
+ *   ones behind it.
  * - The gold is opaque, since transmission sees only opaque objects: a
  *   see-through needle would vanish behind every band. It fades by hashed
  *   alpha instead (`alphaHash`), which at full opacity discards nothing.
  *
- * @throws TypeError naming every part the glTF lacks, or its `rise` clip.
+ * @throws TypeError naming every part the glTF lacks or that is not a mesh
+ *   (a part exported with more than one primitive arrives as a Group), or its
+ *   missing `rise` clip.
  */
 export function loadCompass(
   gltf: { scene: THREE.Object3D; animations: THREE.AnimationClip[] },
@@ -197,6 +220,8 @@ export function loadCompass(
   }
   const missing = COMPASS_PARTS.filter((name) => !parts.has(name));
   if (missing.length > 0) throw new TypeError(`the compass glTF has no ${missing.map((name) => `"${name}"`).join(', ')}`);
+  const flat = COMPASS_PARTS.filter((name) => name !== 'armillary' && (parts.get(name) as THREE.Mesh).isMesh !== true);
+  if (flat.length > 0) throw new TypeError(`the compass glTF's ${flat.map((name) => `"${name}"`).join(', ')} must each be one mesh`);
   const clip = gltf.animations.find((c) => c.name === 'rise');
   if (!clip) throw new TypeError('the compass glTF has no "rise" animation');
   const part = (name: (typeof COMPASS_PARTS)[number]) => parts.get(name) as THREE.Mesh;
@@ -207,7 +232,10 @@ export function loadCompass(
   group.add(armillary);
 
   const marks: THREE.IUniform<THREE.Color> = { value: new THREE.Color(look.bandMarks.colour).multiplyScalar(look.bandMarks.intensity) };
-  const onBeforeCompile = patchMarks(marks);
+  const reveal: THREE.IUniform<number> = { value: 1 };
+  const onBeforeCompile = patchMarks(marks, reveal);
+  const transmission = look.bandGlass.transmission[tier];
+  const glassOpacity = look.bandGlass.opacity[tier];
   const bands = [1, 2, 3, 4].map((k, i) => {
     const mesh = part(`band_${k}` as (typeof COMPASS_PARTS)[number]);
     const map = strip(i);
@@ -217,7 +245,7 @@ export function loadCompass(
       color: look.bandGlass.colour,
       metalness: 0,
       roughness: look.bandGlass.roughness,
-      transmission: look.bandGlass.transmission[tier],
+      transmission,
       ior: look.bandGlass.ior,
       thickness: look.bandGlass.thickness,
       iridescence: look.bandGlass.iridescence,
@@ -225,7 +253,8 @@ export function loadCompass(
       emissiveIntensity: look.bandGlass.emissiveIntensity,
       emissiveMap: map,
       transparent: true,
-      depthWrite: true
+      opacity: glassOpacity,
+      depthWrite: transmission > 0
     });
     glass.onBeforeCompile = onBeforeCompile;
     glass.customProgramCacheKey = () => 'bob-band';
@@ -255,9 +284,22 @@ export function loadCompass(
   action.play();
 
   const turn = new THREE.Quaternion();
+  const holder = new THREE.Quaternion();
   const Y = new THREE.Vector3(0, 1, 0);
   const Z = new THREE.Vector3(0, 0, 1);
-  const materials: THREE.Material[] = [gold, ...bands.map((b) => b.glass)];
+  let needleAngle = 0;
+
+  /**
+   * The needle at `needleAngle` about the world's Z. Its parent (the
+   * armillary) turns as it rises, so the turn is taken in the world and
+   * brought back into the parent's frame: local = P^-1 * Rz(-angle) * P * rest,
+   * P the parent's world rotation. Scratch quaternions only: no allocation.
+   */
+  const poseNeedle = (): void => {
+    (needle.parent ?? armillary).getWorldQuaternion(holder);
+    turn.setFromAxisAngle(Z, -needleAngle);
+    needle.quaternion.copy(holder).invert().multiply(turn).multiply(holder).multiply(needleRest);
+  };
 
   const model: CompassModel = {
     group,
@@ -268,6 +310,8 @@ export function loadCompass(
       mixer.update(0);
       armillary.position.set(stand.position.x, stand.position.y + look.homeY, stand.position.z);
       armillary.quaternion.copy(stand.quaternion);
+      // The armillary has turned under the needle: hold the needle where it points in the world.
+      poseNeedle();
     },
     setSpin(time) {
       const t = Number.isFinite(time) ? time : 0;
@@ -279,18 +323,23 @@ export function loadCompass(
       }
     },
     setNeedle(angle) {
-      const a = Number.isFinite(angle) ? angle : 0;
-      // Clockwise on screen is a negative turn about +Z, taken in the armillary's frame (before the needle's rest).
-      needle.quaternion.setFromAxisAngle(Z, -a).multiply(needleRest);
+      // Clockwise on screen is a negative turn about +Z.
+      needleAngle = Number.isFinite(angle) ? angle : 0;
+      poseNeedle();
     },
     setReveal(level) {
       const r = clamp01(level);
-      for (let i = 0; i < materials.length; i++) materials[i].opacity = r;
+      gold.opacity = r;
+      for (let i = 0; i < bands.length; i++) bands[i].glass.opacity = glassOpacity * r;
+      reveal.value = r;
       armillary.visible = r > 0;
     },
     dispose() {
-      for (const material of materials) material.dispose();
-      for (const band of bands) band.map.dispose();
+      gold.dispose();
+      for (const band of bands) {
+        band.glass.dispose();
+        band.map.dispose();
+      }
       mixer.stopAllAction();
       mixer.uncacheRoot(stand);
     }

@@ -57,14 +57,24 @@ const RISE = 52 / 24;
  * the pivot and the axis, every part a mesh with its own geometry and the
  * loader's one default material, and a `rise` clip on the armillary from 3.25
  * below and 50 degrees round to rest. `omit` leaves one part out, `clip: false`
- * the clip.
+ * the clip, and `grouped` makes one part a Group holding its mesh, as
+ * GLTFLoader hands over a mesh of two primitives.
  */
-function fakeGltf(options: { omit?: string; clip?: boolean } = {}): { scene: THREE.Group; animations: THREE.AnimationClip[] } {
+function fakeGltf(options: { omit?: string; clip?: boolean; grouped?: string } = {}): { scene: THREE.Group; animations: THREE.AnimationClip[] } {
   const scene = new THREE.Group();
   scene.name = 'Scene';
   const fallback = new THREE.MeshStandardMaterial({ name: 'gltf:default' });
   const add = <T extends THREE.Object3D>(name: string, parent: THREE.Object3D, object: T): THREE.Object3D => {
     if (name === options.omit) return parent;
+    if (name === options.grouped) {
+      const holder = new THREE.Group();
+      holder.name = name;
+      holder.quaternion.copy(object.quaternion);
+      object.name = `${name}_primitive`;
+      holder.add(object);
+      parent.add(holder);
+      return holder;
+    }
     object.name = name;
     parent.add(object);
     return object;
@@ -122,6 +132,15 @@ describe('the compass', () => {
     expect(() => loadCompass(fakeGltf({ omit: 'armillary' }), 'high', stripStub)).toThrow(/armillary/);
     expect(() => loadCompass(fakeGltf({ clip: false }), 'high', stripStub)).toThrow(/rise/);
     expect(COMPASS_PARTS).toEqual(['armillary', 'band_1', 'band_2', 'band_3', 'band_4', 'rim_1', 'rim_2', 'rim_3', 'rim_4', 'needle', 'pivot', 'axis']);
+  });
+
+  it('names a part that is not one mesh, as a re-export with two primitives would hand over', () => {
+    expect(() => loadCompass(fakeGltf({ grouped: 'band_2' }), 'high', stripStub)).toThrow(TypeError);
+    expect(() => loadCompass(fakeGltf({ grouped: 'band_2' }), 'high', stripStub)).toThrow(/band_2/);
+    expect(() => loadCompass(fakeGltf({ grouped: 'needle' }), 'high', stripStub)).toThrow(/needle/);
+    expect(() => loadCompass(fakeGltf({ grouped: 'rim_4' }), 'high', stripStub)).toThrow(/rim_4/);
+    // The armillary is an empty in the file: it need not be a mesh.
+    expect(() => loadCompass(fakeGltf(), 'high', stripStub).dispose()).not.toThrow();
   });
 
   it('rises from the clip and rests at the home height', () => {
@@ -187,10 +206,44 @@ describe('the compass', () => {
     c.dispose();
   });
 
+  it('turns the needle about the world Z while the rise has the armillary turned, set before or after the rise', () => {
+    const c = loadCompass(fakeGltf(), 'high', stripStub);
+    c.setRise(0.25);
+    // The armillary is turned well away from its rest here (37.5 degrees about Y).
+    expect(angleOf(node(c, 'armillary').quaternion)).toBeCloseTo(37.5 * DEG, 5);
+    c.setNeedle(Math.PI / 2);
+    expect(tipDirection(c)).toEqual(expect.objectContaining({ x: expect.closeTo(1, 6), y: expect.closeTo(0, 6), z: expect.closeTo(0, 6) }));
+    // The rise moves on under a set needle, and the needle holds its bearing on screen.
+    c.setRise(0);
+    expect(tipDirection(c)).toEqual(expect.objectContaining({ x: expect.closeTo(1, 6), y: expect.closeTo(0, 6), z: expect.closeTo(0, 6) }));
+    c.setNeedle(-Math.PI / 4);
+    expect(tipDirection(c)).toEqual(expect.objectContaining({ x: expect.closeTo(-Math.SQRT1_2, 6), y: expect.closeTo(Math.SQRT1_2, 6), z: expect.closeTo(0, 6) }));
+    c.setRise(1);
+    expect(tipDirection(c)).toEqual(expect.objectContaining({ x: expect.closeTo(-Math.SQRT1_2, 6), y: expect.closeTo(Math.SQRT1_2, 6), z: expect.closeTo(0, 6) }));
+    c.dispose();
+  });
+
   it('uses a cheaper glass below the high tier', () => {
     expect(bandMaterial(loadCompass(fakeGltf(), 'medium', stripStub)).transmission).toBe(0.6);
-    expect(bandMaterial(loadCompass(fakeGltf(), 'low', stripStub)).transmission).toBe(0.6);
     expect(bandMaterial(loadCompass(fakeGltf(), 'high', stripStub)).transmission).toBe(1);
+  });
+
+  it('gives the low tier plain see-through glass of the same tint, so no transmission pass runs', () => {
+    const tiers = (['high', 'medium', 'low'] as const).map((tier) => [tier, loadCompass(fakeGltf(), tier, stripStub)] as const);
+    for (const [tier, c] of tiers) {
+      for (const k of [1, 2, 3, 4]) {
+        const glass = bandMaterial(c, k);
+        expect(glass.transparent, tier).toBe(true);
+        expect(glass.color.getHex(), tier).toBe(palette.violet);
+        expect(glass.transmission, tier).toBe({ high: 1, medium: 0.6, low: 0 }[tier]);
+        expect(glass.opacity, tier).toBe({ high: 1, medium: 1, low: 0.35 }[tier]);
+        // Four bands round one centre cannot be sorted: thin glass that wrote depth would hide the bands behind it.
+        expect(glass.depthWrite, tier).toBe(tier !== 'low');
+      }
+      c.dispose();
+    }
+    expect(COMPASS_LOOK.bandGlass.transmission).toEqual({ high: 1, medium: 0.6, low: 0 });
+    expect(COMPASS_LOOK.bandGlass.opacity).toEqual({ high: 1, medium: 1, low: 0.35 });
   });
 
   it('makes each band smoked violet glass: transmissive, glossy, iridescent, a faint violet light of its own', () => {
@@ -258,10 +311,16 @@ describe('the compass', () => {
     expect(marks.g).toBeCloseTo(expected.g, 9);
     expect(marks.b).toBeCloseTo(expected.b, 9);
     expect(shader.fragmentShader).toMatch(/uniform vec3 uMarks;/);
+    expect(shader.fragmentShader).toMatch(/uniform float uReveal;/);
     // The marks are added where the strip covers (its alpha), not multiplied into the glass's glow.
-    expect(shader.fragmentShader).toMatch(/totalEmissiveRadiance\s*\+=\s*uMarks\s*\*\s*texture2D\(\s*emissiveMap\s*,\s*vEmissiveMapUv\s*\)\.a/);
+    expect(shader.fragmentShader).toMatch(/float markCover\s*=\s*texture2D\(\s*emissiveMap\s*,\s*vEmissiveMapUv\s*\)\.a;/);
+    expect(shader.fragmentShader).toMatch(/totalEmissiveRadiance\s*\+=\s*uMarks\s*\*\s*markCover;/);
+    // And a mark is as solid as the reveal, whatever the glass's own opacity.
+    expect(shader.fragmentShader).toMatch(/diffuseColor\.a\s*=\s*mix\(\s*diffuseColor\.a\s*,\s*uReveal\s*,\s*markCover\s*\);/);
     expect(shader.fragmentShader).not.toContain('#include <emissivemap_fragment>');
     expect(shader.fragmentShader).not.toMatch(/totalEmissiveRadiance\s*\*=\s*emissiveColor\.rgb/);
+    // The raise sits before the alpha is written out.
+    expect(shader.fragmentShader.indexOf('markCover')).toBeLessThan(shader.fragmentShader.indexOf('#include <opaque_fragment>'));
     c.dispose();
   });
 
@@ -280,8 +339,8 @@ describe('the compass', () => {
     c.dispose();
   });
 
-  it('turns each band on its own axis from its rest, at (0.25 + 0.1k) degrees a second, one way and then the other', () => {
-    expect(COMPASS_LOOK.spin).toEqual({ base: 0.25, step: 0.1 });
+  it('turns each band on its own axis from its rest, at (1.5 + 0.6k) degrees a second, one way and then the other', () => {
+    expect(COMPASS_LOOK.spin).toEqual({ base: 1.5, step: 0.6 });
     const gltf = fakeGltf();
     const rests = [1, 2, 3, 4].map((k) => (gltf.scene.getObjectByName(`band_${k}`) as THREE.Object3D).quaternion.clone());
     const c = loadCompass(gltf, 'high', stripStub);
@@ -292,7 +351,7 @@ describe('the compass', () => {
       const band = node(c, `band_${k}`);
       // The turn since rest, in the band's own frame: about its local Y, which therefore stays where it was.
       const turn = rests[i].clone().invert().multiply(band.quaternion);
-      expect(angleOf(turn)).toBeCloseTo((0.25 + 0.1 * i) * seconds * DEG, 9);
+      expect(angleOf(turn)).toBeCloseTo((1.5 + 0.6 * i) * seconds * DEG, 9);
       expect(Y.clone().applyQuaternion(band.quaternion).distanceTo(Y.clone().applyQuaternion(rests[i]))).toBeLessThan(1e-9);
       expect(Math.abs(turn.x) + Math.abs(turn.z)).toBeLessThan(1e-9);
       signs.push(Math.sign(turn.y * turn.w));
@@ -335,6 +394,24 @@ describe('the compass', () => {
     expect(versions()).toEqual(before);
     for (const g of glass) expect(g.transparent).toBe(true);
     expect(gold.transparent).toBe(false);
+    c.dispose();
+  });
+
+  it("fades the low tier's thin glass from its own opacity, its marks with the reveal", () => {
+    const c = loadCompass(fakeGltf(), 'low', stripStub);
+    const glass = bandMaterial(c);
+    const shader = { uniforms: {} as Record<string, THREE.IUniform>, vertexShader: THREE.ShaderLib.physical.vertexShader, fragmentShader: THREE.ShaderLib.physical.fragmentShader };
+    glass.onBeforeCompile(shader as never, {} as never);
+    const version = glass.version;
+    expect(shader.uniforms.uReveal.value).toBe(1);
+    c.setReveal(0.5);
+    expect(glass.opacity).toBeCloseTo(0.35 * 0.5, 9);
+    expect(shader.uniforms.uReveal.value).toBeCloseTo(0.5, 9);
+    expect((mesh(c, 'needle').material as THREE.Material).opacity).toBeCloseTo(0.5, 9);
+    c.setReveal(1);
+    expect(glass.opacity).toBeCloseTo(0.35, 9);
+    expect(shader.uniforms.uReveal.value).toBe(1);
+    expect(glass.version).toBe(version);
     c.dispose();
   });
 
@@ -420,6 +497,44 @@ describe('the compass', () => {
     expect(world.y).toBeCloseTo(0, 3);
     c.dispose();
   });
+
+  it("holds the premises the strip's flip and the spin stand on: each band thin in its local Y, its v rising with +Y", async () => {
+    const gltf = await loadRealGlb();
+    for (const k of [1, 2, 3, 4]) {
+      const band = gltf.scene.getObjectByName(`band_${k}`) as THREE.Mesh;
+      expect(band.isMesh, `band_${k}`).toBe(true);
+      // Round local Y: the spin turns the band in its own plane only if Y is the axis it lies round.
+      band.geometry.computeBoundingBox();
+      const size = band.geometry.boundingBox!.getSize(new THREE.Vector3());
+      expect(size.y, `band_${k} height`).toBeLessThan(0.2);
+      expect(size.y, `band_${k} height against its width`).toBeLessThan(0.1 * Math.min(size.x, size.z));
+      // v climbs with local +Y, from the bottom edge (0) to the top (1): the flipY choice rests on it.
+      const position = band.geometry.getAttribute('position');
+      const uv = band.geometry.getAttribute('uv');
+      let below = 0;
+      let above = 0;
+      let nBelow = 0;
+      let nAbove = 0;
+      let lowest = { y: Infinity, v: 0 };
+      let highest = { y: -Infinity, v: 0 };
+      for (let i = 0; i < position.count; i++) {
+        const y = position.getY(i);
+        const v = uv.getY(i);
+        if (y < 0) {
+          below += v;
+          nBelow++;
+        } else if (y > 0) {
+          above += v;
+          nAbove++;
+        }
+        if (y < lowest.y) lowest = { y, v };
+        if (y > highest.y) highest = { y, v };
+      }
+      expect(above / nAbove - below / nBelow, `band_${k} v by side`).toBeGreaterThan(0.5);
+      expect(lowest.v, `band_${k} v at the bottom edge`).toBeLessThan(0.05);
+      expect(highest.v, `band_${k} v at the top edge`).toBeGreaterThan(0.95);
+    }
+  });
 });
 
 describe('the band strip', () => {
@@ -455,10 +570,18 @@ describe('the probe', () => {
   const sparkColours = (probe: ProbeModel) => Array.from(named<THREE.Points>(probe, 'probe:sparks').geometry.getAttribute('color').array as Float32Array);
   const worldPosition = (o: THREE.Object3D) => o.getWorldPosition(new THREE.Vector3());
 
-  it('lights the probe only while it cuts', () => {
+  it('lights the probe only while it cuts, by intensity: the light never leaves the scene (Ruling 15)', () => {
     const p = buildProbe();
+    const light = named<THREE.PointLight>(p, 'probe:light');
     p.setOn(false);
-    expect(objectNamed(p.group, 'probe:light').visible).toBe(false);
+    expect(light.visible).toBe(true);
+    expect(light.intensity).toBe(0);
+    p.setOn(true);
+    expect(light.visible).toBe(true);
+    expect(light.intensity).toBeGreaterThan(0);
+    p.setOn(false);
+    expect(light.visible).toBe(true);
+    expect(light.intensity).toBe(0);
     p.dispose();
   });
 
@@ -556,14 +679,17 @@ describe('the probe', () => {
     p.dispose();
   });
 
-  it("turns off the beam, the nozzle's glow, the point, the sparks, the wisp and the light, and leaves the body", () => {
+  it("turns off the beam, the nozzle's glow, the point, the sparks and the wisp, puts the light out, and leaves the body", () => {
     const p = buildProbe();
-    const parts = ['probe:beam', 'probe:nozzle', 'probe:point', 'probe:sparks', 'probe:smoke', 'probe:light'].map((name) => named(p, name));
+    const parts = ['probe:beam', 'probe:nozzle', 'probe:point', 'probe:sparks', 'probe:smoke'].map((name) => named(p, name));
+    const light = named<THREE.PointLight>(p, 'probe:light');
     p.setOn(false);
-    expect(parts.map((part) => part.visible)).toEqual([false, false, false, false, false, false]);
+    expect(parts.map((part) => part.visible)).toEqual([false, false, false, false, false]);
+    expect([light.visible, light.intensity]).toEqual([true, 0]);
     expect(named(p, 'probe:body').visible).toBe(true);
     p.setOn(true);
-    expect(parts.map((part) => part.visible)).toEqual([true, true, true, true, true, true]);
+    expect(parts.map((part) => part.visible)).toEqual([true, true, true, true, true]);
+    expect([light.visible, light.intensity]).toEqual([true, PROBE_LOOK.light.intensity]);
     p.dispose();
   });
 
@@ -666,10 +792,11 @@ describe('the smoke', () => {
     expect(sprites(medium)).toHaveLength(SMOKE_LOOK.layers * SMOKE_LOOK.puffs);
     expect(sprites(low)).toHaveLength((SMOKE_LOOK.layers / 2) * SMOKE_LOOK.puffs);
     expect(SMOKE_LOOK.layers % 2).toBe(0);
-    // The low tier keeps every other layer, so it still reaches from the front of the box to the back.
+    // The low tier keeps every other layer from the front (0, 2, 4 of 6): spread through the box, the back layer dropped.
     const depths = (s: SmokeModel) => [...new Set(sprites(s).map((o) => Math.round(o.userData.layer as number)))];
     expect(depths(high)).toHaveLength(SMOKE_LOOK.layers);
     expect(depths(low)).toEqual(depths(high).filter((_, i) => i % 2 === 0));
+    expect(depths(low)).not.toContain(SMOKE_LOOK.layers - 1);
     // And it is the high tier's smoke, thinned: the same puffs where it keeps them.
     const lowPuffs = sprites(low).map((o) => o.position.toArray());
     const highPuffs = sprites(high).filter((o) => (o.userData.layer as number) % 2 === 0).map((o) => o.position.toArray());
