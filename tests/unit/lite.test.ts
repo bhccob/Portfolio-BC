@@ -20,6 +20,9 @@ const dictionaries = [
   ['en', en, '/en/lite/', '/en'],
 ] as const;
 
+/** The Hakka line the about section tells (Bob approved the English; the Dutch is his to confirm in the milestone review). */
+const HAKKA = { nl: 'Hakka, een Chinees dialect, is mijn moedertaal.', en: 'Hakka, a Chinese dialect, is my mother tongue.' } as const;
+
 /** The page as the server renders it at `path`. */
 const render = (path: string, component: Parameters<typeof createElement>[0]): string =>
   renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: [path] }, createElement(component as never)));
@@ -62,6 +65,12 @@ describe('the Lite page', () => {
         expect(places.every((place) => place >= 0), ids.join()).toBe(true);
         expect([...places].sort((a, b) => a - b)).toEqual(places);
         expect(html).toContain('id="career"');
+      });
+
+      it('tells the Hakka line in the about section, and nowhere else', () => {
+        const about = html.slice(html.indexOf('<section id="about"'), html.indexOf('<section id="skills"'));
+        expect(textOf(about)).toContain(HAKKA[name]);
+        expect(text.split(HAKKA[name])).toHaveLength(2);
       });
 
       it('shows each section\u2019s heading (the work section keeps its old heading, "Projects, one build at a time")', () => {

@@ -89,6 +89,8 @@ export const nl: Dictionary = {
       'Ik ben Bob Chung, een <span data-age>{age}</span>-jarige student software engineer in Rotterdam. Geboren en getogen op Aruba en Chinees van afkomst; op mijn achttiende verhuisde ik naar Nederland.',
     body:
       'Ik werk aan databases, gameontwikkeling en webontwikkeling, en elke discipline scherpt de andere aan. Hardware en elektrotechniek zijn de volgende haltes op mijn route. Ik bouw met nieuwsgierigheid en test met eerlijkheid.',
+    // Bob confirms this Dutch wording in the milestone review.
+    hakka: 'Hakka, een Chinees dialect, is mijn moedertaal.',
     quote: 'Thuis is voor mij niet één plek. Het is een mix van culturen en de vragen die ik blijf najagen.',
     thoughtLabel: 'Een regel die ik volg',
     thought: '“Overdenken is angst die zich voordoet als logica.”',

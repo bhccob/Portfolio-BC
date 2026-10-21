@@ -1,6 +1,5 @@
 import { Link, type MetaFunction } from 'react-router';
-import { COUNTRY_IDS } from '~/data/directions';
-import { PAGES, type PageId } from '~/data/pages';
+import { PAGES } from '~/data/pages';
 import { projects } from '~/data/projects';
 import { localeFromPath } from '~/i18n/locale';
 import { translatorFor, useTranslator } from '~/i18n/useTranslator';
@@ -28,28 +27,15 @@ export default function Home() {
 
   return (
     <>
+      {/* The name is the engraving now: the h1 stays for crawlers and screen readers, and only the scroll cue shows. */}
       <section className="hero">
-        <h1 className="hero-name">{t.needle.hero.name}</h1>
-        <p className="hero-tagline">{t.needle.hero.tagline}</p>
+        <h1 className="visually-hidden">{t.needle.hero.name}</h1>
         <p className="hero-cue">{t.needle.hero.scrollCue}</p>
       </section>
 
       {/* Visible while 3D is off; while it is on the scene is the way in, and this stays for
-          crawlers and keyboards: visually hidden, shown again while a link has focus. */}
-      <nav className="home-nav" aria-label={`${t.nav.about} · ${t.nav.work}`}>
-        <div>
-          <h2 className="label">{t.nav.about}</h2>
-          <ul>
-            {COUNTRY_IDS.map((id) => {
-              const page: PageId = `about-${id}`;
-              return (
-                <li key={id}>
-                  <Link to={i18n.path(PAGES[page])}>{t.needle.countries[id].name}</Link>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+          crawlers and keyboards: visually hidden, shown again while a link has focus. The way to About is the header's. */}
+      <nav className="home-nav" aria-label={t.nav.work}>
         <div>
           <h2 className="label">{t.nav.work}</h2>
           <ul>

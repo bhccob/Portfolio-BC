@@ -41,13 +41,12 @@ describe("the hero's colours (Ruling 11, prototype ui-02)", () => {
     expect(token('dim')).toBe(paletteCss.dim);
   });
 
-  it('set the name in cream, the tagline in gold and the cue dim', () => {
-    expect(rule('.hero-name')).toMatch(/color:\s*var\(--cream\)/);
-    expect(rule('.hero-tagline')).toMatch(/color:\s*var\(--gold\)/);
+  it('set the cue dim, the one line the hero shows (the name is the engraving, the tagline is gone)', () => {
     expect(rule('.hero-cue')).toMatch(/color:\s*var\(--dim\)/);
+    expect(base).not.toMatch(/\.hero-name|\.hero-tagline/);
   });
 
-  it('keep every line at 4.5 : 1 or more on the night, the cue at the lowest of its pulse too', () => {
+  it('keep the palette’s cream and gold at 4.5 : 1 or more on the night, and the cue at the lowest of its pulse too', () => {
     expect(contrast(paletteCss.cream)).toBeGreaterThanOrEqual(4.5);
     expect(contrast(paletteCss.gold)).toBeGreaterThanOrEqual(4.5);
     const pulse = base.match(/@keyframes hero-cue-pulse\s*\{([\s\S]*?)\n\}/)![1];

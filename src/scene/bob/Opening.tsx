@@ -313,7 +313,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
   });
 
   // Below the high tier the band glass's transmission pass draws at half resolution (Ruling 16); the low tier's bands
-  // have none to draw. The quality ladder can step down while the scene is up, so this follows the store's tier.
+  // have none to draw. The quality ladder can step down while the scene is up, so this follows the Stage's `tier` prop.
   useEffect(() => {
     gl.transmissionResolutionScale = tier === 'high' ? 1 : 0.5;
     invalidate();

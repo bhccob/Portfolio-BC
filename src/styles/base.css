@@ -363,44 +363,27 @@ main {
 }
 
 /* ---------- the home page ---------- */
-/* The hero is the home's three lines over the dark scene (prototype ui-02): the name at the upper left, the tagline
-   under it, and the scroll cue low in the middle of the first screen. The hero is that whole first screen, so the cue is
-   placed against it and sits at the bottom whatever the name's height. The upper left keeps the top centre for the
-   ship's constellation (Ruling 11). The colours are ui-02's: the name in the palette's pale cream (16.9:1 on the night,
-   #040209), the tagline in the compass's gold (9.2:1), and the cue in the dim lilac (6.5:1), whose pulse never takes it
-   below 4.9:1. Unbounded is not used here (the name is Montserrat, the rest Martian Mono), so Ruling 23's `locl` rule
-   has nothing to guard in the hero. */
+/* The hero is the home's first screen. Its only visible line is the scroll cue, low in the middle: the name is the
+   engraving in the scene, so the h1 is visually hidden (it stays for crawlers and screen readers) and there is no
+   tagline. The hero is that whole first screen, so the cue is placed against it and sits at the bottom. The cue is in
+   the dim lilac (6.5:1 on the night, #040209), whose pulse never takes it below 4.9:1. */
 .hero {
   position: relative;
   min-height: calc(100svh - var(--header-height));
   padding: clamp(32px, 8svh, 96px) var(--gutter) 0;
 }
 
-/* The two lines are as wide as their text (not the hero), so their boxes are the text's: Home keeps the constellation
-   names clear of these boxes (src/scene/v3/Home.tsx `readHero`). */
-.hero-name,
-.hero-tagline {
-  width: fit-content;
-  max-width: 100%;
-}
-
-.hero-name {
-  font-family: var(--font-name);
-  font-size: clamp(28px, 4.2vw, 64px);
-  font-weight: 300;
-  line-height: 1.15;
-  letter-spacing: 0.32em;
-  color: var(--cream);
-}
-
-.hero-tagline {
-  margin-top: 16px;
-  font-family: var(--font-label);
-  font-size: clamp(11px, 0.9vw, 13px);
-  font-weight: 400;
-  letter-spacing: 0.36em;
-  text-transform: uppercase;
-  color: var(--gold);
+/* Text for a screen reader and a crawler that the picture already shows: clipped to nothing, not display:none or
+   visibility:hidden, which would take it from them as well. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* The word, and a hairline under it that stretches and brightens, then fades back: one slow 2.4 s pulse. The word
@@ -465,7 +448,7 @@ main {
 }
 
 /* While the opening plays (<html data-loading>: the phase is LOADING) the hero is hidden, at once, and it fades in over
-   0.9 s as the loader lands (none with reduced motion). The header (Lite, contact, the language and 3D switches) goes
+   0.9 s as the loader lands (none with reduced motion). The header (the name, Work, About, Contact, the language and 3D switches) goes
    and comes with it, so the loader shows no text but its engraved ON (spec §2.1). The attribute is set after
    hydration, so where scripts run the hero, and on the home page the header, also wait hidden from the first paint
    until the page has hydrated (`data-route` unset), instead of showing and vanishing; without scripts they show at

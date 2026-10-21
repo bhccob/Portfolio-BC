@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 import { PAGES } from '../../src/data/pages';
 import { en } from '../../src/i18n/en';
+import { routeFromPath } from '../../src/i18n/locale';
 import { nl } from '../../src/i18n/nl';
 import { Translator } from '../../src/i18n/Translator';
 import { useScene } from '../../src/state/store';
@@ -23,9 +24,9 @@ const attributes = (html: string): Record<string, string> =>
 /** The text a sighted visitor reads: the markup without its tags. */
 const visibleText = (html: string): string => html.replace(/<[^>]*>/g, '');
 
-/** Every `<tag>…</tag>` of the markup, each with its attributes and its visible text. */
-const elementsOf = (html: string, tag: string): { attrs: Record<string, string>; text: string }[] =>
-  [...html.matchAll(new RegExp(`<${tag}\\b[^>]*>.*?</${tag}>`, 'gs'))].map(([markup]) => ({ attrs: attributes(markup), text: visibleText(markup) }));
+/** The links and buttons of the markup, in the order of the page, each with its attributes and its visible text. */
+const controlsOf = (html: string): { tag: string; attrs: Record<string, string>; text: string }[] =>
+  [...html.matchAll(/<(a|button)\b[^>]*>.*?<\/\1>/gs)].map(([markup, tag]) => ({ tag, attrs: attributes(markup), text: visibleText(markup) }));
 
 describe('the language switch', () => {
   it.each([
@@ -61,9 +62,10 @@ describe('the 3D switch', () => {
   });
 });
 
-describe('the header on the home page', () => {
-  // The hero's three lines are the page's own; the header around them is milestone 1's, unchanged: the Lite link, the
-  // contact link, the language switch and the 3D switch (sound is milestone 6, and the name is the hero's on the home page).
+describe('the header', () => {
+  // The same bar on every page, the home page included, since the home's hero says the name only to a screen reader:
+  // the name, Work and About (both point at Lite until the projects void exists), Contact, the language switch, the Lite
+  // link and the 3D switch (sound is milestone 6).
   const initial = useScene.getInitialState();
   afterEach(() => {
     initial.threeD = true;
@@ -72,28 +74,43 @@ describe('the header on the home page', () => {
   it.each([
     ['/', nl, 'nl' as const],
     ['/en/', en, 'en' as const],
-  ])('on %s it shows the Lite link, the contact link, the language switch and the 3D switch, and nothing else', (path, t, locale) => {
+    ['/lite/', nl, 'nl' as const],
+    ['/en/contact/', en, 'en' as const],
+    ['/projects/funcial/', nl, 'nl' as const],
+  ])('on %s it lists the name, Work, About, Contact, the language switch, Lite and the 3D switch, in that order', (path, t, locale) => {
     initial.threeD = true;
-    const html = render(path, SiteHeader);
-    const links = elementsOf(html, 'a');
-    const link = (href: string) => links.find((candidate) => candidate.attrs.href === href);
+    const controls = controlsOf(render(path, SiteHeader));
     const other = locale === 'en' ? 'nl' : 'en';
+    const at = (route: string): string => Translator.pathFor(locale, route);
 
-    expect(link(Translator.pathFor(locale, PAGES.lite))?.text, 'Lite').toBe(t.needle.liteLink);
-    expect(link(Translator.pathFor(locale, PAGES.contact))?.text, 'contact').toBe(t.nav.contact);
-    const lang = link(Translator.pathFor(other, PAGES.home));
-    expect(lang?.text, 'language switch').toBe(other.toUpperCase());
-    expect(lang?.attrs['aria-label']?.startsWith(`${other.toUpperCase()} `)).toBe(true);
-    const switches = elementsOf(html, 'button');
-    expect(switches).toHaveLength(1);
-    expect(switches[0].attrs.role, '3D switch').toBe('switch');
-    expect(switches[0].attrs['aria-label']).toBe(t.needle.toggle.label);
+    // The order by the links' addresses and the switch's role ...
+    expect(controls.map((control) => (control.tag === 'button' ? control.attrs.role : control.attrs.href))).toEqual([
+      '#main',
+      at(PAGES.home),
+      at(`${PAGES.lite}#work`),
+      at(`${PAGES.lite}#about`),
+      at(PAGES.contact),
+      Translator.pathFor(other, routeFromPath(path)),
+      at(PAGES.lite),
+      'switch',
+    ]);
+    // ... and by the labels the components render.
+    expect(controls.map((control) => control.text)).toEqual([
+      t.nav.skip,
+      t.needle.hero.name,
+      t.nav.work,
+      t.nav.about,
+      t.nav.contact,
+      other.toUpperCase(),
+      t.needle.liteLink,
+      t.needle.toggle.on,
+    ]);
 
-    // Four controls in the header's nav (three links and the switch); the only other link is the skip link, and the
-    // home page's header has no name link, as the hero says the name there.
-    expect(links.filter((a) => a.attrs.class === 'header-control')).toHaveLength(3);
-    expect(links.filter((a) => a.attrs.class === 'skip-link')).toHaveLength(1);
-    expect(links).toHaveLength(4);
-    expect(html).not.toContain('site-name');
+    // The name is a link home that says so, on the home page as on any other; the nav holds five links and the switch.
+    expect(controls[1].attrs.class).toBe('site-name');
+    expect(controls[1].attrs['aria-label']).toBe(t.nav.home);
+    expect(controls.filter((control) => control.attrs.class === 'header-control')).toHaveLength(6);
+    expect(controls[5].attrs['aria-label']?.startsWith(`${other.toUpperCase()} `)).toBe(true);
+    expect(controls[7].attrs['aria-label']).toBe(t.needle.toggle.label);
   });
 });
