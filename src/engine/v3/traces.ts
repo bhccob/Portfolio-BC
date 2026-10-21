@@ -64,8 +64,10 @@ function assertTrace(i: number): void {
 /**
  * Which way trace `i` leans, along the side's clockwise direction: -1 for the
  * counter-clockwise half of its side's 16 pins (the first eight), +1 for the
- * clockwise half. The board path fans out this way and the ring arc unfolds
- * this way, so the trace keeps its handedness while it changes shape.
+ * clockwise half. The board path fans out this way. Its far end still turns
+ * the other way round the compass, toward the middle of the side's bearing
+ * (a straight run out from a square side converges on the side's normal), so
+ * the ring arc unfolds against the lean (see `arc`).
  */
 function leanOf(i: number): -1 | 1 {
   return i % CHIP.pinsPerSide < CHIP.pinsPerSide / 2 ? -1 : 1;
@@ -155,7 +157,15 @@ function route(i: number): Point3[] {
   return points;
 }
 
-/** The ring arc of trace `i`: `TRACE.points` points at equal angles on the gilt rule `i % 4`, spanning `360 / 16` degrees round the pin's bearing. */
+/**
+ * The ring arc of trace `i`: `TRACE.points` points at equal angles on the gilt
+ * rule `i % 4`, spanning `360 / 16` degrees round the pin's bearing. It runs
+ * against the trace's lean, which is the way its board path's far end turns
+ * round the compass from its pin (toward the middle of the side), so each
+ * point slides to the part of the arc on its own side. (Run with the lean,
+ * all 64 arcs swept against their board paths and every trace folded through
+ * itself in an X halfway through the circuit, as Task 12a's stills showed.)
+ */
 function arc(i: number): Float32Array {
   const pin = pinPosition(i);
   const centre = (bearingOf(pin.x, pin.z) * 180) / Math.PI;
@@ -165,7 +175,7 @@ function arc(i: number): Float32Array {
   const out = new Float32Array(TRACE.points * 3);
   // Equal steps of angle on a circle are equal steps of length, so there is nothing to resample.
   for (let k = 0; k < TRACE.points; k++) {
-    const [x, z] = onDial(centre + lean * (-span / 2 + (span * k) / (TRACE.points - 1)), DIAL.rules[ring]);
+    const [x, z] = onDial(centre - lean * (-span / 2 + (span * k) / (TRACE.points - 1)), DIAL.rules[ring]);
     out.set([x, GLASS_RINGS[ring].y - BELOW_RING, z], k * 3);
   }
   return out;
@@ -204,10 +214,11 @@ export function boardPath(i: number): Float32Array {
  * Where trace `i` (0..63) ends up, 48 points as x, y, z: an arc at the radius
  * of gilt rule `i % 4` (`DIAL.rules`) and 0.009 under the height of ring
  * `i % 4`, so it lies on the underside of the glass. It is centred on the
- * bearing of pin `i` and spans 360 / 16 = 22.5 degrees. The arc of a pin in
- * the first half of its side runs counter-clockwise and the arc of one in the
- * second half runs clockwise, matching the way their board paths lean, so a
- * trace keeps its handedness while it changes shape.
+ * bearing of pin `i` and spans 360 / 16 = 22.5 degrees. From its first point
+ * to its last it turns round the compass the way the trace's board path does
+ * from the pin to its far end (clockwise for a pin in the first half of its
+ * side, counter-clockwise in the second), so a trace keeps its handedness
+ * while it changes shape instead of folding through itself.
  *
  * Returns a copy, so a caller may write to it.
  *

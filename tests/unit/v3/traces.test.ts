@@ -167,14 +167,14 @@ describe('the ring arcs', () => {
     const first = Math.hypot(p[3] - p[0], p[5] - p[2]);
     for (let k = 1; k < TRACE.points; k++) expect(Math.hypot(p[k * 3] - p[(k - 1) * 3], p[k * 3 + 2] - p[(k - 1) * 3 + 2])).toBeCloseTo(first, 5);
   });
-  it('turn the way their trace leans, so the board path and the arc unfold the same way', () => {
-    // Pin 3 is on the left half of the top side, which leans left (counter-clockwise); pin 12 is on its right half, which leans right.
-    const sweep = (i: number) => {
-      const p = ringPath(i);
-      return Math.sign(Math.sin(bearingAt(p, TRACE.points - 1) - bearingAt(p, 0)));
-    };
-    expect(sweep(3)).toBe(-1);
-    expect(sweep(12)).toBe(1);
+  it('turn the way their board path does, so the board path and the arc unfold the same way', () => {
+    // Pin 3 is on the left half of the top side: its trace leans left, but its far end still turns clockwise from the
+    // pin, toward north, the middle of the side; pin 12 on the right half mirrors it.
+    const turn = (p: Float32Array) => Math.sign(Math.sin(bearingAt(p, TRACE.points - 1) - bearingAt(p, 0)));
+    expect(turn(ringPath(3))).toBe(1);
+    expect(turn(ringPath(12))).toBe(-1);
+    // Every one of the 64: an arc sweeping against its board path would fold the trace through itself mid-circuit.
+    for (let i = 0; i < PIN_COUNT; i++) expect(turn(ringPath(i)), `trace ${i}`).toBe(turn(boardPath(i)));
   });
   it('are where onDial puts them', () => {
     const p = ringPath(20);

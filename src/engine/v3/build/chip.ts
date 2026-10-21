@@ -57,6 +57,16 @@ export interface ChipModel {
   setEngraving(fractions: readonly number[], time: number): void;
   /** Powers the chip up, 0..1: the lit pins and the linked traces rise to their dim power-on glow. */
   setPower(t: number): void;
+  /**
+   * Rests the chip's own light at `level` of itself, 0..1 (NaN reads as 1,
+   * the chip as built): the lit pins' glow and the ON's gold and hot amber,
+   * scaled together, so the chip can lie dimmed under the hub as the ground
+   * of the home's compass (Ruling 3) without its glow going out. It leaves
+   * the body as it is and never touches the linked traces: `setPower` stays
+   * their one driver. Colours and uniforms only, so nothing compiles; the
+   * same level twice repaints nothing.
+   */
+  setRest(level: number): void;
   /** Frees every geometry and material the chip made. */
   dispose(): void;
 }
@@ -278,13 +288,16 @@ export function buildChip(options: ChipOptions = {}): ChipModel {
 
   // The uniforms all four strokes share: one cut along the whole ON, so the glow runs on across a stroke's end.
   const { engraving: look } = CHIP_LOOK;
+  // The ON's two colours as built, at rest 1; setRest scales the uniforms from these.
+  const cold = new THREE.Color(palette.gold).multiplyScalar(look.cold);
+  const hotCut = new THREE.Color(look.hotColour).multiplyScalar(look.hot);
   const shared = {
     uCut: { value: 0 },
     uFrontAge: { value: look.cool as number },
     uPace: { value: PACE },
     uCoolSeconds: { value: look.cool },
-    uCold: { value: new THREE.Color(palette.gold).multiplyScalar(look.cold) },
-    uHot: { value: new THREE.Color(look.hotColour).multiplyScalar(look.hot) }
+    uCold: { value: cold.clone() },
+    uHot: { value: hotCut.clone() }
   };
   const engraving = new THREE.Group();
   engraving.name = 'chip:engraving';
@@ -314,15 +327,18 @@ export function buildChip(options: ChipOptions = {}): ChipModel {
   const glow = new THREE.Color();
   let lit = 0;
   let power = 0;
+  let rest = 1;
   let paintedLit = -1;
   let paintedPower = -1;
+  let paintedRest = -1;
   const paint = (): void => {
-    if (paintedLit === lit && paintedPower === power) return;
-    glow.copy(gold).multiplyScalar(CHIP_LOOK.glow.lit + (CHIP_LOOK.glow.power - CHIP_LOOK.glow.lit) * power);
+    if (paintedLit === lit && paintedPower === power && paintedRest === rest) return;
+    glow.copy(gold).multiplyScalar((CHIP_LOOK.glow.lit + (CHIP_LOOK.glow.power - CHIP_LOOK.glow.lit) * power) * rest);
     for (let i = 0; i < PIN_COUNT; i++) pins.setColorAt(i, i < lit ? glow : NO_GLOW);
     pins.instanceColor!.needsUpdate = true;
     paintedLit = lit;
     paintedPower = power;
+    paintedRest = rest;
   };
   paint();
 
@@ -358,6 +374,12 @@ export function buildChip(options: ChipOptions = {}): ChipModel {
       power = clamp01(t);
       paint();
       options.traces?.setGlow(power);
+    },
+    setRest(level) {
+      rest = Number.isNaN(level) ? 1 : clamp01(level);
+      paint();
+      shared.uCold.value.copy(cold).multiplyScalar(rest);
+      shared.uHot.value.copy(hotCut).multiplyScalar(rest);
     },
     dispose() {
       bodyGeometry.dispose();

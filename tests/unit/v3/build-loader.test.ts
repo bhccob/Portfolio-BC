@@ -168,6 +168,55 @@ describe('the chip', () => {
     chip.dispose();
   });
 
+  it('rests its own light lower for the home: the lit pins and the ON dim together, the traces are left to setPower', () => {
+    const traces = { setGlow: vi.fn() };
+    const chip = buildChip({ traces });
+    const pins = chip.group.getObjectByName('chip:pins') as THREE.InstancedMesh;
+    const uniforms = strokeMeshes(chip)[0].material.uniforms;
+    chip.setPins(64);
+    chip.setPower(0.5);
+    const pin = pinColour(pins, 12);
+    const cold = (uniforms.uCold.value as THREE.Color).clone();
+    const hot = (uniforms.uHot.value as THREE.Color).clone();
+    const calls = traces.setGlow.mock.calls.length;
+    chip.setRest(0.4);
+    expect(pinColour(pins, 12).r).toBeCloseTo(pin.r * 0.4, 6);
+    expect(pinColour(pins, 12).g).toBeCloseTo(pin.g * 0.4, 6);
+    expect((uniforms.uCold.value as THREE.Color).g).toBeCloseTo(cold.g * 0.4, 9);
+    expect((uniforms.uHot.value as THREE.Color).r).toBeCloseTo(hot.r * 0.4, 9);
+    expect(traces.setGlow.mock.calls.length).toBe(calls);
+    // It holds while the power moves on under it, and the body is left as it is.
+    chip.setPower(1);
+    const full = new THREE.Color(palette.gold).multiplyScalar(CHIP_LOOK.glow.power * 0.4);
+    expect(pinColour(pins, 12).r).toBeCloseTo(full.r, 6);
+    const body = chip.group.getObjectByName('chip:body') as THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
+    expect(body.material.color.getHex()).toBe(palette.ink);
+    chip.dispose();
+  });
+
+  it('builds at rest 1, holds the rest to 0..1, reads NaN as 1 and repaints nothing for the same rest', () => {
+    const chip = buildChip();
+    const pins = chip.group.getObjectByName('chip:pins') as THREE.InstancedMesh;
+    const uniforms = strokeMeshes(chip)[0].material.uniforms;
+    chip.setPins(4);
+    const lit = pinColour(pins, 0);
+    const gold = new THREE.Color(palette.gold);
+    expect(lit.r / gold.r).toBeCloseTo(CHIP_LOOK.glow.lit, 6);
+    chip.setRest(3);
+    expect(pinColour(pins, 0).r).toBeCloseTo(lit.r, 9);
+    chip.setRest(-1);
+    expect(pinColour(pins, 0).getHex()).toBe(0);
+    expect((uniforms.uCold.value as THREE.Color).getHex()).toBe(0);
+    chip.setRest(Number.NaN);
+    expect(pinColour(pins, 0).r).toBeCloseTo(lit.r, 9);
+    const version = pins.instanceColor!.version;
+    chip.setRest(1);
+    expect(pins.instanceColor!.version).toBe(version);
+    chip.setRest(0.5);
+    expect(pins.instanceColor!.version).toBeGreaterThan(version);
+    chip.dispose();
+  });
+
   it("moves a pin's instance colour from its paint to its glow, so the lead stays brass", () => {
     const chip = buildChip();
     const material = (chip.group.getObjectByName('chip:pins') as THREE.InstancedMesh).material as THREE.MeshStandardMaterial;
