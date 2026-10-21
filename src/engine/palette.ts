@@ -4,9 +4,10 @@
  * CSS strings (`#rrggbb`) for the canvas painters and the loader's SVG. The
  * purples, yellow, cream and lilacs are the site's own tokens
  * (src/styles/tokens.css), so the model and the page around it agree; gold,
- * brass and thread red are the compass's own, and hot amber is the loader's
- * laser. It imports nothing, so the loader's bundle (dialSvg) can read it
- * without pulling in three.
+ * brass and thread red are the compass's own, hot amber is the loader's
+ * laser, and glass, violet, nebula and night are the v3 home's. It imports
+ * nothing, so the loader's bundle (dialSvg) can read it without pulling in
+ * three.
  */
 export const palette = {
   /** Board purple (--board): the base plate's lacquer and the plain pattern ring. */
@@ -29,6 +30,27 @@ export const palette = {
    * so the beam and the cut it makes stay the same heat.
    */
   amber: 0xff7a1e,
+  /**
+   * Smoked glass: the near-black violet of the v3 compass's glass rings. It is
+   * dark so that the room's reflections and the gold engraving draw the rings,
+   * and the chip city's light reads as seen through them.
+   */
+  glass: 0x120a1c,
+  /**
+   * Violet: the nebula's light, the cool counterpart of gold. The chip city's
+   * violet blocks, the mist over the board and the reflection room's back card
+   * take it; milestone 1's haze was this colour too (src/engine/studio/Haze.ts).
+   */
+  violet: 0x6a35b8,
+  /** Deep violet: the v3 sky's nebula clouds, which only ever lie faintly over the night. */
+  nebula: 0x2a1250,
+  /**
+   * Night: the v3 scene's background, the sky between the clouds, which the
+   * sky builder layers the nebula over. The scene's clear colour (Task 12a's
+   * LOOK.background) should take it too, so a frame drawn before the sky is
+   * up is the same night as one drawn after.
+   */
+  night: 0x040209,
   /** Lilac (--lilac, the site's text). */
   lilac: 0xb8aad8,
   /** Dim lilac (--dim, the site's quiet text). */
