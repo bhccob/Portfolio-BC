@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { DIAL_ART } from '~/engine/instrument/dialSpec';
 import { GLYPHS } from '~/engine/instrument/glyphs';
 import { GLASS_RINGS } from '~/engine/v3/compassSpec';
 import { paintRingStrip, RING_STRIP } from '~/engine/v3/paintRings';
@@ -123,8 +124,15 @@ describe('the strip layout', () => {
     expect(east.filter((m) => m.rects[0][1] === rows[0])).toHaveLength(1);
     expect(east.filter((m) => m.rects[0][1] === rows[1])).toHaveLength(2);
     expect(east.filter((m) => m.rects[0][1] === rows[2])).toHaveLength(2);
-    // The bottom line starts 0.27 out from the centre of a ring that spans 0.24 to 0.4: 0.4 - 0.292 down from the top, on a strip 0.16 deep.
-    expect(rows[0]).toBeCloseTo(((0.4 - (0.27 + 0.022)) / 0.16) * 128, 6);
+    // Each line is a bar centred on DIAL_ART.bar.at[i], the radius the painted face and the loader's drawing centre it on (face.ts, dialSvg.ts),
+    // and DIAL_ART.bar.thick deep: on the strip that is (outer - at) down from the top of the ring's depth, centre to centre.
+    const { outer, inner } = ring('trigram');
+    const { at, thick } = DIAL_ART.bar;
+    rows.forEach((row, i) => {
+      const [, y, , height] = east.find((m) => m.rects[0][1] === row)!.rects[0];
+      expect(y + height / 2).toBeCloseTo(((outer - at[i]) / (outer - inner)) * 128, 9);
+      expect(height).toBeCloseTo((thick / (outer - inner)) * 128, 9);
+    });
     // The bottom line is whole and centred on the bearing.
     const whole = east.find((m) => m.rects[0][1] === rows[0])!.rects[0];
     expect(whole[0] + whole[2] / 2).toBeCloseTo(512, 6);
@@ -165,11 +173,14 @@ describe('the strip layout', () => {
     // Each character is placed by its centre: a translate to the bearing and radius, then one to the middle of the em box.
     const centres = translates.filter((_, i) => i % 2 === 0);
     expect(centres.map(([x]) => x)).toEqual([0, 512, 1024, 1536]);
-    for (const [, y] of centres) expect(y).toBeCloseTo(64, 9);
+    // Their radius and size are DIAL_ART.glyph's, as the face and the loader's drawing place them: (outer - at) down the ring's depth, one em deep.
+    const { outer, inner } = ring('direction');
+    const { at, em } = DIAL_ART.glyph;
+    for (const [, y] of centres) expect(y).toBeCloseTo(((outer - at) / (outer - inner)) * 128, 9);
     // A positive scale keeps the glyph's top (y = 0 in its em box) toward the strip's top, the outer edge.
     for (const [sx, sy] of scales) {
-      expect(sx).toBeGreaterThan(0);
-      expect(sy).toBeCloseTo(0.11 * (128 / 0.14), 9);
+      expect(sx).toBeCloseTo((em * 2048) / (2 * Math.PI * at), 9);
+      expect(sy).toBeCloseTo((em / (outer - inner)) * 128, 9);
     }
     expect(translates.filter((_, i) => i % 2 === 1)).toEqual([[-0.5, -0.5], [-0.5, -0.5], [-0.5, -0.5], [-0.5, -0.5]]);
     expect(marks[1].path).toBe(GLYPHS['東']);
@@ -183,12 +194,12 @@ describe('the strip layout', () => {
     paintRingStrip(ctx, ring('direction'), 2048, 128);
     const north = marks[0].path!;
     expect(north.startsWith(GLYPHS['北'])).toBe(true);
-    // The copy is the same outline moved right by a turn of the ring, in em widths: 2 PI * 0.49 / 0.11.
+    // The copy is the same outline moved right by a turn of the ring at the characters' radius, in em widths: 2 PI * at / em.
     const numbers = (d: string) => (d.match(/-?\d*\.?\d+/g) ?? []).map(Number);
     const original = numbers(GLYPHS['北']);
     const copy = numbers(north.slice(GLYPHS['北'].length));
     expect(copy).toHaveLength(original.length);
-    const turn = (2 * Math.PI * 0.49) / 0.11;
+    const turn = (2 * Math.PI * DIAL_ART.glyph.at) / DIAL_ART.glyph.em;
     original.forEach((n, i) => expect(copy[i]).toBeCloseTo(i % 2 === 0 ? n + turn : n, 3));
   });
 

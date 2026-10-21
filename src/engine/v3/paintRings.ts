@@ -94,11 +94,16 @@ function line(s: Strip, bearing: number, top: number, thick: number, length: num
   }
 }
 
-/** The eight trigrams, each at its bearing with its bottom line innermost, as DIAL_ART.bar gives them. */
+/**
+ * The eight trigrams, each at its bearing with its bottom line innermost, as
+ * DIAL_ART.bar gives them: `at[i]` is the radius of line i's centre, as the
+ * painted face and the loader's drawing place it (face.ts, dialSvg.ts), so the
+ * bar's outer edge is half its thickness farther out.
+ */
 function trigrams(s: Strip): void {
   const { length, thick, gap, at } = DIAL_ART.bar;
   for (const { bearing, lines } of TRIGRAMS) {
-    lines.forEach((whole, i) => line(s, bearing, at[i] + thick, thick, length, whole === 1, gap));
+    lines.forEach((whole, i) => line(s, bearing, at[i] + thick / 2, thick, length, whole === 1, gap));
   }
 }
 
