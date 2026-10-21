@@ -20,6 +20,8 @@ const SCROLL_GRACE_MS = 250;
 
 /**
  * The demand frame loop's pulse. On each frame drawn it asks for the next one while anything moves:
+ *   - the opening is playing (`motion.loader`: its stage is not yet `home`), so the loader's clock runs on every frame
+ *     until the landing, whatever the input does;
  *   - the compass is not asleep (engine/stillness: its needle drifting or still swinging);
  *   - the pointer parallax is still damping;
  *   - the story is moving: `frame.progress` is not on `frame.target`, or `frame.velocity` is not 0, while the
@@ -30,8 +32,8 @@ const SCROLL_GRACE_MS = 250;
  * While the context is lost nothing is asked for.
  *
  * On a page without a scene (the store's `scene` is null: Lite, contact, not found) the canvas sleeps behind the page:
- * nothing here asks for a frame, neither the scroll loop's wake nor a phase change, whatever still moves. Back on a page
- * with a scene it draws again from where it was.
+ * nothing here asks for a frame, neither the scroll loop's wake nor a phase change, whatever still moves (an opening
+ * left for Lite halfway holds its clock there). Back on a page with a scene it draws again from where it was.
  */
 export function Heartbeat(): null {
   const invalidate = useThree((state) => state.invalidate);
@@ -59,7 +61,7 @@ export function Heartbeat(): null {
     if (frame.contextLost || useScene.getState().scene === null) return;
     const now = performance.now();
     const scrolling = now - motion.scrolledAt < SCROLL_GRACE_MS && (frame.progress !== frame.target || Math.abs(frame.velocity) > 0);
-    if (!asleep(motion.compass) || motion.parallax || scrolling || now < transitionUntil.current) invalidate();
+    if (motion.loader || !asleep(motion.compass) || motion.parallax || scrolling || now < transitionUntil.current) invalidate();
   });
 
   return null;

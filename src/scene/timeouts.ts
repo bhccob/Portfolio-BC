@@ -1,8 +1,9 @@
 /**
- * How long the scene may take, from the moment SceneHost decides to mount it (its chunk to download, the compass to
- * build, its textures to settle or be waited for, its canvases to paint and its programs to compile) before the page
- * gives up on it and falls back to the poster, ms of the page being visible (visibleTimeout). The textures wait 7 s at
- * most (Compass); painting and compiling take a second or two on a slow machine: 12 s is a scene that is not coming.
+ * How long the scene's loader may take to show, from the moment SceneHost decides to mount it (its chunk to download,
+ * the opening's chip, laser, traces and mist to build and their programs to compile) before the page gives up on it
+ * and falls back to the poster, ms of the page being visible (visibleTimeout): 12 s is a scene that is not coming. From
+ * then on the loader itself waits for the rest of the load, LOADER.giveUp visible seconds at most
+ * (src/engine/v3/loaderTimeline.ts).
  */
 export const LOAD_TIMEOUT_MS = 12_000;
 

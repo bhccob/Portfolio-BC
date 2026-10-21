@@ -38,9 +38,11 @@ describe('the scene waker', () => {
     motion.compass.needle = 0.4;
     motion.compass.idle = false;
     motion.parallax = true;
+    motion.loader = true;
     expect(asleep(motion.compass)).toBe(false);
     resetMotion();
     expect(asleep(motion.compass)).toBe(true);
     expect(motion.parallax).toBe(false);
+    expect(motion.loader).toBe(false);
   });
 });

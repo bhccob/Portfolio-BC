@@ -5,7 +5,7 @@
  * purples, yellow, cream and lilacs are the site's own tokens
  * (src/styles/tokens.css), so the model and the page around it agree; gold,
  * brass and thread red are the compass's own, hot amber is the loader's
- * laser, and glass, violet, nebula and night are the v3 home's. It imports
+ * laser, and glass, violet, nebula, night and fog are the v3 home's. It imports
  * nothing, so the loader's bundle (dialSvg) can read it without pulling in
  * three.
  */
@@ -51,6 +51,12 @@ export const palette = {
    * up is the same night as one drawn after.
    */
   night: 0x040209,
+  /**
+   * Fog: the v3 scene's haze in the distance (Task 12a's LOOK.fog), a breath
+   * of violet over the night, so the far board and the compass's far rim
+   * sink into a dark haze rather than cut off against black.
+   */
+  fog: 0x0d0718,
   /** Lilac (--lilac, the site's text). */
   lilac: 0xb8aad8,
   /** Dim lilac (--dim, the site's quiet text). */

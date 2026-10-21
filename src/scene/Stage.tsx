@@ -3,9 +3,8 @@ import { type JSX, memo, useCallback, useEffect, useMemo, useState } from 'react
 import { debugBridge } from '~/debug/needleDebug';
 import { StageProbe } from '~/debug/StageProbe';
 import { countCanvasMount } from '~/debug/stageReport';
-import { qualityFor, qualitySteps } from '~/engine/quality';
+import { qualityFor } from '~/engine/quality';
 import { frame } from '~/state/frame';
-import { Compass } from './Compass';
 import { Effects } from './Effects';
 import { Heartbeat } from './Heartbeat';
 import { resetMotion } from './motion';
@@ -13,12 +12,13 @@ import { QualityGovernor } from './QualityGovernor';
 import { Rig } from './Rig';
 import { Studio } from './Studio';
 import { RESTORE_TIMEOUT_MS, visibleTimeout } from './timeouts';
+import { Opening } from './v3/Opening';
 
-/** A mouse or trackpad: the finer ladder and paint. Read once, when the Stage's chunk loads (in the browser only). */
+/**
+ * A mouse or trackpad: the finer ladder, ring masks and city. Read once, when the Stage's chunk loads (in the browser
+ * only).
+ */
 const FINE_POINTER = typeof window !== 'undefined' && window.matchMedia?.('(pointer: fine)').matches === true;
-
-/** The most dust motes any rung of this pointer's ladder draws. */
-const MAX_DUST = Math.max(...Array.from({ length: qualitySteps(FINE_POINTER) }, (_, step) => qualityFor(step, FINE_POINTER).dust));
 
 /**
  * The rung reached so far in this page view. A Stage mounted again (3D switched off and on) starts there: the
@@ -33,9 +33,12 @@ const GL = { antialias: true, alpha: false, stencil: false, powerPreference: 'hi
 const CAMERA = { fov: 30, near: 0.1, far: 100, position: [0, 0, 5] as [number, number, number], manual: true };
 
 export interface StageProps {
-  /** The compass is ready: built, painted, its textures settled (or waited for) and its programs compiled. */
+  /** The loader can show: the opening's chip, laser, traces and mist are built and their programs compiled. */
   onReady(): void;
-  /** The scene failed: the compass could not be built, or the context was lost for good. Called once. */
+  /**
+   * The scene failed: the opening could not be built, its load threw or did not finish in time, or the context was lost
+   * for good. Called once.
+   */
   onFail(reason: string, error?: unknown): void;
 }
 
@@ -72,9 +75,10 @@ function ContextWatch({ onFail }: Pick<StageProps, 'onFail'>): null {
 }
 
 /**
- * The persistent canvas and the scene in it: the studio, the compass, the camera rig, the post chain, the quality
- * governor and the heartbeat of the demand frame loop. SceneHost mounts it once 3D is on and WebGL is there, and
- * gives it LOAD_TIMEOUT_MS to say it is ready.
+ * The persistent canvas and the scene in it: the v3 studio, the opening (the loader, landing on the home), the camera
+ * rig, the post chain, the quality governor and the heartbeat of the demand frame loop. SceneHost mounts it once 3D is
+ * on and WebGL is there, and gives it LOAD_TIMEOUT_MS to say the loader can show; the opening says LOADED itself when
+ * it lands.
  *
  * Memoised (its two callbacks are stable): a host render, as when the page's scene changes, never re-renders the
  * canvas's tree, whose post chain would rebuild its passes. The parts read what changes (the page's scene, the tier,
@@ -103,8 +107,8 @@ export default memo(function Stage({ onReady, onFail }: StageProps): JSX.Element
     // R3F 9.8 makes a THREE.Clock per root, which three 0.186 reports once as deprecated (a console warning); no Canvas prop avoids it.
     <Canvas dpr={dpr} frameloop="demand" flat gl={GL} camera={CAMERA}>
       <ContextWatch onFail={onFail} />
-      <Studio dust={quality.dust} maxDust={MAX_DUST} />
-      <Compass clearcoat={quality.clearcoat} finePointer={FINE_POINTER} onReady={onReady} onFail={onFail} />
+      <Studio />
+      <Opening clearcoat={quality.clearcoat} finePointer={FINE_POINTER} onReady={onReady} onFail={onFail} />
       <Rig />
       <Effects />
       <QualityGovernor step={step} finePointer={FINE_POINTER} onStep={stepDown} />

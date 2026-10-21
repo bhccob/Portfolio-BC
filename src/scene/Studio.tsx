@@ -1,74 +1,84 @@
 import { useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useLayoutEffect, useRef } from 'react';
-import type * as THREE from 'three';
-import { buildCompassStudio, type CompassStudio } from '~/engine/studio/CompassStudio';
-import { HERO_POSE } from './Compass';
+import { useLayoutEffect, useRef } from 'react';
+import * as THREE from 'three';
+import { shoulder } from '~/engine/studio/CompassStudio';
+import { buildRoom, type RoomModel } from '~/engine/v3/build/room';
+import { buildSky, type SkyModel } from '~/engine/v3/build/sky';
+import { LOOK } from './v3/look';
 
-/** The longest step the dust and the haze take in one frame, seconds: a scene waking from sleep does not jump them. */
+/** The longest step the sky's turn takes in one frame, seconds: a scene waking from sleep does not jump it. */
 const MAX_STEP = 0.1;
 
-export interface StudioProps {
-  /** How many dust motes drift now (the quality ladder's `dust`). */
-  dust: number;
-  /** The most motes any rung of this pointer's ladder draws: the buffer is made that big once. */
-  maxDust: number;
-}
-
 /**
- * The compass's studio, ported as it was (engine/studio/CompassStudio): the background and fog, the dark room of
- * light cards prefiltered for the reflections, the white key and the purple rim, the backdrop's glow, the haze and
- * the dust. It sets the renderer up as revision 4 did (sRGB output, the shoulder as CustomToneMapping); Effects
+ * The v3 studio, the ground every v3 scene stands in, built from v3's parts and LOOK (src/scene/v3/look.ts):
+ *   - the night as the clear colour and the background, and the fog in the dark violet haze;
+ *   - the sky (src/engine/v3/build/sky.ts), the nebula on a sphere far beyond everything, turning slowly on the frames
+ *     that are drawn, so it stands still while the scene sleeps;
+ *   - the reflection room (src/engine/v3/build/room.ts), prefiltered through PMREM into `scene.environment`, which is
+ *     what makes the metal gold and keeps the glass smoked;
+ *   - one dim warm key light from the upper left for the gold and a faint violet rim from behind (LOOK.key, LOOK.rim);
+ *   - no dust (restraint, spec §4): the quality ladder's `dust` rung goes unused.
+ * It sets the renderer up as milestone 1's did (sRGB output, the shoulder as CustomToneMapping, LOOK.exposure); Effects
  * then decides whether the renderer tone-maps or the post chain does.
  *
- * The dust and the haze move only on frames that are drawn, so they stand still while the scene sleeps. A lost
- * context takes the prefiltered room with it, which lived only on the GPU: it is built again on restore.
+ * A lost context takes the prefiltered room with it, which lived only on the GPU: it is built again on restore.
  */
-export function Studio({ dust, maxDust }: StudioProps): null {
+export function Studio(): null {
   const gl = useThree((state) => state.gl);
   const scene = useThree((state) => state.scene);
   const invalidate = useThree((state) => state.invalidate);
-  const height = useThree((state) => state.size.height);
-  const dpr = useThree((state) => state.viewport.dpr);
-  const studio = useRef<CompassStudio | null>(null);
+  const sky = useRef<SkyModel | null>(null);
   const time = useRef(0);
 
   // Before the first frame, so nothing is drawn without its light.
   useLayoutEffect(() => {
-    const before = new Set<THREE.Object3D>(scene.children);
-    const built = buildCompassStudio(gl, scene, maxDust);
-    const added = scene.children.filter((child) => !before.has(child));
-    built.setDim(HERO_POSE.dim);
-    studio.current = built;
+    shoulder();
+    gl.setClearColor(LOOK.background, 1);
+    gl.outputColorSpace = THREE.SRGBColorSpace;
+    gl.toneMapping = THREE.CustomToneMapping;
+    gl.toneMappingExposure = LOOK.exposure;
+    gl.shadowMap.enabled = false;
+    scene.background = new THREE.Color(LOOK.background);
+    scene.fog = new THREE.FogExp2(LOOK.fog.color, LOOK.fog.density);
+    scene.environmentIntensity = LOOK.environment;
+
+    const built = buildSky();
+    sky.current = built;
+    let room: RoomModel = buildRoom(gl);
+    scene.environment = room.environment;
+
+    const lights = (['key', 'rim'] as const).map((name) => {
+      const { colour, intensity, position } = LOOK[name];
+      const light = new THREE.DirectionalLight(colour, intensity);
+      light.name = name;
+      light.position.set(position[0], position[1], position[2]);
+      return light;
+    });
+    scene.add(built.mesh, ...lights);
+
     const relight = (): void => {
-      built.relight();
+      room.dispose();
+      room = buildRoom(gl);
+      scene.environment = room.environment;
       invalidate();
     };
     gl.domElement.addEventListener('webglcontextrestored', relight);
     return () => {
       gl.domElement.removeEventListener('webglcontextrestored', relight);
-      studio.current = null;
+      sky.current = null;
+      scene.remove(built.mesh, ...lights);
       built.dispose();
-      scene.remove(...added);
+      room.dispose();
+      for (const light of lights) light.dispose();
       scene.background = null;
       scene.fog = null;
       scene.environment = null;
     };
-  }, [gl, scene, invalidate, maxDust]);
-
-  useEffect(() => {
-    studio.current?.dust.setCount(dust);
-    invalidate();
-  }, [dust, invalidate]);
-
-  // A mote's size in pixels is its world size times half the drawing buffer's height over its depth.
-  useEffect(() => {
-    studio.current?.dust.setScale((height * dpr) / 2);
-    invalidate();
-  }, [height, dpr, invalidate]);
+  }, [gl, scene, invalidate]);
 
   useFrame((_, delta) => {
     time.current += Math.min(Math.max(delta, 0), MAX_STEP);
-    studio.current?.setTime(time.current);
+    sky.current?.setTime(time.current);
   });
 
   return null;

@@ -10,6 +10,11 @@ export const motion = {
   compass: { ...AT_REST } as Stillness,
   /** The camera's pointer parallax is still damping toward the pointer (Rig). */
   parallax: false,
+  /**
+   * The opening is playing (src/scene/v3/Opening.tsx): its stage is not yet `home`, so every frame moves something (the
+   * laser, the pins, the camera) and the next one is wanted. False until an Opening mounts and from the landing on.
+   */
+  loader: false,
   /** When the scroll loop last asked for a frame (performance.now() ms), or -Infinity. */
   scrolledAt: Number.NEGATIVE_INFINITY,
 };
@@ -38,4 +43,5 @@ export function onWakeScene(wake: () => void): () => void {
 export function resetMotion(): void {
   Object.assign(motion.compass, AT_REST);
   motion.parallax = false;
+  motion.loader = false;
 }
