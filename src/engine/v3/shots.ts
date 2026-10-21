@@ -9,7 +9,7 @@
  * The frame is the dial's (src/engine/instrument/dialSpec.ts): north is -Z,
  * east is +X, y is up from the compass's plane, and the home camera stands
  * south (+Z) looking north, so China is on the right and Aruba on the left.
- * The three numbers of a shot are each tuned against a concept frame in
+ * Each shot's numbers are tuned against a concept frame in
  * docs/design/needle-v3 and the projection tests, not derived.
  */
 import * as THREE from 'three';
@@ -61,8 +61,8 @@ const MIN_ASPECT = 0.25;
  * camera pulls back until `halfWidth` world units each side of the look-at
  * point fit the width, and widens the fov by `widen` degrees at most so the
  * perspective stays as dramatic as the landscape frame's. It holds the
- * compass's centre `dialDrop` of the way down from the middle of the picture
- * (in NDC, the same drop the landscape frame has), and keeps the camera's
+ * compass's centre about `dialDrop` below the middle of the picture (in NDC;
+ * the landscape frame has it a little lower, at 0.25), and keeps the camera's
  * pitch above the look-at line as the landscape shot has it.
  *
  * `halfWidth` is the rim's radius times 2.1, so the rim spans under half the
