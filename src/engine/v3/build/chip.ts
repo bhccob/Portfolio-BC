@@ -21,10 +21,13 @@ import { LOADER } from '~/engine/v3/loaderTimeline';
  *
  * - `body`: the palette's near-black ink, matte, so the laser's point and the
  *   lit pins are the only strong light (spec §2.1).
- * - `pin`: the lead's thickness on the board, and the dark brass of an unlit
+ * - `pin`: the lead's thickness on the board (thin, so a row of pins reads as a
+ *   fine glowing fringe, frame 02, and not as blocks), and the dark brass of an unlit
  *   pin, which the scene's lights shade.
- * - `glow`: a lit pin's glow as a multiple of gold, while loading (`lit`, low)
- *   and at full power (`power`, just over the bloom's threshold).
+ * - `glow`: a lit pin's glow, while loading (`lit`, low: a soft amber, so the
+ *   ring that fills is calm against the laser's point) and at full power
+ *   (`power`, just over the bloom's threshold), as a multiple of its hue: the
+ *   gold taken `warm` of the way to the laser's hot amber, frame 01's orange.
  * - `engraving`: the ribbon's width and its lift off the top (enough that it
  *   never z-fights the face), the cooled cut's gold and the fresh cut's hot
  *   amber (the laser's own, `palette.amber`) as multiples, and the seconds a
@@ -32,8 +35,8 @@ import { LOADER } from '~/engine/v3/loaderTimeline';
  */
 export const CHIP_LOOK = {
   body: { colour: palette.ink, roughness: 0.86, metalness: 0 },
-  pin: { thickness: 0.005, colour: palette.brass, shade: 0.45, metalness: 0.85, roughness: 0.42 },
-  glow: { lit: 0.9, power: 2.5 },
+  pin: { thickness: 0.003, colour: palette.brass, shade: 0.45, metalness: 0.85, roughness: 0.42 },
+  glow: { lit: 0.5, power: 2.65, warm: 0.3 },
   engraving: { width: 0.006, lift: 0.0004, cold: 1, hot: 3.2, hotColour: palette.amber, cool: 0.6 }
 } as const;
 
@@ -323,7 +326,8 @@ export function buildChip(options: ChipOptions = {}): ChipModel {
   group.add(body, pins, engraving);
 
   // The pins' state as painted, so a clock that holds still repaints nothing.
-  const gold = new THREE.Color(palette.gold);
+  // The lit pins' hue: the gold warmed toward the laser's amber.
+  const hue = new THREE.Color(palette.gold).lerp(new THREE.Color(palette.amber), CHIP_LOOK.glow.warm);
   const glow = new THREE.Color();
   let lit = 0;
   let power = 0;
@@ -333,7 +337,7 @@ export function buildChip(options: ChipOptions = {}): ChipModel {
   let paintedRest = -1;
   const paint = (): void => {
     if (paintedLit === lit && paintedPower === power && paintedRest === rest) return;
-    glow.copy(gold).multiplyScalar((CHIP_LOOK.glow.lit + (CHIP_LOOK.glow.power - CHIP_LOOK.glow.lit) * power) * rest);
+    glow.copy(hue).multiplyScalar((CHIP_LOOK.glow.lit + (CHIP_LOOK.glow.power - CHIP_LOOK.glow.lit) * power) * rest);
     for (let i = 0; i < PIN_COUNT; i++) pins.setColorAt(i, i < lit ? glow : NO_GLOW);
     pins.instanceColor!.needsUpdate = true;
     paintedLit = lit;

@@ -24,8 +24,15 @@ import { CHIP } from '~/engine/v3/chipSpec';
  * small and short-lived.
  *
  * - `probe`: the nozzle's height over the chip's top, and the profile it is
- *   turned from (radius, height above the nozzle's tip), slim and gold.
+ *   turned from (radius, height above the nozzle's tip): a tapered nozzle, a
+ *   collar and a short barrel, as frame 01's brass laser head (Task 14b:
+ *   longer and slimmer it read as a dark stick from the loader's high
+ *   camera). It is brass, with a little light of its own (`emissive`, of the
+ *   brass) so its metal still reads where the room gives it nothing to
+ *   mirror.
  * - `beam`: its radius and glow.
+ * - `nozzle`: the hot amber glow at the nozzle's mouth while the beam is on,
+ *   as frame 01 lights the head's tip from inside: soft, under the bloom.
  * - `point`: the glow at the cut, its size and its lift off the top, so the
  *   chip's face does not clip its lower half; its amber is taken `whiten` of
  *   the way to cream (`core`), as the white-hot heart of the spot.
@@ -43,18 +50,25 @@ export const LASER_LOOK = {
     profile: [
       [0, 0],
       [0.0025, 0],
-      [0.006, 0.012],
-      [0.0105, 0.026],
-      [0.0105, 0.05],
-      [0.014, 0.054],
-      [0.014, 0.075],
-      [0.0115, 0.079],
-      [0.0115, 0.32]
+      [0.006, 0.01],
+      [0.011, 0.024],
+      [0.011, 0.034],
+      [0.0155, 0.037],
+      [0.0155, 0.052],
+      [0.018, 0.055],
+      [0.018, 0.075],
+      [0.0155, 0.078],
+      [0.0155, 0.22],
+      [0.011, 0.224],
+      [0, 0.224]
     ],
-    metalness: 1,
-    roughness: 0.32
+    colour: palette.brass,
+    metalness: 0.9,
+    roughness: 0.2,
+    emissive: 0.08
   },
   beam: { radius: 0.0011, glow: 3 },
+  nozzle: { size: 0.028, glow: 1.4 },
   point: { size: 0.035, lift: 0.008, glow: 4, core: palette.cream, whiten: 0.35 },
   sparks: { max: 24, life: 0.3, out: [0.25, 0.6], up: [0.15, 0.45], gravity: 2.2, floor: 0.002, size: 0.014, glow: 3 },
   smoke: { size: 0.1, rise: 0.035, opacity: 0.22, colour: palette.dim, shade: 0.45, turn: 0.4 }
@@ -73,7 +87,7 @@ export interface LaserModel {
   group: THREE.Group;
   /** Puts the beam's point on the chip's top at (x, z); a coordinate that is not finite is ignored. */
   setTip(x: number, z: number): void;
-  /** Turns the laser on or off: off hides the beam, the point, the sparks and the smoke, and leaves the probe. */
+  /** Turns the laser on or off: off hides the beam, the nozzle's glow, the point, the sparks and the smoke, and leaves the probe. */
   setOn(on: boolean): void;
   /** How hard it cuts, 0..1 (how many of the sparks fly, and how thick the smoke), at `time` seconds. */
   setSparks(intensity: number, time: number): void;
@@ -152,9 +166,11 @@ export function buildLaser(): LaserModel {
   );
   const probeMaterial = new THREE.MeshStandardMaterial({
     name: 'laser:probe',
-    color: palette.gold,
+    color: probeLook.colour,
     metalness: probeLook.metalness,
-    roughness: probeLook.roughness
+    roughness: probeLook.roughness,
+    emissive: probeLook.colour,
+    emissiveIntensity: probeLook.emissive
   });
   const probe = new THREE.Mesh(probeGeometry, probeMaterial);
   probe.name = 'laser:probe';
@@ -185,6 +201,19 @@ export function buildLaser(): LaserModel {
   point.name = 'laser:point';
   point.scale.set(LASER_LOOK.point.size, LASER_LOOK.point.size, 1);
   point.position.y = LASER_LOOK.point.lift;
+
+  const nozzleMaterial = new THREE.SpriteMaterial({
+    name: 'laser:nozzle',
+    map: glow,
+    color: hot.clone().multiplyScalar(LASER_LOOK.nozzle.glow),
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+  });
+  const nozzle = new THREE.Sprite(nozzleMaterial);
+  nozzle.name = 'laser:nozzle';
+  nozzle.scale.set(LASER_LOOK.nozzle.size, LASER_LOOK.nozzle.size, 1);
+  nozzle.position.y = probeLook.gap;
 
   const { sparks: sparkLook } = LASER_LOOK;
   const sparkPositions = new Float32Array(sparkLook.max * 3);
@@ -224,7 +253,7 @@ export function buildLaser(): LaserModel {
   smoke.scale.set(smokeLook.size, smokeLook.size, 1);
   smoke.position.y = smokeLook.rise;
 
-  group.add(probe, beam, point, sparks, smoke);
+  group.add(probe, beam, nozzle, point, sparks, smoke);
 
   return {
     group,
@@ -234,6 +263,7 @@ export function buildLaser(): LaserModel {
     },
     setOn(on) {
       beam.visible = on;
+      nozzle.visible = on;
       point.visible = on;
       sparks.visible = on;
       smoke.visible = on;
@@ -254,6 +284,7 @@ export function buildLaser(): LaserModel {
       beamGeometry.dispose();
       beamMaterial.dispose();
       pointMaterial.dispose();
+      nozzleMaterial.dispose();
       sparkGeometry.dispose();
       sparkMaterial.dispose();
       smokeMaterial.dispose();

@@ -46,6 +46,9 @@ function luminance(c: THREE.Color): number {
   return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
 }
 
+/** A lit pin's hue (Task 14b): the gold warmed toward the laser's amber, as the chip makes it. */
+const pinHue = (): THREE.Color => new THREE.Color(palette.gold).lerp(new THREE.Color(palette.amber), CHIP_LOOK.glow.warm);
+
 /** Every mesh, line and points object under `root`, with its geometry and its material(s). */
 function drawn(root: THREE.Object3D): (THREE.Mesh | THREE.Points | THREE.Line | THREE.Sprite)[] {
   const out: (THREE.Mesh | THREE.Points | THREE.Line | THREE.Sprite)[] = [];
@@ -123,15 +126,19 @@ describe('the chip', () => {
     chip.dispose();
   });
 
-  it('glows its lit pins amber, low while loading', () => {
+  it('glows its lit pins a warm amber, low while loading', () => {
     const chip = buildChip();
     const pins = chip.group.getObjectByName('chip:pins') as THREE.InstancedMesh;
     chip.setPins(1);
     const lit = pinColour(pins, 0);
-    const gold = new THREE.Color(palette.gold);
+    const gold = pinHue();
     expect(lit.r / gold.r).toBeCloseTo(CHIP_LOOK.glow.lit, 6);
     expect(lit.g / gold.g).toBeCloseTo(CHIP_LOOK.glow.lit, 6);
-    expect(luminance(lit)).toBeLessThan(1);
+    // Soft while loading (Task 14b): well under the cooled ON's gold, so the filling ring never reads as yellow blocks.
+    expect(luminance(lit)).toBeLessThan(0.25);
+    expect(luminance(lit)).toBeLessThan(luminance(new THREE.Color(palette.gold).multiplyScalar(CHIP_LOOK.engraving.cold)));
+    // And slim: a lead less than a third of the pitch wide, so the row reads as a fringe.
+    expect(CHIP.pinWidth).toBeLessThan(CHIP.size / CHIP.pinsPerSide / 3);
     expect(pinColour(pins, 1).getHex()).toBe(0);
     chip.dispose();
   });
@@ -187,7 +194,7 @@ describe('the chip', () => {
     expect(traces.setGlow.mock.calls.length).toBe(calls);
     // It holds while the power moves on under it, and the body is left as it is.
     chip.setPower(1);
-    const full = new THREE.Color(palette.gold).multiplyScalar(CHIP_LOOK.glow.power * 0.4);
+    const full = pinHue().multiplyScalar(CHIP_LOOK.glow.power * 0.4);
     expect(pinColour(pins, 12).r).toBeCloseTo(full.r, 6);
     const body = chip.group.getObjectByName('chip:body') as THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
     expect(body.material.color.getHex()).toBe(palette.ink);
@@ -200,7 +207,7 @@ describe('the chip', () => {
     const uniforms = strokeMeshes(chip)[0].material.uniforms;
     chip.setPins(4);
     const lit = pinColour(pins, 0);
-    const gold = new THREE.Color(palette.gold);
+    const gold = pinHue();
     expect(lit.r / gold.r).toBeCloseTo(CHIP_LOOK.glow.lit, 6);
     chip.setRest(3);
     expect(pinColour(pins, 0).r).toBeCloseTo(lit.r, 9);
@@ -435,14 +442,27 @@ describe('the laser', () => {
     laser.dispose();
   });
 
-  it('turns off the beam, the point, the sparks and the smoke, and leaves the probe', () => {
+  it("turns the probe as frame 01's brass laser head: brass, a little light of its own, a barrel no longer than the chip is wide", () => {
     const laser = buildLaser();
-    const parts = ['laser:beam', 'laser:point', 'laser:sparks', 'laser:smoke'].map((name) => named(laser, name));
+    const probe = named<THREE.Mesh>(laser, 'laser:probe');
+    const material = probe.material as THREE.MeshStandardMaterial;
+    expect(material.color.getHex()).toBe(palette.brass);
+    expect(material.emissive.getHex()).toBe(palette.brass);
+    expect(material.emissiveIntensity).toBeGreaterThan(0);
+    expect(material.emissiveIntensity).toBeLessThanOrEqual(0.3);
+    const profile = LASER_LOOK.probe.profile;
+    expect(profile[profile.length - 1][1]).toBeLessThanOrEqual(CHIP.size);
+    laser.dispose();
+  });
+
+  it("turns off the beam, the nozzle's glow, the point, the sparks and the smoke, and leaves the probe", () => {
+    const laser = buildLaser();
+    const parts = ['laser:beam', 'laser:nozzle', 'laser:point', 'laser:sparks', 'laser:smoke'].map((name) => named(laser, name));
     laser.setOn(false);
-    expect(parts.map((part) => part.visible)).toEqual([false, false, false, false]);
+    expect(parts.map((part) => part.visible)).toEqual([false, false, false, false, false]);
     expect(named(laser, 'laser:probe').visible).toBe(true);
     laser.setOn(true);
-    expect(parts.map((part) => part.visible)).toEqual([true, true, true, true]);
+    expect(parts.map((part) => part.visible)).toEqual([true, true, true, true, true]);
     laser.dispose();
   });
 
@@ -525,7 +545,7 @@ describe('the laser', () => {
     const textureSpies = [...textures].map((texture) => vi.spyOn(texture, 'dispose'));
     const shared = vi.spyOn(named<THREE.Sprite>(laser, 'laser:smoke').geometry, 'dispose');
     expect(geometries).toHaveLength(3);
-    expect(materials).toHaveLength(5);
+    expect(materials).toHaveLength(6);
     expect(textureSpies).toHaveLength(2);
     laser.dispose();
     for (const spy of [...geometries, ...materials, ...textureSpies]) expect(spy).toHaveBeenCalled();

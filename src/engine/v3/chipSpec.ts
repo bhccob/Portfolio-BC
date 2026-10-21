@@ -21,7 +21,7 @@ export const CHIP = {
   board: -0.15,
   pinsPerSide: 16,
   pinLength: 0.025,
-  pinWidth: 0.008
+  pinWidth: 0.0055
 } as const;
 
 /** How many pins the chip has: 4 sides of 16. The hexagram ring mirrors this count, one hexagram to a pin. */
