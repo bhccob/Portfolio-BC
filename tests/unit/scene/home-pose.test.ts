@@ -14,6 +14,7 @@ import {
   LABEL,
   labelSide,
   labelSpot,
+  layoutWakes,
   PULSE,
   pulseAt,
   type ScreenBox,
@@ -100,6 +101,30 @@ describe('isAiming', () => {
       expect(isAiming(kind, 'home'), kind).toBe(kind === 'HOME_IDLE');
       expect(isAiming(kind, 'country'), kind).toBe(false);
       expect(isAiming(kind, null), kind).toBe(false);
+    }
+  });
+});
+
+describe('layoutWakes', () => {
+  const KINDS: Phase['kind'][] = ['LOADING', 'HOME_IDLE', 'FOCUS_COUNTRY', 'COUNTRY_PAGE', 'DISSECT', 'MORPH', 'VOID_ENTRY', 'PROJECTS', 'PROJECT_FOCUS'];
+
+  it('asks for a frame on a resize, a scroll or a font only while a name can show: live labels on the home at rest', () => {
+    expect(layoutWakes(true, 'HOME_IDLE', 'home')).toBe(true);
+    // Labels not live yet: the frame that brings them live reads the page itself.
+    expect(layoutWakes(false, 'HOME_IDLE', 'home')).toBe(false);
+  });
+
+  it('never wakes a page without a scene, even when Home last left its labels live (it stays mounted behind Lite, contact and a 404)', () => {
+    for (const kind of KINDS) {
+      expect(layoutWakes(true, kind, null), kind).toBe(false);
+      expect(layoutWakes(false, kind, null), kind).toBe(false);
+    }
+  });
+
+  it('leaves every other scene to its own wake (the scroll loop, a phase change): a country, a chapter, a project', () => {
+    for (const kind of KINDS) {
+      if (kind !== 'HOME_IDLE') expect(layoutWakes(true, kind, 'home'), kind).toBe(false);
+      expect(layoutWakes(true, kind, 'country'), kind).toBe(false);
     }
   });
 });

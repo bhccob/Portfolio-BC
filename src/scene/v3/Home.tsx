@@ -1,6 +1,6 @@
 import { Html } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
-import { type ComponentProps, type JSX, useEffect, useMemo, useRef, useState } from 'react';
+import { type ComponentProps, type JSX, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { COUNTRY_IDS, type CountryId } from '~/data/directions';
 import { AngleSpring, wrapAngle } from '~/engine/AngleSpring';
@@ -14,7 +14,7 @@ import { useTranslator } from '~/i18n/useTranslator';
 import { frame } from '~/state/frame';
 import { useScene } from '~/state/store';
 import { motion } from '../motion';
-import { aimSource, breathAt, clearOfHero, glowToward, IDLE_SECONDS, idleRuns, isAiming, type LabelSide, labelSide, labelSpot, pulseAt, type ScreenBox } from './homePose';
+import { aimSource, breathAt, clearOfHero, glowToward, IDLE_SECONDS, idleRuns, isAiming, type LabelSide, labelSide, labelSpot, layoutWakes, pulseAt, type ScreenBox } from './homePose';
 import { LOOK } from './look';
 import { LANDING_BEARING } from './openingPose';
 
@@ -154,7 +154,8 @@ interface HomeState {
  * 0.3 s (base.css `.constellation-label`). Nothing else is named. A name that would stand within `HERO_ROOM` of the hero's text (the name and tagline at the upper left, the
  * scroll cue below) stands under its figure instead (`clearOfHero`), so it never reads as a word of the hero's. The
  * placer reads the hero's boxes and the labels' sizes from the page only when the layout may have moved (`layout`)
- * and only while a name can show (`labelsLive`), not on every frame.
+ * and only while a name can show (`labelsLive`), not on every frame; a layout change asks for a frame only then too
+ * (`layoutWakes`), so a resize, a scroll or a font on a page without a scene never wakes the canvas behind it.
  *
  * **Idle.** For IDLE_SECONDS after the last stir (the hand-over, a phase change, a pointer move at home) and on until
  * the touch drift rests on a constellation, the stars twinkle, the needle's tip breathes (±10 %, 4 s) and the city
@@ -233,20 +234,24 @@ export function Home({ models, handover, finePointer }: HomeProps): JSX.Element 
     return made;
   }, [models]);
 
+  /**
+   * The page's layout may have moved: the placer reads it again on its next frame, and a frame is asked for only while
+   * a name can show (`layoutWakes`). Home stays mounted behind a page without a scene, which must never wake the canvas.
+   */
+  const relayout = useCallback((): void => {
+    layoutMoved();
+    const { phase, scene } = useScene.getState();
+    if (layoutWakes(labelsLive, phase.kind, scene)) invalidate();
+  }, [invalidate]);
+
   // A name in another language is another width, and the hero's lines are others too: the placer reads the page again
   // and places the labels on a frame.
-  useEffect(() => {
-    layoutMoved();
-    invalidate();
-  }, [t, invalidate]);
+  useEffect(() => relayout(), [t, relayout]);
 
   // What else moves the boxes the placer reads: the window's size, the page's scroll (the hero scrolls with it), and a
   // font arriving (the hero's and the labels' text takes its own metrics then).
   useEffect(() => {
-    const moved = (): void => {
-      layoutMoved();
-      invalidate();
-    };
+    const moved = relayout;
     let gone = false;
     window.addEventListener('resize', moved, { passive: true });
     window.addEventListener('scroll', moved, { passive: true });
@@ -261,7 +266,7 @@ export function Home({ models, handover, finePointer }: HomeProps): JSX.Element 
       window.removeEventListener('scroll', moved);
       fonts?.removeEventListener('loadingdone', moved);
     };
-  }, [invalidate]);
+  }, [relayout]);
 
   // Gone: no needle points at anything, and nothing of the home's keeps the canvas drawing.
   useEffect(

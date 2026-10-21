@@ -70,6 +70,18 @@ export function isAiming(phase: Phase['kind'], scene: SceneKind | null): boolean
   return phase === 'HOME_IDLE' && scene === 'home';
 }
 
+/**
+ * Whether a change of the page's layout (a resize, a scroll, a font arriving, the language changing) asks the canvas
+ * for a frame, so the constellations' names are placed again: only while a name can show, as Home's last frame left
+ * it (`labelsLive`), and the home is at rest now (`isAiming`). Anywhere else the canvas sleeps through it: a page
+ * without a scene asks for no frame at all (src/scene/Heartbeat.tsx), and Home stays mounted behind Lite, contact and
+ * a 404, where its last frame may have left `labelsLive` set. The layout is still marked moved, and the placer reads
+ * the page afresh when the names come live again.
+ */
+export function layoutWakes(labelsLive: boolean, phase: Phase['kind'], scene: SceneKind | null): boolean {
+  return labelsLive && isAiming(phase, scene);
+}
+
 /** Where the needle's target comes from this frame: the pointer, the touch drift, or nowhere (it holds its last). */
 export type AimSource = 'pointer' | 'drift' | 'hold';
 

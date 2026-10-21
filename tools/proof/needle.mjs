@@ -123,7 +123,9 @@
  *              /en/contact/) asks for none of the scene's files (the Stage chunk, three.js, maath, the textures),
  *              mounts no <canvas>, probes no WebGL, shows no fallback card and leaves LOADING with 3D still on; from
  *              the home page to Lite by client navigation the one canvas stays (canvasMounts 1, the same node) and
- *              sleeps: no requestAnimationFrame at all through 1.5 s of mouse moves; back home the pointer wakes it
+ *              sleeps: no requestAnimationFrame at all through 1.5 s of mouse moves, nor through scrolling (wheel and
+ *              scrollTo) or the window's resize and the fonts' loadingdone events sent with no change of size; a real
+ *              resize redraws it once at its new size and it sleeps again; back home the pointer wakes it
  *   no-webgl   Edge with WebGL switched off (--disable-webgl --disable-3d-apis): / and /en/ show the poster (the
  *              CSS panel of the night, no image, over the whole viewport) and
  *              the fallback card (THE NEEDLE LOST NORTH, in the page's language) with its link to Lite, no
@@ -1842,6 +1844,51 @@ async function noScene(browser, step) {
   step.check(kept.route === 'lite' && kept.mounts === 1 && kept.canvases === 1 && kept.tag === 'home-canvas', `home → Lite by client navigation: one Stage, the same <canvas> (got ${JSON.stringify(kept)})`);
   step.check(slept === 0, `on Lite the canvas sleeps: no requestAnimationFrame in 1.5 s of the mouse moving over the page (got ${slept})`);
 
+  // Scrolling, resizing and a font arriving on Lite wake nothing either (Task 14b, fix 1): Home stays mounted behind a
+  // page without a scene, and its layout listeners must not ask for frames there. The page scrolled for real, by wheel
+  // and by script; then the window's `resize` and the fonts' `loadingdone` sent as the browser sends them but with no
+  // change of size, so only the page's own listeners can answer; then a real resize, which redraws the canvas once at
+  // its new size (R3F's store and the Rig frame a new size: a wake the Heartbeat's contract names) and sleeps again.
+  const frames = () => page.evaluate(() => window.__allRaf);
+  let at = await frames();
+  for (let i = 0; i < 10; i++) {
+    await page.mouse.wheel(0, 240);
+    await page.waitForTimeout(100);
+  }
+  for (let i = 0; i < 5; i++) {
+    await page.evaluate((y) => window.scrollTo(0, y), 300 * i);
+    await page.waitForTimeout(100);
+  }
+  await page.waitForTimeout(300);
+  const scrolled = { frames: (await frames()) - at, moved: await page.evaluate(() => window.scrollY > 0) };
+  at = await frames();
+  for (let i = 0; i < 5; i++) {
+    await page.evaluate(() => {
+      window.dispatchEvent(new Event('resize'));
+      document.fonts.dispatchEvent(new Event('loadingdone'));
+    });
+    await page.waitForTimeout(100);
+  }
+  await page.waitForTimeout(300);
+  const nudged = (await frames()) - at;
+  const viewport = page.viewportSize();
+  at = await frames();
+  await page.setViewportSize({ width: viewport.width - 160, height: viewport.height - 100 });
+  await page.waitForTimeout(500);
+  const resized = (await frames()) - at;
+  at = await frames();
+  for (let i = 0; i < 5; i++) {
+    await page.mouse.wheel(0, -240);
+    await page.waitForTimeout(100);
+  }
+  await page.waitForTimeout(500);
+  const after = (await frames()) - at;
+  step.check(scrolled.moved && scrolled.frames === 0, `on Lite scrolling (10 wheel turns, 5 scrollTo) asks for no frame (got ${scrolled.frames}, scrolled ${scrolled.moved})`);
+  step.check(nudged === 0, `on Lite the window's resize event and the fonts' loadingdone, with no change of size, ask for no frame (got ${nudged})`);
+  step.check(resized <= 2 && after === 0, `on Lite a real resize redraws the canvas once at its new size and it sleeps again: no frame in the scrolling after (got ${resized}, then ${after})`);
+  await page.setViewportSize(viewport);
+  await page.waitForTimeout(500);
+
   // Back on the home page the scene is shown again, and the pointer wakes it.
   await page.click('.site-header a.site-name');
   await page.waitForURL(`${BASE}/`, { timeout: 5_000 });
@@ -1853,7 +1900,7 @@ async function noScene(browser, step) {
   step.check(woke > 0, `back on the home page the pointer wakes the canvas again (${woke} frames asked for in 300 ms)`);
   await takeCsp(page, step);
   await context.close();
-  return `${SCENELESS.join(', ')}: no scene file, no canvas, out of LOADING; home → Lite keeps the one canvas asleep (0 frames in 1.5 s of mouse moves), and home wakes it`;
+  return `${SCENELESS.join(', ')}: no scene file, no canvas, out of LOADING; home → Lite keeps the one canvas asleep (0 frames through mouse moves, scrolling, resize and font events; one redraw for a real resize), and home wakes it`;
 }
 
 /** A token's `#rrggbb` as the computed style writes the colour (`rgb(r, g, b)`); anything else as it is. */
