@@ -1077,6 +1077,31 @@ it('rests every constellation dim and lights only the one asked', () => {
 
 ---
 
+### Task 14b: Composition pass toward frame 04 (Rulings 11, 12)
+
+Added during execution: the first full home stills had the right dark mood but not the approved frame.
+- The compass sat small in the middle: the camera was pulled back so every star would fit.
+- The chip city hung below the disc like a floating island.
+- The stars barely showed; the lines dominated.
+
+**Files:**
+- Modify: `src/engine/v3/shots.ts`, `src/engine/v3/constellations.ts` (placements), `src/engine/v3/build/constellations.ts`, `src/engine/v3/build/glassCompass.ts` (or a new `src/engine/v3/build/case.ts`), `src/scene/v3/Opening.tsx` (adding the case), `src/styles/base.css` (the hero's colour)
+- Test: the tests of Tasks 5, 6 and 11 updated to the new targets
+
+**Targets** (frame 04, `docs/design/needle-v3/04-home-constellations.webp`, is the reference; still darker and calmer than the frame):
+- **Camera:** lower and closer. At 1440 × 900 the rim spans at least 45 % of the viewport width, and the horizon sits near the upper third. On a phone, the rim spans at least 80 % of the width.
+- **Constellations:** closer round the compass, still wrapping it in 3D (some low stars in front of the rim on the camera side). At 1440 × 900 every star stays in frame. On a phone each constellation's centre stays in frame, as Task 6 already requires.
+- **Stars:** clearly brighter than their lines (the star cores at least 3× the lines' luminance), while unpointed constellations stay dim (spec §4).
+- **The city:** reads as under the glass. A dark case (an outer wall at the rim from the board up to the glass, and a floor) encloses it, so no block shows below or outside the rim from any home or loader shot.
+- **Hero colour** (Ruling 11): the name in `palette.cream` (the approved prototype `ui-02` shows a pale cream/gold name), the tagline in `palette.gold`, the cue `--dim`. The position stays upper left, so the ship holds the top centre. Contrast is at least 4.5 : 1.
+
+- [ ] **Step 1:** Update the framing tests (Task 6) and the placement tests (Task 5) to the new targets. Run them. Expected: FAIL.
+- [ ] **Step 2:** Retune `PLACEMENTS` and the shots until the tests pass. Add the case. Retune the star and line brightness. Recolour the hero.
+- [ ] **Step 3:** Rebuild, run the full harness (Task 14's steps), and look at `m2/home-*`, `m2/point-*` and `m2/loader-*` next to frames 01–04. Iterate until they read like the frames, darker and calmer. The `home-look` gate must still pass. Describe the final stills honestly in the report.
+- [ ] **Step 4:** Run `npm test`, typecheck, build and the auditor. Commit: `v3: the home framed like the approved frame`.
+
+---
+
 ### Task 15: Remove milestone 1's placeholder compass
 
 **Files:**
