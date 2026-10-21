@@ -47,7 +47,7 @@ Until M4, scrolling on the home page changes the phase as milestone 1 does, but 
   - `npm test`
   - `npm run typecheck`
   - `npm run build`
-  - the auditor, run through Pyodide with `node C:/Users/bhcco/AppData/Local/Temp/claude/C--Users-bhcco-Downloads-Portfolio-bob/08ba728b-ecc5-49f9-ab55-b47115795366/scratchpad/audit-needle.mjs`. Python is not installed. It must report 0 errors.
+  - the auditor, run through Pyodide with `node C:/Users/bhcco/AppData/Local/Temp/claude/C--Users-bhcco-Downloads-Portfolio-bob/08ba728b-ecc5-49f9-ab55-b47115795366/scratchpad/audit-needle.mjs C:/Users/bhcco/Downloads/Portfolio-bob/.claude/worktrees/needle-v3-m2`, run after `npm run build`. The path argument is required: the runner's default is a deleted worktree. Python is not installed. It must report 0 errors.
 
   Tasks 12–15 also run the proof harness:
   - Start the server with `node tools/serve-pages.mjs` (port 4399).
