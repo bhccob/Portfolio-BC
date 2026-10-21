@@ -45,7 +45,7 @@ export function jumpTarget(to: 'home' | 'end', c: Chapters): number {
 
 /**
  * Whether the scroll input takes the wheel, touch and keys: only with 3D on and only in the phases the scroll
- * moves through. Anywhere else (loading, a country in focus, a page) the input leaves the browser its own.
+ * moves through. Anywhere else (loading, a page) the input leaves the browser its own.
  */
 export function scrollEnabled(state: { threeD: boolean; phase: Phase }): boolean {
   return state.threeD && SCROLL_PHASES.has(state.phase.kind);

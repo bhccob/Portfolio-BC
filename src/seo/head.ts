@@ -7,7 +7,7 @@ const OG_IMAGE = '/og.jpg';
 
 export interface HeadInput {
   locale: Locale;
-  /** The locale-neutral route of the page, e.g. `/about/china/` (see `PAGES`). */
+  /** The locale-neutral route of the page, e.g. `/projects/funcial/` (see `PAGES`). */
   route: string;
   /** The page's own title; " | Bob Chung" follows it. The home page ('/') gives its complete title, which is used as it is. */
   title: string;

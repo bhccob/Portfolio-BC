@@ -6,7 +6,14 @@ describe('pagePaths', () => {
 
   it('lists every page in both locales', () => {
     expect(paths).toHaveLength(Object.keys(PAGES).length * 2);
-    expect(paths).toHaveLength(18);
+    expect(paths).toHaveLength(12);
+  });
+
+  it('has no country pages', () => {
+    expect(Object.keys(PAGES)).not.toContain('about-china');
+    expect(Object.keys(PAGES).filter((id) => id.startsWith('about-'))).toEqual([]);
+    expect(paths.filter((path) => path.includes('/about/'))).toEqual([]);
+    expect(pagePaths()).toHaveLength(2 * 6);
   });
 
   it('has no duplicates', () => {

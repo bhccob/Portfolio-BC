@@ -11,7 +11,6 @@ import { LiteOffDuty } from '~/ui/lite/LiteOffDuty';
 import { LiteQa } from '~/ui/lite/LiteQa';
 import { LiteSkills } from '~/ui/lite/LiteSkills';
 import { LiteWork } from '~/ui/lite/LiteWork';
-import { LiteWorld } from '~/ui/lite/LiteWorld';
 import { HANDLES, type RouteHandle } from '../handle';
 
 export const meta: MetaFunction = ({ location }) => {
@@ -24,8 +23,8 @@ export const handle: RouteHandle = HANDLES.lite;
 
 /**
  * The Lite version: the whole portfolio as one page of text, with no 3D. It is where a visitor lands
- * when 3D is off or WebGL fails, so it carries all the site's copy, in the order of the compass: the
- * countries, the work, then about, skills, career, off duty, the questions and the way to write.
+ * when 3D is off or WebGL fails, so it carries all the site's copy: the work, then about (the header's
+ * Work and About open it at these two), skills, career, off duty, the questions and the way to write.
  */
 export default function Lite() {
   const { t } = useTranslator();
@@ -36,7 +35,6 @@ export default function Lite() {
       <h1 className="page-title">{t.needle.liteLink}</h1>
       <p className="lead">{t.meta.liteDescription}</p>
 
-      <LiteWorld />
       <LiteWork />
       <LiteAbout />
       <LiteSkills />

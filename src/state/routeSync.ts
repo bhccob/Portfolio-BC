@@ -1,7 +1,5 @@
 import { useEffect } from 'react';
 import { NavigationType, useLocation, useNavigationType } from 'react-router';
-import { countryFromRoute } from '~/data/directions';
-import { PAGES, type PageId } from '~/data/pages';
 import { projects } from '~/data/projects';
 import { routeFromPath } from '~/i18n/locale';
 import { type Locale, Translator } from '~/i18n/Translator';
@@ -11,14 +9,12 @@ import { type Phase, samePhase, transition } from './machine';
 import { useScene } from './store';
 
 /**
- * The phase a URL stands for: a country page or a project page. The home page, and every page without a
- * scene (Lite, contact, not found), have none of their own, so it gives null and the scroll decides.
- * It reads the page the way the router does, so a real page under another spelling (`/About/China/`) is not one.
+ * The phase a URL stands for: a project page. The home page, and every page without a scene (Lite, contact,
+ * not found), have none of their own, so it gives null and the scroll decides.
+ * It reads the page the way the router does, so a real page under another spelling (`/Projects/Funcial/`) is not one.
  */
 export function phaseForPath(pathname: string): Phase | null {
   const route = routeFromPath(pathname);
-  const dir = countryFromRoute(route);
-  if (dir) return { kind: 'COUNTRY_PAGE', dir };
   const project = projects.byRoute(route);
   if (project) return { kind: 'PROJECT_FOCUS', id: project.id };
   return null;
@@ -27,10 +23,6 @@ export function phaseForPath(pathname: string): Phase | null {
 /** The page of a phase, in a locale, or null for the phases that are not a page (they live on the home page). */
 export function pathForPhase(phase: Phase, locale: Locale): string | null {
   switch (phase.kind) {
-    case 'COUNTRY_PAGE': {
-      const page: PageId = `about-${phase.dir}`;
-      return Translator.pathFor(locale, PAGES[page]);
-    }
     case 'PROJECT_FOCUS': {
       const project = projects.byId(phase.id);
       return project ? Translator.pathFor(locale, projects.route(project)) : null;
@@ -90,7 +82,7 @@ function phaseFromScroll(): Phase {
 
 /**
  * Brings the scene's phase in line with the location the router now shows:
- * - a country or project page gives its phase, unless the scene is already in it (a language switch keeps
+ * - a project page gives its phase, unless the scene is already in it (a language switch keeps
  *   the phase and its transition);
  * - any other location leaves a page phase for the phase the scroll is in. A scene that is not on a page
  *   (loading, or already on the scroll) is left alone: the scroll and the scene's own events own those.
@@ -110,7 +102,7 @@ export function syncRoute(location: { pathname: string; key: string }, navigatio
   const own = phaseForPath(location.pathname);
   if (own) {
     if (!samePhase(phase, own)) dispatch({ type: 'ROUTE', phase: own });
-  } else if (phase.kind === 'COUNTRY_PAGE' || phase.kind === 'PROJECT_FOCUS') {
+  } else if (phase.kind === 'PROJECT_FOCUS') {
     dispatch({ type: 'ROUTE', phase: phaseFromScroll() });
   }
 }

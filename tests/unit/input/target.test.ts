@@ -119,8 +119,6 @@ describe('scrollEnabled', () => {
 
   it('is off for every other phase', () => {
     expect(scrollEnabled({ threeD: true, phase: phase('LOADING') })).toBe(false);
-    expect(scrollEnabled({ threeD: true, phase: { kind: 'FOCUS_COUNTRY', dir: 'china' } })).toBe(false);
-    expect(scrollEnabled({ threeD: true, phase: { kind: 'COUNTRY_PAGE', dir: 'china' } })).toBe(false);
     expect(scrollEnabled({ threeD: true, phase: { kind: 'PROJECT_FOCUS', id: 'funcial' } })).toBe(false);
   });
 });

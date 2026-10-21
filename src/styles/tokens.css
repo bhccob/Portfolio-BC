@@ -32,7 +32,7 @@
   --gold-title: #f9dc87; /* heavy titles; 15.0:1 */
   --ink: #fcedc0; /* reading text and labels; 17.3:1 */
   --ink-dim: #8c8879; /* secondary text; 5.7:1 */
-  --lilac: #b8aad8; /* palette.lilac: the scene's quiet words, as a constellation's name; 9.6:1 on --night */
+  --lilac: #b8aad8; /* palette.lilac: the scene's quiet words; 9.6:1 on --night */
   --dim: #9789bb; /* palette.dim: its quieter words, as the scroll cue; 6.5:1 on --night */
   --cream: #f1e8d3; /* palette.cream: pale cream-gold; 16.9:1 on --night */
   --gold: #d9a520; /* palette.gold: the compass's own gold; 9.2:1 on --night */
@@ -43,16 +43,6 @@
   --amber-spill: #edab35;
   --gold-glow: #efb53d;
   --gold-core: #fef0a9;
-
-  /* country accents: each lives on its own arm and its own page */
-  --cn-cinnabar: #a8352a;
-  --cn-cinnabar-hi: #d0563c;
-  --nl-delft-deep: #123a72;
-  --nl-delft: #1d5fa8;
-  --nl-glaze: #e8edf5;
-  --aw-sea-deep: #0c6467;
-  --aw-sea: #2db3a8;
-  --aw-gold: #f2b950;
 
   /* type: Montserrat for the name and reading text, Unbounded for heavy titles, Martian Mono for labels */
   --font-name: 'Montserrat Variable', 'Montserrat', system-ui, sans-serif;

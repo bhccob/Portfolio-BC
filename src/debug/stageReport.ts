@@ -1,19 +1,14 @@
-import type { CountryId } from '~/data/directions';
-
 /** What the Stage tells the debug bridge (`window.__needleDebug`); the Stage's `StageProbe` registers it, under `?proof` only. */
 export interface StageSnapshot {
   dpr: number;
   fps: number;
   camera: { position: [number, number, number]; fov: number };
-  /** Each constellation's anchor on the screen, CSS pixels from the viewport's top left (src/debug/constellationAnchors.ts). */
-  constellations: Record<CountryId, [x: number, y: number]>;
 }
 
 const NONE: StageSnapshot = {
   dpr: 0,
   fps: 0,
   camera: { position: [0, 0, 0], fov: 0 },
-  constellations: { china: [0, 0], netherlands: [0, 0], aruba: [0, 0] },
 };
 
 let probe: (() => StageSnapshot) | null = null;

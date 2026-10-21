@@ -49,25 +49,21 @@ describe('the stage probe', () => {
   let unregister = (): void => {};
   afterEach(() => unregister());
 
-  /** No constellation anywhere: what a test Stage reports when it has none to place. */
-  const nowhere: StageSnapshot['constellations'] = { china: [0, 0], netherlands: [0, 0], aruba: [0, 0] };
-
-  it('reads zeros while no Stage is mounted, every constellation at [0, 0]', () => {
-    expect(readStageProbe()).toEqual({ dpr: 0, fps: 0, camera: { position: [0, 0, 0], fov: 0 }, constellations: nowhere });
+  it('reads zeros while no Stage is mounted', () => {
+    expect(readStageProbe()).toEqual({ dpr: 0, fps: 0, camera: { position: [0, 0, 0], fov: 0 } });
   });
 
   it('reads what the mounted Stage reports, and zeros again once it unregisters', () => {
-    const snapshot: StageSnapshot = { dpr: 1.25, fps: 58.5, camera: { position: [0, 0.1, 5], fov: 30 }, constellations: { ...nowhere, china: [1200, 400] } };
+    const snapshot: StageSnapshot = { dpr: 1.25, fps: 58.5, camera: { position: [0, 0.1, 5], fov: 30 } };
     unregister = registerStageProbe(() => snapshot);
     expect(readStageProbe()).toBe(snapshot);
     unregister();
     expect(readStageProbe().dpr).toBe(0);
-    expect(readStageProbe().constellations.china).toEqual([0, 0]);
   });
 
   it('does not let an old Stage unregister the one that replaced it', () => {
-    const old = registerStageProbe(() => ({ dpr: 1, fps: 1, camera: { position: [0, 0, 1], fov: 1 }, constellations: nowhere }));
-    const next: StageSnapshot = { dpr: 2, fps: 2, camera: { position: [0, 0, 2], fov: 2 }, constellations: nowhere };
+    const old = registerStageProbe(() => ({ dpr: 1, fps: 1, camera: { position: [0, 0, 1], fov: 1 } }));
+    const next: StageSnapshot = { dpr: 2, fps: 2, camera: { position: [0, 0, 2], fov: 2 } };
     unregister = registerStageProbe(() => next);
     old();
     expect(readStageProbe()).toBe(next);

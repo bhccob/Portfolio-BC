@@ -5,10 +5,10 @@ import { arrivedDirectly, backTarget, pathForPhase, phaseForPath, resetRouteSync
 import { useScene } from '../../../src/state/store';
 
 describe('phaseForPath', () => {
-  it('reads a country page', () => {
-    expect(phaseForPath('/about/china/')).toEqual({ kind: 'COUNTRY_PAGE', dir: 'china' });
-    expect(phaseForPath('/en/about/aruba/')).toEqual({ kind: 'COUNTRY_PAGE', dir: 'aruba' });
-    expect(phaseForPath('/about/netherlands/')).toEqual({ kind: 'COUNTRY_PAGE', dir: 'netherlands' });
+  it('has no phase for the old country addresses: they are no page now', () => {
+    expect(phaseForPath('/about/china/')).toBeNull();
+    expect(phaseForPath('/en/about/aruba/')).toBeNull();
+    expect(phaseForPath('/about/netherlands/')).toBeNull();
   });
 
   it('reads a project page', () => {
@@ -28,23 +28,18 @@ describe('phaseForPath', () => {
   });
 
   it('does not take a page under another spelling for the page, and does not throw', () => {
-    expect(phaseForPath('/About/China/')).toBeNull();
+    expect(phaseForPath('/Projects/Funcial/')).toBeNull();
     expect(phaseForPath('/en/projects/FUNCIAL/')).toBeNull();
     expect(phaseForPath('/about/')).toBeNull();
     expect(phaseForPath('/projects/')).toBeNull();
   });
 
   it('reads a path without its trailing slash', () => {
-    expect(phaseForPath('/about/china')).toEqual({ kind: 'COUNTRY_PAGE', dir: 'china' });
+    expect(phaseForPath('/projects/funcial')).toEqual({ kind: 'PROJECT_FOCUS', id: 'funcial' });
   });
 });
 
 describe('pathForPhase', () => {
-  it('gives the page of a country in the locale asked', () => {
-    expect(pathForPhase({ kind: 'COUNTRY_PAGE', dir: 'china' }, 'en')).toBe('/en/about/china/');
-    expect(pathForPhase({ kind: 'COUNTRY_PAGE', dir: 'aruba' }, 'nl')).toBe('/about/aruba/');
-  });
-
   it('gives the page of a project', () => {
     expect(pathForPhase({ kind: 'PROJECT_FOCUS', id: 'funcial' }, 'nl')).toBe('/projects/funcial/');
     expect(pathForPhase({ kind: 'PROJECT_FOCUS', id: 'cookies-clicker' }, 'en')).toBe('/en/projects/cookies-clicker/');
@@ -57,14 +52,13 @@ describe('pathForPhase', () => {
   it('gives nothing for the phases that live on the home page', () => {
     expect(pathForPhase({ kind: 'LOADING' }, 'nl')).toBeNull();
     expect(pathForPhase({ kind: 'HOME_IDLE' }, 'nl')).toBeNull();
-    expect(pathForPhase({ kind: 'FOCUS_COUNTRY', dir: 'china' }, 'nl')).toBeNull();
     expect(pathForPhase({ kind: 'DISSECT' }, 'en')).toBeNull();
     expect(pathForPhase({ kind: 'PROJECTS', category: null }, 'en')).toBeNull();
   });
 
   it('is the inverse of phaseForPath for the pages', () => {
     for (const locale of ['nl', 'en'] as const) {
-      for (const phase of [phaseForPath('/about/netherlands/'), phaseForPath('/projects/jontai-energy/')]) {
+      for (const phase of [phaseForPath('/projects/funcial/'), phaseForPath('/projects/jontai-energy/')]) {
         const path = pathForPhase(phase!, locale);
         expect(path).not.toBeNull();
         expect(phaseForPath(path!)).toEqual(phase);
@@ -90,22 +84,23 @@ describe('syncRoute', () => {
   });
   afterEach(resetRouteSync);
 
-  it('dispatches the page phase of a country page', () => {
-    syncRoute({ pathname: '/about/china/', key: 'default' });
-    expect(useScene.getState().phase).toEqual({ kind: 'COUNTRY_PAGE', dir: 'china' });
-    expect(useScene.getState().transitionId).toBe(1);
-  });
-
   it('dispatches the page phase of a project page', () => {
     syncRoute({ pathname: '/en/projects/funcial/', key: 'default' });
     expect(useScene.getState().phase).toEqual({ kind: 'PROJECT_FOCUS', id: 'funcial' });
+    expect(useScene.getState().transitionId).toBe(1);
+  });
+
+  it('does nothing for an old country address: it is no page, and the scene stays loading', () => {
+    syncRoute({ pathname: '/about/china/', key: 'default' });
+    expect(useScene.getState().phase).toEqual({ kind: 'LOADING' });
+    expect(useScene.getState().transitionId).toBe(0);
   });
 
   it('keeps the phase, and the transition, when only the language changes', () => {
-    syncRoute({ pathname: '/about/china/', key: 'a' });
+    syncRoute({ pathname: '/projects/funcial/', key: 'a' });
     const phase = useScene.getState().phase;
     const id = useScene.getState().transitionId;
-    syncRoute({ pathname: '/en/about/china/', key: 'b' });
+    syncRoute({ pathname: '/en/projects/funcial/', key: 'b' });
     expect(useScene.getState().phase).toBe(phase);
     expect(useScene.getState().transitionId).toBe(id);
   });
@@ -124,7 +119,7 @@ describe('syncRoute', () => {
   });
 
   it('lets the scroll decide when a page is left for the home page', () => {
-    syncRoute({ pathname: '/about/china/', key: 'a' });
+    syncRoute({ pathname: '/projects/funcial/', key: 'a' });
     syncRoute({ pathname: '/', key: 'b' });
     expect(useScene.getState().phase).toEqual({ kind: 'HOME_IDLE' });
   });
@@ -138,15 +133,15 @@ describe('syncRoute', () => {
   });
 
   it('lets the scroll decide when a page is left for a page without a scene', () => {
-    syncRoute({ pathname: '/about/aruba/', key: 'a' });
+    syncRoute({ pathname: '/projects/cookies-clicker/', key: 'a' });
     syncRoute({ pathname: '/contact/', key: 'b' });
     expect(useScene.getState().phase).toEqual({ kind: 'HOME_IDLE' });
   });
 
   it('moves from one page to another', () => {
-    syncRoute({ pathname: '/about/china/', key: 'a' });
-    syncRoute({ pathname: '/about/aruba/', key: 'b' });
-    expect(useScene.getState().phase).toEqual({ kind: 'COUNTRY_PAGE', dir: 'aruba' });
+    syncRoute({ pathname: '/projects/funcial/', key: 'a' });
+    syncRoute({ pathname: '/projects/cookies-clicker/', key: 'b' });
+    expect(useScene.getState().phase).toEqual({ kind: 'PROJECT_FOCUS', id: 'cookies-clicker' });
   });
 });
 
@@ -156,21 +151,21 @@ describe('arrivedDirectly', () => {
 
   it('is true before anything has been shown, and on the page the document loaded on', () => {
     expect(arrivedDirectly()).toBe(true);
-    syncRoute({ pathname: '/about/china/', key: 'default' });
+    syncRoute({ pathname: '/projects/funcial/', key: 'default' });
     expect(arrivedDirectly()).toBe(true);
   });
 
   it('is false on a page reached by client navigation', () => {
     syncRoute({ pathname: '/', key: 'default' });
-    syncRoute({ pathname: '/about/china/', key: 'k1' });
+    syncRoute({ pathname: '/projects/funcial/', key: 'k1' });
     expect(arrivedDirectly()).toBe(false);
   });
 
   it('is true again on the entry the document loaded on, after going back to it', () => {
-    syncRoute({ pathname: '/about/china/', key: 'default' });
+    syncRoute({ pathname: '/projects/funcial/', key: 'default' });
     syncRoute({ pathname: '/', key: 'k1' });
     expect(arrivedDirectly()).toBe(false);
-    syncRoute({ pathname: '/about/china/', key: 'default' });
+    syncRoute({ pathname: '/projects/funcial/', key: 'default' });
     expect(arrivedDirectly()).toBe(true);
   });
 
@@ -180,8 +175,8 @@ describe('arrivedDirectly', () => {
   });
 
   it('does not change when the same location is synced again', () => {
-    syncRoute({ pathname: '/about/china/', key: 'default' });
-    syncRoute({ pathname: '/about/china/', key: 'default' });
+    syncRoute({ pathname: '/projects/funcial/', key: 'default' });
+    syncRoute({ pathname: '/projects/funcial/', key: 'default' });
     expect(arrivedDirectly()).toBe(true);
   });
 
@@ -194,9 +189,9 @@ describe('arrivedDirectly', () => {
     });
 
     it('follows the loaded entry through several replaces', () => {
-      syncRoute({ pathname: '/about/china/', key: 'default' }, NavigationType.Pop);
-      syncRoute({ pathname: '/en/about/china/', key: 'r1' }, NavigationType.Replace);
-      syncRoute({ pathname: '/about/china/', key: 'r2' }, NavigationType.Replace);
+      syncRoute({ pathname: '/projects/funcial/', key: 'default' }, NavigationType.Pop);
+      syncRoute({ pathname: '/en/projects/funcial/', key: 'r1' }, NavigationType.Replace);
+      syncRoute({ pathname: '/projects/funcial/', key: 'r2' }, NavigationType.Replace);
       expect(arrivedDirectly()).toBe(true);
     });
 
@@ -211,8 +206,8 @@ describe('arrivedDirectly', () => {
 
     it('does not move the loaded entry when some other entry is replaced', () => {
       syncRoute({ pathname: '/', key: 'default' }, NavigationType.Pop);
-      syncRoute({ pathname: '/about/china/', key: 'k1' }, NavigationType.Push);
-      syncRoute({ pathname: '/en/about/china/', key: 'r1' }, NavigationType.Replace);
+      syncRoute({ pathname: '/projects/funcial/', key: 'k1' }, NavigationType.Push);
+      syncRoute({ pathname: '/en/projects/funcial/', key: 'r1' }, NavigationType.Replace);
       expect(arrivedDirectly()).toBe(false);
       syncRoute({ pathname: '/', key: 'default' }, NavigationType.Pop);
       expect(arrivedDirectly()).toBe(true);
@@ -225,7 +220,7 @@ describe('arrivedDirectly', () => {
 
     it('is not told apart from a push when the type is not given', () => {
       syncRoute({ pathname: '/', key: 'default' });
-      syncRoute({ pathname: '/about/china/', key: 'k1' });
+      syncRoute({ pathname: '/projects/funcial/', key: 'k1' });
       expect(arrivedDirectly()).toBe(false);
     });
   });
@@ -245,7 +240,7 @@ describe('React Router and the entry key', () => {
   it('gives a pushed entry a new key and reports PUSH', async () => {
     const router = createMemoryRouter([{ path: '*', element: null }], { initialEntries: ['/'] });
     const first = router.state.location.key;
-    await router.navigate('/about/china/');
+    await router.navigate('/projects/funcial/');
     expect(router.state.historyAction).toBe('PUSH');
     expect(router.state.location.key).not.toBe(first);
     router.dispose();

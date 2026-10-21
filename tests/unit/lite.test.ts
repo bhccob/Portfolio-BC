@@ -59,12 +59,13 @@ describe('the Lite page', () => {
         levels.slice(1).forEach((level, index) => expect(level - levels[index], `h${levels[index]} then h${level}`).toBeLessThanOrEqual(1));
       });
 
-      it('has the sections in order: the countries, the work, about, skills, career, off duty, the questions, the contact link', () => {
-        const ids = ['world', 'work', 'about', 'skills', 'career', 'off-duty', 'questions', 'contact'];
+      it('has the sections in order: the work, about, skills, career, off duty, the questions, the contact link, and no section of the countries', () => {
+        const ids = ['work', 'about', 'skills', 'career', 'off-duty', 'questions', 'contact'];
         const places = ids.map((id) => html.indexOf(`<section id="${id}"`));
         expect(places.every((place) => place >= 0), ids.join()).toBe(true);
         expect([...places].sort((a, b) => a - b)).toEqual(places);
         expect(html).toContain('id="career"');
+        expect(html).not.toContain('<section id="world"');
       });
 
       it('tells the Hakka line in the about section, and nowhere else', () => {
@@ -74,13 +75,13 @@ describe('the Lite page', () => {
       });
 
       it('shows each section\u2019s heading (the work section keeps its old heading, "Projects, one build at a time")', () => {
-        const headings = [t.nav.about, t.work.title, t.about.title, t.skills.title, t.career.title, t.life.title, t.compass.qa.title, t.cta.title];
+        const headings = [t.work.title, t.about.title, t.skills.title, t.career.title, t.life.title, t.compass.qa.title, t.cta.title];
         const found = [...html.matchAll(/<h2[^>]*>(.*?)<\/h2>/g)].map((match) => textOf(match[1]));
         expect(found).toEqual(headings.map(stripMarkup));
       });
 
-      it('links the three countries and the three projects to their pages, and the contact link to the form', () => {
-        for (const country of ['china', 'netherlands', 'aruba']) expect(html).toContain(`href="${prefix}/about/${country}/"`);
+      it('links the three projects to their pages, no country page, and the contact link to the form', () => {
+        expect(html).not.toMatch(/href="[^"]*\/about\//);
         for (const project of projects.all()) {
           expect(html).toContain(`href="${prefix}/projects/${project.id}/"`);
           expect(text).toContain(`${project.category.label(name)} \u00b7 ${project.year}`);
@@ -149,11 +150,9 @@ describe('the Lite page', () => {
         }
       });
 
-      it('writes no style element, and no style attribute but a country\u2019s accent', () => {
+      it('writes no style element and no style attribute', () => {
         expect(html).not.toContain('<style');
-        const styles = [...html.matchAll(/ style="([^"]*)"/g)].map((match) => match[1]);
-        expect(styles).toHaveLength(3);
-        for (const style of styles) expect(style).toMatch(/^--accent:#[0-9a-f]{6}$/i);
+        expect(html).not.toMatch(/ style="/);
       });
 
       it('spells Funcial so, claims no AI for it, and never calls Jontai Energy client work', () => {

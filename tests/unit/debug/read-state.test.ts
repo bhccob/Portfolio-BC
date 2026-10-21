@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { countCanvasMount, registerStageProbe, type StageSnapshot } from '../../../src/debug/stageReport';
+import { countCanvasMount, registerStageProbe } from '../../../src/debug/stageReport';
 import { holdLoader, readNeedleDebugState, setStoryProgress } from '../../../src/debug/useNeedleDebug';
 import { onWakeScene } from '../../../src/scene/motion';
 import { HOME_CHAPTERS } from '../../../src/state/chapters';
@@ -7,11 +7,9 @@ import { frame } from '../../../src/state/frame';
 import { useScene } from '../../../src/state/store';
 
 function resetFrame(): void {
-  Object.assign(frame, { progress: 0, target: 0, velocity: 0, chapterIndex: 0, contextLost: false, pointed: null, loaderHold: null, needleAngle: 0 });
+  Object.assign(frame, { progress: 0, target: 0, velocity: 0, chapterIndex: 0, contextLost: false, loaderHold: null, needleAngle: 0 });
   Object.assign(frame.loader, { stage: null, elapsed: 0, strokes: [0, 0, 0, 0, 0] });
 }
-
-const NO_PLACES = { china: [0, 0], netherlands: [0, 0], aruba: [0, 0] };
 
 describe('readNeedleDebugState', () => {
   beforeEach(() => {
@@ -52,27 +50,22 @@ describe('readNeedleDebugState', () => {
     const none = readNeedleDebugState({ route: 'lite', locale: 'nl' });
     expect(none.canvasMounts).toBeGreaterThanOrEqual(1);
     expect(none.dpr).toBe(0);
-    expect(none.constellations).toEqual(NO_PLACES);
-    const places: StageSnapshot['constellations'] = { china: [1238, 423], netherlands: [721, 250], aruba: [206, 382] };
-    const stop = registerStageProbe(() => ({ dpr: 1.75, fps: 59, camera: { position: [0, 0, 5], fov: 30 }, constellations: places }));
+    const stop = registerStageProbe(() => ({ dpr: 1.75, fps: 59, camera: { position: [0, 0, 5], fov: 30 } }));
     try {
       const live = readNeedleDebugState({ route: 'lite', locale: 'nl' });
       expect(live).toMatchObject({ dpr: 1.75, fps: 59, camera: { position: [0, 0, 5], fov: 30 } });
-      expect(live.constellations).toEqual(places);
     } finally {
       stop();
     }
   });
 
-  it("reports where the opening stands, the needle's angle and the constellation pointed at, from the frame, as copies", () => {
+  it("reports where the opening stands and the needle's angle, from the frame, as copies", () => {
     const before = readNeedleDebugState({ route: 'home', locale: 'nl' });
     expect(before.loader).toEqual({ stage: null, elapsed: 0, strokes: [0, 0, 0, 0, 0] });
     expect(before.needleAngle).toBe(0);
-    expect(before.pointed).toBeNull();
     const strokes = [1, 1, 0.4, 0, 0];
     Object.assign(frame.loader, { stage: 'engrave', elapsed: 4.2, strokes });
     frame.needleAngle = 1.2;
-    frame.pointed = 'aruba';
     frame.loaderHold = 4.2;
     const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
     // The three fields of the opening and nothing else of the frame's (the hold is the bridge's own business).
@@ -81,7 +74,14 @@ describe('readNeedleDebugState', () => {
     // The strokes are a copy too: the Opening's next pose cannot change a state already read.
     expect(state.loader.strokes).not.toBe(strokes);
     expect(state.needleAngle).toBe(1.2);
-    expect(state.pointed).toBe('aruba');
+  });
+
+  it('has no constellation and no pointed country: the frame and the state carry none (the countries are gone)', () => {
+    const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
+    expect(state).not.toHaveProperty('pointed');
+    expect(state).not.toHaveProperty('constellations');
+    expect(frame).not.toHaveProperty('pointed');
+    expect(frame).not.toHaveProperty('hoverDir');
   });
 });
 
@@ -141,9 +141,9 @@ describe('setStoryProgress', () => {
   });
 
   it("leaves a page's phase alone: the scroll phases are the only ones a chapter moves", () => {
-    useScene.getState().dispatch({ type: 'ROUTE', phase: { kind: 'COUNTRY_PAGE', dir: 'china' } });
+    useScene.getState().dispatch({ type: 'ROUTE', phase: { kind: 'PROJECT_FOCUS', id: 'funcial' } });
     setStoryProgress(5);
-    expect(useScene.getState().phase).toEqual({ kind: 'COUNTRY_PAGE', dir: 'china' });
+    expect(useScene.getState().phase).toEqual({ kind: 'PROJECT_FOCUS', id: 'funcial' });
     expect(frame.chapterIndex).toBe(1); // but the frame is where the story is, for the way back
   });
 });

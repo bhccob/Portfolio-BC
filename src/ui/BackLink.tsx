@@ -42,7 +42,7 @@ export function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 /**
- * The link back from a country, project, Lite or contact page, and the Escape key that does the same
+ * The link back from a project, Lite or contact page, and the Escape key that does the same
  * while the page is open (not while someone types, and not if something has already handled the key).
  * Both go where `goBack` says; the link's own address stays the home page. The visible "Esc" is a hint
  * for keyboards: it is hidden from screen readers and, on a touch screen, from sight.

@@ -16,12 +16,12 @@ import type { Phase } from '~/state/machine';
  * is off), so a loader played now would run under it: 3D switched back on
  * after a failure or a toggle, a visit that began on Lite, or a visitor back
  * on the home after leaving the opening mid-way. LOADING plays the loader,
- * and so do a country or a project page: there it runs under the page's
- * scrim, as a direct arrival's does (spec section 2.1), and lands on the home
- * view behind the page.
+ * and so does a project page: there it runs under the page's scrim, as a
+ * direct arrival's does (spec section 2.1), and lands on the home view behind
+ * the page.
  */
 export function skipsLoader(phase: Phase['kind']): boolean {
-  return phase !== 'LOADING' && phase !== 'COUNTRY_PAGE' && phase !== 'PROJECT_FOCUS';
+  return phase !== 'LOADING' && phase !== 'PROJECT_FOCUS';
 }
 
 /** How an opening begins: straight at the home (`skip`), or playing the loader on its `path`. */

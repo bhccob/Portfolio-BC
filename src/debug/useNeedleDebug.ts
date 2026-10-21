@@ -21,7 +21,7 @@ export interface ShellView {
 export function readNeedleDebugState(view: ShellView): NeedleDebugState {
   const { phase, tier, threeD } = useScene.getState();
   const at = chapterAt(HOME_CHAPTERS, frame.progress, { index: frame.chapterIndex });
-  const { dpr, fps, camera, constellations } = readStageProbe();
+  const { dpr, fps, camera } = readStageProbe();
   const { stage, elapsed, strokes } = frame.loader;
   return {
     phase,
@@ -40,8 +40,6 @@ export function readNeedleDebugState(view: ShellView): NeedleDebugState {
     threeD,
     loader: { stage, elapsed, strokes: [...strokes] },
     needleAngle: frame.needleAngle,
-    pointed: frame.pointed,
-    constellations,
   };
 }
 

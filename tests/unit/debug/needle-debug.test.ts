@@ -20,8 +20,6 @@ function state(over: Partial<NeedleDebugState> = {}): NeedleDebugState {
     threeD: true,
     loader: { stage: 'home', elapsed: 12.5, strokes: [1, 1, 1, 1, 1] },
     needleAngle: 0.66,
-    pointed: 'china',
-    constellations: { china: [1238, 423], netherlands: [721, 250], aruba: [206, 382] },
     ...over,
   };
 }
@@ -88,7 +86,7 @@ describe('installNeedleDebug', () => {
   });
 
   it('returns the very object read() made, so a harness can compare phases by identity', () => {
-    const phase = { kind: 'COUNTRY_PAGE', dir: 'china' } as const;
+    const phase = { kind: 'PROJECT_FOCUS', id: 'funcial' } as const;
     const made = state({ phase });
     installNeedleDebug('?proof', () => made, act);
     const debug = win.__needleDebug as () => NeedleDebugState;
@@ -101,8 +99,8 @@ describe('installNeedleDebug', () => {
     const debug = win.__needleDebug as { set(p: { progress: number }): void; dispatch(e: unknown): void };
     debug.set({ progress: 3.5 });
     expect(act.set).toHaveBeenCalledExactlyOnceWith({ progress: 3.5 });
-    debug.dispatch({ type: 'FOCUS_COUNTRY', dir: 'aruba' });
-    expect(act.dispatch).toHaveBeenCalledExactlyOnceWith({ type: 'FOCUS_COUNTRY', dir: 'aruba' });
+    debug.dispatch({ type: 'OPEN_PROJECT', id: 'funcial' });
+    expect(act.dispatch).toHaveBeenCalledExactlyOnceWith({ type: 'OPEN_PROJECT', id: 'funcial' });
   });
 
   it('forwards .seekLoader to the act it was given, the seconds as they came: a time to hold, or -1 to let go', () => {
@@ -117,15 +115,12 @@ describe('installNeedleDebug', () => {
     expect(act.dispatch).not.toHaveBeenCalled();
   });
 
-  it("hands the opening's clock, the needle's angle, the constellation pointed at and the constellations' places through", () => {
-    const made = state({ loader: { stage: 'engrave', elapsed: 4.2, strokes: [1, 1, 0.4, 0, 0] }, needleAngle: 1.5, pointed: null });
+  it("hands the opening's clock and the needle's angle through", () => {
+    const made = state({ loader: { stage: 'engrave', elapsed: 4.2, strokes: [1, 1, 0.4, 0, 0] }, needleAngle: 1.5 });
     installNeedleDebug('?proof', () => made, act);
     const at = (win.__needleDebug as () => NeedleDebugState)();
     expect(at.loader).toEqual({ stage: 'engrave', elapsed: 4.2, strokes: [1, 1, 0.4, 0, 0] });
     expect(at.needleAngle).toBe(1.5);
-    expect(at.pointed).toBeNull();
-    expect(Object.keys(at.constellations).sort()).toEqual(['aruba', 'china', 'netherlands']);
-    expect(at.constellations.china).toEqual([1238, 423]);
   });
 
   it("has a scrollRequest the scroll loop asks its frames through, the window's requestAnimationFrame until replaced", () => {

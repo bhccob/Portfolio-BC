@@ -4,8 +4,8 @@ import { PAGES } from '~/data/pages';
 import { useTranslator } from '~/i18n/useTranslator';
 
 /**
- * The page for a URL that is no page. The not-found route shows it, and so do the country and
- * project routes when their URL names none of their pages (a real page under another spelling).
+ * The page for a URL that is no page. The not-found route shows it, and so does the project
+ * route when its URL names none of its pages (a real page under another spelling).
  */
 export function NotFoundPage(): JSX.Element {
   const i18n = useTranslator();

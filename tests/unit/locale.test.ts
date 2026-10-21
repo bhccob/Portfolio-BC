@@ -4,14 +4,14 @@ import { localeFromPath, routeFromPath } from '../../src/i18n/locale';
 describe('localeFromPath', () => {
   it('reads Dutch at the root', () => {
     expect(localeFromPath('/')).toBe('nl');
-    expect(localeFromPath('/about/china/')).toBe('nl');
+    expect(localeFromPath('/projects/funcial/')).toBe('nl');
     expect(localeFromPath('/projects/funcial/')).toBe('nl');
   });
 
   it('reads English under /en', () => {
     expect(localeFromPath('/en/')).toBe('en');
     expect(localeFromPath('/en')).toBe('en');
-    expect(localeFromPath('/en/about/china/')).toBe('en');
+    expect(localeFromPath('/en/projects/funcial/')).toBe('en');
   });
 
   it('does not take a longer first segment for English', () => {
@@ -22,8 +22,8 @@ describe('localeFromPath', () => {
 
 describe('routeFromPath', () => {
   it('drops the /en prefix, so both languages share one route', () => {
-    expect(routeFromPath('/en/about/china/')).toBe('/about/china/');
-    expect(routeFromPath('/about/china/')).toBe('/about/china/');
+    expect(routeFromPath('/en/projects/funcial/')).toBe('/projects/funcial/');
+    expect(routeFromPath('/projects/funcial/')).toBe('/projects/funcial/');
     expect(routeFromPath('/en/')).toBe('/');
     expect(routeFromPath('/en')).toBe('/');
     expect(routeFromPath('/')).toBe('/');
@@ -34,7 +34,7 @@ describe('routeFromPath', () => {
   });
 
   it('ends the route in a slash', () => {
-    expect(routeFromPath('/about/china')).toBe('/about/china/');
-    expect(routeFromPath('/en/about/china')).toBe('/about/china/');
+    expect(routeFromPath('/projects/funcial')).toBe('/projects/funcial/');
+    expect(routeFromPath('/en/projects/funcial')).toBe('/projects/funcial/');
   });
 });

@@ -8,8 +8,8 @@
  *   a file is served as is, with its MIME type
  *   anything else gets 404.html with status 404
  *
- * Paths are case-sensitive, as on GitHub Pages: /About/China/ is a 404 even on a
- * Windows or macOS disk, whose file system would find about/china/ for it.
+ * Paths are case-sensitive, as on GitHub Pages: /Projects/Funcial/ is a 404 even
+ * on a Windows or macOS disk, whose file system would find projects/funcial/ for it.
  *
  * Environment: PORT (default 4399). It listens on 127.0.0.1 only.
  */

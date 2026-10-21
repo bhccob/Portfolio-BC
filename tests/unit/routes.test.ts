@@ -26,7 +26,7 @@ describe('routes', () => {
     expect(config.at(-1)?.path).toBe('*');
   });
 
-  it('matches every page route case-sensitively, so /About/China/ is no page (the host has none either)', () => {
+  it('matches every page route case-sensitively, so /Projects/Funcial/ is no page (the host has none either)', () => {
     const pageRoutes = config.filter((entry) => !entry.index && entry.path !== '*');
     expect(pageRoutes).toHaveLength(pagePaths().length - 1); // all but the Dutch home page, which is the index route
     for (const entry of pageRoutes) expect(entry.caseSensitive, entry.path).toBe(true);
@@ -36,6 +36,11 @@ describe('routes', () => {
     const ids = config.map((entry) => entry.id);
     expect(ids.every(Boolean)).toBe(true);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('has no country route: the old /about/<country>/ addresses fall through to the not-found route', () => {
+    expect(urlPaths(config).filter((path) => path.includes('/about/'))).toEqual([]);
+    expect(config.some((entry) => entry.file.includes('country'))).toBe(false);
   });
 
   it('has no leftover probe page', () => {

@@ -4,15 +4,13 @@ import { samePhase, transition, type Phase, type SceneEvent } from '../../../src
 
 const LOADING: Phase = { kind: 'LOADING' };
 const HOME: Phase = { kind: 'HOME_IDLE' };
-const FOCUS: Phase = { kind: 'FOCUS_COUNTRY', dir: 'china' };
-const COUNTRY: Phase = { kind: 'COUNTRY_PAGE', dir: 'china' };
 const DISSECT: Phase = { kind: 'DISSECT' };
 const MORPH: Phase = { kind: 'MORPH' };
 const VOID: Phase = { kind: 'VOID_ENTRY' };
 const PROJECTS: Phase = { kind: 'PROJECTS', category: 'front-panel' };
 const PROJECT: Phase = { kind: 'PROJECT_FOCUS', id: 'funcial' };
 
-const ALL: Phase[] = [LOADING, HOME, FOCUS, COUNTRY, DISSECT, MORPH, VOID, PROJECTS, PROJECT];
+const ALL: Phase[] = [LOADING, HOME, DISSECT, MORPH, VOID, PROJECTS, PROJECT];
 const chapter = (id: ChapterId, category: string | null = null): SceneEvent => ({ type: 'CHAPTER', chapter: id, category });
 
 describe('LOADED', () => {
@@ -47,44 +45,14 @@ describe('CHAPTER', () => {
     }
   });
 
-  it('is ignored while loading, on a focused country and on a page', () => {
-    for (const phase of [LOADING, FOCUS, COUNTRY, PROJECT]) expect(transition(phase, chapter('DISSECT')), phase.kind).toBe(phase);
+  it('is ignored while loading and on a page', () => {
+    for (const phase of [LOADING, PROJECT]) expect(transition(phase, chapter('DISSECT')), phase.kind).toBe(phase);
   });
 
   it('returns the same object when the chapter is the one already shown', () => {
     expect(transition(HOME, chapter('HOME'))).toBe(HOME);
     expect(transition(DISSECT, chapter('DISSECT'))).toBe(DISSECT);
     expect(transition(PROJECTS, chapter('PROJECTS', 'front-panel'))).toBe(PROJECTS);
-  });
-});
-
-describe('FOCUS_COUNTRY', () => {
-  it('applies from HOME_IDLE', () => {
-    expect(transition(HOME, { type: 'FOCUS_COUNTRY', dir: 'aruba' })).toEqual({ kind: 'FOCUS_COUNTRY', dir: 'aruba' });
-  });
-
-  it('moves the focus from one country to another', () => {
-    expect(transition(FOCUS, { type: 'FOCUS_COUNTRY', dir: 'netherlands' })).toEqual({ kind: 'FOCUS_COUNTRY', dir: 'netherlands' });
-  });
-
-  it('returns the same object for the country already in focus', () => {
-    expect(transition(FOCUS, { type: 'FOCUS_COUNTRY', dir: 'china' })).toBe(FOCUS);
-  });
-
-  it('is ignored from every other phase', () => {
-    for (const phase of ALL.filter((p) => p.kind !== 'HOME_IDLE' && p.kind !== 'FOCUS_COUNTRY')) {
-      expect(transition(phase, { type: 'FOCUS_COUNTRY', dir: 'china' }), phase.kind).toBe(phase);
-    }
-  });
-});
-
-describe('OPEN_COUNTRY', () => {
-  it('gives the country page of the focused country', () => {
-    expect(transition({ kind: 'FOCUS_COUNTRY', dir: 'aruba' }, { type: 'OPEN_COUNTRY' })).toEqual({ kind: 'COUNTRY_PAGE', dir: 'aruba' });
-  });
-
-  it('applies only from FOCUS_COUNTRY', () => {
-    for (const phase of ALL.filter((p) => p.kind !== 'FOCUS_COUNTRY')) expect(transition(phase, { type: 'OPEN_COUNTRY' }), phase.kind).toBe(phase);
   });
 });
 
@@ -99,14 +67,6 @@ describe('OPEN_PROJECT', () => {
 });
 
 describe('BACK', () => {
-  it('takes a focused country back to HOME_IDLE', () => {
-    expect(transition(FOCUS, { type: 'BACK' })).toEqual({ kind: 'HOME_IDLE' });
-  });
-
-  it('takes a country page back to the focus on the same country', () => {
-    expect(transition({ kind: 'COUNTRY_PAGE', dir: 'netherlands' }, { type: 'BACK' })).toEqual({ kind: 'FOCUS_COUNTRY', dir: 'netherlands' });
-  });
-
   it('takes a project back to PROJECTS with no category', () => {
     expect(transition(PROJECT, { type: 'BACK' })).toEqual({ kind: 'PROJECTS', category: null });
   });
@@ -118,33 +78,50 @@ describe('BACK', () => {
 
 describe('ROUTE', () => {
   it('always gives its phase, from every phase', () => {
-    const target: Phase = { kind: 'COUNTRY_PAGE', dir: 'aruba' };
+    const target: Phase = { kind: 'PROJECT_FOCUS', id: 'jontai-energy' };
     for (const phase of ALL) expect(transition(phase, { type: 'ROUTE', phase: target }), phase.kind).toBe(target);
   });
 });
 
 describe('ignored events', () => {
   it('return the identical object', () => {
-    expect(transition(COUNTRY, { type: 'LOADED' })).toBe(COUNTRY);
-    expect(transition(HOME, { type: 'OPEN_COUNTRY' })).toBe(HOME);
+    expect(transition(PROJECT, { type: 'LOADED' })).toBe(PROJECT);
+    expect(transition(HOME, { type: 'OPEN_PROJECT', id: 'funcial' })).toBe(HOME);
     expect(transition(DISSECT, { type: 'BACK' })).toBe(DISSECT);
   });
 
   it('leave the phase it was given untouched', () => {
-    const phase: Phase = { kind: 'FOCUS_COUNTRY', dir: 'china' };
-    transition(phase, { type: 'OPEN_COUNTRY' });
+    const phase: Phase = { kind: 'DISSECT' };
+    transition(phase, { type: 'OPEN_PROJECT', id: 'funcial' });
     transition(phase, { type: 'BACK' });
-    expect(phase).toEqual({ kind: 'FOCUS_COUNTRY', dir: 'china' });
+    expect(phase).toEqual({ kind: 'DISSECT' });
   });
 });
 
 describe('samePhase', () => {
   it('compares kind and the fields the kind carries', () => {
     expect(samePhase({ kind: 'HOME_IDLE' }, { kind: 'HOME_IDLE' })).toBe(true);
-    expect(samePhase({ kind: 'COUNTRY_PAGE', dir: 'china' }, { kind: 'COUNTRY_PAGE', dir: 'china' })).toBe(true);
-    expect(samePhase({ kind: 'COUNTRY_PAGE', dir: 'china' }, { kind: 'COUNTRY_PAGE', dir: 'aruba' })).toBe(false);
-    expect(samePhase({ kind: 'COUNTRY_PAGE', dir: 'china' }, { kind: 'FOCUS_COUNTRY', dir: 'china' })).toBe(false);
+    expect(samePhase({ kind: 'HOME_IDLE' }, { kind: 'DISSECT' })).toBe(false);
     expect(samePhase({ kind: 'PROJECTS', category: null }, { kind: 'PROJECTS', category: 'oscillator' })).toBe(false);
     expect(samePhase({ kind: 'PROJECT_FOCUS', id: 'funcial' }, { kind: 'PROJECT_FOCUS', id: 'funcial' })).toBe(true);
+    expect(samePhase({ kind: 'PROJECT_FOCUS', id: 'funcial' }, { kind: 'PROJECT_FOCUS', id: 'jontai-energy' })).toBe(false);
+  });
+});
+
+describe('the countries are gone', () => {
+  it('has no country phases: Back from the home phase stays on it', () => {
+    expect(transition({ kind: 'HOME_IDLE' }, { type: 'BACK' })).toEqual({ kind: 'HOME_IDLE' });
+  });
+
+  it('has no country phase and no country event in its types (this file does not compile otherwise)', () => {
+    // @ts-expect-error FOCUS_COUNTRY is no phase any more
+    const focus: Phase = { kind: 'FOCUS_COUNTRY', dir: 'china' };
+    // @ts-expect-error COUNTRY_PAGE is no phase any more
+    const page: Phase = { kind: 'COUNTRY_PAGE', dir: 'china' };
+    // @ts-expect-error FOCUS_COUNTRY is no event any more
+    const focusEvent: SceneEvent = { type: 'FOCUS_COUNTRY', dir: 'china' };
+    // @ts-expect-error OPEN_COUNTRY is no event any more
+    const openEvent: SceneEvent = { type: 'OPEN_COUNTRY' };
+    expect([focus, page, focusEvent, openEvent]).toHaveLength(4);
   });
 });

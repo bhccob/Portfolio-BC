@@ -1,4 +1,3 @@
-import type { CountryId } from '~/data/directions';
 import type { ChapterId } from './chapters';
 
 /**
@@ -8,8 +7,6 @@ import type { ChapterId } from './chapters';
 export type Phase =
   | { kind: 'LOADING' }
   | { kind: 'HOME_IDLE' }
-  | { kind: 'FOCUS_COUNTRY'; dir: CountryId }
-  | { kind: 'COUNTRY_PAGE'; dir: CountryId }
   | { kind: 'DISSECT' }
   | { kind: 'MORPH' }
   | { kind: 'VOID_ENTRY' }
@@ -19,8 +16,6 @@ export type Phase =
 export type SceneEvent =
   | { type: 'LOADED' }
   | { type: 'CHAPTER'; chapter: ChapterId; category: string | null }
-  | { type: 'FOCUS_COUNTRY'; dir: CountryId }
-  | { type: 'OPEN_COUNTRY' }
   | { type: 'OPEN_PROJECT'; id: string }
   | { type: 'BACK' }
   | { type: 'ROUTE'; phase: Phase };
@@ -29,9 +24,6 @@ export type SceneEvent =
 export function samePhase(a: Phase, b: Phase): boolean {
   if (a.kind !== b.kind) return false;
   switch (a.kind) {
-    case 'FOCUS_COUNTRY':
-    case 'COUNTRY_PAGE':
-      return a.dir === (b as typeof a).dir;
     case 'PROJECTS':
       return a.category === (b as typeof a).category;
     case 'PROJECT_FOCUS':
@@ -77,24 +69,11 @@ export function transition(phase: Phase, event: SceneEvent): Phase {
       return samePhase(phase, next) ? phase : next;
     }
 
-    case 'FOCUS_COUNTRY': {
-      if (phase.kind !== 'HOME_IDLE' && phase.kind !== 'FOCUS_COUNTRY') return phase;
-      const next: Phase = { kind: 'FOCUS_COUNTRY', dir: event.dir };
-      return samePhase(phase, next) ? phase : next;
-    }
-
-    case 'OPEN_COUNTRY':
-      return phase.kind === 'FOCUS_COUNTRY' ? { kind: 'COUNTRY_PAGE', dir: phase.dir } : phase;
-
     case 'OPEN_PROJECT':
       return phase.kind === 'PROJECTS' ? { kind: 'PROJECT_FOCUS', id: event.id } : phase;
 
     case 'BACK':
       switch (phase.kind) {
-        case 'FOCUS_COUNTRY':
-          return { kind: 'HOME_IDLE' };
-        case 'COUNTRY_PAGE':
-          return { kind: 'FOCUS_COUNTRY', dir: phase.dir };
         case 'PROJECT_FOCUS':
           return { kind: 'PROJECTS', category: null };
         default:

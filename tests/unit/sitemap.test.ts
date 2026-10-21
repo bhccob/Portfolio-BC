@@ -12,6 +12,11 @@ describe('sitemap', () => {
     expect(urls.map(([, loc]) => loc)).toEqual(pagePaths().map((path) => ORIGIN + path));
   });
 
+  it('lists the six pages in both languages, and no country page', () => {
+    expect(urls).toHaveLength(2 * 6);
+    expect(urls.filter(([, loc]) => loc.includes('/about/'))).toEqual([]);
+  });
+
   it('gives every page its Dutch, English and x-default alternates', () => {
     expect(urls).toHaveLength(Object.keys(PAGES).length * 2);
     for (const [, loc, links] of urls) {

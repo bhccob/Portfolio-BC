@@ -108,7 +108,7 @@ main:focus {
     linear-gradient(0deg, rgb(10 5 16 / 0.7) 0%, transparent 40%);
 }
 
-/* A page of text (a country, a project, Lite, contact) has text over most of the picture, so its scrim is stronger.
+/* A page of text (a project, Lite, contact) has text over most of the picture, so its scrim is stronger.
    One value for both pictures: the poster and the live scene over it. */
 :root {
   --scrim-page: linear-gradient(90deg, rgb(10 5 16 / 0.94) 0%, rgb(10 5 16 / 0.78) 55%, rgb(10 5 16 / 0.5) 100%);
@@ -155,47 +155,6 @@ body:has(.page) .scene-host[data-ready]::after {
 @media (prefers-reduced-motion: reduce) {
   .scene-host canvas,
   body:has(.page) .scene-host::after {
-    transition: none;
-  }
-}
-
-/* The name of the constellation the needle points at (src/scene/v3/Home.tsx places it beside its figure, in drei's
-   Html): Montserrat in small caps, lilac at 0.85, fading in and out over 0.3 s. Only the pointed one shows; the others
-   are hidden once faded, so nothing reads them as shown. Part of the picture, not of the page: it takes no pointer and
-   is aria-hidden, as the whole canvas is. */
-.constellation-label-anchor,
-.constellation-label {
-  pointer-events: none;
-}
-
-.constellation-label {
-  font-family: var(--font-name);
-  font-size: 13px;
-  font-weight: 400;
-  font-variant-caps: small-caps;
-  line-height: 1.2;
-  letter-spacing: 0.22em;
-  white-space: nowrap;
-  color: var(--lilac);
-  user-select: none;
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    opacity 0.3s var(--ease-reveal),
-    visibility 0s linear 0.3s;
-}
-
-.constellation-label[data-shown] {
-  opacity: 0.85;
-  visibility: visible;
-  transition:
-    opacity 0.3s var(--ease-reveal),
-    visibility 0s;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .constellation-label,
-  .constellation-label[data-shown] {
     transition: none;
   }
 }
@@ -575,7 +534,7 @@ html[data-3d='on'] .home-nav:not(:focus-within) {
   white-space: nowrap;
 }
 
-/* ---------- a page: a country, a project, Lite, contact ---------- */
+/* ---------- a page: a project, Lite, contact ---------- */
 .page {
   max-width: calc(44rem + 2 * var(--gutter)); /* the text column is 44rem wide inside the gutters */
   padding: 16px var(--gutter) 96px;
@@ -605,7 +564,7 @@ html[data-3d='on'] .home-nav:not(:focus-within) {
   margin: 16px 0 24px;
   font-family: var(--font-title);
   font-feature-settings: var(--font-title-features);
-  /* Unbounded 800 is wide (about 0.9 em a letter): the longest title, NETHERLANDS, fits the 44rem column at 64 px. */
+  /* Unbounded 800 is wide (about 0.9 em a letter): a long title wraps in the 44rem column rather than overflowing it. */
   font-size: clamp(30px, 5.5vw, 64px);
   font-weight: 800;
   line-height: 1.05;
@@ -801,7 +760,7 @@ html[data-3d='on'] .home-nav:not(:focus-within) {
   color: var(--gold-title);
 }
 
-/* The countries and the projects: a list of entries, each marked by a rule (a country's rule is its accent). */
+/* The projects: a list of entries, each marked by a rule. */
 .lite-list {
   display: grid;
   gap: 28px;
@@ -811,7 +770,7 @@ html[data-3d='on'] .home-nav:not(:focus-within) {
   display: grid;
   gap: 4px;
   padding-left: 16px;
-  border-left: 3px solid var(--accent, rgb(228 190 127 / 0.35));
+  border-left: 3px solid rgb(228 190 127 / 0.35);
 }
 
 /* The slot for the next category is not a project: its rule is dashed, and it points on to the roadmap. */

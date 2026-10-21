@@ -1,4 +1,3 @@
-import type { CountryId } from '~/data/directions';
 // Types only: the bridge is in the entry bundle and needs only these modules' shapes, none of their code. (The loader's
 // timeline is in that bundle anyway, through src/scene/timeouts.ts; three.js must stay out of it.)
 import type { LoaderStage } from '~/engine/bob/loaderTimeline';
@@ -52,14 +51,6 @@ export interface NeedleDebugState {
    * sees it, so a pointer straight to the right of the pivot pulls it toward pi/2. 0 before any compass is posed.
    */
   needleAngle: number;
-  /** v3's pointed constellation (`frame.pointed`): null since the BOB opening replaced v3's; Task 11 removes it. */
-  pointed: CountryId | null;
-  /**
-   * Each constellation's anchor (its stars' centroid, where its label hangs from) on the screen now, in CSS pixels from
-   * the viewport's top left, so the harness can move the mouse onto a constellation. [0, 0] each while no Stage is
-   * mounted.
-   */
-  constellations: Record<CountryId, [x: number, y: number]>;
 }
 
 /** What the bridge does to the site, besides reading it. */

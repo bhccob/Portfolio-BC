@@ -372,38 +372,6 @@ export const nl: Dictionary = {
       housing: { name: 'Behuizing', line: 'Draagt alle ringen; zo meteen wordt dit de harde schijf.' }
     },
     morph: 'Dezelfde kracht die schepen stuurde, bewaart nu onze data.',
-    countries: {
-      china: {
-        name: 'China',
-        teaser: 'Ik ben Chinees van afkomst; dit kompas komt uit dezelfde traditie.',
-        beats: [
-          'Mijn familie is Chinees van afkomst.',
-          'Die afkomst is voor mij een bron van identiteit en verbondenheid.',
-          'Hakka, een Chinees dialect, is mijn moedertaal.'
-        ],
-        metaDescription: 'Ik ben Chinees van afkomst; dit kompas komt uit dezelfde traditie.'
-      },
-      netherlands: {
-        name: 'Nederland',
-        teaser: 'Op mijn achttiende verhuisde ik naar Nederland. Nu studeer ik in Rotterdam.',
-        beats: [
-          'Op mijn achttiende verhuisde ik van Aruba naar Nederland.',
-          'Hier ben ik gaan hardlopen en leer ik financieel zelfstandig te zijn.',
-          'In Rotterdam studeer ik software engineering (MBO 4) en verken ik vervolgstudies.'
-        ],
-        metaDescription: 'Op mijn achttiende verhuisde ik naar Nederland. Nu studeer ik in Rotterdam.'
-      },
-      aruba: {
-        name: 'Aruba',
-        teaser: 'Hier ben ik geboren en getogen, tussen passaatwind en zee.',
-        beats: [
-          'Ik ben geboren en getogen op Aruba.',
-          'Aruba leerde mij meerdere talen spreken en verbinding maken met mensen.',
-          'De sportschool gaf mij een doel, een actiever leven en vrienden.'
-        ],
-        metaDescription: 'Hier ben ik geboren en getogen, tussen passaatwind en zee.'
-      }
-    },
     project: { open: 'Openen', download: 'Downloaden', code: 'Code', back: 'Esc · terug' }
   },
   compass: {

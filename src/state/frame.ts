@@ -1,4 +1,3 @@
-import type { CountryId, DirId } from '~/data/directions';
 // Types only: this module is in the entry bundle, which must not pull in three.js.
 import type { LoaderStage } from '~/engine/bob/loaderTimeline';
 import type { CameraShot } from '~/engine/bob/shots';
@@ -23,13 +22,6 @@ export const frame = {
    * its starting {0, 0} has said nothing), and a move at home starts its idle while again.
    */
   pointerAt: Number.NEGATIVE_INFINITY,
-  /** The compass arm under the pointer, or null. Nothing writes it since milestone 1's compass went; Task 11 removes it. */
-  hoverDir: null as DirId | null,
-  /**
-   * The constellation v3's home needle pointed at, or null. Nothing writes it since the BOB opening replaced v3's
-   * (Task 10): it stays null until Task 11 removes it with the constellations.
-   */
-  pointed: null as CountryId | null,
   /**
    * The compass needle's angle as last posed, radians: 0 up the screen, positive clockwise as the camera sees it
    * (`CompassModel.setNeedle`'s). The Opening (src/scene/bob/Opening.tsx) writes it as the needle swings in, and the

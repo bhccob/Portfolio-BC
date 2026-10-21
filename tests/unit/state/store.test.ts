@@ -47,7 +47,7 @@ describe('useScene', () => {
     dispatch({ type: 'LOADED' });
     expect(useScene.getState().phase).toEqual({ kind: 'HOME_IDLE' });
     expect(useScene.getState().transitionId).toBe(1);
-    dispatch({ type: 'FOCUS_COUNTRY', dir: 'china' });
+    dispatch({ type: 'CHAPTER', chapter: 'DISSECT', category: null });
     expect(useScene.getState().transitionId).toBe(2);
   });
 
@@ -58,7 +58,7 @@ describe('useScene', () => {
     const id = useScene.getState().transitionId;
     const listener = vi.fn();
     const unsubscribe = useScene.subscribe(listener);
-    dispatch({ type: 'OPEN_COUNTRY' });
+    dispatch({ type: 'OPEN_PROJECT', id: 'funcial' });
     dispatch({ type: 'LOADED' });
     dispatch({ type: 'BACK' });
     unsubscribe();

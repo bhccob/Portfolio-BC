@@ -15,17 +15,22 @@ const moduleOf = (entry: RouteConfigEntry): Promise<{ handle?: unknown }> => imp
 
 describe('the route handle: one table for every kind of page', () => {
   it('names each kind of page once, with the scene it shows; Lite, contact and not found show none', () => {
-    expect(NAMES.sort()).toEqual(['contact', 'country', 'home', 'lite', 'not-found', 'project']);
+    expect(NAMES.sort()).toEqual(['contact', 'home', 'lite', 'not-found', 'project']);
     for (const name of NAMES) expect(HANDLES[name].route, name).toBe(name);
     expect(NAMES.filter((name) => HANDLES[name].scene === null).sort()).toEqual(['contact', 'lite', 'not-found']);
     expect(HANDLES.home.scene).toBe('home');
-    expect(HANDLES.country.scene).toBe('country');
     expect(HANDLES.project.scene).toBe('project');
   });
 
   it('gives every page of the site a kind, and no page is the not-found kind', () => {
     expect(Object.keys(PAGE_KINDS).sort()).toEqual(Object.keys(PAGES).sort());
     for (const page of Object.keys(PAGE_KINDS) as PageId[]) expect(PAGE_KINDS[page], page).not.toBe('not-found');
+  });
+
+  it('has no country kind of page, and no country route module', () => {
+    expect(NAMES).not.toContain('country');
+    expect(Object.values(PAGE_KINDS)).not.toContain('country');
+    expect(existsSync(fileURLToPath(new URL('../../src/app/routes/country.tsx', import.meta.url)))).toBe(false);
   });
 
   it('has a route module for every kind, named after it', () => {
@@ -56,7 +61,7 @@ describe('handleOf', () => {
 
   it("reads the deepest matched route's handle", () => {
     expect(handleOf([root, { handle: HANDLES.lite, pathname: '/lite/' }])).toBe(HANDLES.lite);
-    expect(handleOf([root, { handle: HANDLES.country, pathname: '/en/about/china/' }])).toBe(HANDLES.country);
+    expect(handleOf([root, { handle: HANDLES.project, pathname: '/en/projects/funcial/' }])).toBe(HANDLES.project);
     expect(handleOf([root, { handle: HANDLES.home, pathname: '/' }])).toBe(HANDLES.home);
     expect(handleOf([root, { handle: HANDLES['not-found'], pathname: '/does-not-exist/' }])).toBe(HANDLES['not-found']);
   });
@@ -69,8 +74,8 @@ describe('handleOf', () => {
   });
 
   it("gives not found, with no scene, for a page's route matched under another spelling (the client router ignores case)", () => {
-    for (const pathname of ['/About/China/', '/en/About/China/', '/EN/about/china/', '/Projects/Funcial/', '/en/projects/FUNCIAL/', '/Lite/']) {
-      const handle = /lite/i.test(pathname) ? HANDLES.lite : /china/i.test(pathname) ? HANDLES.country : HANDLES.project;
+    for (const pathname of ['/en/Projects/Funcial/', '/EN/projects/funcial/', '/Projects/Funcial/', '/en/projects/FUNCIAL/', '/Lite/']) {
+      const handle = /lite/i.test(pathname) ? HANDLES.lite : HANDLES.project;
       expect(handleOf([root, { handle, pathname }]), pathname).toBe(HANDLES['not-found']);
     }
   });

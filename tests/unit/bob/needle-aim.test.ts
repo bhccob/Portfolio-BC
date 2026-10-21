@@ -88,10 +88,9 @@ describe('the needle spring', () => {
 describe('isAiming', () => {
   it('aims on the home page at rest and nowhere else', () => {
     expect(isAiming('HOME_IDLE', 'home')).toBe(true);
-    const others: Phase['kind'][] = ['LOADING', 'FOCUS_COUNTRY', 'COUNTRY_PAGE', 'DISSECT', 'MORPH', 'VOID_ENTRY', 'PROJECTS', 'PROJECT_FOCUS'];
+    const others: Phase['kind'][] = ['LOADING', 'DISSECT', 'MORPH', 'VOID_ENTRY', 'PROJECTS', 'PROJECT_FOCUS'];
     for (const kind of others) expect(isAiming(kind, 'home'), kind).toBe(false);
     expect(isAiming('HOME_IDLE', 'project')).toBe(false);
-    expect(isAiming('HOME_IDLE', 'country')).toBe(false);
     expect(isAiming('HOME_IDLE', null)).toBe(false);
   });
 });

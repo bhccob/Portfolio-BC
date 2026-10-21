@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { stageWanted } from '../../../src/scene/gate';
 
-const at = (scene: 'home' | 'country' | 'project' | null, more: Partial<Parameters<typeof stageWanted>[0]> = {}) =>
+const at = (scene: 'home' | 'project' | null, more: Partial<Parameters<typeof stageWanted>[0]> = {}) =>
   stageWanted({ hydrated: true, threeD: true, scene, up: false, ...more });
 
 describe('stageWanted: when the page asks for the WebGL Stage', () => {
   it('mounts the first Stage only on a page with a scene', () => {
     expect(at('home')).toBe(true);
-    expect(at('country')).toBe(true);
     expect(at('project')).toBe(true);
   });
 

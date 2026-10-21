@@ -1,4 +1,3 @@
-import type { CountryId } from '../data/directions';
 import type { PartId } from '../data/parts';
 
 /** One compass part in the dissect: its name and a line of at most ten words. */
@@ -7,16 +6,7 @@ export interface PartCopy {
   line: string;
 }
 
-/** One country: its card on the compass, its page's three beats and its meta description. */
-export interface CountryCopy {
-  name: string;
-  /** The line on the country's focus card. */
-  teaser: string;
-  beats: [string, string, string];
-  metaDescription: string;
-}
-
-// The eleven parts and three countries, copied verbatim from the NL and EN columns
+// The eleven parts, copied verbatim from the NL and EN columns
 // of docs/art-direction.md § Copy budget (Bob approved them on 2026-10-20).
 // tests/unit/needle-copy.test.ts compares them with that table.
 const parts: Record<PartId, PartCopy> = {
@@ -31,39 +21,6 @@ const parts: Record<PartId, PartCopy> = {
   needle: { name: 'Needle', line: "Magnetised steel that lines up with Earth's magnetic field." },
   plate: { name: 'Earth plate', line: 'The fixed square base that keeps the compass level.' },
   housing: { name: 'Housing', line: 'Carries every ring; next, it becomes the hard drive.' }
-};
-
-const countries: Record<CountryId, CountryCopy> = {
-  china: {
-    name: 'China',
-    teaser: 'I am of Chinese heritage; this compass comes from that tradition.',
-    beats: [
-      'My family is of Chinese heritage.',
-      'That heritage is a source of identity and belonging for me.',
-      'Hakka, a Chinese dialect, is my mother tongue.'
-    ],
-    metaDescription: 'I am of Chinese heritage; this compass comes from that tradition.'
-  },
-  netherlands: {
-    name: 'The Netherlands',
-    teaser: 'At eighteen I moved to the Netherlands. I now study in Rotterdam.',
-    beats: [
-      'At eighteen I moved from Aruba to the Netherlands.',
-      'Here I took up running and am learning to be financially independent.',
-      'In Rotterdam I study software engineering (MBO 4) and explore further studies.'
-    ],
-    metaDescription: 'At eighteen I moved to the Netherlands. I now study in Rotterdam.'
-  },
-  aruba: {
-    name: 'Aruba',
-    teaser: 'I was born and raised here, between trade winds and sea.',
-    beats: [
-      'I was born and raised in Aruba.',
-      'Aruba taught me to speak several languages and to connect with people.',
-      'The gym gave me purpose, a more active life and friends.'
-    ],
-    metaDescription: 'I was born and raised here, between trade winds and sea.'
-  }
 };
 
 /**
@@ -429,8 +386,7 @@ export const en = {
    * The words of the needle redesign, copied verbatim from the NL and EN columns of
    * docs/art-direction.md § Copy budget (Bob approved them on 2026-10-20):
    * the loader and its failure, the hero, the always-on controls, the eleven compass
-   * parts, the morph line, the three countries (card line and the beats of their pages)
-   * and the words around a project. `projects` and `categories` (src/data) hold the
+   * parts, the morph line and the words around a project. `projects` and `categories` (src/data) hold the
    * project lines and labels.
    */
   needle: {
@@ -447,7 +403,6 @@ export const en = {
     liteLink: 'Lite version',
     parts,
     morph: 'The same force that guided ships now stores our data.',
-    countries,
     project: { open: 'Open', download: 'Download', code: 'Code', back: 'Esc · back' }
   },
   /**

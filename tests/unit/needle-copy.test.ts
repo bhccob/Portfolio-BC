@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { categories } from '../../src/data/categories';
-import { COUNTRY_IDS, type CountryId } from '../../src/data/directions';
 import { PART_IDS } from '../../src/data/parts';
 import { projects } from '../../src/data/projects';
 import { en } from '../../src/i18n/en';
@@ -93,42 +92,6 @@ describe('the needle copy equals the copy budget', () => {
     expect(en.needle.morph).toBe(match?.[2]);
   });
 
-  it('the country cards', () => {
-    const labels: Record<CountryId, string> = { china: 'East · China', netherlands: 'North · Netherlands', aruba: 'West · Aruba' };
-    for (const id of COUNTRY_IDS) {
-      const cells = pair('Country focus card', labels[id]);
-      for (const locale of locales) {
-        const { name, line } = nameAndLine(cells[locale]);
-        const country = dictionaries[locale].needle.countries[id];
-        expect(country.name).toBe(name);
-        expect(country.teaser).toBe(line);
-        expect(country.metaDescription).toBe(line);
-      }
-    }
-  });
-
-  it('the three beats of each country page', () => {
-    const beats: Record<CountryId, Record<Locale, string[]>> = {
-      china: { nl: [], en: [] },
-      netherlands: { nl: [], en: [] },
-      aruba: { nl: [], en: [] },
-    };
-    let current: CountryId | null = null;
-    for (const cells of rows('Country pages').slice(1)) {
-      const page = /^`\/about\/(\w+)\/`$/.exec(cells[0]);
-      if (page) current = page[1] as CountryId;
-      if (!current) throw new Error('a beat before any page');
-      beats[current].nl.push(cells[2]);
-      beats[current].en.push(cells[3]);
-    }
-    for (const id of COUNTRY_IDS) {
-      for (const locale of locales) {
-        expect(beats[id][locale], `${id} ${locale}`).toHaveLength(3);
-        expect([...dictionaries[locale].needle.countries[id].beats]).toEqual(beats[id][locale]);
-      }
-    }
-  });
-
   it('the always-on words', () => {
     for (const locale of locales) {
       const { toggle, liteLink, project } = dictionaries[locale].needle;
@@ -167,15 +130,8 @@ describe('the needle dictionary', () => {
     for (const locale of locales) expect(JSON.stringify(dictionaries[locale].needle)).not.toMatch(/\[FILL/);
   });
 
-  it('gives each country exactly three beats, and a meta description of a searchable length', () => {
-    for (const locale of locales) {
-      for (const id of COUNTRY_IDS) {
-        const country = dictionaries[locale].needle.countries[id];
-        expect(country.beats).toHaveLength(3);
-        expect(country.metaDescription.length, `${locale} ${id}`).toBeGreaterThanOrEqual(50);
-        expect(country.metaDescription.length, `${locale} ${id}`).toBeLessThanOrEqual(170);
-      }
-    }
+  it('has no country copy left: the countries are gone', () => {
+    for (const locale of locales) expect(dictionaries[locale].needle).not.toHaveProperty('countries');
   });
 
   it('never links the other company’s site as Bob’s', () => {
