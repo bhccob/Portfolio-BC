@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import type { SceneKind } from '~/app/handle';
 import { PAGES } from '~/data/pages';
 import { useTranslator } from '~/i18n/useTranslator';
+import { frame } from '~/state/frame';
 import { useScene } from '~/state/store';
 import { stageWanted } from './gate';
 import { LANDING_TIMEOUT_MS, type LandingWatch, landingBackstop, LOAD_TIMEOUT_MS, visibleTimeout } from './timeouts';
@@ -21,10 +22,14 @@ const onServer = () => false;
 
 type Fail = (reason: string, error?: unknown) => void;
 
-/** The store as the landing backstop reads it: the phase still LOADING, the page shown having a scene, and every change. */
+/**
+ * The store as the landing backstop reads it: the phase still LOADING, the page shown having a scene, and every change;
+ * and the proof bridge's hold on the opening's clock (`frame.loaderHold`).
+ */
 const LANDING_WATCH: LandingWatch = {
   loading: () => useScene.getState().phase.kind === 'LOADING',
   shown: () => useScene.getState().scene !== null,
+  held: () => frame.loaderHold !== null,
   subscribe: (listener) => useScene.subscribe(listener),
 };
 
@@ -79,9 +84,13 @@ export interface SceneHostProps {
  *
  * Whenever it settles on no Stage (3D off, no WebGL, a software renderer, a failed scene) it says LOADED, so a
  * direct load of `/` leaves LOADING. While a Stage is up it never does: the Stage's opening (src/scene/v3/Opening.tsx)
- * says LOADED itself, once it has played the loader and landed on the home. The Stage's `onReady` means only "the
- * loader can show": the canvas fades in then, over the poster, and the load timeout stops. Without WebGL to speak of,
- * or when the scene fails (it threw, its context was lost for good, the loader could not show after LOAD_TIMEOUT_MS of
+ * says LOADED itself, once it has played the loader and landed on the home. The Stage tells two moments apart:
+ * `onStarted`, its loader built and compiled, which stops the load timeout; and `onReady`, the canvas can show, which
+ * fades it in over the poster (and stops the timeout too, if `onStarted` did not come first). A normal opening says
+ * `onReady` alone, as its loader shows; one that skips its loader (a visit that began on Lite) says `onStarted` at the
+ * same point and `onReady` once its home is warm, so either has LOAD_TIMEOUT_MS to start and then the opening's own
+ * give-up time for the home. Without WebGL to speak of,
+ * or when the scene fails (it threw, its context was lost for good, the loader was not built after LOAD_TIMEOUT_MS of
  * the page being visible, so a background tab is not given up on, the opening gave up on its load, or it had not landed
  * LANDING_TIMEOUT_MS after the loader showed, counting only the time a scene was on a visible page), 3D goes
  * off for this visit (not stored: the visitor's own choice stays as it was), so the page scrolls natively and the
@@ -102,7 +111,7 @@ function SceneHostView({ scene }: SceneHostProps): JSX.Element {
   const [support, setSupport] = useState<WebGLSupport | null>(probed);
   const [failed, setFailed] = useState(false);
   const [ready, setReady] = useState(false);
-  const run = useRef({ ready: false, failed: false, cancel: () => {} });
+  const run = useRef({ started: false, ready: false, failed: false, cancel: () => {} });
 
   const unsupported = support === 'none' || support === 'software';
   const showStage = wanted && support === 'ok' && !failed;
@@ -147,26 +156,37 @@ function SceneHostView({ scene }: SceneHostProps): JSX.Element {
     useScene.getState().setThreeD(false, { persist: false });
   }, []);
 
-  // The loader can show: the canvas fades in and the load timeout stops. LOADED is the opening's to send, when it lands.
+  // The opening's loader is built and compiled: the load timeout stops, and the canvas stays hidden. A skipped opening
+  // (src/scene/v3/openingPose.ts `openingReadiness`) says this first and onReady once its home is warm too, on a budget
+  // of its own meanwhile; a normal one says onReady alone, which says this as well.
+  const onStarted = useCallback(() => {
+    const current = run.current;
+    if (current.started || current.failed) return;
+    current.started = true;
+    current.cancel();
+  }, []);
+
+  // The canvas can show: it fades in, and the load timeout stops if it has not. LOADED is the opening's to send, when it lands.
   const onReady = useCallback(() => {
     const current = run.current;
     if (current.ready || current.failed) return;
     current.ready = true;
+    current.started = true;
     current.cancel();
     setReady(true);
   }, []);
 
-  // Each Stage mount gets LOAD_TIMEOUT_MS of the page being visible for its loader to show: a tab opened in the
-  // background cannot paint or draw, and is not given up on while it waits there.
+  // Each Stage mount gets LOAD_TIMEOUT_MS of the page being visible for its loader to be built and compiled (onStarted,
+  // or onReady): a tab opened in the background cannot paint or draw, and is not given up on while it waits there.
   useEffect(() => {
     if (!showStage) {
       setReady(false);
       return;
     }
-    const current = { ready: false, failed: false, cancel: () => {} };
+    const current = { started: false, ready: false, failed: false, cancel: () => {} };
     run.current = current;
     current.cancel = visibleTimeout(LOAD_TIMEOUT_MS, () => {
-      if (!current.ready) fail(`the scene was not ready after ${LOAD_TIMEOUT_MS / 1000} s of the page being visible`);
+      if (!current.started) fail(`the scene was not ready after ${LOAD_TIMEOUT_MS / 1000} s of the page being visible`);
     });
     return () => current.cancel();
   }, [showStage, fail]);
@@ -186,7 +206,7 @@ function SceneHostView({ scene }: SceneHostProps): JSX.Element {
         {showStage && (
           <StageBoundary onFail={fail}>
             <Suspense fallback={null}>
-              <Stage onReady={onReady} onFail={fail} />
+              <Stage onStarted={onStarted} onReady={onReady} onFail={fail} />
             </Suspense>
           </StageBoundary>
         )}

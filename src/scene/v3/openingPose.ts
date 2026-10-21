@@ -163,6 +163,36 @@ export function startPathFor(phase: Phase['kind'], seen: boolean, reduced: boole
 }
 
 /**
+ * How long a skipped opening's home may take to load once its loader is warm, ms of the page being visible: the
+ * loader's own give-up time (LOADER.giveUp). A skipped mount (a visit that began on Lite, say) thus has the load budget a
+ * loader has, SceneHost's LOAD_TIMEOUT_MS to start and then this for the home, and not the start's alone.
+ */
+export const SKIPPED_HOME_BUDGET_MS = LOADER.giveUp * 1000;
+
+/** What an opening tells SceneHost, and what runs, given how far its build has gone. */
+export interface OpeningReadiness {
+  /** Its loader is built and compiled: the load timeout stops (the Stage's `onStarted`; `onReady` implies it). */
+  started: boolean;
+  /** The canvas can show (the Stage's `onReady`): the loader's first frame, or a skipped opening's home. */
+  shown: boolean;
+  /** The home's own budget runs (SKIPPED_HOME_BUDGET_MS of visible time): started but not shown, so no clock gives up. */
+  budget: boolean;
+}
+
+/**
+ * One rule for both paths (the fix to Ruling 9c's skipped mount): an opening has started once its loader's objects are
+ * warm, however it goes on, so SceneHost's load timeout covers the same work for every mount. A normal opening shows
+ * then too, and its loader's clock gives up on the home's load (LOADER.giveUp). A skipped one stays hidden until its
+ * home is warm too, so the canvas fades in straight onto the home, and meanwhile its own budget stands in for the
+ * clock it does not run.
+ */
+export function openingReadiness(skip: boolean, warm: { loader: boolean; home: boolean }): OpeningReadiness {
+  const started = warm.loader;
+  const shown = started && (!skip || warm.home);
+  return { started, shown, budget: started && !shown };
+}
+
+/**
  * The clock of an opening that skipped its loader: at home, ON whole and all 64 pins lit, so it poses the same home
  * every path lands on (Ruling 3) and reports its pins as the full path's home does.
  */

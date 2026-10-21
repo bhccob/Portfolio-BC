@@ -33,7 +33,12 @@ const GL = { antialias: true, alpha: false, stencil: false, powerPreference: 'hi
 const CAMERA = { fov: 30, near: 0.1, far: 100, position: [0, 0, 5] as [number, number, number], manual: true };
 
 export interface StageProps {
-  /** The loader can show: the opening's chip, laser, traces and mist are built and their programs compiled. */
+  /**
+   * The opening's loader is built and compiled (its chip, laser, traces and mist), so the load timeout stops, while the
+   * canvas stays hidden: said by an opening that skips its loader, which shows only once its home is warm too.
+   */
+  onStarted(): void;
+  /** The canvas can show: the loader's first frame, or a skipped opening's home. Implies `onStarted`. */
   onReady(): void;
   /**
    * The scene failed: the opening could not be built, its load threw or did not finish in time, or the context was lost
@@ -80,11 +85,11 @@ function ContextWatch({ onFail }: Pick<StageProps, 'onFail'>): null {
  * on and WebGL is there, and gives it LOAD_TIMEOUT_MS to say the loader can show; the opening says LOADED itself when
  * it lands.
  *
- * Memoised (its two callbacks are stable): a host render, as when the page's scene changes, never re-renders the
+ * Memoised (its callbacks are stable): a host render, as when the page's scene changes, never re-renders the
  * canvas's tree, whose post chain would rebuild its passes. The parts read what changes (the page's scene, the tier,
  * 3D, the phase) from the store.
  */
-export default memo(function Stage({ onReady, onFail }: StageProps): JSX.Element {
+export default memo(function Stage({ onStarted, onReady, onFail }: StageProps): JSX.Element {
   const [step, setStep] = useState(() => reached);
   const quality = qualityFor(step, FINE_POINTER);
   // The Canvas's dpr follows the rung, so a Stage render never puts back a ratio the governor has lowered.
@@ -108,7 +113,7 @@ export default memo(function Stage({ onReady, onFail }: StageProps): JSX.Element
     <Canvas dpr={dpr} frameloop="demand" flat gl={GL} camera={CAMERA}>
       <ContextWatch onFail={onFail} />
       <Studio />
-      <Opening clearcoat={quality.clearcoat} finePointer={FINE_POINTER} onReady={onReady} onFail={onFail} />
+      <Opening clearcoat={quality.clearcoat} finePointer={FINE_POINTER} onStarted={onStarted} onReady={onReady} onFail={onFail} />
       <Rig />
       <Effects />
       <QualityGovernor step={step} finePointer={FINE_POINTER} onStep={stepDown} />

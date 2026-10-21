@@ -1,11 +1,12 @@
 import { LOADER } from '~/engine/v3/loaderTimeline';
 
 /**
- * How long the scene's loader may take to show, from the moment SceneHost decides to mount it (its chunk to download,
- * the opening's chip, laser, traces and mist to build and their programs to compile) before the page gives up on it
- * and falls back to the poster, ms of the page being visible (visibleTimeout): 12 s is a scene that is not coming. From
- * then on the loader itself waits for the rest of the load, LOADER.giveUp visible seconds at most
- * (src/engine/v3/loaderTimeline.ts), and LANDING_TIMEOUT_MS stands behind it.
+ * How long the scene may take to start, from the moment SceneHost decides to mount it (its chunk to download, the
+ * opening's chip, laser, traces and mist to build and their programs to compile: the Stage's onStarted, or onReady)
+ * before the page gives up on it and falls back to the poster, ms of the page being visible (visibleTimeout): 12 s is a
+ * scene that is not coming. From then on the opening waits for the rest of the load, LOADER.giveUp visible seconds at
+ * most, by its loader's clock (src/engine/v3/loaderTimeline.ts) or, when it skips the loader, by a budget of that
+ * length (SKIPPED_HOME_BUDGET_MS); LANDING_TIMEOUT_MS stands behind a loader.
  */
 export const LOAD_TIMEOUT_MS = 12_000;
 
@@ -107,29 +108,40 @@ export function whileShown(doc: VisibilitySource, scene: SceneShown): Visibility
   };
 }
 
-/** As much of the store as `landingBackstop` reads: the phase is LOADING, the page shows a scene, and its changes. */
+/**
+ * As much of the store as `landingBackstop` reads: the phase is LOADING, the page shows a scene, and its changes; and
+ * whether the proof bridge holds the opening's clock (`seekLoader`), which stops it on purpose.
+ */
 export interface LandingWatch extends SceneShown {
   loading(): boolean;
+  held(): boolean;
 }
 
 /**
  * The landing backstop (Ruling 9b), started when the loader shows (SceneHost's onReady): if the phase is still LOADING
  * after LANDING_TIMEOUT_MS of a scene on a visible page (`whileShown`), it calls `fail`, once, and SceneHost fails the
  * scene as it fails any other (3D off for the visit, LOADED, the fallback card). It stands down for good the moment the
- * phase leaves LOADING, and starts nothing if it already has (a skipped opening, a direct arrival on a page). Answers
- * the stop, for a Stage that goes away first; either way it lets go of every listener.
+ * phase leaves LOADING, and starts nothing if it already has (a skipped opening, a direct arrival on a page). If its
+ * time runs out while a seek holds the opening's clock (`?proof` only), the stall is the bridge's and not the
+ * opening's: it waits a whole LANDING_TIMEOUT_MS again from there. Answers the stop, for a Stage that goes away first;
+ * either way it lets go of every listener.
  */
 export function landingBackstop(store: LandingWatch, fail: () => void, doc: VisibilitySource = document): () => void {
   if (!store.loading()) return () => {};
   let unsubscribe = (): void => {};
-  const cancel = visibleTimeout(
-    LANDING_TIMEOUT_MS,
-    () => {
-      unsubscribe();
-      if (store.loading()) fail();
-    },
-    whileShown(doc, store),
-  );
+  let cancel = (): void => {};
+  const arm = (): void => {
+    cancel = visibleTimeout(
+      LANDING_TIMEOUT_MS,
+      () => {
+        if (store.loading() && store.held()) return arm();
+        unsubscribe();
+        if (store.loading()) fail();
+      },
+      whileShown(doc, store),
+    );
+  };
+  arm();
   unsubscribe = store.subscribe(() => {
     if (store.loading()) return;
     cancel();

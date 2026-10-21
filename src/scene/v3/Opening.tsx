@@ -21,6 +21,7 @@ import { frame } from '~/state/frame';
 import { useScene } from '~/state/store';
 import { motion } from '../motion';
 import { settleLoad } from '../settleLoad';
+import { visibleTimeout } from '../timeouts';
 import { type Handover, Home } from './Home';
 import { LOOK } from './look';
 import {
@@ -32,6 +33,8 @@ import {
   type OpeningPath,
   type OpeningPose,
   openingPoseAt,
+  openingReadiness,
+  SKIPPED_HOME_BUDGET_MS,
   skipsLoader,
   startPathFor,
   tipAt,
@@ -39,6 +42,9 @@ import {
 
 /** The longest step the mist's drift takes in one frame, seconds: a scene waking from sleep does not jump it. */
 const MAX_STEP = 0.1;
+
+/** Why the opening fails when its home has not loaded in time: the loader's give-up, and a skipped home's budget. */
+const GAVE_UP = `the compass did not load within ${LOADER.giveUp} s of the page being visible`;
 
 /**
  * How long the sparks keep flying after the cut last moved, in the loader's seconds: the laser waiting on a slow load
@@ -243,7 +249,12 @@ export interface OpeningProps {
   clearcoat: boolean;
   /** A mouse or trackpad: the finer ring masks and the larger city. */
   finePointer: boolean;
-  /** The loader can show: its objects are built and their programs compiled. Called once. */
+  /**
+   * Its loader's objects are built and their programs compiled, but the canvas is not to show yet: said once, by an
+   * opening that skips its loader, at the point a normal one says `onReady` (`openingReadiness`).
+   */
+  onStarted(): void;
+  /** The canvas can show: the loader's first frame, or a skipped opening's warm home. Called once. */
   onReady(): void;
   /** The opening failed: its objects could not be built, its load threw, or the load did not finish in time. */
   onFail(reason: string, error?: unknown): void;
@@ -279,9 +290,12 @@ export interface OpeningProps {
  *
  * **Skip** (Ruling 9c). Mounted while the home page has already left LOADING (`startPathFor`: 3D back on after a
  * failure or a toggle, a visit that began on Lite), it plays no loader under the hero that now shows: it builds
- * everything as before, but says it is ready only once the home is loaded too, and its clock stands at home from the
- * start, so the canvas fades in straight onto the home. It sends no LOADED (the phase has left LOADING) and marks
- * nothing seen. Back on the home page mid-opening (`skipsLoader`), it skips the rest once the load is done.
+ * everything as before and says `onStarted` where a normal opening says `onReady` (`openingReadiness`, so SceneHost's
+ * load timeout covers the same work either way), but says `onReady` only once the home is loaded too, and its clock
+ * stands at home from the start, so the canvas fades in straight onto the home. Between the two, as no clock runs to
+ * give up, its own budget does: SKIPPED_HOME_BUDGET_MS (LOADER.giveUp) of the page being visible, then it fails as the
+ * give-up does. It sends no LOADED (the phase has left LOADING) and marks nothing seen. Back on the home page
+ * mid-opening (`skipsLoader`), it skips the rest once the load is done.
  *
  * **Seek** (Ruling 2, `?proof` only). While the debug bridge holds the loader's clock (`frame.loaderHold`), the live
  * clock stops and every frame poses the whole scene, camera included, from the held moment of a load that filled in
@@ -293,7 +307,7 @@ export interface OpeningProps {
  *
  * Unmounting frees every object, material, texture and canvas it made.
  */
-export function Opening({ clearcoat, finePointer, onReady, onFail }: OpeningProps): JSX.Element | null {
+export function Opening({ clearcoat, finePointer, onStarted, onReady, onFail }: OpeningProps): JSX.Element | null {
   const gl = useThree((state) => state.gl);
   const scene = useThree((state) => state.scene);
   const camera = useThree((state) => state.camera);
@@ -305,9 +319,9 @@ export function Opening({ clearcoat, finePointer, onReady, onFail }: OpeningProp
   const [models, setModels] = useState<HomeParts | null>(null);
   const [handover] = useState<Handover>(() => ({ live: false }));
   /** The latest props, for the load, which outlives the render that started it. */
-  const latest = useRef({ clearcoat, onReady, onFail });
+  const latest = useRef({ clearcoat, onStarted, onReady, onFail });
   useLayoutEffect(() => {
-    latest.current = { clearcoat, onReady, onFail };
+    latest.current = { clearcoat, onStarted, onReady, onFail };
   });
 
   useEffect(() => {
@@ -367,12 +381,30 @@ export function Opening({ clearcoat, finePointer, onReady, onFail }: OpeningProp
       latest.current.onReady();
     };
 
+    // What SceneHost has been told (`openingReadiness`), and the skipped home's budget while it runs.
+    let started = false;
+    let budget: (() => void) | null = null;
+    const reached = (warmed: { loader: boolean; home: boolean }): void => {
+      const at = openingReadiness(state.skip, warmed);
+      if (at.shown) {
+        if (!state.ready) show();
+      } else if (at.started && !started) {
+        started = true;
+        latest.current.onStarted();
+      }
+      if (at.budget && budget === null) budget = visibleTimeout(SKIPPED_HOME_BUDGET_MS, () => state.fail(GAVE_UP));
+      if (!at.budget && budget !== null) {
+        budget();
+        budget = null;
+      }
+    };
+
     const load = async (): Promise<void> => {
-      // The loader's own programs first, so its first frame does not stall; then it can show (a skipped opening waits
-      // for the home below, so it shows straight onto it).
+      // The loader's own programs first, so its first frame does not stall; then it can show (a skipped opening has
+      // only started: it waits for the home below, so it shows straight onto it).
       await warm(gl, scene, camera, 'the loader');
       if (disposed) return;
-      if (!state.skip) show();
+      reached({ loader: true, home: false });
 
       const blocks = cityLayout(CITY_BLOCKS[finePointer ? 'fine' : 'coarse']);
       const compass = buildGlassCompass();
@@ -403,7 +435,7 @@ export function Opening({ clearcoat, finePointer, onReady, onFail }: OpeningProp
       await warm(gl, scene, camera, 'the compass');
       if (disposed) return;
       state.done.warm = true;
-      if (state.skip && !state.ready) show();
+      reached({ loader: true, home: true });
       invalidate();
     };
 
@@ -415,6 +447,7 @@ export function Opening({ clearcoat, finePointer, onReady, onFail }: OpeningProp
 
     return () => {
       disposed = true;
+      budget?.();
       loader.current = null;
       run.current = null;
       handover.live = false;
@@ -459,7 +492,7 @@ export function Opening({ clearcoat, finePointer, onReady, onFail }: OpeningProp
       state.shown = readout(state.shown, loadShare(state.done), delta);
       if (state.loadedAt === null && state.shown >= 1) state.loadedAt = state.elapsed;
       if (loaderGaveUp(state.elapsed, state.loadedAt)) {
-        state.fail(`the compass did not load within ${LOADER.giveUp} s of the page being visible`);
+        state.fail(GAVE_UP);
         return;
       }
       // Back on the home page mid-opening, whose hero now shows: the rest of the loader is skipped once the load is done.

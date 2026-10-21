@@ -190,10 +190,11 @@ describe('landingBackstop', () => {
   /** A store's phase and page, which the test sets, telling its listeners of every change, as zustand does. */
   function fakeStore(loading: boolean, shown = true) {
     const listeners = new Set<() => void>();
-    const now = { loading, shown };
+    const now = { loading, shown, held: false };
     const store: LandingWatch = {
       loading: () => now.loading,
       shown: () => now.shown,
+      held: () => now.held,
       subscribe: (listener) => {
         listeners.add(listener);
         return () => void listeners.delete(listener);
@@ -244,6 +245,24 @@ describe('landingBackstop', () => {
     vi.advanceTimersByTime(10 * LANDING_TIMEOUT_MS);
     expect(fail).not.toHaveBeenCalled();
     stop();
+  });
+
+  it("does not fail an opening whose clock a seek holds (?proof): it waits a whole budget again from there", () => {
+    const page = fakeDocument('visible');
+    const { store, set, listeners } = fakeStore(true);
+    const fail = vi.fn();
+    landingBackstop(store, fail, page.doc);
+    set({ held: true });
+    vi.advanceTimersByTime(LANDING_TIMEOUT_MS);
+    expect(fail).not.toHaveBeenCalled();
+    expect(listeners.size).toBe(2); // still watching: the phase, and the re-armed timer's scene
+    set({ held: false });
+    vi.advanceTimersByTime(LANDING_TIMEOUT_MS - 1);
+    expect(fail).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(fail).toHaveBeenCalledOnce();
+    expect(listeners.size).toBe(0);
+    expect(page.listeners.size).toBe(0);
   });
 
   it('counts only the time a scene is on a visible page, and can be stopped by its owner', () => {

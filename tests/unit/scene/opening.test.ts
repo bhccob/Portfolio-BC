@@ -12,6 +12,8 @@ import {
   loadShare,
   type OpeningPose,
   openingPoseAt,
+  openingReadiness,
+  SKIPPED_HOME_BUDGET_MS,
   skipsLoader,
   startPathFor,
   tipAt,
@@ -331,6 +333,24 @@ describe('where an opening starts (Ruling 9c)', () => {
     expect(skipsLoader('LOADING')).toBe(false);
     // Every phase has an answer.
     expect(KINDS.filter(skipsLoader)).toEqual(['HOME_IDLE', 'FOCUS_COUNTRY', 'DISSECT', 'MORPH', 'VOID_ENTRY', 'PROJECTS']);
+  });
+
+  it("keeps one rule for the load timeout: either path has started once its loader is warm, as a normal mount always has", () => {
+    for (const skip of [false, true]) {
+      expect(openingReadiness(skip, { loader: false, home: false }), `skip ${skip}`).toEqual({ started: false, shown: false, budget: false });
+      expect(openingReadiness(skip, { loader: true, home: false }).started, `skip ${skip}`).toBe(true);
+      expect(openingReadiness(skip, { loader: true, home: true }), `skip ${skip}`).toEqual({ started: true, shown: true, budget: false });
+    }
+  });
+
+  it("shows a normal mount's loader at once, its home's load then the loader clock's to give up on", () => {
+    expect(openingReadiness(false, { loader: true, home: false })).toEqual({ started: true, shown: true, budget: false });
+  });
+
+  it("keeps a skipped mount's canvas hidden until its home is warm, on a budget of its own meanwhile", () => {
+    expect(openingReadiness(true, { loader: true, home: false })).toEqual({ started: true, shown: false, budget: true });
+    // The budget is the loader's own give-up time, so a visit that began on Lite has the whole of it, as a loader would.
+    expect(SKIPPED_HOME_BUDGET_MS).toBe(LOADER.giveUp * 1000);
   });
 
   it('starts a skipped opening on a clock already at home, all its pins lit, posed as every path lands', () => {
