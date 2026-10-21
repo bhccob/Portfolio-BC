@@ -587,12 +587,13 @@ function pose(parts: LoaderParts | null, built: HomeParts | null, at: OpeningPos
   if (at.needle !== null) built.needle.setForm(at.needle);
   if (!atHome) built.needle.setBearing(LANDING_BEARING);
   // The city rises out of the board plane: its height scaled about y = CHIP.board (never to zero, whose normal matrix
-  // would be singular), its glow with it.
+  // would be singular), its glow coming up behind it (the square of the rise: Task 14b, so the circuit's high view stays
+  // a dark board with the traces bending into rings, as frame 03 is, and the city lights as it reaches the glass).
   const rise = Math.max(at.city, 1e-4);
   built.city.mesh.visible = at.city > 0;
   built.city.mesh.scale.y = rise;
   built.city.mesh.position.y = CHIP.board * (1 - rise);
-  built.city.setGlow(LOOK.home.city * at.city);
+  built.city.setGlow(LOOK.home.city * at.city * at.city);
   // Its case rises with it, so no block ever stands outside the wall.
   built.casing.setRise(at.city);
   // Its brass rim lights as the glass forms: until then it is the wall's own dark.

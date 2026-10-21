@@ -111,9 +111,9 @@ export interface OpeningPose {
   /** The needle's growth out of the probe (`setForm`), or null while it is not drawn. */
   needle: number | null;
   /**
-   * How far the chip city has risen out of the board, 0..1 (0 hides it): its blocks' height and its glow, which is
-   * LOOK.home.city at 1. It rises with the circuit, not before: in the loader's close shot its blocks would stand as
-   * towers round the chip and hide its pins.
+   * How far the chip city has risen out of the board, 0..1 (0 hides it): its blocks' height, and its glow as the square
+   * of it, which is LOOK.home.city at 1, and its case's wall (Task 14b). It rises with the circuit, not before: in the
+   * loader's close shot its blocks would stand as towers round the chip and hide its pins.
    */
   city: number;
   /** The constellations' share of their resting glow, 0..1; 0 hides them. */
