@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { COUNTRY_IDS, type CountryId } from '~/data/directions';
 import { AngleSpring, wrapAngle } from '~/engine/AngleSpring';
 import { AT_REST } from '~/engine/stillness';
-import { AIM_SHELL, NEEDLE_SPRING, pointerBearing, touchDrift, touchDriftRests } from '~/engine/v3/aim';
+import { AIM_SHELL, DRIFT_CYCLE, NEEDLE_SPRING, pointerBearing, touchDrift, touchDriftRests } from '~/engine/v3/aim';
 import type { CityModel } from '~/engine/v3/build/city';
 import { type ConstellationsModel, STARS_LOOK } from '~/engine/v3/build/constellations';
 import type { NeedleModel } from '~/engine/v3/build/needle';
@@ -43,8 +43,6 @@ export interface Handover {
 export interface HomeProps {
   models: HomeModels;
   handover: Handover;
-  /** A mouse or trackpad: the needle follows it once it moves. On a touch screen the needle drifts instead. */
-  finePointer: boolean;
 }
 
 type Placer = NonNullable<ComponentProps<typeof Html>['calculatePosition']>;
@@ -127,6 +125,8 @@ interface HomeState {
   idleUntil: number;
   /** Seconds of idle motion so far: the clock of the twinkle, the breath, the pulse and the touch drift. */
   idleTime: number;
+  /** Where a drifting needle's run ends on that clock: a whole DRIFT_CYCLE after the last stir. */
+  driftUntil: number;
   /** The pointer move and the transition Home last saw, to tell a new one. */
   pointerAt: number;
   transition: number;
@@ -140,9 +140,9 @@ interface HomeState {
  * objects, poses them through the opening and frees them; it mounts Home as soon as they exist and hands them over
  * (`handover.live`) once it has posed the home, and takes them back while a seek holds its clock.
  *
- * **Aim.** At home at rest (`isAiming`: HOME_IDLE on the home page) a mouse or trackpad that has moved aims the needle
- * at `pointerBearing(frame.pointer, camera, AIM_SHELL)`; before its first move, and always on a touch screen, the needle
- * follows `touchDrift`, which visits the three constellations. A pointer that finds no bearing, or has left the window
+ * **Aim.** At home at rest (`isAiming`: HOME_IDLE on the home page) a mouse or a pen that has moved aims the needle
+ * at `pointerBearing(frame.pointer, camera, AIM_SHELL)`, on any screen (`aimSource`); until one has, and so always on a
+ * touch screen, the needle follows `touchDrift`, which visits the three constellations. A pointer that finds no bearing, or has left the window
  * (it sends no more moves), keeps the last target; anywhere else the needle holds where it points. The needle follows
  * its target through `new AngleSpring(NEEDLE_SPRING.zeta, NEEDLE_SPRING.omega)`, from north (LANDING_BEARING, where it
  * grew) at each hand-over; with reduced motion the spring is set straight to the target, with no animation.
@@ -157,14 +157,15 @@ interface HomeState {
  * and only while a name can show (`labelsLive`), not on every frame; a layout change asks for a frame only then too
  * (`layoutWakes`), so a resize, a scroll or a font on a page without a scene never wakes the canvas behind it.
  *
- * **Idle.** For IDLE_SECONDS after the last stir (the hand-over, a phase change, a pointer move at home) and on until
- * the touch drift rests on a constellation, the stars twinkle, the needle's tip breathes (±10 %, 4 s) and the city
+ * **Idle.** For IDLE_SECONDS after the last stir (the hand-over, a phase change, a pointer move at home), or while the
+ * needle drifts for a whole DRIFT_CYCLE of the drift after it and on until the drift rests on a constellation
+ * (`idleRuns`), the stars twinkle, the needle's tip breathes (±10 %, 4 s) and the city
  * glows in a slow pulse (±5 %, 9 s), all on one clock that stops with them, so a sleeping scene is a still frame of
  * them and a wake goes on from there. None of it under reduced motion. Each frame it writes `motion.compass`
  * (`idle`, `needle`, `needleSpeed`) as milestone 1's compass did, so the Heartbeat lets the canvas sleep once the idle
  * while is over, the needle has settled and the glows have arrived. The mist drifts on the Opening's clock.
  */
-export function Home({ models, handover, finePointer }: HomeProps): JSX.Element {
+export function Home({ models, handover }: HomeProps): JSX.Element {
   const camera = useThree((state) => state.camera) as THREE.PerspectiveCamera;
   const invalidate = useThree((state) => state.invalidate);
   const { t } = useTranslator();
@@ -174,6 +175,7 @@ export function Home({ models, handover, finePointer }: HomeProps): JSX.Element 
     target: LANDING_BEARING,
     idleUntil: 0,
     idleTime: 0,
+    driftUntil: 0,
     pointerAt: frame.pointerAt,
     transition: useScene.getState().transitionId,
     glow: { china: STARS_LOOK.rest, netherlands: STARS_LOOK.rest, aruba: STARS_LOOK.rest },
@@ -313,10 +315,21 @@ export function Home({ models, handover, finePointer }: HomeProps): JSX.Element 
       state.pointerAt = frame.pointerAt;
       if (aiming) stirred = true;
     }
-    if (stirred) state.idleUntil = now + IDLE_SECONDS * 1000;
+    if (stirred) {
+      state.idleUntil = now + IDLE_SECONDS * 1000;
+      state.driftUntil = state.idleTime + DRIFT_CYCLE;
+    }
 
-    const source = aimSource(aiming, finePointer, Number.isFinite(frame.pointerAt));
-    const runs = idleRuns({ now, until: state.idleUntil, reduced, drifting: source === 'drift', resting: touchDriftRests(state.idleTime) });
+    const source = aimSource(aiming, Number.isFinite(frame.pointerAt));
+    const runs = idleRuns({
+      now,
+      until: state.idleUntil,
+      reduced,
+      drifting: source === 'drift',
+      time: state.idleTime,
+      driftUntil: state.driftUntil,
+      resting: touchDriftRests(state.idleTime),
+    });
     if (runs) state.idleTime += dt;
 
     if (source === 'pointer') {

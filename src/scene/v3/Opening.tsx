@@ -539,7 +539,7 @@ export function Opening({ clearcoat, finePointer, onStarted, onReady, onFail }: 
     }
   });
 
-  return models ? <Home models={models} handover={handover} finePointer={finePointer} /> : null;
+  return models ? <Home models={models} handover={handover} /> : null;
 }
 
 /** Where the live opening stands: at home once it skips its loader, else as the loader's timeline says. */

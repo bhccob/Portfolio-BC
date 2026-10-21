@@ -11,9 +11,9 @@ import type { Phase } from '~/state/machine';
 
 /**
  * How long the home's idle motion runs after the last thing that stirred it (a pointer move at home, a phase change,
- * the hand-over from the opening), seconds: the stars' twinkle, the needle's breathing, the city's pulse and the touch
- * drift. Then the needle settles, the scene draws nothing more and the canvas sleeps (spec §4: when nothing moves,
- * nothing is rendered).
+ * the hand-over from the opening), seconds: the stars' twinkle, the needle's breathing and the city's pulse. A needle
+ * on the touch drift runs on for a whole cycle of it (`idleRuns`). Then the needle settles, the scene draws nothing
+ * more and the canvas sleeps (spec §4: when nothing moves, nothing is rendered).
  */
 export const IDLE_SECONDS = 12;
 
@@ -86,25 +86,29 @@ export function layoutWakes(labelsLive: boolean, phase: Phase['kind'], scene: Sc
 export type AimSource = 'pointer' | 'drift' | 'hold';
 
 /**
- * Where the needle's target comes from (spec §2.2): a mouse or trackpad (`finePointer`) once it has moved; the touch
- * drift (aim.ts `touchDrift`) on a touch screen, which has no pointer to follow, and on a fine one before its first
- * move, so the needle visits the constellations rather than stand still; and nothing while it is not `aiming`
- * (`isAiming`), where it holds.
+ * Where the needle's target comes from (spec §2.2): a mouse or a pen once it has moved (`pointerMoved`), on any
+ * screen, a tablet with a mouse too; until then the touch drift (aim.ts `touchDrift`), so the needle visits the
+ * constellations rather than stand still. A finger never counts as a move (src/scene/Rig.tsx reads no touch), so a
+ * touch screen drifts. Nothing while the needle is not `aiming` (`isAiming`), where it holds.
  */
-export function aimSource(aiming: boolean, finePointer: boolean, pointerMoved: boolean): AimSource {
+export function aimSource(aiming: boolean, pointerMoved: boolean): AimSource {
   if (!aiming) return 'hold';
-  return finePointer && pointerMoved ? 'pointer' : 'drift';
+  return pointerMoved ? 'pointer' : 'drift';
 }
 
 /**
- * Whether the idle motion runs this frame: before `until` (`performance.now()` ms: IDLE_SECONDS after the last stir),
- * and past it while the needle is `drifting` and the drift is not `resting` on a constellation (aim.ts
- * `touchDriftRests`), so the scene falls asleep with its needle on a named constellation rather than stopped in the
- * dark between. Never under `reduced` motion: no twinkle, breathe, pulse or drift at all.
+ * Whether the idle motion runs this frame. Never under `reduced` motion: no twinkle, breathe, pulse or drift at all.
+ * Otherwise before `until` (`performance.now()` ms: IDLE_SECONDS after the last stir); and while the needle is
+ * `drifting`, on past it until the idle clock (`time`, seconds) reaches `driftUntil` (a whole cycle of the drift after
+ * the last stir, aim.ts DRIFT_CYCLE, so a visitor with no pointer sees the needle visit China, the Netherlands and
+ * Aruba) and then on until the drift is `resting` on a constellation (aim.ts `touchDriftRests`), so the scene falls
+ * asleep with its needle on a named constellation rather than stopped in the dark between. The drift's end is on the
+ * idle clock, not the page's, so a slow device whose frames the clock caps (Home's MAX_STEP) still plays it whole.
  */
-export function idleRuns(at: { now: number; until: number; reduced: boolean; drifting: boolean; resting: boolean }): boolean {
+export function idleRuns(at: { now: number; until: number; reduced: boolean; drifting: boolean; time: number; driftUntil: number; resting: boolean }): boolean {
   if (at.reduced) return false;
-  return at.now < at.until || (at.drifting && !at.resting);
+  if (at.now < at.until) return true;
+  return at.drifting && (at.time < at.driftUntil || !at.resting);
 }
 
 /** The side of its figure a constellation's name stands on: right of it, left of it, above it, or under it. */

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { COUNTRY_IDS } from '~/data/directions';
 import { AngleSpring, wrapAngle } from '~/engine/AngleSpring';
-import { AIM_SHELL, AIM_SNAP, NEEDLE_SPRING, pointerBearing, touchDrift, touchDriftRests } from '~/engine/v3/aim';
+import { AIM_SHELL, AIM_SNAP, DRIFT_CYCLE, NEEDLE_SPRING, pointerBearing, touchDrift, touchDriftRests } from '~/engine/v3/aim';
 import { bearingRange, PLACEMENTS, pointedAt, starPositions } from '~/engine/v3/constellations';
 import { applyCameraShot, homeShotFor } from '~/engine/v3/shots';
 import { bearingOf } from '~/engine/instrument/dialSpec';
@@ -384,6 +384,9 @@ describe('touchDrift in full', () => {
   });
   it('is continuous across the seam of the cycle', () => {
     expect(Math.abs(touchDrift(27.999) - touchDrift(28.001))).toBeLessThan(1e-3);
+  });
+  it('has a cycle of 28 s, four legs of 7, which the home runs whole after each stir', () => {
+    expect(DRIFT_CYCLE).toBe(28);
   });
 });
 

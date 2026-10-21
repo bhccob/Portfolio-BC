@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { COUNTRY_IDS } from '~/data/directions';
+import { COUNTRY_IDS, type CountryId } from '~/data/directions';
+import { DRIFT_CYCLE, touchDrift, touchDriftRests } from '~/engine/v3/aim';
+import { pointedAt } from '~/engine/v3/constellations';
 import {
   aimSource,
   BREATHE,
@@ -130,23 +132,22 @@ describe('layoutWakes', () => {
 });
 
 describe('aimSource', () => {
-  it('follows a mouse once it has moved', () => {
-    expect(aimSource(true, true, true)).toBe('pointer');
+  it('follows a mouse or a pen once it has moved, whatever the screen: a tablet with a mouse steers too', () => {
+    expect(aimSource(true, true)).toBe('pointer');
   });
 
-  it("drifts between the constellations before the mouse has moved, and always on a touch screen, which has no pointer to follow", () => {
-    expect(aimSource(true, true, false)).toBe('drift');
-    expect(aimSource(true, false, false)).toBe('drift');
-    expect(aimSource(true, false, true)).toBe('drift');
+  it('drifts between the constellations until a mouse or a pen has moved, as on a touch screen, whose fingers never count as a move (Rig)', () => {
+    expect(aimSource(true, false)).toBe('drift');
   });
 
   it('holds where it points anywhere but the home at rest', () => {
-    for (const fine of [true, false]) for (const moved of [true, false]) expect(aimSource(false, fine, moved)).toBe('hold');
+    for (const moved of [true, false]) expect(aimSource(false, moved)).toBe('hold');
   });
 });
 
 describe('idleRuns', () => {
-  const base = { now: 1_000, until: 2_000, reduced: false, drifting: false, resting: true };
+  // A stir at idle time 5 s: the while runs to 2 000 ms, the drift a whole cycle to 5 + DRIFT_CYCLE s of the idle clock.
+  const base = { now: 1_000, until: 2_000, reduced: false, drifting: false, time: 5, driftUntil: 5 + DRIFT_CYCLE, resting: true };
 
   it('runs until its while is over', () => {
     expect(idleRuns(base)).toBe(true);
@@ -154,16 +155,75 @@ describe('idleRuns', () => {
     expect(idleRuns({ ...base, now: 2_000 })).toBe(false);
   });
 
-  it('runs on past it while the drift travels, so the needle falls asleep resting on a constellation', () => {
-    expect(idleRuns({ ...base, now: 2_500, drifting: true, resting: false })).toBe(true);
-    expect(idleRuns({ ...base, now: 2_500, drifting: true, resting: true })).toBe(false);
-    // A pointer-led needle has no drift to wait for.
-    expect(idleRuns({ ...base, now: 2_500, drifting: false, resting: false })).toBe(false);
+  it('runs on past it while the drift has not made a whole cycle since the stir, resting or not', () => {
+    expect(idleRuns({ ...base, now: 2_500, drifting: true, time: 20, resting: true })).toBe(true);
+    expect(idleRuns({ ...base, now: 2_500, drifting: true, time: 20, resting: false })).toBe(true);
+  });
+
+  it('then on until the drift rests, so the needle falls asleep resting on a constellation', () => {
+    const end = base.driftUntil;
+    expect(idleRuns({ ...base, now: 2_500, drifting: true, time: end + 1, resting: false })).toBe(true);
+    expect(idleRuns({ ...base, now: 2_500, drifting: true, time: end, resting: true })).toBe(false);
+    expect(idleRuns({ ...base, now: 2_500, drifting: true, time: end + 1, resting: true })).toBe(false);
+  });
+
+  it('gives a pointer-led needle no drift to wait for', () => {
+    expect(idleRuns({ ...base, now: 2_500, drifting: false, time: 20, resting: false })).toBe(false);
   });
 
   it('never runs under reduced motion: no twinkle, breathe, pulse or drift at all', () => {
     expect(idleRuns({ ...base, reduced: true })).toBe(false);
-    expect(idleRuns({ ...base, reduced: true, now: 2_500, drifting: true, resting: false })).toBe(false);
+    expect(idleRuns({ ...base, reduced: true, now: 2_500, drifting: true, time: 20, resting: false })).toBe(false);
+  });
+});
+
+describe('a drift run: a phone visitor sees all three constellations', () => {
+  /**
+   * Home's idle loop on the touch drift (Home.tsx), at 60 fps: a stir at idle time `from` sets the while
+   * (IDLE_SECONDS of the page's time) and the drift's end (DRIFT_CYCLE more of the idle clock); then each frame the
+   * clock moves on while `idleRuns` says so. Answers the constellations the drift rested on, in order, and the idle
+   * time the motion stopped at (null if it ran on for two minutes).
+   */
+  function driftRun(from: number): { visited: CountryId[]; sleptAt: number | null } {
+    const step = 1 / 60;
+    let now = 0;
+    let time = from;
+    const until = now + IDLE_SECONDS * 1000;
+    const driftUntil = time + DRIFT_CYCLE;
+    const visited: CountryId[] = [];
+    for (let frame = 0; frame < 120 * 60; frame++) {
+      if (!idleRuns({ now, until, reduced: false, drifting: true, time, driftUntil, resting: touchDriftRests(time) })) return { visited, sleptAt: time };
+      now += step * 1000;
+      time += step;
+      const on = touchDriftRests(time) ? pointedAt(touchDrift(time)) : null;
+      if (on !== null && visited.at(-1) !== on) visited.push(on);
+    }
+    return { visited, sleptAt: null };
+  }
+
+  it('from the hand-over, visits China, the Netherlands and Aruba before the scene sleeps, and then it sleeps', () => {
+    const { visited, sleptAt } = driftRun(0);
+    for (const id of ['china', 'netherlands', 'aruba'] as const) expect(visited, JSON.stringify(visited)).toContain(id);
+    expect(sleptAt).not.toBeNull();
+    expect(sleptAt!).toBeGreaterThanOrEqual(DRIFT_CYCLE);
+    expect(sleptAt!).toBeLessThan(DRIFT_CYCLE + 7);
+  });
+
+  it('falls asleep resting on a named constellation, not in the dark between', () => {
+    const { sleptAt } = driftRun(0);
+    expect(touchDriftRests(sleptAt!)).toBe(true);
+    expect(pointedAt(touchDrift(sleptAt!))).not.toBeNull();
+  });
+
+  it('does the same after a stir anywhere in the cycle: a whole cycle, all three, then the next rest and sleep', () => {
+    for (const from of [0.5, 4.6, 9, 12.3, 17, 19.9, 24, 27.5, 40, 61.2]) {
+      const { visited, sleptAt } = driftRun(from);
+      for (const id of ['china', 'netherlands', 'aruba'] as const) expect(visited, `from ${from}: ${JSON.stringify(visited)}`).toContain(id);
+      expect(sleptAt, `from ${from}`).not.toBeNull();
+      expect(sleptAt! - from, `from ${from}`).toBeGreaterThanOrEqual(DRIFT_CYCLE);
+      expect(sleptAt! - from, `from ${from}`).toBeLessThan(DRIFT_CYCLE + 7);
+      expect(pointedAt(touchDrift(sleptAt!)), `from ${from}`).not.toBeNull();
+    }
   });
 });
 

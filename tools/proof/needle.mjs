@@ -170,8 +170,9 @@
  *              lands within LOADER.quick + 2 s of the scene being ready; a new context plays the engraving again
  *   loader-reduced  with reduced motion the opening shows only `engrave` (the static ON, its pins filling), `land`
  *              and `home`, in that order, and its lit pins never decrease (sampled every 100 ms)
- *   sleep      landed and left alone (no input at all), the canvas runs its idle motion and then draws nothing:
- *              no requestAnimationFrame for a whole second within IDLE_SECONDS + SLEEP_WITHIN_MS
+ *   sleep      landed and left alone (no input at all, so the needle drifts), the canvas runs its idle motion for a
+ *              whole cycle of the touch drift and then draws nothing: no requestAnimationFrame for a whole second
+ *              within DRIFT_CYCLE + SLEEP_WITHIN_MS, and not before DRIFT_CYCLE - 2 s
  *   hero-failsafe  with JavaScript on but the entry chunk aborted (the page never hydrates), the hero is hidden and
  *              then shown by the CSS fail-safe about 8 s in; with the page working, the hero stays hidden until the
  *              phase is HOME_IDLE and then shows
@@ -226,11 +227,13 @@ const { LOAD_TIMEOUT_MS, RESTORE_TIMEOUT_MS } = await tsImport('../../src/scene/
 const { HOME_CHAPTERS, chapterAt, stops } = await tsImport('../../src/state/chapters.ts', import.meta.url);
 const { LOADER, LOADER_SEEN_KEY } = await tsImport('../../src/engine/v3/loaderTimeline.ts', import.meta.url);
 const { IDLE_SECONDS, PULSE } = await tsImport('../../src/scene/v3/homePose.ts', import.meta.url);
+const { DRIFT_CYCLE } = await tsImport('../../src/engine/v3/aim.ts', import.meta.url);
 const { COUNTRY_IDS } = await tsImport('../../src/data/directions.ts', import.meta.url);
 /**
  * How long the canvas may keep drawing after the last thing that stirred it, ms: the home's idle motion
  * (src/scene/v3/homePose.ts, IDLE_SECONDS: 12 s), the touch drift resting and the needle's spring settling, with room
- * to spare. Counted from the stir, or from the landing for a home left alone (step sleep adds IDLE_SECONDS to it).
+ * to spare. Counted from the stir, or from the landing for a home left alone (step sleep adds DRIFT_CYCLE to it: with
+ * no pointer moved the needle drifts, and the home runs a whole cycle of the drift, 28 s, before it may sleep).
  */
 const SLEEP_WITHIN_MS = 20_000;
 /** The milestone's stills: PROOF_DIR/m2/. */
@@ -2875,9 +2878,10 @@ async function loaderReduced(browser, step) {
 }
 
 /**
- * Landed and left alone, with no input at all, the canvas runs the home's idle motion (IDLE_SECONDS after the landing)
- * and then draws nothing: no requestAnimationFrame of the page's for a whole second, within IDLE_SECONDS +
- * SLEEP_WITHIN_MS of the landing.
+ * Landed and left alone, with no input at all, the canvas runs the home's idle motion and then draws nothing: no
+ * requestAnimationFrame of the page's for a whole second, within DRIFT_CYCLE + SLEEP_WITHIN_MS of the landing. With no
+ * pointer moved the needle is on the touch drift, which the home runs for a whole cycle (DRIFT_CYCLE, 28 s, so the needle
+ * visits China, the Netherlands and Aruba) before it may sleep: the canvas must not fall quiet before DRIFT_CYCLE - 2 s.
  */
 async function sleep(browser, step) {
   const { context, page } = await openPage(browser, step);
@@ -2885,13 +2889,13 @@ async function sleep(browser, step) {
   await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
   await page.bringToFront();
   await reachHomeIdle(page);
-  const limit = IDLE_SECONDS * 1000 + SLEEP_WITHIN_MS;
+  const limit = DRIFT_CYCLE * 1000 + SLEEP_WITHIN_MS;
   const slept = await sleepWithin(page, limit);
-  step.check(slept !== null, `landed and left alone, the canvas draws nothing for a whole second from ${slept} ms after the landing (within IDLE_SECONDS + SLEEP_WITHIN_MS = ${limit} ms)`);
-  step.check(slept !== null && slept >= (IDLE_SECONDS - 2) * 1000, `and it ran the idle motion first: it fell quiet ${slept} ms after the landing (the idle runs ${IDLE_SECONDS} s)`);
+  step.check(slept !== null, `landed and left alone, the canvas draws nothing for a whole second from ${slept} ms after the landing (within DRIFT_CYCLE + SLEEP_WITHIN_MS = ${limit} ms)`);
+  step.check(slept !== null && slept >= (DRIFT_CYCLE - 2) * 1000, `and it ran the drift's whole cycle first: it fell quiet ${slept} ms after the landing (the drift's cycle is ${DRIFT_CYCLE} s)`);
   await takeCsp(page, step);
   await context.close();
-  return `the idle motion ran, then the canvas slept ${slept} ms after the landing (limit ${limit} ms)`;
+  return `the idle motion ran a whole cycle of the drift, then the canvas slept ${slept} ms after the landing (limit ${limit} ms)`;
 }
 
 /** The entry chunk of the client bundle: without it the page never hydrates. */

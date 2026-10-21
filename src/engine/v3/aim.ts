@@ -202,7 +202,13 @@ const DRIFT = {
 } as const;
 
 const DRIFT_LEG = DRIFT.rest + DRIFT.travel;
-const DRIFT_CYCLE = DRIFT_LEG * DRIFT.legs.length;
+
+/**
+ * The drift's whole cycle, seconds: its four legs of 7 s, 28 s. After each stir the home runs at least this much of
+ * it (src/scene/v3/homePose.ts `idleRuns`), so a visitor with no pointer sees the needle visit all three
+ * constellations before the scene sleeps.
+ */
+export const DRIFT_CYCLE = DRIFT_LEG * DRIFT.legs.length;
 
 /** A constellation's own bearing in radians, in (-PI, PI]. */
 function placementBearing(id: CountryId): number {
