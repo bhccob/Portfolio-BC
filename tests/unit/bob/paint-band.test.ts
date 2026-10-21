@@ -26,7 +26,7 @@ function recording(paint: (ctx: StripContext) => void): Recording {
     fillStyle: '',
     clearRect: (x, y, w, h) => void cleared.push([x, y, w, h]),
     fillRect(x, y, w, h) {
-      rects.push({ x, y, w, h, style: this.fillStyle });
+      rects.push({ x, y, w, h, style: String(this.fillStyle) });
     }
   };
   paint(ctx);
@@ -187,6 +187,16 @@ describe('paintBandStrip', () => {
 
   it('is the same every time it is painted', () => {
     expect(record((ctx) => paintBandStrip(ctx, 2))).toEqual(record((ctx) => paintBandStrip(ctx, 2)));
+  });
+});
+
+describe('StripContext', () => {
+  it('accepts a real 2D canvas context, which the typecheck guards', () => {
+    // Never called: a canvas needs a browser. It compiles only while a CanvasRenderingContext2D is assignable to StripContext.
+    const asStrip = (ctx: CanvasRenderingContext2D): StripContext => ctx;
+    const paintOnCanvas = (ctx: CanvasRenderingContext2D): void => paintBandStrip(ctx, 0);
+    expect(asStrip).toBeTypeOf('function');
+    expect(paintOnCanvas).toBeTypeOf('function');
   });
 });
 

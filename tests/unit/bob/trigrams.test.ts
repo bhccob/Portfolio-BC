@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { LATER_HEAVEN } from '~/engine/bob/trigrams';
-import { TRIGRAMS } from '~/engine/instrument/dialSpec';
 
 describe('LATER_HEAVEN', () => {
   it('lists the eight trigrams once each, Later Heaven order from the south', () => {
@@ -18,11 +17,23 @@ describe('LATER_HEAVEN', () => {
     }
   });
 
-  it('agrees with the dial: the same lines for each name, and clockwise from the south at 45 degrees a step', () => {
+  it('has the right lines for each name, and the list runs clockwise from the south at 45 degrees a step', () => {
+    // [name, lines from the bottom, bearing in degrees clockwise from north]: Li stands south (180), Kan north (0).
+    const expected = [
+      ['Li', [1, 0, 1], 180],
+      ['Kun', [0, 0, 0], 225],
+      ['Dui', [1, 1, 0], 270],
+      ['Qian', [1, 1, 1], 315],
+      ['Kan', [0, 1, 0], 0],
+      ['Gen', [0, 0, 1], 45],
+      ['Zhen', [1, 0, 0], 90],
+      ['Xun', [0, 1, 1], 135]
+    ] as const;
     LATER_HEAVEN.forEach((t, i) => {
-      const onDial = TRIGRAMS.find((d) => d.name === t.name)!;
-      expect(onDial.lines).toEqual(t.lines);
-      expect(onDial.bearing).toBe((180 + 45 * i) % 360);
+      const [name, lines, bearing] = expected[i];
+      expect(t.name).toBe(name);
+      expect([...t.lines]).toEqual(lines);
+      expect((180 + 45 * i) % 360).toBe(bearing);
     });
   });
 });

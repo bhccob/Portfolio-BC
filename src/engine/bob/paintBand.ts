@@ -20,12 +20,12 @@ import { LATER_HEAVEN } from '~/engine/bob/trigrams';
 /** The strip's size in pixels: its width is a full turn of the band, its height the band's width. */
 export const BAND_STRIP = { width: 4096, height: 96 } as const;
 
-/** The part of a 2D canvas context that the painter uses, so a test can hand it a stub. */
-export interface StripContext {
-  fillStyle: string;
-  clearRect(x: number, y: number, w: number, h: number): void;
-  fillRect(x: number, y: number, w: number, h: number): void;
-}
+/**
+ * The part of a 2D canvas context that the painter uses: the fill style, the
+ * clear and the filled rectangle. A real `CanvasRenderingContext2D` fits, and so
+ * does a test's stub that records the calls.
+ */
+export type StripContext = Pick<CanvasRenderingContext2D, 'fillStyle' | 'clearRect' | 'fillRect'>;
 
 /**
  * How the marks are laid out. Angles and widths are in degrees; heights and
