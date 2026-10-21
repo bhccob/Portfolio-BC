@@ -4,7 +4,7 @@ import { COUNTRY_IDS } from '~/data/directions';
 import { DIAL, onDial } from '~/engine/instrument/dialSpec';
 import { CHIP, ON_STROKES, pinPosition } from '~/engine/v3/chipSpec';
 import { starPositions } from '~/engine/v3/constellations';
-import { applyCameraShot, type CameraShot, homeShotFor, lerpCameraShot, loaderShotFor, SHOTS } from '~/engine/v3/shots';
+import { applyCameraShot, type CameraShot, DESIGN_ASPECT, homeShotFor, lerpCameraShot, loaderShotFor, SHOTS } from '~/engine/v3/shots';
 
 function project(aspect: number, shot = homeShotFor(aspect)) {
   const camera = new THREE.PerspectiveCamera();
@@ -78,11 +78,72 @@ function elevation(from: readonly number[], to: readonly number[]): number {
   return (Math.atan2(from[1] - to[1], Math.hypot(from[0] - to[0], from[2] - to[2])) * 180) / Math.PI;
 }
 
+/** The aspect SHOTS.home is tuned for, a 1440 x 900 screen. */
+const DESIGN = 1440 / 900;
+const FOUR_BY_THREE = 1024 / 768;
+const FIVE_BY_FOUR = 1280 / 1024;
+
 describe('the home shot on other screens', () => {
-  it('is SHOTS.home for any screen at least as wide as tall, and for a NaN aspect', () => {
-    for (const aspect of [1, 1.33, 1.6, 1.78, 2.4, Number.NaN]) expect(homeShotFor(aspect)).toBe(SHOTS.home);
+  it('is SHOTS.home itself for the design aspect and anything wider, and for a NaN aspect', () => {
+    for (const aspect of [DESIGN, 1920 / 1200, 1.78, 2, 2.4, 3.5, Number.NaN]) expect(homeShotFor(aspect)).toBe(SHOTS.home);
   });
-  for (const aspect of [0.25, PHONE, 0.6, TABLET, 0.99]) {
+  it('names the design aspect, a 1440 x 900 screen, and keeps the home on the compass\'s axis plane, as the reframing assumes', () => {
+    expect(DESIGN_ASPECT).toBe(DESIGN);
+    expect(SHOTS.home.position[0]).toBe(0);
+    expect(SHOTS.home.target[0]).toBe(0);
+    expect(SHOTS.home.target[2]).toBe(0);
+    expect(SHOTS.home.position[2]).toBeGreaterThan(0);
+  });
+  it('is not SHOTS.home for a screen narrower than the design, down to a square and below', () => {
+    for (const aspect of [1.59, 1.5, FOUR_BY_THREE, FIVE_BY_FOUR, 1, 0.75, PHONE]) expect(homeShotFor(aspect)).not.toBe(SHOTS.home);
+  });
+  it('is SHOTS.home to the last digit as the screen narrows past the design aspect, so the camera does not jump', () => {
+    const just = homeShotFor(DESIGN - 1e-9);
+    SHOTS.home.position.forEach((v, i) => expect(just.position[i]).toBeCloseTo(v, 6));
+    SHOTS.home.target.forEach((v, i) => expect(just.target[i]).toBeCloseTo(v, 6));
+    expect(just.fov).toBeCloseTo(SHOTS.home.fov, 6);
+  });
+  for (const [name, width, height] of [['1024 x 768 (4:3)', 1024, 768], ['1280 x 1024 (5:4)', 1280, 1024]] as const) {
+    it(`${name}: the whole rim and every star are within 0.98, and the centres within 0.95`, () => {
+      const aspect = width / height;
+      const at = project(aspect);
+      for (const [x, z] of rim()) {
+        const p = at(x, 0, z);
+        expect(Math.abs(p.x)).toBeLessThanOrEqual(0.98);
+        expect(Math.abs(p.y)).toBeLessThanOrEqual(0.98);
+      }
+      for (const id of COUNTRY_IDS) {
+        const s = starPositions(id);
+        for (let k = 0; k < s.length; k += 3) {
+          const p = at(s[k], s[k + 1], s[k + 2]);
+          expect(Math.abs(p.x)).toBeLessThanOrEqual(0.98);
+          expect(Math.abs(p.y)).toBeLessThanOrEqual(0.98);
+        }
+        const c = at(...centroid(s));
+        expect(Math.abs(c.x)).toBeLessThanOrEqual(0.95);
+        expect(Math.abs(c.y)).toBeLessThanOrEqual(0.95);
+      }
+    });
+  }
+  it('fits every aspect from the design down, not just the ones named: a fine sweep', () => {
+    for (let aspect = DESIGN - 0.001; aspect >= 0.25; aspect -= 0.01) {
+      const at = project(aspect);
+      for (const id of COUNTRY_IDS) {
+        const s = starPositions(id);
+        for (let k = 0; k < s.length; k += 3) {
+          const p = at(s[k], s[k + 1], s[k + 2]);
+          expect(Math.abs(p.x)).toBeLessThanOrEqual(0.98);
+          expect(Math.abs(p.y)).toBeLessThanOrEqual(0.98);
+        }
+      }
+      for (const [x, z] of rim()) {
+        const p = at(x, 0, z);
+        expect(Math.abs(p.x)).toBeLessThanOrEqual(0.98);
+        expect(Math.abs(p.y)).toBeLessThanOrEqual(0.98);
+      }
+    }
+  });
+  for (const aspect of [0.25, PHONE, 0.6, TABLET, 0.99, 1, FIVE_BY_FOUR, FOUR_BY_THREE, 1.5, 1.59]) {
     it(`aspect ${aspect.toFixed(2)}: the rim and every star are in frame`, () => {
       const at = project(aspect);
       for (const [x, z] of rim()) {
@@ -110,12 +171,14 @@ describe('the home shot on other screens', () => {
       for (const [x, z] of rim()) expect(Math.abs(at(x, 0, z).x)).toBeLessThanOrEqual(0.98);
     }
   });
-  it('a portrait screen pulls back and widens, and the shot is continuous as the screen narrows', () => {
+  it('a narrower screen pulls back, a portrait one widens too, and the shot is continuous as the screen narrows', () => {
     const distance = (s: CameraShot) => Math.hypot(s.position[0] - s.target[0], s.position[1] - s.target[1], s.position[2] - s.target[2]);
     expect(distance(homeShotFor(PHONE))).toBeGreaterThan(distance(SHOTS.home) * 1.5);
+    expect(distance(homeShotFor(FOUR_BY_THREE))).toBeGreaterThan(distance(SHOTS.home));
     expect(homeShotFor(PHONE).fov).toBeGreaterThan(SHOTS.home.fov);
-    let previous = distance(homeShotFor(0.99));
-    for (let aspect = 0.98; aspect >= 0.3; aspect -= 0.01) {
+    expect(homeShotFor(FOUR_BY_THREE).fov).toBe(SHOTS.home.fov);
+    let previous = distance(SHOTS.home);
+    for (let aspect = DESIGN - 0.01; aspect >= 0.3; aspect -= 0.01) {
       const d = distance(homeShotFor(aspect));
       expect(d).toBeGreaterThan(previous);
       expect(d / previous).toBeLessThan(1.04);
@@ -123,7 +186,7 @@ describe('the home shot on other screens', () => {
     }
   });
   it('keeps the camera low, looking north over the rim, with the compass centred and a little below the middle', () => {
-    for (const aspect of [1440 / 900, PHONE]) {
+    for (const aspect of [DESIGN, 1.5, FOUR_BY_THREE, FIVE_BY_FOUR, 1, PHONE]) {
       const shot = homeShotFor(aspect);
       expect(elevation(shot.position, [0, 0, 0])).toBeGreaterThan(8);
       expect(elevation(shot.position, [0, 0, 0])).toBeLessThan(20);

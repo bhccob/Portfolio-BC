@@ -52,46 +52,77 @@ export const SHOTS: { loaderMacro: CameraShot; loaderRise: CameraShot; home: Cam
 
 const RAD = Math.PI / 180;
 
-/** The narrowest screen the portrait framing plans for (aspect = width over height); a thinner one is framed as this, so the camera stays a finite distance away. */
+/**
+ * The aspect (width over height) the shots are tuned for: a 1440 x 900 screen.
+ * `SHOTS.home` is the home for this aspect and any wider one, where it only
+ * gains empty sky at the sides; a narrower screen needs the camera to pull back.
+ */
+export const DESIGN_ASPECT = 1440 / 900;
+
+/** The narrowest screen the reframing plans for; a thinner one is framed as this, so the camera stays a finite distance away. */
 const MIN_ASPECT = 0.25;
 
+/** The home camera's angle above the line from its look-at point, in radians, which every reframing keeps. */
+const HOME_PITCH = Math.atan2(SHOTS.home.position[1] - SHOTS.home.target[1], SHOTS.home.position[2] - SHOTS.home.target[2]);
+
+/** The tangent of the home's half field of view, and its distance to the look-at point, so the reframing can ask what the design sees. */
+const HOME_TAN_HALF = Math.tan((SHOTS.home.fov * RAD) / 2);
+const HOME_DISTANCE = Math.hypot(SHOTS.home.position[1] - SHOTS.home.target[1], SHOTS.home.position[2] - SHOTS.home.target[2]);
+
 /**
- * How the home is reframed on a screen taller than it is wide. The scene is
- * wide (the side constellations reach 2.075 out), so on a tall screen the
- * camera pulls back until `halfWidth` world units each side of the look-at
- * point fit the width, and widens the fov by `widen` degrees at most so the
- * perspective stays as dramatic as the landscape frame's. It holds the
+ * What the design frame sees and how it sits: the half-width, in world units,
+ * that fits each side of the look-at point at the design aspect (about 2.45),
+ * and how far below the middle of the picture the look-at point's height puts
+ * the compass's centre, as a share of the picture's half-height (the look-at
+ * point lies on the compass's axis, `target[1]` above it).
+ */
+const HOME_SEEN = {
+  halfWidth: HOME_DISTANCE * HOME_TAN_HALF * DESIGN_ASPECT,
+  dialDrop: SHOTS.home.target[1] / (HOME_DISTANCE * HOME_TAN_HALF)
+};
+
+/**
+ * How the home is reframed on a narrower screen. The scene is wide (the side
+ * constellations reach 2.075 out), so as the screen narrows the camera pulls
+ * back until `halfWidth` world units each side of the look-at point fit the
+ * width, and below a square it widens the fov by `widen` degrees at most so
+ * the perspective stays as dramatic as the landscape frame's. It holds the
  * compass's centre about `dialDrop` below the middle of the picture (in NDC;
- * the landscape frame has it a little lower, at 0.25), and keeps the camera's
- * pitch above the look-at line as the landscape shot has it.
+ * the design frame has it at 0.16), and keeps the camera's pitch above the
+ * look-at line as the design shot has it.
+ *
+ * These are the values at a square screen and narrower; between the design
+ * aspect and a square the framing eases from the design's own (`HOME_SEEN`)
+ * to these, so every aspect fits and none jumps.
  *
  * `halfWidth` is the rim's radius times 2.1, so the rim spans under half the
  * width and the side constellations' outermost stars stand just inside the
  * frame (they reach 2.075 out, and the curve of their feet brings some nearer
  * the camera than the look-at point, which draws them wider).
  */
-const PORTRAIT = { halfWidth: DIAL.rim * 2.1, widen: 8, dialDrop: 0.2 } as const;
-
-/** The angle in radians the home camera stands above the line from its look-at point, which the portrait framing keeps. */
-const HOME_PITCH = Math.atan2(SHOTS.home.position[1] - SHOTS.home.target[1], SHOTS.home.position[2] - SHOTS.home.target[2]);
+const NARROW = { halfWidth: DIAL.rim * 2.1, widen: 8, dialDrop: 0.2 } as const;
 
 /**
- * The home shot for a screen of this aspect (width over height). A screen at
- * least as wide as tall gets `SHOTS.home` as it is. A portrait screen gets
- * the same view pulled back and widened until the rim fits the width and the
- * side constellations' centres stay in frame, as `PORTRAIT` describes.
- * It is continuous across the portrait range, so a phone turning or a window
- * resizing does not jump the camera between sizes; a NaN aspect reads as
- * landscape.
+ * The home shot for a screen of this aspect (width over height), so that the
+ * whole rim and every star of the three constellations stay in frame whatever
+ * the screen's shape. The design aspect and anything wider get `SHOTS.home`
+ * itself. A narrower screen gets the same view pulled back until the width
+ * fits, by `NARROW` (at a square and below it also widens the fov, and the
+ * camera stands far enough back for a phone's rim to span half its width).
+ * The answer is continuous in the aspect, equal to `SHOTS.home` as the screen
+ * reaches the design aspect, so a window being resized or a phone turned does
+ * not jump the camera between sizes; a NaN aspect reads as the design's.
  */
 export function homeShotFor(aspect: number): CameraShot {
-  if (!(aspect < 1)) return SHOTS.home;
+  if (!(aspect < DESIGN_ASPECT)) return SHOTS.home;
   const a = Math.max(aspect, MIN_ASPECT);
-  const fov = SHOTS.home.fov + PORTRAIT.widen * (1 - a);
+  // 0 at the design aspect, 1 at a square and below: how far the framing has moved to the narrow screen's.
+  const narrow = Math.min(1, (DESIGN_ASPECT - a) / (DESIGN_ASPECT - 1));
+  const fov = SHOTS.home.fov + NARROW.widen * (1 - Math.min(a, 1));
   const tanHalf = Math.tan((fov * RAD) / 2);
   // The half-width the camera sees at its look-at point is distance * tanHalf * aspect.
-  const distance = PORTRAIT.halfWidth / (tanHalf * a);
-  const lift = PORTRAIT.dialDrop * distance * tanHalf;
+  const distance = mix(HOME_SEEN.halfWidth, NARROW.halfWidth, narrow) / (tanHalf * a);
+  const lift = mix(HOME_SEEN.dialDrop, NARROW.dialDrop, narrow) * distance * tanHalf;
   return {
     position: [0, lift + distance * Math.sin(HOME_PITCH), distance * Math.cos(HOME_PITCH)],
     target: [0, lift, 0],
@@ -115,13 +146,15 @@ const LOADER_FOCUS: Readonly<Record<LoaderShotId, { aim: readonly [number, numbe
 };
 
 /**
- * A loader shot for a screen of this aspect (width over height). A screen at
- * least as wide as tall gets the shot as it is in `SHOTS`. A portrait screen
- * gets the same view direction (the angle above the board and the lean from
- * the west) centred on the shot's subject and pulled back until the subject
- * fits the width, as `LOADER_FOCUS` says; without it the chip would be cut by
- * the sides of a phone. Like `homeShotFor` it is continuous across the
- * portrait range and a NaN aspect reads as landscape.
+ * A loader shot for a screen of this aspect (width over height). The Stage
+ * (Task 12a) uses it for the loader's two shots, in place of reading
+ * `SHOTS.loaderMacro` and `SHOTS.loaderRise` directly, as it uses
+ * `homeShotFor` for the home. A screen at least as wide as tall gets the shot
+ * as it is in `SHOTS`. A portrait screen gets the same view direction (the
+ * angle above the board and the lean from the west) centred on the shot's
+ * subject and pulled back until the subject fits the width, as `LOADER_FOCUS`
+ * says; without it the chip would be cut by the sides of a phone. It is
+ * continuous across the portrait range and a NaN aspect reads as landscape.
  */
 export function loaderShotFor(id: LoaderShotId, aspect: number): CameraShot {
   const shot = SHOTS[id];

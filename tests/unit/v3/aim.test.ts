@@ -128,6 +128,80 @@ describe('pointerBearing rules', () => {
     expect(pointedAt(right)).toBe('china');
     expect(right).toBeCloseTo(-left, 6);
   });
+  /**
+   * The most the needle may turn between two cursor positions 0.01 of the
+   * screen apart: 6 degrees over the whole sweep from the far dial to the sky.
+   * It is chosen from what a continuous rule measures at the x values below
+   * (1440 x 900, home camera): the steepest step is 4.5 degrees, at y about
+   * -0.15, where the ground rule reads the dial just past the hub, because a
+   * bearing about an axis turns fastest near the axis and no rule can avoid
+   * that; from y = 0.1 up, across the horizon at +0.36 and through the sky, a
+   * step is 0.04 degrees at most. So 6 degrees is 1.3 times the honest
+   * maximum and a fifth of the 29 degree jump the plain ground rule made at the
+   * horizon, and a regression to it fails by a wide margin. Across the horizon
+   * itself the tighter bound, 1 degree (25 times what is measured), applies.
+   */
+  const STEP_DEG = 6;
+  const HORIZON_STEP_DEG = 1;
+
+  /** The turns, in degrees, between each pair of cursor positions 0.01 apart as y runs from `from` to `to` at a fixed x, with the check that no star is in reach anywhere on the way. */
+  function sweepTurns(camera: THREE.PerspectiveCamera, x: number, from: number, to: number): number[] {
+    const turns: number[] = [];
+    const steps = Math.round(Math.abs(to - from) / 0.01);
+    let previous: number | null = null;
+    for (let i = 0; i <= steps; i++) {
+      const ndc = { x, y: from + (to - from) * (i / steps) };
+      expect(nearestStar(ndc, camera)).toBeGreaterThan(AIM_SNAP);
+      const b = pointerBearing(ndc, camera, AIM_SHELL)!;
+      if (previous !== null) turns.push(Math.abs((turn(b, previous) * 180) / Math.PI));
+      previous = b;
+    }
+    return turns;
+  }
+
+  it('is continuous as the cursor crosses the horizon: the ground counts only inside the shell, so the needle does not jump', () => {
+    const camera = homeCamera(aspect);
+    // From the dial, up over the board beyond it, through the horizon (NDC y about +0.36) and into the sky, at x values between the ship and the side figures.
+    for (const x of [-0.4, -0.35, 0.35, 0.4]) {
+      const turns = sweepTurns(camera, x, -0.2, 0.8);
+      expect(turns).toHaveLength(100);
+      expect(Math.max(...turns)).toBeLessThan(STEP_DEG);
+      // And across the horizon itself, from well below it to well above, nothing more than a hair.
+      expect(Math.max(...sweepTurns(camera, x, 0.1, 0.7))).toBeLessThan(HORIZON_STEP_DEG);
+    }
+  });
+  it('is continuous across the front of the board too, where the ground in front of the shell is still the ground', () => {
+    const camera = homeCamera(aspect);
+    for (const x of [-0.3, 0.15, 0.3, 0.45]) {
+      expect(Math.max(...sweepTurns(camera, x, -1, -0.45))).toBeLessThan(STEP_DEG);
+    }
+  });
+  it('the ground beyond the shell on the far side reads as the sky: the far side of the cylinder along that very ray', () => {
+    const camera = homeCamera(aspect);
+    for (const [x, z] of [[0.6, -3], [-1.2, -2.5], [0.2, -4]]) {
+      expect(Math.hypot(x, z)).toBeGreaterThan(AIM_SHELL);
+      const ndc = new THREE.Vector3(x, 0, z).project(camera);
+      expect(nearestStar(ndc, camera)).toBeGreaterThan(AIM_SNAP);
+      // The same ray seen from above: the line from the camera through (x, z), and its far crossing with the shell.
+      const [cx, cz] = [camera.position.x, camera.position.z];
+      const len = Math.hypot(x - cx, z - cz);
+      const [dx, dz] = [(x - cx) / len, (z - cz) / len];
+      const b = cx * dx + cz * dz;
+      const t = -b + Math.sqrt(b * b - (cx * cx + cz * cz - AIM_SHELL * AIM_SHELL));
+      expect(turn(pointerBearing({ x: ndc.x, y: ndc.y }, camera, AIM_SHELL)!, bearingOf(cx + dx * t, cz + dz * t))).toBeCloseTo(0, 6);
+    }
+  });
+  it('the ground in front of the shell, between the camera and the dial, is still the point under the cursor', () => {
+    const camera = homeCamera(aspect);
+    for (const [x, z] of [[0.3, 2], [-0.4, 2.1], [0.9, 1.9]]) {
+      expect(Math.hypot(x, z)).toBeGreaterThan(AIM_SHELL);
+      const ndc = new THREE.Vector3(x, 0, z).project(camera);
+      expect(Math.abs(ndc.x)).toBeLessThan(1);
+      expect(Math.abs(ndc.y)).toBeLessThan(1);
+      expect(nearestStar(ndc, camera)).toBeGreaterThan(AIM_SNAP);
+      expect(turn(pointerBearing({ x: ndc.x, y: ndc.y }, camera, AIM_SHELL)!, bearingOf(x, z))).toBeCloseTo(0, 6);
+    }
+  });
   it('is finite at the horizon and a hair either side of it, where the ground rule meets the plane at the end of the world', () => {
     const camera = homeCamera(aspect);
     const horizon = new THREE.Vector3(0.4, 0, -1).add(camera.position).project(camera);

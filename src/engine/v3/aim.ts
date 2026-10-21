@@ -88,21 +88,21 @@ function snapToStar(ndc: { x: number; y: number }, camera: THREE.PerspectiveCame
 }
 
 /**
- * Where the ray, seen from above, meets the vertical cylinder of radius
- * `shell` about the compass's axis, as a bearing, or null when the ray never
- * comes to it. Seen from above the ray is a line and the cylinder a circle,
- * so the meeting is the closed-form root of a quadratic in the distance `t`
- * along the ray. Of its two roots the one farther along (the exit) is the
- * answer: it is the side of the cylinder the cursor looks toward, where the
- * constellations stand. A ray that passes outside the circle (the cursor is
- * beyond the tangent from the camera to the cylinder) answers the point on
- * its line nearest the axis; at the tangent that is the very point the two
- * roots merge in, so the answer is continuous as the cursor crosses it, and
- * further out it keeps turning toward the cursor's own side. A ray pointing
- * straight up has no direction across the ground and finds nothing, and
- * neither does one that points away from a cylinder it never reaches.
+ * How far along the ray (`origin + direction * t`, the direction a unit
+ * vector) the sky rule's point lies, or null when the ray has none. Seen from
+ * above the ray is a line and the shell a circle about the compass's axis, so
+ * the meeting is the closed-form root of a quadratic in `t`. Of its two roots
+ * the one farther along (the exit) is the sky point: the side of the cylinder
+ * the cursor looks toward, where the constellations stand. A ray that passes
+ * outside the circle (the cursor is beyond the tangent from the camera to the
+ * cylinder) has the point on its line nearest the axis instead; at the tangent
+ * that is the very point the two roots merge in, so the answer is continuous
+ * as the cursor crosses it, and further out it keeps turning toward the
+ * cursor's own side. A ray pointing straight up has no direction across the
+ * ground and has no point, and neither does a ray that points away from a
+ * cylinder it never reaches, or a shell with no radius.
  */
-function skyBearing(origin: THREE.Vector3, direction: THREE.Vector3, shell: number): number | null {
+function skyDistance(origin: THREE.Vector3, direction: THREE.Vector3, shell: number): number | null {
   if (!(shell > 0)) return null;
   const a = direction.x * direction.x + direction.z * direction.z;
   if (!(a > 1e-12)) return null;
@@ -110,8 +110,7 @@ function skyBearing(origin: THREE.Vector3, direction: THREE.Vector3, shell: numb
   const disc = b * b - a * (origin.x * origin.x + origin.z * origin.z - shell * shell);
   // The exit when the ray crosses the circle, else the point of closest approach.
   const t = disc >= 0 ? (-b + Math.sqrt(disc)) / a : -b / a;
-  if (!(t >= 0)) return null;
-  return bearingOf(origin.x + direction.x * t, origin.z + direction.z * t);
+  return t >= 0 ? t : null;
 }
 
 /**
@@ -128,13 +127,27 @@ function skyBearing(origin: THREE.Vector3, direction: THREE.Vector3, shell: numb
  *    visitor aims at. The distance is measured with x scaled by the camera's
  *    aspect.
  * 2. The ground. Otherwise, if the ray from the camera through the pointer
- *    meets the dial's plane (y = 0) ahead of the camera, the answer is the
- *    bearing of that point, so the needle points at the part of the dial or
- *    the board under the cursor.
- * 3. The sky. Otherwise (the cursor is above the horizon) the answer is the
- *    bearing of the ray's far (exit) intersection with the vertical cylinder
- *    of radius `shell`, the side the cursor looks toward; see `skyBearing`
- *    for a ray that misses the cylinder.
+ *    meets the dial's plane (y = 0) ahead of the camera, and meets it before
+ *    the ray reaches its sky point (rule 3), the answer is the bearing of that
+ *    point, so the needle points at the part of the dial or the board under
+ *    the cursor. For a ray that crosses the shell this is the ground inside
+ *    it (`hypot(x, z) <= shell`) and the ground in front of it, between the
+ *    camera and the shell; the ground beyond the shell, on the far side, is
+ *    the sky's, so that the needle is continuous as the cursor rises through
+ *    the horizon. (Ruling 6: the ground point counts only inside the shell.
+ *    Read as the plain radius test it would also send the board in front of
+ *    the shell, the bottom fifth of the home picture, to the far side of the
+ *    cylinder, a half-turn from the point under the cursor.)
+ * 3. The sky. Otherwise (the cursor is above the horizon, or the ground is
+ *    beyond the sky point) the answer is the bearing of the ray's far (exit)
+ *    intersection with the vertical cylinder of radius `shell`, the side the
+ *    cursor looks toward; see `skyDistance` for a ray that misses the
+ *    cylinder.
+ *
+ * Because the ground and the sky meet at the same point where the ground
+ * reaches the sky point, and a ray at the horizon has the same sky point as
+ * the ray just above it, the answer is continuous everywhere except where it
+ * snaps to a star.
  *
  * It reads the camera's matrices after bringing its world matrix up to date,
  * so a camera moved since the last render is read where it stands now, and it
@@ -150,13 +163,17 @@ export function pointerBearing(ndc: { x: number; y: number }, camera: THREE.Pers
 
   pointer.set(ndc.x, ndc.y);
   raycaster.setFromCamera(pointer, camera);
-  const ray = raycaster.ray;
-  if (ray.intersectPlane(dialPlane, hit)) {
+  const { origin, direction } = raycaster.ray;
+  const sky = skyDistance(origin, direction, shell);
+  // The distance along the ray to the dial's plane; null when it is behind the camera or parallel to it.
+  const ground = raycaster.ray.distanceToPlane(dialPlane);
+  if (ground !== null && (sky === null || ground <= sky)) {
+    raycaster.ray.at(ground, hit);
+    const bearing = bearingOf(hit.x, hit.z);
     // A ray a hair below the horizon meets the plane unimaginably far away; if that overflows, it is the sky's.
-    const ground = bearingOf(hit.x, hit.z);
-    if (Number.isFinite(ground)) return ground;
+    if (Number.isFinite(bearing)) return bearing;
   }
-  return skyBearing(ray.origin, ray.direction, shell);
+  return sky === null ? null : bearingOf(origin.x + direction.x * sky, origin.z + direction.z * sky);
 }
 
 /** The smootherstep of `x`, 0 to 1: zero slope at both ends, so a leg of the drift starts and arrives without a jerk. */
