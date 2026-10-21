@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { type CameraShot, FRAMES, homeShotFor, lerpCameraShot, MAX_VFOV, shotFor, type ShotFrame, wideShotFor } from '~/engine/bob/shots';
+import { type CameraShot, FRAMES, homeFrameFor, homeShotFor, lerpCameraShot, MAX_VFOV, shotFor, type ShotFrame, wideShotFor } from '~/engine/bob/shots';
 
 /** `p` seen through the camera a shot places on a screen of this aspect: its NDC x and y (-1..1). */
 function project(shot: CameraShot, aspect: number, p: [number, number, number]): [number, number] {
@@ -65,6 +65,20 @@ describe('the home shot', () => {
     expect(homeShotFor(0.999)).toEqual(shotFor(FRAMES.homePortrait, 0.999));
     expect(homeShotFor(1)).toEqual(shotFor(FRAMES.home, 1));
     expect(homeShotFor(16 / 9)).toEqual(shotFor(FRAMES.home, 16 / 9));
+  });
+});
+
+describe('the home frame', () => {
+  it('is the laptop frame from a square up, the portrait frame below it, and the laptop frame for a bad aspect', () => {
+    expect(homeFrameFor(16 / 9)).toBe(FRAMES.home);
+    expect(homeFrameFor(1)).toBe(FRAMES.home);
+    expect(homeFrameFor(0.99)).toBe(FRAMES.homePortrait);
+    expect(homeFrameFor(PHONE)).toBe(FRAMES.homePortrait);
+    expect(homeFrameFor(Number.NaN)).toBe(FRAMES.home);
+  });
+
+  it('is the frame the home shot is fitted from', () => {
+    for (const aspect of [16 / 9, 1, 0.99, PHONE]) expect(homeShotFor(aspect)).toEqual(shotFor(homeFrameFor(aspect), aspect));
   });
 });
 
