@@ -239,10 +239,12 @@ body:has(.scene-fallback) main {
   padding-bottom: 120px;
 }
 
-/* On a phone the hero's name sits at the bottom of the first screen: it moves up above the card. */
-@media (max-width: 720px) {
-  body:has(.scene-fallback) .hero {
-    padding-bottom: calc(12svh + 104px);
+/* On a screen narrower than the card's reach to the middle the card and the hero's scroll cue would share the foot of
+   the first screen: the cue moves up above the card (which reaches 140 px up from the bottom on a phone, where its
+   words wrap). */
+@media (max-width: 1100px) {
+  body:has(.scene-fallback) .hero-cue {
+    bottom: 160px;
   }
 }
 
@@ -361,13 +363,24 @@ main {
 }
 
 /* ---------- the home page ---------- */
+/* The hero is the home's three lines over the dark scene (prototype ui-02): the name at the upper left, the tagline
+   under it, and the scroll cue low in the middle of the first screen. The hero is that whole first screen, so the cue is
+   placed against it and sits at the bottom whatever the name's height. The scene behind is night (#040209) with the
+   nebula only faint, so the words are the scene's quiet lilac (name and tagline, 9.6:1 on the night) and its dim lilac
+   (the cue, 6.5:1); the cue's pulse never takes it below 4.9:1. Unbounded is not used here (the name is Montserrat,
+   the rest Martian Mono), so Ruling 23's `locl` rule has nothing to guard in the hero. */
 .hero {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  position: relative;
   min-height: calc(100svh - var(--header-height));
-  max-width: calc(44rem + 2 * var(--gutter)); /* the text column is 44rem wide inside the gutters */
-  padding: 0 var(--gutter) 10svh;
+  padding: clamp(32px, 8svh, 96px) var(--gutter) 0;
+}
+
+/* The two lines are as wide as their text (not the hero), so their boxes are the text's: Home keeps the constellation
+   names clear of these boxes (src/scene/v3/Home.tsx `readHero`). */
+.hero-name,
+.hero-tagline {
+  width: fit-content;
+  max-width: 100%;
 }
 
 .hero-name {
@@ -376,40 +389,83 @@ main {
   font-weight: 300;
   line-height: 1.15;
   letter-spacing: 0.32em;
-  color: var(--gold-ink);
+  color: var(--lilac);
 }
 
 .hero-tagline {
   margin-top: 16px;
+  font-family: var(--font-label);
   font-size: clamp(11px, 0.9vw, 13px);
   font-weight: 400;
   letter-spacing: 0.36em;
-  color: var(--gold-ink-75);
+  text-transform: uppercase;
+  color: var(--lilac);
 }
 
+/* The word, and a hairline under it that stretches and fades back: one slow 2.4 s pulse. The word dips to 0.85 only
+   (dim lilac at 0.85 is 4.9:1 on the night), so the hairline carries most of the motion. The tracking leaves a space
+   after the last letter; the same space before the first keeps the word centred under the line. */
 .hero-cue {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(20px, 4svh, 40px);
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
-  margin-top: 56px;
+  gap: 10px;
+  padding-left: 0.34em;
+  transform: translateX(-50%);
   font-family: var(--font-label);
   font-size: var(--label-size);
-  letter-spacing: 0.14em;
+  letter-spacing: 0.34em;
   text-transform: uppercase;
-  color: var(--ink-dim);
+  color: var(--dim);
+  animation: hero-cue-pulse 2.4s ease-in-out infinite;
 }
 
-.hero-cue::before {
+.hero-cue::after {
   content: '';
-  width: 40px;
-  height: 1px;
-  background: var(--ink-dim);
+  width: 1px;
+  height: 28px;
+  background: linear-gradient(var(--dim), transparent);
+  transform-origin: top;
+  animation: hero-cue-line 2.4s ease-in-out infinite;
+}
+
+@keyframes hero-cue-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes hero-cue-line {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-cue,
+  .hero-cue::after {
+    animation: none;
+  }
 }
 
 /* While the opening plays (<html data-loading>: the phase is LOADING) the hero is hidden, at once, and it fades in over
    0.9 s as the loader lands (none with reduced motion). The attribute is set after hydration, so where scripts run the
    hero also waits hidden from the first paint until the page has hydrated (`data-route` unset), instead of showing and
-   vanishing; without scripts it shows at once. It is hidden by opacity only, so a screen reader still has the name. */
+   vanishing; without scripts it shows at once. It is hidden by opacity only, so a screen reader still has the name.
+   Where scripts are on but the bundle never runs (so `data-route` is never set), the hero still shows: a CSS-only
+   fail-safe fades it in 8 s after the first paint (at once then, with reduced motion). Once the page hydrates the
+   rule stops matching and the loader's own hiding and fade take over. */
 .hero {
   transition: opacity 0.9s var(--ease-reveal);
 }
@@ -423,6 +479,13 @@ html[data-loading] .hero {
   html:not([data-route]) .hero {
     opacity: 0;
     transition: none;
+    animation: hero-late 0.9s var(--ease-reveal) 8s forwards;
+  }
+}
+
+@keyframes hero-late {
+  to {
+    opacity: 1;
   }
 }
 
@@ -430,14 +493,13 @@ html[data-loading] .hero {
   .hero {
     transition: none;
   }
+
+  html:not([data-route]) .hero {
+    animation-duration: 0s;
+  }
 }
 
 @media (max-width: 720px) {
-  .hero {
-    justify-content: flex-end;
-    padding-bottom: 12svh;
-  }
-
   .poster::after {
     background: linear-gradient(0deg, rgb(10 5 16 / 0.92) 0%, rgb(10 5 16 / 0.55) 55%, rgb(10 5 16 / 0.3) 100%);
   }
