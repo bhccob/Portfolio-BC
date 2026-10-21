@@ -52,4 +52,11 @@ export const frame = {
    * needle waits (Ruling 2). Nothing but the bridge sets it.
    */
   loaderHold: null as number | null,
+  /**
+   * When the fast-forward of a skipped loader ends, in the clock of `performance.now()` (ms), or null while no skip has
+   * been asked for. The Opening writes it when the visitor skips; the home's scroll input (src/input/useHomeScroll.ts)
+   * reads it and, until `SKIP_SWALLOW_MS` after it (`skipSwallows`), drops the wheel, touch and keys it hears, still
+   * preventing them, so the tail of the gesture that skipped does not scroll the home or the page.
+   */
+  loaderSkipEndsMs: null as number | null,
 };

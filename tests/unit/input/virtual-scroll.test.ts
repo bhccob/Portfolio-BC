@@ -7,7 +7,7 @@ const VH = 1000;
 interface Setup {
   el: EventTarget;
   win: EventTarget;
-  state: { enabled: boolean; reduced: boolean };
+  state: { enabled: boolean; reduced: boolean; swallow?: boolean };
   deltas: number[];
   jumps: string[];
   wakes: { count: number };
@@ -15,7 +15,7 @@ interface Setup {
   scroll: VirtualScroll;
 }
 
-function setup(state = { enabled: true, reduced: false }): Setup {
+function setup(state: Setup['state'] = { enabled: true, reduced: false }): Setup {
   const el = new EventTarget();
   const win = new EventTarget();
   Object.defineProperty(el, 'ownerDocument', { value: { defaultView: win } });
@@ -35,6 +35,7 @@ function setup(state = { enabled: true, reduced: false }): Setup {
     onJump: (to) => jumps.push(to),
     enabled: () => state.enabled,
     reducedMotion: () => state.reduced,
+    swallow: () => state.swallow === true,
     wake: () => wakes.count++,
   });
   return { el, win, state, deltas, jumps, wakes, listened, scroll };
@@ -355,6 +356,165 @@ describe('VirtualScroll: stopGlide', () => {
     s.scroll.stopGlide(); // what a caller whose target is pinned does at each delta
     touch(s, 'touchend', 380, 40);
     expect(s.scroll.busy).toBe(false);
+  });
+});
+
+describe('VirtualScroll: swallowing (the input that skipped the loader)', () => {
+  const swallowing = () => setup({ enabled: true, reduced: false, swallow: true });
+
+  it('prevents a wheel it swallows, and moves nothing', () => {
+    const s = swallowing();
+    for (let t = 1000; t < 1500; t += 16) expect(wheel(s, 100, t).defaultPrevented).toBe(true);
+    expect(s.deltas).toEqual([]);
+  });
+
+  it('takes the wheel again the moment it stops swallowing', () => {
+    const s = swallowing();
+    wheel(s, 100, 1000);
+    s.state.swallow = false;
+    expect(wheel(s, 100, 1016).defaultPrevented).toBe(true);
+    expect(s.deltas).toEqual([0.1]);
+  });
+
+  it('asks swallow() at every event', () => {
+    const s = setup();
+    wheel(s, 100, 1000);
+    s.state.swallow = true;
+    wheel(s, 100, 1100);
+    s.state.swallow = false;
+    wheel(s, 100, 1200);
+    expect(s.deltas).toEqual([0.1, 0.1]);
+  });
+
+  it('ends a glide that is going when the wheel turns, as it always does', () => {
+    const s = setup();
+    touch(s, 'touchstart', 500, 0);
+    for (let y = 460, t = 16; y >= 100; y -= 40, t += 16) touch(s, 'touchmove', y, t);
+    touch(s, 'touchend', 100, 200);
+    expect(s.scroll.busy).toBe(true);
+    s.state.swallow = true;
+    wheel(s, 100, 1000);
+    expect(s.scroll.busy).toBe(false);
+  });
+
+  it('ends a glide at its next step, rather than carrying the story on', () => {
+    const s = setup();
+    touch(s, 'touchstart', 500, 0);
+    for (let y = 460, t = 16; y >= 100; y -= 40, t += 16) touch(s, 'touchmove', y, t);
+    touch(s, 'touchend', 100, 200);
+    expect(s.scroll.busy).toBe(true);
+    s.state.swallow = true;
+    s.deltas.length = 0;
+    s.scroll.step(1 / 60);
+    expect(s.deltas).toEqual([]);
+    expect(s.scroll.busy).toBe(false);
+  });
+
+  it('prevents the keys that scroll, and moves nothing and jumps nowhere', () => {
+    const s = swallowing();
+    for (const k of ['PageDown', 'PageUp', 'ArrowDown', 'ArrowUp', ' ', 'Home', 'End']) expect(key(s, k).defaultPrevented, k).toBe(true);
+    expect(s.deltas).toEqual([]);
+    expect(s.jumps).toEqual([]);
+  });
+
+  it('still leaves the other keys, a text field and a shortcut to the browser', () => {
+    const s = swallowing();
+    expect(key(s, 'Tab').defaultPrevented).toBe(false);
+    expect(key(s, ' ', { target: { tagName: 'INPUT' } }).defaultPrevented).toBe(false);
+    expect(key(s, 'PageDown', { ctrlKey: true }).defaultPrevented).toBe(false);
+    expect(key(s, ' ', { target: { tagName: 'BUTTON' } }).defaultPrevented).toBe(false);
+  });
+
+  it('prevents a swipe it swallows and moves nothing, with no glide when the finger lifts', () => {
+    const s = swallowing();
+    touch(s, 'touchstart', 500, 0);
+    let t = 0;
+    for (let y = 460; y >= 100; y -= 40) {
+      t += 16;
+      expect(touch(s, 'touchmove', y, t).defaultPrevented).toBe(true);
+    }
+    touch(s, 'touchend', 100, t + 4);
+    expect(s.deltas).toEqual([]);
+    expect(s.scroll.busy).toBe(false);
+    expect(s.wakes.count).toBe(0);
+  });
+
+  it('gives no step for a swallowed swipe with reduced motion', () => {
+    const s = setup({ enabled: true, reduced: true, swallow: true });
+    touch(s, 'touchstart', 100, 0);
+    touch(s, 'touchmove', 300, 16);
+    touch(s, 'touchmove', 500, 32);
+    touch(s, 'touchend', 500, 40);
+    expect(s.deltas).toEqual([]);
+  });
+
+  it('carries on from where a finger is when the swallowing ends under it', () => {
+    const s = swallowing();
+    touch(s, 'touchstart', 500, 0);
+    touch(s, 'touchmove', 400, 16); // swallowed
+    s.state.swallow = false;
+    touch(s, 'touchmove', 380, 32);
+    expect(s.deltas).toHaveLength(1);
+    expect(s.deltas[0]).toBeCloseTo(0.02, 12); // 20 px from where the last move left it, not 120 from where it began
+  });
+
+  it('lets a swipe that was under way go without a glide when the swallowing begins under it', () => {
+    const s = setup();
+    touch(s, 'touchstart', 500, 0);
+    let t = 0;
+    for (let y = 460; y >= 300; y -= 40) {
+      t += 16;
+      touch(s, 'touchmove', y, t);
+    }
+    s.state.swallow = true;
+    s.deltas.length = 0;
+    t += 16;
+    touch(s, 'touchmove', 260, t);
+    touch(s, 'touchend', 260, t + 4);
+    expect(s.deltas).toEqual([]);
+    expect(s.scroll.busy).toBe(false);
+    expect(s.wakes.count).toBe(0);
+  });
+
+  it('leaves a tap alone while it swallows', () => {
+    const s = swallowing();
+    expect(touch(s, 'touchstart', 500, 0).defaultPrevented).toBe(false);
+    expect(touch(s, 'touchmove', 497, 16).defaultPrevented).toBe(false);
+    expect(touch(s, 'touchend', 497, 40).defaultPrevented).toBe(false);
+  });
+
+  it('keeps a trackpad burst one gesture with reduced motion, so its tail after the swallowing is no step', () => {
+    const s = setup({ enabled: true, reduced: true, swallow: true });
+    for (let t = 1000; t < 1300; t += 16) wheel(s, 4, t); // swallowed
+    s.state.swallow = false;
+    for (let t = 1300; t < 1600; t += 16) wheel(s, 4, t); // the same burst, still turning
+    expect(s.deltas).toEqual([]);
+    wheel(s, 4, 2000); // after a quiet, a new gesture
+    expect(s.deltas).toHaveLength(1);
+  });
+
+  it('leaves the page to the browser when the scroll is not enabled, swallowing or not', () => {
+    const s = setup({ enabled: false, reduced: false, swallow: true });
+    expect(wheel(s, 100).defaultPrevented).toBe(false);
+    expect(key(s, 'PageDown').defaultPrevented).toBe(false);
+    touch(s, 'touchstart', 500, 0);
+    expect(touch(s, 'touchmove', 300, 16).defaultPrevented).toBe(false);
+    expect(s.deltas).toEqual([]);
+  });
+
+  it('swallows nothing when the option is not given', () => {
+    const el = new EventTarget();
+    Object.defineProperty(el, 'ownerDocument', { value: { defaultView: new EventTarget() } });
+    const deltas: number[] = [];
+    new VirtualScroll(el as unknown as HTMLElement, {
+      unitPx: () => VH,
+      onDelta: (units) => deltas.push(units),
+      onJump: () => {},
+      enabled: () => true,
+      reducedMotion: () => false,
+    });
+    fire(el, 'wheel', { deltaY: 100, deltaMode: 0, ctrlKey: false, timeStamp: 1000 });
+    expect(deltas).toEqual([0.1]);
   });
 });
 

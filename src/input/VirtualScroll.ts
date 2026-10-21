@@ -13,6 +13,14 @@ export interface VirtualScrollOptions {
   /** Asked at every event: when false the input leaves the event to the browser, and prevents nothing. */
   enabled: () => boolean;
   reducedMotion: () => boolean;
+  /**
+   * Asked at every event the input takes (after `enabled`, so it never changes what the browser keeps): when true
+   * the event is taken and prevented as ever, and dropped. Nothing moves, no glide starts or goes on, and the page
+   * does not scroll either, which is the point: the tail of the gesture that skipped the loader arrives after the
+   * home has begun and must not scroll it. A tap is still the browser's, as ever; a swipe that is under way when
+   * this turns false carries on from where the finger is. Without it nothing is dropped.
+   */
+  swallow?: () => boolean;
   /** Called when a glide begins (the finger lifted while moving), so a frame loop that went to sleep can run `step`. */
   wake?: () => void;
 }
@@ -45,6 +53,8 @@ interface Drag {
  * - a key with ctrl, meta or alt held, one already handled, one typed into a text field (see `keyDelta`);
  * - a touch of two fingers (the pinch), a tap, or a swipe that goes sideways.
  *
+ * While `swallow()` says so it takes the events it would take and prevents them, but moves nothing for them.
+ *
  * With reduced motion nothing glides and nothing moves by a distance: a whole wheel gesture (events less than
  * 250 ms apart), a swipe, or a key press gives one `onDelta`, which the caller turns into one step.
  */
@@ -76,7 +86,7 @@ export class VirtualScroll {
   /** Advances the glide by `dtSec`, reporting its pixels through `onDelta`. */
   step(dtSec: number): void {
     if (!this.inertia.active) return;
-    if (!this.opts.enabled()) {
+    if (!this.opts.enabled() || this.opts.swallow?.()) {
       this.inertia.stop();
       return;
     }
@@ -112,6 +122,10 @@ export class VirtualScroll {
     if (e.ctrlKey || e.defaultPrevented || !this.opts.enabled()) return;
     e.preventDefault();
     this.inertia.stop();
+    if (this.opts.swallow?.()) {
+      this.gesture.begins(e.timeStamp); // the burst goes on being one gesture, so its tail after the swallowing is no step
+      return;
+    }
     const unit = this.opts.unitPx();
     const { px } = normalizeWheel(e, unit);
     if (px === 0) return;
@@ -156,6 +170,7 @@ export class VirtualScroll {
     if (e.cancelable) e.preventDefault();
     const px = drag.lastY - touch.clientY; // the finger goes up, the story goes down
     drag.lastY = touch.clientY;
+    if (this.opts.swallow?.()) return; // dropped, but the finger stays the input's: the page does not scroll under it
     drag.total += px;
     if (this.opts.reducedMotion()) return; // one step when the finger lifts
     this.inertia.track(e.timeStamp, px);
@@ -166,7 +181,7 @@ export class VirtualScroll {
     const drag = this.drag;
     this.drag = null;
     if (!drag?.claimed || !this.opts.enabled()) return;
-    if (e.type === 'touchcancel') {
+    if (e.type === 'touchcancel' || this.opts.swallow?.()) {
       this.inertia.stop();
       return;
     }
@@ -188,6 +203,7 @@ export class VirtualScroll {
     if (delta === null) return;
     e.preventDefault();
     this.inertia.stop();
+    if (this.opts.swallow?.()) return;
     if (typeof delta === 'string') {
       this.opts.onJump(delta);
       return;

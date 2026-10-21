@@ -58,13 +58,14 @@ function fire(target: EventTarget, type: string, props: Record<string, unknown> 
 interface SetupOptions {
   threeD?: boolean;
   reduced?: boolean;
+  swallow?: boolean;
   loadSmooth?: () => Promise<Smooth>;
 }
 
 function setup(options: SetupOptions = {}) {
   const frames = new FakeFrames();
   const frame = { progress: 0, target: 0, velocity: 0, chapterIndex: 0 };
-  const state = { threeD: options.threeD ?? true, reduced: options.reduced ?? false };
+  const state = { threeD: options.threeD ?? true, reduced: options.reduced ?? false, swallow: options.swallow ?? false };
   const changes: ChapterAt[] = [];
   const el = new EventTarget();
   const win = new EventTarget();
@@ -76,6 +77,7 @@ function setup(options: SetupOptions = {}) {
     unitPx: () => VH,
     enabled: () => state.threeD,
     reducedMotion: () => state.reduced,
+    swallow: () => state.swallow,
     threeD: () => state.threeD,
     onChapter: (at) => changes.push(at),
     loadSmooth: options.loadSmooth ?? (() => Promise.resolve(damp)),
@@ -290,6 +292,56 @@ describe('the scroll loop: leaving', () => {
     await flush();
     expect(s.frame.target).toBe(0);
     expect(s.frames.size).toBe(0);
+  });
+});
+
+describe('the scroll loop: the input that skipped the loader', () => {
+  it('drops the wheel, the keys and a swipe while it swallows, prevents them, and wakes nothing', async () => {
+    const s = setup({ swallow: true });
+    const wheel = fire(s.el, 'wheel', { deltaY: 100, deltaMode: 0, ctrlKey: false, timeStamp: 1000 });
+    const pageDown = s.key('PageDown');
+    const end = s.key('End');
+    await s.swipe(-1);
+    await flush();
+    expect(wheel.defaultPrevented).toBe(true);
+    expect(pageDown.defaultPrevented).toBe(true);
+    expect(end.defaultPrevented).toBe(true);
+    expect(s.frame.target).toBe(0);
+    expect(s.frame.progress).toBe(0);
+    expect(s.frames.size).toBe(0);
+    expect(s.home.scroll.busy).toBe(false);
+  });
+
+  it('takes the input as before the moment it stops swallowing', async () => {
+    const s = setup({ swallow: true });
+    s.key('PageDown');
+    s.state.swallow = false;
+    s.key('PageDown');
+    await flush();
+    expect(s.frame.target).toBeCloseTo(0.9, 12);
+    expect(s.frames.size).toBe(1);
+  });
+
+  it('swallows nothing unless asked to: the option is optional', () => {
+    const frame = { progress: 0, target: 0, velocity: 0, chapterIndex: 0 };
+    const el = new EventTarget();
+    Object.defineProperty(el, 'ownerDocument', { value: { defaultView: new EventTarget() } });
+    const home = startHomeScroll({
+      el: el as unknown as HTMLElement,
+      frame,
+      chapters,
+      unitPx: () => VH,
+      enabled: () => true,
+      reducedMotion: () => false,
+      threeD: () => true,
+      onChapter: () => {},
+      loadSmooth: () => Promise.resolve(damp),
+      request: () => 1,
+      cancel: () => {},
+    });
+    fire(el, 'wheel', { deltaY: 100, deltaMode: 0, ctrlKey: false, timeStamp: 1000 });
+    expect(frame.target).toBeCloseTo(0.1, 12);
+    home.dispose();
   });
 });
 

@@ -139,6 +139,8 @@ export interface HomeScrollOptions extends Omit<ScrollLoopOptions, 'glide'> {
   /** Whether the input takes events now (3D on, a phase the scroll moves through); asked at every event. */
   enabled: () => boolean;
   reducedMotion: () => boolean;
+  /** Whether the input drops what it takes now, still preventing it (`VirtualScrollOptions.swallow`); asked at every event. */
+  swallow?: () => boolean;
 }
 
 export interface HomeScroll {
@@ -179,6 +181,7 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
     },
     enabled: o.enabled,
     reducedMotion: o.reducedMotion,
+    swallow: o.swallow,
     wake: loop.wake,
   });
 
