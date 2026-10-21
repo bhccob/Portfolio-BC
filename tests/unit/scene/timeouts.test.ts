@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { LOADER } from '~/engine/v3/loaderTimeline';
+import { HOLD_AT, LOADER, QUICK, SCRIPT } from '~/engine/bob/loaderTimeline';
 import {
   LANDING_TIMEOUT_MS,
   type LandingWatch,
@@ -96,15 +96,16 @@ describe('visibleTimeout', () => {
 });
 
 describe('the landing backstop (Ruling 9b)', () => {
-  it("waits for the loader's give-up, then the whole of the longest path's show, then a margin", () => {
-    const longest = LOADER.engraveMin + LOADER.power + LOADER.circuit + LOADER.land;
-    expect(LANDING_TIMEOUT_MS).toBe(Math.round((LOADER.giveUp + longest + 5) * 1000));
-    expect(LANDING_TIMEOUT_MS).toBe(26_000);
-    // Longer than any opening that works: the latest a load may finish (the give-up) plus the slowest show after it,
-    // which the full path's power, circuit and landing are; the quick and reduced paths are shorter still.
-    expect(LANDING_TIMEOUT_MS).toBeGreaterThan((LOADER.giveUp + LOADER.power + LOADER.circuit + LOADER.land) * 1000);
-    expect(LANDING_TIMEOUT_MS).toBeGreaterThan((LOADER.giveUp + LOADER.quick) * 1000);
-    expect(LANDING_TIMEOUT_MS).toBeGreaterThan((LOADER.giveUp + LOADER.reducedHold + LOADER.reducedFade) * 1000);
+  it("waits for the loader's give-up, then the whole of the full show, then a margin", () => {
+    expect(LANDING_TIMEOUT_MS).toBe(Math.round((LOADER.giveUp + SCRIPT.home + 5) * 1000));
+    expect(LANDING_TIMEOUT_MS).toBe(42_500);
+    // Longer than any opening that works: the latest a load may land (the give-up) plus the longest show after it. A
+    // full show runs its whole script at most (a load that lands late holds it at the circle and goes on from there,
+    // SCRIPT.home - HOLD_AT after the load); the quick and reduced paths run theirs from the load.
+    expect(LANDING_TIMEOUT_MS).toBeGreaterThan((LOADER.giveUp + SCRIPT.home - HOLD_AT) * 1000);
+    expect(LANDING_TIMEOUT_MS).toBeGreaterThan(SCRIPT.home * 1000);
+    expect(LANDING_TIMEOUT_MS).toBeGreaterThan((LOADER.giveUp + QUICK.home) * 1000);
+    expect(LANDING_TIMEOUT_MS).toBeGreaterThan((LOADER.giveUp + LOADER.reducedFade) * 1000);
     expect(LANDING_TIMEOUT_MS).toBeGreaterThan(LOAD_TIMEOUT_MS);
   });
 });

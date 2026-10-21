@@ -11,8 +11,9 @@ export const motion = {
   /** The camera's pointer parallax is still damping toward the pointer (Rig). */
   parallax: false,
   /**
-   * The opening is playing (src/scene/v3/Opening.tsx): its stage is not yet `home`, so every frame moves something (the
-   * laser, the pins, the camera) and the next one is wanted. False until an Opening mounts and from the landing on.
+   * The opening is playing (src/scene/bob/Opening.tsx): its stage is not yet `home`, so every frame moves something (the
+   * probe, the cut, the iris, the camera) and the next one is wanted. False until an Opening mounts and from the landing
+   * on.
    */
   loader: false,
   /** When the scroll loop last asked for a frame (performance.now() ms), or -Infinity. */

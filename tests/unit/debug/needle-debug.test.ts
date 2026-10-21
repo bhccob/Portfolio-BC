@@ -18,7 +18,8 @@ function state(over: Partial<NeedleDebugState> = {}): NeedleDebugState {
     canvasMounts: 1,
     contextLost: false,
     threeD: true,
-    loader: { stage: 'home', elapsed: 7.1, pins: 64 },
+    loader: { stage: 'home', elapsed: 12.5, strokes: [1, 1, 1, 1, 1] },
+    needleAngle: 0.66,
     pointed: 'china',
     constellations: { china: [1238, 423], netherlands: [721, 250], aruba: [206, 382] },
     ...over,
@@ -116,11 +117,12 @@ describe('installNeedleDebug', () => {
     expect(act.dispatch).not.toHaveBeenCalled();
   });
 
-  it("hands the opening's clock, the constellation pointed at and the constellations' places on the screen through", () => {
-    const made = state({ loader: { stage: 'engrave', elapsed: 0.6, pins: 17 }, pointed: null });
+  it("hands the opening's clock, the needle's angle, the constellation pointed at and the constellations' places through", () => {
+    const made = state({ loader: { stage: 'engrave', elapsed: 4.2, strokes: [1, 1, 0.4, 0, 0] }, needleAngle: 1.5, pointed: null });
     installNeedleDebug('?proof', () => made, act);
     const at = (win.__needleDebug as () => NeedleDebugState)();
-    expect(at.loader).toEqual({ stage: 'engrave', elapsed: 0.6, pins: 17 });
+    expect(at.loader).toEqual({ stage: 'engrave', elapsed: 4.2, strokes: [1, 1, 0.4, 0, 0] });
+    expect(at.needleAngle).toBe(1.5);
     expect(at.pointed).toBeNull();
     expect(Object.keys(at.constellations).sort()).toEqual(['aruba', 'china', 'netherlands']);
     expect(at.constellations.china).toEqual([1238, 423]);

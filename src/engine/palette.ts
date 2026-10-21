@@ -1,6 +1,6 @@
 /**
- * The site's colours, the one place the v3 scene takes them from
- * (src/engine/v3/build/*, src/scene/v3/look.ts): `palette` as three.js hex
+ * The site's colours, the one place the scene takes them from (the builders in
+ * src/engine/bob/build/, src/scene/bob/look.ts): `palette` as three.js hex
  * numbers, and `paletteCss` the same colours as CSS strings (`#rrggbb`), which
  * the hero's colour test (tests/unit/hero-colour.test.ts) holds the page's
  * tokens to (src/styles/tokens.css: --night, --cream, --gold, --dim), so the

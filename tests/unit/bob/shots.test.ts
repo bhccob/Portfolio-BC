@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { type CameraShot, FRAMES, homeShotFor, lerpCameraShot, MAX_VFOV, shotFor, type ShotFrame, wideShotFor } from '~/engine/bob/shots';
+import { applyCameraShot, type CameraShot, FRAMES, homeShotFor, lerpCameraShot, MAX_VFOV, shotFor, type ShotFrame, wideShotFor } from '~/engine/bob/shots';
 
 /** `p` seen through the camera a shot places on a screen of this aspect: its NDC x and y (-1..1). */
 function project(shot: CameraShot, aspect: number, p: [number, number, number]): [number, number] {
@@ -219,5 +219,62 @@ describe('lerpCameraShot', () => {
   it('does not clamp, so an eased overshoot overshoots the camera too', () => {
     expect(lerpCameraShot(a, b, 1.5).fov).toBe(50);
     expect(lerpCameraShot(a, b, -0.5).position[0]).toBe(-1);
+  });
+});
+
+describe('applyCameraShot (copied from v3 unchanged)', () => {
+  const HOME = homeShotFor(16 / 9);
+  const WIDE = wideShotFor(16 / 9);
+
+  it('sets fov, aspect and position, and looks at the target so it lands in the middle of the picture', () => {
+    const camera = new THREE.PerspectiveCamera();
+    applyCameraShot(camera, HOME, 1.5);
+    expect(camera.fov).toBe(HOME.fov);
+    expect(camera.aspect).toBe(1.5);
+    expect(camera.position.toArray()).toEqual([...HOME.position]);
+    const p = new THREE.Vector3(...HOME.target).project(camera);
+    expect(p.x).toBeCloseTo(0, 6);
+    expect(p.y).toBeCloseTo(0, 6);
+  });
+
+  it("keeps +Y up: the picture is never rolled, so the camera's right-hand side stays level", () => {
+    const camera = new THREE.PerspectiveCamera();
+    camera.up.set(1, 0, 0);
+    for (const shot of [WIDE, HOME]) {
+      applyCameraShot(camera, shot, 1.6);
+      expect(new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion).y).toBeCloseTo(0, 9);
+      expect(new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion).y).toBeGreaterThan(0);
+    }
+  });
+
+  it('drops a view offset left by an earlier rig', () => {
+    const camera = new THREE.PerspectiveCamera();
+    camera.setViewOffset(1000, 800, 300, 200, 1000, 800);
+    applyCameraShot(camera, HOME, 1.25);
+    expect(camera.view?.enabled ?? false).toBe(false);
+    expect(new THREE.Vector3(...HOME.target).project(camera).x).toBeCloseTo(0, 6);
+  });
+
+  it('leaves the camera as it was for an aspect or a shot that is not finite and positive', () => {
+    const camera = new THREE.PerspectiveCamera(33, 2, 0.1, 100);
+    camera.position.set(1, 2, 3);
+    const before = camera.projectionMatrix.clone();
+    applyCameraShot(camera, HOME, 0);
+    applyCameraShot(camera, HOME, Number.NaN);
+    applyCameraShot(camera, { ...HOME, fov: Number.NaN }, 1.6);
+    applyCameraShot(camera, { ...HOME, position: [0, Number.POSITIVE_INFINITY, 3] }, 1.6);
+    expect(camera.fov).toBe(33);
+    expect(camera.aspect).toBe(2);
+    expect(camera.position.toArray()).toEqual([1, 2, 3]);
+    expect(camera.projectionMatrix.equals(before)).toBe(true);
+  });
+
+  it('projects a point exactly as the camera the shot tests build does', () => {
+    const camera = new THREE.PerspectiveCamera();
+    applyCameraShot(camera, HOME, 16 / 9);
+    const p = new THREE.Vector3(-2.15, 0, 0).project(camera);
+    const [x, y] = project(HOME, 16 / 9, [-2.15, 0, 0]);
+    expect(p.x).toBeCloseTo(x, 9);
+    expect(p.y).toBeCloseTo(y, 9);
   });
 });

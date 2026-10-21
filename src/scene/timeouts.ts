@@ -1,12 +1,12 @@
-import { LOADER } from '~/engine/v3/loaderTimeline';
+import { LOADER, SCRIPT } from '~/engine/bob/loaderTimeline';
 
 /**
  * How long the scene may take to start, from the moment SceneHost decides to mount it (its chunk to download, the
- * opening's chip, laser, traces and mist to build and their programs to compile: the Stage's onStarted, or onReady)
- * before the page gives up on it and falls back to the poster, ms of the page being visible (visibleTimeout): 12 s is a
- * scene that is not coming. From then on the opening waits for the rest of the load, LOADER.giveUp visible seconds at
- * most, by its loader's clock (src/engine/v3/loaderTimeline.ts) or, when it skips the loader, by a budget of that
- * length (SKIPPED_HOME_BUDGET_MS); LANDING_TIMEOUT_MS stands behind a loader.
+ * opening's glass, engraving, traces, probe and smoke to build and their programs to compile: the Stage's onStarted,
+ * or onReady) before the page gives up on it and falls back to the poster, ms of the page being visible
+ * (visibleTimeout): 12 s is a scene that is not coming. From then on the opening waits for the rest of the load,
+ * LOADER.giveUp visible seconds at most, by its loader's clock (src/engine/bob/loaderTimeline.ts) or, when it skips the
+ * loader, by a budget of that length (SKIPPED_HOME_BUDGET_MS); LANDING_TIMEOUT_MS stands behind a loader.
  */
 export const LOAD_TIMEOUT_MS = 12_000;
 
@@ -16,13 +16,12 @@ const LANDING_MARGIN = 5;
 /**
  * The backstop behind the opening's own give-up (Ruling 9b), ms of a scene on a visible page (`whileShown`): from the
  * loader showing (SceneHost's onReady) until the phase leaves LOADING. An opening that works lands well inside it: its
- * load gives up after LOADER.giveUp visible seconds, and the longest show after a load (the full path's engraving,
- * power-on, circuit and landing, 6 s) and a margin follow. Past it the opening has stalled where its own clock cannot
- * see (a frame loop that stopped, a promise that never settled), and the scene fails as any other failure does.
+ * load gives up after LOADER.giveUp visible seconds, and no show runs longer after a load than the full script
+ * (SCRIPT.home, 12.5 s: a load that lands late holds the script at the circle and plays only the rest), and a margin
+ * follows. Past it the opening has stalled where its own clock cannot see (a frame loop that stopped, a promise that
+ * never settled), and the scene fails as any other failure does.
  */
-export const LANDING_TIMEOUT_MS = Math.round(
-  (LOADER.giveUp + LOADER.engraveMin + LOADER.power + LOADER.circuit + LOADER.land + LANDING_MARGIN) * 1000,
-);
+export const LANDING_TIMEOUT_MS = Math.round((LOADER.giveUp + SCRIPT.home + LANDING_MARGIN) * 1000);
 
 /** How long a lost WebGL context may stay lost before the page falls back to the poster, ms of the page being visible. */
 export const RESTORE_TIMEOUT_MS = 4_000;

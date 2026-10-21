@@ -83,7 +83,7 @@ export interface SceneHostProps {
  * page's `scene` from the store, where this host puts it, and wake nothing there).
  *
  * Whenever it settles on no Stage (3D off, no WebGL, a software renderer, a failed scene) it says LOADED, so a
- * direct load of `/` leaves LOADING. While a Stage is up it never does: the Stage's opening (src/scene/v3/Opening.tsx)
+ * direct load of `/` leaves LOADING. While a Stage is up it never does: the Stage's opening (src/scene/bob/Opening.tsx)
  * says LOADED itself, once it has played the loader and landed on the home. The Stage tells two moments apart:
  * `onStarted`, its loader built and compiled, which stops the load timeout; and `onReady`, the canvas can show, which
  * fades it in over the poster (and stops the timeout too, if `onStarted` did not come first). A normal opening says
@@ -157,7 +157,7 @@ function SceneHostView({ scene }: SceneHostProps): JSX.Element {
   }, []);
 
   // The opening's loader is built and compiled: the load timeout stops, and the canvas stays hidden. A skipped opening
-  // (src/scene/v3/openingPose.ts `openingReadiness`) says this first and onReady once its home is warm too, on a budget
+  // (src/scene/bob/openingStart.ts `openingReadiness`) says this first and onReady once its home is warm too, on a budget
   // of its own meanwhile; a normal one says onReady alone, which says this as well.
   const onStarted = useCallback(() => {
     const current = run.current;

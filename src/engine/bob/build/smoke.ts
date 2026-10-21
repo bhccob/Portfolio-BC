@@ -3,11 +3,12 @@
  * soft, flat puffs from the front of the scene to the back, drifting too
  * slowly to watch (spec §2: "low violet smoke drifts over it"; §6: layered
  * soft textures in place of the preview's volume). It ports v3's mist
- * (src/engine/v3/build/mist.ts) to the preview's smoke box (`bob_smoke` in
+ * (milestone 2's build/mist.ts) to the preview's smoke box (`bob_smoke` in
  * tools/blender/bob_build.py: 30 by 26 by 1.7 over the glass). Its texture is
  * the studio's smoke (~/engine/studio/noise), made on the CPU with no canvas,
- * so the node tests build it. No React: the Opening and the Home (Task 10) own
- * it and advance its time on every frame drawn.
+ * so the node tests build it. No React: the Opening (src/scene/bob/Opening.tsx)
+ * owns it and drifts it through the loader, and the Home (Home.tsx there)
+ * drifts it with the home's idle motion.
  */
 import * as THREE from 'three';
 import { random, smokeTexture } from '~/engine/studio/noise';

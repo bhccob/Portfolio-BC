@@ -7,8 +7,8 @@ import { frame } from '../../../src/state/frame';
 import { useScene } from '../../../src/state/store';
 
 function resetFrame(): void {
-  Object.assign(frame, { progress: 0, target: 0, velocity: 0, chapterIndex: 0, contextLost: false, pointed: null, loaderHold: null });
-  Object.assign(frame.loader, { stage: null, elapsed: 0, pins: 0 });
+  Object.assign(frame, { progress: 0, target: 0, velocity: 0, chapterIndex: 0, contextLost: false, pointed: null, loaderHold: null, needleAngle: 0 });
+  Object.assign(frame.loader, { stage: null, elapsed: 0, strokes: [0, 0, 0, 0, 0] });
 }
 
 const NO_PLACES = { china: [0, 0], netherlands: [0, 0], aruba: [0, 0] };
@@ -64,17 +64,23 @@ describe('readNeedleDebugState', () => {
     }
   });
 
-  it("reports where the opening stands and the constellation pointed at, from the frame, as a copy of the opening's fields", () => {
+  it("reports where the opening stands, the needle's angle and the constellation pointed at, from the frame, as copies", () => {
     const before = readNeedleDebugState({ route: 'home', locale: 'nl' });
-    expect(before.loader).toEqual({ stage: null, elapsed: 0, pins: 0 });
+    expect(before.loader).toEqual({ stage: null, elapsed: 0, strokes: [0, 0, 0, 0, 0] });
+    expect(before.needleAngle).toBe(0);
     expect(before.pointed).toBeNull();
-    Object.assign(frame.loader, { stage: 'engrave', elapsed: 0.6, pins: 17 });
+    const strokes = [1, 1, 0.4, 0, 0];
+    Object.assign(frame.loader, { stage: 'engrave', elapsed: 4.2, strokes });
+    frame.needleAngle = 1.2;
     frame.pointed = 'aruba';
-    frame.loaderHold = 0.6;
+    frame.loaderHold = 4.2;
     const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
-    // The three fields the brief names and nothing else of the frame's (the hold is the bridge's own business).
-    expect(state.loader).toEqual({ stage: 'engrave', elapsed: 0.6, pins: 17 });
+    // The three fields of the opening and nothing else of the frame's (the hold is the bridge's own business).
+    expect(state.loader).toEqual({ stage: 'engrave', elapsed: 4.2, strokes: [1, 1, 0.4, 0, 0] });
     expect(state.loader).not.toBe(frame.loader);
+    // The strokes are a copy too: the Opening's next pose cannot change a state already read.
+    expect(state.loader.strokes).not.toBe(strokes);
+    expect(state.needleAngle).toBe(1.2);
     expect(state.pointed).toBe('aruba');
   });
 });

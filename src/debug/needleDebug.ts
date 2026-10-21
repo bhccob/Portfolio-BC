@@ -1,7 +1,7 @@
 import type { CountryId } from '~/data/directions';
 // Types only: the bridge is in the entry bundle and needs only these modules' shapes, none of their code. (The loader's
 // timeline is in that bundle anyway, through src/scene/timeouts.ts; three.js must stay out of it.)
-import type { LoaderStage } from '~/engine/v3/loaderTimeline';
+import type { LoaderStage } from '~/engine/bob/loaderTimeline';
 import type { Locale } from '~/i18n/Translator';
 import type { ChapterId } from '~/state/chapters';
 import type { Phase, SceneEvent } from '~/state/machine';
@@ -42,11 +42,17 @@ export interface NeedleDebugState {
   threeD: boolean;
   /**
    * Where the opening stands, as it last posed the scene (`frame.loader`): its stage, the loader's visible seconds and
-   * the pins lit. While `seekLoader` holds the clock, these are the held moment's. The stage is null while no opening is
+   * how much of each of the five marks is cut, in `STROKE_ORDER` (the left B, its bar, the right B, its bar, the circle;
+   * a copy). While `seekLoader` holds the clock, these are the held moment's. The stage is null while no opening is
    * mounted (3D off, no WebGL, a failed scene), so a harness can tell "no loader" from any moment of one.
    */
-  loader: { stage: LoaderStage | null; elapsed: number; pins: number };
-  /** The constellation the needle points at (`frame.pointed`), or null: between them, or no home to point in. */
+  loader: { stage: LoaderStage | null; elapsed: number; strokes: number[] };
+  /**
+   * The compass needle's angle now (`frame.needleAngle`), radians: 0 up the screen, positive clockwise as the camera
+   * sees it, so a pointer straight to the right of the pivot pulls it toward pi/2. 0 before any compass is posed.
+   */
+  needleAngle: number;
+  /** v3's pointed constellation (`frame.pointed`): null since the BOB opening replaced v3's; Task 11 removes it. */
   pointed: CountryId | null;
   /**
    * Each constellation's anchor (its stars' centroid, where its label hangs from) on the screen now, in CSS pixels from
@@ -63,9 +69,10 @@ export interface NeedleDebugActions {
   /** Sends a scene event, as the app's own parts do. */
   dispatch(e: SceneEvent): void;
   /**
-   * Holds the opening's clock at `seconds` and stops it advancing, for the stills (Ruling 2): the opening poses the whole
-   * scene at that moment of a load that filled in step with the engraving, every frame, until it is let go. Any
-   * negative time (-1) lets go, back to the live clock.
+   * Holds the opening's clock at `seconds` and stops it advancing, for the stills: the opening poses the whole scene at
+   * that moment of a load that had landed from the start (src/scene/bob/openingStart.ts `heldLoaderInput`), so the full
+   * show stands at that second of its script, every frame, until it is let go. Any negative time (-1) lets go, back to
+   * the live clock.
    */
   seekLoader(seconds: number): void;
 }

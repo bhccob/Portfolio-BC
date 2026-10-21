@@ -2,11 +2,11 @@
  * The loader's laser probe as three.js objects: the slim brass probe that
  * comes down from above and engraves the name, with a warm light and a bright
  * point at its tip while it cuts, a few small sparks and a wisp of smoke (spec
- * §2.1). It ports v3's laser (src/engine/v3/build/laser.ts) to the metre
+ * §2.1). It ports v3's laser (milestone 2's build/laser.ts) to the metre
  * world of the Blender preview (tools/blender/bob_animate.py, `bob_probe`): a
  * 9 m shaft on a 0.22 taper, its tip nearly touching the glass as it cuts. No
- * React: the Opening (Task 10) mounts the group and moves it along
- * ~/engine/bob/probePath's `probeAt`.
+ * React: the Opening (src/scene/bob/Opening.tsx) mounts the group and moves it
+ * along ~/engine/bob/probePath's `probeAt`.
  *
  * The group stands at the tip, so `setTip` moves one position. What lights the
  * cut (the point, the sparks and the wisp) stands on the glass under the tip,

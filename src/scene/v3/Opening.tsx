@@ -44,6 +44,13 @@ import {
 /** The longest step the mist's drift takes in one frame, seconds: a scene waking from sleep does not jump it. */
 const MAX_STEP = 0.1;
 
+/**
+ * The frame's loader fields as this opening wrote them. The frame now has the BOB opening's (src/scene/bob/Opening.tsx),
+ * which the Stage mounts in place of this one; this file is no longer mounted and goes with Task 11, and reaches them
+ * through this loosely typed view so that it still compiles until then.
+ */
+const loaderFrame = frame.loader as unknown as { stage: string | null; elapsed: number; pins: number };
+
 /** Why the opening fails when its home has not loaded in time: the loader's give-up, and a skipped home's budget. */
 const GAVE_UP = `the compass did not load within ${LOADER.giveUp} s of the page being visible`;
 
@@ -375,7 +382,7 @@ export function Opening({ clearcoat, finePointer, onStarted, onReady, onFail }: 
     // the home's ground for a skipped one.
     const first = clockOf(state);
     pose(parts, null, openingPoseAt(first, state.path), 0, state, first.stage === 'home');
-    frame.loader.stage = first.stage;
+    loaderFrame.stage = first.stage;
 
     /** The canvas can show and the clock runs: the loader's first frame, or a skipped opening's home. */
     const show = (): void => {
@@ -459,7 +466,7 @@ export function Opening({ clearcoat, finePointer, onStarted, onReady, onFail }: 
       setModels(null);
       motion.loader = false;
       frame.shot = null;
-      frame.loader.stage = null;
+      loaderFrame.stage = null;
       scene.remove(parts.traces.lines, parts.chip.group, parts.laser.group, parts.mist.group, parts.veil.group);
       parts.traces.dispose();
       parts.chip.dispose();
@@ -509,9 +516,9 @@ export function Opening({ clearcoat, finePointer, onStarted, onReady, onFail }: 
     const elapsed = held ?? state.elapsed;
     const aspect = three.size.width / three.size.height;
     const atHome = clock.stage === 'home';
-    frame.loader.stage = clock.stage;
-    frame.loader.elapsed = elapsed;
-    frame.loader.pins = clock.pins;
+    loaderFrame.stage = clock.stage;
+    loaderFrame.elapsed = elapsed;
+    loaderFrame.pins = clock.pins;
     motion.loader = !atHome;
 
     // The mist drifts on every frame drawn, at home too.

@@ -5,6 +5,7 @@ import { StageProbe } from '~/debug/StageProbe';
 import { countCanvasMount } from '~/debug/stageReport';
 import { qualityFor } from '~/engine/quality';
 import { frame } from '~/state/frame';
+import { Opening } from './bob/Opening';
 import { Effects } from './Effects';
 import { Heartbeat } from './Heartbeat';
 import { resetMotion } from './motion';
@@ -12,11 +13,10 @@ import { QualityGovernor } from './QualityGovernor';
 import { Rig } from './Rig';
 import { Studio } from './Studio';
 import { RESTORE_TIMEOUT_MS, visibleTimeout } from './timeouts';
-import { Opening } from './v3/Opening';
 
 /**
- * A mouse or trackpad: the finer ladder, ring masks and city. Read once, when the Stage's chunk loads (in the browser
- * only).
+ * A mouse or trackpad: the finer quality ladder (src/engine/quality.ts). Read once, when the Stage's chunk loads (in the
+ * browser only).
  */
 const FINE_POINTER = typeof window !== 'undefined' && window.matchMedia?.('(pointer: fine)').matches === true;
 
@@ -34,8 +34,9 @@ const CAMERA = { fov: 30, near: 0.1, far: 100, position: [0, 0, 5] as [number, n
 
 export interface StageProps {
   /**
-   * The opening's loader is built and compiled (its chip, laser, traces and mist), so the load timeout stops, while the
-   * canvas stays hidden: said by an opening that skips its loader, which shows only once its home is warm too.
+   * The opening's loader is built and compiled (its glass, engraving, traces, probe and smoke), so the load timeout
+   * stops, while the canvas stays hidden: said by an opening that skips its loader, which shows only once its home is
+   * warm too.
    */
   onStarted(): void;
   /** The canvas can show: the loader's first frame, or a skipped opening's home. Implies `onStarted`. */
@@ -80,10 +81,10 @@ function ContextWatch({ onFail }: Pick<StageProps, 'onFail'>): null {
 }
 
 /**
- * The persistent canvas and the scene in it: the v3 studio, the opening (the loader, landing on the home), the camera
- * rig, the post chain, the quality governor and the heartbeat of the demand frame loop. SceneHost mounts it once 3D is
- * on and WebGL is there, and gives it LOAD_TIMEOUT_MS to say the loader can show; the opening says LOADED itself when
- * it lands.
+ * The persistent canvas and the scene in it: the studio, the BOB opening (src/scene/bob/Opening.tsx: the loader,
+ * landing on the home), the camera rig, the post chain, the quality governor and the heartbeat of the demand frame
+ * loop. SceneHost mounts it once 3D is on and WebGL is there, and gives it LOAD_TIMEOUT_MS to say the loader can show;
+ * the opening says LOADED itself when it lands.
  *
  * Memoised (its callbacks are stable): a host render, as when the page's scene changes, never re-renders the
  * canvas's tree, whose post chain would rebuild its passes. The parts read what changes (the page's scene, the tier,
@@ -113,7 +114,7 @@ export default memo(function Stage({ onStarted, onReady, onFail }: StageProps): 
     <Canvas dpr={dpr} frameloop="demand" flat gl={GL} camera={CAMERA}>
       <ContextWatch onFail={onFail} />
       <Studio />
-      <Opening clearcoat={quality.clearcoat} finePointer={FINE_POINTER} onStarted={onStarted} onReady={onReady} onFail={onFail} />
+      <Opening onStarted={onStarted} onReady={onReady} onFail={onFail} />
       <Rig />
       <Effects />
       <QualityGovernor step={step} finePointer={FINE_POINTER} onStep={stepDown} />

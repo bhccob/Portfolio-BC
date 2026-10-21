@@ -5,21 +5,21 @@ import * as THREE from 'three';
 import { shoulder } from '~/engine/studio/shoulder';
 import { useScene } from '~/state/store';
 import { ShoulderToneMappingEffect } from './ShoulderToneMapping';
-import { LOOK } from './v3/look';
+import { LOOK } from './bob/look';
 
 /**
- * Bloom by tier, milestone 1's resolutions with LOOK's numbers: mipmap blur, a threshold of 1 in linear HDR (only what
- * is emissive past it glows: the laser's point, the power-on pins, a pointed star; never a gold specular), LOOK's
- * smoothing and radius, and LOOK's intensity at full resolution on high and at half on medium.
+ * Bloom by tier, milestone 1's resolutions with LOOK's numbers: mipmap blur, LOOK's threshold in linear HDR (0.7: only
+ * what glows past it blooms, the engraving's lines, the laser's point and its sparks, the tunnel's light; never a gold
+ * specular), LOOK's smoothing and radius, and LOOK's intensity at full resolution on high and at half on medium.
  */
 const BLOOM = {
-  high: { intensity: LOOK.bloom.high, resolutionScale: 1 },
-  medium: { intensity: LOOK.bloom.medium, resolutionScale: 0.5 },
+  high: { intensity: LOOK.bloom.intensity.high, resolutionScale: 1 },
+  medium: { intensity: LOOK.bloom.intensity.medium, resolutionScale: 0.5 },
 } as const;
 
 /**
- * The post chain, by tier (QualityGovernor sets it), milestone 1's chain with the v3 numbers of LOOK
- * (src/scene/v3/look.ts):
+ * The post chain, by tier (QualityGovernor sets it), milestone 1's chain with the numbers of LOOK
+ * (src/scene/bob/look.ts):
  *   - high and medium: pmndrs `EffectComposer` (half-float buffers) with Bloom (BLOOM), Vignette, Noise (premultiplied,
  *     so it never lifts the blacks), then the shoulder tone mapping last, on the linear buffer, at LOOK.exposure. The
  *     renderer's own tone mapping is off meanwhile, so the shoulder is applied once.

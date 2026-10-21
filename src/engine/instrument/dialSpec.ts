@@ -1,6 +1,6 @@
 /**
  * The compass dial's measurements: one table that the painted rings
- * (src/engine/v3/paintRings.ts) and the 3D parts both read, so the two always
+ * (v3's paintRings.ts) and the 3D parts both read, so the two always
  * agree. It imports nothing from three, gsap or lenis.
  *
  * The dial lies in its local XZ plane with its face normal +Y and the face at
@@ -47,7 +47,7 @@ export const DIAL = {
 
 /**
  * How the dial's markings are drawn, read by the ring painter
- * (src/engine/v3/paintRings.ts), so every mark is sized in one place.
+ * (v3's paintRings.ts), so every mark is sized in one place.
  * Lengths are world units like DIAL's, except the pattern rules', which are
  * fractions of the pattern ring's width.
  */

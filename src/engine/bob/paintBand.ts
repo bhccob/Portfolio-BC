@@ -3,7 +3,7 @@ import { LATER_HEAVEN } from '~/engine/bob/trigrams';
 /**
  * The engraving of one of the compass's glass bands, painted as a strip:
  * white marks on a transparent canvas, which the builder uses as the alpha
- * mask of the gold (as src/engine/v3/paintRings.ts does for the old dial).
+ * mask of the gold (as v3's ring painter, paintRings.ts, did for the old dial).
  * A strip's x runs round the band, u = angle / 360 from 0 to 1, and its y runs
  * across it, with v = 0 at the bottom edge and v = 1 at the top edge. A canvas
  * y is (1 - v) * height, because three.js flips a CanvasTexture and puts the

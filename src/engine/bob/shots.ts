@@ -3,7 +3,8 @@
  * loader's wide view of the whole name and for the home, each framed to fit the
  * screen's shape. A shot is plain numbers, so the loader can blend one into the
  * next (`lerpCameraShot`) and the tests project the scene through exactly the
- * camera the page uses. It imports nothing from three.
+ * camera the page uses (`applyCameraShot`). It imports no code from three,
+ * only the camera's type.
  *
  * The frame is the glass's (see ~/engine/bob/wordmark): the glass is the plane
  * y = 0, x runs to the right, and the camera stands on the +z side, looking
@@ -11,6 +12,7 @@
  * from the Blender preview (tools/blender/bob_animate.py, the `WIDE` and `HOME`
  * dicts), tuned against the projection tests, not derived.
  */
+import type { PerspectiveCamera } from 'three';
 
 /**
  * One camera placement: where the camera stands, the point it looks at (up is
@@ -143,4 +145,31 @@ export function lerpCameraShot(a: CameraShot, b: CameraShot, t: number): CameraS
     target: [mix(a.target[0], b.target[0], t), mix(a.target[1], b.target[1], t), mix(a.target[2], b.target[2], t)],
     fov: mix(a.fov, b.fov, t)
   };
+}
+
+/**
+ * Puts `camera` where `shot` says on a screen of this `aspect` (width over
+ * height): sets its fov and aspect, stands it at the shot's position looking
+ * at the shot's target with +Y up, drops any view offset a previous rig left
+ * on it (a shot is the whole picture), and updates the projection and world
+ * matrices so a projection made straight afterwards is right. It does not
+ * touch near or far, which belong to the stage. A shot or aspect that is not
+ * finite and positive leaves the camera as it was: there is nothing to frame,
+ * and the maths would not be finite.
+ *
+ * Copied unchanged from v3's shots (Ruling 23): the Rig places the camera
+ * through it. It calls only the camera's own methods, so this module needs
+ * three's types and none of its code.
+ */
+export function applyCameraShot(camera: PerspectiveCamera, shot: CameraShot, aspect: number): void {
+  const finite = [...shot.position, ...shot.target].every(Number.isFinite);
+  if (!(finite && Number.isFinite(shot.fov) && shot.fov > 0 && Number.isFinite(aspect) && aspect > 0)) return;
+  camera.fov = shot.fov;
+  camera.aspect = aspect;
+  camera.up.set(0, 1, 0);
+  camera.position.set(shot.position[0], shot.position[1], shot.position[2]);
+  camera.lookAt(shot.target[0], shot.target[1], shot.target[2]);
+  camera.clearViewOffset();
+  camera.updateProjectionMatrix();
+  camera.updateMatrixWorld();
 }

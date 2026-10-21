@@ -2,11 +2,11 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { damp3 } from 'maath/easing';
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { applyCameraShot } from '~/engine/v3/shots';
+import { isAiming } from '~/engine/bob/needleAim';
+import { applyCameraShot } from '~/engine/bob/shots';
 import { frame } from '~/state/frame';
 import { useScene } from '~/state/store';
 import { motion } from './motion';
-import { isAiming } from './v3/homePose';
 
 /** The most the pointer turns the camera about the shot's look-at point, radians, either way on each axis. */
 export const PARALLAX = 0.04;
@@ -23,20 +23,21 @@ const MAX_STEP = 0.1;
 const clamp = (value: number): number => Math.min(1, Math.max(-1, value));
 
 /**
- * The camera. It stands where the Opening says (`frame.shot`, src/scene/v3/Opening.tsx: the loader's macro and high
- * shots, then the home, each framed for the screen's shape), put there with `applyCameraShot` for the canvas's size on
- * every frame drawn and on a resize. Before the Opening has posed a frame there is no shot, and the camera stays where
- * it is (the canvas is not shown yet).
+ * The camera. It stands where the Opening says (`frame.shot`, src/scene/bob/Opening.tsx: the loader's wide shot of the
+ * whole name, the push-in, then the home, each framed for the screen's shape), put there with `applyCameraShot` for
+ * the canvas's size on every frame drawn and on a resize. Before the Opening has posed a frame there is no shot, and
+ * the camera stays where it is (the canvas is not shown yet).
  *
  * On top of the shot, at home only, a pointer parallax turns the camera about the shot's look-at point by at most
- * PARALLAX radians, damped (maath `damp3`), so the compass keeps its place on the page while the constellations shift
- * against each other and their depth reads (spec §2.2). During the opening the camera flies the Opening's path and
- * nothing else; with reduced motion there is no parallax at all.
+ * PARALLAX radians, damped (maath `damp3`), so the compass keeps its place on the page while the bands and the
+ * engraved letters shift against each other and their depth reads (spec §2.2). During the opening the camera flies the
+ * Opening's path and nothing else; with reduced motion there is no parallax at all.
  *
  * The pointer is read from `pointermove` on the window into `frame.pointer` (-1..1, up is +1) and the time of the move
- * into `frame.pointerAt`, for the home's needle (src/scene/v3/Home.tsx): a mouse or a pen only, a finger has no hover
- * to follow. On a page without a scene (the store's `scene` is null) the pointer is still noted, so the camera is right
- * when the scene shows again, but wakes nothing.
+ * into `frame.pointerAt`, for the home's needle (src/scene/bob/Home.tsx): a mouse or a pen only, a finger has no hover
+ * to follow. A move wakes the canvas while the needle aims (`isAiming`: the home page at rest, src/engine/bob/needleAim.ts)
+ * or, without reduced motion, for the parallax. On a page without a scene (the store's `scene` is null) the pointer is
+ * still noted, so the camera is right when the scene shows again, but wakes nothing.
  */
 export function Rig(): null {
   const camera = useThree((state) => state.camera) as THREE.PerspectiveCamera;

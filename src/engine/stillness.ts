@@ -1,7 +1,7 @@
 /**
- * When the v3 home may stop drawing. Home (src/scene/v3/Home.tsx) writes its
+ * When the home may stop drawing. Home (src/scene/bob/Home.tsx) writes its
  * state into `motion.compass` (src/scene/motion.ts) every frame it drives the
- * needle: `idle` (its idle motion is over and the glows have arrived),
+ * needle: `idle` (its idle motion is over),
  * `needle` and `needleSpeed`; the Heartbeat (src/scene/Heartbeat.tsx) lets the
  * canvas sleep once `asleep` says nothing would move, until something stirs
  * it again. The other fields (the pearl, the drag, the spin, the tip, the
@@ -14,7 +14,7 @@
 export const STILL = { pearl: 0.05, needle: 1e-3, needleSpeed: 1e-2, spin: 1e-4, spinSpeed: 1e-3, tip: 1e-4 } as const;
 
 export interface Stillness {
-  /** Nothing has stirred the scene for a while: the v3 home's idle motion is over and its glows have arrived (src/scene/v3/Home.tsx). */
+  /** Nothing has stirred the scene for a while: the home's idle motion is over (src/scene/bob/Home.tsx). */
   idle: boolean;
   /** CSS px between the drawn pearl and where it wants to be. */
   pearl: number;
@@ -35,7 +35,7 @@ export interface Stillness {
 
 /**
  * Everything at rest: what `motion.compass` holds before Home first drives the needle, and again once Home has gone
- * (src/scene/motion.ts, src/scene/v3/Home.tsx). Home writes only `idle`, `needle` and `needleSpeed` over it; the
+ * (src/scene/motion.ts, src/scene/bob/Home.tsx). Home writes only `idle`, `needle` and `needleSpeed` over it; the
  * rest stays as here.
  */
 export const AT_REST: Readonly<Stillness> = Object.freeze({

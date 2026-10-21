@@ -42,6 +42,7 @@ const TYPES = {
   '.woff2': 'font/woff2',
   '.mp4': 'video/mp4',
   '.webm': 'video/webm',
+  '.glb': 'model/gltf-binary',
 };
 
 /** The file under ROOT for a URL path, or null if the path leaves ROOT. */

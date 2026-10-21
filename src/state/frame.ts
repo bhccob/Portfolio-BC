@@ -1,7 +1,7 @@
 import type { CountryId, DirId } from '~/data/directions';
-// Types only: this module is in the entry bundle, which must not pull in three.js (shots.ts places a camera with it).
-import type { LoaderStage } from '~/engine/v3/loaderTimeline';
-import type { CameraShot } from '~/engine/v3/shots';
+// Types only: this module is in the entry bundle, which must not pull in three.js.
+import type { LoaderStage } from '~/engine/bob/loaderTimeline';
+import type { CameraShot } from '~/engine/bob/shots';
 
 /**
  * The values that change every frame. This is a plain mutable object, never React state and never in
@@ -23,38 +23,47 @@ export const frame = {
    * its starting {0, 0} has said nothing), and a move at home starts its idle while again.
    */
   pointerAt: Number.NEGATIVE_INFINITY,
-  /** The compass arm under the pointer, or null. */
+  /** The compass arm under the pointer, or null. Nothing writes it since milestone 1's compass went; Task 11 removes it. */
   hoverDir: null as DirId | null,
   /**
-   * The constellation the home's needle points at (src/scene/v3/Home.tsx, by `pointedAt`), or null: the needle points
-   * into the dark between them, or there is no home to point in (no Stage, the loader still playing, or held by a seek).
+   * The constellation v3's home needle pointed at, or null. Nothing writes it since the BOB opening replaced v3's
+   * (Task 10): it stays null until Task 11 removes it with the constellations.
    */
   pointed: null as CountryId | null,
+  /**
+   * The compass needle's angle as last posed, radians: 0 up the screen, positive clockwise as the camera sees it
+   * (`CompassModel.setNeedle`'s). The Opening (src/scene/bob/Opening.tsx) writes it as the needle swings in, and the
+   * Home (src/scene/bob/Home.tsx) as it follows the pointer or drifts; 0 before any compass is posed. The debug bridge
+   * reports it.
+   */
+  needleAngle: 0,
   /** The index of the chapter `progress` is in (`chapterAt(...).index`). */
   chapterIndex: 0,
   /** True while the WebGL context is lost. */
   contextLost: false,
   /**
-   * Where the camera should be: the shot the Opening (src/scene/v3/Opening.tsx) poses on every frame it draws, which the
+   * Where the camera should be: the shot the Opening (src/scene/bob/Opening.tsx) poses on every frame it draws, which the
    * Rig puts the camera on (adding the pointer's parallax at home). Null until an Opening has posed its first frame; the
    * Rig then leaves the camera as it is.
    */
   shot: null as CameraShot | null,
   /**
    * Where the opening stands, as the Opening last posed it: its stage (null while no Opening is mounted), the loader's
-   * visible seconds and the pins lit. The Rig reads the stage (the parallax is the home's alone); the debug bridge
-   * reports all three.
+   * visible seconds, and how much of each of the five marks is cut (`STROKE_ORDER`: the left B, its bar, the right B,
+   * its bar, the circle). The Rig reads the stage (the parallax is the home's alone); the debug bridge reports all
+   * three.
    */
-  loader: { stage: null as LoaderStage | null, elapsed: 0, pins: 0 },
+  loader: { stage: null as LoaderStage | null, elapsed: 0, strokes: [0, 0, 0, 0, 0] as readonly number[] },
   /**
    * The loader time the proof bridge holds the opening at (`seekLoader`, behind `?proof` only), seconds, or null for
    * the live clock. While it is set the Opening poses the whole scene at that moment on every frame and the home's
-   * needle waits (Ruling 2). Nothing but the bridge sets it.
+   * needle waits. Nothing but the bridge sets it.
    */
   loaderHold: null as number | null,
   /**
-   * When the fast-forward of a skipped loader ends, in the clock of `performance.now()` (ms), or null while no skip has
-   * been asked for. The Opening writes it when the visitor skips; the home's scroll input (src/input/useHomeScroll.ts)
+   * When the fast-forward of a skipped loader ended, in the clock of `performance.now()` (ms), or null while no skip has
+   * landed. The Opening writes it on the frame a skipped loader reaches the home (the skip's own listener prevents the
+   * input until then), and sets it back to null when it mounts; the home's scroll input (src/input/useHomeScroll.ts)
    * reads it and, until `SKIP_SWALLOW_MS` after it (`skipSwallows`), drops the wheel, touch and keys it hears, still
    * preventing them, so the tail of the gesture that skipped does not scroll the home or the page.
    */
