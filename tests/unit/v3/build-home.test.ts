@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { COUNTRY_IDS, countryDirection } from '~/data/directions';
 import { DIAL } from '~/engine/instrument/dialSpec';
 import { palette } from '~/engine/palette';
+import { buildChip } from '~/engine/v3/build/chip';
 import { buildCity, CITY_LOOK } from '~/engine/v3/build/city';
 import { buildConstellations, STARS_LOOK } from '~/engine/v3/build/constellations';
 import { buildGlassCompass, GLASS_LOOK } from '~/engine/v3/build/glassCompass';
@@ -471,8 +472,8 @@ describe('the chip city', () => {
       expect(actual.r).toBeCloseTo(expected.r, 6);
       expect(actual.g).toBeCloseTo(expected.g, 6);
       expect(actual.b).toBeCloseTo(expected.b, 6);
-      // Even the brightest block glows well under the bloom's threshold: a hint of light below the glass.
-      expect(luminance(actual)).toBeLessThan(0.35);
+      // Even the brightest block glows well under the bloom's threshold, and under the engraving's gold: a hint of light below the glass.
+      expect(luminance(actual)).toBeLessThan(0.2);
     });
     expect(new Set(blocks.map((b) => b.hue))).toEqual(new Set(['amber', 'violet']));
     const body = city.mesh.material as THREE.MeshStandardMaterial;
@@ -502,6 +503,9 @@ describe('the chip city', () => {
     const shader = compiled(material);
     expect(shader.fragmentShader).not.toContain('#include <color_fragment>');
     expect(shader.fragmentShader).toContain('totalEmissiveRadiance += vColor.rgb * uCityGlow * mix( uCitySide, 1.0, vCityRoof );');
+    // three defines USE_COLOR in the fragment for instance colours (and declares vColor there); USE_INSTANCING_COLOR is the vertex's only.
+    const glow = shader.fragmentShader.indexOf('totalEmissiveRadiance += vColor.rgb');
+    expect(shader.fragmentShader.lastIndexOf('#ifdef USE_COLOR', glow)).toBeGreaterThan(shader.fragmentShader.lastIndexOf('#endif', glow));
     expect(shader.vertexShader).toContain('vCityRoof = max( normal.y, 0.0 );');
     expect(shader.uniforms.uCitySide.value).toBe(CITY_LOOK.side);
     expect(CITY_LOOK.side).toBeLessThan(1);
@@ -920,6 +924,38 @@ describe('the reflection room', () => {
     const released = vi.spyOn(target, 'dispose');
     room.dispose();
     expect(released).toHaveBeenCalled();
+  });
+});
+
+describe("the builders' shader patches", () => {
+  it('guard nothing in a fragment shader with a define three only gives the vertex shader', () => {
+    // three r186 defines USE_INSTANCING_COLOR in the vertex prefix alone (the fragment gets USE_COLOR), so a fragment
+    // block behind it is silently compiled out.
+    const parts = [
+      buildCity(cityLayout(20)).mesh,
+      ...drawn(buildGlassCompass().group),
+      ...drawn(buildNeedle().group),
+      ...drawn(buildChip().group)
+    ];
+    const patched = [...new Set(parts.map((o) => o.material as THREE.Material))].filter((m) => m.onBeforeCompile !== THREE.Material.prototype.onBeforeCompile);
+    // The city, the four golds, the needle and the chip's pins.
+    expect(patched.length).toBeGreaterThanOrEqual(7);
+    for (const material of patched) {
+      const shader = compiled(material, (material as THREE.MeshPhysicalMaterial).isMeshPhysicalMaterial ? 'physical' : 'standard');
+      expect(shader.fragmentShader, material.name).not.toContain('USE_INSTANCING_COLOR');
+    }
+  });
+
+  it('change no colour after it is encoded for the output: the sky adds no dither in a linear buffer', () => {
+    const sky = buildSky();
+    const constellations = buildConstellations();
+    const shaders = [sky.mesh, ...drawn(constellations.group)].map((o) => ((o as THREE.Mesh).material as THREE.ShaderMaterial).fragmentShader);
+    for (const fragment of shaders) {
+      expect(fragment).toContain('#include <colorspace_fragment>');
+      expect(fragment.split('#include <colorspace_fragment>')[1]).not.toContain('gl_FragColor');
+    }
+    sky.dispose();
+    constellations.dispose();
   });
 });
 

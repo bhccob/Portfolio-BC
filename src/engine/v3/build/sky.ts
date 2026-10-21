@@ -75,8 +75,13 @@ void main() {
  * its centre (a gnomonic projection, straight lines staying straight), turned
  * and stretched; outside the puff the texture's alpha is 0, so a cloud ends
  * where its puff does. The densities add up to at most 1, which is
- * `uNebula`, the violet times its peak, over the night. A little dither keeps
- * the dark gradient from banding.
+ * `uNebula`, the violet times its peak, over the night.
+ *
+ * It adds no dither of its own. On the high and medium tiers the scene draws
+ * into the post chain's linear buffer, where a dither of a code value would
+ * be several once encoded for the screen, a fixed grain over the night; the
+ * chain's noise breaks up any banding there. Nothing touches the colour after
+ * it is encoded for the output.
  */
 const fragmentShader = /* glsl */ `
 uniform sampler2D uSmoke;
@@ -85,10 +90,6 @@ uniform vec3 uNebula;
 uniform vec3 uCentres[LAYERS];
 uniform vec4 uShapes[LAYERS];
 varying vec3 vDirection;
-
-float hash(vec2 p) {
-  return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
-}
 
 void main() {
   vec3 d = normalize(vDirection);
@@ -108,7 +109,6 @@ void main() {
   gl_FragColor = vec4(uBackground + uNebula * min(density, 1.0), 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
-  gl_FragColor.rgb += (hash(gl_FragCoord.xy) - 0.5) / 255.0;
 }`;
 
 /** The faint fixed stars: `count` points evenly over a sphere just inside the sky's, each its own faint cream. */

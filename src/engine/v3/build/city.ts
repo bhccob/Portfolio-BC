@@ -20,8 +20,10 @@ import { CHIP } from '~/engine/v3/chipSpec';
  * - `hues`: the colour of a block's light, by its `hue`: the chip's gold, or
  *   the nebula's violet.
  * - `emissive`: what a block at glow 1 emits, as a multiple of its hue,
- *   before the city's level; gold at 0.6 has a luminance of about 0.25, well
+ *   before the city's level; gold at 0.35 has a luminance of about 0.15, well
  *   under the bloom's threshold of 1, and the glass over it dims it further.
+ *   Seen from above (the loader's high shot), the lit roofs then stay under
+ *   the gold engraving on the glass instead of competing with it.
  * - `side`: a block's walls glow at this share of its roof, so the roofs read
  *   as the lit tops of a city and the walls as its streets' dark. The home's
  *   low camera sees mostly walls: brighter, they read as a field of grey
@@ -30,7 +32,7 @@ import { CHIP } from '~/engine/v3/chipSpec';
 export const CITY_LOOK = {
   body: { colour: palette.ink, roughness: 0.7, metalness: 0.1 },
   hues: { amber: palette.gold, violet: palette.violet },
-  emissive: 0.6,
+  emissive: 0.35,
   side: 0.15
 } as const;
 
@@ -60,6 +62,10 @@ function clamp01(x: number): number {
  * and 0 on a wall, from the box's own normal, which an instance's scale and
  * move leave pointing the same way). The body stays near-black. A city of no
  * blocks has no instance colours, and the patch then adds nothing.
+ *
+ * The guard is USE_COLOR: for instance colours three defines it, and declares
+ * vColor, in the fragment shader. USE_INSTANCING_COLOR is defined in the
+ * vertex shader alone, and behind it the glow would be compiled out.
  */
 function cityGlow(uniforms: { uCityGlow: THREE.IUniform<number>; uCitySide: THREE.IUniform<number> }) {
   return (shader: { uniforms: Record<string, THREE.IUniform>; vertexShader: string; fragmentShader: string }): void => {
@@ -75,7 +81,7 @@ function cityGlow(uniforms: { uCityGlow: THREE.IUniform<number>; uCitySide: THRE
         '#include <emissivemap_fragment>',
         [
           '#include <emissivemap_fragment>',
-          '#ifdef USE_INSTANCING_COLOR',
+          '#ifdef USE_COLOR',
           '\ttotalEmissiveRadiance += vColor.rgb * uCityGlow * mix( uCitySide, 1.0, vCityRoof );',
           '#endif'
         ].join('\n')
