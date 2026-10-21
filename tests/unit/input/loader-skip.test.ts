@@ -98,14 +98,52 @@ describe('attachLoaderSkip', () => {
     expect(n).toBe(1);
   });
 
-  it('leaves a shortcut alone: ctrl, meta and alt with a key, though it skips', () => {
+  it('does not skip on a shortcut, and leaves it alone: ctrl, meta and alt with a key', () => {
     for (const modifier of ['ctrlKey', 'metaKey', 'altKey']) {
       const target = new EventTarget();
       let n = 0;
       attachLoaderSkip(target, () => n++);
       expect(key(target, 'ArrowDown', { [modifier]: true }).defaultPrevented, modifier).toBe(false);
+      expect(key(target, 't', { [modifier]: true }).defaultPrevented, modifier).toBe(false);
+      expect(n, modifier).toBe(0);
+    }
+  });
+
+  it('does not skip on a key that is only a modifier, so Alt+Tab or Cmd+T never skip the show', () => {
+    for (const modifier of ['Shift', 'Control', 'Alt', 'AltGraph', 'Meta']) {
+      const target = new EventTarget();
+      let n = 0;
+      attachLoaderSkip(target, () => n++);
+      expect(key(target, modifier).defaultPrevented, modifier).toBe(false);
+      expect(n, modifier).toBe(0);
+      key(target, 'a'); // a real key still does
       expect(n, modifier).toBe(1);
     }
+  });
+
+  it('skips on a key with Shift held: Shift is no shortcut', () => {
+    const target = new EventTarget();
+    let n = 0;
+    attachLoaderSkip(target, () => n++);
+    expect(key(target, ' ', { shiftKey: true }).defaultPrevented).toBe(true);
+    expect(n).toBe(1);
+  });
+
+  it('does not skip on a wheel with ctrl held, which is the browser zoom, and does not prevent it', () => {
+    const target = new EventTarget();
+    let n = 0;
+    attachLoaderSkip(target, () => n++);
+    expect(fire(target, 'wheel', { deltaY: -100, ctrlKey: true }).defaultPrevented).toBe(false);
+    expect(n).toBe(0);
+    expect(fire(target, 'wheel', { deltaY: 100, ctrlKey: false }).defaultPrevented).toBe(true);
+    expect(n).toBe(1);
+  });
+
+  it('leaves the zoom its wheel after the skip too', () => {
+    const target = new EventTarget();
+    attachLoaderSkip(target, () => {});
+    fire(target, 'wheel', { deltaY: 100 });
+    expect(fire(target, 'wheel', { deltaY: -100, ctrlKey: true }).defaultPrevented).toBe(false);
   });
 
   it('leaves a key typed into a field its own', () => {

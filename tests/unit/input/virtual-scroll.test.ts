@@ -386,7 +386,7 @@ describe('VirtualScroll: swallowing (the input that skipped the loader)', () => 
     expect(s.deltas).toEqual([0.1, 0.1]);
   });
 
-  it('ends a glide that is going when the wheel turns, as it always does', () => {
+  it('stops a glide that is going when a swallowed wheel turns: the swallow does not return before it', () => {
     const s = setup();
     touch(s, 'touchstart', 500, 0);
     for (let y = 460, t = 16; y >= 100; y -= 40, t += 16) touch(s, 'touchmove', y, t);

@@ -3,8 +3,8 @@ import { NEEDLE_REST, settleAngle } from '~/engine/bob/needle';
 import { TRACES_LOOK } from '~/engine/bob/build/traces';
 import { HOLD_AT, type LoaderClock, loaderAt, type LoaderPath, QUICK, SCRIPT } from '~/engine/bob/loaderTimeline';
 import { PROBE, probeAt } from '~/engine/bob/probePath';
-import { FRAMES, homeShotFor, shotFor, wideShotFor } from '~/engine/bob/shots';
-import { cameraShotAt, ease, HOME_POSE, LOAD_SHARES, loadShare, openingPoseAt } from '~/scene/bob/openingPose';
+import { homeShotFor, lerpCameraShot, wideShotFor } from '~/engine/bob/shots';
+import { cameraShotAt, ease, HOME_POSE, LOAD_SHARES, loadShare, openingPoseAt, type OpeningPose } from '~/scene/bob/openingPose';
 
 /** The full path's clock `t` visible seconds in, for a load that landed at 0.1 s (so nothing holds the script). */
 const clockAt = (t: number, skipAt: number | null = null): LoaderClock => loaderAt({ elapsed: t, loadedAt: 0.1, skipAt, path: 'full' });
@@ -12,6 +12,11 @@ const clockAt = (t: number, skipAt: number | null = null): LoaderClock => loader
 const quickClock = (q: number): LoaderClock => loaderAt({ elapsed: 1 + q, loadedAt: 1, skipAt: null, path: 'quick' });
 /** The reduced path's clock `q` seconds after the load. */
 const reducedClock = (q: number): LoaderClock => loaderAt({ elapsed: 1 + q, loadedAt: 1, skipAt: null, path: 'reduced' });
+
+/** A clock with every field at 0 but those given, the script at its end (so the marks are cut, the probe is away and the smoke is up). */
+function clockWith(partial: Partial<LoaderClock>): LoaderClock {
+  return { stage: 'open', script: SCRIPT.home, strokes: [1, 1, 1, 1, 1], ticks: 0, outer: 0, iris: 0, glow: 0, rise: 0, camera: 0, settle: 0, fade: 0, ...partial };
+}
 
 /** The distance from the camera to what it looks at. */
 const standOff = (shot: { position: readonly number[]; target: readonly number[] }): number =>
@@ -65,20 +70,47 @@ describe('the camera on the full path', () => {
     expect(cameraShotAt(clockAt(12.5), 'full', PHONE)).toEqual(homeShotFor(PHONE));
   });
 
-  it('is the clock and the screen alone: the same moment is the same shot', () => {
-    expect(cameraShotAt(clockAt(10), 'full', WIDE)).toEqual(cameraShotAt(clockAt(10), 'full', WIDE));
+  it('is the wide shot blended into the home shot by the eased push-in share, for the screen it is given', () => {
+    for (const aspect of [WIDE, PHONE]) {
+      const clock = clockAt(10);
+      expect(clock.camera).toBeGreaterThan(0);
+      expect(clock.camera).toBeLessThan(1);
+      expect(cameraShotAt(clock, 'full', aspect)).toEqual(lerpCameraShot(wideShotFor(aspect), homeShotFor(aspect), ease(clock.camera)));
+    }
     expect(cameraShotAt(clockAt(10), 'full', WIDE)).not.toEqual(cameraShotAt(clockAt(10), 'full', PHONE));
   });
 });
 
 describe('the camera on the quick path', () => {
-  it('starts at 1.08 times the home distance and settles on the home', () => {
-    const start = shotFor({ ...FRAMES.home, distance: FRAMES.home.distance * 1.08 }, WIDE);
-    expect(cameraShotAt(quickClock(-1), 'quick', WIDE)).toEqual(start);
-    expect(cameraShotAt(quickClock(0), 'quick', WIDE)).toEqual(start);
-    expect(standOff(start)).toBeCloseTo(standOff(homeShotFor(WIDE)) * 1.08, 9);
-    expect(cameraShotAt(quickClock(QUICK.camera.end), 'quick', WIDE)).toEqual(homeShotFor(WIDE));
-    expect(cameraShotAt(quickClock(QUICK.home), 'quick', WIDE)).toEqual(homeShotFor(WIDE));
+  it('starts 1.08 times as far from its target as the home shot, on a laptop and on a phone', () => {
+    for (const aspect of [WIDE, PHONE]) {
+      const home = homeShotFor(aspect);
+      const start = cameraShotAt(quickClock(0), 'quick', aspect);
+      expect(standOff(start) / standOff(home), `aspect ${aspect}`).toBeCloseTo(1.08, 12);
+      expect(start.fov, `aspect ${aspect}`).toBe(home.fov);
+    }
+  });
+
+  it('stands back on the line of the home shot, at its field of view, on every screen', () => {
+    for (const aspect of [WIDE, 16 / 10, 21 / 9, 1.01, 1, 0.99, PHONE, 0.3, 0.1]) {
+      const home = homeShotFor(aspect);
+      for (const q of [-1, 0]) {
+        const start = cameraShotAt(quickClock(q), 'quick', aspect);
+        expect(start.target, `aspect ${aspect}`).toEqual(home.target);
+        expect(start.fov, `aspect ${aspect}`).toBe(home.fov);
+        for (let i = 0; i < 3; i++) {
+          expect(start.position[i] - home.target[i], `aspect ${aspect} axis ${i}`).toBeCloseTo(1.08 * (home.position[i] - home.target[i]), 9);
+        }
+      }
+    }
+  });
+
+  it('settles on the home shot, exactly, and stays', () => {
+    for (const aspect of [WIDE, PHONE]) {
+      expect(cameraShotAt(quickClock(QUICK.camera.end), 'quick', aspect)).toEqual(homeShotFor(aspect));
+      expect(cameraShotAt(quickClock(QUICK.home), 'quick', aspect)).toEqual(homeShotFor(aspect));
+      expect(cameraShotAt(quickClock(QUICK.home + 5), 'quick', aspect)).toEqual(homeShotFor(aspect));
+    }
   });
 
   it('comes in monotonically over the camera span', () => {
@@ -90,24 +122,20 @@ describe('the camera on the quick path', () => {
     }
   });
 
-  it('eases: half way through the span it is half way in', () => {
-    const start = shotFor({ ...FRAMES.home, distance: FRAMES.home.distance * 1.08 }, WIDE);
-    const home = homeShotFor(WIDE);
-    const half = cameraShotAt(quickClock(QUICK.camera.end / 2), 'quick', WIDE);
-    expect(half.position[2]).toBeCloseTo((start.position[2] + home.position[2]) / 2, 9);
-    expect(half.fov).toBeCloseTo((start.fov + home.fov) / 2, 9);
+  it('eases: half way through the span it is half way in, on a laptop and on a phone', () => {
+    for (const aspect of [WIDE, PHONE]) {
+      const start = cameraShotAt(quickClock(0), 'quick', aspect);
+      const home = homeShotFor(aspect);
+      const half = cameraShotAt(quickClock(QUICK.camera.end / 2), 'quick', aspect);
+      expect(standOff(half), `aspect ${aspect}`).toBeCloseTo((standOff(start) + standOff(home)) / 2, 9);
+      expect(half.fov, `aspect ${aspect}`).toBeCloseTo(home.fov, 9);
+    }
   });
 
-  it('starts from the frame the home shot picks: a square screen is a laptop for it', () => {
-    const start = cameraShotAt(quickClock(0), 'quick', 1);
-    expect(start).toEqual(shotFor({ ...FRAMES.home, distance: FRAMES.home.distance * 1.08 }, 1));
-    expect(cameraShotAt(quickClock(QUICK.home), 'quick', 1)).toEqual(homeShotFor(1));
-  });
-
-  it('starts from the portrait frame on a screen taller than wide', () => {
-    const start = cameraShotAt(quickClock(0), 'quick', PHONE);
-    expect(start).toEqual(shotFor({ ...FRAMES.homePortrait, distance: FRAMES.homePortrait.distance * 1.08 }, PHONE));
-    expect(cameraShotAt(quickClock(QUICK.home), 'quick', PHONE)).toEqual(homeShotFor(PHONE));
+  it('really moves on a phone: it is well off the home shot at the start and still off it near the end', () => {
+    const home = homeShotFor(PHONE);
+    expect(standOff(cameraShotAt(quickClock(0), 'quick', PHONE))).toBeGreaterThan(standOff(home) + 1);
+    expect(standOff(cameraShotAt(quickClock(QUICK.camera.end * 0.75), 'quick', PHONE))).toBeGreaterThan(standOff(home));
   });
 });
 
@@ -175,17 +203,29 @@ describe('the easing', () => {
 });
 
 describe('the pose on the full path', () => {
-  it('hands the builders the shares the clock holds', () => {
+  it('hands the builders the share of the clock as it is where the curve is elsewhere: the cut, the rise and the settle', () => {
     for (const t of [0.4, 2, 5, 7, 9, 9.7, 10.4, 11.2, 12]) {
       const clock = clockAt(t);
       const pose = openingPoseAt(clock, 'full');
-      expect(pose.strokes).toEqual(clock.strokes);
-      expect(pose.ticks).toBe(clock.ticks);
-      expect(pose.outer).toBe(clock.outer);
-      expect(pose.iris).toBe(clock.iris);
-      expect(pose.wellGlow).toBe(clock.glow);
-      expect(pose.rise).toBe(clock.rise);
-      expect(pose.needleSettle).toBe(clock.settle);
+      expect(pose.strokes).toEqual(clock.strokes); // cut at constant speed
+      expect(pose.rise).toBe(clock.rise); // its curve is baked into the GLB clip
+      expect(pose.needleSettle).toBe(clock.settle); // settleAngle is its curve
+    }
+  });
+
+  it('puts the ticks, the outer ring, the iris and the light through curves: they differ from the share between its ends', () => {
+    for (const t of [0.4, 2, 5, 7, 9, 9.7, 10.4, 11.2, 12]) {
+      const clock = clockAt(t);
+      const pose = openingPoseAt(clock, 'full');
+      for (const [name, share, value] of [
+        ['ticks', clock.ticks, pose.ticks],
+        ['outer', clock.outer, pose.outer],
+        ['iris', clock.iris, pose.iris],
+        ['wellGlow', clock.glow, pose.wellGlow]
+      ] as const) {
+        if (share === 0 || share === 1) expect(value, `${name} at ${t}`).toBe(share);
+        else expect(value, `${name} at ${t}`).not.toBe(share);
+      }
     }
   });
 
@@ -263,17 +303,27 @@ describe('the pose on the quick and reduced paths', () => {
     ['reduced', reducedClock]
   ];
 
-  it('fades the compass and the engraving in by the fade of the clock', () => {
+  it('fades the compass in by the fade of the clock, and the engraving in on the ease-out curve of the same fade', () => {
     for (const [path, clockFor] of paths) {
       for (const q of [-1, 0, 0.2, 0.4, 0.6, 1]) {
         const clock = clockFor(q);
         const pose = openingPoseAt(clock, path);
         expect(pose.reveal, `${path} ${q}`).toBe(clock.fade);
-        expect(pose.engraveGlow, `${path} ${q}`).toBe(clock.fade);
+        expect(pose.engraveGlow, `${path} ${q}`).toBeGreaterThanOrEqual(clock.fade - 1e-12);
       }
     }
     expect(openingPoseAt(quickClock(0.4), 'quick').reveal).toBeCloseTo(0.5, 9);
     expect(openingPoseAt(reducedClock(0.5), 'reduced').reveal).toBeCloseTo(0.5, 9);
+    expect(openingPoseAt(quickClock(0.4), 'quick').engraveGlow).toBeCloseTo(0.875, 9);
+    expect(openingPoseAt(reducedClock(0.5), 'reduced').engraveGlow).toBeCloseTo(0.875, 9);
+  });
+
+  it('puts the iris and the light through the same curves on the spans of the quick path', () => {
+    // the iris span is 0.4 to 1.0 s: its half is 0.7 s; the light span is 0.4 to 1.2 s: its half is 0.8 s
+    expect(openingPoseAt(quickClock(0.7), 'quick').iris).toBeCloseTo(0.125, 9);
+    expect(openingPoseAt(quickClock(0.8), 'quick').wellGlow).toBeCloseTo(0.5, 9);
+    expect(openingPoseAt(quickClock(1.0), 'quick').iris).toBe(1);
+    expect(openingPoseAt(quickClock(1.2), 'quick').wellGlow).toBe(1);
   });
 
   it('has the marks cut, the probe away and the smoke up from the first frame', () => {
@@ -293,10 +343,61 @@ describe('the pose on the quick and reduced paths', () => {
     const clock = quickClock(0.4);
     const pose = openingPoseAt(clock, 'quick');
     expect(pose.traces).toBeCloseTo(0.09 * ease(0.5), 9);
-    expect(pose.iris).toBe(clock.iris);
-    expect(pose.wellGlow).toBe(clock.glow);
     expect(pose.rise).toBe(clock.rise);
     expect(pose.needleSettle).toBe(clock.settle);
+  });
+});
+
+describe('the curves of the preview', () => {
+  // bob_animate.py: ease_out 1 - (1 - t)^3 (the ticks, the fade in), ease_io smoothstep (the outer ring, the light), ease_in t^3 (the iris)
+  const OUT = { 0.25: 0.578125, 0.5: 0.875, 0.75: 0.984375 };
+  const SMOOTH = { 0.25: 0.15625, 0.5: 0.5, 0.75: 0.84375 };
+  const IN = { 0.25: 0.015625, 0.5: 0.125, 0.75: 0.421875 };
+  const curves: { name: string; clock: (share: number) => Partial<LoaderClock>; pose: (pose: OpeningPose) => number; at: Record<number, number> }[] = [
+    { name: 'ticks (ease-out)', clock: (ticks) => ({ ticks }), pose: (p) => p.ticks, at: OUT },
+    { name: 'outer ring (smoothstep)', clock: (outer) => ({ outer }), pose: (p) => p.outer, at: SMOOTH },
+    { name: 'iris (ease-in, so the cap stays nearly shut and then drops)', clock: (iris) => ({ iris }), pose: (p) => p.iris, at: IN },
+    { name: 'light from the well (smoothstep)', clock: (glow) => ({ glow }), pose: (p) => p.wellGlow, at: SMOOTH },
+    { name: 'engraving glow (ease-out)', clock: (fade) => ({ fade }), pose: (p) => p.engraveGlow, at: OUT }
+  ];
+
+  it('are pinned at the quarter points of each share', () => {
+    for (const curve of curves) {
+      for (const [share, value] of Object.entries(curve.at)) {
+        expect(curve.pose(openingPoseAt(clockWith(curve.clock(Number(share))), 'full')), `${curve.name} at ${share}`).toBeCloseTo(value, 12);
+      }
+    }
+  });
+
+  it('are exactly 0 at 0 and exactly 1 at 1, and only rise', () => {
+    for (const curve of curves) {
+      expect(curve.pose(openingPoseAt(clockWith(curve.clock(0)), 'full')), curve.name).toBe(0);
+      expect(curve.pose(openingPoseAt(clockWith(curve.clock(1)), 'full')), curve.name).toBe(1);
+      let last = 0;
+      for (let share = 0; share <= 1.0000001; share += 0.01) {
+        const value = curve.pose(openingPoseAt(clockWith(curve.clock(share)), 'full'));
+        expect(value, `${curve.name} at ${share}`).toBeGreaterThanOrEqual(last - 1e-12);
+        expect(value).toBeLessThanOrEqual(1);
+        last = value;
+      }
+    }
+  });
+
+  it('read a share outside 0..1, or NaN, as the nearest end', () => {
+    for (const curve of curves) {
+      expect(curve.pose(openingPoseAt(clockWith(curve.clock(-0.5)), 'full')), curve.name).toBe(0);
+      expect(curve.pose(openingPoseAt(clockWith(curve.clock(Number.NaN)), 'full')), curve.name).toBe(0);
+      expect(curve.pose(openingPoseAt(clockWith(curve.clock(1.5)), 'full')), curve.name).toBe(1);
+    }
+  });
+
+  it('are the same on every path: the pose does not look at the path for them', () => {
+    for (const curve of curves) {
+      const clock = clockWith(curve.clock(0.5));
+      const full = curve.pose(openingPoseAt(clock, 'full'));
+      expect(curve.pose(openingPoseAt(clock, 'quick')), curve.name).toBe(full);
+      expect(curve.pose(openingPoseAt(clock, 'reduced')), curve.name).toBe(full);
+    }
   });
 });
 
@@ -304,6 +405,22 @@ describe('the home pose', () => {
   it('poses the home as every path lands on it', () => {
     expect(openingPoseAt(clockAt(12.5), 'full')).toEqual(HOME_POSE);
     expect(openingPoseAt(quickClock(2.5), 'quick')).toEqual(HOME_POSE);
+  });
+
+  it('still equals the end of every path, and every moment after it, with the curves in', () => {
+    const ends: [string, LoaderClock, LoaderPath][] = [
+      ['full 12.5', clockAt(12.5), 'full'],
+      ['full 13', clockAt(13), 'full'],
+      ['full 60', clockAt(60), 'full'],
+      ['full, skipped', clockAt(8, 7), 'full'],
+      ['quick 2.5', quickClock(2.5), 'quick'],
+      ['quick 3', quickClock(3), 'quick'],
+      ['quick 30', quickClock(30), 'quick'],
+      ['reduced 1', reducedClock(1), 'reduced'],
+      ['reduced 2', reducedClock(2), 'reduced'],
+      ['reduced 30', reducedClock(30), 'reduced']
+    ];
+    for (const [name, clock, path] of ends) expect(openingPoseAt(clock, path), name).toEqual(HOME_POSE);
   });
 
   it('is the home on the reduced path too, and when a skip or a late load ends the full one', () => {

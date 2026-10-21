@@ -24,10 +24,24 @@ export function skipSwallows(nowMs: number, skipEndsMs: number | null): boolean 
   return skipEndsMs !== null && nowMs < skipEndsMs + SKIP_SWALLOW_MS;
 }
 
-/** Whether a key press would scroll the page: a scrolling key, not typed into a field, with no shortcut modifier held. */
+/** The keys that are only a modifier: pressing one is the start of a shortcut, not a key press of the visitor's. */
+const MODIFIER_KEYS: ReadonlySet<string> = new Set(['Shift', 'Control', 'Alt', 'AltGraph', 'Meta']);
+
+/**
+ * Whether the event is not the visitor asking to skip, and is left alone, neither skipping nor prevented: a wheel
+ * with ctrl held (the browser's zoom), a key that is only a modifier, and a key with ctrl, meta or alt held (a shortcut:
+ * Alt+Tab, Cmd+T, Ctrl+R). Shift alone is no shortcut.
+ */
+function ignored(e: Event): boolean {
+  const k = e as Partial<KeyboardEvent>;
+  if (e.type === 'wheel') return k.ctrlKey === true;
+  if (e.type === 'keydown') return MODIFIER_KEYS.has(k.key ?? '') || k.ctrlKey === true || k.metaKey === true || k.altKey === true;
+  return false;
+}
+
+/** Whether a key press would scroll the page: a scrolling key, not typed into a field. */
 function scrollsPage(e: Event): boolean {
   const k = e as Partial<KeyboardEvent>;
-  if (k.ctrlKey || k.metaKey || k.altKey) return false;
   return keyDelta({ key: k.key ?? '', shiftKey: k.shiftKey ?? false, target: (k.target as KeyTarget | null | undefined) ?? null }, 1) !== null;
 }
 
@@ -37,13 +51,15 @@ function scrollsPage(e: Event): boolean {
  *
  * The input that skips must not scroll the page: it prevents the wheel and the touch (listened to with
  * `passive: false` for that) and the keys that scroll, from the first event on and for as long as it listens, as a
- * trackpad's wheel goes on for a second after the first event. It leaves a click, a key that is a shortcut or a field's
- * own, and every other key as they are: Tab still moves the focus. It listens in the capture phase, so nothing in the
- * page can stop a skip.
+ * trackpad's wheel goes on for a second after the first event. It leaves a click, a key typed into a field, and every
+ * other key as they are: Tab still moves the focus. It ignores, neither skipping nor preventing, a wheel with ctrl held
+ * (the browser's zoom), a key that is only a modifier and a key pressed with ctrl, meta or alt (a shortcut): Alt+Tab or
+ * Cmd+T must not skip the show. It listens in the capture phase, so nothing in the page can stop a skip.
  */
 export function attachLoaderSkip(target: EventTarget, onSkip: () => void): () => void {
   let skipped = false;
   const onEvent = (e: Event): void => {
+    if (ignored(e)) return;
     const prevents = e.type === 'wheel' || e.type === 'touchstart' || (e.type === 'keydown' && scrollsPage(e));
     if (prevents && e.cancelable) e.preventDefault();
     if (skipped) return;

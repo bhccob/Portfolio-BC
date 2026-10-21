@@ -114,18 +114,11 @@ export function shotFor(frame: ShotFrame, aspect: number): CameraShot {
 }
 
 /**
- * The home's frame for a screen of this aspect: the laptop frame from a square
- * up, the portrait frame (the whole name across the width) below it. A bad
- * aspect (NaN) is not below a square, so it reads as the laptop frame, as
- * `shotFor` reads it as 16:9.
+ * The home shot for a screen of this aspect: the laptop frame from a square
+ * up, the portrait frame (the whole name across the width) below it.
  */
-export function homeFrameFor(aspect: number): ShotFrame {
-  return aspect < 1 ? FRAMES.homePortrait : FRAMES.home;
-}
-
-/** The home shot for a screen of this aspect: `homeFrameFor`'s frame fitted to it. */
 export function homeShotFor(aspect: number): CameraShot {
-  return shotFor(homeFrameFor(aspect), aspect);
+  return shotFor(aspect < 1 ? FRAMES.homePortrait : FRAMES.home, aspect);
 }
 
 /** The loader's wide shot for a screen of this aspect: the whole name in view. */
