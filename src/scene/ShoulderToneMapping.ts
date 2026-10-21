@@ -1,10 +1,10 @@
 import { BlendFunction, Effect } from 'postprocessing';
 import { LinearSRGBColorSpace, Uniform } from 'three';
-import { SHOULDER } from '~/engine/studio/CompassStudio';
+import { SHOULDER } from '~/engine/studio/shoulder';
 
 /**
  * Revision 4's shoulder tone mapping as the post chain's last effect: the very source the renderer's
- * CustomToneMapping runs on the low tier (CompassStudio's SHOULDER), wrapped as a `mainImage`. Its
+ * CustomToneMapping runs on the low tier (src/engine/studio/shoulder.ts's SHOULDER), wrapped as a `mainImage`. Its
  * `toneMappingExposure` is this effect's own `exposure` uniform, through a define, so the GLSL stays the
  * shared string and nothing else in the pass is named like three's tone-mapping uniform. (The pass prefixes
  * the effect's functions and uniforms, so `CustomToneMapping` and `exposure` cannot clash with anything.)

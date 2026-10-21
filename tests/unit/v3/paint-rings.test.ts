@@ -124,7 +124,7 @@ describe('the strip layout', () => {
     expect(east.filter((m) => m.rects[0][1] === rows[0])).toHaveLength(1);
     expect(east.filter((m) => m.rects[0][1] === rows[1])).toHaveLength(2);
     expect(east.filter((m) => m.rects[0][1] === rows[2])).toHaveLength(2);
-    // Each line is a bar centred on DIAL_ART.bar.at[i], the radius the painted face and the loader's drawing centre it on (face.ts, dialSvg.ts),
+    // Each line is a bar centred on DIAL_ART.bar.at[i], the radius the painted face and the loader's drawing of milestone 1 centred it on,
     // and DIAL_ART.bar.thick deep: on the strip that is (outer - at) down from the top of the ring's depth, centre to centre.
     const { outer, inner } = ring('trigram');
     const { at, thick } = DIAL_ART.bar;

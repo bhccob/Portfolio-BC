@@ -1,14 +1,14 @@
 import { BlendFunction } from 'postprocessing';
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { SHOULDER } from '~/engine/studio/CompassStudio';
+import { SHOULDER } from '~/engine/studio/shoulder';
 import { ShoulderToneMappingEffect } from '~/scene/ShoulderToneMapping';
 
 /** The function's body: everything between its first `{` and its last `}`. */
 const body = (glsl: string): string => glsl.slice(glsl.indexOf('{') + 1, glsl.lastIndexOf('}'));
 
 describe('ShoulderToneMappingEffect', () => {
-  it("runs the revision-4 shoulder, CompassStudio's own GLSL, from its mainImage", () => {
+  it("runs the revision-4 shoulder, the studio's own GLSL, from its mainImage", () => {
     const effect = new ShoulderToneMappingEffect();
     const fragment = effect.getFragmentShader() ?? '';
     expect(body(SHOULDER).length).toBeGreaterThan(100);

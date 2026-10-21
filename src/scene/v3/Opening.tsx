@@ -137,7 +137,7 @@ void main() {
 }
 
 /**
- * The renderer as the warm-up sees it (milestone 1's pattern, src/scene/Compass.tsx). While the post chain is on, the
+ * The renderer as the warm-up sees it (milestone 1's pattern, its Compass, since removed). While the post chain is on, the
  * composer's render pass draws the scene into a half-float target, and three builds a different program for that
  * (linear output, no tone mapping) than for the screen; the warm-up compiles against such a target then, so the
  * programs it readies are the ones the first frame uses. `dispose` frees the target.

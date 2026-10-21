@@ -6,8 +6,8 @@
  * (src/styles/tokens.css), so the model and the page around it agree; gold,
  * brass and thread red are the compass's own, hot amber is the loader's
  * laser, and glass, violet, nebula, night and fog are the v3 home's. It imports
- * nothing, so the loader's bundle (dialSvg) can read it without pulling in
- * three.
+ * nothing, so a bundle that wants only the colours (the page's CSS, the
+ * loader's) can read it without pulling in three.
  */
 export const palette = {
   /** Board purple (--board): the base plate's lacquer and the plain pattern ring. */
@@ -39,7 +39,7 @@ export const palette = {
   /**
    * Violet: the nebula's light, the cool counterpart of gold. The chip city's
    * violet blocks, the mist over the board and the reflection room's back card
-   * take it; milestone 1's haze was this colour too (src/engine/studio/Haze.ts).
+   * take it; milestone 1's haze was this colour too.
    */
   violet: 0x6a35b8,
   /** Deep violet: the v3 sky's nebula clouds, which only ever lie faintly over the night. */

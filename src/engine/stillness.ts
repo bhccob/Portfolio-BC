@@ -11,7 +11,7 @@
 export const STILL = { pearl: 0.05, needle: 1e-3, needleSpeed: 1e-2, spin: 1e-4, spinSpeed: 1e-3, tip: 1e-4 } as const;
 
 export interface Stillness {
-  /** Nothing has stirred the scene for a while: revision 4's pearl had no input for 20 s (PearlTarget.idle); milestone 1's needle has ended its drift (src/scene/Compass). */
+  /** Nothing has stirred the scene for a while: revision 4's pearl had no input for 20 s (PearlTarget.idle); the v3 home's needle has ended its idle motion (src/scene/v3/Home.tsx). */
   idle: boolean;
   /** CSS px between the drawn pearl and where it wants to be. */
   pearl: number;

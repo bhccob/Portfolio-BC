@@ -1,13 +1,12 @@
 /**
  * What the v3 compass's glass and gold reflect: milestone 1's dark room of
- * light cards (the `room` of src/engine/studio/CompassStudio.ts), prefiltered
+ * light cards (the `room` of its CompassStudio, since removed), prefiltered
  * through PMREM into the scene's environment, here at half its radiance, for
  * the v3 home is darker than milestone 1's studio. Metal gold shows nothing
  * but its reflections, so these few cards are what makes it gold, and the
- * dark between them keeps the glass smoked. Ported whole, so Task 15 can
- * delete CompassStudio. No React: Task 12a's Studio builds it again when the
- * context comes back, as milestone 1's did (the prefiltered copy lives only
- * on the GPU).
+ * dark between them keeps the glass smoked. Ported whole. No React: Task
+ * 12a's Studio builds it again when the context comes back, as milestone 1's
+ * did (the prefiltered copy lives only on the GPU).
  */
 import * as THREE from 'three';
 import { palette } from '~/engine/palette';

@@ -2,18 +2,16 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 import { qaEntries, type QaEntry } from '../../src/data/qa';
 import { en, type Dictionary, type QaItems } from '../../src/i18n/en';
 import { nl } from '../../src/i18n/nl';
-import { DRIVE } from '~/engine/instrument/drive';
 
 type Items = Dictionary['compass']['qa']['items'];
 
 const entry: QaEntry = { question: 'q', answer: { paragraphs: ['a'] } };
 
 describe('the Q&A', () => {
-  it('is five questions, one for each of the drive sectors, in both languages, each with its answer', () => {
+  it('is five questions, in both languages, each with its answer', () => {
     for (const [name, dictionary] of [['en', en], ['nl', nl]] as const) {
       const entries = qaEntries(dictionary);
       expect(entries, name).toHaveLength(5);
-      expect(entries, name).toHaveLength(DRIVE.sectors);
       expect(dictionary.compass.qa.items, name).toHaveLength(5);
       entries.forEach(({ question, answer }, k) => {
         expect(question, `${name} ${k}`).toBe(dictionary.compass.qa.items[k]);

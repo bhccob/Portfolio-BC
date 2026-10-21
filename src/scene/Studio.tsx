@@ -1,7 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useLayoutEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { shoulder } from '~/engine/studio/CompassStudio';
+import { shoulder } from '~/engine/studio/shoulder';
 import { buildRoom, type RoomModel } from '~/engine/v3/build/room';
 import { buildSky, type SkyModel } from '~/engine/v3/build/sky';
 import { LOOK } from './v3/look';

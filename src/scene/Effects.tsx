@@ -2,7 +2,7 @@ import { useThree } from '@react-three/fiber';
 import { Bloom, EffectComposer, Noise, Vignette } from '@react-three/postprocessing';
 import { type JSX, useEffect, useMemo } from 'react';
 import * as THREE from 'three';
-import { shoulder } from '~/engine/studio/CompassStudio';
+import { shoulder } from '~/engine/studio/shoulder';
 import { useScene } from '~/state/store';
 import { ShoulderToneMappingEffect } from './ShoulderToneMapping';
 import { LOOK } from './v3/look';

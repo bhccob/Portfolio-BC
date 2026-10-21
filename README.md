@@ -58,9 +58,10 @@ A page is built, routed and listed in the sitemap by having an entry in `PAGES` 
 src/
   app/        root layout (Shell, CSP and analytics tags), routes, route handles, entry points
     routes/   one module per kind of page: home, country, project, lite, contact, not-found
-  scene/      the React Three Fiber stage: its host and fallback, the compass, studio, camera rig, post effects,
-              quality governor and the on-demand frame loop
-  engine/     the compass engine, ported from revision 4: instrument, studio, camera rig, quality ladder, textures
+  scene/      the React Three Fiber stage: its host and fallback, the studio and camera rig, the v3 opening and home
+              (scene/v3), post effects, quality governor and the on-demand frame loop
+  engine/     the scene's engine: the v3 builders and specs (engine/v3), the dial's measurements and glyphs
+              (instrument), the shoulder tone mapping and noise textures (studio), the quality ladder, stillness
   state/      the scene's discrete state (zustand store, phase machine, chapters, route sync) and per-frame values
   input/      the home page's virtual scroll: wheel, touch and keys
   ui/         header and switches, poster, back link, Lite sections, contact form
@@ -69,12 +70,12 @@ src/
   data/       profile, projects, categories, countries, pages, Q&A and old-URL redirects
   i18n/       Dutch and English copy (nl.ts is type-checked against en.ts)
   styles/     design tokens and base styles
-  assets/     screenshots, the portrait and the compass renders
+  assets/     screenshots, the portrait and the share image's source (renders/compass-hero.webp)
 tools/
   build/      the post-build steps (404, redirects, sitemap, share image, CSP)
   proof/      the proof harness (see tools/proof/README.md)
   serve-pages.mjs, site_audit.py (+ tests), glyphs.mjs, icons.mjs
-public/       CNAME, icons, web manifest, robots.txt, .well-known/security.txt, the compass textures
+public/       CNAME, icons, web manifest, robots.txt, .well-known/security.txt
 tests/unit/   Vitest unit tests
 docs/         the art direction, the project discovery notes and docs/audit.md (what the rebuild kept and why)
 ```

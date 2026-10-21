@@ -9,8 +9,8 @@ import { HEXAGRAMS, type GlassRing, type RingId } from '~/engine/v3/compassSpec'
  * north clockwise, and its y runs across the ring with y = 0 at the OUTER edge,
  * because three.js flips a CanvasTexture and the canvas top lands at v = 1,
  * which the Annulus's polar UVs put outermost (src/engine/instrument/Annulus.ts
- * and patterns.ts, whose painters this follows). So "up" in a strip is
- * outward.
+ * and milestone 1's patterns.ts, whose painters this followed). So "up" in a
+ * strip is outward.
  *
  * Wrapped round a ring, a strip pixel is wider than it is tall, by a different
  * factor at every radius, so every mark is sized in world units, as the
@@ -97,8 +97,8 @@ function line(s: Strip, bearing: number, top: number, thick: number, length: num
 /**
  * The eight trigrams, each at its bearing with its bottom line innermost, as
  * DIAL_ART.bar gives them: `at[i]` is the radius of line i's centre, as the
- * painted face and the loader's drawing place it (face.ts, dialSvg.ts), so the
- * bar's outer edge is half its thickness farther out.
+ * painted face and the loader's drawing placed it (milestone 1's face.ts and
+ * dialSvg.ts), so the bar's outer edge is half its thickness farther out.
  */
 function trigrams(s: Strip): void {
   const { length, thick, gap, at } = DIAL_ART.bar;
