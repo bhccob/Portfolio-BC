@@ -5,7 +5,7 @@ import { PAGES } from '~/data/pages';
 import { useTranslator } from '~/i18n/useTranslator';
 import { useScene } from '~/state/store';
 import { stageWanted } from './gate';
-import { LOAD_TIMEOUT_MS, visibleTimeout } from './timeouts';
+import { LANDING_TIMEOUT_MS, type LandingWatch, landingBackstop, LOAD_TIMEOUT_MS, visibleTimeout } from './timeouts';
 import { type WebGLSupport, webglSupport } from './webgl';
 
 // three.js, R3F and drei load only in the browser, after hydration, in their
@@ -20,6 +20,13 @@ const onClient = () => true;
 const onServer = () => false;
 
 type Fail = (reason: string, error?: unknown) => void;
+
+/** The store as the landing backstop reads it: the phase still LOADING, the page shown having a scene, and every change. */
+const LANDING_WATCH: LandingWatch = {
+  loading: () => useScene.getState().phase.kind === 'LOADING',
+  shown: () => useScene.getState().scene !== null,
+  subscribe: (listener) => useScene.subscribe(listener),
+};
 
 /** Catches a Stage that throws while rendering (or a chunk that fails to load), and reports it instead. */
 class StageBoundary extends Component<{ onFail: Fail; children: ReactNode }, { failed: boolean }> {
@@ -75,7 +82,8 @@ export interface SceneHostProps {
  * says LOADED itself, once it has played the loader and landed on the home. The Stage's `onReady` means only "the
  * loader can show": the canvas fades in then, over the poster, and the load timeout stops. Without WebGL to speak of,
  * or when the scene fails (it threw, its context was lost for good, the loader could not show after LOAD_TIMEOUT_MS of
- * the page being visible, so a background tab is not given up on, or the opening gave up on its load), 3D goes
+ * the page being visible, so a background tab is not given up on, the opening gave up on its load, or it had not landed
+ * LANDING_TIMEOUT_MS after the loader showed, counting only the time a scene was on a visible page), 3D goes
  * off for this visit (not stored: the visitor's own choice stays as it was), so the page scrolls natively and the
  * home page's links show, and the fallback card says so with a link to Lite. Switching 3D back on after a failure
  * tries again; without WebGL it cannot, and 3D goes straight back off.
@@ -162,6 +170,15 @@ function SceneHostView({ scene }: SceneHostProps): JSX.Element {
     });
     return () => current.cancel();
   }, [showStage, fail]);
+
+  // From the loader showing until the phase leaves LOADING, the landing backstop (Ruling 9b) stands behind the opening's
+  // own give-up: an opening stalled where its clock cannot see fails as any other scene does.
+  useEffect(() => {
+    if (!ready) return;
+    return landingBackstop(LANDING_WATCH, () =>
+      fail(`the opening did not land within ${LANDING_TIMEOUT_MS / 1000} s of the loader showing on a visible page`),
+    );
+  }, [ready, fail]);
 
   return (
     <>
