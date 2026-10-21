@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { type CameraShot, FRAMES, homeShotFor, lerpCameraShot, MAX_VFOV, shotFor, wideShotFor } from '~/engine/bob/shots';
+import { type CameraShot, FRAMES, homeShotFor, lerpCameraShot, MAX_VFOV, shotFor, type ShotFrame, wideShotFor } from '~/engine/bob/shots';
 
 /** `p` seen through the camera a shot places on a screen of this aspect: its NDC x and y (-1..1). */
 function project(shot: CameraShot, aspect: number, p: [number, number, number]): [number, number] {
@@ -68,6 +68,41 @@ describe('the home shot', () => {
   });
 });
 
+describe('the home shot on a wide, short screen', () => {
+  const topRing = [0, 0.55 + 1.56, 0] as [number, number, number];
+
+  it("keeps the compass's top ring under the header's line at 2.0 and 21:9", () => {
+    for (const aspect of [1.85, 2.0, 21 / 9]) expect(project(homeShotFor(aspect), aspect, topRing)[1]).toBeLessThanOrEqual(0.92);
+  });
+
+  it("holds the field at the frame's floor once the width fit would fall below it", () => {
+    expect(FRAMES.home.minVfov).toBe(22.5);
+    for (const aspect of [1.85, 2.0, 21 / 9]) expect(homeShotFor(aspect).fov).toBe(22.5);
+  });
+
+  it('does not bind on a laptop: the field is the width fit', () => {
+    for (const aspect of [16 / 10, 16 / 9]) {
+      const fit = (2 * Math.atan(FRAMES.home.halfWidth / (FRAMES.home.distance * aspect)) * 180) / Math.PI;
+      expect(fit).toBeGreaterThan(22.5);
+      expect(homeShotFor(aspect).fov).toBeCloseTo(fit, 9);
+    }
+  });
+
+  it('still keeps the centre of each B inside the screen, only more of each B shows', () => {
+    for (const aspect of [2.0, 21 / 9]) {
+      const shot = homeShotFor(aspect);
+      expect(project(shot, aspect, [-3.2, 0, 0])[0]).toBeGreaterThan(-1);
+      expect(project(shot, aspect, [3.2, 0, 0])[0]).toBeLessThan(1);
+    }
+  });
+
+  it('puts the half-width inside the screen edge, not on it, while the floor binds', () => {
+    const [x] = project(homeShotFor(21 / 9), 21 / 9, [FRAMES.home.halfWidth, FRAMES.home.targetY, 0]);
+    expect(x).toBeGreaterThan(0);
+    expect(x).toBeLessThan(1);
+  });
+});
+
 describe('the wide shot', () => {
   it('frames the whole name with margin in the wide shot', () => {
     for (const x of [-4.25, 4.25]) expect(Math.abs(project(wideShotFor(16 / 9), 16 / 9, [x, 0, 1.7])[0])).toBeLessThan(0.95);
@@ -104,8 +139,10 @@ describe('shotFor', () => {
   });
 
   it('puts the half-width, measured at the target, on the screen edge', () => {
-    for (const frame of [FRAMES.wide, FRAMES.home, FRAMES.homePortrait]) {
-      for (const aspect of [0.3, PHONE, 1, 16 / 10, 16 / 9, 21 / 9]) {
+    // Wherever the width fit is not below the frame's floor on its field (see the wide, short screens below).
+    const frames: ShotFrame[] = [FRAMES.wide, FRAMES.home, FRAMES.homePortrait];
+    for (const frame of frames) {
+      for (const aspect of [0.3, PHONE, 1, 16 / 10, 16 / 9]) {
         const shot = shotFor(frame, aspect);
         expect(project(shot, aspect, [frame.halfWidth, frame.targetY, 0])[0]).toBeCloseTo(1, 9);
         expect(project(shot, aspect, [-frame.halfWidth, frame.targetY, 0])[0]).toBeCloseTo(-1, 9);
@@ -130,9 +167,31 @@ describe('shotFor', () => {
     expect(rise).toBeCloseTo((frame.elevation * Math.PI) / 180, 9);
   });
 
+  it("applies the cap after the floor: a floor above the cap is held at the cap, at the distance the cap gives", () => {
+    const frame: ShotFrame = { distance: 10, elevation: 10, targetY: 0, halfWidth: 4, minVfov: 80 };
+    const shot = shotFor(frame, 2);
+    expect(shot.fov).toBe(MAX_VFOV);
+    expect(Math.hypot(shot.position[1], shot.position[2])).toBeCloseTo(4 / (2 * Math.tan((MAX_VFOV * Math.PI) / 360)), 9);
+  });
+
+  it('has no floor unless the frame sets one', () => {
+    const frame: ShotFrame = { distance: 10, elevation: 10, targetY: 0, halfWidth: 1 };
+    expect(shotFor(frame, 3).fov).toBeCloseTo((2 * Math.atan(1 / 30) * 180) / Math.PI, 9);
+  });
+
   it('does not stand back for a screen that fits', () => {
     const shot = shotFor(FRAMES.home, 16 / 9);
     expect(Math.hypot(shot.position[1] - FRAMES.home.targetY, shot.position[2])).toBeCloseTo(FRAMES.home.distance, 9);
+  });
+
+  it('reads an aspect thinner than 0.25 as 0.25, so the camera stays a finite way off', () => {
+    for (const frame of [FRAMES.wide, FRAMES.home, FRAMES.homePortrait]) {
+      expect(shotFor(frame, 0.05)).toEqual(shotFor(frame, 0.25));
+      expect(shotFor(frame, 0.001)).toEqual(shotFor(frame, 0.25));
+    }
+    expect(homeShotFor(0.05)).toEqual(homeShotFor(0.25));
+    expect(wideShotFor(0.05)).toEqual(wideShotFor(0.25));
+    expect(shotFor(FRAMES.homePortrait, 0.05).position[2]).toBeLessThan(100);
   });
 
   it('gives finite numbers for a bad aspect', () => {

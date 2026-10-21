@@ -154,7 +154,8 @@ export interface LoaderClock {
   stage: LoaderStage;
   /**
    * The position in the full script, in seconds. On the full path it is where
-   * the opening is, and it stands still while the load is out. On the quick
+   * the opening is, it stands still while the load is out, and it never runs
+   * past `SCRIPT.home`. On the quick
    * and reduced paths the full script has already played (the marks are cut,
    * the probe has gone), so it is `SCRIPT.home` throughout; their own time is
    * in the shares below.
@@ -222,8 +223,17 @@ interface Playback {
  * pressed before that fast-forwards, at that same rate, to `H`; waits there,
  * the circle creeping from the moment it arrives; and runs the rest, from `H`,
  * in `LOADER.skip` seconds from the moment the load has landed and it is there.
+ *
+ * The script never goes past `SCRIPT.home`: once there it stays, and a skip
+ * pressed after it has nothing left to run, so it cannot run the script back.
  */
 function playFull(elapsed: number, loadedAt: number | null, skipAt: number | null): Playback {
+  const { script, circleFloor } = playUncapped(elapsed, loadedAt, skipAt);
+  return { script: Math.min(script, SCRIPT.home), circleFloor };
+}
+
+/** `playFull` before its script is held to `SCRIPT.home`. */
+function playUncapped(elapsed: number, loadedAt: number | null, skipAt: number | null): Playback {
   const H = HOLD_AT;
   const home = SCRIPT.home;
   const L = loadedAt;
@@ -236,7 +246,8 @@ function playFull(elapsed: number, loadedAt: number | null, skipAt: number | nul
   }
 
   if (L !== null && skipAt >= L) {
-    const from = plain(skipAt);
+    // A skip pressed after the home starts from the home, not past it (past it, the compression would run the script back).
+    const from = Math.min(plain(skipAt), home);
     const u = (elapsed - skipAt) / LOADER.skip;
     return { script: u >= 1 ? home : from + (home - from) * u, circleFloor: stalls ? crept(elapsed, H, L) : 0 };
   }
@@ -344,19 +355,22 @@ export function loaderAt(input: LoaderInput): LoaderClock {
  * The loader's clock `dt` seconds on: `elapsed` plus `dt` held to 0..`maxStep`.
  * A hidden tab draws no frames, so the long frame after it counts for
  * `maxStep` at most and the show picks up where it stopped; a negative or NaN
- * `dt` counts as nothing, so the clock never runs backwards.
+ * `dt` counts as nothing, so the clock never runs backwards, and a NaN or
+ * negative `elapsed` reads as 0, as `loaderAt` reads it.
  */
 export function advanceClock(elapsed: number, dt: number): number {
-  return elapsed + (dt > 0 ? Math.min(dt, LOADER.maxStep) : 0);
+  return (elapsed > 0 ? elapsed : 0) + (dt > 0 ? Math.min(dt, LOADER.maxStep) : 0);
 }
 
 /**
  * Whether the loader should give up and let the page through: the load has
  * not finished after `LOADER.giveUp` visible seconds. A load that finished
- * (`loadedAt` set) never gives up, however long the show then runs.
+ * (`loadedAt` set) never gives up, however long the show then runs. A
+ * `loadedAt` that is not a finite number (NaN) reads as not loaded, as
+ * `loaderAt` reads it, so the loader still gives up on it.
  */
 export function loaderGaveUp(elapsed: number, loadedAt: number | null): boolean {
-  return loadedAt === null && elapsed >= LOADER.giveUp;
+  return (loadedAt === null || !Number.isFinite(loadedAt)) && elapsed >= LOADER.giveUp;
 }
 
 /**

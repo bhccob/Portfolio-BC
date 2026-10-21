@@ -33,12 +33,18 @@ export interface CameraShot {
  * depth, so a point nearer the camera than that (the letters' near corners, at
  * z = 1.7) is drawn wider than it, and a frame that must hold them carries the
  * margin.
+ *
+ * The width alone would size the field, which on a wide, short screen is so
+ * narrow that the top of the picture cuts the compass. `minVfov` (degrees) is
+ * the narrowest the field may be; where the width would call for less, the
+ * field stays at it and more than the half-width shows each side.
  */
 export interface ShotFrame {
   distance: number;
   elevation: number;
   targetY: number;
   halfWidth: number;
+  minVfov?: number;
 }
 
 /**
@@ -52,10 +58,15 @@ export interface ShotFrame {
  * - `homePortrait`: the same view on a screen taller than wide, where half a B
  *   each side would leave only the compass, so it holds the whole name across
  *   the width instead (with the near corners' margin).
+ *
+ * The home's `minVfov` of 22.5 keeps the compass's top ring under the header
+ * on a wide, short screen: the width fit alone is about 23.1 degrees at 16:9
+ * and falls to 20.6 at 2:1, where the ring would reach the top of the picture
+ * (NDC y 0.99, against 0.88 at 16:9). With the floor it stays at about 0.90.
  */
 export const FRAMES = {
   wide: { distance: 13.8, elevation: 14, targetY: 0.2, halfWidth: 5.2 },
-  home: { distance: 8.8, elevation: 13, targetY: 0.55, halfWidth: 3.2 },
+  home: { distance: 8.8, elevation: 13, targetY: 0.55, halfWidth: 3.2, minVfov: 22.5 },
   homePortrait: { distance: 8.8, elevation: 13, targetY: 0.55, halfWidth: 5.0 }
 } as const;
 
@@ -69,6 +80,9 @@ export const MAX_VFOV = 50;
 /** The aspect a bad one (NaN, zero, negative, infinite) reads as: a 16:9 laptop. */
 const FALLBACK_ASPECT = 16 / 9;
 
+/** The narrowest screen the shots plan for; a thinner one is framed as this, so the camera stays a finite way off. */
+const MIN_ASPECT = 0.25;
+
 const RAD = Math.PI / 180;
 
 /**
@@ -76,15 +90,17 @@ const RAD = Math.PI / 180;
  * The camera stands at `(0, targetY + d sin e, d cos e)` for `d` and `e` the
  * frame's distance and elevation, looking at `(0, targetY, 0)`. Its vertical
  * field is `2 atan(halfWidth / (distance aspect))` in degrees, which puts the
- * half-width, at the target's depth, on the screen's edge. If that field
- * exceeds `MAX_VFOV` the field is held at `MAX_VFOV` and the camera stands back
- * to `halfWidth / (aspect tan(MAX_VFOV / 2))`, which puts it on the edge again.
- * A bad aspect reads as 16:9.
+ * half-width, at the target's depth, on the screen's edge, but never less than
+ * the frame's `minVfov` (then more than the half-width shows each side). If
+ * that field exceeds `MAX_VFOV` the field is held at `MAX_VFOV` and the camera
+ * stands back to `halfWidth / (aspect tan(MAX_VFOV / 2))`, which puts the
+ * half-width on the edge again. A bad aspect reads as 16:9, and one thinner
+ * than 0.25 as 0.25.
  */
 export function shotFor(frame: ShotFrame, aspect: number): CameraShot {
-  const a = Number.isFinite(aspect) && aspect > 0 ? aspect : FALLBACK_ASPECT;
+  const a = Number.isFinite(aspect) && aspect > 0 ? Math.max(aspect, MIN_ASPECT) : FALLBACK_ASPECT;
   let distance = frame.distance;
-  let fov = 2 * Math.atan(frame.halfWidth / (distance * a)) / RAD;
+  let fov = Math.max((2 * Math.atan(frame.halfWidth / (distance * a))) / RAD, frame.minVfov ?? 0);
   if (fov > MAX_VFOV) {
     fov = MAX_VFOV;
     distance = frame.halfWidth / (a * Math.tan((MAX_VFOV * RAD) / 2));

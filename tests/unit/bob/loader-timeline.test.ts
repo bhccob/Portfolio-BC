@@ -248,6 +248,19 @@ describe('loaderAt, the skip', () => {
     expect(full(50, 0.1, 3).script).toBe(SCRIPT.home);
   });
 
+  it('never runs the script past the home, with or without a skip', () => {
+    expect(full(50).script).toBe(SCRIPT.home);
+    expect(full(50, 20).script).toBe(SCRIPT.home);
+    expect(full(50, 10, 3).script).toBe(SCRIPT.home);
+  });
+
+  it('does not run backwards on a skip pressed after the home', () => {
+    expect(full(14, 0.1, 13).script).toBe(SCRIPT.home);
+    expect(full(13, 0.1, 13).script).toBe(SCRIPT.home);
+    expect(full(13.5, 0.1, 13).stage).toBe('home');
+    expect(full(30, 20, 25).script).toBe(SCRIPT.home);
+  });
+
   it('fast-forwards to the hold and waits there for a load that has not landed', () => {
     const c = full(30, null, 3);
     expect(c.stage).toBe('engrave');
@@ -361,10 +374,22 @@ describe('the clock', () => {
     expect(advanceClock(1, Number.NaN)).toBe(1);
   });
 
+  it('reads a NaN elapsed as 0', () => {
+    expect(advanceClock(Number.NaN, 0.05)).toBeCloseTo(0.05, 9);
+    expect(advanceClock(Number.NaN, Number.NaN)).toBe(0);
+    expect(advanceClock(-2, 0.05)).toBeCloseTo(0.05, 9);
+  });
+
   it('gives up only on a load still out after 25 s', () => {
     expect(loaderGaveUp(24.9, null)).toBe(false);
     expect(loaderGaveUp(25, null)).toBe(true);
     expect(loaderGaveUp(99, 3)).toBe(false);
+  });
+
+  it('reads a load time that is not a number as not loaded, so it still gives up', () => {
+    expect(loaderGaveUp(24.9, Number.NaN)).toBe(false);
+    expect(loaderGaveUp(25, Number.NaN)).toBe(true);
+    expect(loaderGaveUp(25, Infinity)).toBe(true);
   });
 });
 
