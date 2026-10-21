@@ -17,24 +17,27 @@ import { CHIP } from '~/engine/v3/chipSpec';
 
 /**
  * How the laser looks and moves, in world units, seconds and multiples of a
- * colour in linear light (the scene's bloom starts at a luminance of 1; the
- * hot amber has about 0.35 per unit). Only the point blooms clearly: it is the
- * strongest light in the loader. The beam reaches just past the threshold, a
- * fine bright thread, and the sparks are small and short-lived.
+ * palette colour in linear light (the scene's bloom starts at a luminance of
+ * 1; `palette.amber`, the laser's hot amber, has about 0.35 per unit). Only
+ * the point blooms clearly: it is the strongest light in the loader. The beam
+ * reaches just past the threshold, a fine bright thread, and the sparks are
+ * small and short-lived.
  *
  * - `probe`: the nozzle's height over the chip's top, and the profile it is
  *   turned from (radius, height above the nozzle's tip), slim and gold.
  * - `beam`: its radius and glow.
  * - `point`: the glow at the cut, its size and its lift off the top, so the
- *   chip's face does not clip its lower half.
+ *   chip's face does not clip its lower half; its amber is taken `whiten` of
+ *   the way to cream (`core`), as the white-hot heart of the spot.
  * - `sparks`: at most `max` at once, each living `life` seconds, flung out
  *   at `out` and up at `up` (ranges), pulled down by `gravity`, never below
  *   `floor` over the top; `size` is PointsMaterial's (world size times half
  *   the buffer's height over depth, about 5 px at the loader's macro shot).
- * - `smoke`: one soft sprite rising `rise` over the tip, faint and grey-violet.
+ * - `smoke`: one soft sprite rising `rise` over the tip, faint: the dim lilac
+ *   darkened by `shade`, so it reads as the scene's violet haze.
  */
 export const LASER_LOOK = {
-  colour: 0xff7a1e,
+  colour: palette.amber,
   probe: {
     gap: 0.13,
     profile: [
@@ -52,10 +55,17 @@ export const LASER_LOOK = {
     roughness: 0.32
   },
   beam: { radius: 0.0011, glow: 3 },
-  point: { size: 0.035, lift: 0.008, glow: 4 },
+  point: { size: 0.035, lift: 0.008, glow: 4, core: palette.cream, whiten: 0.35 },
   sparks: { max: 24, life: 0.3, out: [0.25, 0.6], up: [0.15, 0.45], gravity: 2.2, floor: 0.002, size: 0.014, glow: 3 },
-  smoke: { size: 0.1, rise: 0.035, opacity: 0.22, colour: 0x6b5a66, turn: 0.4 }
+  smoke: { size: 0.1, rise: 0.035, opacity: 0.22, colour: palette.dim, shade: 0.45, turn: 0.4 }
 } as const;
+
+/**
+ * The laser group's draw order: after the chip's engraving (0), so the beam,
+ * the point and the sparks always add their light on top of the cut, and the
+ * smoke lies over it, whatever the camera's angle (see `buildLaser`).
+ */
+export const LASER_RENDER_ORDER = 1;
 
 /** The laser as the scene holds it. */
 export interface LaserModel {
@@ -128,6 +138,11 @@ export function buildLaser(): LaserModel {
   const group = new THREE.Group();
   group.name = 'laser';
   group.position.y = CHIP.board + CHIP.height;
+  // three sorts see-through objects back to front by their centres, and the engraving's ribbon (blended over, no depth
+  // written) is often nearer the camera than the tip, so it would be drawn after the additive point and sparks and wipe
+  // their glow along the cut, on and off as the tip travels. A group's renderOrder sorts all it holds as one, after the
+  // engraving's 0: the laser's light always lands on the cut, never under it.
+  group.renderOrder = LASER_RENDER_ORDER;
   const hot = new THREE.Color(LASER_LOOK.colour);
 
   const { probe: probeLook } = LASER_LOOK;
@@ -161,7 +176,7 @@ export function buildLaser(): LaserModel {
   const pointMaterial = new THREE.SpriteMaterial({
     name: 'laser:point',
     map: glow,
-    color: hot.clone().lerp(new THREE.Color(1, 1, 1), 0.35).multiplyScalar(LASER_LOOK.point.glow),
+    color: hot.clone().lerp(new THREE.Color(LASER_LOOK.point.core), LASER_LOOK.point.whiten).multiplyScalar(LASER_LOOK.point.glow),
     transparent: true,
     blending: THREE.AdditiveBlending,
     depthWrite: false
@@ -199,7 +214,7 @@ export function buildLaser(): LaserModel {
   const smokeMaterial = new THREE.SpriteMaterial({
     name: 'laser:smoke',
     map: smokeMap,
-    color: smokeLook.colour,
+    color: new THREE.Color(smokeLook.colour).multiplyScalar(smokeLook.shade),
     transparent: true,
     opacity: 0,
     depthWrite: false

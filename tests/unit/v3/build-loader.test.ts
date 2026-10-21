@@ -1,7 +1,9 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { buildChip, CHIP_LOOK } from '~/engine/v3/build/chip';
-import { buildLaser, LASER_LOOK } from '~/engine/v3/build/laser';
+import { buildLaser, LASER_LOOK, LASER_RENDER_ORDER } from '~/engine/v3/build/laser';
 import { buildTraces, TRACES_LOOK } from '~/engine/v3/build/traces';
 import { palette } from '~/engine/palette';
 import { CHIP, engraved, ON_STROKES, pinPosition, strokeLengths } from '~/engine/v3/chipSpec';
@@ -479,5 +481,67 @@ describe('the laser', () => {
     laser.dispose();
     for (const spy of [...geometries, ...materials, ...textureSpies]) expect(spy).toHaveBeenCalled();
     expect(shared).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The order three r186 sorts an object's draw by before its depth: the
+ * renderOrder of the nearest Group on its path from the scene (0 with none),
+ * as WebGLRenderer's projectObject hands it to the render list.
+ */
+function groupOrderOf(object: THREE.Object3D): number {
+  for (let o: THREE.Object3D | null = object; o; o = o.parent) if ((o as THREE.Group).isGroup) return o.renderOrder;
+  return 0;
+}
+
+describe("the laser's light over the cut", () => {
+  it('draws the beam, the point, the sparks and the smoke after every stroke of the engraving, from any camera', () => {
+    const scene = new THREE.Scene();
+    const chip = buildChip();
+    const laser = buildLaser();
+    scene.add(chip.group, laser.group);
+    expect(laser.group.isGroup).toBe(true);
+    expect(laser.group.renderOrder).toBe(LASER_RENDER_ORDER);
+    const strokes = (chip.group.getObjectByName('chip:engraving') as THREE.Group).children;
+    const engraving = Math.max(...strokes.map(groupOrderOf));
+    const light = ['laser:beam', 'laser:point', 'laser:sparks', 'laser:smoke'].map((name) => laser.group.getObjectByName(name)!);
+    for (const part of light) expect(groupOrderOf(part), part.name).toBeGreaterThan(engraving);
+    // The engraving's own order stays the default, so nothing else in the chip moves.
+    for (const stroke of strokes) expect(stroke.renderOrder).toBe(0);
+    chip.dispose();
+    laser.dispose();
+  });
+});
+
+describe("the loader's colours", () => {
+  it('come from the palette: the ink body, and one hot amber for the beam, the point, the sparks and the cut', () => {
+    const chip = buildChip();
+    const laser = buildLaser();
+    const body = chip.group.getObjectByName('chip:body') as THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
+    expect(body.material.color.getHex()).toBe(palette.ink);
+    expect(CHIP_LOOK.engraving.hotColour).toBe(palette.amber);
+    expect(LASER_LOOK.colour).toBe(palette.amber);
+    const amber = new THREE.Color(palette.amber);
+    const stroke = (chip.group.getObjectByName('chip:engraving') as THREE.Group).children[0] as THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
+    expect(stroke.material.uniforms.uHot.value.equals(amber.clone().multiplyScalar(CHIP_LOOK.engraving.hot))).toBe(true);
+    expect(stroke.material.uniforms.uCold.value.equals(new THREE.Color(palette.gold).multiplyScalar(CHIP_LOOK.engraving.cold))).toBe(true);
+    const beam = laser.group.getObjectByName('laser:beam') as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
+    expect(beam.material.color.equals(amber.clone().multiplyScalar(LASER_LOOK.beam.glow))).toBe(true);
+    const point = laser.group.getObjectByName('laser:point') as THREE.Sprite;
+    const core = amber.clone().lerp(new THREE.Color(palette.cream), LASER_LOOK.point.whiten).multiplyScalar(LASER_LOOK.point.glow);
+    expect(point.material.color.equals(core)).toBe(true);
+    const smoke = laser.group.getObjectByName('laser:smoke') as THREE.Sprite;
+    expect(smoke.material.color.equals(new THREE.Color(palette.dim).multiplyScalar(LASER_LOOK.smoke.shade))).toBe(true);
+    chip.dispose();
+    laser.dispose();
+  });
+
+  it('are named in no builder: no hex colour and no colour made from bare numbers', () => {
+    for (const file of ['chip', 'laser', 'traces']) {
+      const source = readFileSync(fileURLToPath(new URL(`../../../src/engine/v3/build/${file}.ts`, import.meta.url)), 'utf8');
+      // Six hex digits is a colour; the sparks' hash constants are eight.
+      expect(source, file).not.toMatch(/\b0x[0-9a-f]{6}\b/i);
+      expect(source, file).not.toMatch(/Color\(\s*[\d.]+\s*,/);
+    }
   });
 });

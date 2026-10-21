@@ -4,8 +4,9 @@
  * CSS strings (`#rrggbb`) for the canvas painters and the loader's SVG. The
  * purples, yellow, cream and lilacs are the site's own tokens
  * (src/styles/tokens.css), so the model and the page around it agree; gold,
- * brass and thread red are the compass's own. It imports nothing, so the
- * loader's bundle (dialSvg) can read it without pulling in three.
+ * brass and thread red are the compass's own, and hot amber is the loader's
+ * laser. It imports nothing, so the loader's bundle (dialSvg) can read it
+ * without pulling in three.
  */
 export const palette = {
   /** Board purple (--board): the base plate's lacquer and the plain pattern ring. */
@@ -22,6 +23,12 @@ export const palette = {
   brass: 0xc9a24a,
   /** Thread red: the red threads across the dial. */
   thread: 0xc8102e,
+  /**
+   * Hot amber: the loader's laser (its beam, its point and its sparks) and the
+   * fresh cut it leaves in the chip, which cools from this to gold. One token,
+   * so the beam and the cut it makes stay the same heat.
+   */
+  amber: 0xff7a1e,
   /** Lilac (--lilac, the site's text). */
   lilac: 0xb8aad8,
   /** Dim lilac (--dim, the site's quiet text). */

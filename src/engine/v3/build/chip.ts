@@ -19,22 +19,26 @@ import { LOADER } from '~/engine/v3/loaderTimeline';
  * under it (lit, never blown out), and only the power-on pins and the hot tip
  * of a fresh cut reach just past it, for a soft glow.
  *
- * - `body`: near-black and matte, so the laser's point and the lit pins are
- *   the only strong light (spec §2.1).
+ * - `body`: the palette's near-black ink, matte, so the laser's point and the
+ *   lit pins are the only strong light (spec §2.1).
  * - `pin`: the lead's thickness on the board, and the dark brass of an unlit
  *   pin, which the scene's lights shade.
  * - `glow`: a lit pin's glow as a multiple of gold, while loading (`lit`, low)
  *   and at full power (`power`, just over the bloom's threshold).
  * - `engraving`: the ribbon's width and its lift off the top (enough that it
  *   never z-fights the face), the cooled cut's gold and the fresh cut's hot
- *   amber as multiples, and the seconds a cut takes to cool.
+ *   amber (the laser's own, `palette.amber`) as multiples, and the seconds a
+ *   cut takes to cool.
  */
 export const CHIP_LOOK = {
-  body: { colour: 0x0c0a0f, roughness: 0.86, metalness: 0 },
+  body: { colour: palette.ink, roughness: 0.86, metalness: 0 },
   pin: { thickness: 0.005, colour: palette.brass, shade: 0.45, metalness: 0.85, roughness: 0.42 },
   glow: { lit: 0.9, power: 2.5 },
-  engraving: { width: 0.006, lift: 0.0004, cold: 1, hot: 3.2, hotColour: 0xff7a1e, cool: 0.6 }
+  engraving: { width: 0.006, lift: 0.0004, cold: 1, hot: 3.2, hotColour: palette.amber, cool: 0.6 }
 } as const;
+
+/** What an unlit pin emits: nothing. Zero light, not a colour of the palette. */
+const NO_GLOW = new THREE.Color().setScalar(0);
 
 /** The chip as the scene holds it. */
 export interface ChipModel {
@@ -115,14 +119,13 @@ function buildPins(): THREE.InstancedMesh<THREE.BoxGeometry, THREE.MeshStandardM
   const pins = new THREE.InstancedMesh(geometry, material, PIN_COUNT);
   pins.name = 'chip:pins';
   const matrix = new THREE.Matrix4();
-  const black = new THREE.Color(0, 0, 0);
   for (let i = 0; i < PIN_COUNT; i++) {
     const { x, z, side } = pinPosition(i);
     matrix.makeRotationY(side === 'top' || side === 'bottom' ? Math.PI / 2 : 0);
     matrix.setPosition(x, CHIP.board + thickness / 2, z);
     pins.setMatrixAt(i, matrix);
     // Every pin gets a colour now, so the shader is built with instance colours from the first frame.
-    pins.setColorAt(i, black);
+    pins.setColorAt(i, NO_GLOW);
   }
   pins.instanceMatrix.needsUpdate = true;
   return pins;
@@ -309,7 +312,6 @@ export function buildChip(options: ChipOptions = {}): ChipModel {
   // The pins' state as painted, so a clock that holds still repaints nothing.
   const gold = new THREE.Color(palette.gold);
   const glow = new THREE.Color();
-  const black = new THREE.Color(0, 0, 0);
   let lit = 0;
   let power = 0;
   let paintedLit = -1;
@@ -317,7 +319,7 @@ export function buildChip(options: ChipOptions = {}): ChipModel {
   const paint = (): void => {
     if (paintedLit === lit && paintedPower === power) return;
     glow.copy(gold).multiplyScalar(CHIP_LOOK.glow.lit + (CHIP_LOOK.glow.power - CHIP_LOOK.glow.lit) * power);
-    for (let i = 0; i < PIN_COUNT; i++) pins.setColorAt(i, i < lit ? glow : black);
+    for (let i = 0; i < PIN_COUNT; i++) pins.setColorAt(i, i < lit ? glow : NO_GLOW);
     pins.instanceColor!.needsUpdate = true;
     paintedLit = lit;
     paintedPower = power;
