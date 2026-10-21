@@ -95,16 +95,19 @@ export function idleRuns(at: { now: number; until: number; reduced: boolean; dri
   return at.now < at.until || (at.drifting && !at.resting);
 }
 
-/** The side of its figure a constellation's name stands on: right of it, left of it, or above it. */
-export type LabelSide = 'east' | 'west' | 'north';
+/** The side of its figure a constellation's name stands on: right of it, left of it, above it, or under it. */
+export type LabelSide = 'east' | 'west' | 'north' | 'south';
 
 /**
- * The side away from the compass, as the home camera (looking north) sees it: China, in the east, is named to its
- * right; Aruba, in the west, to its left; the ship, straight ahead beyond the far rim, above its masts.
+ * Where a constellation's name stands, as the home camera (looking north) sees it: China, in the east, is named to its
+ * right and Aruba, in the west, to its left, away from the compass; the ship, straight ahead beyond the far rim, under
+ * its hull, in the sky between it and the compass. Above its masts (Task 13) the ship's name shared a band with the
+ * hero's name at some widths and not at others, so it flipped under the ship between 1536 and 1600 px wide (Task 14b);
+ * under the hull it stands the same at every width, and on a phone too.
  */
 export function labelSide(id: CountryId): LabelSide {
   const east = Math.sin((PLACEMENTS[id].bearing * Math.PI) / 180);
-  return east > 0.5 ? 'east' : east < -0.5 ? 'west' : 'north';
+  return east > 0.5 ? 'east' : east < -0.5 ? 'west' : 'south';
 }
 
 /**
@@ -132,6 +135,7 @@ function hold(value: number, lo: number, hi: number): number {
  * centroid there.
  *
  * - east and west: just past the figure on that side (`LABEL.gap`), level with the anchor;
+ * - south: under the figure's lowest star, centred on the anchor;
  * - north, and a side with no room on the screen (a phone, where China and Aruba reach its edges): above the figure,
  *   centred on the anchor.
  *
@@ -155,14 +159,15 @@ export function labelSpot(
     if (x >= margin) return set(out, x, level);
   }
   const x = hold(anchor.x - label.width / 2, margin, view.width - margin - label.width);
+  if (side === 'south') return set(out, x, hold(figure.bottom + gap, margin, view.height - margin - label.height));
   return set(out, x, Math.max(margin, figure.top - gap - label.height));
 }
 
 /**
  * How much clear sky a name keeps from the hero's lines (CSS px, between the boxes): nearer than this it would read as
- * a word of the hero's, not a constellation's name. The hero's name runs to about 44 % of a laptop's width and the
- * ship's name is centred on the screen, so at the design size (1440 x 900) the two share a band with only a few
- * dozen px between them; 80 keeps both languages' names clear.
+ * a word of the hero's, not a constellation's name. The ship's name stands under its hull (`labelSide`), well below
+ * the hero's name at every width; what this still moves is Aruba's, beside the tree at the upper left, which comes
+ * within reach of the tagline on a smaller laptop (1024 x 768) and then stands under the tree instead.
  */
 export const HERO_ROOM = 80;
 

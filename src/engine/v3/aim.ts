@@ -25,10 +25,11 @@ export const AIM_SNAP = 0.07;
 
 /**
  * The radius of the vertical cylinder the sky rule reads the pointer on: the
- * distance of the side constellations' centres from the compass, so a cursor
- * that looks at China or Aruba above the horizon points at them.
+ * distance of the side constellations' centres from the compass's axis (out
+ * to the side and set back behind it, Task 14b), so a cursor that looks at
+ * China or Aruba above the horizon points at them.
  */
-export const AIM_SHELL = PLACEMENTS.china.distance;
+export const AIM_SHELL = Math.hypot(PLACEMENTS.china.distance, PLACEMENTS.china.back);
 
 /**
  * The needle's spring, for `new AngleSpring(zeta, omega)`. Heavier and slower

@@ -100,7 +100,7 @@ describe('pointerBearing rules', () => {
     const camera = homeCamera(aspect);
     const [, shipEnd] = bearingRange('netherlands');
     const [chinaStart] = bearingRange('china');
-    for (const ndc of [{ x: 0.3, y: 0.55 }, { x: 0.4, y: 0.6 }, { x: 0.45, y: 0.5 }]) {
+    for (const ndc of [{ x: 0.25, y: 0.5 }, { x: 0.3, y: 0.6 }, { x: 0.35, y: 0.5 }]) {
       expect(risesAbove(ndc, camera)).toBe(true);
       expect(nearestStar(ndc, camera)).toBeGreaterThan(2 * AIM_SNAP);
       const b = pointerBearing(ndc, camera, AIM_SHELL)!;
@@ -135,7 +135,7 @@ describe('pointerBearing rules', () => {
    * (1440 x 900, home camera): the steepest step is 4.5 degrees, at y about
    * -0.15, where the ground rule reads the dial just past the hub, because a
    * bearing about an axis turns fastest near the axis and no rule can avoid
-   * that; from y = 0.1 up, across the horizon at +0.36 and through the sky, a
+   * that; from y = 0.1 up, across the horizon (+0.36 then; +0.29 since Task 14b) and through the sky, a
    * step is 0.04 degrees at most. So 6 degrees is 1.3 times the honest
    * maximum and a fifth of the 29 degree jump the plain ground rule made at the
    * horizon, and a regression to it fails by a wide margin. Across the horizon
@@ -161,7 +161,7 @@ describe('pointerBearing rules', () => {
 
   it('is continuous as the cursor crosses the horizon: the ground counts only inside the shell, so the needle does not jump', () => {
     const camera = homeCamera(aspect);
-    // From the dial, up over the board beyond it, through the horizon (NDC y about +0.36) and into the sky, at x values between the ship and the side figures.
+    // From the dial, up over the board beyond it, through the horizon (NDC y about +0.29) and into the sky, at x values between the ship and the side figures.
     for (const x of [-0.4, -0.35, 0.35, 0.4]) {
       const turns = sweepTurns(camera, x, -0.2, 0.8);
       expect(turns).toHaveLength(100);
@@ -193,7 +193,7 @@ describe('pointerBearing rules', () => {
   });
   it('the ground in front of the shell, between the camera and the dial, is still the point under the cursor', () => {
     const camera = homeCamera(aspect);
-    for (const [x, z] of [[0.3, 2], [-0.4, 2.1], [0.9, 1.9]]) {
+    for (const [x, z] of [[0.5, 1.38], [0.75, 1.25], [-0.65, 1.3]]) {
       expect(Math.hypot(x, z)).toBeGreaterThan(AIM_SHELL);
       const ndc = new THREE.Vector3(x, 0, z).project(camera);
       expect(Math.abs(ndc.x)).toBeLessThan(1);
@@ -291,10 +291,8 @@ describe('pointerBearing rules', () => {
 });
 
 describe('AIM constants', () => {
-  it('the shell is the side constellations\' centre distance, and the snap is 0.07 of the screen height', () => {
-    expect(AIM_SHELL).toBe(PLACEMENTS.china.distance);
-    expect(AIM_SHELL).toBe(PLACEMENTS.aruba.distance);
-    expect(AIM_SHELL).toBe(1.65);
+  it("the shell is the side constellations' centre distance from the axis (their plane set back behind it), and the snap is 0.07 of the screen height", () => {
+    for (const id of ['china', 'aruba'] as const) expect(AIM_SHELL).toBeCloseTo(Math.hypot(PLACEMENTS[id].distance, PLACEMENTS[id].back), 12);
     expect(AIM_SNAP).toBe(0.07);
   });
 });

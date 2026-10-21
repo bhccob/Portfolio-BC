@@ -20,20 +20,21 @@ import { CHIP } from '~/engine/v3/chipSpec';
  * - `hues`: the colour of a block's light, by its `hue`: the chip's gold, or
  *   the nebula's violet.
  * - `emissive`: what a block at glow 1 emits, as a multiple of its hue,
- *   before the city's level; gold at 0.35 has a luminance of about 0.15, well
+ *   before the city's level; gold at 0.45 has a luminance of about 0.19, well
  *   under the bloom's threshold of 1, and the glass over it dims it further.
  *   Seen from above (the loader's high shot), the lit roofs then stay under
  *   the gold engraving on the glass instead of competing with it.
  * - `side`: a block's walls glow at this share of its roof, so the roofs read
- *   as the lit tops of a city and the walls as its streets' dark. The home's
- *   low camera sees mostly walls: brighter, they read as a field of grey
- *   crates under the rim.
+ *   as the lit tops of a city and the walls as its streets' dusk. The home's
+ *   low camera sees the city through the glass mostly as walls (Task 14b: the
+ *   case hides the outer ones, which once read as grey crates under the rim),
+ *   so they keep a third of the roofs' light, the city's windows.
  */
 export const CITY_LOOK = {
   body: { colour: palette.ink, roughness: 0.7, metalness: 0.1 },
   hues: { amber: palette.gold, violet: palette.violet },
-  emissive: 0.35,
-  side: 0.15
+  emissive: 0.45,
+  side: 0.3
 } as const;
 
 /** The city as the scene holds it. */

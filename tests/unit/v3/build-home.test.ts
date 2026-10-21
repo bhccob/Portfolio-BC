@@ -158,7 +158,9 @@ describe('the glass compass', () => {
     expect(glass.metalness).toBe(0);
     expect(glass.transparent).toBe(true);
     expect(glass.opacity).toBe(0.55);
-    expect(glass.envMapIntensity).toBe(0.6);
+    // The room mirrored in it, damped (Task 14b: lower than 11's 0.6, so the violet sheen no longer hides the city under it).
+    expect(glass.envMapIntensity).toBe(GLASS_LOOK.glass.envMapIntensity);
+    expect(GLASS_LOOK.glass.envMapIntensity).toBeLessThan(0.6);
     expect(glass.transmission).toBe(0);
     expect(glass.clearcoat).toBe(GLASS_LOOK.glass.clearcoat);
     expect(glass.depthWrite).toBe(false);
@@ -223,16 +225,18 @@ describe('the glass compass', () => {
     const golds = RING_IDS.map((id) => goldOf(compass, id));
     const hub = named<THREE.Mesh>(compass.group, 'hub').material as THREE.MeshStandardMaterial;
     const versions = [glass, hub, ...golds].map((m) => m.version);
+    // As built, formed: each ring's gold at its own level.
+    golds.forEach((gold, i) => expect(gold.opacity).toBe(GLASS_LOOK.gold.level[RING_IDS[i]]));
     compass.setFormed(0.5);
     expect(glass.opacity).toBeCloseTo(0.275, 9);
-    for (const gold of golds) expect(gold.opacity).toBeCloseTo(0.5, 9);
+    golds.forEach((gold, i) => expect(gold.opacity).toBeCloseTo(0.5 * GLASS_LOOK.gold.level[RING_IDS[i]], 9));
     expect(hub.opacity).toBeCloseTo(0.5, 9);
     expect(compass.group.children.every((o) => o.visible)).toBe(true);
     compass.setFormed(0);
     expect(compass.group.children.every((o) => !o.visible)).toBe(true);
     compass.setFormed(1);
     expect(glass.opacity).toBe(0.55);
-    for (const gold of golds) expect(gold.opacity).toBe(1);
+    golds.forEach((gold, i) => expect(gold.opacity).toBe(GLASS_LOOK.gold.level[RING_IDS[i]]));
     expect(compass.group.children.every((o) => o.visible)).toBe(true);
     compass.setFormed(4);
     expect(glass.opacity).toBe(0.55);
@@ -241,6 +245,14 @@ describe('the glass compass', () => {
     // A fade is uniforms only: no material asks for a new program.
     expect([glass, hub, ...golds].map((m) => m.version)).toEqual(versions);
     compass.dispose();
+  });
+
+  it('brightens its gold toward the hub, the one focal point: the wide outer ring nearest the camera the dimmest (Task 14b)', () => {
+    const levels = RING_IDS.map((id) => GLASS_LOOK.gold.level[id]);
+    expect(levels[0]).toBe(1);
+    for (let i = 1; i < levels.length; i++) expect(levels[i]).toBeLessThanOrEqual(levels[i - 1]);
+    expect(GLASS_LOOK.gold.level.hexagram).toBeLessThanOrEqual(0.6);
+    expect(GLASS_LOOK.gold.level.hexagram).toBeGreaterThan(0.3);
   });
 
   it('turns the clearcoat off and on for the quality ladder', () => {
@@ -735,6 +747,17 @@ describe('the constellations', () => {
     expect(luminance(new THREE.Color(palette.gold).multiplyScalar(STARS_LOOK.line.level))).toBeLessThan(0.3);
   });
 
+  it('makes a star clearly brighter than its lines (Task 14b): even the faintest core at least 3 times a line, at any glow', () => {
+    // The faintest star's core: the cream at its smallest magnitude's light (the vertex shader's mix(0.55, 1.0, aMag)).
+    const faintest = Math.min(...COUNTRY_IDS.flatMap((id) => FIGURES[id].stars.map(([, , mag]) => mag)));
+    const core = luminance(new THREE.Color(STARS_LOOK.core)) * STARS_LOOK.intensity * (0.55 + 0.45 * faintest);
+    const line = luminance(new THREE.Color(palette.gold).multiplyScalar(STARS_LOOK.line.level));
+    // Both scale with the one glow, so the ratio holds at rest and pointed alike.
+    expect(core / line).toBeGreaterThanOrEqual(3);
+    // And the sprite is big enough for the core to read as a point of light, not a pixel: a magnitude-1 star at least 24 px across at 1440 x 900.
+    expect(STARS_LOOK.size).toBeGreaterThanOrEqual(0.05);
+  });
+
   it('frees its geometries and its materials', () => {
     const sky = buildConstellations();
     const parts = drawn(sky.group);
@@ -993,7 +1016,7 @@ describe("the home's colours", () => {
   });
 
   it('are named in no builder: no hex colour, no CSS colour and no colour made from bare numbers', () => {
-    for (const file of ['glassCompass', 'needle', 'city', 'constellations', 'mist', 'sky', 'room']) {
+    for (const file of ['glassCompass', 'needle', 'city', 'case', 'constellations', 'mist', 'sky', 'room']) {
       const source = readFileSync(fileURLToPath(new URL(`../../../src/engine/v3/build/${file}.ts`, import.meta.url)), 'utf8');
       expect(source, file).not.toMatch(/\b0x[0-9a-f]{6}\b/i);
       expect(source, file).not.toMatch(/['"`]#[0-9a-f]{3,8}['"`]/i);

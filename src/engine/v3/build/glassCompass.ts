@@ -22,16 +22,22 @@ const CHIP_TOP = CHIP.board + CHIP.height;
  *
  * - `glass`: smoked glass in the palette's near-black violet, glossy
  *   (roughness 0.08) and seen through at `opacity`, its reflections of the
- *   room damped by `envMapIntensity`. It has a clearcoat on the quality
- *   ladder's rungs that keep one (`setClearcoat`), and no transmission: that
- *   would cost a second render of the scene and brighten what lies under the
- *   glass.
+ *   room damped by `envMapIntensity` (Task 14b: low, as the home's camera now
+ *   sees the glass at a grazing angle, where it mirrors most, and a stronger
+ *   sheen laid a lavender veil over the city under it). It has a clearcoat on
+ *   the quality ladder's rungs that keep one (`setClearcoat`), and no
+ *   transmission: that would cost a second render of the scene and brighten
+ *   what lies under the glass.
  * - `gold`: the engraving on each ring's top, metal gold that the room's light
  *   cards catch, with a little light of its own (`emissive`, at most 0.15) so
  *   the marks still read where the room is dark. It lies `lift` over the glass
  *   so the two never fight for a pixel. `anisotropy` keeps the fine ticks
  *   sharp across a ring seen nearly edge on, as the home's low camera sees it
- *   (three holds it to what the GPU allows).
+ *   (three holds it to what the GPU allows). Each ring's gold shows at its
+ *   own `level` (its opacity once formed), brightest at the hub and dimmest
+ *   on the wide hexagram ring nearest the camera (Task 14b): seen low and
+ *   close, that ring's marks fill the foreground, and at full strength they
+ *   drew the eye from the needle, the one focal point (spec §4).
  * - `hub`: the boss turned from `profile` (radius, height), its stem standing
  *   on the chip and its top at `HUB.y`, under the needle's pivot; far narrower
  *   than the hub's own radius, so the chip around it shows.
@@ -40,8 +46,16 @@ const CHIP_TOP = CHIP.board + CHIP.height;
  *   same points of the circle and meet without a crack.
  */
 export const GLASS_LOOK = {
-  glass: { colour: palette.glass, roughness: 0.08, opacity: 0.55, envMapIntensity: 0.6, clearcoat: 1, clearcoatRoughness: 0.05 },
-  gold: { colour: palette.gold, metalness: 1, roughness: 0.32, emissive: 0.12, lift: 0.0004, anisotropy: 4 },
+  glass: { colour: palette.glass, roughness: 0.08, opacity: 0.55, envMapIntensity: 0.2, clearcoat: 1, clearcoatRoughness: 0.05 },
+  gold: {
+    colour: palette.gold,
+    metalness: 1,
+    roughness: 0.32,
+    emissive: 0.08,
+    lift: 0.0004,
+    anisotropy: 4,
+    level: { trigram: 1, direction: 0.95, degree: 0.8, hexagram: 0.55 }
+  },
   hub: {
     roughness: 0.3,
     emissive: 0.1,
@@ -234,6 +248,7 @@ export function buildGlassCompass(): GlassCompassModel {
       emissive: look.gold.colour,
       emissiveIntensity: look.gold.emissive,
       alphaMap: blank,
+      opacity: look.gold.level[ring.id],
       transparent: true,
       depthWrite: false
     });
@@ -270,7 +285,7 @@ export function buildGlassCompass(): GlassCompassModel {
       const formed = clamp01(t);
       glass.opacity = look.glass.opacity * formed;
       hubMaterial.opacity = formed;
-      for (let i = 0; i < rings.length; i++) rings[i].gold.opacity = formed;
+      for (let i = 0; i < rings.length; i++) rings[i].gold.opacity = formed * look.gold.level[rings[i].id];
       // Unformed, nothing draws: the loader pays nothing for the compass. three compiles hidden objects all the same.
       const children = group.children;
       for (let i = 0; i < children.length; i++) children[i].visible = formed > 0;

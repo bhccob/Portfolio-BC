@@ -17,6 +17,39 @@ const centroid = (p: Float32Array) => {
   for (let k = 0; k < p.length; k += 3) { x += p[k]; y += p[k + 1]; z += p[k + 2]; }
   return [x / n, y / n, z / n] as const;
 };
+/** The share of the screen's width the rim spans in the home shot for this aspect. */
+const rimShare = (aspect: number): number => {
+  const at = project(aspect);
+  const xs = [...Array(360).keys()].map((k) => at(...(([x, z]) => [x, 0, z] as const)(onDial(k, DIAL.rim))).x);
+  return (Math.max(...xs) - Math.min(...xs)) / 2;
+};
+/** How far down the screen the horizon lies in the home shot for this aspect, 0 at the top and 1 at the foot. */
+const horizonDown = (aspect: number): number => {
+  const shot = homeShotFor(aspect);
+  return (1 - project(aspect)(0, shot.position[1], -1e5).y) / 2;
+};
+
+describe('the home framed like frame 04 (Task 14b)', () => {
+  it('1440 x 900: the compass is large, its rim spanning at least 45 % of the width', () => {
+    expect(rimShare(1440 / 900)).toBeGreaterThanOrEqual(0.45);
+  });
+  it('1440 x 900: the horizon sits near the upper third', () => {
+    expect(horizonDown(1440 / 900)).toBeGreaterThan(0.26);
+    expect(horizonDown(1440 / 900)).toBeLessThan(0.4);
+  });
+  it('1440 x 900: the camera is low and close, the rim\'s near edge low in the picture and the far edge under the horizon', () => {
+    const at = project(1440 / 900);
+    const near = (1 - at(0, 0, DIAL.rim).y) / 2;
+    const far = (1 - at(0, 0, -DIAL.rim).y) / 2;
+    expect(near).toBeGreaterThan(0.75);
+    expect(far).toBeGreaterThan(horizonDown(1440 / 900));
+    const shot = SHOTS.home;
+    expect(Math.hypot(shot.position[1] - shot.target[1], shot.position[2] - shot.target[2])).toBeLessThan(2.6);
+  });
+  it('a phone (390 x 844): the rim spans at least 80 % of the width', () => {
+    expect(rimShare(390 / 844)).toBeGreaterThanOrEqual(0.8);
+  });
+});
 
 describe('the home shot', () => {
   for (const [name, aspect] of [['landscape', 1440 / 900], ['portrait', 390 / 844]] as const) {
@@ -125,8 +158,8 @@ describe('the home shot on other screens', () => {
       }
     });
   }
-  it('fits every aspect from the design down, not just the ones named: a fine sweep', () => {
-    for (let aspect = DESIGN - 0.001; aspect >= 0.25; aspect -= 0.01) {
+  it('fits every landscape aspect from the design down to a square, not just the ones named: a fine sweep', () => {
+    for (let aspect = DESIGN - 0.001; aspect >= 1; aspect -= 0.01) {
       const at = project(aspect);
       for (const id of COUNTRY_IDS) {
         const s = starPositions(id);
@@ -143,7 +176,22 @@ describe('the home shot on other screens', () => {
       }
     }
   });
-  for (const aspect of [0.25, PHONE, 0.6, TABLET, 0.99, 1, FIVE_BY_FOUR, FOUR_BY_THREE, 1.5, 1.59]) {
+  it('keeps the rim and each constellation\'s centre in frame on every portrait aspect: a fine sweep', () => {
+    for (let aspect = 0.999; aspect >= 0.25; aspect -= 0.01) {
+      const at = project(aspect);
+      for (const [x, z] of rim()) {
+        const p = at(x, 0, z);
+        expect(Math.abs(p.x)).toBeLessThanOrEqual(0.98);
+        expect(Math.abs(p.y)).toBeLessThanOrEqual(0.98);
+      }
+      for (const id of COUNTRY_IDS) {
+        const c = at(...centroid(starPositions(id)));
+        expect(Math.abs(c.x)).toBeLessThanOrEqual(0.95);
+        expect(Math.abs(c.y)).toBeLessThanOrEqual(0.95);
+      }
+    }
+  });
+  for (const aspect of [0.99, 1, FIVE_BY_FOUR, FOUR_BY_THREE, 1.5, 1.59]) {
     it(`aspect ${aspect.toFixed(2)}: the rim and every star are in frame`, () => {
       const at = project(aspect);
       for (const [x, z] of rim()) {
@@ -161,6 +209,22 @@ describe('the home shot on other screens', () => {
       }
     });
   }
+  for (const aspect of [0.25, PHONE, 0.6, TABLET]) {
+    it(`aspect ${aspect.toFixed(2)}: the rim and each constellation's centre are in frame, the compass large`, () => {
+      const at = project(aspect);
+      for (const [x, z] of rim()) {
+        const p = at(x, 0, z);
+        expect(Math.abs(p.x)).toBeLessThanOrEqual(0.98);
+        expect(Math.abs(p.y)).toBeLessThanOrEqual(0.98);
+      }
+      for (const id of COUNTRY_IDS) {
+        const c = at(...centroid(starPositions(id)));
+        expect(Math.abs(c.x)).toBeLessThanOrEqual(0.95);
+        expect(Math.abs(c.y)).toBeLessThanOrEqual(0.95);
+      }
+      expect(rimShare(aspect)).toBeGreaterThanOrEqual(aspect >= PHONE ? 0.6 : 0.4);
+    });
+  }
   it('widescreen: the rim and every star stay in frame', () => {
     for (const aspect of [1.78, 2.4]) {
       const at = project(aspect);
@@ -173,16 +237,19 @@ describe('the home shot on other screens', () => {
   });
   it('a narrower screen pulls back, a portrait one widens too, and the shot is continuous as the screen narrows', () => {
     const distance = (s: CameraShot) => Math.hypot(s.position[0] - s.target[0], s.position[1] - s.target[1], s.position[2] - s.target[2]);
-    expect(distance(homeShotFor(PHONE))).toBeGreaterThan(distance(SHOTS.home) * 1.5);
+    expect(distance(homeShotFor(PHONE))).toBeGreaterThan(distance(SHOTS.home) * 1.3);
     expect(distance(homeShotFor(FOUR_BY_THREE))).toBeGreaterThan(distance(SHOTS.home));
     expect(homeShotFor(PHONE).fov).toBeGreaterThan(SHOTS.home.fov);
     expect(homeShotFor(FOUR_BY_THREE).fov).toBe(SHOTS.home.fov);
-    let previous = distance(SHOTS.home);
+    // Down to a square the camera only pulls back; below it the fov widens as it goes on back, all without a jump.
+    let previous = homeShotFor(DESIGN);
     for (let aspect = DESIGN - 0.01; aspect >= 0.3; aspect -= 0.01) {
-      const d = distance(homeShotFor(aspect));
-      expect(d).toBeGreaterThan(previous);
-      expect(d / previous).toBeLessThan(1.04);
-      previous = d;
+      const shot = homeShotFor(aspect);
+      if (aspect >= 1) expect(distance(shot)).toBeGreaterThan(distance(previous));
+      const moved = Math.hypot(...shot.position.map((v, i) => v - previous.position[i]), ...shot.target.map((v, i) => v - previous.target[i]));
+      expect(moved / distance(previous)).toBeLessThan(0.04);
+      expect(Math.abs(shot.fov - previous.fov)).toBeLessThan(1);
+      previous = shot;
     }
   });
   it('keeps the camera low, looking north over the rim, with the compass centred and a little below the middle', () => {

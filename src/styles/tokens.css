@@ -34,6 +34,8 @@
   --ink-dim: #8c8879; /* secondary text; 5.7:1 */
   --lilac: #b8aad8; /* palette.lilac: the scene's quiet words, as a constellation's name; 9.6:1 on --night */
   --dim: #9789bb; /* palette.dim: its quieter words, as the scroll cue; 6.5:1 on --night */
+  --cream: #f1e8d3; /* palette.cream: the hero's name, pale cream-gold as prototype ui-02 has it; 16.9:1 on --night */
+  --gold: #d9a520; /* palette.gold: the hero's tagline, the compass's own gold; 9.2:1 on --night */
   --string-red: #7a2126;
   --error: #ff9d8f; /* a field's error and the form's notice; 10:1 on --void */
 

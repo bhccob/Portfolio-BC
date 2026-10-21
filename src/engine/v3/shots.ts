@@ -38,16 +38,17 @@ export interface CameraShot {
  * - `loaderRise` (frame 03): high over the board, about 42 degrees above,
  *   looking down at the compass's rings as they form round the chip, which
  *   sits just left of the centre.
- * - `home` (frame 04): a low camera south of the compass, about 13 degrees
- *   above its plane, with its eye line a third of the way down from the top of
- *   the picture, so the ship stands in the dark above the far rim and China
- *   and Aruba reach the sides. The fov is wide enough that the outermost stars
- *   (x = 2.075) land inside the frame, which fixes the distance.
+ * - `home` (frame 04, Task 14b): a low camera close to the compass's south
+ *   edge, about 14 degrees above its plane, so the glass fills the lower half of
+ *   the picture (the rim spans about two thirds of a 16:10 screen and its near
+ *   edge lies low, near the foot) and the eye line sits about a third of the
+ *   way down. The ship stands in the dark above the far rim, and China and
+ *   Aruba wrap the rim's sides, their outermost stars just inside the frame.
  */
 export const SHOTS: { loaderMacro: CameraShot; loaderRise: CameraShot; home: CameraShot } = {
   loaderMacro: { position: [-0.3, 0.9, 0.82], target: [0.21, -0.18, 0.14], fov: 32 },
   loaderRise: { position: [-0.42, 1.81, 1.96], target: [0.13, -0.12, 0.14], fov: 40 },
-  home: { position: [0, 0.8, 3.4], target: [0, 0.25, 0], fov: 48 }
+  home: { position: [0, 0.52, 2.1], target: [0, 0.2, 0], fov: 56 }
 };
 
 const RAD = Math.PI / 180;
@@ -59,74 +60,109 @@ const RAD = Math.PI / 180;
  */
 export const DESIGN_ASPECT = 1440 / 900;
 
+/** The phone the portrait home is tuned on: a 390 x 844 screen. */
+const PHONE_ASPECT = 390 / 844;
+
 /** The narrowest screen the reframing plans for; a thinner one is framed as this, so the camera stays a finite distance away. */
 const MIN_ASPECT = 0.25;
 
-/** The home camera's angle above the line from its look-at point, in radians, which every reframing keeps. */
-const HOME_PITCH = Math.atan2(SHOTS.home.position[1] - SHOTS.home.target[1], SHOTS.home.position[2] - SHOTS.home.target[2]);
-
-/** The tangent of the home's half field of view, and its distance to the look-at point, so the reframing can ask what the design sees. */
-const HOME_TAN_HALF = Math.tan((SHOTS.home.fov * RAD) / 2);
-const HOME_DISTANCE = Math.hypot(SHOTS.home.position[1] - SHOTS.home.target[1], SHOTS.home.position[2] - SHOTS.home.target[2]);
-
 /**
- * What the design frame sees and how it sits: the half-width, in world units,
- * that fits each side of the look-at point at the design aspect (about 2.45),
- * and how far below the middle of the picture the look-at point's height puts
- * the compass's centre, as a share of the picture's half-height (the look-at
- * point lies on the compass's axis, `target[1]` above it).
+ * How a home frame sits, as the reframing mixes it: the half-width, in world
+ * units, that fits each side of the look-at point; the vertical fov in
+ * degrees; the camera's angle above the line from its look-at point, in
+ * radians; and how far below the middle of the picture the compass's centre
+ * stands, as a share of the picture's half-height (the look-at point lies on
+ * the compass's axis, `dialDrop` of the half-height above its centre).
  */
-const HOME_SEEN = {
-  halfWidth: HOME_DISTANCE * HOME_TAN_HALF * DESIGN_ASPECT,
-  dialDrop: SHOTS.home.target[1] / (HOME_DISTANCE * HOME_TAN_HALF)
-};
+interface HomeFrame {
+  halfWidth: number;
+  fov: number;
+  pitch: number;
+  dialDrop: number;
+}
+
+/** The design shot's own frame: what `SHOTS.home` sees at the design aspect. */
+const HOME_SEEN: HomeFrame = (() => {
+  const { position, target, fov } = SHOTS.home;
+  const tanHalf = Math.tan((fov * RAD) / 2);
+  const distance = Math.hypot(position[1] - target[1], position[2] - target[2]);
+  return {
+    halfWidth: distance * tanHalf * DESIGN_ASPECT,
+    fov,
+    pitch: Math.atan2(position[1] - target[1], position[2] - target[2]),
+    dialDrop: target[1] / (distance * tanHalf)
+  };
+})();
 
 /**
- * How the home is reframed on a narrower screen. The scene is wide (the side
- * constellations reach 2.075 out), so as the screen narrows the camera pulls
- * back until `halfWidth` world units each side of the look-at point fit the
- * width, and below a square it widens the fov by `widen` degrees at most so
- * the perspective stays as dramatic as the landscape frame's. It holds the
- * compass's centre about `dialDrop` below the middle of the picture (in NDC;
- * the design frame has it at 0.16), and keeps the camera's pitch above the
- * look-at line as the design shot has it.
- *
- * These are the values at a square screen and narrower; between the design
- * aspect and a square the framing eases from the design's own (`HOME_SEEN`)
- * to these, so every aspect fits and none jumps.
- *
- * `halfWidth` is the rim's radius times 2.1, so the rim spans under half the
- * width and the side constellations' outermost stars stand just inside the
- * frame (they reach 2.075 out, and the curve of their feet brings some nearer
- * the camera than the look-at point, which draws them wider).
+ * The home on a square screen: the design's view pulled back until the side
+ * constellations' outermost stars fit the width again (they reach about 1.55
+ * out, and their feet curve forward toward the camera, which draws them wider),
+ * so every landscape screen shows every star (Ruling 7).
  */
-const NARROW = { halfWidth: DIAL.rim * 2.1, widen: 8, dialDrop: 0.2 } as const;
+const SQUARE: HomeFrame = { halfWidth: 1.75, fov: SHOTS.home.fov, pitch: HOME_SEEN.pitch, dialDrop: 0.2 };
 
 /**
- * The home shot for a screen of this aspect (width over height), so that the
- * whole rim and every star of the three constellations stay in frame whatever
- * the screen's shape. The design aspect and anything wider get `SHOTS.home`
- * itself. A narrower screen gets the same view pulled back until the width
- * fits, by `NARROW` (at a square and below it also widens the fov, and the
- * camera stands far enough back for a phone's rim to span half its width).
- * The answer is continuous in the aspect, equal to `SHOTS.home` as the screen
- * reaches the design aspect, so a window being resized or a phone turned does
- * not jump the camera between sizes; a NaN aspect reads as the design's.
+ * The home on a phone (Task 14b): the compass large, its rim spanning 80 % of
+ * the width, which leaves the side constellations' outer stars past the edges
+ * but their centres in frame (the set-back of their placement puts each centre
+ * behind the rim's widest point, so it draws inside the frame's edge). The
+ * wide fov (80 degrees tall, about 42 across) brings the camera close, so the
+ * perspective is deep enough for that; farther off and narrower, the side
+ * figures would draw as wide as the rim does, and fall off the screen. The
+ * compass stands a quarter of the half-height below the middle, so the tall
+ * screen's sky holds the hero and the ship over it.
+ */
+const PORTRAIT: HomeFrame = { halfWidth: 1.3, fov: 80, pitch: 6 * RAD, dialDrop: 0.25 };
+
+/**
+ * How a screen thinner than the phone keeps the side constellations' centres
+ * in frame: its half-width grows as the aspect falls past the phone's, by this
+ * power of the ratio, so the camera stands back as far as it must and no
+ * farther.
+ */
+const THIN = 0.15;
+
+/** `a` and `b` mixed field by field: `a` at `t` = 0 and `b` at `t` = 1. */
+function mixFrame(a: HomeFrame, b: HomeFrame, t: number): HomeFrame {
+  return {
+    halfWidth: mix(a.halfWidth, b.halfWidth, t),
+    fov: mix(a.fov, b.fov, t),
+    pitch: mix(a.pitch, b.pitch, t),
+    dialDrop: mix(a.dialDrop, b.dialDrop, t)
+  };
+}
+
+/**
+ * The home shot for a screen of this aspect (width over height). The design
+ * aspect and anything wider get `SHOTS.home` itself. Down to a square, the
+ * same view pulls back (`HOME_SEEN` easing to `SQUARE`), so every landscape
+ * screen holds the whole rim and every star of the three constellations.
+ * Below a square it eases on to `PORTRAIT`, reached at a phone: the compass
+ * large and each constellation's centre in frame; thinner still, it stands
+ * back by `THIN` so the centres stay in. Each frame sets the camera
+ * `halfWidth / (tan(fov / 2) * aspect)` from its look-at point, raised
+ * `pitch` above it, with the compass's centre `dialDrop` below the middle of
+ * the picture. The answer is continuous in the aspect, equal to `SHOTS.home`
+ * as the screen reaches the design aspect, so a window being resized or a
+ * phone turned does not jump the camera between sizes; a NaN aspect reads as
+ * the design's.
  */
 export function homeShotFor(aspect: number): CameraShot {
   if (!(aspect < DESIGN_ASPECT)) return SHOTS.home;
   const a = Math.max(aspect, MIN_ASPECT);
-  // 0 at the design aspect, 1 at a square and below: how far the framing has moved to the narrow screen's.
-  const narrow = Math.min(1, (DESIGN_ASPECT - a) / (DESIGN_ASPECT - 1));
-  const fov = SHOTS.home.fov + NARROW.widen * (1 - Math.min(a, 1));
-  const tanHalf = Math.tan((fov * RAD) / 2);
+  let frame: HomeFrame;
+  if (a >= 1) frame = mixFrame(HOME_SEEN, SQUARE, (DESIGN_ASPECT - a) / (DESIGN_ASPECT - 1));
+  else if (a >= PHONE_ASPECT) frame = mixFrame(SQUARE, PORTRAIT, (1 - a) / (1 - PHONE_ASPECT));
+  else frame = { ...PORTRAIT, halfWidth: PORTRAIT.halfWidth * (PHONE_ASPECT / a) ** THIN };
+  const tanHalf = Math.tan((frame.fov * RAD) / 2);
   // The half-width the camera sees at its look-at point is distance * tanHalf * aspect.
-  const distance = mix(HOME_SEEN.halfWidth, NARROW.halfWidth, narrow) / (tanHalf * a);
-  const lift = mix(HOME_SEEN.dialDrop, NARROW.dialDrop, narrow) * distance * tanHalf;
+  const distance = frame.halfWidth / (tanHalf * a);
+  const lift = frame.dialDrop * distance * tanHalf;
   return {
-    position: [0, lift + distance * Math.sin(HOME_PITCH), distance * Math.cos(HOME_PITCH)],
+    position: [0, lift + distance * Math.sin(frame.pitch), distance * Math.cos(frame.pitch)],
     target: [0, lift, 0],
-    fov
+    fov: frame.fov
   };
 }
 

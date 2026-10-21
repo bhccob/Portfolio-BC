@@ -52,10 +52,10 @@ describe('the figures', () => {
 });
 
 describe('placement', () => {
-  it('keeps every star outside the glass', () => {
+  it('keeps every star outside the glass, clear of the rim', () => {
     for (const id of COUNTRY_IDS) {
       const p = starPositions(id);
-      for (let k = 0; k < p.length; k += 3) expect(Math.hypot(p[k], p[k + 2])).toBeGreaterThan(DIAL.rim + 0.15);
+      for (let k = 0; k < p.length; k += 3) expect(Math.hypot(p[k], p[k + 2])).toBeGreaterThan(DIAL.rim + 0.04);
     }
   });
   it('wraps China and Aruba round the rim: some low stars in front of it, on the camera side', () => {
@@ -64,6 +64,20 @@ describe('placement', () => {
       let front = 0;
       for (let k = 0; k < p.length; k += 3) if (p[k + 2] > 0 && p[k + 1] < 0.3) front++;
       expect(front).toBeGreaterThanOrEqual(2);
+    }
+  });
+  it('wraps them in 3D, as frame 04 does: their upper stars stand behind the compass, beyond the east-west line', () => {
+    for (const id of ['china', 'aruba'] as const) {
+      const p = starPositions(id);
+      let behind = 0;
+      for (let k = 0; k < p.length; k += 3) if (p[k + 2] < -0.2 && p[k + 1] > 0.4) behind++;
+      expect(behind).toBeGreaterThanOrEqual(3);
+    }
+  });
+  it('stands China and Aruba close round the compass (Task 14b): every star within 0.7 of the rim', () => {
+    for (const id of ['china', 'aruba'] as const) {
+      const p = starPositions(id);
+      for (let k = 0; k < p.length; k += 3) expect(Math.hypot(p[k], p[k + 2])).toBeLessThan(DIAL.rim + 0.7);
     }
   });
   it('puts the ship beyond the far edge and above the dial', () => {
@@ -77,7 +91,7 @@ describe('placement', () => {
     const bearingOfDir: Record<DirId, number> = { north: 0, east: 90, south: 180, west: 270 };
     for (const id of COUNTRY_IDS) expect(PLACEMENTS[id].bearing).toBe(bearingOfDir[countryDirection(id).id]);
   });
-  it('puts each star where the placement formula says: on a plane facing the camera, its foot curved forward and inward', () => {
+  it('puts each star where the placement formula says: on a plane facing the camera, set back, its foot curved forward and inward', () => {
     for (const id of COUNTRY_IDS) {
       const P = PLACEMENTS[id];
       const [cx, cz] = onDial(P.bearing, P.distance);
@@ -86,22 +100,27 @@ describe('placement', () => {
         const w = (1 - v) ** 2;
         expect(p[k * 3]).toBeCloseTo(cx + (u - 0.5) * P.width - Math.sign(cx) * P.inward * w, 5);
         expect(p[k * 3 + 1]).toBeCloseTo(P.base + v * P.height, 5);
-        expect(p[k * 3 + 2]).toBeCloseTo(cz + P.bend * w, 5);
+        expect(p[k * 3 + 2]).toBeCloseTo(cz - P.back + P.bend * w, 5);
       });
     }
   });
-  it('stands China east of the compass and Aruba west, their tops on the east-west line, their feet curving in toward it', () => {
+  it('stands China east of the compass and Aruba west, their tops set back behind the east-west line, their feet curving forward and in', () => {
     for (const [id, side] of [['china', 1], ['aruba', -1]] as const) {
       const P = PLACEMENTS[id];
+      expect(P.back).toBeGreaterThan(0);
       const p = starPositions(id);
       FIGURES[id].stars.forEach(([u, v], k) => {
         const flat = side * P.distance + (u - 0.5) * P.width;
         expect(Math.sign(p[k * 3])).toBe(side);
         expect(Math.abs(p[k * 3])).toBeLessThanOrEqual(Math.abs(flat) + 1e-6);
-        if (v === 1) expect(p[k * 3 + 2]).toBeCloseTo(0, 6);
-        else expect(p[k * 3 + 2]).toBeGreaterThan(0);
+        if (v === 1) expect(p[k * 3 + 2]).toBeCloseTo(-P.back, 6);
+        else expect(p[k * 3 + 2]).toBeGreaterThan(-P.back);
       });
     }
+  });
+  it('keeps the ship flat and straight ahead: no set-back, bend or inward curve', () => {
+    const P = PLACEMENTS.netherlands;
+    expect([P.back, P.bend, P.inward]).toEqual([0, 0, 0]);
   });
   it('hands out copies: writing to the positions does not change the next call', () => {
     const first = starPositions('china');
@@ -162,6 +181,14 @@ describe('pointedAt', () => {
     expect(pointedAt(Number.NaN)).toBeNull();
   });
   it('leaves the dark between the constellations empty: north-east, south-east, south, south-west and north-west', () => {
-    for (const d of [30, 45, 57, 75, 135, 160, 180, -160, -70, -55]) expect(pointedAt(deg(d))).toBeNull();
+    for (const d of [25, 35, 42, 125, 135, 160, 180, -160, -125, -42, -35, -25]) expect(pointedAt(deg(d))).toBeNull();
+  });
+  it('leaves a gap of at least 20 degrees of dark between the ship and each side figure', () => {
+    const [nlFrom, nlTo] = bearingRange('netherlands');
+    const [chinaFrom] = bearingRange('china');
+    const [arubaFrom, arubaTo] = bearingRange('aruba');
+    expect(chinaFrom - nlTo).toBeGreaterThanOrEqual(deg(20));
+    expect(nlFrom - arubaTo).toBeGreaterThanOrEqual(deg(20));
+    expect(arubaFrom).toBeLessThan(arubaTo);
   });
 });

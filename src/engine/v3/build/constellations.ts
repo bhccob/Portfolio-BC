@@ -27,9 +27,11 @@ const GLASS_OUTER = GLASS_RINGS[GLASS_RINGS.length - 1].outer;
  * - `rest` and `pointed`: a constellation's glow at rest and while the needle
  *   points at it; `setGlow` takes any level between.
  * - `size`: a magnitude-1 star's sprite, in world units at its depth; at the
- *   home's camera that is about 19 px across on the side figures and 11 on
- *   the ship, on a 900-px-tall picture at a pixel ratio of 1.75 (the core is
- *   a third of that; the rest is halo). `maxSize` caps a sprite in pixels.
+ *   home's camera (Task 14b) that is about 27 CSS px across on the side
+ *   figures and 14 on the ship, on a 900-px-tall picture (the core is a third
+ *   to two fifths of that; the rest is halo), big enough that a star reads as
+ *   a point of light and not a pixel on its line. `maxSize` caps a sprite in
+ *   pixels.
  * - `depth`: the camera distances at which a star is softest (and its halo
  *   widest) and sharpest: the side figures' near feet and the ship.
  * - `core` and `halo`: a star is a cream core in a halo of its country's
@@ -38,8 +40,11 @@ const GLASS_OUTER = GLASS_RINGS[GLASS_RINGS.length - 1].outer;
  *   the centre.
  * - `intensity`: the star's light at glow 1. The brightest pixel of a
  *   pointed star (cream, luminance 0.81, times 1.6 near, times this) is about
- *   0.91: it nearly reaches the bloom and never clips. At rest, 0.27.
- * - `line`: the figure's lines, the palette's gold times `level` at glow 1.
+ *   0.97: it nearly reaches the bloom and never clips. At rest, 0.29.
+ * - `line`: the figure's lines, the palette's gold times `level` at glow 1:
+ *   thin and dim, so that even the faintest star's core is more than three
+ *   times as bright as a line (Task 14b; the stars, not the lines, draw the
+ *   figure, as an old star atlas has them).
  * - `mirror`: the reflection in the glass, at `opacity` of the
  *   constellation's light, fading out over `fade` (world units) at the
  *   glass's inner and outer edges, so none of it shows on the hub or beyond
@@ -50,13 +55,13 @@ const GLASS_OUTER = GLASS_RINGS[GLASS_RINGS.length - 1].outer;
 export const STARS_LOOK = {
   rest: 0.3,
   pointed: 1,
-  size: 0.04,
-  maxSize: 48,
-  depth: [2.6, 6.6],
+  size: 0.085,
+  maxSize: 64,
+  depth: [1.6, 5],
   core: palette.cream,
   halo: [0.3, 0.6],
-  intensity: 0.7,
-  line: { colour: palette.gold, level: 0.45 },
+  intensity: 0.75,
+  line: { colour: palette.gold, level: 0.28 },
   mirror: { opacity: 0.25, fade: 0.06 },
   twinkle: { share: 0.4, depth: 0.35, rate: [0.5, 1.5] }
 } as const;
@@ -179,7 +184,7 @@ varying float vGlass;
 void main() {
   float d = length(gl_PointCoord - 0.5) * 2.0;
   if (d >= 1.0) discard;
-  float radius = mix(0.22, 0.4, vSoft);
+  float radius = mix(0.26, 0.42, vSoft);
   float core = 1.0 - smoothstep(radius * mix(0.5, 0.1, vSoft), radius, d);
   float halo = 1.0 - d;
   halo *= halo;

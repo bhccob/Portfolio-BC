@@ -31,10 +31,9 @@ export interface Figure {
  * them in the Task 14 stills), with 10 to 24 stars and every star on a line.
  *
  * Each stands on a plane facing the camera, so it is seen as drawn, except
- * that its lower stars curve forward round the rim and in toward the compass
- * (see PLACEMENTS). That curve sweeps through the glass on the compass side of
- * China and Aruba, so their lower inner corner stays empty: China keeps its
- * low stars at u >= 0.2, Aruba at u <= 0.8.
+ * that its lower stars curve forward round the rim (see PLACEMENTS). China and
+ * Aruba stand just outside the rim, so their lower inner corner stays empty,
+ * clear of it: China keeps its low stars at u >= 0.2, Aruba at u <= 0.8.
  *
  * The tree's crown is swept hard to the left, west, away from the compass, as
  * Aruba's divi-divi trees lean west and south-west with the trade wind; the
@@ -135,13 +134,16 @@ export const FIGURES: Readonly<Record<CountryId, Figure>> = {
 };
 
 /**
- * Where a figure stands, in degrees and world units (Ruling 5). It stands on a
- * vertical plane facing the camera (normal +Z, south), centred on the point
- * `onDial(bearing, distance)`, `width` wide and `height` tall from `base` up.
- * Its lower stars curve toward the camera by up to `bend` and in toward the
- * compass by up to `inward`, which wraps China and Aruba round the rim. A
- * plane along the bearing's circle would turn the side figures nearly edge on
- * to a camera in the south; facing the camera, each is seen as drawn.
+ * Where a figure stands, in degrees and world units (Ruling 5, Task 14b). It
+ * stands on a vertical plane facing the camera (normal +Z, south), centred
+ * across on the point `onDial(bearing, distance)` and set `back` behind it
+ * (north, away from the camera), `width` wide and `height` tall from `base`
+ * up. Its lower stars curve toward the camera by up to `bend` and in toward
+ * the compass by up to `inward`. So China and Aruba wrap round the rim in 3D,
+ * as frame 04 has them and spec §2.2 asks: their upper stars stand behind the
+ * compass's sides and their feet sweep forward, in front of the rim. A plane
+ * along the bearing's circle would turn the side figures nearly edge on to a
+ * camera in the south; facing the camera, each is seen as drawn.
  */
 export interface Placement {
   bearing: number;
@@ -149,19 +151,30 @@ export interface Placement {
   width: number;
   height: number;
   base: number;
+  back: number;
   bend: number;
   inward: number;
 }
 
 /**
- * The three placements. China and Aruba stand 1.65 out in the east and the
- * west, their feet curving round the front of the rim; the ship stands farther
- * off (2.7) and higher, beyond the far edge, straight ahead in the north, flat.
+ * The three placements (Task 14b: closer round the compass than Task 5's, so
+ * the home camera can come close and still hold every star). China and Aruba
+ * stand 1.25 out in the east and the west, set 0.7 back, so their peaks and
+ * crown rise behind the rim's sides and their feet curve a whole unit forward,
+ * to beside the rim's front. The tree is shorter than the mountains (0.7 to
+ * 0.9) so its crown stays clear of the hero's tagline at the upper left. The
+ * ship stands farther off (2.9) and higher, beyond the far edge, straight
+ * ahead in the north, flat, its hull low enough that its masts, and not its
+ * sails, stand level with the hero's name.
+ *
+ * The set-back is also what lets a phone hold the compass large: a side
+ * figure's centre lies behind the rim's widest point as the camera sees it,
+ * so it draws narrower than the rim's span would suggest (src/engine/v3/shots.ts).
  */
 export const PLACEMENTS: Readonly<Record<CountryId, Placement>> = {
-  china: { bearing: 90, distance: 1.65, width: 0.85, height: 0.95, base: 0.04, bend: 0.95, inward: 0.5 },
-  netherlands: { bearing: 0, distance: 2.7, width: 0.75, height: 0.9, base: 0.55, bend: 0, inward: 0 },
-  aruba: { bearing: 270, distance: 1.65, width: 0.85, height: 0.95, base: 0.04, bend: 0.95, inward: 0.5 }
+  china: { bearing: 90, distance: 1.25, width: 0.62, height: 0.9, base: 0.04, back: 0.7, bend: 1, inward: 0 },
+  netherlands: { bearing: 0, distance: 2.9, width: 0.8, height: 0.9, base: 0.35, back: 0, bend: 0, inward: 0 },
+  aruba: { bearing: 270, distance: 1.25, width: 0.62, height: 0.7, base: 0.04, back: 0.7, bend: 1, inward: 0 }
 };
 
 /** How far a range reaches past its outermost stars, in degrees, so a needle that lands just off the figure still points into it. */
@@ -182,7 +195,7 @@ function placeStars(id: CountryId): [x: number, y: number, z: number][] {
   const inward = Math.sign(cx) * p.inward;
   return FIGURES[id].stars.map(([u, v]) => {
     const w = (1 - v) ** 2;
-    return [cx + (u - 0.5) * p.width - inward * w, p.base + v * p.height, cz + p.bend * w];
+    return [cx + (u - 0.5) * p.width - inward * w, p.base + v * p.height, cz - p.back + p.bend * w];
   });
 }
 
@@ -195,9 +208,10 @@ const ranges = new Map<CountryId, readonly [from: number, to: number]>();
  * figure's order. With `[cx, cz] = onDial(P.bearing, P.distance)` and
  * `w = (1 - v)^2`, a star at `[u, v]` stands at
  * `x = cx + (u - 0.5) * P.width - sign(cx) * P.inward * w`,
- * `y = P.base + v * P.height` and `z = cz + P.bend * w`. The square keeps a
- * figure's top flat on its plane and curves its foot forward and inward round
- * the rim; the ship, centred due north (cx = 0, bend 0), stays flat.
+ * `y = P.base + v * P.height` and `z = cz - P.back + P.bend * w`. The square
+ * keeps a figure's top flat on its plane, set back behind the compass, and
+ * curves its foot forward and inward round the rim; the ship, centred due
+ * north (cx = 0, no set-back, bend 0), stays flat.
  *
  * Returns a copy, so a caller may write to it.
  */

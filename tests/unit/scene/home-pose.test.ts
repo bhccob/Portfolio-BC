@@ -143,11 +143,11 @@ describe('idleRuns', () => {
 });
 
 describe('labelSide', () => {
-  it('names each constellation on its side away from the compass: China east, Aruba west, the ship above', () => {
+  it('names China and Aruba on their sides away from the compass, and the ship under its hull at every width (Task 14b)', () => {
     expect(labelSide('china')).toBe('east');
     expect(labelSide('aruba')).toBe('west');
-    expect(labelSide('netherlands')).toBe('north');
-    for (const id of COUNTRY_IDS) expect(['east', 'west', 'north']).toContain(labelSide(id));
+    expect(labelSide('netherlands')).toBe('south');
+    for (const id of COUNTRY_IDS) expect(['east', 'west', 'south']).toContain(labelSide(id));
   });
 });
 
@@ -165,8 +165,30 @@ describe('labelSpot', () => {
     expect(spot('west', aruba, { x: 206, y: 382 }, label, view)).toEqual([97 - LABEL.gap - 70, 382 - 8]);
   });
 
-  it('sets the ship\'s name above its masts, centred on it', () => {
+  it('sets a name above its figure, centred on it, for the north side', () => {
     expect(spot('north', ship, { x: 721, y: 250 }, label, view)).toEqual([721 - 35, 174 - LABEL.gap - 16]);
+  });
+
+  it("sets the ship's name under its hull, centred on it, held inside the screen", () => {
+    expect(spot('south', ship, { x: 721, y: 250 }, label, view)).toEqual([721 - 35, 323 + LABEL.gap]);
+    const [, low] = spot('south', { left: 100, top: 800, right: 200, bottom: 890 }, { x: 150, y: 850 }, label, view);
+    expect(low).toBe(view.height - LABEL.margin - label.height);
+  });
+
+  it("keeps the ship's name under its hull from a small laptop to a wide screen, and on a phone: no width flips it", () => {
+    expect(labelSide('netherlands')).toBe('south');
+    // The ship as each screen frames it (CSS px), the name's spot under it whatever the hero beside it.
+    for (const [w, h, figure] of [
+      [1280, 800, { left: 588, top: 170, right: 708, bottom: 306 }],
+      [1440, 900, { left: 654, top: 192, right: 789, bottom: 344 }],
+      [1600, 900, { left: 735, top: 192, right: 870, bottom: 344 }],
+      [1920, 1080, { left: 880, top: 230, right: 1040, bottom: 413 }],
+      [390, 844, { left: 163, top: 352, right: 228, bottom: 425 }]
+    ] as const) {
+      const anchor = { x: (figure.left + figure.right) / 2, y: (figure.top + figure.bottom) / 2 };
+      const [, y] = spot('south', figure, anchor, label, { width: w, height: h });
+      expect(y).toBe(figure.bottom + LABEL.gap);
+    }
   });
 
   it('puts the name above the figure when its outer side has no room on the screen, as on a phone', () => {

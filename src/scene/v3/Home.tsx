@@ -49,11 +49,30 @@ export interface HomeProps {
 
 type Placer = NonNullable<ComponentProps<typeof Html>['calculatePosition']>;
 
-/** Scratch for the labels' placing, which runs in drei's frame and makes no objects of its own (the hero's boxes below are the browser's, read as they stand). */
+/** Scratch for the labels' placing, which runs in drei's frame and makes no objects of its own. */
 const probe = new THREE.Vector3();
 const box: ScreenBox = { left: 0, top: 0, right: 0, bottom: 0 };
 const anchor = { x: 0, y: 0 };
-const measured = { width: 0, height: 0 };
+
+/**
+ * The page's layout as the labels' placer knows it (Task 14b): `version` goes up whenever a box it reads from the page
+ * may have moved or changed size (a resize, a scroll, a font arriving, the language changing, a page transition), and
+ * the placer reads the page again only then, not on every frame (it read the hero's three boxes, up to three times a
+ * frame, and each label's size every frame). `heroAt` is the version the hero's boxes were last read at.
+ */
+const layout = { version: 0, heroAt: -1 };
+
+/**
+ * Whether a name can show at all: the home at rest (`isAiming`), as Home's last frame found it. Anywhere else every
+ * label is hidden, and the placer hands drei the spot it last gave without reading the page (a country page has no
+ * hero to find, and looking for one every frame would cost three missed queries a frame).
+ */
+let labelsLive = false;
+
+/** Says the page's layout may have moved: the placer reads it again on its next frame. */
+function layoutMoved(): void {
+  layout.version++;
+}
 
 /**
  * The hero's three lines (base.css): the name and the tagline at the upper left, the scroll cue at the foot. A name
@@ -64,8 +83,15 @@ const HERO_LINES = ['.hero-name', '.hero-tagline', '.hero-cue'] as const;
 const heroElements: (Element | null)[] = HERO_LINES.map(() => null);
 const heroBoxes: ScreenBox[] = HERO_LINES.map(() => ({ left: 0, top: 0, right: 0, bottom: 0 }));
 
-/** Reads the hero's lines' boxes into `heroBoxes`: each as it is on the page now, or a box that meets nothing where it is not. */
+/**
+ * The hero's lines' boxes: each as it was on the page at the layout's version, or a box that meets nothing where it
+ * was not on the page. Read again only when the layout has moved since, or a line it read has left the page.
+ */
 function readHero(): readonly ScreenBox[] {
+  let fresh = layout.heroAt === layout.version;
+  for (let i = 0; i < HERO_LINES.length && fresh; i++) if (heroElements[i] && !heroElements[i]!.isConnected) fresh = false;
+  if (fresh) return heroBoxes;
+  layout.heroAt = layout.version;
   for (let i = 0; i < HERO_LINES.length; i++) {
     let element = heroElements[i];
     if (!element?.isConnected) element = heroElements[i] = document.querySelector(HERO_LINES[i]);
@@ -123,10 +149,12 @@ interface HomeState {
  *
  * **Pointing.** `pointedAt(needle)` goes into `frame.pointed`; that constellation's glow fades to STARS_LOOK.pointed
  * over 0.4 s (`glowToward`) and the others' to STARS_LOOK.rest (at once with reduced motion). At home at rest its name
- * shows beside it on its outer side (`labelSpot`), from `t.needle.countries[id].name`, in a drei Html label that is
- * aria-hidden, takes no pointer and fades in and out over 0.3 s (base.css `.constellation-label`). Nothing else is
- * named. A name that would stand within `HERO_ROOM` of the hero's text (the name and tagline at the upper left, the
- * scroll cue below) stands under its figure instead (`clearOfHero`), so it never reads as a word of the hero's.
+ * shows beside it (`labelSide`, `labelSpot`: China's and Aruba's on their outer sides, the ship's under its hull), from
+ * `t.needle.countries[id].name`, in a drei Html label that is aria-hidden, takes no pointer and fades in and out over
+ * 0.3 s (base.css `.constellation-label`). Nothing else is named. A name that would stand within `HERO_ROOM` of the hero's text (the name and tagline at the upper left, the
+ * scroll cue below) stands under its figure instead (`clearOfHero`), so it never reads as a word of the hero's. The
+ * placer reads the hero's boxes and the labels' sizes from the page only when the layout may have moved (`layout`)
+ * and only while a name can show (`labelsLive`), not on every frame.
  *
  * **Idle.** For IDLE_SECONDS after the last stir (the hand-over, a phase change, a pointer move at home) and on until
  * the touch drift rests on a constellation, the stars twinkle, the needle's tip breathes (±10 %, 4 s) and the city
@@ -165,6 +193,8 @@ export function Home({ models, handover, finePointer }: HomeProps): JSX.Element 
       ];
       let turn = 0;
       const centre = models.constellations.anchor(id);
+      // The label's size as last measured, and the layout's version then (-1: not yet).
+      const measured = { width: 0, height: 0, at: -1 };
       made[id] = {
         ref: (element) => {
           element?.setAttribute('aria-hidden', 'true');
@@ -173,6 +203,7 @@ export function Home({ models, handover, finePointer }: HomeProps): JSX.Element 
         at: [centre.x, centre.y, centre.z],
         // The box round the figure's stars on the screen and its anchor there, then the spot beside it.
         place: (_group, eye, size) => {
+          if (!labelsLive) return pairs[turn];
           const world = models.constellations.group.matrixWorld;
           box.left = box.top = Number.POSITIVE_INFINITY;
           box.right = box.bottom = Number.NEGATIVE_INFINITY;
@@ -187,8 +218,12 @@ export function Home({ models, handover, finePointer }: HomeProps): JSX.Element 
           models.constellations.anchor(id, probe).applyMatrix4(world);
           onScreen(eye, size, anchor);
           const element = labels.current[id];
-          measured.width = element?.offsetWidth ?? 0;
-          measured.height = element?.offsetHeight ?? 0;
+          if (measured.at !== layout.version || !element) {
+            measured.width = element?.offsetWidth ?? 0;
+            measured.height = element?.offsetHeight ?? 0;
+            // Kept only once the label is on the page to measure.
+            measured.at = element ? layout.version : -1;
+          }
           turn ^= 1;
           const spot = labelSpot(side, box, anchor, measured, size, pairs[turn]);
           return clearOfHero(spot, box, anchor, measured, size, readHero(), spot);
@@ -198,13 +233,41 @@ export function Home({ models, handover, finePointer }: HomeProps): JSX.Element 
     return made;
   }, [models]);
 
-  // A name in another language is another width: its label is placed again on a frame.
-  useEffect(() => invalidate(), [t, invalidate]);
+  // A name in another language is another width, and the hero's lines are others too: the placer reads the page again
+  // and places the labels on a frame.
+  useEffect(() => {
+    layoutMoved();
+    invalidate();
+  }, [t, invalidate]);
+
+  // What else moves the boxes the placer reads: the window's size, the page's scroll (the hero scrolls with it), and a
+  // font arriving (the hero's and the labels' text takes its own metrics then).
+  useEffect(() => {
+    const moved = (): void => {
+      layoutMoved();
+      invalidate();
+    };
+    let gone = false;
+    window.addEventListener('resize', moved, { passive: true });
+    window.addEventListener('scroll', moved, { passive: true });
+    const fonts = typeof document !== 'undefined' ? document.fonts : undefined;
+    fonts?.addEventListener('loadingdone', moved);
+    void fonts?.ready.then(() => {
+      if (!gone) moved();
+    });
+    return () => {
+      gone = true;
+      window.removeEventListener('resize', moved);
+      window.removeEventListener('scroll', moved);
+      fonts?.removeEventListener('loadingdone', moved);
+    };
+  }, [invalidate]);
 
   // Gone: no needle points at anything, and nothing of the home's keeps the canvas drawing.
   useEffect(
     () => () => {
       frame.pointed = null;
+      labelsLive = false;
       Object.assign(motion.compass, AT_REST);
     },
     [],
@@ -215,6 +278,7 @@ export function Home({ models, handover, finePointer }: HomeProps): JSX.Element 
       if (state.live) {
         state.live = false;
         frame.pointed = null;
+        labelsLive = false;
         showLabel(labels.current, null);
       }
       return;
@@ -237,6 +301,8 @@ export function Home({ models, handover, finePointer }: HomeProps): JSX.Element 
     if (state.transition !== transitionId) {
       state.transition = transitionId;
       stirred = true;
+      // A page transition can bring the hero onto the page or take it away.
+      layoutMoved();
     }
     if (state.pointerAt !== frame.pointerAt) {
       state.pointerAt = frame.pointerAt;
@@ -269,6 +335,9 @@ export function Home({ models, handover, finePointer }: HomeProps): JSX.Element 
       models.constellations.setGlow(id, level);
     }
     showLabel(labels.current, aiming ? pointed : null);
+    // The labels come live with the home at rest; the page is read afresh as they do, as it may have changed meanwhile.
+    if (aiming && !labelsLive) layoutMoved();
+    labelsLive = aiming;
 
     models.constellations.setTwinkle(state.idleTime, !reduced);
     models.needle.setTipGlow(reduced ? 1 : breathAt(state.idleTime));

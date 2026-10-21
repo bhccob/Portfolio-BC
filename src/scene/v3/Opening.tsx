@@ -5,6 +5,7 @@ import { COUNTRY_IDS } from '~/data/directions';
 import { SafeStorage } from '~/engine/core/SafeStorage';
 import { readout } from '~/engine/loading';
 import { buildChip, type ChipModel } from '~/engine/v3/build/chip';
+import { buildCase, type CaseModel } from '~/engine/v3/build/case';
 import { buildCity, type CityModel } from '~/engine/v3/build/city';
 import { buildConstellations, type ConstellationsModel, STARS_LOOK } from '~/engine/v3/build/constellations';
 import { buildGlassCompass, type GlassCompassModel } from '~/engine/v3/build/glassCompass';
@@ -74,6 +75,8 @@ interface HomeParts {
   compass: GlassCompassModel;
   needle: NeedleModel;
   city: CityModel;
+  /** The case the city stands in (Task 14b): its wall at the rim and its floor, so the city reads as under the glass. */
+  casing: CaseModel;
   constellations: ConstellationsModel;
   masks: THREE.CanvasTexture[];
 }
@@ -268,7 +271,8 @@ export interface OpeningProps {
  * board and the loader begins.
  *
  * **Load.** It then builds the home's objects (Task 11: the glass compass, the needle, the chip city, the
- * constellations), hidden, and paints the four ring masks (Task 9, the fine strips on a fine pointer): `paint`, 0.6 of
+ * constellations; Task 14b: the city's case, which rises with the city and lights its brass rim as the glass forms),
+ * hidden, and paints the four ring masks (Task 9, the fine strips on a fine pointer): `paint`, 0.6 of
  * the load. Then it uploads the masks and compiles the home's programs (`renderer.compileAsync`): `warm`, the other 0.4.
  * A throw anywhere in it fails the scene (no partial compass); only a failed warm-up is let through, at the cost of a
  * stall.
@@ -410,11 +414,12 @@ export function Opening({ clearcoat, finePointer, onStarted, onReady, onFail }: 
       const compass = buildGlassCompass();
       const needle = buildNeedle();
       const city = buildCity(blocks);
+      const casing = buildCase();
       const constellations = buildConstellations();
       compass.setClearcoat(latest.current.clearcoat);
-      const built: HomeParts = { compass, needle, city, constellations, masks: [] };
+      const built: HomeParts = { compass, needle, city, casing, constellations, masks: [] };
       home.current = built;
-      scene.add(compass.group, needle.group, city.mesh, constellations.group);
+      scene.add(compass.group, needle.group, city.mesh, casing.group, constellations.group);
       // Hidden as the clock now has them, before a frame can show them.
       state.posedHome = false;
       const now = clockOf(state);
@@ -464,10 +469,11 @@ export function Opening({ clearcoat, finePointer, onStarted, onReady, onFail }: 
       const built = home.current;
       home.current = null;
       if (built) {
-        scene.remove(built.compass.group, built.needle.group, built.city.mesh, built.constellations.group);
+        scene.remove(built.compass.group, built.needle.group, built.city.mesh, built.casing.group, built.constellations.group);
         built.compass.dispose();
         built.needle.dispose();
         built.city.dispose();
+        built.casing.dispose();
         built.constellations.dispose();
         freeMasks(built.masks);
       }
@@ -587,6 +593,10 @@ function pose(parts: LoaderParts | null, built: HomeParts | null, at: OpeningPos
   built.city.mesh.scale.y = rise;
   built.city.mesh.position.y = CHIP.board * (1 - rise);
   built.city.setGlow(LOOK.home.city * at.city);
+  // Its case rises with it, so no block ever stands outside the wall.
+  built.casing.setRise(at.city);
+  // Its brass rim lights as the glass forms: until then it is the wall's own dark.
+  built.casing.setRim(at.formed);
   built.constellations.group.visible = at.stars > 0;
   for (const id of COUNTRY_IDS) built.constellations.setGlow(id, STARS_LOOK.rest * at.stars);
 }

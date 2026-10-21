@@ -365,10 +365,11 @@ main {
 /* ---------- the home page ---------- */
 /* The hero is the home's three lines over the dark scene (prototype ui-02): the name at the upper left, the tagline
    under it, and the scroll cue low in the middle of the first screen. The hero is that whole first screen, so the cue is
-   placed against it and sits at the bottom whatever the name's height. The scene behind is night (#040209) with the
-   nebula only faint, so the words are the scene's quiet lilac (name and tagline, 9.6:1 on the night) and its dim lilac
-   (the cue, 6.5:1); the cue's pulse never takes it below 4.9:1. Unbounded is not used here (the name is Montserrat,
-   the rest Martian Mono), so Ruling 23's `locl` rule has nothing to guard in the hero. */
+   placed against it and sits at the bottom whatever the name's height. The upper left keeps the top centre for the
+   ship's constellation (Ruling 11). The colours are ui-02's: the name in the palette's pale cream (16.9:1 on the night,
+   #040209), the tagline in the compass's gold (9.2:1), and the cue in the dim lilac (6.5:1), whose pulse never takes it
+   below 4.9:1. Unbounded is not used here (the name is Montserrat, the rest Martian Mono), so Ruling 23's `locl` rule
+   has nothing to guard in the hero. */
 .hero {
   position: relative;
   min-height: calc(100svh - var(--header-height));
@@ -389,7 +390,7 @@ main {
   font-weight: 300;
   line-height: 1.15;
   letter-spacing: 0.32em;
-  color: var(--lilac);
+  color: var(--cream);
 }
 
 .hero-tagline {
@@ -399,12 +400,14 @@ main {
   font-weight: 400;
   letter-spacing: 0.36em;
   text-transform: uppercase;
-  color: var(--lilac);
+  color: var(--gold);
 }
 
-/* The word, and a hairline under it that stretches and fades back: one slow 2.4 s pulse. The word dips to 0.85 only
-   (dim lilac at 0.85 is 4.9:1 on the night), so the hairline carries most of the motion. The tracking leaves a space
-   after the last letter; the same space before the first keeps the word centred under the line. */
+/* The word, and a hairline under it that stretches and brightens, then fades back: one slow 2.4 s pulse. The word
+   dips to 0.85 only (dim lilac at 0.85 is 4.9:1 on the night, and at 0.8 it would fall under 4.5:1), so the hairline
+   carries the motion: from a third of its length at a third of its light to the whole of both (Task 14b: as a stretch
+   alone the pulse barely read). The tracking leaves a space after the last letter; the same space before the first
+   keeps the word centred under the line. */
 .hero-cue {
   position: absolute;
   left: 50%;
@@ -445,9 +448,11 @@ main {
 @keyframes hero-cue-line {
   0%,
   100% {
+    opacity: 0.35;
     transform: scaleY(0.35);
   }
   50% {
+    opacity: 1;
     transform: scaleY(1);
   }
 }
