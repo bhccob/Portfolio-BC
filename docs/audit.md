@@ -36,7 +36,8 @@ planning" and "Reuse" sections. The Astro site stays intact on `main` and
 | `src/data/{profile,projects,categories,qa}.ts` | the content; `projects` and `categories` lost their Astro types in Task 1 and were reshaped in Task 4a, which also merged `tracks.ts` (and its test) into `projects.ts` |
 | `src/assets/**`, `public/**` | screenshots, the real portrait, the renders, icons and `public/textures/instrument/*.webp` |
 | `src/styles/bench-*.css` | mined for tokens in Task 4a, then deleted |
-| `tools/site_audit.py` + its tests, `tools/glyphs.mjs`, `tools/icons.mjs` | the auditor, the real CJK glyph outlines, the raster icons |
+| `tools/site_audit.py` + its tests, `tools/icons.mjs` | the auditor, the raster icons |
+| `tools/glyphs.mjs` (deleted 2026-10-21) | kept here for the real CJK glyph outlines; deleted on branch `bob-m1` (Task 11, Ruling 27): its only output, `src/engine/instrument/glyphs.ts`, went with `src/engine/instrument/`, and the BOB design (`docs/superpowers/specs/2026-10-21-bob-compass-design.md`) engraves no CJK glyphs. It is in the git history if a later design needs it |
 | `tools/proof/compass.mjs` | the model for `tools/proof/needle.mjs`; it remains as the revision-4 harness |
 
 ## Moved unchanged (Task 2, `git mv`)

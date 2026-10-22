@@ -1,13 +1,14 @@
 import * as THREE from 'three';
 
 /**
- * Procedural noise for the v3 scene's soft sprites, made on the CPU once and
+ * Procedural noise for the BOB scene's soft sprites, made on the CPU once and
  * DOM-free: a seeded, tileable fractal value noise and the textures made from
- * it. The laser's smoke, the mist over the board and the sky's nebula clouds
- * are each a `smokeTexture`; the laser's point, nozzle and sparks and the
- * sky's fixed stars a `glowTexture`; the sky scatters its stars with
- * `random`. A texture made once, not noise computed per pixel, which a weak
- * GPU could not afford across the whole screen.
+ * it. The probe's wisp and the smoke over the glass (src/engine/bob/build/
+ * probe.ts and smoke.ts) are each a `smokeTexture`, the probe's point and
+ * sparks a `glowTexture`, and the smoke scatters its layers with `random`
+ * (v3's mist, sky and stars used them too, and went with v3). A texture made
+ * once, not noise computed per pixel, which a weak GPU could not afford across
+ * the whole screen.
  */
 
 /** A small, fast, seeded PRNG (mulberry32): the same seed, the same picture. */

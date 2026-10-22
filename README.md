@@ -15,7 +15,13 @@ gets the poster and a link to Lite.
 
 ## Getting started
 
-Requirements: Node.js 22.12 or newer; Python 3.10 or newer for the auditor.
+Requirements: Node.js 22.12 or newer; Python 3.10 or newer for the auditor. The auditor uses the standard library
+only, so on a machine with no system Python, Blender's bundled Python runs it as well (from the repository root, after
+a build; the path is the Steam install's):
+
+```bash
+"/c/Program Files (x86)/Steam/steamapps/common/Blender/5.2/python/bin/python.exe" -I tools/site_audit.py dist/client
+```
 
 ```bash
 npm install
@@ -57,28 +63,38 @@ A page is built, routed and listed in the sitemap by having an entry in `PAGES` 
 ```
 src/
   app/        root layout (Shell, CSP and analytics tags), routes, route handles, entry points
-    routes/   one module per kind of page: home, country, project, lite, contact, not-found
-  scene/      the React Three Fiber stage: its host and fallback, the studio and camera rig, the v3 opening and home
-              (scene/v3), post effects, quality governor and the on-demand frame loop
-  engine/     the scene's engine: the v3 builders and specs (engine/v3), the dial's measurements and glyphs
-              (instrument), the shoulder tone mapping and noise textures (studio), the quality ladder, stillness
+    routes/   one module per kind of page: home, project, lite, contact, not-found
+  scene/      the React Three Fiber stage: its host and fallback, the studio and camera rig, the BOB opening (the
+              loader) and home (scene/bob, with their poses and look), post effects, quality governor and the
+              on-demand frame loop
+  engine/     the scene's engine: the BOB wordmark, loader timeline, probe path, shots, band strips and needle
+              (engine/bob) and its builders (engine/bob/build: the glass, the engraving, the traces, the probe, the
+              smoke, and the compass from its GLB), the shoulder tone mapping and noise textures (studio), the
+              quality ladder, stillness
   state/      the scene's discrete state (zustand store, phase machine, chapters, route sync) and per-frame values
   input/      the home page's virtual scroll: wheel, touch and keys
   ui/         header and switches, poster, back link, Lite sections, contact form
   seo/        <head> tags, structured data, the not-found page's tags, the analytics beacon
   debug/      the proof harness's bridge (only under ?proof)
-  data/       profile, projects, categories, countries, pages, Q&A and old-URL redirects
+  data/       profile, projects, categories, the compass's parts, pages, Q&A and old-URL redirects
   i18n/       Dutch and English copy (nl.ts is type-checked against en.ts)
   styles/     design tokens and base styles
   assets/     screenshots, the portrait and the share image's source (renders/compass-hero.webp)
 tools/
   build/      the post-build steps (404, redirects, sitemap, share image, CSP)
   proof/      the proof harness (see tools/proof/README.md)
-  serve-pages.mjs, site_audit.py (+ tests), glyphs.mjs, icons.mjs
-public/       CNAME, icons, web manifest, robots.txt, .well-known/security.txt
+  blender/    the approved Blender preview of the BOB loader (bob_build.py, bob_animate.py, bob_scroll.py,
+              bob_encode.py) and export_compass.py, which writes the compass's GLB (public/models/bob-compass.glb)
+  serve-pages.mjs, site_audit.py (+ tests), icons.mjs
+public/       CNAME, icons, web manifest, robots.txt, .well-known/security.txt, models/bob-compass.glb (the compass:
+              geometry, UVs and its rise, no materials; re-export it with
+              `blender -b --factory-startup --python tools/blender/export_compass.py -- public/models/bob-compass.glb`)
 tests/unit/   Vitest unit tests
 docs/         the art direction, the project discovery notes and docs/audit.md (what the rebuild kept and why)
 ```
+
+`opentype.js` is a dev dependency that nothing in `src/` imports: it stays because
+`docs/art-direction/tools/type.mjs` (the art direction's swatch and font-sample renders) imports it.
 
 ### Editing content
 
@@ -88,8 +104,8 @@ docs/         the art direction, the project discovery notes and docs/audit.md (
   named in `image`. A new project also needs a `project-<id>` entry in `PAGES` (`src/data/pages.ts`) and in
   `PAGE_KINDS` (`src/app/handle.ts`).
 - **Categories**: `src/data/categories.ts` (a number and a label in each language).
-- **The scene's words** (hero, loader, compass parts, countries and their pages, the 3D switch): the `needle` block of
-  the dictionaries. They are copied from `docs/art-direction.md` § Copy budget, and `tests/unit/needle-copy.test.ts`
+- **The scene's words** (hero, loader and its failure card, compass parts, the 3D switch, the Lite link, the project
+  page's words): the `needle` block of the dictionaries. They are copied from `docs/art-direction.md` § Copy budget, and `tests/unit/needle-copy.test.ts`
   checks that they match it.
 - **Links, email, birthday**: `src/data/profile.ts` (the age on the site is calculated from the birthday).
 
@@ -141,5 +157,7 @@ publishing. One-time setup: **Settings → Pages → Build and deployment → So
 `tools/proof/needle.mjs` drives a headless Microsoft Edge through the built site, served by `npm run preview`, and
 checks what the site promises: every page and its language, the persistent canvas across navigation, the scene's
 state machine, the virtual scroll, the keyboard, focus and scroll after a navigation, the pages that load no WebGL,
-the fallbacks, the policy being in force and the frame rate. It writes `results.json` and screenshots of every page.
+the fallbacks, the BOB opening (its moments, its skip by click, wheel, key and tap, the quick and reduced paths, the
+give-up), the dark look's luminance gate, the policy being in force and the frame rate. It writes `results.json` and
+screenshots of every page.
 It adds no dependency to the repository: `playwright-core` is installed outside it. See `tools/proof/README.md`.

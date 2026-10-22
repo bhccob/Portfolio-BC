@@ -88,8 +88,8 @@ main:focus {
 }
 
 /* ---------- the layers: poster, scene, then the page ---------- */
-/* The first paint is the scene's own night with a faint violet glow low in the middle, where the chip will be: no
-   image, so the page opens as dark as the loader that fades in over it. */
+/* The first paint is the page's night (--night, a hair above the 3D scene's own black, palette.black) with a faint
+   violet glow low in the middle: no image, so the page opens as dark as the loader that fades in over it. */
 .poster {
   position: fixed;
   inset: 0;
@@ -408,7 +408,7 @@ main {
 
 /* While the opening plays (<html data-loading>: the phase is LOADING) the hero is hidden, at once, and it fades in over
    0.9 s as the loader lands (none with reduced motion). The header (the name, Work, About, Contact, the language and 3D switches) goes
-   and comes with it, so the loader shows no text but its engraved ON (spec §2.1). The attribute is set after
+   and comes with it, so the loader shows no text but the name it engraves, BOB (spec §2.1). The attribute is set after
    hydration, so where scripts run the hero, and on the home page the header, also wait hidden from the first paint
    until the page has hydrated (`data-route` unset), instead of showing and vanishing; without scripts they show at
    once. A page without a hero never plays the loader under its header, so its header shows from the first paint.

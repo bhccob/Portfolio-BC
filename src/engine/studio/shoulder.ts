@@ -9,7 +9,7 @@ import * as THREE from 'three';
  * which runs this very source on the composer's linear buffer.
  *
  * It lived in milestone 1's CompassStudio, since removed; the tone mapping is
- * the one part of that studio the v3 stage still uses, so it stands alone
+ * the one part of that studio the BOB stage still uses, so it stands alone
  * here, byte for byte.
  */
 export const SHOULDER = /* glsl */ `vec3 CustomToneMapping( vec3 color ) {

@@ -76,6 +76,8 @@ CSS custom properties use these names; the scene reads the same values through t
 
 ### Country accents (proposed, §5)
 
+> Superseded by the BOB design (2026-10-21, `docs/superpowers/specs/2026-10-21-bob-compass-design.md`): the countries, their arms, cards and pages are gone. Kept as the record of the Needle art direction.
+
 One accent per arm. Each accent lives only on its arm (inlay, bezel segment, nearby ticks), on its light wash and on its own page. Purple and gold stay dominant everywhere else. Hues are LCh angles; the nebula sits at 315°.
 
 | Arm | Token | Hex | Why | Text on `--void`? |
@@ -139,7 +141,7 @@ Units: the compass diameter is **1.0**. All distances below are in compass diame
 
 ## 3. Materials
 
-All `MeshPhysicalMaterial` unless noted. Engraving, dial text, degree ticks, 東南西北 and the eight trigrams are procedural: SVG → canvas → albedo, roughness, normal and AO masks (the ported `instrument/paint` and `textures` code, glyph outlines from `tools/glyphs.mjs`). No AI image is ever used as a texture with characters on it.
+All `MeshPhysicalMaterial` unless noted. Engraving, dial text, degree ticks, 東南西北 and the eight trigrams are procedural: SVG → canvas → albedo, roughness, normal and AO masks (the ported `instrument/paint` and `textures` code, glyph outlines from `tools/glyphs.mjs`). No AI image is ever used as a texture with characters on it. *(The glyph part is superseded by the BOB design, 2026-10-21: nothing engraves 東南西北 or dial text, `tools/glyphs.mjs` is deleted (docs/audit.md), and the bands' ticks and trigrams are painted strips, `src/engine/bob/paintBand.ts`.)*
 
 | Material | Colour | Metalness / roughness | Extras | Notes |
 | --- | --- | --- | --- | --- |
@@ -147,8 +149,8 @@ All `MeshPhysicalMaterial` unless noted. Engraving, dial text, degree ticks, 東
 | **Dial lacquer** (heaven plate face) | `--dial` `#1a1517` | 0 / 0.3 | clearcoat 1, clearcoat roughness 0.08 | gold-ink fill in the engraving is a metal mask: metalness 1, colour `--gold-ink`, roughness 0.25 |
 | **Needle** | `--gold-ink` `#e4be7f` | 1.0 / 0.18 | emissive `--gold-glow` × 0.15 so it reads on black | the south tip carries the portal: emissive × 0.6 and a pulse on hover |
 | **Red silk strings** | `--string-red` `#7a2126` | 0 / 0.8 | sheen 0.5, sheen colour `--cn-cinnabar` | tubes 0.003 D thick; they catch the rim light, nothing else |
-| **Red lacquer** (China arm) | `--cn-cinnabar` `#a8352a`, recesses `#5a1a16` | 0 / 0.35 | clearcoat 1, clearcoat roughness 0.12 | carved-lacquer look = AO depth + gold-ink lines as a metal mask |
-| **Enamel inlays** (Delft, Aruba) | Delft `--nl-delft` → `--nl-delft-deep` at depth, glaze lines `--nl-glaze`; Aruba `--aw-sea` → `--aw-sea-deep` at depth | 0 / 0.12 | clearcoat 1, clearcoat roughness 0.05, ior 1.5 | champlevé: the enamel sits in cells between thin brass walls; colour darkens with cell depth |
+| **Red lacquer** (China arm; superseded by the 2026-10-21 BOB design) | `--cn-cinnabar` `#a8352a`, recesses `#5a1a16` | 0 / 0.35 | clearcoat 1, clearcoat roughness 0.12 | carved-lacquer look = AO depth + gold-ink lines as a metal mask |
+| **Enamel inlays** (Delft, Aruba; superseded by the 2026-10-21 BOB design) | Delft `--nl-delft` → `--nl-delft-deep` at depth, glaze lines `--nl-glaze`; Aruba `--aw-sea` → `--aw-sea-deep` at depth | 0 / 0.12 | clearcoat 1, clearcoat roughness 0.05, ior 1.5 | champlevé: the enamel sits in cells between thin brass walls; colour darkens with cell depth |
 | **Platter mirror** | near-neutral silver `#c9c3d6` | 1.0 / 0.05 | anisotropy 0.8, tangent along the circumference (brushed concentric), env intensity 1.2 | the purple in ref-04 is the floor light card in the reflection, not paint: check against `--platter-tint` and `--platter-hi` |
 | **Track** (south arm → platter) | emissive `--gold-glow`, core `--gold-core` | `MeshBasicMaterial`, additive, tone-mapped | HDR 3–6; dashed "chain" pattern from ref-04 as a scrolling UV mask | it draws itself on project focus (§7) |
 | **Glass crystal** | tint `--ink` at 4 % | — | high: drei `MeshTransmissionMaterial`, thickness 0.02, ior 1.5, roughness 0.02, chromatic aberration 0.02, samples 4, resolution 512, backside off. Medium: `MeshPhysicalMaterial` transmission 1, no MTM. Low and mobile: a fresnel-only additive shell (6 % face-on, 40 % at grazing) | the most expensive material on screen; its cost is checked in every FPS run |
@@ -160,15 +162,15 @@ All `MeshPhysicalMaterial` unless noted. Engraving, dial text, degree ticks, 東
 
 ## 4. Type
 
-All three families are SIL Open Font License 1.1, self-hosted from fontsource (`font-src 'self'`), latin + latin-ext subsets only. Dutch and Papiamento diacritics (è ò ü ñ, IJ) are covered. No CJK webfont is loaded: 東 南 西 北 and the trigrams are engraved geometry, never type.
+All three families are SIL Open Font License 1.1, self-hosted from fontsource (`font-src 'self'`), latin + latin-ext subsets only. Dutch and Papiamento diacritics (è ò ü ñ, IJ) are covered. No CJK webfont is loaded: 東 南 西 北 and the trigrams are engraved geometry, never type. *(Superseded in part by the BOB design, 2026-10-21: no 東南西北 is drawn, and the trigrams are painted on the bands; still no CJK webfont.)*
 
 | Role | Family | Weight | Tracking | Size | Colour |
 | --- | --- | --- | --- | --- | --- |
 | Name (BOB CHUNG) | **Montserrat** (`@fontsource-variable/montserrat` 5.3.0), Bob's pick on 2026-10-20 | 300 (variable, so 300–400 can be tuned on screen) | 0.32em | `clamp(28px, 4.2vw, 64px)` cap height ≈ 0.7 × size | `--gold-ink` |
 | Tagline | Montserrat | 400 | 0.36em | 11–13 px | `--gold-ink` at 75 % |
-| Heavy titles (FUNCIAL, country names on their pages) | **Unbounded** (`@fontsource-variable/unbounded`, already a dependency) | 700–800 | 0.02em | `clamp(40px, 6vw, 96px)` | `--gold-title` |
+| Heavy titles (FUNCIAL, country names on their pages; the country pages are superseded by the 2026-10-21 BOB design) | **Unbounded** (`@fontsource-variable/unbounded`, already a dependency) | 700–800 | 0.02em | `clamp(40px, 6vw, 96px)` | `--gold-title` |
 | Technical labels (`01 — SECURE ELEMENT`, TP pins, HUD, `%`, `0/N`) | **Martian Mono** (`@fontsource-variable/martian-mono`, already a dependency) | 300–400, width axis 100 | 0.12–0.2em, uppercase | 11 px minimum (10 px only on the engraved chip) | `--ink` or `--ink-dim` |
-| Reading text (country pages, Lite) | Montserrat | 400 | 0 | 17–19 px, line height 1.55 | `--ink` |
+| Reading text (country pages, superseded by the 2026-10-21 BOB design; Lite) | Montserrat | 400 | 0 | 17–19 px, line height 1.55 | `--ink` |
 
 Using Montserrat for reading text keeps the site at three families. Bob had no preference for a separate body face (2026-10-20), so Montserrat stays.
 
@@ -209,7 +211,7 @@ Numbers come from the sites' own CSS (`getComputedStyle`) and scripts, or from f
 
 1. **One camera, no cuts.** The camera always damps toward a target: position `k = 1 − e^(−3.4·dt)` (time constant ≈ 0.3 s), look target `k = 1 − e^(−2.0·dt)` (≈ 0.5 s). Pointer parallax: ±1.5° yaw, ±1° pitch, `e^(−4·dt)`. Use maath `damp`/`damp3` and quaternions.
 2. **Shots are data:** `{position, target, fov, roll, dofFocusDistance, duration, ease}`. A new transition kills the running tween first.
-3. **Country click:** an arc + dolly + roll ≤ 4°, **1.4 s** (brief range 1.2–1.8 s), ease-in-out cubic `cubic-bezier(0.65, 0, 0.35, 1)`. The DoF pull lands 0.2 s before the move ends, then the info card rises (0.35 s ease-out expo).
+3. **Country click** *(superseded by the 2026-10-21 BOB design: no countries)*: an arc + dolly + roll ≤ 4°, **1.4 s** (brief range 1.2–1.8 s), ease-in-out cubic `cubic-bezier(0.65, 0, 0.35, 1)`. The DoF pull lands 0.2 s before the move ends, then the info card rises (0.35 s ease-out expo).
 4. **Category jump in the void** (amix's warp, shortened): 0.4 s dim of the other clusters → 1.2 s low arc looking along the path → 0.4 s settle. Total 2.0 s.
 5. **Virtual scroll:** wheel `targetProgress` damps with τ 0.12 s (crisp), touch inertia with τ 0.35 s. The dissect gives each of the 11 parts its own `smoothstep` window 0.18 wide, offset 0.06 per part; every window runs backward as well.
 6. **Needle:** the ported `AngleSpring`. Hover swing: damping ratio 0.55 (≈ 12 % overshoot), settles in about 0.8 s. Idle settling "like a real needle": damping ratio 0.25 at a lower stiffness, so it swings twice and comes to rest within about 2.5 s.
@@ -223,7 +225,7 @@ Numbers come from the sites' own CSS (`getComputedStyle`) and scripts, or from f
 8. **Text beats:** ≤ 10 words, masked reveal per word, 40 ms stagger, 0.6 s ease-out quart. Out: a 0.25 s fade. (aengel splits per letter; per word reads calmer at our tracking.)
 9. **Loader:** the `%` is real (stages or bytes), never a fake timer. It holds at 100 for 0.25 s, then the rack-focus reveal runs (1.4 s). Failure: WebGL2 missing, a context loss that does not come back, or 12 s without progress → THE NEEDLE LOST NORTH + the Lite link.
 10. **Idle:** the compass floats with an amplitude of 0.6 % of D on a 6.5 s sine, plus a 0.5° yaw drift on an 11 s sine. The periods do not divide, so the loop never visibly repeats.
-11. **Hover:** lift 2.5 % toward the camera + glow +30 %, 0.25 s ease-out expo. Projects lift; country arms glow; the south arm only pulses.
+11. **Hover:** lift 2.5 % toward the camera + glow +30 %, 0.25 s ease-out expo. Projects lift; country arms glow; the south arm only pulses. *(The country arms are superseded by the 2026-10-21 BOB design.)*
 12. **Reduced motion:** no flights (0.3 s cross-fades between shots), no parallax, no drift, no auto-explode (the dissect becomes stepped stills), and the needle eases in 0.2 s without a spring.
 13. **Sound** is off by default; "enter without sound" is the primary button at the loader; mute always visible.
 
@@ -276,6 +278,8 @@ Bob confirmed VOLG DE NAALD for NL on 2026-10-20.
 
 ### Country focus card — country + teaser of ≤ 12 words + "Press ↵"
 
+> Superseded by the BOB design (2026-10-21, `docs/superpowers/specs/2026-10-21-bob-compass-design.md`): the countries, their arms, cards and pages are gone. Kept as the record of the Needle art direction. Only its Action row is still read: the project page's Open (`needle.project.open`).
+
 | Arm | NL | EN |
 | --- | --- | --- |
 | East · China | **China** · Ik ben Chinees van afkomst; dit kompas komt uit dezelfde traditie. (11) | **China** · I am of Chinese heritage; this compass comes from that tradition. (11) |
@@ -286,6 +290,8 @@ Bob confirmed VOLG DE NAALD for NL on 2026-10-20.
 The south arm has no card (§5.6).
 
 ### Country pages — at most 3 short beats + 1 hero visual
+
+> Superseded by the BOB design (2026-10-21, `docs/superpowers/specs/2026-10-21-bob-compass-design.md`): the countries, their arms, cards and pages are gone. Kept as the record of the Needle art direction. The China page's Hakka line now stands on Lite's about.
 
 | Page | Beat | NL | EN |
 | --- | --- | --- | --- |
