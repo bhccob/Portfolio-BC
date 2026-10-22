@@ -35,9 +35,12 @@ import { circlePath, type Point2, STROKE_ORDER, type StrokeId, strokePath, tickS
  *   The front stands `mix(from, to, share)` metres past `|x| = inner`; the
  *   letters lie from 2.15 (the inner edge, nearest the compass) to 4.25 (the
  *   outer), so it runs the length of each. A point `ramp` behind the front is
- *   lit in full and one on the front not at all, and the ramp's leading edge is
- *   `edge` times brighter (the preview's `mask * (1 - mask) * 10` over its
- *   emission of 3).
+ *   lit in full and one on the front not at all. `edge` is the extra brightness
+ *   in the feather between the two, the preview's `mask * (1 - mask) * 10` over
+ *   its emission of 3: the light there is `k * (k + edge * k * (1 - k))` of the
+ *   rest (the preview mixes its emission with a transparent shader by the same
+ *   mask, which is the outer `k`), so it peaks at about 1.08 times the rest near
+ *   `k` 0.87, just behind the front, and is the rest itself from `ramp` behind it.
  * - `ticks`: a tick is a flat quad `width` wide, `lift` over the glass so it
  *   cannot z-fight the floor. Task 12: 0.009 read under a pixel at the home
  *   framing (2.3 px across the front of the ring at 1440x900, half a pixel on
@@ -181,11 +184,11 @@ const LETTER_IDS = STROKE_ORDER.filter((id) => id !== 'circle');
  * shader hands over the world x (worked out from the model matrix, since
  * `worldpos_vertex` defines a world position only under some defines); the
  * fragment shader works out `k` from it: 0 ahead of the front, 1 `ramp` behind
- * it. Where `k` is 0 nothing is drawn; the rest is the material's colour,
- * boosted at the front's edge (`k + edge * k * (1 - k)`), before it is
- * tone-mapped and fogged as a basic material is. The front and the look are
- * uniforms the setter and the build hold, so a frame of the front compiles
- * nothing.
+ * it. Where `k` is 0 nothing is drawn; the rest is the material's colour times
+ * `k * (k + edge * k * (1 - k))` (the preview's emission, mixed with a
+ * transparent shader by the same mask), before it is tone-mapped and fogged as
+ * a basic material is. The front and the look are uniforms the setter and the
+ * build hold, so a frame of the front compiles nothing.
  */
 function patchLetters(front: THREE.IUniform<number>, look: THREE.IUniform<THREE.Vector3>) {
   return (shader: { uniforms: Record<string, THREE.IUniform>; vertexShader: string; fragmentShader: string }): void => {
@@ -202,7 +205,7 @@ function patchLetters(front: THREE.IUniform<number>, look: THREE.IUniform<THREE.
           'float k = clamp( ( uFront - ( abs( vLetterX ) - uLook.x ) ) / uLook.y, 0.0, 1.0 );',
           'if ( k <= 0.0 ) discard;',
           '#include <opaque_fragment>',
-          'gl_FragColor.rgb *= k + uLook.z * k * ( 1.0 - k );'
+          'gl_FragColor.rgb *= k * ( k + uLook.z * k * ( 1.0 - k ) );'
         ].join('\n')
       );
   };
@@ -237,7 +240,11 @@ void main() {
 export interface EngravingModel {
   /** `engraving`: the strokes (`stroke:<id>`), the ticks (`ticks`) and the outer ring (`outer`), in world units on the glass plane. */
   group: THREE.Group;
-  /** Shows the first `drawn` (0..1, held to that; NaN reads as 0) of a stroke, by whole tube segments. */
+  /**
+   * Shows the first `drawn` (0..1, held to that; NaN reads as 0) of a stroke, by whole tube segments. The four B
+   * strokes show only through `setLetters`: their light front starts behind them, so a B drawn by this alone is
+   * not seen.
+   */
   setStroke(id: StrokeId, drawn: number): void;
   /**
    * Runs the light out of the O into the two B letters, `share` (0..1, held to that; NaN reads as 0) of the way:

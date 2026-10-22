@@ -28,8 +28,8 @@ function expectColour(actual: THREE.Color, expected: THREE.Color): void {
 }
 
 describe('the letters\' light front', () => {
-  // The preview's glow branch (tools/blender/bob_reveal_b.py): the front runs -0.6 to 2.9, 0.45 of ramp, emission 3 + 10 k (1 - k).
-  it('holds the preview\'s numbers: the inner edge at 1.9, the front from -0.6 to 2.9, a ramp of 0.45, the edge 3.3 brighter', () => {
+  // The preview's glow branch (tools/blender/bob_reveal_b.py): the front runs -0.6 to 2.9, 0.45 of ramp, emission 3 k + 10 k (1 - k).
+  it('holds the preview\'s numbers: the inner edge at 1.9, the front from -0.6 to 2.9, a ramp of 0.45, the feather\'s extra brightness 3.3', () => {
     expect(ENGRAVING_LOOK.letters).toEqual({ inner: 1.9, from: -0.6, to: 2.9, ramp: 0.45, edge: 3.3 });
   });
 
@@ -110,7 +110,7 @@ describe('the letters\' light front', () => {
     e.dispose();
   });
 
-  it('adds the front to three\'s own basic shader: world x in, k from the front and the ramp, a discard where k is 0, the light boosted at the edge', () => {
+  it('adds the front to three\'s own basic shader: world x in, k from the front and the ramp, a discard where k is 0, the preview\'s feather on the light', () => {
     const e = buildEngraving();
     const material = stroke(e.group, 'leftBar').material;
     const shader = compiled(material);
@@ -123,7 +123,8 @@ describe('the letters\' light front', () => {
     // The front stands past the inner edge by uFront, and the light ramps up over uLook.y behind it.
     expect(shader.fragmentShader).toMatch(/float k\s*=\s*clamp\(\s*\(\s*uFront\s*-\s*\(\s*abs\(\s*vLetterX\s*\)\s*-\s*uLook\.x\s*\)\s*\)\s*\/\s*uLook\.y\s*,\s*0\.0\s*,\s*1\.0\s*\)\s*;/);
     expect(shader.fragmentShader).toMatch(/if\s*\(\s*k\s*<=\s*0\.0\s*\)\s*discard\s*;/);
-    expect(shader.fragmentShader).toMatch(/gl_FragColor\.rgb\s*\*=\s*k\s*\+\s*uLook\.z\s*\*\s*k\s*\*\s*\(\s*1\.0\s*-\s*k\s*\)\s*;/);
+    // The light is the emission (k + edge k (1 - k)) mixed with a transparent shader by the same k, as the preview mixes it.
+    expect(shader.fragmentShader).toMatch(/gl_FragColor\.rgb\s*\*=\s*k\s*\*\s*\(\s*k\s*\+\s*uLook\.z\s*\*\s*k\s*\*\s*\(\s*1\.0\s*-\s*k\s*\)\s*\)\s*;/);
     // Before the colour is tone-mapped and fogged, and after it is written.
     const at = (text: string) => shader.fragmentShader.indexOf(text);
     expect(at('discard')).toBeLessThan(at('#include <opaque_fragment>'));
@@ -132,6 +133,35 @@ describe('the letters\' light front', () => {
     expect(at('gl_FragColor.rgb *=')).toBeLessThan(at('#include <fog_fragment>'));
     // The vertex shader keeps three's own world position, and the fragment shader its own includes.
     expect(shader.vertexShader).toContain('#include <worldpos_vertex>');
+    e.dispose();
+  });
+
+  // The preview: visible light = mask * (3 mask + 10 mask (1 - mask)), against 3 when fully lit. The same expression, taken out of the shader.
+  it('lights the feather as the preview does: the rest from ramp behind the front, 1.08 times it at most, near k 0.87, and none ahead of it', () => {
+    const e = buildEngraving();
+    const text = compiled(stroke(e.group, 'leftB').material).fragmentShader;
+    const expression = /gl_FragColor\.rgb\s*\*=\s*([^;]+);/.exec(text)?.[1];
+    expect(expression).toBeDefined();
+    // Pure arithmetic with `*`, `+`, `-` and float literals, which GLSL and JS read alike.
+    const light = new Function('k', 'uLook', `return ${expression!.replace(/uLook\.z/g, 'uLook[2]')};`) as (k: number, look: number[]) => number;
+    const look = [ENGRAVING_LOOK.letters.inner, ENGRAVING_LOOK.letters.ramp, ENGRAVING_LOOK.letters.edge];
+    const preview = (k: number) => k * (3 * k + 10 * k * (1 - k)) / 3;
+    let peak = { k: 0, light: 0 };
+    for (let i = 0; i <= 1000; i++) {
+      const k = i / 1000;
+      const here = light(k, look);
+      // Within a hundredth of the preview's (its 10 / 3 is rounded to 3.3).
+      expect(Math.abs(here - preview(k))).toBeLessThan(0.01);
+      if (here > peak.light) peak = { k, light: here };
+    }
+    expect(light(0, look)).toBe(0);
+    expect(light(1, look)).toBe(1);
+    expect(peak.light).toBeGreaterThan(1.07);
+    expect(peak.light).toBeLessThan(1.09);
+    expect(peak.k).toBeGreaterThan(0.85);
+    expect(peak.k).toBeLessThan(0.89);
+    // Soft: a quarter of the way into the ramp is about a fifth of the rest (0.22), where the feather without the mix gave 0.87.
+    expect(light(0.25, look)).toBeLessThan(0.3);
     e.dispose();
   });
 
