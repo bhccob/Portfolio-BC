@@ -1,8 +1,11 @@
 # BOB with the compass as the O: design
 
-Date: 2026-10-21. Owner: Bob Chung. Status: **draft for Bob's approval.**
+Date: 2026-10-21, revised 2026-10-22. Owner: Bob Chung. Status: **approved 2026-10-21; the 2026-10-22 revision ("only the O") is for Bob's review.**
 - It was agreed step by step with Bob on 2026-10-21, through concept frames and a Blender preview.
 - A builder check read it cold. Its one open question, the loader's timing, was answered by Bob (§2.1).
+- **Revision, 2026-10-22.** After seeing milestone 1, Bob said: "the B shouldnt be there as the laser takes kinda long so maybe do only the O and that the compass is the only thing in homescreen and then when its zoomed into the (transition) it then shows the 2 B beside it."
+  - So the loader now cuts only the circle (§2.1), and the home shows the compass alone (§2.2).
+  - The two B letters arrive on the scroll: light runs out of the O into them (§2.3). Bob picked this, way 2 of the Blender preview, over the laser cutting them.
 
 **Supersedes** `docs/superpowers/specs/2026-10-20-needle-v3-design.md` (v3) wherever the two differ.
 - The project pages, Lite, contact and the standing rules are carried over from v3 and restated here, so this document stands on its own.
@@ -21,6 +24,17 @@ Date: 2026-10-21. Owner: Bob Chung. Status: **draft for Bob's approval.**
   - `loader-to-home.mp4`: the whole loader into the home, 12.5 s
   - `bob-previs.blend`
 - **The scripts that build the preview** are in `tools/blender/`: `bob_build.py`, `bob_animate.py`, `bob_scroll.py`, `bob_encode.py`.
+- **The "only the O" preview** (2026-10-22) is local and git-excluded, in `.superpowers/brainstorm/bob-only-o-2026-10-22/`. Its scripts move to `tools/blender/` with the build:
+  - `run_o.py` builds it headless
+  - `bob_animate_o.py` makes the 6.25 s loader
+  - `bob_reveal_b.py` makes the two ways the B letters arrive. Way 2, `glow`, is the pick.
+  - Its videos and stills are on the review page `bob-only-o.html`.
+- **Frames from that preview**, in `docs/design/bob-compass/`:
+  - `o01`: the laser on the circle
+  - `o02`: the rise
+  - `o03`: the home, the compass alone
+  - `o04`: the light halfway into the B letters
+  - `o05`: BOB from above
 - **v3's frames and prototype screenshots** in `docs/design/needle-v3/` still apply to the project pages (`13`–`15`, `ui-06`, `ui-07`).
 
 The frames show mood and composition. The AI frames are brighter, busier and less exact than the target (see §4).
@@ -36,10 +50,11 @@ Bob's words carry over from v3: *super cinematic*, *very little text*, *3D and i
 - He wanted his name to be the centrepiece, with **the compass as the O of BOB**.
 - He wanted the countries scrapped.
 
-**Success:**
-1. A first-time visitor watches a laser engrave **B**, then **B**, then a circle into dark glass.
-2. The circle opens and a ring compass rises out of it as the **O**.
-3. Scrolling opens that O like an iris and dives through it into the chip, where Bob's projects float.
+**Success** (revised 2026-10-22):
+1. A first-time visitor watches a laser cut a circle into dark glass.
+2. The circle opens and a ring compass rises out of it. At home the compass is alone.
+3. Scrolling opens it like an iris. The camera rises, and light runs out of the O into two **B** letters beside it, so the name **BOB** reads from above.
+4. Then the camera dives through the O into the chip, where Bob's projects float.
 
 It is one continuous world with no hard cuts. Visitors remember the name and the work.
 
@@ -63,44 +78,45 @@ One persistent 3D world. The camera moves between places, and every move is reve
 - Low violet smoke drifts over it.
 - Below the glass is the inside of the chip.
 
-### 2.1 Loader: frames 01–03, preview p01–p04, `loader-to-home.mp4`
+### 2.1 Loader: preview `o01`–`o02`, `o-loader.mp4` (revised 2026-10-22)
 
-One continuous shot. The preview runs 12.5 s from black to home: about 8.5 s of engraving, then about 4 s for the opening, the rise and the push-in.
+One continuous shot. The preview runs **6.25 s** from black to home: about 3 s for the probe coming down and cutting the circle, then about 3 s for the opening, the rise and the push-in.
+- *Until 2026-10-22 the laser also cut both B letters first, and the show ran 12.5 s (frames 01–03, p01–p04, `loader-to-home.mp4`). Bob found that too long. The B letters now arrive on the scroll (§2.3).*
 
-**How long it runs** (Bob's pick, 2026-10-21):
-- **First visit:** the full show at the preview's pace, **never shortened on a fast load**, so every first-time visitor sees the whole name cut.
+**How long it runs** (Bob's pick, 2026-10-21; the rules stand, only the show is shorter):
+- **First visit:** the full show at the preview's pace, **never shortened on a fast load**, so every first-time visitor sees the O cut.
   - **Slow load:** if the home's assets are still loading when the circle is due to close, the probe keeps working slowly along the circle and closes it once they are ready.
 - **Skip without words:** any click, tap, scroll or key fast-forwards the rest of the loader to the home in about 1 s. There is no button and no text.
   - The input that skips is used up by the skip: it does not also scroll the page. *My call.*
-- **Later visits:** a short version of 2–3 s. BOB is already engraved and glows in, the O opens, the rings rise and the camera settles on the home.
+- **Later visits:** a short version of 2–3 s. The circle is already engraved and glows in, the O opens, the rings rise and the camera settles on the home.
   - A "later visit" is any visit after the full show has played once in this browser, kept in `localStorage`.
   - Moving around inside the site never replays the loader.
   - If storage is unavailable, the visit counts as a first visit. *My call.*
 - **What the loader waits for:** the home only: the glass, the engravings, the compass and the smoke. The void, the beads and the screenshots stream in while the visitor is on the home. If someone scrolls before they are ready, the dive holds in the glowing tunnel until they are. *My call.*
 - **Giving up:** if the home's assets are not ready after 25 s, the site's existing fallback takes over: the dark poster with "THE NEEDLE LOST NORTH" and Lite one link away. *My call.*
-- **Reduced motion:** the engraved name and the compass fade in within about 1 s.
+- **Reduced motion:** the engraved circle and the compass fade in within about 1 s.
 
 The shot:
 
 1. **Black.** Smoke and the faint traces fade in. A slim gold laser probe comes down from above.
 2. **Engraving is the progress.** There is no number and no other text.
-   - The probe cuts the first **B** as a thin glowing gold outline, then its middle bar.
-   - It lifts, travels and cuts the second **B** and its bar.
-   - Last, it cuts the circle between them.
-   - Each stroke is drawn at constant speed. A bright point and a little light mark the tip; sparks are allowed but stay small.
-   - The engraved word was "ON" in v3. Now the laser writes the name.
+   - The probe cuts the circle as a thin glowing gold line, once round, at constant speed (2 s, the old loader's pace for the circle).
+   - A bright point and a little light mark the tip; sparks are allowed but stay small.
+   - Nothing else is cut: the B letters are not drawn in the loader (§2.3).
 3. **The circle completes** at 100 %. Its tick marks grow outward and a thin outer ring draws itself. The probe pulls up out of frame.
 4. **The opening.** The glass inside the circle closes to nothing like a camera iris, and warm light rises from the tunnel below.
-5. **The compass rises** out of the opening, the rings turning slowly. Meanwhile the camera pushes in from the wide framing (the whole name, frame 05) to the home framing (frame 04).
+5. **The compass rises** out of the opening, the rings turning slowly. Meanwhile the camera pushes in from the wide framing to the home framing.
+   - The wide framing is closer than before, since only the O has to fit: the circle and its outer ring, with room round them.
 6. **The needle** swings in and settles with a damped wobble.
 
 **Direct arrival** (kept from v3). A visitor may arrive straight at `/projects/funcial/`, for example. The loader plays, in its full or short form by the rules above and still skippable, and its final move goes straight to that place instead of the home.
 
-### 2.2 Home: frame 04, preview p05
+### 2.2 Home: preview `o03` (revised 2026-10-22)
 
-- **Framing** (Bob's pick, refined twice): a low camera, close in on the compass. **About half of each B is off screen**: the left B shows its two bowls, the right B its straight back.
+- **The compass is the only thing on the screen** (Bob, 2026-10-22). The B letters are not on the glass at home. They arrive when the visitor scrolls (§2.3).
+- **Framing:** the approved low camera, close in on the compass (the frame-04 framing, now with dark glass and faint traces either side).
   - The whole compass stays in frame, with room above it for the header.
-  - *Bob first liked the "surfacing" composition, then asked for it closer, then "half of each B not visible on both sides".*
+  - *Bob first liked the "surfacing" composition, then asked for it closer, then for "half of each B not visible on both sides". That crop is kept, so the B letters would sit half off screen if they were there.*
 - **The compass is the O.** It is an armillary compass:
   - **Four bands** of smoked violet glass, tilted at different angles like a gyroscope, around a slim double-pointed gold needle on a gold pivot. A thin gold axis runs through the centre.
   - **Each band** has:
@@ -120,7 +136,9 @@ The shot:
 
   These are frame `2d-screen` in `.superpowers/brainstorm/bob-wordmark-2026-10-21/` and the overlay on the review page. Sound stays out until it is designed (§6).
   - **Work** scrolls to the projects. **About** opens Lite at its about section. *Both are my call.*
-- **Portrait phones** keep the laptop's crop: half of each B is off screen and the compass is large. The camera stands farther back at the 50° field cap. *Bob, 2026-10-22: "for phone the 2 B should also only show half". M1 had held the whole name, as in frame 05.* The loader on a phone still shows the whole name, then pushes in.
+- **Portrait phones** keep the laptop's crop, so the compass is large. The camera stands farther back at the 50° field cap.
+  - *Bob, 2026-10-22: "for phone the 2 B should also only show half". M1 had held the whole name, as in frame 05. With no B letters at home, the same crop now shows the compass alone.*
+  - The loader on a phone shows the circle wide, then pushes in.
 - **Touch devices** have no cursor. The needle drifts slowly on its own.
 
 ### 2.3 Scrolling from home: preview p06–p08
@@ -131,8 +149,15 @@ Scrolling (wheel, trackpad, touch, arrow keys) scrubs one continuous camera move
    - The needle turns to point straight down.
    - The camera rises and tilts down.
    - Through the opening you already glimpse a project bead far below.
-2. **BOB from above** (p07). The camera looks straight down. The whole name reads cleanly: two engraved B letters with the flattened rings as the O, which is now a doorway onto the dark below.
-3. **The dive** (p08). The camera drops through the O, past the short tunnel whose walls glow warm (brightest at the bottom). The needle leads the way down. *The preview's dive is short; the build may let it linger, with light streaks.*
+2. **The B letters light up** (preview `o04`, way 2; Bob's pick, 2026-10-22). While the camera rises, gold light runs out of the O into two B letters, one each side.
+   - The letters are already cut into the glass but dark. The light runs from each letter's inner edge, the one nearest the compass, to its outer edge, as if the compass powers them.
+   - A slightly brighter edge leads the light. Behind it the letters glow at the engraving's rest strength.
+   - It follows the scroll: scrolling back up runs the light back into the O, and the letters go dark again.
+   - The light starts once the letters are coming into view. In the preview it runs over the middle two thirds of the camera's rise, so it is done just before the camera looks straight down.
+   - There is no laser here and no sound: the light is the only thing that moves besides the camera and the iris.
+3. **BOB from above** (p07, `o05`). The camera looks straight down. The whole name reads cleanly: two engraved B letters with the flattened rings as the O, which is now a doorway onto the dark below.
+   - On a portrait phone the camera stands high enough that the whole name fits across the width.
+4. **The dive** (p08). The camera drops through the O, past the short tunnel whose walls glow warm (brightest at the bottom). The needle leads the way down. *The preview's dive is short; the build may let it linger, with light streaks.*
 
 ### 2.4 Inside the chip: preview p09–p10
 
@@ -209,7 +234,7 @@ These routes existed only on unmerged branches and were never live, so no redire
 
 | Screen | Text allowed |
 | --- | --- |
-| Loader | none; the engraved B, B and circle are the only marks |
+| Loader | none; the engraved circle is the only mark |
 | Home | the header and the scroll cue |
 | Scroll | none |
 | Void | the selected bead's category line, title and one hint |
@@ -325,17 +350,21 @@ These routes existed only on unmerged branches and were never live, so no redire
   - Opening: radius 1.585. Engraved circle: radius 1.66. Outer ring: radius 1.88.
   - Compass: four bands of radius 1.40–1.56; centre 0.55 above the glass at home.
 - **Home camera:** 50 mm lens, 8.8 m from the compass, 13° above.
-- **Loader camera:** starts 13.8 m away, 14° above.
-- **Loader timing** at 24 fps:
-  - left B: frames 18–66; its bar: 74–84
-  - right B: 96–144; its bar: 152–162
-  - circle: 174–222
-  - ticks and outer ring: 220–244
-  - iris: 228–244
-  - rings rise: 236–288
-  - camera push-in: 228–292
+- **Loader camera** (revised 2026-10-22, `bob_animate_o.py`): starts 11.2 m away, 19° above, looking 0.1 above the glass. It drifts 0.3 m closer while the circle is cut, then pushes in to the home.
+- **Loader timing** at 24 fps (revised 2026-10-22; the old B-first timing is in `tools/blender/bob_animate.py`):
+  - fade up from black: frames 1–16; the probe comes down: 1–26
+  - circle: 26–74
+  - probe out: 74–94
+  - ticks: 72–86; outer ring: 74–96
+  - iris: 80–96; warm light: 78–106
+  - rings rise: 88–140
+  - camera push-in: 80–140
+  - needle settles: 100–150
+  - home: frame 150 (6.25 s)
 - **Scroll** (frames 301–480 of the preview):
   - iris: 300–346
+  - the camera rises to straight down: 300–362
+  - the B letters light up (way 2): 318–358, a front running from 0.25 to 2.35 m past x = ±1.9, the letters' inner edges to their outer ones, eased in and out
   - BOB from above: 362–372
   - dive: 372–420
   - overview: 442
@@ -353,7 +382,7 @@ These routes existed only on unmerged branches and were never live, so no redire
 2. ~~**About on Lite:** the countries and the Hakka line.~~ Settled 2026-10-22: the Hakka line is dropped (§2.6).
 3. **Cookies Clicker:** Bob's own part, if he wants a role line beyond "with a classmate".
 4. **Branch `needle-v3-m2`:** kept as a parts source, or deleted once its reusable parts are carried over. Its commits reached redesign-bench with M1's merge.
-5. **The phone header** takes three rows in M1. A tighter version goes to Bob as a mock-up first (2026-10-22).
+5. ~~**The phone header** takes three rows in M1.~~ Settled 2026-10-22: Bob picked option A of the mock-up, one row with the name and MENU, which opens a dark sheet with the links (built on `bob-polish`).
 
 **Carried into M2 (Bob, 2026-10-22: "fix in mile 2"):**
 - the floor's reflection, which is a sharp copy of the compass where the preview blurs it into a few gold streaks
@@ -369,12 +398,12 @@ Bob checked M1 on his own phone and found it fine (2026-10-22).
 
 | v3 | Now |
 | --- | --- |
-| The loader engraves ON on a black chip; 64 pins are the progress ring | the laser engraves B, B and the circle on dark glass; the engraving is the progress |
-| A loader of about 4–6 s, paced by the download | the full show (about 12 s) on a first visit, skippable with any input; 2–3 s on later visits |
+| The loader engraves ON on a black chip; 64 pins are the progress ring | the laser engraves the circle on dark glass; the engraving is the progress (B, B and the circle until 2026-10-22) |
+| A loader of about 4–6 s, paced by the download | the full show (about 6 s; 12.5 s until 2026-10-22) on a first visit, skippable with any input; 2–3 s on later visits |
 | Circuit becomes compass, then a glass-ring dial over a glowing chip city | the circle opens and an armillary compass rises out of it as the O of BOB |
-| Home: the whole compass in a low wide view, the constellations around it | home: close on the compass, half of each B off screen |
+| Home: the whole compass in a low wide view, the constellations around it | home: close on the compass, which is alone on the glass |
 | Three country constellations, cards, fly-throughs, country pages | removed; the country story lives on Lite |
-| Scroll: the dial's rings part like a shutter, descent toward the chip city | scroll: the rings open like an iris, BOB seen from above, a dive through the O |
+| Scroll: the dial's rings part like a shutter, descent toward the chip city | scroll: the rings open like an iris, light runs out of the O into the two B letters, BOB seen from above, a dive through the O |
 | The void: between towers of glowing circuitry, the needle overhead | the void: a deep violet space under the glass sky, the needle comes down as a pointer |
 | The same bead for every project | the same bead, plus each project's own small object inside (to confirm) |
 | 3D models built in code only | models and fixed animation authored in Blender and exported as glTF; interaction in code |
