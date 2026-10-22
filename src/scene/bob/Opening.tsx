@@ -7,7 +7,7 @@ import { buildEngraving, type EngravingModel } from '~/engine/bob/build/engravin
 import { buildGlass, type GlassModel } from '~/engine/bob/build/glassFloor';
 import { buildProbe, type ProbeModel } from '~/engine/bob/build/probe';
 import { buildSmoke, type SmokeModel } from '~/engine/bob/build/smoke';
-import { buildTraces, type TracesModel } from '~/engine/bob/build/traces';
+import { buildTraces, tracesUnder, type TracesModel } from '~/engine/bob/build/traces';
 import { advanceClock, LOADER, type LoaderClock, type LoaderPath, loaderAt, loaderGaveUp, loaderSeen, markLoaderSeen } from '~/engine/bob/loaderTimeline';
 import { settleAngle } from '~/engine/bob/needle';
 import { traceLayout } from '~/engine/bob/traces';
@@ -233,7 +233,7 @@ export interface OpeningProps {
  * (`buildGlass`, sized to the drawing buffer through `setRenderer`, again on every resize), the engraving, the traces
  * (`traceLayout()`), the probe and the smoke. It adds them, compiles their programs and calls `onReady`: the canvas
  * fades in over the poster and the loader begins. When the ladder steps down later, the parts step down in place
- * (Ruling 25: `setReflector`, `setTier` on the compass and the smoke), never up.
+ * (Ruling 25: `setReflector` and, with it, the traces' `setUnder` (they lie under the glass only while it is transparent), `setTier` on the compass and the smoke), never up.
  *
  * **Load.** Meanwhile it fetches the compass's GLB (`loadCompassFile`: three's GLTFLoader, once a page view) and paints
  * the four bands' strips (`bandStrip`), one a frame: `paint`, 0.6 of the load. Once the file is in, it builds the
@@ -346,6 +346,9 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       home.current?.compass?.setTier(to);
     }
     if (!reflector) parts.glass.setReflector(false);
+    // The traces lie under the glass only while the floor is transparent: with the reflector gone it is opaque, and
+    // they come up onto it (render state only, no program changes).
+    parts.traces.setUnder(tracesUnder(standing.current, reflector));
     invalidate();
   }, [tier, reflector, invalidate]);
 
@@ -362,7 +365,8 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       made.push(glass);
       const engraving = buildEngraving();
       made.push(engraving);
-      const traces = buildTraces(traceLayout());
+      // Under the glass where the floor is transparent: the high tier, built with its reflector (the glass above).
+      const traces = buildTraces(traceLayout(), tracesUnder(built, true));
       made.push(traces);
       const probe = buildProbe();
       made.push(probe);
