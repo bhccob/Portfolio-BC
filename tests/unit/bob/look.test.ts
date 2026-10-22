@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { GLASS_LOOK } from '~/engine/bob/build/glassFloor';
 import { homeShotFor, wideShotFor } from '~/engine/bob/shots';
 import { palette } from '~/engine/palette';
-import { BREATHE, breathAt, ENGRAVE_BREATH, engraveGlowAt, IDLE_SECONDS, LOOK } from '~/scene/bob/look';
+import { BREATHE, breathAt, ENGRAVE_BREATH, engraveGlowAt, fogFor, IDLE_SECONDS, LOOK } from '~/scene/bob/look';
 import { HOME_POSE } from '~/scene/bob/openingPose';
 
 describe('the BOB look', () => {
-  it('stands on the night, its fog from 14 to 50, its bloom from 0.7', () => {
+  it('stands on the night, its fog from 14 to 50 (5 clear of what the camera looks at), its bloom from 0.7', () => {
     expect(LOOK.background).toBe(palette.night);
-    expect(LOOK.fog).toEqual({ color: palette.night, near: 14, far: 50 });
+    expect(LOOK.fog).toEqual({ color: palette.night, near: 14, far: 50, clear: 5 });
     expect(LOOK.bloom.threshold).toBe(0.7);
     expect(LOOK.bloom.intensity.high).toBeGreaterThan(LOOK.bloom.intensity.medium);
     expect(LOOK.bloom.radius).toBeGreaterThan(0);
@@ -31,6 +31,42 @@ describe('the BOB look', () => {
       }
     }
     expect(GLASS_LOOK.floor.outer).toBeGreaterThan(LOOK.fog.far);
+  });
+
+  describe('fogFor: the fog follows the shot (Task 12, the phone home was a quarter into the fog)', () => {
+    const distance = (shot: ReturnType<typeof homeShotFor>) =>
+      Math.hypot(shot.position[0] - shot.target[0], shot.position[1] - shot.target[1], shot.position[2] - shot.target[2]);
+
+    it("keeps the laptop home's 14 to 50 exactly", () => {
+      for (const aspect of [16 / 9, 16 / 10, 21 / 9, 4 / 3]) expect(fogFor(distance(homeShotFor(aspect)))).toEqual({ near: 14, far: 50 });
+    });
+
+    it('starts clear of what every shot looks at, phone or laptop, and keeps its depth', () => {
+      for (const aspect of [390 / 844, 0.6, 0.99, 1, 4 / 3, 16 / 9, 21 / 9]) {
+        for (const shot of [homeShotFor(aspect), wideShotFor(aspect)]) {
+          const fog = fogFor(distance(shot));
+          expect(fog.near, `${aspect}`).toBeGreaterThanOrEqual(distance(shot) + LOOK.fog.clear - 1e-9);
+          expect(fog.far - fog.near, `${aspect}`).toBeCloseTo(LOOK.fog.far - LOOK.fog.near, 9);
+        }
+      }
+      // The phone's home stands 23.2 back: its compass is out of the fog, which held a quarter of it before.
+      const phone = homeShotFor(390 / 844);
+      expect(distance(phone)).toBeGreaterThan(20);
+      expect(fogFor(distance(phone)).near).toBeGreaterThan(distance(phone));
+    });
+
+    it("is all night before the slab's far edge from every camera, so no horizon line shows (Ruling 26)", () => {
+      for (const aspect of [390 / 844, 0.6, 0.99, 1, 4 / 3, 16 / 9, 21 / 9]) {
+        for (const shot of [homeShotFor(aspect), wideShotFor(aspect)]) {
+          // The camera stands on +z looking toward -z: the nearest edge it looks across is the far one, at z = -outer.
+          expect(fogFor(distance(shot)).far, `${aspect}`).toBeLessThan(GLASS_LOOK.floor.outer + shot.position[2]);
+        }
+      }
+    });
+
+    it('reads a distance that is not a finite, positive number as LOOK.fog', () => {
+      for (const bad of [Number.NaN, -3, 0, Number.POSITIVE_INFINITY]) expect(fogFor(bad)).toEqual({ near: 14, far: 50 });
+    });
   });
 
   it('takes every colour from the palette', () => {

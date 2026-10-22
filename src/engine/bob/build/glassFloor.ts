@@ -19,14 +19,23 @@ import type { QualityTier } from '~/engine/quality';
 import { WORDMARK } from '~/engine/bob/wordmark';
 
 /**
- * How the glass looks. The numbers are first values: a later task tunes them
- * under the luminance gate.
+ * How the glass looks. Task 12 tuned the numbers against the Blender
+ * preview's stills under the luminance gate; each change says why.
  *
  * - `segments`: the sides of every round edge (the hole, the cap, the well, the
  *   lip), the same for all so they meet without a gap.
  * - `floor`: the glass is the palette's night, rough to `roughness` where it
  *   is clean, under a clear coat of `clearcoatRoughness`; a ring from the hole
- *   out to `outer`, `thickness` deep under y = 0.
+ *   out to `outer`, `thickness` deep under y = 0. Its glass reflects
+ *   `specular` of what a clean dielectric would (three's `specularIntensity`)
+ *   under a coat of `clearcoat` weight. Task 12: at full strength (1 and 1),
+ *   seen at a grazing angle, the glossy glass mirrored the reflection room's
+ *   violet back card over the whole floor, which read as a lit violet plane
+ *   where the preview's glass is near black (its world is black, and its violet
+ *   lights cast no specular); the room is the scene's environment, which a
+ *   material's own `envMapIntensity` does not scale, so the glass reflects less
+ *   of everything instead. The compass and the name still show in it through
+ *   the mirror below.
  * - `scratch`: fine streaks of rougher glass, all running one way, `angle`
  *   degrees from the floor's x. The map is `size` pixels square, tiled `repeat`
  *   times over the floor and read at `anisotropy` (as v3's glass does), and a
@@ -37,37 +46,45 @@ import { WORDMARK } from '~/engine/bob/wordmark';
  *   the floor on top of it at `opacity`, so the reflection shows through the
  *   rest. `tint` is the mirror's colour (the reflector's own blend), `size`
  *   the render target it has before a renderer tells it better, and
- *   `multisample` its MSAA samples: none, since the mirror shows only 15 % of
+ *   `multisample` its MSAA samples: none, since the mirror shows only 8 % of
  *   itself at half resolution, and 4 samples on a half-float target would cost
- *   about 50 MB of video memory at a pixel ratio of 2.
+ *   about 50 MB of video memory at a pixel ratio of 2. Task 12: at 15 % (an
+ *   opacity of 0.85) the darker floor showed a crisp second compass under the
+ *   first, where the preview's scratched glass shows only a blurred gold streak
+ *   or two; at 8 % it stays a dim echo, and the compass stays the one focal point.
  * - `well`: an open cylinder `depth` tall standing on `bottom`, so its top is
  *   just under the floor (-0.08), seen from inside. Its wall glows `emissive` at the foot, falling as (1 - v)^3 up the
  *   wall (v is 0 at the foot, 1 at the top). Its warm point `light` stands at
- *   `y`.
+ *   `y`. Task 12: both in the palette's gold light (the preview's GOLD_EMIT
+ *   and its well light), not the hot amber, which read as a bright orange pit
+ *   where the preview's tunnel glows warm gold; and the wall at 0.65, not 1.1:
+ *   a low camera sees the far wall from its rim down to about two thirds of the
+ *   way up, where (1 - v)^3 is a quarter, and at 1.1 that read as a flat, bright
+ *   tan bowl.
  * - `lip`: a gold ring of `tube` radius round the hole, a little outside it,
- *   at `y`.
+ *   at `y`, glowing in the gold light at the preview's 0.5.
  */
 export const GLASS_LOOK = {
   segments: 256,
-  floor: { colour: palette.night, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.025, outer: 60, thickness: 0.08 },
+  floor: { colour: palette.night, roughness: 0.08, clearcoat: 0.15, clearcoatRoughness: 0.025, specular: 0.12, outer: 60, thickness: 0.08 },
   scratch: { size: 512, angle: 28, contrast: 4, repeat: 20, seed: 2006, anisotropy: 4 },
-  reflection: { resolution: 0.5, opacity: 0.85, depth: 0.003, tint: 0x7f7f7f, size: [960, 540], multisample: 0 },
+  reflection: { resolution: 0.5, opacity: 0.92, depth: 0.003, tint: 0x7f7f7f, size: [960, 540], multisample: 0 },
   well: {
     bottom: -1.2,
     depth: 1.12,
-    emissive: 1.1,
-    colour: palette.amber,
+    emissive: 0.65,
+    colour: palette.goldLight,
     wall: palette.ink,
-    light: { y: -0.9, colour: palette.amber, intensity: 4, distance: 0, decay: 2 }
+    light: { y: -0.9, colour: palette.goldLight, intensity: 4, distance: 0, decay: 2 }
   },
-  lip: { radius: WORDMARK.hole + 0.012, tube: 0.02, y: -0.004, colour: palette.brass, emissive: palette.gold, emissiveIntensity: 0.5 }
+  lip: { radius: WORDMARK.hole + 0.012, tube: 0.02, y: -0.004, colour: palette.brass, emissive: palette.goldLight, emissiveIntensity: 0.5 }
 } as const;
 
 /**
  * The draw order of the floor, its edge and the cap. On the high tier they are
- * transparent (opacity 0.85), and three sorts transparent objects by the
- * distance of their origin, which for a ring 120 wide says nothing: the floor
- * could draw after the compass's glass or the smoke and paint 85 % over them.
+ * transparent (GLASS_LOOK.reflection.opacity), and three sorts transparent objects
+ * by the distance of their origin, which for a ring 120 wide says nothing: the floor
+ * could draw after the compass's glass or the smoke and paint over them.
  * -5 puts it after the sky (-10) and before the laser (1) and the mist (2),
  * following v3's `*_RENDER_ORDER` convention. It is set on every tier, where
  * it changes nothing because the glass is opaque.
@@ -253,6 +270,7 @@ export function buildGlass(tier: QualityTier): GlassModel {
     clearcoat: look.floor.clearcoat,
     clearcoatRoughness: look.floor.clearcoatRoughness * look.scratch.contrast,
     clearcoatRoughnessMap: scratch,
+    specularIntensity: look.floor.specular,
     transparent: reflected,
     opacity: reflected ? look.reflection.opacity : 1
   });

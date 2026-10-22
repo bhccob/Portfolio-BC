@@ -28,6 +28,13 @@ export const palette = {
   gold: 0xd9a520,
   /** Brass: the chip's pins, the traces at rest, the laser's probe and the lip of the city's case. */
   brass: 0xc9a24a,
+  /**
+   * Gold light: the colour the Blender preview's gold glows in (tools/blender/bob_build.py, GOLD_EMIT, linear
+   * (1.0, 0.52, 0.16)): the engraving, the band marks, the tunnel's glow and its light, and the gold's own faint light.
+   * Where it glows strongly the shoulder tone mapping rolls it off to a pale warm gold, as the preview's letters read;
+   * the hot amber below stays the laser's own.
+   */
+  goldLight: 0xffbf6f,
   /** Thread red: nothing in the v3 scene draws it. */
   thread: 0xc8102e,
   /**
@@ -49,6 +56,12 @@ export const palette = {
    * reflection room's back card take it.
    */
   violet: 0x6a35b8,
+  /**
+   * Haze: the violet of the smoke over the glass, a little bluer and lighter than `violet`: the Blender preview's
+   * smoke (its volume (0.5, 0.36, 0.9) lit by two violet lights (0.55, 0.36, 1.0), tools/blender/bob_build.py),
+   * which reads blue-violet against the black glass where `violet` read purple.
+   */
+  haze: 0x8a6cf2,
   /** Deep violet: the v3 sky's nebula clouds, which only ever lie faintly over the night. */
   nebula: 0x2a1250,
   /**

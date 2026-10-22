@@ -177,6 +177,23 @@ describe('the engraving', () => {
     e.dispose();
   });
 
+  // Task 12: at 0.009 a tick read under a pixel across the sides of the ring at home and everywhere on a phone.
+  it('makes each tick 0.013 wide, a pixel or more across the front of the ring on a phone', () => {
+    expect(ENGRAVING_LOOK.ticks.width).toBe(0.013);
+    const e = buildEngraving();
+    const position = meshNamed(e.group, 'ticks').geometry.getAttribute('position');
+    for (const k of [0, 36, 77, 143]) {
+      const i = k * 4;
+      // Corners 0 and 1 are the inner end's two sides.
+      const across = Math.hypot(position.getX(i) - position.getX(i + 1), position.getZ(i) - position.getZ(i + 1));
+      expect(across).toBeCloseTo(0.013, 6);
+    }
+    // The phone's home camera stands about 23.2 off at a 50 degree field over 1688 device pixels: 0.0127 a pixel.
+    const metresPerPixel = (2 * 23.2 * Math.tan((25 * Math.PI) / 180)) / 1688;
+    expect(ENGRAVING_LOOK.ticks.width / metresPerPixel).toBeGreaterThanOrEqual(1);
+    e.dispose();
+  });
+
   it('flattens the 144 ticks into quads from the circle outward, cut off where along passes grown', () => {
     const e = buildEngraving();
     const ticks = meshNamed(e.group, 'ticks');
@@ -238,7 +255,8 @@ describe('the engraving', () => {
     e.dispose();
   });
 
-  it('sets every part to amber times the glow, the ticks and the outer ring a share of it', () => {
+  // Task 12: the hot amber read bright orange; the preview's lines glow in its gold light (GOLD_EMIT), pale where strong.
+  it('sets every part to the gold light times the glow, the ticks and the outer ring a share of it', () => {
     const e = buildEngraving();
     const colours = () => ({
       stroke: (meshNamed(e.group, 'stroke:rightB').material as THREE.MeshBasicMaterial).color.clone(),
@@ -248,10 +266,11 @@ describe('the engraving', () => {
     });
     e.setGlow(1);
     let c = colours();
-    expectColour(c.stroke, times(palette.amber, ENGRAVING_LOOK.gain * ENGRAVING_LOOK.share.stroke));
+    expect(ENGRAVING_LOOK.colour).toBe(palette.goldLight);
+    expectColour(c.stroke, times(palette.goldLight, ENGRAVING_LOOK.gain * ENGRAVING_LOOK.share.stroke));
     expectColour(c.circle, c.stroke);
-    expectColour(c.outer, times(palette.amber, ENGRAVING_LOOK.gain * ENGRAVING_LOOK.share.outer));
-    expectColour(c.ticks, times(palette.amber, ENGRAVING_LOOK.gain * ENGRAVING_LOOK.share.ticks));
+    expectColour(c.outer, times(palette.goldLight, ENGRAVING_LOOK.gain * ENGRAVING_LOOK.share.outer));
+    expectColour(c.ticks, times(palette.goldLight, ENGRAVING_LOOK.gain * ENGRAVING_LOOK.share.ticks));
     e.setGlow(0.5);
     const half = colours();
     expectColour(half.stroke, c.stroke.clone().multiplyScalar(0.5));
@@ -332,8 +351,11 @@ describe('the glass', () => {
     const material = floor.material as THREE.MeshPhysicalMaterial;
     expect(material).toBeInstanceOf(THREE.MeshPhysicalMaterial);
     expect(material.color.getHex()).toBe(palette.night);
-    expect(material.clearcoat).toBe(1);
-    expect(GLASS_LOOK.floor.clearcoat).toBe(1);
+    // Task 12: at full specular and coat the glossy glass mirrored the reflection room's violet card over the whole floor.
+    expect(material.clearcoat).toBe(0.15);
+    expect(GLASS_LOOK.floor.clearcoat).toBe(0.15);
+    expect(material.specularIntensity).toBe(0.12);
+    expect(GLASS_LOOK.floor.specular).toBe(0.12);
     expect(GLASS_LOOK.floor.clearcoatRoughness).toBe(0.025);
     expect(GLASS_LOOK.floor.roughness).toBe(0.08);
     g.dispose();
@@ -449,7 +471,8 @@ describe('the glass', () => {
     expect(hasNamed(buildGlass('low').group, 'floor:reflector')).toBe(false);
   });
 
-  it('lays the reflector under the floor, facing up over the same ring, and lets 15 % of the glass through', () => {
+  // Task 12: at 15 % the darker floor showed a crisp second compass; the preview's scratched glass shows a dim echo.
+  it('lays the reflector under the floor, facing up over the same ring, and lets 8 % of the glass through', () => {
     const high = buildGlass('high');
     const reflector = objectNamed(high.group, 'floor:reflector') as Reflector;
     expect(reflector.isReflector).toBe(true);
@@ -473,7 +496,7 @@ describe('the glass', () => {
     expect(far).toBeCloseTo(60, 4);
     const floor = meshNamed(high.group, 'floor').material as THREE.MeshPhysicalMaterial;
     expect(floor.transparent).toBe(true);
-    expect(floor.opacity).toBe(0.85);
+    expect(floor.opacity).toBe(0.92);
     high.dispose();
 
     // Without the reflector the glass is solid.
@@ -581,12 +604,14 @@ describe('the glass', () => {
     g.dispose();
   });
 
-  it('glows the well warm, 1.1 at the foot and falling as (1 - v) cubed up the wall', () => {
+  // Task 12: in the gold light, not the hot amber (an orange pit), and at 0.65, not 1.1 (a flat bright bowl).
+  it('glows the well warm, 0.65 at the foot and falling as (1 - v) cubed up the wall', () => {
     const g = buildGlass('low');
     const material = meshNamed(g.group, 'well').material as THREE.MeshStandardMaterial;
     g.setGlow(1);
-    expect(material.emissiveIntensity).toBeCloseTo(1.1, 9);
-    expect(material.emissive.getHex()).toBe(palette.amber);
+    expect(material.emissiveIntensity).toBeCloseTo(0.65, 9);
+    expect(material.emissive.getHex()).toBe(palette.goldLight);
+    expect(GLASS_LOOK.well.light.colour).toBe(palette.goldLight);
     // The fade is added to three's own shader.
     const shader = { uniforms: {}, vertexShader: THREE.ShaderLib.physical.vertexShader, fragmentShader: THREE.ShaderLib.physical.fragmentShader };
     material.onBeforeCompile(shader as never, {} as never);
@@ -616,7 +641,7 @@ describe('the glass', () => {
     expect(full).toBeGreaterThan(0);
     g.setGlow(0.5);
     expect(light.intensity).toBeCloseTo(full / 2, 9);
-    expect(material.emissiveIntensity).toBeCloseTo(0.55, 9);
+    expect(material.emissiveIntensity).toBeCloseTo(0.325, 9);
     g.setGlow(5);
     expect(light.intensity).toBeCloseTo(full, 9);
     g.setGlow(-1);

@@ -234,7 +234,7 @@ describe('the compass', () => {
       for (const k of [1, 2, 3, 4]) {
         const glass = bandMaterial(c, k);
         expect(glass.transparent, tier).toBe(true);
-        expect(glass.color.getHex(), tier).toBe(palette.violet);
+        expect(glass.color.getHex(), tier).toBe(palette.lilac);
         expect(glass.transmission, tier).toBe({ high: 1, medium: 0.6, low: 0 }[tier]);
         expect(glass.opacity, tier).toBe({ high: 1, medium: 1, low: 0.35 }[tier]);
         // Four bands round one centre cannot be sorted: thin glass that wrote depth would hide the bands behind it.
@@ -246,18 +246,20 @@ describe('the compass', () => {
     expect(COMPASS_LOOK.bandGlass.opacity).toEqual({ high: 1, medium: 1, low: 0.35 });
   });
 
-  it('makes each band smoked violet glass: transmissive, glossy, iridescent, a faint violet light of its own', () => {
+  // Task 12: the preview's glass is a pale lavender (lilac, the nearest token) glowing blue-violet (the haze); the
+  // palette's violet tinted the bands a deep magenta purple.
+  it('makes each band smoked lavender glass: transmissive, glossy, iridescent, a faint blue-violet light of its own', () => {
     const c = loadCompass(fakeGltf(), 'high', stripStub);
     for (const k of [1, 2, 3, 4]) {
       const glass = bandMaterial(c, k);
       expect(glass).toBeInstanceOf(THREE.MeshPhysicalMaterial);
-      expect(glass.color.getHex()).toBe(palette.violet);
+      expect(glass.color.getHex()).toBe(palette.lilac);
       expect(glass.roughness).toBe(0.04);
       expect(glass.metalness).toBe(0);
       expect(glass.ior).toBe(1.5);
       expect(glass.thickness).toBe(0.045);
       expect(glass.iridescence).toBe(0.35);
-      expect(glass.emissive.getHex()).toBe(palette.violet);
+      expect(glass.emissive.getHex()).toBe(palette.haze);
       expect(glass.emissiveIntensity).toBe(0.06);
       // A closed solid: its front faces are enough, and three skips the back-face transmission pass.
       expect(glass.side).toBe(THREE.FrontSide);
@@ -298,15 +300,16 @@ describe('the compass', () => {
     c.dispose();
   });
 
-  it("lights the marks amber at 1.6 by the strip's coverage, on top of the glass's own violet", () => {
+  // Task 12: the hot amber at 1.6 read as bright orange marks; the preview's marks are gold, a quarter of the letters.
+  it("lights the marks in the gold light at 0.6 by the strip's coverage, on top of the glass's own glow", () => {
     const c = loadCompass(fakeGltf(), 'high', stripStub);
     const glass = bandMaterial(c);
-    expect(COMPASS_LOOK.bandMarks.colour).toBe(palette.amber);
-    expect(COMPASS_LOOK.bandMarks.intensity).toBe(1.6);
+    expect(COMPASS_LOOK.bandMarks.colour).toBe(palette.goldLight);
+    expect(COMPASS_LOOK.bandMarks.intensity).toBe(0.6);
     const shader = { uniforms: {} as Record<string, THREE.IUniform>, vertexShader: THREE.ShaderLib.physical.vertexShader, fragmentShader: THREE.ShaderLib.physical.fragmentShader };
     glass.onBeforeCompile(shader as never, {} as never);
     const marks = shader.uniforms.uMarks.value as THREE.Color;
-    const expected = new THREE.Color(palette.amber).multiplyScalar(1.6);
+    const expected = new THREE.Color(palette.goldLight).multiplyScalar(0.6);
     expect(marks.r).toBeCloseTo(expected.r, 9);
     expect(marks.g).toBeCloseTo(expected.g, 9);
     expect(marks.b).toBeCloseTo(expected.b, 9);
@@ -333,6 +336,9 @@ describe('the compass', () => {
     expect(gold.color.getHex()).toBe(palette.brass);
     expect(gold.metalness).toBe(1);
     expect(gold.roughness).toBe(0.22);
+    // Task 12: a faint gold light of its own (the preview's needle 0.15, rims 0.25), or the needle reads black.
+    expect(gold.emissive.getHex()).toBe(palette.goldLight);
+    expect(gold.emissiveIntensity).toBe(0.22);
     // Transmission sees only opaque objects: a see-through needle would vanish behind every band.
     expect(gold.transparent).toBe(false);
     expect(gold.alphaHash).toBe(true);
@@ -889,8 +895,9 @@ describe('the smoke', () => {
     for (const s of [high, medium, low]) s.dispose();
   });
 
-  it('keeps every puff in the box at every moment: x within 15, z from 8 to -18, wholly between the glass and 1.6', () => {
-    expect(SMOKE_LOOK.box).toEqual({ x: 15, y: [0, 1.6], z: [8, -18] });
+  // Task 12: the box lies behind the compass, as the preview's smoke hangs in the distance, lit from far behind.
+  it('keeps every puff in the box at every moment: x within 15, z from -8 to -30, wholly between the glass and 2.2', () => {
+    expect(SMOKE_LOOK.box).toEqual({ x: 15, y: [0, 2.2], z: [-8, -30] });
     const s = buildSmoke('high');
     let left = 0;
     let right = 0;
@@ -900,10 +907,10 @@ describe('the smoke', () => {
       s.setTime(t);
       for (const o of sprites(s)) {
         expect(Math.abs(o.position.x)).toBeLessThanOrEqual(15);
-        expect(o.position.z).toBeLessThanOrEqual(8);
-        expect(o.position.z).toBeGreaterThanOrEqual(-18);
+        expect(o.position.z).toBeLessThanOrEqual(-8);
+        expect(o.position.z).toBeGreaterThanOrEqual(-30);
         expect(o.position.y - o.scale.y / 2).toBeGreaterThanOrEqual(-1e-9);
-        expect(o.position.y + o.scale.y / 2).toBeLessThanOrEqual(1.6 + 1e-9);
+        expect(o.position.y + o.scale.y / 2).toBeLessThanOrEqual(2.2 + 1e-9);
         left = Math.min(left, o.position.x);
         right = Math.max(right, o.position.x);
         front = Math.max(front, o.position.z);
@@ -913,8 +920,8 @@ describe('the smoke', () => {
     // It fills the box, not a corner of it.
     expect(left).toBeLessThan(-8);
     expect(right).toBeGreaterThan(8);
-    expect(front).toBeGreaterThan(5);
-    expect(back).toBeLessThan(-15);
+    expect(front).toBeGreaterThan(-11);
+    expect(back).toBeLessThan(-27);
     // Layers, not balls: every puff far wider than it is tall.
     for (const o of sprites(s)) expect(o.scale.x).toBeGreaterThan(3 * o.scale.y);
     s.dispose();
@@ -1019,12 +1026,14 @@ describe('the smoke', () => {
     s.dispose();
   });
 
-  it('is lilac dimmed, added to what is behind, testing depth but writing none, out of the fog', () => {
+  // Task 12: the lilac at 0.2 read as a grey haze; the preview's smoke is blue-violet, the haze token, and fainter
+  // per unit (its luma) than the lilac, so it is dimmed less.
+  it('is the haze dimmed, added to what is behind, testing depth but writing none, out of the fog', () => {
     const s = buildSmoke('high');
-    const expected = new THREE.Color(palette.lilac).multiplyScalar(SMOKE_LOOK.dim);
-    expect(SMOKE_LOOK.colour).toBe(palette.lilac);
+    const expected = new THREE.Color(palette.haze).multiplyScalar(SMOKE_LOOK.dim);
+    expect(SMOKE_LOOK.colour).toBe(palette.haze);
     expect(SMOKE_LOOK.dim).toBeGreaterThan(0);
-    expect(SMOKE_LOOK.dim).toBeLessThan(0.5);
+    expect(SMOKE_LOOK.dim).toBeLessThan(1);
     const textures = new Set<THREE.Texture | null>();
     for (const o of sprites(s)) {
       const m = o.material;

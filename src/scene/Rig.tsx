@@ -6,6 +6,7 @@ import { isAiming } from '~/engine/bob/needleAim';
 import { applyCameraShot } from '~/engine/bob/shots';
 import { frame } from '~/state/frame';
 import { useScene } from '~/state/store';
+import { fogFor } from './bob/look';
 import { motion } from './motion';
 
 /** The most the pointer turns the camera about the shot's look-at point, radians, either way on each axis. */
@@ -41,6 +42,7 @@ const clamp = (value: number): number => Math.min(1, Math.max(-1, value));
  */
 export function Rig(): null {
   const camera = useThree((state) => state.camera) as THREE.PerspectiveCamera;
+  const scene = useThree((state) => state.scene);
   const width = useThree((state) => state.size.width);
   const height = useThree((state) => state.size.height);
   const invalidate = useThree((state) => state.invalidate);
@@ -68,11 +70,22 @@ export function Rig(): null {
     return () => window.removeEventListener('pointermove', move);
   }, [invalidate]);
 
-  /** Puts the camera on the Opening's shot for the canvas's size, then turns it about the look-at point by the parallax. */
+  /**
+   * Puts the camera on the Opening's shot for the canvas's size, then turns it about the look-at point by the parallax.
+   * The fog follows the shot (`fogFor`): it starts beyond what the camera looks at, however far back the screen's
+   * shape stands it, so a phone's compass is as clear as a laptop's. Its two numbers are uniforms: no program changes.
+   */
   const place = (): void => {
     const shot = frame.shot;
     if (!shot || !(width > 0 && height > 0)) return;
     applyCameraShot(camera, shot, width / height);
+    if (scene.fog instanceof THREE.Fog) {
+      const [px, py, pz] = shot.position;
+      const [tx, ty, tz] = shot.target;
+      const fog = fogFor(Math.hypot(px - tx, py - ty, pz - tz));
+      scene.fog.near = fog.near;
+      scene.fog.far = fog.far;
+    }
     const { x, y } = sway.current;
     if (x === 0 && y === 0) return;
     const target = centre.current.set(shot.target[0], shot.target[1], shot.target[2]);
@@ -89,7 +102,7 @@ export function Rig(): null {
   useLayoutEffect(() => {
     place();
     invalidate();
-  }, [camera, width, height, invalidate]);
+  }, [camera, scene, width, height, invalidate]);
 
   useFrame((_, delta) => {
     const reduced = useScene.getState().reducedMotion;

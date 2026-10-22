@@ -16,19 +16,25 @@ import { palette } from '~/engine/palette';
 import { lowerTier, type QualityTier } from '~/engine/quality';
 
 /**
- * How the smoke looks and drifts, in metres and seconds. The numbers are first
- * values: a later task tunes them under the luminance gate.
+ * How the smoke looks and drifts, in metres and seconds. Task 12 tuned the
+ * numbers against the Blender preview's stills under the luminance gate; each
+ * change says why.
  *
- * - `colour` and `dim`: the palette's lilac times `dim`, added to what is
+ * - `colour` and `dim`: the palette's haze times `dim`, added to what is
  *   behind (additive), so the smoke lifts the dark into a haze and never
- *   darkens a light.
+ *   darkens a light. Task 12: the lilac at 0.2 read as a grey haze; the
+ *   preview's smoke is blue-violet (its volume (0.5, 0.36, 0.9), lit by two
+ *   violet lights), which the haze token is.
  * - `layers` of `puffs` each, the layers spread evenly from the front of the
  *   `box` to its back (z), the puffs across it (x); every puff lies wholly
  *   between the glass and the box's top (y). The low tier keeps every other
  *   layer from the front, half of them: its haze thins evenly through the box
  *   and gives up the back layer, the farthest and the most fogged, last in
- *   line. The layers stand clear of the compass, whose bands
- *   reach 1.56 from the axis: with six, none comes within 2 of it.
+ *   line. The box lies behind the compass (Task 12): the preview's smoke is lit
+ *   from far behind it, so it hangs in the distance, in the upper part of every
+ *   shot, and nothing of it lies over the compass or the name, the scene's focal
+ *   points; the nearest layer stands 8.4 behind the compass's axis, clear of its
+ *   bands (1.56).
  * - `width` and `height`: each puff's size, ranges: a layer, far wider than
  *   tall. `opacity`: each puff's at density 1 (all very low).
  * - `sway`: how far a puff wanders along x and z, once round every `period`
@@ -37,11 +43,11 @@ import { lowerTier, type QualityTier } from '~/engine/quality';
  * - `seed`: the scatter of the puffs, the same every build.
  */
 export const SMOKE_LOOK = {
-  colour: palette.lilac,
-  dim: 0.2,
+  colour: palette.haze,
+  dim: 0.7,
   layers: 6,
   puffs: 3,
-  box: { x: 15, y: [0, 1.6], z: [8, -18] },
+  box: { x: 15, y: [0, 2.2], z: [-8, -30] },
   width: [6, 11],
   height: [0.8, 1.6],
   opacity: [0.1, 0.18],

@@ -17,27 +17,31 @@ import { palette } from '~/engine/palette';
 import { circlePath, type Point2, STROKE_ORDER, type StrokeId, strokePath, tickSegments, WORDMARK } from '~/engine/bob/wordmark';
 
 /**
- * How the engraving looks. The numbers are first values: a later task tunes
- * them under the luminance gate.
+ * How the engraving looks. Task 12 tuned the numbers against the Blender
+ * preview's stills under the luminance gate; each change says why.
  *
- * - `colour`, `gain`: every part is the palette's hot amber times `gain` times
- *   the part's `share` times the glow `setGlow` is given, in linear light, so a
- *   glow of 1 is the engraving at rest. The shares keep the preview's order of
- *   strength: the letters and the circle (its emission 3.0 and 3.2), then the
- *   ticks (1.8), then the outer ring (1.2).
+ * - `colour`, `gain`: every part is the palette's gold light (the preview's
+ *   GOLD_EMIT) times `gain` times the part's `share` times the glow `setGlow` is
+ *   given, in linear light, so a glow of 1 is the engraving at rest. The shares
+ *   keep the preview's order of strength: the letters and the circle (its
+ *   emission 3.0 and 3.2), then the ticks (1.8), then the outer ring (1.2).
+ *   Task 12: the hot amber read bright orange where the preview's lines read a
+ *   pale warm gold; at this gain the shoulder rolls the gold light off to that.
  * - `tube`: the strokes' tubes have `radial` sides and about `perMetre`
  *   segments to each metre of path.
  * - `outer`: the outer ring's tube radius, half a stroke's.
  * - `ticks`: a tick is a flat quad `width` wide, `lift` over the glass so it
- *   cannot z-fight the floor.
+ *   cannot z-fight the floor. Task 12: 0.009 read under a pixel at the home
+ *   framing (2.3 px across the front of the ring at 1440x900, half a pixel on
+ *   its sides, under a pixel everywhere on a phone) and broke up; 0.013 holds.
  */
 export const ENGRAVING_LOOK = {
-  colour: palette.amber,
-  gain: 2,
+  colour: palette.goldLight,
+  gain: 2.4,
   share: { stroke: 1, ticks: 0.6, outer: 0.4 },
   tube: { radial: 6, perMetre: 120 },
   outer: { radius: 0.0055 },
-  ticks: { width: 0.009, lift: 0.0006 }
+  ticks: { width: 0.013, lift: 0.0006 }
 } as const;
 
 /** `x` held to [0, 1]; NaN reads as 0. */
@@ -171,7 +175,7 @@ void main() {
   #include <fog_vertex>
 }`;
 
-/** Each tick shows from its inner end out to `uGrown` of its length, flat amber, tone-mapped and fogged as a basic material is. */
+/** Each tick shows from its inner end out to `uGrown` of its length, flat gold light, tone-mapped and fogged as a basic material is. */
 const tickFragment = /* glsl */ `
 uniform vec3 uColour;
 uniform float uGrown;
@@ -195,7 +199,7 @@ export interface EngravingModel {
   setTicks(grown: number): void;
   /** Shows the first `drawn` (0..1) of the outer ring, as a stroke. */
   setOuter(drawn: number): void;
-  /** Sets every part to the amber times `level` (held to 0 or more; NaN reads as 0), each by its share; 1 is the engraving at rest. */
+  /** Sets every part to the gold light times `level` (held to 0 or more; NaN reads as 0), each by its share; 1 is the engraving at rest. */
   setGlow(level: number): void;
   /** Frees every geometry and material the engraving made. */
   dispose(): void;

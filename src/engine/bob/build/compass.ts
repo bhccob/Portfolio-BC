@@ -18,22 +18,33 @@ import { palette } from '~/engine/palette';
 import { lowerTier, type QualityTier } from '~/engine/quality';
 
 /**
- * How the compass looks and turns. The numbers are first values: a later task
- * tunes them under the luminance gate.
+ * How the compass looks and turns. Task 12 tuned the numbers against the
+ * Blender preview's stills (docs/design/bob-compass/p01-p05) under the
+ * luminance gate; each change says why.
  *
- * - `bandGlass`: the bands' smoked glass, the palette's violet, seen through
+ * - `bandGlass`: the bands' smoked glass, the palette's lilac, seen through
  *   by physical transmission (`transmission`, by tier: all of it on high, 0.6
  *   on medium), glossy (`roughness`), refracting as glass (`ior`) through the
  *   band's own `thickness`, with a thin-film sheen (`iridescence`) and a faint
- *   violet light of its own (`emissive` at `emissiveIntensity`) so a band
- *   still reads where the room gives it nothing to transmit. The low tier has
- *   no transmission, so no transmission pass runs (Ruling 16): its glass is
- *   plain see-through glass of the same tint at `opacity`.
- * - `bandMarks`: the engraving, the hot amber at `intensity`, lit where the
- *   painted strip covers the band (it is the band glass's emissive map, see
- *   `patchMarks`), read at `anisotropy` so the fine ticks stay sharp on a band
- *   seen edge on, as v3's gold did.
- * - `gold`: the rims, the needle, the pivot and the axis, one brass metal.
+ *   violet light of its own (the haze, `emissive` at `emissiveIntensity`) so a
+ *   band still reads where the room gives it nothing to transmit. The low tier
+ *   has no transmission, so no transmission pass runs (Ruling 16): its glass is
+ *   plain see-through glass of the same tint at `opacity`. Task 12: the
+ *   preview's glass is a pale lavender (base (0.52, 0.4, 0.86), lilac is the
+ *   nearest token) glowing a blue violet (0.42, 0.26, 0.9), and reads as smoked
+ *   slate-violet; the palette's violet tinted the bands a deep magenta purple.
+ * - `bandMarks`: the engraving, the palette's gold light at `intensity`, lit
+ *   where the painted strip covers the band (it is the band glass's emissive
+ *   map, see `patchMarks`), read at `anisotropy` so the fine ticks stay sharp
+ *   on a band seen edge on, as v3's gold did. Task 12: the hot amber at 1.6 read
+ *   as bright orange marks, where the preview's are gold at a quarter of the
+ *   letters' strength (emission 0.45 against 3.0).
+ * - `gold`: the rims, the needle, the pivot and the axis, one brass metal,
+ *   with a faint light of its own (`emissive` at `emissiveIntensity`, the
+ *   preview's needle 0.15 and rims 0.25): metal shows only its reflections, and
+ *   seen against the dark room the needle read black where the preview's is
+ *   gold (Task 12). At 0.22 the needle reads gold rather than khaki; the
+ *   preview's broad warm key does the rest of that there.
  * - `homeY`: the armillary's height over the glass at home (the preview's
  *   ARM_Z), added to the clip's own height, which ends at 0.
  * - `spin`: band `k` (0 for band_1 up to 3 for band_4) turns at `base` +
@@ -43,18 +54,18 @@ import { lowerTier, type QualityTier } from '~/engine/quality';
  */
 export const COMPASS_LOOK = {
   bandGlass: {
-    colour: palette.violet,
+    colour: palette.lilac,
     transmission: { high: 1, medium: 0.6, low: 0 },
     opacity: { high: 1, medium: 1, low: 0.35 },
     roughness: 0.04,
     ior: 1.5,
     thickness: 0.045,
     iridescence: 0.35,
-    emissive: palette.violet,
+    emissive: palette.haze,
     emissiveIntensity: 0.06
   },
-  bandMarks: { colour: palette.amber, intensity: 1.6, anisotropy: 4 },
-  gold: { colour: palette.brass, metalness: 1, roughness: 0.22 },
+  bandMarks: { colour: palette.goldLight, intensity: 0.6, anisotropy: 4 },
+  gold: { colour: palette.brass, metalness: 1, roughness: 0.22, emissive: palette.goldLight, emissiveIntensity: 0.22 },
   homeY: 0.55,
   spin: { base: 1.5, step: 0.6 }
 } as const;
@@ -137,7 +148,7 @@ export function bandStrip(band: number, canvas: HTMLCanvasElement = document.cre
  * The marks ride on the band glass itself, as its emissive map: one surface
  * has one emissive colour, so three's own `emissivemap_fragment` (which
  * multiplies the glass's violet by the map) is replaced by adding the marks'
- * amber where the strip covers the band. Coverage is the strip's alpha: the
+ * gold light where the strip covers the band. Coverage is the strip's alpha: the
  * canvas is uploaded un-premultiplied, so an anti-aliased edge pixel arrives
  * as full white at part alpha, and its colour would draw every mark bold (the
  * same reason v3's gold read its masks' alpha).
@@ -278,6 +289,8 @@ export function loadCompass(
     color: look.gold.colour,
     metalness: look.gold.metalness,
     roughness: look.gold.roughness,
+    emissive: look.gold.emissive,
+    emissiveIntensity: look.gold.emissiveIntensity,
     alphaHash: true
   });
   for (const name of ['rim_1', 'rim_2', 'rim_3', 'rim_4', 'needle', 'pivot', 'axis'] as const) part(name).material = gold;
