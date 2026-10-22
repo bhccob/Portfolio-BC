@@ -31,8 +31,11 @@ const clamp = (value: number): number => Math.min(1, Math.max(-1, value));
  *
  * On top of the shot, at home only, a pointer parallax turns the camera about the shot's look-at point by at most
  * PARALLAX radians, damped (maath `damp3`), so the compass keeps its place on the page while the bands and the
- * engraved letters shift against each other and their depth reads (spec §2.2). During the opening the camera flies the
- * Opening's path and nothing else; with reduced motion there is no parallax at all.
+ * engraved letters shift against each other and their depth reads (spec §2.2). The shot says how much of it:
+ * `shot.sway` (0..1, absent is 1) scales the turn, so the top shot, which looks straight down, has sway 0 and keeps
+ * its camera exactly where the shot puts it. The camera's `up` is the shot's (applyCameraShot sets it), and the
+ * parallax's `lookAt` keeps it. During the opening the camera flies the Opening's path and nothing else; with reduced
+ * motion there is no parallax at all.
  *
  * The pointer is read from `pointermove` on the window into `frame.pointer` (-1..1, up is +1) and the time of the move
  * into `frame.pointerAt`, for the home's needle (src/scene/bob/Home.tsx): a mouse or a pen only, a finger has no hover
@@ -86,14 +89,18 @@ export function Rig(): null {
       scene.fog.near = fog.near;
       scene.fog.far = fog.far;
     }
-    const { x, y } = sway.current;
+    // The parallax a shot allows: its `sway` (absent is 1) times the pointer's turn. The top shot's 0 adds nothing, so
+    // the camera stays exactly where the shot put it, looking straight down with its `up`, and the orbit is skipped.
+    const allowed = shot.sway ?? 1;
+    const x = sway.current.x * allowed;
+    const y = sway.current.y * allowed;
     if (x === 0 && y === 0) return;
     const target = centre.current.set(shot.target[0], shot.target[1], shot.target[2]);
     orbit.current.setFromVector3(offset.current.subVectors(camera.position, target));
     orbit.current.theta += x;
     orbit.current.phi = THREE.MathUtils.clamp(orbit.current.phi - y, 0.01, Math.PI - 0.01);
     camera.position.setFromSpherical(orbit.current).add(target);
-    camera.lookAt(target);
+    camera.lookAt(target); // with the camera's `up`, as applyCameraShot set it from the shot: not reset here
     camera.updateMatrixWorld();
   };
 

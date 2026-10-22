@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { applyCameraShot, type CameraShot, FRAMES, homeShotFor, lerpCameraShot, MAX_VFOV, shotFor, type ShotFrame, wideShotFor } from '~/engine/bob/shots';
+import { applyCameraShot, type CameraShot, FRAMES, homeShotFor, lerpCameraShot, MAX_VFOV, shotFor, type ShotFrame, topShotFor, wideShotFor } from '~/engine/bob/shots';
 
-/** `p` seen through the camera a shot places on a screen of this aspect: its NDC x and y (-1..1). */
-function project(shot: CameraShot, aspect: number, p: [number, number, number]): [number, number] {
+/** `p` seen through the camera a shot places on a screen of this aspect: its NDC x and y (-1..1), the camera's up being `up` (+Y unless told). */
+function project(shot: CameraShot, aspect: number, p: [number, number, number], up: readonly [number, number, number] = [0, 1, 0]): [number, number] {
   const camera = new THREE.PerspectiveCamera(shot.fov, aspect, 0.1, 200);
-  camera.up.set(0, 1, 0);
+  camera.up.set(...up);
   camera.position.set(...shot.position);
   camera.lookAt(...shot.target);
   camera.updateMatrixWorld();
@@ -118,19 +118,90 @@ describe('the home shot on a wide, short screen', () => {
 });
 
 describe('the wide shot', () => {
-  it('frames the whole name with margin in the wide shot', () => {
-    for (const x of [-4.25, 4.25]) expect(Math.abs(project(wideShotFor(16 / 9), 16 / 9, [x, 0, 1.7])[0])).toBeLessThan(0.95);
+  it("frames only the O in the loader's wide shot: the outer ring (r 1.88) inside the screen with room to spare", () => {
+    for (const aspect of [16 / 9, 16 / 10, 21 / 9, PHONE]) {
+      const shot = wideShotFor(aspect);
+      for (const p of [
+        [1.88, 0, 0],
+        [-1.88, 0, 0],
+        [0, 0, 1.88],
+        [0, 0, -1.88]
+      ] as const) {
+        const [nx, ny] = project(shot, aspect, [...p]);
+        expect(Math.abs(nx), `${aspect} ${p}`).toBeLessThan(0.75);
+        expect(Math.abs(ny), `${aspect} ${p}`).toBeLessThan(0.9);
+      }
+    }
   });
 
-  it('keeps the name in on the other screens too', () => {
-    for (const aspect of [16 / 10, 4 / 3, 1, PHONE]) {
-      for (const x of [-4.25, 4.25]) expect(Math.abs(project(wideShotFor(aspect), aspect, [x, 0, 1.7])[0])).toBeLessThanOrEqual(0.95);
-    }
+  it('is closer than the whole-name frame it replaces: 11.2 away, 19 degrees above, the O in the middle', () => {
+    expect(FRAMES.wide).toEqual({ distance: 11.2, elevation: 19, targetY: 0.1, halfWidth: 4.0 });
+    const shot = wideShotFor(16 / 9);
+    expect(Math.hypot(shot.position[1] - shot.target[1], shot.position[2] - shot.target[2])).toBeCloseTo(11.2, 9);
+    const [nx, ny] = project(shot, 16 / 9, [0, 0.1, 0]);
+    expect(nx).toBeCloseTo(0, 9);
+    expect(ny).toBeCloseTo(0, 9);
   });
 
   it('is the same view as the frame says', () => {
     expect(wideShotFor(16 / 9)).toEqual(shotFor(FRAMES.wide, 16 / 9));
     expect(wideShotFor(0.5)).toEqual(shotFor(FRAMES.wide, 0.5));
+  });
+
+  it('carries no up and no sway: the loader blends it, and the Rig reads +Y and full parallax from a shot that says nothing', () => {
+    const shot = wideShotFor(16 / 9);
+    expect(shot.up).toBeUndefined();
+    expect(shot.sway).toBeUndefined();
+  });
+});
+
+describe('the top shot', () => {
+  it('looks straight down at the top, the far side up, the whole name across every screen', () => {
+    for (const aspect of [16 / 9, 21 / 9, 1, PHONE, 0.3]) {
+      const shot = topShotFor(aspect);
+      expect(shot.up).toEqual([0, 0, -1]);
+      expect(shot.sway).toBe(0);
+      expect(shot.position[0]).toBe(0);
+      expect(shot.position[2]).toBeCloseTo(0, 9);
+      for (const x of [-4.25, 4.25]) expect(Math.abs(project(shot, aspect, [x, 0, 0], [0, 0, -1])[0])).toBeLessThan(0.95);
+      // The B letters' tops (z -1.7) are up the screen.
+      expect(project(shot, aspect, [0, 0, -1.7], [0, 0, -1])[1]).toBeGreaterThan(0);
+    }
+  });
+
+  it('looks down onto the middle of the glass from straight above, its frame as the brief has it', () => {
+    expect(FRAMES.top).toEqual({ distance: 12.6, elevation: 90, targetY: 0, halfWidth: 4.6 });
+    const shot = topShotFor(16 / 9);
+    expect(shot.target).toEqual([0, 0, 0]);
+    expect(shot.position[1]).toBeCloseTo(12.6, 9);
+    expect(project(shot, 16 / 9, [0, 0, 0], [0, 0, -1])[0]).toBeCloseTo(0, 9);
+    expect(project(shot, 16 / 9, [0, 0, 0], [0, 0, -1])[1]).toBeCloseTo(0, 9);
+  });
+
+  it('reads like the B letters do from above: the left one on the left, the near edge at the bottom', () => {
+    const shot = topShotFor(16 / 9);
+    expect(project(shot, 16 / 9, [-3.2, 0, 0], [0, 0, -1])[0]).toBeLessThan(0);
+    expect(project(shot, 16 / 9, [3.2, 0, 0], [0, 0, -1])[0]).toBeGreaterThan(0);
+    expect(project(shot, 16 / 9, [0, 0, 1.7], [0, 0, -1])[1]).toBeLessThan(0);
+  });
+
+  it('is the frame fitted by shotFor, with the up and the sway added', () => {
+    for (const aspect of [16 / 9, PHONE]) expect(topShotFor(aspect)).toEqual({ ...shotFor(FRAMES.top, aspect), up: [0, 0, -1], sway: 0 });
+  });
+
+  it('puts the half-width of the name, at the glass, on the screen edge on every screen', () => {
+    for (const aspect of [0.3, PHONE, 1, 16 / 10, 16 / 9, 21 / 9]) {
+      const shot = topShotFor(aspect);
+      expect(project(shot, aspect, [FRAMES.top.halfWidth, 0, 0], [0, 0, -1])[0], `${aspect}`).toBeCloseTo(1, 9);
+      expect(project(shot, aspect, [-FRAMES.top.halfWidth, 0, 0], [0, 0, -1])[0], `${aspect}`).toBeCloseTo(-1, 9);
+    }
+  });
+
+  it('holds the field at the cap and stands back on a phone, as every shot does', () => {
+    const shot = topShotFor(PHONE);
+    expect(shot.fov).toBe(MAX_VFOV);
+    expect(shot.position[1]).toBeCloseTo(FRAMES.top.halfWidth / (PHONE * Math.tan((MAX_VFOV * Math.PI) / 360)), 9);
+    expect(shot.position[1]).toBeGreaterThan(FRAMES.top.distance);
   });
 });
 
@@ -199,13 +270,15 @@ describe('shotFor', () => {
   });
 
   it('reads an aspect thinner than 0.25 as 0.25, so the camera stays a finite way off', () => {
-    for (const frame of [FRAMES.wide, FRAMES.home]) {
+    for (const frame of [FRAMES.wide, FRAMES.home, FRAMES.top]) {
       expect(shotFor(frame, 0.05)).toEqual(shotFor(frame, 0.25));
       expect(shotFor(frame, 0.001)).toEqual(shotFor(frame, 0.25));
     }
     expect(homeShotFor(0.05)).toEqual(homeShotFor(0.25));
     expect(wideShotFor(0.05)).toEqual(wideShotFor(0.25));
+    expect(topShotFor(0.05)).toEqual(topShotFor(0.25));
     expect(shotFor(FRAMES.home, 0.05).position[2]).toBeLessThan(100);
+    expect(topShotFor(0.05).position[1]).toBeLessThan(100);
   });
 
   it('gives finite numbers for a bad aspect', () => {
@@ -236,7 +309,7 @@ describe('lerpCameraShot', () => {
   });
 });
 
-describe('applyCameraShot (copied from v3 unchanged)', () => {
+describe("applyCameraShot (v3's, with the shot's up)", () => {
   const HOME = homeShotFor(16 / 9);
   const WIDE = wideShotFor(16 / 9);
 
@@ -261,6 +334,23 @@ describe('applyCameraShot (copied from v3 unchanged)', () => {
     }
   });
 
+  it("puts the camera's up where the shot says, +Y when it says nothing", () => {
+    const camera = new THREE.PerspectiveCamera();
+    applyCameraShot(camera, topShotFor(16 / 9), 16 / 9);
+    expect(camera.up.toArray()).toEqual([0, 0, -1]);
+    applyCameraShot(camera, homeShotFor(16 / 9), 16 / 9);
+    expect(camera.up.toArray()).toEqual([0, 1, 0]);
+  });
+
+  it('turns the picture by the shot\'s up: from the top shot the far side of the glass is up the screen and the left B is on the left', () => {
+    const camera = new THREE.PerspectiveCamera();
+    applyCameraShot(camera, topShotFor(16 / 9), 16 / 9);
+    const far = new THREE.Vector3(0, 0, -1.7).project(camera);
+    const left = new THREE.Vector3(-3.2, 0, 0).project(camera);
+    expect(far.y).toBeGreaterThan(0);
+    expect(left.x).toBeLessThan(0);
+  });
+
   it('drops a view offset left by an earlier rig', () => {
     const camera = new THREE.PerspectiveCamera();
     camera.setViewOffset(1000, 800, 300, 200, 1000, 800);
@@ -277,6 +367,8 @@ describe('applyCameraShot (copied from v3 unchanged)', () => {
     applyCameraShot(camera, HOME, Number.NaN);
     applyCameraShot(camera, { ...HOME, fov: Number.NaN }, 1.6);
     applyCameraShot(camera, { ...HOME, position: [0, Number.POSITIVE_INFINITY, 3] }, 1.6);
+    applyCameraShot(camera, { ...HOME, up: [0, Number.NaN, -1] }, 1.6);
+    expect(camera.up.toArray()).toEqual([0, 1, 0]);
     expect(camera.fov).toBe(33);
     expect(camera.aspect).toBe(2);
     expect(camera.position.toArray()).toEqual([1, 2, 3]);

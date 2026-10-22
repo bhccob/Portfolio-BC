@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GLASS_LOOK } from '~/engine/bob/build/glassFloor';
-import { homeShotFor, wideShotFor } from '~/engine/bob/shots';
+import { FRAMES, homeShotFor, topShotFor, wideShotFor } from '~/engine/bob/shots';
 import { palette } from '~/engine/palette';
 import { BREATHE, breathAt, fogFor, IDLE_SECONDS, LOOK, NEEDLE_BREATH, needleGlowAt } from '~/scene/bob/look';
 
@@ -18,12 +18,14 @@ describe('the BOB look', () => {
   it("fades the far glass into the background's own black before its edge, so no horizon line shows (Ruling 26)", () => {
     expect(LOOK.fog.color).toBe(LOOK.background);
     expect(LOOK.fog.far).toBeLessThan(GLASS_LOOK.floor.outer);
-    // Every shot stands closer to the compass than the fog begins (the phone's home aside, which stands back ~23).
+    // Every shot stands closer to the compass than the fog begins (the phone's home aside, which stands back ~15).
+    // The loader's wide shot of the O alone is 11.2 off, the top shot 12.6 straight above.
     for (const aspect of [16 / 9, 21 / 9, 4 / 3]) {
-      for (const shot of [homeShotFor(aspect), wideShotFor(aspect)]) expect(Math.hypot(...shot.position)).toBeLessThan(LOOK.fog.near);
+      for (const shot of [homeShotFor(aspect), wideShotFor(aspect), topShotFor(aspect)]) expect(Math.hypot(...shot.position)).toBeLessThan(LOOK.fog.near);
     }
-    // Every camera stands on the +z side looking toward -z, so each point of the slab's far half, all the glass it looks
-    // across, is at least the slab's radius away: past the fog's end, so the edge is the same night as the sky.
+    // Every camera but the top shot's stands on the +z side looking toward -z, so each point of the slab's far half, all
+    // the glass it looks across, is at least the slab's radius away: past the fog's end, so the edge is the same night as
+    // the sky. (The top shot looks straight down; it never sees the edge, and its own fog test is below.)
     for (const aspect of [16 / 9, 21 / 9, 390 / 844]) {
       for (const shot of [homeShotFor(aspect), wideShotFor(aspect)]) {
         expect(shot.position[2], `${aspect}`).toBeGreaterThan(0);
@@ -43,7 +45,7 @@ describe('the BOB look', () => {
 
     it('starts clear of what every shot looks at, phone or laptop, and keeps its depth', () => {
       for (const aspect of [390 / 844, 0.6, 0.99, 1, 4 / 3, 16 / 9, 21 / 9]) {
-        for (const shot of [homeShotFor(aspect), wideShotFor(aspect)]) {
+        for (const shot of [homeShotFor(aspect), wideShotFor(aspect), topShotFor(aspect)]) {
           const fog = fogFor(distance(shot));
           expect(fog.near, `${aspect}`).toBeGreaterThanOrEqual(distance(shot) + LOOK.fog.clear - 1e-9);
           expect(fog.far - fog.near, `${aspect}`).toBeCloseTo(LOOK.fog.far - LOOK.fog.near, 9);
@@ -61,6 +63,17 @@ describe('the BOB look', () => {
           // The camera stands on +z looking toward -z: the nearest edge it looks across is the far one, at z = -outer.
           expect(fogFor(distance(shot)).far, `${aspect}`).toBeLessThan(GLASS_LOOK.floor.outer + shot.position[2]);
         }
+      }
+    });
+
+    it('leaves the whole top picture clear of the fog: its farthest corner of the glass is nearer than the fog begins', () => {
+      // Straight above, the picture is the glass from x = -w to w (w the top frame's half-width, on the edge on every
+      // screen) and z = -w / aspect to w / aspect; its corner is the farthest point of it from the camera.
+      for (const aspect of [390 / 844, 0.6, 1, 4 / 3, 16 / 9, 21 / 9, 0.3]) {
+        const shot = topShotFor(aspect);
+        const w = FRAMES.top.halfWidth;
+        const corner = Math.hypot(shot.position[1], w, w / aspect);
+        expect(corner, `${aspect}`).toBeLessThan(fogFor(distance(shot)).near);
       }
     });
 

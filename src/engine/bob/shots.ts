@@ -1,29 +1,44 @@
 /**
  * The BOB camera's shots: where the camera stands and what it looks at for the
- * loader's wide view of the whole name and for the home, each framed to fit the
- * screen's shape. A shot is plain numbers, so the loader can blend one into the
- * next (`lerpCameraShot`) and the tests project the scene through exactly the
+ * loader's wide view of the O alone, for the home and for the top shot, which
+ * looks straight down on the name, each framed to fit the screen's shape. A
+ * shot is plain numbers, so the loader can blend one into the next
+ * (`lerpCameraShot`) and the tests project the scene through exactly the
  * camera the page uses (`applyCameraShot`). It imports no code from three,
  * only the camera's type.
  *
  * The frame is the glass's (see ~/engine/bob/wordmark): the glass is the plane
  * y = 0, x runs to the right, and the camera stands on the +z side, looking
- * toward -z with the top of the screen away from it. Each frame's numbers come
- * from the Blender preview (tools/blender/bob_animate.py, the `WIDE` and `HOME`
- * dicts), tuned against the projection tests, not derived.
+ * toward -z with the top of the screen away from it. The top shot is the one
+ * that turns this round: straight above the glass, with the far side (-z) up
+ * the screen, so the B letters (x -4.25..-2.15 and 2.15..4.25, 3.4 m tall, z
+ * -1.7 to +1.7) read upright. The wide and home frames' numbers come from the
+ * Blender preview (tools/blender/bob_animate_o.py, the `WIDE` and `HOME`
+ * dicts; the top shot's 12.6 is `TOP_D` in tools/blender/bob_scroll.py), tuned
+ * against the projection tests, not derived.
  */
 import type { PerspectiveCamera } from 'three';
 
 /**
- * One camera placement: where the camera stands, the point it looks at (up is
- * always +Y) and its vertical field of view in degrees. The aspect is not part
- * of a shot: the screen supplies it, and `homeShotFor` and `wideShotFor` adapt
- * a frame to it.
+ * One camera placement: where the camera stands, the point it looks at, its
+ * vertical field of view in degrees, which way is up on the screen (`up`) and
+ * how much of the pointer parallax the Rig may add (`sway`). The aspect is not
+ * part of a shot: the screen supplies it, and `homeShotFor`, `wideShotFor` and
+ * `topShotFor` adapt a frame to it.
+ *
+ * - `up`: the camera's up vector, which `applyCameraShot` sets before it looks
+ *   at the target. Absent means +Y, as the wide and home shots have it. A shot
+ *   that looks straight down (the top shot) must say it, since +Y is then the
+ *   direction it looks along.
+ * - `sway`: how much parallax the Rig adds, 0..1. Absent means 1, the whole of
+ *   it; 0 means none, the camera stays exactly where the shot puts it.
  */
 export interface CameraShot {
   position: readonly [number, number, number];
   target: readonly [number, number, number];
   fov: number;
+  up?: readonly [number, number, number];
+  sway?: number;
 }
 
 /**
@@ -50,10 +65,17 @@ export interface ShotFrame {
 }
 
 /**
- * The two frames:
- * - `wide`: the loader's view, the whole name (both B letters and the circle
- *   between them) with room to spare, looking at the glass a little above the
- *   plane.
+ * The three frames:
+ * - `wide`: the loader's view, the O alone (Bob, 2026-10-22: the loader cuts
+ *   only the circle, no B letters yet), at 11.2 m and 19 degrees above,
+ *   looking at the glass a little above the plane. Its half-width of 4.0 puts
+ *   the outer ring (radius 1.88) well inside the picture, so the compass is the
+ *   only thing in it.
+ * - `top`: the shot the scroll ends on, straight above the glass (elevation 90)
+ *   at 12.6 m, looking down at its middle. Its half-width of 4.6 holds the
+ *   whole name across the picture: the B letters' outer edges, at x = +-4.25,
+ *   sit at 0.92 of the screen's half-width. `topShotFor` adds the up that makes
+ *   the far side of the glass the top of the screen.
  * - `home`: the home on every screen, close in on the compass, at 8.8 m and 13
  *   degrees above, looking at the compass's centre. Its half-width of 3.2 puts
  *   the centre of each B at the edge of the screen: half of each B is off it.
@@ -67,7 +89,8 @@ export interface ShotFrame {
  * (NDC y 0.99, against 0.88 at 16:9). With the floor it stays at about 0.90.
  */
 export const FRAMES = {
-  wide: { distance: 13.8, elevation: 14, targetY: 0.2, halfWidth: 5.2 },
+  wide: { distance: 11.2, elevation: 19, targetY: 0.1, halfWidth: 4.0 },
+  top: { distance: 12.6, elevation: 90, targetY: 0, halfWidth: 4.6 },
   home: { distance: 8.8, elevation: 13, targetY: 0.55, halfWidth: 3.2, minVfov: 22.5 }
 } as const;
 
@@ -123,9 +146,27 @@ export function homeShotFor(aspect: number): CameraShot {
   return shotFor(FRAMES.home, aspect);
 }
 
-/** The loader's wide shot for a screen of this aspect: the whole name in view. */
+/** The loader's wide shot for a screen of this aspect: the O alone in view, with room around it. */
 export function wideShotFor(aspect: number): CameraShot {
   return shotFor(FRAMES.wide, aspect);
+}
+
+/**
+ * The top shot for a screen of this aspect: straight down onto the middle of
+ * the glass, (0, 0, 0), the whole name across the picture. It is `shotFor` of
+ * the `top` frame (the width fit, at most `MAX_VFOV`, the camera standing back
+ * past it, so a phone stands further off than a laptop) with two things added:
+ * - `up: [0, 0, -1]`: the far side of the glass (-z) is the top of the screen,
+ *   so the B letters read upright and the left one is on the left. Looking
+ *   straight down the default +Y up would be the direction of sight itself.
+ * - `sway: 0`: no pointer parallax. The Rig's orbit about the target holds the
+ *   camera 0.01 radians off the pole, so it would swing a camera that looks
+ *   straight down off the vertical.
+ * The camera stands at `(0, d, d cos 90)`: its z is about 1e-15, not exactly 0,
+ * which is no matter to a camera that looks along -Y.
+ */
+export function topShotFor(aspect: number): CameraShot {
+  return { ...shotFor(FRAMES.top, aspect), up: [0, 0, -1], sway: 0 };
 }
 
 /** `a` and `b` mixed: `a` at `t` = 0 and `b` at `t` = 1. */
@@ -137,7 +178,9 @@ function mix(a: number, b: number, t: number): number {
  * The shot `t` of the way from `a` to `b` (0 is `a`, 1 is `b`; not clamped, so
  * an eased `t` that overshoots overshoots the camera too). The position, the
  * look-at point and the fov each move in a straight line, which is all the
- * loader needs: its two shots lie roughly along one descent.
+ * loader needs: its two shots lie roughly along one descent. It is the
+ * loader's, so it carries no `up` and no `sway`: the shots it blends say
+ * neither (+Y up, the whole parallax).
  */
 export function lerpCameraShot(a: CameraShot, b: CameraShot, t: number): CameraShot {
   return {
@@ -150,23 +193,26 @@ export function lerpCameraShot(a: CameraShot, b: CameraShot, t: number): CameraS
 /**
  * Puts `camera` where `shot` says on a screen of this `aspect` (width over
  * height): sets its fov and aspect, stands it at the shot's position looking
- * at the shot's target with +Y up, drops any view offset a previous rig left
+ * at the shot's target with the shot's `up` up (+Y when it has none; the
+ * camera's up is set on every placement, so a shot with an up does not leave it
+ * behind for the next one), drops any view offset a previous rig left
  * on it (a shot is the whole picture), and updates the projection and world
  * matrices so a projection made straight afterwards is right. It does not
  * touch near or far, which belong to the stage. A shot or aspect that is not
  * finite and positive leaves the camera as it was: there is nothing to frame,
  * and the maths would not be finite.
  *
- * Copied unchanged from v3's shots (Ruling 23): the Rig places the camera
- * through it. It calls only the camera's own methods, so this module needs
- * three's types and none of its code.
+ * Copied from v3's shots (Ruling 23), with the shot's `up` added: the Rig
+ * places the camera through it. It calls only the camera's own methods, so this
+ * module needs three's types and none of its code.
  */
 export function applyCameraShot(camera: PerspectiveCamera, shot: CameraShot, aspect: number): void {
-  const finite = [...shot.position, ...shot.target].every(Number.isFinite);
+  const finite = [...shot.position, ...shot.target, ...(shot.up ?? [])].every(Number.isFinite);
   if (!(finite && Number.isFinite(shot.fov) && shot.fov > 0 && Number.isFinite(aspect) && aspect > 0)) return;
   camera.fov = shot.fov;
   camera.aspect = aspect;
-  camera.up.set(0, 1, 0);
+  const [ux, uy, uz] = shot.up ?? [0, 1, 0];
+  camera.up.set(ux, uy, uz);
   camera.position.set(shot.position[0], shot.position[1], shot.position[2]);
   camera.lookAt(shot.target[0], shot.target[1], shot.target[2]);
   camera.clearViewOffset();
