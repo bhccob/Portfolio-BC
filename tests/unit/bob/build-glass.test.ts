@@ -286,9 +286,9 @@ describe('the engraving', () => {
   it('frees every geometry and material it made', () => {
     const e = buildEngraving();
     const parts = resources(e.group);
-    // Five strokes, the outer ring and the ticks; the strokes' shared material, the outer ring's and the ticks'.
+    // Five strokes, the outer ring and the ticks; the circle's material, the B letters' (their light front), the outer ring's and the ticks'.
     expect([...parts].filter((p) => p instanceof THREE.BufferGeometry)).toHaveLength(7);
-    expect([...parts].filter((p) => p instanceof THREE.Material)).toHaveLength(3);
+    expect([...parts].filter((p) => p instanceof THREE.Material)).toHaveLength(4);
     const spies = [...parts].map((part) => vi.spyOn(part, 'dispose'));
     e.dispose();
     for (const spy of spies) expect(spy).toHaveBeenCalled();

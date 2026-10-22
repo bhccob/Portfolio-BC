@@ -30,6 +30,14 @@ import { circlePath, type Point2, STROKE_ORDER, type StrokeId, strokePath, tickS
  * - `tube`: the strokes' tubes have `radial` sides and about `perMetre`
  *   segments to each metre of path.
  * - `outer`: the outer ring's tube radius, half a stroke's.
+ * - `letters`: the light that runs out of the O into the two B letters on the
+ *   scroll (the preview's `REVEAL == 'glow'` in tools/blender/bob_reveal_b.py).
+ *   The front stands `mix(from, to, share)` metres past `|x| = inner`; the
+ *   letters lie from 2.15 (the inner edge, nearest the compass) to 4.25 (the
+ *   outer), so it runs the length of each. A point `ramp` behind the front is
+ *   lit in full and one on the front not at all, and the ramp's leading edge is
+ *   `edge` times brighter (the preview's `mask * (1 - mask) * 10` over its
+ *   emission of 3).
  * - `ticks`: a tick is a flat quad `width` wide, `lift` over the glass so it
  *   cannot z-fight the floor. Task 12: 0.009 read under a pixel at the home
  *   framing (2.3 px across the front of the ring at 1440x900, half a pixel on
@@ -41,6 +49,7 @@ export const ENGRAVING_LOOK = {
   share: { stroke: 1, ticks: 0.6, outer: 0.4 },
   tube: { radial: 6, perMetre: 120 },
   outer: { radius: 0.0055 },
+  letters: { inner: 1.9, from: -0.6, to: 2.9, ramp: 0.45, edge: 3.3 },
   ticks: { width: 0.013, lift: 0.0006 }
 } as const;
 
@@ -164,6 +173,41 @@ function tickGeometry(): THREE.BufferGeometry {
   return geometry;
 }
 
+/** The strokes of the two B letters: all but the circle. */
+const LETTER_IDS = STROKE_ORDER.filter((id) => id !== 'circle');
+
+/**
+ * The letters' light front, added to three's own basic shader. The vertex
+ * shader hands over the world x (worked out from the model matrix, since
+ * `worldpos_vertex` defines a world position only under some defines); the
+ * fragment shader works out `k` from it: 0 ahead of the front, 1 `ramp` behind
+ * it. Where `k` is 0 nothing is drawn; the rest is the material's colour,
+ * boosted at the front's edge (`k + edge * k * (1 - k)`), before it is
+ * tone-mapped and fogged as a basic material is. The front and the look are
+ * uniforms the setter and the build hold, so a frame of the front compiles
+ * nothing.
+ */
+function patchLetters(front: THREE.IUniform<number>, look: THREE.IUniform<THREE.Vector3>) {
+  return (shader: { uniforms: Record<string, THREE.IUniform>; vertexShader: string; fragmentShader: string }): void => {
+    shader.uniforms.uFront = front;
+    shader.uniforms.uLook = look;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying float vLetterX;')
+      .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvLetterX = ( modelMatrix * vec4( transformed, 1.0 ) ).x;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform float uFront;\nuniform vec3 uLook;\nvarying float vLetterX;')
+      .replace(
+        '#include <opaque_fragment>',
+        [
+          'float k = clamp( ( uFront - ( abs( vLetterX ) - uLook.x ) ) / uLook.y, 0.0, 1.0 );',
+          'if ( k <= 0.0 ) discard;',
+          '#include <opaque_fragment>',
+          'gl_FragColor.rgb *= k + uLook.z * k * ( 1.0 - k );'
+        ].join('\n')
+      );
+  };
+}
+
 const tickVertex = /* glsl */ `
 attribute float along;
 varying float vAlong;
@@ -195,6 +239,13 @@ export interface EngravingModel {
   group: THREE.Group;
   /** Shows the first `drawn` (0..1, held to that; NaN reads as 0) of a stroke, by whole tube segments. */
   setStroke(id: StrokeId, drawn: number): void;
+  /**
+   * Runs the light out of the O into the two B letters, `share` (0..1, held to that; NaN reads as 0) of the way:
+   * nothing of the four B strokes is drawn at 0; above it they are drawn whole, lit up to a front `mix(from, to,
+   * share)` metres past `|x| = inner` (`ENGRAVING_LOOK.letters`), from each letter's inner edge to its outer. It
+   * moves a uniform, so a frame of it compiles nothing. It takes the B strokes' draw range over from `setStroke`.
+   */
+  setLetters(share: number): void;
   /** Grows the ticks outward to `grown` (0..1) of their length; none are drawn at 0. */
   setTicks(grown: number): void;
   /** Shows the first `drawn` (0..1) of the outer ring, as a stroke. */
@@ -207,10 +258,10 @@ export interface EngravingModel {
 
 /**
  * Builds the engraving with nothing drawn yet (every stroke at 0, no ticks, no
- * outer ring) at a glow of 1. The five strokes share one basic material (the
- * letters and the circle are the same strength); the outer ring and the ticks
- * have their own, for their shares. All three are opaque, tone-mapped and
- * fogged.
+ * outer ring) at a glow of 1. The circle has a basic material (the letters and
+ * the circle are the same strength); the four B strokes have one of their own,
+ * the same plus the light front (`setLetters`); the outer ring and the ticks
+ * have theirs, for their shares. All four are opaque, tone-mapped and fogged.
  */
 export function buildEngraving(): EngravingModel {
   const look = ENGRAVING_LOOK;
@@ -219,6 +270,11 @@ export function buildEngraving(): EngravingModel {
 
   const base = new THREE.Color(look.colour);
   const strokeMaterial = new THREE.MeshBasicMaterial({ name: 'engraving:stroke', color: base.clone() });
+  const lettersMaterial = new THREE.MeshBasicMaterial({ name: 'engraving:letters', color: base.clone() });
+  const front: THREE.IUniform<number> = { value: look.letters.from };
+  const lettersLook: THREE.IUniform<THREE.Vector3> = { value: new THREE.Vector3(look.letters.inner, look.letters.ramp, look.letters.edge) };
+  lettersMaterial.onBeforeCompile = patchLetters(front, lettersLook);
+  lettersMaterial.customProgramCacheKey = () => 'bob-letters';
   const outerMaterial = new THREE.MeshBasicMaterial({ name: 'engraving:outer', color: base.clone() });
   const tickMaterial = new THREE.ShaderMaterial({
     name: 'engraving:ticks',
@@ -231,7 +287,7 @@ export function buildEngraving(): EngravingModel {
 
   const strokes = new Map<StrokeId, THREE.Mesh<THREE.TubeGeometry, THREE.MeshBasicMaterial>>();
   for (const id of STROKE_ORDER) {
-    const mesh = new THREE.Mesh(tubeAlong(strokePath(id), WORDMARK.engrave), strokeMaterial);
+    const mesh = new THREE.Mesh(tubeAlong(strokePath(id), WORDMARK.engrave), id === 'circle' ? strokeMaterial : lettersMaterial);
     mesh.name = `stroke:${id}`;
     strokes.set(id, mesh);
     group.add(mesh);
@@ -255,6 +311,12 @@ export function buildEngraving(): EngravingModel {
     setStroke(id, drawn) {
       reveal(strokes.get(id)!, drawn);
     },
+    setLetters(share) {
+      const s = clamp01(share);
+      front.value = look.letters.from + (look.letters.to - look.letters.from) * s;
+      // Drawn whole above 0: the front hides what it has not reached.
+      for (const id of LETTER_IDS) reveal(strokes.get(id)!, s > 0 ? 1 : 0);
+    },
     setTicks(grown) {
       const g = clamp01(grown);
       tickMaterial.uniforms.uGrown.value = g;
@@ -266,12 +328,14 @@ export function buildEngraving(): EngravingModel {
     setGlow(level) {
       const k = Number.isFinite(level) && level > 0 ? level : 0;
       strokeMaterial.color.copy(base).multiplyScalar(look.gain * look.share.stroke * k);
+      lettersMaterial.color.copy(strokeMaterial.color);
       outerMaterial.color.copy(base).multiplyScalar(look.gain * look.share.outer * k);
       (tickMaterial.uniforms.uColour.value as THREE.Color).copy(base).multiplyScalar(look.gain * look.share.ticks * k);
     },
     dispose() {
       for (const mesh of [...strokes.values(), outer, ticks]) mesh.geometry.dispose();
       strokeMaterial.dispose();
+      lettersMaterial.dispose();
       outerMaterial.dispose();
       tickMaterial.dispose();
     }
