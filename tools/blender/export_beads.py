@@ -47,8 +47,9 @@
 #   shape helpers they share in bead_kit.py, and an
 #   absent script leaves it empty. Each script has `build(kit)`; `kit` is the namespace made in
 #   `fill_slots` (the bead's id, root, slot, display and inner light, the four materials, `link`,
-#   and CAVITY, OPENING and SLOT_RADIUS, the room the object has: within 0.5 of the axis, behind
-#   the glass).
+#   CAVITY, OPENING and SLOT_RADIUS, the room the object has: within 0.5 of the axis, behind
+#   the glass, and CAVITY_UV, the vein map's square the cavity's wall takes, which the bake leaves
+#   black).
 # - `bead_<id>_inner`: a warm point light in the cavity, in front of the slot, intensity 0.25.
 # - Materials:
 #   - `bead:lacquer`: deep purple, roughness 0.35. The baked vein mask (white veins on black) is
@@ -799,7 +800,7 @@ def fill_slots(beads, mats):
             id=bid, root=b["root"], slot=b["slot"], display=b["display"], inner=b["inner"],
             materials=mats, link=link,
             CAVITY=dict(radius=CAVITY_R, centre_y=CAVITY_Y), OPENING=dict(radius=OPEN_R, y=OPEN_Y),
-            SLOT_RADIUS=SLOT_RADIUS, GOLD=GOLD, GOLD_EMIT=GOLD_EMIT)
+            CAVITY_UV=CAVITY_UV, SLOT_RADIUS=SLOT_RADIUS, GOLD=GOLD, GOLD_EMIT=GOLD_EMIT)
         module.build(kit)
         filled.append(bid)
     return filled

@@ -31,7 +31,10 @@ const CAVITY = { radius: 0.72, z: 0.331 };
 
 /** The shells' four materials (export_beads.py), and those each bead's object adds (bead_<id>.py). */
 const SHELL_MATERIALS = ['bead:display', 'bead:glass', 'bead:gold', 'bead:lacquer'];
-const OBJECT_MATERIALS = { funcial: ['bead:abacus', 'bead:aluminium', 'bead:track'] };
+const OBJECT_MATERIALS = {
+  funcial: ['bead:abacus', 'bead:aluminium', 'bead:track'],
+  'jontai-energy': ['bead:backsheet', 'bead:cell', 'bead:polymer', 'bead:satin', 'bead:silver']
+};
 
 /** The fields of the glTF JSON the reader's own type leaves out and these tests look at. */
 interface Gltf {
@@ -606,6 +609,39 @@ const mean = (ps: number[][], c: number) => ps.reduce((s, p) => s + p[c], 0) / p
 const angleBetween = (a: number[], b: number[]) =>
   (Math.acos(Math.max(-1, Math.min(1, (a[0] * b[0] + a[2] * b[2]) / (radial(a) * radial(b))))) * 180) / Math.PI;
 
+/**
+ * That a part stands on a floor (a node whose top is its own y = 0, round its +y axis, out to `rim`): its lowest point
+ * touches the floor or is sunk a hair into it, both ends of its foot reach the floor (it rests along its length, not on
+ * one corner), and its foot is inside the rim.
+ */
+function standsOn(floor: string, name: string, rim: number) {
+  const frame = frameOf(floor);
+  const local = placed(name).map((p) => toLocal(frame, p));
+  const lowest = Math.min(...local.map((q) => q[1]));
+  expect(lowest, `${name}'s foot on the floor`).toBeGreaterThanOrEqual(-0.008);
+  expect(lowest, `${name}'s foot on the floor`).toBeLessThanOrEqual(0.001);
+  const foot = local.filter((q) => q[1] < lowest + 0.008);
+  const [x0, x1] = [Math.min(...foot.map((q) => q[0])), Math.max(...foot.map((q) => q[0]))];
+  const third = (x1 - x0) / 3;
+  const lowestIn = (from: number, to: number) => Math.min(...foot.filter((q) => q[0] >= from && q[0] <= to).map((q) => q[1]));
+  expect(lowestIn(x0, x0 + third) - lowest, `${name}'s left end on the floor`).toBeLessThan(0.002);
+  expect(lowestIn(x1 - third, x1) - lowest, `${name}'s right end on the floor`).toBeLessThan(0.002);
+  for (const q of foot) expect(radial(q), `${name}'s foot inside the rim`).toBeLessThan(rim);
+}
+
+/**
+ * Where the bead's inner light mirrors in a flat glossy front, seen from far along `view`: the point of the front's
+ * plane (through `on`, facing `n`) at which a viewer along `view` sees the light's mirror image.
+ */
+function mirroredLight(light: number[], on: number[], n: number[], view: number[]): number[] {
+  const c = view.map((v) => v / length(view));
+  const d = dot(
+    light.map((l, k) => l - on[k]),
+    n
+  );
+  return light.map((l, k) => l - 2 * d * n[k] + (d / dot(c, n)) * c[k]);
+}
+
 describe("Funcial's object", () => {
   const PIN_NAMES = Array.from({ length: PINS }, (_, k) => `funcial_pin_${k + 1}`);
   const BEAD_NAMES = Array.from({ length: ABACUS_BEADS }, (_, k) => `funcial_bead_${k + 1}`);
@@ -614,24 +650,8 @@ describe("Funcial's object", () => {
   /** The platter's rim: how far its aluminium reaches from its axis. */
   const rim = () => Math.max(...attribute('funcial_platter', 'POSITION', 'bead:aluminium').map(radial));
 
-  /**
-   * That a part placed on the platter stands on its floor: its lowest point touches it or is sunk a hair into it, both
-   * ends of its foot reach the floor (it rests along its length, not on one corner), and its foot is inside the rim.
-   */
-  function standsOnThePlatter(name: string) {
-    const platter = frameOf('funcial_platter');
-    const local = placed(name).map((p) => toLocal(platter, p));
-    const lowest = Math.min(...local.map((q) => q[1]));
-    expect(lowest, `${name}'s foot on the floor`).toBeGreaterThanOrEqual(-0.008);
-    expect(lowest, `${name}'s foot on the floor`).toBeLessThanOrEqual(0.001);
-    const foot = local.filter((q) => q[1] < lowest + 0.008);
-    const [x0, x1] = [Math.min(...foot.map((q) => q[0])), Math.max(...foot.map((q) => q[0]))];
-    const third = (x1 - x0) / 3;
-    const lowestIn = (from: number, to: number) => Math.min(...foot.filter((q) => q[0] >= from && q[0] <= to).map((q) => q[1]));
-    expect(lowestIn(x0, x0 + third) - lowest, `${name}'s left end on the floor`).toBeLessThan(0.002);
-    expect(lowestIn(x1 - third, x1) - lowest, `${name}'s right end on the floor`).toBeLessThan(0.002);
-    for (const q of foot) expect(radial(q), `${name}'s foot inside the rim`).toBeLessThan(rim());
-  }
+  /** That a part placed on the platter stands on its floor (`standsOn`). */
+  const standsOnThePlatter = (name: string) => standsOn('funcial_platter', name, rim());
 
   it('names its parts for code: the platter, its track and four pins, and the abacus with five beads', () => {
     expect(childrenOf('bead_funcial_object').sort()).toEqual([...UNDER_SLOT].sort());
@@ -903,16 +923,435 @@ describe("Funcial's object", () => {
     const f = frameOf('bead_funcial_display');
     const n = axisOf(f, [0, 0, 1]);
     const light = node('bead_funcial_inner').translation!;
-    const d = dot(
-      light.map((c, k) => c - glass[0][k]),
-      n
-    );
     const xs = glass.map((p) => p[0]);
     for (const view of [[0, 0, 1], [...CAMERA_PATH.bead.offset]]) {
-      const c = view.map((v) => v / length(view));
-      const spot = light.map((l, k) => l - 2 * d * n[k] + (d / dot(c, n)) * c[k]);
+      const spot = mirroredLight(light, glass[0], n, view);
       const outside = Math.max(Math.min(...xs) - spot[0], spot[0] - Math.max(...xs));
       expect(outside, `the mirrored light at ${spot}, seen along ${view}`).toBeGreaterThan(0.08);
     }
+  });
+});
+
+/**
+ * Jontai Energy's object (tools/blender/bead_jontai.py; spec §2.4, concept b02; docs/projects-discovery.md, 02 · JONTAI
+ * ENERGY, its Proposal): a solar module of 16 cells, 4 × 4, one cell per page of the site, with silver busbars across
+ * every cell (the one shared design system), in a satin frame with a white backsheet at its edge; a junction box on the
+ * frame with three leads (EN · ES · 中, the three languages); and one output cable ending in a connector (the quote
+ * path). They stand on a floor of the bead's own lacquer, the module on a post, with the website on the bead's display
+ * beside them. Code (Task 8) moves them by these names: the module tilts about its node's local +x, up to 4° either
+ * way, and each cell's material charges, one by one in page order.
+ */
+const CELLS = 16;
+const LEADS = 3;
+/** How far code tilts the module about its own x, either way (Task 8's jontaiMotion). */
+const MAX_TILT = (4 * Math.PI) / 180;
+/** The site's glow, its --accent-green #00d16a, linear: the cells charge in it. */
+const GLOW_GREEN = [0, 0.638, 0.144];
+
+/** A point turned by `angle` (radians) about the line through `origin` along the unit `axis`. */
+function turnAbout(p: number[], origin: number[], axis: number[], angle: number): number[] {
+  const v = p.map((c, k) => c - origin[k]);
+  const [c, s] = [Math.cos(angle), Math.sin(angle)];
+  const cross = [axis[1] * v[2] - axis[2] * v[1], axis[2] * v[0] - axis[0] * v[2], axis[0] * v[1] - axis[1] * v[0]];
+  const along = dot(axis, v) * (1 - c);
+  return v.map((x, k) => origin[k] + x * c + cross[k] * s + axis[k] * along);
+}
+
+/** How far a point is from the line through `origin` along the unit `axis`. */
+function fromLine(p: number[], origin: number[], axis: number[]): number {
+  const v = p.map((c, k) => c - origin[k]);
+  const along = dot(v, axis);
+  return length(v.map((x, k) => x - along * axis[k]));
+}
+
+/** The points once each (a seam's vertices come twice, with their two UVs). */
+function unique(ps: number[][]): number[][] {
+  const seen = new Map<string, number[]>();
+  for (const p of ps) seen.set(p.map((c) => c.toFixed(6)).join(','), p);
+  return [...seen.values()];
+}
+
+const centroid = (ps: number[][]) => [mean(ps, 0), mean(ps, 1), mean(ps, 2)];
+const span = (ps: number[][], c: number) => [Math.min(...ps.map((p) => p[c])), Math.max(...ps.map((p) => p[c]))];
+
+describe("Jontai Energy's object", () => {
+  const CELL_NAMES = Array.from({ length: CELLS }, (_, k) => `jontai_cell_${k + 1}`);
+  const LEAD_NAMES = Array.from({ length: LEADS }, (_, k) => `jontai_lead_${k + 1}`);
+  const UNDER_SLOT = ['jontai_floor', 'jontai_post', 'jontai_module', 'jontai_cable'];
+  /** The parts that tilt with the module. */
+  const TILTING = ['jontai_module', ...CELL_NAMES, 'jontai_box', ...LEAD_NAMES];
+  const ALL = [...UNDER_SLOT, ...CELL_NAMES, 'jontai_box', ...LEAD_NAMES, 'jontai_connector'];
+  const DISPLAY = 'bead_jontai-energy_display';
+  const childrenOf = (name: string) => (node(name).children ?? []).map((c) => gltf.nodes[c].name);
+  const wears = (name: string) => primitives(name).map((p) => materialName(p.material)).sort();
+  /** The floor's rim: how far its lacquer reaches from its axis. */
+  const floorRim = () => Math.max(...attribute('jontai_floor', 'POSITION').map(radial));
+  const floorUp = () => axisOf(frameOf('jontai_floor'), [0, 1, 0]);
+  /** The module's tilt axis in the bead frame: through its node's origin, along its local +x. */
+  const tiltAxis = () => {
+    const f = frameOf('jontai_module');
+    return { origin: f.translation, axis: axisOf(f, [1, 0, 0]) };
+  };
+  /** A node's mesh points in the module's own frame. */
+  const inModule = (name: string, materialNamed?: string) => {
+    const f = frameOf('jontai_module');
+    return placed(name, materialNamed).map((p) => toLocal(f, p));
+  };
+  /** The frame's lower edge in the module's frame: its satin's lowest point out at the sides, clear of the hinge and box. */
+  const frameBottom = () =>
+    Math.min(
+      ...attribute('jontai_module', 'POSITION', 'bead:satin')
+        .filter((p) => Math.abs(p[0]) > 0.15)
+        .map((p) => p[1])
+    );
+  /** The cable's rings, in order along it: each ring's u, its centre (bead frame) and its radius. */
+  const cableRings = () => {
+    const points = placed('jontai_cable');
+    const us = attribute('jontai_cable', 'TEXCOORD_0').map((t) => t[0]);
+    const levels = [...new Set(us.map((u) => u.toFixed(6)))].map(Number).sort((a, b) => a - b);
+    return levels.map((u) => {
+      const ring = unique(points.filter((_, k) => Math.abs(us[k] - u) < 1e-6));
+      const c = centroid(ring);
+      return { u, c, radius: ring.reduce((s, p) => s + length(p.map((x, k) => x - c[k])), 0) / ring.length };
+    });
+  };
+
+  it('names its parts for code: the floor, the post, the module with 16 cells and the box with three leads, the cable and its connector', () => {
+    expect(childrenOf('bead_jontai-energy_object').sort()).toEqual([...UNDER_SLOT].sort());
+    expect(childrenOf('jontai_module').sort()).toEqual([...CELL_NAMES, 'jontai_box'].sort());
+    expect(childrenOf('jontai_box').sort()).toEqual([...LEAD_NAMES].sort());
+    expect(childrenOf('jontai_cable')).toEqual(['jontai_connector']);
+    const names = gltf.nodes.map((n) => n.name ?? '');
+    // Exactly sixteen cells, one per page of the site, and three leads, one per language.
+    expect(names.filter((n) => n.startsWith('jontai_cell_'))).toHaveLength(CELLS);
+    expect(names.filter((n) => n.startsWith('jontai_lead_'))).toHaveLength(LEADS);
+    for (const name of ALL) expect(frameOf(name).rotation).toHaveLength(4);
+  });
+
+  it('keeps the object in its room: within 0.5 of the axis, inside the cavity and behind the glass, at rest and tilted', () => {
+    const inRoom = (name: string, points: number[][]) => {
+      for (const q of points) {
+        expect(offAxis(q), `${name} off the axis`).toBeLessThanOrEqual(SLOT_RADIUS);
+        expect(fromCavity(q), `${name} inside the cavity's sphere`).toBeLessThan(CAVITY.radius - 0.02);
+        expect(q[2], `${name} behind the glass`).toBeLessThan(0.7);
+      }
+    };
+    for (const name of ALL) inRoom(name, placed(name));
+    // Tilted all the way either way about its own x, with the cells, the box and the leads it carries.
+    const { origin, axis } = tiltAxis();
+    for (const angle of [-MAX_TILT, MAX_TILT])
+      for (const name of TILTING)
+        inRoom(
+          `${name} tilted ${angle}`,
+          placed(name).map((p) => turnAbout(p, origin, axis, angle))
+        );
+  });
+
+  it('wears its own five materials beside the bead lacquer, each part the one the discovery gives it', () => {
+    expect(wears('jontai_module')).toEqual(['bead:backsheet', 'bead:satin', 'bead:silver']);
+    for (const cell of CELL_NAMES) expect(wears(cell)).toEqual(['bead:cell']);
+    expect(wears('jontai_box')).toEqual(['bead:polymer']);
+    for (const lead of LEAD_NAMES) expect(wears(lead)).toEqual(['bead:silver']);
+    expect(wears('jontai_cable')).toEqual(['bead:polymer']);
+    expect(wears('jontai_connector')).toEqual(['bead:polymer', 'bead:silver']);
+    expect(wears('jontai_post')).toEqual(['bead:satin']);
+    expect(wears('jontai_floor')).toEqual(['bead:lacquer']);
+    const pbr = (name: string) => material(name).pbrMetallicRoughness!;
+    const rgb = (name: string) => pbr(name).baseColorFactor!.slice(0, 3);
+    // Blue-black monocrystalline cells under anti-reflective glass: dark, blue, not metal, never mirror-glossy, with a
+    // dim reflection (the glass's anti-reflection), so the bead's inner light makes no hard spot on them.
+    const [cr, cg, cb] = rgb('bead:cell');
+    expect(cb).toBeGreaterThan(cg);
+    expect(cg).toBeGreaterThan(cr);
+    expect(cb).toBeLessThan(0.08);
+    expect(pbr('bead:cell').metallicFactor).toBe(0);
+    expect(pbr('bead:cell').roughnessFactor).toBeGreaterThanOrEqual(0.3);
+    const specular = material('bead:cell').extensions?.KHR_materials_specular;
+    expect(specular, 'KHR_materials_specular').toBeDefined();
+    expect(specular!.specularFactor ?? 1).toBeLessThanOrEqual(0.6);
+    // They charge in the site's own glow green, dim at rest: code brightens each cell's charge.
+    const [er, eg, eb] = material('bead:cell').emissiveFactor!;
+    expect(er).toBe(0);
+    expect(eg).toBeGreaterThan(0);
+    expect(eg).toBeLessThan(0.1);
+    expect(eb / eg).toBeCloseTo(GLOW_GREEN[2] / GLOW_GREEN[1], 2);
+    // Silver busbars and leads, a satin anodised aluminium frame and post: neutral metals, the frame the rougher.
+    for (const name of ['bead:silver', 'bead:satin']) {
+      expect(pbr(name).metallicFactor ?? 1, name).toBe(1);
+      expect(Math.min(...rgb(name)), name).toBeGreaterThan(0.4);
+      expect(Math.max(...rgb(name)) / Math.min(...rgb(name)), name).toBeLessThan(1.1);
+    }
+    expect(pbr('bead:silver').roughnessFactor).toBeGreaterThanOrEqual(0.3);
+    expect(pbr('bead:satin').roughnessFactor!).toBeGreaterThan(pbr('bead:silver').roughnessFactor! + 0.03);
+    // A white backsheet, matte and never bright; the box, the cable and the connector in black polymer.
+    const white = rgb('bead:backsheet');
+    expect(Math.min(...white)).toBeGreaterThan(0.4);
+    expect(Math.max(...white)).toBeLessThanOrEqual(0.75);
+    expect(Math.max(...white) / Math.min(...white)).toBeLessThan(1.15);
+    expect(pbr('bead:backsheet').metallicFactor).toBe(0);
+    expect(pbr('bead:backsheet').roughnessFactor).toBeGreaterThanOrEqual(0.5);
+    expect(Math.max(...rgb('bead:polymer'))).toBeLessThan(0.05);
+    expect(pbr('bead:polymer').metallicFactor).toBe(0);
+    // The floor is the bead's own lacquer, every UV on one point of the cavity's square of the vein map: no veins and no
+    // metal there, and the hollow's occlusion, so it is the hollow's own dark floor.
+    const uvs = attribute('jontai_floor', 'TEXCOORD_0');
+    for (const t of uvs) expect(t).toEqual(uvs[0]);
+    const cavity = bodyVertices()
+      .filter((v) => !v.shell)
+      .map((v) => v.uv);
+    const [[u0, u1], [v0, v1]] = [span(cavity, 0), span(cavity, 1)];
+    const [u, v] = uvs[0];
+    expect(u).toBeGreaterThan(u0 + 0.01);
+    expect(u).toBeLessThan(u1 - 0.01);
+    expect(v).toBeGreaterThan(v0 + 0.01);
+    expect(v).toBeLessThan(v1 - 0.01);
+    const { veins, orm } = maps();
+    for (let dy = -3; dy <= 3; dy++)
+      for (let dx = -3; dx <= 3; dx++) {
+        const at = [u + dx / 1024, v + dy / 1024];
+        expect(texel(veins, 0, at), 'no vein under the floor').toBe(0);
+        expect(texel(orm, 2, at), 'no metal under the floor').toBe(0);
+      }
+  });
+
+  it('holds the sixteen cells in a 4 × 4 grid, in page order: left to right, then top to bottom, as the porthole sees them', () => {
+    expect(new Set(CELL_NAMES.map((cell) => node(cell).mesh)).size).toBe(1);
+    // A translation in the module's frame and no turn of their own: each cell's material charges in place.
+    for (const cell of CELL_NAMES) expect(node(cell).rotation ?? [0, 0, 0, 1], cell).toEqual([0, 0, 0, 1]);
+    const at = CELL_NAMES.map((cell) => node(cell).translation!);
+    for (const t of at) expect(t[2], 'one plane').toBeCloseTo(at[0][2], 6);
+    const step = at[1][0] - at[0][0];
+    expect(step).toBeGreaterThan(0);
+    at.forEach((t, k) => {
+      const [row, col] = [Math.floor(k / 4), k % 4];
+      expect(t[0] - at[0][0], `cell ${k + 1}'s column`).toBeCloseTo(col * step, 5);
+      expect(at[0][1] - t[1], `cell ${k + 1}'s row`).toBeCloseTo(row * step, 5);
+    });
+    // As the porthole sees them, in the bead frame: along each row to the right, and down from row to row.
+    const seen = CELL_NAMES.map((cell) => frameOf(cell).translation);
+    for (let k = 0; k < CELLS; k++) {
+      if (k % 4) expect(seen[k][0], `cell ${k + 1} right of cell ${k}`).toBeGreaterThan(seen[k - 1][0]);
+      if (k >= 4) expect(seen[k][1], `cell ${k + 1} below cell ${k - 3}`).toBeLessThan(seen[k - 4][1]);
+    }
+    // One pseudo-square cell (a monocrystalline cell's cut corners), flat, facing the module's front, centred on its node
+    // (its pivot), a fine gap from the next.
+    const shape = attribute(CELL_NAMES[0], 'POSITION');
+    const [[x0, x1], [y0, y1]] = [span(shape, 0), span(shape, 1)];
+    expect(x1 - x0).toBeCloseTo(y1 - y0, 5);
+    expect(x1 - x0).toBeLessThan(step);
+    expect(step - (x1 - x0), 'the gap between cells').toBeLessThan(0.01);
+    expect(Math.abs(x0 + x1)).toBeLessThan(1e-6);
+    expect(Math.abs(y0 + y1)).toBeLessThan(1e-6);
+    for (const p of shape) expect(p[2]).toBeCloseTo(0, 6);
+    for (const n of attribute(CELL_NAMES[0], 'NORMAL')) expect(n[2]).toBeCloseTo(1, 5);
+    for (const [x, y] of shape) expect(Math.hypot(x1 - Math.abs(x), y1 - Math.abs(y)), 'the corners cut').toBeGreaterThan(0.003);
+  });
+
+  it('stands the module left of the axis, facing the porthole and tilted back as a tracker holds it, turned toward the axis', () => {
+    const f = frameOf('jontai_module');
+    expect(Math.max(...placed('jontai_module').map((p) => p[0])), 'left of the axis').toBeLessThan(0);
+    const face = axisOf(f, [0, 0, 1]);
+    expect(face[2], 'facing the porthole').toBeGreaterThan(0.6);
+    expect(face[1], 'tilted back, facing up').toBeGreaterThan(0.3);
+    expect(face[0], 'turned toward the axis').toBeGreaterThan(0.05);
+    const axis = axisOf(f, [1, 0, 0]);
+    expect(axis[0], 'its tilt axis runs left to right').toBeGreaterThan(0.95);
+    expect(Math.abs(axis[1]), 'nearly level').toBeLessThan(0.1);
+  });
+
+  it('runs silver busbars across every cell, in a satin frame with the white backsheet showing at its edge', () => {
+    const cells = CELL_NAMES.map((cell) => node(cell).translation!);
+    const shape = attribute(CELL_NAMES[0], 'POSITION');
+    const half = (span(shape, 0)[1] - span(shape, 0)[0]) / 2;
+    const cellZ = cells[0][2];
+    // The busbars: fine strips laid a hair over the cells, each running its whole column, the top cell to the bottom one.
+    const silver = attribute('jontai_module', 'POSITION', 'bead:silver');
+    for (const p of silver) {
+      expect(p[2] - cellZ, 'a hair over the cells').toBeGreaterThan(0);
+      expect(p[2] - cellZ).toBeLessThan(0.002);
+    }
+    const xs = [...new Set(silver.map((p) => Number(p[0].toFixed(5))))].sort((a, b) => a - b);
+    expect(xs.length % 2, 'two edges to a strip').toBe(0);
+    const strips = Array.from({ length: xs.length / 2 }, (_, k) => {
+      const on = silver.filter((p) => p[0] >= xs[2 * k] - 1e-5 && p[0] <= xs[2 * k + 1] + 1e-5);
+      return { x0: xs[2 * k], x1: xs[2 * k + 1], y0: Math.min(...on.map((p) => p[1])), y1: Math.max(...on.map((p) => p[1])) };
+    });
+    for (const s of strips) expect(s.x1 - s.x0, 'a fine busbar').toBeLessThan(0.004);
+    cells.forEach(([cx, cy], k) => {
+      const across = strips.filter((s) => s.x0 > cx - half && s.x1 < cx + half && s.y0 <= cy - half + 1e-5 && s.y1 >= cy + half - 1e-5);
+      expect(across.length, `busbars across cell ${k + 1}`).toBeGreaterThanOrEqual(2);
+    });
+    // The backsheet: behind the cells, showing between them and round them at the edge.
+    const grid = [
+      [Math.min(...cells.map((c) => c[0])) - half, Math.max(...cells.map((c) => c[0])) + half],
+      [Math.min(...cells.map((c) => c[1])) - half, Math.max(...cells.map((c) => c[1])) + half]
+    ];
+    const sheet = attribute('jontai_module', 'POSITION', 'bead:backsheet').filter((p) => p[2] > cellZ - 0.002);
+    expect(sheet.length, "the backsheet's face").toBeGreaterThan(0);
+    for (const p of sheet) expect(p[2], 'behind the cells').toBeLessThan(cellZ);
+    for (const c of [0, 1]) {
+      const [s0, s1] = span(sheet, c);
+      expect(grid[c][0] - s0, 'the white edge round the cells').toBeGreaterThan(0.005);
+      expect(s1 - grid[c][1], 'the white edge round the cells').toBeGreaterThan(0.005);
+    }
+    // The satin frame round it all, its lip a little proud of the cells.
+    const satin = attribute('jontai_module', 'POSITION', 'bead:satin');
+    expect(span(satin, 0)[0]).toBeLessThan(span(sheet, 0)[0]);
+    expect(span(satin, 0)[1]).toBeGreaterThan(span(sheet, 0)[1]);
+    expect(span(satin, 1)[1]).toBeGreaterThan(span(sheet, 1)[1]);
+    expect(frameBottom()).toBeLessThan(span(sheet, 1)[0]);
+    expect(span(satin, 2)[1], "the frame's lip").toBeGreaterThan(cellZ);
+  });
+
+  it("tilts the module about its own x through its node's origin, where the post holds it and the cable leaves the box", () => {
+    const { origin, axis } = tiltAxis();
+    // The post: square to the floor, its foot on it, its own axis meeting the tilt axis, its top the hinge round it.
+    const post = frameOf('jontai_post');
+    const up = axisOf(post, [0, 1, 0]);
+    expect(dot(up, floorUp()), 'square to the floor').toBeGreaterThan(0.9999);
+    const floor = frameOf('jontai_floor');
+    const points = placed('jontai_post');
+    expect(Math.min(...points.map((p) => toLocal(floor, p)[1])), "the post's foot on the floor").toBeCloseTo(0, 4);
+    const height = dot(
+      origin.map((c, k) => c - post.translation[k]),
+      up
+    );
+    const hinge = post.translation.map((c, k) => c + height * up[k]);
+    expect(fromLine(hinge, origin, axis), "the tilt axis through the post's own").toBeLessThan(1e-4);
+    const top = points.filter((p) => dot(p.map((c, k) => c - post.translation[k]), up) > height - 0.002);
+    expect(top.length, "the post's hinge").toBeGreaterThan(0);
+    for (const p of top) expect(fromLine(p, origin, axis), 'round the tilt axis').toBeLessThan(0.015);
+    // The cable leaves the box's gland on the tilt axis, so a tilt turns the box about the cable's end and opens no gap.
+    const start = cableRings()[0].c;
+    expect(fromLine(start, origin, axis), 'the cable leaves on the tilt axis').toBeLessThan(1e-4);
+    const inBox = toLocal(frameOf('jontai_box'), start);
+    expect(Math.hypot(inBox[1], inBox[2]), "on the box's own x").toBeLessThan(1e-4);
+    expect(Math.abs(inBox[0] - Math.max(...attribute('jontai_box', 'POSITION').map((p) => p[0]))), 'at its gland').toBeLessThan(0.003);
+  });
+
+  it('hangs the junction box under the frame on three silver leads: EN, ES and 中, left to right', () => {
+    const box = inModule('jontai_box');
+    const [[bx0, bx1], [, by1]] = [span(box, 0), span(box, 1)];
+    const bottom = frameBottom();
+    // Under the module's lower edge, so the porthole sees it, with a gap the leads cross.
+    expect(bottom - by1, 'the gap the leads cross').toBeGreaterThan(0.02);
+    const xs = LEAD_NAMES.map((lead) => {
+      const pts = inModule(lead);
+      const [[x0, x1], [y0, y1]] = [span(pts, 0), span(pts, 1)];
+      expect(y0, `${lead} into the box`).toBeLessThan(by1);
+      expect(y0, `${lead} into the box`).toBeGreaterThan(by1 - 0.004);
+      expect(y1, `${lead} into the frame`).toBeGreaterThan(bottom);
+      expect(y1, `${lead} into the frame`).toBeLessThan(bottom + 0.006);
+      expect(x0, `${lead} over the box`).toBeGreaterThan(bx0);
+      expect(x1, `${lead} over the box`).toBeLessThan(bx1);
+      return mean(pts, 0);
+    });
+    expect(xs[1] - xs[0], 'EN, then ES').toBeGreaterThan(0.008);
+    expect(xs[2] - xs[1], 'ES, then 中').toBeCloseTo(xs[1] - xs[0], 4);
+    expect(new Set(LEAD_NAMES.map((lead) => node(lead).mesh)).size).toBe(1);
+    for (const lead of LEAD_NAMES) expect(node(lead).rotation ?? [0, 0, 0, 1], lead).toEqual([0, 0, 0, 1]);
+  });
+
+  it('lays the cable from the box down to the floor and along it to the connector, its u running 0..1 by length', () => {
+    const floor = frameOf('jontai_floor');
+    for (const p of placed('jontai_cable')) expect(toLocal(floor, p)[1], 'never into the floor').toBeGreaterThanOrEqual(-1e-4);
+    const rings = cableRings();
+    expect(rings[0].u).toBeCloseTo(0, 6);
+    expect(rings[rings.length - 1].u).toBeCloseTo(1, 6);
+    const lengths = [0];
+    for (let k = 1; k < rings.length; k++) lengths.push(lengths[k - 1] + length(rings[k].c.map((c, j) => c - rings[k - 1].c[j])));
+    rings.forEach((r, k) => expect(lengths[k] / lengths[lengths.length - 1], `u at ring ${k}`).toBeCloseTo(r.u, 2));
+    // It falls from the box to the floor, then lies along it for much of its length.
+    const radius = rings[0].radius;
+    expect(toLocal(floor, rings[0].c)[1], 'from the box, above the floor').toBeGreaterThan(0.05);
+    const lying = rings.filter((r) => Math.abs(toLocal(floor, r.c)[1] - radius) < 2e-4).map((r) => r.u);
+    expect(Math.max(...lying) - Math.min(...lying), 'lying along the floor').toBeGreaterThan(0.4);
+    // And ends inside the connector's strain relief, on its axis.
+    const end = toLocal(frameOf('jontai_connector'), rings[rings.length - 1].c);
+    expect(end[1], "inside the connector's back").toBeGreaterThan(0);
+    expect(end[1]).toBeLessThan(0.012);
+    expect(Math.hypot(end[0], end[2])).toBeLessThan(1e-4);
+  });
+
+  it('ends the cable in a connector lying on the floor in front, near the axis, its open end toward the porthole', () => {
+    const floor = frameOf('jontai_floor');
+    const pts = placed('jontai_connector').map((p) => toLocal(floor, p));
+    const lowest = Math.min(...pts.map((q) => q[1]));
+    expect(lowest, 'lying on the floor').toBeGreaterThanOrEqual(-1e-4);
+    expect(lowest).toBeLessThan(1e-3);
+    const f = frameOf('jontai_connector');
+    const along = axisOf(f, [0, 1, 0]);
+    expect(Math.abs(dot(along, floorUp())), 'its axis level with the floor').toBeLessThan(1e-4);
+    expect(along[2], 'its open end toward the porthole').toBeGreaterThan(0.5);
+    expect(Math.abs(f.translation[0]), 'near the axis').toBeLessThan(0.15);
+    expect(f.translation[2], 'in front of the display').toBeGreaterThan(frameOf(DISPLAY).translation[2]);
+    expect(f.translation[2], 'in front of the module').toBeGreaterThan(Math.max(...placed('jontai_module').map((p) => p[2])));
+    // The silver contact in its open end.
+    const contact = attribute('jontai_connector', 'POSITION', 'bead:silver');
+    const body = attribute('jontai_connector', 'POSITION', 'bead:polymer');
+    expect(Math.max(...contact.map(radial))).toBeLessThan(Math.max(...body.map(radial)) / 2);
+    expect(Math.max(...contact.map((p) => p[1]))).toBeGreaterThan(0.8 * Math.max(...body.map((p) => p[1])));
+  });
+
+  it("lays a floor of the bead's lacquer low in the hollow, leaning toward the porthole, for the parts to stand on", () => {
+    const f = frameOf('jontai_floor');
+    expect(Math.abs(f.translation[0]), 'centred under the axis').toBeLessThan(1e-4);
+    expect(f.translation[1], 'low in the hollow').toBeLessThan(-0.2);
+    const up = floorUp();
+    expect(Math.abs(up[0])).toBeLessThan(1e-4);
+    const lean = (Math.atan2(up[2], up[1]) * 180) / Math.PI;
+    expect(lean).toBeGreaterThan(5);
+    expect(lean).toBeLessThan(20);
+    const floor = attribute('jontai_floor', 'POSITION');
+    expect(Math.abs(mean(floor, 0))).toBeLessThan(1e-3);
+    expect(Math.abs(mean(floor, 2))).toBeLessThan(1e-3);
+    expect(Math.max(...floor.map((p) => p[1]))).toBeCloseTo(0, 6);
+    const normals = attribute('jontai_floor', 'NORMAL');
+    floor.forEach((p, k) => {
+      if (Math.abs(p[1]) < 1e-6 && radial(p) < floorRim() - 0.01) expect(normals[k][1], `the floor's normal at ${p}`).toBeCloseTo(1, 5);
+    });
+    expect(floorRim()).toBeGreaterThan(0.3);
+    expect(floorRim()).toBeLessThan(0.45);
+  });
+
+  it("stands the website's landscape display on the floor beside the module, right of the axis, 0.20 of the bead wide", () => {
+    const points = placed(DISPLAY);
+    const x0 = Math.min(...points.map((p) => p[0]));
+    expect(x0, 'right of the axis').toBeGreaterThan(0.02);
+    expect(x0, 'beside the module, never in front of it').toBeGreaterThan(Math.max(...placed('jontai_module').map((p) => p[0])));
+    const [w0, w1] = span(allRows(DISPLAY, 'POSITION'), 0);
+    expect((w1 - w0) / (2 * RADIUS), 'its width, as a share of the bead').toBeGreaterThan(0.19);
+    expect((w1 - w0) / (2 * RADIUS)).toBeLessThan(0.21);
+    standsOn('jontai_floor', DISPLAY, floorRim());
+    const f = frameOf(DISPLAY);
+    expect(axisOf(f, [0, 1, 0])[1], 'upright').toBeGreaterThan(Math.cos((5 * Math.PI) / 180));
+    const face = axisOf(f, [0, 0, 1]);
+    expect(face[2], 'facing the porthole').toBeGreaterThan(0.95);
+    expect(face[0], 'turned a little toward the axis').toBeLessThan(0);
+  });
+
+  it("keeps the bead's inner light from mirroring in the display's glossy front or on the module", () => {
+    // Seen along the porthole's axis and from the bead shot's camera, the point of a front's plane that mirrors the
+    // light must lie clear of it: the display's glass, and the module's face with the box and leads under it (on the
+    // axis above the slot, the light mirrored on the module's lower edge and the leads as a hot spot).
+    const light = node('bead_jontai-energy_inner').translation!;
+    const clear = (frame: string, plane: number[][], outline: number[][]) => {
+      const f = frameOf(frame);
+      const n = axisOf(f, [0, 0, 1]);
+      const local = outline.map((p) => toLocal(f, p));
+      const [[x0, x1], [y0, y1]] = [span(local, 0), span(local, 1)];
+      for (const view of [[0, 0, 1], [...CAMERA_PATH.bead.offset]]) {
+        const spot = toLocal(f, mirroredLight(light, plane[0], n, view));
+        const outside = Math.max(x0 - spot[0], spot[0] - x1, y0 - spot[1], spot[1] - y1);
+        expect(outside, `${frame}: the mirrored light at ${spot}, seen along ${view}`).toBeGreaterThan(0.08);
+      }
+    };
+    const glass = placed(DISPLAY, 'bead:display');
+    clear(DISPLAY, glass, glass);
+    clear(
+      'jontai_module',
+      placed(CELL_NAMES[0]),
+      ['jontai_module', 'jontai_box', ...LEAD_NAMES].flatMap((name) => placed(name))
+    );
   });
 });

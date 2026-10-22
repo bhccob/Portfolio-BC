@@ -1,7 +1,7 @@
 # The shape helpers the beads' object scripts share (tools/blender/bead_funcial.py, bead_jontai.py, bead_cookies.py):
 # three's frame and Blender's, a mesh builder whose every face carries its own corner normals, surfaces of revolution,
-# a material, and standing a part on a leaning floor. Imported by name (export_beads.py puts this folder on sys.path
-# before it runs the object scripts); it builds nothing itself.
+# boxes, tubes, a material, and standing a part on a leaning floor. Imported by name (export_beads.py puts this folder on
+# sys.path before it runs the object scripts); it builds nothing itself.
 #
 # Frames: everything is authored in three's frame (x right, y up, z out of the porthole), in metres, and turned into
 # Blender's (x, -z, y) as each object is made, so a script's numbers are the GLB's. Nothing here is random: the export
@@ -43,9 +43,17 @@ def slot_origin(kit):
 
 
 def under_slot(kit, name, mesh, translation, rotation=None):
-    """A new object under the bead's slot, placed by its translation and turn in the bead frame."""
+    """A new object (an empty when `mesh` is None) under the bead's slot, placed by its translation and turn in the bead
+    frame."""
     ob = kit.link(bpy.data.objects.new(name, mesh), kit.slot)
     place(ob, Vector(translation) - slot_origin(kit), rotation)
+    return ob
+
+
+def under(kit, parent, name, mesh, translation=(0.0, 0.0, 0.0), rotation=None):
+    """A new object (an empty when `mesh` is None) under `parent`, placed in the parent's own frame."""
+    ob = kit.link(bpy.data.objects.new(name, mesh), parent)
+    place(ob, translation, rotation)
     return ob
 
 
@@ -76,6 +84,17 @@ class Shape:
             idx, normals = idx[::-1], normals[::-1]
             uvs = uvs[::-1] if uvs is not None else None
         self.faces.append((list(idx), normals, uvs, mat))
+
+    def add(self, other, rotation=None, offset=(0.0, 0.0, 0.0)):
+        """Another shape's faces, turned (a three-frame Quaternion or 3x3 Matrix) about its origin and then moved."""
+        m = Matrix.Identity(3) if rotation is None else rotation.to_matrix() if isinstance(rotation, Quaternion) else rotation
+        base = len(self.verts)
+        self.verts.extend(m @ v + Vector(offset) for v in other.verts)
+        self.faces.extend(([base + i for i in idx], [m @ n for n in normals], uvs, mat) for idx, normals, uvs, mat in other.faces)
+
+    def uv_all(self, uv):
+        """Every face's UV at every corner the one point `uv` (Blender's u, v): the part samples one texel of its map."""
+        self.faces = [(idx, normals, [tuple(uv)] * len(idx), mat) for idx, normals, _, mat in self.faces]
 
     def mesh(self, name, materials):
         me = bpy.data.meshes.new(name)
@@ -139,9 +158,136 @@ def ellipse_bands(rx, ry, latitudes):
     return list(zip(pts, pts[1:]))
 
 
+# The turn that lays a lathe's +y axis along +x (Rz(-90 degrees): y -> x), for parts that turn about a level axis.
+ALONG_X = turn((0, 0, 1), -90.0)
+
+
+def rect_lathe(s, w, h, bands, mat=0, at=(0.0, 0.0, 0.0)):
+    """A lathe round a w x h rectangle instead of a circle (x across, y up, about +z through `at`), mitred at its
+    corners: each band is ((d0, z0, n0), (d1, z1, n1)), d inward from the rectangle's edge, z along +z, n the normal in
+    (out, z). Each of the four sides is its own strip of faces, so a side's normals are its own."""
+    ax, ay, az = at
+    outward = [(0, -1), (1, 0), (0, 1), (-1, 0)]                 # below, right, above, left
+    for (d0, z0, n0), (d1, z1, n1) in bands:
+        def corners(d):
+            x, y = w / 2 - d, h / 2 - d
+            return [(-x, -y), (x, -y), (x, y), (-x, y)]            # the edge k runs from corner k to k + 1
+        c0, c1 = corners(d0), corners(d1)
+        for k in range(4):
+            m = (k + 1) % 4
+            o = outward[k]
+            na = (o[0] * n0[0], o[1] * n0[0], n0[1])
+            nb = (o[0] * n1[0], o[1] * n1[0], n1[1])
+            pts = [(c0[k], z0), (c0[m], z0), (c1[m], z1), (c1[k], z1)]
+            idx = [s.vert((ax + p[0], ay + p[1], az + z)) for p, z in pts]
+            s.face(idx, [na, na, nb, nb], mat=mat)
+
+
+def box(s, size, at=(0.0, 0.0, 0.0), bevel=0.0, mat=0):
+    """A box of `size` (x, y, z) about `at`. With a bevel, each face is inset by it, and a strip along each edge and a
+    triangle at each corner join the faces, carrying the faces' own normals on their sides: a box rounded by its normals,
+    flat-faced in its geometry."""
+    h = [c / 2 for c in size]
+    centre = Vector(at)
+    b = bevel
+
+    def vert(p):
+        return s.vert(centre + Vector(p))
+
+    def unit(k, sign):
+        n = [0.0, 0.0, 0.0]
+        n[k] = sign
+        return tuple(n)
+
+    for k in range(3):                                              # the six faces, inset by the bevel
+        u, v = (k + 1) % 3, (k + 2) % 3
+        for sk in (-1, 1):
+            corners = []
+            for su, sv in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
+                p = [0.0, 0.0, 0.0]
+                p[k], p[u], p[v] = sk * h[k], su * (h[u] - b), sv * (h[v] - b)
+                corners.append(vert(p))
+            s.face(corners, unit(k, sk), mat=mat)
+    if b <= 0:
+        return
+    for k in range(3):                                              # the twelve edges, each along axis k
+        u, v = (k + 1) % 3, (k + 2) % 3
+        for su in (-1, 1):
+            for sv in (-1, 1):
+                quad = []
+                for sk, on_u in ((-1, True), (1, True), (1, False), (-1, False)):
+                    p = [0.0, 0.0, 0.0]
+                    p[k] = sk * (h[k] - b)
+                    p[u] = su * h[u] if on_u else su * (h[u] - b)
+                    p[v] = sv * (h[v] - b) if on_u else sv * h[v]
+                    quad.append(vert(p))
+                s.face(quad, [unit(u, su), unit(u, su), unit(v, sv), unit(v, sv)], mat=mat)
+    for sx in (-1, 1):                                              # the eight corners
+        for sy in (-1, 1):
+            for sz in (-1, 1):
+                sign = (sx, sy, sz)
+                pts, normals = [], []
+                for k in range(3):
+                    p = [sign[j] * (h[j] - b) for j in range(3)]
+                    p[k] = sign[k] * h[k]
+                    pts.append(vert(p))
+                    normals.append(unit(k, sign[k]))
+                s.face(pts, normals, mat=mat)
+
+
+def bezier(p0, p1, p2, p3, n):
+    """n + 1 points along the cubic Bezier p0 .. p3, evenly in its parameter."""
+    p0, p1, p2, p3 = (Vector(p) for p in (p0, p1, p2, p3))
+    out = []
+    for i in range(n + 1):
+        t = i / n
+        a = 1 - t
+        out.append(a * a * a * p0 + 3 * a * a * t * p1 + 3 * a * t * t * p2 + t * t * t * p3)
+    return out
+
+
+def tube(s, path, radius, sides, mat=0):
+    """A round tube of `radius` along the points of `path`, open at both ends, its rings kept square to the path by
+    parallel transport (no twist). UV: u runs 0..1 along it by length, v 0..1 round it."""
+    path = [Vector(p) for p in path]
+    tangents = []
+    for k in range(len(path)):
+        a, b = path[max(0, k - 1)], path[min(len(path) - 1, k + 1)]
+        tangents.append((b - a).normalized())
+    t0 = tangents[0]
+    helper = Vector((0, 1, 0)) if abs(t0.y) < 0.9 else Vector((1, 0, 0))
+    normal = t0.cross(helper).normalized()
+    frames = []
+    for k, t in enumerate(tangents):
+        if k:
+            axis = tangents[k - 1].cross(t)
+            if axis.length > 1e-9:
+                angle = tangents[k - 1].angle(t)
+                normal = Quaternion(axis.normalized(), angle) @ normal
+            normal = (normal - t * normal.dot(t)).normalized()
+        frames.append((normal, t.cross(normal)))
+    lengths = [0.0]
+    for a, b in zip(path, path[1:]):
+        lengths.append(lengths[-1] + (b - a).length)
+    total = lengths[-1]
+    rings = []
+    for k, (p, (n, bn)) in enumerate(zip(path, frames)):
+        ring = []
+        for j in range(sides + 1):
+            a = 2 * math.pi * j / sides
+            d = n * math.cos(a) + bn * math.sin(a)
+            ring.append((s.vert(p + d * radius), d, (lengths[k] / total, j / sides)))
+        rings.append(ring)
+    for k in range(len(path) - 1):
+        for j in range(sides):
+            corners = (rings[k][j], rings[k + 1][j], rings[k + 1][j + 1], rings[k][j + 1])
+            s.face([c[0] for c in corners], [c[1] for c in corners], [c[2] for c in corners], mat=mat)
+
+
 # ---------------------------------------------------------------- materials
-def material(name, base, metal, rough, emission=None, strength=0.0):
-    """A single-sided Principled material."""
+def material(name, base, metal, rough, emission=None, strength=0.0, specular=None):
+    """A single-sided Principled material. `specular` is its Specular IOR Level (0.5 is a dielectric's full 4 %),
+    exported as KHR_materials_specular; left alone when None."""
     m = bpy.data.materials.new(name)
     m.use_backface_culling = True
     b = next(n for n in m.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
@@ -151,6 +297,8 @@ def material(name, base, metal, rough, emission=None, strength=0.0):
     if emission is not None:
         b.inputs['Emission Color'].default_value = (*emission, 1)
         b.inputs['Emission Strength'].default_value = strength
+    if specular is not None:
+        b.inputs['Specular IOR Level'].default_value = specular
     return m
 
 
