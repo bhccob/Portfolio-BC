@@ -42,8 +42,9 @@ export interface NeedleDebugState {
   /**
    * Where the opening stands, as it last posed the scene (`frame.loader`): its stage, the loader's visible seconds and
    * how much of each of the five marks is cut, in `STROKE_ORDER` (the left B, its bar, the right B, its bar, the circle;
-   * a copy). While `seekLoader` holds the clock, these are the held moment's. The stage is null while no opening is
-   * mounted (3D off, no WebGL, a failed scene), so a harness can tell "no loader" from any moment of one.
+   * the loader cuts the circle alone, so the first four stay 0; a copy). While `seekLoader` holds the clock, these are
+   * the held moment's. The stage is null while no opening is mounted (3D off, no WebGL, a failed scene), so a harness
+   * can tell "no loader" from any moment of one.
    */
   loader: { stage: LoaderStage | null; elapsed: number; strokes: number[] };
   /**

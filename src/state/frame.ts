@@ -42,8 +42,8 @@ export const frame = {
   /**
    * Where the opening stands, as the Opening last posed it: its stage (null while no Opening is mounted), the loader's
    * visible seconds, and how much of each of the five marks is cut (`STROKE_ORDER`: the left B, its bar, the right B,
-   * its bar, the circle). The Rig reads the stage (the parallax is the home's alone); the debug bridge reports all
-   * three.
+   * its bar, the circle; the loader cuts the circle alone, so the first four stay 0). The Rig reads the stage (the
+   * parallax is the home's alone); the debug bridge reports all three.
    */
   loader: { stage: null as LoaderStage | null, elapsed: 0, strokes: [0, 0, 0, 0, 0] as readonly number[] },
   /**

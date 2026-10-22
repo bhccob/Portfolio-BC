@@ -17,7 +17,7 @@ const LANDING_MARGIN = 5;
  * The backstop behind the opening's own give-up (Ruling 9b), ms of a scene on a visible page (`whileShown`): from the
  * loader showing (SceneHost's onReady) until the phase leaves LOADING. An opening that works lands well inside it: its
  * load gives up after LOADER.giveUp visible seconds, and no show runs longer after a load than the full script
- * (SCRIPT.home, 12.5 s: a load that lands late holds the script at the circle and plays only the rest), and a margin
+ * (SCRIPT.home, 6.25 s: a load that lands late holds the script at the circle and plays only the rest), and a margin
  * follows. Past it the opening has stalled where its own clock cannot see (a frame loop that stopped, a promise that
  * never settled), and the scene fails as any other failure does.
  */

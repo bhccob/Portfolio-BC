@@ -98,7 +98,7 @@ describe('visibleTimeout', () => {
 describe('the landing backstop (Ruling 9b)', () => {
   it("waits for the loader's give-up, then the whole of the full show, then a margin", () => {
     expect(LANDING_TIMEOUT_MS).toBe(Math.round((LOADER.giveUp + SCRIPT.home + 5) * 1000));
-    expect(LANDING_TIMEOUT_MS).toBe(42_500);
+    expect(LANDING_TIMEOUT_MS).toBe(36_250);
     // Longer than any opening that works: the latest a load may land (the give-up) plus the longest show after it. A
     // full show runs its whole script at most (a load that lands late holds it at the circle and goes on from there,
     // SCRIPT.home - HOLD_AT after the load); the quick and reduced paths run theirs from the load.

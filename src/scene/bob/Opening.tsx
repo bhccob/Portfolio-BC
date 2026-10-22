@@ -191,7 +191,7 @@ interface Run {
   listening: boolean;
   /** The visitor's skip has landed: `frame.loaderSkipEndsMs` is written, once. */
   skipLanded: boolean;
-  /** How much of the name was cut, and when it last moved (loader seconds): the sparks fly while it moves. */
+  /** How much of the engraving was cut, and when it last moved (loader seconds): the sparks fly while it moves. */
   cut: number;
   cutAt: number;
   /** The landing has happened: LOADED is sent and the loader marked seen, once. A skipped opening has none to announce. */
@@ -225,7 +225,7 @@ export interface OpeningProps {
 }
 
 /**
- * The BOB opening (spec §2.1), in the persistent canvas: a laser engraves B, B and a circle into dark glass, the glass
+ * The BOB opening (spec §2.1), in the persistent canvas: a laser engraves a circle into dark glass, the glass
  * inside the circle opens like an iris, and an armillary compass rises out of it as the O; then the Home.
  *
  * **Build.** On mount it builds the loader's parts at once for the ladder's tier (`tier`, from the Stage): the glass

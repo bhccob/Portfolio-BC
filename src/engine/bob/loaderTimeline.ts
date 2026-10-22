@@ -6,10 +6,11 @@
  * imports nothing from three, so the loader's tests run it without a browser
  * and the entry bundle can read it beside the Stage's chunk.
  *
- * The full path is the Blender preview (tools/blender/bob_animate.py) at its
- * own pace, 12.5 s from black to home, in the spec's section 2.1 (Bob's pick):
- * - a fast load never shortens it, so every first-time visitor sees the whole
- *   name cut;
+ * The full path is the Blender preview (tools/blender/bob_animate_o.py) at its
+ * own pace, 6.25 s from black to home, in the spec's section 2.1 (revised
+ * 2026-10-22, Bob's pick): the laser cuts the circle alone, and the two B
+ * letters are not drawn here (they arrive on the scroll):
+ * - a fast load never shortens it, so every first-time visitor sees the O cut;
  * - a load that is still out when the circle is due to close holds the script
  *   just short of it, the laser creeping on, and the script goes on from there
  *   once the load lands;
@@ -34,21 +35,17 @@ export interface Span {
 
 /** The first and last frame of each span of the preview, and the frame it comes home on. */
 const FRAMES = {
-  descend: [1, 18],
-  leftB: [18, 66],
-  leftBar: [74, 84],
-  rightB: [96, 144],
-  rightBar: [152, 162],
-  circle: [174, 222],
-  ticks: [220, 234],
-  outer: [222, 244],
-  probeOut: [222, 246],
-  iris: [228, 244],
-  glow: [226, 256],
-  rise: [236, 288],
-  camera: [228, 292],
-  settle: [250, 300],
-  home: 300
+  descend: [1, 26],
+  circle: [26, 74],
+  ticks: [72, 86],
+  outer: [74, 96],
+  probeOut: [74, 94],
+  iris: [80, 96],
+  glow: [78, 106],
+  rise: [88, 140],
+  camera: [80, 140],
+  settle: [100, 150],
+  home: 150
 } as const;
 
 /** The frames `from` to `to` as seconds. */
@@ -59,18 +56,15 @@ function frames(from: number, to: number): Span {
 /**
  * The full path's script, in seconds from the loader's start: the spec's
  * section 7 timings at 24 fps. `descend` is the probe coming down (and the
- * world fading up from black), `leftB` to `circle` are the five cuts, `ticks`
- * and `outer` grow the ticks and the outer ring, `probeOut` is the probe
- * leaving, `iris` is the glass inside the circle closing, `glow` the warm
- * light from the tunnel, `rise` the compass coming up, `camera` the push-in,
- * `settle` the needle swinging in, and `home` the second the loader ends.
+ * world fading up from black), `circle` is the one cut, `ticks` and `outer`
+ * grow the ticks and the outer ring, `probeOut` is the probe leaving, `iris`
+ * is the glass inside the circle closing, `glow` the warm light from the
+ * tunnel, `rise` the compass coming up, `camera` the push-in, `settle` the
+ * needle swinging in, and `home` the second the loader ends. There are no
+ * spans for the B letters: the loader never cuts them.
  */
 export const SCRIPT = Object.freeze({
   descend: frames(...FRAMES.descend),
-  leftB: frames(...FRAMES.leftB),
-  leftBar: frames(...FRAMES.leftBar),
-  rightB: frames(...FRAMES.rightB),
-  rightBar: frames(...FRAMES.rightBar),
   circle: frames(...FRAMES.circle),
   ticks: frames(...FRAMES.ticks),
   outer: frames(...FRAMES.outer),
@@ -163,7 +157,10 @@ export interface LoaderClock {
    * in the shares below.
    */
   script: number;
-  /** How much of each stroke is cut, in `STROKE_ORDER`: the left B, its bar, the right B, its bar, the circle. */
+  /**
+   * How much of each stroke is cut, in `STROKE_ORDER` (the left B, its bar, the right B, its bar, the circle). The
+   * loader cuts the circle alone, so the first four are always 0 and only the last runs from 0 to 1.
+   */
   strokes: readonly [number, number, number, number, number];
   /** How far the 144 ticks have grown. */
   ticks: number;
@@ -260,7 +257,7 @@ function playUncapped(elapsed: number, loadedAt: number | null, skipAt: number |
     return { script: u >= 1 ? home : from + (home - from) * u, circleFloor: stalls ? crept(elapsed, H, L) : 0 };
   }
 
-  // The skip came before the load was known. Ruling 32 changes nothing here: the rest from H (home - H, 3.4 s) is
+  // The skip came before the load was known. Ruling 32 changes nothing here: the rest from H (home - H, 3.3 s) is
   // always longer than LOADER.skip, so the skip's second is the sooner end.
   const from = Math.min(skipAt, H);
   const holdAt = skipAt < H ? skipAt + ((H - from) * LOADER.skip) / (home - from) : H;
@@ -282,13 +279,7 @@ function fullClock({ script, circleFloor }: Playback): LoaderClock {
   return {
     stage,
     script,
-    strokes: [
-      through(script, SCRIPT.leftB),
-      through(script, SCRIPT.leftBar),
-      through(script, SCRIPT.rightB),
-      through(script, SCRIPT.rightBar),
-      Math.max(circleFloor, through(script, SCRIPT.circle))
-    ],
+    strokes: [0, 0, 0, 0, Math.max(circleFloor, through(script, SCRIPT.circle))],
     ticks: through(script, SCRIPT.ticks),
     outer: through(script, SCRIPT.outer),
     iris: through(script, SCRIPT.iris),
@@ -306,7 +297,7 @@ function quickClock(q: number): LoaderClock {
   return {
     stage,
     script: SCRIPT.home,
-    strokes: [1, 1, 1, 1, 1],
+    strokes: [0, 0, 0, 0, 1],
     ticks: 1,
     outer: 1,
     iris: through(q, QUICK.iris),
@@ -324,7 +315,7 @@ function reducedClock(q: number): LoaderClock {
   return {
     stage: q < 0 ? 'dark' : q < LOADER.reducedFade ? 'rise' : 'home',
     script: SCRIPT.home,
-    strokes: [1, 1, 1, 1, 1],
+    strokes: [0, 0, 0, 0, 1],
     ticks: 1,
     outer: 1,
     iris: 1,

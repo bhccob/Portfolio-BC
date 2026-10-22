@@ -117,14 +117,14 @@ describe('the held clock (seekLoader)', () => {
   });
 
   it('plays the full script at its own seconds: a still never waits on the circle', () => {
-    for (const seconds of [1.75, 5.0, 8.25, 9.75, 11.0, 12.5]) expect(held(seconds).script).toBeCloseTo(seconds, 12);
-    expect(held(1.75).stage).toBe('engrave');
-    expect(held(5).stage).toBe('engrave');
-    expect(held(9.75).stage).toBe('open');
-    expect(held(11).stage).toBe('rise');
+    for (const seconds of [1.0, 2.0, 3.0, 3.5, 4.5, SCRIPT.home]) expect(held(seconds).script).toBeCloseTo(seconds, 12);
+    expect(held(1).stage).toBe('dark');
+    expect(held(2).stage).toBe('engrave');
+    expect(held(3.5).stage).toBe('open');
+    expect(held(4.5).stage).toBe('rise');
     expect(held(SCRIPT.home).stage).toBe('home');
     // Past the circle's hold, which a load still out would stop at.
-    expect(held(9.5).strokes[4]).toBe(1);
+    expect(held(3.5).strokes[4]).toBe(1);
   });
 
   it('reads a bad time as the start, as the live clock does', () => {
@@ -134,10 +134,10 @@ describe('the held clock (seekLoader)', () => {
 });
 
 describe("a skipped opening's clock", () => {
-  it('stands at home, everything cut, open and risen', () => {
+  it('stands at home, the circle cut, open and risen, and no B drawn', () => {
     expect(HOME_CLOCK.stage).toBe('home');
     expect(HOME_CLOCK.script).toBe(SCRIPT.home);
-    expect(HOME_CLOCK.strokes).toEqual([1, 1, 1, 1, 1]);
+    expect(HOME_CLOCK.strokes).toEqual([0, 0, 0, 0, 1]);
     for (const share of ['ticks', 'outer', 'iris', 'glow', 'rise', 'camera', 'settle', 'fade'] as const) expect(HOME_CLOCK[share], share).toBe(1);
     expect(Object.isFrozen(HOME_CLOCK)).toBe(true);
     expect(Object.isFrozen(HOME_CLOCK.strokes)).toBe(true);

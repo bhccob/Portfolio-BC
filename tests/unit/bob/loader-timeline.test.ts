@@ -31,42 +31,71 @@ function memoryStorage(): { storage: SafeStorage; items: Map<string, string> } {
   return { storage: new SafeStorage(() => fake), items };
 }
 
+/** A skip pressed while the circle is still being cut, before the hold, with room left after it for a full LOADER.skip. */
+const EARLY_SKIP = 1.5;
+
 describe('the script', () => {
-  it('is the preview at 24 fps, in seconds', () => {
+  it('is the O-only preview (bob_animate_o.py) at 24 fps', () => {
     expect(FPS).toBe(24);
-    expect(SCRIPT.leftB).toEqual({ start: 18 / 24, end: 66 / 24 });
-    expect(SCRIPT.circle).toEqual({ start: 174 / 24, end: 222 / 24 });
-    expect(SCRIPT.camera).toEqual({ start: 228 / 24, end: 292 / 24 });
-    expect(SCRIPT.home).toBe(12.5);
+    expect(SCRIPT.descend).toEqual({ start: 1 / 24, end: 26 / 24 });
+    expect(SCRIPT.circle).toEqual({ start: 26 / 24, end: 74 / 24 });
+    expect(SCRIPT.ticks).toEqual({ start: 72 / 24, end: 86 / 24 });
+    expect(SCRIPT.outer).toEqual({ start: 74 / 24, end: 96 / 24 });
+    expect(SCRIPT.probeOut).toEqual({ start: 74 / 24, end: 94 / 24 });
+    expect(SCRIPT.iris).toEqual({ start: 80 / 24, end: 96 / 24 });
+    expect(SCRIPT.glow).toEqual({ start: 78 / 24, end: 106 / 24 });
+    expect(SCRIPT.rise).toEqual({ start: 88 / 24, end: 140 / 24 });
+    expect(SCRIPT.camera).toEqual({ start: 80 / 24, end: 140 / 24 });
+    expect(SCRIPT.settle).toEqual({ start: 100 / 24, end: 150 / 24 });
+    expect(SCRIPT.home).toBe(6.25);
+    expect('leftB' in SCRIPT).toBe(false);
   });
 
-  it('lists the strokes in the order the wordmark cuts them, each starting after the last ends', () => {
-    const spans = STROKE_ORDER.map((id) => SCRIPT[id]);
-    for (let i = 1; i < spans.length; i++) expect(spans[i].start).toBeGreaterThan(spans[i - 1].end);
+  it('has the O-only spans and no B spans', () => {
+    expect(Object.keys(SCRIPT).sort()).toEqual(['camera', 'circle', 'descend', 'glow', 'home', 'iris', 'outer', 'probeOut', 'rise', 'settle', 'ticks'].sort());
+    for (const id of ['leftB', 'leftBar', 'rightB', 'rightBar']) expect(id in SCRIPT, id).toBe(false);
+  });
+
+  it('cuts the circle as the descent ends, and the probe leaves as the circle closes', () => {
+    expect(SCRIPT.circle.start).toBe(SCRIPT.descend.end);
+    expect(SCRIPT.probeOut.start).toBe(SCRIPT.circle.end);
+  });
+
+  it('keeps the circle as the fifth of the clock’s five strokes', () => {
+    expect(STROKE_ORDER.indexOf('circle')).toBe(4);
   });
 
   it('is frozen', () => {
     expect(Object.isFrozen(SCRIPT)).toBe(true);
-    expect(Object.isFrozen(SCRIPT.leftB)).toBe(true);
+    expect(Object.isFrozen(SCRIPT.circle)).toBe(true);
     expect(Object.isFrozen(QUICK)).toBe(true);
     expect(Object.isFrozen(QUICK.rise)).toBe(true);
   });
 
   it('holds the circle short of closing at 92 % of its span', () => {
-    expect(HOLD_AT).toBe((174 + 0.92 * 48) / 24);
+    expect(HOLD_AT).toBe((26 + 0.92 * 48) / 24);
   });
 });
 
 describe('loaderAt, the full path', () => {
-  it('plays the preview: half the left B at 1.75 s, home at 12.5 s, even on a fast load', () => {
-    expect(full(1.75).strokes[0]).toBeCloseTo(0.5, 6);
-    expect(full(1.75).stage).toBe('engrave');
-    expect(full(12.49).stage).toBe('rise');
-    expect(full(12.5).stage).toBe('home');
+  it('cuts the circle at constant speed: half of it at 2.08 s, all of it at 74/24 s', () => {
+    expect(full(50 / 24).strokes[4]).toBeCloseTo(0.5, 6);
+    expect(full(74 / 24).strokes[4]).toBe(1);
+    expect(full(2).stage).toBe('engrave');
+    expect(full(0.5).stage).toBe('dark');
+    expect(full(6.24).stage).toBe('rise');
+    expect(full(6.25).stage).toBe('home');
+  });
+
+  it('never draws a B: the four B strokes are 0 at every second of every path, skipped or held', () => {
+    for (const path of ['full', 'quick', 'reduced'] as const)
+      for (let t = 0; t <= 30; t += 0.05)
+        for (const input of [{ loadedAt: 0 }, { loadedAt: null }, { loadedAt: 20, skipAt: 1 }])
+          expect(loaderAt({ elapsed: t, skipAt: null, path, ...input }).strokes.slice(0, 4)).toEqual([0, 0, 0, 0]);
   });
 
   it('holds the circle short of closing while the load is out, crawling, never back', () => {
-    const H = (174 + 0.92 * 48) / 24;
+    const H = HOLD_AT;
     expect(full(H + 4, null).strokes[4]).toBeCloseTo(0.92 + 0.06 * (1 - Math.exp(-1)), 6);
     expect(full(H + 4, null).stage).toBe('engrave');
     let last = 0;
@@ -75,18 +104,18 @@ describe('loaderAt, the full path', () => {
       expect(s).toBeGreaterThanOrEqual(last);
       last = s;
     }
-    expect(full(20 + (12.5 - H), 20).stage).toBe('home');
+    expect(full(20 + (SCRIPT.home - H), 20).stage).toBe('home');
   });
 
   it('fast-forwards the rest in 1 s on a skip once loaded', () => {
-    expect(full(3.99, 0.1, 3).stage).not.toBe('home');
-    expect(full(4.0, 0.1, 3).stage).toBe('home');
+    expect(full(EARLY_SKIP + LOADER.skip - 0.01, 0.1, EARLY_SKIP).stage).not.toBe('home');
+    expect(full(EARLY_SKIP + LOADER.skip, 0.1, EARLY_SKIP).stage).toBe('home');
   });
 
   it('fast-forwards to the hold on a skip before the load, then finishes 1 s after it loads', () => {
-    expect(full(6, null, 3).strokes[4]).toBeGreaterThanOrEqual(0.92);
-    expect(full(10.99, 10, 3).stage).not.toBe('home');
-    expect(full(11.0, 10, 3).stage).toBe('home');
+    expect(full(6, null, EARLY_SKIP).strokes[4]).toBeGreaterThanOrEqual(0.92);
+    expect(full(10.99, 10, EARLY_SKIP).stage).not.toBe('home');
+    expect(full(11.0, 10, EARLY_SKIP).stage).toBe('home');
   });
 
   it('reads NaN and negative times as 0', () => {
@@ -109,21 +138,18 @@ describe('loaderAt, the full path', () => {
     expect(full(SCRIPT.home - 0.01).stage).toBe('rise');
   });
 
-  it('cuts the strokes one after another at constant speed', () => {
-    const at = full(SCRIPT.leftB.end + 0.01);
-    expect(at.strokes).toEqual([1, 0, 0, 0, 0]);
-    const t = (SCRIPT.rightB.start + SCRIPT.rightB.end) / 2;
-    expect(full(t).strokes[0]).toBe(1);
-    expect(full(t).strokes[1]).toBe(1);
-    expect(full(t).strokes[2]).toBeCloseTo(0.5, 9);
-    expect(full(t).strokes[3]).toBe(0);
-    expect(full(t).strokes[4]).toBe(0);
-    expect(full(SCRIPT.circle.end).strokes).toEqual([1, 1, 1, 1, 1]);
+  it('cuts the circle alone, from nothing as the descent ends to whole as the circle closes', () => {
+    expect(full(SCRIPT.circle.start - 0.01).strokes).toEqual([0, 0, 0, 0, 0]);
+    expect(full(SCRIPT.circle.start).strokes).toEqual([0, 0, 0, 0, 0]);
+    const t = (SCRIPT.circle.start + SCRIPT.circle.end) / 2;
+    expect(full(t).strokes.slice(0, 4)).toEqual([0, 0, 0, 0]);
+    expect(full(t).strokes[4]).toBeCloseTo(0.5, 9);
+    expect(full(SCRIPT.circle.end).strokes).toEqual([0, 0, 0, 0, 1]);
   });
 
   it('reports the script time as the elapsed time on a fast load', () => {
     expect(full(0).script).toBe(0);
-    expect(full(7.3).script).toBe(7.3);
+    expect(full(5.3).script).toBe(5.3);
   });
 
   it('reads each span as its progress, 0..1', () => {
@@ -147,7 +173,7 @@ describe('loaderAt, the full path', () => {
 
   it('has every mark done by the time it is home', () => {
     const c = full(SCRIPT.home);
-    expect(c.strokes).toEqual([1, 1, 1, 1, 1]);
+    expect(c.strokes).toEqual([0, 0, 0, 0, 1]);
     expect([c.ticks, c.outer, c.iris, c.glow, c.rise, c.camera, c.settle, c.fade]).toEqual([1, 1, 1, 1, 1, 1, 1, 1]);
   });
 });
@@ -189,15 +215,15 @@ describe('loaderAt, waiting for a late load', () => {
       [0.1, null],
       [null, null],
       [20, null],
-      [0.1, 3],
-      [0.1, 12],
-      [null, 3],
+      [0.1, EARLY_SKIP],
+      [0.1, SCRIPT.home - 0.5],
+      [null, EARLY_SKIP],
       [null, 15],
-      [20, 3],
+      [20, EARLY_SKIP],
       [20, 15],
       [20, 21],
       [4, 2],
-      [4, 8],
+      [4, 5],
       [H, H]
     ];
     const dt = 0.002;
@@ -221,7 +247,7 @@ describe('loaderAt, waiting for a late load', () => {
 
   it('always gets home: one second after a late load that was skipped, or at once on a skip after the load', () => {
     for (const [loadedAt, skipAt, homeAt] of [
-      [20, 3, 21],
+      [20, EARLY_SKIP, 21],
       [20, 20, 21],
       [20, 22, 23],
       [0.1, 5, 6]
@@ -234,43 +260,44 @@ describe('loaderAt, waiting for a late load', () => {
 
 describe('loaderAt, the skip', () => {
   it('runs the rest of the script in LOADER.skip seconds, linearly', () => {
-    const c = full(3.5, 0.1, 3);
-    expect(c.script).toBeCloseTo(3 + (SCRIPT.home - 3) * 0.5, 9);
+    const c = full(EARLY_SKIP + LOADER.skip / 2, 0.1, EARLY_SKIP);
+    expect(c.script).toBeCloseTo(EARLY_SKIP + (SCRIPT.home - EARLY_SKIP) * 0.5, 9);
   });
 
   it('does nothing before it is pressed', () => {
-    expect(full(2.9, 0.1, 3).script).toBe(2.9);
-    expect(full(3, 0.1, 3).script).toBe(3);
+    expect(full(EARLY_SKIP - 0.1, 0.1, EARLY_SKIP).script).toBe(EARLY_SKIP - 0.1);
+    expect(full(EARLY_SKIP, 0.1, EARLY_SKIP).script).toBe(EARLY_SKIP);
   });
 
   it('keeps the home once there', () => {
-    expect(full(50, 0.1, 3).stage).toBe('home');
-    expect(full(50, 0.1, 3).script).toBe(SCRIPT.home);
+    expect(full(50, 0.1, EARLY_SKIP).stage).toBe('home');
+    expect(full(50, 0.1, EARLY_SKIP).script).toBe(SCRIPT.home);
   });
 
   it('never runs the script past the home, with or without a skip', () => {
     expect(full(50).script).toBe(SCRIPT.home);
     expect(full(50, 20).script).toBe(SCRIPT.home);
-    expect(full(50, 10, 3).script).toBe(SCRIPT.home);
+    expect(full(50, 10, EARLY_SKIP).script).toBe(SCRIPT.home);
   });
 
   it('does not run backwards on a skip pressed after the home', () => {
-    expect(full(14, 0.1, 13).script).toBe(SCRIPT.home);
-    expect(full(13, 0.1, 13).script).toBe(SCRIPT.home);
-    expect(full(13.5, 0.1, 13).stage).toBe('home');
+    const after = SCRIPT.home + 0.75;
+    expect(full(after + 1, 0.1, after).script).toBe(SCRIPT.home);
+    expect(full(after, 0.1, after).script).toBe(SCRIPT.home);
+    expect(full(after + 0.5, 0.1, after).stage).toBe('home');
     expect(full(30, 20, 25).script).toBe(SCRIPT.home);
   });
 
   it('fast-forwards to the hold and waits there for a load that has not landed', () => {
-    const c = full(30, null, 3);
+    const c = full(30, null, EARLY_SKIP);
     expect(c.stage).toBe('engrave');
     expect(c.script).toBeCloseTo(HOLD_AT, 9);
     expect(c.strokes[4]).toBeCloseTo(0.98, 3);
   });
 
   it('crawls from the moment the fast-forward reaches the hold, not from the unskipped one', () => {
-    const reached = 3 + ((HOLD_AT - 3) * LOADER.skip) / (SCRIPT.home - 3);
-    expect(full(reached + 4, null, 3).strokes[4]).toBeCloseTo(0.92 + 0.06 * (1 - Math.exp(-1)), 6);
+    const reached = EARLY_SKIP + ((HOLD_AT - EARLY_SKIP) * LOADER.skip) / (SCRIPT.home - EARLY_SKIP);
+    expect(full(reached + 4, null, EARLY_SKIP).strokes[4]).toBeCloseTo(0.92 + 0.06 * (1 - Math.exp(-1)), 6);
   });
 
   it('keeps waiting when the skip comes during the wait', () => {
@@ -279,20 +306,20 @@ describe('loaderAt, the skip', () => {
     expect(full(30, 12, HOLD_AT + 2).stage).toBe('home');
   });
 
-  it('never ends later than the show would have (Ruling 32): a skip at 12.0 s lands by 12.5 s', () => {
-    // The load landed early, so the show alone comes home at SCRIPT.home, 12.5 s.
-    expect(full(12.49, 0.1, 12).stage).not.toBe('home');
-    expect(full(SCRIPT.home, 0.1, 12).stage).toBe('home');
-    expect(full(SCRIPT.home, 0.1, 12).script).toBe(SCRIPT.home);
+  it('never ends later than the show would have (Ruling 32): a skip at 5.75 s lands by 6.25 s', () => {
+    // The load landed early, so the show alone comes home at SCRIPT.home, 6.25 s.
+    expect(full(6.24, 0.1, 5.75).stage).not.toBe('home');
+    expect(full(SCRIPT.home, 0.1, 5.75).stage).toBe('home');
+    expect(full(SCRIPT.home, 0.1, 5.75).script).toBe(SCRIPT.home);
     // Less than LOADER.skip was left, so the rest plays at its own pace: the script is the unskipped one.
-    for (const t of [12, 12.1, 12.25, 12.4]) expect(full(t, 0.1, 12).script, `at ${t}`).toBeCloseTo(full(t).script, 9);
+    for (const t of [5.75, 5.85, 6.0, 6.2]) expect(full(t, 0.1, 5.75).script, `at ${t}`).toBeCloseTo(full(t).script, 9);
   });
 
-  it('still lands one LOADER.skip after a skip with more than that left: a skip at 3 s lands at 4.0 s', () => {
-    expect(full(3.99, 0.1, 3).stage).not.toBe('home');
-    expect(full(4.0, 0.1, 3).stage).toBe('home');
-    // 11.5 s is exactly one LOADER.skip before the home: either rule lands at 12.5 s.
-    expect(full(12.49, 0.1, SCRIPT.home - LOADER.skip).stage).not.toBe('home');
+  it('still lands one LOADER.skip after a skip with more than that left: a skip at 1.5 s lands at 2.5 s', () => {
+    expect(full(2.49, 0.1, 1.5).stage).not.toBe('home');
+    expect(full(2.5, 0.1, 1.5).stage).toBe('home');
+    // 5.25 s is exactly one LOADER.skip before the home: either rule lands at 6.25 s.
+    expect(full(6.24, 0.1, SCRIPT.home - LOADER.skip).stage).not.toBe('home');
     expect(full(SCRIPT.home, 0.1, SCRIPT.home - LOADER.skip).stage).toBe('home');
   });
 
@@ -329,7 +356,7 @@ describe('loaderAt, the skip', () => {
 describe('loaderAt, the quick path', () => {
   it('plays the quick path in 2.5 s from the load, every mark already cut', () => {
     expect(quick(0.9).stage).toBe('dark');
-    expect(quick(1.0).strokes).toEqual([1, 1, 1, 1, 1]);
+    expect(quick(1.0).strokes).toEqual([0, 0, 0, 0, 1]);
     expect(quick(3.49).stage).not.toBe('home');
     expect(quick(3.5).stage).toBe('home');
   });
@@ -337,15 +364,15 @@ describe('loaderAt, the quick path', () => {
   it('is dark until the load, with the marks already cut and nothing shown', () => {
     for (const c of [quick(0, null), quick(0.5)]) {
       expect(c.stage).toBe('dark');
-      expect(c.strokes).toEqual([1, 1, 1, 1, 1]);
+      expect(c.strokes).toEqual([0, 0, 0, 0, 1]);
       expect([c.fade, c.iris, c.glow, c.rise, c.camera, c.settle]).toEqual([0, 0, 0, 0, 0, 0]);
     }
   });
 
-  it('keeps the strokes, the ticks and the outer ring whole', () => {
+  it('keeps the circle, the ticks and the outer ring whole, and the B strokes uncut', () => {
     for (const t of [0, 1, 1.5, 2.2, 3.5, 9]) {
       const c = quick(t);
-      expect([...c.strokes, c.ticks, c.outer]).toEqual([1, 1, 1, 1, 1, 1, 1]);
+      expect([...c.strokes, c.ticks, c.outer]).toEqual([0, 0, 0, 0, 1, 1, 1]);
     }
   });
 
@@ -395,10 +422,10 @@ describe('loaderAt, the reduced path', () => {
     expect(reduced(3).fade).toBe(1);
   });
 
-  it('has every value at 1 but the fade, and the camera at home throughout', () => {
+  it('has every value at 1 but the fade and the B strokes, and the camera at home throughout', () => {
     for (const t of [0, 2, 2.5, 3, 20]) {
       const c = reduced(t);
-      expect([...c.strokes, c.ticks, c.outer, c.iris, c.glow, c.rise, c.camera, c.settle]).toEqual(Array(12).fill(1));
+      expect([...c.strokes, c.ticks, c.outer, c.iris, c.glow, c.rise, c.camera, c.settle]).toEqual([0, 0, 0, 0, ...Array(8).fill(1)]);
     }
     expect(reduced(0, null).camera).toBe(1);
   });

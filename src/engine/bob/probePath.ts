@@ -1,27 +1,30 @@
 /**
  * The laser probe's path through the loader: where its tip is, and whether it
  * is cutting, at each moment of the full show. It ports `probe_state` of the
- * Blender preview (tools/blender/bob_animate.py), so the site's probe moves as
- * the approved frames do. It imports nothing from three.
+ * Blender preview (tools/blender/bob_animate_o.py), so the site's probe moves
+ * as the approved frames do. It imports nothing from three.
  *
- * The probe descends onto the first stroke, cuts each stroke in turn, lifts and
- * travels between them, and rises out of frame once the circle is closed. The
- * moments come from the loader's script (`SCRIPT`), and how much of the active
- * stroke is cut from the clock's own share of it (`LoaderClock.strokes`), so
- * the probe keeps pace with the circle as it creeps while the load is out.
+ * The loader cuts the circle alone (the B letters come in on the scroll, and
+ * the probe never visits them): the probe descends onto the circle's start,
+ * goes once round it, and rises out of frame once the circle is closed. The
+ * moments come from the loader's script (`SCRIPT`), and how much of the circle
+ * is cut from the clock's own share of it (`LoaderClock.strokes`), so the
+ * probe keeps pace with the circle as it creeps while the load is out.
  *
  * Lengths are world units on the glass (see ~/engine/bob/wordmark): `x` and `z`
  * lie in the glass, and `y` is the tip's height above it.
  */
 import { type LoaderClock, SCRIPT, type Span } from '~/engine/bob/loaderTimeline';
-import { type Point2, STROKE_ORDER, strokeLength, strokePath, type StrokeId } from '~/engine/bob/wordmark';
+import { type Point2, STROKE_ORDER, strokeLength, strokePath } from '~/engine/bob/wordmark';
 
 /**
- * The probe's heights, in world units: the tip's height while it cuts, how
- * high it lifts between strokes, where it starts the descent, and where it is
- * out of frame.
+ * The probe's heights, in world units: the tip's height while it cuts, where
+ * it starts the descent, and where it is out of frame.
  */
-export const PROBE = { cutY: 0.012, lift: 0.35, startY: 6, outY: 7.5 } as const;
+export const PROBE = { cutY: 0.012, startY: 6, outY: 7.5 } as const;
+
+/** Where the circle's share stands in `LoaderClock.strokes`: the one stroke the loader cuts. */
+const CIRCLE_AT = STROKE_ORDER.indexOf('circle');
 
 /**
  * Where the probe is: its tip at (`x`, `y`, `z`), whether it is cutting the
@@ -60,15 +63,10 @@ function easeIn(x: number): number {
   return x ** 3;
 }
 
-/** The preview's `ease_io`: smoothstep. */
-function smoothstep(x: number): number {
-  return x * x * (3 - 2 * x);
-}
-
-/** The point `u` (0..1) of the way along a stroke by arc length, at constant speed. */
-function pointAlong(id: StrokeId, u: number): Point2 {
-  const points = strokePath(id);
-  let d = clamp01(u) * strokeLength(id);
+/** The point `u` (0..1) of the way round the circle by arc length, at constant speed. */
+function pointAlong(u: number): Point2 {
+  const points = strokePath('circle');
+  let d = clamp01(u) * strokeLength('circle');
   for (let i = 1; i < points.length; i++) {
     const [ax, az] = points[i - 1];
     const [bx, bz] = points[i];
@@ -82,14 +80,14 @@ function pointAlong(id: StrokeId, u: number): Point2 {
   return points[points.length - 1];
 }
 
-/** Where a stroke begins. */
-function startOf(id: StrokeId): Point2 {
-  return strokePath(id)[0];
+/** Where the circle begins. */
+function startOf(): Point2 {
+  return strokePath('circle')[0];
 }
 
-/** Where a stroke ends. */
-function endOf(id: StrokeId): Point2 {
-  const points = strokePath(id);
+/** Where the circle ends. */
+function endOf(): Point2 {
+  const points = strokePath('circle');
   return points[points.length - 1];
 }
 
@@ -104,13 +102,10 @@ function parked(): ProbeState {
 
 /**
  * Where the probe is at this moment of the show:
- * - **Descending**, until the first stroke begins: above the first stroke's
- *   start, easing out from `startY` down to `cutY`.
- * - **Cutting**, while a stroke's span runs: at the clock's share of that
- *   stroke, `cutY` above the glass, with the tip's light on.
- * - **Travelling**, between one stroke's end and the next one's start: from
- *   the end of the one to the start of the next by smoothstep, lifted by
- *   `lift * sin(pi t)`.
+ * - **Descending**, until the circle begins: above the circle's start, easing
+ *   out from `startY` down to `cutY`.
+ * - **Cutting**, while the circle's span runs: at the clock's share of the
+ *   circle, `cutY` above the glass, with the tip's light on.
  * - **Rising**, after the circle, until `probeOut` ends: over the circle's end,
  *   easing in from `cutY` up to `outY`.
  * - **Parked**, after that: out of the picture (`shown` false). On the quick and
@@ -121,28 +116,16 @@ export function probeAt(clock: LoaderClock): ProbeState {
   const script = clock.script;
   if (!(script < SCRIPT.probeOut.end)) return parked();
 
-  const first = STROKE_ORDER[0];
-  if (script < SCRIPT[first].start) {
-    const [x, z] = startOf(first);
+  if (script < SCRIPT.circle.start) {
+    const [x, z] = startOf();
     return { x, y: mix(PROBE.startY, PROBE.cutY, easeOut(through(script, SCRIPT.descend))), z, cutting: false, shown: true };
   }
 
-  for (let i = 0; i < STROKE_ORDER.length; i++) {
-    const id = STROKE_ORDER[i];
-    const span = SCRIPT[id];
-    if (script <= span.end) {
-      const [x, z] = pointAlong(id, clock.strokes[i]);
-      return { x, y: PROBE.cutY, z, cutting: true, shown: true };
-    }
-    const next = STROKE_ORDER[i + 1];
-    if (next !== undefined && script < SCRIPT[next].start) {
-      const t = smoothstep(through(script, { start: span.end, end: SCRIPT[next].start }));
-      const [ax, az] = endOf(id);
-      const [bx, bz] = startOf(next);
-      return { x: mix(ax, bx, t), y: PROBE.cutY + PROBE.lift * Math.sin(Math.PI * t), z: mix(az, bz, t), cutting: false, shown: true };
-    }
+  if (script <= SCRIPT.circle.end) {
+    const [x, z] = pointAlong(clock.strokes[CIRCLE_AT]);
+    return { x, y: PROBE.cutY, z, cutting: true, shown: true };
   }
 
-  const [x, z] = endOf(STROKE_ORDER[STROKE_ORDER.length - 1]);
+  const [x, z] = endOf();
   return { x, y: mix(PROBE.cutY, PROBE.outY, easeIn(through(script, SCRIPT.probeOut))), z, cutting: false, shown: true };
 }

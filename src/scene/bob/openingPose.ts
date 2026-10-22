@@ -8,22 +8,24 @@
  * React.
  *
  * The three paths (spec section 2.1, the timeline's header):
- * - full: the Blender preview at its own pace. The probe cuts the five marks in
- *   turn, the ticks and the outer ring grow, the glass inside the circle opens
- *   like an iris, the warm light comes up the tunnel, the compass rises, the
- *   camera pushes in from the wide shot and the needle swings in.
- * - quick (the loader was seen before): the marks are cut already, so the name
- *   and the compass fade in, the iris opens, the compass rises and the camera
- *   settles in from just beyond the home shot.
- * - reduced motion: the marks cut, the iris open and the compass risen from the
- *   first frame; the name and the compass fade in, and the camera is the home
- *   shot throughout.
+ * - full: the Blender preview at its own pace. The probe cuts the circle, the
+ *   one mark of the loader, the ticks and the outer ring grow, the glass inside
+ *   the circle opens like an iris, the warm light comes up the tunnel, the
+ *   compass rises, the camera pushes in from the wide shot and the needle swings
+ *   in. No B letter is drawn: the four B strokes stay at 0 on every path (they
+ *   come in on the scroll).
+ * - quick (the loader was seen before): the circle is cut already, so the
+ *   engraving and the compass fade in, the iris opens, the compass rises and the
+ *   camera settles in from just beyond the home shot.
+ * - reduced motion: the circle cut, the iris open and the compass risen from the
+ *   first frame; the engraving and the compass fade in, and the camera is the
+ *   home shot throughout.
  *
  * Every path lands on the same home (`HOME_POSE`), so the Home takes over from
  * a pose it did not have to guess at.
  *
  * The clock's shares are linear in the script's time; the curves are made here,
- * the preview's own (tools/blender/bob_animate.py): the ticks ease out, the
+ * the preview's own (tools/blender/bob_animate_o.py): the ticks ease out, the
  * outer ring and the warm light ease in and out (smoothstep), the iris eases in
  * (so the cap stays nearly shut and then drops), and the engraving's glow
  * eases out as the world comes up from black. The same curves play on the quick
@@ -106,13 +108,14 @@ export interface OpeningPose {
 }
 
 /**
- * The home every path lands on: everything cut, open and risen, the traces at
- * rest, the smoke thick and the probe away (parked, as `probeAt` parks it once
- * it is out of the picture), the needle settled. Frozen all through, so the
- * Home can hold it without a copy.
+ * The home every path lands on: the circle cut and no B letter drawn (the
+ * four B strokes are 0), open and risen, the traces at rest, the smoke thick
+ * and the probe away (parked, as `probeAt` parks it once it is out of the
+ * picture), the needle settled. Frozen all through, so the Home can hold it
+ * without a copy.
  */
 export const HOME_POSE: Readonly<OpeningPose> = Object.freeze({
-  strokes: Object.freeze([1, 1, 1, 1, 1]),
+  strokes: Object.freeze([0, 0, 0, 0, 1]),
   ticks: 1,
   outer: 1,
   engraveGlow: 1,
@@ -135,8 +138,8 @@ export const HOME_POSE: Readonly<OpeningPose> = Object.freeze({
  * - the probe is `probeAt`'s, which parks it on the quick and reduced paths,
  *   where the script stands at its end;
  * - the engraving's glow is the clock's fade on the ease-out: the full path's
- *   fade is over by the time the first stroke starts, so the cut is lit
- *   throughout, and on the other two it is the name glowing in;
+ *   fade is over by the time the circle starts, so the cut is lit throughout,
+ *   and on the other two it is the engraving glowing in;
  * - the traces come up from nothing to `TRACES_LOOK.level` with the fade,
  *   eased: the world rising from black;
  * - the smoke thickens from nothing over the script's first 2.5 s, eased, on

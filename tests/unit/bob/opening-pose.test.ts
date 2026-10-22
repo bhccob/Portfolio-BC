@@ -13,9 +13,12 @@ const quickClock = (q: number): LoaderClock => loaderAt({ elapsed: 1 + q, loaded
 /** The reduced path's clock `q` seconds after the load. */
 const reducedClock = (q: number): LoaderClock => loaderAt({ elapsed: 1 + q, loadedAt: 1, skipAt: null, path: 'reduced' });
 
-/** A clock with every field at 0 but those given, the script at its end (so the marks are cut, the probe is away and the smoke is up). */
+/** Moments of the full show, in visible seconds, through its descent, its cut, its opening, its rise and its push-in. */
+const SHOW_TIMES = [0.4, 1.5, 2.5, 3.2, 3.8, 4.4, 5, 5.6, 6];
+
+/** A clock with every field at 0 but those given, the script at its end (so the circle is cut, the probe is away and the smoke is up). */
 function clockWith(partial: Partial<LoaderClock>): LoaderClock {
-  return { stage: 'open', script: SCRIPT.home, strokes: [1, 1, 1, 1, 1], ticks: 0, outer: 0, iris: 0, glow: 0, rise: 0, camera: 0, settle: 0, fade: 0, ...partial };
+  return { stage: 'open', script: SCRIPT.home, strokes: [0, 0, 0, 0, 1], ticks: 0, outer: 0, iris: 0, glow: 0, rise: 0, camera: 0, settle: 0, fade: 0, ...partial };
 }
 
 /** The distance from the camera to what it looks at. */
@@ -26,9 +29,9 @@ const WIDE = 16 / 9;
 const PHONE = 390 / 844;
 
 describe('the camera on the full path', () => {
-  it('frames the whole name until the push-in, then lands on the home shot', () => {
-    expect(cameraShotAt(clockAt(5), 'full', 16 / 9)).toEqual(wideShotFor(16 / 9));
-    expect(cameraShotAt(clockAt(12.5), 'full', 16 / 9)).toEqual(homeShotFor(16 / 9));
+  it('holds the wide shot until the push-in, then lands on the home shot', () => {
+    expect(cameraShotAt(clockAt(2), 'full', 16 / 9)).toEqual(wideShotFor(16 / 9));
+    expect(cameraShotAt(clockAt(SCRIPT.home), 'full', 16 / 9)).toEqual(homeShotFor(16 / 9));
   });
 
   it('holds the wide shot up to the second the push-in starts, and not a frame longer', () => {
@@ -66,18 +69,19 @@ describe('the camera on the full path', () => {
   });
 
   it('frames a portrait screen by its own wide and home shots', () => {
-    expect(cameraShotAt(clockAt(5), 'full', PHONE)).toEqual(wideShotFor(PHONE));
-    expect(cameraShotAt(clockAt(12.5), 'full', PHONE)).toEqual(homeShotFor(PHONE));
+    expect(cameraShotAt(clockAt(2), 'full', PHONE)).toEqual(wideShotFor(PHONE));
+    expect(cameraShotAt(clockAt(SCRIPT.home), 'full', PHONE)).toEqual(homeShotFor(PHONE));
   });
 
   it('is the wide shot blended into the home shot by the eased push-in share, for the screen it is given', () => {
     for (const aspect of [WIDE, PHONE]) {
-      const clock = clockAt(10);
+      const clock = clockAt((SCRIPT.camera.start + SCRIPT.camera.end) / 2 + 0.3);
       expect(clock.camera).toBeGreaterThan(0);
       expect(clock.camera).toBeLessThan(1);
       expect(cameraShotAt(clock, 'full', aspect)).toEqual(lerpCameraShot(wideShotFor(aspect), homeShotFor(aspect), ease(clock.camera)));
     }
-    expect(cameraShotAt(clockAt(10), 'full', WIDE)).not.toEqual(cameraShotAt(clockAt(10), 'full', PHONE));
+    const midPush = (SCRIPT.camera.start + SCRIPT.camera.end) / 2 + 0.3;
+    expect(cameraShotAt(clockAt(midPush), 'full', WIDE)).not.toEqual(cameraShotAt(clockAt(midPush), 'full', PHONE));
   });
 });
 
@@ -204,7 +208,7 @@ describe('the easing', () => {
 
 describe('the pose on the full path', () => {
   it('hands the builders the share of the clock as it is where the curve is elsewhere: the cut, the rise and the settle', () => {
-    for (const t of [0.4, 2, 5, 7, 9, 9.7, 10.4, 11.2, 12]) {
+    for (const t of SHOW_TIMES) {
       const clock = clockAt(t);
       const pose = openingPoseAt(clock, 'full');
       expect(pose.strokes).toEqual(clock.strokes); // cut at constant speed
@@ -214,7 +218,7 @@ describe('the pose on the full path', () => {
   });
 
   it('puts the ticks, the outer ring, the iris and the light through curves: they differ from the share between its ends', () => {
-    for (const t of [0.4, 2, 5, 7, 9, 9.7, 10.4, 11.2, 12]) {
+    for (const t of SHOW_TIMES) {
       const clock = clockAt(t);
       const pose = openingPoseAt(clock, 'full');
       for (const [name, share, value] of [
@@ -230,14 +234,14 @@ describe('the pose on the full path', () => {
   });
 
   it('poses the probe as the probe path has it', () => {
-    for (const t of [0.4, 2, 5, 7, 9, 9.7, 10.4, 12]) {
+    for (const t of SHOW_TIMES) {
       const clock = clockAt(t);
       expect(openingPoseAt(clock, 'full').probe).toEqual(probeAt(clock));
     }
   });
 
   it('shows the compass whole from the first frame: it is hidden by the glass, not by a fade', () => {
-    for (const t of [0, 0.2, 0.5, 3, 12]) expect(openingPoseAt(clockAt(t), 'full').reveal).toBe(1);
+    for (const t of [0, 0.2, 0.5, 3, SCRIPT.home]) expect(openingPoseAt(clockAt(t), 'full').reveal).toBe(1);
   });
 
   it('settles the needle by the settle share of the clock', () => {
@@ -256,7 +260,7 @@ describe('the pose on the full path', () => {
 
   it('never lets the traces rise above 0.09 or fall back', () => {
     let last = 0;
-    for (let t = 0; t <= 13; t += 0.05) {
+    for (let t = 0; t <= 7; t += 0.05) {
       const traces = openingPoseAt(clockAt(t), 'full').traces;
       expect(traces).toBeGreaterThanOrEqual(last - 1e-12);
       expect(traces).toBeLessThanOrEqual(0.09 + 1e-12);
@@ -268,7 +272,7 @@ describe('the pose on the full path', () => {
     expect(openingPoseAt(clockAt(0), 'full').smoke).toBe(0);
     expect(openingPoseAt(clockAt(1.25), 'full').smoke).toBeCloseTo(0.5, 9);
     expect(openingPoseAt(clockAt(2.5), 'full').smoke).toBe(1);
-    expect(openingPoseAt(clockAt(9), 'full').smoke).toBe(1);
+    expect(openingPoseAt(clockAt(5), 'full').smoke).toBe(1);
     let last = 0;
     for (let t = 0; t <= 3; t += 0.05) {
       const smoke = openingPoseAt(clockAt(t), 'full').smoke;
@@ -284,14 +288,15 @@ describe('the pose on the full path', () => {
     expect(openingPoseAt(held, 'full').engraveGlow).toBe(1);
   });
 
-  it('lights the engraving as the first stroke starts to be cut', () => {
+  it('lights the engraving as the circle starts to be cut', () => {
     expect(openingPoseAt(clockAt(0), 'full').engraveGlow).toBe(0);
-    expect(openingPoseAt(clockAt(SCRIPT.leftB.start), 'full').engraveGlow).toBe(1);
-    expect(openingPoseAt(clockAt(SCRIPT.leftB.start + 1), 'full').engraveGlow).toBe(1);
+    expect(openingPoseAt(clockAt(SCRIPT.circle.start), 'full').engraveGlow).toBe(1);
+    expect(openingPoseAt(clockAt(SCRIPT.circle.start + 1), 'full').engraveGlow).toBe(1);
   });
 
   it('follows a skip as it follows any script: the pose is a function of the clock', () => {
-    const skipped = clockAt(5, 4.5);
+    const skipped = clockAt(2, 1.5);
+    expect(skipped.script).toBeGreaterThan(SCRIPT.circle.end);
     expect(openingPoseAt(skipped, 'full').probe).toEqual(probeAt(skipped));
     expect(openingPoseAt(skipped, 'full').strokes).toEqual(skipped.strokes);
   });
@@ -326,11 +331,11 @@ describe('the pose on the quick and reduced paths', () => {
     expect(openingPoseAt(quickClock(1.2), 'quick').wellGlow).toBe(1);
   });
 
-  it('has the marks cut and the probe away from the first frame', () => {
+  it('has the circle cut, no B drawn and the probe away from the first frame', () => {
     for (const [path, clockFor] of paths) {
       for (const q of [-1, 0, 0.3, 1]) {
         const pose = openingPoseAt(clockFor(q), path);
-        expect(pose.strokes).toEqual([1, 1, 1, 1, 1]);
+        expect(pose.strokes).toEqual([0, 0, 0, 0, 1]);
         expect(pose.ticks).toBe(1);
         expect(pose.outer).toBe(1);
         expect(pose.probe).toEqual({ x: 0, y: PROBE.outY, z: 0, cutting: false, shown: false });
@@ -360,11 +365,11 @@ describe('the pose on the quick and reduced paths', () => {
     expect(openingPoseAt(reducedClock(1), 'reduced').smoke).toBe(HOME_POSE.smoke);
   });
 
-  it('leaves the full path’s smoke on the script’s first 2.5 s, not on its fade, which is over by 0.75 s', () => {
-    // The full path's fade ends with the descent (0.75 s); its smoke takes 2.5 s of the script.
-    expect(clockAt(1).fade).toBe(1);
-    expect(openingPoseAt(clockAt(1), 'full').smoke).toBeLessThan(1);
-    expect(openingPoseAt(clockAt(1), 'full').smoke).toBe(ease(1 / 2.5));
+  it('leaves the full path’s smoke on the script’s first 2.5 s, not on its fade, which is over as the descent ends', () => {
+    // The full path's fade ends with the descent (26/24 s); its smoke takes 2.5 s of the script.
+    expect(clockAt(1.2).fade).toBe(1);
+    expect(openingPoseAt(clockAt(1.2), 'full').smoke).toBeLessThan(1);
+    expect(openingPoseAt(clockAt(1.2), 'full').smoke).toBe(ease(1.2 / 2.5));
   });
 
   it('brings the traces up with the fade, and the opening, the light and the rise by their own shares', () => {
@@ -431,16 +436,16 @@ describe('the curves of the preview', () => {
 
 describe('the home pose', () => {
   it('poses the home as every path lands on it', () => {
-    expect(openingPoseAt(clockAt(12.5), 'full')).toEqual(HOME_POSE);
+    expect(openingPoseAt(clockAt(SCRIPT.home), 'full')).toEqual(HOME_POSE);
     expect(openingPoseAt(quickClock(2.5), 'quick')).toEqual(HOME_POSE);
   });
 
   it('still equals the end of every path, and every moment after it, with the curves in', () => {
     const ends: [string, LoaderClock, LoaderPath][] = [
-      ['full 12.5', clockAt(12.5), 'full'],
-      ['full 13', clockAt(13), 'full'],
+      ['full 6.25', clockAt(SCRIPT.home), 'full'],
+      ['full 7', clockAt(7), 'full'],
       ['full 60', clockAt(60), 'full'],
-      ['full, skipped', clockAt(8, 7), 'full'],
+      ['full, skipped', clockAt(3, 2), 'full'],
       ['quick 2.5', quickClock(2.5), 'quick'],
       ['quick 3', quickClock(3), 'quick'],
       ['quick 30', quickClock(30), 'quick'],
@@ -468,8 +473,8 @@ describe('the home pose', () => {
     expect(openingPoseAt(loaderAt({ elapsed: HOLD_AT + 20, loadedAt: HOLD_AT + 3, skipAt: null, path: 'full' }), 'full')).toEqual(HOME_POSE);
   });
 
-  it('has everything cut, open and risen', () => {
-    expect(HOME_POSE.strokes).toEqual([1, 1, 1, 1, 1]);
+  it('has the circle cut, open and risen, and no B drawn', () => {
+    expect(HOME_POSE.strokes).toEqual([0, 0, 0, 0, 1]);
     expect(HOME_POSE).toMatchObject({
       ticks: 1,
       outer: 1,
@@ -486,8 +491,8 @@ describe('the home pose', () => {
   });
 
   it('is the pose the probe path and the timeline give at the home', () => {
-    expect(HOME_POSE.probe).toEqual(probeAt(clockAt(12.5)));
-    const home = clockAt(12.5);
+    expect(HOME_POSE.probe).toEqual(probeAt(clockAt(SCRIPT.home)));
+    const home = clockAt(SCRIPT.home);
     expect(HOME_POSE.strokes).toEqual(home.strokes);
     expect(HOME_POSE.needleSettle).toBe(home.settle);
   });

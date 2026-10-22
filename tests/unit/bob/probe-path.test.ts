@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { HOLD_AT, type LoaderClock, loaderAt, type LoaderPath, SCRIPT } from '~/engine/bob/loaderTimeline';
 import { PROBE, probeAt } from '~/engine/bob/probePath';
-import { type Point2, strokeLength, strokePath } from '~/engine/bob/wordmark';
+import { circlePath, type Point2, strokeLength, strokePath, WORDMARK } from '~/engine/bob/wordmark';
 
 /** A clock with every field at 0 (the dark stage) except those given, at this script second. */
 function clockWith(partial: Partial<LoaderClock>, script: number): LoaderClock {
@@ -59,43 +59,46 @@ function distanceAlong(points: readonly Point2[], x: number, z: number): number 
 const mid = (a: number, b: number) => (a + b) / 2;
 
 describe('the probe, cutting', () => {
-  it('cuts the left B at its midpoint halfway through its span', () => {
-    const p = probeAt(clockWith({ stage: 'engrave', strokes: [0.5, 0, 0, 0, 0] }, 1.75));
+  it('cuts the circle at its midpoint halfway through its span', () => {
+    const p = probeAt(clockWith({ stage: 'engrave', strokes: [0, 0, 0, 0, 0.5] }, mid(SCRIPT.circle.start, SCRIPT.circle.end)));
     expect(p.cutting).toBe(true);
-    expect(p.y).toBeCloseTo(0.012, 6);
-    expect([p.x, p.z]).toEqual(pointAlong(strokePath('leftB'), 0.5));
+    expect(p.shown).toBe(true);
+    expect(p.y).toBeCloseTo(PROBE.cutY, 6);
+    expect([p.x, p.z]).toEqual(pointAlong(strokePath('circle'), 0.5));
   });
 
-  it('is at half the outline by length, not by point count', () => {
-    const p = probeAt(clockWith({ strokes: [0.5, 0, 0, 0, 0] }, 1.75));
-    expect(distanceAlong(strokePath('leftB'), p.x, p.z)).toBeCloseTo(strokeLength('leftB') / 2, 6);
+  it('is on the circle halfway through its span, on the real clock', () => {
+    const halfway = loaderAt({ elapsed: mid(SCRIPT.circle.start, SCRIPT.circle.end), loadedAt: 0.1, skipAt: null, path: 'full' });
+    const p = probeAt(halfway);
+    expect(p.cutting).toBe(true);
+    expect(Math.abs(Math.hypot(p.x, p.z) - WORDMARK.circle)).toBeLessThan(1e-6);
+    expect(Math.hypot(p.x, p.z)).toBeCloseTo(1.66, 6);
   });
 
-  it('cuts each stroke along its own path, at the stroke fraction the clock gives', () => {
-    const cases = [
-      ['leftB', 0, 0.25],
-      ['leftBar', 1, 0.6],
-      ['rightB', 2, 0.9],
-      ['rightBar', 3, 0.1],
-      ['circle', 4, 0.7]
-    ] as const;
-    for (const [id, i, u] of cases) {
-      const strokes = [0, 0, 0, 0, 0] as [number, number, number, number, number];
-      strokes[i] = u;
-      const p = probeAt(clockWith({ stage: 'engrave', strokes }, mid(SCRIPT[id].start, SCRIPT[id].end)));
-      expect(p.cutting).toBe(true);
-      expect(p.shown).toBe(true);
-      expect([p.x, p.z]).toEqual(pointAlong(strokePath(id), u));
+  it('is at half the circle by length, not by point count', () => {
+    const p = probeAt(clockWith({ strokes: [0, 0, 0, 0, 0.5] }, mid(SCRIPT.circle.start, SCRIPT.circle.end)));
+    expect(distanceAlong(strokePath('circle'), p.x, p.z)).toBeCloseTo(strokeLength('circle') / 2, 6);
+  });
+
+  it('cuts the circle along its own path, at the stroke fraction the clock gives', () => {
+    for (const u of [0.1, 0.25, 0.7, 0.9]) {
+      const p = probeAt(clockWith({ stage: 'engrave', strokes: [0, 0, 0, 0, u] }, mid(SCRIPT.circle.start, SCRIPT.circle.end)));
+      expect(p.cutting, `at ${u}`).toBe(true);
+      expect(p.shown, `at ${u}`).toBe(true);
+      expect([p.x, p.z], `at ${u}`).toEqual(pointAlong(strokePath('circle'), u));
     }
   });
 
-  it('starts and ends a stroke on its first and last points', () => {
-    const start = probeAt(clockWith({ strokes: [0, 0, 0, 0, 0] }, SCRIPT.rightB.start));
+  it('starts and ends the circle on its first and last points', () => {
+    const path = strokePath('circle');
+    const start = probeAt(clockWith({ strokes: [0, 0, 0, 0, 0] }, SCRIPT.circle.start));
     expect(start.cutting).toBe(true);
-    expect([start.x, start.z]).toEqual([...strokePath('rightB')[0]]);
-    const end = probeAt(clockWith({ strokes: [1, 1, 1, 1, 0] }, SCRIPT.rightBar.end));
+    expect([start.x, start.z]).toEqual([...path[0]]);
+    const end = probeAt(clockWith({ strokes: [0, 0, 0, 0, 1] }, SCRIPT.circle.end));
     expect(end.cutting).toBe(true);
-    expect([end.x, end.z]).toEqual([...strokePath('rightBar')[1]]);
+    // The walk sums 240 chords, so the last point is the closing one to rounding, not bit for bit.
+    expect(end.x).toBeCloseTo(path[path.length - 1][0], 9);
+    expect(end.z).toBeCloseTo(path[path.length - 1][1], 9);
   });
 
   it('follows the circle as it creeps while the load is out, not the stalled script', () => {
@@ -108,11 +111,12 @@ describe('the probe, cutting', () => {
 });
 
 describe('the probe, coming down', () => {
-  const first = strokePath('leftB')[0];
+  const first = circlePath(WORDMARK.circle)[0];
 
-  it('starts high above the first stroke and is shown', () => {
+  it("starts high above the circle's first point and is shown", () => {
     const p = probeAt(clockWith({}, 0));
     expect(p).toEqual({ x: first[0], y: PROBE.startY, z: first[1], cutting: false, shown: true });
+    expect([first[0], first[1]]).toEqual([...strokePath('circle')[0]]);
   });
 
   it('eases out onto the glass: most of the way down by the middle of the descent', () => {
@@ -122,50 +126,21 @@ describe('the probe, coming down', () => {
     expect([p.x, p.z]).toEqual([...first]);
   });
 
-  it('lands on the first stroke as it begins', () => {
-    const before = probeAt(clockWith({}, SCRIPT.leftB.start - 1e-6));
-    expect(before.cutting).toBe(false);
-    expect(before.y).toBeCloseTo(PROBE.cutY, 6);
-    const at = probeAt(clockWith({}, SCRIPT.leftB.start));
-    expect(at.cutting).toBe(true);
-    expect(at.y).toBe(PROBE.cutY);
-  });
-});
-
-describe('the probe, travelling between strokes', () => {
-  it('lifts 0.35 at the middle of a travel and cuts nothing', () => {
-    const middle = (66 + 74) / 2 / 24;
-    const p = probeAt(clockWith({ stage: 'engrave', strokes: [1, 0, 0, 0, 0] }, middle));
-    expect(p.cutting).toBe(false);
-    expect(p.y).toBeCloseTo(0.012 + 0.35, 3);
-  });
-
-  it('crosses from the end of one stroke to the start of the next, halfway at the middle', () => {
-    const a = strokePath('leftB')[strokePath('leftB').length - 1];
-    const b = strokePath('leftBar')[0];
-    const p = probeAt(clockWith({ strokes: [1, 0, 0, 0, 0] }, mid(SCRIPT.leftB.end, SCRIPT.leftBar.start)));
-    expect(p.x).toBeCloseTo((a[0] + b[0]) / 2, 9);
-    expect(p.z).toBeCloseTo((a[1] + b[1]) / 2, 9);
+  it("lands on the circle's first point as the descent ends, cutting", () => {
+    const p = probeAt(clockWith({}, SCRIPT.descend.end));
+    expect([p.x, p.z]).toEqual([...first]);
+    expect(p.y).toBe(PROBE.cutY);
+    expect(p.cutting).toBe(true);
     expect(p.shown).toBe(true);
   });
 
-  it('leaves and arrives on the glass', () => {
-    const near = (script: number) => probeAt(clockWith({ strokes: [1, 1, 1, 0, 0] }, script));
-    expect(near(SCRIPT.rightB.end + 1e-6).y).toBeCloseTo(PROBE.cutY, 3);
-    expect(near(SCRIPT.rightBar.start - 1e-6).y).toBeCloseTo(PROBE.cutY, 3);
-  });
-
-  it('travels between every pair of strokes', () => {
-    for (const [from, to] of [
-      ['leftB', 'leftBar'],
-      ['leftBar', 'rightB'],
-      ['rightB', 'rightBar'],
-      ['rightBar', 'circle']
-    ] as const) {
-      const p = probeAt(clockWith({ strokes: [1, 1, 1, 1, 0] }, mid(SCRIPT[from].end, SCRIPT[to].start)));
-      expect(p.cutting).toBe(false);
-      expect(p.y).toBeCloseTo(PROBE.cutY + PROBE.lift, 6);
-    }
+  it('lands on the circle as it begins', () => {
+    const before = probeAt(clockWith({}, SCRIPT.circle.start - 1e-6));
+    expect(before.cutting).toBe(false);
+    expect(before.y).toBeCloseTo(PROBE.cutY, 6);
+    const at = probeAt(clockWith({}, SCRIPT.circle.start));
+    expect(at.cutting).toBe(true);
+    expect(at.y).toBe(PROBE.cutY);
   });
 });
 
@@ -173,7 +148,7 @@ describe('the probe, going out', () => {
   const end = strokePath('circle')[strokePath('circle').length - 1];
 
   it('rises from where the circle closed, easing in', () => {
-    const p = probeAt(clockWith({ strokes: [1, 1, 1, 1, 1] }, mid(SCRIPT.probeOut.start, SCRIPT.probeOut.end)));
+    const p = probeAt(clockWith({ strokes: [0, 0, 0, 0, 1] }, mid(SCRIPT.probeOut.start, SCRIPT.probeOut.end)));
     expect(p.cutting).toBe(false);
     expect(p.shown).toBe(true);
     expect([p.x, p.z]).toEqual([...end]);
@@ -181,13 +156,15 @@ describe('the probe, going out', () => {
   });
 
   it('is gone once it has risen out', () => {
-    expect(probeAt(clockWith({ stage: 'rise' }, 246 / 24)).shown).toBe(false);
+    expect(probeAt(clockWith({ stage: 'rise' }, SCRIPT.probeOut.end)).shown).toBe(false);
+    expect(probeAt(clockWith({ stage: 'rise' }, SCRIPT.probeOut.end - 1e-6)).shown).toBe(true);
   });
 
   it('is parked out of the picture once it is gone, the same state every time', () => {
     const parked = { x: 0, y: PROBE.outY, z: 0, cutting: false, shown: false };
     expect(probeAt(clockWith({}, SCRIPT.probeOut.end))).toEqual(parked);
-    expect(probeAt(clockWith({ strokes: [1, 1, 1, 1, 1] }, SCRIPT.home))).toEqual(parked);
+    expect(probeAt(clockWith({}, SCRIPT.probeOut.end + 0.5))).toEqual(parked);
+    expect(probeAt(clockWith({ strokes: [0, 0, 0, 0, 1] }, SCRIPT.home))).toEqual(parked);
     expect(probeAt(clockWith({}, 100))).toEqual(parked);
   });
 
@@ -209,7 +186,7 @@ describe('the probe on each path', () => {
   });
 
   it('is parked at home on every path, so every home pose is the same', () => {
-    const home = loaderAt({ elapsed: 12.5, loadedAt: 0.1, skipAt: null, path: 'full' });
+    const home = loaderAt({ elapsed: SCRIPT.home, loadedAt: 0.1, skipAt: null, path: 'full' });
     expect(probeAt(home)).toEqual(parked);
     expect(probeAt(loaderAt({ elapsed: 3.5, loadedAt: 1, skipAt: null, path: 'quick' }))).toEqual(probeAt(home));
     expect(probeAt(loaderAt({ elapsed: 3, loadedAt: 2, skipAt: null, path: 'reduced' }))).toEqual(probeAt(home));
@@ -221,6 +198,24 @@ describe('the probe on each path', () => {
     expect(probeAt(loaderAt({ elapsed: SCRIPT.probeOut.end, loadedAt: 0.1, skipAt: null, path: 'full' })).shown).toBe(false);
   });
 
+  it("never visits a B: x and z stay within the circle's reach (1.7) at every second of the full path, skipped or held", () => {
+    for (const [loadedAt, skipAt] of [
+      [0.1, null],
+      [null, null],
+      [20, null],
+      [0.1, 0.5],
+      [0.1, 1.5],
+      [null, 1.5],
+      [20, 1.5]
+    ] as const) {
+      for (let t = 0; t <= 40; t += 0.01) {
+        const p = probeAt(loaderAt({ elapsed: t, loadedAt, skipAt, path: 'full' }));
+        expect(Math.abs(p.x), `x at ${t.toFixed(2)}, loadedAt ${loadedAt}, skipAt ${skipAt}`).toBeLessThanOrEqual(1.7);
+        expect(Math.abs(p.z), `z at ${t.toFixed(2)}, loadedAt ${loadedAt}, skipAt ${skipAt}`).toBeLessThanOrEqual(1.7);
+      }
+    }
+  });
+
   it('never jumps while it is shown, through the whole show', () => {
     const dt = 0.002;
     const faults: string[] = [];
@@ -228,9 +223,10 @@ describe('the probe on each path', () => {
       [0.1, null],
       [null, null],
       [20, null],
-      [0.1, 3],
-      [null, 3],
-      [20, 3]
+      [0.1, 0.5],
+      [0.1, 1.5],
+      [null, 1.5],
+      [20, 1.5]
     ] as const) {
       let last = probeAt(loaderAt({ elapsed: 0, loadedAt, skipAt, path: 'full' }));
       for (let t = dt; t < 40; t += dt) {
