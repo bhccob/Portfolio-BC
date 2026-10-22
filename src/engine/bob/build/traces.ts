@@ -47,7 +47,7 @@ export const TRACES_LOOK = {
 
 /**
  * The traces' draw order under the glass: one before the glass (GLASS_RENDER_ORDER) and after the
- * sky (-10) and the mirror under the floor (MIRROR_RENDER_ORDER). The floor is
+ * mirror under the floor (MIRROR_RENDER_ORDER). The floor is
  * transparent, so it draws after every opaque thing and tints what lies under
  * it; the traces are opaque and draw before it, over the mirror, so it dims them.
  */

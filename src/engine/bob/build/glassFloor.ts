@@ -96,9 +96,10 @@ export const GLASS_LOOK = {
  * transparent (GLASS_LOOK.reflection.opacity), and three sorts transparent objects
  * by the distance of their origin, which for a ring 120 wide says nothing: the floor
  * could draw after the compass's glass or the smoke and paint over them.
- * -5 puts it after the sky (-10) and before the laser (1) and the mist (2),
- * following v3's `*_RENDER_ORDER` convention. It is set on every tier, where
- * it changes nothing because the glass is opaque.
+ * -5 puts it after the mirror under it (-7) and the traces (-6) and before the
+ * laser (1) and the mist (2), following v3's `*_RENDER_ORDER` convention. The
+ * sky has no render order: the black is the scene's background. It is set on
+ * every tier, where it changes nothing because the glass is opaque.
  */
 export const GLASS_RENDER_ORDER = -5;
 

@@ -122,13 +122,14 @@ describe('the traces under the glass', () => {
     t.dispose();
   });
 
-  it("draws before the glass, so the floor's tint dims them, and after the sky", () => {
+  it("draws before the glass, so the floor's tint dims them, and after the mirror under the floor", () => {
     const t = buildTraces(layout);
     const lines = t.group.getObjectByName('traces:lines') as THREE.LineSegments;
     expect(lines.renderOrder).toBe(TRACES_RENDER_ORDER);
     expect(lines.renderOrder).toBeLessThan(GLASS_RENDER_ORDER);
-    // The sky draws at -10 and the glass at -5: the traces sit between, never before the sky.
-    expect(lines.renderOrder).toBeGreaterThan(-10);
+    // The mirror draws at -7 and the glass at -5: the traces (-6) sit between them, over the mirror and under the glass.
+    expect([MIRROR_RENDER_ORDER, TRACES_RENDER_ORDER, GLASS_RENDER_ORDER]).toEqual([-7, -6, -5]);
+    expect(lines.renderOrder).toBeGreaterThan(MIRROR_RENDER_ORDER);
     t.dispose();
   });
 
@@ -148,7 +149,7 @@ describe('the traces under the glass', () => {
     expect(mirror.renderOrder).toBe(MIRROR_RENDER_ORDER);
     expect(MIRROR_RENDER_ORDER).toBeLessThan(TRACES_RENDER_ORDER);
     expect(TRACES_RENDER_ORDER).toBeLessThan(floor.renderOrder);
-    expect(MIRROR_RENDER_ORDER).toBeGreaterThan(-10);
+    expect(MIRROR_RENDER_ORDER).toBe(GLASS_RENDER_ORDER - 2);
     expect(GLASS_LOOK.reflection.opacity).toBeLessThan(1);
     const t = buildTraces(layout);
     const lines = t.group.getObjectByName('traces:lines') as THREE.LineSegments;

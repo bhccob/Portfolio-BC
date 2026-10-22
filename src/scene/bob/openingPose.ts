@@ -169,7 +169,7 @@ export function openingPoseAt(clock: LoaderClock, path: LoaderPath): OpeningPose
 /**
  * Where the camera is at this moment of the opening, for a screen of this
  * aspect (width over height):
- * - full: the wide shot, the whole name, until the push-in starts; then the
+ * - full: the wide shot of the O, until the push-in starts; then the
  *   wide shot to the home by `ease(clock.camera)`; the home shot once it ends;
  * - quick: from the home shot stood back, 1.08 times as far from its target
  *   on the same line at the same field of view, to the home shot over the same

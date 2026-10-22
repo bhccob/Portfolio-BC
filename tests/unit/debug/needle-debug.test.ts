@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { SCRIPT } from '../../../src/engine/bob/loaderTimeline';
 import { debugBridge, installNeedleDebug as install, type NeedleDebugState, proofRequested } from '../../../src/debug/needleDebug';
 
 /** A state to hand back; the bridge never looks inside it. */
@@ -18,7 +19,7 @@ function state(over: Partial<NeedleDebugState> = {}): NeedleDebugState {
     canvasMounts: 1,
     contextLost: false,
     threeD: true,
-    loader: { stage: 'home', elapsed: 12.5, strokes: [1, 1, 1, 1, 1] },
+    loader: { stage: 'home', elapsed: SCRIPT.home, strokes: [0, 0, 0, 0, 1] },
     needleAngle: 0.66,
     scroll: { u: 0, letters: 0, iris: 0, needleDip: 0 },
     ...over,
@@ -117,10 +118,10 @@ describe('installNeedleDebug', () => {
   });
 
   it("hands the opening's clock and the needle's angle through", () => {
-    const made = state({ loader: { stage: 'engrave', elapsed: 4.2, strokes: [1, 1, 0.4, 0, 0] }, needleAngle: 1.5 });
+    const made = state({ loader: { stage: 'engrave', elapsed: 2, strokes: [0, 0, 0, 0, 0.4] }, needleAngle: 1.5 });
     installNeedleDebug('?proof', () => made, act);
     const at = (win.__needleDebug as () => NeedleDebugState)();
-    expect(at.loader).toEqual({ stage: 'engrave', elapsed: 4.2, strokes: [1, 1, 0.4, 0, 0] });
+    expect(at.loader).toEqual({ stage: 'engrave', elapsed: 2, strokes: [0, 0, 0, 0, 0.4] });
     expect(at.needleAngle).toBe(1.5);
   });
 

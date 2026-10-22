@@ -1,9 +1,10 @@
 /**
- * The geometry of the BOB wordmark that the loader engraves and the home keeps:
- * two B outlines with their bars, the circle the compass hangs in, and the 144
- * ticks round it. It ports `b_paths`, `circle_pts` and the tick loop of the
- * Blender preview (tools/blender/bob_build.py), so the site draws what the
- * approved frames show. It imports nothing from three.
+ * The geometry of the BOB wordmark: two B outlines with their bars, the circle
+ * the compass hangs in, and the 144 ticks round it. The loader cuts only the
+ * circle; the B letters live on the glass and light on the scroll. It ports
+ * `b_paths`, `circle_pts` and the tick loop of the Blender preview
+ * (tools/blender/bob_build.py), so the site draws what the approved frames
+ * show. It imports nothing from three.
  *
  * Lengths are world units on the glass, the plane y = 0, seen from above: x
  * runs to the right and z toward the viewer, so the top of the screen is -Z.
@@ -36,7 +37,10 @@ export const WORDMARK = {
 /** One engraved stroke of the wordmark. */
 export type StrokeId = 'leftB' | 'leftBar' | 'rightB' | 'rightBar' | 'circle';
 
-/** The strokes in the order the laser cuts them: the left B and its bar, the right B and its bar, then the circle. */
+/**
+ * The engraving's order of strokes: the left B and its bar, the right B and its bar, then the circle. The loader cuts
+ * only the circle; the B letters live on the glass and light on the scroll.
+ */
 export const STROKE_ORDER: readonly StrokeId[] = Object.freeze(['leftB', 'leftBar', 'rightB', 'rightBar', 'circle'] as const);
 
 /** How many points an arc of a bowl is sampled with, and how many steps a full circle has. */

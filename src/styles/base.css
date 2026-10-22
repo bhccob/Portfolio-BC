@@ -393,7 +393,7 @@ main {
    keeps the word centred under the line.
 
    The cue leaves as the camera rises (spec §3: no text during the scroll): Home sets <html data-rising> while the rise is
-   above 0 (src/scene/bob/Home.tsx), and the cue fades out over 0.4 s and back at the home, with none at all under reduced
+   above 0.01 (src/scene/bob/Home.tsx), and the cue fades out over 0.4 s and back at the home, with none at all under reduced
    motion. It goes by opacity alone, so it stays in the page for a screen reader. The pulse is on the word and on the
    hairline, never on the cue: an animation beats a plain declaration, so a pulse on the cue's own opacity would hold it
    up through the fade. */
@@ -467,7 +467,7 @@ html[data-rising] .hero-cue {
 
 /* While the opening plays (<html data-loading>: the phase is LOADING) the hero is hidden, at once, and it fades in over
    0.9 s as the loader lands (none with reduced motion). The header (the name, Work, About, Contact, the language and 3D switches) goes
-   and comes with it, so the loader shows no text but the name it engraves, BOB (spec §2.1). The attribute is set after
+   and comes with it, so the loader shows no text but the circle it engraves (spec §2.1). The attribute is set after
    hydration, so where scripts run the hero, and on the home page the header, also wait hidden from the first paint
    until the page has hydrated (`data-route` unset), instead of showing and vanishing; without scripts they show at
    once. A page without a hero never plays the loader under its header, so its header shows from the first paint.

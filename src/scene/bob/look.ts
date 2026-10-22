@@ -15,14 +15,15 @@ import { palette } from '~/engine/palette';
  *   the floor read violet).
  * - `fog`: linear fog in the background's own black (Ruling 26), none nearer
  *   than `near` and all of it at `far`: the home camera stands 8.8 from the
- *   compass and the loader's 13.8, so the name and the compass stay clear, and
+ *   compass and the loader's 11.2, so the name and the compass stay clear, and
  *   the far glass fades into the very black the sky is. `far` lies inside the
  *   slab (GLASS_LOOK.floor.outer, 60), so the glass is all night well before
  *   its edge: the nearest edge any shot sees is about 67 away. A fog of any
  *   other colour left the edge as a line where the fogged glass met the night,
  *   worst on a phone, whose camera stands back far enough to see it. These are
  *   the laptop's numbers; the fog moves with the shot (`fogFor`), so a camera
- *   that stands further back (a phone's, 23 m off) sees its compass as clear.
+ *   that stands further back (a phone's, about 14.9 m off) sees its compass as
+ *   clear.
  * - `exposure`: the shoulder tone mapping's (the renderer's on the low tier,
  *   the post chain's last effect otherwise).
  * - `bloom`: from 0.7 in linear light, so the engraving's softly glowing lines
@@ -58,12 +59,12 @@ export const LOOK = {
  * shot's camera to its target): no nearer than LOOK.fog's `near`, and at least
  * `clear` beyond what the camera looks at, so the compass and the name are
  * never in it; all of it `far - near` further on. On a laptop (the home 8.8
- * off, the loader's wide shot 13.8) the home keeps LOOK.fog's 14 to 50 exactly.
- * On a phone the home stands 23.2 off: with the fixed 14 it was a quarter of
- * the way into the fog (Task 12, "the phone home is murky"), and here its fog
- * runs 28.2 to 64.2, still short of the slab's far edge, 82 from that camera
- * (Ruling 26). A distance that is not a finite, positive number reads as 0:
- * LOOK.fog's own numbers.
+ * off, the loader's wide shot 11.2) the home keeps LOOK.fog's 14 to 50 exactly.
+ * On a phone the home stands about 14.9 off, just past the fixed 14 (when it
+ * stood 23 off it was a quarter of the way into the fog, Task 12, "the phone
+ * home is murky"), and here its fog runs about 19.9 to 55.9, still short of
+ * the slab's far edge, about 74.5 from that camera (Ruling 26). A distance that
+ * is not a finite, positive number reads as 0: LOOK.fog's own numbers.
  */
 export function fogFor(distance: number): { near: number; far: number } {
   const d = Number.isFinite(distance) && distance > 0 ? distance : 0;

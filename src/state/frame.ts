@@ -41,9 +41,11 @@ export const frame = {
   /** True while the WebGL context is lost. */
   contextLost: false,
   /**
-   * Where the camera should be: the shot the Opening (src/scene/bob/Opening.tsx) poses on every frame it draws, which the
-   * Rig puts the camera on (adding the pointer's parallax at home). Null until an Opening has posed its first frame; the
-   * Rig then leaves the camera as it is.
+   * Where the camera should be, which the Rig puts the camera on (adding the pointer's parallax at home). The Opening
+   * (src/scene/bob/Opening.tsx) writes it on every frame it draws during the loader and on a held seek. At home, Home
+   * (src/scene/bob/Home.tsx) writes it whenever the rise or the screen's aspect has changed, and the Opening writes it
+   * on the first home frame and on a resize. Null until an Opening has posed its first frame; the Rig then leaves the
+   * camera as it is.
    */
   shot: null as CameraShot | null,
   /**

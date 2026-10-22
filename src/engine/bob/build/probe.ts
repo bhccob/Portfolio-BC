@@ -1,6 +1,6 @@
 /**
  * The loader's laser probe as three.js objects: the slim brass probe that
- * comes down from above and engraves the name, with a warm light and a bright
+ * comes down from above and cuts the circle, with a warm light and a bright
  * point at its tip while it cuts, a few small sparks and a wisp of smoke (spec
  * §2.1). It ports v3's laser (milestone 2's build/laser.ts) to the metre
  * world of the Blender preview (tools/blender/bob_animate.py, `bob_probe`): a
