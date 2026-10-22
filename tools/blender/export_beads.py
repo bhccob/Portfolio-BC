@@ -43,7 +43,8 @@
 #   (780 x 1688), a landscape display for Jontai Energy (1440 x 900) and a phone-sized landscape
 #   screen for Cookies Clicker (1440 x 900).
 # - `bead_<id>_object`: an empty on the porthole's axis inside the cavity, its axes the bead's;
-#   tools/blender/bead_funcial.py, bead_jontai.py and bead_cookies.py fill it (Tasks 5-7), and an
+#   tools/blender/bead_funcial.py, bead_jontai.py and bead_cookies.py fill it (Tasks 5-7), from the
+#   shape helpers they share in bead_kit.py, and an
 #   absent script leaves it empty. Each script has `build(kit)`; `kit` is the namespace made in
 #   `fill_slots` (the bead's id, root, slot, display and inner light, the four materials, `link`,
 #   and CAVITY, OPENING and SLOT_RADIUS, the room the object has: within 0.5 of the axis, behind
@@ -784,6 +785,8 @@ def dress(beads, images):
 
 def fill_slots(beads, mats):
     """Run each bead's object script, if it exists, to fill its slot. Returns the ids that were filled."""
+    if HERE not in sys.path:
+        sys.path.insert(0, HERE)            # the scripts import their shared shape helpers, bead_kit.py, by name
     filled = []
     for bid, b in beads.items():
         path = os.path.join(HERE, b["spec"]["script"])
