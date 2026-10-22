@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
 import { describe, expect, it, vi } from 'vitest';
 import { buildEngraving, ENGRAVING_LOOK, revealCount } from '~/engine/bob/build/engraving';
-import { buildGlass, GLASS_LOOK, GLASS_RENDER_ORDER, streakTaps } from '~/engine/bob/build/glassFloor';
+import { buildGlass, GLASS_LOOK, GLASS_RENDER_ORDER, streakDirection, streakTaps } from '~/engine/bob/build/glassFloor';
+import { applyCameraShot, type CameraShot, homeShotFor, topShotFor } from '~/engine/bob/shots';
 import { buildTraces, TRACES_LOOK } from '~/engine/bob/build/traces';
 import { traceLayout, TRACE } from '~/engine/bob/traces';
 import { circlePath, STROKE_ORDER, strokeLength, strokePath, tickSegments, WORDMARK } from '~/engine/bob/wordmark';
@@ -514,22 +515,164 @@ describe('the glass', () => {
     high.dispose();
   });
 
-  it('runs the streak along the scratches: its direction is the scratch angle, with the width across it at a right angle', () => {
+  it("derives the streak from the scratches' world direction through the mirror's own projection, not from a fixed UV direction", () => {
     const high = buildGlass('high');
-    const fragment = ((objectNamed(high.group, 'floor:reflector') as Reflector).material as THREE.ShaderMaterial).fragmentShader;
-    const vec = (name: string): [number, number] => {
-      const found = new RegExp(String.raw`const vec2 ${name} = vec2\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\);`).exec(fragment);
-      expect(found, name).not.toBeNull();
-      return [Number(found?.[1]), Number(found?.[2])];
-    };
-    const a = (GLASS_LOOK.scratch.angle * Math.PI) / 180;
-    const along = vec('STREAK_ALONG');
-    const across = vec('STREAK_ACROSS');
-    expect(along[0]).toBeCloseTo(Math.cos(a), 5);
-    expect(along[1]).toBeCloseTo(Math.sin(a), 5);
-    expect(across[0]).toBeCloseTo(-Math.sin(a), 5);
-    expect(across[1]).toBeCloseTo(Math.cos(a), 5);
+    const material = (objectNamed(high.group, 'floor:reflector') as Reflector).material as THREE.ShaderMaterial;
+    const { vertexShader, fragmentShader } = material;
+    // The vertex stage projects the scratch direction (given in the mirror's own frame) through three's texture matrix, as
+    // a direction (w = 0): the homogeneous derivative of the projection along the scratches, constant over the mirror.
+    expect(vertexShader).toContain('varying vec3 vStreak;');
+    expect(vertexShader).toMatch(/const vec3 STREAK_LOCAL = vec3\(\s*-?[\d.]+\s*,\s*-?[\d.]+\s*,\s*0\.0+\s*\);/);
+    expect(vertexShader).toContain('vStreak = ( textureMatrix * vec4( STREAK_LOCAL, 0.0 ) ).xyw;');
+    // three's own vertex work stays.
+    expect(vertexShader).toContain('vUv = textureMatrix * vec4( position, 1.0 );');
+    expect(vertexShader).toContain('gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );');
+    // The fragment stage turns it into the direction on the mirror's UV at this pixel (the quotient rule: (X' - u W', Y' - v W')),
+    // and the width across it; no constant direction in UV is left, which would run the wrong way and turn with the aspect.
+    expect(fragmentShader).toContain('varying vec3 vStreak;');
+    expect(fragmentShader).toContain('vec2 uv = vUv.xy / vUv.w;');
+    expect(fragmentShader).toContain('normalize( vStreak.xy - uv * vStreak.z )');
+    expect(fragmentShader).toMatch(/vec2 acrossDir = vec2\( -alongDir\.y, alongDir\.x \);/);
+    expect(fragmentShader).not.toContain('STREAK_ALONG');
+    expect(fragmentShader).not.toContain('STREAK_ACROSS');
     high.dispose();
+  });
+
+  it("gives the shader the scratches' world direction: the mirror's own frame carries it to the direction the floor's scratch map runs along", () => {
+    const high = buildGlass('high');
+    const reflector = objectNamed(high.group, 'floor:reflector') as Reflector;
+    const floor = meshNamed(high.group, 'floor');
+    const a = (GLASS_LOOK.scratch.angle * Math.PI) / 180;
+    // The shader's constant, in the mirror's frame.
+    const found = /const vec3 STREAK_LOCAL = vec3\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\);/.exec((reflector.material as THREE.ShaderMaterial).vertexShader);
+    expect(found).not.toBeNull();
+    const local = new THREE.Vector3(Number(found?.[1]), Number(found?.[2]), Number(found?.[3]));
+    expect(local.length()).toBeCloseTo(1, 5);
+    // In the world it is the direction the scratch map runs along on the floor.
+    high.group.updateMatrixWorld(true);
+    const world = local.clone().transformDirection(reflector.matrixWorld);
+    expect(world.x).toBeCloseTo(Math.cos(a), 5);
+    expect(world.y).toBeCloseTo(0, 9);
+    expect(world.z).toBeCloseTo(-Math.sin(a), 5);
+    // ... which is what the floor's own UV does with the texture's rotation: the floor maps u to +x and v to -z, and the
+    // streaks of a map rotated by `angle` run along (cos, sin) in that UV.
+    const map = (floor.material as THREE.MeshPhysicalMaterial).roughnessMap as THREE.Texture;
+    expect(map.rotation).toBeCloseTo(a, 9);
+    const position = floor.geometry.getAttribute('position');
+    const uv = floor.geometry.getAttribute('uv');
+    for (let i = 0; i < position.count; i += 211) {
+      expect(uv.getX(i)).toBeCloseTo((position.getX(i) / GLASS_LOOK.floor.outer + 1) / 2, 6);
+      expect(uv.getY(i)).toBeCloseTo((-position.getZ(i) / GLASS_LOOK.floor.outer + 1) / 2, 6);
+    }
+    const scratches = new THREE.Vector3(Math.cos(map.rotation), 0, -Math.sin(map.rotation));
+    expect(world.distanceTo(scratches)).toBeLessThan(1e-5);
+    high.dispose();
+  });
+
+  describe("the streak on the screen (the mirror's real texture matrix)", () => {
+    // What three's Reflector calls on a renderer, answered with nothing: onBeforeRender then places the mirror's camera
+    // and sets its texture matrix, which is all these tests read.
+    const stubRenderer = {
+      getRenderTarget: () => null,
+      xr: { enabled: false },
+      shadowMap: { autoUpdate: true },
+      setRenderTarget() {},
+      state: { buffers: { depth: { setMask() {} } }, viewport() {} },
+      autoClear: true,
+      clear() {},
+      render() {}
+    };
+
+    /** The angle between two directions as lines (a direction and its opposite are one), in degrees, 0..90. */
+    function lineAngleBetween(a: [number, number], b: [number, number]): number {
+      const turn = ((((Math.atan2(a[1], a[0]) - Math.atan2(b[1], b[0])) * 180) / Math.PI) % 180 + 180 + 90) % 180 - 90;
+      return Math.abs(turn);
+    }
+
+    /** The home or top camera at this aspect, the mirror placed for it, and the texture matrix it was left with. */
+    function placed(shot: CameraShot, width: number, height: number) {
+      const high = buildGlass('high');
+      const reflector = objectNamed(high.group, 'floor:reflector') as Reflector;
+      high.group.updateMatrixWorld(true);
+      const camera = new THREE.PerspectiveCamera(30, width / height, 0.1, 100);
+      applyCameraShot(camera, shot, width / height);
+      reflector.onBeforeRender(stubRenderer as unknown as THREE.WebGLRenderer, new THREE.Scene(), camera, reflector.geometry, reflector.material as THREE.Material, null as unknown as THREE.Group);
+      const textureMatrix = (reflector.material as THREE.ShaderMaterial).uniforms.textureMatrix.value as THREE.Matrix4;
+      const toLocal = reflector.matrixWorld.clone().invert();
+      return { high, camera, textureMatrix, toLocal };
+    }
+
+    /** The floor points (on the mirror's plane) that the camera sees: a grid of the glass's near field. */
+    function seen(camera: THREE.PerspectiveCamera, y: number): THREE.Vector3[] {
+      const points: THREE.Vector3[] = [];
+      for (let x = -24; x <= 24; x += 1) {
+        for (let z = -28; z <= 8; z += 1) {
+          const p = new THREE.Vector3(x, y, z);
+          const ndc = p.clone().project(camera);
+          const inFront = p.clone().applyMatrix4(camera.matrixWorldInverse).z < 0;
+          if (inFront && Math.abs(ndc.x) < 0.95 && Math.abs(ndc.y) < 0.95 && Math.hypot(x, z) > WORDMARK.hole + 0.5) points.push(p);
+        }
+      }
+      return points;
+    }
+
+    const a = (GLASS_LOOK.scratch.angle * Math.PI) / 180;
+    // The scratches run along this in the world, and the streak must run along its picture on the screen.
+    const scratches = new THREE.Vector3(Math.cos(a), 0, -Math.sin(a));
+
+    const cases = [
+      ['the home', homeShotFor, 1440, 900],
+      ['the home', homeShotFor, 390, 844],
+      ['the top shot', topShotFor, 1440, 900],
+      ['the top shot', topShotFor, 390, 844]
+    ] as const;
+
+    for (const [name, shotFor, width, height] of cases) {
+      it(`runs along the scratches' picture on the screen, within 2 degrees, from ${name} at ${width}x${height}`, () => {
+        const { high, camera, textureMatrix, toLocal } = placed(shotFor(width / height), width, height);
+        const floorY = -GLASS_LOOK.reflection.depth;
+        const points = seen(camera, floorY);
+        expect(points.length).toBeGreaterThan(8);
+        const pixel = (p: THREE.Vector3): [number, number] => {
+          const ndc = p.clone().project(camera);
+          return [((ndc.x + 1) / 2) * width, ((ndc.y + 1) / 2) * height];
+        };
+        let worst = 0;
+        let oldWorst = 0;
+        for (const p of points) {
+          // The scratch direction as the camera sees it: two points a hair apart along it, in pixels (y up).
+          const from = pixel(p);
+          const to = pixel(p.clone().addScaledVector(scratches, 1e-3));
+          const picture: [number, number] = [to[0] - from[0], to[1] - from[1]];
+          // The streak the shader smears: its direction on the mirror's UV at this point, where the mirror's UV runs
+          // the other way in u (the reflection's camera is the camera mirrored), so it lands on the screen as (-du, dv).
+          const local = p.clone().applyMatrix4(toLocal);
+          const projected = new THREE.Vector4(local.x, local.y, local.z, 1).applyMatrix4(textureMatrix);
+          const [du, dv] = streakDirection(textureMatrix, projected.x / projected.w, projected.y / projected.w);
+          expect(Math.hypot(du, dv)).toBeCloseTo(1, 9);
+          const streak: [number, number] = [-du * width, dv * height];
+          worst = Math.max(worst, lineAngleBetween(streak, picture));
+          // The fixed UV direction the first version used, for comparison: it is not this.
+          oldWorst = Math.max(oldWorst, lineAngleBetween([-Math.cos(a) * width, Math.sin(a) * height], picture));
+        }
+        expect(worst).toBeLessThan(2);
+        // The test can tell: the fixed direction (cos, sin) in the mirror's UV is far off the scratches' picture somewhere.
+        expect(oldWorst).toBeGreaterThan(10);
+        high.dispose();
+      });
+    }
+
+    it('ascends to the right at the home, along the scratches, and not as their mirror image', () => {
+      const { high, camera, textureMatrix, toLocal } = placed(homeShotFor(1440 / 900), 1440, 900);
+      for (const p of seen(camera, -GLASS_LOOK.reflection.depth)) {
+        const local = p.clone().applyMatrix4(toLocal);
+        const projected = new THREE.Vector4(local.x, local.y, local.z, 1).applyMatrix4(textureMatrix);
+        const [du, dv] = streakDirection(textureMatrix, projected.x / projected.w, projected.y / projected.w);
+        // On the screen the streak is (-du, dv) (y up): to the right and up, or its opposite (to the left and down).
+        expect(Math.sign(-du * dv), `at ${p.x}, ${p.z}`).toBe(1);
+      }
+      high.dispose();
+    });
   });
 
   it('spreads the taps evenly over the streak, centred, and a little across it so no two reads coincide', () => {
