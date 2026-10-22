@@ -189,8 +189,8 @@ describe('the engraving', () => {
       const across = Math.hypot(position.getX(i) - position.getX(i + 1), position.getZ(i) - position.getZ(i + 1));
       expect(across).toBeCloseTo(0.013, 6);
     }
-    // The phone's home camera stands about 23.2 off at a 50 degree field over 1688 device pixels: 0.0127 a pixel.
-    const metresPerPixel = (2 * 23.2 * Math.tan((25 * Math.PI) / 180)) / 1688;
+    // The phone's home camera stands about 14.9 off at a 50 degree field over 1688 device pixels: 0.0082 a pixel.
+    const metresPerPixel = (2 * 14.9 * Math.tan((25 * Math.PI) / 180)) / 1688;
     expect(ENGRAVING_LOOK.ticks.width / metresPerPixel).toBeGreaterThanOrEqual(1);
     e.dispose();
   });
