@@ -52,7 +52,8 @@ describe('pathForPhase', () => {
   it('gives nothing for the phases that live on the home page', () => {
     expect(pathForPhase({ kind: 'LOADING' }, 'nl')).toBeNull();
     expect(pathForPhase({ kind: 'HOME_IDLE' }, 'nl')).toBeNull();
-    expect(pathForPhase({ kind: 'DISSECT' }, 'en')).toBeNull();
+    expect(pathForPhase({ kind: 'DIVE' }, 'en')).toBeNull();
+    expect(pathForPhase({ kind: 'VOID_ENTRY' }, 'nl')).toBeNull();
     expect(pathForPhase({ kind: 'PROJECTS', category: null }, 'en')).toBeNull();
   });
 
@@ -126,10 +127,26 @@ describe('syncRoute', () => {
 
   it('puts the scene back on the chapter the scroll is in', () => {
     syncRoute({ pathname: '/projects/funcial/', key: 'a' });
-    frame.progress = 16.2;
-    frame.chapterIndex = 5;
+    frame.progress = 4.2;
+    frame.chapterIndex = 4;
     syncRoute({ pathname: '/en/', key: 'b' });
     expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'front-panel' });
+  });
+
+  it('puts the scene in the dive when the scroll is part way through it (progress 1.5)', () => {
+    syncRoute({ pathname: '/projects/funcial/', key: 'a' });
+    frame.progress = 1.5;
+    frame.chapterIndex = 1;
+    syncRoute({ pathname: '/', key: 'b' });
+    expect(useScene.getState().phase).toEqual({ kind: 'DIVE' });
+  });
+
+  it('puts the scene in the overview when the scroll rests at its stop (progress 2)', () => {
+    syncRoute({ pathname: '/projects/cookies-clicker/', key: 'a' });
+    frame.progress = 2;
+    frame.chapterIndex = 2;
+    syncRoute({ pathname: '/', key: 'b' });
+    expect(useScene.getState().phase).toEqual({ kind: 'VOID_ENTRY' });
   });
 
   it('lets the scroll decide when a page is left for a page without a scene', () => {

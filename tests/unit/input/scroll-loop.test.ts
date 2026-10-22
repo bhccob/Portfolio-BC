@@ -8,7 +8,7 @@ import { buildChapters, type ChapterAt } from '../../../src/state/chapters';
 /** A viewport 1000 px high: a unit of scroll is 1000 px. */
 const VH = 1000;
 const FRAME_MS = 1000 / 60;
-const chapters = buildChapters({ parts: 11, categories: ['a', 'b', 'c'] }); // 18 units; stops 0, 1, 12, 14, 15, 16, 17, 18
+const chapters = buildChapters({ categories: ['a', 'b', 'c'] }); // 6 units; stops 0, 1, 2, 3, 4, 5, 6
 
 /** A requestAnimationFrame that runs when the test says so, one frame at a time, on a clock the test owns. */
 class FakeFrames {
@@ -212,11 +212,11 @@ describe('the scroll loop: going to sleep', () => {
     const s = setup({ reduced: true });
     s.key('PageDown'); // reduced motion: the next stop, 1
     await flush();
-    s.key('PageDown'); // 12
+    s.key('PageDown'); // 2
     s.drain();
-    expect(s.frame.progress).toBe(12);
+    expect(s.frame.progress).toBe(2);
     expect(s.frame.chapterIndex).toBe(2);
-    expect(s.changes.at(-1)).toMatchObject({ index: 2, id: 'MORPH' });
+    expect(s.changes.at(-1)).toMatchObject({ index: 2, id: 'VOID_ENTRY' });
   });
 
   it('stops the glide when 3D is switched off, and the story stays where it is', async () => {
@@ -246,15 +246,15 @@ describe('the scroll loop: a glide against the end', () => {
 
   it('ends the glide that reaches the end of the story', async () => {
     const s = setup();
-    s.frame.target = 17.5;
-    s.frame.progress = 17.5;
-    s.frame.chapterIndex = 6;
+    s.frame.target = 5.5;
+    s.frame.progress = 5.5;
+    s.frame.chapterIndex = 5;
     await s.swipe(-1); // 0.4 of a drag, then a glide that would carry another 0.4 or so
     const run = s.drain();
-    expect(s.frame.target).toBe(18);
+    expect(s.frame.target).toBe(6);
     expect(run.gliding).toBeLessThan(glideAlone().frames / 2);
     expect(s.home.scroll.busy).toBe(false);
-    expect(s.frame.progress).toBe(18);
+    expect(s.frame.progress).toBe(6);
   });
 });
 
@@ -389,9 +389,9 @@ describe('the scroll loop: damp does not load', () => {
     s.key('End');
     await flush();
     s.drain();
-    expect(s.frame.progress).toBe(18);
-    expect(s.frame.chapterIndex).toBe(6);
-    expect(s.changes.at(-1)).toMatchObject({ index: 6, id: 'PROJECTS', category: 'c' });
+    expect(s.frame.progress).toBe(6);
+    expect(s.frame.chapterIndex).toBe(5);
+    expect(s.changes.at(-1)).toMatchObject({ index: 5, id: 'PROJECTS', category: 'c' });
     expect(s.frame.velocity).toBe(0);
     expect(s.frames.size).toBe(0);
     for (const spy of quiet) expect(spy).not.toHaveBeenCalled();

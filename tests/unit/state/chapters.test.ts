@@ -1,29 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import { PART_IDS } from '../../../src/data/parts';
 import { buildChapters, chapterAt, HOME_CHAPTERS, HYSTERESIS, stops } from '../../../src/state/chapters';
 
-const c = buildChapters({ parts: 11, categories: ['a', 'b', 'c'] });
+const c = buildChapters({ categories: ['a', 'b', 'c'] });
 
 describe('buildChapters', () => {
-  it('lays out HOME 1, DISSECT parts, MORPH 2, VOID_ENTRY 1 and one unit per category', () => {
-    expect(c.total).toBe(18);
+  it('lays out HOME 1, DIVE 1, VOID_ENTRY 1 and one unit per category', () => {
+    expect(c.total).toBe(6);
     expect(c.units.map((u) => [u.id, u.start, u.length, u.category])).toEqual([
       ['HOME', 0, 1, null],
-      ['DISSECT', 1, 11, null],
-      ['MORPH', 12, 2, null],
-      ['VOID_ENTRY', 14, 1, null],
-      ['PROJECTS', 15, 1, 'a'],
-      ['PROJECTS', 16, 1, 'b'],
-      ['PROJECTS', 17, 1, 'c'],
+      ['DIVE', 1, 1, null],
+      ['VOID_ENTRY', 2, 1, null],
+      ['PROJECTS', 3, 1, 'a'],
+      ['PROJECTS', 4, 1, 'b'],
+      ['PROJECTS', 5, 1, 'c'],
     ]);
   });
 
-  it('follows the number of parts and categories it is given', () => {
-    expect(buildChapters({ parts: 4, categories: ['x'] }).total).toBe(1 + 4 + 2 + 1 + 1);
+  it('follows the number of categories it is given', () => {
+    expect(buildChapters({ categories: ['x'] }).total).toBe(1 + 1 + 1 + 1);
+    expect(buildChapters({ categories: ['x', 'y', 'z', 'w'] }).total).toBe(3 + 4);
   });
 
   it('has no project units without categories', () => {
-    expect(buildChapters({ parts: 11, categories: [] }).units.map((u) => u.id)).toEqual(['HOME', 'DISSECT', 'MORPH', 'VOID_ENTRY']);
+    expect(buildChapters({ categories: [] }).units.map((u) => u.id)).toEqual(['HOME', 'DIVE', 'VOID_ENTRY']);
   });
 });
 
@@ -34,26 +33,27 @@ describe('chapterAt', () => {
 
   it('puts a position in a unit and says how far into it', () => {
     const at = chapterAt(c, 1.5);
-    expect(at.id).toBe('DISSECT');
+    expect(at.id).toBe('DIVE');
     expect(at.index).toBe(1);
-    expect(at.local).toBeCloseTo(0.5 / 11, 10);
+    expect(at.local).toBeCloseTo(0.5, 10);
   });
 
   it('names the category of a projects unit', () => {
-    expect(chapterAt(c, 16.2).category).toBe('b');
-    expect(chapterAt(c, 16.2).id).toBe('PROJECTS');
+    expect(chapterAt(c, 4.2).category).toBe('b');
+    expect(chapterAt(c, 4.2).id).toBe('PROJECTS');
   });
 
   it('starts a unit exactly on its start', () => {
-    expect(chapterAt(c, 12).id).toBe('MORPH');
-    expect(chapterAt(c, 15).category).toBe('a');
+    expect(chapterAt(c, 1).id).toBe('DIVE');
+    expect(chapterAt(c, 2).id).toBe('VOID_ENTRY');
+    expect(chapterAt(c, 3).category).toBe('a');
   });
 
   it('clamps below zero to HOME and above the total to the last unit', () => {
     expect(chapterAt(c, -3).id).toBe('HOME');
     expect(chapterAt(c, -3).local).toBe(0);
     const end = chapterAt(c, 99);
-    expect(end.index).toBe(6);
+    expect(end.index).toBe(5);
     expect(end.id).toBe('PROJECTS');
     expect(end.category).toBe('c');
     expect(end.local).toBe(1);
@@ -82,20 +82,39 @@ describe('chapterAt', () => {
   });
 
   it('does not hold a unit that is not next to the position', () => {
-    expect(chapterAt(c, 13, { index: 0 }).id).toBe('MORPH');
+    expect(chapterAt(c, 3, { index: 0 }).id).toBe('PROJECTS');
+    expect(chapterAt(c, 2, { index: 0 }).id).toBe('VOID_ENTRY');
   });
 });
 
 describe('stops', () => {
   it('lists each unit start, then the total', () => {
-    expect(stops(c)).toEqual([0, 1, 12, 14, 15, 16, 17, 18]);
+    expect(stops(c)).toEqual([0, 1, 2, 3, 4, 5, 6]);
   });
 });
 
 describe('HOME_CHAPTERS', () => {
-  it('is the home scroll: the eleven parts and the three project categories', () => {
-    expect(PART_IDS).toHaveLength(11);
-    expect(HOME_CHAPTERS.total).toBe(18);
+  it('is the home scroll in BOB’s stretches: the rise, the dive, the overview and one unit per project category', () => {
+    expect(HOME_CHAPTERS.total).toBe(6);
+    expect(HOME_CHAPTERS.units.map((u) => [u.id, u.start, u.length])).toEqual([
+      ['HOME', 0, 1],
+      ['DIVE', 1, 1],
+      ['VOID_ENTRY', 2, 1],
+      ['PROJECTS', 3, 1],
+      ['PROJECTS', 4, 1],
+      ['PROJECTS', 5, 1],
+    ]);
     expect(HOME_CHAPTERS.units.filter((u) => u.id === 'PROJECTS').map((u) => u.category)).toEqual(['secure-element', 'front-panel', 'oscillator']);
+  });
+
+  it('has six stops, 0 to 6: the keyboard, the swipe and the reduced-motion steps all go by these', () => {
+    expect(stops(HOME_CHAPTERS)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+  });
+
+  it('puts a position in the right project: 3.5 in the first, 5.9 in the last', () => {
+    expect(chapterAt(HOME_CHAPTERS, 3.5)).toMatchObject({ id: 'PROJECTS', category: 'secure-element' });
+    expect(chapterAt(HOME_CHAPTERS, 5.9).category).toBe('oscillator');
+    expect(chapterAt(HOME_CHAPTERS, 1.5).id).toBe('DIVE');
+    expect(chapterAt(HOME_CHAPTERS, 2.5).id).toBe('VOID_ENTRY');
   });
 });

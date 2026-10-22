@@ -356,19 +356,6 @@ export const nl: Dictionary = {
     fallback: { title: 'DE NAALD IS HET NOORDEN KWIJT', lite: 'Open de lichte versie' },
     toggle: { label: '3D', on: '3D aan', off: '3D uit' },
     liteLink: 'Lichte versie',
-    parts: {
-      lid: { name: 'Deksel', line: 'Beschermt de wijzerplaat als het kompas reist.' },
-      rim: { name: 'Rand met drakenreliëf', line: 'Houdt het glas vast en geeft de hand grip.' },
-      crystal: { name: 'Glas', line: 'Houdt wind en stof weg van de naald.' },
-      strings: { name: 'Rode richtdraden', line: 'Twee gekruiste draden lezen de richting af op de ringen.' },
-      bagua: { name: 'Bagua-ring', line: 'Acht trigrammen verdelen de horizon in acht richtingen.' },
-      degrees: { name: 'Graadring', line: '360 streepjes maken van een richting een getal.' },
-      dial: { name: 'Hemelplaat', line: 'De draaiende schijf die je op een richting uitlijnt.' },
-      jewel: { name: 'Draaisteen', line: 'Een harde steen laat de naald bijna wrijvingsloos draaien.' },
-      needle: { name: 'Naald', line: 'Gemagnetiseerd staal dat zich naar het aardmagnetisch veld richt.' },
-      plate: { name: 'Aardplaat', line: 'De vaste vierkante basis die het kompas waterpas houdt.' },
-      housing: { name: 'Behuizing', line: 'Draagt alle ringen; zo meteen wordt dit de harde schijf.' }
-    },
     morph: 'Dezelfde kracht die schepen stuurde, bewaart nu onze data.',
     project: { open: 'Openen', download: 'Downloaden', code: 'Code', back: 'Esc · terug' }
   },

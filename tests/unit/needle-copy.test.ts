@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { categories } from '../../src/data/categories';
-import { PART_IDS } from '../../src/data/parts';
 import { projects } from '../../src/data/projects';
 import { en } from '../../src/i18n/en';
 import { nl } from '../../src/i18n/nl';
@@ -41,13 +40,6 @@ function pair(prefix: string, label: string): Record<Locale, string> {
   return { nl: row[1], en: row[2] };
 }
 
-/** `**Name** · line (n)` as { name, line }. */
-function nameAndLine(cell: string): { name: string; line: string } {
-  const match = /^\*\*(.+?)\*\* · (.+?) \(\d+\)$/.exec(cell);
-  if (!match) throw new Error(`not a "**name** · line (n)" cell: ${cell}`);
-  return { name: match[1], line: match[2] };
-}
-
 describe('the needle copy equals the copy budget', () => {
   it('loader and failure', () => {
     for (const locale of locales) {
@@ -71,17 +63,6 @@ describe('the needle copy equals the copy budget', () => {
     expect(nl.needle.hero.tagline).toBe('VOLG DE NAALD');
     expect(en.needle.hero.tagline).toBe('FOLLOW THE NEEDLE');
     expect(en.needle.hero.name).toBe('BOB CHUNG');
-  });
-
-  it('the eleven parts, in the doc’s order', () => {
-    const table = rows('Compass parts').slice(1); // drop the header row
-    expect(table).toHaveLength(11);
-    expect(PART_IDS).toHaveLength(11);
-    table.forEach((cells, index) => {
-      const id = PART_IDS[index];
-      expect(nameAndLine(cells[1])).toEqual(nl.needle.parts[id]);
-      expect(nameAndLine(cells[2])).toEqual(en.needle.parts[id]);
-    });
   });
 
   it('the morph line', () => {

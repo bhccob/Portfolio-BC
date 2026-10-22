@@ -1,28 +1,3 @@
-import type { PartId } from '../data/parts';
-
-/** One compass part in the dissect: its name and a line of at most ten words. */
-export interface PartCopy {
-  name: string;
-  line: string;
-}
-
-// The eleven parts, copied verbatim from the NL and EN columns
-// of docs/art-direction.md § Copy budget (Bob approved them on 2026-10-20).
-// tests/unit/needle-copy.test.ts compares them with that table.
-const parts: Record<PartId, PartCopy> = {
-  lid: { name: 'Lid', line: 'Protects the dial while the compass travels.' },
-  rim: { name: 'Dragon-relief rim', line: 'Holds the glass and gives the hand a grip.' },
-  crystal: { name: 'Crystal', line: 'Keeps wind and dust away from the needle.' },
-  strings: { name: 'Red sighting strings', line: 'Two crossed threads read the bearing off the rings.' },
-  bagua: { name: 'Bagua ring', line: 'Eight trigrams divide the horizon into eight directions.' },
-  degrees: { name: 'Degree ring', line: '360 ticks turn a direction into a number.' },
-  dial: { name: 'Heaven plate', line: 'The turning dial you line up with a bearing.' },
-  jewel: { name: 'Pivot jewel', line: 'A hard jewel lets the needle turn almost without friction.' },
-  needle: { name: 'Needle', line: "Magnetised steel that lines up with Earth's magnetic field." },
-  plate: { name: 'Earth plate', line: 'The fixed square base that keeps the compass level.' },
-  housing: { name: 'Housing', line: 'Carries every ring; next, it becomes the hard drive.' }
-};
-
 /**
  * English copy. This object defines the shape of every dictionary:
  * `nl.ts` is typed against it, so a missing Dutch key fails type-checking.
@@ -383,8 +358,9 @@ export const en = {
   /**
    * The words of the needle redesign, copied verbatim from the NL and EN columns of
    * docs/art-direction.md § Copy budget (Bob approved them on 2026-10-20):
-   * the loader and its failure, the hero, the always-on controls, the eleven compass
-   * parts, the morph line and the words around a project. `projects` and `categories` (src/data) hold the
+   * the loader and its failure, the hero, the always-on controls, the morph line and
+   * the words around a project (the eleven compass parts' names went with the dissect,
+   * in M2b: git has them, and so does the table in that document). `projects` and `categories` (src/data) hold the
    * project lines and labels.
    */
   needle: {
@@ -399,7 +375,6 @@ export const en = {
     toggle: { label: '3D', on: '3D on', off: '3D off' },
     /** The link to the Lite page that every page shows. */
     liteLink: 'Lite version',
-    parts,
     morph: 'The same force that guided ships now stores our data.',
     project: { open: 'Open', download: 'Download', code: 'Code', back: 'Esc · back' }
   },

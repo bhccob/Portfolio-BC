@@ -7,8 +7,7 @@ import type { ChapterId } from './chapters';
 export type Phase =
   | { kind: 'LOADING' }
   | { kind: 'HOME_IDLE' }
-  | { kind: 'DISSECT' }
-  | { kind: 'MORPH' }
+  | { kind: 'DIVE' }
   | { kind: 'VOID_ENTRY' }
   | { kind: 'PROJECTS'; category: string | null }
   | { kind: 'PROJECT_FOCUS'; id: string };
@@ -34,16 +33,14 @@ export function samePhase(a: Phase, b: Phase): boolean {
 }
 
 /** The phases the scroll moves through: CHAPTER events apply from these and nowhere else, and the scroll input takes the wheel only in these. */
-export const SCROLL_PHASES: ReadonlySet<Phase['kind']> = new Set<Phase['kind']>(['HOME_IDLE', 'DISSECT', 'MORPH', 'VOID_ENTRY', 'PROJECTS']);
+export const SCROLL_PHASES: ReadonlySet<Phase['kind']> = new Set<Phase['kind']>(['HOME_IDLE', 'DIVE', 'VOID_ENTRY', 'PROJECTS']);
 
 function phaseOfChapter(chapter: ChapterId, category: string | null): Phase {
   switch (chapter) {
     case 'HOME':
       return { kind: 'HOME_IDLE' };
-    case 'DISSECT':
-      return { kind: 'DISSECT' };
-    case 'MORPH':
-      return { kind: 'MORPH' };
+    case 'DIVE':
+      return { kind: 'DIVE' };
     case 'VOID_ENTRY':
       return { kind: 'VOID_ENTRY' };
     case 'PROJECTS':

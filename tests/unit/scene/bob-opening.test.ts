@@ -18,7 +18,7 @@ import type { Phase } from '~/state/machine';
 const PATHS: readonly LoaderPath[] = ['full', 'quick', 'reduced'];
 
 describe('where an opening starts (Ruling 9c)', () => {
-  const KINDS: Phase['kind'][] = ['LOADING', 'HOME_IDLE', 'DISSECT', 'MORPH', 'VOID_ENTRY', 'PROJECTS', 'PROJECT_FOCUS'];
+  const KINDS: Phase['kind'][] = ['LOADING', 'HOME_IDLE', 'DIVE', 'VOID_ENTRY', 'PROJECTS', 'PROJECT_FOCUS'];
 
   it('plays the loader while the page is loading, on the path the visit and the visitor ask for', () => {
     expect(openingStartFor('LOADING', false, false)).toEqual({ skip: false, path: 'full' });
@@ -34,7 +34,7 @@ describe('where an opening starts (Ruling 9c)', () => {
         expect(openingStartFor('HOME_IDLE', seen, reduced)).toEqual({ skip: true, path: reduced ? 'reduced' : seen ? 'quick' : 'full' });
       }
     }
-    for (const kind of ['DISSECT', 'MORPH', 'VOID_ENTRY', 'PROJECTS'] as const) expect(skipsLoader(kind), kind).toBe(true);
+    for (const kind of ['DIVE', 'VOID_ENTRY', 'PROJECTS'] as const) expect(skipsLoader(kind), kind).toBe(true);
   });
 
   it("still plays it on a project page, where it runs under the page's scrim as a direct arrival does", () => {
@@ -42,7 +42,7 @@ describe('where an opening starts (Ruling 9c)', () => {
     expect(skipsLoader('LOADING')).toBe(false);
     expect(openingStartFor('PROJECT_FOCUS', false, false)).toEqual({ skip: false, path: 'full' });
     // Every phase has an answer.
-    expect(KINDS.filter(skipsLoader)).toEqual(['HOME_IDLE', 'DISSECT', 'MORPH', 'VOID_ENTRY', 'PROJECTS']);
+    expect(KINDS.filter(skipsLoader)).toEqual(['HOME_IDLE', 'DIVE', 'VOID_ENTRY', 'PROJECTS']);
   });
 });
 

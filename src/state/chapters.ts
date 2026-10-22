@@ -1,8 +1,12 @@
 import { categories } from '~/data/categories';
-import { PART_IDS } from '~/data/parts';
 
-/** The chapters of the home scroll, in order. A chapter is a stretch of scroll; the scene's phase follows it. */
-export type ChapterId = 'HOME' | 'DISSECT' | 'MORPH' | 'VOID_ENTRY' | 'PROJECTS';
+/**
+ * The chapters of the home scroll, in order. A chapter is a stretch of scroll; the scene's phase follows it.
+ * They are BOB's: HOME is the rise from the home to BOB seen from above, DIVE the camera dropping through the O
+ * and out under the glass, VOID_ENTRY the overview of all the beads, and PROJECTS one unit per project (the
+ * needle points at that bead).
+ */
+export type ChapterId = 'HOME' | 'DIVE' | 'VOID_ENTRY' | 'PROJECTS';
 
 export interface ChapterUnit {
   id: ChapterId;
@@ -19,8 +23,7 @@ export interface Chapters {
 }
 
 export interface ChapterSpec {
-  /** How many parts the compass comes apart into: the DISSECT chapter is one unit per part. */
-  parts: number;
+  /** The project categories in order: PROJECTS is one unit for each. */
   categories: readonly string[];
 }
 
@@ -28,14 +31,14 @@ export interface ChapterSpec {
 export const HYSTERESIS = 0.02;
 
 /**
- * HOME 1, DISSECT one unit per part, MORPH 2, VOID_ENTRY 1, then one unit for each project category.
- * Nothing here is a pixel: the scroll input turns pixels into units.
+ * HOME 1, DIVE 1, VOID_ENTRY 1, then one unit for each project category: with the three projects, six units in all,
+ * and the scroll rests at seven stops (the starts of the six units, then the end). Each unit is one stop of the
+ * scroll (spec §2.3, "The scroll's stretches"). Nothing here is a pixel: the scroll input turns pixels into units.
  */
 export function buildChapters(spec: ChapterSpec): Chapters {
   const lengths: Omit<ChapterUnit, 'start'>[] = [
     { id: 'HOME', length: 1, category: null },
-    { id: 'DISSECT', length: spec.parts, category: null },
-    { id: 'MORPH', length: 2, category: null },
+    { id: 'DIVE', length: 1, category: null },
     { id: 'VOID_ENTRY', length: 1, category: null },
     ...spec.categories.map((category) => ({ id: 'PROJECTS' as const, length: 1, category })),
   ];
@@ -48,8 +51,8 @@ export function buildChapters(spec: ChapterSpec): Chapters {
   return { units, total: start };
 }
 
-/** The chapters of the home page: the compass's parts and the project categories as the data lists them. */
-export const HOME_CHAPTERS: Chapters = buildChapters({ parts: PART_IDS.length, categories: categories.all().map((category) => category.id) });
+/** The chapters of the home page: BOB's stretches, then the project categories as the data lists them. */
+export const HOME_CHAPTERS: Chapters = buildChapters({ categories: categories.all().map((category) => category.id) });
 
 export interface ChapterAt {
   index: number;

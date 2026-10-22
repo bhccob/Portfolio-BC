@@ -21,29 +21,29 @@ describe('readNeedleDebugState', () => {
   it('puts the store, the frame, the chapter and the shell together', () => {
     useScene.getState().dispatch({ type: 'LOADED' });
     useScene.getState().setTier('medium');
-    Object.assign(frame, { progress: 2.5, target: 3, velocity: 0.4, chapterIndex: 1, contextLost: true });
+    Object.assign(frame, { progress: 1.5, target: 2, velocity: 0.4, chapterIndex: 1, contextLost: true });
     const state = readNeedleDebugState({ route: 'home', locale: 'en' });
     expect(state.phase).toBe(useScene.getState().phase); // the store's own object, for a harness's identity check
     expect(state).toMatchObject({
-      progress: 2.5,
-      target: 3,
+      progress: 1.5,
+      target: 2,
       velocity: 0.4,
-      chapter: { index: 1, id: 'DISSECT', category: null },
+      chapter: { index: 1, id: 'DIVE', category: null },
       route: 'home',
       locale: 'en',
       tier: 'medium',
       contextLost: true,
       threeD: true,
     });
-    expect(state.chapter.local).toBeCloseTo((2.5 - 1) / 11, 9);
+    expect(state.chapter.local).toBeCloseTo(0.5, 9);
   });
 
   it('reads the chapter the way the scroll loop does: the one it was in is kept at the edge', () => {
-    // 12.01 is inside MORPH (starts at 12) but within HYSTERESIS of DISSECT's end, and the frame says DISSECT.
-    Object.assign(frame, { progress: 12.01, target: 12.01, chapterIndex: 1 });
+    // 2.01 is inside VOID_ENTRY (starts at 2) but within HYSTERESIS of DIVE's end, and the frame says DIVE.
+    Object.assign(frame, { progress: 2.01, target: 2.01, chapterIndex: 1 });
     expect(readNeedleDebugState({ route: 'home', locale: 'nl' }).chapter.index).toBe(1);
-    Object.assign(frame, { progress: 12.5, target: 12.5, chapterIndex: 1 });
-    expect(readNeedleDebugState({ route: 'home', locale: 'nl' }).chapter).toMatchObject({ index: 2, id: 'MORPH' });
+    Object.assign(frame, { progress: 2.5, target: 2.5, chapterIndex: 1 });
+    expect(readNeedleDebugState({ route: 'home', locale: 'nl' }).chapter).toMatchObject({ index: 2, id: 'VOID_ENTRY' });
   });
 
   it('counts the Stages mounted and takes dpr, fps and the camera from the Stage while one reports', () => {
@@ -137,9 +137,12 @@ describe('setStoryProgress', () => {
   });
 
   it('puts the story at a place: progress and target there, nothing moving, the chapter and the phase with it', () => {
-    setStoryProgress(13);
-    expect(frame).toMatchObject({ progress: 13, target: 13, velocity: 0, chapterIndex: 2 });
-    expect(useScene.getState().phase).toEqual({ kind: 'MORPH' });
+    setStoryProgress(1.5);
+    expect(frame).toMatchObject({ progress: 1.5, target: 1.5, velocity: 0, chapterIndex: 1 });
+    expect(useScene.getState().phase).toEqual({ kind: 'DIVE' });
+    setStoryProgress(3.5);
+    expect(frame).toMatchObject({ progress: 3.5, target: 3.5, velocity: 0, chapterIndex: 3 });
+    expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'secure-element' });
   });
 
   it('stays inside the story', () => {
@@ -153,7 +156,7 @@ describe('setStoryProgress', () => {
 
   it("leaves a page's phase alone: the scroll phases are the only ones a chapter moves", () => {
     useScene.getState().dispatch({ type: 'ROUTE', phase: { kind: 'PROJECT_FOCUS', id: 'funcial' } });
-    setStoryProgress(5);
+    setStoryProgress(1.5);
     expect(useScene.getState().phase).toEqual({ kind: 'PROJECT_FOCUS', id: 'funcial' });
     expect(frame.chapterIndex).toBe(1); // but the frame is where the story is, for the way back
   });

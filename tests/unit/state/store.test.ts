@@ -47,7 +47,7 @@ describe('useScene', () => {
     dispatch({ type: 'LOADED' });
     expect(useScene.getState().phase).toEqual({ kind: 'HOME_IDLE' });
     expect(useScene.getState().transitionId).toBe(1);
-    dispatch({ type: 'CHAPTER', chapter: 'DISSECT', category: null });
+    dispatch({ type: 'CHAPTER', chapter: 'DIVE', category: null });
     expect(useScene.getState().transitionId).toBe(2);
   });
 
