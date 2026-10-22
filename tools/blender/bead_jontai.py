@@ -26,57 +26,60 @@
 # object is made (bead_kit.py), so the numbers below are the GLB's. The "bead frame" is the bead's root's. The slot,
 # bead_jontai-energy_object, stands on the axis at z 0.30 with no turn; the parts under it are placed from it.
 #
-# What the file holds (tests/unit/bob/beads-glb.test.ts pins it) and how code moves it (Task 8, jontaiMotion). The floor
-# leans LEAN (10 degrees) toward the porthole about x, as Funcial's platter does, so the shots, looking along the
-# porthole's axis, see its top; the module's mount is built square to it, turned YAW (12 degrees) toward the axis.
-# - jontai_floor (under the slot): a disc of radius 0.42, 0.02 thick, its rim rounded by normals, its top the node's
-#   y = 0. Its node is at bead frame (0, -0.25, 0.28), its rotation the lean, Rx(10 deg). It wears bead:lacquer with
-#   every UV on one point, the middle of the vein map's cavity square (kit.CAVITY_UV): no veins and no metal there, and
-#   the hollow's baked occlusion, so it is the hollow's own dark floor. Not moved by code.
+# What the file holds (tests/unit/bob/beads-glb.test.ts pins it) and how code moves it (Task 8, jontaiMotion). The group
+# is staged across the middle of the opening, as b02 stages it: the room is a circle of 0.5 about the porthole's axis,
+# so a floor low in the hollow shrinks everything, and this one is raised to just under the middle. The floor leans LEAN
+# (10 degrees) toward the porthole about x, as Funcial's platter does, so the shots, looking along the porthole's axis,
+# see its top; the module's mount is built square to it, turned YAW (5 degrees) toward the axis.
+# - jontai_floor (under the slot): a disc of radius 0.465, 0.02 thick, its top edge rounded by normals and widest there,
+#   its skirt sloping in 0.016 to the underside (so at the sides, this high, the rim stays inside the room's circle); its
+#   top the node's y = 0. Its node is at bead frame (0, -0.16, 0.22), its rotation the lean, Rx(10 deg). It wears
+#   bead:lacquer with every UV on one point, the middle of the vein map's cavity square (kit.CAVITY_UV): no veins and no
+#   metal there, and the hollow's baked occlusion, so it is the hollow's own dark floor. Not moved by code.
 # - jontai_post (under the slot): a flange on the floor, a column (radius 0.0095) and at its top a collar round the
-#   hinge pin, 0.075 from the floor to the tilt axis. Its foot is at (-0.235, -0.03) on the floor, bead frame
-#   (-0.235, -0.245, 0.250); its rotation Rx(10) Ry(12), square to the floor and turned with the module. Satin. Not moved.
-# - jontai_module (under the slot): the frame, 0.373 square and 0.020 deep (rails 0.013 wide, its lip 0.0018 proud of
+#   hinge pin, 0.045 from the floor to the tilt axis. Its foot is at (-0.248, 0) on the floor, bead frame
+#   (-0.248, -0.160, 0.220); its rotation Rx(10) Ry(5), square to the floor and turned with the module. Satin. Not moved.
+# - jontai_module (under the slot): the frame, 0.401 square and 0.020 deep (rails 0.013 wide, its lip 0.0018 proud of
 #   the cells), the backsheet (its face behind the cells, showing 0.005 between them and 0.010 round them, and the
-#   module's back), eight busbars (0.0022 wide, two over each column, 0.0195 either side of its middle, each running the
+#   module's back), eight busbars (0.0022 wide, two over each column, 0.021 either side of its middle, each running the
 #   whole grid, 0.0003 over the cells) and the hinge. Its own frame: x along the tilt axis, y up its face, z out of its
-#   face; the frame's lower edge 0.048 up the face from the axis, the grid's middle at (0, 0.2345). Materials
+#   face; the frame's lower edge 0.039 up the face from the axis, the grid's middle at (0, 0.2395). Materials
 #   bead:satin (frame, hinge), bead:backsheet, bead:silver (busbars). Its node's translation is bead frame
-#   (-0.191, -0.169, 0.254) (the post's axis meets the tilt axis 0.045 left of it); its rotation Rx(10) Ry(12) Rx(-45),
-#   the quaternion (-0.2991, 0.0927, 0.0483, 0.9485): its face looks (0.147, 0.576, 0.804), pitched back 35 degrees from
-#   upright in the bead frame and turned toward the axis. PIVOT: its node's origin, on the tilt axis. AXIS: its node's
-#   local +x, which is (0.978, 0.036, -0.205) in the bead frame. Code tilts it about that axis, by one rotation:
-#   module.quaternion = rest * Rx(tilt), |tilt| <= 4 degrees (three: module.rotateX(tilt) from the rest quaternion; not
-#   module.rotation.x, as the rest turn has y and z parts). A positive tilt brings the top edge forward (the face turns
-#   down toward the porthole), a negative one turns the face up. The cells, the box and the leads it carries tilt with
-#   it; the cable does not move, and leaves the box on the tilt axis, so no tilt opens a gap.
-#   - jontai_cell_1 .. jontai_cell_16 (under the module): one shared mesh, a pseudo-square 0.078 across with its corners
+#   (-0.208, -0.115, 0.224) (the post's axis meets the tilt axis 0.040 left of it); its rotation Rx(10) Ry(5) Rx(-52),
+#   the quaternion (-0.3580, 0.0374, 0.0225, 0.9327): its face looks (0.054, 0.670, 0.741), pitched back 42 degrees from
+#   upright in the bead frame (b02's foreshortening) and turned a little toward the axis. PIVOT: its node's origin, on
+#   the tilt axis. AXIS: its node's local +x, which is (0.996, 0.015, -0.086) in the bead frame. Code tilts it about that
+#   axis, by one rotation: module.quaternion = rest * Rx(tilt), |tilt| <= 4 degrees (three: module.rotateX(tilt) from
+#   the rest quaternion; not module.rotation.x, as the rest turn has y and z parts). A positive tilt brings the top edge
+#   forward (the face turns down toward the porthole), a negative one turns the face up. The cells, the box and the
+#   leads it carries tilt with it; the cable does not move, and leaves the box on the tilt axis, so no tilt opens a gap.
+#   - jontai_cell_1 .. jontai_cell_16 (under the module): one shared mesh, a pseudo-square 0.085 across with its corners
 #     cut 0.009 (a monocrystalline wafer's), flat and facing +z, centred on its node (its pivot, for a later turn-over),
 #     UV 0..1 over it. Each node has a translation (x, y, 0.0082) in the module's frame and no turn: x = (col - 1.5) *
-#     0.083, y = 0.2345 + (1.5 - row) * 0.083, cell k at row (k - 1) // 4 (0 the top) and col (k - 1) % 4 (0 the left),
-#     so cell 1 is top left and cell 16 bottom right as the porthole sees them. bead:cell, which all sixteen share: code
-#     charges them one by one with a material of its own each (a clone at load).
-#   - jontai_box (under the module): the junction box, 0.066 x 0.040 x 0.022 (its edges rounded by normals), centred on
-#     the tilt axis at (0.07, 0, 0) in the module's frame, no turn: under the frame, a 0.028 gap between its top and the
+#     0.090, y = 0.2395 + (1.5 - row) * 0.090, cell k at row (k - 1) // 4 (0 the top) and col (k - 1) % 4 (0 the left),
+#     so cell 1 is top left (-0.135, 0.3745) and cell 16 bottom right (0.135, 0.1045) as the porthole sees them.
+#     bead:cell, which all sixteen share: code charges them one by one with a material of its own each (a clone at load).
+#   - jontai_box (under the module): the junction box, 0.060 x 0.034 x 0.020 (its edges rounded by normals), centred on
+#     the tilt axis at (0.065, 0, 0) in the module's frame, no turn: under the frame, a 0.022 gap between its top and the
 #     frame's lower edge, beside the post; its cable gland (radius 0.0064, 0.010 long) on its right end, along the axis,
-#     ending at box-local (0.043, 0, 0). bead:polymer.
+#     ending at box-local (0.040, 0, 0). bead:polymer.
 #     - jontai_lead_1 .. jontai_lead_3 (under the box): one shared mesh, a flat ribbon 0.006 wide and 0.0012 thick from
-#       0.0015 into the box's top across the gap to 0.0015 into the frame; nodes at box-local (-0.017 | 0 | 0.017, 0.020,
+#       0.0015 into the box's top across the gap to 0.0015 into the frame; nodes at box-local (-0.017 | 0 | 0.017, 0.017,
 #       0), no turn: EN, ES, 中, left to right. bead:silver (the busbars' own, so their glow can run to the box).
 # - jontai_cable (under the slot): a tube of radius 0.0045 (8 sides, 46 segments) along its centre line: out of the
-#   gland along the tilt axis, down 0.075 to the floor, along it, and up into the connector's back. Its node is the
+#   gland along the tilt axis, down 0.045 to the floor, along it, and up into the connector's back. Its node is the
 #   floor's own frame (the same translation and rotation). UV: u runs 0..1 along it by length, 0 at the gland and 1 in
 #   the connector; v runs 0..1 round it. bead:polymer. Not moved by code (a glow along it can run on u).
 #   - jontai_connector (under the cable): the connector, lying on the floor: along its node's local +y from its back
 #     (where the cable enters, 0.004 in) to its open end (0.0448), its coupling nut (radius 0.0085) resting on the floor,
-#     a silver contact inside its open end. Its node is at (0.03, 0.0085, 0.20) in the floor's frame, its rotation
+#     a silver contact inside its open end. Its node is at (0.03, 0.0085, 0.24) in the floor's frame, its rotation
 #     Ry(24.2) Rx(90), so its axis lies on the floor heading (0.41, 0, 0.91), toward the porthole. bead:polymer, the
 #     contact bead:silver. Not moved.
 # - bead_jontai-energy_display (the website; a child of the bead's root, as export_beads.py made it): its mesh scaled
-#   x0.7252 about its middle to 0.380 wide and 0.2495 tall (the screen 0.3481 x 0.2176; 0.20 of the bead's 1.9 wide),
-#   stood upright on the floor's back right (its foot at (0.225, -0.05) on the floor, turned 10 degrees toward the
-#   axis), its node translation (0.2288, -0.1185, 0.2308), right of the axis (x 0.037 to 0.421) and of the module. Not
-#   moved by code.
+#   x0.8206 about its middle to 0.430 wide and 0.2823 tall (the screen 0.3939 x 0.2462; 0.226 of the bead's 1.9 wide),
+#   stood upright on the floor's back right (its foot at (0.2446, -0.04) on the floor, turned 8 degrees toward the
+#   axis), its node translation (0.2480, -0.0141, 0.1805), right of the axis (x 0.031 to 0.465, y -0.160 to 0.132) and of
+#   the module: beside it, across the opening's middle. Not moved by code.
 # - bead_jontai-energy_inner (the bead's light, export_beads.py's, kit.inner): moved to INNER (0.25, 0.22, 0.50), right,
 #   lower and forward, over the display (see INNER).
 # - Materials, five of their own beside bead:lacquer (the floor):
@@ -100,15 +103,15 @@ from bead_kit import (ALONG_X, Shape, bezier, box, lathe, material, rect_lathe, 
 
 # ---------------------------------------------------------------- the object
 LEAN = 10.0                     # degrees: the floor's up leans from up toward the porthole (about x), as Funcial's does
-FLOOR = dict(at=(0.0, -0.25, 0.28), radius=0.42, thickness=0.02, bevel=0.004, seg=48)
+FLOOR = dict(at=(0.0, -0.16, 0.22), radius=0.465, thickness=0.02, bevel=0.004, skirt=0.016, seg=48)
 # The module's mount, in the floor's frame: the post's foot (x, z on the floor) and its height to the tilt axis; the
 # assembly's turn toward the porthole's axis about the floor's up, and the module's face pitched back from upright.
-POST = dict(foot=(-0.235, -0.03), height=0.075, radius=0.0095, flange=0.022, flange_h=0.004, seg=16,
+POST = dict(foot=(-0.248, 0.0), height=0.045, radius=0.0095, flange=0.022, flange_h=0.004, seg=16,
             collar=(0.0085, 0.020))
-YAW = 12.0
-PITCH = 45.0
+YAW = 5.0
+PITCH = 52.0
 # The module (its own frame: x along the tilt axis, y up its face, z out of its face; origin on the tilt axis).
-CELL = 0.078                    # a cell's side (a pseudo-square: its corners cut by CHAMFER)
+CELL = 0.085                    # a cell's side (a pseudo-square: its corners cut by CHAMFER)
 CHAMFER = 0.009
 GAP = 0.005                     # between cells: the backsheet shows through
 MARGIN = 0.010                  # round the cells to the frame: the backsheet's white edge
@@ -116,7 +119,7 @@ RAIL = 0.013                    # the frame's face, each side
 DEPTH = 0.020                   # the frame's depth (the module's thickness)
 LIP = 0.0018                    # the frame's lip stands this far proud of the cells
 FRAME_BEVEL = 0.002
-BUSBAR = dict(width=0.0022, offset=0.0195, lift=0.0003)   # two per column, offset either side of its middle
+BUSBAR = dict(width=0.0022, offset=0.021, lift=0.0003)   # two per column, offset either side of its middle
 STEP = CELL + GAP
 GRID = 4 * CELL + 3 * GAP
 OUTER = GRID + 2 * (MARGIN + RAIL)
@@ -124,17 +127,17 @@ CELL_Z = DEPTH / 2 - LIP
 SHEET_Z = CELL_Z - 0.0004
 # The junction box: its size (x, y, z), centred on the tilt axis at x along it; the gap under the frame its leads cross;
 # its cable gland on its right end (radius, length).
-BOX = dict(size=(0.066, 0.040, 0.022), bevel=0.003, x=0.07, gap=0.028, gland=(0.0064, 0.010))
+BOX = dict(size=(0.060, 0.034, 0.020), bevel=0.003, x=0.065, gap=0.022, gland=(0.0064, 0.010))
 FRAME_Y = BOX["size"][1] / 2 + BOX["gap"]          # the frame's lower edge, up the module's face from the tilt axis
 LEAD = dict(width=0.006, thickness=0.0012, spacing=0.017, sink=0.0015)
-POST_X = -0.045                 # where the post holds the module, along its tilt axis from the module's middle
-TUBE = dict(radius=0.0045, x0=-0.075, seg=12)      # the hinge pin, along the tilt axis from x0 into the box
+POST_X = -0.040                 # where the post holds the module, along its tilt axis from the module's middle
+TUBE = dict(radius=0.0045, x0=-0.070, seg=12)      # the hinge pin, along the tilt axis from x0 into the box
 EAR = dict(at=0.016, size=(0.006, 0.010))          # the two hinge ears either side of the post's collar
 # The cable and its connector, in the floor's frame.
 CABLE = dict(radius=0.0045, sides=8)
-CONNECTOR = dict(at=(0.03, 0.20), heading=(0.45, 1.0), radius=0.0085, seg=12)
+CONNECTOR = dict(at=(0.03, 0.24), heading=(0.45, 1.0), radius=0.0085, seg=12)
 # The display: its foot's middle (x, z on the floor), its turn toward the axis (degrees) and its whole width.
-DISPLAY = dict(foot=(0.225, -0.05), turn=-10.0, width=0.38)
+DISPLAY = dict(foot=(0.2446, -0.04), turn=-8.0, width=0.43)
 # The bead's inner light (export_beads.py's INNER, on the axis above the slot) mirrored in the module's face as a hot
 # spot on its lower edge and the leads: any face pitched up toward the porthole mirrors it there. Moved here, right,
 # lower and forward, over the display, its mirror image falls in the empty hollow right of the box, and the module,
@@ -269,16 +272,17 @@ def post_mesh(mats):
 
 
 def floor_mesh(mats, uv):
-    """The floor: a disc of the bead's lacquer, its top at y = 0, its rim rounded by normals; every UV on `uv`."""
+    """The floor: a disc of the bead's lacquer, its top at y = 0, its top edge rounded by normals and widest there, its
+    skirt sloping in by FLOOR["skirt"] to the underside (so at the sides, high in the hollow, the rim keeps inside the
+    room's circle); every UV on `uv`."""
     s = Shape()
-    r, t, bv = FLOOR["radius"], FLOOR["thickness"], FLOOR["bevel"]
+    r, t, bv, sk = FLOOR["radius"], FLOOR["thickness"], FLOOR["bevel"], FLOOR["skirt"]
     up, down = (0, 1), (0, -1)
     lathe(s, [
         ((0.0, 0.0, up), (r - bv, 0.0, up)),
         ((r - bv, 0.0, up), (r, -bv, (1, 0.6))),
-        ((r, -bv, (1, 0.6)), (r, -t + bv, (1, -0.6))),
-        ((r, -t + bv, (1, -0.6)), (r - bv, -t, down)),
-        ((r - bv, -t, down), (0.0, -t, down)),
+        ((r, -bv, (1, 0.2)), (r - sk, -t, (1, -0.8))),
+        ((r - sk, -t, down), (0.0, -t, down)),
     ], FLOOR["seg"])
     s.uv_all(uv)
     return s.mesh("jontai_floor", [mats["lacquer"]])

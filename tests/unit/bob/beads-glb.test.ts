@@ -1153,7 +1153,7 @@ describe("Jontai Energy's object", () => {
     const face = axisOf(f, [0, 0, 1]);
     expect(face[2], 'facing the porthole').toBeGreaterThan(0.6);
     expect(face[1], 'tilted back, facing up').toBeGreaterThan(0.3);
-    expect(face[0], 'turned toward the axis').toBeGreaterThan(0.05);
+    expect(face[0], 'turned a little toward the axis').toBeGreaterThan(0.04);
     const axis = axisOf(f, [1, 0, 0]);
     expect(axis[0], 'its tilt axis runs left to right').toBeGreaterThan(0.95);
     expect(Math.abs(axis[1]), 'nearly level').toBeLessThan(0.1);
@@ -1263,7 +1263,7 @@ describe("Jontai Energy's object", () => {
     rings.forEach((r, k) => expect(lengths[k] / lengths[lengths.length - 1], `u at ring ${k}`).toBeCloseTo(r.u, 2));
     // It falls from the box to the floor, then lies along it for much of its length.
     const radius = rings[0].radius;
-    expect(toLocal(floor, rings[0].c)[1], 'from the box, above the floor').toBeGreaterThan(0.05);
+    expect(toLocal(floor, rings[0].c)[1], 'from the box, above the floor').toBeGreaterThan(0.035);
     const lying = rings.filter((r) => Math.abs(toLocal(floor, r.c)[1] - radius) < 2e-4).map((r) => r.u);
     expect(Math.max(...lying) - Math.min(...lying), 'lying along the floor').toBeGreaterThan(0.4);
     // And ends inside the connector's strain relief, on its axis.
@@ -1293,10 +1293,11 @@ describe("Jontai Energy's object", () => {
     expect(Math.max(...contact.map((p) => p[1]))).toBeGreaterThan(0.8 * Math.max(...body.map((p) => p[1])));
   });
 
-  it("lays a floor of the bead's lacquer low in the hollow, leaning toward the porthole, for the parts to stand on", () => {
+  it("lays a floor of the bead's lacquer under the middle of the opening, leaning toward the porthole, for the parts to stand on", () => {
     const f = frameOf('jontai_floor');
     expect(Math.abs(f.translation[0]), 'centred under the axis').toBeLessThan(1e-4);
-    expect(f.translation[1], 'low in the hollow').toBeLessThan(-0.2);
+    expect(f.translation[1], 'raised under the middle of the opening').toBeGreaterThan(-0.2);
+    expect(f.translation[1]).toBeLessThan(-0.12);
     const up = floorUp();
     expect(Math.abs(up[0])).toBeLessThan(1e-4);
     const lean = (Math.atan2(up[2], up[1]) * 180) / Math.PI;
@@ -1311,23 +1312,37 @@ describe("Jontai Energy's object", () => {
       if (Math.abs(p[1]) < 1e-6 && radial(p) < floorRim() - 0.01) expect(normals[k][1], `the floor's normal at ${p}`).toBeCloseTo(1, 5);
     });
     expect(floorRim()).toBeGreaterThan(0.3);
-    expect(floorRim()).toBeLessThan(0.45);
+    expect(floorRim()).toBeLessThan(0.48);
   });
 
-  it("stands the website's landscape display on the floor beside the module, right of the axis, 0.20 of the bead wide", () => {
+  it("stands the website's landscape display on the floor beside the module, right of the axis, 0.23 of the bead wide", () => {
     const points = placed(DISPLAY);
     const x0 = Math.min(...points.map((p) => p[0]));
     expect(x0, 'right of the axis').toBeGreaterThan(0.02);
     expect(x0, 'beside the module, never in front of it').toBeGreaterThan(Math.max(...placed('jontai_module').map((p) => p[0])));
     const [w0, w1] = span(allRows(DISPLAY, 'POSITION'), 0);
-    expect((w1 - w0) / (2 * RADIUS), 'its width, as a share of the bead').toBeGreaterThan(0.19);
-    expect((w1 - w0) / (2 * RADIUS)).toBeLessThan(0.21);
+    expect((w1 - w0) / (2 * RADIUS), 'its width, as a share of the bead').toBeGreaterThan(0.22);
+    expect((w1 - w0) / (2 * RADIUS)).toBeLessThan(0.235);
     standsOn('jontai_floor', DISPLAY, floorRim());
     const f = frameOf(DISPLAY);
     expect(axisOf(f, [0, 1, 0])[1], 'upright').toBeGreaterThan(Math.cos((5 * Math.PI) / 180));
     const face = axisOf(f, [0, 0, 1]);
     expect(face[2], 'facing the porthole').toBeGreaterThan(0.95);
     expect(face[0], 'turned a little toward the axis').toBeLessThan(0);
+  });
+
+  it("fills the opening's middle band as b02 does: the module and the display, side by side, across its middle", () => {
+    // b02 stages the module and the screen across the middle of the opening; within the room's 0.5 circle that is a
+    // module about 0.40 square and a screen 0.43 wide, each straddling the porthole's axis height.
+    const satin = attribute('jontai_module', 'POSITION', 'bead:satin');
+    expect(span(satin, 0)[1] - span(satin, 0)[0], "the module's frame, across").toBeGreaterThan(0.395);
+    for (const name of ['jontai_module', DISPLAY]) {
+      const [y0, y1] = span(placed(name), 1);
+      expect(y0, `${name} reaches below the middle`).toBeLessThan(-0.1);
+      expect(y1, `${name} reaches above the middle`).toBeGreaterThan(0.1);
+    }
+    const [m0, m1] = span(placed('jontai_module'), 1);
+    expect(m1 - m0, "the module's height in the opening").toBeGreaterThan(0.33);
   });
 
   it("keeps the bead's inner light from mirroring in the display's glossy front or on the module", () => {
