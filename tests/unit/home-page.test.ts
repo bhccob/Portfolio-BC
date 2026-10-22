@@ -35,7 +35,7 @@ describe('the home page', () => {
       it('has no tagline, and keeps the scroll cue', () => {
         expect(html).not.toContain(t.needle.hero.tagline);
         expect(html).not.toContain('hero-tagline');
-        expect(html).toMatch(new RegExp(`<p class="hero-cue">${t.needle.hero.scrollCue}</p>`));
+        expect(html).toMatch(new RegExp(`<p class="hero-cue"><span class="hero-cue-word">${t.needle.hero.scrollCue}</span></p>`));
       });
 
       it('links no country page, and the three projects', () => {

@@ -30,7 +30,9 @@ export default function Home() {
       {/* The name is the engraving now: the h1 stays for crawlers and screen readers, and only the scroll cue shows. */}
       <section className="hero">
         <h1 className="visually-hidden">{t.needle.hero.name}</h1>
-        <p className="hero-cue">{t.needle.hero.scrollCue}</p>
+        <p className="hero-cue">
+          <span className="hero-cue-word">{t.needle.hero.scrollCue}</span>
+        </p>
       </section>
 
       {/* Visible while 3D is off; while it is on the scene is the way in, and this stays for

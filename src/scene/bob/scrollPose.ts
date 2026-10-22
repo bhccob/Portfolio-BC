@@ -92,6 +92,15 @@ export function riseAt(progress: number): number {
 }
 
 /**
+ * Whether the camera is up the rise at all: `u` above 0, and the hero's SCROLL cue is to be gone (spec §3: no text
+ * during the scroll). The rise `u` is the pose's, already snapped to exactly 0 at the home, so there is no margin
+ * here; NaN, which no pose has, and anything below the home read as the home.
+ */
+export function risingFor(u: number): boolean {
+  return u > 0;
+}
+
+/**
  * One moment of the scroll: the rise `u` (held to 0..1), the shares of the
  * iris, the needle's dip and the letters' light (each 0 to 1, linear in the
  * rise through its span; the setters ease them) and where the camera stands.

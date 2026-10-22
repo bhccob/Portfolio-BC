@@ -118,7 +118,10 @@
  *              wheel notches, swipes) and at rest, `u`, `letters`, `iris` and `needleDip` are all 1, and a still of it
  *              (`m2/bob-from-above-<size>.png`) is gated as a home still; one mid-rise still at `u` 0.6 put there
  *              through `.set` (`m2/bob-rising-<size>.png`); moved back, `u` and `letters` are exactly 0 and, at 1440, the
- *              needle aims at the pointer again within 1.5 s. With reduced motion (1440) one wheel event sets
+ *              needle aims at the pointer again within 1.5 s. The hero's SCROLL cue leaves with the rise (Ruling 15):
+ *              shown at the home, gone (computed opacity 0, `<html data-rising>` set, still in the page) at `u` 1
+ *              and mid-rise, and back at the home, with a 0.4 s opacity transition and none under reduced motion.
+ *              With reduced motion (1440) one wheel event sets
  *              `<html data-step-fade>` with the pose still at the home, then lands on `u` 1 with the attribute gone
  *   keyboard   Tab from the top of the home page reaches the skip link, then the language switch and the 3D toggle in
  *              that order, each with a focus ring (outline 2 px or more) and on screen, and Shift+Tab goes back; the
@@ -3122,6 +3125,57 @@ const takeStepFade = (page) =>
   });
 
 /**
+ * The hero's SCROLL cue as the page shows it now: whether `<html data-rising>` is set, the cue's own computed opacity and
+ * transition (its own, not the word's pulse, which is on the word inside), that it is still in the page with its
+ * text and displayed (it goes by opacity alone, so a screen reader keeps it), and the hero's opacity (1 whenever the
+ * cue is meant to be the one that left). Null when there is no cue.
+ */
+const cueOf = (page) =>
+  page.evaluate(() => {
+    const cue = document.querySelector('.hero-cue');
+    if (cue === null) return null;
+    const style = getComputedStyle(cue);
+    const word = cue.querySelector('.hero-cue-word');
+    return {
+      rising: document.documentElement.hasAttribute('data-rising'),
+      opacity: Number(style.opacity),
+      text: (cue.textContent ?? '').trim(),
+      display: style.display,
+      visibility: style.visibility,
+      transitionProperty: style.transitionProperty,
+      transitionDuration: style.transitionDuration,
+      cueAnimation: style.animationName,
+      wordAnimation: word === null ? null : getComputedStyle(word).animationName,
+      heroOpacity: Number(getComputedStyle(document.querySelector('.hero')).opacity),
+    };
+  });
+
+/** The cue (cueOf) once its computed opacity is `opacity`, which waits out the 0.4 s transition (up to 3 s, then as it is). */
+const cueAt = async (page, opacity) => {
+  await page
+    .waitForFunction(
+      (want) => {
+        const cue = document.querySelector('.hero-cue');
+        return cue !== null && Number(getComputedStyle(cue).opacity) === want;
+      },
+      opacity,
+      { timeout: 3_000 },
+    )
+    .catch(() => {});
+  return cueOf(page);
+};
+
+/** True when the cue has left and is still there to be read: hidden by opacity alone, with `<html data-rising>` set. */
+const cueGone = (cue) => cue !== null && cue.rising && cue.opacity === 0 && cue.text.length > 0 && cue.display !== 'none' && cue.visibility === 'visible' && cue.heroOpacity === 1;
+
+/** True when the cue shows: `<html data-rising>` unset, fully opaque, with its text. */
+const cueShown = (cue) => cue !== null && !cue.rising && cue.opacity === 1 && cue.text.length > 0 && cue.display !== 'none' && cue.visibility === 'visible' && cue.heroOpacity === 1;
+
+/** The cue as a line of text for a check's message. */
+const cueText = (cue) =>
+  cue === null ? 'no cue' : `data-rising ${cue.rising}, opacity ${cue.opacity}, "${cue.text}", display ${cue.display}, transition ${cue.transitionProperty} ${cue.transitionDuration}`;
+
+/**
  * The first unit of scroll (spec §2.3, §2.1: the home's rise), at 1440x900 with the wheel and at 390x844 with a finger
  * (touch, coarse pointer), each in a fresh context that lands with the seen flag set (the quick path: the rise is the
  * scroll's, not the loader's):
@@ -3140,6 +3194,11 @@ const takeStepFade = (page) =>
  * 5. With reduced motion (1440 only), one wheel event down sets `<html data-step-fade>` with the pose still at the home,
  *    never shows a rise between 0 and 1 (no camera travel) and lands on `u` 1 with the attribute gone and the host
  *    shown again; one event up does the same back to 0.
+ * 6. The hero's SCROLL cue leaves with the rise (Ruling 15; spec §3 shows no text during the scroll): at the home it is
+ *    shown (`<html data-rising>` unset, computed opacity 1), with a 0.4 s opacity transition of its own and its pulse on
+ *    the word inside; at `u` 1 and at `u` 0.6 it is gone by opacity alone (opacity 0 after its transition,
+ *    `data-rising` set, still in the page with its text, displayed and visible), and back at the home it is shown
+ *    again. Under reduced motion it has no transition and does the same at the stops (1440).
  */
 async function scrollBob(browser, step) {
   mkdirSync(STILLS, { recursive: true });
@@ -3165,6 +3224,11 @@ async function scrollBob(browser, step) {
       rest.phase.kind === 'HOME_IDLE' && scrollAll(rest.scroll, 0) && othersOf(rest.loader) === 0,
       `${at}: landed with ${LOADER_SEEN_KEY} set, the home at rest has the rise at 0: ${scrollText(rest.scroll)}, no B mark cut (the loader's marks ${JSON.stringify(rest.loader.strokes)}, phase ${rest.phase.kind})`,
     );
+    const cueRest = await cueOf(page);
+    step.check(
+      cueShown(cueRest) && cueRest.transitionProperty === 'opacity' && cueRest.transitionDuration === '0.4s' && cueRest.cueAnimation === 'none' && cueRest.wordAnimation === 'hero-cue-pulse',
+      `${at}: at the home the SCROLL cue shows (${cueText(cueRest)}), its opacity moves over 0.4 s, and the pulse is on the word inside it (${cueRest?.wordAnimation}), not on the cue (${cueRest?.cueAnimation})`,
+    );
 
     // 2. The whole unit down: BOB from above.
     let swipesDown = 0;
@@ -3186,6 +3250,8 @@ async function scrollBob(browser, step) {
       onTop,
       `${at}: BOB from above stands on the top shot, the whole name across the picture: camera [${down.camera.position.map((v) => v.toFixed(3)).join(', ')}] fov ${down.camera.fov.toFixed(3)}, topShotFor(${aspect.toFixed(3)}) is [${top.position.map((v) => v.toFixed(3)).join(', ')}] fov ${top.fov.toFixed(3)}`,
     );
+    const cueTop = await cueAt(page, 0);
+    step.check(cueGone(cueTop), `${at}: BOB from above (u ${down.scroll.u}) has no SCROLL cue: it left by opacity alone and is still in the page (${cueText(cueTop)}, hero opacity ${cueTop?.heroOpacity})`);
     const fromAbove = join(STILLS, `bob-from-above-${at}.png`);
     await page.screenshot({ path: fromAbove });
     shots.push({ file: fromAbove, kind: 'home' });
@@ -3207,6 +3273,8 @@ async function scrollBob(browser, step) {
         mid.camera.position.every((value, i) => near(value, pose.shot.position[i], 1e-3)),
       `${at}: put at ${RISE_MID} of the rise through .set, the pose is the pure one, each share between 0 and 1: ${scrollText(mid.scroll)} (scrollPoseAt: iris ${pose.iris}, needleDip ${pose.needleDip}, letters ${pose.letters})`,
     );
+    const cueMid = await cueAt(page, 0);
+    step.check(cueGone(cueMid), `${at}: and mid-rise (u ${mid.scroll.u}) the cue is gone too (${cueText(cueMid)})`);
     const rising = join(STILLS, `bob-rising-${at}.png`);
     await page.screenshot({ path: rising });
 
@@ -3229,6 +3297,8 @@ async function scrollBob(browser, step) {
       scrollAll(home.scroll, 0) && home.phase.kind === 'HOME_IDLE' && home.target <= 1e-6,
       `${at}: moved the whole unit up (${touch ? `${swipesUp} swipes down` : `${RISE.notches} wheel notches`}): ${scrollText(home.scroll)} exactly, the phase ${home.phase.kind}, no B drawn (the story's target ${up.target})`,
     );
+    const cueHome = await cueAt(page, 1);
+    step.check(cueShown(cueHome), `${at}: back at the home (u ${home.scroll.u}) the SCROLL cue is back (${cueText(cueHome)})`);
     const backHome = join(STILLS, `bob-back-home-${at}.png`);
     await page.screenshot({ path: backHome });
     shots.push({ file: backHome, kind: 'home' });
@@ -3260,7 +3330,7 @@ async function scrollBob(browser, step) {
     }
     await takeCsp(page, step);
     await context.close();
-    summary.push(`${at}: ${touch ? `${swipesDown} swipes` : `${RISE.notches} notches`} down to u ${down.scroll.u}, ${touch ? `${swipesUp} swipes` : `${RISE.notches} notches`} back to u ${home.scroll.u}`);
+    summary.push(`${at}: ${touch ? `${swipesDown} swipes` : `${RISE.notches} notches`} down to u ${down.scroll.u} (the SCROLL cue gone), ${touch ? `${swipesUp} swipes` : `${RISE.notches} notches`} back to u ${home.scroll.u} (the cue back)`);
   }
 
   // 5. Reduced motion: one wheel event is one stop, and each step is a fade with the pose still at the stop it shows.
@@ -3272,6 +3342,11 @@ async function scrollBob(browser, step) {
   await reachHomeIdle(page);
   await page.waitForTimeout(500);
   await page.mouse.move(720, 450);
+  const cueReducedRest = await cueOf(page);
+  step.check(
+    cueShown(cueReducedRest) && cueReducedRest.transitionProperty === 'none' && cueReducedRest.cueAnimation === 'none' && cueReducedRest.wordAnimation === 'none',
+    `reduced motion: at the home the SCROLL cue shows and has no transition and no pulse (${cueText(cueReducedRest)}, the word's animation ${cueReducedRest?.wordAnimation})`,
+  );
   await watchStepFade(page);
   await page.mouse.wheel(0, RISE.notchPx);
   const downState = await settledState(page);
@@ -3287,6 +3362,8 @@ async function scrollBob(browser, step) {
     scrollAll(downState.scroll, 1) && downState.target === 1 && !hostDown.attribute && hostDown.opacity === '1',
     `and the step lands on the stop: ${scrollText(downState.scroll)}, target ${downState.target}, the attribute gone and the host shown again (opacity ${hostDown.opacity})`,
   );
+  const cueReducedTop = await cueAt(page, 0);
+  step.check(cueGone(cueReducedTop), `reduced motion: on the stop at u ${downState.scroll.u} the cue is gone by opacity alone and still in the page (${cueText(cueReducedTop)})`);
   await page.waitForTimeout(300); // the next event is the next gesture
   await page.mouse.wheel(0, -RISE.notchPx);
   const upState = await settledState(page);
@@ -3296,9 +3373,11 @@ async function scrollBob(browser, step) {
     upFade.fadeSeen && upFade.uAtFade === 1 && upFade.us.every((u) => u === 0 || u === 1) && scrollAll(upState.scroll, 0) && upState.target === 0,
     `and one event up fades back to the home: the attribute set with the pose still at u ${upFade.uAtFade}, the rise only ever ${upFade.us.join(' / ')}, landing on ${scrollText(upState.scroll)}, target ${upState.target}`,
   );
+  const cueReducedHome = await cueAt(page, 1);
+  step.check(cueShown(cueReducedHome), `reduced motion: and back on the home stop the cue shows again (${cueText(cueReducedHome)})`);
   await takeCsp(page, step);
   await reduced.context.close();
-  summary.push('reduced motion: one wheel event is one stop, faded, u 0 to 1 to 0 with no travel');
+  summary.push('reduced motion: one wheel event is one stop, faded, u 0 to 1 to 0 with no travel, the SCROLL cue gone at 1 and back at 0');
 
   const rows = await gateLuma(browser, step, shots);
   step.luma = rows;

@@ -12,7 +12,7 @@ import { frame } from '~/state/frame';
 import { useScene } from '~/state/store';
 import { motion } from '../motion';
 import { IDLE_SECONDS, needleGlowAt } from './look';
-import { riseAt, scrollPoseAt } from './scrollPose';
+import { riseAt, risingFor, scrollPoseAt } from './scrollPose';
 import { nearestStop, type StepFade, stepFadeAt, stepFadeFrom } from './stepFade';
 
 /** The longest step the needle and the idle clock take in one frame, seconds: a wake from sleep jumps neither. */
@@ -23,6 +23,9 @@ const STOPS = stops(HOME_CHAPTERS);
 
 /** The attribute on <html> that fades the scene host down for a reduced-motion step (src/styles/base.css). */
 const STEP_FADE_ATTRIBUTE = 'data-step-fade';
+
+/** The attribute on <html> that takes the hero's SCROLL cue away while the camera is up the rise (src/styles/base.css). */
+const RISING_ATTRIBUTE = 'data-rising';
 
 /** The home's objects Home drives: built, posed through the opening and freed by the Opening, which owns them. */
 export interface HomeModels {
@@ -76,6 +79,8 @@ interface HomeState {
   fade: StepFade;
   /** `<html data-step-fade>` is set: the DOM as Home last wrote it, so a frame writes it only when it changes. */
   faded: boolean;
+  /** `<html data-rising>` is set: likewise, the DOM as Home last wrote it. */
+  rising: boolean;
 }
 
 /** Sets or takes away `<html data-step-fade>`, and notes it, writing the DOM only when it changes. */
@@ -83,6 +88,13 @@ function showStepFade(state: HomeState, on: boolean): void {
   if (state.faded === on) return;
   state.faded = on;
   document.documentElement.toggleAttribute(STEP_FADE_ATTRIBUTE, on);
+}
+
+/** Sets or takes away `<html data-rising>`, and notes it, writing the DOM only when it changes. */
+function showRising(state: HomeState, on: boolean): void {
+  if (state.rising === on) return;
+  state.rising = on;
+  document.documentElement.toggleAttribute(RISING_ATTRIBUTE, on);
 }
 
 /** `frame.scroll` with nothing driving the home: every share 0. */
@@ -110,6 +122,9 @@ const pivotPx = { x: 0, y: 0 };
  * whole stop at a time (src/input/target.ts) and each step is a short fade (stepFade.ts): the pose stays at the stop it
  * shows while `<html data-step-fade>` fades the scene host down over STEP_FADE_MS, jumps to the stop the target is
  * nearest once it is dark, and the attribute goes, so it fades back; without reduced motion the attribute is never set.
+ * The hero's SCROLL cue leaves with the rise: `<html data-rising>` is set while the rise is above 0 (`risingFor`) and
+ * the stylesheet fades the cue out over 0.4 s (at once with reduced motion), and it is taken away again at the home, on
+ * a let-go and on unmount, written to the DOM only when it changes.
  *
  * **Aim.** At the home itself at rest (`aimsAt`: HOME_IDLE on the home page, the rise at 0) a mouse or a pen that has
  * moved aims the needle at itself: `needleAngleFor(pointer, pivot)` in the canvas's pixels, the pivot where the camera
@@ -148,16 +163,19 @@ export function Home({ models, handover }: HomeProps): null {
     shotAspect: Number.NaN,
     fade: stepFadeFrom(0),
     faded: false,
+    rising: false,
   }));
   const invalidate = useThree((three) => three.invalidate);
   /** The pivot the needle turns on (`CompassModel.pivot`): the needle's own centre, the armillary's origin. */
   const pivot = models.compass.pivot;
 
-  // Gone: nothing of the home's keeps the canvas drawing, the host is not left faded down, and no scroll pose is reported.
+  // Gone: nothing of the home's keeps the canvas drawing, the host is not left faded down, the cue is not left hidden,
+  // and no scroll pose is reported.
   useEffect(
     () => () => {
       Object.assign(motion.compass, AT_REST);
       showStepFade(state, false);
+      showRising(state, false);
       clearScroll();
     },
     [state],
@@ -167,13 +185,14 @@ export function Home({ models, handover }: HomeProps): null {
     if (!handover.live) {
       // Let go (a seek holds the loader's clock): the Opening poses the scene from the held moment, which knows nothing
       // of the scroll, so the compass is closed, its needle out of the dip and the letters dark again, and the host is
-      // not left faded down.
+      // not left faded down nor the cue hidden.
       if (state.live) {
         models.compass.setNeedleGlow(1);
         models.compass.setIris(0);
         models.compass.setNeedleDip(0);
         models.engraving.setLetters(0);
         showStepFade(state, false);
+        showRising(state, false);
         clearScroll();
       }
       state.live = false;
@@ -267,6 +286,8 @@ export function Home({ models, handover }: HomeProps): null {
     scroll.letters = pose.letters;
     scroll.iris = pose.iris;
     scroll.needleDip = pose.needleDip;
+    // The hero's SCROLL cue goes with the rise and comes back at the home (the spec shows no text during the scroll).
+    showRising(state, risingFor(pose.u));
     // The camera only when it has somewhere new to stand. The Rig has placed this frame's camera already (it runs
     // before Home), so the next frame is asked for, which puts it there.
     if (!Object.is(pose.u, state.shotU) || !Object.is(aspect, state.shotAspect)) {
