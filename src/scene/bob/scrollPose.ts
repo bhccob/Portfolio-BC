@@ -92,12 +92,19 @@ export function riseAt(progress: number): number {
 }
 
 /**
- * Whether the camera is up the rise at all: `u` above 0, and the hero's SCROLL cue is to be gone (spec §3: no text
- * during the scroll). The rise `u` is the pose's, already snapped to exactly 0 at the home, so there is no margin
- * here; NaN, which no pose has, and anything below the home read as the home.
+ * The share of the rise the camera may be up while it still counts as home for the hero's SCROLL cue (Ruling 17).
+ * The damped progress takes about a second to settle to exactly 0 after the last scroll; 0.01 of the rise is under a
+ * pixel of camera travel, so the cue comes back as soon as the picture has stopped moving, not a second later.
+ */
+const HOME_MARGIN = 0.01;
+
+/**
+ * Whether the camera is up the rise: `u` above HOME_MARGIN, and the hero's SCROLL cue is to be gone (spec §3: no text
+ * during the scroll). Below it the camera is visibly home, and the cue counts as home again. NaN, which no pose has,
+ * and anything below the home read as the home.
  */
 export function risingFor(u: number): boolean {
-  return u > 0;
+  return u > HOME_MARGIN;
 }
 
 /**

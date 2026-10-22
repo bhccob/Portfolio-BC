@@ -4,10 +4,13 @@ import { describe, expect, it } from 'vitest';
 import { riseAt, risingFor } from '~/scene/bob/scrollPose';
 
 describe('risingFor: the scroll cue leaves while the camera is up the rise', () => {
-  it('is false at the home (u = 0) and true above it, to the very top', () => {
+  it('is false at the home, and for the first 0.01 of the rise (under a pixel of camera travel), true above it, to the very top', () => {
     expect(risingFor(0)).toBe(false);
-    expect(risingFor(1e-9)).toBe(true);
+    expect(risingFor(0.005)).toBe(false);
+    expect(risingFor(0.01)).toBe(false);
+    expect(risingFor(0.0101)).toBe(true);
     expect(risingFor(0.25)).toBe(true);
+    expect(risingFor(0.5)).toBe(true);
     expect(risingFor(0.6)).toBe(true);
     expect(risingFor(1)).toBe(true);
   });
@@ -23,7 +26,8 @@ describe('risingFor: the scroll cue leaves while the camera is up the rise', () 
     // Three notches down and three back leave 5.55e-17 of progress, which riseAt snaps to exactly 0 (Ruling 8).
     expect(risingFor(riseAt(5.55e-17))).toBe(false);
     expect(risingFor(riseAt(Number.NaN))).toBe(false);
-    expect(risingFor(riseAt(0.001))).toBe(true);
+    expect(risingFor(riseAt(0.001))).toBe(false);
+    expect(risingFor(riseAt(0.05))).toBe(true);
     expect(risingFor(riseAt(5))).toBe(true);
   });
 });
