@@ -27,38 +27,45 @@
 #   under `shell_mesh`). The three bodies share one mesh; each is turned about the porthole's
 #   axis by its own angle, so the veins differ from bead to bead.
 # - `bead_<id>_halo`: the gold band round the outline (the circle the bead shows from the front).
-# - `bead_<id>_rim`: the porthole's gold rim, a torus over the opening's edge.
-# - `bead_<id>_glass`: the porthole's curved glass, a dome whose edge sits inside the rim and
-#   whose crown stands a little proud of it.
+# - `bead_<id>_rim`: the porthole's gold rim, a flat band laid along the shell over the opening's
+#   edge, 0.10 wide and 0.05 deep, standing 0.02 proud.
+# - `bead_<id>_glass`: the porthole's glass, a cap of a sphere of 0.935 concentric with the shell
+#   (crown on the axis at 0.935), its edge under the rim.
 # - `bead_<id>_display`: the small display beside the object slot, standing in the cavity and
-#   turned a little toward the porthole's axis. Two primitives: the screen in `bead:display`, whose
-#   UV runs 0..1 over the screen's bounding box with glTF's orientation (u = 0 at the left edge,
-#   v = 0 at the TOP edge, so a texture with flipY off shows a screenshot upright), and the casing
-#   round it (bezel, sides, back) in `bead:gold`. The screen is the shape of the bead's screenshot
-#   (src/assets/beads/): a portrait phone for Funcial (780 x 1688), a landscape display for Jontai
-#   Energy (1440 x 900) and a phone-sized landscape screen for Cookies Clicker (1440 x 900).
+#   turned a little toward the porthole's axis. Two primitives. The dark glass front in
+#   `bead:display`: the screen, whose UV runs 0..1 over its bounding box with glTF's orientation
+#   (u = 0 at the left edge, v = 0 at the TOP edge, so a texture with flipY off shows a screenshot
+#   upright), and the bezel round it, whose UV runs on past 0 and 1 by the same map; code must keep
+#   the screenshot off the bezel (with clamping, the screenshot's edge pixels would stretch over
+#   it: give the texture a black border, or mask the emission outside 0..1). And the casing in
+#   `bead:gold`: a thin edge round the dark glass (DISPLAY_EDGE), the sides and the back. The
+#   screen is the shape of the bead's screenshot (src/assets/beads/): a portrait phone for Funcial
+#   (780 x 1688), a landscape display for Jontai Energy (1440 x 900) and a phone-sized landscape
+#   screen for Cookies Clicker (1440 x 900).
 # - `bead_<id>_object`: an empty on the porthole's axis inside the cavity, its axes the bead's;
 #   tools/blender/bead_funcial.py, bead_jontai.py and bead_cookies.py fill it (Tasks 5-7), and an
 #   absent script leaves it empty. Each script has `build(kit)`; `kit` is the namespace made in
 #   `fill_slots` (the bead's id, root, slot and display, the four materials, `link`, and CAVITY,
 #   OPENING and SLOT_RADIUS, the room the object has: within 0.5 of the axis, behind the glass).
-# - `bead_<id>_inner`: a dim warm point light in the cavity, in front of the slot.
+# - `bead_<id>_inner`: a warm point light in the cavity, in front of the slot, intensity 0.25.
 # - Materials:
 #   - `bead:lacquer`: deep purple, roughness 0.35. The baked vein mask (white veins on black) is
-#     its emissive map, a grey 1024 x 1024 PNG, times the gold light (1.0, 0.52, 0.16) at 0.5; and
-#     its metal map: glTF reads metal from the blue channel of the metallicRoughnessTexture and
-#     roughness from its green, so the metal map is a second 1024 x 1024 PNG, the same mask in
-#     blue with green full (so the roughness is the factor, everywhere). The veins are metal, the
-#     lacquer between them is not. Both are embedded; the two cost about 400 kB.
-#   - `bead:gold`: the rims, halo and display casings; the preview's bead gold, glowing at 0.2.
-#   - `bead:glass`: clear, transmissive (KHR_materials_transmission), roughness 0.02.
+#     its emissive map, a grey 1024 x 1024 PNG sRGB-encoded (glTF reads emissive maps as sRGB),
+#     times the gold light (1.0, 0.52, 0.16) at 0.5. Its occlusion, roughness and metal are one
+#     linear 1024 x 1024 PNG in glTF's ORM packing, as occlusionTexture and
+#     metallicRoughnessTexture: red the cavity's baked ambient occlusion (1 on the shell), green
+#     full (the roughness is the factor, everywhere), blue the mask (the veins are metal, the
+#     lacquer between them is not). Both are embedded; the two cost about 415 kB.
+#   - `bead:gold`: the rims, halo and display edges; the preview's bead gold, glowing at 0.2.
+#   - `bead:glass`: clear, transmissive (KHR_materials_transmission), roughness 0.02, its
+#     reflection dimmed to a quarter (KHR_materials_specular 0.25).
 #   - `bead:display`: black glass, glossy, no emission in the file: code puts the screenshot on it
 #     as an emissive map and sets its level.
 #
 # The shapes start from the preview's bead (tools/blender/bob_scroll.py, the project beads): its
-# shell radius 0.95, its porthole (0.6 there), its rim torus, its domed screen disk (here the
-# glass), its halo band and its lacquer's vein network (noise-warped Voronoi edges), which is
-# baked here. That file builds the whole previs scene when it runs, so the numbers are copied.
+# shell radius 0.95, its porthole (0.6 there), its rim, its halo band and its lacquer's vein
+# network (noise-warped Voronoi edges), which is baked here. That file builds the whole previs
+# scene when it runs, so the numbers are copied.
 import bmesh, importlib.util, math, os, struct, sys, tempfile, types, zlib
 
 import bpy
@@ -91,16 +98,26 @@ UV_IN, UV_OUT, UV_BACK = 0.17, 0.495, 0.15
 CAVITY_UV = (0.012, 0.11)
 
 HALO = dict(radius=0.962, height=0.07, thickness=0.02, seg=128)     # preview: 0.975, 0.07, 0.02, 192
-RIM = dict(radius=0.61, tube=0.05, y=-0.725, seg=96, sides=12)      # preview: 0.6, 0.07 (a curve bevel)
-GLASS = dict(radius=0.578, y=-0.722, bulge=0.10, seg=64, rings=8)   # preview's screen dome: bulge 0.12
+# The rim: a flat gold band of elliptical section laid along the shell over the opening's edge,
+# `width` along the surface and `depth` through it, its centre line at `angle` degrees from the
+# porthole's axis and `sink` under the surface, so it stands depth / 2 - sink (0.02) proud.
+# (Preview: a round tube of 0.07; a 0.05 torus stood out of the shell like a ring dropped on it.)
+RIM = dict(angle=40.0, width=0.10, depth=0.05, sink=0.005, seg=96, sides=16)
+# The glass: a cap of a sphere concentric with the shell, `radius` from the centre (its crown),
+# out to `angle` degrees from the axis, just past the opening's edge (38.3), under the rim.
+# `specular` is the Principled's Specular IOR Level (0.5 is glass's full 4 %): a dim mirror, since at
+# full strength the dome mirrored the key as a hard disc. Its roughness stays low: three blurs what
+# it sees through transmission by the roughness.
+GLASS = dict(radius=0.935, angle=38.5, seg=64, rings=10, specular=0.125)
 SLOT_Y = -0.30                        # the object slot's centre on the axis
 SLOT_RADIUS = 0.5                     # the object stays within this of the axis
 
 # The inner light. `intensity` is the site's own unit (three's PointLight, decay 2), written to the
 # file as is (the exporter's COMPAT mode divides by 4 pi, so the lamp holds it times 4 pi); the
-# tunnel's light is 1.7 there (GLASS_LOOK.well.light). The still renders it at intensity /
-# SITE_PER_WATT watts: the tunnel's light is 90 W in the preview and 1.7 on the site.
-INNER = dict(location=(0.0, -0.45, 0.30), colour=(1.0, 0.72, 0.45), intensity=0.06, radius=0.05)
+# tunnel's light is 1.7 there (GLASS_LOOK.well.light). At 0.06 the hollow read black; at 0.4 it
+# washed the porthole violet. The still renders it at intensity / SITE_PER_WATT watts: the
+# tunnel's light is 90 W in the preview and 1.7 on the site.
+INNER = dict(location=(0.0, -0.45, 0.30), colour=(1.0, 0.72, 0.45), intensity=0.25, radius=0.05)
 SITE_PER_WATT = 1.7 / 90.0
 
 # colours, linear (the preview's: tools/blender/bob_build.py)
@@ -121,6 +138,10 @@ VEIN_EDGE = (0.008, 0.02)
 VEIN_FADE = (0.35, 1.0)
 BAKE_SAMPLES = 16
 BAKE_MARGIN = 8
+# The cavity's ambient occlusion (Ruling 13: on the site the room's light reaches into the hollow
+# with nothing to stop it), baked against the body alone and packed in the metal map's red.
+AO_SAMPLES = 256
+AO_DISTANCE = 10.0
 
 # per bead: id, object script, screenshot; the display's screen height (a phone) or width (a
 # landscape screen), the other side following from the screenshot's own width / height; its
@@ -138,6 +159,7 @@ BEADS = [
          at=(0.235, -0.30, -0.02), turn=-14.0, roll=240.0),
 ]
 CORNER_STEPS = 6                      # arc segments per rounded corner of a display
+DISPLAY_EDGE = 0.006                  # the gold edge round a display's dark glass front, as b01's phone has
 
 
 # ---------------------------------------------------------------- fresh scene
@@ -304,43 +326,49 @@ def halo_mesh(name):
 
 
 def rim_mesh(name):
-    """A torus round the porthole's axis, over the opening's edge: half sunk in the lacquer, half proud of it."""
+    """A flat gold band round the porthole's axis, laid along the shell over the opening's edge (RIM above).
+
+    Its section is an ellipse in the plane through the axis: RIM['width'] along the shell's
+    surface (the tangent t at RIM['angle']) and RIM['depth'] through it (the normal n), centred
+    RIM['sink'] under the surface, so its inner half is sunk into the lacquer.
+    """
     b = Builder()
-    rad, tube, y0, seg, sides = RIM["radius"], RIM["tube"], RIM["y"], RIM["seg"], RIM["sides"]
-    grid = []
-    for i in range(seg):
-        phi = 2 * math.pi * i / seg
-        grid.append([b.vert(((rad + tube * math.cos(2 * math.pi * k / sides)) * math.cos(phi),
-                             y0 + tube * math.sin(2 * math.pi * k / sides),
-                             (rad + tube * math.cos(2 * math.pi * k / sides)) * math.sin(phi))) for k in range(sides)])
+    seg, sides = RIM["seg"], RIM["sides"]
+    theta = math.radians(RIM["angle"])
+    rc = R - RIM["sink"]
+    r0, y0 = rc * math.sin(theta), -rc * math.cos(theta)          # (radius off the axis, y) of the centre line
+    n = (math.sin(theta), -math.cos(theta))                       # out of the shell
+    t = (math.cos(theta), math.sin(theta))                        # along it, away from the porthole
+    hw, hd = RIM["width"] / 2, RIM["depth"] / 2
+    section = []
+    for k in range(sides):
+        c, s = math.cos(2 * math.pi * k / sides), math.sin(2 * math.pi * k / sides)
+        section.append((r0 + hw * c * t[0] + hd * s * n[0], y0 + hw * c * t[1] + hd * s * n[1]))
+    grid = [[b.vert((r * math.cos(2 * math.pi * i / seg), y, r * math.sin(2 * math.pi * i / seg))) for r, y in section] for i in range(seg)]
     for i in range(seg):
         j = (i + 1) % seg
+        phi = 2 * math.pi * (i + 0.5) / seg
         for k in range(sides):
             m = (k + 1) % sides
-            phi = 2 * math.pi * (i + 0.5) / seg
             psi = 2 * math.pi * (k + 0.5) / sides
-            facing = (math.cos(psi) * math.cos(phi), math.sin(psi), math.cos(psi) * math.sin(phi))
-            b.face((grid[i][k], grid[j][k], grid[j][m], grid[i][m]), facing)
+            fr = math.cos(psi) * t[0] + math.sin(psi) * n[0]
+            fy = math.cos(psi) * t[1] + math.sin(psi) * n[1]
+            b.face((grid[i][k], grid[j][k], grid[j][m], grid[i][m]), (fr * math.cos(phi), fy, fr * math.sin(phi)))
     return b.mesh(name)
 
 
 def glass_mesh(name):
-    """The porthole's curved glass: a spherical cap over the opening, its edge inside the rim, bulging out (-Y) by GLASS['bulge']."""
+    """The porthole's glass: a cap of a sphere concentric with the shell (GLASS above), crown on the axis, edge under the rim."""
     b = Builder()
-    a, y_edge, bulge, seg, nr = GLASS["radius"], GLASS["y"], GLASS["bulge"], GLASS["seg"], GLASS["rings"]
-    rc = (a * a + bulge * bulge) / (2 * bulge)
-    yc = y_edge - bulge + rc                       # the cap's sphere centre, behind it
-    apex = b.vert((0.0, y_edge - bulge, 0.0))
-    grid = []
-    for k in range(1, nr + 1):
-        rho = a * k / nr
-        y = yc - math.sqrt(rc * rc - rho * rho)
-        grid.append([b.vert((rho * math.cos(2 * math.pi * i / seg), y, rho * math.sin(2 * math.pi * i / seg))) for i in range(seg)])
+    rad, edge, seg, nr = GLASS["radius"], math.radians(GLASS["angle"]), GLASS["seg"], GLASS["rings"]
+    apex = b.vert(shell_point(0.0, 0.0, rad))
+    grid = [[b.vert(shell_point(edge * k / nr, 2 * math.pi * i / seg, rad)) for i in range(seg)] for k in range(1, nr + 1)]
     for i in range(seg):
         j = (i + 1) % seg
-        b.face((apex, grid[0][i], grid[0][j]), (0, -1, 0))
+        mid = lambda k: Vector(shell_point(edge * (k + 0.5) / nr, 2 * math.pi * (i + 0.5) / seg))   # outward, from the centre
+        b.face((apex, grid[0][i], grid[0][j]), mid(0))
         for k in range(nr - 1):
-            b.face((grid[k][i], grid[k][j], grid[k + 1][j], grid[k + 1][i]), (0, -1, 0))
+            b.face((grid[k][i], grid[k][j], grid[k + 1][j], grid[k + 1][i]), mid(k + 1))
     return b.mesh(name)
 
 
@@ -367,34 +395,40 @@ def screen_size(spec):
 
 
 def display_mesh(name, spec):
-    """A display facing -Y (three's +z): the screen (slot 1, UV 0..1) in a casing (slot 0) of bezel, sides and back.
+    """A display facing -Y (three's +z): a dark glass front (slot 1) in a gold casing (slot 0), as b01's phone.
 
-    The screen and the bezel lie in the front plane, the screen inside the bezel's inner edge;
-    the casing's outer corners have radius spec['corner'] and the screen's the same less the
-    bezel, so the two outlines are concentric and are bridged point to point.
+    The front is the screen and its bezel, all in the front plane: the screen inside, its UV 0..1
+    over its bounding box, and the bezel round it, its UV running on past 0 and 1 by the same
+    affine map (code keeps the screenshot off it: see the report). Round the dark glass a gold edge
+    DISPLAY_EDGE wide, then the gold sides and back. The outlines (screen, the dark glass's edge,
+    the casing's) are concentric rounded rectangles, bridged point to point.
     """
     w, h = screen_size(spec)
-    bz, rc, d = spec["bezel"], spec["corner"], spec["depth"]
+    bz, rc, d, e = spec["bezel"], spec["corner"], spec["depth"], DISPLAY_EDGE
     inner = rounded_rect(w, h, rc - bz)
+    dark = rounded_rect(w + 2 * (bz - e), h + 2 * (bz - e), rc - e)
     outer = rounded_rect(w + 2 * bz, h + 2 * bz, rc)
     yf, yb = -d / 2, d / 2
     b = Builder(uv=True)
     front = (0, -1, 0)
-    # the screen: a fan from its centre; u from the left edge, v (Blender's) from the bottom edge
+    # the dark glass: the screen as a fan from its centre, then the bezel round it; u from the
+    # screen's left edge, v (Blender's) from its bottom edge, the same map over both
     uv = lambda x, z: ((x + w / 2) / w, (z + h / 2) / h)
     c = b.vert((0.0, yf, 0.0))
     sv = [b.vert((x, yf, z)) for x, z in inner]
+    dv = [b.vert((x, yf, z)) for x, z in dark]
     n = len(sv)
     for i in range(n):
         j = (i + 1) % n
         b.face((c, sv[i], sv[j]), front, (uv(0.0, 0.0), uv(*inner[i]), uv(*inner[j])), smooth=False, mat=1)
-    # the casing
-    iv = [b.vert((x, yf, z)) for x, z in inner]
+        b.face((sv[i], dv[i], dv[j], sv[j]), front, (uv(*inner[i]), uv(*dark[i]), uv(*dark[j]), uv(*inner[j])), smooth=False, mat=1)
+    # the gold: the edge round the dark glass, the sides and the back
+    ev = [b.vert((x, yf, z)) for x, z in dark]
     of = [b.vert((x, yf, z)) for x, z in outer]
     ob = [b.vert((x, yb, z)) for x, z in outer]
     for i in range(n):
         j = (i + 1) % n
-        b.face((iv[i], of[i], of[j], iv[j]), front, smooth=False)                    # bezel
+        b.face((ev[i], of[i], of[j], ev[j]), front, smooth=False)                    # edge
         mx, mz = (outer[i][0] + outer[j][0]) / 2, (outer[i][1] + outer[j][1]) / 2
         b.face((of[i], ob[i], ob[j], of[j]), (mx, 0, mz), smooth=True)               # side
     b.face(list(reversed(ob)), (0, 1, 0), smooth=False)                              # back
@@ -403,20 +437,30 @@ def display_mesh(name, spec):
 
 # ---------------------------------------------------------------- materials
 def principled(name):
+    """A new material (5.x's come with a Principled BSDF and an output), single-sided."""
     m = bpy.data.materials.new(name)
-    m.use_nodes = True
     m.use_backface_culling = True
     nt = m.node_tree
     bsdf = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
     return m, nt, bsdf
 
 
-def mat_lacquer(images):
-    """Deep purple lacquer; the vein mask is its emission (times the gold light) and, from the metal image's blue, its metal.
+def gltf_output_group():
+    """The exporter's own node group for what the Principled BSDF has no input for: here the occlusion."""
+    name = "glTF Material Output"
+    group = bpy.data.node_groups.get(name) or bpy.data.node_groups.new(name, 'ShaderNodeTree')
+    if not any(item.name == "Occlusion" for item in group.interface.items_tree):
+        group.interface.new_socket("Occlusion", in_out='INPUT', socket_type='NodeSocketFloat')
+    return group
 
-    The exporter reads the metal image's green times LACQUER_ROUGHNESS as the roughness (a Math
-    multiply by a constant is its factor) and the blue as the metal, and the colour Mix set to
-    Multiply with one constant side as the emissive factor.
+
+def mat_lacquer(images):
+    """Deep purple lacquer; the vein mask is its emission (times the gold light) and, from the ORM image's blue, its metal.
+
+    The exporter reads, from the one ORM image: its red as the occlusion (through the glTF
+    Material Output group), its green times LACQUER_ROUGHNESS as the roughness (a Math multiply by
+    a constant is its factor) and its blue as the metal, and packs the three as one texture; and
+    the colour Mix set to Multiply with one constant side as the emissive factor.
     """
     m, nt, b = principled("bead:lacquer")
     N, L = nt.nodes.new, nt.links.new
@@ -425,11 +469,14 @@ def mat_lacquer(images):
     tex.image = images["veins"]
     tex.interpolation = 'Linear'
     mr = N('ShaderNodeTexImage')
-    mr.image = images["metal"]
+    mr.image = images["orm"]
     mr.interpolation = 'Linear'
     sep = N('ShaderNodeSeparateColor')
     L(mr.outputs['Color'], sep.inputs['Color'])
     L(sep.outputs['Blue'], b.inputs['Metallic'])
+    out = N('ShaderNodeGroup')
+    out.node_tree = gltf_output_group()
+    L(sep.outputs['Red'], out.inputs['Occlusion'])
     rough = N('ShaderNodeMath')
     rough.operation = 'MULTIPLY'
     rough.inputs[1].default_value = LACQUER_ROUGHNESS
@@ -462,6 +509,7 @@ def mat_glass():
     b.inputs['Base Color'].default_value = (0.92, 0.88, 1.0, 1)
     b.inputs['Roughness'].default_value = 0.02
     b.inputs['IOR'].default_value = 1.5
+    b.inputs['Specular IOR Level'].default_value = GLASS["specular"]     # exported as KHR_materials_specular
     b.inputs['Transmission Weight'].default_value = 1.0
     m.surface_render_method = 'DITHERED'
     m.use_raytrace_refraction = True
@@ -481,7 +529,6 @@ def mat_display():
 def bake_material(name, image, veins):
     """An emission-only material for the bake: the vein mask (or black, for the cavity), with the target image active."""
     m = bpy.data.materials.new(name)
-    m.use_nodes = True
     nt = m.node_tree
     nt.nodes.clear()
     N, L = nt.nodes.new, nt.links.new
@@ -562,26 +609,36 @@ def write_png(path, pixels, palette=None):
         f.write(png)
 
 
-def bake_veins(body, folder):
-    """Bake the vein mask over the body's UVs into a TEX x TEX image and write it out twice, as PNGs loaded back.
+def srgb_tables():
+    """The 8-bit sRGB tables: `encode[i]` is linear byte i as an sRGB byte, `decode[c]` sRGB byte c as a linear one."""
+    x = np.arange(256) / 255.0
+    to_srgb = np.where(x <= 0.0031308, x * 12.92, 1.055 * x ** (1 / 2.4) - 0.055)
+    to_linear = np.where(x <= 0.04045, x / 12.92, ((x + 0.055) / 1.055) ** 2.4)
+    return np.round(255 * to_srgb).astype(np.uint8), np.round(255 * to_linear).astype(np.uint8)
 
-    - `veins`: the mask, grey: the lacquer's emissive map.
-    - `metal`: the same mask in blue, the metal channel of glTF's metallicRoughnessTexture, with
-      the green (roughness) and red (unused) channels full, so the lacquer's roughness is its
-      constant factor everywhere (an indexed PNG whose palette maps i to (255, 255, i), so its
-      index data is the mask's own bytes): one image for both, read as glTF must (roughness from green,
-      metal from blue), would have made the lacquer between the veins mirror-glossy, and every
-      point light a hard clipped dot on it.
+
+def bake_maps(body, folder):
+    """Bake the vein mask and the cavity's occlusion over the body's UVs and write the lacquer's two maps, loaded back.
+
+    - `veins`: the emissive map: the mask, grey, sRGB-encoded through the 8-bit table (glTF and
+      three read an emissive map as sRGB, so stored linear its emission came out about half).
+    - `orm`: glTF's occlusion / roughness / metal packing, linear: red the occlusion (the cavity's
+      baked ambient occlusion, 1 on the shell), green full (the roughness is the factor), blue
+      the mask (the metal). One image for emission and metal, as glTF must read it (roughness
+      from green), would have made the lacquer between the veins mirror-glossy. It is an indexed
+      PNG: each sRGB code c the emissive map uses is entry (255, 255, decode[c]), so off the
+      cavity its index data is the emissive map's own bytes and packs as small; the codes the
+      table never makes (sRGB skips some near black) carry the cavity's occlusion levels.
     The loaded images are files, so the exporter embeds the PNGs' own bytes. Returns the two
-    images and the share of the front ring's texels that carry a vein (for the report).
+    images and figures for the report.
     """
     sc = bpy.context.scene
-    target = bpy.data.images.new("bead_veins_bake", TEX, TEX, alpha=False, is_data=True)
+    targets = {k: bpy.data.images.new(f"bead_{k}_bake", TEX, TEX, alpha=False, is_data=True) for k in ("veins", "ao")}
     me = body.data
     # a fresh mesh, no slots yet: appending keeps its faces' slots (clearing would reset them all to 0)
     assert not me.materials and any(p.material_index == 1 for p in me.polygons)
-    me.materials.append(bake_material("bake:veins", target, True))
-    me.materials.append(bake_material("bake:cavity", target, False))
+    me.materials.append(bake_material("bake:veins", targets["veins"], True))
+    me.materials.append(bake_material("bake:cavity", targets["veins"], False))
     bpy.context.view_layer.update()
     for ob in bpy.context.scene.objects:
         ob.select_set(False)
@@ -589,36 +646,70 @@ def bake_veins(body, folder):
     bpy.context.view_layer.objects.active = body
     sc.render.engine = 'CYCLES'
     sc.cycles.device = 'CPU'
-    sc.cycles.samples = BAKE_SAMPLES
+    sc.cycles.seed = 0
     sc.cycles.use_denoising = False
     sc.render.bake.margin = BAKE_MARGIN
     sc.render.bake.margin_type = 'EXTEND'
     sc.render.bake.use_clear = True
+    sc.cycles.samples = BAKE_SAMPLES
     bpy.ops.object.bake(type='EMIT')
-    px = np.empty(TEX * TEX * 4, np.float32)
-    target.pixels.foreach_get(px)
-    grey = np.clip(px.reshape(TEX, TEX, 4)[:, :, 0], 0.0, 1.0)
-    rows = np.round(grey * 255).astype(np.uint8)[::-1]        # Blender's rows run up from the bottom; a PNG's down from the top
-    paths = dict(veins=os.path.join(folder, "bead-veins.png"), metal=os.path.join(folder, "bead-veins-metal.png"))
-    write_png(paths["veins"], rows)
-    # indexed: entry i is (255, 255, i), so the index data is the mask itself and packs as small as the grey
-    write_png(paths["metal"], rows, palette=[(255, 255, i) for i in range(256)])
-    # the share of veined texels within the front ring
+    # the occlusion, against the body alone: the other parts are glass, gold set on the surface, or per bead
+    for mat in me.materials:
+        mat.node_tree.nodes.active.image = targets["ao"]
+    hidden = {ob: ob.hide_render for ob in sc.objects}
+    for ob in sc.objects:
+        ob.hide_render = ob is not body
+    if sc.world is None:
+        sc.world = bpy.data.worlds.new("bead_bake_world")
+    sc.world.light_settings.distance = AO_DISTANCE
+    sc.cycles.samples = AO_SAMPLES
+    bpy.ops.object.bake(type='AO')
+    for ob, was in hidden.items():
+        ob.hide_render = was
+
+    def read(image):
+        px = np.empty(TEX * TEX * 4, np.float32)
+        image.pixels.foreach_get(px)
+        return np.clip(px.reshape(TEX, TEX, 4)[:, :, 0], 0.0, 1.0)    # rows up from the bottom, as Blender's v
+
+    grey, ao = read(targets["veins"]), read(targets["ao"])
+    encode, decode = srgb_tables()
+    veins = encode[np.round(grey * 255).astype(np.uint8)]
+    # the cavity's square of the UV layout, and the bake's margin round it
+    lo, hi = (int(math.floor(c * TEX)) for c in CAVITY_UV)
+    cavity = np.zeros((TEX, TEX), bool)
+    cavity[lo - BAKE_MARGIN:hi + BAKE_MARGIN + 1, lo - BAKE_MARGIN:hi + BAKE_MARGIN + 1] = True
+    assert not veins[cavity].any(), "a vein in the cavity's square"
+    spare = sorted(set(range(256)) - set(encode.tolist()))
+    levels = np.linspace(0.0, 1.0, len(spare))
+    palette = [(255, 255, int(decode[c])) for c in range(256)]
+    for code, level in zip(spare, levels):
+        palette[code] = (int(round(255 * level)), 255, 0)
+    index = veins.copy()
+    index[cavity] = np.array(spare, np.uint8)[np.round(ao[cavity] * (len(spare) - 1)).astype(int)]
+    paths = dict(veins=os.path.join(folder, "bead-veins.png"), orm=os.path.join(folder, "bead-veins-orm.png"))
+    write_png(paths["veins"], veins[::-1])                    # a PNG's rows run down from the top
+    write_png(paths["orm"], index[::-1], palette=palette)
+    # for the report: the share of veined texels in the front ring, and the cavity's occlusion
     yy, xx = np.mgrid[0:TEX, 0:TEX]
     r = np.hypot((xx + 0.5) / TEX - 0.5, (yy + 0.5) / TEX - 0.5)
     ring = (r > UV_IN) & (r < UV_OUT)
-    coverage = float((grey[ring] > 0.5).mean())
+    inside = np.zeros((TEX, TEX), bool)
+    inside[lo:hi + 1, lo:hi + 1] = True
+    figures = dict(veined=round(float((grey[ring] > 0.5).mean()), 4), occlusion_levels=len(spare),
+                   cavity_occlusion=(round(float(ao[inside].min()), 3), round(float(ao[inside].mean()), 3), round(float(ao[inside].max()), 3)))
     for mat in list(me.materials):
         bpy.data.materials.remove(mat)
-    bpy.data.images.remove(target)
+    for image in targets.values():
+        bpy.data.images.remove(image)
     images = {}
     for key, path in paths.items():
         image = bpy.data.images.load(path)
         image.name = os.path.splitext(os.path.basename(path))[0]
-        image.colorspace_settings.name = 'Non-Color'
+        image.colorspace_settings.name = 'sRGB' if key == "veins" else 'Non-Color'
         image.alpha_mode = 'NONE'
         images[key] = image
-    return images, coverage
+    return images, figures
 
 
 # ---------------------------------------------------------------- the beads
@@ -752,8 +843,7 @@ def render_stills(beads, folder, only=None, angle=0.0):
         except TypeError:
             continue
     sc.view_settings.exposure = -0.35
-    world = bpy.data.worlds.new("bead_still_world")
-    world.use_nodes = True
+    world = bpy.data.worlds.new("bead_still_world")        # 5.x's come with a Background node
     bg = next(n for n in world.node_tree.nodes if n.type == 'BACKGROUND')
     bg.inputs['Color'].default_value = (0.0012, 0.0008, 0.0022, 1)
     sc.world = world
@@ -778,15 +868,18 @@ def render_stills(beads, folder, only=None, angle=0.0):
     except Exception as e:  # the still is a check, not the file
         print("EXPORT_BEADS still: no bloom", e)
 
-    # the preview's void light: a wide violet fill from below and a warm key on the selected bead
+    # the preview's void light: a wide violet fill from below and a warm key on the selected bead.
+    # The key comes from the preview's place, but as a sun (the site's key is directional): the
+    # preview's 2 m disc lit the bead as much (260 W at 5.7 m, about 2.5 W/m2) but made a 2 m mirror
+    # image in the glass where the site shows a fleck.
     pos, cam_at = Vector((0.8, 2.2, -6.5)), Vector((0.0, -4.0, -5.5))
     fill = bpy.data.lights.new("still_void_fill", 'AREA')
     fill.shape, fill.size, fill.energy, fill.color, fill.specular_factor = 'DISK', 24, 600, VIOLET, 0.4
     fo = link(bpy.data.objects.new("still_void_fill", fill))
     fo.location = (0, 8, -22)
     look_at(fo, (0, 8, -6))
-    key = bpy.data.lights.new("still_bead_key", 'AREA')
-    key.shape, key.size, key.energy, key.color = 'DISK', 2.0, 260.0, (1.0, 0.75, 0.48)
+    key = bpy.data.lights.new("still_bead_key", 'SUN')
+    key.energy, key.angle, key.color = 2.5, math.radians(1.0), (1.0, 0.75, 0.48)
     ko = link(bpy.data.objects.new("still_bead_key", key))
     ko.location = (-2.4, -1.5, -3.6)
     look_at(ko, pos)
@@ -841,7 +934,7 @@ def main():
     reset_scene()
     beads, to_bake = build()
     with tempfile.TemporaryDirectory() as folder:
-        images, coverage = bake_veins(to_bake, folder)
+        images, figures = bake_maps(to_bake, folder)
         mats = dress(beads, images)
         filled = fill_slots(beads, mats)
         dg = bpy.context.evaluated_depsgraph_get()
@@ -853,8 +946,7 @@ def main():
                 ob.evaluated_get(dg).to_mesh_clear()
         export(path)
         print("EXPORT_BEADS", path, os.path.getsize(path), "bytes")
-        print("EXPORT_BEADS vein pngs", {k: os.path.getsize(bpy.path.abspath(im.filepath)) for k, im in images.items()},
-              "bytes, veined share of the front ring", round(coverage, 4))
+        print("EXPORT_BEADS maps", {k: os.path.getsize(bpy.path.abspath(im.filepath)) for k, im in images.items()}, "bytes;", figures)
         print("EXPORT_BEADS meshes (verts, faces):", counts)
         print("EXPORT_BEADS screens (w, h):", {bid: tuple(round(v, 4) for v in b["screen"]) for bid, b in beads.items()})
         print("EXPORT_BEADS objects filled:", filled or "none")

@@ -1,18 +1,15 @@
 import { readFileSync } from 'node:fs';
 import { inflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { readGlbJson } from '~/engine/bob/glb';
+import { BEADS_GLB_BUDGET, readGlbJson } from '~/engine/bob/glb';
 
 /**
  * The beads' GLB (tools/blender/export_beads.py), read from the file itself:
- * its nodes, materials, embedded vein texture and the shapes the code relies
- * on (Task 8 finds every node by these names). Three's frame throughout: the
+ * its nodes, materials, embedded vein maps and the shapes the code relies on
+ * (Task 8 finds every node by these names). Three's frame throughout: the
  * porthole faces +z and up is +y.
  */
 const bytes = new Uint8Array(readFileSync('public/models/bob-beads.glb'));
-
-/** The most bytes the beads' GLB may take, with its baked vein texture inside it (global constraints, asset budgets). */
-const BEADS_GLB_BUDGET = 1_500_000;
 
 const IDS = ['funcial', 'jontai-energy', 'cookies-clicker'] as const;
 type Id = (typeof IDS)[number];
@@ -28,6 +25,8 @@ const SCREENSHOTS: Record<Id, string> = {
 /** The body's radius and the porthole's, as a share of it (the brief: about 0.62). */
 const RADIUS = 0.95;
 const PORTHOLE = 0.62;
+/** The hollow behind the porthole: a sphere of this radius about (0, 0, z). */
+const CAVITY = { radius: 0.72, z: 0.331 };
 
 /** The fields of the glTF JSON the reader's own type leaves out and these tests look at. */
 interface Gltf {
@@ -48,7 +47,9 @@ interface Gltf {
     name?: string;
     emissiveFactor?: number[];
     emissiveTexture?: { index: number };
+    occlusionTexture?: { index: number; strength?: number };
     pbrMetallicRoughness?: { metallicFactor?: number; roughnessFactor?: number; metallicRoughnessTexture?: { index: number } };
+    extensions?: { KHR_materials_specular?: { specularFactor?: number; specularColorFactor?: number[] } };
   }[];
   textures: { source: number }[];
   images: { bufferView?: number; uri?: string; mimeType?: string }[];
@@ -79,6 +80,12 @@ function node(name: string) {
   return found!;
 }
 
+function material(name: string) {
+  const found = gltf.materials.find((m) => m.name === name);
+  expect(found, name).toBeDefined();
+  return found!;
+}
+
 function materialName(index: number | undefined): string | undefined {
   return index === undefined ? undefined : gltf.materials[index].name;
 }
@@ -91,10 +98,10 @@ function primitives(name: string) {
 }
 
 /** The rows of an attribute of the node's primitive that wears this material (its only one when no material is named). */
-function attribute(name: string, attributeName: string, material?: string): number[][] {
+function attribute(name: string, attributeName: string, materialNamed?: string): number[][] {
   const all = primitives(name);
-  const primitive = material === undefined ? all[0] : all.find((p) => materialName(p.material) === material);
-  expect(primitive, `${name} has a primitive in ${material}`).toBeDefined();
+  const primitive = materialNamed === undefined ? all[0] : all.find((p) => materialName(p.material) === materialNamed);
+  expect(primitive, `${name} has a primitive in ${materialNamed}`).toBeDefined();
   expect(primitive!.attributes[attributeName], `${name} has ${attributeName}`).toBeTypeOf('number');
   return rows(primitive!.attributes[attributeName]);
 }
@@ -121,6 +128,15 @@ function place(p: number[], rotation = [0, 0, 0, 1], translation = [0, 0, 0]): n
 
 const length = (p: number[]) => Math.hypot(p[0], p[1], p[2]);
 const offAxis = (p: number[]) => Math.hypot(p[0], p[1]);
+const fromCavity = (p: number[]) => Math.hypot(p[0], p[1], p[2] - CAVITY.z);
+
+/** The body's vertices, each with its normal and UV, and whether it is on the shell (facing out) or the cavity's wall (facing in). */
+function bodyVertices(id: Id = 'funcial') {
+  const points = attribute(`bead_${id}_body`, 'POSITION');
+  const normals = attribute(`bead_${id}_body`, 'NORMAL');
+  const uvs = attribute(`bead_${id}_body`, 'TEXCOORD_0');
+  return points.map((p, k) => ({ p, n: normals[k], uv: uvs[k], shell: p[0] * normals[k][0] + p[1] * normals[k][1] + p[2] * normals[k][2] > 0 }));
+}
 
 /** The bytes of an image embedded in the GLB's binary chunk (not a file beside it). */
 function embedded(image: number): Uint8Array {
@@ -131,11 +147,18 @@ function embedded(image: number): Uint8Array {
   return bytes.subarray(at, at + bv.byteLength);
 }
 
+interface Png {
+  width: number;
+  height: number;
+  channels: number;
+  data: Uint8Array;
+}
+
 /**
  * An 8-bit, non-interlaced PNG's pixels (top row first), unfiltered: grey as one channel, RGB and
  * indexed colour (expanded through its palette) as three.
  */
-function decodePng(png: Uint8Array): { width: number; height: number; channels: number; data: Uint8Array } {
+function decodePng(png: Uint8Array): Png {
   expect(Array.from(png.subarray(0, 8))).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
   const dv = new DataView(png.buffer, png.byteOffset, png.byteLength);
   let width = 0,
@@ -178,6 +201,34 @@ function decodePng(png: Uint8Array): { width: number; height: number; channels: 
   const rgb = new Uint8Array(width * height * 3);
   data.forEach((index, i) => rgb.set(palette!.subarray(3 * index, 3 * index + 3), 3 * i));
   return { width, height, channels: 3, data: rgb };
+}
+
+/** A channel of the texel a glTF UV falls on (v runs down the image). */
+function texel(png: Png, channel: number, [u, v]: number[]): number {
+  const x = Math.min(png.width - 1, Math.max(0, Math.floor(u * png.width)));
+  const y = Math.min(png.height - 1, Math.max(0, Math.floor(v * png.height)));
+  return png.data[(y * png.width + x) * png.channels + channel];
+}
+
+/** sRGB's transfer, both ways, on 0..1. */
+const toLinear = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+const toSrgb = (c: number) => (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055);
+/** The 8-bit tables: a linear byte to its sRGB byte, and back. */
+const ENCODE = Array.from({ length: 256 }, (_, i) => Math.round(255 * toSrgb(i / 255)));
+const DECODE = Array.from({ length: 256 }, (_, i) => Math.round(255 * toLinear(i / 255)));
+
+/** The lacquer's three maps, decoded once: the emissive vein mask and the ORM image (occlusion, roughness, metal). */
+let lacquerMaps: { veins: Png; orm: Png } | undefined;
+function maps() {
+  if (!lacquerMaps) {
+    const lacquer = material('bead:lacquer');
+    const source = (index: number) => gltf.textures[index].source;
+    lacquerMaps = {
+      veins: decodePng(embedded(source(lacquer.emissiveTexture!.index))),
+      orm: decodePng(embedded(source(lacquer.pbrMetallicRoughness!.metallicRoughnessTexture!.index)))
+    };
+  }
+  return lacquerMaps;
 }
 
 /** A WebP's width and height, from its first chunk (lossy VP8, lossless VP8L or extended VP8X). */
@@ -229,41 +280,42 @@ describe('the beads GLB', () => {
   });
 
   it('names the four materials, and each part wears its own', () => {
-    const names = gltf.materials.map((m) => m.name);
-    for (const m of ['bead:lacquer', 'bead:gold', 'bead:glass', 'bead:display']) expect(names).toContain(m);
+    expect(gltf.materials.map((m) => m.name).sort()).toEqual(['bead:display', 'bead:glass', 'bead:gold', 'bead:lacquer']);
     for (const id of IDS) {
       const wears = (part: string) => primitives(`bead_${id}_${part}`).map((p) => materialName(p.material));
       expect(wears('body')).toEqual(['bead:lacquer']);
       expect(wears('halo')).toEqual(['bead:gold']);
       expect(wears('rim')).toEqual(['bead:gold']);
       expect(wears('glass')).toEqual(['bead:glass']);
-      // The screen is the black glass; the casing round it is gold.
+      // The screen and its bezel are the dark glass; a thin edge round them is gold.
       expect(wears('display').sort()).toEqual(['bead:display', 'bead:gold']);
     }
   });
 
-  it('embeds the baked veins, 1024 square, as the lacquer emissive and metal map', () => {
-    const lacquer = gltf.materials.find((m) => m.name === 'bead:lacquer')!;
-    expect(lacquer.emissiveTexture).toBeDefined();
-    expect(lacquer.pbrMetallicRoughness?.metallicRoughnessTexture).toBeDefined();
-    const sources = [lacquer.emissiveTexture!.index, lacquer.pbrMetallicRoughness!.metallicRoughnessTexture!.index].map((t) => gltf.textures[t].source);
-    for (const s of sources) expect(gltf.images[s].mimeType).toBe('image/png');
-    const [veins, metal] = sources.map((s) => decodePng(embedded(s)));
-    for (const png of [veins, metal]) expect([png.width, png.height]).toEqual([1024, 1024]);
-    // The emissive map is the vein mask itself, grey; some of the shell is veined, most of it is not.
+  it('embeds the baked veins, 1024 square: the emissive map sRGB-encoded, the metal map linear', () => {
+    const lacquer = material('bead:lacquer');
+    for (const t of [lacquer.emissiveTexture!.index, lacquer.pbrMetallicRoughness!.metallicRoughnessTexture!.index])
+      expect(gltf.images[gltf.textures[t].source].mimeType).toBe('image/png');
+    const { veins, orm } = maps();
+    for (const png of [veins, orm]) expect([png.width, png.height]).toEqual([1024, 1024]);
+    // The emissive map is the vein mask, grey, written through the 8-bit sRGB table (glTF reads emissive maps as sRGB):
+    // every byte is the encoding of a linear byte, and some of the shell is veined, most of it is not.
     expect(veins.channels).toBe(1);
-    const veined = veins.data.filter((v) => v > 127).length / veins.data.length;
+    const encoded = new Set(ENCODE);
+    const notEncoded = veins.data.filter((v) => !encoded.has(v)).length;
+    expect(notEncoded, 'bytes that are no linear byte sRGB-encoded').toBe(0);
+    const veined = veins.data.filter((v) => v > 186).length / veins.data.length; // above half, linear
     expect(veined).toBeGreaterThan(0.005);
     expect(veined).toBeLessThan(0.1);
-    // The metal map is the same mask in blue (glTF's metal), its green (roughness) full: the lacquer's roughness is its factor.
-    expect(metal.channels).toBe(3);
+    // The metal map is the same mask, linear, in blue (glTF's metal), its green (roughness) full: the roughness is the factor.
+    expect(orm.channels).toBe(3);
     let blueOff = 0,
       greenOff = 0;
     for (let i = 0; i < veins.data.length; i++) {
-      if (metal.data[3 * i + 2] !== veins.data[i]) blueOff++;
-      if (metal.data[3 * i + 1] !== 255) greenOff++;
+      if (Math.abs(orm.data[3 * i + 2] - DECODE[veins.data[i]]) > 1) blueOff++;
+      if (orm.data[3 * i + 1] !== 255) greenOff++;
     }
-    expect(blueOff, 'texels whose metal is not the vein mask').toBe(0);
+    expect(blueOff, 'texels whose metal is not the decoded vein mask').toBe(0);
     expect(greenOff, 'texels whose roughness is not full').toBe(0);
     expect(lacquer.pbrMetallicRoughness!.metallicFactor ?? 1).toBe(1);
     // Never mirror-glossy: a point light on roughness near 0 is a hard clipped dot.
@@ -273,6 +325,37 @@ describe('the beads GLB', () => {
     expect(r).toBeGreaterThan(0);
     expect(g / r).toBeCloseTo(0.52, 2);
     expect(b / r).toBeCloseTo(0.16, 2);
+  });
+
+  it("occludes the cavity in the metal map's red, glTF's ORM packing, and leaves the shell open", () => {
+    const lacquer = material('bead:lacquer');
+    expect(lacquer.occlusionTexture, 'the lacquer has an occlusion map').toBeDefined();
+    const source = (index: number) => gltf.textures[index].source;
+    expect(source(lacquer.occlusionTexture!.index), 'occlusion, roughness and metal in one image').toBe(
+      source(lacquer.pbrMetallicRoughness!.metallicRoughnessTexture!.index)
+    );
+    expect(lacquer.occlusionTexture!.strength ?? 1).toBe(1);
+    const { orm } = maps();
+    const vertices = bodyVertices();
+    for (const { uv } of vertices.filter((v) => v.shell)) expect(texel(orm, 0, uv), `shell at ${uv}`).toBeGreaterThanOrEqual(250);
+    const cavity = vertices.filter((v) => !v.shell);
+    const occlusion = cavity.map(({ uv }) => texel(orm, 0, uv) / 255);
+    expect(occlusion.reduce((s, o) => s + o, 0) / occlusion.length, 'the hollow on average').toBeLessThan(0.6);
+    // Deep in the hollow, behind the centre, little of the sky reaches.
+    for (const { p, uv } of cavity.filter((v) => v.p[2] < 0)) expect(texel(orm, 0, uv) / 255, `deep at ${p}`).toBeLessThan(0.5);
+  });
+
+  it("keeps the veins off the cavity's wall", () => {
+    const { veins } = maps();
+    const uvs = bodyVertices()
+      .filter((v) => !v.shell)
+      .map((v) => v.uv);
+    const [u0, u1] = [Math.min(...uvs.map((t) => t[0])), Math.max(...uvs.map((t) => t[0]))];
+    const [v0, v1] = [Math.min(...uvs.map((t) => t[1])), Math.max(...uvs.map((t) => t[1]))];
+    let brightest = 0;
+    for (let y = Math.floor(v0 * 1024) - 4; y <= Math.ceil(v1 * 1024) + 4; y++)
+      for (let x = Math.floor(u0 * 1024) - 4; x <= Math.ceil(u1 * 1024) + 4; x++) brightest = Math.max(brightest, veins.data[y * 1024 + x]);
+    expect(brightest, "the brightest vein texel in the cavity's UV square").toBe(0);
   });
 
   it('makes each body a sphere of radius 0.95 with UVs for the veins', () => {
@@ -285,41 +368,59 @@ describe('the beads GLB', () => {
   });
 
   it('opens the body behind the porthole, facing +z, onto a hollow cavity', () => {
-    const points = attribute('bead_funcial_body', 'POSITION');
-    const normals = attribute('bead_funcial_body', 'NORMAL');
-    // The shell faces out, the cavity's wall faces in, toward the hollow.
-    const outward = points.map((p, k) => p[0] * normals[k][0] + p[1] * normals[k][1] + p[2] * normals[k][2] > 0);
-    const shell = points.filter((_, k) => outward[k]);
-    const cavity = points.filter((_, k) => !outward[k]);
+    const vertices = bodyVertices();
+    const shell = vertices.filter((v) => v.shell).map((v) => v.p);
+    const cavity = vertices.filter((v) => !v.shell).map((v) => v.p);
     for (const p of shell) expect(length(p)).toBeCloseTo(RADIUS, 3);
     // No shell in front of the porthole: the shell stops at the opening's edge, 0.62 of the radius off the axis.
     const edge = Math.sqrt(1 - PORTHOLE ** 2);
     for (const p of shell) expect(p[2] / length(p)).toBeLessThanOrEqual(edge + 1e-3);
     const front = shell.reduce((a, p) => (p[2] > a[2] ? p : a));
     expect(offAxis(front) / RADIUS).toBeCloseTo(PORTHOLE, 2);
-    // The cavity: a hollow inside the shell, open at the porthole's edge and reaching back past the centre.
+    // The cavity: a sphere of 0.72 inside the shell, open at the porthole's edge and reaching back past the centre.
     expect(cavity.length).toBeGreaterThan(100);
-    for (const p of cavity) expect(length(p)).toBeLessThanOrEqual(RADIUS + 1e-4);
+    for (const p of cavity) {
+      expect(length(p)).toBeLessThanOrEqual(RADIUS + 1e-4);
+      expect(fromCavity(p)).toBeCloseTo(CAVITY.radius, 3);
+    }
     expect(Math.min(...cavity.map((p) => p[2]))).toBeLessThan(0);
     expect(Math.max(...cavity.map((p) => p[2]))).toBeCloseTo(RADIUS * edge, 3);
   });
 
-  it('sets the gold rim and the curved glass on the porthole, facing +z', () => {
+  it('sinks a flat gold rim along the shell over the opening, standing a little proud', () => {
     const rim = attribute('bead_funcial_rim', 'POSITION');
-    for (const p of rim) {
-      expect(p[2]).toBeGreaterThan(0.6);
-      expect(offAxis(p)).toBeGreaterThan(0.5);
-      expect(offAxis(p)).toBeLessThan(0.7);
-    }
+    const proud = Math.max(...rim.map(length)) - RADIUS;
+    expect(proud).toBeGreaterThan(0.01);
+    expect(proud).toBeLessThan(0.03);
+    expect(Math.min(...rim.map(length))).toBeGreaterThan(RADIUS - 0.04);
+    // It covers the opening's edge.
+    expect(Math.min(...rim.map(offAxis))).toBeLessThan(PORTHOLE * RADIUS);
+    expect(Math.max(...rim.map(offAxis))).toBeGreaterThan(PORTHOLE * RADIUS);
+    for (const p of rim) expect(p[2]).toBeGreaterThan(0.6);
+  });
+
+  it('seals the porthole with glass: a cap concentric with the shell, its edge under the rim, faintly reflective', () => {
     const glass = attribute('bead_funcial_glass', 'POSITION');
-    const apex = glass.reduce((a, p) => (p[2] > a[2] ? p : a));
-    expect(offAxis(apex), 'the dome bulges out on the axis').toBeLessThan(1e-3);
-    for (const p of glass) {
-      expect(offAxis(p)).toBeLessThanOrEqual(PORTHOLE * RADIUS);
-      expect(p[2]).toBeGreaterThan(0.7);
-    }
     const normals = attribute('bead_funcial_glass', 'NORMAL');
-    expect(normals.reduce((s, n) => s + n[2], 0) / normals.length).toBeGreaterThan(0.95);
+    const apex = glass.reduce((a, p) => (p[2] > a[2] ? p : a));
+    expect(offAxis(apex), 'the crown on the axis').toBeLessThan(1e-3);
+    expect(apex[2]).toBeCloseTo(0.935, 2);
+    glass.forEach((p, k) => {
+      expect(length(p), 'on a sphere about the shell centre').toBeCloseTo(apex[2], 3);
+      const n = normals[k];
+      expect((p[0] * n[0] + p[1] * n[1] + p[2] * n[2]) / length(p), 'facing out from the centre').toBeGreaterThan(0.999);
+    });
+    const rim = attribute('bead_funcial_rim', 'POSITION');
+    const edge = Math.max(...glass.map(offAxis));
+    expect(edge).toBeLessThanOrEqual(PORTHOLE * RADIUS);
+    expect(edge, "the glass's edge reaches under the rim").toBeGreaterThan(Math.min(...rim.map(offAxis)));
+    // Clear, and a dim mirror: a full-strength specular made a hard disc of the key light.
+    const glassMaterial = material('bead:glass');
+    const specular = glassMaterial.extensions?.KHR_materials_specular;
+    expect(specular, 'KHR_materials_specular').toBeDefined();
+    const level = (specular!.specularFactor ?? 1) * Math.max(...(specular!.specularColorFactor ?? [1, 1, 1]));
+    expect(level).toBeGreaterThanOrEqual(0.15);
+    expect(level).toBeLessThanOrEqual(0.35);
   });
 
   it('rings the outline with the gold halo', () => {
@@ -342,18 +443,32 @@ describe('the beads GLB', () => {
       const [w, h] = webpSize(SCREENSHOTS[id]);
       const points = attribute(`bead_${id}_display`, 'POSITION', 'bead:display');
       const uvs = attribute(`bead_${id}_display`, 'TEXCOORD_0', 'bead:display');
-      const xs = points.map((p) => p[0]),
-        ys = points.map((p) => p[1]),
-        zs = points.map((p) => p[2]);
+      // The screen: the dark glass whose UV lies in 0..1 (the bezel round it runs past those bounds).
+      const inside = (uv: number[]) => uv.every((c) => c >= -1e-6 && c <= 1 + 1e-6);
+      const screen = points.filter((_, k) => inside(uvs[k]));
+      const xs = screen.map((p) => p[0]),
+        ys = screen.map((p) => p[1]);
       const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
       expect((x1 - x0) / (y1 - y0), `${id} screen ${w}x${h}`).toBeCloseTo(w / h, 2);
-      expect(Math.max(...zs) - Math.min(...zs), `${id} screen is flat`).toBeLessThan(1e-4);
+      const zs = points.map((p) => p[2]);
+      expect(Math.max(...zs) - Math.min(...zs), `${id} screen and bezel are flat`).toBeLessThan(1e-4);
       // glTF's v runs down the image: v = 0 at the top edge, so a texture with flipY off shows the screenshot upright.
+      // One affine map over the screen and its bezel alike.
       points.forEach(([x, y], k) => {
         expect(uvs[k][0]).toBeCloseTo((x - x0) / (x1 - x0), 4);
         expect(uvs[k][1]).toBeCloseTo((y1 - y) / (y1 - y0), 4);
       });
+      expect(Math.min(...uvs.map((t) => t[0])), `${id} bezel to the left`).toBeLessThan(0);
+      expect(Math.max(...uvs.map((t) => t[1])), `${id} bezel below`).toBeGreaterThan(1);
       for (const n of attribute(`bead_${id}_display`, 'NORMAL', 'bead:display')) expect(n[2]).toBeCloseTo(1, 4);
+      // Seen from the front, the gold is only a thin edge round the dark glass.
+      const gold = attribute(`bead_${id}_display`, 'POSITION', 'bead:gold');
+      const span = (ps: number[][], c: number) => Math.max(...ps.map((p) => p[c])) - Math.min(...ps.map((p) => p[c]));
+      for (const c of [0, 1]) {
+        const edge = (span(gold, c) - span(points, c)) / 2;
+        expect(edge, `${id} gold edge`).toBeGreaterThan(0);
+        expect(edge, `${id} gold edge`).toBeLessThanOrEqual(0.01);
+      }
     }
     // A phone for Funcial; landscape for Jontai Energy and Cookies Clicker, as their screenshots are.
     expect(webpSize(SCREENSHOTS.funcial)[0]).toBeLessThan(webpSize(SCREENSHOTS.funcial)[1]);
@@ -365,14 +480,14 @@ describe('the beads GLB', () => {
       expect(display.translation![0], `${id} display to the right of the slot`).toBeGreaterThan(0.1);
       for (const p of allRows(`bead_${id}_display`, 'POSITION')) {
         const q = place(p, display.rotation, display.translation);
-        expect(length(q), `${id} inside the body`).toBeLessThan(RADIUS - 0.1);
+        expect(fromCavity(q), `${id} inside the cavity's sphere`).toBeLessThan(CAVITY.radius - 0.02);
         expect(offAxis(q), `${id} framed by the porthole`).toBeLessThan(0.56);
         expect(q[2], `${id} behind the glass`).toBeLessThan(0.7);
       }
     }
   });
 
-  it('lights each cavity with its own dim warm point light, in front of the slot', () => {
+  it('lights each cavity with its own warm point light, in front of the slot', () => {
     const lights = gltf.extensions!.KHR_lights_punctual!.lights;
     for (const id of IDS) {
       const inner = node(`bead_${id}_inner`);
@@ -381,11 +496,12 @@ describe('the beads GLB', () => {
       const [r, g, b] = light.color ?? [1, 1, 1];
       expect(r).toBeGreaterThanOrEqual(g);
       expect(g).toBeGreaterThan(b);
-      // Dim: well below the tunnel's own light (GLASS_LOOK.well.light, 1.7).
-      expect(light.intensity).toBeGreaterThan(0);
-      expect(light.intensity).toBeLessThan(1.7);
+      // Enough for the hollow to show (at 0.06 it read black), not so much it washes the porthole (0.4 did); the
+      // tunnel's own light is 1.7 (GLASS_LOOK.well.light).
+      expect(light.intensity).toBeGreaterThanOrEqual(0.15);
+      expect(light.intensity).toBeLessThanOrEqual(0.35);
       const t = inner.translation!;
-      expect(length(t), `${id} inside the cavity`).toBeLessThan(RADIUS - 0.2);
+      expect(fromCavity(t), `${id} inside the cavity`).toBeLessThan(CAVITY.radius);
       expect(t[2]).toBeGreaterThan(node(`bead_${id}_object`).translation![2]);
     }
   });
