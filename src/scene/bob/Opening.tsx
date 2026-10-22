@@ -26,6 +26,7 @@ import { cameraShotAt, loadShare, type OpeningPose, openingPoseAt } from './open
 import {
   HOME_CLOCK,
   heldLoaderInput,
+  listensForSkip,
   marksSeen,
   openingReadiness,
   openingStartFor,
@@ -251,9 +252,11 @@ export interface OpeningProps {
  *
  * **Skip.** While the full show plays, any click, tap, wheel turn or key fast-forwards the rest of it to the home
  * (`useLoaderSkip`; `skipAtFor` keeps the first ask; Ruling 11: the quick and reduced paths are short already and do not
- * listen). The skip's own listener prevents the input that skips until the home; on the frame a skipped loader reaches
- * it, `frame.loaderSkipEndsMs` is set to now, so the home's scroll input swallows the rest of the gesture for
- * SKIP_SWALLOW_MS more. It is null from each mount until then.
+ * listen). It listens only while the page shows a scene (`listensForSkip`, Ruling 30): a page of text reached mid-show
+ * draws no frame, so the show cannot land there, and its own scroll is left alone. The skip's own listener prevents the
+ * input that would scroll the page until the home; on the frame a skipped loader reaches it, `frame.loaderSkipEndsMs`
+ * is set to now, so the home's scroll input swallows the rest of the gesture for SKIP_SWALLOW_MS more. It is null from
+ * each mount until then.
  *
  * **Landing.** At `home` it marks the loader seen in this browser (`markLoaderSeen(SafeStorage.local())`; on the full
  * and quick paths, not the reduced fade: `marksSeen`) and dispatches `LOADED` (the only place it is sent while a Stage
@@ -297,15 +300,18 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
   /** The home's parts once built, which mount Home; and what the Opening hands over to it, set on each frame drawn. */
   const [models, setModels] = useState<HomeModels | null>(null);
   const [handover] = useState<Handover>(() => ({ live: false, time: 0, needle: settleAngle(1) }));
-  /** The full show is playing, so any input skips it (`useLoaderSkip`). */
+  /** The full show is playing, so any input skips it (`useLoaderSkip`) while a scene is shown. */
   const [skippable, setSkippable] = useState(false);
+  /** The page shows a scene: on a page of text (Lite, contact) the canvas draws nothing, and the skip must not listen. */
+  const sceneShown = useScene((s) => s.scene !== null);
   /** The latest props, for the load, which outlives the render that started it. */
   const latest = useRef({ tier, onStarted, onReady, onFail });
   useLayoutEffect(() => {
     latest.current = { tier, onStarted, onReady, onFail };
   });
 
-  useLoaderSkip(skippable, () => {
+  // Ruling 30: only while a scene is shown, so a page of text reached mid-show scrolls (`listensForSkip`).
+  useLoaderSkip(listensForSkip(skippable, sceneShown), () => {
     const state = run.current;
     if (!state?.ready || state.failed || state.skip) return;
     state.skipAt = skipAtFor(state.elapsed, state.skipAt);

@@ -139,8 +139,10 @@ export const HOME_POSE: Readonly<OpeningPose> = Object.freeze({
  *   throughout, and on the other two it is the name glowing in;
  * - the traces come up from nothing to `TRACES_LOOK.level` with the fade,
  *   eased: the world rising from black;
- * - the smoke thickens from nothing over the script's first 2.5 s, eased
- *   (the quick and reduced scripts are at their end, so it is thick at once);
+ * - the smoke thickens from nothing over the script's first 2.5 s, eased, on
+ *   the full path; on the quick and reduced paths, whose script stands at its
+ *   end, it comes up with the clock's fade, eased, like everything else there
+ *   (Ruling 33), so their dark first frame has no smoke at full density;
  * - the compass shows whole on the full path, where it is hidden by the glass
  *   until it rises, and fades in with the clock's fade on the other two.
  */
@@ -157,7 +159,7 @@ export function openingPoseAt(clock: LoaderClock, path: LoaderPath): OpeningPose
     rise: clock.rise,
     reveal: path === 'full' ? 1 : clock.fade,
     needleSettle: clock.settle,
-    smoke: ease(clock.script / SMOKE_SECONDS)
+    smoke: ease(path === 'full' ? clock.script / SMOKE_SECONDS : clock.fade)
   };
 }
 

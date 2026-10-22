@@ -106,8 +106,8 @@ describe('skipSwallower', () => {
 });
 
 describe('attachLoaderSkip', () => {
-  it('listens for a pointer press, the wheel, a key and a touch', () => {
-    expect([...SKIP_EVENTS]).toEqual(['pointerdown', 'wheel', 'keydown', 'touchstart']);
+  it('listens for a pointer press, the wheel, a key and a touch, its start and its moves', () => {
+    expect([...SKIP_EVENTS]).toEqual(['pointerdown', 'wheel', 'keydown', 'touchstart', 'touchmove']);
   });
 
   it('calls onSkip once however many events arrive', () => {
@@ -128,7 +128,7 @@ describe('attachLoaderSkip', () => {
     }
   });
 
-  it('listens with passive: false on the wheel and the touch, which it may prevent', () => {
+  it('listens with passive: false on the wheel and the touch’s moves, which it may prevent, and passively on the touch’s start', () => {
     const target = new EventTarget();
     const listened: { type: string; options: unknown }[] = [];
     const add = target.addEventListener.bind(target);
@@ -139,17 +139,56 @@ describe('attachLoaderSkip', () => {
     attachLoaderSkip(target, () => {});
     expect(listened.map((l) => l.type).sort()).toEqual([...SKIP_EVENTS].sort());
     expect(listened.find((l) => l.type === 'wheel')?.options).toMatchObject({ passive: false });
-    expect(listened.find((l) => l.type === 'touchstart')?.options).toMatchObject({ passive: false });
+    expect(listened.find((l) => l.type === 'touchmove')?.options).toMatchObject({ passive: false });
+    expect(listened.find((l) => l.type === 'touchstart')?.options).toMatchObject({ passive: true });
   });
 
-  it('prevents the wheel and the touch that skip, and every one after, as a trackpad keeps sending them', () => {
+  it('prevents the wheel that skips, and every one after, as a trackpad keeps sending them', () => {
     const target = new EventTarget();
     let n = 0;
     attachLoaderSkip(target, () => n++);
     expect(fire(target, 'wheel', { deltaY: 100 }).defaultPrevented).toBe(true);
     for (let i = 0; i < 30; i++) expect(fire(target, 'wheel', { deltaY: 4 }).defaultPrevented).toBe(true);
-    expect(fire(target, 'touchstart').defaultPrevented).toBe(true);
     expect(n).toBe(1);
+  });
+
+  it('skips on a touch’s start without preventing it (Ruling 30), so a tap still clicks and a pinch still starts', () => {
+    const target = new EventTarget();
+    let n = 0;
+    attachLoaderSkip(target, () => n++);
+    expect(fire(target, 'touchstart', { touches: { length: 1 } }).defaultPrevented).toBe(false);
+    expect(n).toBe(1);
+    expect(fire(target, 'touchstart', { touches: { length: 2 } }).defaultPrevented).toBe(false);
+    expect(n).toBe(1);
+  });
+
+  it('prevents a one-finger move, the drag that would scroll the page, and every one after', () => {
+    const target = new EventTarget();
+    let n = 0;
+    attachLoaderSkip(target, () => n++);
+    fire(target, 'touchstart', { touches: { length: 1 } });
+    for (let i = 0; i < 20; i++) expect(fire(target, 'touchmove', { touches: { length: 1 } }).defaultPrevented, `move ${i}`).toBe(true);
+    expect(n).toBe(1);
+  });
+
+  it('skips on a one-finger move alone too: a drag already under way when it began listening', () => {
+    const target = new EventTarget();
+    let n = 0;
+    attachLoaderSkip(target, () => n++);
+    expect(fire(target, 'touchmove', { touches: { length: 1 } }).defaultPrevented).toBe(true);
+    expect(n).toBe(1);
+  });
+
+  it('leaves a pinch alone: a move of two fingers or more neither skips nor is prevented', () => {
+    const target = new EventTarget();
+    let n = 0;
+    attachLoaderSkip(target, () => n++);
+    for (const length of [2, 3]) expect(fire(target, 'touchmove', { touches: { length } }).defaultPrevented, `${length} fingers`).toBe(false);
+    expect(n).toBe(0);
+    // One finger again (the other lifted): a drag, prevented and skipping.
+    expect(fire(target, 'touchmove', { touches: { length: 1 } }).defaultPrevented).toBe(true);
+    expect(n).toBe(1);
+    expect(fire(target, 'touchmove', { touches: { length: 2 } }).defaultPrevented).toBe(false);
   });
 
   it('does not prevent a pointer press, which scrolls nothing', () => {

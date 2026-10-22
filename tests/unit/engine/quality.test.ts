@@ -6,8 +6,8 @@ describe('tierFor', () => {
     expect([0, 1, 2, 3, 4].map((step) => tierFor(step, true))).toEqual(['high', 'high', 'medium', 'medium', 'low']);
   });
 
-  it('cuts the coarse-pointer ladder into high (0), medium (1) and low (2)', () => {
-    expect([0, 1, 2].map((step) => tierFor(step, false))).toEqual(['high', 'medium', 'low']);
+  it('cuts the coarse-pointer ladder into medium (steps 0-1) and low (2): a phone never starts high (Ruling 31)', () => {
+    expect([0, 1, 2].map((step) => tierFor(step, false))).toEqual(['medium', 'medium', 'low']);
   });
 
   it('gives the last rung, and only the last, the low tier: the one without a composer', () => {
@@ -21,7 +21,8 @@ describe('tierFor', () => {
   it('reads a step as qualityFor does: past the end is the last, NaN or negative the first', () => {
     expect(tierFor(99, true)).toBe('low');
     expect(tierFor(-1, true)).toBe('high');
-    expect(tierFor(Number.NaN, false)).toBe('high');
+    expect(tierFor(Number.NaN, false)).toBe('medium');
+    expect(tierFor(Number.NaN, true)).toBe('high');
     expect(tierFor(1.6, true)).toBe('high');
   });
 
@@ -42,10 +43,15 @@ describe('qualityFor', () => {
     expect(qualityFor(4, true)).toEqual({ pixelRatio: 1, reflector: false, dust: 100 });
   });
 
-  it('walks the coarse-pointer ladder: the reflection and dust, then the pixel ratio', () => {
-    expect(qualityFor(0, false)).toEqual({ pixelRatio: 1.25, reflector: true, dust: 150 });
-    expect(qualityFor(1, false)).toEqual({ pixelRatio: 1.25, reflector: false, dust: 100 });
+  it('walks the coarse-pointer ladder without the reflection: the pixel ratio with the dust, then the post chain', () => {
+    expect(qualityFor(0, false)).toEqual({ pixelRatio: 1.25, reflector: false, dust: 150 });
+    expect(qualityFor(1, false)).toEqual({ pixelRatio: 1, reflector: false, dust: 100 });
     expect(qualityFor(2, false)).toEqual({ pixelRatio: 1, reflector: false, dust: 80 });
+  });
+
+  it('starts a coarse pointer without the reflection (Ruling 31): its first rung reads as medium', () => {
+    expect(qualityFor(0, false).reflector).toBe(false);
+    expect(tierFor(0, false)).toBe('medium');
   });
 
   it('clamps steps past the end to the last entry', () => {
@@ -62,9 +68,17 @@ describe('qualityFor', () => {
     expect(qualityFor(1.6, true)).toEqual(qualityFor(1, true));
   });
 
-  it('turns the reflection off from step 2 on a fine pointer and from step 1 on a coarse one, and never back on', () => {
+  it('turns the reflection off from step 2 on a fine pointer, never back on, and never draws it on a coarse one', () => {
     expect([0, 1, 2, 3, 4].map((step) => qualityFor(step, true).reflector)).toEqual([true, true, false, false, false]);
-    expect([0, 1, 2].map((step) => qualityFor(step, false).reflector)).toEqual([true, false, false]);
+    expect([0, 1, 2].map((step) => qualityFor(step, false).reflector)).toEqual([false, false, false]);
+  });
+
+  it('has the reflection on only on the fine pointer’s high tier, on every rung of both ladders', () => {
+    for (const fine of [true, false]) {
+      for (let step = 0; step < qualitySteps(fine); step++) {
+        expect(qualityFor(step, fine).reflector, `${fine ? 'fine' : 'coarse'} ${step}`).toBe(fine && tierFor(step, fine) === 'high');
+      }
+    }
   });
 
   it('keeps the reflection exactly on the high tier: the rung that turns it off is the one that leaves high', () => {

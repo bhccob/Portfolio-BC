@@ -52,6 +52,17 @@ export function marksSeen(path: LoaderPath): boolean {
 }
 
 /**
+ * Whether the opening listens for a skip now (Ruling 30): only while the full show is `skippable` and the page shows
+ * a scene (`sceneShown`: the store's `scene` is not null). The skip's listener sits on `window` and prevents every
+ * wheel turn, scrolling key and one-finger drag it hears, so it must not outlive the scene: a visitor who leaves for a
+ * page of text mid-show (Lite, contact) gets a page that draws no frame, so the loader never lands there, and that
+ * page would never scroll. Back on a page with a scene, it listens again, and a later skip keeps the first ask's time.
+ */
+export function listensForSkip(skippable: boolean, sceneShown: boolean): boolean {
+  return skippable && sceneShown;
+}
+
+/**
  * The loader seconds a skip stands at, once the visitor has asked at
  * `elapsed`: the first skip's (`current`, once there is one), as the
  * timeline fast-forwards from the first press and later input only adds to

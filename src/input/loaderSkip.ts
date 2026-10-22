@@ -11,9 +11,10 @@ export const SKIP_SWALLOW_MS = 400;
 
 /**
  * The events that skip the loader: a click or tap of any kind (`pointerdown` covers mouse, pen and touch), a turn of
- * the wheel, a key and a touch. A scroll by touch is a `touchstart` first.
+ * the wheel, a key and a touch. A scroll by touch is a `touchstart` first, then its `touchmove`s; a pinch's moves
+ * (two fingers or more) are no skip (`attachLoaderSkip`).
  */
-export const SKIP_EVENTS = ['pointerdown', 'wheel', 'keydown', 'touchstart'] as const;
+export const SKIP_EVENTS = ['pointerdown', 'wheel', 'keydown', 'touchstart', 'touchmove'] as const;
 
 /**
  * How long the input must have been quiet before a skip's swallowing ends, once its first SKIP_SWALLOW_MS are over,
@@ -71,15 +72,21 @@ export function skipSwallower(now: () => number, skipEndsMs: () => number | null
 /** The keys that are only a modifier: pressing one is the start of a shortcut, not a key press of the visitor's. */
 const MODIFIER_KEYS: ReadonlySet<string> = new Set(['Shift', 'Control', 'Alt', 'AltGraph', 'Meta']);
 
+/** How many fingers a touch event has on the screen; one where the event does not say. */
+function fingers(e: Event): number {
+  return (e as Partial<TouchEvent>).touches?.length ?? 1;
+}
+
 /**
  * Whether the event is not the visitor asking to skip, and is left alone, neither skipping nor prevented: a wheel
- * with ctrl held (the browser's zoom), a key that is only a modifier, and a key with ctrl, meta or alt held (a shortcut:
- * Alt+Tab, Cmd+T, Ctrl+R). Shift alone is no shortcut.
+ * with ctrl held (the browser's zoom), a key that is only a modifier, a key with ctrl, meta or alt held (a shortcut:
+ * Alt+Tab, Cmd+T, Ctrl+R), and a move of two fingers or more (a pinch, the browser's zoom). Shift alone is no shortcut.
  */
 function ignored(e: Event): boolean {
   const k = e as Partial<KeyboardEvent>;
   if (e.type === 'wheel') return k.ctrlKey === true;
   if (e.type === 'keydown') return MODIFIER_KEYS.has(k.key ?? '') || k.ctrlKey === true || k.metaKey === true || k.altKey === true;
+  if (e.type === 'touchmove') return fingers(e) > 1;
   return false;
 }
 
@@ -90,28 +97,39 @@ function scrollsPage(e: Event): boolean {
 }
 
 /**
+ * Whether the skip prevents the event, as it would scroll the page: the wheel, a scrolling key and a one-finger move
+ * (a pinch is `ignored` before it gets here). A `touchstart` is never prevented: preventing it would also take the tap's
+ * click (a link in the header, the 3D switch) and the start of a pinch; the moves that follow it are what scroll.
+ */
+function prevents(e: Event): boolean {
+  if (e.type === 'wheel' || e.type === 'touchmove') return true;
+  return e.type === 'keydown' && scrollsPage(e);
+}
+
+/**
  * Listens on `target` for the events that skip the loader and calls `onSkip` on the first of them, once however many
  * follow. Returns the function that stops listening.
  *
- * The input that skips must not scroll the page: it prevents the wheel and the touch (listened to with
- * `passive: false` for that) and the keys that scroll, from the first event on and for as long as it listens, as a
- * trackpad's wheel goes on for a second after the first event. It leaves a click, a key typed into a field, and every
- * other key as they are: Tab still moves the focus. It ignores, neither skipping nor preventing, a wheel with ctrl held
- * (the browser's zoom), a key that is only a modifier and a key pressed with ctrl, meta or alt (a shortcut): Alt+Tab or
+ * The input that skips must not scroll the page: it prevents the wheel and a one-finger move of a touch (listened to
+ * with `passive: false` for that) and the keys that scroll, from the first event on and for as long as it listens, as a
+ * trackpad's wheel goes on for a second after the first event. It leaves a click, the touch's start (so a tap still
+ * clicks and a pinch still starts), a key typed into a field, and every other key as they are: Tab still moves the
+ * focus. It ignores, neither skipping nor preventing, a wheel with ctrl held (the browser's zoom), a move of two fingers
+ * or more (a pinch), a key that is only a modifier and a key pressed with ctrl, meta or alt (a shortcut): Alt+Tab or
  * Cmd+T must not skip the show. It listens in the capture phase, so nothing in the page can stop a skip.
  */
 export function attachLoaderSkip(target: EventTarget, onSkip: () => void): () => void {
   let skipped = false;
   const onEvent = (e: Event): void => {
     if (ignored(e)) return;
-    const prevents = e.type === 'wheel' || e.type === 'touchstart' || (e.type === 'keydown' && scrollsPage(e));
-    if (prevents && e.cancelable) e.preventDefault();
+    if (prevents(e) && e.cancelable) e.preventDefault();
     if (skipped) return;
     skipped = true;
     onSkip();
   };
-  // passive: false on the two that may prevent the browser's scroll; the others never prevent it with a touch or a wheel.
-  const options = (type: (typeof SKIP_EVENTS)[number]): AddEventListenerOptions => (type === 'wheel' || type === 'touchstart' ? { capture: true, passive: false } : { capture: true });
+  // passive: false on the two that may prevent the browser's scroll; the touch's start is passive, as it is never prevented.
+  const options = (type: (typeof SKIP_EVENTS)[number]): AddEventListenerOptions =>
+    type === 'wheel' || type === 'touchmove' ? { capture: true, passive: false } : type === 'touchstart' ? { capture: true, passive: true } : { capture: true };
   for (const type of SKIP_EVENTS) target.addEventListener(type, onEvent, options(type));
   return () => {
     for (const type of SKIP_EVENTS) target.removeEventListener(type, onEvent, { capture: true });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { NEEDLE_REST, settleAngle } from '~/engine/bob/needle';
 import { TRACES_LOOK } from '~/engine/bob/build/traces';
-import { HOLD_AT, type LoaderClock, loaderAt, type LoaderPath, QUICK, SCRIPT } from '~/engine/bob/loaderTimeline';
+import { HOLD_AT, LOADER, type LoaderClock, loaderAt, type LoaderPath, QUICK, SCRIPT } from '~/engine/bob/loaderTimeline';
 import { PROBE, probeAt } from '~/engine/bob/probePath';
 import { homeShotFor, lerpCameraShot, wideShotFor } from '~/engine/bob/shots';
 import { cameraShotAt, ease, HOME_POSE, LOAD_SHARES, loadShare, openingPoseAt, type OpeningPose } from '~/scene/bob/openingPose';
@@ -326,7 +326,7 @@ describe('the pose on the quick and reduced paths', () => {
     expect(openingPoseAt(quickClock(1.2), 'quick').wellGlow).toBe(1);
   });
 
-  it('has the marks cut, the probe away and the smoke up from the first frame', () => {
+  it('has the marks cut and the probe away from the first frame', () => {
     for (const [path, clockFor] of paths) {
       for (const q of [-1, 0, 0.3, 1]) {
         const pose = openingPoseAt(clockFor(q), path);
@@ -334,9 +334,37 @@ describe('the pose on the quick and reduced paths', () => {
         expect(pose.ticks).toBe(1);
         expect(pose.outer).toBe(1);
         expect(pose.probe).toEqual({ x: 0, y: PROBE.outY, z: 0, cutting: false, shown: false });
-        expect(pose.smoke).toBe(1);
       }
     }
+  });
+
+  it('brings the smoke up with the fade (Ruling 33): none on the dark first frame, eased up, whole once faded in', () => {
+    for (const [path, clockFor] of paths) {
+      // Dark until the load, and at the load itself: no smoke at all.
+      expect(openingPoseAt(clockFor(-1), path).smoke, `${path} dark`).toBe(0);
+      expect(openingPoseAt(clockFor(0), path).smoke, `${path} at the load`).toBe(0);
+      let last = 0;
+      for (let q = 0; q <= 3; q += 0.01) {
+        const clock = clockFor(q);
+        const smoke = openingPoseAt(clock, path).smoke;
+        expect(smoke, `${path} ${q}`).toBe(ease(clock.fade));
+        expect(smoke, `${path} ${q}`).toBeGreaterThanOrEqual(last - 1e-12);
+        last = smoke;
+      }
+    }
+    // Half way through each path's fade, half the smoke (smootherstep's half).
+    expect(openingPoseAt(quickClock(QUICK.glowIn.end / 2), 'quick').smoke).toBeCloseTo(0.5, 9);
+    expect(openingPoseAt(reducedClock(0.5), 'reduced').smoke).toBeCloseTo(0.5, 9);
+    // Whole once the fade is done, as HOME_POSE has it.
+    expect(openingPoseAt(quickClock(QUICK.glowIn.end), 'quick').smoke).toBe(HOME_POSE.smoke);
+    expect(openingPoseAt(reducedClock(1), 'reduced').smoke).toBe(HOME_POSE.smoke);
+  });
+
+  it('leaves the full path’s smoke on the script’s first 2.5 s, not on its fade, which is over by 0.75 s', () => {
+    // The full path's fade ends with the descent (0.75 s); its smoke takes 2.5 s of the script.
+    expect(clockAt(1).fade).toBe(1);
+    expect(openingPoseAt(clockAt(1), 'full').smoke).toBeLessThan(1);
+    expect(openingPoseAt(clockAt(1), 'full').smoke).toBe(ease(1 / 2.5));
   });
 
   it('brings the traces up with the fade, and the opening, the light and the rise by their own shares', () => {
@@ -421,6 +449,16 @@ describe('the home pose', () => {
       ['reduced 30', reducedClock(30), 'reduced']
     ];
     for (const [name, clock, path] of ends) expect(openingPoseAt(clock, path), name).toEqual(HOME_POSE);
+  });
+
+  it('still equals the end of the quick and reduced paths with their smoke on the fade (Ruling 33), exactly', () => {
+    expect(openingPoseAt(quickClock(QUICK.home), 'quick')).toEqual(HOME_POSE);
+    expect(openingPoseAt(reducedClock(LOADER.reducedFade), 'reduced')).toEqual(HOME_POSE);
+    expect(openingPoseAt(quickClock(QUICK.home), 'quick').smoke).toBe(HOME_POSE.smoke);
+    expect(openingPoseAt(reducedClock(LOADER.reducedFade), 'reduced').smoke).toBe(HOME_POSE.smoke);
+    // And the dark first frame is not the home: the smoke is not up yet.
+    expect(openingPoseAt(quickClock(-1), 'quick').smoke).not.toBe(HOME_POSE.smoke);
+    expect(openingPoseAt(reducedClock(-1), 'reduced').smoke).not.toBe(HOME_POSE.smoke);
   });
 
   it('is the home on the reduced path too, and when a skip or a late load ends the full one', () => {

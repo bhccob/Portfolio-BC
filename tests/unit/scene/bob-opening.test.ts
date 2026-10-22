@@ -5,6 +5,7 @@ import { cameraShotAt, HOME_POSE, openingPoseAt } from '~/scene/bob/openingPose'
 import {
   HOME_CLOCK,
   heldLoaderInput,
+  listensForSkip,
   marksSeen,
   openingReadiness,
   openingStartFor,
@@ -57,6 +58,26 @@ describe('marksSeen', () => {
     expect(start.path).toBe('reduced');
     const seen = marksSeen(start.path);
     expect(openingStartFor('LOADING', seen, false).path).toBe('full');
+  });
+});
+
+describe('listensForSkip (Ruling 30)', () => {
+  it('listens while the full show is skippable and the page shows a scene', () => {
+    expect(listensForSkip(true, true)).toBe(true);
+  });
+
+  it('does not listen on a page of text reached mid-show (Lite, contact), so that page scrolls', () => {
+    expect(listensForSkip(true, false)).toBe(false);
+  });
+
+  it('does not listen once the show is not skippable, with a scene or without one', () => {
+    expect(listensForSkip(false, true)).toBe(false);
+    expect(listensForSkip(false, false)).toBe(false);
+  });
+
+  it('listens again when a scene comes back mid-show: the page decides, not the order the two changed in', () => {
+    // Project page (scene) -> Lite (none) -> back to the project page, the show still skippable throughout.
+    expect([true, false, true].map((shown) => listensForSkip(true, shown))).toEqual([true, false, true]);
   });
 });
 

@@ -36,7 +36,9 @@ import { WORDMARK } from '~/engine/bob/wordmark';
  *   material's own `envMapIntensity` does not scale, so the glass reflects less
  *   of everything instead (Ruling 29: 0.05 and 0.1, with the scene's black, so
  *   the floor reads black, as the preview's). The compass and the name still
- *   show in it through the mirror below.
+ *   show in it through the mirror below. The coat is the high tier's only
+ *   (Ruling 31): below high its weight is 0, built or stepped down, so the
+ *   floor's program has no clearcoat lobe where there is no mirror to show.
  * - `scratch`: fine streaks of rougher glass, all running one way, `angle`
  *   degrees from the floor's x. The map is `size` pixels square, tiled `repeat`
  *   times over the floor and read at `anisotropy` (as v3's glass does), and a
@@ -222,9 +224,10 @@ export interface GlassModel {
   setLip(shown: boolean): void;
   /**
    * Turns the reflection off for good (the quality ladder's reflector rung, Ruling 25): `false` takes the mirror out
-   * of the group, frees it and its ring, and makes the floor, its edge and the cap opaque glass, as the tiers without a
-   * mirror build it (their programs compile once more, at that step). `true` changes nothing: the ladder never
-   * climbs back within a page view, and a mirror once gone is not rebuilt. Nothing happens on a tier built without one.
+   * of the group, frees it and its ring, and makes the floor, its edge and the cap opaque, uncoated glass, as the tiers
+   * without a mirror build it (Ruling 31: no clearcoat below high; their programs compile once more, at that step).
+   * `true` changes nothing: the ladder never climbs back within a page view, and a mirror once gone is not rebuilt.
+   * Nothing happens on a tier built without one.
    */
   setReflector(on: boolean): void;
   /**
@@ -270,7 +273,8 @@ export function buildGlass(tier: QualityTier): GlassModel {
     metalness: 0,
     roughness: peak,
     roughnessMap: scratch,
-    clearcoat: look.floor.clearcoat,
+    // Ruling 31: the coat is the high tier's; below it the floor's program has no clearcoat lobe.
+    clearcoat: reflected ? look.floor.clearcoat : 0,
     clearcoatRoughness: look.floor.clearcoatRoughness * look.scratch.contrast,
     clearcoatRoughnessMap: scratch,
     specularIntensity: look.floor.specular,
@@ -376,6 +380,7 @@ export function buildGlass(tier: QualityTier): GlassModel {
       for (const material of [glass, wallMaterial]) {
         material.transparent = false;
         material.opacity = 1;
+        material.clearcoat = 0;
         material.needsUpdate = true;
       }
     },

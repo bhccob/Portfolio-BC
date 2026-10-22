@@ -158,7 +158,15 @@
  *   loader-skip  a first visit's full show: a click 3 s in lands on HOME_IDLE within 1.6 s; reloaded with the seen
  *              flag cleared, 40 wheel events over 1 s from 3 s in (the burst's real length checked, 0.9 to 1.4 s)
  *              land on the home too, and after the burst the story's progress and target stay 0 for 1.5 s (six
- *              samples), the page unscrolled: the input that skips never scrolls
+ *              samples), the page unscrolled: the input that skips never scrolls; and once more, Space (a real key
+ *              press) 3 s in lands within 1.6 s and moves neither the story nor the page
+ *   loader-lite  Ruling 30: a first visit to /projects/funcial/ with the compass's file held back (the load still out),
+ *              its Lite link clicked 3 s into the loader: on Lite five wheel turns, Space and PageDown each scroll the
+ *              page (scrollY above 0, nothing prevented); the file let through and back on the project page, the skip
+ *              asked for at the link lands the show
+ *   loader-skip-touch  on a touch phone (390x844): the loader never draws at the high tier (Ruling 31); a tap 3 s in
+ *              lands on HOME_IDLE within 1.6 s, its touchstart not prevented; a tap on the header's Contact link 3 s
+ *              into a project page's show still navigates
  *   quick-loader  a first visit plays the full show and marks the loader seen (`bob-loader-seen` in localStorage);
  *              with the flag set, a load never engraves and reaches HOME_IDLE within QUICK.home + 0.5 s of the load
  *              (the first moment past `dark`)
@@ -2830,7 +2838,7 @@ async function aim(browser, step) {
 /**
  * Records, from the document's start, what the opening shows every `everyMs` ms until a little after the phase is
  * HOME_IDLE: `window.__loaderSamples` (performance.now() ms, the bridge's loader stage, its seconds and how much of the
- * name is cut, the camera, the phase), when the scene first showed (`window.__readyAt`, `data-ready` on the scene host),
+ * name is cut, the camera, the phase, the quality tier), when the scene first showed (`window.__readyAt`, `data-ready` on the scene host),
  * when the fallback card first showed (`window.__cardAt`) and when HOME_IDLE came (`window.__idleAt`). A timer, not
  * frames: it asks for no frame of its own.
  */
@@ -2845,7 +2853,7 @@ const watchLoader = (context, everyMs) =>
       if (window.__readyAt === null && document.querySelector('.scene-host')?.hasAttribute('data-ready')) window.__readyAt = now;
       if (window.__cardAt === null && document.querySelector('.scene-fallback')) window.__cardAt = now;
       if (typeof window.__needleDebug !== 'function') return;
-      const { loader, phase, camera } = window.__needleDebug();
+      const { loader, phase, camera, tier } = window.__needleDebug();
       window.__loaderSamples.push({
         t: Math.round(now),
         stage: loader.stage,
@@ -2853,6 +2861,7 @@ const watchLoader = (context, everyMs) =>
         cut: loader.strokes.reduce((sum, share) => sum + share, 0),
         camera: { position: camera.position, fov: camera.fov },
         phase: phase.kind,
+        tier,
       });
       if (phase.kind === 'HOME_IDLE' && window.__idleAt === null) window.__idleAt = now;
       if (window.__idleAt !== null && now - window.__idleAt > 600) clearInterval(timer);
@@ -2888,14 +2897,15 @@ const WHEEL_BURST_MS = [900, 1_400];
  * a click 3 s into the show (`loader.elapsed`, while it engraves) lands on HOME_IDLE within SKIP_WITHIN_MS. Then the
  * same page reloaded with the seen flag cleared, so the full show plays again: 40 wheel events over 1 s from 3 s in
  * land on the home too, and the story's progress and target stay 0 through the burst and after it, the page
- * unscrolled.
+ * unscrolled. Then once more with the flag cleared: a real key press, Space (a key that would scroll the page), 3 s in
+ * lands on HOME_IDLE within SKIP_WITHIN_MS too, and moves neither the story nor the page.
  */
 async function loaderSkip(browser, step) {
   const { context, page } = await openPage(browser, step);
   await watchLoader(context, 20);
   await context.addInitScript(() => {
     window.__inputAt = null;
-    for (const type of ['pointerdown', 'wheel']) {
+    for (const type of ['pointerdown', 'wheel', 'keydown']) {
       window.addEventListener(type, () => (window.__inputAt ??= performance.now()), { capture: true, passive: true });
     }
   });
@@ -2952,8 +2962,221 @@ async function loaderSkip(browser, step) {
     `and the burst never scrolls: after it, the story's progress and target stay 0 for 1.5 s (${after.map((s) => `${s.progress}/${s.target}`).join(' ')}), scrollY ${scrollY}`,
   );
   await takeCsp(page, step);
+
+  // A key: the full show again (the flag cleared), and Space 3 s in, a real key press.
+  await page.evaluate((key) => localStorage.removeItem(key), LOADER_SEEN_KEY);
+  await page.reload({ waitUntil: 'load' });
+  await loaderAtLeast(page, 3);
+  const third = (await debugOf(page)).loader;
+  await page.keyboard.press('Space');
+  const keyed = await reachHomeIdle(page).then(
+    () => true,
+    () => false,
+  );
+  const keyRecord = await loaderRecord(page);
+  const keyAt = await page.evaluate(() => window.__inputAt);
+  const keyTook = keyAt !== null && keyRecord.idleAt !== null ? Math.round(keyRecord.idleAt - keyAt) : null;
+  await page.waitForTimeout(500);
+  const afterKey = await frameOf(page);
+  const keyScrollY = await page.evaluate(() => window.scrollY);
+  step.check(third.stage === 'engrave' && third.elapsed >= 3, `reloaded with ${LOADER_SEEN_KEY} cleared again, the full show plays (stage ${third.stage} at ${third.elapsed.toFixed(2)} s)`);
+  step.check(
+    keyed && keyTook !== null && keyTook >= 0 && keyTook <= SKIP_WITHIN_MS,
+    `Space at 3 s, a real key press, lands on HOME_IDLE ${keyTook} ms later (within ${SKIP_WITHIN_MS} ms; the stages ${stagesOf(keyRecord.samples).join(' → ')})`,
+  );
+  step.check(
+    afterKey.progress === 0 && afterKey.target === 0 && keyScrollY === 0,
+    `and the key that skipped moves nothing: the story's progress ${afterKey.progress} and target ${afterKey.target}, scrollY ${keyScrollY}`,
+  );
+  await takeCsp(page, step);
   await context.close();
-  return `a click at 3 s lands in ${took} ms; a 40-event wheel burst over ${burst} ms at 3 s lands with the story at 0 for 1.5 s after (scrollY ${scrollY})`;
+  return `a click at 3 s lands in ${took} ms; a 40-event wheel burst over ${burst} ms at 3 s lands with the story at 0 for 1.5 s after (scrollY ${scrollY}); Space at 3 s lands in ${keyTook} ms`;
+}
+
+/**
+ * The skip listens only while a scene is shown (Ruling 30). A first visit to a project page (nothing stored, so the full
+ * show plays under the page's scrim), with the compass's file held back, so its load is still out when the visitor
+ * leaves, as on a slow connection: 3 s into the loader a click on the header's Lite link (which also asks for the skip)
+ * opens Lite by client navigation, a page with no scene, where the show cannot land. (A load that is in by then lands
+ * the show as the visitor leaves, as Lite's phase skips the rest of it, and the listener goes with it: that case passes
+ * either way.) There the page is the visitor's: five wheel turns scroll it, and from the top again Space and then
+ * PageDown each scroll it (scrollY above 0), with none of those events prevented. Then the file is let through and the
+ * visitor goes back (history back): on the project page the skip asked for at the link lands the show on the home view
+ * within LITE_BACK_WITHIN_MS.
+ */
+async function loaderLite(browser, step) {
+  const { context, page } = await openPage(browser, step);
+  await context.addInitScript(() => {
+    window.__prevented = [];
+    // In the bubble phase on the window, after every listener of the page has had the event: was it prevented?
+    for (const type of ['wheel', 'keydown']) {
+      window.addEventListener(type, (e) => window.__prevented.push({ type, key: e.key ?? null, prevented: e.defaultPrevented }), { passive: true });
+    }
+  });
+  // The compass's file waits until Lite has been tried.
+  let release = () => {};
+  const held = new Promise((resolve) => {
+    release = resolve;
+  });
+  let asked = 0;
+  await page.route('**/models/bob-compass.glb', async (route) => {
+    asked++;
+    await held;
+    await route.continue().catch(() => {});
+  });
+  await page.goto(`${BASE}/projects/funcial/?proof`, { waitUntil: 'load' });
+  await page.bringToFront();
+  const flag = await page.evaluate((key) => localStorage.getItem(key), LOADER_SEEN_KEY);
+  await loaderAtLeast(page, 3);
+  const at = (await debugOf(page)).loader;
+  await page.click('.site-header a[href="/lite/"]');
+  const opened = await page.waitForURL(`${BASE}/lite/`, { timeout: 5_000 }).then(
+    () => true,
+    () => false,
+  );
+  await page.waitForTimeout(500);
+  const there = await debugOf(page);
+  step.check(
+    flag === null && at.stage === 'engrave' && at.elapsed >= 3 && at.elapsed < 3.5 && asked >= 1,
+    `a first visit to /projects/funcial/ plays the full show, its compass file held (${asked} asked): 3 s in it engraves (stage ${at.stage} at ${at.elapsed.toFixed(2)} s, ${LOADER_SEEN_KEY} ${flag})`,
+  );
+  step.check(
+    opened && there.route === 'lite',
+    `a click on the header's Lite link 3 s in opens Lite (${page.url()}, route ${there.route}; the opening stands at ${there.loader.stage}, ${there.loader.elapsed.toFixed(2)} s)`,
+  );
+
+  // The wheel, from the top of Lite.
+  await page.mouse.move(720, 450);
+  const wheelFrom = await page.evaluate(() => window.scrollY);
+  await page.evaluate(() => window.__prevented.splice(0));
+  for (let i = 0; i < 5; i++) {
+    await page.mouse.wheel(0, 240);
+    await page.waitForTimeout(80);
+  }
+  await page.waitForTimeout(600);
+  const wheelY = await page.evaluate(() => window.scrollY);
+  const wheels = await page.evaluate(() => window.__prevented.splice(0));
+  step.check(
+    wheelFrom === 0 && wheelY > 0 && wheels.length === 5 && wheels.every((e) => !e.prevented),
+    `on Lite five wheel turns scroll the page: scrollY ${wheelFrom} → ${wheelY}, ${wheels.filter((e) => e.prevented).length} of ${wheels.length} prevented`,
+  );
+
+  // The keys, each from the top again.
+  const byKey = async (key) => {
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+    await page.waitForTimeout(300);
+    const from = await page.evaluate(() => window.scrollY);
+    await page.keyboard.press(key);
+    await page.waitForTimeout(900);
+    const events = await page.evaluate(() => window.__prevented.splice(0));
+    const focus = await page.evaluate(() => document.activeElement?.tagName ?? null);
+    return { from, to: await page.evaluate(() => window.scrollY), prevented: events.filter((e) => e.prevented).length, focus };
+  };
+  const keys = [];
+  for (const key of ['Space', 'PageDown']) {
+    const r = await byKey(key);
+    keys.push(`${key} ${r.to}`);
+    step.check(
+      r.from === 0 && r.to > 0 && r.prevented === 0,
+      `on Lite ${key} scrolls the page: scrollY ${r.from} → ${r.to}, not prevented (${r.prevented} prevented; focus on ${r.focus})`,
+    );
+  }
+
+  // The file let through, and back on the project page the scene shows again, and the skip asked for at the link lands.
+  const onLite = (await debugOf(page)).loader;
+  release();
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  await page.goBack();
+  const back = await page.waitForURL(`${BASE}/projects/funcial/?proof`, { timeout: 5_000 }).then(
+    () => true,
+    () => false,
+  );
+  const backAt = Date.now();
+  const landed = await page.waitForFunction(() => window.__needleDebug().loader.stage === 'home', null, { timeout: LITE_BACK_WITHIN_MS, polling: 20 }).then(
+    () => true,
+    () => false,
+  );
+  const landedIn = Date.now() - backAt;
+  const home = await debugOf(page);
+  step.check(
+    back && landed && cutOf(home.loader) === 5,
+    `back on the project page, the file let through, the skip lands the show on the home view ${landedIn} ms later (within ${LITE_BACK_WITHIN_MS} ms; stage ${home.loader.stage}, cut ${cutOf(home.loader)} of 5; on Lite it stood at ${onLite.stage}, ${onLite.elapsed.toFixed(2)} s)`,
+  );
+  await takeCsp(page, step);
+  await context.close();
+  return `Lite opened 3 s into a project page's show scrolls by wheel (${wheelY} px) and by key (${keys.join(', ')} px); back on the project the skip lands in ${landedIn} ms`;
+}
+
+/**
+ * How long the skip may take to land once the project page is back (history back, a scene shown again) and the held
+ * compass file let through, ms: the file, the bands' upload and the home's warm-up, then the skip's second, and slack.
+ */
+const LITE_BACK_WITHIN_MS = 6_000;
+
+/**
+ * The skip by touch (Ruling 30), on a touch phone (390x844, touch, a coarse pointer). A first visit: from the moment the
+ * scene shows until the tap, the tier is never high (Ruling 31: a coarse pointer starts on the medium rung, without the
+ * floor's reflection); a tap 3 s into the full show lands on HOME_IDLE within SKIP_WITHIN_MS, the tap's start being
+ * the skip's and never prevented. Then a project page's full show (the seen flag cleared): a tap on the header's
+ * Contact link 3 s in still navigates, to /contact/.
+ */
+async function loaderSkipTouch(browser, step) {
+  const { context, page } = await openPage(browser, step, () => false, { width: 390, height: 844 }, { hasTouch: true, isMobile: true });
+  await watchLoader(context, 20);
+  await context.addInitScript(() => {
+    window.__inputAt = null;
+    window.__starts = [];
+    for (const type of ['pointerdown', 'touchstart']) {
+      window.addEventListener(type, () => (window.__inputAt ??= performance.now()), { capture: true, passive: true });
+    }
+    // In the bubble phase: was the touch's start prevented by anything in the page?
+    window.addEventListener('touchstart', (e) => window.__starts.push(e.defaultPrevented), { passive: true });
+  });
+  await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+  await page.bringToFront();
+  await loaderAtLeast(page, 3);
+  const at = (await debugOf(page)).loader;
+  await page.touchscreen.tap(195, 422);
+  const tapped = await reachHomeIdle(page).then(
+    () => true,
+    () => false,
+  );
+  const record = await loaderRecord(page);
+  const inputAt = await page.evaluate(() => window.__inputAt);
+  const starts = await page.evaluate(() => window.__starts);
+  const took = inputAt !== null && record.idleAt !== null ? Math.round(record.idleAt - inputAt) : null;
+  const shown = record.samples.filter((s) => record.readyAt !== null && s.t >= record.readyAt && inputAt !== null && s.t < inputAt);
+  const tiers = [...new Set(shown.map((s) => s.tier))];
+  step.check(
+    shown.length > 0 && !tiers.includes('high'),
+    `a touch phone draws the loader below the high tier, without the floor's reflection (Ruling 31): tiers ${tiers.join(', ')} over ${shown.length} samples`,
+  );
+  step.check(at.stage === 'engrave' && at.elapsed >= 3 && at.elapsed < 3.5, `a first visit plays the full show: 3 s in it engraves (stage ${at.stage} at ${at.elapsed.toFixed(2)} s)`);
+  step.check(
+    tapped && took !== null && took >= 0 && took <= SKIP_WITHIN_MS && starts.length > 0 && starts.every((prevented) => !prevented),
+    `a tap at 3 s lands on HOME_IDLE ${took} ms later (within ${SKIP_WITHIN_MS} ms; the stages ${stagesOf(record.samples).join(' → ')}), its touchstart not prevented (${JSON.stringify(starts)})`,
+  );
+  await takeCsp(page, step);
+
+  // A project page's full show: a tap on a header link 3 s in still navigates.
+  await page.evaluate((key) => localStorage.removeItem(key), LOADER_SEEN_KEY);
+  await page.goto(`${BASE}/projects/funcial/?proof`, { waitUntil: 'load' });
+  await loaderAtLeast(page, 3);
+  const project = (await debugOf(page)).loader;
+  await page.tap('.site-header a[href="/contact/"]');
+  const navigated = await page.waitForURL(`${BASE}/contact/`, { timeout: 5_000 }).then(
+    () => true,
+    () => false,
+  );
+  const route = navigated ? (await debugOf(page)).route : null;
+  step.check(
+    project.stage === 'engrave' && project.elapsed >= 3,
+    `a project page's first show plays in full: 3 s in it engraves (stage ${project.stage} at ${project.elapsed.toFixed(2)} s)`,
+  );
+  step.check(navigated && route === 'contact', `a tap on the header's Contact link 3 s in still navigates (${page.url()}, route ${route})`);
+  await takeCsp(page, step);
+  await context.close();
+  return `a phone's loader at tier ${tiers.join('/')}; a tap at 3 s lands in ${took} ms; a tap on a header link during a project page's show navigates`;
 }
 
 /** How late the quick path may land after the load, s: its whole length, QUICK.home, and the brief's margin. */
@@ -3544,6 +3767,8 @@ const STEPS = {
   stills,
   'loader-stills': loaderStills,
   'loader-skip': loaderSkip,
+  'loader-lite': loaderLite,
+  'loader-skip-touch': loaderSkipTouch,
   'quick-loader': quickLoader,
   'loader-reduced': loaderReduced,
   'give-up': giveUp,

@@ -279,6 +279,48 @@ describe('loaderAt, the skip', () => {
     expect(full(30, 12, HOLD_AT + 2).stage).toBe('home');
   });
 
+  it('never ends later than the show would have (Ruling 32): a skip at 12.0 s lands by 12.5 s', () => {
+    // The load landed early, so the show alone comes home at SCRIPT.home, 12.5 s.
+    expect(full(12.49, 0.1, 12).stage).not.toBe('home');
+    expect(full(SCRIPT.home, 0.1, 12).stage).toBe('home');
+    expect(full(SCRIPT.home, 0.1, 12).script).toBe(SCRIPT.home);
+    // Less than LOADER.skip was left, so the rest plays at its own pace: the script is the unskipped one.
+    for (const t of [12, 12.1, 12.25, 12.4]) expect(full(t, 0.1, 12).script, `at ${t}`).toBeCloseTo(full(t).script, 9);
+  });
+
+  it('still lands one LOADER.skip after a skip with more than that left: a skip at 3 s lands at 4.0 s', () => {
+    expect(full(3.99, 0.1, 3).stage).not.toBe('home');
+    expect(full(4.0, 0.1, 3).stage).toBe('home');
+    // 11.5 s is exactly one LOADER.skip before the home: either rule lands at 12.5 s.
+    expect(full(12.49, 0.1, SCRIPT.home - LOADER.skip).stage).not.toBe('home');
+    expect(full(SCRIPT.home, 0.1, SCRIPT.home - LOADER.skip).stage).toBe('home');
+  });
+
+  it('lands no later than the unskipped show, whenever the skip comes, for an early load and a late one', () => {
+    // A skip before the load runs the rest from the hold in LOADER.skip, which is sooner only while more is left there.
+    expect(SCRIPT.home - HOLD_AT).toBeGreaterThan(LOADER.skip);
+    const faults: string[] = [];
+    for (const loadedAt of [0.1, 4, 20]) {
+      const unskipped = (() => {
+        for (let t = 0; t < 60; t += 0.01) if (full(t, loadedAt).stage === 'home') return t;
+        return Infinity;
+      })();
+      for (let skipAt = 0; skipAt < unskipped; skipAt += 0.05) {
+        let lands = Infinity;
+        for (let t = skipAt; t < 60; t += 0.01) {
+          if (full(t, loadedAt, skipAt).stage === 'home') {
+            lands = t;
+            break;
+          }
+        }
+        if (lands > unskipped + 1e-9) faults.push(`loadedAt ${loadedAt}, skip at ${skipAt.toFixed(2)}: home at ${lands.toFixed(2)}, the show at ${unskipped.toFixed(2)}`);
+        // A skip once the load is in lands within LOADER.skip of it.
+        if (skipAt >= loadedAt && lands > skipAt + LOADER.skip + 0.02) faults.push(`loadedAt ${loadedAt}, skip at ${skipAt.toFixed(2)}: home at ${lands.toFixed(2)}, more than a skip after it`);
+      }
+    }
+    expect(faults).toEqual([]);
+  });
+
   it('ignores a skip that is not there', () => {
     expect(full(5, 0.1, null)).toEqual(full(5, 0.1, Number.NaN));
   });

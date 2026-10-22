@@ -13,7 +13,9 @@
  * - a load that is still out when the circle is due to close holds the script
  *   just short of it, the laser creeping on, and the script goes on from there
  *   once the load lands;
- * - any input skips: the rest of the script runs in `LOADER.skip` seconds.
+ * - any input skips: the rest of the script runs in `LOADER.skip` seconds, or
+ *   at its own pace when less than that is left (Ruling 32), so a skip never
+ *   ends later than the show would have.
  *
  * The quick path (the loader was seen before) and the reduced-motion path play
  * no engraving at all, so they run on their own, short spans from the load.
@@ -219,7 +221,10 @@ interface Playback {
  * that crawl, kept once the wait is over, so the circle never goes back.
  *
  * A skip pressed after the load is known (`skipAt >= loadedAt`) runs the rest
- * of the script, from wherever it stood, in `LOADER.skip` seconds. A skip
+ * of the script, from wherever it stood, in `LOADER.skip` seconds, or in what
+ * is left of it if that is less (Ruling 32): the script plays at its own pace
+ * from there, so a skip in its last second still lands when the show would
+ * have, never later. A skip
  * pressed before that fast-forwards, at that same rate, to `H`; waits there,
  * the circle creeping from the moment it arrives; and runs the rest, from `H`,
  * in `LOADER.skip` seconds from the moment the load has landed and it is there.
@@ -248,11 +253,15 @@ function playUncapped(elapsed: number, loadedAt: number | null, skipAt: number |
   if (L !== null && skipAt >= L) {
     // A skip pressed after the home starts from the home, not past it (past it, the compression would run the script back).
     const from = Math.min(plain(skipAt), home);
-    const u = (elapsed - skipAt) / LOADER.skip;
+    // Ruling 32: the rest in LOADER.skip, or in what is left of it at its own pace (the load is in, so the script runs
+    // at 1 s a second from here), whichever is sooner. Nothing left (a skip at or after the home) is the home at once.
+    const lasts = Math.min(LOADER.skip, home - from);
+    const u = lasts > 0 ? (elapsed - skipAt) / lasts : 1;
     return { script: u >= 1 ? home : from + (home - from) * u, circleFloor: stalls ? crept(elapsed, H, L) : 0 };
   }
 
-  // The skip came before the load was known.
+  // The skip came before the load was known. Ruling 32 changes nothing here: the rest from H (home - H, 3.4 s) is
+  // always longer than LOADER.skip, so the skip's second is the sooner end.
   const from = Math.min(skipAt, H);
   const holdAt = skipAt < H ? skipAt + ((H - from) * LOADER.skip) / (home - from) : H;
   const goAt = L === null ? Infinity : Math.max(holdAt, L);
