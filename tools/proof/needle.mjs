@@ -22,7 +22,9 @@
  * `?proof`. It answers the scene's phase, `progress`, `target`, `velocity`, the chapter (`index`, `id`, `local`,
  * `category`), the route and locale, the quality `tier`, the canvas's `dpr`, a rolling `fps`, the `camera`,
  * `canvasMounts`, `contextLost`, `threeD`, the opening's `loader` (`stage`, `elapsed`, and `strokes`: how much of each of
- * the five engraved marks is cut) and the compass's `needleAngle` (radians, 0 up the screen, clockwise positive);
+ * the five engraved marks is cut; the loader cuts the circle alone, so the four B marks stay 0 and only the circle, the
+ * last, runs to 1), the compass's `needleAngle` (radians, 0 up the screen, clockwise positive) and the home's `scroll`
+ * (`u`, the rise from the home to BOB seen from above, 0 to 1, and `letters`, `iris` and `needleDip`, each 0 to 1);
  * `.set({ progress })` puts the story somewhere, `.dispatch(event)` sends a scene event, `.seekLoader(seconds)` holds
  * the opening's clock at a moment (-1 lets go), and `.scrollRequest` is the scroll loop's requestAnimationFrame, which
  * `watchFrames` wraps. Without `?proof` there is no bridge and nothing of the site reads or writes a hook (step bridge).
@@ -36,7 +38,7 @@
  *   bridge     the debug bridge: absent without ?proof, and with no proof hook of the site read or written through
  *              a load, the opening's landing and a wheel gesture's frames (every hook name is trapped on the window);
  *              with ?proof the old hooks are gone, the state has exactly its fields and sensible values (landed: the
- *              five marks cut whole, a needle angle), `.set` puts the story in a chapter (and stops at the end),
+ *              circle cut whole and no B mark cut, a needle angle, the scroll at 0), `.set` puts the story in a chapter (and stops at the end),
  *              `.dispatch` sends an event, a wheel's frames go through `.scrollRequest`, and the language switch shows
  *              in the state
  *   persist    client navigation / → /projects/funcial/ → /en/projects/funcial/ (the language switch replaces the
@@ -110,6 +112,14 @@
  *              whole wheel gesture is one stop (1, 12, 14, ...) and so is a key press. On a touch screen
  *              (CDP touch events) a drag moves it, a flick glides on after the finger lifts, a tap and a
  *              sideways swipe do not move it, and the 3D switch still takes a tap
+ *   scroll-bob the home's first unit of scroll, the rise from the compass to BOB seen from above (the bridge's `scroll`:
+ *              `u`, `letters`, `iris`, `needleDip`), at 1440x900 (the wheel) and 390x844 (touch, coarse pointer), landed
+ *              with the seen flag set: at rest `u` and `letters` are 0 and no B mark is cut; moved the whole unit (ten
+ *              wheel notches, swipes) and at rest, `u`, `letters`, `iris` and `needleDip` are all 1, and a still of it
+ *              (`m2/bob-from-above-<size>.png`) is gated as a home still; one mid-rise still at `u` 0.6 put there
+ *              through `.set` (`m2/bob-rising-<size>.png`); moved back, `u` and `letters` are exactly 0 and, at 1440, the
+ *              needle aims at the pointer again within 1.5 s. With reduced motion (1440) one wheel event sets
+ *              `<html data-step-fade>` with the pose still at the home, then lands on `u` 1 with the attribute gone
  *   keyboard   Tab from the top of the home page reaches the skip link, then the language switch and the 3D toggle in
  *              that order, each with a focus ring (outline 2 px or more) and on screen, and Shift+Tab goes back; the
  *              language switch shows "EN" and its name begins with it (WCAG 2.5.3, label in name); End
@@ -154,21 +164,22 @@
  *              that is measured, so it cannot race); on Lite and contact no scene loads and the poster carries the
  *              page scrim
  *   loader-stills  at 1440x900 and 390x844, in a fresh context, once the real load has landed (HOME_IDLE): the
- *              opening's clock held (`seekLoader`) at six moments of the BOB loader, 1.75, 5.0 and 8.25 s (engrave:
- *              the first B, the second B, the circle), 9.75 s (open), 11.0 s (rise) and 12.5 s (home), each moment's
- *              `loader.stage` checked and a still taken (`m2/loader-<n>-<size>.png`); the phase stays HOME_IDLE
- *              throughout, and let go the opening is back at home
- *   loader-skip  a first visit's full show: a click 3 s in lands on HOME_IDLE within 1.6 s; reloaded with the seen
- *              flag cleared, 40 wheel events over 1 s from 3 s in (the burst's real length checked, 0.9 to 1.4 s)
- *              land on the home too, and after the burst the story's progress and target stay 0 for 1.5 s (six
- *              samples), the page unscrolled: the input that skips never scrolls; and once more, Space (a real key
- *              press) 3 s in lands within 1.6 s and moves neither the story nor the page
+ *              opening's clock held (`seekLoader`) at five moments of the BOB loader, which cuts the circle alone and
+ *              runs 6.25 s: 0.5 s (dark: the probe coming down), 50/24 s (engrave: half the circle), 3.6 s (open: the
+ *              iris), 4.6 s (rise) and SCRIPT.home, 6.25 s (home), each moment's `loader.stage` checked and a still
+ *              taken (`m2/loader-<n>-<size>.png`); the phase stays HOME_IDLE throughout, and let go the opening is
+ *              back at home
+ *   loader-skip  a first visit's full show: a click 1.5 s in (inside the circle's cut) lands on HOME_IDLE within
+ *              1.6 s; reloaded with the seen flag cleared, 40 wheel events over 1 s from 1.5 s in (the burst's real
+ *              length checked, 0.9 to 1.4 s) land on the home too, and after the burst the story's progress and target
+ *              stay 0 for 1.5 s (six samples), the page unscrolled: the input that skips never scrolls; and once more,
+ *              Space (a real key press) 1.5 s in lands within 1.6 s and moves neither the story nor the page
  *   loader-lite  Ruling 30: a first visit to /projects/funcial/ with the compass's file held back (the load still out),
- *              its Lite link clicked 3 s into the loader: on Lite five wheel turns, Space and PageDown each scroll the
+ *              its Lite link clicked 1.5 s into the loader: on Lite five wheel turns, Space and PageDown each scroll the
  *              page (scrollY above 0, nothing prevented); the file let through and back on the project page, the skip
  *              asked for at the link lands the show
- *   loader-skip-touch  on a touch phone (390x844): the loader never draws at the high tier (Ruling 31); a tap 3 s in
- *              lands on HOME_IDLE within 1.6 s, its touchstart not prevented; a tap on Menu, then on its Contact link, 3 s
+ *   loader-skip-touch  on a touch phone (390x844): the loader never draws at the high tier (Ruling 31); a tap 1.5 s in
+ *              lands on HOME_IDLE within 1.6 s, its touchstart not prevented; a tap on Menu, then on its Contact link, 1.5 s
  *              into a project page's show still navigates
  *   quick-loader  a first visit plays the full show and marks the loader seen (`bob-loader-seen` in localStorage);
  *              with the flag set, a load never engraves and reaches HOME_IDLE within QUICK.home + 0.5 s of the load
@@ -247,6 +258,8 @@ const { HOME_CHAPTERS, chapterAt, stops } = await tsImport('../../src/state/chap
 const { LOADER, LOADER_SEEN_KEY, QUICK, SCRIPT } = await tsImport('../../src/engine/bob/loaderTimeline.ts', import.meta.url);
 const { IDLE_SECONDS, BREATHE } = await tsImport('../../src/scene/bob/look.ts', import.meta.url);
 const { nextDriftRest } = await tsImport('../../src/engine/bob/needleAim.ts', import.meta.url);
+const { scrollPoseAt } = await tsImport('../../src/scene/bob/scrollPose.ts', import.meta.url);
+const { topShotFor } = await tsImport('../../src/engine/bob/shots.ts', import.meta.url);
 /**
  * How long the canvas may keep drawing after the last thing that stirred it, ms: the home's idle motion
  * (src/scene/bob/look.ts, IDLE_SECONDS: 12 s) and the needle's spring settling, with room to spare. Counted from the
@@ -1442,7 +1455,7 @@ async function restAt(page) {
 /**
  * Waits until a direct load of / is on HOME_IDLE, the phase the scroll moves from: the opening says LOADED once it has
  * landed on the home (or the host once it settles on no scene). Answers how long it took, in ms from the document's
- * start. A first visit plays the whole show (SCRIPT.home, 12.5 s, never shortened on a fast load) once the scene has
+ * start. A first visit plays the whole show (SCRIPT.home, 6.25 s, never shortened on a fast load) once the scene has
  * started, which it must within LOAD_TIMEOUT_MS: LANDED_WITHIN_MS.
  */
 async function reachHomeIdle(page) {
@@ -2646,22 +2659,44 @@ async function fps(browser, step) {
 // ---------------------------------------------------------------- the BOB opening, the dark look, the aim, the hero
 
 /**
- * The opening's six moments for the stills: the loader's clock held at each (`seekLoader`: the full show of a load that
+ * The opening's five moments for the stills: the loader's clock held at each (`seekLoader`: the full show of a load that
  * had landed from the start), the stage each must show and what the moment is, against the preview's stills
- * (docs/design/bob-compass/p01-p05; src/engine/bob/loaderTimeline.ts, SCRIPT): the first B being cut, the second B, the
- * circle, the iris opening, the compass rising, and the home it lands on.
+ * (tools/blender/bob_animate_o.py; src/engine/bob/loaderTimeline.ts, SCRIPT). The show is 6.25 s and cuts the circle
+ * alone: black with the probe coming down, half the circle cut, the iris opening, the compass rising, and the home it
+ * lands on. The stages are those of SCRIPT's frames: `dark` to frame 26 (1.08 s), `engrave` to frame 74 (3.08 s, the
+ * circle closed), `open` to frame 88 (3.67 s), `rise` to the home.
  */
 const LOADER_MOMENTS = [
-  { seconds: 1.75, stage: 'engrave', what: 'the first B' },
-  { seconds: 5.0, stage: 'engrave', what: 'the second B' },
-  { seconds: 8.25, stage: 'engrave', what: 'the circle' },
-  { seconds: 9.75, stage: 'open', what: 'the iris' },
-  { seconds: 11.0, stage: 'rise', what: 'the rise' },
+  { seconds: 0.5, stage: 'dark', what: 'black, the probe coming down' },
+  { seconds: 50 / 24, stage: 'engrave', what: 'half the circle' },
+  { seconds: 3.6, stage: 'open', what: 'the iris' },
+  { seconds: 4.6, stage: 'rise', what: 'the rise' },
   { seconds: SCRIPT.home, stage: 'home', what: 'home' },
 ];
 
-/** How much of the name a loader state has cut, the five marks summed (0 to 5). */
-const cutOf = (loader) => (loader?.strokes ?? []).reduce((sum, share) => sum + share, 0);
+/**
+ * The marks of a loader state are in STROKE_ORDER (the left B, its bar, the right B, its bar, the circle). The loader
+ * cuts the circle alone: the last runs from 0 to 1 and the four before it are always 0.
+ */
+const CIRCLE_MARK = 4;
+
+/** How much of the circle a loader state has cut, 0 to 1. */
+const circleOf = (loader) => loader?.strokes?.[CIRCLE_MARK] ?? 0;
+
+/** How much of anything else a loader state has cut, the four B marks summed: 0 at every moment of every path. */
+const othersOf = (loader) => (loader?.strokes ?? []).reduce((sum, share, mark) => (mark === CIRCLE_MARK ? sum : sum + share), 0);
+
+/** True when the loader state has the circle cut whole and nothing else cut: five marks, the last 1, the rest 0. */
+const circleWhole = (loader) => loader?.strokes?.length === 5 && circleOf(loader) === 1 && othersOf(loader) === 0;
+
+/**
+ * How far into the full show the skip steps act, s: inside the circle's cut (SCRIPT.circle: 1.08 to 3.08 s), so the
+ * stage is `engrave` and the circle part cut. (The old 3 s is past the circle's close at 3.08 s.)
+ */
+const CUT_AT = 1.5;
+
+/** How far past CUT_AT a step may find the clock when it looks, s: the stage is `engrave` until 3.08 s. */
+const CUT_WITHIN = 0.3;
 
 /**
  * Holds the opening's clock at `seconds` through the bridge (`seekLoader`; -1 lets go) and waits until the scene has
@@ -2715,11 +2750,12 @@ async function takeLoaderStills(browser, step) {
       const phase = (await debugOf(page)).phase.kind;
       step.check(
         loader.stage === stage && phase === 'HOME_IDLE',
-        `${at}: the clock held at ${seconds.toFixed(2)} s (${what}) shows ${stage}, the phase still HOME_IDLE (got ${loader.stage}, cut ${cutOf(loader).toFixed(2)} of 5 marks, ${phase})`,
+        `${at}: the clock held at ${seconds.toFixed(2)} s (${what}) shows ${stage}, the phase still HOME_IDLE (got ${loader.stage}, circle cut ${circleOf(loader).toFixed(2)}, the B marks ${othersOf(loader)}, ${phase})`,
       );
+      step.check(othersOf(loader) === 0, `${at}: at ${seconds.toFixed(2)} s no B mark is cut: the loader cuts the circle alone (got ${JSON.stringify(loader.strokes)})`);
       const file = join(STILLS, `loader-${index + 1}-${at}.png`);
       await page.screenshot({ path: file });
-      shots.push({ file, size: at, seconds, what, stage: loader.stage, cut: cutOf(loader), kind: stage === 'home' ? 'home' : 'loader' });
+      shots.push({ file, size: at, seconds, what, stage: loader.stage, cut: circleOf(loader), kind: stage === 'home' ? 'home' : 'loader', dark: stage === 'dark' });
     }
     await page.evaluate(() => document.documentElement.removeAttribute('data-loading'));
     const back = await seekLoader(page, -1);
@@ -2737,7 +2773,7 @@ async function loaderStills(browser, step) {
   console.log(`note: loader stills (${shots.length}) in ${STILLS}`);
   return `${shots.length} stills of the held opening in ${STILLS}: ${shots
     .filter((shot) => shot.size === sizeName(STILL_SIZES[0]))
-    .map((shot) => `${shot.seconds.toFixed(2)} s ${shot.stage} (${shot.what}, cut ${shot.cut.toFixed(2)})`)
+    .map((shot) => `${shot.seconds.toFixed(2)} s ${shot.stage} (${shot.what}, circle cut ${shot.cut.toFixed(2)})`)
     .join(', ')}, at ${STILL_SIZES.map(sizeName).join(' and ')}`;
 }
 
@@ -2753,6 +2789,12 @@ async function loaderStills(browser, step) {
  * own text is bright (the header, the hero), so a peak taken over the whole still would pass a canvas that drew
  * nothing; in the middle only the scene can make it. (The scene's black alone, Ruling 29, is a mean of about 0.001;
  * the page's night, which the poster shows, about 0.0115.)
+ *
+ * The one still that is black on purpose is the loader's first moment, `dark` (0.5 s: black, the probe coming down, a
+ * thin wick at the top of the picture and the faint traces). It keeps the loader's ceiling and the clipped share, and
+ * its floor is `darkPeak`: the brightest pixel of the whole still (the loader stills carry no page text: the hero and
+ * the header are hidden while the clock is held) is the probe, at luma 0.2 or more (0.26 and 0.30 measured at the two
+ * sizes), which a canvas that drew nothing cannot reach. The middle's floor does not apply: the probe is not there.
  */
 const LUMA_GATE = {
   home: 0.11,
@@ -2760,6 +2802,7 @@ const LUMA_GATE = {
   clip: 0.98,
   clipped: 0.004,
   floor: { mean: 0.002, peak: 0.3, region: { x: [0.15, 0.85], y: [0.48, 0.85] } },
+  darkPeak: 0.2,
 };
 
 /**
@@ -2772,8 +2815,8 @@ const HOME_SAMPLES = 4;
 /**
  * The luminance of a PNG, measured in `page` with no image library: the file as a data URL in an <img>, drawn on a
  * canvas at its own size and read back with getImageData. Luma is Rec. 709's weights on the stored sRGB values, 0..1:
- * `mean` over every pixel, `clipped`, the share of pixels at LUMA_GATE.clip or more, and `peak`, the luma of the
- * brightest pixel in the scene's middle (LUMA_GATE.floor.region).
+ * `mean` over every pixel, `clipped`, the share of pixels at LUMA_GATE.clip or more, `peak`, the luma of the
+ * brightest pixel in the scene's middle (LUMA_GATE.floor.region), and `peakAll`, the brightest pixel of the whole still.
  */
 async function lumaOf(page, file) {
   const url = `data:image/png;base64,${readFileSync(file).toString('base64')}`;
@@ -2791,28 +2834,31 @@ async function lumaOf(page, file) {
       let sum = 0;
       let clipped = 0;
       let peak = 0;
+      let peakAll = 0;
       const [x0, x1] = region.x.map((share) => Math.round(share * canvas.width));
       const [y0, y1] = region.y.map((share) => Math.round(share * canvas.height));
       for (let i = 0; i < data.length; i += 4) {
         const y = (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) / 255;
         sum += y;
         if (y >= clip) clipped++;
+        if (y > peakAll) peakAll = y;
         const p = i / 4;
         const px = p % canvas.width;
         const py = (p - px) / canvas.width;
         if (y > peak && px >= x0 && px < x1 && py >= y0 && py < y1) peak = y;
       }
       const pixels = data.length / 4;
-      return { mean: sum / pixels, clipped: clipped / pixels, peak, width: canvas.width, height: canvas.height };
+      return { mean: sum / pixels, clipped: clipped / pixels, peak, peakAll, width: canvas.width, height: canvas.height };
     },
     [url, LUMA_GATE.clip, LUMA_GATE.floor.region],
   );
 }
 
 /**
- * Measures each still in `shots` (`{ file, kind }`, kind `home` or `loader`) in a page of its own context (no site
- * page, so no policy of the site's stands between the data URL and the canvas) and gates it by LUMA_GATE: its kind's
- * ceiling, the clipped share, and the floor. Prints each still's numbers and answers their rows, for results.json.
+ * Measures each still in `shots` (`{ file, kind, dark? }`, kind `home` or `loader`; `dark` marks the loader's black
+ * first moment) in a page of its own context (no site page, so no policy of the site's stands between the data URL and
+ * the canvas) and gates it by LUMA_GATE: its kind's ceiling, the clipped share, and the floor (the dark moment's own,
+ * `darkPeak`). Prints each still's numbers and answers their rows, for results.json.
  */
 async function gateLuma(browser, step, shots) {
   const meter = await browser.newContext();
@@ -2824,9 +2870,18 @@ async function gateLuma(browser, step, shots) {
     const name = shot.file.split(/[\\/]/).pop();
     const luma = await lumaOf(page, shot.file);
     const limit = LUMA_GATE[shot.kind];
-    rows.push({ still: name, kind: shot.kind, mean: Number(luma.mean.toFixed(4)), peak: Number(luma.peak.toFixed(3)), clipped: Number(luma.clipped.toFixed(6)), pixels: `${luma.width}x${luma.height}` });
+    const dark = shot.dark === true;
+    rows.push({ still: name, kind: shot.kind, ...(dark ? { dark } : {}), mean: Number(luma.mean.toFixed(4)), peak: Number(luma.peak.toFixed(3)), peakAll: Number(luma.peakAll.toFixed(3)), clipped: Number(luma.clipped.toFixed(6)), pixels: `${luma.width}x${luma.height}` });
     step.check(luma.mean <= limit, `${name}: mean luma ${luma.mean.toFixed(4)}, at most ${limit} for a ${shot.kind} still`);
     step.check(luma.clipped <= LUMA_GATE.clipped, `${name}: ${percent(luma.clipped)} of the pixels at luma ${LUMA_GATE.clip} or more, at most ${percent(LUMA_GATE.clipped)}`);
+    if (dark) {
+      step.check(
+        luma.peakAll >= LUMA_GATE.darkPeak,
+        `${name}: black on purpose but drawn, the brightest pixel of the whole still (the probe coming down) at luma ${luma.peakAll.toFixed(3)}, ${LUMA_GATE.darkPeak} or more (the mean is ${luma.mean.toFixed(4)})`,
+      );
+      console.log(`note: luma ${name} (${luma.width}x${luma.height}), the black first moment: mean ${luma.mean.toFixed(4)} (gate ${limit}), brightest pixel ${luma.peakAll.toFixed(3)} (floor ${LUMA_GATE.darkPeak}), clipped ${percent(luma.clipped)} (gate ${percent(LUMA_GATE.clipped)})`);
+      continue;
+    }
     step.check(
       luma.mean > floor.mean && luma.peak >= floor.peak,
       `${name}: dark but drawn, mean luma ${luma.mean.toFixed(4)} above ${floor.mean} and the brightest pixel of the scene's middle at luma ${luma.peak.toFixed(3)}, ${floor.peak} or more`,
@@ -2840,7 +2895,8 @@ async function gateLuma(browser, step, shots) {
 /** The worst mean luma of the rows of a kind, and the brightest pixel over them, as the steps' summaries print them. */
 const lumaSummary = (rows, kind) => {
   const of = rows.filter((row) => row.kind === kind);
-  return `${kind} mean luma at most ${Math.max(...of.map((row) => row.mean)).toFixed(4)} (gate ${LUMA_GATE[kind]}) and at least ${Math.min(...of.map((row) => row.mean)).toFixed(4)} (floor ${LUMA_GATE.floor.mean})`;
+  const lit = of.filter((row) => !row.dark);
+  return `${kind} mean luma at most ${Math.max(...of.map((row) => row.mean)).toFixed(4)} (gate ${LUMA_GATE[kind]}) and at least ${Math.min(...lit.map((row) => row.mean)).toFixed(4)} (floor ${LUMA_GATE.floor.mean})`;
 };
 
 /**
@@ -2877,7 +2933,7 @@ async function homeLook(browser, step) {
   const loaders = await takeLoaderStills(browser, step);
   const rows = await gateLuma(browser, step, [...homes, ...loaders]);
   step.luma = rows;
-  return `${rows.length} stills measured (${HOME_SAMPLES} home samples a size): ${lumaSummary(rows, 'home')}, ${lumaSummary(rows, 'loader')}, the scene's peak at least ${Math.min(...rows.map((row) => row.peak)).toFixed(3)} (floor ${LUMA_GATE.floor.peak}), clipped at most ${(Math.max(...rows.map((row) => row.clipped)) * 100).toFixed(3)} % (gate ${LUMA_GATE.clipped * 100} %)`;
+  return `${rows.length} stills measured (${HOME_SAMPLES} home samples a size): ${lumaSummary(rows, 'home')}, ${lumaSummary(rows, 'loader')}, the scene's peak at least ${Math.min(...rows.filter((row) => !row.dark).map((row) => row.peak)).toFixed(3)} (floor ${LUMA_GATE.floor.peak}; the black first moment's brightest pixel at least ${Math.min(...rows.filter((row) => row.dark).map((row) => row.peakAll)).toFixed(3)}, floor ${LUMA_GATE.darkPeak}), clipped at most ${(Math.max(...rows.map((row) => row.clipped)) * 100).toFixed(3)} % (gate ${LUMA_GATE.clipped * 100} %)`;
 }
 
 /**
@@ -2892,9 +2948,11 @@ const pivotOf = (viewport) => ({ x: viewport.width / 2, y: viewport.height / 2 }
  * The aim (spec §2.2): at 1440x900 once landed, the mouse moved to the right of the pivot, on its row, turns the needle
  * toward it with the spring's slight, heavy delay, to within AIM.tolerance of pi/2 within AIM.within ms
  * (`needleAngle`); a still of it (`m2/aim-right-1440x900.png`), gated as a home still by LUMA_GATE. On a touch phone
- * (390x844), with no cursor, the needle drifts on its own: `needleAngle` changes over 3 s.
+ * (390x844), with no cursor, the needle drifts on its own: `needleAngle` changes over 3 s. (`settle`, ms, is how much
+ * longer step scroll-bob watches a needle that swung from far off: the spring overshoots by an eighth and takes about
+ * two seconds, so it is on the pointer by `within` and resting on it `settle` later.)
  */
-const AIM = { tolerance: 0.1, within: 1_500, drift: 3_000 };
+const AIM = { tolerance: 0.1, within: 1_500, drift: 3_000, settle: 1_500 };
 
 async function aim(browser, step) {
   mkdirSync(STILLS, { recursive: true });
@@ -2948,10 +3006,309 @@ async function aim(browser, step) {
   return `the mouse to the right of the pivot turns the needle to ${angle.toFixed(3)} rad (pi/2 is 1.571) within ${AIM.within / 1000} s; on touch it drifts ${first.toFixed(3)} → ${later.toFixed(3)} in ${AIM.drift / 1000} s; ${lumaSummary(rows, 'home')} for the aimed still`;
 }
 
+// ---------------------------------------------------------------- the scroll's rise: from the home to BOB seen from above
+
+/**
+ * The rise of the home's first unit of scroll (src/scene/bob/scrollPose.ts), as the harness drives it. One wheel notch of
+ * 120 px at 1440x900 is 0.133 of a viewport height, a seventh of the unit and under the letters' start (0.29 of the
+ * rise), so the whole unit is ten notches (1.33 viewport heights: the rise ends at 1 and the story goes on into
+ * DISSECT, where the pose holds at BOB from above). On the phone a swipe covers 500 px (0.59 of the screen) and its
+ * glide on, and `swipesUntil` swipes until the pose says so.
+ */
+const RISE = { notches: 10, notchPx: 120, notchGapMs: 16, swipePx: 500 };
+
+/** The mid-rise still's place: 0.6 of the rise, put there through the bridge's `.set({ progress })`. */
+const RISE_MID = 0.6;
+
+/** The bridge's `scroll` (src/debug/needleDebug.ts) as `u 1, letters 1, iris 1, needleDip 1`. */
+const scrollText = (scroll) => `u ${scroll.u}, letters ${scroll.letters}, iris ${scroll.iris}, needleDip ${scroll.needleDip}`;
+
+/** True when every share of the scroll's pose is `value`. */
+const scrollAll = (scroll, value) => scroll.u === value && scroll.letters === value && scroll.iris === value && scroll.needleDip === value;
+
+/**
+ * Waits until the story is at rest (restAt) and exactly on its target with no speed, then a moment for the last pose to
+ * be drawn through the post chain; answers the bridge's state. The rise is read from this, not from a state taken while
+ * the damped progress is still catching up: `riseAt` snaps only within 1e-6 of an end.
+ */
+async function settledState(page) {
+  await restAt(page);
+  await page.waitForFunction(
+    () => {
+      const state = window.__needleDebug();
+      return state.velocity === 0 && state.progress === state.target;
+    },
+    null,
+    { timeout: 5_000 },
+  );
+  await page.waitForTimeout(400);
+  return debugOf(page);
+}
+
+/** Ten wheel notches of 120 px, down (`sign` 1) or up (-1), at the pointer where it is. */
+async function wheelNotches(page, sign) {
+  for (let i = 0; i < RISE.notches; i++) {
+    await page.mouse.wheel(0, sign * RISE.notchPx);
+    await page.waitForTimeout(RISE.notchGapMs);
+  }
+}
+
+/**
+ * One swipe on a touch screen (CDP touch events), from `fromY` to `toY` along the middle of the screen, in steps of 40
+ * px 12 ms apart, then the lift: the glide goes on from there (the scroll's Inertia).
+ */
+async function swipe(page, cdp, fromY, toY) {
+  const touch = (type, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: 195, y }] });
+  await touch('touchStart', fromY);
+  const sign = Math.sign(toY - fromY);
+  for (let y = fromY + sign * 40; sign > 0 ? y <= toY : y >= toY; y += sign * 40) {
+    await touch('touchMove', y);
+    await page.waitForTimeout(12);
+  }
+  await touch('touchEnd');
+}
+
+/**
+ * Swipes up (`direction` 1: the story goes down) or down (-1) until the rise stands where `done(scroll)` says, at rest,
+ * at most four times; answers the settled state and how many swipes it took. The finger moves 500 px, 0.59 of the
+ * screen, and the glide carries it on.
+ */
+async function swipesUntil(page, cdp, direction, done) {
+  let state = await debugOf(page);
+  let swipes = 0;
+  while (swipes < 4 && !done(state.scroll)) {
+    const from = direction > 0 ? 700 : 200;
+    await swipe(page, cdp, from, from - direction * RISE.swipePx);
+    state = await settledState(page);
+    swipes++;
+  }
+  return { state, swipes };
+}
+
+/**
+ * Records, from now on in `window.__rise`, what a reduced-motion step does to the page: whether `<html data-step-fade>`
+ * was ever set (a MutationObserver, so a 150 ms fade is not missed between polls), the rise the bridge reported at the
+ * moment it was first set, every distinct rise a 5 ms timer saw (reduced motion has stops, no travel: only 0 and 1),
+ * and the lowest opacity of `.scene-host` (the host faded down).
+ */
+const watchStepFade = (page) =>
+  page.evaluate(() => {
+    const html = document.documentElement;
+    const record = { fadeSeen: false, uAtFade: null, us: new Set(), minOpacity: 1 };
+    window.__rise = record;
+    new MutationObserver(() => {
+      if (html.hasAttribute('data-step-fade') && !record.fadeSeen) {
+        record.fadeSeen = true;
+        record.uAtFade = window.__needleDebug().scroll.u;
+      }
+    }).observe(html, { attributes: true, attributeFilter: ['data-step-fade'] });
+    const host = document.querySelector('.scene-host');
+    setInterval(() => {
+      record.us.add(window.__needleDebug().scroll.u);
+      record.minOpacity = Math.min(record.minOpacity, Number(getComputedStyle(host).opacity));
+    }, 5);
+  });
+
+/** What watchStepFade recorded since it was started (or last taken), and starts the next step's record fresh. */
+const takeStepFade = (page) =>
+  page.evaluate(() => {
+    const record = window.__rise;
+    const taken = { fadeSeen: record.fadeSeen, uAtFade: record.uAtFade, us: [...record.us], minOpacity: record.minOpacity };
+    record.fadeSeen = false;
+    record.uAtFade = null;
+    record.us.clear();
+    record.minOpacity = 1;
+    return taken;
+  });
+
+/**
+ * The first unit of scroll (spec §2.3, §2.1: the home's rise), at 1440x900 with the wheel and at 390x844 with a finger
+ * (touch, coarse pointer), each in a fresh context that lands with the seen flag set (the quick path: the rise is the
+ * scroll's, not the loader's):
+ *
+ * 1. At rest on the home `u` and `letters` are 0 (and `iris`, `needleDip`), and no B mark is cut.
+ * 2. Moved the whole unit down (ten notches; swipes), at rest `u`, `letters`, `iris` and `needleDip` are all 1, and the
+ *    camera stands on the top shot (`topShotFor`, the whole name across the picture, which the unit test pins). A
+ *    still, `m2/bob-from-above-<size>.png`, is gated as a home still.
+ * 3. A mid-rise still at `u` 0.6, put there through the bridge's `.set({ progress })`: `m2/bob-rising-<size>.png`; the
+ *    shares of the iris, the needle and the letters are those of the pure pose (`scrollPoseAt`), each between 0 and 1.
+ * 4. The story put back where the scroll left it and moved the whole unit up (ten notches, swipes): `u` and `letters`
+ *    are exactly 0 (the wheel's summed deltas leave a residue that `riseAt` must snap away), the phase is HOME_IDLE
+ *    and a still of the home again, `m2/bob-back-home-<size>.png`, is gated as a home still. At 1440 the pointer to
+ *    the right of the pivot turns the needle to within AIM.tolerance of pi/2 within AIM.within ms, and it rests there
+ *    AIM.settle ms later (the aim is back).
+ * 5. With reduced motion (1440 only), one wheel event down sets `<html data-step-fade>` with the pose still at the home,
+ *    never shows a rise between 0 and 1 (no camera travel) and lands on `u` 1 with the attribute gone and the host
+ *    shown again; one event up does the same back to 0.
+ */
+async function scrollBob(browser, step) {
+  mkdirSync(STILLS, { recursive: true });
+  const summary = [];
+  const shots = [];
+  for (const size of STILL_SIZES) {
+    const at = sizeName(size);
+    const touch = size.options.hasTouch === true;
+    const aspect = size.width / size.height;
+    const { context, page } = await openPage(browser, step, () => false, { width: size.width, height: size.height }, size.options);
+    await context.addInitScript((key) => localStorage.setItem(key, '1'), LOADER_SEEN_KEY);
+    await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+    await page.bringToFront();
+    await reachHomeIdle(page);
+    await page.evaluate(() => document.fonts.ready);
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('.hero')).opacity === '1', null, { timeout: 5_000 }).catch(() => {});
+    await page.waitForTimeout(500);
+    const cdp = touch ? await context.newCDPSession(page) : null;
+
+    // 1. At rest on the home.
+    const rest = await debugOf(page);
+    step.check(
+      rest.phase.kind === 'HOME_IDLE' && scrollAll(rest.scroll, 0) && othersOf(rest.loader) === 0,
+      `${at}: landed with ${LOADER_SEEN_KEY} set, the home at rest has the rise at 0: ${scrollText(rest.scroll)}, no B mark cut (the loader's marks ${JSON.stringify(rest.loader.strokes)}, phase ${rest.phase.kind})`,
+    );
+
+    // 2. The whole unit down: BOB from above.
+    let swipesDown = 0;
+    if (touch) {
+      const moved = await swipesUntil(page, cdp, 1, (scroll) => scroll.u === 1);
+      swipesDown = moved.swipes;
+    } else {
+      await page.mouse.move(size.width / 2, size.height / 2);
+      await wheelNotches(page, 1);
+    }
+    const down = await settledState(page);
+    const top = topShotFor(aspect);
+    const onTop = down.camera.position.every((value, i) => near(value, top.position[i], 1e-3)) && near(down.camera.fov, top.fov, 1e-3);
+    step.check(
+      scrollAll(down.scroll, 1),
+      `${at}: moved the whole unit down (${touch ? `${swipesDown} swipes up` : `${RISE.notches} wheel notches of ${RISE.notchPx} px`}) and at rest, ${scrollText(down.scroll)} (phase ${down.phase.kind}, target ${down.target})`,
+    );
+    step.check(
+      onTop,
+      `${at}: BOB from above stands on the top shot, the whole name across the picture: camera [${down.camera.position.map((v) => v.toFixed(3)).join(', ')}] fov ${down.camera.fov.toFixed(3)}, topShotFor(${aspect.toFixed(3)}) is [${top.position.map((v) => v.toFixed(3)).join(', ')}] fov ${top.fov.toFixed(3)}`,
+    );
+    const fromAbove = join(STILLS, `bob-from-above-${at}.png`);
+    await page.screenshot({ path: fromAbove });
+    shots.push({ file: fromAbove, kind: 'home' });
+
+    // 3. One mid-rise still, put at 0.6 of the rise through the bridge.
+    const restedProgress = down.progress;
+    await page.evaluate((progress) => window.__needleDebug.set({ progress }), RISE_MID);
+    await page.waitForFunction((u) => Math.abs(window.__needleDebug().scroll.u - u) < 1e-9, RISE_MID, { timeout: 5_000 }).catch(() => {});
+    await page.waitForTimeout(500);
+    const mid = await debugOf(page);
+    const pose = scrollPoseAt(RISE_MID, aspect);
+    const between = [mid.scroll.iris, mid.scroll.needleDip, mid.scroll.letters].every((share) => share > 0 && share < 1);
+    step.check(
+      near(mid.scroll.u, RISE_MID, 1e-9) &&
+        between &&
+        near(mid.scroll.iris, pose.iris, 1e-9) &&
+        near(mid.scroll.needleDip, pose.needleDip, 1e-9) &&
+        near(mid.scroll.letters, pose.letters, 1e-9) &&
+        mid.camera.position.every((value, i) => near(value, pose.shot.position[i], 1e-3)),
+      `${at}: put at ${RISE_MID} of the rise through .set, the pose is the pure one, each share between 0 and 1: ${scrollText(mid.scroll)} (scrollPoseAt: iris ${pose.iris}, needleDip ${pose.needleDip}, letters ${pose.letters})`,
+    );
+    const rising = join(STILLS, `bob-rising-${at}.png`);
+    await page.screenshot({ path: rising });
+
+    // 4. Back up the whole unit: the home again. The story is put where the scroll left it first, so the way back sums
+    // the same deltas the way down did (the wheel's float residue is what the snap at 0 is for).
+    await page.evaluate((progress) => window.__needleDebug.set({ progress }), restedProgress);
+    const again = await settledState(page);
+    step.check(scrollAll(again.scroll, 1), `${at}: put back where the scroll left it (progress ${restedProgress}), the rise is 1 again (${scrollText(again.scroll)})`);
+    let swipesUp = 0;
+    if (touch) {
+      const moved = await swipesUntil(page, cdp, -1, (scroll) => scroll.u === 0);
+      swipesUp = moved.swipes;
+    } else {
+      await wheelNotches(page, -1);
+    }
+    const up = await settledState(page);
+    await waitForPhase(page, 'HOME_IDLE').catch(() => {});
+    const home = await debugOf(page);
+    step.check(
+      scrollAll(home.scroll, 0) && home.phase.kind === 'HOME_IDLE' && home.target <= 1e-6,
+      `${at}: moved the whole unit up (${touch ? `${swipesUp} swipes down` : `${RISE.notches} wheel notches`}): ${scrollText(home.scroll)} exactly, the phase ${home.phase.kind}, no B drawn (the story's target ${up.target})`,
+    );
+    const backHome = join(STILLS, `bob-back-home-${at}.png`);
+    await page.screenshot({ path: backHome });
+    shots.push({ file: backHome, kind: 'home' });
+
+    // The aim is back (a mouse only: a finger has no cursor).
+    if (!touch) {
+      const pivot = pivotOf(page.viewportSize());
+      const to = { x: Math.round(pivot.x + 0.3 * size.width), y: Math.round(pivot.y) };
+      await page.mouse.move(to.x, to.y, { steps: 8 });
+      // The needle's spring (NEEDLE_SPRING) overshoots by an eighth and settles in about two seconds, so a big swing is
+      // still easing in at AIM.within: the needle must have pointed at the pointer by then, and be resting on it
+      // AIM.settle ms after.
+      const moved = Date.now();
+      const trail = [];
+      let reachedAt = null;
+      let angle = Number.NaN;
+      while (Date.now() - moved < AIM.within + AIM.settle) {
+        await page.waitForTimeout(100);
+        angle = (await debugOf(page)).needleAngle;
+        trail.push(Number(angle.toFixed(3)));
+        if (reachedAt === null && Math.abs(angle - Math.PI / 2) <= AIM.tolerance) reachedAt = Date.now() - moved;
+      }
+      const off = Math.abs(angle - Math.PI / 2);
+      step.check(
+        reachedAt !== null && reachedAt <= AIM.within,
+        `${at}: back at the home the needle aims at the pointer again: the mouse to the right of the pivot (${to.x}, ${to.y}), the needle points at it (within ${AIM.tolerance} of pi/2) ${reachedAt} ms later, within ${AIM.within} ms (${trail.join(' ')})`,
+      );
+      step.check(Number.isFinite(angle) && off <= AIM.tolerance, `and it comes to rest on it: ${angle.toFixed(3)} rad ${AIM.within + AIM.settle} ms after the move, ${off.toFixed(3)} off pi/2 (at most ${AIM.tolerance})`);
+    }
+    await takeCsp(page, step);
+    await context.close();
+    summary.push(`${at}: ${touch ? `${swipesDown} swipes` : `${RISE.notches} notches`} down to u ${down.scroll.u}, ${touch ? `${swipesUp} swipes` : `${RISE.notches} notches`} back to u ${home.scroll.u}`);
+  }
+
+  // 5. Reduced motion: one wheel event is one stop, and each step is a fade with the pose still at the stop it shows.
+  const reduced = await openPage(browser, step, () => false, { width: 1440, height: 900 }, { reducedMotion: 'reduce' });
+  const { page } = reduced;
+  await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+  await page.bringToFront();
+  step.check(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches), 'the page asks for reduced motion');
+  await reachHomeIdle(page);
+  await page.waitForTimeout(500);
+  await page.mouse.move(720, 450);
+  await watchStepFade(page);
+  await page.mouse.wheel(0, RISE.notchPx);
+  const downState = await settledState(page);
+  const downFade = await takeStepFade(page);
+  const hostDown = await page.evaluate(() => ({ attribute: document.documentElement.hasAttribute('data-step-fade'), opacity: getComputedStyle(document.querySelector('.scene-host')).opacity }));
+  step.check(
+    downFade.fadeSeen && downFade.uAtFade === 0,
+    `reduced motion: one wheel event down set <html data-step-fade> during the step, with the pose still at the home when it was set (u ${downFade.uAtFade})`,
+  );
+  step.check(downFade.minOpacity < 0.5, `and the scene host really faded down: its lowest opacity was ${downFade.minOpacity.toFixed(3)}, under 0.5`);
+  step.check(downFade.us.every((u) => u === 0 || u === 1), `and the pose never travelled: the rise was only ever ${downFade.us.join(' / ')} (stops, no running front)`);
+  step.check(
+    scrollAll(downState.scroll, 1) && downState.target === 1 && !hostDown.attribute && hostDown.opacity === '1',
+    `and the step lands on the stop: ${scrollText(downState.scroll)}, target ${downState.target}, the attribute gone and the host shown again (opacity ${hostDown.opacity})`,
+  );
+  await page.waitForTimeout(300); // the next event is the next gesture
+  await page.mouse.wheel(0, -RISE.notchPx);
+  const upState = await settledState(page);
+  const upFade = await takeStepFade(page);
+  await waitForPhase(page, 'HOME_IDLE').catch(() => {});
+  step.check(
+    upFade.fadeSeen && upFade.uAtFade === 1 && upFade.us.every((u) => u === 0 || u === 1) && scrollAll(upState.scroll, 0) && upState.target === 0,
+    `and one event up fades back to the home: the attribute set with the pose still at u ${upFade.uAtFade}, the rise only ever ${upFade.us.join(' / ')}, landing on ${scrollText(upState.scroll)}, target ${upState.target}`,
+  );
+  await takeCsp(page, step);
+  await reduced.context.close();
+  summary.push('reduced motion: one wheel event is one stop, faded, u 0 to 1 to 0 with no travel');
+
+  const rows = await gateLuma(browser, step, shots);
+  step.luma = rows;
+  return `${summary.join('; ')}; ${lumaSummary(rows, 'home')} for the stills of BOB from above and the home again`;
+}
+
 /**
  * Records, from the document's start, what the opening shows every `everyMs` ms until a little after the phase is
- * HOME_IDLE: `window.__loaderSamples` (performance.now() ms, the bridge's loader stage, its seconds and how much of the
- * name is cut, the camera, the phase, the quality tier), when the scene first showed (`window.__readyAt`, `data-ready` on the scene host),
+ * HOME_IDLE: `window.__loaderSamples` (performance.now() ms, the bridge's loader stage, its seconds, how much of the
+ * circle is cut and how much of the four B marks (always 0), the camera, the phase, the quality tier), when the scene first showed (`window.__readyAt`, `data-ready` on the scene host),
  * when the fallback card first showed (`window.__cardAt`) and when HOME_IDLE came (`window.__idleAt`). A timer, not
  * frames: it asks for no frame of its own.
  */
@@ -2971,7 +3328,9 @@ const watchLoader = (context, everyMs) =>
         t: Math.round(now),
         stage: loader.stage,
         elapsed: loader.elapsed,
-        cut: loader.strokes.reduce((sum, share) => sum + share, 0),
+        // The marks are in STROKE_ORDER, the circle last: the loader cuts the circle alone, so the four before it are 0.
+        circle: loader.strokes[4],
+        others: loader.strokes.slice(0, 4).reduce((sum, share) => sum + share, 0),
         camera: { position: camera.position, fov: camera.fov },
         phase: phase.kind,
         tier,
@@ -3007,11 +3366,12 @@ const WHEEL_BURST_MS = [900, 1_400];
 /**
  * The skip (spec §2.1): any click, tap, scroll or key fast-forwards the rest of the full show to the home in about a
  * second, with no button and no text, and the input that skips is used up by the skip. A first visit (nothing stored):
- * a click 3 s into the show (`loader.elapsed`, while it engraves) lands on HOME_IDLE within SKIP_WITHIN_MS. Then the
- * same page reloaded with the seen flag cleared, so the full show plays again: 40 wheel events over 1 s from 3 s in
- * land on the home too, and the story's progress and target stay 0 through the burst and after it, the page
- * unscrolled. Then once more with the flag cleared: a real key press, Space (a key that would scroll the page), 3 s in
- * lands on HOME_IDLE within SKIP_WITHIN_MS too, and moves neither the story nor the page.
+ * a click CUT_AT (1.5) s into the show (`loader.elapsed`, while the circle is being cut) lands on HOME_IDLE within
+ * SKIP_WITHIN_MS. Then the same page reloaded with the seen flag cleared, so the full show plays again: 40 wheel events
+ * over 1 s from CUT_AT s in land on the home too, and the story's progress and target stay 0 through the burst and
+ * after it, the page unscrolled. Then once more with the flag cleared: a real key press, Space (a key that would scroll
+ * the page), CUT_AT s in lands on HOME_IDLE within SKIP_WITHIN_MS too, and moves neither the story nor the page. The
+ * home it lands on has the circle cut whole and no B mark cut.
  */
 async function loaderSkip(browser, step) {
   const { context, page } = await openPage(browser, step);
@@ -3024,24 +3384,27 @@ async function loaderSkip(browser, step) {
   });
   await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
   await page.bringToFront();
-  await loaderAtLeast(page, 3);
+  await loaderAtLeast(page, CUT_AT);
   const at = (await debugOf(page)).loader;
   await page.mouse.click(720, 450);
   const clicked = await reachHomeIdle(page).then(() => true, () => false);
   const record = await loaderRecord(page);
   const inputAt = await page.evaluate(() => window.__inputAt);
   const took = inputAt !== null && record.idleAt !== null ? Math.round(record.idleAt - inputAt) : null;
-  step.check(at.stage === 'engrave' && at.elapsed >= 3 && at.elapsed < 3.3, `a first visit plays the full show: 3 s in it engraves (stage ${at.stage} at ${at.elapsed.toFixed(2)} s, cut ${cutOf(at).toFixed(2)} of 5)`);
-  step.check(clicked && took !== null && took >= 0 && took <= SKIP_WITHIN_MS, `a click at 3 s lands on HOME_IDLE ${took} ms later (within ${SKIP_WITHIN_MS} ms; the stages ${stagesOf(record.samples).join(' → ')})`);
+  step.check(
+    at.stage === 'engrave' && at.elapsed >= CUT_AT && at.elapsed < CUT_AT + CUT_WITHIN && circleOf(at) > 0 && circleOf(at) < 1 && othersOf(at) === 0,
+    `a first visit plays the full show: ${CUT_AT} s in it engraves, the circle part cut and no B (stage ${at.stage} at ${at.elapsed.toFixed(2)} s, circle cut ${circleOf(at).toFixed(2)}, the B marks ${othersOf(at)})`,
+  );
+  step.check(clicked && took !== null && took >= 0 && took <= SKIP_WITHIN_MS, `a click at ${CUT_AT} s lands on HOME_IDLE ${took} ms later (within ${SKIP_WITHIN_MS} ms; the stages ${stagesOf(record.samples).join(' → ')})`);
   await page.waitForTimeout(500);
   const afterClick = await debugOf(page);
-  step.check(afterClick.loader.stage === 'home' && cutOf(afterClick.loader) === 5, `and the home stands whole: the five marks cut (got ${afterClick.loader.stage}, cut ${cutOf(afterClick.loader)})`);
+  step.check(afterClick.loader.stage === 'home' && circleWhole(afterClick.loader), `and the home stands whole: the circle cut and nothing else (got ${afterClick.loader.stage}, strokes ${JSON.stringify(afterClick.loader.strokes)})`);
   await takeCsp(page, step);
 
-  // The wheel: the full show again (the flag cleared), and a burst from 3 s in.
+  // The wheel: the full show again (the flag cleared), and a burst from CUT_AT s in.
   await page.evaluate((key) => localStorage.removeItem(key), LOADER_SEEN_KEY);
   await page.reload({ waitUntil: 'load' });
-  await loaderAtLeast(page, 3);
+  await loaderAtLeast(page, CUT_AT);
   const second = (await debugOf(page)).loader;
   await page.mouse.move(720, 450);
   // The burst is paced against the clock, not by fixed waits, so a slow event does not stretch it; its real length is
@@ -3064,11 +3427,11 @@ async function loaderSkip(browser, step) {
     after.push({ progress: f.progress, target: f.target });
   }
   const scrollY = await page.evaluate(() => window.scrollY);
-  step.check(second.stage === 'engrave' && second.elapsed >= 3, `reloaded with ${LOADER_SEEN_KEY} cleared, the full show plays again (stage ${second.stage} at ${second.elapsed.toFixed(2)} s)`);
+  step.check(second.stage === 'engrave' && second.elapsed >= CUT_AT, `reloaded with ${LOADER_SEEN_KEY} cleared, the full show plays again (stage ${second.stage} at ${second.elapsed.toFixed(2)} s)`);
   step.check(burst >= WHEEL_BURST_MS[0] && burst <= WHEEL_BURST_MS[1], `the burst was 40 wheel events over ${burst} ms (a 1 s gesture: ${WHEEL_BURST_MS.join(' to ')} ms)`);
   step.check(
     landed && wheelRecord.idleAt !== null,
-    `40 wheel events from 3 s in land on the home (HOME_IDLE ${wheelAt === null ? '?' : Math.round(wheelRecord.idleAt - wheelAt)} ms after the first)`,
+    `40 wheel events from ${CUT_AT} s in land on the home (HOME_IDLE ${wheelAt === null ? '?' : Math.round(wheelRecord.idleAt - wheelAt)} ms after the first)`,
   );
   step.check(
     after.every((s) => s.progress === 0 && s.target === 0) && scrollY === 0,
@@ -3076,10 +3439,10 @@ async function loaderSkip(browser, step) {
   );
   await takeCsp(page, step);
 
-  // A key: the full show again (the flag cleared), and Space 3 s in, a real key press.
+  // A key: the full show again (the flag cleared), and Space CUT_AT s in, a real key press.
   await page.evaluate((key) => localStorage.removeItem(key), LOADER_SEEN_KEY);
   await page.reload({ waitUntil: 'load' });
-  await loaderAtLeast(page, 3);
+  await loaderAtLeast(page, CUT_AT);
   const third = (await debugOf(page)).loader;
   await page.keyboard.press('Space');
   const keyed = await reachHomeIdle(page).then(
@@ -3092,10 +3455,10 @@ async function loaderSkip(browser, step) {
   await page.waitForTimeout(500);
   const afterKey = await frameOf(page);
   const keyScrollY = await page.evaluate(() => window.scrollY);
-  step.check(third.stage === 'engrave' && third.elapsed >= 3, `reloaded with ${LOADER_SEEN_KEY} cleared again, the full show plays (stage ${third.stage} at ${third.elapsed.toFixed(2)} s)`);
+  step.check(third.stage === 'engrave' && third.elapsed >= CUT_AT, `reloaded with ${LOADER_SEEN_KEY} cleared again, the full show plays (stage ${third.stage} at ${third.elapsed.toFixed(2)} s)`);
   step.check(
     keyed && keyTook !== null && keyTook >= 0 && keyTook <= SKIP_WITHIN_MS,
-    `Space at 3 s, a real key press, lands on HOME_IDLE ${keyTook} ms later (within ${SKIP_WITHIN_MS} ms; the stages ${stagesOf(keyRecord.samples).join(' → ')})`,
+    `Space at ${CUT_AT} s, a real key press, lands on HOME_IDLE ${keyTook} ms later (within ${SKIP_WITHIN_MS} ms; the stages ${stagesOf(keyRecord.samples).join(' → ')})`,
   );
   step.check(
     afterKey.progress === 0 && afterKey.target === 0 && keyScrollY === 0,
@@ -3103,13 +3466,13 @@ async function loaderSkip(browser, step) {
   );
   await takeCsp(page, step);
   await context.close();
-  return `a click at 3 s lands in ${took} ms; a 40-event wheel burst over ${burst} ms at 3 s lands with the story at 0 for 1.5 s after (scrollY ${scrollY}); Space at 3 s lands in ${keyTook} ms`;
+  return `a click at ${CUT_AT} s lands in ${took} ms; a 40-event wheel burst over ${burst} ms at ${CUT_AT} s lands with the story at 0 for 1.5 s after (scrollY ${scrollY}); Space at ${CUT_AT} s lands in ${keyTook} ms`;
 }
 
 /**
  * The skip listens only while a scene is shown (Ruling 30). A first visit to a project page (nothing stored, so the full
  * show plays under the page's scrim), with the compass's file held back, so its load is still out when the visitor
- * leaves, as on a slow connection: 3 s into the loader a click on the header's Lite link (which also asks for the skip)
+ * leaves, as on a slow connection: CUT_AT (1.5) s into the loader a click on the header's Lite link (which also asks for the skip)
  * opens Lite by client navigation, a page with no scene, where the show cannot land. (A load that is in by then lands
  * the show as the visitor leaves, as Lite's phase skips the rest of it, and the listener goes with it: that case passes
  * either way.) There the page is the visitor's: five wheel turns scroll it, and from the top again Space and then
@@ -3140,7 +3503,7 @@ async function loaderLite(browser, step) {
   await page.goto(`${BASE}/projects/funcial/?proof`, { waitUntil: 'load' });
   await page.bringToFront();
   const flag = await page.evaluate((key) => localStorage.getItem(key), LOADER_SEEN_KEY);
-  await loaderAtLeast(page, 3);
+  await loaderAtLeast(page, CUT_AT);
   const at = (await debugOf(page)).loader;
   await page.click('.site-header a[href="/lite/"]');
   const opened = await page.waitForURL(`${BASE}/lite/`, { timeout: 5_000 }).then(
@@ -3150,12 +3513,12 @@ async function loaderLite(browser, step) {
   await page.waitForTimeout(500);
   const there = await debugOf(page);
   step.check(
-    flag === null && at.stage === 'engrave' && at.elapsed >= 3 && at.elapsed < 3.5 && asked >= 1,
-    `a first visit to /projects/funcial/ plays the full show, its compass file held (${asked} asked): 3 s in it engraves (stage ${at.stage} at ${at.elapsed.toFixed(2)} s, ${LOADER_SEEN_KEY} ${flag})`,
+    flag === null && at.stage === 'engrave' && at.elapsed >= CUT_AT && at.elapsed < CUT_AT + 2 * CUT_WITHIN && asked >= 1,
+    `a first visit to /projects/funcial/ plays the full show, its compass file held (${asked} asked): ${CUT_AT} s in it engraves (stage ${at.stage} at ${at.elapsed.toFixed(2)} s, ${LOADER_SEEN_KEY} ${flag})`,
   );
   step.check(
     opened && there.route === 'lite',
-    `a click on the header's Lite link 3 s in opens Lite (${page.url()}, route ${there.route}; the opening stands at ${there.loader.stage}, ${there.loader.elapsed.toFixed(2)} s)`,
+    `a click on the header's Lite link ${CUT_AT} s in opens Lite (${page.url()}, route ${there.route}; the opening stands at ${there.loader.stage}, ${there.loader.elapsed.toFixed(2)} s)`,
   );
 
   // The wheel, from the top of Lite.
@@ -3212,12 +3575,12 @@ async function loaderLite(browser, step) {
   const landedIn = Date.now() - backAt;
   const home = await debugOf(page);
   step.check(
-    back && landed && cutOf(home.loader) === 5,
-    `back on the project page, the file let through, the skip lands the show on the home view ${landedIn} ms later (within ${LITE_BACK_WITHIN_MS} ms; stage ${home.loader.stage}, cut ${cutOf(home.loader)} of 5; on Lite it stood at ${onLite.stage}, ${onLite.elapsed.toFixed(2)} s)`,
+    back && landed && circleWhole(home.loader),
+    `back on the project page, the file let through, the skip lands the show on the home view ${landedIn} ms later (within ${LITE_BACK_WITHIN_MS} ms; stage ${home.loader.stage}, circle cut ${circleOf(home.loader)}, the B marks ${othersOf(home.loader)}; on Lite it stood at ${onLite.stage}, ${onLite.elapsed.toFixed(2)} s)`,
   );
   await takeCsp(page, step);
   await context.close();
-  return `Lite opened 3 s into a project page's show scrolls by wheel (${wheelY} px) and by key (${keys.join(', ')} px); back on the project the skip lands in ${landedIn} ms`;
+  return `Lite opened ${CUT_AT} s into a project page's show scrolls by wheel (${wheelY} px) and by key (${keys.join(', ')} px); back on the project the skip lands in ${landedIn} ms`;
 }
 
 /**
@@ -3229,9 +3592,9 @@ const LITE_BACK_WITHIN_MS = 6_000;
 /**
  * The skip by touch (Ruling 30), on a touch phone (390x844, touch, a coarse pointer). A first visit: from the moment the
  * scene shows until the tap, the tier is never high (Ruling 31: a coarse pointer starts on the medium rung, without the
- * floor's reflection); a tap 3 s into the full show lands on HOME_IDLE within SKIP_WITHIN_MS, the tap's start being
- * the skip's and never prevented. Then a project page's full show (the seen flag cleared): a tap on the header's
- * Contact link 3 s in still navigates, to /contact/.
+ * floor's reflection); a tap CUT_AT (1.5) s into the full show lands on HOME_IDLE within SKIP_WITHIN_MS, the tap's start
+ * being the skip's and never prevented. Then a project page's full show (the seen flag cleared): a tap on the header's
+ * Contact link CUT_AT s in still navigates, to /contact/.
  */
 async function loaderSkipTouch(browser, step) {
   const { context, page } = await openPage(browser, step, () => false, { width: 390, height: 844 }, { hasTouch: true, isMobile: true });
@@ -3247,7 +3610,7 @@ async function loaderSkipTouch(browser, step) {
   });
   await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
   await page.bringToFront();
-  await loaderAtLeast(page, 3);
+  await loaderAtLeast(page, CUT_AT);
   const at = (await debugOf(page)).loader;
   await page.touchscreen.tap(195, 422);
   const tapped = await reachHomeIdle(page).then(
@@ -3264,17 +3627,17 @@ async function loaderSkipTouch(browser, step) {
     shown.length > 0 && !tiers.includes('high'),
     `a touch phone draws the loader below the high tier, without the floor's reflection (Ruling 31): tiers ${tiers.join(', ')} over ${shown.length} samples`,
   );
-  step.check(at.stage === 'engrave' && at.elapsed >= 3 && at.elapsed < 3.5, `a first visit plays the full show: 3 s in it engraves (stage ${at.stage} at ${at.elapsed.toFixed(2)} s)`);
+  step.check(at.stage === 'engrave' && at.elapsed >= CUT_AT && at.elapsed < CUT_AT + 2 * CUT_WITHIN, `a first visit plays the full show: ${CUT_AT} s in it engraves (stage ${at.stage} at ${at.elapsed.toFixed(2)} s)`);
   step.check(
     tapped && took !== null && took >= 0 && took <= SKIP_WITHIN_MS && starts.length > 0 && starts.every((prevented) => !prevented),
-    `a tap at 3 s lands on HOME_IDLE ${took} ms later (within ${SKIP_WITHIN_MS} ms; the stages ${stagesOf(record.samples).join(' → ')}), its touchstart not prevented (${JSON.stringify(starts)})`,
+    `a tap at ${CUT_AT} s lands on HOME_IDLE ${took} ms later (within ${SKIP_WITHIN_MS} ms; the stages ${stagesOf(record.samples).join(' → ')}), its touchstart not prevented (${JSON.stringify(starts)})`,
   );
   await takeCsp(page, step);
 
-  // A project page's full show: a tap on the menu's Contact link 3 s in still navigates.
+  // A project page's full show: a tap on the menu's Contact link CUT_AT s in still navigates.
   await page.evaluate((key) => localStorage.removeItem(key), LOADER_SEEN_KEY);
   await page.goto(`${BASE}/projects/funcial/?proof`, { waitUntil: 'load' });
-  await loaderAtLeast(page, 3);
+  await loaderAtLeast(page, CUT_AT);
   const project = (await debugOf(page)).loader;
   // On a phone the links are in the menu (option A, 2026-10-22): the tap on Menu is the one that skips, then Contact.
   await page.tap('.menu-toggle');
@@ -3285,13 +3648,13 @@ async function loaderSkipTouch(browser, step) {
   );
   const route = navigated ? (await debugOf(page)).route : null;
   step.check(
-    project.stage === 'engrave' && project.elapsed >= 3,
-    `a project page's first show plays in full: 3 s in it engraves (stage ${project.stage} at ${project.elapsed.toFixed(2)} s)`,
+    project.stage === 'engrave' && project.elapsed >= CUT_AT,
+    `a project page's first show plays in full: ${CUT_AT} s in it engraves (stage ${project.stage} at ${project.elapsed.toFixed(2)} s)`,
   );
-  step.check(navigated && route === 'contact', `a tap on Menu, then on its Contact link, 3 s in still navigates (${page.url()}, route ${route})`);
+  step.check(navigated && route === 'contact', `a tap on Menu, then on its Contact link, ${CUT_AT} s in still navigates (${page.url()}, route ${route})`);
   await takeCsp(page, step);
   await context.close();
-  return `a phone's loader at tier ${tiers.join('/')}; a tap at 3 s lands in ${took} ms; a tap on a header link during a project page's show navigates`;
+  return `a phone's loader at tier ${tiers.join('/')}; a tap at ${CUT_AT} s lands in ${took} ms; a tap on a header link during a project page's show navigates`;
 }
 
 /** How late the quick path may land after the load, s: its whole length, QUICK.home, and the brief's margin. */
@@ -3326,7 +3689,10 @@ async function quickLoader(browser, step) {
     `and HOME_IDLE comes ${took} ms after the load (the first moment past dark, ${loadedAt} ms), within QUICK.home + 0.5 s = ${QUICK_WITHIN * 1000} ms (ready at ${Math.round(again.readyAt)} ms, HOME_IDLE at ${Math.round(again.idleAt)} ms)`,
   );
   const whole = again.samples.filter((sample) => sample.stage !== null && sample.stage !== 'dark');
-  step.check(whole.length > 0 && whole.every((sample) => sample.cut === 5), `the name is engraved whole from the first frame it shows (cut ${[...new Set(whole.map((sample) => sample.cut))].join(' ')} of 5)`);
+  step.check(
+    whole.length > 0 && whole.every((sample) => sample.circle === 1 && sample.others === 0),
+    `the circle is cut whole from the first frame it shows, and nothing else is (circle ${[...new Set(whole.map((sample) => sample.circle))].join(' ')}, the B marks ${[...new Set(whole.map((sample) => sample.others))].join(' ')})`,
+  );
   await takeCsp(page, step);
   await context.close();
   return `a first visit: ${first.join(' → ')}; with the flag: ${stages.join(' → ')}, HOME_IDLE ${took} ms after the load (limit ${QUICK_WITHIN * 1000})`;
@@ -3353,7 +3719,10 @@ async function loaderReduced(browser, step) {
   const stages = stagesOf(samples);
   step.check(!stages.includes('engrave') && !stages.includes('open') && stages.at(-1) === 'home', `the opening never engraves: ${stages.join(' → ')} over ${samples.length} samples`);
   const shown = samples.filter((sample) => sample.stage !== null && sample.stage !== 'dark');
-  step.check(shown.length > 0 && shown.every((sample) => sample.cut === 5), `the name is whole whenever it shows (cut ${[...new Set(shown.map((sample) => sample.cut))].join(' ')} of 5)`);
+  step.check(
+    shown.length > 0 && shown.every((sample) => sample.circle === 1 && sample.others === 0),
+    `the circle is whole whenever it shows, and nothing else is cut (circle ${[...new Set(shown.map((sample) => sample.circle))].join(' ')}, the B marks ${[...new Set(shown.map((sample) => sample.others))].join(' ')})`,
+  );
   // From the moment the canvas shows (data-ready): before it, the Stage's camera stands where three made it, unseen.
   const framed = samples.filter((sample) => readyAt !== null && sample.t > readyAt && sample.stage !== null && sample.camera.fov > 0);
   const three = framed.length >= 3 ? [framed[0], framed[Math.floor(framed.length / 2)], framed.at(-1)] : framed;
@@ -3545,7 +3914,7 @@ async function heroFailsafe(browser, step) {
 /** Every proof hook the site has had; today the bridge is the only one. */
 const HOOK_NAMES = ['__needleDebug', '__needleScene', '__needleFrame', '__needleMounts', '__needleScrollRequest'];
 /** The fields of the bridge's state (src/debug/needleDebug.ts, NeedleDebugState), sorted. */
-const STATE_KEYS = ['camera', 'canvasMounts', 'chapter', 'contextLost', 'dpr', 'fps', 'loader', 'locale', 'needleAngle', 'phase', 'progress', 'route', 'target', 'threeD', 'tier', 'velocity'];
+const STATE_KEYS = ['camera', 'canvasMounts', 'chapter', 'contextLost', 'dpr', 'fps', 'loader', 'locale', 'needleAngle', 'phase', 'progress', 'route', 'scroll', 'target', 'threeD', 'tier', 'velocity'];
 /** The last chapter of the home scroll, and the place its story ends. */
 const LAST_UNIT = HOME_CHAPTERS.units.length - 1;
 const STORY_END = HOME_CHAPTERS.total;
@@ -3626,10 +3995,14 @@ async function bridge(browser, step) {
   step.check(at.route === 'home' && at.locale === 'nl' && at.threeD === true && at.contextLost === false && at.canvasMounts === 1, `route home, locale nl, 3D on, context there, one Stage (got ${JSON.stringify([at.route, at.locale, at.threeD, at.contextLost, at.canvasMounts])})`);
   step.check(['high', 'medium', 'low'].includes(at.tier) && at.dpr >= 1 && at.camera.fov > 0 && at.camera.position.length === 3, `a tier, a pixel ratio and a camera from the Stage (got ${at.tier}, dpr ${at.dpr}, ${JSON.stringify(at.camera)})`);
   step.check(
-    at.loader.stage === 'home' && at.loader.strokes.length === 5 && at.loader.strokes.every((share) => share === 1) && at.loader.elapsed > 0,
-    `landed, the opening stands at home with the five marks (two B letters, their bars, the circle) cut whole (got ${JSON.stringify(at.loader)})`,
+    at.loader.stage === 'home' && circleWhole(at.loader) && at.loader.elapsed > 0,
+    `landed, the opening stands at home with the circle cut whole and no B mark cut: the loader cuts the circle alone (got ${JSON.stringify(at.loader)})`,
   );
   step.check(Number.isFinite(at.needleAngle) && Math.abs(at.needleAngle) <= Math.PI * 2, `the needle's angle is reported, in radians (got ${at.needleAngle})`);
+  step.check(
+    JSON.stringify(at.scroll) === JSON.stringify({ u: 0, letters: 0, iris: 0, needleDip: 0 }),
+    `and the scroll's pose is reported, at the home before any scroll: u, letters, iris and needleDip all 0 (got ${JSON.stringify(at.scroll)})`,
+  );
 
   // .set puts the story somewhere at once: progress and target there, nothing moving, the chapter and the phase with it.
   await page.evaluate(() => window.__needleDebug.set({ progress: 2.5 }));
@@ -3872,6 +4245,7 @@ const STEPS = {
   'nav-focus': navFocus,
   lite,
   scroll,
+  'scroll-bob': scrollBob,
   keyboard,
   'reduced-motion': reducedMotion,
   loaded,
