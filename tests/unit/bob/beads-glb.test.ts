@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { inflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { BEADS_GLB_BUDGET, readGlbJson } from '~/engine/bob/glb';
+import { CAMERA_PATH } from '~/scene/bob/journey';
 
 /**
  * The beads' GLB (tools/blender/export_beads.py), read from the file itself:
@@ -524,7 +525,8 @@ describe('the beads GLB', () => {
  * object and its test points): a mirror aluminium platter, the floor of the hollow, that turns about its own axis;
  * its glowing track from TP1 to TP4 with the four test pins on it (the app's four layers: LOG, GAME LAYER, MONEY
  * RULES, VAULT); an upright lacquered abacus whose five beads (the same layers, and RESULT as the fifth) slide up
- * gold rods; and the phone, which is the bead's display (Ruling 14), standing on the platter. Code (Task 8) moves
+ * gold rods; and the phone, which is the bead's display (code finds every screen by `bead_<id>_display`), standing on
+ * the platter. Code (Task 8) moves
  * them by these names: the platter turns about its node's local +y, a pulse runs along the track's u, and each
  * abacus bead slides along funcial_abacus's local +y.
  */
@@ -638,7 +640,7 @@ describe("Funcial's object", () => {
     // Exactly four pins, TP1–TP4, and five beads: the four layers and RESULT, the fifth.
     expect(names.filter((n) => n.startsWith('funcial_pin_'))).toHaveLength(PINS);
     expect(names.filter((n) => n.startsWith('funcial_bead_'))).toHaveLength(ABACUS_BEADS);
-    // Ruling 14: the phone is the bead's display, with no node of its own.
+    // The phone is the bead's display, with no node of its own: code finds every bead's screen by its display's name.
     expect(names).not.toContain('funcial_phone');
     for (const name of [...UNDER_SLOT, ...BEAD_NAMES]) expect(frameOf(name).rotation).toHaveLength(4);
   });
@@ -667,7 +669,7 @@ describe("Funcial's object", () => {
     expect(wears('funcial_track')).toEqual(['bead:track']);
     for (const pin of PIN_NAMES) expect(wears(pin)).toEqual(['bead:gold']);
     expect(wears('funcial_abacus')).toEqual(['bead:gold', 'bead:lacquer']);
-    for (const bead of BEAD_NAMES) expect(wears(bead)).toEqual(['bead:abacus']);
+    for (const bead of BEAD_NAMES) expect(wears(bead)).toEqual(['bead:abacus', 'bead:gold']);
     // Mirror aluminium: near-neutral silver, metal, nearly smooth.
     const aluminium = material('bead:aluminium').pbrMetallicRoughness!;
     expect(aluminium.metallicFactor ?? 1).toBe(1);
@@ -729,11 +731,50 @@ describe("Funcial's object", () => {
     aluminium.forEach((p, k) => {
       if (radial(p) > HUB && Math.abs(p[1]) < 1e-6) expect(normals[k][1], `the floor's normal at ${p}`).toBeCloseTo(1, 5);
     });
-    // The hub's gold screws stand off the axis, so the turn shows.
-    for (const p of attribute('funcial_platter', 'POSITION', 'bead:gold')) {
-      expect(radial(p)).toBeGreaterThan(0.01);
-      expect(radial(p)).toBeLessThan(HUB);
-      expect(p[1]).toBeGreaterThan(0);
+    // The platter's gold is off its axis, so the turn shows: the hub's screws, and the index mark on the margin.
+    const gold = attribute('funcial_platter', 'POSITION', 'bead:gold');
+    for (const p of gold.filter((q) => radial(q) < HUB)) {
+      expect(radial(p), 'a screw').toBeGreaterThan(0.01);
+      expect(p[1], 'a screw').toBeGreaterThan(0);
+    }
+    const index = gold.filter((q) => radial(q) >= HUB);
+    expect(index.length, 'an index mark on the margin').toBeGreaterThan(0);
+    // A fine band over the margin: from inside the rim, over its edge and down it, a hair above the aluminium.
+    for (const p of index) {
+      expect(radial(p)).toBeGreaterThan(0.3);
+      expect(radial(p)).toBeLessThan(rim() + 0.002);
+      expect(p[1]).toBeGreaterThan(-0.013);
+      expect(p[1]).toBeLessThan(0.002);
+    }
+    expect(Math.max(...index.map(radial)), 'down the rim, seen from the front').toBeGreaterThan(rim());
+    expect(Math.min(...index.map((p) => p[1])), 'down the rim').toBeLessThan(-0.006);
+    const width = rim() - Math.min(...index.map(radial));
+    expect(width, 'fine across the floor').toBeLessThan(0.02);
+    // An arc of the margin, long enough to read as it runs round, all to one side: the turn moves it.
+    const centre = [mean(index, 0), 0, mean(index, 2)];
+    const span = Math.max(...index.map((p) => angleBetween(p, centre))) * 2;
+    expect(span).toBeGreaterThan(20);
+    expect(span).toBeLessThan(60);
+    expect(radial(centre), 'off the axis').toBeGreaterThan(0.25);
+  });
+
+  it('turns its index mark clear of the track, the pins and every foot on the floor', () => {
+    const platter = frameOf('funcial_platter');
+    const inner = Math.min(...attribute('funcial_platter', 'POSITION', 'bead:gold').filter((q) => radial(q) >= HUB).map(radial));
+    expect(inner, "the index mark's inner edge, on the platter").toBeLessThan(rim());
+    // The track and the pins stand inside the circle the mark runs round.
+    const trackOut = Math.max(...attribute('funcial_track', 'POSITION').map(radial));
+    const pinOut = Math.max(...attribute('funcial_pin_1', 'POSITION').map(radial));
+    for (const pin of ['funcial_pin_1', 'funcial_pin_2', 'funcial_pin_3', 'funcial_pin_4'])
+      expect(radial(toLocal(platter, frameOf(pin).translation)) + pinOut, pin).toBeLessThan(inner);
+    expect(trackOut).toBeLessThan(inner);
+    // Every point of the abacus and the phone at or under the floor (their feet) is inside it too.
+    for (const name of ['funcial_abacus', 'bead_funcial_display']) {
+      const feet = placed(name)
+        .map((p) => toLocal(platter, p))
+        .filter((q) => q[1] < 0.001);
+      expect(feet.length, `${name}'s foot`).toBeGreaterThan(0);
+      expect(Math.max(...feet.map(radial)), `${name}'s foot inside the mark's circle`).toBeLessThan(inner);
     }
   });
 
@@ -826,8 +867,15 @@ describe("Funcial's object", () => {
     const frame = attribute('funcial_abacus', 'POSITION', 'bead:lacquer');
     const levels = [...new Set(frame.map((p) => Number(p[1].toFixed(4))))].sort((a, b) => a - b);
     expect(levels, "the frame's foot, its bottom rail's top, its top rail's underside and its top").toHaveLength(4);
-    const shape = attribute(BEAD_NAMES[0], 'POSITION');
+    const shape = allRows(BEAD_NAMES[0], 'POSITION');
     const [low, high] = [Math.min(...shape.map((p) => p[1])), Math.max(...shape.map((p) => p[1]))];
+    // Purple lacquer with gold leaf (the discovery's abacus): a fine gold band round each bead's middle.
+    const band = attribute(BEAD_NAMES[0], 'POSITION', 'bead:gold');
+    for (const p of band) expect(Math.abs(p[1]), 'round the middle').toBeLessThan(0.3 * (high - low));
+    const bandTall = Math.max(...band.map((p) => p[1])) - Math.min(...band.map((p) => p[1]));
+    expect(bandTall, 'fine').toBeGreaterThan(0.1 * (high - low));
+    expect(bandTall, 'fine').toBeLessThan(0.3 * (high - low));
+    expect(Math.max(...band.map(radial)), 'at the widest').toBeCloseTo(Math.max(...shape.map(radial)), 4);
     expect(at[0][1] + low - levels[1]).toBeGreaterThanOrEqual(-1e-4);
     expect(at[0][1] + low - levels[1]).toBeLessThan(0.002);
     expect(levels[2] - (at[0][1] + ABACUS_TRAVEL + high)).toBeGreaterThanOrEqual(-1e-4);
@@ -849,8 +897,8 @@ describe("Funcial's object", () => {
 
   it("keeps the bead's inner light from mirroring in the phone's glossy front", () => {
     // On the axis above the slot, the light's mirror image in the phone's front fell on its top-left edge, a hot spot.
-    // Seen along the porthole's axis and from the bead shot's camera (journey.ts: offset (-0.8, 1.0, 6.2)), the
-    // point of the front's plane that mirrors the light must lie clear of the phone.
+    // Seen along the porthole's axis and from the bead shot's camera (CAMERA_PATH.bead.offset), the point of the
+    // front's plane that mirrors the light must lie clear of the phone.
     const glass = placed('bead_funcial_display', 'bead:display');
     const f = frameOf('bead_funcial_display');
     const n = axisOf(f, [0, 0, 1]);
@@ -860,10 +908,7 @@ describe("Funcial's object", () => {
       n
     );
     const xs = glass.map((p) => p[0]);
-    for (const view of [
-      [0, 0, 1],
-      [-0.8, 1, 6.2]
-    ]) {
+    for (const view of [[0, 0, 1], [...CAMERA_PATH.bead.offset]]) {
       const c = view.map((v) => v / length(view));
       const spot = light.map((l, k) => l - 2 * d * n[k] + (d / dot(c, n)) * c[k]);
       const outside = Math.max(Math.min(...xs) - spot[0], spot[0] - Math.max(...xs));

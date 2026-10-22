@@ -45,8 +45,9 @@
 # - `bead_<id>_object`: an empty on the porthole's axis inside the cavity, its axes the bead's;
 #   tools/blender/bead_funcial.py, bead_jontai.py and bead_cookies.py fill it (Tasks 5-7), and an
 #   absent script leaves it empty. Each script has `build(kit)`; `kit` is the namespace made in
-#   `fill_slots` (the bead's id, root, slot and display, the four materials, `link`, and CAVITY,
-#   OPENING and SLOT_RADIUS, the room the object has: within 0.5 of the axis, behind the glass).
+#   `fill_slots` (the bead's id, root, slot, display and inner light, the four materials, `link`,
+#   and CAVITY, OPENING and SLOT_RADIUS, the room the object has: within 0.5 of the axis, behind
+#   the glass).
 # - `bead_<id>_inner`: a warm point light in the cavity, in front of the slot, intensity 0.25.
 # - Materials:
 #   - `bead:lacquer`: deep purple, roughness 0.35. The baked vein mask (white veins on black) is
@@ -138,8 +139,8 @@ VEIN_EDGE = (0.008, 0.02)
 VEIN_FADE = (0.35, 1.0)
 BAKE_SAMPLES = 16
 BAKE_MARGIN = 8
-# The cavity's ambient occlusion (Ruling 13: on the site the room's light reaches into the hollow
-# with nothing to stop it), baked against the body alone and packed in the metal map's red.
+# The cavity's ambient occlusion (on the site the room's light reaches into the hollow with
+# nothing to stop it), baked against the body alone and packed in the metal map's red.
 AO_SAMPLES = 256
 AO_DISTANCE = 10.0
 
@@ -746,8 +747,19 @@ def build():
         ld.transmission_factor = 0.0
         inner = link(bpy.data.objects.new(f"bead_{bid}_inner", ld), root)
         inner.location = INNER["location"]
-        beads[bid] = dict(spec=spec, root=root, body=body, display=display, slot=slot, inner=inner, screen=size)
+        beads[bid] = dict(spec=spec, root=root, body=body, display=display, slot=slot, inner=inner, screen=size,
+                          tall=mesh_height(dmesh))
     return beads, beads[BEADS[0]["id"]]["body"]
+
+
+def mesh_height(me):
+    zs = [v.co.z for v in me.vertices]
+    return max(zs) - min(zs)
+
+
+def display_scale(b):
+    """How much an object script has scaled the bead's display mesh since it was made (1 if not at all)."""
+    return mesh_height(b["display"].data) / b["tall"]
 
 
 def dress(beads, images):
@@ -781,7 +793,8 @@ def fill_slots(beads, mats):
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         kit = types.SimpleNamespace(
-            id=bid, root=b["root"], slot=b["slot"], display=b["display"], materials=mats, link=link,
+            id=bid, root=b["root"], slot=b["slot"], display=b["display"], inner=b["inner"],
+            materials=mats, link=link,
             CAVITY=dict(radius=CAVITY_R, centre_y=CAVITY_Y), OPENING=dict(radius=OPEN_R, y=OPEN_Y),
             SLOT_RADIUS=SLOT_RADIUS, GOLD=GOLD, GOLD_EMIT=GOLD_EMIT)
         module.build(kit)
@@ -948,7 +961,8 @@ def main():
         print("EXPORT_BEADS", path, os.path.getsize(path), "bytes")
         print("EXPORT_BEADS maps", {k: os.path.getsize(bpy.path.abspath(im.filepath)) for k, im in images.items()}, "bytes;", figures)
         print("EXPORT_BEADS meshes (verts, faces):", counts)
-        print("EXPORT_BEADS screens (w, h):", {bid: tuple(round(v, 4) for v in b["screen"]) for bid, b in beads.items()})
+        screens = {bid: tuple(round(v * display_scale(b), 4) for v in b["screen"]) for bid, b in beads.items()}
+        print("EXPORT_BEADS screens (w, h):", screens)
         print("EXPORT_BEADS objects filled:", filled or "none")
         if still:
             for out in render_stills(beads, os.path.abspath(still), only, angle):
