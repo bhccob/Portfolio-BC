@@ -5,9 +5,9 @@
  * glass's underside; the circuit traces under it; a gold ring at the hole's rim; the faint violet haze; the drifting
  * gold dust; and the build's own addition, a soft beam of light falling from the opening (spec §2.4: "the build adds
  * depth layers of mist and a soft beam of light falling from the opening"). The preview's haze is a volume and its
- * dust a scatter of emissive spheres; here the haze is layered soft sprites (as the smoke over the glass is,
- * ~/engine/bob/build/smoke) and the dust is one `Points` draw. No React: the Void (Task 11) mounts the group, poses
- * the light from the journey and drifts the haze and the dust with `setTime`.
+ * dust a scatter of emissive spheres; here the haze is layered soft sprites (the shared haze,
+ * ~/engine/bob/build/haze, which the smoke over the glass is too) and the dust is one `Points` draw. No React: the
+ * Void (Task 11) mounts the group, poses the light from the journey and drifts the haze and the dust with `setTime`.
  *
  * The void is the background and the beads are the focus (Bob: dark, calm, one focal point), so everything here
  * is faint, and nothing in it writes depth where a bead could be hidden by it. The only parts that write depth
@@ -20,12 +20,13 @@
  */
 import * as THREE from 'three';
 import { GLASS_LOOK } from '~/engine/bob/build/glassFloor';
+import { buildHaze, clamp01, mix } from '~/engine/bob/build/haze';
 import { buildTraces, TRACES_RENDER_ORDER } from '~/engine/bob/build/traces';
 import { traceLayout } from '~/engine/bob/traces';
 import { WORDMARK } from '~/engine/bob/wordmark';
 import { palette } from '~/engine/palette';
-import { lowerTier, type QualityTier } from '~/engine/quality';
-import { glowTexture, random, smokeTexture } from '~/engine/studio/noise';
+import type { QualityTier } from '~/engine/quality';
+import { glowTexture, random } from '~/engine/studio/noise';
 
 /**
  * How the void looks and moves, in metres and seconds. These are starting values, from the preview and then taken
@@ -45,8 +46,8 @@ import { glowTexture, random, smokeTexture } from '~/engine/studio/noise';
  *   `drop` under the ceiling, in the gold of the lip round the home's opening (GLASS_LOOK.lip: colour, emissive).
  * - `mist`: `layers` of sprites in the haze (`colour` times `dim`), `puffs` each, the high tier's three layers
  *   at the depths `z` (z is the camera's way forward in the void: behind the farthest bead, at z -13, so the haze is
- *   the beads' backdrop and never lies over one), the puffs across `x` and within `y` (bottom, top, under the
- *   ceiling), `width` by `height` each (a layer far wider than tall, not a ball), `opacity` each at light 1 (faint),
+ *   the beads' backdrop and never lies over one), the puffs across `box.x` and within `box.y` (floor, top, under
+ *   the ceiling), `width` by `height` each (a layer far wider than tall, not a ball), `opacity` each at light 1 (faint),
  *   swaying `sway` along x and z once round every `period` seconds, and breathing up to `breathe` of their
  *   opacity down and back twice a period. Medium keeps the two nearest layers; low none. `seed`: the scatter.
  * - `dust`: gold points, `count` by tier, the first of one seeded scatter in `box` (the preview's, taken in the
@@ -81,8 +82,7 @@ export const VOID_LOOK = {
     layers: { high: 3, medium: 2, low: 0 },
     puffs: 3,
     z: [-15, -23, -33],
-    x: 24,
-    y: [-14, -3],
+    box: { x: 24, y: [-14, -3] },
     width: [18, 30],
     height: [6, 10],
     opacity: [0.05, 0.1],
@@ -150,29 +150,6 @@ export interface VoidModel {
   dispose(): void;
 }
 
-/** One puff of mist: where it rests, its size and opacity, and its phases round the period. */
-interface Puff {
-  layer: number;
-  x: number;
-  y: number;
-  z: number;
-  width: number;
-  height: number;
-  opacity: number;
-  rotation: number;
-  phase: [x: number, z: number, breathe: number];
-}
-
-/** `x` held to [0, 1]; NaN reads as 0. */
-function clamp01(x: number): number {
-  return x > 0 ? (x < 1 ? x : 1) : 0;
-}
-
-/** `a` and `b` mixed: `a` at `t` = 0 and `b` at `t` = 1. */
-function mix(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
-}
-
 /** A number as a GLSL float literal, to three places. */
 function glsl(n: number): string {
   return n.toFixed(3);
@@ -181,36 +158,6 @@ function glsl(n: number): string {
 /** Nothing: the void's objects ignore the pointer, so a bead behind the haze is still the one that is picked. */
 function ignoreRays(object: THREE.Object3D): void {
   object.raycast = () => {};
-}
-
-/**
- * Every puff of the full set (the high tier's layers), seeded. Each layer lies at its own depth and its puffs share
- * the width between them, each somewhere in its own share, so a layer covers the width without lumps or gaps; a
- * puff's sway is taken off the edges first, so it never drifts out.
- */
-function puffs(): Puff[] {
-  const look = VOID_LOOK.mist;
-  const next = random(look.seed);
-  const reach = look.x - look.sway.x;
-  const span = look.y[1] - look.y[0];
-  const out: Puff[] = [];
-  for (let layer = 0; layer < look.layers.high; layer++) {
-    for (let j = 0; j < look.puffs; j++) {
-      const height = mix(look.height[0], look.height[1], next());
-      out.push({
-        layer,
-        x: -reach + ((j + 0.2 + 0.6 * next()) / look.puffs) * 2 * reach,
-        y: look.y[0] + height / 2 + next() * (span - height),
-        z: look.z[layer]!,
-        width: mix(look.width[0], look.width[1], next()),
-        height,
-        opacity: mix(look.opacity[0], look.opacity[1], next()),
-        rotation: next() < 0.5 ? 0 : Math.PI,
-        phase: [next() * 2 * Math.PI, next() * 2 * Math.PI, next() * 2 * Math.PI]
-      });
-    }
-  }
-  return out;
 }
 
 /** The distance from the point (`x`, `y`, `z`) to the segment from `a` to `b`. */
@@ -285,8 +232,8 @@ function patchBeam(shader: { vertexShader: string; fragmentShader: string }): vo
 
 /**
  * Builds the void for `tier`, dark (no beam, no mist) and at time 0. The mist, the dust and the beam test depth and
- * write none: a bead hides the haze behind it, and the haze in front lies faintly over it, so nothing in the void can
- * hide a bead.
+ * write none, and draw before the beads' glass (`VOID_HAZE_ORDER`): an opaque bead hides the haze behind it, a bead's
+ * glass is painted over the haze whether it is behind or in front, and nothing in the void can hide a bead.
  */
 export function buildVoid(tier: QualityTier): VoidModel {
   const look = VOID_LOOK;
@@ -335,36 +282,21 @@ export function buildVoid(tier: QualityTier): VoidModel {
   ring.position.y = look.ceiling.y - look.ring.drop;
   ignoreRays(ring);
 
-  // The mist: layers of soft sprites, the tier's share of the full set. The low tier has none, and so no texture.
-  const mist = new THREE.Group();
-  mist.name = 'void:mist';
-  mist.renderOrder = VOID_HAZE_ORDER;
-  let standing: QualityTier = tier;
-  let kept = puffs().filter((puff) => puff.layer < look.mist.layers[tier]);
-  let mistTexture: THREE.DataTexture | undefined = kept.length > 0 ? smokeTexture(128, 33) : undefined;
-  const mistColour = new THREE.Color(look.mist.colour).multiplyScalar(look.mist.dim);
-  let sprites = kept.map((puff, i) => {
-    const material = new THREE.SpriteMaterial({
-      name: `void:mist:${i}`,
-      map: mistTexture,
-      color: mistColour,
-      opacity: 0,
-      rotation: puff.rotation,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      depthTest: true,
-      fog: false
-    });
-    const sprite = new THREE.Sprite(material);
-    sprite.name = `void:mist:${i}`;
-    sprite.scale.set(puff.width, puff.height, 1);
-    sprite.userData.layer = puff.layer;
-    sprite.visible = false;
-    ignoreRays(sprite);
-    mist.add(sprite);
-    return sprite;
-  });
+  // The mist: the shared haze (build/haze.ts) of the void's look; the low tier keeps no layer and so makes no texture.
+  // Its `order` is its group's `renderOrder`, which three sorts ahead of an object's own (the dust's and the beam's are).
+  const mist = buildHaze(
+    {
+      name: 'void:mist',
+      look: look.mist,
+      depths: look.mist.z,
+      keeps: (on, layer) => layer < look.mist.layers[on],
+      textureSeed: 33,
+      order: VOID_HAZE_ORDER,
+      level: 0,
+      hideAtZero: true
+    },
+    tier
+  );
 
   // The dust: one `Points` draw of the tier's points, the lower tiers' drawn by range, not rebuilt.
   const dustCount = look.dust.count[tier];
@@ -390,6 +322,7 @@ export function buildVoid(tier: QualityTier): VoidModel {
   });
   const points = new THREE.Points(dustGeometry, dustMaterial);
   points.name = 'void:dust';
+  // An object's own order (the mist's is its group's, which sorts ahead of this one): see `VOID_HAZE_ORDER`.
   points.renderOrder = VOID_HAZE_ORDER;
   // The drift moves every point, and the cloud fills the void: it is not culled by a box taken before they moved.
   points.frustumCulled = false;
@@ -414,33 +347,20 @@ export function buildVoid(tier: QualityTier): VoidModel {
   const beam = new THREE.Mesh(beamGeometry, beamMaterial);
   beam.name = 'void:beam';
   beam.position.y = look.ceiling.y;
+  // An object's own order, as the dust's (the mist's is its group's).
   beam.renderOrder = VOID_HAZE_ORDER;
   beam.visible = false;
   ignoreRays(beam);
 
-  group.add(ceiling, traces.group, ring, mist, points, beam);
+  group.add(ceiling, traces.group, ring, mist.group, points, beam);
 
   let beamLevel = 0;
-  let mistLevel = 0;
   let seconds = 0;
-  const mistOmega = (2 * Math.PI) / look.mist.period;
   const dustOmega = (2 * Math.PI) / look.dust.drift.period;
   /** A drifting point strays at most its amplitude, a share of it on each axis. */
   const perAxis = 1 / Math.sqrt(3);
 
   // Run on every frame the void draws: indexed loops and indexed reads, so they make no iterator.
-  const poseMist = (): void => {
-    const turn = mistOmega * seconds;
-    for (let i = 0; i < sprites.length; i++) {
-      const puff = kept[i]!;
-      const phase = puff.phase;
-      sprites[i]!.position.set(puff.x + Math.sin(turn + phase[0]) * look.mist.sway.x, puff.y, puff.z + Math.sin(turn + phase[1]) * look.mist.sway.z);
-      // Down by at most `breathe` of the puff's opacity and back, twice round the period.
-      const breath = 1 - look.mist.breathe * 0.5 * (1 - Math.sin(2 * turn + phase[2]));
-      sprites[i]!.material.opacity = puff.opacity * breath * mistLevel;
-      sprites[i]!.visible = mistLevel > 0;
-    }
-  };
   const poseDust = (): void => {
     const turn = dustOmega * seconds;
     const out = dustPositions.array as Float32Array;
@@ -458,7 +378,6 @@ export function buildVoid(tier: QualityTier): VoidModel {
     beam.visible = beamLevel > 0;
   };
   dustGeometry.setDrawRange(0, drawn);
-  poseMist();
   poseDust();
   poseBeam();
 
@@ -466,41 +385,24 @@ export function buildVoid(tier: QualityTier): VoidModel {
     group,
     setLight(beamIn, mistIn) {
       beamLevel = clamp01(beamIn);
-      mistLevel = clamp01(mistIn);
       poseBeam();
-      poseMist();
+      mist.setLevel(mistIn);
     },
     setTime(t) {
       seconds = Number.isFinite(t) ? t : 0;
-      poseMist();
+      mist.setTime(t);
       poseDust();
     },
     setTier(next) {
-      const to = lowerTier(standing, next);
-      if (to === standing) return;
-      standing = to;
-      const stay = kept.map((puff) => puff.layer < look.mist.layers[to]);
-      for (let i = 0; i < sprites.length; i++) {
-        if (stay[i]) continue;
-        mist.remove(sprites[i]!);
-        sprites[i]!.material.dispose();
-      }
-      sprites = sprites.filter((_, i) => stay[i]);
-      kept = kept.filter((_, i) => stay[i]);
-      if (sprites.length === 0) {
-        mistTexture?.dispose();
-        mistTexture = undefined;
-      }
+      const to = mist.setTier(next);
       drawn = Math.min(drawn, look.dust.count[to]);
       dustGeometry.setDrawRange(0, drawn);
-      poseMist();
     },
     dispose() {
       traces.dispose();
       for (const geometry of [ceilingGeometry, ringGeometry, dustGeometry, beamGeometry]) geometry.dispose();
       for (const material of [ceilingMaterial, ringMaterial, dustMaterial, beamMaterial]) material.dispose();
-      for (const sprite of sprites) sprite.material.dispose();
-      mistTexture?.dispose();
+      mist.dispose();
       dustTexture.dispose();
     }
   };

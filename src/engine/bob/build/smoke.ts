@@ -4,16 +4,16 @@
  * slowly to watch (spec §2: "low violet smoke drifts over it"; §6: layered
  * soft textures in place of the preview's volume). It ports v3's mist
  * (milestone 2's build/mist.ts) to the preview's smoke box (`bob_smoke` in
- * tools/blender/bob_build.py: 30 by 26 by 1.7 over the glass). Its texture is
- * the studio's smoke (~/engine/studio/noise), made on the CPU with no canvas,
- * so the node tests build it. No React: the Opening (src/scene/bob/Opening.tsx)
- * owns it and drifts it through the loader, and the Home (Home.tsx there)
- * drifts it with the home's idle motion.
+ * tools/blender/bob_build.py: 30 by 26 by 1.7 over the glass). The layers, the
+ * drift and the tiers are the shared haze (build/haze.ts), which the void's mist
+ * is too; what is the smoke's own is here, its look and its box. No React: the
+ * Opening (src/scene/bob/Opening.tsx) owns it and drifts it through the loader,
+ * and the Home (Home.tsx there) drifts it with the home's idle motion.
  */
-import * as THREE from 'three';
-import { random, smokeTexture } from '~/engine/studio/noise';
+import type * as THREE from 'three';
+import { buildHaze, mix } from '~/engine/bob/build/haze';
 import { palette } from '~/engine/palette';
-import { lowerTier, type QualityTier } from '~/engine/quality';
+import type { QualityTier } from '~/engine/quality';
 
 /**
  * How the smoke looks and drifts, in metres and seconds. Task 12 tuned the
@@ -83,150 +83,44 @@ export interface SmokeModel {
   dispose(): void;
 }
 
-/** One puff: where it rests, its size and opacity, and its phases round the period. */
-interface Puff {
-  layer: number;
-  x: number;
-  y: number;
-  z: number;
-  width: number;
-  height: number;
-  opacity: number;
-  /** 0 or a half turn, so neighbours do not show the same billow the same way up; never more, so a layer stays level. */
-  rotation: number;
-  phase: [x: number, z: number, breathe: number];
-}
-
-/** `x` held to [0, 1]; NaN reads as 0. */
-function clamp01(x: number): number {
-  return x > 0 ? (x < 1 ? x : 1) : 0;
-}
-
-/** `a` and `b` mixed: `a` at `t` = 0 and `b` at `t` = 1. */
-function mix(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
-}
-
 /**
- * Every puff of the full set, seeded. Each layer's depth is fixed and its
- * puffs share out the width between them, each somewhere in its own share, so
- * the smoke covers the box without lumps or gaps; a puff's sway is taken off
- * the box's edges first, so it never drifts out.
+ * The depth of each layer of the full set: the layers spread evenly from the front of the box to its back, a layer's
+ * sway taken off both ends so a puff never drifts out of the box.
  */
-function puffs(): Puff[] {
+function depths(): number[] {
   const look = SMOKE_LOOK;
-  const next = random(look.seed);
   const front = look.box.z[0] - look.sway.z;
   const back = look.box.z[1] + look.sway.z;
-  const reach = look.box.x - look.sway.x;
-  const top = look.box.y[1] - look.box.y[0];
-  const out: Puff[] = [];
-  for (let layer = 0; layer < look.layers; layer++) {
-    const z = mix(front, back, layer / (look.layers - 1));
-    for (let j = 0; j < look.puffs; j++) {
-      const height = mix(look.height[0], look.height[1], next());
-      out.push({
-        layer,
-        x: -reach + ((j + 0.2 + 0.6 * next()) / look.puffs) * 2 * reach,
-        y: look.box.y[0] + height / 2 + next() * (top - height),
-        z,
-        width: mix(look.width[0], look.width[1], next()),
-        height,
-        opacity: mix(look.opacity[0], look.opacity[1], next()),
-        rotation: next() < 0.5 ? 0 : Math.PI,
-        phase: [next() * 2 * Math.PI, next() * 2 * Math.PI, next() * 2 * Math.PI]
-      });
-    }
-  }
-  return out;
+  return Array.from({ length: look.layers }, (_, layer) => mix(front, back, layer / (look.layers - 1)));
 }
 
 /**
- * Builds the smoke for `tier` at density 1, at time 0. The puffs test depth
- * and write none: the compass and the probe hide the haze behind them, and
- * the haze in front lies over them; no puff reaches under the glass or into
- * the compass, so none is cut by them into a hard line. They are kept out of
- * the fog, which would add its colour to an additive puff rather than fade it.
+ * Builds the smoke for `tier` at density 1, at time 0: a haze (build/haze.ts) of the preview's smoke box. The puffs
+ * test depth and write none: the compass and the probe hide the haze behind them, and the haze in front lies over
+ * them; no puff reaches under the glass or into the compass, so none is cut by them into a hard line. They are kept
+ * out of the fog, which would add its colour to an additive puff rather than fade it. The low tier keeps every other
+ * layer from the front.
  */
 export function buildSmoke(tier: QualityTier): SmokeModel {
-  const look = SMOKE_LOOK;
-  const group = new THREE.Group();
-  group.name = 'smoke';
-  group.renderOrder = SMOKE_RENDER_ORDER;
-  const texture = smokeTexture(128, 27);
-  const colour = new THREE.Color(look.colour).multiplyScalar(look.dim);
-  /** Whether a tier keeps a puff: the low tier, every other layer from the front. */
-  const keeps = (on: QualityTier, puff: Puff): boolean => on !== 'low' || puff.layer % 2 === 0;
-  let standing: QualityTier = tier;
-  let kept = puffs().filter((puff) => keeps(tier, puff));
-  const omega = (2 * Math.PI) / look.period;
-
-  let sprites = kept.map((puff, i) => {
-    const material = new THREE.SpriteMaterial({
-      name: `smoke:${i}`,
-      map: texture,
-      color: colour,
-      opacity: puff.opacity,
-      rotation: puff.rotation,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      depthTest: true,
-      fog: false
-    });
-    const sprite = new THREE.Sprite(material);
-    sprite.name = `smoke:${i}`;
-    sprite.scale.set(puff.width, puff.height, 1);
-    sprite.userData.layer = puff.layer;
-    sprite.raycast = () => {};
-    group.add(sprite);
-    return sprite;
-  });
-
-  let density = 1;
-  let seconds = 0;
-
-  // Run on every frame the scene draws: an indexed loop and indexed reads, so it makes no iterator.
-  const pose = (): void => {
-    const turn = omega * seconds;
-    for (let i = 0; i < sprites.length; i++) {
-      const puff = kept[i];
-      const phase = puff.phase;
-      sprites[i].position.set(puff.x + Math.sin(turn + phase[0]) * look.sway.x, puff.y, puff.z + Math.sin(turn + phase[1]) * look.sway.z);
-      // Down by at most `breathe` of the puff's opacity and back, twice round the period.
-      const breath = 1 - look.breathe * 0.5 * (1 - Math.sin(2 * turn + phase[2]));
-      sprites[i].material.opacity = puff.opacity * breath * density;
-    }
-  };
-  pose();
-
+  const haze = buildHaze(
+    {
+      name: 'smoke',
+      look: SMOKE_LOOK,
+      depths: depths(),
+      keeps: (on, layer) => on !== 'low' || layer % 2 === 0,
+      textureSeed: 27,
+      order: SMOKE_RENDER_ORDER,
+      level: 1
+    },
+    tier
+  );
   return {
-    group,
-    setDensity(level) {
-      density = clamp01(level);
-      pose();
-    },
-    setTime(time) {
-      seconds = Number.isFinite(time) ? time : 0;
-      pose();
-    },
+    group: haze.group,
+    setDensity: haze.setLevel,
+    setTime: haze.setTime,
     setTier(next) {
-      const to = lowerTier(standing, next);
-      if (to === standing) return;
-      standing = to;
-      const stay = kept.map((puff) => keeps(to, puff));
-      for (let i = 0; i < sprites.length; i++) {
-        if (stay[i]) continue;
-        group.remove(sprites[i]);
-        sprites[i].material.dispose();
-      }
-      sprites = sprites.filter((_, i) => stay[i]);
-      kept = kept.filter((_, i) => stay[i]);
-      pose();
+      haze.setTier(next);
     },
-    dispose() {
-      for (const sprite of sprites) sprite.material.dispose();
-      texture.dispose();
-    }
+    dispose: haze.dispose
   };
 }
