@@ -19,12 +19,17 @@
  * which also rises the camera over the whole 300-362 on an ease_io) and the
  * letters' light 318-358 (tools/blender/bob_reveal_b.py), each as a share of
  * the 62 frames.
+ *
+ * The rise is the first stretch of the home's journey (src/scene/bob/journey.ts,
+ * `journeyPoseAt`), which takes `scrollPoseAt(riseAt(progress))` as it is up to
+ * progress 1 and goes on from the top shot into the dive. Three small helpers
+ * here (`mix`, `smoothstep`, `through`) and `Span` are the journey's too.
  */
 import { type CameraShot, FRAMES, homeShotFor, topShotFor } from '~/engine/bob/shots';
 import { HOME_CHAPTERS } from '~/state/chapters';
 
-/** A stretch of the rise, as the shares `[from, to]` of it. */
-type Span = readonly [from: number, to: number];
+/** A stretch of the rise (or of one of the journey's stretches), as the shares `[from, to]` of it. */
+export type Span = readonly [from: number, to: number];
 
 /**
  * Where each part of the pose moves, as shares of the rise. The camera has the
@@ -53,18 +58,18 @@ function clamp01(x: number): number {
 }
 
 /** `a` and `b` mixed: `a` at `t` = 0 and `b` at `t` = 1. */
-function mix(a: number, b: number, t: number): number {
+export function mix(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
 /** Smoothstep, held to 0..1: leaves 0 and arrives at 1 with no speed. */
-function smoothstep(t: number): number {
+export function smoothstep(t: number): number {
   const x = clamp01(t);
   return x * x * (3 - 2 * x);
 }
 
 /** How far `u` is through `span`, 0 to 1, linear. */
-function through(u: number, [from, to]: Span): number {
+export function through(u: number, [from, to]: Span): number {
   return clamp01((u - from) / (to - from));
 }
 
