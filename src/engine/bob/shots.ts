@@ -75,7 +75,11 @@ export interface ShotFrame {
  *   at 12.6 m, looking down at its middle. Its half-width of 4.6 holds the
  *   whole name across the picture: the B letters' outer edges, at x = +-4.25,
  *   sit at 0.92 of the screen's half-width. `topShotFor` adds the up that makes
- *   the far side of the glass the top of the screen.
+ *   the far side of the glass the top of the screen. Its `minVfov` of 18 keeps
+ *   the letters' tops and feet (z +-1.7) inside NDC y 0.85, clear of the
+ *   header, on a screen wider than about 2.3:1, where the width fit alone
+ *   would fall below it (tan(vfov / 2) = 1.7 / (0.85 x 12.6)); at 16:9 the
+ *   width fit is 23.2 degrees and nothing changes.
  * - `home`: the home on every screen, close in on the compass, at 8.8 m and 13
  *   degrees above, looking at the compass's centre. Its half-width of 3.2 puts
  *   the centre of each B at the edge of the screen: half of each B is off it.
@@ -90,7 +94,7 @@ export interface ShotFrame {
  */
 export const FRAMES = {
   wide: { distance: 11.2, elevation: 19, targetY: 0.1, halfWidth: 4.0 },
-  top: { distance: 12.6, elevation: 90, targetY: 0, halfWidth: 4.6 },
+  top: { distance: 12.6, elevation: 90, targetY: 0, halfWidth: 4.6, minVfov: 18 },
   home: { distance: 8.8, elevation: 13, targetY: 0.55, halfWidth: 3.2, minVfov: 22.5 }
 } as const;
 
@@ -154,7 +158,7 @@ export function wideShotFor(aspect: number): CameraShot {
 /**
  * The top shot for a screen of this aspect: straight down onto the middle of
  * the glass, (0, 0, 0), the whole name across the picture. It is `shotFor` of
- * the `top` frame (the width fit, at most `MAX_VFOV`, the camera standing back
+ * the `top` frame (the width fit, at least its `minVfov` of 18 and at most `MAX_VFOV`, the camera standing back
  * past it, so a phone stands further off than a laptop) with two things added:
  * - `up: [0, 0, -1]`: the far side of the glass (-z) is the top of the screen,
  *   so the B letters read upright and the left one is on the left. Looking

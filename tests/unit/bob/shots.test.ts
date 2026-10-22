@@ -170,7 +170,7 @@ describe('the top shot', () => {
   });
 
   it('looks down onto the middle of the glass from straight above, its frame as the brief has it', () => {
-    expect(FRAMES.top).toEqual({ distance: 12.6, elevation: 90, targetY: 0, halfWidth: 4.6 });
+    expect(FRAMES.top).toEqual({ distance: 12.6, elevation: 90, targetY: 0, halfWidth: 4.6, minVfov: 18 });
     const shot = topShotFor(16 / 9);
     expect(shot.target).toEqual([0, 0, 0]);
     expect(shot.position[1]).toBeCloseTo(12.6, 9);
@@ -189,11 +189,38 @@ describe('the top shot', () => {
     for (const aspect of [16 / 9, PHONE]) expect(topShotFor(aspect)).toEqual({ ...shotFor(FRAMES.top, aspect), up: [0, 0, -1], sway: 0 });
   });
 
-  it('puts the half-width of the name, at the glass, on the screen edge on every screen', () => {
-    for (const aspect of [0.3, PHONE, 1, 16 / 10, 16 / 9, 21 / 9]) {
+  it('puts the half-width of the name, at the glass, on the screen edge on every screen the width fit decides', () => {
+    for (const aspect of [0.3, PHONE, 1, 16 / 10, 16 / 9, 2.2]) {
       const shot = topShotFor(aspect);
       expect(project(shot, aspect, [FRAMES.top.halfWidth, 0, 0], [0, 0, -1])[0], `${aspect}`).toBeCloseTo(1, 9);
       expect(project(shot, aspect, [-FRAMES.top.halfWidth, 0, 0], [0, 0, -1])[0], `${aspect}`).toBeCloseTo(-1, 9);
+    }
+  });
+
+  it('keeps its field at 18 degrees or more, so a screen wider than about 2.3:1 shows more than the half-width each side', () => {
+    expect(FRAMES.top).toMatchObject({ minVfov: 18 });
+    for (const aspect of [0.3, PHONE, 1, 16 / 9, 2.2, 21 / 9, 3, 32 / 9]) expect(topShotFor(aspect).fov, `${aspect}`).toBeGreaterThanOrEqual(18 - 1e-9);
+    // At 16:9 the width fit is 23.2 degrees: the floor does not bind, the shot is as it was.
+    expect(topShotFor(16 / 9).fov).toBeCloseTo((2 * Math.atan(4.6 / (12.6 * (16 / 9))) * 180) / Math.PI, 9);
+    expect(topShotFor(16 / 9).fov).toBeGreaterThan(23);
+    // At 21:9 it binds only a little: the half-width of the name is on the screen at 0.988 of the edge.
+    expect(topShotFor(21 / 9).fov).toBe(18);
+    expect(Math.abs(project(topShotFor(21 / 9), 21 / 9, [FRAMES.top.halfWidth, 0, 0], [0, 0, -1])[0])).toBeGreaterThan(0.98);
+    expect(Math.abs(project(topShotFor(21 / 9), 21 / 9, [FRAMES.top.halfWidth, 0, 0], [0, 0, -1])[0])).toBeLessThan(1);
+  });
+
+  it('keeps the B letters whole on a wide screen: tops, feet and outer edges inside the picture, clear of the header', () => {
+    // The letters span x +-4.25 and z +-1.7 (the top of the screen is -z). Seen through the real camera, with the shot's up.
+    for (const aspect of [16 / 9, 2, 21 / 9, 3, 32 / 9]) {
+      const camera = new THREE.PerspectiveCamera();
+      applyCameraShot(camera, topShotFor(aspect), aspect);
+      for (const x of [-4.25, 4.25]) {
+        for (const z of [-1.7, 1.7]) {
+          const v = new THREE.Vector3(x, 0, z).project(camera);
+          expect(Math.abs(v.x), `x ${x} z ${z} at ${aspect}`).toBeLessThan(1);
+          expect(Math.abs(v.y), `x ${x} z ${z} at ${aspect}`).toBeLessThan(0.9);
+        }
+      }
     }
   });
 
