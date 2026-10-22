@@ -790,16 +790,15 @@ describe('the glass', () => {
 describe('the traces', () => {
   const layout = traceLayout();
 
-  it('draws the traces and their pads as line segments in dim gold at level 0.09', () => {
+  it('draws the traces and their pads as line segments in dim gold at TRACES_LOOK.level', () => {
     const t = buildTraces(layout);
     expect(t.group.name).toBe('traces');
     const lines = objectNamed(t.group, 'traces:lines') as THREE.LineSegments;
     expect(lines).toBeInstanceOf(THREE.LineSegments);
     const segments = layout.traces.reduce((sum, trace) => sum + trace.length - 1, 0) + layout.pads.length * TRACE.pad.segments;
     expect(lines.geometry.getAttribute('position').count).toBe(segments * 2);
-    expect(TRACES_LOOK.level).toBe(0.09);
     const material = lines.material as THREE.LineBasicMaterial;
-    expectColour(material.color, times(palette.gold, 0.09));
+    expectColour(material.color, times(palette.gold, TRACES_LOOK.level));
     expect(material.fog).toBe(true);
     expect(material.toneMapped).toBe(true);
     t.dispose();
@@ -810,7 +809,7 @@ describe('the traces', () => {
     const lines = objectNamed(t.group, 'traces:lines') as THREE.LineSegments;
     const position = lines.geometry.getAttribute('position');
     const first = layout.traces[0];
-    // The first trace's first segment, in the lift the object carries.
+    // The first trace's first segment, in the object's own frame (the depth is the object's position).
     expect(position.getX(0)).toBeCloseTo(first[0][0], 5);
     expect(position.getZ(0)).toBeCloseTo(first[0][1], 5);
     expect(position.getX(1)).toBeCloseTo(first[1][0], 5);
@@ -831,15 +830,6 @@ describe('the traces', () => {
     t.dispose();
   });
 
-  it('lifts the lines a hair above the glass', () => {
-    const t = buildTraces(layout);
-    const lines = objectNamed(t.group, 'traces:lines');
-    expect(lines.position.y).toBe(TRACES_LOOK.lift);
-    expect(TRACES_LOOK.lift).toBeGreaterThan(0);
-    expect(TRACES_LOOK.lift).toBeLessThan(0.002);
-    t.dispose();
-  });
-
   it('sets the level as a multiple of the gold, held to zero or more', () => {
     const t = buildTraces(layout);
     const material = (objectNamed(t.group, 'traces:lines') as THREE.LineSegments).material as THREE.LineBasicMaterial;
@@ -851,8 +841,8 @@ describe('the traces', () => {
     expect(material.color.r).toBe(0);
     t.setLevel(Number.NaN);
     expect(material.color.r).toBe(0);
-    t.setLevel(0.09);
-    expectColour(material.color, times(palette.gold, 0.09));
+    t.setLevel(TRACES_LOOK.level);
+    expectColour(material.color, times(palette.gold, TRACES_LOOK.level));
     t.dispose();
   });
 

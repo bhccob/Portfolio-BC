@@ -250,20 +250,20 @@ describe('the pose on the full path', () => {
     expect(openingPoseAt(clockAt(SCRIPT.settle.end), 'full').needleSettle).toBe(1);
   });
 
-  it('rises from the black: the traces start at nothing and reach 0.09 as the descent ends', () => {
+  it('rises from the black: the traces start at nothing and reach their level as the descent ends', () => {
     expect(openingPoseAt(clockAt(0), 'full').traces).toBe(0);
-    expect(openingPoseAt(clockAt(SCRIPT.descend.end), 'full').traces).toBeCloseTo(0.09, 12);
+    expect(openingPoseAt(clockAt(SCRIPT.descend.end), 'full').traces).toBeCloseTo(TRACES_LOOK.level, 12);
     expect(openingPoseAt(clockAt(SCRIPT.descend.end), 'full').traces).toBe(TRACES_LOOK.level);
-    expect(openingPoseAt(clockAt(SCRIPT.descend.end + 5), 'full').traces).toBeCloseTo(0.09, 12);
-    expect(openingPoseAt(clockAt((SCRIPT.descend.start + SCRIPT.descend.end) / 2), 'full').traces).toBeCloseTo(0.045, 9);
+    expect(openingPoseAt(clockAt(SCRIPT.descend.end + 5), 'full').traces).toBeCloseTo(TRACES_LOOK.level, 12);
+    expect(openingPoseAt(clockAt((SCRIPT.descend.start + SCRIPT.descend.end) / 2), 'full').traces).toBeCloseTo(TRACES_LOOK.level / 2, 9);
   });
 
-  it('never lets the traces rise above 0.09 or fall back', () => {
+  it('never lets the traces rise above their level or fall back', () => {
     let last = 0;
     for (let t = 0; t <= 7; t += 0.05) {
       const traces = openingPoseAt(clockAt(t), 'full').traces;
       expect(traces).toBeGreaterThanOrEqual(last - 1e-12);
-      expect(traces).toBeLessThanOrEqual(0.09 + 1e-12);
+      expect(traces).toBeLessThanOrEqual(TRACES_LOOK.level + 1e-12);
       last = traces;
     }
   });
@@ -375,7 +375,7 @@ describe('the pose on the quick and reduced paths', () => {
   it('brings the traces up with the fade, and the opening, the light and the rise by their own shares', () => {
     const clock = quickClock(0.4);
     const pose = openingPoseAt(clock, 'quick');
-    expect(pose.traces).toBeCloseTo(0.09 * ease(0.5), 9);
+    expect(pose.traces).toBeCloseTo(TRACES_LOOK.level * ease(0.5), 9);
     expect(pose.rise).toBe(clock.rise);
     expect(pose.needleSettle).toBe(clock.settle);
   });

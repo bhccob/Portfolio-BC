@@ -101,6 +101,16 @@ export const GLASS_LOOK = {
  */
 export const GLASS_RENDER_ORDER = -5;
 
+/**
+ * The draw order of the mirror under the floor (M2a, Task 9): two before the glass, so it is down first. The mirror is
+ * opaque and lies just under the glass (`reflection.depth`), nearer it than the circuit traces' `depth`, so the
+ * traces, which lie under the glass too, could not be seen through the mirror's depth if it drew first with them
+ * testing it, and would be painted over if it drew after them. It draws first, the traces (TRACES_RENDER_ORDER, one
+ * before the glass) draw over it without a depth test, and the floor, transparent and drawn after every opaque
+ * thing, tints both. It is set on the high tier only, where the mirror is.
+ */
+export const MIRROR_RENDER_ORDER = GLASS_RENDER_ORDER - 2;
+
 /** `x` held to [0, 1]; NaN reads as 0. */
 function clamp01(x: number): number {
   return x > 0 ? (x < 1 ? x : 1) : 0;
@@ -436,6 +446,7 @@ export function buildGlass(tier: QualityTier): GlassModel {
     reflector.name = 'floor:reflector';
     reflector.rotation.x = -Math.PI / 2;
     reflector.position.y = -look.reflection.depth;
+    reflector.renderOrder = MIRROR_RENDER_ORDER;
     group.add(reflector);
   }
   group.add(capMesh, well, lip, light);

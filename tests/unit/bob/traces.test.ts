@@ -1,5 +1,9 @@
+import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
+import { buildGlass, GLASS_LOOK, GLASS_RENDER_ORDER, MIRROR_RENDER_ORDER } from '~/engine/bob/build/glassFloor';
+import { buildTraces, TRACES_LOOK, TRACES_RENDER_ORDER } from '~/engine/bob/build/traces';
 import { clearOfWordmark, segmentClear, TRACE, traceLayout } from '~/engine/bob/traces';
+import { palette } from '~/engine/palette';
 import { WORDMARK } from '~/engine/bob/wordmark';
 
 describe('traceLayout', () => {
@@ -98,5 +102,78 @@ describe('segmentClear', () => {
     expect(clearOfWordmark([0, -3], 0.25) && clearOfWordmark([0, 3], 0.25)).toBe(true);
     expect(segmentClear([0, -3], [0, 3], 0.25)).toBe(false);
     expect(segmentClear([0, -3], [0, -2.5], 0.25)).toBe(true);
+  });
+});
+
+describe('the traces under the glass', () => {
+  const layout = traceLayout();
+
+  it('lies TRACES_LOOK.depth, 0.015, under the glass: the lines at y -0.015, and nothing lifts them', () => {
+    expect(TRACES_LOOK.depth).toBe(0.015);
+    expect('lift' in TRACES_LOOK).toBe(false);
+    const t = buildTraces(layout);
+    t.group.updateMatrixWorld(true);
+    const lines = t.group.getObjectByName('traces:lines') as THREE.LineSegments;
+    expect(lines.position.y).toBe(-TRACES_LOOK.depth);
+    expect(new THREE.Vector3().setFromMatrixPosition(lines.matrixWorld).y).toBeCloseTo(-0.015, 12);
+    // The group stays on the glass's plane and the lines carry the depth, so the layout's own y stays 0.
+    expect(t.group.position.y).toBe(0);
+    const position = lines.geometry.getAttribute('position');
+    for (let i = 0; i < position.count; i += 97) expect(position.getY(i)).toBe(0);
+    t.dispose();
+  });
+
+  it("draws before the glass, so the floor's tint dims them, and after the sky", () => {
+    const t = buildTraces(layout);
+    const lines = t.group.getObjectByName('traces:lines') as THREE.LineSegments;
+    expect(lines.renderOrder).toBe(TRACES_RENDER_ORDER);
+    expect(lines.renderOrder).toBeLessThan(GLASS_RENDER_ORDER);
+    // The sky draws at -10 and the glass at -5: the traces sit between, never before the sky.
+    expect(lines.renderOrder).toBeGreaterThan(-10);
+    t.dispose();
+  });
+
+  it('draws over the mirror and under the floor: the mirror first, then the traces, then the glass, which writes depth', () => {
+    // The floor is transparent glass on the high tier, so it draws after every opaque thing, whatever its order, and it
+    // writes depth like any material: the traces under it must be down before it, and its tint then dims them.
+    const high = buildGlass('high');
+    const floor = high.group.getObjectByName('floor') as THREE.Mesh;
+    const material = floor.material as THREE.MeshPhysicalMaterial;
+    expect(material.transparent).toBe(true);
+    expect(material.depthWrite).toBe(true);
+    // The mirror lies at -0.003, nearer the glass than the traces' -0.015 and opaque: it would paint over them if it drew
+    // after them, and fail them in the depth test if it drew before. So it draws first and the traces draw without depth.
+    const mirror = high.group.getObjectByName('floor:reflector') as THREE.Mesh;
+    expect(mirror.position.y).toBeGreaterThan(-TRACES_LOOK.depth);
+    expect((mirror.material as THREE.ShaderMaterial).transparent).toBe(false);
+    expect(mirror.renderOrder).toBe(MIRROR_RENDER_ORDER);
+    expect(MIRROR_RENDER_ORDER).toBeLessThan(TRACES_RENDER_ORDER);
+    expect(TRACES_RENDER_ORDER).toBeLessThan(floor.renderOrder);
+    expect(MIRROR_RENDER_ORDER).toBeGreaterThan(-10);
+    expect(GLASS_LOOK.reflection.opacity).toBeLessThan(1);
+    const t = buildTraces(layout);
+    const lines = t.group.getObjectByName('traces:lines') as THREE.LineSegments;
+    const line = lines.material as THREE.LineBasicMaterial;
+    expect(line.depthTest).toBe(false);
+    expect(line.depthWrite).toBe(false);
+    expect(line.transparent).toBe(false);
+    t.dispose();
+    high.dispose();
+  });
+
+  it('still scales with setLevel from the level it is built at', () => {
+    const t = buildTraces(layout);
+    const material = (t.group.getObjectByName('traces:lines') as THREE.LineSegments).material as THREE.LineBasicMaterial;
+    const gold = new THREE.Color(palette.gold);
+    expect(material.color.r).toBeCloseTo(gold.r * TRACES_LOOK.level, 6);
+    t.setLevel(0.5);
+    expect(material.color.r).toBeCloseTo(gold.r * 0.5, 6);
+    expect(material.color.g).toBeCloseTo(gold.g * 0.5, 6);
+    expect(material.color.b).toBeCloseTo(gold.b * 0.5, 6);
+    t.setLevel(0);
+    expect(material.color.r + material.color.g + material.color.b).toBe(0);
+    t.setLevel(Number.NaN);
+    expect(material.color.r).toBe(0);
+    t.dispose();
   });
 });

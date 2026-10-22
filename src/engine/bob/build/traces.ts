@@ -1,5 +1,5 @@
 /**
- * The faint circuit traces over the glass as one three.js object: the 70
+ * The faint circuit traces under the glass as one three.js object: the 70
  * 45-degree walks and a small ring at each end, as line segments in dim gold.
  * Where they run is Task 6's layout (~/engine/bob/traces), so what the scene
  * draws is what the layout tests check. No React: the Opening (Task 10) mounts
@@ -8,18 +8,34 @@
 import * as THREE from 'three';
 import { palette } from '~/engine/palette';
 import { TRACE, type TraceLayout } from '~/engine/bob/traces';
+import { GLASS_RENDER_ORDER } from '~/engine/bob/build/glassFloor';
 
 /**
- * How the traces look. `colour` is the palette's gold and `level` the share of
- * it they are drawn in at rest: dim, a hair of light on the black glass.
- * `lift` raises the lines off the glass so they never z-fight the floor. The
- * numbers are first values: a later task tunes them under the luminance gate.
+ * How the traces look. `colour` is the palette's gold and `depth` how far under
+ * the glass they lie (the lines sit at y = -`depth`, laid beneath it as in the
+ * preview). `level` is the share of the gold they are drawn in at rest.
+ * M1 drew them on the glass at 0.09; now the floor (92 % opaque) lets only a
+ * little of what lies under it through, so they are drawn brighter.
+ * 0.65 was measured, not derived: Task 9 took the 1440x900 home still of M1 and
+ * of this build and compared the traces' brightness with the same mask (M1 0.084,
+ * this build 0.075, a mean Rec. 709 luma of the sRGB values at the traces' own
+ * pixels; the brightness summed over the same dilated mask is the same to 1 %).
+ * The number only holds for the floor's opacity (`GLASS_LOOK.reflection.opacity`):
+ * retune them together.
  */
 export const TRACES_LOOK = {
   colour: palette.gold,
-  level: 0.09,
-  lift: 0.0008
+  level: 0.65,
+  depth: 0.015
 } as const;
+
+/**
+ * The traces' draw order: one before the glass (GLASS_RENDER_ORDER) and after the
+ * sky (-10) and the mirror under the floor (MIRROR_RENDER_ORDER). The floor is
+ * transparent, so it draws after every opaque thing and tints what lies under
+ * it; the traces are opaque and draw before it, over the mirror, so it dims them.
+ */
+export const TRACES_RENDER_ORDER = GLASS_RENDER_ORDER - 1;
 
 /** The traces as the scene holds them. */
 export interface TracesModel {
@@ -66,10 +82,18 @@ export function buildTraces(layout: TraceLayout): TracesModel {
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
   const gold = new THREE.Color(TRACES_LOOK.colour);
-  const material = new THREE.LineBasicMaterial({ name: 'traces:lines', color: gold.clone().multiplyScalar(TRACES_LOOK.level) });
+  // No depth test and no depth write: the mirror under the floor lies nearer the glass than the lines and is opaque, so
+  // a test against it would hide them, and a write would hide what the floor draws over them. They are the bottom layer.
+  const material = new THREE.LineBasicMaterial({
+    name: 'traces:lines',
+    color: gold.clone().multiplyScalar(TRACES_LOOK.level),
+    depthTest: false,
+    depthWrite: false
+  });
   const lines = new THREE.LineSegments(geometry, material);
   lines.name = 'traces:lines';
-  lines.position.y = TRACES_LOOK.lift;
+  lines.position.y = -TRACES_LOOK.depth;
+  lines.renderOrder = TRACES_RENDER_ORDER;
 
   const group = new THREE.Group();
   group.name = 'traces';
