@@ -34,7 +34,7 @@ planning" and "Reuse" sections. The Astro site stays intact on `main` and
 | --- | --- |
 | `src/i18n/{en,nl,Translator}.ts` | today's copy and the locale URLs; a `needle` block was added in Task 4a |
 | `src/data/{profile,projects,categories,qa}.ts` | the content; `projects` and `categories` lost their Astro types in Task 1 and were reshaped in Task 4a, which also merged `tracks.ts` (and its test) into `projects.ts` |
-| `src/assets/**`, `public/**` | screenshots, the real portrait, the renders, icons and `public/textures/instrument/*.webp` |
+| `src/assets/**`, `public/**` | screenshots, the real portrait, the renders and icons; `public/textures/instrument/*.webp` was removed with the revision-4 engine (80fcdeb), and `public/models/bob-compass.glb` is the BOB compass, exported by `tools/blender/export_compass.py` |
 | `src/styles/bench-*.css` | mined for tokens in Task 4a, then deleted |
 | `tools/site_audit.py` + its tests, `tools/icons.mjs` | the auditor, the raster icons |
 | `tools/glyphs.mjs` (deleted 2026-10-21) | kept here for the real CJK glyph outlines; deleted on branch `bob-m1` (Task 11, Ruling 27): its only output, `src/engine/instrument/glyphs.ts`, went with `src/engine/instrument/`, and the BOB design (`docs/superpowers/specs/2026-10-21-bob-compass-design.md`) engraves no CJK glyphs. It is in the git history if a later design needs it |
