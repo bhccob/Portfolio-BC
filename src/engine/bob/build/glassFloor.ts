@@ -55,6 +55,10 @@ import { WORDMARK } from '~/engine/bob/wordmark';
  *   opacity of 0.85) the darker floor showed a crisp second compass under the
  *   first, where the preview's scratched glass shows only a blurred gold streak
  *   or two; at 8 % it stays a dim echo, and the compass stays the one focal point.
+ * - `reflector`: what the scratched glass does to the mirror's picture (M2a, Task 8). The preview's glass
+ *   blurs the compass into a few soft gold streaks along its scratches, where the mirror alone is a sharp copy.
+ *   The mirror's shader reads its picture as the average of `blur.taps` reads in a short streak along the
+ *   scratches' angle (`scratch.angle`): `along` long and `across` wide, in UV units of the mirror's texture.
  * - `well`: an open cylinder `depth` tall standing on `bottom`, so its top is
  *   just under the floor (-0.08), seen from inside. Its wall glows `emissive` at the foot, falling as (1 - v)^3 up the
  *   wall (v is 0 at the foot, 1 at the top). Its warm point `light` stands at
@@ -74,6 +78,7 @@ export const GLASS_LOOK = {
   floor: { colour: palette.black, roughness: 0.08, clearcoat: 0.1, clearcoatRoughness: 0.025, specular: 0.05, outer: 60, thickness: 0.08 },
   scratch: { size: 512, angle: 28, contrast: 4, repeat: 20, seed: 2006, anisotropy: 4 },
   reflection: { resolution: 0.5, opacity: 0.92, depth: 0.003, tint: 0x7f7f7f, size: [960, 540], multisample: 0 },
+  reflector: { blur: { taps: 9, along: 0.06, across: 0.006 } },
   well: {
     bottom: -1.2,
     depth: 1.12,
@@ -206,6 +211,85 @@ function patchWell(shader: { vertexShader: string; fragmentShader: string }): vo
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <common>', '#include <common>\nvarying float vWellV;')
     .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance *= pow(1.0 - vWellV, 3.0);');
+}
+
+/** A number as a GLSL float literal with six decimals: the streak's constants, which may be negative or tiny. */
+function glslFixed(n: number): string {
+  return n.toFixed(6);
+}
+
+/** The golden ratio's fraction: no multiple of it lands on another's place, so the taps spread across the streak without repeating. */
+const GOLDEN = 0.6180339887498949;
+
+/**
+ * Where the `taps` reads of the streak fall, in unit coordinates: `along` runs evenly from -0.5 to 0.5 (the
+ * whole streak, centred on the sharp image) and `across` takes a different place in -0.5..0.5 for each tap, so a
+ * line in the mirror comes out a hair wide and not as `taps` copies on one line. The shader scales `along` by
+ * `uAlong` and `across` by `uAcross`. One tap (or fewer, or a number that is none) is the sharp read.
+ */
+export function streakTaps(taps: number): { along: number; across: number }[] {
+  const n = Number.isFinite(taps) ? Math.max(1, Math.floor(taps)) : 1;
+  return Array.from({ length: n }, (_, i) => (n === 1 ? { along: 0, across: 0 } : { along: i / (n - 1) - 0.5, across: ((i * GOLDEN) % 1) - 0.5 }));
+}
+
+/** A shader as three's `Reflector` takes it (its `shader` option). */
+interface ReflectorShaderSource {
+  name: string;
+  uniforms: Record<string, { value: unknown }>;
+  vertexShader: string;
+  fragmentShader: string;
+}
+
+/**
+ * The shader the mirror draws with: three's `Reflector` shader with its one read of the picture, a
+ * `texture2DProj` at the projected coordinate, replaced by the average of `GLASS_LOOK.reflector.blur.taps` reads
+ * spread over a streak along the scratches. The coordinate `vUv` is projective: a read lands at `vUv.xy / vUv.w`,
+ * so an offset added to `vUv.xy` as `offset * vUv.w` moves the read by `offset` in the texture's UV, whatever the
+ * distance. The overlay blend, the tone mapping and the colour space stay three's. If a later three words that read
+ * differently, the shader is left as three has it (a sharp mirror) and the glass test says so.
+ */
+function streakShader(): ReflectorShaderSource {
+  // three's types leave the shader out of the class, though the class holds it.
+  const base = (Reflector as unknown as { ReflectorShader: ReflectorShaderSource }).ReflectorShader;
+  const { taps, along, across } = GLASS_LOOK.reflector.blur;
+  const angle = (GLASS_LOOK.scratch.angle * Math.PI) / 180;
+  const sharp = 'vec4 base = texture2DProj( tDiffuse, vUv );';
+  const colour = 'uniform vec3 color;';
+  let fragmentShader = base.fragmentShader;
+  if (fragmentShader.includes(sharp) && fragmentShader.includes(colour)) {
+    const spread = streakTaps(taps);
+    const reads = spread.map(
+      (tap) => `sum += texture2DProj( tDiffuse, vUv + vec4( ( alongStep * ${glslFixed(tap.along)} + acrossStep * ${glslFixed(tap.across)} ) * vUv.w, 0.0, 0.0 ) );`
+    );
+    // Three's lines stand at two tabs (the uniforms) and three (the body of main).
+    fragmentShader = fragmentShader
+      .replace(
+        colour,
+        [
+          colour,
+          'uniform float uAlong;',
+          'uniform float uAcross;',
+          `const vec2 STREAK_ALONG = vec2( ${glslFixed(Math.cos(angle))}, ${glslFixed(Math.sin(angle))} );`,
+          `const vec2 STREAK_ACROSS = vec2( ${glslFixed(-Math.sin(angle))}, ${glslFixed(Math.cos(angle))} );`
+        ].join('\n\t\t')
+      )
+      .replace(
+        sharp,
+        [
+          'vec2 alongStep = STREAK_ALONG * uAlong;',
+          'vec2 acrossStep = STREAK_ACROSS * uAcross;',
+          'vec4 sum = vec4( 0.0 );',
+          ...reads,
+          `vec4 base = sum / ${glsl(spread.length)};`
+        ].join('\n\t\t\t')
+      );
+  }
+  return {
+    name: 'FloorReflectorShader',
+    uniforms: { ...base.uniforms, uAlong: { value: along }, uAcross: { value: across } },
+    vertexShader: base.vertexShader,
+    fragmentShader
+  };
 }
 
 /** The glass as the scene holds it. */
@@ -346,7 +430,8 @@ export function buildGlass(tier: QualityTier): GlassModel {
       textureWidth: look.reflection.size[0],
       textureHeight: look.reflection.size[1],
       color: look.reflection.tint,
-      multisample: look.reflection.multisample
+      multisample: look.reflection.multisample,
+      shader: streakShader()
     });
     reflector.name = 'floor:reflector';
     reflector.rotation.x = -Math.PI / 2;

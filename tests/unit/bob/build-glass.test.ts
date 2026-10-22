@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
 import { describe, expect, it, vi } from 'vitest';
 import { buildEngraving, ENGRAVING_LOOK, revealCount } from '~/engine/bob/build/engraving';
-import { buildGlass, GLASS_LOOK, GLASS_RENDER_ORDER } from '~/engine/bob/build/glassFloor';
+import { buildGlass, GLASS_LOOK, GLASS_RENDER_ORDER, streakTaps } from '~/engine/bob/build/glassFloor';
 import { buildTraces, TRACES_LOOK } from '~/engine/bob/build/traces';
 import { traceLayout, TRACE } from '~/engine/bob/traces';
 import { circlePath, STROKE_ORDER, strokeLength, strokePath, tickSegments, WORDMARK } from '~/engine/bob/wordmark';
@@ -481,6 +481,85 @@ describe('the glass', () => {
     expect(hasNamed(buildGlass('high').group, 'floor:reflector')).toBe(true);
     expect(hasNamed(buildGlass('medium').group, 'floor:reflector')).toBe(false);
     expect(hasNamed(buildGlass('low').group, 'floor:reflector')).toBe(false);
+  });
+
+  // Task 8: the preview's scratched glass blurs the compass's reflection into a few soft gold streaks, not a sharp copy.
+  it('blurs the reflection into a streak of 9 taps, 0.06 along the scratches and 0.006 across (UV units of the mirror)', () => {
+    expect(GLASS_LOOK.reflector.blur).toEqual({ taps: 9, along: 0.06, across: 0.006 });
+  });
+
+  it('draws the mirror as the average of one read per tap, offset by uAlong and uAcross, where three reads it once', () => {
+    const { taps, along, across } = GLASS_LOOK.reflector.blur;
+    const high = buildGlass('high');
+    const reflector = objectNamed(high.group, 'floor:reflector') as Reflector;
+    const material = reflector.material as THREE.ShaderMaterial;
+    const fragment = material.fragmentShader;
+    expect(fragment.match(/texture2D(Proj)?\s*\(/g) ?? []).toHaveLength(taps);
+    expect(fragment.match(/texture2DProj\s*\(\s*tDiffuse\s*,/g) ?? []).toHaveLength(taps);
+    // Three's own shader is kept but for its one sharp read: the overlay blend, the tone mapping and the colour space.
+    expect(fragment).not.toContain('texture2DProj( tDiffuse, vUv )');
+    expect(fragment).toContain('blendOverlay(');
+    expect(fragment).toContain('#include <colorspace_fragment>');
+    // The offsets are in texture UV: scaled by the projective w, so the divide by w leaves exactly the offset.
+    expect(fragment).toContain('vUv.w');
+    expect(fragment).toMatch(/uniform float uAlong;/);
+    expect(fragment).toMatch(/uniform float uAcross;/);
+    expect(fragment).toContain(`/ ${taps}.0`);
+    expect(material.uniforms.uAlong.value).toBe(along);
+    expect(material.uniforms.uAcross.value).toBe(across);
+    // The reflector still feeds three's own uniforms.
+    expect(material.uniforms.tDiffuse.value).toBe(reflector.getRenderTarget().texture);
+    expect(material.uniforms.color.value).toBeInstanceOf(THREE.Color);
+    expect(material.uniforms.textureMatrix.value).toBeInstanceOf(THREE.Matrix4);
+    high.dispose();
+  });
+
+  it('runs the streak along the scratches: its direction is the scratch angle, with the width across it at a right angle', () => {
+    const high = buildGlass('high');
+    const fragment = ((objectNamed(high.group, 'floor:reflector') as Reflector).material as THREE.ShaderMaterial).fragmentShader;
+    const vec = (name: string): [number, number] => {
+      const found = new RegExp(String.raw`const vec2 ${name} = vec2\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\);`).exec(fragment);
+      expect(found, name).not.toBeNull();
+      return [Number(found?.[1]), Number(found?.[2])];
+    };
+    const a = (GLASS_LOOK.scratch.angle * Math.PI) / 180;
+    const along = vec('STREAK_ALONG');
+    const across = vec('STREAK_ACROSS');
+    expect(along[0]).toBeCloseTo(Math.cos(a), 5);
+    expect(along[1]).toBeCloseTo(Math.sin(a), 5);
+    expect(across[0]).toBeCloseTo(-Math.sin(a), 5);
+    expect(across[1]).toBeCloseTo(Math.cos(a), 5);
+    high.dispose();
+  });
+
+  it('spreads the taps evenly over the streak, centred, and a little across it so no two reads coincide', () => {
+    const taps = streakTaps(GLASS_LOOK.reflector.blur.taps);
+    expect(taps).toHaveLength(9);
+    taps.forEach((tap, i) => expect(tap.along).toBeCloseTo(i / 8 - 0.5, 12));
+    expect(taps[0].along).toBe(-0.5);
+    expect(taps[8].along).toBe(0.5);
+    for (const tap of taps) {
+      expect(tap.across).toBeGreaterThanOrEqual(-0.5);
+      expect(tap.across).toBeLessThanOrEqual(0.5);
+    }
+    expect(new Set(taps.map((tap) => tap.across)).size).toBe(9);
+    // Centred as a whole, so the streak sits on the sharp image and does not drift off it.
+    expect(taps.reduce((sum, tap) => sum + tap.along, 0)).toBeCloseTo(0, 12);
+    expect(Math.abs(taps.reduce((sum, tap) => sum + tap.across, 0) / 9)).toBeLessThan(0.1);
+    // One tap is the sharp read; none is none.
+    expect(streakTaps(1)).toEqual([{ along: 0, across: 0 }]);
+    expect(streakTaps(0)).toEqual([{ along: 0, across: 0 }]);
+  });
+
+  it('frees the streak shader with the reflector, and removes it with setReflector(false)', () => {
+    const high = buildGlass('high');
+    const reflector = objectNamed(high.group, 'floor:reflector') as Reflector;
+    const material = reflector.material as THREE.ShaderMaterial;
+    const freed = vi.spyOn(material, 'dispose');
+    high.setReflector(false);
+    expect(hasNamed(high.group, 'floor:reflector')).toBe(false);
+    expect(freed).toHaveBeenCalledOnce();
+    high.dispose();
   });
 
   // Task 12: at 15 % the darker floor showed a crisp second compass; the preview's scratched glass shows a dim echo.
