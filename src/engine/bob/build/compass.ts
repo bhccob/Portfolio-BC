@@ -5,8 +5,10 @@
  * and no materials (spec §2.2). Four bands of smoked violet glass, each
  * engraved with its own strip (~/engine/bob/paintBand), turn slowly on their
  * own axes round a gold needle, pivot and axis, and the whole armillary rises
- * out of the opening along the file's `rise` clip. No React: the Opening and
- * the Home (Task 10) mount the group and pose it through the setters.
+ * out of the opening along the file's `rise` clip. As the visitor scrolls, the
+ * bands open like an iris and the needle turns down into the tunnel (`setIris`,
+ * `setNeedleDip`, the preview's tools/blender/bob_scroll.py). No React: the
+ * Opening and the Home (Task 10) mount the group and pose it through the setters.
  *
  * Lengths are world units. The armillary rests at the origin in the file;
  * `setRise` puts it `COMPASS_LOOK.homeY` above the glass at home. The camera
@@ -51,6 +53,9 @@ import { lowerTier, type QualityTier } from '~/engine/quality';
  *   `step` * k degrees a second about its own axis, band_1 one way and each
  *   next band the other, as the preview's rings do (tools/blender/bob_animate.py
  *   turns them (0.25 + 0.1k) degrees a frame, four times this pace; Ruling 17).
+ * - `iris`: the scroll's opening (`setIris`), the preview's (tools/blender/bob_scroll.py): band `k` lies flat, turned
+ *   `k` × `turn` radians about the up, and widens in its own plane until the middle of its wall is `radii[k]` from the
+ *   axis (the preview's IRIS_R), and the armillary sinks to `flatY` above the glass (its ARM_FLAT_Z).
  */
 export const COMPASS_LOOK = {
   bandGlass: {
@@ -67,7 +72,8 @@ export const COMPASS_LOOK = {
   bandMarks: { colour: palette.goldLight, intensity: 0.6, anisotropy: 4 },
   gold: { colour: palette.brass, metalness: 1, roughness: 0.22, emissive: palette.goldLight, emissiveIntensity: 0.22 },
   homeY: 0.55,
-  spin: { base: 1.5, step: 0.6 }
+  spin: { base: 1.5, step: 0.6 },
+  iris: { radii: [1.66, 1.74, 1.82, 1.9], turn: 0.4, flatY: 0.09 }
 } as const;
 
 /** The GLB's parts, each a node `loadCompass` needs: the armillary, its four bands, their rims, the needle, the pivot and the axis. */
@@ -88,10 +94,24 @@ export interface CompassModel {
   group: THREE.Group;
   /** The gold pivot the needle turns on (`pivot`), at the armillary's origin: where the home aims the needle from. */
   pivot: THREE.Object3D;
-  /** Poses the rise, 0..1 (NaN reads as 0): the `rise` clip at `t` of its length, the armillary `homeY` higher. 0 is 2.7 below the glass, 1 is home. */
+  /**
+   * Poses the rise, 0..1 (NaN reads as 0): the `rise` clip at `t` of its length, the armillary `homeY` higher. 0 is
+   * 2.7 below the glass, 1 is home. An open iris (`setIris`) sinks the armillary from there.
+   */
   setRise(t: number): void;
-  /** Turns every band from its rest by its own pace over `time` seconds (NaN reads as 0); the same time is the same picture. */
+  /**
+   * Turns every band by its own pace over `time` seconds (NaN reads as 0), about its own axis, on top of the pose the
+   * iris gives it (its rest, at an iris of 0); the same time is the same picture.
+   */
   setSpin(time: number): void;
+  /**
+   * Opens the compass like an iris, 0..1 (NaN reads as 0), eased by smoothstep. Each band swings from its rest to
+   * lying flat, its own Y on the armillary's up (the world's: the rise turns the armillary about the up alone) and
+   * turned k × `look.iris.turn` about it, and widens in its own plane from its rest to `look.iris.radii[k]`; the
+   * armillary sinks from the height the rise gives it to `look.iris.flatY` above the glass. 0 is exactly the rest.
+   * The spin keeps turning each band in its own plane, and the rise and the iris compose in either order.
+   */
+  setIris(t: number): void;
   /**
    * Turns the needle to `angle` radians about the view axis, the world's Z,
    * whatever the rise has turned the armillary to: 0 up the screen, positive
@@ -100,6 +120,14 @@ export interface CompassModel {
    * of the group itself is taken up at the next call.
    */
   setNeedle(angle: number): void;
+  /**
+   * Turns the needle down into the tunnel, 0..1 (NaN reads as 0), eased by smoothstep: its world pose goes, at a
+   * steady turn about one world axis, from the one `setNeedle` gives to its up pose turned half about the world's X,
+   * the tip on the world's down, as the preview's needle ends. The tip swings toward the camera on the way, as the
+   * preview's does, the same way whatever the angle, so an aim that moves mid-dip moves the needle smoothly. 0 is
+   * exactly the `setNeedle` pose; `setNeedle` and `setRise` keep the dip.
+   */
+  setNeedleDip(t: number): void;
   /**
    * The needle's glow as a share of its rest (`look.gold.emissiveIntensity`):
    * the home's breath (~/scene/bob/look `needleGlowAt`). The needle wears a
@@ -128,6 +156,30 @@ export interface CompassModel {
 /** `x` held to [0, 1]; NaN reads as 0. */
 function clamp01(x: number): number {
   return x > 0 ? (x < 1 ? x : 1) : 0;
+}
+
+/** `x` held to [0, 1] and eased in and out, 3x² - 2x³ (the preview's ease_io); NaN reads as 0. */
+function smoothstep01(x: number): number {
+  const t = clamp01(x);
+  return t * t * (3 - 2 * t);
+}
+
+/**
+ * A band's radius in its own plane, its local XZ (each band lies round its local Y): midway between the farthest and
+ * the nearest of its vertices from that axis, so the middle of its wall, where its rim runs and the radius the
+ * preview's rings are made with (export_compass.py's RINGS). The bounding sphere would read the band's height in too
+ * (1.545 for band_1's 1.52), and the bounding box only its outer wall (1.5425). Read once, at load.
+ */
+function ringRadius(geometry: THREE.BufferGeometry): number {
+  const position = geometry.getAttribute('position');
+  let outer = 0;
+  let inner = Infinity;
+  for (let i = 0; i < position.count; i++) {
+    const r = Math.hypot(position.getX(i), position.getZ(i));
+    if (r > outer) outer = r;
+    if (r < inner) inner = r;
+  }
+  return (outer + inner) / 2;
 }
 
 /**
@@ -265,6 +317,8 @@ export function loadCompass(
   let standing: QualityTier = tier;
   const transmission = look.bandGlass.transmission[tier];
   let glassOpacity: number = look.bandGlass.opacity[tier];
+  const Y = new THREE.Vector3(0, 1, 0);
+  const Z = new THREE.Vector3(0, 0, 1);
   const bands = [1, 2, 3, 4].map((k, i) => {
     const mesh = part(`band_${k}` as (typeof COMPASS_PARTS)[number]);
     const map = strip(i);
@@ -288,7 +342,22 @@ export function loadCompass(
     glass.onBeforeCompile = onBeforeCompile;
     glass.customProgramCacheKey = () => 'bob-band';
     mesh.material = glass;
-    return { mesh, glass, map, rest: mesh.quaternion.clone(), sign: i % 2 === 0 ? -1 : 1, pace: ((look.spin.base + look.spin.step * i) * Math.PI) / 180 };
+    const rest = mesh.quaternion.clone();
+    return {
+      mesh,
+      glass,
+      map,
+      rest,
+      restScale: mesh.scale.clone(),
+      // Lying flat in the armillary, which stands upright at home: its own Y on the up, turned k × turn about it.
+      flat: new THREE.Quaternion().setFromAxisAngle(Y, i * look.iris.turn),
+      // The pose the iris gives it, which the spin turns on top of: its rest until the iris opens.
+      base: rest.clone(),
+      // Its scale in its own plane at the full iris: the middle of its wall at the preview's radius.
+      widen: look.iris.radii[i] / ringRadius(mesh.geometry),
+      sign: i % 2 === 0 ? -1 : 1,
+      pace: ((look.spin.base + look.spin.step * i) * Math.PI) / 180
+    };
   });
 
   const gold = new THREE.MeshStandardMaterial({
@@ -320,20 +389,55 @@ export function loadCompass(
 
   const turn = new THREE.Quaternion();
   const holder = new THREE.Quaternion();
-  const Y = new THREE.Vector3(0, 1, 0);
-  const Z = new THREE.Vector3(0, 0, 1);
+  const dip = new THREE.Quaternion();
+  const dipAxis = new THREE.Vector3();
+  const TAU = 2 * Math.PI;
   let needleAngle = 0;
+  // What the setters share: the needle's dip and the iris, eased (shares 0..1 of the way), and the spin's time.
+  let needleDip = 0;
+  let iris = 0;
+  let spinTime = 0;
 
   /**
-   * The needle at `needleAngle` about the world's Z. Its parent (the
-   * armillary) turns as it rises, so the turn is taken in the world and
-   * brought back into the parent's frame: local = P^-1 * Rz(-angle) * P * rest,
-   * P the parent's world rotation. Scratch quaternions only: no allocation.
+   * The needle at `needleAngle` about the world's Z, dipped `needleDip` of the
+   * way down. Its parent (the armillary) turns as it rises, so the turns are
+   * taken in the world and brought back into the parent's frame:
+   * local = P^-1 * D * Rz(-angle) * P * rest, P the parent's world rotation.
+   *
+   * D is the dip, a turn about one world axis, so the world pose slerps from
+   * the `setNeedle` pose to the dip's end. Its axis, (cos(a/2), -sin(a/2), 0),
+   * is the bisector between the tip, (sin a, cos a, 0), and the down: a half
+   * turn about it takes the tip to the down, through (0, 0, cos(a/2)), toward
+   * the camera, as the preview's needle goes, and D * Rz(-a) is then the half turn
+   * about the world's X for every a: the end pose is the preview's whatever the
+   * aim. Every `setNeedle` pose is that half turn from the end, where the two
+   * ways round tie and a plain slerp would pick one by rounding; the axis picks
+   * the camera's side. The angle is wrapped to [-pi, pi], so the side holds a
+   * turn on; it changes only at straight down, where the tip already is and
+   * only the needle's roll differs.
+   *
+   * Scratch quaternions only: no allocation.
    */
   const poseNeedle = (): void => {
     (needle.parent ?? armillary).getWorldQuaternion(holder);
     turn.setFromAxisAngle(Z, -needleAngle);
+    if (needleDip > 0) {
+      const half = (needleAngle - TAU * Math.round(needleAngle / TAU)) / 2;
+      dipAxis.set(Math.cos(half), -Math.sin(half), 0);
+      turn.premultiply(dip.setFromAxisAngle(dipAxis, needleDip * Math.PI));
+    }
     needle.quaternion.copy(holder).invert().multiply(turn).multiply(holder).multiply(needleRest);
+  };
+
+  /** Band `band` in the pose the iris gives it, turned by the spin about its own Y on top. */
+  const poseBand = (band: (typeof bands)[number]): void => {
+    band.mesh.quaternion.copy(band.base).multiply(turn.setFromAxisAngle(Y, band.sign * band.pace * spinTime));
+  };
+
+  /** The one place the armillary's position is written: the height the rise gives it, sunk toward the iris's. */
+  const placeArmillary = (): void => {
+    const y = stand.position.y + look.homeY;
+    armillary.position.set(stand.position.x, y + (look.iris.flatY - y) * iris, stand.position.z);
   };
 
   const model: CompassModel = {
@@ -344,23 +448,36 @@ export function loadCompass(
       // clamping at the end, so the rise can be posed back down after it has reached the top.
       action.time = clamp01(t) * clip.duration;
       mixer.update(0);
-      armillary.position.set(stand.position.x, stand.position.y + look.homeY, stand.position.z);
+      placeArmillary();
       armillary.quaternion.copy(stand.quaternion);
       // The armillary has turned under the needle: hold the needle where it points in the world.
       poseNeedle();
     },
     setSpin(time) {
-      const t = Number.isFinite(time) ? time : 0;
-      // Called every frame at home: an indexed loop, so it makes no iterator.
+      spinTime = Number.isFinite(time) ? time : 0;
+      // Called every frame at home: an indexed loop, so it makes no iterator. About the band's own Y (Blender's local
+      // Z, round which the band lies), after its rest tilt or the iris's pose.
+      for (let i = 0; i < bands.length; i++) poseBand(bands[i]);
+    },
+    setIris(t) {
+      iris = smoothstep01(t);
       for (let i = 0; i < bands.length; i++) {
         const band = bands[i];
-        // About the band's own Y (Blender's local Z, round which the band lies), after its rest tilt.
-        band.mesh.quaternion.copy(band.rest).multiply(turn.setFromAxisAngle(Y, band.sign * band.pace * t));
+        // three's slerp hands back the rest itself at 0 and the flat itself at 1.
+        band.base.slerpQuaternions(band.rest, band.flat, iris);
+        const s = band.restScale;
+        band.mesh.scale.set(s.x + (band.widen - s.x) * iris, s.y, s.z + (band.widen - s.z) * iris);
+        poseBand(band);
       }
+      placeArmillary();
     },
     setNeedle(angle) {
       // Clockwise on screen is a negative turn about +Z.
       needleAngle = Number.isFinite(angle) ? angle : 0;
+      poseNeedle();
+    },
+    setNeedleDip(t) {
+      needleDip = smoothstep01(t);
       poseNeedle();
     },
     setReveal(level) {

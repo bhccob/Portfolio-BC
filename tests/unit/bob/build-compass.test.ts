@@ -35,6 +35,13 @@ function tipDirection(c: CompassModel): THREE.Vector3 {
   return Y.clone().transformDirection(node(c, 'needle').matrixWorld);
 }
 
+/** Where band `k`'s own axis (its local Y, round which it lies and turns) and its local X point in the world. */
+function bandAxes(c: CompassModel, k: number): { up: THREE.Vector3; across: THREE.Vector3 } {
+  c.group.updateMatrixWorld(true);
+  const world = node(c, `band_${k}`).matrixWorld;
+  return { up: Y.clone().transformDirection(world), across: new THREE.Vector3(1, 0, 0).transformDirection(world) };
+}
+
 /** The glass of the first band. */
 function bandMaterial(c: CompassModel, k = 1): THREE.MeshPhysicalMaterial {
   return mesh(c, `band_${k}`).material as THREE.MeshPhysicalMaterial;
@@ -50,6 +57,18 @@ const TILTS: [number, number, number][] = [
 
 /** How long the GLB's rise runs: 52 frames at 24 fps. */
 const RISE = 52 / 24;
+
+/** The fake's band radii, band_1..band_4: each a ring that far from its axis, in the middle of its wall. */
+const FAKE_RADII = [1.4, 1.44, 1.48, 1.52];
+
+/** The real GLB's band radii, band_1..band_4 (tools/blender/export_compass.py's RINGS, the preview's). */
+const GLB_RADII = [1.52, 1.46, 1.4, 1.56];
+
+/** The world's down. */
+const DOWN = new THREE.Vector3(0, -1, 0);
+
+/** 3x² - 2x³, the ease the iris and the dip take. */
+const smooth = (x: number) => x * x * (3 - 2 * x);
 
 /**
  * A scene graph made to look like the GLB as GLTFLoader hands it over: an
@@ -82,7 +101,8 @@ function fakeGltf(options: { omit?: string; clip?: boolean; grouped?: string } =
   const part = () => new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), fallback);
   const armillary = add('armillary', scene, new THREE.Object3D());
   TILTS.forEach(([x, y, z], i) => {
-    const band = new THREE.Mesh(new THREE.TorusGeometry(1.4 + 0.04 * i, 0.02, 4, 32), fallback);
+    // Laid in its local XZ plane, round its local Y, as the GLB's bands are (three's torus lies in XY).
+    const band = new THREE.Mesh(new THREE.TorusGeometry(FAKE_RADII[i], 0.02, 4, 32).rotateX(Math.PI / 2), fallback);
     band.rotation.set(x * DEG, y * DEG, z * DEG);
     const parent = add(`band_${i + 1}`, armillary, band);
     add(`rim_${i + 1}`, parent, part());
@@ -398,6 +418,222 @@ describe('the compass', () => {
     c.dispose();
   });
 
+  it('leaves the bands and the armillary exactly as they were at setIris(0), and reads NaN as 0', () => {
+    const c = loadCompass(fakeGltf(), 'high', stripStub);
+    c.setSpin(40);
+    c.setNeedle(0.3);
+    const pose = () => [
+      ...[1, 2, 3, 4].flatMap((k) => [...node(c, `band_${k}`).quaternion.toArray(), ...node(c, `band_${k}`).scale.toArray()]),
+      node(c, 'armillary').position.y
+    ];
+    const before = pose();
+    const same = (label: string) => pose().forEach((v, i) => expect(Math.abs(v - before[i]), `${label} ${i}`).toBeLessThan(1e-12));
+    c.setIris(0);
+    same('at 0');
+    c.setIris(1);
+    c.setIris(0);
+    same('back to 0');
+    c.setIris(0.7);
+    c.setIris(Number.NaN);
+    same('NaN');
+    c.setIris(0.7);
+    c.setIris(-3);
+    same('below 0');
+    c.dispose();
+  });
+
+  it("lays every band flat at setIris(1): its own Y on the world's up, turned k × 0.4 about it, widened to the preview's radius, the armillary 0.09 above the glass", () => {
+    expect(COMPASS_LOOK.iris).toEqual({ radii: [1.66, 1.74, 1.82, 1.9], turn: 0.4, flatY: 0.09 });
+    const c = loadCompass(fakeGltf(), 'high', stripStub);
+    c.setIris(1);
+    [1, 2, 3, 4].forEach((k, i) => {
+      const { up, across } = bandAxes(c, k);
+      expect(up.distanceTo(Y), `band_${k} flat`).toBeLessThan(1e-6);
+      expect(Math.atan2(-across.z, across.x), `band_${k} turn`).toBeCloseTo(0.4 * i, 6);
+      // Its radius measured from its geometry at load: the middle of its wall ends up at the preview's radius.
+      const scale = node(c, `band_${k}`).scale;
+      expect(scale.x, `band_${k} x`).toBeCloseTo(COMPASS_LOOK.iris.radii[i] / FAKE_RADII[i], 6);
+      expect(scale.z, `band_${k} z`).toBeCloseTo(COMPASS_LOOK.iris.radii[i] / FAKE_RADII[i], 6);
+      expect(scale.y, `band_${k} y`).toBe(1);
+    });
+    expect(node(c, 'armillary').getWorldPosition(new THREE.Vector3()).y).toBeCloseTo(0.09, 12);
+    // Held to 1.
+    c.setIris(5);
+    expect(node(c, 'armillary').position.y).toBeCloseTo(0.09, 12);
+    c.dispose();
+  });
+
+  it('keeps the bands flat as they spin, the spin turning each in its own plane on top of the iris, in either order', () => {
+    const c = loadCompass(fakeGltf(), 'high', stripStub);
+    c.setIris(1);
+    const flat = [1, 2, 3, 4].map((k) => node(c, `band_${k}`).quaternion.clone());
+    c.setSpin(40);
+    [1, 2, 3, 4].forEach((k, i) => {
+      expect(bandAxes(c, k).up.distanceTo(Y), `band_${k}`).toBeLessThan(1e-6);
+      const turn = flat[i].clone().invert().multiply(node(c, `band_${k}`).quaternion);
+      expect(angleOf(turn)).toBeCloseTo((1.5 + 0.6 * i) * 40 * DEG, 9);
+      expect(Math.abs(turn.x) + Math.abs(turn.z)).toBeLessThan(1e-9);
+    });
+    // The iris set after the spin keeps the spin: the same pose either way round.
+    const other = loadCompass(fakeGltf(), 'high', stripStub);
+    other.setSpin(40);
+    other.setIris(1);
+    for (const k of [1, 2, 3, 4]) {
+      const between = node(other, `band_${k}`).quaternion.clone().invert().multiply(node(c, `band_${k}`).quaternion);
+      expect(angleOf(between), `band_${k}`).toBeLessThan(1e-9);
+    }
+    c.dispose();
+    other.dispose();
+  });
+
+  it('eases the iris by smoothstep: halfway at 0.5, every band turning steadily away from its rest', () => {
+    const gltf = fakeGltf();
+    const rests = [1, 2, 3, 4].map((k) => (gltf.scene.getObjectByName(`band_${k}`) as THREE.Object3D).quaternion.clone());
+    const c = loadCompass(gltf, 'high', stripStub);
+    const band = (i: number) => node(c, `band_${i + 1}`);
+    const fromRest = (i: number) => angleOf(rests[i].clone().invert().multiply(band(i).quaternion));
+    c.setIris(1);
+    const flats = [0, 1, 2, 3].map((i) => band(i).quaternion.clone());
+    const full = [0, 1, 2, 3].map(fromRest);
+    for (const angle of full) expect(angle).toBeGreaterThan(10 * DEG);
+    c.setIris(0.5);
+    [0, 1, 2, 3].forEach((i) => {
+      expect(fromRest(i), `band_${i + 1} from rest`).toBeCloseTo(full[i] / 2, 9);
+      expect(angleOf(flats[i].clone().invert().multiply(band(i).quaternion)), `band_${i + 1} to flat`).toBeCloseTo(full[i] / 2, 9);
+      expect(band(i).scale.x, `band_${i + 1} scale`).toBeCloseTo((1 + COMPASS_LOOK.iris.radii[i] / FAKE_RADII[i]) / 2, 6);
+    });
+    expect(node(c, 'armillary').position.y).toBeCloseTo((0.55 + 0.09) / 2, 12);
+    c.setIris(0.25);
+    expect(node(c, 'armillary').position.y).toBeCloseTo(0.55 + (0.09 - 0.55) * smooth(0.25), 12);
+    expect(fromRest(0)).toBeCloseTo(full[0] * smooth(0.25), 9);
+    const last = [0, 0, 0, 0];
+    for (let step = 0; step <= 40; step++) {
+      c.setIris(step / 40);
+      [0, 1, 2, 3].forEach((i) => {
+        const angle = fromRest(i);
+        expect(angle, `band_${i + 1} at ${step / 40}`).toBeGreaterThanOrEqual(last[i] - 1e-12);
+        last[i] = angle;
+      });
+    }
+    last.forEach((angle, i) => expect(angle).toBeCloseTo(full[i], 9));
+    c.dispose();
+  });
+
+  it('sinks the armillary from wherever the rise has it, the rise and the iris composing in either order', () => {
+    const c = loadCompass(fakeGltf(), 'high', stripStub);
+    const y = () => node(c, 'armillary').position.y;
+    c.setIris(0.5);
+    c.setRise(1);
+    expect(y()).toBeCloseTo((0.55 + 0.09) / 2, 12);
+    // The fake's rise at its half: 3.25 / 2 below the home height.
+    c.setRise(0.5);
+    expect(y()).toBeCloseTo((-3.25 / 2 + 0.55 + 0.09) / 2, 5);
+    c.setIris(1);
+    expect(y()).toBeCloseTo(0.09, 12);
+    c.setRise(1);
+    c.setIris(0);
+    expect(y()).toBeCloseTo(0.55, 12);
+    // Flat in the armillary is flat in the world while the rise turns it, since the rise turns it about the up alone.
+    c.setIris(1);
+    c.setRise(0.25);
+    for (const k of [1, 2, 3, 4]) expect(bandAxes(c, k).up.distanceTo(Y), `band_${k}`).toBeLessThan(1e-6);
+    c.dispose();
+  });
+
+  it("turns the needle down into the tunnel at setNeedleDip(1), its tip on the world's down from any angle", () => {
+    const c = loadCompass(fakeGltf(), 'high', stripStub);
+    for (const a of [0, 0.3, -0.3, Math.PI / 2, -Math.PI / 2, 38 * DEG, Math.PI, -Math.PI, 2.5, -2.9, 7, -13]) {
+      c.setNeedle(a);
+      c.setNeedleDip(1);
+      expect(tipDirection(c).distanceTo(DOWN), `from ${a}`).toBeLessThan(1e-6);
+    }
+    // Held to 1.
+    c.setNeedleDip(3);
+    expect(tipDirection(c).distanceTo(DOWN)).toBeLessThan(1e-6);
+    c.dispose();
+  });
+
+  it("gives back exactly the needle's own pose at setNeedleDip(0), and reads NaN as 0", () => {
+    for (const a of [0, 0.7, -2, Math.PI]) {
+      for (const rise of [1, 0.25]) {
+        const c = loadCompass(fakeGltf(), 'high', stripStub);
+        const alone = loadCompass(fakeGltf(), 'high', stripStub);
+        c.setRise(rise);
+        alone.setRise(rise);
+        alone.setNeedle(a);
+        c.setNeedleDip(0.6);
+        c.setNeedle(a);
+        c.setNeedleDip(0);
+        expect(node(c, 'needle').quaternion.toArray(), `${a} at rise ${rise}`).toEqual(node(alone, 'needle').quaternion.toArray());
+        c.setNeedleDip(1);
+        c.setNeedleDip(Number.NaN);
+        expect(node(c, 'needle').quaternion.toArray(), `${a} at rise ${rise}, NaN`).toEqual(node(alone, 'needle').quaternion.toArray());
+        c.dispose();
+        alone.dispose();
+      }
+    }
+  });
+
+  it('keeps the dip through setNeedle and setRise', () => {
+    const c = loadCompass(fakeGltf(), 'high', stripStub);
+    c.setNeedleDip(1);
+    for (const b of [0.4, -1.2, 3]) {
+      c.setNeedle(b);
+      expect(tipDirection(c).distanceTo(DOWN), `to ${b}`).toBeLessThan(1e-6);
+    }
+    c.setRise(0.25);
+    expect(tipDirection(c).distanceTo(DOWN)).toBeLessThan(1e-6);
+    c.setRise(1);
+    expect(tipDirection(c).distanceTo(DOWN)).toBeLessThan(1e-6);
+    // Partway down, the rise turning the armillary under it leaves the tip where it points in the world.
+    c.setNeedleDip(0.4);
+    const before = tipDirection(c);
+    c.setRise(0.6);
+    expect(tipDirection(c).distanceTo(before)).toBeLessThan(1e-6);
+    c.dispose();
+  });
+
+  it("tips the needle toward the camera on its way down, as the preview's does, the same way either side of up", () => {
+    const c = loadCompass(fakeGltf(), 'high', stripStub);
+    c.setNeedle(0);
+    c.setNeedleDip(0.5);
+    expect(tipDirection(c).distanceTo(new THREE.Vector3(0, 0, 1))).toBeLessThan(1e-9);
+    // Eased by smoothstep: a quarter of the way along, the tip has turned π × smoothstep(0.25) from up.
+    c.setNeedleDip(0.25);
+    expect(tipDirection(c).angleTo(Y)).toBeCloseTo(Math.PI * smooth(0.25), 9);
+    for (const a of [-3, -2, -1, -0.2, 0, 0.2, 1, 2, 3]) {
+      c.setNeedle(a);
+      for (const dip of [0.2, 0.5, 0.8]) {
+        c.setNeedleDip(dip);
+        expect(tipDirection(c).z, `${a} at ${dip}`).toBeGreaterThan(0);
+      }
+    }
+    // No snap where the aim crosses up: either side of it, the needle stands in one place on its way down.
+    c.setNeedleDip(0.5);
+    c.setNeedle(1e-4);
+    const right = tipDirection(c);
+    c.setNeedle(-1e-4);
+    expect(tipDirection(c).distanceTo(right)).toBeLessThan(1e-3);
+    // An angle a whole turn on is the same bearing, and the same pose on the way down.
+    c.setNeedle(0.7);
+    const once = node(c, 'needle').quaternion.clone();
+    c.setNeedle(0.7 + 2 * Math.PI);
+    expect(angleOf(once.invert().multiply(node(c, 'needle').quaternion))).toBeLessThan(1e-9);
+    c.dispose();
+  });
+
+  it('ends the dip in one pose whatever the aim: the up pose turned half about the world X', () => {
+    const c = loadCompass(fakeGltf(), 'high', stripStub);
+    c.setNeedle(0);
+    const end = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI).multiply(node(c, 'needle').quaternion);
+    c.setNeedleDip(1);
+    for (const a of [0, 1, -2.5, Math.PI, 9]) {
+      c.setNeedle(a);
+      expect(angleOf(end.clone().invert().multiply(node(c, 'needle').quaternion)), `from ${a}`).toBeLessThan(1e-6);
+    }
+    c.dispose();
+  });
+
   it('fades the whole compass in by uniforms only, and draws nothing at 0', () => {
     const c = loadCompass(fakeGltf(), 'medium', stripStub);
     const gold = mesh(c, 'axis').material as THREE.MeshStandardMaterial;
@@ -623,6 +859,46 @@ describe('the compass', () => {
       expect(lowest.v, `band_${k} v at the bottom edge`).toBeLessThan(0.05);
       expect(highest.v, `band_${k} v at the top edge`).toBeGreaterThan(0.95);
     }
+  });
+
+  it("opens the real GLB's bands to the preview's radii, each measured in the middle of its wall, flat 0.09 above the glass", async () => {
+    const gltf = await loadRealGlb();
+    for (const k of [1, 2, 3, 4]) expect((gltf.scene.getObjectByName(`band_${k}`) as THREE.Object3D).scale.toArray(), `band_${k}`).toEqual([1, 1, 1]);
+    const c = loadCompass(gltf, 'high', stripStub);
+    // The rise turns the armillary about the up alone, so a band laid flat in the armillary is flat in the world.
+    for (const t of [0, 0.25, 0.5, 0.75, 1]) {
+      c.setRise(t);
+      expect(Y.clone().applyQuaternion(node(c, 'armillary').quaternion).distanceTo(Y), `rise ${t}`).toBeLessThan(1e-6);
+    }
+    c.setIris(1);
+    c.group.updateMatrixWorld(true);
+    [1, 2, 3, 4].forEach((k, i) => {
+      const band = mesh(c, `band_${k}`);
+      expect(band.scale.x, `band_${k} scale`).toBeCloseTo(COMPASS_LOOK.iris.radii[i] / GLB_RADII[i], 6);
+      expect(bandAxes(c, k).up.distanceTo(Y), `band_${k} flat`).toBeLessThan(1e-6);
+      // In the world: the middle of the wall at the preview's radius round the armillary, the band standing on its own
+      // height (0.14 to 0.18) about a plane 0.09 above the glass.
+      const centre = band.getWorldPosition(new THREE.Vector3());
+      expect(centre.y, `band_${k} centre`).toBeCloseTo(0.09, 6);
+      const position = band.geometry.getAttribute('position');
+      const p = new THREE.Vector3();
+      let outer = 0;
+      let inner = Infinity;
+      let low = Infinity;
+      let high = -Infinity;
+      for (let v = 0; v < position.count; v++) {
+        p.fromBufferAttribute(position, v).applyMatrix4(band.matrixWorld);
+        const r = Math.hypot(p.x - centre.x, p.z - centre.z);
+        outer = Math.max(outer, r);
+        inner = Math.min(inner, r);
+        low = Math.min(low, p.y);
+        high = Math.max(high, p.y);
+      }
+      expect((outer + inner) / 2, `band_${k} radius`).toBeCloseTo(COMPASS_LOOK.iris.radii[i], 5);
+      expect(high - low, `band_${k} height`).toBeLessThan(0.19);
+      expect((high + low) / 2, `band_${k} plane`).toBeCloseTo(0.09, 5);
+    });
+    c.dispose();
   });
 });
 
