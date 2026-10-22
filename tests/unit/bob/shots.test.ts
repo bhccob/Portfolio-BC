@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { applyCameraShot, type CameraShot, FRAMES, homeShotFor, lerpCameraShot, MAX_VFOV, shotFor, type ShotFrame, topShotFor, wideShotFor } from '~/engine/bob/shots';
+import { applyCameraShot, type CameraShot, FRAMES, homeShotFor, lerpCameraShot, MAX_VFOV, shotFor, type ShotFrame, swayOf, topShotFor, wideShotFor } from '~/engine/bob/shots';
 
 /** `p` seen through the camera a shot places on a screen of this aspect: its NDC x and y (-1..1), the camera's up being `up` (+Y unless told). */
 function project(shot: CameraShot, aspect: number, p: [number, number, number], up: readonly [number, number, number] = [0, 1, 0]): [number, number] {
@@ -202,6 +202,26 @@ describe('the top shot', () => {
     expect(shot.fov).toBe(MAX_VFOV);
     expect(shot.position[1]).toBeCloseTo(FRAMES.top.halfWidth / (PHONE * Math.tan((MAX_VFOV * Math.PI) / 360)), 9);
     expect(shot.position[1]).toBeGreaterThan(FRAMES.top.distance);
+  });
+});
+
+describe('swayOf', () => {
+  const HOME = homeShotFor(16 / 9);
+
+  it('is the whole parallax for a shot that says nothing, and none for the top shot', () => {
+    expect(swayOf(HOME)).toBe(1);
+    expect(swayOf(wideShotFor(16 / 9))).toBe(1);
+    expect(swayOf(topShotFor(16 / 9))).toBe(0);
+  });
+
+  it('is the share a shot gives, held to [0, 1]', () => {
+    for (const sway of [0, 0.25, 0.5, 1]) expect(swayOf({ ...HOME, sway })).toBe(sway);
+    expect(swayOf({ ...HOME, sway: 1.5 })).toBe(1);
+    expect(swayOf({ ...HOME, sway: Number.POSITIVE_INFINITY })).toBe(1);
+  });
+
+  it('reads NaN and anything below 0 as none, never as more than the whole', () => {
+    for (const sway of [Number.NaN, -0.5, -1, Number.NEGATIVE_INFINITY, -0]) expect(swayOf({ ...HOME, sway }), String(sway)).toBe(0);
   });
 });
 

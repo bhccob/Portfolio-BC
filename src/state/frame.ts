@@ -29,6 +29,13 @@ export const frame = {
    * reports it.
    */
   needleAngle: 0,
+  /**
+   * The scroll's pose as the Home (src/scene/bob/Home.tsx) last posed it, on each frame it drives the home: the rise `u`
+   * (0 at the home, 1 looking straight down on BOB; src/scene/bob/scrollPose.ts) and the shares of the letters' light,
+   * the iris and the needle's dip, each 0..1 before the setters ease them. With reduced motion the rise is the stop the
+   * step fade shows, not the damped progress. All 0 while no Home drives the home. The debug bridge reports it.
+   */
+  scroll: { u: 0, letters: 0, iris: 0, needleDip: 0 },
   /** The index of the chapter `progress` is in (`chapterAt(...).index`). */
   chapterIndex: 0,
   /** True while the WebGL context is lost. */

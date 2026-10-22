@@ -52,6 +52,13 @@ export interface NeedleDebugState {
    * sees it, so a pointer straight to the right of the pivot pulls it toward pi/2. 0 before any compass is posed.
    */
   needleAngle: number;
+  /**
+   * The scroll's pose as the home last posed it (`frame.scroll`, a copy): the rise `u`, 0 at the home and 1 looking
+   * straight down on BOB, and the shares of the letters' light, the iris and the needle's dip, each 0..1 (linear in the
+   * rise; the compass and the engraving ease them). With reduced motion `u` is the stop the step fade shows. All 0 while
+   * nothing drives the home (the loader, a held seek, no Stage).
+   */
+  scroll: { u: number; letters: number; iris: number; needleDip: number };
 }
 
 /** What the bridge does to the site, besides reading it. */

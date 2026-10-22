@@ -169,6 +169,16 @@ export function topShotFor(aspect: number): CameraShot {
   return { ...shotFor(FRAMES.top, aspect), up: [0, 0, -1], sway: 0 };
 }
 
+/**
+ * How much of the pointer parallax `shot` allows, as the Rig reads it: its `sway` held to [0, 1], absent read as 1 (the
+ * whole of it). NaN and anything below 0 read as 0, none, so a bad shot never swings the camera, and nothing reads as
+ * more than the whole.
+ */
+export function swayOf(shot: CameraShot): number {
+  const sway = shot.sway ?? 1;
+  return sway > 0 ? (sway < 1 ? sway : 1) : 0;
+}
+
 /** `a` and `b` mixed: `a` at `t` = 0 and `b` at `t` = 1. */
 function mix(a: number, b: number, t: number): number {
   return a + (b - a) * t;

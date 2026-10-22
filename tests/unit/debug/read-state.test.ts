@@ -76,6 +76,16 @@ describe('readNeedleDebugState', () => {
     expect(state.needleAngle).toBe(1.2);
   });
 
+  it("reports the scroll's pose as the home last posed it, as a copy", () => {
+    expect(readNeedleDebugState({ route: 'home', locale: 'nl' }).scroll).toEqual({ u: 0, letters: 0, iris: 0, needleDip: 0 });
+    Object.assign(frame.scroll, { u: 0.5, letters: 0.32, iris: 0.67, needleDip: 0.78 });
+    const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
+    expect(state.scroll).toEqual({ u: 0.5, letters: 0.32, iris: 0.67, needleDip: 0.78 });
+    expect(state.scroll).not.toBe(frame.scroll);
+    frame.scroll.u = 1;
+    expect(state.scroll.u).toBe(0.5);
+  });
+
   it('has no constellation and no pointed country: the frame and the state carry none (the countries are gone)', () => {
     const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
     expect(state).not.toHaveProperty('pointed');

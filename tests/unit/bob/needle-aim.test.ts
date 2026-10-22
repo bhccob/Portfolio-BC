@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { AngleSpring } from '~/engine/AngleSpring';
+import { AngleSpring, wrapAngle } from '~/engine/AngleSpring';
 import { NEEDLE_REST, settleAngle } from '~/engine/bob/needle';
-import { DRIFT, driftAngle, isAiming, NEEDLE_SPRING, needleAngleFor, nextDriftRest } from '~/engine/bob/needleAim';
+import { aimsAt, DRIFT, driftAngle, isAiming, NEEDLE_SPRING, needleAngleFor, nextDriftRest } from '~/engine/bob/needleAim';
 import type { Phase } from '~/state/machine';
 
 describe('needleAngleFor', () => {
@@ -92,5 +92,48 @@ describe('isAiming', () => {
     for (const kind of others) expect(isAiming(kind, 'home'), kind).toBe(false);
     expect(isAiming('HOME_IDLE', 'project')).toBe(false);
     expect(isAiming('HOME_IDLE', null)).toBe(false);
+  });
+});
+
+describe('aimsAt', () => {
+  it('aims only at the home itself, the rise at exactly 0', () => {
+    expect(aimsAt('HOME_IDLE', 'home', 0)).toBe(true);
+    for (const u of [1e-9, 0.01, 0.5, 0.999, 1]) expect(aimsAt('HOME_IDLE', 'home', u), `u ${u}`).toBe(false);
+  });
+
+  it('never aims where isAiming does not, whatever the rise', () => {
+    const others: Phase['kind'][] = ['LOADING', 'DISSECT', 'MORPH', 'VOID_ENTRY', 'PROJECTS', 'PROJECT_FOCUS'];
+    for (const kind of others) expect(aimsAt(kind, 'home', 0), kind).toBe(false);
+    expect(aimsAt('HOME_IDLE', 'project', 0)).toBe(false);
+    expect(aimsAt('HOME_IDLE', null, 0)).toBe(false);
+  });
+
+  it('reads a rise that is not a number as off the home: the needle holds rather than aim from a bad frame', () => {
+    expect(aimsAt('HOME_IDLE', 'home', Number.NaN)).toBe(false);
+  });
+
+  it("holds the spring's target through a scroll off the home and back, and the needle takes up the aim from where it is", () => {
+    // Home's rule, frame by frame: the target moves only while aimsAt says so, and the spring is never set from it.
+    const spring = new AngleSpring(NEEDLE_SPRING.zeta, NEEDLE_SPRING.omega);
+    spring.set(0.4, 0);
+    let target = 0.4;
+    const dt = 1 / 60;
+    const rises = [...Array.from({ length: 30 }, () => 0), ...Array.from({ length: 120 }, (_, i) => Math.min(1, (i + 1) / 60)), ...Array.from({ length: 60 }, (_, i) => Math.max(0, 1 - (i + 1) / 30)), ...Array.from({ length: 120 }, () => 0)];
+    let last = spring.value;
+    let held: number | null = null;
+    for (let i = 0; i < rises.length; i++) {
+      const u = rises[i];
+      // The pointer swings round the whole dial, crossing straight down, all the while.
+      const pointer = Math.PI * Math.sin(i / 30);
+      if (aimsAt('HOME_IDLE', 'home', u)) target = pointer;
+      if (u > 0) {
+        held ??= target;
+        expect(target, `frame ${i}`).toBe(held);
+      } else held = null;
+      const value = spring.step(target, dt);
+      // No snap: the needle moves on by at most its spring's speed, the whole way out and back.
+      expect(Math.abs(wrapAngle(value - last)), `frame ${i}`).toBeLessThan(0.2);
+      last = value;
+    }
   });
 });

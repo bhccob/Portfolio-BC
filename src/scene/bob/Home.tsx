@@ -5,15 +5,24 @@ import { AngleSpring, wrapAngle } from '~/engine/AngleSpring';
 import type { CompassModel } from '~/engine/bob/build/compass';
 import type { EngravingModel } from '~/engine/bob/build/engraving';
 import type { SmokeModel } from '~/engine/bob/build/smoke';
-import { driftAngle, isAiming, NEEDLE_SPRING, needleAngleFor, nextDriftRest } from '~/engine/bob/needleAim';
+import { aimsAt, driftAngle, NEEDLE_SPRING, needleAngleFor, nextDriftRest } from '~/engine/bob/needleAim';
 import { AT_REST } from '~/engine/stillness';
+import { HOME_CHAPTERS, stops } from '~/state/chapters';
 import { frame } from '~/state/frame';
 import { useScene } from '~/state/store';
 import { motion } from '../motion';
 import { IDLE_SECONDS, needleGlowAt } from './look';
+import { riseAt, scrollPoseAt } from './scrollPose';
+import { nearestStop, type StepFade, stepFadeAt, stepFadeFrom } from './stepFade';
 
 /** The longest step the needle and the idle clock take in one frame, seconds: a wake from sleep jumps neither. */
 const MAX_STEP = 0.1;
+
+/** Where the home's scroll comes to rest (`stops`): the step fade's places under reduced motion. */
+const STOPS = stops(HOME_CHAPTERS);
+
+/** The attribute on <html> that fades the scene host down for a reduced-motion step (src/styles/base.css). */
+const STEP_FADE_ATTRIBUTE = 'data-step-fade';
 
 /** The home's objects Home drives: built, posed through the opening and freed by the Opening, which owns them. */
 export interface HomeModels {
@@ -58,6 +67,27 @@ interface HomeState {
   /** The pointer move and the transition Home last saw, to tell a new one. */
   pointerAt: number;
   transition: number;
+  /** The scroll's rise Home last posed (NaN before the first frame after a hand-over), to tell a change: a stir. */
+  u: number;
+  /** The rise and the aspect `frame.shot` was last written for (NaN: write it on the next frame). */
+  shotU: number;
+  shotAspect: number;
+  /** The reduced-motion step fade (stepFade.ts): the stop the scene shows, and whether the host is faded down. */
+  fade: StepFade;
+  /** `<html data-step-fade>` is set: the DOM as Home last wrote it, so a frame writes it only when it changes. */
+  faded: boolean;
+}
+
+/** Sets or takes away `<html data-step-fade>`, and notes it, writing the DOM only when it changes. */
+function showStepFade(state: HomeState, on: boolean): void {
+  if (state.faded === on) return;
+  state.faded = on;
+  document.documentElement.toggleAttribute(STEP_FADE_ATTRIBUTE, on);
+}
+
+/** `frame.scroll` with nothing driving the home: every share 0. */
+function clearScroll(): void {
+  frame.scroll.u = frame.scroll.letters = frame.scroll.iris = frame.scroll.needleDip = 0;
 }
 
 /** Scratch for the pivot's place on the screen: no vector is made per frame. */
@@ -71,22 +101,36 @@ const pivotPx = { x: 0, y: 0 };
  * it mounts Home as soon as the compass exists and hands the home over (`handover.live`) once it has posed it, and takes
  * it back while a seek holds its clock.
  *
- * **Aim.** At home at rest (`isAiming`: HOME_IDLE on the home page) a mouse or a pen that has moved aims the needle at
- * itself: `needleAngleFor(pointer, pivot)` in the canvas's pixels, the pivot where the camera (parallax and all) puts
- * the compass's pivot on the screen this frame. Until one has moved, and so always on a touch screen (the Rig reads no
- * finger), the needle follows `driftAngle`, a slow swing round its rest. A pointer on the pivot itself gives no angle
- * and keeps the last target; anywhere else than at rest the needle holds where it points. It follows its target
- * through `new AngleSpring(NEEDLE_SPRING.zeta, NEEDLE_SPRING.omega)`, started at each hand-over from the angle the
- * opening left it at, still; with reduced motion the spring is set straight to the target, with no animation.
+ * **Scroll.** The first stretch of scroll, the HOME chapter's one unit, raises the camera from the home to straight
+ * above the name BOB (scrollPose.ts): each frame it poses `scrollPoseAt(riseAt(frame.progress), aspect)`, the compass
+ * opening like an iris (`setIris`), the needle turning down into it (`setNeedleDip`) and the light running out of the O
+ * into the two B letters (`setLetters`, the one place they are drawn), and writes the pose's shot into `frame.shot` when
+ * the rise or the screen's shape has changed (the Rig places it). Scrolling back plays it backwards to the home; past
+ * the unit it holds at BOB from above. It reports the pose in `frame.scroll`. With reduced motion the scroll steps a
+ * whole stop at a time (src/input/target.ts) and each step is a short fade (stepFade.ts): the pose stays at the stop it
+ * shows while `<html data-step-fade>` fades the scene host down over STEP_FADE_MS, jumps to the stop the target is
+ * nearest once it is dark, and the attribute goes, so it fades back; without reduced motion the attribute is never set.
  *
- * **Idle.** For IDLE_SECONDS after the last stir (the hand-over, a phase change, a pointer move at home), and for a
- * drifting needle on to the drift's next rest (`nextDriftRest`), the bands turn (`setSpin`), the smoke drifts and the
- * needle breathes (`needleGlowAt`, its glow up to 1.4 times its rest and back over 4 s; the engraving holds still),
+ * **Aim.** At the home itself at rest (`aimsAt`: HOME_IDLE on the home page, the rise at 0) a mouse or a pen that has
+ * moved aims the needle at itself: `needleAngleFor(pointer, pivot)` in the canvas's pixels, the pivot where the camera
+ * (parallax and all) puts the compass's pivot on the screen this frame. Until one has moved, and so always on a touch
+ * screen (the Rig reads no finger), the needle follows `driftAngle`, a slow swing round its rest. A pointer on the pivot
+ * itself gives no angle and keeps the last target; anywhere else, up the rise included, the needle's target holds
+ * where it was and the dip carries the needle down from there. It follows its target through
+ * `new AngleSpring(NEEDLE_SPRING.zeta, NEEDLE_SPRING.omega)`, started at each hand-over from the angle the opening left
+ * it at, still, and never set again until the next one, so the aim back at the home takes up from where the spring is;
+ * with reduced motion the spring is set straight to the target, with no animation.
+ *
+ * **Idle.** For IDLE_SECONDS after the last stir (the hand-over, a phase change, a pointer move at home, a move of the
+ * rise), and for a drifting needle on to the drift's next rest (`nextDriftRest`), the bands turn (`setSpin`), the smoke
+ * drifts and the needle breathes (`needleGlowAt`, its glow up to 1.4 times its rest and back over 4 s; the engraving holds still),
  * all on one clock that stops with them, so a sleeping scene is a still frame of them and a wake goes on from there.
  * The turn and the smoke go on from the world's time at the hand-over, so the hand-over moves neither; a seek that
- * takes the scene back gets the needle at its resting glow, which the opening never moves. None of it under reduced motion. Each frame it writes `motion.compass`
- * (`idle`, `needle`, `needleSpeed`), so the Heartbeat lets the canvas sleep once the idle while is over and the needle
- * has settled; and `frame.needleAngle`, for the debug bridge.
+ * takes the scene back gets the needle at its resting glow, which the opening never moves, and the compass closed, the
+ * needle out of its dip and the letters dark, as the opening has them. None of it under reduced motion. Each frame it writes
+ * `motion.compass` (`idle`, `needle`, `needleSpeed`), so the Heartbeat lets the canvas sleep once the idle while is over
+ * and the needle has settled; and `frame.needleAngle`, for the debug bridge. While the story moves the scroll loop
+ * wakes the canvas on each of its frames (the Heartbeat's `scrolling`), so a rise draws and sleeps again at rest.
  */
 export function Home({ models, handover }: HomeProps): null {
   const [spring] = useState(() => new AngleSpring(NEEDLE_SPRING.zeta, NEEDLE_SPRING.omega));
@@ -99,32 +143,51 @@ export function Home({ models, handover }: HomeProps): null {
     base: handover.time,
     pointerAt: frame.pointerAt,
     transition: useScene.getState().transitionId,
+    u: Number.NaN,
+    shotU: Number.NaN,
+    shotAspect: Number.NaN,
+    fade: stepFadeFrom(0),
+    faded: false,
   }));
   const invalidate = useThree((three) => three.invalidate);
   /** The pivot the needle turns on (`CompassModel.pivot`): the needle's own centre, the armillary's origin. */
   const pivot = models.compass.pivot;
 
-  // Gone: nothing of the home's keeps the canvas drawing.
+  // Gone: nothing of the home's keeps the canvas drawing, the host is not left faded down, and no scroll pose is reported.
   useEffect(
     () => () => {
       Object.assign(motion.compass, AT_REST);
+      showStepFade(state, false);
+      clearScroll();
     },
-    [],
+    [state],
   );
 
   useFrame(({ camera, size }, delta) => {
     if (!handover.live) {
-      if (state.live) models.compass.setNeedleGlow(1);
+      // Let go (a seek holds the loader's clock): the Opening poses the scene from the held moment, which knows nothing
+      // of the scroll, so the compass is closed, its needle out of the dip and the letters dark again, and the host is
+      // not left faded down.
+      if (state.live) {
+        models.compass.setNeedleGlow(1);
+        models.compass.setIris(0);
+        models.compass.setNeedleDip(0);
+        models.engraving.setLetters(0);
+        showStepFade(state, false);
+        clearScroll();
+      }
       state.live = false;
       return;
     }
     const now = performance.now();
     const dt = Math.min(Math.max(delta, 0), MAX_STEP);
     const { reducedMotion: reduced, transitionId, phase, scene } = useScene.getState();
-    const aiming = isAiming(phase.kind, scene);
+
+    // The stop the scroll's target is nearest: what the step fade shows once it has faded there (reduced motion only).
+    const stop = nearestStop(STOPS, frame.target);
 
     // What stirs the idle motion: the hand-over (the needle starts where the opening left it, still, and the idle clock
-    // at its start, where the drift sets off from the rest), a phase change, and a pointer move at home.
+    // at its start, where the drift sets off from the rest), a phase change, a pointer move at home, and the scroll.
     let stirred = false;
     if (!state.live) {
       state.live = true;
@@ -133,6 +196,23 @@ export function Home({ models, handover }: HomeProps): null {
       state.base = handover.time;
       state.target = handover.needle;
       spring.set(handover.needle, 0);
+      state.u = state.shotU = state.shotAspect = Number.NaN;
+      // A hand-over poses the stop the target is at, with no fade: the canvas is not showing a step.
+      state.fade = stepFadeFrom(stop);
+    }
+
+    // The scroll's rise (scrollPose.ts): the damped progress, or with reduced motion the stop the step fade shows, which
+    // jumps only once the host has faded down. The fade asks for frames until it is dark and the jump is drawn.
+    stepFadeAt(state.fade, stop, reduced, now);
+    showStepFade(state, state.fade.darkAt !== null);
+    if (state.fade.darkAt !== null) invalidate();
+    const aspect = size.width / size.height;
+    const pose = scrollPoseAt(riseAt(reduced ? state.fade.shown : frame.progress), aspect);
+    // The needle aims only at the home itself; up the rise its spring holds the target it had (aimsAt).
+    const aiming = aimsAt(phase.kind, scene, pose.u);
+    if (state.u !== pose.u) {
+      state.u = pose.u;
+      stirred = true;
     }
     if (state.transition !== transitionId) {
       state.transition = transitionId;
@@ -174,6 +254,25 @@ export function Home({ models, handover }: HomeProps): null {
     const needle = spring.step(state.target, dt);
     models.compass.setNeedle(needle);
     frame.needleAngle = needle;
+
+    // The scroll's pose: the needle turns down from where it points, the compass opens, the light runs into the B
+    // letters (the only place they are drawn: the Opening poses the home once, before Home's first frame).
+    models.compass.setNeedleDip(pose.needleDip);
+    models.compass.setIris(pose.iris);
+    models.engraving.setLetters(pose.letters);
+    const scroll = frame.scroll;
+    scroll.u = pose.u;
+    scroll.letters = pose.letters;
+    scroll.iris = pose.iris;
+    scroll.needleDip = pose.needleDip;
+    // The camera only when it has somewhere new to stand. The Rig has placed this frame's camera already (it runs
+    // before Home), so the next frame is asked for, which puts it there.
+    if (!Object.is(pose.u, state.shotU) || !Object.is(aspect, state.shotAspect)) {
+      frame.shot = pose.shot;
+      state.shotU = pose.u;
+      state.shotAspect = aspect;
+      invalidate();
+    }
 
     const time = state.base + state.idleTime;
     models.compass.setSpin(time);

@@ -23,6 +23,7 @@ import { settleLoad } from '../settleLoad';
 import { visibleTimeout } from '../timeouts';
 import { type Handover, Home, type HomeModels } from './Home';
 import { cameraShotAt, loadShare, type OpeningPose, openingPoseAt } from './openingPose';
+import { riseAt, scrollPoseAt } from './scrollPose';
 import {
   HOME_CLOCK,
   heldLoaderInput,
@@ -262,8 +263,11 @@ export interface OpeningProps {
  * and quick paths, not the reduced fade: `marksSeen`) and dispatches `LOADED` (the only place it is sent while a Stage
  * is up), once. From then on the Opening poses the home once each time the clock reaches `home`, asks for one more
  * frame, and hands it over (`handover`) to Home (Home.tsx), which drives the needle, the bands' turn,
- * the smoke and the engraving's breath from there, starting where the Opening left them. It frames the home shot again
- * on a resize. On a project page it lands on the home view under that page's scrim.
+ * the smoke, the needle's breath and the scroll's rise from there, starting where the Opening left them. On the first
+ * home frame and on a resize it frames the camera for the screen's shape where the scroll has it
+ * (`scrollPoseAt(riseAt(frame.progress), aspect)`, the home shot at the rise's 0; with reduced motion the stop the step
+ * fade shows), so a resize partway up reframes in place. On a project page it lands on the home view under that page's
+ * scrim.
  *
  * **Skipped mount** (Ruling 9c). Mounted while the home page has already left LOADING (`openingStartFor`: 3D back on
  * after a failure or a toggle, a visit that began on Lite), it plays no loader under the hero that now shows: it builds
@@ -558,9 +562,17 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
     frame.loader.strokes = clock.strokes;
     motion.loader = !atHome;
 
-    if (held !== null || !atHome || state.homeAspect !== aspect) {
+    if (held !== null || !atHome) {
       frame.shot = cameraShotAt(clock, state.path, aspect);
-      state.homeAspect = atHome && held === null ? aspect : Number.NaN;
+      state.homeAspect = Number.NaN;
+    } else if (state.homeAspect !== aspect) {
+      // At home the camera stands where the scroll has it (Home poses it; src/scene/bob/scrollPose.ts), so the first home
+      // frame and a resize frame it for this shape at the same point of the rise, in place: the home shot itself at the
+      // rise's 0. With reduced motion, while Home drives the home (`handover.live` is still last frame's here), that point
+      // is the stop the step fade shows, as Home last posed it, not the damped progress on its way to the next stop.
+      const rise = handover.live && useScene.getState().reducedMotion ? frame.scroll.u : riseAt(frame.progress);
+      frame.shot = scrollPoseAt(rise, aspect).shot;
+      state.homeAspect = aspect;
     }
     // A held clock poses every frame; the live one poses the home once, when it gets there.
     if (held !== null || !atHome) state.posedHome = false;

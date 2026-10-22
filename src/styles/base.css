@@ -124,6 +124,25 @@ body:has(.page) .poster::after {
   z-index: 1;
 }
 
+/* With reduced motion each step of the home's scroll is a short fade (spec §2.3): as the story moves to another stop,
+   Home sets <html data-step-fade>, the scene fades down over 150 ms, the pose jumps while it is dark, and the attribute
+   goes, so the scene fades back over 150 ms (src/scene/bob/stepFade.ts). Without reduced motion the attribute is never
+   set, and nothing else moves the host's opacity. */
+.scene-host {
+  transition: opacity 150ms ease;
+}
+
+html[data-step-fade] .scene-host {
+  opacity: 0;
+}
+
+/* The fade is reduced motion's own, so it keeps its 150 ms over the sheet's last rule, which cuts every transition short. */
+@media (prefers-reduced-motion: reduce) {
+  .scene-host {
+    transition: opacity 150ms ease !important;
+  }
+}
+
 /* The canvas is opaque and above the poster, so on a page of text the scrim is drawn again over the scene: above
    the canvas, below the page. Only once the scene shows (data-ready), and fading in with the canvas, so there is one
    scrim at a time: the poster's while the scene loads, this one over the scene. The home page keeps the scene unveiled. */

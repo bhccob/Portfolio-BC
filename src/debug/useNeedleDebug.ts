@@ -23,6 +23,7 @@ export function readNeedleDebugState(view: ShellView): NeedleDebugState {
   const at = chapterAt(HOME_CHAPTERS, frame.progress, { index: frame.chapterIndex });
   const { dpr, fps, camera } = readStageProbe();
   const { stage, elapsed, strokes } = frame.loader;
+  const { u, letters, iris, needleDip } = frame.scroll;
   return {
     phase,
     progress: frame.progress,
@@ -40,6 +41,7 @@ export function readNeedleDebugState(view: ShellView): NeedleDebugState {
     threeD,
     loader: { stage, elapsed, strokes: [...strokes] },
     needleAngle: frame.needleAngle,
+    scroll: { u, letters, iris, needleDip },
   };
 }
 

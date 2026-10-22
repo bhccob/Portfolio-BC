@@ -20,6 +20,7 @@ function state(over: Partial<NeedleDebugState> = {}): NeedleDebugState {
     threeD: true,
     loader: { stage: 'home', elapsed: 12.5, strokes: [1, 1, 1, 1, 1] },
     needleAngle: 0.66,
+    scroll: { u: 0, letters: 0, iris: 0, needleDip: 0 },
     ...over,
   };
 }

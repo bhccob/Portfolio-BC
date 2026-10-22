@@ -73,3 +73,13 @@ export function nextDriftRest(t: number): number {
 export function isAiming(phase: Phase['kind'], scene: SceneKind | null): boolean {
   return phase === 'HOME_IDLE' && scene === 'home';
 }
+
+/**
+ * Whether the home's needle aims at this point of the scroll: as `isAiming`, and only at the home itself, the rise `u`
+ * (src/scene/bob/scrollPose.ts `riseAt`) at exactly 0. Anywhere up the rise the needle's spring holds the target it had
+ * and the dip carries the needle down; a pointer or the drift moves nothing. Back at 0 the aim takes up again, and the
+ * spring follows the new target from where it is, so nothing snaps. A rise that is not a number is not the home.
+ */
+export function aimsAt(phase: Phase['kind'], scene: SceneKind | null, u: number): boolean {
+  return u === 0 && isAiming(phase, scene);
+}
