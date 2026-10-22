@@ -54,7 +54,8 @@ import { WORDMARK } from '~/engine/bob/wordmark';
  *   about 50 MB of video memory at a pixel ratio of 2. Task 12: at 15 % (an
  *   opacity of 0.85) the darker floor showed a crisp second compass under the
  *   first, where the preview's scratched glass shows only a blurred gold streak
- *   or two; at 8 % it stays a dim echo, and the compass stays the one focal point.
+ *   or two; at 8 % it stays a dim echo, and the compass stays the one focal point. Bob, 2026-10-22: with the
+ *   mirror now blurred into streaks (`reflector`), he asked for it "slightly" stronger: 12 % (an opacity of 0.88).
  * - `reflector`: what the scratched glass does to the mirror's picture (M2a, Task 8). The preview's glass
  *   blurs the compass into a few soft gold streaks along its scratches, where the mirror alone is a sharp copy.
  *   The mirror's shader reads its picture as the average of `blur.taps` reads in a short streak along the
@@ -70,7 +71,8 @@ import { WORDMARK } from '~/engine/bob/wordmark';
  *   to about two thirds of the way up, where (1 - v)^3 is a quarter, and at 1.1
  *   that read as a flat, bright tan bowl, where the preview's video keeps the
  *   tunnel near black through the rise. Its home still p05 glows brighter: this
- *   sits between the two, a dim warm bowl at home (fix round 1).
+ *   sits between the two, a dim warm bowl at home (fix round 1). Bob, 2026-10-22: "slightly" stronger, the wall
+ *   at 0.17 and the light at 1.7 (about 1.4 times each).
  * - `lip`: a gold ring of `tube` radius round the hole, a little outside it,
  *   at `y`, glowing in the gold light at the preview's 0.5.
  */
@@ -78,15 +80,15 @@ export const GLASS_LOOK = {
   segments: 256,
   floor: { colour: palette.black, roughness: 0.08, clearcoat: 0.1, clearcoatRoughness: 0.025, specular: 0.05, outer: 60, thickness: 0.08 },
   scratch: { size: 512, angle: 28, contrast: 4, repeat: 20, seed: 2006, anisotropy: 4 },
-  reflection: { resolution: 0.5, opacity: 0.92, depth: 0.003, tint: 0x7f7f7f, size: [960, 540], multisample: 0 },
+  reflection: { resolution: 0.5, opacity: 0.88, depth: 0.003, tint: 0x7f7f7f, size: [960, 540], multisample: 0 },
   reflector: { blur: { taps: 9, along: 0.06, across: 0.006 } },
   well: {
     bottom: -1.2,
     depth: 1.12,
-    emissive: 0.12,
+    emissive: 0.17,
     colour: palette.goldLight,
     wall: palette.ink,
-    light: { y: -0.9, colour: palette.goldLight, intensity: 1.2, distance: 0, decay: 2 }
+    light: { y: -0.9, colour: palette.goldLight, intensity: 1.7, distance: 0, decay: 2 }
   },
   lip: { radius: WORDMARK.hole + 0.012, tube: 0.02, y: -0.004, colour: palette.brass, emissive: palette.goldLight, emissiveIntensity: 0.5 }
 } as const;

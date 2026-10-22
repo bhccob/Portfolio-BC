@@ -706,7 +706,7 @@ describe('the glass', () => {
   });
 
   // Task 12: at 15 % the darker floor showed a crisp second compass; the preview's scratched glass shows a dim echo.
-  it('lays the reflector under the floor, facing up over the same ring, and lets 8 % of the glass through', () => {
+  it('lays the reflector under the floor, facing up over the same ring, and lets 12 % of the glass through', () => {
     const high = buildGlass('high');
     const reflector = objectNamed(high.group, 'floor:reflector') as Reflector;
     expect(reflector.isReflector).toBe(true);
@@ -730,7 +730,8 @@ describe('the glass', () => {
     expect(far).toBeCloseTo(60, 4);
     const floor = meshNamed(high.group, 'floor').material as THREE.MeshPhysicalMaterial;
     expect(floor.transparent).toBe(true);
-    expect(floor.opacity).toBe(0.92);
+    // Bob, 2026-10-22: the reflection "slightly" stronger: 12 % of the mirror shows through, not 8 %.
+    expect(floor.opacity).toBe(0.88);
     high.dispose();
 
     // Without the reflector the glass is solid.
@@ -843,11 +844,13 @@ describe('the glass', () => {
 
   // Task 12: in the gold light, not the hot amber (an orange pit), and at 0.12, not 1.1 (a flat bright bowl, where the
   // preview's video keeps the tunnel near black through the rise).
-  it('glows the well warm, 0.12 at the foot and falling as (1 - v) cubed up the wall', () => {
+  // Bob, 2026-10-22: the opening's glow "slightly" stronger: 0.17, not 0.12, with the light at 1.7, not 1.2.
+  it('glows the well warm, 0.17 at the foot and falling as (1 - v) cubed up the wall, its light at 1.7', () => {
     const g = buildGlass('low');
     const material = meshNamed(g.group, 'well').material as THREE.MeshStandardMaterial;
     g.setGlow(1);
-    expect(material.emissiveIntensity).toBeCloseTo(0.12, 9);
+    expect(material.emissiveIntensity).toBeCloseTo(0.17, 9);
+    expect(GLASS_LOOK.well.light.intensity).toBe(1.7);
     expect(material.emissive.getHex()).toBe(palette.goldLight);
     expect(GLASS_LOOK.well.light.colour).toBe(palette.goldLight);
     // The fade is added to three's own shader.
@@ -879,7 +882,7 @@ describe('the glass', () => {
     expect(full).toBeGreaterThan(0);
     g.setGlow(0.5);
     expect(light.intensity).toBeCloseTo(full / 2, 9);
-    expect(material.emissiveIntensity).toBeCloseTo(0.06, 9);
+    expect(material.emissiveIntensity).toBeCloseTo(GLASS_LOOK.well.emissive / 2, 9);
     g.setGlow(5);
     expect(light.intensity).toBeCloseTo(full, 9);
     g.setGlow(-1);
