@@ -6,6 +6,7 @@ Date: 2026-10-21, revised 2026-10-22. Owner: Bob Chung. Status: **approved 2026-
 - **Revision, 2026-10-22.** After seeing milestone 1, Bob said: "the B shouldnt be there as the laser takes kinda long so maybe do only the O and that the compass is the only thing in homescreen and then when its zoomed into the (transition) it then shows the 2 B beside it."
   - So the loader now cuts only the circle (§2.1), and the home shows the compass alone (§2.2).
   - The two B letters arrive on the scroll: light runs out of the O into them (§2.3). Bob picked this, way 2 of the Blender preview, over the laser cutting them.
+- **Revision, 2026-10-22 (M2b).** Bob approved the dive preview and the three bead concepts. Each project's object sits sealed inside its bead behind the porthole glass, beside its real screen (§2.3 step 4, §2.4, §7, §8).
 
 **Supersedes** `docs/superpowers/specs/2026-10-20-needle-v3-design.md` (v3) wherever the two differ.
 - The project pages, Lite, contact and the standing rules are carried over from v3 and restated here, so this document stands on its own.
@@ -29,6 +30,11 @@ Date: 2026-10-21, revised 2026-10-22. Owner: Bob Chung. Status: **approved 2026-
   - `bob_animate_o.py` makes the 6.25 s loader
   - `bob_reveal_b.py` makes the two ways the B letters arrive. Way 2, `glow`, is the pick.
   - Its videos and stills are on the review page `bob-only-o.html`.
+- **The M2b preview** (2026-10-22), on the review page `bob-m2b-preview.html`, with its frames in `docs/design/bob-compass/`:
+  - `d01`: the dive, inside the tunnel
+  - `d02`: the overview, the three beads under the glass sky
+  - `d03`: the needle pointing at the Funcial bead
+  - `b01`–`b03`: the bead concepts Bob approved (Funcial, Jontai Energy, Cookies Clicker), objects sealed inside ("way A")
 - **Frames from that preview**, in `docs/design/bob-compass/`:
   - `o01`: the laser on the circle
   - `o02`: the rise
@@ -157,19 +163,30 @@ Scrolling (wheel, trackpad, touch, arrow keys) scrubs one continuous camera move
    - There is no laser here and no sound: the light is the only thing that moves besides the camera and the iris.
 3. **BOB from above** (p07, `o05`). The camera looks straight down. The whole name reads cleanly: two engraved B letters with the flattened rings as the O, which is now a doorway onto the dark below.
    - On a portrait phone the camera stands high enough that the whole name fits across the width.
-4. **The dive** (p08). The camera drops through the O, past the short tunnel whose walls glow warm (brightest at the bottom). The needle leads the way down. *The preview's dive is short; the build may let it linger, with light streaks.*
+4. **The dive** (p08, `d01`; Bob, 2026-10-22: "the dive looks good"). BOB from above holds for a moment, then the camera drops through the O, past the short tunnel whose walls glow warm (brightest at the bottom). The needle leads the way down. *The preview's dive is short; the build may let it linger, with light streaks.*
+   - The dive replaces the "dead" scroll past BOB from above that M2a left (§8).
 
-### 2.4 Inside the chip: preview p09–p10
+**The scroll's stretches** (M2b; *my call*, on the preview's frames). Each is one stop of the scroll, as M2a's rise is:
+1. **the rise:** the home to BOB from above (M2a)
+2. **the dive:** BOB from above, down the tunnel and out under the glass
+3. **the overview:** all three beads in view (p09)
+4. **Funcial,** then **Jontai Energy,** then **Cookies Clicker:** one stop each. The needle points at that bead and it comes forward (p10).
+
+That makes six stops in all; the old chapters' long stretches (eleven units of "parts", two of "morph") go.
+
+### 2.4 Inside the chip: preview p09–p10, `d02`–`d03`
 
 - **The space.** You come out under the glass, which is now the sky: its underside carries the circuit traces, faintly lit, and the round opening glows where you came in.
   - Below and ahead is a deep dark-violet void with light mist and slowly drifting gold dust.
   - The build adds depth layers of mist and a soft beam of light falling from the opening.
 - **An overview** (p09): all projects float far apart at different depths.
-- **The beads.** Each project is one bead:
+- **The beads** (concepts `b01`–`b03`). Each project is one bead:
   - round deep-purple lacquer with fine gold veins
   - a gold halo band around its outline
-  - a gold-rimmed porthole
-  - behind the porthole, the project's **real screen on curved glass**, lit as part of the bead (never a flat paste)
+  - a gold-rimmed porthole with curved glass
+  - behind the porthole glass, **sealed inside like a ship in a bottle**, the project's own object, with the project's **real screen** beside it on a small black glass display, lit as part of the bead (never a flat paste)
+    - *Bob picked this ("way A") on 2026-10-22, over the screen filling the porthole with the object engraved in gold around it.*
+    - The screens are real screenshots from `docs/discovery/`: Funcial `funcial-app-home.webp` (on a phone), Jontai Energy `je-home.webp` (on a landscape display), Cookies Clicker `cookies-playing.webp` (on a phone-sized screen). The concept frames' screens were redrawn by the AI and are not the reference for what they show.
 
   In category order:
   - **01 — SECURE ELEMENT**: Funcial
@@ -177,20 +194,32 @@ Scrolling (wheel, trackpad, touch, arrow keys) scrubs one continuous camera move
   - **03 — OSCILLATOR**: Cookies Clicker
 
   NL labels follow `docs/art-direction.md` (for example "BEVEILIGD ELEMENT").
-- **Each bead also carries its project's own object** from the discovery Bob approved on 2026-10-20 (`docs/projects-discovery.md`):
-  - Funcial: a platter with an abacus and a phone, with the buy-meter verdict as RESULT
-  - Jontai Energy: a 16-cell solar module
-  - Cookies Clicker: a clockwork movement
+- **Each bead carries its project's own object** from the discovery Bob approved on 2026-10-20 (`docs/projects-discovery.md`, which has every part's meaning). Bob confirmed the objects on 2026-10-22 ("the three beads look good"):
+  - **Funcial** (`b01`): a mirror-polished hard-drive platter with one glowing track and four test pins (TP1–TP4, the app's four layers), an upright lacquered abacus (purple beads on gold rods), and the phone with the app.
+  - **Jontai Energy** (`b02`): a solar module of 16 cells, 4 × 4, one cell per page, with silver busbars (the one design system), blue-black cells under glass in a satin aluminium frame with a white backsheet at its edge; a junction box with three leads (EN · ES · 中, the three languages); one output cable ending in a connector (the quote path). Beside it, the website.
+  - **Cookies Clicker** (`b03`): an open clockwork movement in copper and caramel on a dark bridge with ruby jewels: the crown on its side (the click), a train of eight wheels that grow in size (the eight producers), the escapement and balance wheel (the production tick), a mainspring barrel (the save) and a dial with sub-dials (the stats). Beside it, the game. Warm copper, clearly not the bead's gold.
 
-  The objects are small, finely made and sealed inside the bead behind the screen glass, or engraved into its gold work. Concept frames come first.
-  - *Claude proposed this on 2026-10-21 and Bob said he likes the idea. It reverses v3's "the same bead for every project", so Bob confirms it when approving this document.*
-  - Other bead detail planned: the category line engraved in the gold band, and test-point pins around the porthole.
+  The objects are small and finely made, modelled in Blender. Each moves its own way, from the discovery's motion signatures:
+  - Funcial: the platter turns slowly while a light pulse runs along its track from TP1 to TP4; when the bead is selected, the abacus beads slide up one by one.
+  - Jontai Energy: no spin. A slow arc of light sweeps across the module and the cells charge one by one in page order; the module tilts a few degrees after the light, like a solar tracker.
+  - Cookies Clicker: a discrete tick, stop and start: the escapement beats once a second and the train moves one step per beat.
+
+  The motion runs only while that bead is selected or hovered, so at rest the space is still (§4).
+  - *Not in M2b* (kept for later): the category line engraved in the gold band, and test-point pins around the porthole.
 - **The needle as pointer** (p10). The needle comes down with you, grown large, and swings to point at a bead.
   - The bead it points at drifts closer, turns slightly toward you and lights up. The others stay dim.
   - Scrolling further swings the needle to the next bead.
 - **The label** for the selected bead is real text next to it, in the ref-04 style: a small mono category line, the title in heavy gold, and a tiny "click to open" hint.
+  - The category line reads "01 — BEVEILIGD ELEMENT" (NL) or "01 — SECURE ELEMENT" (EN), from `src/data/categories.ts`.
+  - The hint reads "Klik om te openen" / "Click to open", and "Tik om te openen" / "Tap to open" on a touch screen. *My wording; Bob may change it.*
+  - It is a real link to the project page, so the keyboard reaches it (Tab, then Enter) and a screen reader reads it.
 - **Hover** (pointer devices): a bead turns slightly toward you and brightens a little.
 - **Click** or Enter flies through the porthole into the project page.
+  - The flight is short (about 0.8 s): the camera moves into the porthole, and the project page's text fades in over the scene with its scrim. The 3D project interior of §2.5 is a later milestone (M3); until then the page stands over the bead seen close.
+  - **Esc or back** flies out again to the same bead in the void, at its stop of the scroll.
+  - **A direct arrival** at a project page plays the loader (§2.1), then goes straight to that bead's close view.
+- **Loading:** the void, the beads, their objects and screens load after the home has landed (§2.1). If someone scrolls before they are ready, the dive holds in the glowing tunnel and goes on once they are.
+- **Reduced motion:** each stop is a short fade, as in the rise (§2.3); the objects do not move.
 - **Adding a project** later means one bead, its screenshots and its object. **One bead per project**, never filler.
 - **The void is the end of the home scroll** at `/`, not a page of its own.
 
@@ -336,8 +365,9 @@ These routes existed only on unmerged branches and were never live, so no redire
 - simplifications on phones and low-end devices: fewer glass bands, no smoke layers, simpler glass
 - exact material and lighting values, within the art direction
 
+**Designed on 2026-10-22:** the three bead objects and how they sit in the bead (§2.4, `b01`–`b03`). They are modelled in Blender and exported as glTF with the beads; their motion is in code.
+
 **Not designed yet** (concept frames or a preview first, then Bob's OK):
-- the three bead objects, and how they sit in the bead
 - the restyled Lite and contact pages
 - sound (off by default, an opt-in toggle in the header)
 
@@ -369,16 +399,23 @@ These routes existed only on unmerged branches and were never live, so no redire
   - dive: 372–420
   - overview: 442
   - first project: 478
-- **Beads** (in the void): radius 0.95.
-  - Funcial at (1.2, 3.6, −6.9)
-  - Jontai at (−5.0, 9.5, −5.7)
-  - Cookies at (5.4, 13.0, −8.7)
+- **Beads** (in the void): radius 0.95. These are Blender's coordinates; the site's frame is Blender (x, y, z) → three (x, z, −y):
+  - Funcial at (1.2, 3.6, −6.9), in the site (1.2, −6.9, −3.6)
+  - Jontai at (−5.0, 9.5, −5.7), in the site (−5.0, −5.7, −9.5)
+  - Cookies at (5.4, 13.0, −8.7), in the site (5.4, −8.7, −13.0)
+- **The void's camera** (`bob_scroll.py` `cam_pose`, frames 362–480):
+  - BOB from above holds 362–372.
+  - The dive runs 372–420: straight down from 12.6 above the glass to 2.6 under it, the lens 50 → 32 mm.
+  - Coming out runs 420–442: to (0, −5.5, −4.4) looking at (0, 9.0, −7.2), all three beads in view, lens 30 mm.
+  - The glide to the first bead runs 446–472, lens 40 mm.
+- **The void:** its ceiling (the glass's underside, with its traces) at 1.2 under the glass (`WELL_BOTTOM`), the tunnel between.
+- **The needle in the void:** it sinks into the tunnel 330–362, leads the dive to 9.5 under the glass by 424, grows 1.9 times over 400–450, and turns to point at the first bead over 424–466.
 
 ---
 
 ## 8. Open items for Bob (none block planning)
 
-1. **Bead objects:** confirm the abacus, solar module and clockwork come back inside the beads (§2.4).
+1. ~~**Bead objects:** confirm the abacus, solar module and clockwork come back inside the beads.~~ Settled 2026-10-22: they do, sealed inside behind the porthole glass with the real screen beside them (§2.4, `b01`–`b03`).
 2. ~~**About on Lite:** the countries and the Hakka line.~~ Settled 2026-10-22: the Hakka line is dropped (§2.6).
 3. **Cookies Clicker:** Bob's own part, if he wants a role line beyond "with a classmate".
 4. **Branch `needle-v3-m2`:** kept as a parts source, or deleted once its reusable parts are carried over. Its commits reached redesign-bench with M1's merge.
@@ -389,6 +426,14 @@ These routes existed only on unmerged branches and were never live, so no redire
 - the circuit traces, which should lie under the glass, not on top of it
 
 Bob checked M1 on his own phone and found it fine (2026-10-22).
+
+**Milestones from here** (*my call*, 2026-10-22):
+- **M2b:** the dive, the void, the three beads with their objects and real screens, the needle as pointer, the label, hover, click or Enter into the project page, and Esc or back out to the bead.
+- **M3:** the project pages' 3D interiors (§2.5).
+- **M5:** the Lite and contact restyle (§2.6).
+- **Then:** sound (§6).
+
+M4 is folded into M2b: the bead objects come with the beads.
 
 **Going live.** Today's site stays on bhccob.me until Bob approves the new one; there is no date.
 
@@ -405,5 +450,5 @@ Bob checked M1 on his own phone and found it fine (2026-10-22).
 | Three country constellations, cards, fly-throughs, country pages | removed; the country story lives on Lite |
 | Scroll: the dial's rings part like a shutter, descent toward the chip city | scroll: the rings open like an iris, light runs out of the O into the two B letters, BOB seen from above, a dive through the O |
 | The void: between towers of glowing circuitry, the needle overhead | the void: a deep violet space under the glass sky, the needle comes down as a pointer |
-| The same bead for every project | the same bead, plus each project's own small object inside (to confirm) |
+| The same bead for every project | the same bead, with each project's own small object sealed inside beside its real screen (confirmed 2026-10-22) |
 | 3D models built in code only | models and fixed animation authored in Blender and exported as glTF; interaction in code |
