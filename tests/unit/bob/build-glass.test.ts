@@ -350,12 +350,13 @@ describe('the glass', () => {
     }
     const material = floor.material as THREE.MeshPhysicalMaterial;
     expect(material).toBeInstanceOf(THREE.MeshPhysicalMaterial);
-    expect(material.color.getHex()).toBe(palette.night);
+    // Ruling 29: the floor is the preview's black, with the scene's background.
+    expect(material.color.getHex()).toBe(palette.black);
     // Task 12: at full specular and coat the glossy glass mirrored the reflection room's violet card over the whole floor.
-    expect(material.clearcoat).toBe(0.15);
-    expect(GLASS_LOOK.floor.clearcoat).toBe(0.15);
-    expect(material.specularIntensity).toBe(0.12);
-    expect(GLASS_LOOK.floor.specular).toBe(0.12);
+    expect(material.clearcoat).toBe(0.1);
+    expect(GLASS_LOOK.floor.clearcoat).toBe(0.1);
+    expect(material.specularIntensity).toBe(0.05);
+    expect(GLASS_LOOK.floor.specular).toBe(0.05);
     expect(GLASS_LOOK.floor.clearcoatRoughness).toBe(0.025);
     expect(GLASS_LOOK.floor.roughness).toBe(0.08);
     g.dispose();
@@ -604,12 +605,13 @@ describe('the glass', () => {
     g.dispose();
   });
 
-  // Task 12: in the gold light, not the hot amber (an orange pit), and at 0.65, not 1.1 (a flat bright bowl).
-  it('glows the well warm, 0.65 at the foot and falling as (1 - v) cubed up the wall', () => {
+  // Task 12: in the gold light, not the hot amber (an orange pit), and at 0.12, not 1.1 (a flat bright bowl, where the
+  // preview's video keeps the tunnel near black through the rise).
+  it('glows the well warm, 0.12 at the foot and falling as (1 - v) cubed up the wall', () => {
     const g = buildGlass('low');
     const material = meshNamed(g.group, 'well').material as THREE.MeshStandardMaterial;
     g.setGlow(1);
-    expect(material.emissiveIntensity).toBeCloseTo(0.65, 9);
+    expect(material.emissiveIntensity).toBeCloseTo(0.12, 9);
     expect(material.emissive.getHex()).toBe(palette.goldLight);
     expect(GLASS_LOOK.well.light.colour).toBe(palette.goldLight);
     // The fade is added to three's own shader.
@@ -641,7 +643,7 @@ describe('the glass', () => {
     expect(full).toBeGreaterThan(0);
     g.setGlow(0.5);
     expect(light.intensity).toBeCloseTo(full / 2, 9);
-    expect(material.emissiveIntensity).toBeCloseTo(0.325, 9);
+    expect(material.emissiveIntensity).toBeCloseTo(0.06, 9);
     g.setGlow(5);
     expect(light.intensity).toBeCloseTo(full, 9);
     g.setGlow(-1);

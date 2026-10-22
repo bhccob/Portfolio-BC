@@ -7,9 +7,9 @@ import { LOOK } from './bob/look';
 
 /**
  * The BOB studio, the ground the scene stands in, built from LOOK (src/scene/bob/look.ts):
- *   - the night as the clear colour and the background, and linear fog of the same night (LOOK.fog, the colour of the
- *     background), so the far glass fades into the black it ends against and shows no horizon line; no sky beyond
- *     (v3's nebula is gone: the night is the sky);
+ *   - the preview's black as the clear colour and the background (Ruling 29), and linear fog of the same black
+ *     (LOOK.fog, the colour of the background), so the far glass fades into the black it ends against and shows no
+ *     horizon line; no sky beyond (v3's nebula is gone: the black is the sky);
  *   - the reflection room (src/engine/bob/build/room.ts), prefiltered through PMREM into `scene.environment`, which is
  *     what makes the metal gold and keeps the glass smoked;
  *   - one dim warm key light from the upper left for the gold and a faint violet rim from behind (LOOK.key, LOOK.rim);

@@ -9,8 +9,11 @@ import { palette } from '~/engine/palette';
  * concept frames (spec section 4): when in doubt, take light away. Every
  * colour is a palette token.
  *
- * - `background`: the clear colour and the scene's background, the night.
- * - `fog`: linear fog in the background's own night (Ruling 26), none nearer
+ * - `background`: the clear colour and the scene's background, the
+ *   palette's black, the preview's world (Ruling 29: with the night, an
+ *   indigo, the loader came out 1.4 to 2.1 times as bright as the preview and
+ *   the floor read violet).
+ * - `fog`: linear fog in the background's own black (Ruling 26), none nearer
  *   than `near` and all of it at `far`: the home camera stands 8.8 from the
  *   compass and the loader's 13.8, so the name and the compass stay clear, and
  *   the far glass fades into the very black the sky is. `far` lies inside the
@@ -39,8 +42,8 @@ import { palette } from '~/engine/palette';
  *   the room itself is ~/engine/bob/build/room).
  */
 export const LOOK = {
-  background: palette.night,
-  fog: { color: palette.night, near: 14, far: 50, clear: 5 },
+  background: palette.black,
+  fog: { color: palette.black, near: 14, far: 50, clear: 5 },
   exposure: 0.85,
   bloom: { threshold: 0.7, smoothing: 0.12, radius: 0.55, intensity: { high: 0.45, medium: 0.32 } },
   vignette: { offset: 0.22, darkness: 0.82 },

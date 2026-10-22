@@ -156,8 +156,9 @@
  *              `loader.stage` checked and a still taken (`m2/loader-<n>-<size>.png`); the phase stays HOME_IDLE
  *              throughout, and let go the opening is back at home
  *   loader-skip  a first visit's full show: a click 3 s in lands on HOME_IDLE within 1.6 s; reloaded with the seen
- *              flag cleared, 40 wheel events over 1 s from 3 s in land on the home too, and the story's progress
- *              (and target) stays 0, the page unscrolled: the input that skips never scrolls
+ *              flag cleared, 40 wheel events over 1 s from 3 s in (the burst's real length checked, 0.9 to 1.4 s)
+ *              land on the home too, and after the burst the story's progress and target stay 0 for 1.5 s (six
+ *              samples), the page unscrolled: the input that skips never scrolls
  *   quick-loader  a first visit plays the full show and marks the loader seen (`bob-loader-seen` in localStorage);
  *              with the flag set, a load never engraves and reaches HOME_IDLE within QUICK.home + 0.5 s of the load
  *              (the first moment past `dark`)
@@ -2629,7 +2630,8 @@ async function loaderStills(browser, step) {
  * pixel of the scene's middle (`floor.region`, shares of the still's width and height: below the hero's name and the
  * header, above the scroll cue, at both sizes) reaches `floor.peak`. The page's
  * own text is bright (the header, the hero), so a peak taken over the whole still would pass a canvas that drew
- * nothing; in the middle only the scene can make it. (The night alone is a mean of about 0.0115.)
+ * nothing; in the middle only the scene can make it. (The scene's black alone, Ruling 29, is a mean of about 0.001;
+ * the page's night, which the poster shows, about 0.0115.)
  */
 const LUMA_GATE = {
   home: 0.11,
@@ -2877,6 +2879,9 @@ const loaderAtLeast = (page, seconds) =>
 /** How long a skip may take to land, ms: the loader's fast-forward (LOADER.skip, 1 s) and the brief's margin. */
 const SKIP_WITHIN_MS = 1_600;
 
+/** How long the wheel burst (40 events paced 25 ms apart) may really take, ms: a 1 s gesture, give or take a slow event. */
+const WHEEL_BURST_MS = [900, 1_400];
+
 /**
  * The skip (spec §2.1): any click, tap, scroll or key fast-forwards the rest of the full show to the home in about a
  * second, with no button and no text, and the input that skips is used up by the skip. A first visit (nothing stored):
@@ -2916,33 +2921,39 @@ async function loaderSkip(browser, step) {
   await loaderAtLeast(page, 3);
   const second = (await debugOf(page)).loader;
   await page.mouse.move(720, 450);
-  const progress = [];
+  // The burst is paced against the clock, not by fixed waits, so a slow event does not stretch it; its real length is
+  // checked (WHEEL_BURST_MS), so a run where the events came too slowly or all at once cannot pass for a 1 s gesture.
   const burstStart = Date.now();
   for (let i = 0; i < 40; i++) {
     await page.mouse.wheel(0, 100);
     await page.waitForTimeout(Math.max(0, burstStart + (i + 1) * 25 - Date.now()));
-    if (i % 8 === 7) progress.push((await frameOf(page)).progress);
   }
   const burst = Date.now() - burstStart;
   const landed = await reachHomeIdle(page).then(() => true, () => false);
   const wheelRecord = await loaderRecord(page);
   const wheelAt = await page.evaluate(() => window.__inputAt);
-  await page.waitForTimeout(1_500); // a story the burst had moved would be moving by now
-  const rest = await frameOf(page);
-  progress.push(rest.progress);
+  // From the burst's end on, while the swallow and any scroll it had let through would play out: six samples 250 ms
+  // apart, each of progress and target, and the page's own scroll.
+  const after = [];
+  for (let k = 0; k < 6; k++) {
+    await page.waitForTimeout(250);
+    const f = await frameOf(page);
+    after.push({ progress: f.progress, target: f.target });
+  }
   const scrollY = await page.evaluate(() => window.scrollY);
   step.check(second.stage === 'engrave' && second.elapsed >= 3, `reloaded with ${LOADER_SEEN_KEY} cleared, the full show plays again (stage ${second.stage} at ${second.elapsed.toFixed(2)} s)`);
+  step.check(burst >= WHEEL_BURST_MS[0] && burst <= WHEEL_BURST_MS[1], `the burst was 40 wheel events over ${burst} ms (a 1 s gesture: ${WHEEL_BURST_MS.join(' to ')} ms)`);
   step.check(
     landed && wheelRecord.idleAt !== null,
-    `40 wheel events over ${burst} ms from 3 s in land on the home (HOME_IDLE ${wheelAt === null ? '?' : Math.round(wheelRecord.idleAt - wheelAt)} ms after the first)`,
+    `40 wheel events from 3 s in land on the home (HOME_IDLE ${wheelAt === null ? '?' : Math.round(wheelRecord.idleAt - wheelAt)} ms after the first)`,
   );
   step.check(
-    progress.every((p) => p === 0) && rest.target === 0 && scrollY === 0,
-    `and the burst never scrolls: the story's progress stays 0 through it and after (${progress.join(' ')}), target ${rest.target}, scrollY ${scrollY}`,
+    after.every((s) => s.progress === 0 && s.target === 0) && scrollY === 0,
+    `and the burst never scrolls: after it, the story's progress and target stay 0 for 1.5 s (${after.map((s) => `${s.progress}/${s.target}`).join(' ')}), scrollY ${scrollY}`,
   );
   await takeCsp(page, step);
   await context.close();
-  return `a click at 3 s lands in ${took} ms; a 40-event wheel burst at 3 s lands with the story at 0 (target ${rest.target}, scrollY ${scrollY})`;
+  return `a click at 3 s lands in ${took} ms; a 40-event wheel burst over ${burst} ms at 3 s lands with the story at 0 for 1.5 s after (scrollY ${scrollY})`;
 }
 
 /** How late the quick path may land after the load, s: its whole length, QUICK.home, and the brief's margin. */

@@ -65,12 +65,19 @@ export const palette = {
   /** Deep violet: the v3 sky's nebula clouds, which only ever lie faintly over the night. */
   nebula: 0x2a1250,
   /**
-   * Night: the v3 scene's background, the sky between the clouds, which the
-   * sky builder layers the nebula over. The scene's clear colour
-   * (LOOK.background, look.ts) takes it too, so a frame drawn before the sky
-   * is up is the same night as one drawn after.
+   * Night: the page's own dark (--night in tokens.css: the poster behind the
+   * canvas, the page chrome). It was the 3D scene's background too, until
+   * Ruling 29 gave the scene the preview's black (below).
    */
   night: 0x040209,
+  /**
+   * Black: the Blender preview's world as its frames show it (about (0.6, 0.3, 0.7) of 255 on its floor and sky,
+   * measured from p01-p05 and loader-to-home.mp4), a hair of violet in true black. The 3D scene's clear colour, its
+   * background and its fog (LOOK.background, LOOK.fog, src/scene/bob/look.ts; the two stay one colour, Ruling 26) and
+   * the glass floor take it (Ruling 29): with the night there, an indigo, the loader's frames came out 1.4 to 2.1
+   * times as bright as the preview's and the floor read violet. The page around the scene keeps the night.
+   */
+  black: 0x010001,
   /**
    * Fog: the v3 scene's haze in the distance (LOOK.fog, look.ts), a breath
    * of violet over the night, so the far board and the compass's far rim

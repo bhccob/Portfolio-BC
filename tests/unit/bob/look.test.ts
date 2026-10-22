@@ -7,8 +7,9 @@ import { HOME_POSE } from '~/scene/bob/openingPose';
 
 describe('the BOB look', () => {
   it('stands on the night, its fog from 14 to 50 (5 clear of what the camera looks at), its bloom from 0.7', () => {
-    expect(LOOK.background).toBe(palette.night);
-    expect(LOOK.fog).toEqual({ color: palette.night, near: 14, far: 50, clear: 5 });
+    // Ruling 29: the preview's world is black; with the night (an indigo) the loader read 1.4-2.1x the preview.
+    expect(LOOK.background).toBe(palette.black);
+    expect(LOOK.fog).toEqual({ color: palette.black, near: 14, far: 50, clear: 5 });
     expect(LOOK.bloom.threshold).toBe(0.7);
     expect(LOOK.bloom.intensity.high).toBeGreaterThan(LOOK.bloom.intensity.medium);
     expect(LOOK.bloom.radius).toBeGreaterThan(0);
