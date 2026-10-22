@@ -291,7 +291,7 @@ The south arm has no card (§5.6).
 
 ### Country pages — at most 3 short beats + 1 hero visual
 
-> Superseded by the BOB design (2026-10-21, `docs/superpowers/specs/2026-10-21-bob-compass-design.md`): the countries, their arms, cards and pages are gone. Kept as the record of the Needle art direction. The China page's Hakka line now stands on Lite's about.
+> Superseded by the BOB design (2026-10-21, `docs/superpowers/specs/2026-10-21-bob-compass-design.md`): the countries, their arms, cards and pages are gone. Kept as the record of the Needle art direction. The China page's Hakka line went to Lite's about in M1, and Bob dropped it on 2026-10-22.
 
 | Page | Beat | NL | EN |
 | --- | --- | --- | --- |

@@ -74,7 +74,7 @@ export function fogFor(distance: number): { near: number; far: number } {
 /**
  * How long the home's idle motion runs after the last thing that stirred it
  * (a pointer move at home, a phase change, the hand-over from the opening),
- * seconds: the bands' turn, the smoke's drift and the engraving's breathing. A
+ * seconds: the bands' turn, the smoke's drift and the needle's breathing. A
  * needle on the touch drift runs on to the drift's next rest
  * (~/engine/bob/needleAim `nextDriftRest`). Then the needle settles, the scene
  * draws nothing more and the canvas sleeps (spec section 4: when nothing
@@ -97,19 +97,20 @@ export function breathAt(t: number): number {
 }
 
 /**
- * How deep the engraving breathes at home, either way, as a share of its glow
- * at rest: half v3's needle tip's `BREATHE.depth`, as the engraving is the
- * whole name and the compass's opening, and a deeper breath would read as a
- * flicker.
+ * How far the needle's glow rises at the top of its breath at home, as a share
+ * of its glow at rest (spec §2.2: the needle breathes; the engraving holds
+ * still, so the one thing that breathes is the compass's focal point). It only
+ * rises: below its rest the brass reads khaki against the dark room (Task 12).
  */
-export const ENGRAVE_BREATH = 0.05;
+export const NEEDLE_BREATH = 0.4;
 
 /**
- * The engraving's glow at `t` seconds of the home's idle motion
- * (`EngravingModel.setGlow`): `breathAt`'s wave at `ENGRAVE_BREATH`'s depth,
- * 0.95 to 1.05 over `BREATHE.period`, and exactly 1 at 0, where the loader
- * left it. A time that is not finite reads as rest.
+ * The needle's glow at `t` seconds of the home's idle motion
+ * (`CompassModel.setNeedleGlow`): 1 + NEEDLE_BREATH (1 - cos(2 PI t / period)) / 2,
+ * so exactly 1 at 0, where the loader left it, up to 1.4 halfway through
+ * `BREATHE.period` and back at its end. A time that is not finite reads as rest.
  */
-export function engraveGlowAt(t: number): number {
-  return 1 + (breathAt(t) - 1) * (ENGRAVE_BREATH / BREATHE.depth);
+export function needleGlowAt(t: number): number {
+  if (!Number.isFinite(t)) return 1;
+  return 1 + (NEEDLE_BREATH * (1 - Math.cos((2 * Math.PI * t) / BREATHE.period))) / 2;
 }

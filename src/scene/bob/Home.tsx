@@ -10,7 +10,7 @@ import { AT_REST } from '~/engine/stillness';
 import { frame } from '~/state/frame';
 import { useScene } from '~/state/store';
 import { motion } from '../motion';
-import { engraveGlowAt, IDLE_SECONDS } from './look';
+import { IDLE_SECONDS, needleGlowAt } from './look';
 
 /** The longest step the needle and the idle clock take in one frame, seconds: a wake from sleep jumps neither. */
 const MAX_STEP = 0.1;
@@ -81,9 +81,10 @@ const pivotPx = { x: 0, y: 0 };
  *
  * **Idle.** For IDLE_SECONDS after the last stir (the hand-over, a phase change, a pointer move at home), and for a
  * drifting needle on to the drift's next rest (`nextDriftRest`), the bands turn (`setSpin`), the smoke drifts and the
- * engraving breathes (`engraveGlowAt`, 0.05 either way over 4 s), all on one clock that stops with them, so a sleeping
- * scene is a still frame of them and a wake goes on from there. The turn and the smoke go on from the world's time at
- * the hand-over, so the hand-over moves neither. None of it under reduced motion. Each frame it writes `motion.compass`
+ * needle breathes (`needleGlowAt`, its glow up to 1.4 times its rest and back over 4 s; the engraving holds still),
+ * all on one clock that stops with them, so a sleeping scene is a still frame of them and a wake goes on from there.
+ * The turn and the smoke go on from the world's time at the hand-over, so the hand-over moves neither; a seek that
+ * takes the scene back gets the needle at its resting glow, which the opening never moves. None of it under reduced motion. Each frame it writes `motion.compass`
  * (`idle`, `needle`, `needleSpeed`), so the Heartbeat lets the canvas sleep once the idle while is over and the needle
  * has settled; and `frame.needleAngle`, for the debug bridge.
  */
@@ -113,6 +114,7 @@ export function Home({ models, handover }: HomeProps): null {
 
   useFrame(({ camera, size }, delta) => {
     if (!handover.live) {
+      if (state.live) models.compass.setNeedleGlow(1);
       state.live = false;
       return;
     }
@@ -176,7 +178,7 @@ export function Home({ models, handover }: HomeProps): null {
     const time = state.base + state.idleTime;
     models.compass.setSpin(time);
     models.smoke.setTime(time);
-    models.engraving.setGlow(reduced ? 1 : engraveGlowAt(state.idleTime));
+    models.compass.setNeedleGlow(reduced ? 1 : needleGlowAt(state.idleTime));
 
     const still = motion.compass;
     still.idle = !runs;

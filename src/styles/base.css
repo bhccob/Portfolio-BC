@@ -283,12 +283,34 @@ main {
   min-height: 44px;
 }
 
+/* On a laptop the nav is a row beside the name. It is a popover (the phone's menu), so the browser's own popover
+   styles are undone here: no fixed box, no border, no canvas colours, shown whether or not the popover is open. Its
+   two groups (the links, then the language, Lite and the 3D switch) are one row. */
 .header-nav {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0 12px;
-  margin-left: auto;
+  position: static;
+  inset: auto;
+  width: auto;
+  height: auto;
+  margin: 0 0 0 auto;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  background: none;
+  color: inherit;
+}
+
+.menu-links,
+.menu-extras {
+  display: contents;
+}
+
+/* The Menu button is the phone's; a laptop shows the nav itself. */
+.menu-toggle {
+  display: none;
 }
 
 .header-control {
@@ -473,7 +495,8 @@ html[data-loading] .site-header:not(:focus-within) {
     --scrim-page: linear-gradient(rgb(10 5 16 / 0.82), rgb(10 5 16 / 0.82));
   }
 
-  /* On a phone the header's controls sit on a row of their own, left aligned and close together. */
+  /* On a phone the header's controls sit on a row of their own, left aligned and close together. Where the browser has no
+     popover (the menu below), they stay so. */
   .header-nav {
     margin-left: 0;
     gap: 0 4px;
@@ -482,6 +505,115 @@ html[data-loading] .site-header:not(:focus-within) {
   .header-control {
     padding: 0 4px;
     letter-spacing: 0.1em;
+  }
+
+  @supports selector(:popover-open) {
+    /* On a phone the header is one row, the name and the Menu button (option A of Bob's mock-up, 2026-10-22). The nav is
+       the menu: closed it is the popover the browser hides, open it is a dark sheet under the header, its three links
+       large between hairlines, the language, Lite and the 3D switch small at its foot. It covers the page below the
+       header and holds its own scroll, so a swipe in it never moves the page or the scene under it. */
+    .site-header {
+      flex-wrap: nowrap;
+    }
+
+    .menu-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 44px;
+      margin-right: -6px;
+      padding: 0 6px;
+      border: 0;
+      background: none;
+      color: var(--ink);
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      line-height: 1.5;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    .menu-label-close {
+      display: none;
+    }
+
+    .menu-toggle:has(+ .header-nav:popover-open) .menu-label-open {
+      display: none;
+    }
+
+    .menu-toggle:has(+ .header-nav:popover-open) .menu-label-close {
+      display: inline;
+    }
+
+    /* Two hairlines, the menu's mark; gone while the menu is open, where the button says "close". */
+    .menu-bars {
+      width: 18px;
+      height: 6px;
+      border-top: 1px solid currentcolor;
+      border-bottom: 1px solid currentcolor;
+    }
+
+    .menu-toggle:has(+ .header-nav:popover-open) .menu-bars {
+      display: none;
+    }
+
+    .header-nav:not(:popover-open) {
+      display: none;
+    }
+
+    .header-nav:popover-open {
+      position: fixed;
+      inset: var(--header-height) 0 0;
+      flex-direction: column;
+      flex-wrap: nowrap;
+      align-items: stretch;
+      gap: 0;
+      width: 100%;
+      max-width: none;
+      height: auto;
+      max-height: none;
+      margin: 0;
+      padding: 40px var(--gutter) max(40px, env(safe-area-inset-bottom));
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      background: rgb(4 2 9 / 0.94);
+      color: var(--ink);
+    }
+
+    .header-nav::backdrop {
+      background: transparent;
+    }
+
+    .header-nav:popover-open .menu-links {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header-nav:popover-open .menu-links .header-control {
+      min-height: 64px;
+      padding: 0;
+      border-top: 1px solid rgb(228 190 127 / 0.18);
+      font-size: 15px;
+      letter-spacing: 0.2em;
+    }
+
+    .header-nav:popover-open .menu-links .header-control:last-child {
+      border-bottom: 1px solid rgb(228 190 127 / 0.18);
+    }
+
+    .header-nav:popover-open .menu-extras {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0 22px;
+      margin-top: auto;
+      padding-top: 40px;
+    }
+
+    .header-nav:popover-open .menu-extras .header-control {
+      padding: 0;
+      color: var(--gold-ink);
+    }
   }
 }
 

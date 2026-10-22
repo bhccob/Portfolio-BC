@@ -82,11 +82,19 @@ describe('the header while the opening plays (the loader has no text but its eng
 
   it('never hides the header, its links or the skip link with display or visibility, so Tab still reaches them', () => {
     const header = /\.(site-header|header-nav|header-control|site-name|skip-link)\b/;
+    // The one exception is the phone's menu (option A, 2026-10-22): its links are behind the Menu button, which Tab
+    // reaches, and only while the popover is closed; the rules for it sit in the phone's width and in a browser that
+    // has popovers, and each names :popover-open.
+    const PHONE_MENU = ['@media (max-width: 720px)', '@supports selector(:popover-open)'];
+    const menuRules = RULES.filter((rule) => JSON.stringify(rule.groups) === JSON.stringify(PHONE_MENU) && rule.selectors.every((s) => s.includes(':popover-open')));
     for (const rule of RULES) {
-      if (!rule.selectors.some((s) => header.test(s))) continue;
+      if (!rule.selectors.some((s) => header.test(s)) || menuRules.includes(rule)) continue;
       expect(rule.declarations.get('display'), rule.selectors.join(', ')).not.toBe('none');
       expect(rule.declarations.get('visibility'), rule.selectors.join(', ')).not.toBe('hidden');
     }
+    // The closed menu is hidden only there, and only by the browser's own state.
+    expect(valueOf('.header-nav:not(:popover-open)', 'display', PHONE_MENU)).toBe('none');
+    expect(menuRules.some((rule) => /data-loading|data-route/.test(rule.selectors.join(',')))).toBe(false);
     // The skip link is not hidden for the loader at all: it stays where its own rule puts it until it has focus.
     expect(RULES.some((rule) => rule.selectors.some((s) => /data-loading|data-route\]\)/.test(s) && s.includes('.skip-link')))).toBe(false);
   });

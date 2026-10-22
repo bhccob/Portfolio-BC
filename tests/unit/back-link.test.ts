@@ -8,7 +8,7 @@ import { nl } from '../../src/i18n/nl';
 import { Translator } from '../../src/i18n/Translator';
 import { translatorFor } from '../../src/i18n/useTranslator';
 import { resetRouteSync, syncRoute } from '../../src/state/routeSync';
-import { BackLink, goBack, homeTarget, isEditableTarget, isPlainClick, splitBackLabel } from '../../src/ui/BackLink';
+import { BackLink, goBack, homeTarget, isEditableTarget, isPlainClick, popoverIsOpen, splitBackLabel } from '../../src/ui/BackLink';
 
 /** The back link as the server renders it, on a page at `path`. */
 const render = (path: string): string => renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: [path] }, createElement(BackLink)));
@@ -118,6 +118,22 @@ describe('isEditableTarget', () => {
     expect(isEditableTarget({ tagName: 'BUTTON' } as unknown as EventTarget)).toBe(false);
     expect(isEditableTarget({ tagName: 'BODY', isContentEditable: false } as unknown as EventTarget)).toBe(false);
     expect(isEditableTarget(null)).toBe(false);
+  });
+});
+
+describe('popoverIsOpen', () => {
+  it('is true while a popover is open (the phone menu), so Escape closes the menu and does not also go back', () => {
+    expect(popoverIsOpen({ querySelector: (selector: string) => (selector === ':popover-open' ? ({} as Element) : null) })).toBe(true);
+    expect(popoverIsOpen({ querySelector: () => null })).toBe(false);
+  });
+
+  it('is false in a browser that does not know :popover-open', () => {
+    const old = {
+      querySelector: (): Element | null => {
+        throw new SyntaxError("':popover-open' is not a valid selector");
+      },
+    };
+    expect(popoverIsOpen(old)).toBe(false);
   });
 });
 

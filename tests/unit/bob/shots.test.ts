@@ -46,25 +46,39 @@ describe('the home shot', () => {
     }
   });
 
-  it('fits the whole name across a portrait phone, the field held at 50 degrees', () => {
-    const a = PHONE;
-    const shot = homeShotFor(a);
-    expect(shot.fov).toBeLessThanOrEqual(50);
-    for (const x of [-4.25, 4.25]) expect(Math.abs(project(shot, a, [x, 0, 1.7])[0])).toBeLessThanOrEqual(0.95);
-  });
-
-  it('keeps the whole name inside the frame across the portrait range (the margin thins toward a square)', () => {
-    for (const aspect of [0.25, 0.3, 0.5, 0.75, 0.9, 0.99]) {
+  it('puts the B centres at the screen edges on a phone too (Bob: half of each B), the field held at 50 degrees', () => {
+    for (const aspect of [PHONE, 0.5, 0.75, 0.9]) {
       const shot = homeShotFor(aspect);
       expect(shot.fov).toBeLessThanOrEqual(MAX_VFOV + 1e-9);
-      for (const x of [-4.25, 4.25]) expect(Math.abs(project(shot, aspect, [x, 0, 1.7])[0])).toBeLessThan(1);
+      expect(project(shot, aspect, [-3.2, 0.55, 0])[0]).toBeCloseTo(-1, 9);
+      expect(project(shot, aspect, [3.2, 0.55, 0])[0]).toBeCloseTo(1, 9);
+      // The B letters' outer edges are off the screen.
+      for (const x of [-4.25, 4.25]) expect(Math.abs(project(shot, aspect, [x, 0, 0])[0])).toBeGreaterThan(1);
+    }
+    expect(homeShotFor(PHONE).fov).toBe(MAX_VFOV);
+  });
+
+  it('keeps the whole compass in the frame on a phone', () => {
+    const shot = homeShotFor(PHONE);
+    for (const [x, y, z] of [
+      [0, 0.55 + 1.56, 0],
+      [1.66, 0, 0],
+      [-1.66, 0, 0],
+      [0, 0, 1.66],
+      [0, 0, -1.66]
+    ] as const) {
+      const [nx, ny] = project(shot, PHONE, [x, y, z]);
+      expect(Math.abs(nx)).toBeLessThan(0.7);
+      expect(Math.abs(ny)).toBeLessThan(0.5);
     }
   });
 
-  it('takes the portrait frame below a square and the laptop frame from a square up', () => {
-    expect(homeShotFor(0.999)).toEqual(shotFor(FRAMES.homePortrait, 0.999));
-    expect(homeShotFor(1)).toEqual(shotFor(FRAMES.home, 1));
-    expect(homeShotFor(16 / 9)).toEqual(shotFor(FRAMES.home, 16 / 9));
+  it('takes the one home frame on every screen, so a window resized across square does not jump', () => {
+    for (const aspect of [PHONE, 0.999, 1, 16 / 9]) expect(homeShotFor(aspect)).toEqual(shotFor(FRAMES.home, aspect));
+    const below = homeShotFor(0.999);
+    const above = homeShotFor(1.001);
+    expect(Math.abs(below.fov - above.fov)).toBeLessThan(0.1);
+    for (let i = 0; i < 3; i++) expect(Math.abs(below.position[i] - above.position[i])).toBeLessThan(0.01);
   });
 });
 
@@ -140,7 +154,7 @@ describe('shotFor', () => {
 
   it('puts the half-width, measured at the target, on the screen edge', () => {
     // Wherever the width fit is not below the frame's floor on its field (see the wide, short screens below).
-    const frames: ShotFrame[] = [FRAMES.wide, FRAMES.home, FRAMES.homePortrait];
+    const frames: ShotFrame[] = [FRAMES.wide, FRAMES.home];
     for (const frame of frames) {
       for (const aspect of [0.3, PHONE, 1, 16 / 10, 16 / 9]) {
         const shot = shotFor(frame, aspect);
@@ -151,7 +165,7 @@ describe('shotFor', () => {
   });
 
   it('holds the field at the cap and stands back instead, on a narrow screen', () => {
-    const frame = FRAMES.homePortrait;
+    const frame = FRAMES.home;
     const shot = shotFor(frame, PHONE);
     expect(MAX_VFOV).toBe(50);
     expect(shot.fov).toBe(MAX_VFOV);
@@ -161,7 +175,7 @@ describe('shotFor', () => {
   });
 
   it('keeps the elevation when it stands back', () => {
-    const frame = FRAMES.homePortrait;
+    const frame = FRAMES.home;
     const shot = shotFor(frame, PHONE);
     const rise = Math.atan2(shot.position[1] - frame.targetY, shot.position[2]);
     expect(rise).toBeCloseTo((frame.elevation * Math.PI) / 180, 9);
@@ -185,13 +199,13 @@ describe('shotFor', () => {
   });
 
   it('reads an aspect thinner than 0.25 as 0.25, so the camera stays a finite way off', () => {
-    for (const frame of [FRAMES.wide, FRAMES.home, FRAMES.homePortrait]) {
+    for (const frame of [FRAMES.wide, FRAMES.home]) {
       expect(shotFor(frame, 0.05)).toEqual(shotFor(frame, 0.25));
       expect(shotFor(frame, 0.001)).toEqual(shotFor(frame, 0.25));
     }
     expect(homeShotFor(0.05)).toEqual(homeShotFor(0.25));
     expect(wideShotFor(0.05)).toEqual(wideShotFor(0.25));
-    expect(shotFor(FRAMES.homePortrait, 0.05).position[2]).toBeLessThan(100);
+    expect(shotFor(FRAMES.home, 0.05).position[2]).toBeLessThan(100);
   });
 
   it('gives finite numbers for a bad aspect', () => {

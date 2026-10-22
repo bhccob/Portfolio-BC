@@ -124,8 +124,6 @@ export const en = {
       'I’m Bob Chung, a <span data-age>{age}</span>-year-old student software engineer based in Rotterdam. Born and raised in Aruba and Chinese by heritage, I moved to the Netherlands at eighteen.',
     body:
       'I work across databases, game development and web development, and each discipline sharpens the others. Hardware and electrical engineering are next on my route. I build with curiosity and test with honesty.',
-    /** The line v3's China page told, moved here with the countries gone (Bob approved this wording). */
-    hakka: 'Hakka, a Chinese dialect, is my mother tongue.',
     quote: 'Home isn’t one place for me. It’s a blend of cultures and the questions I keep chasing.',
     thoughtLabel: 'A rule I keep',
     thought: '“Overthinking is fear pretending to be logic.”',

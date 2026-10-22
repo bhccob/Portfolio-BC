@@ -101,6 +101,13 @@ export interface CompassModel {
    */
   setNeedle(angle: number): void;
   /**
+   * The needle's glow as a share of its rest (`look.gold.emissiveIntensity`):
+   * the home's breath (~/scene/bob/look `needleGlowAt`). The needle wears a
+   * brass of its own for it, so the rims, the pivot and the axis hold still.
+   * A value that is not finite, or below 0, reads as 1.
+   */
+  setNeedleGlow(level: number): void;
+  /**
    * Fades the whole compass in, 0..1 (NaN reads as 0), for the quick and
    * reduced paths: opacity only, so a frame of the fade compiles nothing. At 0
    * nothing is drawn.
@@ -293,9 +300,13 @@ export function loadCompass(
     emissiveIntensity: look.gold.emissiveIntensity,
     alphaHash: true
   });
-  for (const name of ['rim_1', 'rim_2', 'rim_3', 'rim_4', 'needle', 'pivot', 'axis'] as const) part(name).material = gold;
+  for (const name of ['rim_1', 'rim_2', 'rim_3', 'rim_4', 'pivot', 'axis'] as const) part(name).material = gold;
+  // The same brass, its own copy: the needle breathes at home (setNeedleGlow) and the rest of the gold holds still.
+  const needleGold = gold.clone();
+  needleGold.name = 'compass:needle';
 
   const needle = part('needle');
+  needle.material = needleGold;
   const needleRest = needle.quaternion.clone();
 
   // The mixer poses a stand-in, never the armillary itself: three's bindings write a value only when it has changed
@@ -355,9 +366,14 @@ export function loadCompass(
     setReveal(level) {
       const r = clamp01(level);
       gold.opacity = r;
+      needleGold.opacity = r;
       for (let i = 0; i < bands.length; i++) bands[i].glass.opacity = glassOpacity * r;
       reveal.value = r;
       armillary.visible = r > 0;
+    },
+    setNeedleGlow(level) {
+      const share = Number.isFinite(level) && level >= 0 ? level : 1;
+      needleGold.emissiveIntensity = look.gold.emissiveIntensity * share;
     },
     setTier(next) {
       const to = lowerTier(standing, next);
@@ -376,6 +392,7 @@ export function loadCompass(
     },
     dispose() {
       gold.dispose();
+      needleGold.dispose();
       for (const band of bands) {
         band.glass.dispose();
         band.map.dispose();

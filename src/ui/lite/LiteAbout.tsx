@@ -16,7 +16,7 @@ function Age(): JSX.Element {
   return <span suppressHydrationWarning>{profile.ageOn()}</span>;
 }
 
-/** About: the real portrait, the lead and the text, the Hakka line, the quote, the facts, the origin route and the rule he keeps. */
+/** About: the real portrait, the lead and the text, the quote, the facts, the origin route and the rule he keeps. */
 export function LiteAbout(): JSX.Element {
   const { t } = useTranslator();
   const a = t.about;
@@ -48,7 +48,6 @@ export function LiteAbout(): JSX.Element {
         {afterAge}
       </p>
       <p>{a.body}</p>
-      <p>{a.hakka}</p>
 
       <blockquote className="quote">
         <p>{a.quote}</p>

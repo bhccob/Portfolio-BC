@@ -20,7 +20,7 @@ const dictionaries = [
   ['en', en, '/en/lite/', '/en'],
 ] as const;
 
-/** The Hakka line the about section tells (Bob approved the English; the Dutch is his to confirm in the milestone review). */
+/** The Hakka line M1 put in the about section, which Bob dropped in the milestone review (2026-10-22). */
 const HAKKA = { nl: 'Hakka, een Chinees dialect, is mijn moedertaal.', en: 'Hakka, a Chinese dialect, is my mother tongue.' } as const;
 
 /** The page as the server renders it at `path`. */
@@ -68,10 +68,9 @@ describe('the Lite page', () => {
         expect(html).not.toContain('<section id="world"');
       });
 
-      it('tells the Hakka line in the about section, and nowhere else', () => {
-        const about = html.slice(html.indexOf('<section id="about"'), html.indexOf('<section id="skills"'));
-        expect(textOf(about)).toContain(HAKKA[name]);
-        expect(text.split(HAKKA[name])).toHaveLength(2);
+      it('no longer tells the Hakka line (Bob dropped it)', () => {
+        expect(text).not.toContain(HAKKA[name]);
+        expect(text).not.toMatch(/Hakka/);
       });
 
       it('shows each section\u2019s heading (the work section keeps its old heading, "Projects, one build at a time")', () => {

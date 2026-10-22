@@ -111,6 +111,8 @@ The shot:
   - *Bob picked B's overall scene (engraved gold lines in dark glass) with D's compass (the tilted glass rings).*
 - **The needle** follows the cursor with a slight, heavy delay, like a real needle settling. It is a spring, not instant.
 - **Idle:** the rings turn very slowly, the smoke drifts and the needle breathes.
+  - The needle's gold glow rises and falls over 4 s, and the engraving holds still. *Bob left this choice to me on 2026-10-22; M1 had the engraving breathe.*
+  - The rings stay at about a quarter of the preview's pace. *Bob, 2026-10-22: "keep slow".*
 - **Text:** none in the scene. A minimal header:
   - "Bob Chung" small on the left
   - on the right: Work, About, Contact, the language switch, and Lite
@@ -118,7 +120,7 @@ The shot:
 
   These are frame `2d-screen` in `.superpowers/brainstorm/bob-wordmark-2026-10-21/` and the overlay on the review page. Sound stays out until it is designed (§6).
   - **Work** scrolls to the projects. **About** opens Lite at its about section. *Both are my call.*
-- **Portrait phones.** Half a B on each side of a narrow screen would leave only the compass, so the camera holds the wider framing of frame 05: the whole name across the width, the compass smaller. *My call.*
+- **Portrait phones** keep the laptop's crop: half of each B is off screen and the compass is large. The camera stands farther back at the 50° field cap. *Bob, 2026-10-22: "for phone the 2 B should also only show half". M1 had held the whole name, as in frame 05.* The loader on a phone still shows the whole name, then pushes in.
 - **Touch devices** have no cursor. The needle drifts slowly on its own.
 
 ### 2.3 Scrolling from home: preview p06–p08
@@ -189,7 +191,7 @@ URL: `/projects/<slug>/`. You arrive by flying through the porthole.
   - "THE NEEDLE LOST NORTH" when WebGL fails
 - **Contact** (`/contact/`) keeps the Web3Forms form.
 - Both are restyled to the new palette but stay plain, readable pages.
-- **With the countries gone,** Lite's about section is where Aruba, the Netherlands and Bob's Hakka roots are told. v3's approved Hakka line ("Hakka, a Chinese dialect, is my mother tongue") moves there. *My call; Bob may drop it.*
+- **With the countries gone,** Lite's about section is where Aruba and the Netherlands are told. *M1 also carried v3's Hakka line there; Bob dropped it on 2026-10-22.*
 
 ### 2.7 Removed
 
@@ -348,9 +350,16 @@ These routes existed only on unmerged branches and were never live, so no redire
 ## 8. Open items for Bob (none block planning)
 
 1. **Bead objects:** confirm the abacus, solar module and clockwork come back inside the beads (§2.4).
-2. **About on Lite:** the countries and the Hakka line live in Lite's about text (§2.6), or are dropped.
+2. ~~**About on Lite:** the countries and the Hakka line.~~ Settled 2026-10-22: the Hakka line is dropped (§2.6).
 3. **Cookies Clicker:** Bob's own part, if he wants a role line beyond "with a classmate".
-4. **Branch `needle-v3-m2`:** kept unmerged as a parts source, or deleted once its reusable parts are carried over.
+4. **Branch `needle-v3-m2`:** kept as a parts source, or deleted once its reusable parts are carried over. Its commits reached redesign-bench with M1's merge.
+5. **The phone header** takes three rows in M1. A tighter version goes to Bob as a mock-up first (2026-10-22).
+
+**Carried into M2 (Bob, 2026-10-22: "fix in mile 2"):**
+- the floor's reflection, which is a sharp copy of the compass where the preview blurs it into a few gold streaks
+- the circuit traces, which should lie under the glass, not on top of it
+
+Bob checked M1 on his own phone and found it fine (2026-10-22).
 
 **Going live.** Today's site stays on bhccob.me until Bob approves the new one; there is no date.
 

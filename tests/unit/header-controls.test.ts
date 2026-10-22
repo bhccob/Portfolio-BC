@@ -9,7 +9,7 @@ import { nl } from '../../src/i18n/nl';
 import { Translator } from '../../src/i18n/Translator';
 import { useScene } from '../../src/state/store';
 import { LangSwitch } from '../../src/ui/LangSwitch';
-import { SiteHeader } from '../../src/ui/SiteHeader';
+import { closeMenuOnLink, MENU_ID, SiteHeader } from '../../src/ui/SiteHeader';
 import { ThreeDToggle } from '../../src/ui/ThreeDToggle';
 
 const render = (path: string, component: FunctionComponent): string =>
@@ -84,9 +84,10 @@ describe('the header', () => {
     const at = (route: string): string => Translator.pathFor(locale, route);
 
     // The order by the links' addresses and the switch's role ...
-    expect(controls.map((control) => (control.tag === 'button' ? control.attrs.role : control.attrs.href))).toEqual([
+    expect(controls.map((control) => (control.tag === 'button' ? (control.attrs.role ?? control.attrs.class) : control.attrs.href))).toEqual([
       '#main',
       at(PAGES.home),
+      'menu-toggle',
       at(`${PAGES.lite}#work`),
       at(`${PAGES.lite}#about`),
       at(PAGES.contact),
@@ -98,6 +99,7 @@ describe('the header', () => {
     expect(controls.map((control) => control.text)).toEqual([
       t.nav.skip,
       t.needle.hero.name,
+      t.nav.menu + t.nav.close,
       t.nav.work,
       t.nav.about,
       t.nav.contact,
@@ -110,7 +112,45 @@ describe('the header', () => {
     expect(controls[1].attrs.class).toBe('site-name');
     expect(controls[1].attrs['aria-label']).toBe(t.nav.home);
     expect(controls.filter((control) => control.attrs.class === 'header-control')).toHaveLength(6);
-    expect(controls[5].attrs['aria-label']?.startsWith(`${other.toUpperCase()} `)).toBe(true);
-    expect(controls[7].attrs['aria-label']).toBe(t.needle.toggle.label);
+    expect(controls[6].attrs['aria-label']?.startsWith(`${other.toUpperCase()} `)).toBe(true);
+    expect(controls[8].attrs['aria-label']).toBe(t.needle.toggle.label);
+  });
+});
+
+describe('the phone menu (option A, 2026-10-22)', () => {
+  it.each([
+    ['/', nl],
+    ['/en/projects/funcial/', en],
+  ])('on %s the Menu button opens the nav as a popover, by the browser alone (no script needed)', (path, t) => {
+    const html = render(path, SiteHeader);
+    const toggle = /<button[^>]*class="menu-toggle"[^>]*>/.exec(html)?.[0] ?? '';
+    // HTML attribute names ignore case: React writes `popoverTarget`, which the browser reads as `popovertarget`.
+    const toggleAttrs = Object.fromEntries(Object.entries(attributes(toggle)).map(([name, value]) => [name.toLowerCase(), value]));
+    expect(toggleAttrs.popovertarget).toBe(MENU_ID);
+    expect(attributes(toggle).type).toBe('button');
+    const nav = /<nav[^>]*>/.exec(html)?.[0] ?? '';
+    expect(attributes(nav).id).toBe(MENU_ID);
+    expect(attributes(nav).popover).toBe('auto');
+    expect(attributes(nav)['aria-label']).toBe(t.nav.menu);
+    // The button says Menu, or close while the menu is open (the stylesheet shows one of the two); its bars are decoration.
+    expect(toggle.length).toBeGreaterThan(0);
+    expect(html).toContain(`<span class="menu-label-open">${t.nav.menu}</span>`);
+    expect(html).toContain(`<span class="menu-label-close">${t.nav.close}</span>`);
+    expect(html).toContain('<span class="menu-bars" aria-hidden="true"></span>');
+  });
+
+  it('closes the open menu when a link in it is followed, and stays open for the 3D switch', () => {
+    const calls: string[] = [];
+    const menu = { hidePopover: () => calls.push('hide'), matches: (selector: string) => selector === ':popover-open' };
+    const link = { closest: (selector: string) => (selector === 'a' ? {} : null) };
+    const button = { closest: () => null };
+    closeMenuOnLink({ currentTarget: menu, target: button } as never);
+    expect(calls).toEqual([]);
+    closeMenuOnLink({ currentTarget: menu, target: link } as never);
+    expect(calls).toEqual(['hide']);
+    // A laptop's nav is never an open popover: nothing to close; nor is a target that is not an element.
+    closeMenuOnLink({ currentTarget: { ...menu, matches: () => false }, target: link } as never);
+    closeMenuOnLink({ currentTarget: menu, target: null } as never);
+    expect(calls).toEqual(['hide']);
   });
 });

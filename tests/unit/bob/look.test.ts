@@ -2,8 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { GLASS_LOOK } from '~/engine/bob/build/glassFloor';
 import { homeShotFor, wideShotFor } from '~/engine/bob/shots';
 import { palette } from '~/engine/palette';
-import { BREATHE, breathAt, ENGRAVE_BREATH, engraveGlowAt, fogFor, IDLE_SECONDS, LOOK } from '~/scene/bob/look';
-import { HOME_POSE } from '~/scene/bob/openingPose';
+import { BREATHE, breathAt, fogFor, IDLE_SECONDS, LOOK, NEEDLE_BREATH, needleGlowAt } from '~/scene/bob/look';
 
 describe('the BOB look', () => {
   it('stands on the night, its fog from 14 to 50 (5 clear of what the camera looks at), its bloom from 0.7', () => {
@@ -50,10 +49,10 @@ describe('the BOB look', () => {
           expect(fog.far - fog.near, `${aspect}`).toBeCloseTo(LOOK.fog.far - LOOK.fog.near, 9);
         }
       }
-      // The phone's home stands 23.2 back: its compass is out of the fog, which held a quarter of it before.
+      // The phone's home stands about 14.9 back (the laptop's crop at the 50-degree cap): its compass is out of the fog.
       const phone = homeShotFor(390 / 844);
-      expect(distance(phone)).toBeGreaterThan(20);
-      expect(fogFor(distance(phone)).near).toBeGreaterThan(distance(phone));
+      expect(distance(phone)).toBeGreaterThan(14);
+      expect(fogFor(distance(phone)).near).toBeGreaterThan(distance(phone) + LOOK.fog.clear - 1e-9);
     });
 
     it("is all night before the slab's far edge from every camera, so no horizon line shows (Ruling 26)", () => {
@@ -89,18 +88,21 @@ describe("the home's idle rules (moved from v3's homePose)", () => {
     expect(breathAt(Number.NaN)).toBe(1);
   });
 
-  it("starts the home's breath exactly where the opening leaves the engraving, so its brightness does not step", () => {
-    expect(HOME_POSE.engraveGlow).toBe(1);
-    expect(engraveGlowAt(0)).toBe(HOME_POSE.engraveGlow);
+  it("starts the needle's breath at its resting glow, 1, so its brightness does not step at the hand-over", () => {
+    expect(needleGlowAt(0)).toBe(1);
   });
 
-  it("breathes the engraving's glow by 0.05 either way over the same 4 s, from its rest of 1", () => {
-    expect(ENGRAVE_BREATH).toBe(0.05);
-    expect(engraveGlowAt(0)).toBe(1);
-    expect(engraveGlowAt(1)).toBeCloseTo(1.05, 12);
-    expect(engraveGlowAt(3)).toBeCloseTo(0.95, 12);
-    expect(engraveGlowAt(4)).toBeCloseTo(1, 12);
-    for (let t = 0; t < 20; t += 0.25) expect(Math.abs(engraveGlowAt(t) - 1)).toBeLessThanOrEqual(0.05 + 1e-12);
-    expect(engraveGlowAt(Number.NaN)).toBe(1);
+  it("breathes the needle's glow up to 1.4 and back over the same 4 s, never below its rest", () => {
+    expect(NEEDLE_BREATH).toBe(0.4);
+    expect(needleGlowAt(1)).toBeCloseTo(1.2, 12);
+    expect(needleGlowAt(2)).toBeCloseTo(1.4, 12);
+    expect(needleGlowAt(3)).toBeCloseTo(1.2, 12);
+    expect(needleGlowAt(4)).toBeCloseTo(1, 12);
+    for (let t = 0; t < 20; t += 0.25) {
+      expect(needleGlowAt(t)).toBeGreaterThanOrEqual(1 - 1e-12);
+      expect(needleGlowAt(t)).toBeLessThanOrEqual(1.4 + 1e-12);
+    }
+    expect(needleGlowAt(Number.NaN)).toBe(1);
+    expect(needleGlowAt(Infinity)).toBe(1);
   });
 });

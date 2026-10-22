@@ -327,10 +327,14 @@ describe('the compass', () => {
     c.dispose();
   });
 
-  it('gilds the rims, the needle, the pivot and the axis with one brass, opaque so the glass shows it through', () => {
+  it('gilds the rims, the pivot and the axis with one brass, and the needle with its own copy of it, opaque so the glass shows it through', () => {
     const c = loadCompass(fakeGltf(), 'high', stripStub);
-    const gold = mesh(c, 'needle').material as THREE.MeshStandardMaterial;
-    for (const name of ['rim_1', 'rim_2', 'rim_3', 'rim_4', 'needle', 'pivot', 'axis']) expect(mesh(c, name).material, name).toBe(gold);
+    const gold = mesh(c, 'pivot').material as THREE.MeshStandardMaterial;
+    for (const name of ['rim_1', 'rim_2', 'rim_3', 'rim_4', 'pivot', 'axis']) expect(mesh(c, name).material, name).toBe(gold);
+    const needle = mesh(c, 'needle').material as THREE.MeshStandardMaterial;
+    expect(needle).not.toBe(gold);
+    for (const key of ['color', 'emissive'] as const) expect(needle[key].getHex(), key).toBe(gold[key].getHex());
+    for (const key of ['metalness', 'roughness', 'emissiveIntensity', 'transparent', 'alphaHash'] as const) expect(needle[key], key).toBe(gold[key]);
     expect(gold).toBeInstanceOf(THREE.MeshStandardMaterial);
     expect(gold).not.toBeInstanceOf(THREE.MeshPhysicalMaterial);
     expect(gold.color.getHex()).toBe(palette.brass);
@@ -342,6 +346,25 @@ describe('the compass', () => {
     // Transmission sees only opaque objects: a see-through needle would vanish behind every band.
     expect(gold.transparent).toBe(false);
     expect(gold.alphaHash).toBe(true);
+    c.dispose();
+  });
+
+  it("breathes the needle's glow alone (setNeedleGlow): a share of its 0.22, a bad value read as rest, the rest of the gold still", () => {
+    const c = loadCompass(fakeGltf(), 'high', stripStub);
+    const gold = mesh(c, 'pivot').material as THREE.MeshStandardMaterial;
+    const needle = mesh(c, 'needle').material as THREE.MeshStandardMaterial;
+    const version = needle.version;
+    c.setNeedleGlow(1.4);
+    expect(needle.emissiveIntensity).toBeCloseTo(0.22 * 1.4, 12);
+    expect(gold.emissiveIntensity).toBe(0.22);
+    for (const bad of [Number.NaN, -1, Infinity]) {
+      c.setNeedleGlow(bad);
+      expect(needle.emissiveIntensity, String(bad)).toBe(0.22);
+    }
+    c.setNeedleGlow(0);
+    expect(needle.emissiveIntensity).toBe(0);
+    // A uniform, not a new program: the breath compiles nothing.
+    expect(needle.version).toBe(version);
     c.dispose();
   });
 
@@ -514,9 +537,9 @@ describe('the compass', () => {
       made.push(texture);
       return texture;
     });
-    const gold = mesh(c, 'needle').material as THREE.Material;
+    const gold = [mesh(c, 'pivot').material, mesh(c, 'needle').material] as THREE.Material[];
     const glass = [1, 2, 3, 4].map((k) => bandMaterial(c, k));
-    const spies = [gold, ...glass, ...made].map((part) => vi.spyOn(part, 'dispose'));
+    const spies = [...gold, ...glass, ...made].map((part) => vi.spyOn(part, 'dispose'));
     const geometries = COMPASS_PARTS.filter((name) => name !== 'armillary').map((name) => vi.spyOn(mesh(c, name).geometry, 'dispose'));
     c.dispose();
     for (const spy of spies) expect(spy).toHaveBeenCalledTimes(1);

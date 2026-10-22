@@ -57,6 +57,9 @@
  *              the page with 3D off mounts no WebGL at all and still leaves LOADING; the 3D switch is named
  *              "3D" on and off (role=switch and aria-checked carry the state, WCAG 2.5.3)
  *   mobile     every page at 390 px wide has no horizontal scroll
+ *   phone-menu  on a touch phone the header is one row (the name, Menu); Menu opens the nav as a sheet under the header,
+ *              its links 44 px high or more; the 3D switch keeps it open, a link closes it, Escape closes it before
+ *              going back; it opens with script off; a laptop has no Menu button and its nav is one row
  *   case-variant  a real page under another spelling (/Projects/Funcial/, /en/projects/FUNCIAL/) is a 404 on
  *              GitHub Pages and shows the not-found page, not an error screen (the server here is
  *              case-sensitive too, so the fallback is what answers), with no scene, like any not-found page
@@ -165,7 +168,7 @@
  *              page (scrollY above 0, nothing prevented); the file let through and back on the project page, the skip
  *              asked for at the link lands the show
  *   loader-skip-touch  on a touch phone (390x844): the loader never draws at the high tier (Ruling 31); a tap 3 s in
- *              lands on HOME_IDLE within 1.6 s, its touchstart not prevented; a tap on the header's Contact link 3 s
+ *              lands on HOME_IDLE within 1.6 s, its touchstart not prevented; a tap on Menu, then on its Contact link, 3 s
  *              into a project page's show still navigates
  *   quick-loader  a first visit plays the full show and marks the loader seen (`bob-loader-seen` in localStorage);
  *              with the flag set, a load never engraves and reaches HOME_IDLE within QUICK.home + 0.5 s of the load
@@ -175,7 +178,7 @@
  *   give-up    the compass's file (/models/bob-compass.glb) never answers: the fallback card ("THE NEEDLE LOST
  *              NORTH", on /en/) shows between 25 and 27 s after the page started (the loader gives up 25 s in)
  *   home-look  the home once landed at both sizes (`m2/home-<size>.png`, and three more samples a quarter of the
- *              engraving's 4 s breath apart in `m2/samples/`), and the luminance of every home and loader still,
+ *              needle's 4 s breath apart in `m2/samples/`), and the luminance of every home and loader still,
  *              measured in a page (the PNG as a data URL in an <img>, drawn on a canvas, read with getImageData):
  *              mean Rec. 709 luma of the sRGB values (0..1) at most 0.11 on the home (every sample, so the breath's
  *              peak) and 0.07 on the loader, at most 0.4 % of the pixels at luma 0.98 or more (the dark look's gate),
@@ -928,6 +931,113 @@ async function mobile(browser, step) {
   return `${PAGES.length} pages at 390 px: no horizontal scroll`;
 }
 
+/** What the phone menu looks like now: the header's height, the toggle's text, the nav's state and box, its links' boxes. */
+const menuState = (page) =>
+  page.evaluate(() => {
+    const nav = document.querySelector('#site-menu');
+    const toggle = document.querySelector('.menu-toggle');
+    const box = (element) => {
+      const { top, bottom, left, right, height } = element.getBoundingClientRect();
+      return { top, bottom, left, right, height };
+    };
+    return {
+      header: box(document.querySelector('.site-header')),
+      toggleShown: getComputedStyle(toggle).display !== 'none',
+      toggleText: toggle.innerText.trim().toLowerCase(),
+      open: nav.matches(':popover-open'),
+      navShown: getComputedStyle(nav).display !== 'none',
+      nav: box(nav),
+      links: [...nav.querySelectorAll('.menu-links a')].map((a) => ({ text: a.innerText.trim().toLowerCase(), ...box(a) })),
+      controls: [...nav.querySelectorAll('.header-control')].map((c) => ({ shown: c.getClientRects().length > 0, ...box(c) })),
+      viewport: innerHeight,
+      path: location.pathname,
+      hash: location.hash,
+    };
+  });
+
+/**
+ * The phone header (option A of Bob's mock-up, 2026-10-22): on a touch phone (390x844) the header is one row, the
+ * name and Menu, the nav hidden; a tap on Menu opens it as a dark sheet from under the header to the bottom of the
+ * screen with Work, About and Contact at least 44 px high, and the button says close; the 3D switch leaves it open, a
+ * link follows and closes it; on a project page Escape closes the open menu and stays on the page (the next Escape goes
+ * back); it opens with script off too (the browser's own popover); and on a laptop there is no Menu button, the nav
+ * is its row.
+ */
+async function phoneMenu(browser, step) {
+  const { t } = new Translator('nl');
+  const phone = { width: 390, height: 844 };
+  const { context, page } = await openPage(browser, step, () => false, phone, { hasTouch: true, isMobile: true });
+
+  await page.goto(`${BASE}/lite/`, { waitUntil: 'load' });
+  await pageReady(page, '/lite/');
+  let s = await menuState(page);
+  step.check(s.header.height <= 72, `the phone header is one row (${s.header.height} px high, at most 72)`);
+  step.check(s.toggleShown && s.toggleText.startsWith(t.nav.menu.toLowerCase()), `the Menu button shows ("${s.toggleText}")`);
+  step.check(!s.open && !s.navShown && s.controls.every((c) => !c.shown), 'closed, the nav and its links are hidden');
+
+  await page.locator('.menu-toggle').tap();
+  await page.waitForTimeout(150);
+  s = await menuState(page);
+  step.check(s.open && s.navShown, 'a tap on Menu opens the nav (:popover-open)');
+  step.check(Math.abs(s.nav.top - s.header.bottom) <= 8 && Math.abs(s.nav.bottom - s.viewport) <= 1, `the sheet runs from under the header (${s.nav.top} against ${s.header.bottom}) to the bottom (${s.nav.bottom} of ${s.viewport})`);
+  const expected = [t.nav.work, t.nav.about, t.nav.contact].map((text) => text.toLowerCase());
+  step.check(JSON.stringify(s.links.map((l) => l.text)) === JSON.stringify(expected), `its links are ${expected.join(', ')} (got ${s.links.map((l) => l.text).join(', ')})`);
+  step.check(s.links.every((l) => l.height >= 44 && l.left >= 0 && l.right <= phone.width), `each link is at least 44 px high, inside the screen (${s.links.map((l) => Math.round(l.height)).join(', ')} px)`);
+  step.check(s.controls.every((c) => c.shown && c.bottom <= s.viewport), 'every control of the nav shows inside the sheet');
+  step.check(s.toggleText === t.nav.close.toLowerCase(), `open, the button says "${t.nav.close}" (got "${s.toggleText}")`);
+
+  await page.locator('#site-menu [role="switch"]').tap();
+  await page.waitForTimeout(150);
+  s = await menuState(page);
+  step.check(s.open, 'the 3D switch leaves the menu open');
+  await page.locator('#site-menu [role="switch"]').tap();
+
+  await page.locator('#site-menu .menu-links a').first().tap();
+  await page.waitForFunction(() => location.hash === '#work', null, { timeout: 5_000 }).catch(() => {});
+  await page.waitForTimeout(300);
+  s = await menuState(page);
+  step.check(s.path === '/lite/' && s.hash === '#work' && !s.open, `Werk follows to /lite/#work and closes the menu (at ${s.path}${s.hash}, open ${s.open})`);
+  await takeCsp(page, step);
+
+  // A project page: Escape is the open menu's first, then the page's way back.
+  await page.goto(`${BASE}/projects/funcial/`, { waitUntil: 'load' });
+  await pageReady(page, '/projects/funcial/');
+  await page.locator('.menu-toggle').tap();
+  await page.waitForTimeout(150);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  s = await menuState(page);
+  step.check(!s.open && s.path === '/projects/funcial/', `on a project page Escape closes the menu and stays (at ${s.path}, open ${s.open})`);
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => location.pathname !== '/projects/funcial/', null, { timeout: 5_000 }).catch(() => {});
+  s = await menuState(page);
+  step.check(s.path === '/', `the next Escape goes back, home (at ${s.path})`);
+  await takeCsp(page, step);
+  await context.close();
+
+  // Without script: the browser's popover alone.
+  const bare = await browser.newContext({ viewport: phone, hasTouch: true, isMobile: true, javaScriptEnabled: false });
+  const still = await bare.newPage();
+  await still.goto(`${BASE}/lite/`, { waitUntil: 'load' });
+  await still.locator('.menu-toggle').tap();
+  await still.waitForTimeout(150);
+  const noScript = await still.evaluate(() => document.querySelector('#site-menu').matches(':popover-open'));
+  step.check(noScript, 'with script off, Menu still opens the nav');
+  await bare.close();
+
+  // A laptop: no Menu button, the nav is its row.
+  const laptop = await openPage(browser, step, () => false);
+  await laptop.page.goto(`${BASE}/lite/`, { waitUntil: 'load' });
+  await pageReady(laptop.page, '/lite/');
+  s = await menuState(laptop.page);
+  const tops = s.controls.map((c) => Math.round(c.top));
+  step.check(!s.toggleShown && s.navShown && !s.open && s.controls.every((c) => c.shown), 'at 1440 px there is no Menu button and the nav shows, not as a popover');
+  step.check(Math.max(...tops) - Math.min(...tops) <= 4 && s.header.height <= 72, `the laptop nav is one row (tops ${tops.join(', ')}, header ${s.header.height} px)`);
+  await takeCsp(laptop.page, step);
+  await laptop.context.close();
+  return 'one row on a phone; Menu opens the sheet (links 44 px+, says close), 3D keeps it open, a link closes it, Escape closes it before going back, works without script; a laptop keeps its row';
+}
+
 /** The copy of a heading as text: the dictionaries' only markup is <em>. */
 const plain = (copy) => copy.replace(/<[^>]*>/g, '');
 const LITE = { nl: '/lite/', en: '/en/lite/' };
@@ -1653,11 +1763,14 @@ async function scrollTouch(browser, step) {
   await touch('touchEnd');
   await page.waitForTimeout(600); // a tap straight after a swipe is taken by the browser for the one that stops a fling
   step.check((await frameOf(page)).target === before.target, 'a swipe sideways does not move the story');
-  await page.tap('button[role="switch"]');
+  // On a phone the 3D switch is in the menu (option A, 2026-10-22): a tap opens it, another presses the switch.
+  await page.tap('.menu-toggle');
+  await page.tap('#site-menu button[role="switch"]');
   await page.waitForFunction(() => document.documentElement.dataset['3d'] === 'off', null, { timeout: 5_000 });
-  step.check((await page.getAttribute('html', 'data-3d')) === 'off', 'a tap on the 3D switch still presses it');
-  await page.tap('button[role="switch"]');
+  step.check((await page.getAttribute('html', 'data-3d')) === 'off', 'a tap on Menu, then on the 3D switch, still presses it');
+  await page.tap('#site-menu button[role="switch"]');
   await page.waitForFunction(() => document.documentElement.dataset['3d'] === 'on', null, { timeout: 5_000 });
+  await page.tap('.menu-toggle');
   await takeCsp(page, step);
   await context.close();
 }
@@ -2650,7 +2763,7 @@ const LUMA_GATE = {
 };
 
 /**
- * How many home stills the gate takes at each size, a quarter of the engraving's breath apart (src/scene/bob/look.ts,
+ * How many home stills the gate takes at each size, a quarter of the needle's breath apart (src/scene/bob/look.ts,
  * BREATHE.period: its glow swells and falls 5 % either way over 4 s), all within the idle motion's IDLE_SECONDS: the gate
  * holds for the worst of them, so it sees the breath's peak and not one moment of it (Ruling 13). The first is `m2/home-<size>.png`; the rest go to `m2/samples/`.
  */
@@ -2732,7 +2845,7 @@ const lumaSummary = (rows, kind) => {
 
 /**
  * The home once landed, at each still size in a fresh context (`m2/home-<size>.png`, the hero shown whole, and
- * HOME_SAMPLES - 1 more a quarter of the engraving's breath apart in `m2/samples/`), and the luminance of every home and
+ * HOME_SAMPLES - 1 more a quarter of the needle's breath apart in `m2/samples/`), and the luminance of every home and
  * loader still gated by LUMA_GATE, its floor too: the home's ceiling holds for the worst of its samples. The numbers
  * are printed and kept in results.json.
  */
@@ -2748,7 +2861,7 @@ async function homeLook(browser, step) {
     const hero = await page.waitForFunction(() => getComputedStyle(document.querySelector('.hero')).opacity === '1', null, { timeout: 5_000 }).then(() => true, () => false);
     await page.evaluate(() => document.fonts.ready);
     // The first still is the home as it landed, the needle setting off on its drift (no pointer has moved); the later
-    // samples catch the engraving's breath at its peak and trough.
+    // samples catch the needle's breath at its peak and trough.
     await page.waitForTimeout(500);
     step.check(hero, `${at}: landed on the home, the hero shown whole`);
     for (let k = 0; k < HOME_SAMPLES; k++) {
@@ -2769,7 +2882,7 @@ async function homeLook(browser, step) {
 
 /**
  * Where the needle's pivot is on the screen at home, in CSS pixels: the middle of the viewport. The home shot looks at
- * the compass's centre (src/engine/bob/shots.ts, FRAMES.home and .homePortrait: target (0, 0.55, 0)), and the pivot is
+ * the compass's centre (src/engine/bob/shots.ts, FRAMES.home: target (0, 0.55, 0)), and the pivot is
  * the armillary's origin there (COMPASS_LOOK.homeY), so it is where the shot looks; the parallax moves it a few pixels,
  * which does not turn a pointer far to its right off pi/2 by anything the check sees.
  */
@@ -3158,12 +3271,14 @@ async function loaderSkipTouch(browser, step) {
   );
   await takeCsp(page, step);
 
-  // A project page's full show: a tap on a header link 3 s in still navigates.
+  // A project page's full show: a tap on the menu's Contact link 3 s in still navigates.
   await page.evaluate((key) => localStorage.removeItem(key), LOADER_SEEN_KEY);
   await page.goto(`${BASE}/projects/funcial/?proof`, { waitUntil: 'load' });
   await loaderAtLeast(page, 3);
   const project = (await debugOf(page)).loader;
-  await page.tap('.site-header a[href="/contact/"]');
+  // On a phone the links are in the menu (option A, 2026-10-22): the tap on Menu is the one that skips, then Contact.
+  await page.tap('.menu-toggle');
+  await page.tap('#site-menu a[href="/contact/"]');
   const navigated = await page.waitForURL(`${BASE}/contact/`, { timeout: 5_000 }).then(
     () => true,
     () => false,
@@ -3173,7 +3288,7 @@ async function loaderSkipTouch(browser, step) {
     project.stage === 'engrave' && project.elapsed >= 3,
     `a project page's first show plays in full: 3 s in it engraves (stage ${project.stage} at ${project.elapsed.toFixed(2)} s)`,
   );
-  step.check(navigated && route === 'contact', `a tap on the header's Contact link 3 s in still navigates (${page.url()}, route ${route})`);
+  step.check(navigated && route === 'contact', `a tap on Menu, then on its Contact link, 3 s in still navigates (${page.url()}, route ${route})`);
   await takeCsp(page, step);
   await context.close();
   return `a phone's loader at tier ${tiers.join('/')}; a tap at 3 s lands in ${took} ms; a tap on a header link during a project page's show navigates`;
@@ -3752,6 +3867,7 @@ const STEPS = {
   'case-variant': caseVariant,
   'home-nav': homeNav,
   mobile,
+  'phone-menu': phoneMenu,
   esc,
   'nav-focus': navFocus,
   lite,

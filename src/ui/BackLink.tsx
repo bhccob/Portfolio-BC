@@ -42,8 +42,22 @@ export function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 /**
+ * True while a popover is open (the phone's menu, ~/ui/SiteHeader): Escape is then the popover's, which the browser
+ * closes after the key's listeners have run, so the page must not also go back. A browser that does not know
+ * `:popover-open` has no popover open.
+ */
+export function popoverIsOpen(root: Pick<ParentNode, 'querySelector'> = document): boolean {
+  try {
+    return root.querySelector(':popover-open') !== null;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * The link back from a project, Lite or contact page, and the Escape key that does the same
- * while the page is open (not while someone types, and not if something has already handled the key).
+ * while the page is open (not while someone types, not while the phone's menu is open, and not if something has
+ * already handled the key).
  * Both go where `goBack` says; the link's own address stays the home page. The visible "Esc" is a hint
  * for keyboards: it is hidden from screen readers and, on a touch screen, from sight.
  */
@@ -55,7 +69,7 @@ export function BackLink(): JSX.Element {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
-      if (event.key !== 'Escape' || event.defaultPrevented || isEditableTarget(event.target)) return;
+      if (event.key !== 'Escape' || event.defaultPrevented || isEditableTarget(event.target) || popoverIsOpen()) return;
       goBack(navigate, home);
     }
     window.addEventListener('keydown', onKeyDown);

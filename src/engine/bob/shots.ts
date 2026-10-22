@@ -50,16 +50,16 @@ export interface ShotFrame {
 }
 
 /**
- * The three frames:
+ * The two frames:
  * - `wide`: the loader's view, the whole name (both B letters and the circle
  *   between them) with room to spare, looking at the glass a little above the
  *   plane.
- * - `home`: a laptop's home, close in on the compass, at 8.8 m and 13 degrees
- *   above, looking at the compass's centre. Its half-width of 3.2 puts the
- *   centre of each B at the edge of the screen: half of each B is off it.
- * - `homePortrait`: the same view on a screen taller than wide, where half a B
- *   each side would leave only the compass, so it holds the whole name across
- *   the width instead (with the near corners' margin).
+ * - `home`: the home on every screen, close in on the compass, at 8.8 m and 13
+ *   degrees above, looking at the compass's centre. Its half-width of 3.2 puts
+ *   the centre of each B at the edge of the screen: half of each B is off it.
+ *   A phone keeps the same crop (Bob, 2026-10-22: "for phone the 2 B should
+ *   also only show half"); its field reaches the cap, so the camera stands
+ *   back instead. M1 held the whole name across a portrait screen.
  *
  * The home's `minVfov` of 22.5 keeps the compass's top ring under the header
  * on a wide, short screen: the width fit alone is about 23.1 degrees at 16:9
@@ -68,8 +68,7 @@ export interface ShotFrame {
  */
 export const FRAMES = {
   wide: { distance: 13.8, elevation: 14, targetY: 0.2, halfWidth: 5.2 },
-  home: { distance: 8.8, elevation: 13, targetY: 0.55, halfWidth: 3.2, minVfov: 22.5 },
-  homePortrait: { distance: 8.8, elevation: 13, targetY: 0.55, halfWidth: 5.0 }
+  home: { distance: 8.8, elevation: 13, targetY: 0.55, halfWidth: 3.2, minVfov: 22.5 }
 } as const;
 
 /**
@@ -116,11 +115,12 @@ export function shotFor(frame: ShotFrame, aspect: number): CameraShot {
 }
 
 /**
- * The home shot for a screen of this aspect: the laptop frame from a square
- * up, the portrait frame (the whole name across the width) below it.
+ * The home shot for a screen of this aspect: the one home frame, half of each
+ * B off the screen, on a laptop and a phone alike, so a window resized across
+ * square changes the picture smoothly.
  */
 export function homeShotFor(aspect: number): CameraShot {
-  return shotFor(aspect < 1 ? FRAMES.homePortrait : FRAMES.home, aspect);
+  return shotFor(FRAMES.home, aspect);
 }
 
 /** The loader's wide shot for a screen of this aspect: the whole name in view. */
