@@ -117,7 +117,7 @@
  *              with the seen flag set: at rest `u` and `letters` are 0 and no B mark is cut; moved the whole unit (ten
  *              wheel notches, swipes) and at rest, `u`, `letters`, `iris` and `needleDip` are all 1, and a still of it
  *              (`m2/bob-from-above-<size>.png`) is gated as a home still; one mid-rise still at `u` 0.6 put there
- *              through `.set` (`m2/bob-rising-<size>.png`); moved back, `u` and `letters` are exactly 0 and, at 1440, the
+ *              through `.set` (`m2/bob-rising-<size>.png`, also gated as a home still); moved back, `u` and `letters` are exactly 0 and, at 1440, the
  *              needle aims at the pointer again within 1.5 s. The hero's SCROLL cue leaves with the rise (Ruling 15):
  *              shown at the home, gone (computed opacity 0, `<html data-rising>` set, still in the page) at `u` 1
  *              and mid-rise, and back at the home, with a 0.4 s opacity transition and none under reduced motion.
@@ -2932,7 +2932,7 @@ async function homeLook(browser, step) {
     await takeCsp(page, step);
     await context.close();
   }
-  // The held home (the last moment) is gated as a home still, the five before it as loader stills.
+  // The held home (the last moment) is gated as a home still, the four before it as loader stills.
   const loaders = await takeLoaderStills(browser, step);
   const rows = await gateLuma(browser, step, [...homes, ...loaders]);
   step.luma = rows;
@@ -3184,8 +3184,8 @@ const cueText = (cue) =>
  * 2. Moved the whole unit down (ten notches; swipes), at rest `u`, `letters`, `iris` and `needleDip` are all 1, and the
  *    camera stands on the top shot (`topShotFor`, the whole name across the picture, which the unit test pins). A
  *    still, `m2/bob-from-above-<size>.png`, is gated as a home still.
- * 3. A mid-rise still at `u` 0.6, put there through the bridge's `.set({ progress })`: `m2/bob-rising-<size>.png`; the
- *    shares of the iris, the needle and the letters are those of the pure pose (`scrollPoseAt`), each between 0 and 1.
+ * 3. A mid-rise still at `u` 0.6, put there through the bridge's `.set({ progress })`: `m2/bob-rising-<size>.png`, gated as
+ *    a home still; the shares of the iris, the needle and the letters are those of the pure pose (`scrollPoseAt`), each between 0 and 1.
  * 4. The story put back where the scroll left it and moved the whole unit up (ten notches, swipes): `u` and `letters`
  *    are exactly 0 (the wheel's summed deltas leave a residue that `riseAt` must snap away), the phase is HOME_IDLE
  *    and a still of the home again, `m2/bob-back-home-<size>.png`, is gated as a home still. At 1440 the pointer to
@@ -3277,6 +3277,7 @@ async function scrollBob(browser, step) {
     step.check(cueGone(cueMid), `${at}: and mid-rise (u ${mid.scroll.u}) the cue is gone too (${cueText(cueMid)})`);
     const rising = join(STILLS, `bob-rising-${at}.png`);
     await page.screenshot({ path: rising });
+    shots.push({ file: rising, kind: 'home' });
 
     // 4. Back up the whole unit: the home again. The story is put where the scroll left it first, so the way back sums
     // the same deltas the way down did (the wheel's float residue is what the snap at 0 is for).
@@ -3381,7 +3382,7 @@ async function scrollBob(browser, step) {
 
   const rows = await gateLuma(browser, step, shots);
   step.luma = rows;
-  return `${summary.join('; ')}; ${lumaSummary(rows, 'home')} for the stills of BOB from above and the home again`;
+  return `${summary.join('; ')}; ${lumaSummary(rows, 'home')} for the stills of BOB from above, mid-rise and the home again`;
 }
 
 /**
@@ -3782,7 +3783,7 @@ const sameShot = (a, b) => a.fov > 0 && Math.abs(a.fov - b.fov) < 1e-6 && a.posi
 
 /**
  * Reduced motion (spec §2.1: the engraved name and the compass fade in within about a second): the opening never
- * engraves (dark until the load, the fade, home), the name is whole whenever it shows, the camera is the home shot
+ * engraves (dark until the load, the fade, home), the circle is whole whenever it shows, the camera is the home shot
  * throughout (three samples identical: the first with a camera once the opening shows, one half way, and the landed
  * home), and the fade marks nothing seen (a later visit is one after the full show has played).
  */
