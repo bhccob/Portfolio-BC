@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AngleSpring, wrapAngle } from '~/engine/AngleSpring';
 import { NEEDLE_REST, settleAngle } from '~/engine/bob/needle';
-import { aimsAt, DRIFT, driftAngle, isAiming, NEEDLE_SPRING, needleAngleFor, nextDriftRest } from '~/engine/bob/needleAim';
+import { aimsAt, DRIFT, driftAngle, isAiming, NEEDLE_SPRING, needleAngleAt, needleAngleFor, nextDriftRest } from '~/engine/bob/needleAim';
 import type { Phase } from '~/state/machine';
 
 describe('needleAngleFor', () => {
@@ -135,5 +135,43 @@ describe('aimsAt', () => {
       expect(Math.abs(wrapAngle(value - last)), `frame ${i}`).toBeLessThan(0.2);
       last = value;
     }
+  });
+});
+
+describe('needleAngleAt', () => {
+  it("is the spring's own angle at the home itself", () => {
+    for (const value of [0, 0.7, -2, Math.PI, -3.1]) expect(needleAngleAt(value, 1.2, 0)).toBe(value);
+    // A rise that is not a number is the home's: the dip is 0 there.
+    expect(needleAngleAt(-3.1, 3.1, Number.NaN)).toBe(-3.1);
+  });
+
+  it("up the rise is the spring's angle unwrapped about the held target (Ruling 9)", () => {
+    for (const u of [1e-9, 0.3, 1]) {
+      // Either side of the target, on the same side of the seam, it is the spring's angle as it is.
+      expect(needleAngleAt(0.5, 0.7, u)).toBeCloseTo(0.5, 12);
+      expect(needleAngleAt(-2, -2.4, u)).toBeCloseTo(-2, 12);
+      // Across straight down from the target it goes on round: just past +π, not back at -π.
+      expect(needleAngleAt(-Math.PI + 0.04, Math.PI - 0.01, u)).toBeCloseTo(Math.PI + 0.04, 12);
+      expect(needleAngleAt(Math.PI - 0.04, -Math.PI + 0.01, u)).toBeCloseTo(-Math.PI - 0.04, 12);
+    }
+  });
+
+  it('stays continuous while a spring settling on a target by straight down crosses the seam, up the rise', () => {
+    const spring = new AngleSpring(NEEDLE_SPRING.zeta, NEEDLE_SPRING.omega);
+    spring.set(2.2, 0);
+    const target = Math.PI - 0.01;
+    let crossings = 0;
+    let last = needleAngleAt(spring.value, target, 0.5);
+    let previous = spring.value;
+    for (let i = 0; i < 240; i++) {
+      const value = spring.step(target, 1 / 60);
+      if (Math.sign(value) !== Math.sign(previous)) crossings++;
+      previous = value;
+      const angle = needleAngleAt(value, target, 0.5);
+      expect(Math.abs(angle - last), `frame ${i}`).toBeLessThan(0.1);
+      last = angle;
+    }
+    // The wrapped spring does cross the seam, twice: the case the unwrapping is for.
+    expect(crossings).toBeGreaterThanOrEqual(2);
   });
 });

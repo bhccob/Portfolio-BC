@@ -5,7 +5,7 @@ import { AngleSpring, wrapAngle } from '~/engine/AngleSpring';
 import type { CompassModel } from '~/engine/bob/build/compass';
 import type { EngravingModel } from '~/engine/bob/build/engraving';
 import type { SmokeModel } from '~/engine/bob/build/smoke';
-import { aimsAt, driftAngle, NEEDLE_SPRING, needleAngleFor, nextDriftRest } from '~/engine/bob/needleAim';
+import { aimsAt, driftAngle, NEEDLE_SPRING, needleAngleAt, needleAngleFor, nextDriftRest } from '~/engine/bob/needleAim';
 import { AT_REST } from '~/engine/stillness';
 import { HOME_CHAPTERS, stops } from '~/state/chapters';
 import { frame } from '~/state/frame';
@@ -252,7 +252,9 @@ export function Home({ models, handover }: HomeProps): null {
     }
     if (reduced) spring.set(state.target, 0);
     const needle = spring.step(state.target, dt);
-    models.compass.setNeedle(needle);
+    // Up the rise unwrapped about the held target (needleAngleAt, Ruling 9), so a spring still settling across
+    // straight down does not flip the needle's roll halfway down the dip.
+    models.compass.setNeedle(needleAngleAt(needle, state.target, pose.u));
     frame.needleAngle = needle;
 
     // The scroll's pose: the needle turns down from where it points, the compass opens, the light runs into the B

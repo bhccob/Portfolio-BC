@@ -74,12 +74,21 @@ function distanceOf(shot: CameraShot): number {
 }
 
 /**
+ * Within this much of an end, the rise is on it. The scroll input sums its
+ * deltas (src/input/target.ts `moveTarget`), so three wheel notches down and
+ * three back leave the target at 5.55e-17, not 0, and the home would never be
+ * the home again: no aim at u = 0 (Ruling 8).
+ */
+const RISE_SNAP = 1e-6;
+
+/**
  * The rise for this scroll progress: the HOME chapter's unit as the rise, held
  * to 0..1 (progress is in the chapters' units, one viewport height of scroll
- * each). NaN reads as 0.
+ * each), and on an end within RISE_SNAP of it. NaN reads as 0.
  */
 export function riseAt(progress: number): number {
-  return clamp01(progress / HOME_CHAPTERS.units[0]!.length);
+  const rise = clamp01(progress / HOME_CHAPTERS.units[0]!.length);
+  return rise < RISE_SNAP ? 0 : rise > 1 - RISE_SNAP ? 1 : rise;
 }
 
 /**

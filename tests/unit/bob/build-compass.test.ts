@@ -8,6 +8,12 @@ import { buildProbe, PROBE_LOOK, PROBE_RENDER_ORDER, type ProbeModel } from '~/e
 import { buildSmoke, SMOKE_LOOK, SMOKE_RENDER_ORDER, type SmokeModel } from '~/engine/bob/build/smoke';
 import { BAND_STRIP, type StripContext } from '~/engine/bob/paintBand';
 import { palette } from '~/engine/palette';
+import { damp } from 'maath/easing';
+import { AngleSpring, wrapAngle } from '~/engine/AngleSpring';
+import { aimsAt, NEEDLE_SPRING, needleAngleAt } from '~/engine/bob/needleAim';
+import { moveTarget } from '~/input/target';
+import { riseAt, scrollPoseAt } from '~/scene/bob/scrollPose';
+import { HOME_CHAPTERS } from '~/state/chapters';
 
 const Y = new THREE.Vector3(0, 1, 0);
 const DEG = Math.PI / 180;
@@ -1381,5 +1387,92 @@ describe("the builders' colours", () => {
       expect(source, file).not.toMatch(/\b0x[0-9a-f]{6}\b/i);
       expect(source, file).not.toMatch(/Color\(\s*[\d.]+\s*,/);
     }
+  });
+});
+
+describe('the needle through a scroll off the home, as Home drives it (Ruling 9)', () => {
+  /**
+   * The hover-the-cue flow: the needle settled at 2.2, the pointer moves to the SCROLL cue straight below the pivot
+   * (pi - 0.01), and 0.3 s later the wheel turns, a 120 px notch on a 900 px window every 0.3 s until the story is past
+   * the HOME unit. Each frame is Home's: the story damped as the scroll loop damps it, the rise and the pose from it, the
+   * target moved only where the needle aims, the spring stepped toward it, and the compass handed needleAngleAt, the dip
+   * and the iris. Answers the most the needle's world pose turned in one frame, how often the wrapped spring crossed
+   * straight down while the dip was partway, and the compass at the end.
+   */
+  function hoverCueThenScroll(handed: (value: number, target: number, u: number) => number) {
+    const c = loadCompass(fakeGltf(), 'high', stripStub);
+    c.setRise(1);
+    const spring = new AngleSpring(NEEDLE_SPRING.zeta, NEEDLE_SPRING.omega);
+    spring.set(2.2, 0);
+    let target = 2.2;
+    const pointer = Math.PI - 0.01;
+    const story = { progress: 0 };
+    let goal = 0;
+    const dt = 1 / 60;
+    const needle = node(c, 'needle');
+    const before = new THREE.Quaternion();
+    const now = new THREE.Quaternion();
+    let worst = 0;
+    let crossings = 0;
+    let previous = spring.value;
+    const frames = Math.round((0.3 + 3) * 60);
+    /** The frames a notch turns on: 0.3 s in, then every 0.3 s. */
+    const notches = new Set(Array.from({ length: 10 }, (_, k) => Math.round((0.3 + 0.3 * k) * 60)));
+    for (let i = 0; i < frames; i++) {
+      if (notches.has(i) && goal < 1) goal = moveTarget(goal, 120 / 900, HOME_CHAPTERS, false);
+      damp(story, 'progress', goal, 0.25, dt, Number.POSITIVE_INFINITY, undefined, 1e-4);
+      const u = riseAt(story.progress);
+      const pose = scrollPoseAt(u, 16 / 9);
+      if (aimsAt('HOME_IDLE', 'home', u)) target = pointer;
+      const value = spring.step(target, dt);
+      c.setNeedle(handed(value, target, u));
+      c.setNeedleDip(pose.needleDip);
+      c.setIris(pose.iris);
+      if (pose.needleDip > 0 && pose.needleDip < 1 && Math.abs(value) > Math.PI / 2 && Math.sign(value) !== Math.sign(previous)) crossings++;
+      previous = value;
+      c.group.updateMatrixWorld(true);
+      needle.getWorldQuaternion(now);
+      if (i > 0) worst = Math.max(worst, angleOf(before.clone().invert().multiply(now)));
+      before.copy(now);
+    }
+    return { c, worst, crossings, story };
+  }
+
+  it('turns down from a pointer straight below the pivot with no roll flip, and ends straight down', () => {
+    const { c, worst, crossings, story } = hoverCueThenScroll(needleAngleAt);
+    // The flow is the one that flipped: the spring crosses straight down while the needle is partway down.
+    expect(crossings).toBeGreaterThanOrEqual(1);
+    // No frame turns the needle more than the dip and the spring move it: a flip is a roll of 2 pi times the eased dip.
+    expect(worst).toBeLessThan(0.15);
+    expect(story.progress).toBeGreaterThanOrEqual(1);
+    expect(tipDirection(c).distanceTo(DOWN)).toBeLessThan(1e-6);
+    c.dispose();
+  });
+
+  it("keeps the dip's side while it dips even when handed the spring's wrapped angle: the compass's own guard", () => {
+    // Before the guard, the wrap in poseNeedle turned this flow's needle 1.29 rad in one frame, Home's unwrapping or not.
+    const { c, worst, crossings } = hoverCueThenScroll((value) => wrapAngle(value));
+    expect(crossings).toBeGreaterThanOrEqual(1);
+    expect(worst).toBeLessThan(0.15);
+    expect(tipDirection(c).distanceTo(DOWN)).toBeLessThan(1e-6);
+    c.dispose();
+  });
+
+  it('starts each dip from the angle wrapped to [-pi, pi] again, so a dip after the home has the side the angle gives', () => {
+    const fresh = loadCompass(fakeGltf(), 'high', stripStub);
+    fresh.setNeedle(-3);
+    fresh.setNeedleDip(0.4);
+    const expected = node(fresh, 'needle').quaternion.clone();
+    // A dip that went on round past straight down, then back out of it at the home, then down again from -3.
+    const c = loadCompass(fakeGltf(), 'high', stripStub);
+    c.setNeedle(3);
+    c.setNeedleDip(0.4);
+    c.setNeedle(3.3);
+    c.setNeedleDip(0);
+    c.setNeedle(-3);
+    c.setNeedleDip(0.4);
+    expect(angleOf(expected.invert().multiply(node(c, 'needle').quaternion))).toBeLessThan(1e-9);
+    fresh.dispose();
+    c.dispose();
   });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { type CameraShot, homeShotFor, topShotFor } from '~/engine/bob/shots';
 import { RISE_SPANS, riseAt, scrollPoseAt } from '~/scene/bob/scrollPose';
+import { moveTarget } from '~/input/target';
 import { HOME_CHAPTERS } from '~/state/chapters';
 
 const DEG = 180 / Math.PI;
@@ -170,6 +171,32 @@ describe("the scroll's pose", () => {
     expect(riseAt(home.length / 4)).toBe(0.25);
     expect(riseAt(Number.POSITIVE_INFINITY)).toBe(1);
     expect(riseAt(Number.NEGATIVE_INFINITY)).toBe(0);
+  });
+
+  it('snaps to its ends within 1e-6 (Ruling 8): a summed residue is the home, a hair short of the top is the top', () => {
+    expect(riseAt(5.55e-17)).toBe(0);
+    expect(riseAt(-5.55e-17)).toBe(0);
+    expect(riseAt(9.99e-7)).toBe(0);
+    expect(riseAt(1 - 1e-9)).toBe(1);
+    expect(riseAt(1 - 9.99e-7)).toBe(1);
+    // Just past the snap it is the rise itself.
+    expect(riseAt(2e-6)).toBe(2e-6);
+    expect(riseAt(1 - 2e-6)).toBe(1 - 2e-6);
+  });
+
+  it('comes back to exactly the home after n wheel notches down and n back, as the scroll input sums them', () => {
+    // One 120 px notch on a 900 px tall window, through the input's own sum (src/input/target.ts moveTarget).
+    const notch = 120 / 900;
+    const residues: number[] = [];
+    for (let n = 1; n <= 12; n++) {
+      let target = 0;
+      for (let i = 0; i < n; i++) target = moveTarget(target, notch, HOME_CHAPTERS, false);
+      for (let i = 0; i < n; i++) target = moveTarget(target, -notch, HOME_CHAPTERS, false);
+      residues.push(target);
+      expect(riseAt(target), `n ${n}: target ${target}`).toBe(0);
+    }
+    // The sums do leave a residue (3 notches leave 5.55e-17), so the snap is what makes them the home.
+    expect(residues.some((target) => target !== 0)).toBe(true);
   });
 
   it('holds u to 0..1, and a NaN u is the home shot', () => {

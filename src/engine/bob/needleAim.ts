@@ -13,6 +13,7 @@
  */
 import type { SceneKind } from '~/app/handle';
 import type { Phase } from '~/state/machine';
+import { wrapAngle } from '../AngleSpring';
 import { NEEDLE_REST } from './needle';
 
 /**
@@ -82,4 +83,16 @@ export function isAiming(phase: Phase['kind'], scene: SceneKind | null): boolean
  */
 export function aimsAt(phase: Phase['kind'], scene: SceneKind | null, u: number): boolean {
   return u === 0 && isAiming(phase, scene);
+}
+
+/**
+ * The angle the home hands `CompassModel.setNeedle` for its spring's `value` (wrapped, as `AngleSpring` keeps it) and
+ * the `target` the spring is pulled toward, at the scroll's rise `u` (Ruling 9). At the home itself it is the spring's
+ * own angle. Up the rise the target is held, and the spring may still be settling onto it; it is handed the spring's
+ * angle unwrapped about the target, `target + wrapAngle(value - target)`, so a needle that swings across straight down
+ * (+-pi) goes on round instead of jumping a whole turn, and the dip, which takes its side from the angle, does not flip
+ * the needle's roll halfway down. A rise that is not a number is the home's.
+ */
+export function needleAngleAt(value: number, target: number, u: number): number {
+  return u > 0 ? target + wrapAngle(value - target) : value;
 }

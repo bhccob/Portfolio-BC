@@ -124,8 +124,9 @@ export interface CompassModel {
    * Turns the needle down into the tunnel, 0..1 (NaN reads as 0), eased by smoothstep: its world pose goes, at a
    * steady turn about one world axis, from the one `setNeedle` gives to its up pose turned half about the world's X,
    * the tip on the world's down, as the preview's needle ends. The tip swings toward the camera on the way, as the
-   * preview's does, the same way whatever the angle, so an aim that moves mid-dip moves the needle smoothly. 0 is
-   * exactly the `setNeedle` pose; `setNeedle` and `setRise` keep the dip.
+   * preview's does, the same way whatever the angle, so an aim that moves mid-dip moves the needle smoothly; one that
+   * moves across straight down while it dips goes on round, the roll unflipped. 0 is exactly the `setNeedle` pose;
+   * `setNeedle` and `setRise` keep the dip.
    */
   setNeedleDip(t: number): void;
   /**
@@ -397,6 +398,9 @@ export function loadCompass(
   let needleDip = 0;
   let iris = 0;
   let spinTime = 0;
+  /** The angle the dip last took its side from (see `poseNeedle`), and whether the needle has been dipping since. */
+  let dipAngle = 0;
+  let dipping = false;
 
   /**
    * The needle at `needleAngle` about the world's Z, dipped `needleDip` of the
@@ -412,9 +416,13 @@ export function loadCompass(
    * about the world's X for every a: the end pose is the preview's whatever the
    * aim. Every `setNeedle` pose is that half turn from the end, where the two
    * ways round tie and a plain slerp would pick one by rounding; the axis picks
-   * the camera's side. The angle is wrapped to [-pi, pi], so the side holds a
-   * turn on; it changes only at straight down, where the tip already is and
-   * only the needle's roll differs.
+   * the camera's side. As the dip starts the angle is wrapped to [-pi, pi], so
+   * the side holds a turn on; it changes only at straight down, where the tip
+   * already is and only the needle's roll differs. While the needle dips the
+   * angle is taken on the turn nearest the one the dip last took, so an angle
+   * that moves across straight down (a spring settling there, Ruling 9) goes on
+   * round instead of flipping the roll halfway down; out of the dip it starts
+   * from [-pi, pi] again.
    *
    * Scratch quaternions only: no allocation.
    */
@@ -422,9 +430,15 @@ export function loadCompass(
     (needle.parent ?? armillary).getWorldQuaternion(holder);
     turn.setFromAxisAngle(Z, -needleAngle);
     if (needleDip > 0) {
-      const half = (needleAngle - TAU * Math.round(needleAngle / TAU)) / 2;
+      const from = dipping ? dipAngle : 0;
+      const off = needleAngle - from;
+      dipAngle = from + off - TAU * Math.round(off / TAU);
+      dipping = true;
+      const half = dipAngle / 2;
       dipAxis.set(Math.cos(half), -Math.sin(half), 0);
       turn.premultiply(dip.setFromAxisAngle(dipAxis, needleDip * Math.PI));
+    } else {
+      dipping = false;
     }
     needle.quaternion.copy(holder).invert().multiply(turn).multiply(holder).multiply(needleRest);
   };
