@@ -92,6 +92,14 @@ export function labelPlacement(beadNdc: { x: number; y: number }, size: LabelBox
 /** The labels on the page, by bead, as React mounts them. */
 const labels = new Map<ProjectId, HTMLAnchorElement>();
 
+/** Puts bead `id`'s label element where `showBeadLabel` finds it (the label's ref does). Answers its taking away. */
+export function registerBeadLabel(id: ProjectId, el: HTMLAnchorElement): () => void {
+  labels.set(id, el);
+  return () => {
+    if (labels.get(id) === el) labels.delete(id);
+  };
+}
+
 /** What the label shows now, as last written to the DOM: nothing is written that has not changed. */
 const shown = {
   el: null as HTMLAnchorElement | null,
@@ -121,9 +129,11 @@ export interface LabelView {
  * Shows the label of `view`'s bead beside it on a screen of `size` (CSS px), and every other label not; null shows
  * none. The Void (src/scene/bob/Void.tsx) calls it on each frame it poses the void. A shown label is
  * `[data-shown]` (in the page, so the keyboard reaches it) and, at its bead's stop, `[data-rest]` (in full; between
- * stops it is clear, src/styles/base.css). It stands where `labelPlacement` says, by a transform, with `[data-side]`
- * for its alignment, measured again when its text or the screen changes. A label that had the focus hands it to the
- * next one shown, so stepping from bead to bead with the keys keeps the keyboard on the label.
+ * stops it is clear, src/styles/base.css). Between stops it is out of the Tab order too (`tabindex="-1"`), so the
+ * keyboard reaches a label only where it can be seen and clicked; at its stop it takes Tab again. It stands where
+ * `labelPlacement` says, by a transform, with `[data-side]` for its alignment, measured again when its text or the
+ * screen changes. A label that had the focus hands it to the next one shown, so stepping from bead to bead with the
+ * keys keeps the keyboard on the label (a focused label keeps the focus while it is clear between stops).
  */
 export function showBeadLabel(view: LabelView | null, size: LabelBox): void {
   const el = view ? (labels.get(view.id) ?? null) : null;
@@ -133,14 +143,20 @@ export function showBeadLabel(view: LabelView | null, size: LabelBox): void {
     if (was) {
       was.removeAttribute('data-shown');
       was.removeAttribute('data-rest');
+      was.removeAttribute('tabindex');
     }
-    el?.setAttribute('data-shown', '');
+    if (el) {
+      el.setAttribute('data-shown', '');
+      el.tabIndex = -1;
+    }
     if (focused) el?.focus({ preventScroll: true });
     Object.assign(shown, { el, rest: false, x: Number.NaN, y: Number.NaN, side: '', box: null });
   }
   if (el === null || view === null) return;
   if (shown.rest !== view.rest) {
     el.toggleAttribute('data-rest', view.rest);
+    if (view.rest) el.removeAttribute('tabindex');
+    else el.tabIndex = -1;
     shown.rest = view.rest;
   }
   const text = el.textContent ?? '';
@@ -173,6 +189,20 @@ const OPENING_ATTRIBUTE = 'data-bead-open';
 /** How long the page's text and its scrim take to fade in, ms (src/styles/base.css), and a frame or two more. */
 const PAGE_FADE_MS = 1_000;
 
+/** The timer that takes `<html data-bead-open>` away after the last opening's page has faded in, or null. */
+let openingClear: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Lends `openBead` a page's router and the page of each project in its language (the home page's labels do, while
+ * they are up). Answers the hand-back, which leaves any later lender alone.
+ */
+export function lendOpener(ways: { navigate: NavigateFunction; path: (id: ProjectId) => string }): () => void {
+  opener = ways;
+  return () => {
+    if (opener === ways) opener = null;
+  };
+}
+
 /**
  * Opens bead `id`'s project, the one way for the label's link and a click on the bead (spec §2.4): the camera flies
  * into the porthole over FLIGHT_MS (`frame.focus`, src/scene/bob/focus.ts), and once it is in the router goes to the
@@ -183,7 +213,8 @@ const PAGE_FADE_MS = 1_000;
  * PROJECT_FOCUS (OPEN_PROJECT), so the scroll takes no input, and `<html data-bead-open>` lets the page's text fade in
  * with its scrim when it comes. A Back (or any way off the home page) during the flight lets the bead go
  * (src/state/routeSync.ts), and the router stays. Answers whether it began: not while another bead is opening, nor
- * without the home page's router.
+ * without the home page's router. A new opening clears the last one's timer for `<html data-bead-open>`, so an opening
+ * soon after the last (Escape, then the label again) keeps the attribute until its own page has faded in.
  */
 export function openBead(id: ProjectId): boolean {
   const ways = opener;
@@ -193,14 +224,19 @@ export function openBead(id: ProjectId): boolean {
   frame.focus.opening = id;
   frame.focus.move = moveFocus(frame.focus.move, id, performance.now(), fly ? 'fly' : 'fade');
   const root = document.documentElement;
+  if (openingClear !== null) clearTimeout(openingClear);
+  openingClear = null;
   root.setAttribute(OPENING_ATTRIBUTE, '');
   dispatch({ type: 'OPEN_PROJECT', id });
   wakeScene();
   const to = ways.path(id);
-  window.setTimeout(
+  setTimeout(
     () => {
       if (frame.focus.opening === id) void ways.navigate(to);
-      window.setTimeout(() => root.removeAttribute(OPENING_ATTRIBUTE), PAGE_FADE_MS);
+      openingClear = setTimeout(() => {
+        openingClear = null;
+        root.removeAttribute(OPENING_ATTRIBUTE);
+      }, PAGE_FADE_MS);
     },
     fly ? FLIGHT_MS : FOCUS_FADE_MS
   );
@@ -223,16 +259,7 @@ export function BeadLabel({ id }: { id: ProjectId }): JSX.Element {
   const i18n = useTranslator();
   const { t, locale } = i18n;
   const project = projects.byId(id)!;
-  const ref = useCallback(
-    (el: HTMLAnchorElement | null) => {
-      if (!el) return;
-      labels.set(id, el);
-      return () => {
-        if (labels.get(id) === el) labels.delete(id);
-      };
-    },
-    [id]
-  );
+  const ref = useCallback((el: HTMLAnchorElement | null) => (el ? registerBeadLabel(id, el) : undefined), [id]);
   return (
     <Link
       className="bead-label"
@@ -262,13 +289,7 @@ export function BeadLabel({ id }: { id: ProjectId }): JSX.Element {
 export function BeadLabels(): JSX.Element {
   const navigate = useNavigate();
   const i18n = useTranslator();
-  useEffect(() => {
-    const ways = { navigate, path: (id: ProjectId) => i18n.path(projects.route(projects.byId(id)!)) };
-    opener = ways;
-    return () => {
-      if (opener === ways) opener = null;
-    };
-  }, [navigate, i18n]);
+  useEffect(() => lendOpener({ navigate, path: (id: ProjectId) => i18n.path(projects.route(projects.byId(id)!)) }), [navigate, i18n]);
   return (
     <>
       {projects.all().map((project) => (

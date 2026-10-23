@@ -717,7 +717,11 @@ async function esc(browser, step) {
   await pressEscape();
   step.check(pathname() === '/', `a project page reached from the home page + Escape steps back to the home page (got ${pathname()})`);
   step.check(documents.length === 0, `by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
-  await waitForStop(page, 'secure-element');
+  const steppedBack = await waitForStop(page, 'secure-element');
+  step.check(
+    steppedBack.kind === 'PROJECTS' && steppedBack.category === 'secure-element' && steppedBack.progress === 3,
+    `Escape back to the home page from a page reached from it puts the scene at the bead's stop, Funcial's 3 (got ${JSON.stringify(steppedBack)})`,
+  );
   await page.evaluate(() => history.forward());
   const forwarded = await page.waitForURL(`${BASE}/projects/funcial/`, { timeout: 5_000 }).then(() => true, () => false);
   step.check(forwarded, 'the page forward is still in the history, so Escape went back and did not add the home page');

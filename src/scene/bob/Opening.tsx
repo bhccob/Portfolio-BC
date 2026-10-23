@@ -23,7 +23,7 @@ import { openBead } from '~/ui/BeadLabel';
 import { motion } from '../motion';
 import { settleLoad } from '../settleLoad';
 import { visibleTimeout } from '../timeouts';
-import { focusGoalFor, type FocusPose, focusPoseAt, moveFocus, restsAt } from './focus';
+import { type FocusPose, stepFocus } from './focus';
 import { type Handover, Home, type HomeModels } from './Home';
 import { focusShotFor, journeyPoseAt, shotToward } from './journey';
 import { cameraShotAt, loadShare, type OpeningPose, openingPoseAt } from './openingPose';
@@ -137,22 +137,10 @@ function showFocusFade(on: boolean): void {
   document.documentElement.toggleAttribute(FOCUS_FADE_ATTRIBUTE, on);
 }
 
-/**
- * The close view on this frame (src/scene/bob/focus.ts): a new move is begun first wherever the page asks for another
- * close view than the last move goes to (`focusGoalFor`). Into a page's bead that is a fade (the label's own flight was
- * begun by its click, `openBead`); back out to the journey it is a flight from the bead's own stop at rest (`restsAt`:
- * the route sync put the story there and the void's hold let it stay) and a fade otherwise, or with reduced motion.
- */
+/** The close view on this frame: `stepFocus` (src/scene/bob/focus.ts) of `frame.focus`, from the store and the story. */
 function focusNow(now: number): FocusPose {
   const { phase, scene, reducedMotion } = useScene.getState();
-  const focus = frame.focus;
-  const goal = focusGoalFor(phase, scene, focus.opening);
-  if (goal !== focus.move.to) {
-    const leaving = focus.move.to;
-    const fly = goal === null && !reducedMotion && restsAt(leaving, frame.progress, frame.target);
-    focus.move = moveFocus(focus.move, goal, now, fly ? 'fly' : 'fade');
-  }
-  return focusPoseAt(focus.move, now);
+  return stepFocus(frame.focus, { phase, scene, reducedMotion, progress: frame.progress, target: frame.target }, now);
 }
 
 /** Frees strips' GPU side and empties their canvases (4096 x 96 each). Freeing one twice is harmless. */

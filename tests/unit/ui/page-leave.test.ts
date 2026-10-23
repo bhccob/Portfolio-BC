@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { FLIGHT_MS } from '~/scene/bob/focus';
-import { fadeOutPage, leavesForHome, PAGE_OUT_MS } from '~/ui/pageLeave';
+import { dropGhosts, fadeOutPage, leavesForHome, PAGE_OUT_MS } from '~/ui/pageLeave';
 
 // ---------------------------------------------------------------- when
 
@@ -106,6 +106,21 @@ describe('fadeOutPage: the page left for the home stays a moment, fading, over t
   });
 });
 
+describe('dropGhosts: a project page that comes back at once stands alone (fix round 1, Minor 2)', () => {
+  it('takes every copy still fading away', () => {
+    const removed: number[] = [];
+    const ghosts = [0, 1].map((n) => ({ remove: () => removed.push(n) }));
+    dropGhosts({ querySelectorAll: ((selector: string) => (selector === '.page-ghost' ? ghosts : [])) as unknown as Document['querySelectorAll'] });
+    expect(removed).toEqual([0, 1]);
+  });
+
+  it('has a page that mounts drop them, and the scrim fade only while no page of its own is up', () => {
+    const source = readFileSync(fileURLToPath(new URL('../../../src/ui/pageLeave.ts', import.meta.url)), 'utf8');
+    expect(source).toMatch(/if \(page\) dropGhosts\(page\.ownerDocument\);\s*return \(\) =>/);
+    expect(declarationsOf('body:has(.page-ghost) .scene-host[data-ready]::after')).toEqual([]);
+  });
+});
+
 describe('the project page fades out by its route module', () => {
   it('has the project page hand its article to usePageFadeOut', () => {
     const source = readFileSync(fileURLToPath(new URL('../../../src/app/routes/project.tsx', import.meta.url)), 'utf8');
@@ -132,7 +147,7 @@ const seconds = (animation: string): number => Number(/(\d*\.?\d+)s\b/.exec(anim
 
 describe('the fades in the stylesheet (Ruling 30)', () => {
   const out = declarationsOf('.page-ghost').join(';');
-  const scrimOut = declarationsOf('body:has(.page-ghost) .scene-host[data-ready]::after').join(';');
+  const scrimOut = declarationsOf('body:has(.page-ghost):not(:has(main > .page)) .scene-host[data-ready]::after').join(';');
 
   it('fades the page out, and its scrim with it, on the site\'s reveal curve', () => {
     const page = /animation:\s*([^;]+)/.exec(out)?.[1] ?? '';

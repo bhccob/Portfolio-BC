@@ -45,14 +45,24 @@ export function fadeOutPage(page: HTMLElement): void {
 }
 
 /**
+ * Takes away every copy of a page still fading in `doc`: a project page that comes back while one fades (Back, then
+ * Forward at once) stands alone, with nothing of the page it replaces over it.
+ */
+export function dropGhosts(doc: Pick<Document, 'querySelectorAll'>): void {
+  for (const ghost of doc.querySelectorAll('.page-ghost')) ghost.remove();
+}
+
+/**
  * Lets the project page in `ref` fade out when it is left for the home page (Back, its Escape, the header's name),
  * not for anything else (the language switch, Lite, contact). React takes a page's layout effects down before it takes
  * its elements out of the document, so the article is still there, where it stood, when this runs; and the router has
- * already put the new address in the history, so `location` says where the visit goes.
+ * already put the new address in the history, so `location` says where the visit goes. A project page that comes in
+ * while an earlier one's copy still fades takes that copy away (`dropGhosts`).
  */
 export function usePageFadeOut(ref: RefObject<HTMLElement | null>): void {
   useLayoutEffect(() => {
     const page = ref.current;
+    if (page) dropGhosts(page.ownerDocument);
     return () => {
       if (page && leavesForHome(window.location.pathname)) fadeOutPage(page);
     };

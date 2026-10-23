@@ -204,7 +204,8 @@ html[data-bead-open] body:has(main > .page) .scene-host[data-ready]::after {
   animation: bead-page-out 0.4s var(--ease-reveal) both;
 }
 
-body:has(.page-ghost) .scene-host[data-ready]::after {
+/* The scrim fades with the copy only while no page of its own is up: a page that comes back at once keeps its scrim. */
+body:has(.page-ghost):not(:has(main > .page)) .scene-host[data-ready]::after {
   animation: bead-page-out 0.4s var(--ease-reveal) both;
 }
 

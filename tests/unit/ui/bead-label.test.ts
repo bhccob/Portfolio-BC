@@ -2,14 +2,17 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createElement, type ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { MemoryRouter } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { MemoryRouter, type NavigateFunction } from 'react-router';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { projects, type ProjectId } from '~/data/projects';
 import { en } from '~/i18n/en';
 import { nl } from '~/i18n/nl';
 import type { Locale } from '~/i18n/Translator';
+import { FLIGHT_MS } from '~/scene/bob/focus';
 import { BEADS, journeyPoseAt } from '~/scene/bob/journey';
-import { BeadLabel, BeadLabels, LABEL_BOX, labelMargin, labelPlacement, stopRadius } from '~/ui/BeadLabel';
+import { frame } from '~/state/frame';
+import { useScene } from '~/state/store';
+import { BeadLabel, BeadLabels, LABEL_BOX, labelMargin, labelPlacement, lendOpener, openBead, registerBeadLabel, showBeadLabel, stopRadius } from '~/ui/BeadLabel';
 
 /** `element` as the server renders it, on a page at `path`. */
 const render = (path: string, element: ReactElement): string => renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: [path] }, element));
@@ -260,3 +263,117 @@ describe('labelPlacement: the label beside its bead, inside the screen', () => {
 /** Every project id: the labels' ids are the projects'. */
 const _ids: readonly ProjectId[] = IDS;
 void _ids;
+
+// ---------------------------------------------------------------- fix round 1
+
+/** A fake label element: its attributes, as `showBeadLabel` writes them. */
+function fakeLabel() {
+  const attributes = new Map<string, string>();
+  return {
+    attributes,
+    isConnected: true,
+    textContent: '01 — BEVEILIGD ELEMENT FUNCIAL',
+    offsetWidth: 227,
+    offsetHeight: 82,
+    style: {} as Record<string, string>,
+    dataset: {} as Record<string, string>,
+    set tabIndex(value: number) {
+      attributes.set('tabindex', String(value));
+    },
+    setAttribute: (name: string, value: string) => void attributes.set(name, value),
+    removeAttribute: (name: string) => void attributes.delete(name),
+    toggleAttribute: (name: string, on: boolean) => (on ? attributes.set(name, '') : attributes.delete(name), on),
+    focus: () => {}
+  };
+}
+
+describe('showBeadLabel: a shown label takes Tab only at its stop (fix round 1, Minor 5)', () => {
+  const size = { width: 1440, height: 900 };
+  const at = { x: 0, y: 0 };
+  let release = (): void => {};
+  const doc = (globalThis as { document?: unknown }).document;
+  beforeEach(() => {
+    (globalThis as { document?: unknown }).document = { activeElement: null };
+  });
+  afterEach(() => {
+    showBeadLabel(null, size);
+    release();
+    (globalThis as { document?: unknown }).document = doc;
+  });
+
+  it('keeps a label clear between stops out of the Tab order, and lets it in at its stop', () => {
+    const el = fakeLabel();
+    release = registerBeadLabel('funcial', el as unknown as HTMLAnchorElement);
+    showBeadLabel({ id: 'funcial', ndc: at, radius: 240, rest: false }, size);
+    expect(el.attributes.has('data-shown')).toBe(true);
+    expect(el.attributes.has('data-rest')).toBe(false);
+    expect(el.attributes.get('tabindex')).toBe('-1');
+    showBeadLabel({ id: 'funcial', ndc: at, radius: 240, rest: true }, size);
+    expect(el.attributes.has('data-rest')).toBe(true);
+    expect(el.attributes.has('tabindex')).toBe(false);
+    showBeadLabel({ id: 'funcial', ndc: at, radius: 240, rest: false }, size);
+    expect(el.attributes.get('tabindex')).toBe('-1');
+    showBeadLabel(null, size);
+    expect([...el.attributes.keys()]).toEqual([]);
+  });
+
+  it('lets a label shown straight at its stop take Tab at once', () => {
+    const el = fakeLabel();
+    release = registerBeadLabel('cookies-clicker', el as unknown as HTMLAnchorElement);
+    showBeadLabel({ id: 'cookies-clicker', ndc: at, radius: 240, rest: true }, size);
+    expect(el.attributes.has('data-shown') && el.attributes.has('data-rest')).toBe(true);
+    expect(el.attributes.has('tabindex')).toBe(false);
+  });
+});
+
+describe("openBead: a new opening is never cut short by the last one's timer (fix round 1, Minor 3)", () => {
+  const doc = (globalThis as { document?: unknown }).document;
+  const root = (() => {
+    const attributes = new Set<string>();
+    return {
+      attributes,
+      setAttribute: (name: string) => void attributes.add(name),
+      removeAttribute: (name: string) => void attributes.delete(name),
+      toggleAttribute: (name: string, on: boolean) => (on ? attributes.add(name) : attributes.delete(name), on)
+    };
+  })();
+  beforeEach(() => {
+    vi.useFakeTimers();
+    (globalThis as { document?: unknown }).document = { documentElement: root };
+    useScene.setState(useScene.getInitialState(), true);
+    useScene.setState({ phase: { kind: 'PROJECTS', category: 'secure-element' } });
+    frame.progress = frame.target = 3;
+    frame.focus.opening = null;
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    (globalThis as { document?: unknown }).document = doc;
+    useScene.setState(useScene.getInitialState(), true);
+    frame.progress = frame.target = 0;
+    frame.focus.opening = null;
+    frame.focus.move = { from: { id: null, amount: 0 }, to: null, at: Number.NEGATIVE_INFINITY, mode: 'fade' };
+  });
+
+  it('keeps <html data-bead-open> until the second page has faded in, when it opens soon after the first', () => {
+    const went: unknown[] = [];
+    const release = lendOpener({ navigate: ((to: unknown) => void went.push(to)) as NavigateFunction, path: (id) => `/projects/${id}/` });
+    try {
+      expect(openBead('funcial')).toBe(true);
+      expect(root.attributes.has('data-bead-open')).toBe(true);
+      vi.advanceTimersByTime(FLIGHT_MS); // the flight is in: the router goes to the page
+      expect(went).toEqual(['/projects/funcial/']);
+      frame.focus.opening = null; // the route sync lets the bead go
+      vi.advanceTimersByTime(300); // Escape back to the stop, and the label again before the first fade's timer is up
+      useScene.setState({ phase: { kind: 'PROJECTS', category: 'secure-element' } });
+      expect(openBead('funcial')).toBe(true);
+      vi.advanceTimersByTime(FLIGHT_MS);
+      expect(went).toHaveLength(2);
+      vi.advanceTimersByTime(700); // past where the first opening's timer would have taken it away
+      expect(root.attributes.has('data-bead-open')).toBe(true);
+      vi.advanceTimersByTime(400); // the second page has faded in
+      expect(root.attributes.has('data-bead-open')).toBe(false);
+    } finally {
+      release();
+    }
+  });
+});

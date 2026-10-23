@@ -117,13 +117,46 @@ function beadOf(id: string): ProjectId | null {
 /**
  * The close view the page asks for: the bead being opened (`opening`: its flight runs on the home page until the
  * router goes to its page); else, on a project page (`scene` 'project', the phase PROJECT_FOCUS), its project's bead;
- * else none, the journey's shot. A PROJECT_FOCUS on the home page with nothing opening (the proof bridge's
- * OPEN_PROJECT) asks for none: only a page, or a label's flight, brings a bead close.
+ * else none, the journey's shot.
+ *
+ * A PROJECT_FOCUS on the home page with nothing opening is a page that is being left and not yet synced: on Back or
+ * Escape the scene turns 'home' in a layout effect (SceneHost) a moment before the route sync, a passive effect, puts
+ * the story at the bead's stop and the phase on the scroll (src/state/routeSync.ts), and a canvas frame can fall
+ * between the two. It asks for the close view it stands at (`current`, the last move's), so the move out is decided
+ * only once the story is where Back puts it. With none (the proof bridge's OPEN_PROJECT on the home) it asks for none:
+ * only a page, or a label's flight, brings a bead close.
  */
-export function focusGoalFor(phase: Phase, scene: SceneKind | null, opening: ProjectId | null): ProjectId | null {
+export function focusGoalFor(phase: Phase, scene: SceneKind | null, opening: ProjectId | null, current: ProjectId | null = null): ProjectId | null {
   if (opening !== null) return opening;
-  if (scene !== 'project' || phase.kind !== 'PROJECT_FOCUS') return null;
-  return beadOf(phase.id);
+  if (phase.kind !== 'PROJECT_FOCUS') return null;
+  if (scene === 'project') return beadOf(phase.id);
+  return scene === 'home' ? current : null;
+}
+
+/** What a frame's focus step reads of the app: the store's phase, page and reduced motion, and the story's place. */
+export interface FocusInput {
+  phase: Phase;
+  scene: SceneKind | null;
+  reducedMotion: boolean;
+  progress: number;
+  target: number;
+}
+
+/**
+ * The close view on a frame at `now`, the Opening's step of `focus` (`frame.focus`, in place): a new move is begun
+ * first wherever the page asks for another close view than the last move goes to (`focusGoalFor`). Into a page's bead
+ * that is a fade (the label's own flight was begun by its click, `openBead`); back out to the journey it is a flight
+ * from the bead's own stop at rest (`restsAt`: the route sync put the story there and the void's hold let it stay),
+ * and a fade otherwise, or with reduced motion.
+ */
+export function stepFocus(focus: { move: FocusMove; opening: ProjectId | null }, input: FocusInput, now: number): FocusPose {
+  const leaving = focus.move.to;
+  const goal = focusGoalFor(input.phase, input.scene, focus.opening, leaving);
+  if (goal !== leaving) {
+    const fly = goal === null && !input.reducedMotion && restsAt(leaving, input.progress, input.target);
+    focus.move = moveFocus(focus.move, goal, now, fly ? 'fly' : 'fade');
+  }
+  return focusPoseAt(focus.move, now);
 }
 
 /**

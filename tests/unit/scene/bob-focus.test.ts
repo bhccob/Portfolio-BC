@@ -1,5 +1,6 @@
+import { NavigationType } from 'react-router';
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { applyCameraShot, type CameraShot } from '~/engine/bob/shots';
 import type { ProjectId } from '~/data/projects';
 import {
@@ -10,12 +11,15 @@ import {
   focusGoalFor,
   focusPoseAt,
   moveFocus,
-  restsAt
+  restsAt,
+  stepFocus
 } from '~/scene/bob/focus';
 import { BEADS, CAMERA_PATH, fieldFor, FOCUS_VIEW, focusShotFor, journeyPoseAt, lensField, shotToward } from '~/scene/bob/journey';
 import { STEP_FADE_MS } from '~/scene/bob/stepFade';
 import { voidShownFor } from '~/scene/bob/voidPose';
-import { stopForProject } from '~/state/routeSync';
+import { frame } from '~/state/frame';
+import { BACK_STATE, resetRouteSync, stopForProject, syncRoute } from '~/state/routeSync';
+import { useScene } from '~/state/store';
 
 type Vec3 = readonly [number, number, number];
 
@@ -210,6 +214,13 @@ describe('focusGoalFor: the close view the page asks for', () => {
     expect(focusGoalFor({ kind: 'PROJECT_FOCUS', id: 'jontai-energy' }, 'home', 'jontai-energy')).toBe('jontai-energy');
   });
 
+  it('holds the close view it stands at while a page left for the home is not yet synced (PROJECT_FOCUS, scene home)', () => {
+    expect(focusGoalFor({ kind: 'PROJECT_FOCUS', id: 'funcial' }, 'home', null, 'funcial')).toBe('funcial');
+    expect(focusGoalFor({ kind: 'PROJECT_FOCUS', id: 'funcial' }, 'home', null, null)).toBeNull();
+    // Once synced the phase is the scroll's, and the close view is let go.
+    expect(focusGoalFor({ kind: 'PROJECTS', category: 'secure-element' }, 'home', null, 'funcial')).toBeNull();
+  });
+
   it('is none on the home page otherwise, even in PROJECT_FOCUS (the proof bridge\'s OPEN_PROJECT on the home)', () => {
     expect(focusGoalFor({ kind: 'PROJECT_FOCUS', id: 'funcial' }, 'home', null)).toBeNull();
     expect(focusGoalFor({ kind: 'PROJECTS', category: 'secure-element' }, 'home', null)).toBeNull();
@@ -237,5 +248,93 @@ describe("restsAt: a flight leaves only from its bead's own stop, at rest", () =
     expect(restsAt('funcial', 1.475, 1.475)).toBe(false);
     expect(restsAt('funcial', 1, 1)).toBe(false);
     expect(restsAt(null, 3, 3)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------- the move out, in the order the effects run
+
+describe('stepFocus: Back flies out of a page reached any way, whatever frame falls between the effects (fix round 1)', () => {
+  /** The frame's input as the Opening reads it: the real store and the real story. */
+  const input = () => {
+    const { phase, scene, reducedMotion } = useScene.getState();
+    return { phase, scene, reducedMotion, progress: frame.progress, target: frame.target };
+  };
+
+  beforeEach(() => {
+    resetRouteSync();
+    useScene.setState(useScene.getInitialState(), true);
+    frame.progress = frame.target = frame.velocity = frame.chapterIndex = 0;
+    frame.focus.move = { ...FOCUS_AT_REST, from: { ...FOCUS_AT_REST.from } };
+    frame.focus.opening = null;
+  });
+  afterEach(() => {
+    resetRouteSync();
+    useScene.setState(useScene.getInitialState(), true);
+    frame.progress = frame.target = frame.chapterIndex = 0;
+    frame.focus.move = { ...FOCUS_AT_REST, from: { ...FOCUS_AT_REST.from } };
+  });
+
+  /**
+   * A navigation as the app runs it: SceneHost's layout effect puts the page's scene in the store, a canvas frame may
+   * fall there (`between`), then the route sync, a passive effect, syncs the route, and the next frame is drawn.
+   */
+  const navigate = (scene: 'home' | 'project', to: { pathname: string; key: string; state?: unknown }, type: NavigationType, now: number, between: boolean) => {
+    useScene.getState().setScene(scene);
+    const mid = between ? stepFocus(frame.focus, input(), now) : null;
+    const midTo = frame.focus.move.to;
+    syncRoute(to, type);
+    return { mid, midTo, after: stepFocus(frame.focus, input(), now + 16) };
+  };
+
+  /** The visit begins at the home at 0 and reaches Funcial's page by the home's nav, a link: the page fades in. */
+  const toFuncialByTheNav = (): void => {
+    useScene.getState().setScene('home');
+    syncRoute({ pathname: '/', key: 'default' }, NavigationType.Pop);
+    useScene.getState().dispatch({ type: 'LOADED' });
+    navigate('project', { pathname: '/projects/funcial/', key: 'k1' }, NavigationType.Push, 0, true);
+    expect(stepFocus(frame.focus, input(), 1000)).toMatchObject({ id: 'funcial', amount: 1, moving: false });
+  };
+
+  for (const between of [true, false]) {
+    it(`flies out on Back ${between ? 'with' : 'without'} a canvas frame between the scene's change and the route sync`, () => {
+      toFuncialByTheNav();
+      const { mid, midTo, after } = navigate('home', { pathname: '/', key: 'default' }, NavigationType.Pop, 2000, between);
+      if (mid) {
+        // The frame between holds the close view: nothing is decided before the story is at the bead's stop.
+        expect(mid).toMatchObject({ id: 'funcial', amount: 1, dark: false });
+        expect(midTo).toBe('funcial');
+      }
+      expect([frame.progress, frame.target]).toEqual([3, 3]);
+      expect(frame.focus.move.mode).toBe('fly');
+      expect(frame.focus.move.to).toBeNull();
+      expect(after).toMatchObject({ id: 'funcial', dark: false, moving: true });
+      expect(focusPoseAt(frame.focus.move, 2016 + FLIGHT_MS / 2)).toMatchObject({ dark: false, moving: true });
+    });
+  }
+
+  it("flies out on the page's own Escape after a direct arrival (a push with BACK_STATE), a frame between or not", () => {
+    for (const between of [true, false]) {
+      resetRouteSync();
+      useScene.setState(useScene.getInitialState(), true);
+      frame.progress = frame.target = 0;
+      frame.focus.move = { ...FOCUS_AT_REST, from: { ...FOCUS_AT_REST.from } };
+      navigate('project', { pathname: '/projects/cookies-clicker/', key: 'default' }, NavigationType.Pop, 0, false);
+      stepFocus(frame.focus, input(), 1000);
+      navigate('home', { pathname: '/', key: 'k1', state: BACK_STATE }, NavigationType.Push, 2000, between);
+      expect([frame.target, frame.focus.move.mode, frame.focus.move.to]).toEqual([5, 'fly', null]);
+    }
+  });
+
+  it("fades out for the header's name, which lands at the home, 0, far from the bead's stop", () => {
+    toFuncialByTheNav();
+    navigate('home', { pathname: '/', key: 'k2' }, NavigationType.Push, 2000, true);
+    expect([frame.target, frame.focus.move.mode, frame.focus.move.to]).toEqual([0, 'fade', null]);
+  });
+
+  it("still asks for no close view for the proof bridge's OPEN_PROJECT on the home, with no page behind it", () => {
+    useScene.getState().setScene('home');
+    useScene.setState({ phase: { kind: 'PROJECT_FOCUS', id: 'funcial' } });
+    expect(stepFocus(frame.focus, input(), 0)).toMatchObject({ id: null, amount: 0, engaged: false });
+    expect(frame.focus.move.to).toBeNull();
   });
 });
