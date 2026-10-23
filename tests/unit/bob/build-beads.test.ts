@@ -756,7 +756,12 @@ describe('the real GLB', () => {
     const model = loadBeads(gltf, 'high', screens());
     for (const id of IDS) {
       expect(materialOf(screenOf(model, id)).emissiveMap?.name).toBe(`screen:${id}`);
-      expect(objectNamed<THREE.PointLight>(model.beads[id].root, `bead_${id}_inner`).isPointLight).toBe(true);
+      const inner = objectNamed<THREE.PointLight>(model.beads[id].root, `bead_${id}_inner`);
+      expect(inner.isPointLight).toBe(true);
+      // The root's own child, with no children: the Void hides a bead by its other children and keeps the light lit.
+      expect(inner.parent).toBe(model.beads[id].root);
+      expect(inner.children).toEqual([]);
+      expect(inner.castShadow).toBe(false);
     }
     // funcial_bead_k is the abacus's own child (GLTFLoader also names a bead's gold band "funcial_bead_1").
     const funcial = model.beads.funcial.root;

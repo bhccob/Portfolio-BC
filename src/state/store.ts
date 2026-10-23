@@ -9,6 +9,13 @@ export const THREE_D_KEY = 'needle-3d';
 
 export type Tier = 'high' | 'medium' | 'low';
 
+/**
+ * Where the void under the glass stands (src/scene/bob/Void.tsx): `idle` until its load begins (once the home has
+ * landed) and again once no Stage is up, `loading` while its files come and its programs compile, `ready` once it is in
+ * the scene, `failed` if any of it could not be had. The home's scroll holds by it (src/scene/bob/diveHold.ts).
+ */
+export type VoidState = 'idle' | 'loading' | 'ready' | 'failed';
+
 export interface SceneState {
   phase: Phase;
   tier: Tier;
@@ -22,9 +29,13 @@ export interface SceneState {
    * parts inside the canvas. Null on a page of text alone (and until SceneHost says): nothing wakes the canvas then.
    */
   scene: SceneKind | null;
+  /** The void's load (`VoidState`); its one writer is the Void. */
+  voidState: VoidState;
   dispatch(event: SceneEvent): void;
   setTier(tier: Tier): void;
   setScene(scene: SceneKind | null): void;
+  /** The same state again is no change. */
+  setVoidState(state: VoidState): void;
   /**
    * Switches 3D on or off. The visitor's switch stores the choice (`needle-3d`); the scene's own reasons (no WebGL,
    * a scene that failed or never got ready) pass `{ persist: false }`, so the page falls back for this visit and the
@@ -75,6 +86,7 @@ export const useScene = create<SceneState>()((set) => ({
   reducedMotion: false,
   transitionId: 0,
   scene: null,
+  voidState: 'idle',
 
   dispatch: (event) =>
     set((state) => {
@@ -87,6 +99,8 @@ export const useScene = create<SceneState>()((set) => ({
 
   // The same scene again is no change: returning the state notifies nobody.
   setScene: (scene) => set((state) => (state.scene === scene ? state : { scene })),
+
+  setVoidState: (voidState) => set((state) => (state.voidState === voidState ? state : { voidState })),
 
   setThreeD: (on, { persist = true } = {}) => {
     if (persist) SafeStorage.local().set(THREE_D_KEY, on ? 'on' : 'off');

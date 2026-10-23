@@ -42,6 +42,7 @@ export function readNeedleDebugState(view: ShellView): NeedleDebugState {
     loader: { stage, elapsed, strokes: [...strokes] },
     needleAngle: frame.needleAngle,
     scroll: { u, letters, iris, needleDip },
+    journey: { ...frame.journey },
   };
 }
 

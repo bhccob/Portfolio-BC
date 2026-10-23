@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { LoaderStage } from '~/engine/bob/loaderTimeline';
@@ -148,12 +149,31 @@ describe('the wiring: one writer of frame.shot, before the Rig', () => {
     expect(frameCallbackPriorities(read('scene/Rig.tsx'))).toEqual(['0']);
     expect(frameCallbackPriorities(read('scene/bob/Home.tsx'))).toEqual(['0']);
     expect(frameCallbackPriorities(read('scene/Heartbeat.tsx'))).toEqual(['0']);
+    // The Void poses the void, the beads and the held needle after Home, at the default: it writes no shot.
+    expect(frameCallbackPriorities(read('scene/bob/Void.tsx'))).toEqual(['0']);
   });
 
-  it('has Home write no shot: the Opening is the only module of the scene that assigns frame.shot (and clears it on unmount)', () => {
-    const writers = ['scene/bob/Home.tsx', 'scene/bob/Opening.tsx', 'scene/Rig.tsx', 'scene/Heartbeat.tsx', 'scene/Stage.tsx'].filter((path) =>
-      /\bframe\.shot\s*=(?!=)/.test(code(read(path))),
-    );
+  it('has Home write no shot: the Opening is the only module of the site that assigns frame.shot (and clears it on unmount)', () => {
+    // Every module under src, so a new one (the Void, the beads) is read too.
+    const writers = sourceFiles(SRC)
+      .map((file) => relative(SRC, file).replaceAll('\\', '/'))
+      .filter((path) => /\bframe\.shot\s*=(?!=)/.test(code(read(path))));
     expect(writers).toEqual(['scene/bob/Opening.tsx']);
   });
+
+  it('reads every module of src for that (the helper of the check)', () => {
+    const paths = sourceFiles(SRC).map((file) => relative(SRC, file).replaceAll('\\', '/'));
+    for (const path of ['scene/bob/Opening.tsx', 'scene/bob/Home.tsx', 'scene/bob/Void.tsx', 'scene/Rig.tsx', 'engine/bob/build/beads.ts', 'state/frame.ts']) expect(paths).toContain(path);
+  });
 });
+
+const SRC = fileURLToPath(new URL('../../../src', import.meta.url));
+
+/** Every .ts and .tsx file under `dir`. */
+function sourceFiles(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) return sourceFiles(path);
+    return /\.(?:ts|tsx)$/.test(entry.name) ? [path] : [];
+  });
+}

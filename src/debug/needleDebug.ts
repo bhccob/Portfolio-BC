@@ -2,9 +2,10 @@
 // timeline is in that bundle anyway, through src/scene/timeouts.ts; three.js must stay out of it.)
 import type { LoaderStage } from '~/engine/bob/loaderTimeline';
 import type { Locale } from '~/i18n/Translator';
+import type { Stretch } from '~/scene/bob/journey';
 import type { ChapterId } from '~/state/chapters';
 import type { Phase, SceneEvent } from '~/state/machine';
-import type { Tier } from '~/state/store';
+import type { Tier, VoidState } from '~/state/store';
 
 /**
  * What the proof harness (tools/proof/needle.mjs) reads of the site, all in one place: the scene's discrete state, the
@@ -59,6 +60,13 @@ export interface NeedleDebugState {
    * nothing drives the home (the loader, a held seek, no Stage).
    */
   scroll: { u: number; letters: number; iris: number; needleDip: number };
+  /**
+   * Where the home's journey stands as the scene last posed it (`frame.journey`, a copy): the stretch (`rise`, `dive`,
+   * `overview`, `project`), how far through it (0 at its stop), the bead of a project stretch (0 Funcial, 1 Jontai
+   * Energy, 2 Cookies Clicker; null elsewhere), and the void's load (`idle`, `loading`, `ready`, `failed`), which holds
+   * the scroll in the dive's tunnel until it is ready.
+   */
+  journey: { stretch: Stretch; local: number; project: number | null; voidState: VoidState };
 }
 
 /** What the bridge does to the site, besides reading it. */

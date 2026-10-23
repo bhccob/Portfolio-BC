@@ -11,7 +11,7 @@ import { HOME_CHAPTERS, stops } from '~/state/chapters';
 import { frame } from '~/state/frame';
 import { useScene } from '~/state/store';
 import { motion } from '../motion';
-import { journeyPoseAt } from './journey';
+import type { JourneyPose } from './journey';
 import { IDLE_SECONDS, needleGlowAt } from './look';
 import { risingFor } from './scrollPose';
 import { nearestStop, type StepFade, stepFadeAt, stepFadeFrom } from './stepFade';
@@ -46,12 +46,18 @@ export interface HomeModels {
  * `shown` goes the other way: the progress Home posed the scene at on its last frame (the damped `frame.progress`, or
  * with reduced motion the stop the step fade shows). The Opening, which runs before Home in a frame and writes the
  * camera's shot (src/scene/bob/shotSource.ts), reads it for the reduced-motion stop, which only Home's step fade knows.
+ *
+ * `pose` is the one journey pose of the frame (src/scene/bob/journey.ts `journeyPoseAt`), which the Opening computes
+ * once, at the progress it stands the camera at, before the Rig: its shot is the camera's, and Home (the rise) and the
+ * Void (the void, the beads, the needle out of the compass) pose the scene from it, so all three agree in every frame.
+ * Null while the Opening poses the scene itself (the loader, a held seek) and once it is gone; set whenever `live` is.
  */
 export interface Handover {
   live: boolean;
   time: number;
   needle: number;
   shown: number;
+  pose: JourneyPose | null;
 }
 
 export interface HomeProps {
@@ -117,8 +123,9 @@ const pivotPx = { x: 0, y: 0 };
  * it back while a seek holds its clock.
  *
  * **Scroll.** The first stretch of scroll, the HOME chapter's one unit, raises the camera from the home to straight
- * above the name BOB (scrollPose.ts): each frame it poses the rise of `journeyPoseAt(progress, aspect)` (journey.ts: M2a's
- * scroll pose itself up to the unit's end), the compass opening like an iris (`setIris`), the needle turning down into
+ * above the name BOB (scrollPose.ts): each frame it poses the rise of the frame's one journey pose (`handover.pose`, the
+ * Opening's `journeyPoseAt(progress, aspect)`; journey.ts: M2a's scroll pose itself up to the unit's end), the compass
+ * opening like an iris (`setIris`), the needle turning down into
  * it (`setNeedleDip`) and the light running out of the O into the two B letters (`setLetters`, the one place they are
  * drawn). It writes no shot: the camera is the same journey's, written by the Opening in the same frame, before the Rig
  * (src/scene/bob/shotSource.ts). Scrolling back plays it backwards to the home; past the unit the compass holds at BOB
@@ -184,7 +191,9 @@ export function Home({ models, handover }: HomeProps): null {
   );
 
   useFrame(({ camera, size }, delta) => {
-    if (!handover.live) {
+    // The frame's one journey pose, the Opening's: there whenever the home is handed over.
+    const journey = handover.pose;
+    if (!handover.live || journey === null) {
       // Let go (a seek holds the loader's clock): the Opening poses the scene from the held moment, which knows nothing
       // of the scroll, so the compass is closed, its needle out of the dip and the letters dark again, and the host is
       // not left faded down nor the cue hidden.
@@ -227,7 +236,6 @@ export function Home({ models, handover }: HomeProps): null {
     stepFadeAt(state.fade, stop, reduced, now);
     showStepFade(state, state.fade.darkAt !== null);
     if (state.fade.darkAt !== null) invalidate();
-    const aspect = size.width / size.height;
     const shown = reduced ? state.fade.shown : frame.progress;
     // The Opening placed this frame's camera, from the progress it read before this frame (the damped one is the same;
     // the step fade's stop is the one Home last posed). A step that has just jumped asks for the frame that stands the
@@ -235,8 +243,8 @@ export function Home({ models, handover }: HomeProps): null {
     if (reduced && !Object.is(handover.shown, shown)) invalidate();
     handover.shown = shown;
     // The compass's pose is the journey's rise (journey.ts: M2a's scroll pose itself up to progress 1, then held at the
-    // top). The camera is the same journey's shot, written by the Opening.
-    const pose = journeyPoseAt(shown, aspect).rise;
+    // top), from the one pose of the frame, whose shot is the camera's (the Opening's, at `shown` as Home left it).
+    const pose = journey.rise;
     // The needle aims only at the home itself; up the rise its spring holds the target it had (aimsAt).
     const aiming = aimsAt(phase.kind, scene, pose.u);
     if (state.u !== pose.u) {

@@ -1,5 +1,5 @@
 import type { ChapterAt, Chapters } from '~/state/chapters';
-import { changedChapter, jumpTarget, moveTarget, pinnedAtEnd } from './target';
+import { changedChapter, holdLimit, jumpTarget, moveTarget, pinnedAtEnd, releaseTarget } from './target';
 import { VirtualScroll } from './VirtualScroll';
 
 /** maath's `damp`: moves `current[prop]` toward `target` and says whether it is still moving. */
@@ -141,11 +141,23 @@ export interface HomeScrollOptions extends Omit<ScrollLoopOptions, 'glide'> {
   reducedMotion: () => boolean;
   /** Whether the input drops what it takes now, still preventing it (`VirtualScrollOptions.swallow`); asked at every event. */
   swallow?: () => boolean;
+  /**
+   * The most the target may reach now, in units (src/scene/bob/diveHold.ts `diveHoldFor`: the dive holds in the tunnel
+   * while the void loads), asked at every input and at `holdChanged`; with reduced motion the last stop at or under it
+   * (`holdLimit`). Without it nothing holds but the end of the story.
+   */
+  hold?: () => number;
 }
 
 export interface HomeScroll {
   scroll: VirtualScroll;
   loop: ScrollLoop;
+  /**
+   * The hold has changed (the void is ready, or failed): a target above the new one comes back to it (and what the
+   * input had asked past the old one is let go); a target that rests on the old hold, which the input asked to take
+   * further, goes on (`releaseTarget`: to the next stop at least, as far as it asked at most); then the loop runs to it.
+   */
+  holdChanged(): void;
   dispose(): void;
 }
 
@@ -153,9 +165,26 @@ export interface HomeScroll {
  * Wires the input to the loop: `VirtualScroll` on `el` moves `frame.target` (by a distance, or with reduced
  * motion to the next or previous stop), and wakes the loop. A glide that is pushing into an end of the story
  * is ended there, so it does not keep the loop awake. `dispose()` takes both down.
+ *
+ * **The hold.** Every move of the target, a delta or a jump, is clamped to `hold` (`holdLimit` of it): a wheel, a
+ * swipe or End past it rests on it, and a glide that presses into it is ended there, as at the end. The place the input
+ * asked for past it is kept (`asked`), until the next input that stays within it: when the hold rises
+ * (`holdChanged`) the story goes on from the hold toward it (`releaseTarget`). Nothing past the hold is stored as a
+ * debt: scrolling back up from the hold moves the story at once.
  */
 export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
   const { frame, chapters } = o;
+  /** The most the target may reach now. */
+  const limitNow = (): number => holdLimit(o.hold?.() ?? chapters.total, chapters, o.reducedMotion());
+  /** Where the last input asked the target to be, past the hold it rests on; null when it asked for no more than the hold. */
+  let asked: number | null = null;
+  /** Puts the target where an input asked, held to the limit, and notes what the hold kept from it. */
+  const askFor = (place: number): number => {
+    const limit = limitNow();
+    frame.target = Math.min(place, limit);
+    asked = place > limit ? place : null;
+    return limit;
+  };
 
   const loop: ScrollLoop = new ScrollLoop({
     ...o,
@@ -171,12 +200,12 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
   const scroll: VirtualScroll = new VirtualScroll(o.el, {
     unitPx: o.unitPx,
     onDelta: (units) => {
-      frame.target = moveTarget(frame.target, units, chapters, o.reducedMotion());
-      if (pinnedAtEnd(frame.target, units, chapters)) scroll.stopGlide();
+      const limit = askFor(moveTarget(frame.target, units, chapters, o.reducedMotion()));
+      if (pinnedAtEnd(frame.target, units, chapters, limit)) scroll.stopGlide();
       loop.wake();
     },
     onJump: (to) => {
-      frame.target = jumpTarget(to, chapters);
+      askFor(jumpTarget(to, chapters));
       loop.wake();
     },
     enabled: o.enabled,
@@ -191,6 +220,18 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
   return {
     scroll,
     loop,
+    holdChanged: () => {
+      const limit = limitNow();
+      if (frame.target > limit) {
+        // The hold came down (the void failed): what was asked past it is let go with it.
+        frame.target = limit;
+        asked = null;
+      } else if (asked !== null && limit > frame.target) {
+        frame.target = releaseTarget(frame.target, asked, limit, chapters);
+        asked = asked > limit ? asked : null;
+      }
+      loop.wake();
+    },
     dispose: () => {
       loop.dispose();
       scroll.dispose();

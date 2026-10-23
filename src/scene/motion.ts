@@ -16,6 +16,12 @@ export const motion = {
    * on.
    */
   loader: false,
+  /**
+   * Something in the void moves on screen (src/scene/bob/Void.tsx): a bead's object whose clock runs (it is selected or
+   * hovered) and that the camera sees, or a hover still easing in or out. False with reduced motion, on a page without
+   * the home's scene, and while the void is not shown.
+   */
+  beads: false,
   /** When the scroll loop last asked for a frame (performance.now() ms), or -Infinity. */
   scrolledAt: Number.NEGATIVE_INFINITY,
 };
@@ -45,4 +51,5 @@ export function resetMotion(): void {
   Object.assign(motion.compass, AT_REST);
   motion.parallax = false;
   motion.loader = false;
+  motion.beads = false;
 }

@@ -124,6 +124,7 @@ the bridge is installed from the first URL and stays).
 | `contextLost`, `threeD` | the WebGL context is lost; the visitor's 3D switch |
 | `loader` | `{ stage, elapsed, strokes }`: where the opening stands (`dark`, `engrave`, `open`, `rise`, `home`; null while no opening is mounted), its visible seconds, and how much of each of the five engraved marks is cut (the left B, its bar, the right B, its bar, the circle; 0 to 1 each). The loader cuts the circle alone, so the four B marks are always 0 and only the circle, the last, runs to 1 |
 | `needleAngle` | the compass needle's angle now, radians: 0 up the screen, clockwise positive, so a pointer straight to the right of the pivot pulls it toward pi/2 |
+| `journey` | `{ stretch, local, project, voidState }`: where the home's journey stands as the scene last posed it (`rise`, `dive`, `overview`, `project`; how far through the stretch, 0 at its stop; the bead of a project stretch, 0 Funcial, 1 Jontai Energy, 2 Cookies Clicker, else null) and the void's load (`idle`, `loading`, `ready`, `failed`), which holds the scroll halfway down the dive's tunnel until it is `ready`, and at BOB from above if it `failed` |
 | `scroll` | `{ u, letters, iris, needleDip }`: the home's pose on the first unit of scroll, as the home last posed it: the rise `u` (0 at the home, 1 looking straight down on BOB) and the shares of the B letters' light, the compass's iris and the needle's dip, each 0 to 1 and linear in the rise; with reduced motion `u` is the stop the step fade shows. All 0 while nothing drives the home (the loader, a held `seekLoader`) |
 
 and has `.set({ progress })` (puts the story at a place at once, the chapter and
@@ -227,7 +228,9 @@ without it, it takes them first.
 - The keyed contact checks (`lite`) run only on a build with
   `PUBLIC_WEB3FORMS_KEY` set; Web3Forms is answered by the harness, so a dummy
   key is enough and nothing is sent.
-- `load-throw` finds the call to make throw (`.initTexture(`, the band strips
-  uploaded to the GPU in `src/scene/bob/Opening.tsx` once the compass is built)
+- `load-throw` finds the call to make throw (`.initTexture(`, the scene's one
+  upload, `uploadTextures` in `src/scene/bob/warm.ts`, which the Opening first
+  calls for the band strips once the compass is built, in
+  `src/scene/bob/Opening.tsx`; the void's textures go through it later)
   in the built Stage chunk (`assets/Stage-<hash>.js`); the step fails if that is not there
   exactly once.

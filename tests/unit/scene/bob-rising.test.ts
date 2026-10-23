@@ -88,7 +88,8 @@ describe('the cue that leaves with the rise, in the stylesheet', () => {
 
   it('hides the cue by opacity alone while <html data-rising> is set, so it stays in the page for a screen reader', () => {
     expect(valueOf('html[data-rising] .hero-cue', 'opacity')).toBe('0');
-    const rising = RULES.filter((rule) => rule.selectors.some((s) => s.includes('data-rising')));
+    // The cue's rules under data-rising (the home's links have one of their own, for a void that failed).
+    const rising = RULES.filter((rule) => rule.selectors.some((s) => s.includes('data-rising') && s.includes('.hero-cue')));
     expect(rising.length).toBe(1);
     expect(rising[0]!.selectors).toEqual(['html[data-rising] .hero-cue']);
     expect([...rising[0]!.declarations.keys()]).toEqual(['opacity']);

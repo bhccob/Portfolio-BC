@@ -36,6 +36,9 @@ import {
   skipAtFor,
   skipsLoader,
 } from './openingStart';
+import { beadLightStandIns, Void } from './Void';
+import { writeJourney } from './voidPose';
+import { uploadTextures, warm } from './warm';
 
 /** Why the opening fails when its home has not loaded in time: the loader's give-up, and a skipped home's budget. */
 const GAVE_UP = `the compass did not load within ${LOADER.giveUp} s of the page being visible`;
@@ -89,6 +92,18 @@ interface LoaderParts {
   traces: TracesModel;
   probe: ProbeModel;
   smoke: SmokeModel;
+  /**
+   * The beads' light stand-ins (src/scene/bob/Void.tsx `beadLightStandIns`): in the scene from the first frame, at
+   * intensity 0, so every program the loader and the home compile counts the beads' lights; the Void swaps the beads'
+   * own lights in for them. The Opening's to free.
+   */
+  standIns: THREE.PointLight[];
+}
+
+/** What the Opening mounts Home and the Void with, once the compass exists. */
+interface Mounted {
+  home: HomeModels;
+  standIns: readonly THREE.PointLight[];
 }
 
 /** The home's part, the compass, built while the loader engraves: the Opening's to free with its strips and its file's geometries. */
@@ -98,46 +113,6 @@ interface HomeParts {
   /** The compass's file, once it has arrived, whose geometries the Opening frees. */
   file: GLTF | null;
   compass: CompassModel | null;
-}
-
-/**
- * The renderer as the warm-up sees it (v3's pattern). While the post chain is on, the composer's render pass draws the
- * scene into a half-float target, and three builds a different program for that (linear output, no tone mapping) than
- * for the screen; the warm-up compiles against such a target then, so the programs it readies are the ones the first
- * frame uses. `dispose` frees the target.
- */
-function warmingRenderer(gl: THREE.WebGLRenderer, composer: boolean): { renderer: THREE.WebGLRenderer; dispose(): void } {
-  if (!composer) return { renderer: gl, dispose: () => {} };
-  const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false });
-  const renderer = Object.create(gl) as THREE.WebGLRenderer;
-  renderer.compileAsync = (scene, camera, targetScene) => {
-    const previous = gl.getRenderTarget();
-    gl.setRenderTarget(target);
-    try {
-      // compile() reads the render target synchronously, before the returned promise settles.
-      return gl.compileAsync(scene, camera, targetScene);
-    } finally {
-      gl.setRenderTarget(previous);
-    }
-  };
-  return { renderer, dispose: () => target.dispose() };
-}
-
-/**
- * Compiles every program of `scene` for the frames to come; a failure only costs the first frame a stall, so it is
- * logged. Three compiles the materials of hidden objects too (the compass, hidden under the shut cap), and takes the
- * lights the visible ones are lit by; every light of the scene stays visible throughout (the probe's and the tunnel's go
- * dark by intensity), so no frame of the loader changes the light count the programs were compiled for.
- */
-async function warm(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, what: string): Promise<void> {
-  const warming = warmingRenderer(gl, useScene.getState().tier !== 'low');
-  try {
-    await warming.renderer.compileAsync(scene, camera);
-  } catch (error) {
-    console.warn(`[needle] ${what} could not be warmed up; the first frame may stall`, error);
-  } finally {
-    warming.dispose();
-  }
 }
 
 /** Lets a frame go by between two pieces of the load, so the loader keeps drawing while the strips paint. */
@@ -230,13 +205,16 @@ export interface OpeningProps {
  *
  * **Build.** On mount it builds the loader's parts at once for the ladder's tier (`tier`, from the Stage): the glass
  * (`buildGlass`, sized to the drawing buffer through `setRenderer`, again on every resize), the engraving, the traces
- * (`traceLayout()`), the probe and the smoke. It adds them, compiles their programs and calls `onReady`: the canvas
+ * (`traceLayout()`), the probe and the smoke, and the beads' light stand-ins (`beadLightStandIns`, src/scene/bob/Void.tsx:
+ * point lights at intensity 0 that hold the beads' place in the light count, so no program compiled from here on is
+ * compiled again when the beads come in). It adds them, compiles their programs and calls `onReady`: the canvas
  * fades in over the poster and the loader begins. When the ladder steps down later, the parts step down in place
  * (Ruling 25: `setReflector` and, with it, the traces' `setUnder` (they lie under the glass only while it is transparent), `setTier` on the compass and the smoke), never up.
  *
  * **Load.** Meanwhile it fetches the compass's GLB (`loadCompassFile`: three's GLTFLoader, once a page view) and paints
  * the four bands' strips (`bandStrip`), one a frame: `paint`, 0.6 of the load. Once the file is in, it builds the
- * compass (`loadCompass`), hidden as the clock has it, mounts Home, uploads the strips and compiles the home's programs:
+ * compass (`loadCompass`), hidden as the clock has it, mounts Home and the Void, uploads the strips and compiles the
+ * home's programs:
  * `warm`, the other 0.4. A throw anywhere in it (no 2D canvas, a file that does not load or lacks a part) fails the
  * scene; only a failed warm-up is let through, at the cost of a stall. The compass stays hidden until the iris starts
  * to open (no transmission pass runs under the shut cap), and below the high tier the transmission pass runs at half
@@ -253,7 +231,10 @@ export interface OpeningProps {
  * placed on the shot of the frame it is drawn in. `shotSourceFor(stage, held, live)` says where the shot comes from:
  * the loader's own shots (`cameraShotAt`) while the loader plays and at a held seek; at home, once the clock is there,
  * the journey's (`journeyPoseAt(progress, aspect).shot`, src/scene/bob/journey.ts) on every frame drawn, at the progress
- * `shownProgressFor` gives. Home poses the compass from the same progress and writes no shot.
+ * `shownProgressFor` gives. That pose is computed once a frame, here, and published: `handover.pose` for Home (the
+ * rise) and the Void (the void, the beads, the needle out of the compass), which pose the scene from it and write no
+ * shot, and `frame.journey` (`writeJourney`: its stretch, local and project) for the debug bridge. While the loader's
+ * shots stand, `handover.pose` is null.
  *
  * The path is
  * `pathFor(loaderSeen(localStorage), reducedMotion)`, read once at mount (reduced beats quick, quick beats full).
@@ -271,7 +252,8 @@ export interface OpeningProps {
  * and quick paths, not the reduced fade: `marksSeen`) and dispatches `LOADED` (the only place it is sent while a Stage
  * is up), once. From then on the Opening poses the home once each time the clock reaches `home`, asks for one more
  * frame, and hands it over (`handover`) to Home (Home.tsx), which drives the needle, the bands' turn,
- * the smoke, the needle's breath and the scroll's rise from there, starting where the Opening left them. The camera
+ * the smoke, the needle's breath and the scroll's rise from there, starting where the Opening left them, and to the
+ * Void (Void.tsx), which loads the void and the beads from then on and poses them, and the needle in the void. The camera
  * stays the Opening's (above): at the home it is the home shot at the rise's 0, up the rise to BOB from above, and on
  * into the dive (a resize reframes it in place, in the same frame). On a project page it lands on the home view under
  * that page's scrim.
@@ -293,7 +275,7 @@ export interface OpeningProps {
  * **Give-up.** If the load has not finished after LOADER.giveUp visible seconds it calls `onFail`, and SceneHost shows
  * its fallback card ("the needle lost north", with Lite one link away).
  *
- * Unmounting frees every object, material, texture and canvas it made, and the GPU side of the compass file's
+ * Unmounting frees every object, material, texture, light and canvas it made, and the GPU side of the compass file's
  * geometries.
  */
 export function Opening({ tier, reflector, onStarted, onReady, onFail }: OpeningProps): JSX.Element | null {
@@ -309,8 +291,8 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
   /** The drawing buffer's size the glass's reflection was last sized for. */
   const buffer = useRef({ seen: new THREE.Vector2(-1, -1), now: new THREE.Vector2() });
   /** The home's parts once built, which mount Home; and what the Opening hands over to it, set on each frame drawn. */
-  const [models, setModels] = useState<HomeModels | null>(null);
-  const [handover] = useState<Handover>(() => ({ live: false, time: 0, needle: settleAngle(1), shown: 0 }));
+  const [models, setModels] = useState<Mounted | null>(null);
+  const [handover] = useState<Handover>(() => ({ live: false, time: 0, needle: settleAngle(1), shown: 0, pose: null }));
   /** The full show is playing, so any input skips it (`useLoaderSkip`) while a scene is shown. */
   const [skippable, setSkippable] = useState(false);
   /** The page shows a scene: on a page of text (Lite, contact) the canvas draws nothing, and the skip must not listen. */
@@ -379,8 +361,9 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       made.push(probe);
       const smoke = buildSmoke(built);
       made.push(smoke);
-      scene.add(glass.group, traces.group, engraving.group, probe.group, smoke.group);
-      parts = { glass, engraving, traces, probe, smoke };
+      const standIns = beadLightStandIns(built);
+      scene.add(glass.group, traces.group, engraving.group, probe.group, smoke.group, ...standIns);
+      parts = { glass, engraving, traces, probe, smoke, standIns };
     } catch (error) {
       for (const part of made) part.dispose();
       latest.current.onFail('the loader could not be built', error);
@@ -489,11 +472,11 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       state.posedHome = false;
       const now = clockOf(state);
       pose(parts, compass, openingPoseAt(now, state.path), state.elapsed, state);
-      // Home mounts now; it drives nothing until the Opening hands the home over.
-      setModels({ compass, engraving: parts.engraving, smoke: parts.smoke });
+      // Home and the Void mount now; they drive nothing until the Opening hands the home over.
+      setModels({ home: { compass, engraving: parts.engraving, smoke: parts.smoke }, standIns: parts.standIns });
 
       // The strips go up to the GPU now, not on the frame that first shows the bands, and the home's programs compile.
-      for (const strip of homeParts.strips) gl.initTexture(strip);
+      uploadTextures(gl, homeParts.strips);
       await warm(gl, scene, camera, 'the compass');
       if (disposed) return;
       state.done.warm = true;
@@ -513,6 +496,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       loader.current = null;
       run.current = null;
       handover.live = false;
+      handover.pose = null;
       setModels(null);
       setSkippable(false);
       motion.loader = false;
@@ -525,6 +509,8 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       parts.traces.dispose();
       parts.probe.dispose();
       parts.smoke.dispose();
+      scene.remove(...parts.standIns);
+      for (const light of parts.standIns) light.dispose();
       home.current = null;
       if (homeParts.compass) {
         scene.remove(homeParts.compass.group);
@@ -580,9 +566,14 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
     const source = shotSourceFor(clock.stage, held, handover.live);
     if (source === 'loader' || source === 'held') {
       frame.shot = cameraShotAt(clock, state.path, aspect);
+      handover.pose = null;
     } else {
+      // The one journey pose of this frame: the camera's shot, and what Home and the Void pose the scene from.
       const shown = shownProgressFor(source, useScene.getState().reducedMotion, frame.progress, frame.target, handover.shown);
-      frame.shot = journeyPoseAt(shown, aspect).shot;
+      const journey = journeyPoseAt(shown, aspect);
+      frame.shot = journey.shot;
+      handover.pose = journey;
+      writeJourney(frame.journey, journey.at);
     }
     // A held clock poses every frame; the live one poses the home once, when it gets there.
     if (held !== null || !atHome) state.posedHome = false;
@@ -621,7 +612,14 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
     }
   }, SHOT_PRIORITY);
 
-  return models ? <Home models={models} handover={handover} /> : null;
+  // Home first, then the Void: their frame callbacks run in that order (both at the default priority, after the Rig), so
+  // the Void holds the needle in the void after Home has posed the compass.
+  return models ? (
+    <>
+      <Home models={models.home} handover={handover} />
+      <Void compass={models.home.compass} handover={handover} tier={tier} standIns={models.standIns} />
+    </>
+  ) : null;
 }
 
 /** Where the live opening stands: at home once it skips its loader, else as the loader's timeline says. */

@@ -703,6 +703,25 @@ html[data-3d='on'] .home-nav:not(:focus-within) {
   white-space: nowrap;
 }
 
+/* The void's files could not be had (src/scene/bob/Void.tsx sets <html data-void>): the scroll holds at BOB from above,
+   where the dive would have begun (src/scene/bob/diveHold.ts), and there the links show over the foot of the scene, as
+   they do below the hero with 3D off. At the home itself (no data-rising) they stay as they are with 3D on, so the
+   scroll cue keeps the foot of the first screen to itself. A scrim of the fallback card's night under them keeps them
+   readable where they meet the engraved name (on a laptop the heading reaches the foot of the B letters). */
+html[data-3d='on'][data-void='failed'][data-rising] .home-nav {
+  position: fixed;
+  inset: auto 0 0;
+  width: auto;
+  max-width: none;
+  height: auto;
+  margin: 0;
+  padding: 48px var(--gutter) max(32px, env(safe-area-inset-bottom));
+  overflow: visible;
+  clip-path: none;
+  white-space: normal;
+  background: linear-gradient(0deg, rgb(10 5 16 / 0.9) 60%, rgb(10 5 16 / 0));
+}
+
 /* ---------- a page: a project, Lite, contact ---------- */
 .page {
   max-width: calc(44rem + 2 * var(--gutter)); /* the text column is 44rem wide inside the gutters */

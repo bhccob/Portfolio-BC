@@ -2560,8 +2560,9 @@ async function stills(browser, step) {
 
 /**
  * The call in the opening's load that the `load-throw` step makes throw: the four painted band strips uploaded to the
- * GPU (`gl.initTexture(strip)`, src/scene/bob/Opening.tsx), which runs only after the loader is shown, the strips are
- * painted and the compass is built from its file. It is a property call, so minifying keeps its name (three's own
+ * GPU (`gl.initTexture`, in `uploadTextures`, src/scene/bob/warm.ts, the scene's one upload, which the Opening's load
+ * calls first, src/scene/bob/Opening.tsx; the Void's textures go through it later), which runs only after the loader is
+ * shown, the strips are painted and the compass is built from its file. It is a property call, so minifying keeps its name (three's own
  * definition of it lives in the three chunk, not the Stage's); the step fails if the built Stage chunk has it other
  * than once.
  */
@@ -4006,7 +4007,7 @@ async function heroFailsafe(browser, step) {
 /** Every proof hook the site has had; today the bridge is the only one. */
 const HOOK_NAMES = ['__needleDebug', '__needleScene', '__needleFrame', '__needleMounts', '__needleScrollRequest'];
 /** The fields of the bridge's state (src/debug/needleDebug.ts, NeedleDebugState), sorted. */
-const STATE_KEYS = ['camera', 'canvasMounts', 'chapter', 'contextLost', 'dpr', 'fps', 'loader', 'locale', 'needleAngle', 'phase', 'progress', 'route', 'scroll', 'target', 'threeD', 'tier', 'velocity'];
+const STATE_KEYS = ['camera', 'canvasMounts', 'chapter', 'contextLost', 'dpr', 'fps', 'journey', 'loader', 'locale', 'needleAngle', 'phase', 'progress', 'route', 'scroll', 'target', 'threeD', 'tier', 'velocity'];
 /** The last chapter of the home scroll, and the place its story ends. */
 const LAST_UNIT = HOME_CHAPTERS.units.length - 1;
 const STORY_END = HOME_CHAPTERS.total;

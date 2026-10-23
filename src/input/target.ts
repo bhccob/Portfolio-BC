@@ -31,11 +31,32 @@ export function changedChapter(c: Chapters, progress: number, chapterIndex: numb
 }
 
 /**
- * True when a delta of `units` has left `target` against an end of the story: a delta up at 0, or down at the end.
- * A glide that is pushing into the wall has nowhere to go, so it is ended instead of keeping the frame loop awake.
+ * True when a delta of `units` has left `target` against an end of the story: a delta up at 0, or down at the end, or
+ * at `limit`, the most the target may reach now (`holdLimit`; the end by default). A glide that is pushing into the wall
+ * has nowhere to go, so it is ended instead of keeping the frame loop awake.
  */
-export function pinnedAtEnd(target: number, units: number, c: Chapters): boolean {
-  return (units < 0 && target <= 0) || (units > 0 && target >= c.total);
+export function pinnedAtEnd(target: number, units: number, c: Chapters, limit = c.total): boolean {
+  return (units < 0 && target <= 0) || (units > 0 && target >= Math.min(limit, c.total));
+}
+
+/**
+ * The most the target may reach under a hold of `hold` units (src/scene/bob/diveHold.ts `diveHoldFor`): the hold, kept
+ * within the story (one that is not a number holds nothing). With reduced motion, which rests on stops alone and never
+ * travels between them, it is the last stop at or under the hold, so a step that the hold stops is no step at all.
+ */
+export function holdLimit(hold: number, c: Chapters, reducedMotion: boolean): number {
+  const limit = Number.isNaN(hold) ? c.total : Math.min(Math.max(hold, 0), c.total);
+  if (!reducedMotion) return limit;
+  return stops(c).findLast((stop) => stop <= limit + ON_STOP) ?? 0;
+}
+
+/**
+ * Where a target that rests on a hold goes once the hold rises to `limit` (the void is ready), when the input had
+ * asked for `asked`, past the old hold: on to the next stop at least (the dive goes on to its end, the overview), or as
+ * far as it asked if that is further (End, a long wheel), and never past the new limit.
+ */
+export function releaseTarget(target: number, asked: number, limit: number, c: Chapters): number {
+  return Math.min(limit, Math.max(asked, moveTarget(target, 1, c, true)));
 }
 
 /** Where Home and End go: the start of the story and its end. */

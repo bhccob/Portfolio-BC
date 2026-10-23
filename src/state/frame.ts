@@ -1,6 +1,8 @@
 // Types only: this module is in the entry bundle, which must not pull in three.js.
 import type { LoaderStage } from '~/engine/bob/loaderTimeline';
 import type { CameraShot } from '~/engine/bob/shots';
+import type { Stretch } from '~/scene/bob/journey';
+import type { VoidState } from './store';
 
 /**
  * The values that change every frame. This is a plain mutable object, never React state and never in
@@ -36,6 +38,15 @@ export const frame = {
    * step fade shows, not the damped progress. All 0 while no Home drives the home. The debug bridge reports it.
    */
   scroll: { u: 0, letters: 0, iris: 0, needleDip: 0 },
+  /**
+   * Where the home's journey stands (src/scene/bob/journey.ts `journeyAt`), as the scene last posed it: the stretch
+   * (`rise`, `dive`, `overview`, `project`), how far through it, and the bead of a project stretch (0, 1 or 2) or null.
+   * The Opening writes these three on every frame it poses the journey, from the one pose it publishes for that frame
+   * (`writeJourney`, src/scene/bob/voidPose.ts); a frame of the loader or of a held seek leaves them as they were.
+   * `voidState` is the void's load (the store's `voidState`), which the Void writes as it changes. The debug bridge
+   * reports all four.
+   */
+  journey: { stretch: 'rise' as Stretch, local: 0, project: null as number | null, voidState: 'idle' as VoidState },
   /** The index of the chapter `progress` is in (`chapterAt(...).index`). */
   chapterIndex: 0,
   /** True while the WebGL context is lost. */

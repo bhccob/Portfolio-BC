@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { debugBridge } from '~/debug/needleDebug';
+import { diveHoldFor } from '~/scene/bob/diveHold';
 import { wakeScene } from '~/scene/motion';
 import { HOME_CHAPTERS } from '~/state/chapters';
 import { frame } from '~/state/frame';
@@ -45,6 +46,11 @@ function loadDamp(): Promise<Smooth> {
  * `CHAPTER` when `progress` crosses into another chapter, and keeps `frame.chapterIndex` in step with
  * `chapterAt` (the route sync reads it when a visitor comes back to `/`). Each frame it asks for also wakes the
  * canvas (`wakeScene`), so the scene draws the frames in which the story moves.
+ *
+ * The void under the glass holds it (`diveHoldFor` of the store's `voidState`, src/scene/bob/diveHold.ts): while the
+ * void loads the target goes no further than halfway down the dive's tunnel, and if it failed no further than BOB from
+ * above. When the void's state changes the input is told (`holdChanged`), so a story held in the tunnel goes on once the
+ * void is ready, or comes back to BOB from above if it failed.
  */
 export function useHomeScroll(onHome: boolean): void {
   useEffect(() => {
@@ -68,6 +74,7 @@ export function useHomeScroll(onHome: boolean): void {
       ),
       reducedMotion: () => useScene.getState().reducedMotion,
       threeD: () => useScene.getState().threeD,
+      hold: () => diveHoldFor(useScene.getState().voidState),
       onChapter: (at) => useScene.getState().dispatch({ type: 'CHAPTER', chapter: at.id, category: at.category }),
       loadSmooth: loadDamp,
       request: (callback) => {
@@ -77,9 +84,10 @@ export function useHomeScroll(onHome: boolean): void {
       cancel: (id) => cancelAnimationFrame(id),
     });
 
-    // 3D switched back on with the story still on its way: finish the move.
+    // 3D switched back on with the story still on its way: finish the move. The void's state moves the hold.
     const unsubscribe = useScene.subscribe((state, previous) => {
       if (state.threeD && !previous.threeD) home.loop.wake();
+      if (state.voidState !== previous.voidState) home.holdChanged();
     });
 
     return () => {
