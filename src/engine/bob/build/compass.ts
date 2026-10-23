@@ -18,6 +18,7 @@ import * as THREE from 'three';
 import { BAND_STRIP, paintBandStrip } from '~/engine/bob/paintBand';
 import { palette } from '~/engine/palette';
 import { lowerTier, type QualityTier } from '~/engine/quality';
+import type { NeedleOverride } from '~/scene/bob/journey';
 
 /**
  * How the compass looks and turns. Task 12 tuned the numbers against the
@@ -92,7 +93,10 @@ export interface CompassModel {
    * so the group is best hidden while the opening is shut over it.
    */
   group: THREE.Group;
-  /** The gold pivot the needle turns on (`pivot`), at the armillary's origin: where the home aims the needle from. */
+  /**
+   * The gold pivot the needle turns on (`pivot`), at the armillary's origin: where the home aims the needle from. It
+   * goes with the needle while `setNeedleWorld` holds it out of the armillary.
+   */
   pivot: THREE.Object3D;
   /**
    * Poses the rise, 0..1 (NaN reads as 0): the `rise` clip at `t` of its length, the armillary `homeY` higher. 0 is
@@ -130,6 +134,33 @@ export interface CompassModel {
    */
   setNeedleDip(t: number): void;
   /**
+   * Takes the needle out of the armillary into the world (M2b's dive and void: it leads the camera down through the
+   * O, grows, and points at the beads), or gives it back with `null`.
+   *
+   * An override puts the needle's origin, the point it turns about, at `position` in world coordinates and its size
+   * at `scale` times its own, and turns its tip (+Y) toward the world point `aim`, or straight down when `aim` is
+   * null (or on the position itself, which has no direction). The pivot goes with it, to the same position and
+   * size, as the preview's does (tools/blender/bob_scroll.py moves `bob_pivot` with `bob_needle`); the bands, rims
+   * and axis stay in the armillary. It is a pose in the world, whatever the group or the armillary is doing.
+   *
+   * The roll is the dipped needle's. With `aim` null the needle stands exactly as `setNeedleDip(1)` leaves it at the
+   * rise's end (the up pose turned half about the world's X, whatever `setNeedle` said), so the override at the
+   * dive's start, (0, 0.09, 0) at scale 1, takes over from the armillary's needle with no jump in position, size or
+   * roll. An aim turns it from there by the shortest arc from straight down, so the roll keeps still as the aim
+   * leaves straight down along any great circle; the one aim with no such arc is straight up the world from the
+   * pivot, where the roll is arbitrary.
+   *
+   * **Which wins.** The override, while it is set. `setNeedle`, `setNeedleDip`, `setRise` and `setIris` go on
+   * recording their values (and the armillary goes on moving under the needle), and the needle holds its place in
+   * the world through them; `null` poses the needle and the pivot from what they recorded, exactly as a compass
+   * that never had an override would have them. `null` with no override set changes nothing, so it may be handed in
+   * every frame of the rise.
+   *
+   * A value that is not finite reads as 0 (as 1 for `scale`); an `aim` with such a component reads as null.
+   * Scratch only: no allocation, and the override is copied, never kept.
+   */
+  setNeedleWorld(override: NeedleOverride | null): void;
+  /**
    * The needle's glow as a share of its rest (`look.gold.emissiveIntensity`):
    * the home's breath (~/scene/bob/look `needleGlowAt`). The needle wears a
    * brass of its own for it, so the rims, the pivot and the axis hold still.
@@ -157,6 +188,11 @@ export interface CompassModel {
 /** `x` held to [0, 1]; NaN reads as 0. */
 function clamp01(x: number): number {
   return x > 0 ? (x < 1 ? x : 1) : 0;
+}
+
+/** `x`, or `fallback` when it is not a finite number. */
+function finiteOr(x: number, fallback: number): number {
+  return Number.isFinite(x) ? x : fallback;
 }
 
 /** `x` held to [0, 1] and eased in and out, 3x² - 2x³ (the preview's ease_io); NaN reads as 0. */
@@ -378,6 +414,7 @@ export function loadCompass(
   const needle = part('needle');
   needle.material = needleGold;
   const needleRest = needle.quaternion.clone();
+  const pivot = part('pivot');
 
   // The mixer poses a stand-in, never the armillary itself: three's bindings write a value only when it has changed
   // since they last wrote it, so the home height added on top would pile up on a repeated moment. The stand-in holds
@@ -401,6 +438,60 @@ export function loadCompass(
   /** The angle the dip last took its side from (see `poseNeedle`), and whether the needle has been dipping since. */
   let dipAngle = 0;
   let dipping = false;
+
+  // The needle out of the armillary (`setNeedleWorld`). What it gives back on null: the needle's and the pivot's own
+  // place and size in the armillary, as the file has them.
+  const needleHome = { position: needle.position.clone(), scale: needle.scale.clone() };
+  const pivotHome = { position: pivot.position.clone(), quaternion: pivot.quaternion.clone(), scale: pivot.scale.clone() };
+  // Where the dip leaves the needle, in the world, once the armillary has risen: the up pose turned half about the
+  // world's X (see `poseNeedle`), whatever `setNeedle` said. It is the pose of an override with no aim, so the dive's
+  // first override takes over from the dipped needle in roll as well as in place; an aim swings it from there.
+  const downPose = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI).multiply(needleRest);
+  // Where the tip points in that pose: the world's down, the direction every aim is swung from.
+  const tipDown = Y.clone().applyQuaternion(downPose);
+  // The override as it was handed in (copied, never kept) and whether one is held.
+  const heldAt = new THREE.Vector3();
+  const heldAim = new THREE.Vector3();
+  let heldAimed = false;
+  let heldScale = 1;
+  let held = false;
+  // Scratch for holding the needle: the aim as a direction, the swing to it, and the armillary's world pose.
+  const toAim = new THREE.Vector3();
+  const swing = new THREE.Quaternion();
+  const parentAt = new THREE.Vector3();
+  const parentScale = new THREE.Vector3();
+  const parentTurn = new THREE.Quaternion();
+
+  /**
+   * Holds the needle and the pivot where the override puts them in the world, in the armillary's frame: the armillary
+   * has risen, sunk and turned, and the group may have been moved, so every part is brought back from the world
+   * through the armillary's world pose, as `poseNeedle` does for the turns. Run from `poseNeedle`, after it, so the
+   * armillary's world matrix is current.
+   *
+   * The needle's world orientation is the dipped one (`downPose`) swung by the shortest arc from straight down to the
+   * aim, so its roll is the dipped needle's at no aim, and is continuous as the aim leaves straight down; an aim on the
+   * position has no direction, and reads as no aim. The pivot goes to the same place and size and keeps its own world
+   * orientation (the file's, as at home with the armillary risen), so nothing of either turns with the armillary.
+   * The armillary's scale is taken as one all over, as the group's is.
+   *
+   * Scratch only: no allocation.
+   */
+  const holdInWorld = (): void => {
+    (needle.parent ?? armillary).matrixWorld.decompose(parentAt, parentTurn, parentScale);
+    parentTurn.invert();
+    swing.identity();
+    if (heldAimed) {
+      toAim.copy(heldAim).sub(heldAt);
+      const length = toAim.length();
+      if (length > 1e-9) swing.setFromUnitVectors(tipDown, toAim.divideScalar(length));
+    }
+    needle.quaternion.copy(parentTurn).multiply(swing).multiply(downPose);
+    needle.position.copy(heldAt).sub(parentAt).applyQuaternion(parentTurn).divide(parentScale);
+    needle.scale.copy(needleHome.scale).multiplyScalar(heldScale).divide(parentScale);
+    pivot.position.copy(needle.position);
+    pivot.quaternion.copy(parentTurn).multiply(pivotHome.quaternion);
+    pivot.scale.copy(pivotHome.scale).multiplyScalar(heldScale).divide(parentScale);
+  };
 
   /**
    * The needle at `needleAngle` about the world's Z, dipped `needleDip` of the
@@ -441,6 +532,9 @@ export function loadCompass(
       dipping = false;
     }
     needle.quaternion.copy(holder).invert().multiply(turn).multiply(holder).multiply(needleRest);
+    // An override replaces the whole of it. The pose above is still worked out first, so the dip's side is kept up
+    // through the override as through the home, and null finds the needle as the home's calls alone left it.
+    if (held) holdInWorld();
   };
 
   /** Band `band` in the pose the iris gives it, turned by the spin about its own Y on top. */
@@ -456,7 +550,7 @@ export function loadCompass(
 
   const model: CompassModel = {
     group,
-    pivot: part('pivot'),
+    pivot,
     setRise(t) {
       // With no time passing, the mixer samples the clip at the action's own time and nothing else: no looping, no
       // clamping at the end, so the rise can be posed back down after it has reached the top.
@@ -484,6 +578,8 @@ export function loadCompass(
         poseBand(band);
       }
       placeArmillary();
+      // The armillary has sunk under a needle that is held in the world.
+      if (held) poseNeedle();
     },
     setNeedle(angle) {
       // Clockwise on screen is a negative turn about +Z.
@@ -492,6 +588,26 @@ export function loadCompass(
     },
     setNeedleDip(t) {
       needleDip = smoothstep01(t);
+      poseNeedle();
+    },
+    setNeedleWorld(override) {
+      if (override === null) {
+        if (!held) return;
+        held = false;
+        needle.position.copy(needleHome.position);
+        needle.scale.copy(needleHome.scale);
+        pivot.position.copy(pivotHome.position);
+        pivot.quaternion.copy(pivotHome.quaternion);
+        pivot.scale.copy(pivotHome.scale);
+        poseNeedle();
+        return;
+      }
+      held = true;
+      const { position, scale, aim } = override;
+      heldAt.set(finiteOr(position[0], 0), finiteOr(position[1], 0), finiteOr(position[2], 0));
+      heldScale = finiteOr(scale, 1);
+      heldAimed = aim !== null && Number.isFinite(aim[0] + aim[1] + aim[2]);
+      if (heldAimed && aim !== null) heldAim.set(aim[0], aim[1], aim[2]);
       poseNeedle();
     },
     setReveal(level) {

@@ -12,6 +12,7 @@ import { damp } from 'maath/easing';
 import { AngleSpring, wrapAngle } from '~/engine/AngleSpring';
 import { aimsAt, NEEDLE_SPRING, needleAngleAt } from '~/engine/bob/needleAim';
 import { moveTarget } from '~/input/target';
+import { BEADS, journeyPoseAt, type NeedleOverride } from '~/scene/bob/journey';
 import { riseAt, scrollPoseAt } from '~/scene/bob/scrollPose';
 import { HOME_CHAPTERS } from '~/state/chapters';
 
@@ -1474,5 +1475,396 @@ describe('the needle through a scroll off the home, as Home drives it (Ruling 9)
     expect(angleOf(expected.invert().multiply(node(c, 'needle').quaternion))).toBeLessThan(1e-9);
     fresh.dispose();
     c.dispose();
+  });
+});
+
+describe('the needle leaves the compass (setNeedleWorld, Task 9)', () => {
+  const ASPECT = 16 / 9;
+  const ANGLES = [0, 0.3, 1, -2.5, Math.PI, -Math.PI, 7];
+
+  /** A part's world matrix, as sixteen numbers. */
+  function worldMatrix(c: CompassModel, name: string): number[] {
+    c.group.updateMatrixWorld(true);
+    return node(c, name).matrixWorld.toArray();
+  }
+
+  /** The most two matrices differ by in any element. */
+  function matrixGap(a: number[], b: number[]): number {
+    let gap = 0;
+    for (let i = 0; i < 16; i++) gap = Math.max(gap, Math.abs(a[i]! - b[i]!));
+    return gap;
+  }
+
+  /** A part's local pose, as numbers: position, quaternion and scale. */
+  function localPose(c: CompassModel, name: string): number[] {
+    const o = node(c, name);
+    return [...o.position.toArray(), ...o.quaternion.toArray(), ...o.scale.toArray()];
+  }
+
+  /** A part's world position, quaternion and scale. */
+  function worldPose(c: CompassModel, name: string) {
+    c.group.updateMatrixWorld(true);
+    const position = new THREE.Vector3();
+    const quaternion = new THREE.Quaternion();
+    const scale = new THREE.Vector3();
+    node(c, name).matrixWorld.decompose(position, quaternion, scale);
+    return { position, quaternion, scale };
+  }
+
+  /** The compass posed as Home poses it at scroll `progress` (the rise, the iris and the dip), the needle at `angle`. */
+  function poseAsHome(c: CompassModel, progress: number, angle: number): void {
+    const pose = scrollPoseAt(riseAt(progress), ASPECT);
+    c.setRise(pose.u);
+    c.setNeedle(angle);
+    c.setNeedleDip(pose.needleDip);
+    c.setIris(pose.iris);
+  }
+
+  /** The journey's override at `progress`, which must be one. */
+  function overrideAt(progress: number): NeedleOverride {
+    const needle = journeyPoseAt(progress, ASPECT).needle;
+    expect(needle, `progress ${progress}`).not.toBeNull();
+    return needle as NeedleOverride;
+  }
+
+  it("is the armillary's needle exactly with null, at any setNeedle, setNeedleDip, setIris and setRise, whenever null is handed in", () => {
+    for (const rise of [1, 0.25]) {
+      for (const angle of ANGLES) {
+        for (const dip of [0, 0.4, 1]) {
+          for (const iris of [0, 0.6, 1]) {
+            const c = loadCompass(fakeGltf(), 'high', stripStub);
+            const today = loadCompass(fakeGltf(), 'high', stripStub);
+            c.setNeedleWorld(null);
+            for (const m of [c, today]) {
+              m.setRise(rise);
+              m.setNeedle(angle);
+              m.setNeedleDip(dip);
+              m.setIris(iris);
+            }
+            c.setNeedleWorld(null);
+            const label = `rise ${rise}, angle ${angle}, dip ${dip}, iris ${iris}`;
+            for (const name of ['needle', 'pivot']) {
+              expect(localPose(c, name), `${name} local, ${label}`).toEqual(localPose(today, name));
+              expect(worldMatrix(c, name), `${name} world, ${label}`).toEqual(worldMatrix(today, name));
+            }
+            c.dispose();
+            today.dispose();
+          }
+        }
+      }
+    }
+  });
+
+  it("puts the needle at the override's world position and scale, its tip on the aim, and takes the pivot along", async () => {
+    const at = new THREE.Vector3(1, -3, 2);
+    for (const gltf of [fakeGltf(), await loadRealGlb()]) {
+      for (const [rise, iris, moved] of [
+        [1, 1, false],
+        [1, 0, false],
+        [0.25, 0.3, false],
+        [1, 1, true]
+      ] as const) {
+        const c = loadCompass(gltf, 'high', stripStub);
+        if (moved) {
+          // The host's own transform on the group: the override is in the world, not in the group.
+          c.group.position.set(0.5, -1, 2.5);
+          c.group.rotation.set(0.3, 0.5, -0.2);
+          c.group.scale.setScalar(1.3);
+        }
+        c.setRise(rise);
+        c.setIris(iris);
+        c.setNeedle(1.1);
+        c.setNeedleDip(0.5);
+        for (const aim of [[4, 1, -5], [0.5, 4, -3], [-4, -3, 2.5], [1, -9, 2], [1.0000001, -2, 2]] as const) {
+          c.setNeedleWorld({ position: [at.x, at.y, at.z], scale: 1.9, aim });
+          const label = `aim ${aim} at rise ${rise}, iris ${iris}${moved ? ', moved' : ''}`;
+          const wanted = new THREE.Vector3(...aim).sub(at).normalize();
+          expect(tipDirection(c).distanceTo(wanted), label).toBeLessThan(1e-6);
+          for (const name of ['needle', 'pivot']) {
+            const { position, scale } = worldPose(c, name);
+            expect(position.distanceTo(at), `${name} position, ${label}`).toBeLessThan(1e-6);
+            expect(scale.distanceTo(new THREE.Vector3(1.9, 1.9, 1.9)), `${name} scale, ${label}`).toBeLessThan(1e-6);
+          }
+        }
+        // No aim: straight down, in the world, whatever the group does.
+        c.setNeedleWorld({ position: [at.x, at.y, at.z], scale: 1.9, aim: null });
+        expect(tipDirection(c).distanceTo(DOWN), `down at rise ${rise}`).toBeLessThan(1e-6);
+        // An aim on the pivot itself has no direction to give: it reads as straight down, and nothing is NaN.
+        c.setNeedleWorld({ position: [at.x, at.y, at.z], scale: 1.9, aim: [at.x, at.y, at.z] });
+        expect(tipDirection(c).distanceTo(DOWN), `aim on the pivot at rise ${rise}`).toBeLessThan(1e-6);
+        expect(worldMatrix(c, 'needle').every(Number.isFinite)).toBe(true);
+        c.dispose();
+      }
+    }
+  });
+
+  it('poses the override in the world, not the group: the same needle however the host moves the group', () => {
+    const plain = loadCompass(fakeGltf(), 'high', stripStub);
+    const moved = loadCompass(fakeGltf(), 'high', stripStub);
+    moved.group.position.set(2, 3, -4);
+    moved.group.rotation.set(1, -0.4, 0.8);
+    const override: NeedleOverride = { position: [1, -3, 2], scale: 1.9, aim: [4, 1, -5] };
+    plain.setNeedleWorld(override);
+    moved.setNeedleWorld(override);
+    expect(matrixGap(worldMatrix(plain, 'needle'), worldMatrix(moved, 'needle'))).toBeLessThan(1e-6);
+    plain.dispose();
+    moved.dispose();
+  });
+
+  it('gives back the armillary pose exactly on null: the needle and the pivot as setNeedle and setNeedleDip left them', () => {
+    for (const rise of [1, 0.25]) {
+      for (const angle of [0, 1.7, -2.5, Math.PI]) {
+        for (const dip of [0, 0.4, 1]) {
+          const c = loadCompass(fakeGltf(), 'high', stripStub);
+          c.setRise(rise);
+          c.setIris(0.8);
+          c.setNeedle(angle);
+          c.setNeedleDip(dip);
+          const needle = localPose(c, 'needle');
+          const pivot = localPose(c, 'pivot');
+          const needleWorld = worldMatrix(c, 'needle');
+          for (const aim of [null, [5, 2, -3] as const]) {
+            c.setNeedleWorld({ position: [1, -3, 2], scale: 1.9, aim });
+            c.setNeedleWorld(null);
+            const label = `rise ${rise}, angle ${angle}, dip ${dip}, aim ${aim}`;
+            expect(localPose(c, 'needle'), `needle, ${label}`).toEqual(needle);
+            expect(localPose(c, 'pivot'), `pivot, ${label}`).toEqual(pivot);
+            expect(worldMatrix(c, 'needle'), `world, ${label}`).toEqual(needleWorld);
+          }
+          c.dispose();
+        }
+      }
+    }
+  });
+
+  it('lets the override win while it is set, and setNeedle, setNeedleDip, setRise and setIris keep their values for null', () => {
+    const c = loadCompass(fakeGltf(), 'high', stripStub);
+    const twin = loadCompass(fakeGltf(), 'high', stripStub);
+    c.setRise(1);
+    c.setIris(1);
+    c.setNeedle(0.4);
+    c.setNeedleDip(1);
+    c.setNeedleWorld({ position: [1, -3, 2], scale: 1.9, aim: [4, 1, -5] });
+    const needle = worldMatrix(c, 'needle');
+    const pivot = worldMatrix(c, 'pivot');
+    // Everything the home's frame says while the override is held leaves it where it stands, the armillary moving under it.
+    for (const call of [
+      () => c.setRise(0.5),
+      () => c.setIris(0.2),
+      () => c.setNeedle(-2.2),
+      () => c.setNeedleDip(0.3),
+      () => c.setRise(0.9),
+      () => c.setIris(0.7),
+      () => c.setNeedle(3.1),
+      () => c.setNeedleDip(0)
+    ]) {
+      call();
+      expect(matrixGap(worldMatrix(c, 'needle'), needle)).toBeLessThan(1e-7);
+      expect(matrixGap(worldMatrix(c, 'pivot'), pivot)).toBeLessThan(1e-7);
+    }
+    // And cleared, the compass is the one those calls alone would have made.
+    c.setNeedleWorld(null);
+    twin.setRise(0.9);
+    twin.setIris(0.7);
+    twin.setNeedle(3.1);
+    twin.setNeedleDip(0);
+    for (const name of ['needle', 'pivot']) {
+      expect(localPose(c, name), name).toEqual(localPose(twin, name));
+      expect(worldMatrix(c, name), name).toEqual(worldMatrix(twin, name));
+    }
+    c.dispose();
+    twin.dispose();
+  });
+
+  it('moves the needle and the pivot only: the bands, rims and axis stay in the armillary', () => {
+    const c = loadCompass(fakeGltf(), 'high', stripStub);
+    c.setIris(1);
+    const names = COMPASS_PARTS.filter((name) => name !== 'needle' && name !== 'pivot');
+    const before = names.map((name) => worldMatrix(c, name));
+    c.setNeedleWorld({ position: [1, -3, 2], scale: 1.9, aim: [4, 1, -5] });
+    names.forEach((name, i) => expect(worldMatrix(c, name), name).toEqual(before[i]));
+    c.dispose();
+  });
+
+  describe('at the hand-over (progress 1), where the rise ends and the dive begins', () => {
+    it("starts the dive at M2a's last frame: (0, 0.09, 0), scale 1, no aim", () => {
+      const o = overrideAt(1);
+      expect(o.position).toEqual([0, 0.09, 0]);
+      expect(o.scale).toBe(1);
+      expect(o.aim).toBeNull();
+      expect(journeyPoseAt(1 - 1e-3, ASPECT).needle).toBeNull();
+    });
+
+    it('is the fully dipped needle, in position, scale and roll, from any angle: no jump when null becomes the override', async () => {
+      const handed = overrideAt(1);
+      for (const gltf of [fakeGltf(), await loadRealGlb()]) {
+        for (const angle of ANGLES) {
+          const c = loadCompass(gltf, 'high', stripStub);
+          poseAsHome(c, 1, angle);
+          const needle = worldMatrix(c, 'needle');
+          const pivot = worldMatrix(c, 'pivot');
+          c.setNeedleWorld(handed);
+          expect(matrixGap(worldMatrix(c, 'needle'), needle), `needle from ${angle}`).toBeLessThan(1e-6);
+          expect(matrixGap(worldMatrix(c, 'pivot'), pivot), `pivot from ${angle}`).toBeLessThan(1e-6);
+          // And the frames after, when Home still poses the rise as it did: the override holds.
+          poseAsHome(c, 1, angle);
+          expect(matrixGap(worldMatrix(c, 'needle'), needle), `needle again from ${angle}`).toBeLessThan(1e-6);
+          c.dispose();
+        }
+      }
+    });
+
+    it('holds the roll all through the dive, where the needle sinks and grows with its tip straight down', async () => {
+      const c = loadCompass(await loadRealGlb(), 'high', stripStub);
+      poseAsHome(c, 1, 0.8);
+      const start = worldPose(c, 'needle').quaternion.clone();
+      for (let p = 1; p <= 2; p += 0.01) {
+        const o = overrideAt(p);
+        c.setNeedleWorld(o);
+        const { position, quaternion, scale } = worldPose(c, 'needle');
+        expect(angleOf(start.clone().invert().multiply(quaternion)), `roll at ${p}`).toBeLessThan(1e-6);
+        expect(position.distanceTo(new THREE.Vector3(...o.position)), `position at ${p}`).toBeLessThan(1e-6);
+        expect(scale.x, `scale at ${p}`).toBeCloseTo(o.scale, 6);
+      }
+      c.dispose();
+    });
+  });
+
+  describe('as the aim leaves straight down for the beads', () => {
+    /** The most the needle's world orientation turns between neighbouring poses handed in, in degrees. */
+    function sweep(c: CompassModel, poses: Iterable<NeedleOverride>): number {
+      const before = new THREE.Quaternion();
+      const now = new THREE.Quaternion();
+      let first = true;
+      let worst = 0;
+      for (const o of poses) {
+        c.setNeedleWorld(o);
+        c.group.updateMatrixWorld(true);
+        node(c, 'needle').getWorldQuaternion(now);
+        if (!first) worst = Math.max(worst, angleOf(before.clone().invert().multiply(now)) / DEG);
+        first = false;
+        before.copy(now);
+      }
+      return worst;
+    }
+
+    it('turns without a flip along a great circle through straight down, from either side of it', () => {
+      const c = loadCompass(fakeGltf(), 'high', stripStub);
+      const at: [number, number, number] = [-1.4, -7.8, -0.8];
+      // The aim at 3 m, off the down by theta degrees in a plane, theta from -80 to 80 in tenths of a degree.
+      for (const plane of [0, 0.7, 2.1]) {
+        const poses = function* (): Generator<NeedleOverride> {
+          for (let tenths = -800; tenths <= 800; tenths++) {
+            const t = (tenths / 10) * DEG;
+            yield {
+              position: at,
+              scale: 1.9,
+              aim: [at[0] + 3 * Math.sin(t) * Math.cos(plane), at[1] - 3 * Math.cos(t), at[2] + 3 * Math.sin(t) * Math.sin(plane)]
+            };
+          }
+        };
+        expect(sweep(c, poses()), `plane ${plane}`).toBeLessThan(0.11);
+      }
+      c.dispose();
+    });
+
+    it("turns the tip from straight down to the first bead without a jump over 1 degree, in the journey's own steps", async () => {
+      const c = loadCompass(await loadRealGlb(), 'high', stripStub);
+      const poses = function* (): Generator<NeedleOverride> {
+        for (let i = 0; i <= 2000; i++) yield overrideAt(2 + i / 2000);
+      };
+      expect(sweep(c, poses())).toBeLessThan(1);
+      // And it ends on the bead: the tip's line runs through Funcial's centre, come forward.
+      const o = overrideAt(3);
+      c.setNeedleWorld(o);
+      const toBead = new THREE.Vector3(...o.aim!).sub(new THREE.Vector3(...o.position)).normalize();
+      expect(tipDirection(c).distanceTo(toBead)).toBeLessThan(1e-6);
+      expect(BEADS[0].id).toBe('funcial');
+      c.dispose();
+    });
+
+    it('turns the tip through every stop and back without a jump over 1 degree', async () => {
+      const c = loadCompass(await loadRealGlb(), 'high', stripStub);
+      const forth = function* (): Generator<NeedleOverride> {
+        for (let i = 0; i <= 5000; i++) yield overrideAt(1 + i / 1000);
+      };
+      const back = function* (): Generator<NeedleOverride> {
+        for (let i = 5000; i >= 0; i--) yield overrideAt(1 + i / 1000);
+      };
+      expect(sweep(c, forth())).toBeLessThan(1);
+      expect(sweep(c, back())).toBeLessThan(1);
+      c.dispose();
+    });
+
+    it('points at each bead at its stop, and straight down at the overview', async () => {
+      const c = loadCompass(await loadRealGlb(), 'high', stripStub);
+      for (const stop of [3, 4, 5, 6]) {
+        const o = overrideAt(stop);
+        c.setNeedleWorld(o);
+        const toBead = new THREE.Vector3(...o.aim!).sub(new THREE.Vector3(...o.position)).normalize();
+        expect(tipDirection(c).distanceTo(toBead), `stop ${stop}`).toBeLessThan(1e-6);
+      }
+      c.setNeedleWorld(overrideAt(2));
+      expect(tipDirection(c).distanceTo(DOWN)).toBeLessThan(1e-6);
+      c.dispose();
+    });
+  });
+
+  it('allocates nothing in a call: scratch only, whichever way it goes', async () => {
+    // Every math object the compass makes goes through three's Vector3, Quaternion, Matrix4 and Euler; a counting copy
+    // of them stands in for three's own while the compass is loaded fresh, and the calls must not construct one.
+    const made = { count: 0 };
+    vi.resetModules();
+    vi.doMock('three', () => {
+      // This file's own three, not a second copy of it: the fake glTF it builds is made of the same classes.
+      const actual = THREE;
+      const counted = <C extends new (...args: never[]) => object>(Base: C): C =>
+        class extends (Base as unknown as new (...args: unknown[]) => object) {
+          constructor(...args: unknown[]) {
+            super(...args);
+            made.count++;
+          }
+        } as unknown as C;
+      return {
+        ...actual,
+        Vector3: counted(actual.Vector3),
+        Quaternion: counted(actual.Quaternion),
+        Matrix4: counted(actual.Matrix4),
+        Euler: counted(actual.Euler)
+      };
+    });
+    try {
+      const counting = await import('three');
+      const probe = made.count;
+      void new counting.Vector3();
+      expect(made.count, 'the counting stands in for three').toBe(probe + 1);
+      const { loadCompass: load } = await import('~/engine/bob/build/compass');
+      const c = load(fakeGltf(), 'high', stripStub);
+      const calls: NeedleOverride[] = [
+        { position: [0, 0.09, 0], scale: 1, aim: null },
+        { position: [1, -3, 2], scale: 1.9, aim: [4, 1, -5] },
+        { position: [-1.4, -7.8, -0.8], scale: 1.9, aim: [0.8, -6.5, -2.2] },
+        { position: [1, -3, 2], scale: 1.9, aim: [1, -3, 2] }
+      ];
+      // Warm: the first call of each may build lazily.
+      for (const o of calls) c.setNeedleWorld(o);
+      c.setNeedleWorld(null);
+      const before = made.count;
+      for (let i = 0; i < 200; i++) {
+        for (const o of calls) {
+          c.setNeedleWorld(o);
+          c.setNeedle(i * 0.1);
+          c.setNeedleDip((i % 5) / 4);
+          c.setIris((i % 7) / 6);
+          c.setRise((i % 3) / 2);
+        }
+        c.setNeedleWorld(null);
+      }
+      expect(made.count - before).toBe(0);
+      c.dispose();
+    } finally {
+      vi.doUnmock('three');
+      vi.resetModules();
+    }
   });
 });
