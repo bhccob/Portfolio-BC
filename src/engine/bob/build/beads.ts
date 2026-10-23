@@ -114,9 +114,12 @@ export interface BeadsModel {
   /**
    * Poses bead `id`'s object at `time` seconds of its clock (NaN as 0), as beadMotion has it: Funcial's platter, pulse,
    * abacus and fifth bead's light; Jontai's module tilt and cells' charge; Cookies' wheels and balance. Time 0 is the
-   * rest pose. Uniforms, intensities and transforms only, so a frame of it compiles nothing.
+   * rest pose. Funcial's abacus and its fifth bead's light read `slide` instead where it is given (Ruling 28: the Void
+   * counts it up while the bead is selected or hovered and back down after, so the beads slide back down rather than
+   * snap); the other beads have no use for it. Uniforms, intensities and transforms only, so a frame of it compiles
+   * nothing.
    */
-  setMotion(id: ProjectId, time: number): void;
+  setMotion(id: ProjectId, time: number, slide?: number): void;
   /**
    * Steps the glass down to `tier`'s (the quality ladder's step, Ruling 25), as beads built for it would have: from
    * high's cheap transmissive look to plain transparent glass, which compiles the three glasses once. A tier above the
@@ -290,8 +293,8 @@ interface Bead {
   /** Its light, the uniform every one of its materials reads. */
   light: THREE.IUniform<number>;
   glass: THREE.MeshPhysicalMaterial;
-  /** Writes its object's parts for a time of its clock. */
-  move(time: number): void;
+  /** Writes its object's parts for a time of its clock (and Funcial's abacus for `slide`, where given). */
+  move(time: number, slide?: number): void;
 }
 
 /** The first object called `name` under `root` (pre-order, so a node is found before a mesh of its own of that name). */
@@ -419,7 +422,7 @@ export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens:
     screen.emissiveIntensity = look.screen.level;
     own.set(screenMesh, screen);
 
-    let move: (time: number) => void;
+    let move: (time: number, slide?: number) => void;
     if (id === 'funcial') {
       const track = part('funcial_track') as THREE.Mesh;
       const pulse: THREE.IUniform<THREE.Vector3> = { value: new THREE.Vector3(0, 0, look.funcial.pulse.width) };
@@ -434,13 +437,16 @@ export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens:
       const abacus = [1, 2, 3, 4, 5].map((k) => part(`funcial_bead_${k}`));
       const abacusRest = abacus.map((bead) => bead.position.y);
       const motion: FuncialMotion = funcialMotion(0);
-      move = (time) => {
+      const sliding: FuncialMotion = funcialMotion(0);
+      move = (time, slide) => {
         funcialMotion(time, motion);
+        // The abacus by its own clock where one is given: the same motion, read at another time.
+        const abacusAt = slide === undefined ? motion : funcialMotion(slide, sliding);
         // About its own up: rest · Ry(angle), so the lean holds.
         platter.quaternion.copy(platterRest).multiply(turn.setFromAxisAngle(Y, motion.platter));
         pulse.value.set(motion.pulse, pulseStrength(motion.pulse), look.funcial.pulse.width);
-        for (let k = 0; k < abacus.length; k++) abacus[k]!.position.y = abacusRest[k]! + motion.abacus[k]! * look.funcial.travel;
-        fifth.emissiveIntensity = look.funcial.result.glow * motion.abacus[4]!;
+        for (let k = 0; k < abacus.length; k++) abacus[k]!.position.y = abacusRest[k]! + abacusAt.abacus[k]! * look.funcial.travel;
+        fifth.emissiveIntensity = look.funcial.result.glow * abacusAt.abacus[4]!;
       };
     } else if (id === 'jontai-energy') {
       const cells = Array.from({ length: 16 }, (_, k) => {
@@ -588,8 +594,8 @@ export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens:
         pose(b);
       }
     },
-    setMotion(id, time) {
-      bead(id).move(time);
+    setMotion(id, time, slide) {
+      bead(id).move(time, slide);
     },
     setTier(next) {
       const to = lowerTier(standing, next);

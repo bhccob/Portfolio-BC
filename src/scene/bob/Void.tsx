@@ -267,13 +267,14 @@ export interface VoidProps {
  *   is over (a ray against `beads[id].body`), eased in and out one bead at a time (`easeHover`) and turned toward the
  *   camera, its position handed in every frame; with reduced motion it brightens at once and does not turn;
  * - the objects' motion: each bead's clock runs only while it is the selected bead (the bead of the current project
- *   stop, `selectedBead`) or the hovered one, and not with reduced motion (`stepBeadClocks`; Funcial's starts again from
- *   0 at each run, so its abacus slides up each time).
+ *   stop, `selectedBead`) or the hovered one, and not with reduced motion, and goes on from where it stopped
+ *   (`stepBeadClocks`); Funcial's abacus has a clock of its own that counts back down while the bead is neither, so its
+ *   beads slide back down calmly and up again from where they are (Ruling 28).
  * A pointer move over the page wakes the canvas only when it moves the hover onto another bead or off one; the hover
  * and the motion read nothing on a page without the home's scene.
  *
- * **Sleeping.** It keeps the canvas drawing (`motion.beads`, and a frame asked for as it starts) while an object whose
- * clock runs is in the camera's view, or the hover is easing; otherwise it asks for nothing, so the canvas sleeps once
+ * **Sleeping.** It keeps the canvas drawing (`motion.beads`, and a frame asked for as it starts) while an object that
+ * moves (its clock runs, or Funcial's abacus slides back down) is in the camera's view, or the hover is easing; otherwise it asks for nothing, so the canvas sleeps once
  * the scroll rests at the home, at BOB from above, at the overview (no bead is selected there) or with reduced motion,
  * and draws on at a bead's stop while its object moves.
  *
@@ -521,7 +522,7 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
       beads.setHover(BEADS[hovered]!.id, run.hover.amount, towards);
     }
 
-    // The objects: each moves only while its bead is selected or hovered.
+    // The objects: each moves only while its bead is selected or hovered, but for Funcial's abacus sliding back down.
     const selected = home ? selectedBead(pose.at) : null;
     run.selected = selected;
     stepBeadClocks(run.clocks, selected, pointed, dt, reduced);
@@ -529,9 +530,10 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
     frustum.setFromProjectionMatrix(viewProjection);
     let moving = easing && home;
     for (let i = 0; i < BEADS.length; i++) {
-      if (!run.clocks.running[i]) continue;
+      if (!run.clocks.moving[i]) continue;
       const { id, radius } = BEADS[i]!;
-      beads.setMotion(id, run.clocks.time[i]!);
+      // Funcial's abacus by its own clock, which counts back down (Ruling 28).
+      beads.setMotion(id, run.clocks.time[i]!, id === 'funcial' ? run.clocks.abacus : undefined);
       const root = beads.beads[id].root;
       moving ||= frustum.intersectsSphere(sphere.set(root.getWorldPosition(centre), radius));
     }

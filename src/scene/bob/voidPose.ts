@@ -2,9 +2,10 @@
  * The void's per-frame decisions as plain rules: when the void and the beads show, which bead is selected, how the
  * beads' motion clocks run and how the hover eases, and what `frame.journey` reports. Pure, so the tests read the very
  * decisions the Void (src/scene/bob/Void.tsx) and the Opening make on each frame; it imports no code from React or three
- * (types only, and the journey's beads).
+ * (types only, the journey's beads and the objects' motion numbers).
  */
 import type { CameraShot } from '~/engine/bob/shots';
+import { BEAD_MOTION } from '~/engine/bob/beadMotion';
 import { BEADS, type JourneyAt } from './journey';
 
 /** The glass, the plane y = 0 (~/engine/bob/wordmark): above it is the home, under it the tunnel and the void. */
@@ -26,40 +27,60 @@ export function selectedBead(at: JourneyAt): number | null {
   return at.stretch === 'project' ? at.project : null;
 }
 
-/**
- * For each bead (in `BEADS` order), whether its clock starts again from 0 each time it is selected or hovered. Only
- * Funcial's: its abacus slides up once from time 0 and then stays up (~/engine/bob/beadMotion), so a clock that only
- * paused would leave it up after the first visit. Jontai Energy's light passes and Cookies Clicker's tick repeat on
- * their own, so they go on from where they stopped, and nothing jumps back as the bead comes forward again.
- */
-export const BEAD_CLOCK_RESETS: readonly boolean[] = BEADS.map(({ id }) => id === 'funcial');
+/** Funcial's place in `BEADS`: the one bead whose abacus has a clock of its own. */
+const FUNCIAL = BEADS.findIndex(({ id }) => id === 'funcial');
 
-/** The beads' motion clocks: whether each ran on the last step, and its time, seconds of its object's motion. */
+/** How long Funcial's abacus takes to slide all the way up (~/engine/bob/beadMotion), seconds: its own clock's reach. */
+export const ABACUS_SPAN = BEAD_MOTION.funcial.abacus.span;
+
+/** Under this, a clock counting down is at 0 (a sum of frame steps leaves a few ulps). */
+const AT_ZERO = 1e-9;
+
+/**
+ * The beads' motion clocks, in `BEADS` order: whether each ran on the last step, its time (seconds of its object's
+ * motion), and whether its object moved on the last step (`moving`: its clock ran, or Funcial's abacus slid).
+ * `abacus` is Funcial's abacus's own clock (Ruling 28), 0..`ABACUS_SPAN`.
+ */
 export interface BeadClocks {
   running: boolean[];
   time: number[];
+  abacus: number;
+  moving: boolean[];
 }
 
 /** Every clock stopped at 0: each object at its rest pose. */
 export function beadClocks(): BeadClocks {
-  return { running: BEADS.map(() => false), time: BEADS.map(() => 0) };
+  return { running: BEADS.map(() => false), time: BEADS.map(() => 0), abacus: 0, moving: BEADS.map(() => false) };
 }
 
 /**
- * Steps the clocks (in place) by `dt` seconds: a bead's clock runs only while it is the selected bead or the hovered
- * one, and never with reduced motion, where the objects stay still. A clock that starts again (`BEAD_CLOCK_RESETS`)
- * goes back to 0 as its run begins; the others go on from where they stopped. A step that is not a positive number of
- * seconds moves no clock. Answers whether any clock runs.
+ * Steps the clocks (in place) by `dt` seconds. A bead's clock runs only while it is the selected bead or the hovered
+ * one, and never with reduced motion, where the objects stay still; it goes on from where it stopped, so nothing of an
+ * object jumps back as its bead comes forward again (Jontai Energy's light passes and Cookies Clicker's tick repeat on
+ * their own; Funcial's platter turns and its pulse runs on).
+ *
+ * Funcial's abacus reads a clock of its own (Ruling 28): `funcialMotion` slides its beads up one after another from time
+ * 0 and holds them at the top, so its time counts up, to `ABACUS_SPAN` at most, while the bead is selected or hovered,
+ * and back down to 0 while it is not: the beads slide back down as calmly as they came up, and slide up again from
+ * wherever they are, never snapping. It too stands still with reduced motion. A step that is not a positive number of
+ * seconds moves nothing. Answers whether any object moved.
  */
 export function stepBeadClocks(clocks: BeadClocks, selected: number | null, hovered: number | null, dt: number, reduced: boolean): boolean {
   const step = dt > 0 ? dt : 0;
   let any = false;
   for (let i = 0; i < clocks.time.length; i++) {
     const runs = !reduced && (i === selected || i === hovered);
-    if (runs && !clocks.running[i] && BEAD_CLOCK_RESETS[i]) clocks.time[i] = 0;
     if (runs) clocks.time[i]! += step;
     clocks.running[i] = runs;
-    any ||= runs;
+    let moved = runs && step > 0;
+    if (i === FUNCIAL && !reduced) {
+      const was = clocks.abacus;
+      const next = runs ? Math.min(ABACUS_SPAN, was + step) : was - step;
+      clocks.abacus = next > AT_ZERO ? next : 0;
+      moved ||= clocks.abacus !== was;
+    }
+    clocks.moving[i] = moved;
+    any ||= moved;
   }
   return any;
 }

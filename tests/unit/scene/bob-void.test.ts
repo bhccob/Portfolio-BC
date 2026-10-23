@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { damp } from 'maath/easing';
 import { describe, expect, it } from 'vitest';
+import { BEAD_MOTION, funcialMotion } from '~/engine/bob/beadMotion';
 import { readGlbJson } from '~/engine/bob/glb';
 import { readNeedleDebugState } from '~/debug/useNeedleDebug';
 import { startHomeScroll } from '~/input/scrollLoop';
@@ -10,7 +11,7 @@ import { diveHoldFor, RISE_TOP } from '~/scene/bob/diveHold';
 import { BEADS, journeyAt, journeyPoseAt, TUNNEL_HOLD } from '~/scene/bob/journey';
 import { nearestStop } from '~/scene/bob/stepFade';
 import {
-  BEAD_CLOCK_RESETS,
+  ABACUS_SPAN,
   beadClocks,
   easeHover,
   hoverEase,
@@ -398,16 +399,77 @@ describe("the beads' motion clocks", () => {
     expect(clocks.running).toEqual([false, true, true]);
   });
 
-  it('starts Funcial\'s clock again from 0 at each select or hover, so its abacus slides up each time', () => {
-    expect(BEAD_CLOCK_RESETS).toEqual([true, false, false]);
+  it("goes on with Funcial's own clock from where it stopped, as the others' (its platter and pulse never jump back)", () => {
     expect(BEADS[0].id).toBe('funcial');
     const clocks = beadClocks();
     stepBeadClocks(clocks, 0, null, 3, false);
-    expect(clocks.time[0]).toBe(3);
     stepBeadClocks(clocks, null, null, 1, false);
-    expect(clocks.time[0]).toBe(3);
-    stepBeadClocks(clocks, null, 0, 0.25, false); // hovered: a new run
-    expect(clocks.time[0]).toBe(0.25);
+    stepBeadClocks(clocks, null, 0, 0.25, false); // hovered: it goes on
+    expect(clocks.time[0]).toBe(3.25);
+  });
+
+  it("slides Funcial's abacus on a clock of its own (Ruling 28): up while it is selected or hovered, back down to 0 while not, never past its slide", () => {
+    expect(ABACUS_SPAN).toBe(BEAD_MOTION.funcial.abacus.span);
+    const clocks = beadClocks();
+    expect(clocks.abacus).toBe(0);
+    stepBeadClocks(clocks, 0, null, 0.5, false);
+    expect(clocks.abacus).toBe(0.5);
+    stepBeadClocks(clocks, 0, null, 5, false);
+    expect(clocks.abacus).toBe(ABACUS_SPAN);
+    stepBeadClocks(clocks, null, null, 0.75, false);
+    expect(clocks.abacus).toBeCloseTo(ABACUS_SPAN - 0.75, 12);
+    expect(clocks.moving).toEqual([true, false, false]);
+    stepBeadClocks(clocks, null, 0, 0.25, false); // hovered again: up from where it is
+    expect(clocks.abacus).toBeCloseTo(ABACUS_SPAN - 0.5, 12);
+    stepBeadClocks(clocks, null, null, 9, false);
+    expect(clocks.abacus).toBe(0);
+    expect(stepBeadClocks(clocks, null, null, 1 / 60, false)).toBe(false);
+    expect(clocks.moving).toEqual([false, false, false]);
+  });
+
+  it('never jumps an abacus bead from one frame to the next across select, leave and select again: they slide back down calmly', () => {
+    const clocks = beadClocks();
+    const dt = 1 / 60;
+    let previous = funcialMotion(clocks.abacus).abacus.slice();
+    let largest = 0;
+    let downs = 0;
+    // Selected 3 s, left 1 s (partly down), selected 0.6 s, left until it is down, hovered a moment, left again.
+    const script: [number | null, number | null, number][] = [
+      [0, null, 3],
+      [null, null, 1],
+      [0, null, 0.6],
+      [null, null, 3],
+      [null, 0, 0.3],
+      [null, null, 2.5]
+    ];
+    for (const [selected, hovered, seconds] of script) {
+      for (let k = 0; k < Math.round(seconds / dt); k++) {
+        stepBeadClocks(clocks, selected, hovered, dt, false);
+        const now = funcialMotion(clocks.abacus).abacus;
+        for (let b = 0; b < now.length; b++) {
+          largest = Math.max(largest, Math.abs(now[b]! - previous[b]!));
+          if (now[b]! < previous[b]! - 1e-12) downs++;
+        }
+        previous = now.slice();
+      }
+    }
+    // A bead's slide is a smoothstep over its share of the span (0.4 s): at most 1.5 of its rod in that share, a
+    // sixtieth of it a frame at 60 fps.
+    const share = BEAD_MOTION.funcial.abacus.span / BEAD_MOTION.funcial.abacus.beads;
+    expect(largest).toBeLessThanOrEqual(1.5 / share / 60 + 1e-9);
+    expect(downs).toBeGreaterThan(0);
+    expect(previous).toEqual([0, 0, 0, 0, 0]);
+  });
+
+  it('keeps Funcial moving while its abacus slides back down, then still, so the canvas may sleep', () => {
+    const clocks = beadClocks();
+    stepBeadClocks(clocks, 0, null, ABACUS_SPAN, false);
+    let frames = 0;
+    while (stepBeadClocks(clocks, null, null, 1 / 60, false)) frames++;
+    expect(frames).toBeGreaterThanOrEqual(Math.floor(ABACUS_SPAN * 60) - 1);
+    expect(frames).toBeLessThanOrEqual(Math.ceil(ABACUS_SPAN * 60));
+    expect(clocks.abacus).toBe(0);
+    expect(clocks.moving).toEqual([false, false, false]);
   });
 
   it('lets Jontai Energy and Cookies Clicker go on from where they stopped: their motions repeat, with nothing to slide back', () => {
@@ -418,11 +480,13 @@ describe("the beads' motion clocks", () => {
     expect(clocks.time[2]).toBe(3);
   });
 
-  it('runs no clock with reduced motion: the objects stay still', () => {
+  it("runs no clock with reduced motion, the abacus's included: the objects stay still", () => {
     const clocks = beadClocks();
     expect(stepBeadClocks(clocks, 0, 1, 1, true)).toBe(false);
     expect(clocks.time).toEqual([0, 0, 0]);
+    expect(clocks.abacus).toBe(0);
     expect(clocks.running).toEqual([false, false, false]);
+    expect(clocks.moving).toEqual([false, false, false]);
   });
 
   it('takes no step that is not a positive number of seconds', () => {
@@ -430,6 +494,7 @@ describe("the beads' motion clocks", () => {
     stepBeadClocks(clocks, 0, null, Number.NaN, false);
     stepBeadClocks(clocks, 0, null, -1, false);
     expect(clocks.time[0]).toBe(0);
+    expect(clocks.abacus).toBe(0);
   });
 });
 

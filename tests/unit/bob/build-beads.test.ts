@@ -562,6 +562,28 @@ describe("the objects' motion", () => {
     model.dispose();
   });
 
+  it("slides Funcial's abacus, and lights its fifth bead, by a clock of its own where one is given (Ruling 28), the platter and the pulse by the time", () => {
+    const { gltf, model } = build();
+    const time = 7.3;
+    const slide = 0.9;
+    model.setMotion('funcial', time, slide);
+    const byTime = funcialMotion(time);
+    const bySlide = funcialMotion(slide);
+    const platter = objectNamed(model.group, 'funcial_platter');
+    const rest = objectNamed(gltf.scene, 'funcial_platter').quaternion;
+    expect(turnBetween(platter.quaternion, rest.clone().multiply(new THREE.Quaternion().setFromAxisAngle(Y, byTime.platter)))).toBeLessThan(1e-12);
+    expect(compiled(materialOf(objectNamed(model.group, 'funcial_track'))).uniforms.uBeadPulse!.value.x).toBeCloseTo(byTime.pulse, 12);
+    for (let k = 1; k <= 5; k++) {
+      expect(objectNamed(model.group, `funcial_bead_${k}`).position.y, `bead ${k}`).toBeCloseTo(0.085 + bySlide.abacus[k - 1]! * BEADS_LOOK.funcial.travel, 12);
+    }
+    const fifth = meshes(objectNamed(model.group, 'funcial_bead_5')).map(materialOf).find((m) => m.name === 'bead:abacus')!;
+    expect(fifth.emissiveIntensity).toBeCloseTo(BEADS_LOOK.funcial.result.glow * bySlide.abacus[4]!, 12);
+    // The other beads have no such clock: it changes nothing of theirs.
+    model.setMotion('cookies-clicker', 2.05, 0);
+    expect(objectNamed(model.group, 'cookies_wheel_1').rotation.z).toBeCloseTo(cookiesMotion(2.05).wheels[0]!, 9);
+    model.dispose();
+  });
+
   it('lights the fifth abacus bead, RESULT, as it arrives, and only it', () => {
     const { model } = build();
     const fifth = () => meshes(objectNamed(model.group, 'funcial_bead_5')).map(materialOf).find((m) => m.name === 'bead:abacus')!;
