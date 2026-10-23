@@ -197,9 +197,6 @@ export const VOID_CEILING = -1.2;
  */
 export const VOID_ROOF = VOID_CEILING - 1;
 
-/** Halfway down the tunnel, between the glass (0) and the void's ceiling. */
-const TUNNEL_Y = VOID_CEILING / 2;
-
 /** The top shot's height on a laptop (on a narrower screen the top shot stands higher, `topShotFor`). */
 const TOP_D = FRAMES.top.distance;
 
@@ -211,24 +208,30 @@ function laptopHeight(e: number): number {
 /** How far through the eased descent a laptop's camera reaches the glass: a narrower screen's extra height is shed by then. */
 const GLASS_SHARE = TOP_D / (TOP_D - CAMERA_PATH.descent.bottom[1]);
 
-/** The `t` at which smoothstep is `y` (0..1): the inverse of 3t^2 - 2t^3. */
-function unsmoothstep(y: number): number {
-  return 0.5 - Math.sin(Math.asin(1 - 2 * y) / 3);
-}
-
 /** The home's DIVE chapter, whose unit is the dive stretch. */
 const DIVE_UNIT = HOME_CHAPTERS.units.find((unit) => unit.id === 'DIVE')!;
 
 /**
- * The progress at which the dive's camera stands halfway down the tunnel, at y -0.6: where the scroll holds while the
- * void loads (Task 11's `diveHoldFor`). Solved from the descent's own easing (the smoothstep of the share of its span
- * at which the laptop's height is -0.6), not written down: about 1.589. Every screen's camera is there then, since a
- * narrower screen's extra height is gone by the glass.
+ * The preview's frame of d01 (docs/design/bob-compass/d01-dive-tunnel.webp, Bob's approved frame of the dive: the M2b
+ * preview's still m2b-0400.png, which it matches to a mean of 1 in 255 a pixel, against 26 to 28 for its frames 372 and
+ * 442 and p08). The camera stands 3.1 above the glass on the opening's axis, looking straight down it, with the 38.8 mm
+ * lens: the tunnel's lit wall is a warm ring round the frame (its foot, the dark opening onto the void, 0.79 of the
+ * frame's half-width across; its mouth just past the width, the flattened rings in the corners) and the needle's disc is
+ * in the middle.
  */
-export const TUNNEL_HOLD =
-  DIVE_UNIT.start +
-  DIVE_UNIT.length *
-    mix(CAMERA_PATH.descent.span[0], CAMERA_PATH.descent.span[1], unsmoothstep((TOP_D - TUNNEL_Y) / (TOP_D - CAMERA_PATH.descent.bottom[1])));
+const D01_FRAME = 400;
+
+/**
+ * The progress at which the dive's camera stands at d01's pose (Ruling 27): where the scroll holds while the void loads
+ * (Task 11's `diveHoldFor`). It is the preview's frame `D01_FRAME` in the dive's own unit (`diveShare`, frames
+ * 362-442), 1.475, at which the descent's eased share is the preview's own (`CAMERA_PATH.descent` keeps the preview's
+ * frames and its `ease_io` is the same smoothstep), so a laptop's camera is `cam_pose(400)` itself. It is over the
+ * opening, above the glass on every screen (a phone's, whose top shot stands higher, is 1.3 above a laptop's
+ * here), so the void, hidden until the camera is under the glass, is never seen before it is ready: the view down the
+ * opening stays dark, as d01's middle is. (From inside the well, whose wall is a cylinder of the opening's radius from
+ * -0.08 to -1.2, no lens of the site's could see the wall glow: it would need more than 138 degrees.)
+ */
+export const TUNNEL_HOLD = DIVE_UNIT.start + DIVE_UNIT.length * diveShare(D01_FRAME);
 
 /** The width of the preview's sensor, millimetres (Blender's default; the preview renders 16:9, fitted across). */
 const SENSOR = 36;
@@ -505,7 +508,7 @@ function bendsFor(aspect: number): Vec3[] {
  * The descent at `local` of the dive stretch: straight down from the top shot, the height on the stretch's eased
  * share `e`, from 12.6 to -2.6 on a laptop. A narrower screen's top shot stands higher (it stands back to hold the
  * name across); that extra height is shed on a smoothstep of its own by the time a laptop's camera reaches the glass,
- * so from the glass down every screen's camera is at the same height (`TUNNEL_HOLD`). It looks at a point straight
+ * so from the glass down every screen's camera is at the same height. It looks at a point straight
  * below it, from the glass (the top shot's look-at point) down to the beads' depth, and its field opens from the top
  * shot's to the bottom's.
  */

@@ -32,11 +32,15 @@ const END = HOME_CHAPTERS.total;
 // ---------------------------------------------------------------- the hold
 
 describe('diveHoldFor: the most the scroll may reach before the void is ready', () => {
-  it('is TUNNEL_HOLD while the void is idle or loading: the dive holds halfway down the tunnel', () => {
+  it('is TUNNEL_HOLD while the void is idle or loading: the dive holds over the opening, looking down the glowing tunnel (d01), the void out of sight', () => {
     expect(diveHoldFor('idle')).toBe(TUNNEL_HOLD);
     expect(diveHoldFor('loading')).toBe(TUNNEL_HOLD);
     expect(journeyAt(diveHoldFor('loading')).stretch).toBe('dive');
-    for (const a of SCREENS) expect(journeyPoseAt(diveHoldFor('loading'), a).shot.position[1]).toBeCloseTo(-0.6, 2);
+    for (const a of SCREENS) {
+      const shot = journeyPoseAt(diveHoldFor('loading'), a).shot;
+      expect(shot.position[1]).toBeGreaterThan(0);
+      expect(voidShownFor(shot)).toBe(false);
+    }
   });
 
   it('is the end of the story once the void is ready: nothing holds', () => {
@@ -356,9 +360,9 @@ describe('voidShownFor: the void and the beads show only once the camera is unde
     }
   });
 
-  it('shows them from inside the tunnel on: the hold, the overview and every bead', () => {
+  it('shows them from inside the tunnel on (the overview and every bead), never at the hold, over the opening', () => {
     for (const a of SCREENS) {
-      expect(voidShownFor(journeyPoseAt(TUNNEL_HOLD, a).shot)).toBe(true);
+      expect(voidShownFor(journeyPoseAt(TUNNEL_HOLD, a).shot)).toBe(false);
       for (const p of [2, 2.5, 3, 3.5, 4, 4.5, 5, 6]) expect(voidShownFor(journeyPoseAt(p, a).shot), `at ${p}`).toBe(true);
     }
   });

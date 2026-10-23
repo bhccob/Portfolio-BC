@@ -250,7 +250,7 @@ export interface VoidProps {
  * again. `voidState` (the store, `frame.journey`, `<html data-void>`) says `loading`, then `ready`; any throw of the load
  * or the build (a file that does not load, a GLB that lacks a part, a screen that does not decode) says `failed`
  * instead, logged as a warning (the browser's own report of a failed file is the one console error), and what was built
- * is freed. The home's scroll holds by it (src/scene/bob/diveHold.ts): in the tunnel while it loads, at BOB from above
+ * is freed. The home's scroll holds by it (src/scene/bob/diveHold.ts): over the tunnel's opening while it loads (d01), at BOB from above
  * if it failed, where the home's project links show (src/styles/base.css). A failed warm-up only costs a stall.
  *
  * **Each frame** (after Home's, so after the Rig has placed the camera and Home has posed the compass) it applies the

@@ -372,7 +372,7 @@ The M2a final review's recommendation: at home, `frame.shot` is computed from `j
 - Produces:
   - `voidState: 'idle' | 'loading' | 'ready' | 'failed'` in the store.
   - `frame.journey = { stretch, local, project, voidState }` on `__needleDebug().journey`.
-  - `TUNNEL_HOLD` (exported from `journey.ts`): the progress at which the dive's camera is halfway down the tunnel, at y −0.6 (about 1.6, inside the dive's 1.125–1.725), solved from the journey's own easing, not written as a literal. Task 2 adds its test: the shot at `TUNNEL_HOLD` stands at y −0.6 ± 0.01.
+  - `TUNNEL_HOLD` (exported from `journey.ts`): the progress at which the dive's camera stands at Bob's frame d01 (Ruling 27, 2026-10-23): the preview's frame 400 in the dive's own unit, 1.475, the camera 3.1 above the opening looking straight down the tunnel, its lit wall a ring round the frame and the void below it still hidden. It is solved from the journey's frame mapping, not written as a literal; its test pins the camera at `cam_pose(400)` and the well's foot ring where d01 has it. *(It was first planned halfway down the tunnel, at y −0.6, about 1.6: from inside the well no lens of the site's sees the wall glow.)*
   - `diveHoldFor(voidState): number`, the most the scroll's target may reach before the void is ready: `TUNNEL_HOLD` while idle or loading, 6 when ready, and 1.0 when failed, so the scroll holds at BOB from above and `.home-nav` shows, as with 3D off.
 - Behaviour:
   - **Loading:** once the home has landed, `Void` loads `bob-beads.glb` and the three screenshots, and builds `buildVoid` and `loadBeads`.
@@ -442,7 +442,7 @@ The M2a final review's recommendation: at home, `frame.shot` is computed from `j
      - Tab reaches the label, and Enter goes to `/projects/<slug>/`.
      - Esc returns to that stop.
      - Also a direct load of `/projects/cookies-clicker/`, then Esc, which lands at stop 5.
-  3. **`void-hold`:** with `bob-beads.glb` held back, a long wheel rests at `TUNNEL_HOLD` (about 1.6) with `voidState` `loading`. On release, the scroll goes on to the overview.
+  3. **`void-hold`:** with `bob-beads.glb` held back, a long wheel rests at `TUNNEL_HOLD` (1.475, d01's pose) with `voidState` `loading`. On release, the scroll goes on to the overview.
   4. **`void-fail`:** with the GLB answering 404, the scroll holds at 1.0, `.home-nav` shows, and there is exactly one reported console error.
 
   Every step ends with `errors: []` (beyond the designed one) and `csp: []`.

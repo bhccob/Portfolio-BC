@@ -142,8 +142,8 @@ export interface HomeScrollOptions extends Omit<ScrollLoopOptions, 'glide'> {
   /** Whether the input drops what it takes now, still preventing it (`VirtualScrollOptions.swallow`); asked at every event. */
   swallow?: () => boolean;
   /**
-   * The most the target may reach now, in units (src/scene/bob/diveHold.ts `diveHoldFor`: the dive holds in the tunnel
-   * while the void loads), asked at every input and at `holdChanged`; with reduced motion the last stop at or under it
+   * The most the target may reach now, in units (src/scene/bob/diveHold.ts `diveHoldFor`: the dive holds over the tunnel's
+   * opening while the void loads), asked at every input and at `holdChanged`; with reduced motion the last stop at or under it
    * (`holdLimit`). Without it nothing holds but the end of the story.
    */
   hold?: () => number;

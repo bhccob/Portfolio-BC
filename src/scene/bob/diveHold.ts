@@ -13,8 +13,8 @@ export const RISE_TOP = HOME_CHAPTERS.units.find((unit) => unit.id === 'DIVE')!.
 
 /**
  * The most the scroll's target may reach for the void's state:
- * - `idle` or `loading`: `TUNNEL_HOLD`, the dive halfway down the tunnel (the camera at y -0.6, inside the glowing walls,
- *   the void not yet in sight), where it waits for the void;
+ * - `idle` or `loading`: `TUNNEL_HOLD`, the dive at Bob's frame d01 (Ruling 27): the camera 3.1 over the opening, looking
+ *   straight down the tunnel, whose lit wall rings the frame, the void below it dark and hidden; there it waits;
  * - `ready`: the end of the story (6): nothing holds;
  * - `failed`: `RISE_TOP` (1), BOB from above, where the home's project links (`.home-nav`) show as they do with 3D off
  *   (src/styles/base.css), so the home stays usable without the void.

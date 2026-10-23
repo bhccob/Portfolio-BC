@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { COMPASS_LOOK } from '~/engine/bob/build/compass';
 import { GLASS_LOOK } from '~/engine/bob/build/glassFloor';
 import { applyCameraShot, type CameraShot, homeShotFor, MAX_VFOV, topShotFor } from '~/engine/bob/shots';
+import { WORDMARK } from '~/engine/bob/wordmark';
 import { categories } from '~/data/categories';
 import { projects } from '~/data/projects';
 import {
@@ -361,15 +362,56 @@ describe("the journey's camera", () => {
   });
 });
 
-describe('the tunnel hold', () => {
-  it("is the progress at which the dive's camera is halfway down the tunnel, at y -0.6", () => {
-    expect(TUNNEL_HOLD).toBeGreaterThan(1.125);
-    expect(TUNNEL_HOLD).toBeLessThan(1.725);
-    expect(TUNNEL_HOLD).toBeCloseTo(1.6, 1);
+describe('the tunnel hold (Ruling 27: the pose of d01)', () => {
+  /**
+   * The preview's camera at frame `f` of the dive (tools/blender/bob_scroll.py `cam_pose`, frames 372-420): straight
+   * down from 12.6 above the glass to 2.6 under it on `ease_io` (3t^2 - 2t^3), the lens from 50 to 32 mm.
+   */
+  function previewDive(f: number): { height: number; lens: number } {
+    const x = Math.min(Math.max((f - 372) / (420 - 372), 0), 1);
+    const t = x * x * (3 - 2 * x);
+    return { height: 12.6 + (-2.6 - 12.6) * t, lens: 50 + (32 - 50) * t };
+  }
+  /** The frame d01 is (docs/design/bob-compass/d01-dive-tunnel.webp, the M2b preview's m2b-0400.png). */
+  const D01 = 400;
+  const DEG = Math.PI / 180;
+
+  it("is the progress of the preview's frame 400, d01, in the dive's unit (its frames 362-442)", () => {
+    expect(TUNNEL_HOLD).toBeCloseTo(1 + (D01 - 362) / (442 - 362), 12);
     expect(journeyAt(TUNNEL_HOLD).stretch).toBe('dive');
-    for (const a of [...SCREENS, 1]) expect(journeyPoseAt(TUNNEL_HOLD, a).shot.position[1], `at ${a}`).toBeCloseTo(-0.6, 2);
-    expect(Math.abs(journeyPoseAt(TUNNEL_HOLD, LAPTOP).shot.position[1] + 0.6)).toBeLessThan(0.01);
-    expect(VOID_CEILING / 2).toBe(-0.6);
+  });
+
+  it("stands the camera where the preview's d01 does: on the axis, 3.1 above the glass, looking straight down", () => {
+    const shot = journeyPoseAt(TUNNEL_HOLD, LAPTOP).shot;
+    expect(shot.position[0]).toBeCloseTo(0, 9);
+    expect(shot.position[2]).toBeCloseTo(0, 9);
+    expect(shot.position[1]).toBeCloseTo(previewDive(D01).height, 6);
+    expect(shot.position[1]).toBeCloseTo(3.12, 2);
+    expect(shot.target[0]).toBeCloseTo(0, 9);
+    expect(shot.target[2]).toBeCloseTo(0, 9);
+    expect(shot.target[1]).toBeLessThan(shot.position[1]);
+    // The site eases the field in degrees, the preview the lens in millimetres: across, within 2.5 degrees.
+    const across = 2 * Math.atan(Math.tan((shot.fov * DEG) / 2) * LAPTOP) / DEG;
+    expect(Math.abs(across - lensField(previewDive(D01).lens))).toBeLessThan(2.5);
+  });
+
+  it("frames the tunnel's lit wall as d01's ring: its foot at 0.79 of the half-width, its mouth just past the width", () => {
+    const shot = journeyPoseAt(TUNNEL_HOLD, LAPTOP).shot;
+    const height = shot.position[1];
+    const halfWidth = Math.tan((shot.fov * DEG) / 2) * LAPTOP;
+    const { bottom, depth } = GLASS_LOOK.well;
+    // d01's dark disc, the opening at the foot of the well, is 1260 of its 1600 px across: 0.79 of the half-width.
+    const foot = WORDMARK.hole / (height - bottom) / halfWidth;
+    expect(foot).toBeGreaterThan(0.75);
+    expect(foot).toBeLessThan(0.83);
+    // The well's mouth lies just outside the width and inside the corners, where d01 shows the flattened rings.
+    const mouth = WORDMARK.hole / (height - (bottom + depth)) / halfWidth;
+    expect(mouth).toBeGreaterThan(1);
+    expect(mouth).toBeLessThan(Math.hypot(1, 1 / LAPTOP));
+  });
+
+  it('holds above the glass on every screen, so the camera never comes out into the void before it is ready', () => {
+    for (const a of [...SCREENS, 1]) expect(journeyPoseAt(TUNNEL_HOLD, a).shot.position[1], `at ${a}`).toBeGreaterThan(0);
   });
 });
 
