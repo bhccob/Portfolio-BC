@@ -20,7 +20,7 @@ import {
   voidShownFor,
   writeJourney
 } from '~/scene/bob/voidPose';
-import { HOME_CHAPTERS, stops } from '~/state/chapters';
+import { chapterAt, HOME_CHAPTERS, stops } from '~/state/chapters';
 import { frame } from '~/state/frame';
 import { useScene, type VoidState } from '~/state/store';
 
@@ -134,10 +134,15 @@ function fire(target: EventTarget, type: string, props: Record<string, unknown> 
   return event;
 }
 
-/** The home's scroll input on the real chapters, held by the void's state as the page's input is. */
-function held(voidState: VoidState, options: { reduced?: boolean } = {}) {
+/**
+ * The home's scroll input on the real chapters, held by the void's state as the page's input is. `at` puts the story
+ * somewhere before the input starts, as the route sync does on Back from a project page (src/state/routeSync.ts).
+ */
+function held(voidState: VoidState, options: { reduced?: boolean; at?: number } = {}) {
   const frames = new FakeFrames();
-  const story = { progress: 0, target: 0, velocity: 0, chapterIndex: 0 };
+  const at = options.at ?? 0;
+  const story = { progress: at, target: at, velocity: 0, chapterIndex: chapterAt(HOME_CHAPTERS, at).index };
+  const chapters: string[] = [];
   const state = { voidState, reduced: options.reduced ?? false };
   const el = new EventTarget();
   const win = new EventTarget();
@@ -151,7 +156,7 @@ function held(voidState: VoidState, options: { reduced?: boolean } = {}) {
     reducedMotion: () => state.reduced,
     threeD: () => true,
     hold: () => diveHoldFor(state.voidState),
-    onChapter: () => {},
+    onChapter: (chapter) => chapters.push(chapter.id),
     loadSmooth: () => Promise.resolve(damp),
     request: frames.request,
     cancel: frames.cancel
@@ -173,7 +178,7 @@ function held(voidState: VoidState, options: { reduced?: boolean } = {}) {
     state.voidState = next;
     home.holdChanged();
   };
-  return { story, state, home, key, wheel, drain, become, frames, el };
+  return { story, state, home, key, wheel, drain, become, frames, el, chapters };
 }
 
 describe('the scroll input holds at the dive while the void loads', () => {
@@ -282,6 +287,52 @@ describe('the scroll input holds at the dive while the void loads', () => {
     await s.wheel(10);
     s.drain();
     expect(s.story.target).toBe(1);
+  });
+
+  it("holds Back to a bead's stop at TUNNEL_HOLD while the void loads, then goes on to the stop once it is ready", async () => {
+    // Back (or Escape) from Jontai Energy's page while the void still loads: the route sync put the story at stop 4.
+    const s = held('loading', { at: 4 });
+    expect(s.story.target).toBe(TUNNEL_HOLD);
+    expect(s.story.progress).toBe(TUNNEL_HOLD);
+    // The chapter follows the story to the hold: the dive.
+    expect(s.story.chapterIndex).toBe(1);
+    expect(s.chapters).toEqual(['DIVE']);
+    s.drain();
+    expect(s.story.target).toBe(TUNNEL_HOLD);
+    s.become('ready');
+    await flush();
+    s.drain();
+    expect(s.story.target).toBe(4);
+    expect(s.story.progress).toBe(4);
+    expect(s.chapters.at(-1)).toBe('PROJECTS');
+  });
+
+  it('holds it the same while the void is idle, before its load has begun', () => {
+    const s = held('idle', { at: 5 });
+    expect([s.story.target, s.story.progress]).toEqual([TUNNEL_HOLD, TUNNEL_HOLD]);
+  });
+
+  it("rests Back at BOB from above when the void failed, never at the bead's stop", async () => {
+    const s = held('failed', { at: 3 });
+    expect([s.story.target, s.story.progress]).toEqual([1, 1]);
+    await flush();
+    s.drain();
+    expect([s.story.target, s.story.progress]).toEqual([1, 1]);
+  });
+
+  it('goes straight to the stop when the void is ready: nothing holds', () => {
+    const s = held('ready', { at: 4 });
+    expect([s.story.target, s.story.progress]).toEqual([4, 4]);
+    expect(s.chapters).toEqual([]);
+  });
+
+  it('with reduced motion holds Back on the last stop under the hold, then goes on to the bead\'s stop', async () => {
+    const s = held('loading', { at: 5, reduced: true });
+    expect([s.story.target, s.story.progress]).toEqual([1, 1]);
+    s.become('ready');
+    await flush();
+    s.drain();
+    expect(s.story.target).toBe(5);
   });
 
   it('steps by stops with reduced motion and holds on the last stop under the hold: BOB from above while loading', async () => {

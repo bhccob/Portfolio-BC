@@ -592,6 +592,52 @@ function settled(progress: number): number {
 }
 
 /**
+ * A bead seen close (Ruling 4), the project page's view of it: the camera `standOff` in front of the porthole, along
+ * the bead's facing, with the `lens` of the beads' stops (40 mm).
+ */
+export const FOCUS_VIEW = { standOff: 1.6, lens: CAMERA_PATH.bead.lens } as const;
+
+/** Which way a bead faces at rest: its porthole looks along its root's +z (~/engine/bob/build/beads), and its root is not turned. */
+const FACING: Vec3 = [0, 0, 1];
+
+/**
+ * The close view of bead `id` on a screen of this aspect (Ruling 4): beside the journey, not a stretch of it, it is the
+ * view a project page stands over and the end of the flight into the porthole (./focus.ts). The bead is where it stands
+ * at its stop, come forward (its centre plus `CAMERA_PATH.bead.forward`, as `journeyPoseAt` poses it there), and the
+ * camera stands `FOCUS_VIEW.standOff` (1.6) in front of its porthole, the front of its shell, on the porthole's axis,
+ * looking at the bead's centre: 2.55 from it. The field is the beads' 40 mm through `fieldFor`, as every shot in the void
+ * has it (`voidKey`), so a phone keeps the same width across and stands back along the same axis (level with the bead,
+ * nowhere near the void's roof). Unlike the journey's shots it lets the pointer's parallax in (`sway` 1), as the home
+ * under a page of text has it: the page stands still over a bead that breathes with the pointer.
+ */
+export function focusShotFor(id: ProjectId, aspect: number): CameraShot {
+  const bead = BEADS.findIndex((b) => b.id === id);
+  const { radius } = BEADS[bead]!;
+  const centre = centreOf(bead, 1);
+  const key = voidKey(add(centre, scale(FACING, radius + FOCUS_VIEW.standOff)), centre, FOCUS_VIEW.lens, aspect);
+  return { position: key.position, target: key.target, fov: key.fov, up: rotate(key.turn, UP), sway: 1 };
+}
+
+/**
+ * The shot `e` of the way from `a` to `b` (0 is `a` and 1 is `b`, exactly): the camera, the look-at point and the field
+ * in straight lines, the up between theirs (absent read as +Y) and the parallax between (absent read as the whole of
+ * it). The flight into a porthole is this from the bead's stop to its close view, eased (./focus.ts): both look at the
+ * bead's centre, so the line runs from in front of the bead straight to its porthole, never through its shell.
+ */
+export function shotToward(a: CameraShot, b: CameraShot, e: number): CameraShot {
+  if (!(e > 0)) return a;
+  if (e >= 1) return b;
+  const up = normalise(mix3(a.up ?? UP, b.up ?? UP, e));
+  return {
+    position: mix3(a.position, b.position, e),
+    target: mix3(a.target, b.target, e),
+    fov: mix(a.fov, b.fov, e),
+    up,
+    sway: mix(a.sway ?? 1, b.sway ?? 1, e)
+  };
+}
+
+/**
  * Where the journey is at this progress: the chapter it is in (~/state/chapters `chapterAt`, without hysteresis) as a
  * stretch, how far through it, and the project of a project stretch. A stop starts its stretch (1 is the dive at 0, 3
  * is Funcial's stretch at 0); 6, the end, is the last project's at 0, as 5 is. NaN reads as 0, the progress is held to

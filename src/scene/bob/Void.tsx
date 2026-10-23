@@ -12,6 +12,7 @@ import { buildVoid, type VoidModel } from '~/engine/bob/build/void';
 import { lowerTier, type QualityTier } from '~/engine/quality';
 import { frame } from '~/state/frame';
 import { useScene, type VoidState } from '~/state/store';
+import { showBeadLabel } from '~/ui/BeadLabel';
 import { motion } from '../motion';
 import type { Handover } from './Home';
 import { BEADS } from './journey';
@@ -178,9 +179,17 @@ interface VoidRun {
   selected: number | null;
   /** The void's drift clock (its mist and dust), seconds of frames drawn while it showed. */
   time: number;
-  /** The void is shown over the home's scene: the pointer is read, and a click may open the selected bead. */
+  /**
+   * The void is shown over the home's scene and no bead is close (`handover.focus`): the pointer is read, a click may
+   * open the selected bead, and its label shows.
+   */
   reading: boolean;
 }
+
+/** No screen: the label is taken away. */
+const NO_SIZE = { width: 0, height: 0 };
+
+const DEG = Math.PI / 180;
 
 /** Shows or hides the void and the beads' drawn parts, and lights or darkens the beads' inner lights with them. */
 function show(parts: VoidParts, shown: boolean): void {
@@ -232,7 +241,8 @@ export interface VoidProps {
   standIns: readonly THREE.PointLight[];
   /**
    * A click (or tap) on the selected bead, the bead of the current project stop, with the void shown over the home:
-   * the hook for opening its project (Task 12 flies into the porthole and navigates). Without it, a click does nothing.
+   * the Opening hands it `openBead` (src/ui/BeadLabel.tsx), the label's own way in, which flies into the porthole and
+   * then goes to the project's page. Without it, a click does nothing.
    */
   onOpen?(id: ProjectId): void;
 }
@@ -269,9 +279,14 @@ export interface VoidProps {
  * - the objects' motion: each bead's clock runs only while it is the selected bead (the bead of the current project
  *   stop, `selectedBead`) or the hovered one, and not with reduced motion, and goes on from where it stopped
  *   (`stepBeadClocks`); Funcial's abacus has a clock of its own that counts back down while the bead is neither, so its
- *   beads slide back down calmly and up again from where they are (Ruling 28).
- * A pointer move over the page wakes the canvas only when it moves the hover onto another bead or off one; the hover
- * and the motion read nothing on a page without the home's scene.
+ *   beads slide back down calmly and up again from where they are (Ruling 28);
+ * - the selected bead's label (src/ui/BeadLabel.tsx `showBeadLabel`): on its project stretch, beside the bead where the
+ *   camera puts it on the screen (its centre projected, its radius from its distance and the field), in full at its stop
+ *   and clear between stops; none anywhere else.
+ * A pointer move over the page wakes the canvas only when it moves the hover onto another bead or off one; the hover,
+ * the label and a click read nothing on a page without the home's scene, nor while a bead is seen close or the camera
+ * flies to or from one (`handover.focus`); a click on the selected bead opens it (`onOpen`), placed by the window's
+ * size, which is the canvas's (it fills the window).
  *
  * **Sleeping.** It keeps the canvas drawing (`motion.beads`, and a frame asked for as it starts) while an object that
  * moves (its clock runs, or Funcial's abacus slides back down) is in the camera's view, or the hover is easing; otherwise it asks for nothing, so the canvas sleeps once
@@ -406,6 +421,7 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
       run.parts = null;
       run.reading = false;
       motion.beads = false;
+      showBeadLabel(null, NO_SIZE);
       compass.setNeedleWorld(null);
       if (parts) {
         scene.remove(parts.void.group, parts.beads.group);
@@ -459,7 +475,7 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
     return () => window.removeEventListener('click', click);
   }, [onOpen, camera, run]);
 
-  useFrame((_, delta) => {
+  useFrame(({ size }, delta) => {
     const pose = handover.pose;
     const parts = run.parts;
     if (!handover.live || pose === null) {
@@ -468,6 +484,7 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
       if (parts) show(parts, false);
       run.reading = false;
       motion.beads = false;
+      showBeadLabel(null, size);
       return;
     }
     // The home has landed: the void loads now, once.
@@ -476,6 +493,7 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
     compass.setNeedleWorld(pose.needle);
     if (!parts) {
       motion.beads = false;
+      showBeadLabel(null, size);
       return;
     }
 
@@ -483,12 +501,14 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
     show(parts, shown);
     const { reducedMotion: reduced, scene: page } = useScene.getState();
     const home = shown && page === 'home';
-    run.reading = home;
+    // A bead seen close, or the camera on its way to or from one: no label, and the pointer opens and hovers nothing.
+    run.reading = home && !handover.focus;
     if (!shown) {
       Object.assign(run.hover, hoverEase());
       run.pointed = run.selected = null;
       stepBeadClocks(run.clocks, null, null, 0, reduced);
       motion.beads = false;
+      showBeadLabel(null, size);
       return;
     }
     const dt = Math.min(Math.max(delta, 0), MAX_STEP);
@@ -509,7 +529,7 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
     // The hover, on a pointer device: the bead under the pointer, eased one at a time, turned toward the camera.
     camera.updateMatrixWorld();
     beads.group.updateMatrixWorld();
-    const pointed = home && Number.isFinite(frame.pointerAt) ? pick(parts, frame.pointer, camera) : null;
+    const pointed = run.reading && Number.isFinite(frame.pointerAt) ? pick(parts, frame.pointer, camera) : null;
     run.pointed = pointed;
     const easing = easeHover(run.hover, pointed, dt, reduced || !home);
     const hovered = run.hover.id;
@@ -525,6 +545,20 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
     // The objects: each moves only while its bead is selected or hovered, but for Funcial's abacus sliding back down.
     const selected = home ? selectedBead(pose.at) : null;
     run.selected = selected;
+
+    // The selected bead's label beside it, on its project stretch: in full at its stop, clear between stops.
+    const labelled = run.reading ? selected : null;
+    if (labelled === null) {
+      showBeadLabel(null, size);
+    } else {
+      const { id, radius } = BEADS[labelled]!;
+      beads.beads[id].root.getWorldPosition(centre);
+      const distance = centre.distanceTo(camera.position);
+      centre.project(camera);
+      const fov = (camera as THREE.PerspectiveCamera).fov;
+      const onScreen = (radius / (distance * Math.tan((fov * DEG) / 2))) * (size.height / 2);
+      showBeadLabel({ id, ndc: { x: centre.x, y: centre.y }, radius: onScreen, rest: pose.at.local === 0 }, size);
+    }
     stepBeadClocks(run.clocks, selected, pointed, dt, reduced);
     viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     frustum.setFromProjectionMatrix(viewProjection);

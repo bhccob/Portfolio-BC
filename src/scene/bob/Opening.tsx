@@ -17,12 +17,15 @@ import { readout } from '~/engine/loading';
 import { lowerTier, type QualityTier } from '~/engine/quality';
 import { useLoaderSkip } from '~/input/loaderSkip';
 import { frame } from '~/state/frame';
+import { stopForProject } from '~/state/routeSync';
 import { useScene } from '~/state/store';
+import { openBead } from '~/ui/BeadLabel';
 import { motion } from '../motion';
 import { settleLoad } from '../settleLoad';
 import { visibleTimeout } from '../timeouts';
+import { focusGoalFor, type FocusPose, focusPoseAt, moveFocus, restsAt } from './focus';
 import { type Handover, Home, type HomeModels } from './Home';
-import { journeyPoseAt } from './journey';
+import { focusShotFor, journeyPoseAt, shotToward } from './journey';
 import { cameraShotAt, loadShare, type OpeningPose, openingPoseAt } from './openingPose';
 import { SHOT_PRIORITY, shotSourceFor, shownProgressFor } from './shotSource';
 import {
@@ -117,6 +120,40 @@ interface HomeParts {
 
 /** Lets a frame go by between two pieces of the load, so the loader keeps drawing while the strips paint. */
 const breathe = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+
+/** No close view: the frame of the loader, of a held seek, or of a home with no bead close. */
+const NO_FOCUS: Readonly<FocusPose> = Object.freeze({ id: null, amount: 0, dark: false, moving: false, engaged: false });
+
+/** The attribute on <html> that fades the scene host down for a fade to or from a bead's close view (src/styles/base.css). */
+const FOCUS_FADE_ATTRIBUTE = 'data-focus-fade';
+
+/** `<html data-focus-fade>` as last written, so a frame writes the DOM only when it changes. */
+let focusFaded = false;
+
+/** Sets or takes away `<html data-focus-fade>`, writing the DOM only when it changes. */
+function showFocusFade(on: boolean): void {
+  if (focusFaded === on) return;
+  focusFaded = on;
+  document.documentElement.toggleAttribute(FOCUS_FADE_ATTRIBUTE, on);
+}
+
+/**
+ * The close view on this frame (src/scene/bob/focus.ts): a new move is begun first wherever the page asks for another
+ * close view than the last move goes to (`focusGoalFor`). Into a page's bead that is a fade (the label's own flight was
+ * begun by its click, `openBead`); back out to the journey it is a flight from the bead's own stop at rest (`restsAt`:
+ * the route sync put the story there and the void's hold let it stay) and a fade otherwise, or with reduced motion.
+ */
+function focusNow(now: number): FocusPose {
+  const { phase, scene, reducedMotion } = useScene.getState();
+  const focus = frame.focus;
+  const goal = focusGoalFor(phase, scene, focus.opening);
+  if (goal !== focus.move.to) {
+    const leaving = focus.move.to;
+    const fly = goal === null && !reducedMotion && restsAt(leaving, frame.progress, frame.target);
+    focus.move = moveFocus(focus.move, goal, now, fly ? 'fly' : 'fade');
+  }
+  return focusPoseAt(focus.move, now);
+}
 
 /** Frees strips' GPU side and empties their canvases (4096 x 96 each). Freeing one twice is harmless. */
 function freeStrips(strips: THREE.CanvasTexture[]): void {
@@ -255,8 +292,14 @@ export interface OpeningProps {
  * the smoke, the needle's breath and the scroll's rise from there, starting where the Opening left them, and to the
  * Void (Void.tsx), which loads the void and the beads from then on and poses them, and the needle in the void. The camera
  * stays the Opening's (above): at the home it is the home shot at the rise's 0, up the rise to BOB from above, and on
- * into the dive (a resize reframes it in place, in the same frame). On a project page it lands on the home view under
- * that page's scrim.
+ * into the dive (a resize reframes it in place, in the same frame). On a project page it lands, then fades to that
+ * bead's close view under the page's scrim (src/scene/bob/focus.ts; the host stays dark until the void is in).
+ *
+ * **A bead seen close** (Ruling 4). The shot is the journey's at the bead's stop moved toward `focusShotFor` (source
+ * `flight`) while the close view is in it: a project page stands over it, and the label's flight in (`openBead`,
+ * src/ui/BeadLabel.tsx, which the Void's click on the selected bead calls too, `onOpen`) and Back's flight out ease
+ * between the two over `FLIGHT_MS`, on the document's clock (`frame.focus`), so a route change in the middle neither
+ * restarts nor jumps it. A fade (`<html data-focus-fade>`, the step fade's 150 ms) stands in where no flight can be.
  *
  * **Skipped mount** (Ruling 9c). Mounted while the home page has already left LOADING (`openingStartFor`: 3D back on
  * after a failure or a toggle, a visit that began on Lite), it plays no loader under the hero that now shows: it builds
@@ -292,7 +335,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
   const buffer = useRef({ seen: new THREE.Vector2(-1, -1), now: new THREE.Vector2() });
   /** The home's parts once built, which mount Home; and what the Opening hands over to it, set on each frame drawn. */
   const [models, setModels] = useState<Mounted | null>(null);
-  const [handover] = useState<Handover>(() => ({ live: false, time: 0, needle: settleAngle(1), shown: 0, pose: null }));
+  const [handover] = useState<Handover>(() => ({ live: false, time: 0, needle: settleAngle(1), shown: 0, pose: null, focus: false }));
   /** The full show is playing, so any input skips it (`useLoaderSkip`) while a scene is shown. */
   const [skippable, setSkippable] = useState(false);
   /** The page shows a scene: on a page of text (Lite, contact) the canvas draws nothing, and the skip must not listen. */
@@ -497,9 +540,12 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       run.current = null;
       handover.live = false;
       handover.pose = null;
+      handover.focus = false;
       setModels(null);
       setSkippable(false);
       motion.loader = false;
+      motion.focus = false;
+      showFocusFade(false);
       frame.shot = null;
       frame.loader.stage = null;
       frame.needleAngle = 0;
@@ -562,19 +608,33 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
     // so the camera is placed on the very shot written here. The loader and a held seek keep the loader's own shots; at
     // home the shot is the journey's at the progress Home poses the scene at (src/scene/bob/shotSource.ts), every frame
     // drawn, so a scroll, a resize or a step of reduced motion all find the camera where the compass is. (`handover.live`
-    // is still last frame's here: the Opening sets it below.)
-    const source = shotSourceFor(clock.stage, held, handover.live);
+    // is still last frame's here: the Opening sets it below.) A bead's close view (src/scene/bob/focus.ts) is in the
+    // shot only once the clock is at the home: a direct arrival at a project page plays its loader, then comes to the
+    // close view by a fade once it has landed.
+    const focus = atHome && held === null ? focusNow(performance.now()) : NO_FOCUS;
+    const source = shotSourceFor(clock.stage, held, handover.live, focus.amount > 0);
     if (source === 'loader' || source === 'held') {
       frame.shot = cameraShotAt(clock, state.path, aspect);
       handover.pose = null;
     } else {
-      // The one journey pose of this frame: the camera's shot, and what Home and the Void pose the scene from.
-      const shown = shownProgressFor(source, useScene.getState().reducedMotion, frame.progress, frame.target, handover.shown);
-      const journey = journeyPoseAt(shown, aspect);
-      frame.shot = journey.shot;
-      handover.pose = journey;
-      writeJourney(frame.journey, journey.at);
+      // The one journey pose of this frame: the camera's shot, and what Home and the Void pose the scene from. A close
+      // view poses the journey at its bead's stop (the bead come forward and lit, the needle by it) and moves the shot
+      // toward the close view by the move's eased amount: the flight, or the page standing over it.
+      const close = source === 'flight' ? focus.id : null;
+      const reduced = useScene.getState().reducedMotion;
+      const at = close === null ? shownProgressFor(source === 'home' ? 'home' : 'journey', reduced, frame.progress, frame.target, handover.shown) : stopForProject(close);
+      const journey = journeyPoseAt(at, aspect);
+      const pose = close === null ? journey : { ...journey, shot: shotToward(journey.shot, focusShotFor(close, aspect), focus.amount) };
+      frame.shot = pose.shot;
+      handover.pose = pose;
+      writeJourney(frame.journey, pose.at);
     }
+    // The close view's state for Home and the Void (no label, no pointer while it is in play), the host faded down for a
+    // fade's dark half and over a close view whose void is not in yet (the page stands over the dark poster until the
+    // bead is there to see), and the canvas kept drawing while a move goes on.
+    handover.focus = focus.engaged;
+    showFocusFade(focus.dark || (focus.amount > 0 && useScene.getState().voidState !== 'ready'));
+    motion.focus = focus.moving;
     // A held clock poses every frame; the live one poses the home once, when it gets there.
     if (held !== null || !atHome) state.posedHome = false;
     const compass = home.current?.compass ?? null;
@@ -617,7 +677,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
   return models ? (
     <>
       <Home models={models.home} handover={handover} />
-      <Void compass={models.home.compass} handover={handover} tier={tier} standIns={models.standIns} />
+      <Void compass={models.home.compass} handover={handover} tier={tier} standIns={models.standIns} onOpen={openBead} />
     </>
   ) : null;
 }

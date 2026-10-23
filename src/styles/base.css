@@ -136,6 +136,14 @@ html[data-step-fade] .scene-host {
   opacity: 0;
 }
 
+/* A fade to or from a bead seen close (src/scene/bob/focus.ts) is the same fade: the Opening sets <html data-focus-fade>
+   for its dark half, the shot jumps while the host is dark, and it fades back. With reduced motion it stands in for the
+   flight into a porthole and out. The host stays down too while a close view waits for the void to load, so a project
+   page reached directly stands over the dark poster until its bead is there to see. */
+html[data-focus-fade] .scene-host {
+  opacity: 0;
+}
+
 /* The fade is reduced motion's own, so it keeps its 150 ms over the sheet's last rule, which cuts every transition short. */
 @media (prefers-reduced-motion: reduce) {
   .scene-host {
@@ -158,6 +166,20 @@ body:has(.page) .scene-host::after {
 
 body:has(.page) .scene-host[data-ready]::after {
   opacity: 1;
+}
+
+/* A project page reached by flying into its bead (src/ui/BeadLabel.tsx sets <html data-bead-open> from the click until
+   the page is in): its text fades in over the bead seen close, with its scrim (spec §2.4), instead of both appearing
+   over the lit bead at once. A page reached any other way shows as it always has. */
+@keyframes bead-page-in {
+  from {
+    opacity: 0;
+  }
+}
+
+html[data-bead-open] .page,
+html[data-bead-open] body:has(.page) .scene-host[data-ready]::after {
+  animation: bead-page-in 0.9s var(--ease-reveal) both;
 }
 
 /* The canvas shows once the scene is ready (SceneHost sets data-ready): until then the poster is the picture, and
@@ -720,6 +742,103 @@ html[data-3d='on'][data-void='failed'][data-rising] .home-nav {
   clip-path: none;
   white-space: normal;
   background: linear-gradient(0deg, rgb(10 5 16 / 0.9) 60%, rgb(10 5 16 / 0));
+}
+
+/* ---------- the void: the selected bead's label ---------- */
+/* Real text beside the selected bead at its project stop (spec §2.4, the ref-04 style; src/ui/BeadLabel.tsx): the
+   category line in the mono label, the title in heavy gold and a dim hint, small, so the bead stays the one focal point.
+   It is one link. The scene shows it ([data-shown]: in the page, so the keyboard reaches it) and stands it beside the
+   bead by a transform ([data-side] says which side); it is whole at the bead's stop ([data-rest]) and clear between
+   stops, where it takes no pointer. Without a scene it never shows: the home's nav is the way to the projects. Its widest
+   line fits LABEL_BOX (300 px, 260 on a phone), which the placement holds inside the screen until it is measured. */
+.bead-label {
+  position: fixed;
+  top: 0;
+  left: 0;
+  display: none;
+  gap: 4px;
+  max-width: 300px;
+  padding: 10px 12px;
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s var(--ease-reveal);
+}
+
+.bead-label[data-shown] {
+  display: grid;
+  justify-items: start;
+}
+
+.bead-label[data-rest] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Shown at its stop on the frame it is first displayed, it still fades in. */
+@starting-style {
+  .bead-label[data-rest] {
+    opacity: 0;
+  }
+}
+
+.bead-label[data-side='left'] {
+  justify-items: end;
+  text-align: right;
+}
+
+.bead-label[data-side='below'],
+.bead-label[data-side='above'] {
+  justify-items: center;
+  text-align: center;
+}
+
+.bead-label-title {
+  font-family: var(--font-title);
+  font-feature-settings: var(--font-title-features);
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--gold-title);
+}
+
+/* The hint in the label face, lower case as written and in the scene's quieter lilac (6.5:1 on the night). */
+.bead-label-hint {
+  font-family: var(--font-label);
+  font-size: var(--label-size);
+  line-height: 1.5;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+}
+
+.bead-label:hover .bead-label-hint,
+.bead-label:focus-visible .bead-label-hint {
+  color: var(--lilac);
+}
+
+/* "Klik om te openen" for a mouse or a pen, "Tik om te openen" on a touch screen. */
+.bead-label-hint-touch {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .bead-label-hint-fine {
+    display: none;
+  }
+
+  .bead-label-hint-touch {
+    display: inline;
+  }
+}
+
+@media (max-width: 720px) {
+  .bead-label-title {
+    font-size: 16px;
+  }
 }
 
 /* ---------- a page: a project, Lite, contact ---------- */

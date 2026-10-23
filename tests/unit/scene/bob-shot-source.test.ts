@@ -31,20 +31,39 @@ describe('shotSourceFor: who writes the camera shot', () => {
     expect(shotSourceFor('home', null, true)).toBe('journey');
   });
 
-  it('puts the loader before the held seek before the home before the journey, for every input', () => {
-    // The order in one table: a held seek at a loader stage is still the loader's; a held seek beats a live Home.
+  it('puts the loader before the held seek before the flight before the home before the journey, for every input', () => {
+    // The order in one table: a held seek at a loader stage is still the loader's; a held seek beats a live Home and
+    // a close view; a close view beats the home's hand-over and the journey.
     const answers = new Set<ShotSource>();
     for (const stage of STAGES) {
       for (const held of HELD) {
         for (const live of [false, true]) {
-          const source = shotSourceFor(stage, held, live);
-          answers.add(source);
-          const expected: ShotSource = stage !== 'home' ? 'loader' : held !== null ? 'held' : live ? 'journey' : 'home';
-          expect(source, `${stage} held ${held} live ${live}`).toBe(expected);
+          for (const focus of [false, true]) {
+            const source = shotSourceFor(stage, held, live, focus);
+            answers.add(source);
+            const expected: ShotSource = stage !== 'home' ? 'loader' : held !== null ? 'held' : focus ? 'flight' : live ? 'journey' : 'home';
+            expect(source, `${stage} held ${held} live ${live} focus ${focus}`).toBe(expected);
+          }
         }
       }
     }
-    expect([...answers].sort()).toEqual(['held', 'home', 'journey', 'loader']);
+    expect([...answers].sort()).toEqual(['flight', 'held', 'home', 'journey', 'loader']);
+  });
+
+  it("is the flight at the home while a bead's close view is in the shot: on a project page, and flying into or out of one", () => {
+    expect(shotSourceFor('home', null, true, true)).toBe('flight');
+    // The landing frame of a direct arrival, before Home has taken the scene over: the close view already.
+    expect(shotSourceFor('home', null, false, true)).toBe('flight');
+  });
+
+  it('leaves the loader and a held seek theirs, a close view or not: the loader poses its own camera until it lands', () => {
+    for (const stage of LOADER_STAGES) expect(shotSourceFor(stage, null, false, true)).toBe('loader');
+    expect(shotSourceFor('home', 5, true, true)).toBe('held');
+  });
+
+  it('reads no close view when none is said: the home and the journey as before', () => {
+    expect(shotSourceFor('home', null, false)).toBe('home');
+    expect(shotSourceFor('home', null, true)).toBe('journey');
   });
 
   it('reads a held time of 0 as held: 0 is a moment of the loader, not "no seek"', () => {

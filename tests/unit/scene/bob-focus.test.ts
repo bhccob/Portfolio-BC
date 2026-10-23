@@ -1,0 +1,241 @@
+import * as THREE from 'three';
+import { describe, expect, it } from 'vitest';
+import { applyCameraShot, type CameraShot } from '~/engine/bob/shots';
+import type { ProjectId } from '~/data/projects';
+import {
+  FLIGHT_MS,
+  FOCUS_AT_REST,
+  FOCUS_FADE_MS,
+  type FocusMove,
+  focusGoalFor,
+  focusPoseAt,
+  moveFocus,
+  restsAt
+} from '~/scene/bob/focus';
+import { BEADS, CAMERA_PATH, fieldFor, FOCUS_VIEW, focusShotFor, journeyPoseAt, lensField, shotToward } from '~/scene/bob/journey';
+import { STEP_FADE_MS } from '~/scene/bob/stepFade';
+import { voidShownFor } from '~/scene/bob/voidPose';
+import { stopForProject } from '~/state/routeSync';
+
+type Vec3 = readonly [number, number, number];
+
+const LAPTOP = 16 / 9;
+const PHONE = 390 / 844;
+const SCREENS = [LAPTOP, PHONE] as const;
+const IDS: readonly ProjectId[] = BEADS.map((bead) => bead.id);
+
+const near = (a: Vec3, b: Vec3, digits = 9): void => {
+  for (let i = 0; i < 3; i++) expect(a[i]).toBeCloseTo(b[i]!, digits);
+};
+
+/** A bead's centre where it stands at its stop: its place plus the journey's whole drift forward. */
+const atStop = (bead: (typeof BEADS)[number]): Vec3 => {
+  const f = CAMERA_PATH.bead.forward;
+  return [bead.centre[0] + f[0], bead.centre[1] + f[1], bead.centre[2] + f[2]];
+};
+
+/** Where `point` lands on a screen of this aspect through `shot`, NDC. */
+function project(shot: CameraShot, aspect: number, point: Vec3): THREE.Vector3 {
+  const camera = new THREE.PerspectiveCamera();
+  applyCameraShot(camera, shot, aspect);
+  return new THREE.Vector3(...point).project(camera);
+}
+
+// ---------------------------------------------------------------- the close view
+
+describe('focusShotFor: a bead seen close (Ruling 4)', () => {
+  it('stands the camera 1.6 in front of the porthole, along the bead\'s facing (+z), looking into it, with the 40 mm field', () => {
+    expect(FOCUS_VIEW.standOff).toBe(1.6);
+    expect(FOCUS_VIEW.lens).toBe(40);
+    for (const bead of BEADS) {
+      const shot = focusShotFor(bead.id, LAPTOP);
+      const centre = atStop(bead);
+      near(shot.target, centre);
+      // The porthole is the front of the shell, the bead's radius out along +z; the camera 1.6 beyond it.
+      near(shot.position, [centre[0], centre[1], centre[2] + bead.radius + 1.6]);
+      expect(shot.fov).toBeCloseTo(fieldFor(lensField(40), LAPTOP).fov, 9);
+      near(shot.up ?? [0, 1, 0], [0, 1, 0]);
+    }
+  });
+
+  it('stands a phone back along the same axis by the width rule (fieldFor), so it sees the same width across', () => {
+    for (const bead of BEADS) {
+      const shot = focusShotFor(bead.id, PHONE);
+      const { fov, back } = fieldFor(lensField(40), PHONE);
+      const centre = atStop(bead);
+      expect(back).toBeGreaterThan(1);
+      near(shot.position, [centre[0], centre[1], centre[2] + (bead.radius + 1.6) * back]);
+      expect(shot.fov).toBeCloseTo(fov, 9);
+    }
+  });
+
+  it('holds the bead in the middle of the picture, on every screen', () => {
+    for (const a of SCREENS) {
+      for (const bead of BEADS) {
+        const at = project(focusShotFor(bead.id, a), a, atStop(bead));
+        expect(at.x).toBeCloseTo(0, 9);
+        expect(at.y).toBeCloseTo(0, 9);
+      }
+    }
+  });
+
+  it("is under the glass, so the void and the beads show behind the page", () => {
+    for (const a of SCREENS) for (const id of IDS) expect(voidShownFor(focusShotFor(id, a))).toBe(true);
+  });
+
+  it("lets the pointer's parallax in, as the home under a page has it, where the void's journey has none", () => {
+    for (const id of IDS) expect(focusShotFor(id, LAPTOP).sway).toBe(1);
+  });
+
+  it("is nearer than the bead's stop: the flight goes in, toward the porthole", () => {
+    for (const a of SCREENS) {
+      for (const bead of BEADS) {
+        const stop = journeyPoseAt(stopForProject(bead.id), a).shot;
+        const close = focusShotFor(bead.id, a);
+        const distance = (shot: CameraShot) => Math.hypot(...shot.position.map((v, i) => v - shot.target[i]!));
+        expect(distance(close)).toBeLessThan(distance(stop));
+      }
+    }
+  });
+});
+
+describe("shotToward: the flight's straight move between two shots", () => {
+  const stop = journeyPoseAt(3, LAPTOP).shot;
+  const close = focusShotFor('funcial', LAPTOP);
+
+  it('is the first shot at 0 and the second at 1, exactly', () => {
+    expect(shotToward(stop, close, 0)).toEqual(stop);
+    expect(shotToward(stop, close, 1)).toEqual(close);
+  });
+
+  it('moves the camera, the look-at point and the field in straight lines, and the parallax with them', () => {
+    const mid = shotToward(stop, close, 0.5);
+    for (let i = 0; i < 3; i++) {
+      expect(mid.position[i]).toBeCloseTo((stop.position[i]! + close.position[i]!) / 2, 9);
+      expect(mid.target[i]).toBeCloseTo((stop.target[i]! + close.target[i]!) / 2, 9);
+    }
+    expect(mid.fov).toBeCloseTo((stop.fov + close.fov) / 2, 9);
+    expect(mid.sway).toBeCloseTo(((stop.sway ?? 1) + (close.sway ?? 1)) / 2, 9);
+    expect(Math.hypot(...(mid.up ?? [0, 0, 0]))).toBeCloseTo(1, 9);
+  });
+
+  it("never takes the camera into a bead's shell: from every stop into its porthole, on every screen", () => {
+    for (const a of SCREENS) {
+      for (const bead of BEADS) {
+        const from = journeyPoseAt(stopForProject(bead.id), a).shot;
+        const to = focusShotFor(bead.id, a);
+        for (let k = 0; k <= 100; k++) {
+          const at = shotToward(from, to, k / 100).position;
+          for (const other of BEADS) {
+            const centre = other.id === bead.id ? atStop(other) : other.centre;
+            expect(Math.hypot(at[0] - centre[0], at[1] - centre[1], at[2] - centre[2])).toBeGreaterThan(other.radius + 1);
+          }
+        }
+      }
+    }
+  });
+});
+
+// ---------------------------------------------------------------- the moves
+
+describe('focusPoseAt: where the camera is between the journey and a close view', () => {
+  it('rests on the journey\'s shot before any move: no bead, nothing dark, nothing moving', () => {
+    expect(focusPoseAt(FOCUS_AT_REST, 0)).toEqual({ id: null, amount: 0, dark: false, moving: false, engaged: false });
+    expect(focusPoseAt(FOCUS_AT_REST, 1e9).amount).toBe(0);
+  });
+
+  it('flies into a bead over FLIGHT_MS (0.8 s), eased: it leaves the stop and reaches the porthole with no speed', () => {
+    expect(FLIGHT_MS).toBe(800);
+    const move = moveFocus(FOCUS_AT_REST, 'funcial', 1000, 'fly');
+    expect(focusPoseAt(move, 1000).amount).toBe(0);
+    expect(focusPoseAt(move, 1000 + FLIGHT_MS / 2).amount).toBeCloseTo(0.5, 9);
+    expect(focusPoseAt(move, 1000 + FLIGHT_MS)).toEqual({ id: 'funcial', amount: 1, dark: false, moving: false, engaged: true });
+    expect(focusPoseAt(move, 1000 + 10).amount).toBeLessThan(0.001);
+    expect(1 - focusPoseAt(move, 1000 + FLIGHT_MS - 10).amount).toBeLessThan(0.001);
+    // On its way it is moving, not dark, and its bead is the one it flies to.
+    expect(focusPoseAt(move, 1300)).toMatchObject({ id: 'funcial', dark: false, moving: true, engaged: true });
+    // It never goes back on itself.
+    let last = 0;
+    for (let t = 1000; t <= 1000 + FLIGHT_MS; t += 8) {
+      const { amount } = focusPoseAt(move, t);
+      expect(amount).toBeGreaterThanOrEqual(last);
+      last = amount;
+    }
+  });
+
+  it('flies back out to the journey\'s shot over the same time, and then lets the bead go', () => {
+    const inside = moveFocus(FOCUS_AT_REST, 'cookies-clicker', 0, 'fly');
+    const out = moveFocus(inside, null, 5000, 'fly');
+    expect(focusPoseAt(out, 5000)).toMatchObject({ id: 'cookies-clicker', amount: 1, moving: true });
+    expect(focusPoseAt(out, 5000 + FLIGHT_MS / 2).amount).toBeCloseTo(0.5, 9);
+    expect(focusPoseAt(out, 5000 + FLIGHT_MS)).toEqual({ id: null, amount: 0, dark: false, moving: false, engaged: false });
+  });
+
+  it("fades as M2a's step fade does: dark for its 150 ms on the view it leaves, then at once on the one it goes to", () => {
+    expect(FOCUS_FADE_MS).toBe(STEP_FADE_MS);
+    const move = moveFocus(FOCUS_AT_REST, 'jontai-energy', 2000, 'fade');
+    expect(focusPoseAt(move, 2000)).toEqual({ id: null, amount: 0, dark: true, moving: true, engaged: true });
+    expect(focusPoseAt(move, 2000 + FOCUS_FADE_MS - 1)).toMatchObject({ id: null, amount: 0, dark: true });
+    expect(focusPoseAt(move, 2000 + FOCUS_FADE_MS)).toEqual({ id: 'jontai-energy', amount: 1, dark: false, moving: false, engaged: true });
+    const back = moveFocus(move, null, 9000, 'fade');
+    expect(focusPoseAt(back, 9000)).toMatchObject({ id: 'jontai-energy', amount: 1, dark: true });
+    expect(focusPoseAt(back, 9000 + FOCUS_FADE_MS)).toEqual({ id: null, amount: 0, dark: false, moving: false, engaged: false });
+  });
+
+  it("never flies from one bead's close view to another's: that is a fade", () => {
+    const funcial = moveFocus(FOCUS_AT_REST, 'funcial', 0, 'fly');
+    expect(moveFocus(funcial, 'cookies-clicker', 5000, 'fly').mode).toBe('fade');
+    // From the journey's shot any bead may be flown to, and from a bead back out.
+    expect(moveFocus(FOCUS_AT_REST, 'cookies-clicker', 5000, 'fly').mode).toBe('fly');
+    expect(moveFocus(funcial, null, 5000, 'fly').mode).toBe('fly');
+  });
+
+  it('starts a move from wherever the last one stands: a flight turned back half way goes on from there, with no jump', () => {
+    const going: FocusMove = moveFocus(FOCUS_AT_REST, 'funcial', 0, 'fly');
+    const half = focusPoseAt(going, FLIGHT_MS / 2).amount;
+    const turned = moveFocus(going, null, FLIGHT_MS / 2, 'fly');
+    expect(focusPoseAt(turned, FLIGHT_MS / 2).amount).toBeCloseTo(half, 12);
+    expect(focusPoseAt(turned, FLIGHT_MS / 2 + FLIGHT_MS).amount).toBe(0);
+  });
+});
+
+describe('focusGoalFor: the close view the page asks for', () => {
+  it('is the project of a project page', () => {
+    expect(focusGoalFor({ kind: 'PROJECT_FOCUS', id: 'funcial' }, 'project', null)).toBe('funcial');
+    expect(focusGoalFor({ kind: 'PROJECT_FOCUS', id: 'cookies-clicker' }, 'project', null)).toBe('cookies-clicker');
+  });
+
+  it('is the bead being opened while its flight runs on the home page, before the router has gone to the page', () => {
+    expect(focusGoalFor({ kind: 'PROJECTS', category: 'oscillator' }, 'home', 'cookies-clicker')).toBe('cookies-clicker');
+    expect(focusGoalFor({ kind: 'PROJECT_FOCUS', id: 'jontai-energy' }, 'home', 'jontai-energy')).toBe('jontai-energy');
+  });
+
+  it('is none on the home page otherwise, even in PROJECT_FOCUS (the proof bridge\'s OPEN_PROJECT on the home)', () => {
+    expect(focusGoalFor({ kind: 'PROJECT_FOCUS', id: 'funcial' }, 'home', null)).toBeNull();
+    expect(focusGoalFor({ kind: 'PROJECTS', category: 'secure-element' }, 'home', null)).toBeNull();
+    expect(focusGoalFor({ kind: 'HOME_IDLE' }, 'home', null)).toBeNull();
+    expect(focusGoalFor({ kind: 'LOADING' }, null, null)).toBeNull();
+  });
+
+  it('is none for a project that has no bead', () => {
+    expect(focusGoalFor({ kind: 'PROJECT_FOCUS', id: 'nope' }, 'project', null)).toBeNull();
+  });
+});
+
+describe("restsAt: a flight leaves only from its bead's own stop, at rest", () => {
+  it("is true at the bead's stop with the story resting there, and at the end for the last bead, which holds it", () => {
+    expect(restsAt('funcial', 3, 3)).toBe(true);
+    expect(restsAt('jontai-energy', 4, 4)).toBe(true);
+    expect(restsAt('cookies-clicker', 5, 5)).toBe(true);
+    expect(restsAt('cookies-clicker', 6, 6)).toBe(true);
+  });
+
+  it("is false on the way, at another bead's stop, held in the tunnel, or for no bead", () => {
+    expect(restsAt('funcial', 3, 3.4)).toBe(false);
+    expect(restsAt('funcial', 3.5, 3.5)).toBe(false);
+    expect(restsAt('jontai-energy', 3, 3)).toBe(false);
+    expect(restsAt('funcial', 1.475, 1.475)).toBe(false);
+    expect(restsAt('funcial', 1, 1)).toBe(false);
+    expect(restsAt(null, 3, 3)).toBe(false);
+  });
+});

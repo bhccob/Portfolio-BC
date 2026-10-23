@@ -1,12 +1,24 @@
 import { useEffect } from 'react';
 import { NavigationType, useLocation, useNavigationType } from 'react-router';
-import { projects } from '~/data/projects';
+import { PAGES } from '~/data/pages';
+import { type ProjectId, projects } from '~/data/projects';
 import { routeFromPath } from '~/i18n/locale';
 import { type Locale, Translator } from '~/i18n/Translator';
 import { chapterAt, HOME_CHAPTERS } from './chapters';
 import { frame } from './frame';
 import { type Phase, samePhase, transition } from './machine';
 import { useScene } from './store';
+
+/**
+ * The stop of a project on the home's scroll, where its bead is selected: the start of the PROJECTS unit of its
+ * category (~/state/chapters), so 3 for Funcial, 4 for Jontai Energy and 5 for Cookies Clicker.
+ */
+export function stopForProject(id: ProjectId): number {
+  const category = projects.byId(id)?.categoryId;
+  const unit = HOME_CHAPTERS.units.find((u) => u.id === 'PROJECTS' && u.category === category);
+  if (!unit) throw new TypeError(`no stop on the home's scroll for the project "${id}"`);
+  return unit.start;
+}
 
 /**
  * The phase a URL stands for: a project page. The home page, and every page without a scene (Lite, contact,
@@ -81,11 +93,27 @@ function phaseFromScroll(): Phase {
 }
 
 /**
+ * Puts the story at `place` at once, at rest: progress and target there, its chapter in step. The home's scroll input,
+ * which mounts with the home page right after this sync, holds the target to the void's hold as it holds any input's
+ * (src/input/scrollLoop.ts `startHomeScroll`).
+ */
+function placeStory(place: number): void {
+  frame.progress = frame.target = place;
+  frame.velocity = 0;
+  frame.chapterIndex = chapterAt(HOME_CHAPTERS, place).index;
+}
+
+/**
  * Brings the scene's phase in line with the location the router now shows:
  * - a project page gives its phase, unless the scene is already in it (a language switch keeps
- *   the phase and its transition);
+ *   the phase and its transition; a bead opened from the home is in it from its flight on);
+ * - the home page, left a project page for (Back, Escape, any link home), puts the story at that project's stop
+ *   (`stopForProject`, spec §2.4: "Esc or back flies out again to the same bead in the void, at its stop of the
+ *   scroll"), wherever the scroll was before the page and however the visit began, and the phase follows it;
  * - any other location leaves a page phase for the phase the scroll is in. A scene that is not on a page
  *   (loading, or already on the scroll) is left alone: the scroll and the scene's own events own those.
+ * Every navigation lets go of a bead being opened (`frame.focus.opening`): its flight has brought the router to its
+ * page, or the visit went elsewhere meanwhile, and its page asks for the close view from here on.
  *
  * A direct load of a page takes LOADING straight to that page's phase, and the scene's `LOADED` is then ignored
  * (it applies from LOADING only): leaving LOADING does not mean the scene's assets are ready.
@@ -97,12 +125,15 @@ function phaseFromScroll(): Phase {
 export function syncRoute(location: { pathname: string; key: string }, navigationType?: NavigationType): void {
   if (loadedOn === null || (navigationType === NavigationType.Replace && shown === loadedOn)) loadedOn = location.key;
   shown = location.key;
+  frame.focus.opening = null;
 
   const { phase, dispatch } = useScene.getState();
   const own = phaseForPath(location.pathname);
   if (own) {
     if (!samePhase(phase, own)) dispatch({ type: 'ROUTE', phase: own });
   } else if (phase.kind === 'PROJECT_FOCUS') {
+    const project = projects.byId(phase.id);
+    if (project && routeFromPath(location.pathname) === PAGES.home) placeStory(stopForProject(project.id));
     dispatch({ type: 'ROUTE', phase: phaseFromScroll() });
   }
 }

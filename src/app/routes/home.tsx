@@ -5,6 +5,7 @@ import { localeFromPath } from '~/i18n/locale';
 import { translatorFor, useTranslator } from '~/i18n/useTranslator';
 import { head } from '~/seo/head';
 import { personLd, websiteLd } from '~/seo/structured';
+import { BeadLabels } from '~/ui/BeadLabel';
 import { HANDLES, type RouteHandle } from '../handle';
 
 export const meta: MetaFunction = ({ location }) => {
@@ -34,6 +35,10 @@ export default function Home() {
           <span className="hero-cue-word">{t.needle.hero.scrollCue}</span>
         </p>
       </section>
+
+      {/* The selected bead's label in the void, one per project: hidden until the scene shows one beside its bead, at
+          its stop (src/ui/BeadLabel.tsx). Before the nav, so Tab reaches a shown label first in the page. */}
+      <BeadLabels />
 
       {/* Visible while 3D is off; while it is on the scene is the way in, and this stays for
           crawlers and keyboards: visually hidden, shown again while a link has focus. The way to About is the header's. */}

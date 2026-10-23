@@ -1,6 +1,8 @@
 // Types only: this module is in the entry bundle, which must not pull in three.js.
+import type { ProjectId } from '~/data/projects';
 import type { LoaderStage } from '~/engine/bob/loaderTimeline';
 import type { CameraShot } from '~/engine/bob/shots';
+import type { FocusMove } from '~/scene/bob/focus';
 import type { Stretch } from '~/scene/bob/journey';
 import type { VoidState } from './store';
 
@@ -85,4 +87,20 @@ export const frame = {
    * scroll the home or the page.
    */
   loaderSkipEndsMs: null as number | null,
+  /**
+   * A bead seen close (src/scene/bob/focus.ts, Ruling 4): the camera's move between the journey's shot and a bead's
+   * close view, and the bead being opened.
+   * - `move`: the last move begun, on the clock of `performance.now()`; at rest on the journey's shot until one is. The
+   *   Opening begins one whenever the close view the page asks for (`focusGoalFor`) is not the one the move goes to: the
+   *   page's own (a project page, a direct arrival included) by a fade, and back out to the journey on leaving it, by a
+   *   flight from the bead's own stop or else a fade. It lives with the document, so a flight goes on across the route
+   *   change, and the canvas finds it where it is on its next frame.
+   * - `opening`: the bead whose label or shell was clicked (src/ui/BeadLabel.tsx `openBead`), from the click until the
+   *   next navigation (src/state/routeSync.ts lets it go): its flight runs on the home page, and the router goes to its
+   *   page once the flight is in; null otherwise.
+   */
+  focus: {
+    move: { from: { id: null, amount: 0 }, to: null, at: Number.NEGATIVE_INFINITY, mode: 'fade' } as FocusMove,
+    opening: null as ProjectId | null,
+  },
 };

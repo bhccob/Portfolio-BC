@@ -24,6 +24,7 @@ const SCROLL_GRACE_MS = 250;
  *     until the landing, whatever the input does;
  *   - the compass is not asleep (engine/stillness: its needle drifting or still swinging);
  *   - something in the void moves on screen (`motion.beads`: a selected or hovered bead's object, a hover easing);
+ *   - the camera flies into a bead's porthole or out, or a fade waits to jump to or from its close view (`motion.focus`);
  *   - the pointer parallax is still damping;
  *   - the story is moving: `frame.progress` is not on `frame.target`, or `frame.velocity` is not 0, while the
  *     scroll loop runs;
@@ -62,7 +63,7 @@ export function Heartbeat(): null {
     if (frame.contextLost || useScene.getState().scene === null) return;
     const now = performance.now();
     const scrolling = now - motion.scrolledAt < SCROLL_GRACE_MS && (frame.progress !== frame.target || Math.abs(frame.velocity) > 0);
-    if (motion.loader || !asleep(motion.compass) || motion.beads || motion.parallax || scrolling || now < transitionUntil.current) invalidate();
+    if (motion.loader || !asleep(motion.compass) || motion.beads || motion.focus || motion.parallax || scrolling || now < transitionUntil.current) invalidate();
   });
 
   return null;

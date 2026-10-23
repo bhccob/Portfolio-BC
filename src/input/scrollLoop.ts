@@ -170,7 +170,8 @@ export interface HomeScroll {
  * swipe or End past it rests on it, and a glide that presses into it is ended there, as at the end. The place the input
  * asked for past it is kept (`asked`), until the next input that stays within it: when the hold rises
  * (`holdChanged`) the story goes on from the hold toward it (`releaseTarget`). Nothing past the hold is stored as a
- * debt: scrolling back up from the hold moves the story at once.
+ * debt: scrolling back up from the hold moves the story at once. A story that is already past the hold when this
+ * starts (the route sync's Back to a bead's stop) is held the same way, its progress with it.
  */
 export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
   const { frame, chapters } = o;
@@ -213,6 +214,21 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
     swallow: o.swallow,
     wake: loop.wake,
   });
+
+  // A story placed past the hold while the input was away (Back from a project page puts it at the bead's stop,
+  // src/state/routeSync.ts) is held as an input's would be: the target rests on the hold and what was asked is kept
+  // for `holdChanged` to let go; the story waits there too, so the camera never comes out into a void not yet there,
+  // and its chapter follows it.
+  if (frame.target > limitNow()) {
+    askFor(frame.target);
+    frame.progress = Math.min(frame.progress, frame.target);
+    frame.velocity = 0;
+    const at = changedChapter(chapters, frame.progress, frame.chapterIndex, true);
+    if (at) {
+      frame.chapterIndex = at.index;
+      o.onChapter(at);
+    }
+  }
 
   // Back from another page with the story still on its way: finish the move.
   loop.wake();

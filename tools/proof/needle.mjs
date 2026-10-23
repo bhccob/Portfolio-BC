@@ -45,7 +45,7 @@
  *              history entry), then history.back() to / and history.forward(): the Stage mounted once and
  *              the same <canvas> node throughout, with no document load after the first; the scene's phase
  *              is PROJECT_FOCUS funcial on the project page, the language switch keeps that very phase (no new
- *              transition), going back to / puts it on the scroll's phase and going forward restores it
+ *              transition), going back to / puts it at Funcial's stop (Task 12) and going forward restores it
  *   lang-keeps-phase  on /projects/funcial/ the phase is PROJECT_FOCUS funcial; after a client-side switch to
  *              /en/projects/funcial/ (and back) it is still PROJECT_FOCUS funcial, the very same state, with locale and
  *              route right, canvasMounts 1 and the same <canvas>; the same on /projects/cookies-clicker/
@@ -73,8 +73,9 @@
  *              visit began on its place: after the language switch, or the contact form's ?sent=1 replaced by
  *              /contact/, Escape still goes home (in the current language). Clicking the link does what Escape
  *              does, in both cases, but a ctrl-, meta- or shift-click is left to the browser (its default is
- *              not prevented). The scene's phase follows: the page's on the page, the scroll's (HOME_IDLE) on
- *              the home page. The "Esc" hint is aria-hidden and hidden on a touch screen
+ *              not prevented). The scene's phase follows: the page's on the page, and on the home page the stop
+ *              of the page's bead (Funcial's, PROJECTS secure-element at 3; Task 12). The "Esc" hint is aria-hidden
+ *              and hidden on a touch screen
  *   nav-focus  a link (a push) opens the new page at its top with the focus moved to <main>: on /lite/ scrolled down to
  *              the projects, a click on one shows its <h1> at scrollY 0, and Tab goes on inside the new page; Back (a
  *              pop) returns near the place left; the language switch (a replace) keeps the place, the project on screen
@@ -464,6 +465,28 @@ const waitForPhase = async (page, kind) => {
   });
 };
 
+/**
+ * The scene's phase once the story rests at the stop of project category `category` (`PROJECTS`, progress and target
+ * on the stop), as `{ kind, category, progress, target }`: where Back or Escape from a project page lands (Task 12,
+ * src/state/routeSync.ts). It waits up to `timeout` ms, as the story may first wait in the dive's hold for the void.
+ */
+const waitForStop = async (page, category, timeout = 15_000) => {
+  await page
+    .waitForFunction(
+      (category) => {
+        const s = window.__needleDebug?.();
+        return s?.phase.kind === 'PROJECTS' && s.phase.category === category && s.progress === s.target && s.chapter.local === 0;
+      },
+      category,
+      { timeout },
+    )
+    .catch(() => {});
+  return page.evaluate(() => {
+    const { phase, progress, target } = window.__needleDebug();
+    return { kind: phase.kind, category: phase.category, progress, target };
+  });
+};
+
 /** The scene's phase once it is PROJECT_FOCUS on project `id` (a project page), as `{ kind, id }`. */
 const waitForProject = async (page, id) => {
   await page
@@ -533,8 +556,12 @@ async function persist(browser, step) {
   await page.evaluate(() => history.back());
   await page.waitForURL((url) => url.pathname === '/'); // the first URL was /?proof
   await expectSame('history.back() past the replaced entry to /', 'nl', HOME_H1);
-  const afterBack = await waitForPhase(page, 'HOME_IDLE');
-  step.check(afterBack.kind === 'HOME_IDLE', `going back to / puts the scene on the scroll's phase (got ${JSON.stringify(afterBack)})`);
+  // Back from a project page lands at its bead's stop (spec §2.4), here Funcial's, 3, once the void is in.
+  const afterBack = await waitForStop(page, 'secure-element');
+  step.check(
+    afterBack.kind === 'PROJECTS' && afterBack.category === 'secure-element' && afterBack.progress === 3,
+    `going back to / puts the scene at Funcial's stop, PROJECTS secure-element at 3 (got ${JSON.stringify(afterBack)})`,
+  );
   await page.evaluate(() => history.forward());
   await page.waitForURL(`${BASE}/en/projects/funcial/`);
   await expectSame('history.forward() to /en/projects/funcial/', 'en', FUNCIAL_H1);
@@ -653,8 +680,11 @@ async function esc(browser, step) {
   await page.waitForURL(`${BASE}/`, { timeout: 5_000 });
   step.check((await page.textContent('h1')) === HOME_H1, 'a direct load of /projects/funcial/ + Escape lands on the home page');
   step.check(documents.length === 0, `by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
-  const afterDirect = await waitForPhase(page, 'HOME_IDLE');
-  step.check(afterDirect.kind === 'HOME_IDLE', `leaving the page for the home page puts the scene back on the scroll's phase (got ${JSON.stringify(afterDirect)})`);
+  const afterDirect = await waitForStop(page, 'secure-element');
+  step.check(
+    afterDirect.kind === 'PROJECTS' && afterDirect.category === 'secure-element' && afterDirect.progress === 3,
+    `leaving the page for the home page puts the scene at the bead's stop, Funcial's 3 (got ${JSON.stringify(afterDirect)})`,
+  );
   await takeCsp(page, step);
 
   // A page reached from the home page has one before it: Escape steps back, it does not push the home page.
@@ -668,7 +698,7 @@ async function esc(browser, step) {
   await pressEscape();
   step.check(pathname() === '/', `a project page reached from the home page + Escape steps back to the home page (got ${pathname()})`);
   step.check(documents.length === 0, `by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
-  await waitForPhase(page, 'HOME_IDLE');
+  await waitForStop(page, 'secure-element');
   await page.evaluate(() => history.forward());
   const forwarded = await page.waitForURL(`${BASE}/projects/funcial/`, { timeout: 5_000 }).then(() => true, () => false);
   step.check(forwarded, 'the page forward is still in the history, so Escape went back and did not add the home page');
@@ -1602,11 +1632,12 @@ async function scrollDesktop(browser, step) {
   await page.click('a.back');
   await page.waitForURL((url) => url.pathname === '/', { timeout: 5_000 });
   await expectPhase(page, step, 'DISSECT', "coming back to / puts the scene on the scroll's phase, DISSECT, and not on HOME_IDLE");
+  // Task 12: Back from a project page lands at its bead's stop (spec §2.4), not where the scroll was before the page.
   const back = await frameOf(page);
-  step.check(near(back.progress, mid.progress) && back.chapterIndex === 1, `the story is where it was left (got ${JSON.stringify(back)})`);
+  step.check(near(back.progress, 3) && back.chapterIndex === 3, `the story is at Funcial's stop, 3, where Back from its page lands (got ${JSON.stringify(back)})`);
   await page.keyboard.press('PageDown');
   const resumed = await restAt(page);
-  step.check(near(resumed.target, 3), `and the scroll goes on from there (got ${resumed.target})`);
+  step.check(near(resumed.target, 3.9), `and the scroll goes on from there (got ${resumed.target})`);
   await page.keyboard.press('Home');
   await restAt(page);
 

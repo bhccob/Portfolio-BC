@@ -22,6 +22,11 @@ export const motion = {
    * the home's scene, and while the void is not shown.
    */
   beads: false,
+  /**
+   * The camera is on its way into a bead's close view or back out (src/scene/bob/focus.ts): a flight eases, or a
+   * fade's dark half waits for the frame that jumps the shot. Written by the Opening on each frame it poses the home.
+   */
+  focus: false,
   /** When the scroll loop last asked for a frame (performance.now() ms), or -Infinity. */
   scrolledAt: Number.NEGATIVE_INFINITY,
 };
@@ -52,4 +57,5 @@ export function resetMotion(): void {
   motion.parallax = false;
   motion.loader = false;
   motion.beads = false;
+  motion.focus = false;
 }

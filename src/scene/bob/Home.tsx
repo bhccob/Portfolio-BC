@@ -51,6 +51,10 @@ export interface HomeModels {
  * once, at the progress it stands the camera at, before the Rig: its shot is the camera's, and Home (the rise) and the
  * Void (the void, the beads, the needle out of the compass) pose the scene from it, so all three agree in every frame.
  * Null while the Opening poses the scene itself (the loader, a held seek) and once it is gone; set whenever `live` is.
+ *
+ * `focus` is true while the camera is at a bead's close view or on its way to or from one (src/scene/bob/focus.ts
+ * `FocusPose.engaged`): a project page, a flight into a porthole or out, a fade to or from a close view. The Void then
+ * shows no label and reads no pointer. The Opening sets it on each frame it poses the home, before Home and the Void.
  */
 export interface Handover {
   live: boolean;
@@ -58,6 +62,7 @@ export interface Handover {
   needle: number;
   shown: number;
   pose: JourneyPose | null;
+  focus: boolean;
 }
 
 export interface HomeProps {

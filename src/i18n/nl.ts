@@ -357,7 +357,9 @@ export const nl: Dictionary = {
     toggle: { label: '3D', on: '3D aan', off: '3D uit' },
     liteLink: 'Lichte versie',
     morph: 'Dezelfde kracht die schepen stuurde, bewaart nu onze data.',
-    project: { open: 'Openen', download: 'Downloaden', code: 'Code', back: 'Esc · terug' }
+    project: { open: 'Openen', download: 'Downloaden', code: 'Code', back: 'Esc · terug' },
+    // The bead's label (src/ui/BeadLabel.tsx): spec §2.4's wording, not the copy budget's.
+    bead: { hint: 'Klik om te openen', hintTouch: 'Tik om te openen' }
   },
   compass: {
     meta: {

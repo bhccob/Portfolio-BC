@@ -376,7 +376,12 @@ export const en = {
     /** The link to the Lite page that every page shows. */
     liteLink: 'Lite version',
     morph: 'The same force that guided ships now stores our data.',
-    project: { open: 'Open', download: 'Download', code: 'Code', back: 'Esc · back' }
+    project: { open: 'Open', download: 'Download', code: 'Code', back: 'Esc · back' },
+    /**
+     * The selected bead's label in the void (src/ui/BeadLabel.tsx): the hint under the title, for a pointer and for a
+     * touch screen. Not in the copy budget: spec §2.4's own wording, which Bob may change.
+     */
+    bead: { hint: 'Click to open', hintTouch: 'Tap to open' }
   },
   /**
    * The redesign's compass page (/lab/compass/): its head, the hero's role line
