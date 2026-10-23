@@ -36,9 +36,12 @@ import { glowTexture, random } from '~/engine/studio/noise';
  *
  * - `ceiling`: the glass's underside, an annulus from the hole out to the floor's reach, at the foot of the tunnel
  *   (`GLASS_LOOK.well.bottom`, the preview's WELL_BOTTOM), the glass's own numbers so the two stay one slab. It is
- *   the floor's near-black glass (`roughness`, and the `specular` that keeps its grazing reflection to 5 %), one
- *   ring of `segments` sides to match the well's wall above it. It faces down and is single-sided, so from above (the
- *   dive's first half) it is not there and the void shows through the hole.
+ *   the floor's near-black glass (and the `specular` that keeps its grazing reflection to 5 %), one ring of `segments`
+ *   sides to match the well's wall above it, but rougher than the floor's 0.08: at that the studio's violet rim light
+ *   (LOOK.rim, which comes from under the glass) drew a hard violet streak on it under the header at the overview and at
+ *   Jontai Energy's stop (Task 11, in the scene: 348 strongly violet pixels at 1440x900 at the overview); at `roughness`
+ *   0.45 there is none, and the void stills' mean luma moves by under 0.001. It faces down and is single-sided, so from
+ *   above (the dive's first half) it is not there and the void shows through the hole.
  * - `traces`: the glass's own trace layout (~/engine/bob/traces) laid under the ceiling in the gold, at `level` of
  *   it (`TracesModel.setLevel`'s units): the preview's 0.35 emission, against 0.65 under the home's glass, which
  *   the floor's 88 % dims to a tenth of the brightness these are seen in.
@@ -71,7 +74,7 @@ export const VOID_LOOK = {
     outer: GLASS_LOOK.floor.outer,
     segments: GLASS_LOOK.segments,
     colour: GLASS_LOOK.floor.colour,
-    roughness: GLASS_LOOK.floor.roughness,
+    roughness: 0.45,
     specular: GLASS_LOOK.floor.specular
   },
   traces: { level: 0.35 },
@@ -212,6 +215,10 @@ function cloud(count: number): Cloud {
  * so the light thins to nothing at the outline. `vBeamAlong` is 0 at the opening and 1 at the cone's far end (the
  * geometry hangs from the origin down), and the light falls as `(1 - along)^fall`. Both stages declare the varyings
  * once; the rest of three's basic shader (the clipping planes, the tone mapping, the colour space) is as it was.
+ *
+ * The base of each power is held to 0..1 in the fragment stage: an interpolated varying can stray an ulp past what the
+ * vertices hold, and at the cone's far end `1 - along` a hair under 0 makes `pow` NaN. The post chain's bloom then
+ * spreads that one pixel over the whole frame, which goes black (a phone's overview sees the far end, Task 11).
  */
 function patchBeam(shader: { vertexShader: string; fragmentShader: string }): void {
   const { edge, fall, length } = VOID_LOOK.beam;
@@ -226,7 +233,7 @@ function patchBeam(shader: { vertexShader: string; fragmentShader: string }): vo
     .replace('#include <common>', `#include <common>\n${varyings}`)
     .replace(
       '#include <color_fragment>',
-      `#include <color_fragment>\n\tdiffuseColor.a *= pow( abs( dot( normalize( vBeamNormal ), normalize( vBeamView ) ) ), ${glsl(edge)} ) * pow( 1.0 - vBeamAlong, ${glsl(fall)} );`
+      `#include <color_fragment>\n\tdiffuseColor.a *= pow( clamp( abs( dot( normalize( vBeamNormal ), normalize( vBeamView ) ) ), 0.0, 1.0 ), ${glsl(edge)} ) * pow( clamp( 1.0 - vBeamAlong, 0.0, 1.0 ), ${glsl(fall)} );`
     );
 }
 

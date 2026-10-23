@@ -420,6 +420,22 @@ describe('the beam', () => {
     expect(m.customProgramCacheKey()).toBe('bob-void-beam');
     v.dispose();
   });
+
+  it('holds the base of every power in its patch to 0..1, so no fragment is ever NaN', () => {
+    // An interpolated varying can stray an ulp past the ends of what the vertices hold: 1.0 - vBeamAlong a hair under 0
+    // at the far end of the beam, whose pow() is NaN; the bloom's mip chain then spreads one NaN pixel over the whole
+    // frame, black (a phone's overview, Task 11).
+    const v = buildVoid('high');
+    const m = beamMaterial(v);
+    const shader = { uniforms: {} as Record<string, THREE.IUniform>, vertexShader: THREE.ShaderLib.basic.vertexShader, fragmentShader: THREE.ShaderLib.basic.fragmentShader };
+    m.onBeforeCompile(shader as never, {} as never);
+    const patch = shader.fragmentShader.slice(shader.fragmentShader.indexOf('diffuseColor.a *='));
+    const bases = [...patch.matchAll(/pow\(\s*(clamp\()?/g)];
+    expect(bases.length).toBe(2);
+    for (const base of bases) expect(base[1], base[0]).toBe('clamp(');
+    expect(patch).toContain('clamp( 1.0 - vBeamAlong, 0.0, 1.0 )');
+    v.dispose();
+  });
 });
 
 describe('the light', () => {
