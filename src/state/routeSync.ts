@@ -52,6 +52,17 @@ export function backTarget(arrivedDirect: boolean): 'history' | 'home' {
   return arrivedDirect ? 'home' : 'history';
 }
 
+/**
+ * The navigation state the page's own Back (its Escape, its "Esc · terug" link, ~/ui/BackLink) pushes the home page
+ * with, when the page was where the visit began: so the route sync knows it from a link home (Ruling 29).
+ */
+export const BACK_STATE: Readonly<{ back: true }> = Object.freeze({ back: true });
+
+/** True for the page's own Back's navigation state (`BACK_STATE`), as the history hands it back (a copy). */
+export function isBackState(state: unknown): boolean {
+  return typeof state === 'object' && state !== null && (state as { back?: unknown }).back === true;
+}
+
 // ---------------------------------------------------------------- where the visit began
 
 /** The history entry (its router key) the document was loaded on; set by the first sync. */
@@ -107,9 +118,12 @@ function placeStory(place: number): void {
  * Brings the scene's phase in line with the location the router now shows:
  * - a project page gives its phase, unless the scene is already in it (a language switch keeps
  *   the phase and its transition; a bead opened from the home is in it from its flight on);
- * - the home page, left a project page for (Back, Escape, any link home), puts the story at that project's stop
- *   (`stopForProject`, spec §2.4: "Esc or back flies out again to the same bead in the void, at its stop of the
- *   scroll"), wherever the scroll was before the page and however the visit began, and the phase follows it;
+ * - the home page, left a project page for by Back (a history pop) or by the page's own Back (its Escape and its
+ *   "Esc · terug" link, which push the home page with `BACK_STATE` when the visit began on the page), puts the story at
+ *   that project's stop (`stopForProject`, spec §2.4: "Esc or back flies out again to the same bead in the void, at its
+ *   stop of the scroll"), wherever the scroll was before the page and however the visit began; by any other way (the
+ *   header's name, any link to the home) it puts the story at the home, 0, a deliberate "to the top" (Ruling 29); the
+ *   phase follows it;
  * - any other location leaves a page phase for the phase the scroll is in. A scene that is not on a page
  *   (loading, or already on the scroll) is left alone: the scroll and the scene's own events own those.
  * Every navigation lets go of a bead being opened (`frame.focus.opening`): its flight has brought the router to its
@@ -122,7 +136,7 @@ function placeStory(place: number): void {
  * loaded on moves `loadedOn` to the entry's new key, so `arrivedDirectly()` stays true. Without a type the
  * navigation counts as a push.
  */
-export function syncRoute(location: { pathname: string; key: string }, navigationType?: NavigationType): void {
+export function syncRoute(location: { pathname: string; key: string; state?: unknown }, navigationType?: NavigationType): void {
   if (loadedOn === null || (navigationType === NavigationType.Replace && shown === loadedOn)) loadedOn = location.key;
   shown = location.key;
   frame.focus.opening = null;
@@ -133,16 +147,20 @@ export function syncRoute(location: { pathname: string; key: string }, navigatio
     if (!samePhase(phase, own)) dispatch({ type: 'ROUTE', phase: own });
   } else if (phase.kind === 'PROJECT_FOCUS') {
     const project = projects.byId(phase.id);
-    if (project && routeFromPath(location.pathname) === PAGES.home) placeStory(stopForProject(project.id));
+    if (project && routeFromPath(location.pathname) === PAGES.home) {
+      const back = navigationType === NavigationType.Pop || isBackState(location.state);
+      placeStory(back ? stopForProject(project.id) : 0);
+    }
     dispatch({ type: 'ROUTE', phase: phaseFromScroll() });
   }
 }
 
 /** Syncs the scene's phase to the URL after every navigation, the first load included. */
 export function useRouteSync(): void {
-  const { pathname, key } = useLocation();
+  const { pathname, key, state } = useLocation();
   const navigationType = useNavigationType();
   useEffect(() => {
-    syncRoute({ pathname, key }, navigationType);
+    // The entry's state comes with its key (a new state is a new entry), so the key stands for it here.
+    syncRoute({ pathname, key, state }, navigationType);
   }, [pathname, key, navigationType]);
 }

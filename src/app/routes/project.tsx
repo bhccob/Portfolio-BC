@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { type MetaFunction, useLocation } from 'react-router';
 import { PAGES } from '~/data/pages';
 import { profile } from '~/data/profile';
@@ -9,6 +10,7 @@ import { notFoundMeta } from '~/seo/notFound';
 import { breadcrumbLd, projectLd } from '~/seo/structured';
 import { BackLink } from '~/ui/BackLink';
 import { NotFoundPage } from '~/ui/NotFoundPage';
+import { usePageFadeOut } from '~/ui/pageLeave';
 import { HANDLES, type RouteHandle } from '../handle';
 
 export const meta: MetaFunction = ({ location }) => {
@@ -40,6 +42,10 @@ export const handle: RouteHandle = HANDLES.project;
 export default function ProjectPage() {
   const i18n = useTranslator();
   const { t, locale } = i18n;
+  // Left for the home page (Back, Escape, the header's name), the page and its scrim fade out over the camera's flight
+  // out of the bead instead of vanishing at once (Ruling 30).
+  const article = useRef<HTMLElement>(null);
+  usePageFadeOut(article);
   const project = projects.byRoute(routeFromPath(useLocation().pathname));
   if (!project) return <NotFoundPage />;
   const copy = project.copy(locale);
@@ -50,7 +56,7 @@ export default function ProjectPage() {
   ];
 
   return (
-    <article className="page">
+    <article className="page" ref={article}>
       <BackLink />
       <p className="label">{project.category.heading(locale)}</p>
       <h1 className="page-title">{project.title}</h1>

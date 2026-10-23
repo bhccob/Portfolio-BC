@@ -7,7 +7,7 @@ import { localeFromPath } from '../../src/i18n/locale';
 import { nl } from '../../src/i18n/nl';
 import { Translator } from '../../src/i18n/Translator';
 import { translatorFor } from '../../src/i18n/useTranslator';
-import { resetRouteSync, syncRoute } from '../../src/state/routeSync';
+import { BACK_STATE, resetRouteSync, syncRoute } from '../../src/state/routeSync';
 import { BackLink, goBack, homeTarget, isEditableTarget, isPlainClick, popoverIsOpen, splitBackLabel } from '../../src/ui/BackLink';
 
 /** The back link as the server renders it, on a page at `path`. */
@@ -58,6 +58,14 @@ describe('goBack', () => {
     syncRoute({ pathname: '/contact/', key: 'r1' }, NavigationType.Replace);
     goBack(navigate, '/');
     expect(calls).toEqual(['/']);
+  });
+
+  it("says it is the page's own Back when it pushes the home page, so the story lands at the bead's stop (Ruling 29)", () => {
+    const options: unknown[] = [];
+    const recording = ((to: unknown, opts?: unknown) => void options.push([to, opts])) as NavigateFunction;
+    syncRoute({ pathname: '/projects/cookies-clicker/', key: 'default' });
+    goBack(recording, '/');
+    expect(options).toEqual([['/', { state: BACK_STATE }]]);
   });
 
   it('goes back through the history when the visitor came from another page', () => {

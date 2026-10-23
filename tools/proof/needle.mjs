@@ -74,7 +74,8 @@
  *              /contact/, Escape still goes home (in the current language). Clicking the link does what Escape
  *              does, in both cases, but a ctrl-, meta- or shift-click is left to the browser (its default is
  *              not prevented). The scene's phase follows: the page's on the page, and on the home page the stop
- *              of the page's bead (Funcial's, PROJECTS secure-element at 3; Task 12). The "Esc" hint is aria-hidden
+ *              of the page's bead after Escape or Back (Funcial's, PROJECTS secure-element at 3; Task 12), but the
+ *              home itself (HOME_IDLE at 0) after the header's name, a link (Ruling 29). The "Esc" hint is aria-hidden
  *              and hidden on a touch screen
  *   nav-focus  a link (a push) opens the new page at its top with the focus moved to <main>: on /lite/ scrolled down to
  *              the projects, a click on one shows its <h1> at scrollY 0, and Tab goes on inside the new page; Back (a
@@ -685,6 +686,24 @@ async function esc(browser, step) {
     afterDirect.kind === 'PROJECTS' && afterDirect.category === 'secure-element' && afterDirect.progress === 3,
     `leaving the page for the home page puts the scene at the bead's stop, Funcial's 3 (got ${JSON.stringify(afterDirect)})`,
   );
+  await takeCsp(page, step);
+
+  // The header's name is a link to the home, not Back (Ruling 29): it lands at the home, the top of the story, even
+  // with the story at the bead's stop, as after a flight in from it.
+  await page.goto(`${BASE}/projects/funcial/?proof`, { waitUntil: 'load' });
+  await stageReady(page);
+  await waitForProject(page, 'funcial');
+  await page.evaluate(() => window.__needleDebug.set({ progress: 3 }));
+  documents.length = 0;
+  await page.click('.site-name');
+  await page.waitForURL(`${BASE}/`, { timeout: 5_000 });
+  await waitForPhase(page, 'HOME_IDLE').catch(() => {});
+  const named = await debugOf(page);
+  step.check(
+    named.phase.kind === 'HOME_IDLE' && named.progress === 0 && named.target === 0,
+    `the header's name on a project page lands at the home, 0, not at the bead's stop (got ${JSON.stringify([named.phase, named.progress, named.target])})`,
+  );
+  step.check(documents.length === 0, `by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
   await takeCsp(page, step);
 
   // A page reached from the home page has one before it: Escape steps back, it does not push the home page.
@@ -2547,6 +2566,9 @@ async function stills(browser, step) {
       step.check(arrived, `${at}: the opening lands (loader ${JSON.stringify((await debugOf(page))?.loader)})`);
       await page.evaluate(() => document.fonts.ready);
       await page.waitForTimeout(1_200); // the canvas's and the scrim's fade-in, and the hero's after the landing
+      // On the home, a project page left for it fades out with its scrim for 0.4 s (Ruling 30, .page-ghost): wait for
+      // that to be over before asking whether the home keeps the scene unveiled (at most 2 s; at once on a direct load).
+      if (!text) await page.waitForFunction(() => !document.querySelector('.page-ghost'), null, { timeout: 2_000 }).catch(() => {});
       const scrim = await scrims(page);
       if (text) {
         step.check(

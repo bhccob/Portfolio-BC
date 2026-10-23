@@ -3,7 +3,7 @@ import { Link, type NavigateFunction, useNavigate } from 'react-router';
 import { PAGES } from '~/data/pages';
 import type { Translator } from '~/i18n/Translator';
 import { useTranslator } from '~/i18n/useTranslator';
-import { arrivedDirectly, backTarget } from '~/state/routeSync';
+import { arrivedDirectly, BACK_STATE, backTarget } from '~/state/routeSync';
 
 /** The home page of the visitor's language: the link's address, which works without script and is what crawlers see. */
 export function homeTarget(translator: Translator): string {
@@ -12,11 +12,12 @@ export function homeTarget(translator: Translator): string {
 
 /**
  * Back, for a click and for Escape: one step back through the history when the visitor came here from
- * another page of the site, and to the home page when this page is where the visit began.
+ * another page of the site, and to the home page when this page is where the visit began, saying it is the page's own
+ * Back (`BACK_STATE`), so the route sync lands the story at the page's bead, as a history step back does (Ruling 29).
  */
 export function goBack(navigate: NavigateFunction, home: string): void {
   if (backTarget(arrivedDirectly()) === 'history') void navigate(-1);
-  else void navigate(home);
+  else void navigate(home, { state: BACK_STATE });
 }
 
 /** True for a left click with no modifier key; any other click (a new tab, a download) is left to the browser. */

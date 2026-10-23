@@ -177,9 +177,35 @@ body:has(.page) .scene-host[data-ready]::after {
   }
 }
 
-html[data-bead-open] .page,
-html[data-bead-open] body:has(.page) .scene-host[data-ready]::after {
+html[data-bead-open] main > .page,
+html[data-bead-open] body:has(main > .page) .scene-host[data-ready]::after {
   animation: bead-page-in 0.9s var(--ease-reveal) both;
+}
+
+/* A project page left for the home page (Back, its Escape, the header's name) fades out over the camera's flight out of
+   the bead, with its scrim, instead of vanishing at once (Ruling 30). The router takes the page away at once, so
+   src/ui/pageLeave.ts stands a still copy of it where it stood, in .page-ghost, over the scene and under the header,
+   inert and hidden from assistive technology, and takes it away once it has faded. The copy keeps body:has(.page) true,
+   so the scrim stays and fades with it. 0.4 s on the reveal curve, as the hero's cue fades: over well within the 0.8 s
+   flight. With reduced motion the sheet's last rule cuts it, and the scene host's step fade is the change. */
+@keyframes bead-page-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* z-index 1: the scene host's own layer, after it in the page, so over the scene and its scrim; under the header and
+   <main> (2), as the page it copies was. */
+.page-ghost {
+  position: fixed;
+  z-index: 1;
+  margin: 0;
+  pointer-events: none;
+  animation: bead-page-out 0.4s var(--ease-reveal) both;
+}
+
+body:has(.page-ghost) .scene-host[data-ready]::after {
+  animation: bead-page-out 0.4s var(--ease-reveal) both;
 }
 
 /* The canvas shows once the scene is ready (SceneHost sets data-ready): until then the poster is the picture, and

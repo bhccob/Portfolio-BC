@@ -20,8 +20,10 @@ import {
   voidShownFor,
   writeJourney
 } from '~/scene/bob/voidPose';
+import { NavigationType } from 'react-router';
 import { chapterAt, HOME_CHAPTERS, stops } from '~/state/chapters';
 import { frame } from '~/state/frame';
+import { BACK_STATE, resetRouteSync, stopForProject, syncRoute } from '~/state/routeSync';
 import { useScene, type VoidState } from '~/state/store';
 
 const LAPTOP = 16 / 9;
@@ -333,6 +335,56 @@ describe('the scroll input holds at the dive while the void loads', () => {
     await flush();
     s.drain();
     expect(s.story.target).toBe(5);
+  });
+
+  describe("Back, the page's Escape and the name link from a project page, through the hold (Ruling 29)", () => {
+    /** The route sync's place for the story on leaving Jontai Energy's page for the home page `how`. */
+    const leave = (how: 'back' | 'escape' | 'name'): number => {
+      resetRouteSync();
+      useScene.setState(useScene.getInitialState(), true);
+      frame.progress = frame.target = frame.velocity = frame.chapterIndex = 0;
+      if (how === 'escape') {
+        // A direct arrival: the page's Escape pushes the home page, saying it is the page's own Back.
+        syncRoute({ pathname: '/projects/jontai-energy/', key: 'default' }, NavigationType.Pop);
+        syncRoute({ pathname: '/', key: 'k1', state: BACK_STATE }, NavigationType.Push);
+      } else {
+        syncRoute({ pathname: '/', key: 'default' }, NavigationType.Pop);
+        useScene.getState().dispatch({ type: 'LOADED' });
+        syncRoute({ pathname: '/projects/jontai-energy/', key: 'k1' }, NavigationType.Push);
+        if (how === 'back') syncRoute({ pathname: '/', key: 'default' }, NavigationType.Pop);
+        else syncRoute({ pathname: '/', key: 'k2' }, NavigationType.Push); // the header's name link
+      }
+      const at = frame.target;
+      // Leave nothing behind for the file's other tests.
+      resetRouteSync();
+      useScene.setState(useScene.getInitialState(), true);
+      frame.progress = frame.target = frame.chapterIndex = 0;
+      return at;
+    };
+
+    for (const how of ['back', 'escape'] as const) {
+      it(`lands ${how} at the bead's stop, held in the tunnel while the void loads, then there once it is ready`, async () => {
+        const at = leave(how);
+        expect(at).toBe(stopForProject('jontai-energy'));
+        const s = held('loading', { at });
+        expect([s.story.target, s.story.progress]).toEqual([TUNNEL_HOLD, TUNNEL_HOLD]);
+        s.become('ready');
+        await flush();
+        s.drain();
+        expect([s.story.target, s.story.progress]).toEqual([4, 4]);
+      });
+    }
+
+    it('lands the name link at the home, stop 0, which nothing holds', async () => {
+      const at = leave('name');
+      expect(at).toBe(0);
+      const s = held('loading', { at });
+      expect([s.story.target, s.story.progress]).toEqual([0, 0]);
+      s.become('ready');
+      await flush();
+      s.drain();
+      expect(s.story.target).toBe(0);
+    });
   });
 
   it('steps by stops with reduced motion and holds on the last stop under the hold: BOB from above while loading', async () => {

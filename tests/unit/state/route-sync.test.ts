@@ -3,7 +3,17 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { projects } from '../../../src/data/projects';
 import { chapterAt, HOME_CHAPTERS, stops } from '../../../src/state/chapters';
 import { frame } from '../../../src/state/frame';
-import { arrivedDirectly, backTarget, pathForPhase, phaseForPath, resetRouteSync, stopForProject, syncRoute } from '../../../src/state/routeSync';
+import {
+  arrivedDirectly,
+  BACK_STATE,
+  backTarget,
+  isBackState,
+  pathForPhase,
+  phaseForPath,
+  resetRouteSync,
+  stopForProject,
+  syncRoute
+} from '../../../src/state/routeSync';
 import { useScene } from '../../../src/state/store';
 
 describe('phaseForPath', () => {
@@ -121,11 +131,18 @@ describe('syncRoute', () => {
     expect(useScene.getState().phase).toBe(phase);
   });
 
-  it("puts the scene at the project's own stop when its page is left for the home page", () => {
+  it("puts the scene at the project's own stop when its page is left for the home page by Back (a history pop)", () => {
     syncRoute({ pathname: '/projects/funcial/', key: 'a' });
-    syncRoute({ pathname: '/', key: 'b' });
+    syncRoute({ pathname: '/', key: 'b' }, NavigationType.Pop);
     expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'secure-element' });
     expect(frame.target).toBe(3);
+  });
+
+  it('lets the scroll start at the home when a page is left for the home page by a link (Ruling 29)', () => {
+    syncRoute({ pathname: '/projects/funcial/', key: 'a' });
+    syncRoute({ pathname: '/', key: 'b' });
+    expect(useScene.getState().phase).toEqual({ kind: 'HOME_IDLE' });
+    expect(frame.target).toBe(0);
   });
 
   it('puts the scene back on the chapter the scroll is in when a page is left for a page without a scene', () => {
@@ -206,9 +223,9 @@ describe('syncRoute: Back from a project page', () => {
     expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'front-panel' });
   });
 
-  it('does the same after a direct arrival, where Back (or Escape) pushes the home page of the language', () => {
+  it("does the same for the page's own Escape after a direct arrival, which pushes the home page with BACK_STATE", () => {
     syncRoute({ pathname: '/en/projects/cookies-clicker/', key: 'default' }, NavigationType.Pop);
-    syncRoute({ pathname: '/en/', key: 'k1' }, NavigationType.Push);
+    syncRoute({ pathname: '/en/', key: 'k1', state: BACK_STATE }, NavigationType.Push);
     expect(frame.target).toBe(5);
     expect(frame.progress).toBe(5);
     expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'oscillator' });
@@ -219,8 +236,30 @@ describe('syncRoute: Back from a project page', () => {
     frame.chapterIndex = 1;
     syncRoute({ pathname: '/', key: 'default' });
     syncRoute({ pathname: '/projects/funcial/', key: 'k1' });
-    syncRoute({ pathname: '/', key: 'default' });
+    syncRoute({ pathname: '/', key: 'default' }, NavigationType.Pop);
     expect([frame.target, frame.progress]).toEqual([3, 3]);
+  });
+
+  it("lands the header's name link, and any other link home, at the home: stop 0, wherever the story was (Ruling 29)", () => {
+    // A bead opened from its stop: the story is at Jontai Energy's 4 while its page is up.
+    syncRoute({ pathname: '/', key: 'default' }, NavigationType.Pop);
+    useScene.getState().dispatch({ type: 'LOADED' });
+    frame.progress = frame.target = 4;
+    frame.chapterIndex = 4;
+    syncRoute({ pathname: '/projects/jontai-energy/', key: 'k1' }, NavigationType.Push);
+    syncRoute({ pathname: '/', key: 'k2' }, NavigationType.Push); // the name link: a push, no BACK_STATE
+    expect([frame.target, frame.progress, frame.chapterIndex]).toEqual([0, 0, 0]);
+    expect(useScene.getState().phase).toEqual({ kind: 'HOME_IDLE' });
+    // A replace, or a state that is not the page's own Back, is a link too.
+    syncRoute({ pathname: '/projects/funcial/', key: 'k3' }, NavigationType.Push);
+    syncRoute({ pathname: '/en/', key: 'k4', state: { back: 'yes' } }, NavigationType.Push);
+    expect(frame.target).toBe(0);
+  });
+
+  it('tells the page\'s own Back state apart from any other state', () => {
+    expect(isBackState(BACK_STATE)).toBe(true);
+    expect(isBackState({ back: true })).toBe(true);
+    for (const other of [null, undefined, 'back', { back: 'yes' }, {}, 1]) expect(isBackState(other)).toBe(false);
   });
 
   it('leaves the story where it is when a project page is left for a page without a scene', () => {
