@@ -98,8 +98,8 @@ import math
 
 from mathutils import Vector
 
-from bead_kit import (ALONG_X, Shape, bezier, box, lathe, material, rect_lathe, stand_display, to_blender, tube, turn,
-                      under, under_slot)
+from bead_kit import (ALONG_X, Shape, bezier, box, floor_disc, lathe, material, rect_lathe, stand_display, to_blender,
+                      tube, turn, under, under_slot)
 
 # ---------------------------------------------------------------- the object
 LEAN = 10.0                     # degrees: the floor's up leans from up toward the porthole (about x), as Funcial's does
@@ -272,20 +272,9 @@ def post_mesh(mats):
 
 
 def floor_mesh(mats, uv):
-    """The floor: a disc of the bead's lacquer, its top at y = 0, its top edge rounded by normals and widest there, its
-    skirt sloping in by FLOOR["skirt"] to the underside (so at the sides, high in the hollow, the rim keeps inside the
-    room's circle); every UV on `uv`."""
-    s = Shape()
-    r, t, bv, sk = FLOOR["radius"], FLOOR["thickness"], FLOOR["bevel"], FLOOR["skirt"]
-    up, down = (0, 1), (0, -1)
-    lathe(s, [
-        ((0.0, 0.0, up), (r - bv, 0.0, up)),
-        ((r - bv, 0.0, up), (r, -bv, (1, 0.6))),
-        ((r, -bv, (1, 0.2)), (r - sk, -t, (1, -0.8))),
-        ((r - sk, -t, down), (0.0, -t, down)),
-    ], FLOOR["seg"])
-    s.uv_all(uv)
-    return s.mesh("jontai_floor", [mats["lacquer"]])
+    """The floor: bead_kit.py's lacquer disc (its top at y = 0, its skirt sloping in), every UV on `uv`."""
+    return floor_disc("jontai_floor", FLOOR["radius"], FLOOR["thickness"], FLOOR["bevel"], FLOOR["skirt"], FLOOR["seg"],
+                      uv, mats["lacquer"])
 
 
 # ---------------------------------------------------------------- the cable, the connector

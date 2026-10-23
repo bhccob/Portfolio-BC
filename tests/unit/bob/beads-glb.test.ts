@@ -33,7 +33,8 @@ const CAVITY = { radius: 0.72, z: 0.331 };
 const SHELL_MATERIALS = ['bead:display', 'bead:glass', 'bead:gold', 'bead:lacquer'];
 const OBJECT_MATERIALS = {
   funcial: ['bead:abacus', 'bead:aluminium', 'bead:track'],
-  'jontai-energy': ['bead:backsheet', 'bead:cell', 'bead:polymer', 'bead:satin', 'bead:silver']
+  'jontai-energy': ['bead:backsheet', 'bead:cell', 'bead:polymer', 'bead:satin', 'bead:silver'],
+  'cookies-clicker': ['bead:bridge', 'bead:caramel', 'bead:copper', 'bead:ruby']
 };
 
 /** The fields of the glTF JSON the reader's own type leaves out and these tests look at. */
@@ -1368,5 +1369,352 @@ describe("Jontai Energy's object", () => {
       placed(CELL_NAMES[0]),
       ['jontai_module', 'jontai_box', ...LEAD_NAMES].flatMap((name) => placed(name))
     );
+  });
+});
+
+/**
+ * Cookies Clicker's object (tools/blender/bead_cookies.py; spec §2.4, concept b03; docs/projects-discovery.md, 03 · COOKIES
+ * CLICKER, its Proposal): an open clockwork movement on a dark bridge, its wheels copper with ruby jewels. The crown on its
+ * side is the click; a train of eight wheels that grow in size is the eight producers; the escapement and the balance
+ * wheel are the production tick; the mainspring barrel is the save; the dial with its sub-dials, in the game's own
+ * caramel, is the stats. It stands on a floor of the bead's own lacquer, with the game on the bead's display beside it.
+ * Code (Task 8, cookiesMotion) moves it by these names: each wheel and the balance turn in place about their node's local
+ * +z, which is the bridge's own +z (they have no turn of their own, so `rotation.z` is the turn), and the crown presses in
+ * along its local −x.
+ */
+const WHEELS = 8;
+/** How far the crown presses in along its axis, toward the bridge (the discovery's hover: "the crown presses in once"). */
+const CROWN_PRESS = 0.004;
+/** The game's own caramel, #c69255 (the first stop of its background gradient), linear. */
+const CARAMEL = [0xc6, 0x92, 0x55].map((c) => toLinear(c / 255));
+/** The angles a turning part is checked at, through a whole turn. */
+const TURNS = Array.from({ length: 24 }, (_, k) => (k * Math.PI) / 12);
+
+describe("Cookies Clicker's object", () => {
+  const WHEEL_NAMES = Array.from({ length: WHEELS }, (_, k) => `cookies_wheel_${k + 1}`);
+  /** The parts that turn in place about their own +z: the train, the escapement, the balance and the barrel. */
+  const TURNING = [...WHEEL_NAMES, 'cookies_escapement', 'cookies_balance', 'cookies_barrel'];
+  const ON_BRIDGE = ['cookies_crown', ...TURNING, 'cookies_dial'];
+  const UNDER_SLOT = ['cookies_floor', 'cookies_bridge'];
+  const ALL = [...UNDER_SLOT, ...ON_BRIDGE];
+  const DISPLAY = 'bead_cookies-clicker_display';
+  const IDENTITY = [0, 0, 0, 1];
+  const childrenOf = (name: string) => (node(name).children ?? []).map((c) => gltf.nodes[c].name);
+  const wears = (name: string) => primitives(name).map((p) => materialName(p.material)).sort();
+  /** How far a point is from its node's own +z axis, and from its own +x axis. */
+  const aboutZ = (p: number[]) => Math.hypot(p[0], p[1]);
+  const aboutX = (p: number[]) => Math.hypot(p[1], p[2]);
+  /** How far a part reaches from its own axis: the disc it sweeps as it turns. */
+  const reach = (name: string) => Math.max(...allRows(name, 'POSITION').map(aboutZ));
+  /** A part's node translation in the bridge's frame (its parent's). */
+  const onBridge = (name: string) => node(name).translation ?? [0, 0, 0];
+  /** The disc a turning part sweeps, in the bridge's frame: its centre, its reach and its depth along the bridge's +z. */
+  const disc = (name: string) => {
+    const [x, y, z] = onBridge(name);
+    const [z0, z1] = span(allRows(name, 'POSITION'), 2);
+    return { x, y, r: reach(name), z0: z + z0, z1: z + z1 };
+  };
+  type Disc = ReturnType<typeof disc>;
+  /** The clearance between two discs' edges, side by side in the bridge's plane. */
+  const gap = (a: Disc, b: Disc) => Math.hypot(a.x - b.x, a.y - b.y) - a.r - b.r;
+  /** A turning part's spin axis in the bead frame: through its node's origin, along its local +z. */
+  const spin = (name: string) => {
+    const f = frameOf(name);
+    return { origin: f.translation, axis: axisOf(f, [0, 0, 1]) };
+  };
+  /** A node's mesh points in the bridge's own frame. */
+  const inBridge = (name: string) => {
+    const f = frameOf('cookies_bridge');
+    return placed(name).map((p) => toLocal(f, p));
+  };
+  /** The bridge's front: its foremost face, which only the arbors reach back past. */
+  const bridgeFront = () => Math.max(...allRows('cookies_bridge', 'POSITION').map((p) => p[2]));
+  const floorRim = () => Math.max(...attribute('cookies_floor', 'POSITION').map(radial));
+  const floorUp = () => axisOf(frameOf('cookies_floor'), [0, 1, 0]);
+  const inRoom = (name: string, points: number[][]) => {
+    for (const q of points) {
+      expect(offAxis(q), `${name} off the axis`).toBeLessThanOrEqual(SLOT_RADIUS);
+      expect(fromCavity(q), `${name} inside the cavity's sphere`).toBeLessThan(CAVITY.radius - 0.02);
+      expect(q[2], `${name} behind the glass`).toBeLessThan(0.7);
+    }
+  };
+
+  it('names its parts for code: the floor and the bridge, and on the bridge the crown, eight wheels, the escapement, the balance, the barrel and the dial', () => {
+    expect(childrenOf('bead_cookies-clicker_object').sort()).toEqual([...UNDER_SLOT].sort());
+    expect(childrenOf('cookies_bridge').sort()).toEqual([...ON_BRIDGE].sort());
+    const names = gltf.nodes.map((n) => n.name ?? '');
+    // Exactly eight wheels in the train, one per producer.
+    expect(names.filter((n) => n.startsWith('cookies_wheel_'))).toHaveLength(WHEELS);
+    for (const name of ALL) expect(frameOf(name).rotation).toHaveLength(4);
+    // Only the parts' own names: nothing in the file names or credits anyone.
+    expect(names.filter((n) => n.startsWith('cookies_')).sort()).toEqual([...ALL].sort());
+  });
+
+  it('keeps the object in its room: within 0.5 of the axis, inside the cavity and behind the glass, at rest and through its whole motion', () => {
+    for (const name of ALL) inRoom(name, placed(name));
+    // Every turning part turned through a whole turn about its own axis, and the crown pressed in.
+    for (const name of TURNING) {
+      const { origin, axis } = spin(name);
+      const points = placed(name);
+      for (const angle of TURNS)
+        inRoom(
+          `${name} turned ${angle}`,
+          points.map((p) => turnAbout(p, origin, axis, angle))
+        );
+    }
+    const press = axisOf(frameOf('cookies_crown'), [1, 0, 0]).map((c) => -c * CROWN_PRESS);
+    inRoom(
+      'cookies_crown pressed in',
+      placed('cookies_crown').map((p) => p.map((c, k) => c + press[k]))
+    );
+  });
+
+  it('wears its own four materials beside the bead lacquer: copper with ruby jewels on a dark bridge, the dial in the game caramel', () => {
+    expect(wears('cookies_bridge')).toEqual(['bead:bridge']);
+    for (const name of TURNING) expect(wears(name), name).toEqual(['bead:copper', 'bead:ruby']);
+    expect(wears('cookies_crown')).toEqual(['bead:copper']);
+    expect(wears('cookies_dial')).toEqual(['bead:caramel', 'bead:copper', 'bead:ruby']);
+    expect(wears('cookies_floor')).toEqual(['bead:lacquer']);
+    const pbr = (name: string) => material(name).pbrMetallicRoughness!;
+    const rgb = (name: string) => pbr(name).baseColorFactor!.slice(0, 3);
+    // Copper: a warm metal, dim, never mirror-glossy, and clearly not the void's gold: redder than the bead's gold.
+    const [cr, cg, cb] = rgb('bead:copper');
+    expect(pbr('bead:copper').metallicFactor ?? 1).toBe(1);
+    expect(pbr('bead:copper').roughnessFactor).toBeGreaterThanOrEqual(0.3);
+    expect(cr).toBeGreaterThan(cg);
+    expect(cg).toBeGreaterThan(cb);
+    expect(cr, 'dim').toBeLessThanOrEqual(0.6);
+    const [gr, gg] = rgb('bead:gold');
+    expect(cg / cr, 'redder than the gold').toBeLessThan(gg / gr - 0.12);
+    // Caramel: the game's own #c69255 in hue, at half its value so the dial sits in the dark hollow; a matte non-metal.
+    const caramel = rgb('bead:caramel');
+    const value = caramel[0] / CARAMEL[0];
+    caramel.forEach((c, k) => expect(c / value, `caramel ${k}`).toBeCloseTo(CARAMEL[k], 3));
+    expect(value, "below the game's own").toBeGreaterThanOrEqual(0.4);
+    expect(value).toBeLessThanOrEqual(0.6);
+    expect(pbr('bead:caramel').metallicFactor).toBe(0);
+    expect(pbr('bead:caramel').roughnessFactor).toBeGreaterThanOrEqual(0.4);
+    // Ruby: deep red, not metal, glossy as a jewel but never mirror-hard.
+    const [rr, rg, rb] = rgb('bead:ruby');
+    expect(rr).toBeGreaterThan(5 * rg);
+    expect(rr).toBeGreaterThan(5 * rb);
+    expect(rr).toBeLessThan(0.6);
+    expect(pbr('bead:ruby').metallicFactor).toBe(0);
+    expect(pbr('bead:ruby').roughnessFactor).toBeGreaterThanOrEqual(0.15);
+    expect(pbr('bead:ruby').roughnessFactor).toBeLessThanOrEqual(0.35);
+    // The dark bridge: dark, never glossy.
+    expect(Math.max(...rgb('bead:bridge'))).toBeLessThan(0.06);
+    expect(pbr('bead:bridge').roughnessFactor).toBeGreaterThanOrEqual(0.4);
+    // None of them glows at rest but faintly, the jewels: the screen is the one bright thing.
+    for (const name of OBJECT_MATERIALS['cookies-clicker'].filter((m) => m !== 'bead:ruby'))
+      expect(Math.max(...(material(name).emissiveFactor ?? [0, 0, 0])), name).toBe(0);
+    expect(Math.max(...(material('bead:ruby').emissiveFactor ?? [0, 0, 0])), 'the jewels at most a faint red').toBeLessThan(0.1);
+    // The floor is the bead's own lacquer, every UV on one point of the cavity's square of the vein map, as Jontai's.
+    const uvs = attribute('cookies_floor', 'TEXCOORD_0');
+    for (const t of uvs) expect(t).toEqual(uvs[0]);
+    const { veins, orm } = maps();
+    for (let dy = -3; dy <= 3; dy++)
+      for (let dx = -3; dx <= 3; dx++) {
+        const at = [uvs[0][0] + dx / 1024, uvs[0][1] + dy / 1024];
+        expect(texel(veins, 0, at), 'no vein under the floor').toBe(0);
+        expect(texel(orm, 2, at), 'no metal under the floor').toBe(0);
+      }
+  });
+
+  it('turns each wheel, the escapement, the balance and the barrel in place: its origin on its axis, square to the bridge', () => {
+    const normal = axisOf(frameOf('cookies_bridge'), [0, 0, 1]);
+    const front = bridgeFront();
+    for (const name of TURNING) {
+      // No turn of its own: its local +z is the bridge's, so one rotation about it (rotation.z) spins it.
+      expect(node(name).rotation ?? IDENTITY, `${name}: no turn of its own`).toEqual(IDENTITY);
+      expect(dot(spin(name).axis, normal), `${name}: its axis square to the bridge`).toBeGreaterThan(0.9999);
+      // Centred on its axis, so it turns with no wobble: its outermost ring lies evenly all round it.
+      const points = allRows(name, 'POSITION');
+      const r = reach(name);
+      const ring = points.filter((p) => aboutZ(p) > r - 1e-4);
+      expect(ring.length, `${name}'s outermost ring`).toBeGreaterThanOrEqual(12);
+      expect(Math.hypot(mean(ring, 0), mean(ring, 1)), `${name} centred on its axis`).toBeLessThan(1e-4);
+      // In front of the bridge: only its arbor, on the axis, reaches back into it.
+      const z = onBridge(name)[2];
+      for (const p of points.filter((q) => aboutZ(q) > 0.004)) expect(z + p[2], `${name} clear of the bridge`).toBeGreaterThan(front);
+    }
+  });
+
+  it("grows the train's eight toothed wheels in size, from left to right as the porthole sees them", () => {
+    const reaches = WHEEL_NAMES.map(reach);
+    for (let k = 1; k < WHEELS; k++) expect(reaches[k], `wheel ${k + 1} larger than wheel ${k}`).toBeGreaterThan(reaches[k - 1] + 0.001);
+    expect(reaches[WHEELS - 1] / reaches[0], 'the largest at least twice the smallest').toBeGreaterThan(2);
+    const xs = WHEEL_NAMES.map((name) => frameOf(name).translation[0]);
+    for (let k = 1; k < WHEELS; k++) expect(xs[k], `wheel ${k + 1} right of wheel ${k}`).toBeGreaterThan(xs[k - 1]);
+    // Each a toothed wheel: its edge runs out to its tips, two corners a tooth, and back to its roots between them.
+    for (const name of WHEEL_NAMES) {
+      const points = allRows(name, 'POSITION');
+      const r = reach(name);
+      const corners = new Set(points.filter((p) => aboutZ(p) > r - 1e-4).map((p) => Math.atan2(p[1], p[0]).toFixed(4)));
+      expect(corners.size / 2, `${name}'s teeth`).toBeGreaterThanOrEqual(10);
+      const roots = points.filter((p) => aboutZ(p) < r - 0.0015 && aboutZ(p) > r - 0.006);
+      expect(roots.length, `${name}'s roots`).toBeGreaterThan(0);
+    }
+  });
+
+  it('meshes each wheel with the next without touching at any turn: the discs the turning parts sweep never meet', () => {
+    // In the bridge's frame (they all hang on it with no turn of their own), a turning part sweeps a disc of its reach
+    // about its centre. Neighbours in the train come within a hair of each other, tip to tip, so they look meshed, and
+    // no two discs overlap, so no turn of either brings their solids together.
+    for (let k = 1; k < WHEELS; k++) {
+      const g = gap(disc(`cookies_wheel_${k}`), disc(`cookies_wheel_${k + 1}`));
+      expect(g, `wheel ${k} to wheel ${k + 1}, apart`).toBeGreaterThan(0.0005);
+      expect(g, `wheel ${k} to wheel ${k + 1}, meshed`).toBeLessThan(0.004);
+    }
+    for (const a of TURNING)
+      for (const b of TURNING.filter((n) => n > a)) {
+        const [da, db] = [disc(a), disc(b)];
+        if (da.z1 > db.z0 && db.z1 > da.z0) expect(gap(da, db), `${a} and ${b}`).toBeGreaterThan(0.0005);
+      }
+    // Nor do the parts that stay still, the crown and the dial, reach into any disc a part sweeps.
+    for (const still of ['cookies_crown', 'cookies_dial'])
+      for (const name of TURNING) {
+        const d = disc(name);
+        for (const p of inBridge(still))
+          if (p[2] > d.z0 && p[2] < d.z1) expect(Math.hypot(p[0] - d.x, p[1] - d.y), `${still} clear of ${name}`).toBeGreaterThan(d.r);
+      }
+  });
+
+  it('drives the train from the barrel and lets it escape to the balance: the barrel at wheel 8, the escapement at wheel 1', () => {
+    const [w1, w8] = [disc(WHEEL_NAMES[0]), disc(WHEEL_NAMES[WHEELS - 1])];
+    const [escapement, balance, barrel] = [disc('cookies_escapement'), disc('cookies_balance'), disc('cookies_barrel')];
+    for (const [a, b, label] of [
+      [barrel, w8, 'the barrel at wheel 8'],
+      [escapement, w1, 'the escapement at wheel 1']
+    ] as const) {
+      expect(gap(a, b), label).toBeGreaterThan(0.0005);
+      expect(gap(a, b), label).toBeLessThan(0.004);
+    }
+    expect(gap(escapement, balance), 'the escapement beside the balance').toBeLessThan(0.012);
+    // Below the train, as b03 has them: the balance at the left, the barrel at the right, each larger than any wheel of it.
+    const bottom = Math.min(...WHEEL_NAMES.map((name) => onBridge(name)[1]));
+    expect(balance.y, 'the balance below the train').toBeLessThan(bottom);
+    expect(barrel.y, 'the barrel below the train').toBeLessThan(bottom);
+    expect(balance.x).toBeLessThan(barrel.x);
+    for (const d of [balance, barrel]) expect(d.r).toBeGreaterThan(w8.r);
+  });
+
+  it("sets the crown on the bridge's right side, along the bridge's +x, with room to press in", () => {
+    // No turn of its own in the bridge's frame: its local +x is the bridge's, and code presses it in along −x.
+    expect(node('cookies_crown').rotation ?? IDENTITY).toEqual(IDENTITY);
+    const crown = allRows('cookies_crown', 'POSITION');
+    const r = Math.max(...crown.map(aboutX));
+    const ring = crown.filter((p) => aboutX(p) > r - 1e-4);
+    expect(Math.hypot(mean(ring, 1), mean(ring, 2)), 'round its own x').toBeLessThan(1e-4);
+    // Its stem enters the bridge's right side; the crown itself stands clear of the side by more than its press.
+    const bridge = allRows('cookies_bridge', 'POSITION');
+    const side = Math.max(...bridge.map((p) => p[0]));
+    const at = onBridge('cookies_crown');
+    expect(Math.min(...crown.map((p) => p[0] + at[0])), 'its stem into the side').toBeLessThan(side);
+    const body = crown.filter((p) => aboutX(p) > 0.6 * r).map((p) => p[0] + at[0]);
+    expect(Math.min(...body) - side, 'room to press in').toBeGreaterThan(CROWN_PRESS);
+    // On the side, within the bridge's height, by the barrel it winds.
+    const [y0, y1] = span(bridge, 1);
+    expect(at[1]).toBeGreaterThan(y0);
+    expect(at[1]).toBeLessThan(y1);
+    const barrel = disc('cookies_barrel');
+    expect(Math.abs(at[1] - barrel.y), 'by the barrel').toBeLessThan(barrel.r);
+  });
+
+  it('mounts the dial above the train, facing the porthole: a caramel face with two sub-dials, ringed in copper', () => {
+    expect(node('cookies_dial').rotation ?? IDENTITY).toEqual(IDENTITY);
+    const face = attribute('cookies_dial', 'POSITION', 'bead:caramel');
+    for (const n of attribute('cookies_dial', 'NORMAL', 'bead:caramel')) expect(n[2]).toBeCloseTo(1, 5);
+    const rFace = Math.max(...face.map(aboutZ));
+    expect(Math.hypot(mean(face, 0), mean(face, 1)), 'a round face on its node').toBeLessThan(1e-3);
+    const [, y] = onBridge('cookies_dial');
+    for (const name of WHEEL_NAMES) expect(y - rFace, `above ${name}`).toBeGreaterThan(onBridge(name)[1] + reach(name));
+    // Copper rings it, and the sub-dials sit on the face above and below its middle, at twelve and six (side by side
+    // under the hands, the pair read as a face).
+    const copper = attribute('cookies_dial', 'POSITION', 'bead:copper');
+    expect(Math.max(...copper.map(aboutZ)), 'a copper bezel').toBeGreaterThan(rFace);
+    const inside = copper.filter((p) => aboutZ(p) > 0.2 * rFace && aboutZ(p) < 0.8 * rFace && Math.abs(p[0]) < 0.3 * rFace);
+    expect(inside.filter((p) => p[1] > 0).length, 'a sub-dial at twelve').toBeGreaterThan(8);
+    expect(inside.filter((p) => p[1] < 0).length, 'a sub-dial at six').toBeGreaterThan(8);
+    // On the bridge's face.
+    const front = bridgeFront();
+    for (const p of inBridge('cookies_dial')) expect(p[2], 'on the bridge').toBeGreaterThan(front - 1e-4);
+  });
+
+  it('stands the bridge upright on the floor, left of the axis, its face toward the porthole and turned toward the axis', () => {
+    standsOn('cookies_floor', 'cookies_bridge', floorRim());
+    const f = frameOf('cookies_bridge');
+    expect(axisOf(f, [0, 1, 0])[1], 'upright').toBeGreaterThan(Math.cos((5 * Math.PI) / 180));
+    const face = axisOf(f, [0, 0, 1]);
+    expect(face[2], 'facing the porthole').toBeGreaterThan(0.95);
+    expect(face[0], 'turned a little toward the axis').toBeGreaterThan(0.04);
+    for (const name of ['cookies_bridge', ...ON_BRIDGE]) expect(Math.max(...placed(name).map((p) => p[0])), `${name} left of the axis`).toBeLessThan(0);
+    // Nothing on it reaches down to the floor.
+    const floor = frameOf('cookies_floor');
+    for (const name of ON_BRIDGE)
+      expect(Math.min(...placed(name).map((p) => toLocal(floor, p)[1])), `${name} above the floor`).toBeGreaterThan(0.005);
+  });
+
+  it("lays a floor of the bead's lacquer under the middle of the opening, leaning toward the porthole, for the parts to stand on", () => {
+    const f = frameOf('cookies_floor');
+    expect(Math.abs(f.translation[0]), 'centred under the axis').toBeLessThan(1e-4);
+    expect(f.translation[1], 'raised under the middle of the opening').toBeGreaterThan(-0.2);
+    expect(f.translation[1]).toBeLessThan(-0.12);
+    const up = floorUp();
+    expect(Math.abs(up[0])).toBeLessThan(1e-4);
+    const lean = (Math.atan2(up[2], up[1]) * 180) / Math.PI;
+    expect(lean).toBeGreaterThan(5);
+    expect(lean).toBeLessThan(20);
+    const floor = attribute('cookies_floor', 'POSITION');
+    expect(Math.abs(mean(floor, 0))).toBeLessThan(1e-3);
+    expect(Math.abs(mean(floor, 2))).toBeLessThan(1e-3);
+    expect(Math.max(...floor.map((p) => p[1]))).toBeCloseTo(0, 6);
+    expect(floorRim()).toBeGreaterThan(0.3);
+    expect(floorRim()).toBeLessThan(0.48);
+  });
+
+  it("stands the game's landscape display on the floor beside the clockwork, right of the axis, 0.20 of the bead wide", () => {
+    const points = placed(DISPLAY);
+    const x0 = Math.min(...points.map((p) => p[0]));
+    expect(x0, 'right of the axis').toBeGreaterThan(0.02);
+    const clockwork = ['cookies_bridge', ...ON_BRIDGE].flatMap((name) => placed(name));
+    expect(x0, 'beside the clockwork, never in front of it').toBeGreaterThan(Math.max(...clockwork.map((p) => p[0])) + 0.03);
+    const [w0, w1] = span(allRows(DISPLAY, 'POSITION'), 0);
+    expect((w1 - w0) / (2 * RADIUS), 'its width, as a share of the bead').toBeGreaterThan(0.19);
+    expect((w1 - w0) / (2 * RADIUS)).toBeLessThan(0.21);
+    standsOn('cookies_floor', DISPLAY, floorRim());
+    const f = frameOf(DISPLAY);
+    expect(axisOf(f, [0, 1, 0])[1], 'upright').toBeGreaterThan(Math.cos((5 * Math.PI) / 180));
+    const face = axisOf(f, [0, 0, 1]);
+    expect(face[2], 'facing the porthole').toBeGreaterThan(0.95);
+    expect(face[0], 'turned a little toward the axis').toBeLessThan(0);
+  });
+
+  it("fills the opening's middle band as b03 does: the clockwork and the display side by side, across its middle", () => {
+    const clockwork = ['cookies_bridge', ...ON_BRIDGE].flatMap((name) => placed(name));
+    const [c0, c1] = span(clockwork, 1);
+    expect(c0, 'the clockwork reaches below the middle').toBeLessThan(-0.1);
+    expect(c1, 'the clockwork reaches above the middle').toBeGreaterThan(0.15);
+    const [d0, d1] = span(placed(DISPLAY), 1);
+    expect(d0, 'the display reaches below the middle').toBeLessThan(-0.1);
+    expect(d1, 'the display reaches above the middle').toBeGreaterThan(0.05);
+    const [x0, x1] = span(clockwork, 0);
+    expect(x1 - x0, "the clockwork's width in the opening").toBeGreaterThan(0.38);
+  });
+
+  it("keeps the bead's inner light from mirroring in the display's glossy front", () => {
+    // Seen along the porthole's axis and from the bead shot's camera, the point of the display's plane that mirrors the
+    // light must lie clear of its glass.
+    const light = node('bead_cookies-clicker_inner').translation!;
+    const glass = placed(DISPLAY, 'bead:display');
+    const f = frameOf(DISPLAY);
+    const n = axisOf(f, [0, 0, 1]);
+    const local = glass.map((p) => toLocal(f, p));
+    const [[x0, x1], [y0, y1]] = [span(local, 0), span(local, 1)];
+    for (const view of [[0, 0, 1], [...CAMERA_PATH.bead.offset]]) {
+      const spot = toLocal(f, mirroredLight(light, glass[0], n, view));
+      const outside = Math.max(x0 - spot[0], spot[0] - x1, y0 - spot[1], spot[1] - y1);
+      expect(outside, `the mirrored light at ${spot}, seen along ${view}`).toBeGreaterThan(0.08);
+    }
   });
 });

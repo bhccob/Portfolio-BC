@@ -1,7 +1,7 @@
 # The shape helpers the beads' object scripts share (tools/blender/bead_funcial.py, bead_jontai.py, bead_cookies.py):
 # three's frame and Blender's, a mesh builder whose every face carries its own corner normals, surfaces of revolution,
-# boxes, tubes, a material, and standing a part on a leaning floor. Imported by name (export_beads.py puts this folder on
-# sys.path before it runs the object scripts); it builds nothing itself.
+# boxes, tubes, a material, a lacquer floor and standing a part on it as it leans. Imported by name (export_beads.py
+# puts this folder on sys.path before it runs the object scripts); it builds nothing itself.
 #
 # Frames: everything is authored in three's frame (x right, y up, z out of the porthole), in metres, and turned into
 # Blender's (x, -z, y) as each object is made, so a script's numbers are the GLB's. Nothing here is random: the export
@@ -160,6 +160,9 @@ def ellipse_bands(rx, ry, latitudes):
 
 # The turn that lays a lathe's +y axis along +x (Rz(-90 degrees): y -> x), for parts that turn about a level axis.
 ALONG_X = turn((0, 0, 1), -90.0)
+# The turn that lays a lathe's +y axis along +z (Rx(90 degrees): y -> z), for parts that face the porthole and turn
+# about their own +z (a wheel on a bridge that faces it).
+ALONG_Z = turn((1, 0, 0), 90.0)
 
 
 def rect_lathe(s, w, h, bands, mat=0, at=(0.0, 0.0, 0.0)):
@@ -303,6 +306,24 @@ def material(name, base, metal, rough, emission=None, strength=0.0, specular=Non
 
 
 # ---------------------------------------------------------------- standing on a leaning floor
+def floor_disc(name, radius, thickness, bevel, skirt, seg, uv, lacquer):
+    """A floor for an object's parts to stand on: a disc of the bead's lacquer, its top at y = 0, its top edge rounded by
+    normals and widest there, its skirt sloping in by `skirt` to the underside (so at the sides, high in the hollow, the
+    rim keeps inside the room's circle); every UV on `uv` (the middle of the vein map's cavity square: no veins and no
+    metal there, and the hollow's baked occlusion, so it is the hollow's own dark floor)."""
+    s = Shape()
+    r, t, bv, sk = radius, thickness, bevel, skirt
+    up, down = (0, 1), (0, -1)
+    lathe(s, [
+        ((0.0, 0.0, up), (r - bv, 0.0, up)),
+        ((r - bv, 0.0, up), (r, -bv, (1, 0.6))),
+        ((r, -bv, (1, 0.2)), (r - sk, -t, (1, -0.8))),
+        ((r - sk, -t, down), (0.0, -t, down)),
+    ], seg)
+    s.uv_all(uv)
+    return s.mesh(name, [lacquer])
+
+
 def stand(centre, lean_deg, foot, turn_deg, depth):
     """Where a part stands on a floor: (the bead-frame point under its foot's middle, its turn).
 
