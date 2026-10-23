@@ -50,15 +50,18 @@ export function cspFor(html) {
   const scripts = inlineHashes(html, SCRIPT_BLOCK, (attributes) => JSON_LD.test(attributes) || HAS_SRC.test(attributes));
   const styles = inlineHashes(html, STYLE_BLOCK, () => false);
 
+  // blob: is for the beads' GLB (public/models/bob-beads.glb) alone, never for scripts: three's GLTFLoader turns each
+  // image embedded in it into a blob: URL and loads that, by fetch (its ImageBitmapLoader, so connect-src) where the
+  // browser has createImageBitmap, else by an <img> (its TextureLoader, so img-src).
   return [
     "default-src 'self'",
     ["script-src 'self' https://static.cloudflareinsights.com", ...scripts].join(' '),
     ["style-src 'self'", ...styles].join(' '),
     "style-src-attr 'unsafe-inline'",
-    "img-src 'self' data:",
+    "img-src 'self' data: blob:",
     "font-src 'self'",
     "media-src 'self'",
-    "connect-src 'self' https://api.web3forms.com https://cloudflareinsights.com",
+    "connect-src 'self' https://api.web3forms.com https://cloudflareinsights.com blob:",
     "form-action 'self' https://api.web3forms.com",
     "worker-src 'none'",
     "frame-src 'none'",

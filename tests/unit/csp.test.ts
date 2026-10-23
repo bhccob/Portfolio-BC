@@ -48,10 +48,10 @@ describe('cspFor', () => {
         "script-src 'self' https://static.cloudflareinsights.com",
         "style-src 'self'",
         "style-src-attr 'unsafe-inline'",
-        "img-src 'self' data:",
+        "img-src 'self' data: blob:",
         "font-src 'self'",
         "media-src 'self'",
-        "connect-src 'self' https://api.web3forms.com https://cloudflareinsights.com",
+        "connect-src 'self' https://api.web3forms.com https://cloudflareinsights.com blob:",
         "form-action 'self' https://api.web3forms.com",
         "worker-src 'none'",
         "frame-src 'none'",
@@ -60,6 +60,16 @@ describe('cspFor', () => {
         'upgrade-insecure-requests',
       ].join('; '),
     );
+  });
+
+  it("allows blob: only where three's GLTFLoader reads the GLB's embedded images, and never for scripts", () => {
+    // GLTFLoader turns each embedded image into a blob: URL and loads it: by fetch (ImageBitmapLoader, connect-src) where
+    // the browser has createImageBitmap, else by an <img> (TextureLoader, img-src).
+    const directives = cspFor('<p>no scripts</p>').split('; ');
+    const withBlob = directives.filter((d) => d.split(' ').includes('blob:')).map((d) => d.split(' ')[0]);
+    expect(withBlob).toEqual(['img-src', 'connect-src']);
+    expect(directives.find((d) => d.startsWith('script-src'))).not.toContain('blob:');
+    expect(directives).toContain("worker-src 'none'");
   });
 
   it('never allows inline or eval scripts', () => {
