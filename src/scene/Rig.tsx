@@ -27,11 +27,12 @@ const clamp = (value: number): number => Math.min(1, Math.max(-1, value));
 const allowedSway = (): number => (frame.shot ? swayOf(frame.shot) : 1);
 
 /**
- * The camera. It stands where the scene says (`frame.shot`: the Opening's, src/scene/bob/Opening.tsx, the loader's wide
- * shot of the O, the push-in, then the home; from there the Home's, src/scene/bob/Home.tsx, up the scroll's rise to BOB
- * from above; each framed for the screen's shape), put there with `applyCameraShot` for the canvas's size on every frame
- * drawn and on a resize. Before the Opening has posed a frame there is no shot, and the camera stays where it is (the
- * canvas is not shown yet).
+ * The camera. It stands where the scene says (`frame.shot`: the Opening's alone, src/scene/bob/Opening.tsx, the loader's
+ * wide shot of the O, the push-in, then the home, from there the journey's up the scroll's rise to BOB from above and on
+ * into the dive; each framed for the screen's shape), put there with `applyCameraShot` for the canvas's size on every
+ * frame drawn and on a resize. The Opening writes the shot in a frame callback that runs before this one in the same
+ * frame (`SHOT_PRIORITY`, below this callback's default 0), so the camera is on the shot of the frame it is drawn in.
+ * Before the Opening has posed a frame there is no shot, and the camera stays where it is (the canvas is not shown yet).
  *
  * On top of the shot, at home only, a pointer parallax turns the camera about the shot's look-at point by at most
  * PARALLAX radians, damped (maath `damp3`), so the compass keeps its place on the page while the bands and the

@@ -11,8 +11,9 @@ import { HOME_CHAPTERS, stops } from '~/state/chapters';
 import { frame } from '~/state/frame';
 import { useScene } from '~/state/store';
 import { motion } from '../motion';
+import { journeyPoseAt } from './journey';
 import { IDLE_SECONDS, needleGlowAt } from './look';
-import { riseAt, risingFor, scrollPoseAt } from './scrollPose';
+import { risingFor } from './scrollPose';
 import { nearestStop, type StepFade, stepFadeAt, stepFadeFrom } from './stepFade';
 
 /** The longest step the needle and the idle clock take in one frame, seconds: a wake from sleep jumps neither. */
@@ -41,11 +42,16 @@ export interface HomeModels {
  * the held moment and Home keeps its hands off. `time` is the world's seconds as the Opening last posed them (the bands'
  * turn and the smoke's drift go on from there) and `needle` the angle it left the needle at (`settleAngle(1)`, 1.8
  * degrees short of the rest), where Home's spring starts at each hand-over, so nothing snaps.
+ *
+ * `shown` goes the other way: the progress Home posed the scene at on its last frame (the damped `frame.progress`, or
+ * with reduced motion the stop the step fade shows). The Opening, which runs before Home in a frame and writes the
+ * camera's shot (src/scene/bob/shotSource.ts), reads it for the reduced-motion stop, which only Home's step fade knows.
  */
 export interface Handover {
   live: boolean;
   time: number;
   needle: number;
+  shown: number;
 }
 
 export interface HomeProps {
@@ -72,9 +78,6 @@ interface HomeState {
   transition: number;
   /** The scroll's rise Home last posed (NaN before the first frame after a hand-over), to tell a change: a stir. */
   u: number;
-  /** The rise and the aspect `frame.shot` was last written for (NaN: write it on the next frame). */
-  shotU: number;
-  shotAspect: number;
   /** The reduced-motion step fade (stepFade.ts): the stop the scene shows, and whether the host is faded down. */
   fade: StepFade;
   /** `<html data-step-fade>` is set: the DOM as Home last wrote it, so a frame writes it only when it changes. */
@@ -114,11 +117,12 @@ const pivotPx = { x: 0, y: 0 };
  * it back while a seek holds its clock.
  *
  * **Scroll.** The first stretch of scroll, the HOME chapter's one unit, raises the camera from the home to straight
- * above the name BOB (scrollPose.ts): each frame it poses `scrollPoseAt(riseAt(frame.progress), aspect)`, the compass
- * opening like an iris (`setIris`), the needle turning down into it (`setNeedleDip`) and the light running out of the O
- * into the two B letters (`setLetters`, the one place they are drawn), and writes the pose's shot into `frame.shot` when
- * the rise or the screen's shape has changed (the Rig places it). Scrolling back plays it backwards to the home; past
- * the unit it holds at BOB from above. It reports the pose in `frame.scroll`. With reduced motion the scroll steps a
+ * above the name BOB (scrollPose.ts): each frame it poses the rise of `journeyPoseAt(progress, aspect)` (journey.ts: M2a's
+ * scroll pose itself up to the unit's end), the compass opening like an iris (`setIris`), the needle turning down into
+ * it (`setNeedleDip`) and the light running out of the O into the two B letters (`setLetters`, the one place they are
+ * drawn). It writes no shot: the camera is the same journey's, written by the Opening in the same frame, before the Rig
+ * (src/scene/bob/shotSource.ts). Scrolling back plays it backwards to the home; past the unit the compass holds at BOB
+ * from above (the camera goes on, into the dive). It reports the pose in `frame.scroll`. With reduced motion the scroll steps a
  * whole stop at a time (src/input/target.ts) and each step is a short fade (stepFade.ts): the pose stays at the stop it
  * shows while `<html data-step-fade>` fades the scene host down over STEP_FADE_MS, jumps to the stop the target is
  * nearest once it is dark, and the attribute goes, so it fades back; without reduced motion the attribute is never set.
@@ -159,8 +163,6 @@ export function Home({ models, handover }: HomeProps): null {
     pointerAt: frame.pointerAt,
     transition: useScene.getState().transitionId,
     u: Number.NaN,
-    shotU: Number.NaN,
-    shotAspect: Number.NaN,
     fade: stepFadeFrom(0),
     faded: false,
     rising: false,
@@ -215,7 +217,7 @@ export function Home({ models, handover }: HomeProps): null {
       state.base = handover.time;
       state.target = handover.needle;
       spring.set(handover.needle, 0);
-      state.u = state.shotU = state.shotAspect = Number.NaN;
+      state.u = Number.NaN;
       // A hand-over poses the stop the target is at, with no fade: the canvas is not showing a step.
       state.fade = stepFadeFrom(stop);
     }
@@ -226,7 +228,15 @@ export function Home({ models, handover }: HomeProps): null {
     showStepFade(state, state.fade.darkAt !== null);
     if (state.fade.darkAt !== null) invalidate();
     const aspect = size.width / size.height;
-    const pose = scrollPoseAt(riseAt(reduced ? state.fade.shown : frame.progress), aspect);
+    const shown = reduced ? state.fade.shown : frame.progress;
+    // The Opening placed this frame's camera, from the progress it read before this frame (the damped one is the same;
+    // the step fade's stop is the one Home last posed). A step that has just jumped asks for the frame that stands the
+    // camera on the new stop; the host is dark now, so the frame it was a stop behind is never seen.
+    if (reduced && !Object.is(handover.shown, shown)) invalidate();
+    handover.shown = shown;
+    // The compass's pose is the journey's rise (journey.ts: M2a's scroll pose itself up to progress 1, then held at the
+    // top). The camera is the same journey's shot, written by the Opening.
+    const pose = journeyPoseAt(shown, aspect).rise;
     // The needle aims only at the home itself; up the rise its spring holds the target it had (aimsAt).
     const aiming = aimsAt(phase.kind, scene, pose.u);
     if (state.u !== pose.u) {
@@ -288,14 +298,6 @@ export function Home({ models, handover }: HomeProps): null {
     scroll.needleDip = pose.needleDip;
     // The hero's SCROLL cue goes with the rise and comes back at the home (the spec shows no text during the scroll).
     showRising(state, risingFor(pose.u));
-    // The camera only when it has somewhere new to stand. The Rig has placed this frame's camera already (it runs
-    // before Home), so the next frame is asked for, which puts it there.
-    if (!Object.is(pose.u, state.shotU) || !Object.is(aspect, state.shotAspect)) {
-      frame.shot = pose.shot;
-      state.shotU = pose.u;
-      state.shotAspect = aspect;
-      invalidate();
-    }
 
     const time = state.base + state.idleTime;
     models.compass.setSpin(time);

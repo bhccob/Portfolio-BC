@@ -115,8 +115,9 @@
  *   scroll-bob the home's first unit of scroll, the rise from the compass to BOB seen from above (the bridge's `scroll`:
  *              `u`, `letters`, `iris`, `needleDip`), at 1440x900 (the wheel) and 390x844 (touch, coarse pointer), landed
  *              with the seen flag set: at rest `u` and `letters` are 0 and no B mark is cut; moved the whole unit (ten
- *              wheel notches, swipes) and at rest, `u`, `letters`, `iris` and `needleDip` are all 1, and a still of it
- *              (`m2/bob-from-above-<size>.png`) is gated as a home still; one mid-rise still at `u` 0.6 put there
+ *              wheel notches, swipes) and at rest, `u`, `letters`, `iris` and `needleDip` are all 1, and at stop 1 (put
+ *              there through `.set`, as the gesture ends in the dive) the camera is on the top shot, with a still of it
+ *              (`m2/bob-from-above-<size>.png`) gated as a home still; one mid-rise still at `u` 0.6 put there
  *              through `.set` (`m2/bob-rising-<size>.png`, also gated as a home still); moved back, `u` and `letters` are exactly 0 and, at 1440, the
  *              needle aims at the pointer again within 1.5 s. The hero's SCROLL cue leaves with the rise (Ruling 15):
  *              shown at the home, gone (computed opacity 0, `<html data-rising>` set, still in the page) at `u` 1
@@ -3014,9 +3015,10 @@ async function aim(browser, step) {
 /**
  * The rise of the home's first unit of scroll (src/scene/bob/scrollPose.ts), as the harness drives it. One wheel notch of
  * 120 px at 1440x900 is 0.133 of a viewport height, a seventh of the unit and under the letters' start (0.29 of the
- * rise), so the whole unit is ten notches (1.33 viewport heights: the rise ends at 1 and the story goes on into
- * DISSECT, where the pose holds at BOB from above). On the phone a swipe covers 500 px (0.59 of the screen) and its
- * glide on, and `swipesUntil` swipes until the pose says so.
+ * rise), so the whole unit is ten notches (1.33 viewport heights: the rise ends at 1 and the story goes on into the
+ * dive, whose camera leaves the top shot from 1.125; the compass holds at BOB from above). On the phone a swipe covers
+ * 500 px (0.59 of the screen) and its glide on, and `swipesUntil` swipes until the pose says so. The camera check and
+ * the still of BOB from above are made at stop 1, put there through `.set`, not where the gesture ended.
  */
 const RISE = { notches: 10, notchPx: 120, notchGapMs: 16, swipePx: 500 };
 
@@ -3181,9 +3183,10 @@ const cueText = (cue) =>
  * scroll's, not the loader's):
  *
  * 1. At rest on the home `u` and `letters` are 0 (and `iris`, `needleDip`), and no B mark is cut.
- * 2. Moved the whole unit down (ten notches; swipes), at rest `u`, `letters`, `iris` and `needleDip` are all 1, and the
- *    camera stands on the top shot (`topShotFor`, the whole name across the picture, which the unit test pins). A
- *    still, `m2/bob-from-above-<size>.png`, is gated as a home still.
+ * 2. Moved the whole unit down (ten notches; swipes), at rest `u`, `letters`, `iris` and `needleDip` are all 1. The
+ *    gesture ends past the unit, in the dive, so the story is put on stop 1 through the bridge (`.set({ progress: 1 })`)
+ *    and there the camera stands on the top shot (`topShotFor`, the whole name across the picture, which the unit test
+ *    pins). A still of it, `m2/bob-from-above-<size>.png`, is gated as a home still.
  * 3. A mid-rise still at `u` 0.6, put there through the bridge's `.set({ progress })`: `m2/bob-rising-<size>.png`, gated as
  *    a home still; the shares of the iris, the needle and the letters are those of the pure pose (`scrollPoseAt`), each between 0 and 1.
  * 4. The story put back where the scroll left it and moved the whole unit up (ten notches, swipes): `u` and `letters`
@@ -3240,15 +3243,25 @@ async function scrollBob(browser, step) {
       await wheelNotches(page, 1);
     }
     const down = await settledState(page);
-    const top = topShotFor(aspect);
-    const onTop = down.camera.position.every((value, i) => near(value, top.position[i], 1e-3)) && near(down.camera.fov, top.fov, 1e-3);
     step.check(
       scrollAll(down.scroll, 1),
       `${at}: moved the whole unit down (${touch ? `${swipesDown} swipes up` : `${RISE.notches} wheel notches of ${RISE.notchPx} px`}) and at rest, ${scrollText(down.scroll)} (phase ${down.phase.kind}, target ${down.target})`,
     );
+    // The gesture goes the whole unit and on, into the dive (a wheel's ten notches reach 1.33, a swipe's glide further), and the
+    // camera, which the journey now poses past the rise, has left the top shot there. BOB from above is stop 1, the end of
+    // the rise: it is put there through the bridge, as the mid-rise stop is, and the top-shot check and the still are of it.
+    const restedProgress = down.progress;
+    await page.evaluate(() => window.__needleDebug.set({ progress: 1 }));
+    const atTop = await settledState(page);
+    const top = topShotFor(aspect);
+    const onTop = atTop.camera.position.every((value, i) => near(value, top.position[i], 1e-3)) && near(atTop.camera.fov, top.fov, 1e-3);
+    step.check(
+      atTop.progress === 1 && scrollAll(atTop.scroll, 1),
+      `${at}: the gesture ended at progress ${restedProgress.toFixed(3)}, past the rise, and stop 1 (the rise's end), put there through .set, is the rise at 1: ${scrollText(atTop.scroll)} (progress ${atTop.progress})`,
+    );
     step.check(
       onTop,
-      `${at}: BOB from above stands on the top shot, the whole name across the picture: camera [${down.camera.position.map((v) => v.toFixed(3)).join(', ')}] fov ${down.camera.fov.toFixed(3)}, topShotFor(${aspect.toFixed(3)}) is [${top.position.map((v) => v.toFixed(3)).join(', ')}] fov ${top.fov.toFixed(3)}`,
+      `${at}: BOB from above (stop 1) stands on the top shot, the whole name across the picture: camera [${atTop.camera.position.map((v) => v.toFixed(3)).join(', ')}] fov ${atTop.camera.fov.toFixed(3)}, topShotFor(${aspect.toFixed(3)}) is [${top.position.map((v) => v.toFixed(3)).join(', ')}] fov ${top.fov.toFixed(3)}`,
     );
     const cueTop = await cueAt(page, 0);
     step.check(cueGone(cueTop), `${at}: BOB from above (u ${down.scroll.u}) has no SCROLL cue: it left by opacity alone and is still in the page (${cueText(cueTop)}, hero opacity ${cueTop?.heroOpacity})`);
@@ -3257,7 +3270,6 @@ async function scrollBob(browser, step) {
     shots.push({ file: fromAbove, kind: 'home' });
 
     // 3. One mid-rise still, put at 0.6 of the rise through the bridge.
-    const restedProgress = down.progress;
     await page.evaluate((progress) => window.__needleDebug.set({ progress }), RISE_MID);
     await page.waitForFunction((u) => Math.abs(window.__needleDebug().scroll.u - u) < 1e-9, RISE_MID, { timeout: 5_000 }).catch(() => {});
     await page.waitForTimeout(500);

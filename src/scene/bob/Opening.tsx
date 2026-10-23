@@ -22,8 +22,9 @@ import { motion } from '../motion';
 import { settleLoad } from '../settleLoad';
 import { visibleTimeout } from '../timeouts';
 import { type Handover, Home, type HomeModels } from './Home';
+import { journeyPoseAt } from './journey';
 import { cameraShotAt, loadShare, type OpeningPose, openingPoseAt } from './openingPose';
-import { riseAt, scrollPoseAt } from './scrollPose';
+import { SHOT_PRIORITY, shotSourceFor, shownProgressFor } from './shotSource';
 import {
   HOME_CLOCK,
   heldLoaderInput,
@@ -199,8 +200,6 @@ interface Run {
   landed: boolean;
   /** The home's pose has been applied since the clock last reached `home`: the home's parts are Home's from there. */
   posedHome: boolean;
-  /** The aspect the home shot was last framed for, so a resize at home frames it again. */
-  homeAspect: number;
   /** Fails the opening, once, unless it is gone: the load's throw and the give-up both end here. */
   fail(reason: string, error?: unknown): void;
 }
@@ -247,7 +246,16 @@ export interface OpeningProps {
  * `loadedAt` once it reaches 1, then `loaderAt({ elapsed, loadedAt, skipAt, path })`, and everything is posed from the
  * result (openingPose.ts: `cameraShotAt` into `frame.shot`, which the Rig follows, and `openingPoseAt` for the objects;
  * the needle at `settleAngle(needleSettle)`; the bands' turn, the smoke's drift and the sparks at the loader's seconds).
- * The pose is a function of the clock alone, so a held clock poses the scene as the live one did. The path is
+ * The pose is a function of the clock alone, so a held clock poses the scene as the live one did.
+ *
+ * **The camera's one writer.** This frame callback writes `frame.shot` and nothing else does, and it runs at
+ * `SHOT_PRIORITY`, below the Rig's default 0, so R3F runs it strictly before the Rig in the same frame: the camera is
+ * placed on the shot of the frame it is drawn in. `shotSourceFor(stage, held, live)` says where the shot comes from:
+ * the loader's own shots (`cameraShotAt`) while the loader plays and at a held seek; at home, once the clock is there,
+ * the journey's (`journeyPoseAt(progress, aspect).shot`, src/scene/bob/journey.ts) on every frame drawn, at the progress
+ * `shownProgressFor` gives. Home poses the compass from the same progress and writes no shot.
+ *
+ * The path is
  * `pathFor(loaderSeen(localStorage), reducedMotion)`, read once at mount (reduced beats quick, quick beats full).
  * `motion.loader` keeps the Heartbeat drawing until `home`; `frame.loader` says where the opening stands.
  *
@@ -263,11 +271,10 @@ export interface OpeningProps {
  * and quick paths, not the reduced fade: `marksSeen`) and dispatches `LOADED` (the only place it is sent while a Stage
  * is up), once. From then on the Opening poses the home once each time the clock reaches `home`, asks for one more
  * frame, and hands it over (`handover`) to Home (Home.tsx), which drives the needle, the bands' turn,
- * the smoke, the needle's breath and the scroll's rise from there, starting where the Opening left them. On the first
- * home frame and on a resize it frames the camera for the screen's shape where the scroll has it
- * (`scrollPoseAt(riseAt(frame.progress), aspect)`, the home shot at the rise's 0; with reduced motion the stop the step
- * fade shows), so a resize partway up reframes in place. On a project page it lands on the home view under that page's
- * scrim.
+ * the smoke, the needle's breath and the scroll's rise from there, starting where the Opening left them. The camera
+ * stays the Opening's (above): at the home it is the home shot at the rise's 0, up the rise to BOB from above, and on
+ * into the dive (a resize reframes it in place, in the same frame). On a project page it lands on the home view under
+ * that page's scrim.
  *
  * **Skipped mount** (Ruling 9c). Mounted while the home page has already left LOADING (`openingStartFor`: 3D back on
  * after a failure or a toggle, a visit that began on Lite), it plays no loader under the hero that now shows: it builds
@@ -303,7 +310,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
   const buffer = useRef({ seen: new THREE.Vector2(-1, -1), now: new THREE.Vector2() });
   /** The home's parts once built, which mount Home; and what the Opening hands over to it, set on each frame drawn. */
   const [models, setModels] = useState<HomeModels | null>(null);
-  const [handover] = useState<Handover>(() => ({ live: false, time: 0, needle: settleAngle(1) }));
+  const [handover] = useState<Handover>(() => ({ live: false, time: 0, needle: settleAngle(1), shown: 0 }));
   /** The full show is playing, so any input skips it (`useLoaderSkip`) while a scene is shown. */
   const [skippable, setSkippable] = useState(false);
   /** The page shows a scene: on a page of text (Lite, contact) the canvas draws nothing, and the skip must not listen. */
@@ -404,7 +411,6 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       cutAt: Number.NEGATIVE_INFINITY,
       landed: start.skip,
       posedHome: false,
-      homeAspect: Number.NaN,
       fail: (reason, error) => {
         if (disposed || state.failed) return;
         state.failed = true;
@@ -566,17 +572,17 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
     frame.loader.strokes = clock.strokes;
     motion.loader = !atHome;
 
-    if (held !== null || !atHome) {
+    // The camera's shot: this callback is its one writer, and it runs before the Rig's in the same frame (SHOT_PRIORITY),
+    // so the camera is placed on the very shot written here. The loader and a held seek keep the loader's own shots; at
+    // home the shot is the journey's at the progress Home poses the scene at (src/scene/bob/shotSource.ts), every frame
+    // drawn, so a scroll, a resize or a step of reduced motion all find the camera where the compass is. (`handover.live`
+    // is still last frame's here: the Opening sets it below.)
+    const source = shotSourceFor(clock.stage, held, handover.live);
+    if (source === 'loader' || source === 'held') {
       frame.shot = cameraShotAt(clock, state.path, aspect);
-      state.homeAspect = Number.NaN;
-    } else if (state.homeAspect !== aspect) {
-      // At home the camera stands where the scroll has it (Home poses it; src/scene/bob/scrollPose.ts), so the first home
-      // frame and a resize frame it for this shape at the same point of the rise, in place: the home shot itself at the
-      // rise's 0. With reduced motion, while Home drives the home (`handover.live` is still last frame's here), that point
-      // is the stop the step fade shows, as Home last posed it, not the damped progress on its way to the next stop.
-      const rise = handover.live && useScene.getState().reducedMotion ? frame.scroll.u : riseAt(frame.progress);
-      frame.shot = scrollPoseAt(rise, aspect).shot;
-      state.homeAspect = aspect;
+    } else {
+      const shown = shownProgressFor(source, useScene.getState().reducedMotion, frame.progress, frame.target, handover.shown);
+      frame.shot = journeyPoseAt(shown, aspect).shot;
     }
     // A held clock poses every frame; the live one poses the home once, when it gets there.
     if (held !== null || !atHome) state.posedHome = false;
@@ -593,7 +599,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
         invalidate();
       }
     }
-    // Home's frame runs after this one (it mounted later), and reads this.
+    // Home's frame runs after this one (its priority is 0, this one's SHOT_PRIORITY), and reads this.
     handover.live = state.posedHome;
 
     if (atHome && held === null) {
@@ -613,7 +619,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
         useScene.getState().dispatch({ type: 'LOADED' });
       }
     }
-  });
+  }, SHOT_PRIORITY);
 
   return models ? <Home models={models} handover={handover} /> : null;
 }

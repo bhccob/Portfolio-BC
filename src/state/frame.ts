@@ -41,11 +41,15 @@ export const frame = {
   /** True while the WebGL context is lost. */
   contextLost: false,
   /**
-   * Where the camera should be, which the Rig puts the camera on (adding the pointer's parallax at home). The Opening
-   * (src/scene/bob/Opening.tsx) writes it on every frame it draws during the loader and on a held seek. At home, Home
-   * (src/scene/bob/Home.tsx) writes it whenever the rise or the screen's aspect has changed, and the Opening writes it
-   * on the first home frame and on a resize. Null until an Opening has posed its first frame; the Rig then leaves the
-   * camera as it is.
+   * Where the camera should be, which the Rig puts the camera on (adding the pointer's parallax at home). It has one
+   * writer, the Opening (src/scene/bob/Opening.tsx), and writes it once on every frame it draws, in a frame callback at
+   * `SHOT_PRIORITY` (src/scene/bob/shotSource.ts), below the Rig's, so R3F runs it strictly before the Rig in that same
+   * frame and the camera is placed on the shot of the frame it is drawn in. `shotSourceFor(stage, held, live)` says
+   * which shot: during the loader and on a held seek (`loaderHold`) the loader's own (`cameraShotAt`); at home the
+   * journey's, `journeyPoseAt(progress, aspect).shot` (src/scene/bob/journey.ts), from the home up the rise to BOB from
+   * above and on into the dive and the void, at `progress`, or with reduced motion the stop the step fade shows
+   * (`shownProgressFor`). Home (src/scene/bob/Home.tsx) writes none. Null until an Opening has posed its first frame,
+   * and again when it unmounts; the Rig then leaves the camera as it is.
    */
   shot: null as CameraShot | null,
   /**
