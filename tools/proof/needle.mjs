@@ -112,8 +112,8 @@
  *              window.__needleDebug.scrollRequest, apart from the canvas's, which renders on demand through R3F's own
  *              requestAnimationFrame); Home, End, Page Down and the arrows move it; a text
  *              field keeps its keys, a pinch (ctrl+wheel) is the browser's, and with 3D off nothing is
- *              prevented and the page scrolls natively; `chapter.index` stays in step, so coming back
- *              from a project page puts the scene on the scroll's phase, not HOME_IDLE. With reduced motion a
+ *              prevented and the page scrolls natively; `chapter.index` stays in step, and Back from a
+ *              project page lands at that bead's stop, in PROJECTS, not on HOME_IDLE. With reduced motion a
  *              whole wheel gesture is one stop (1, 2, 3, ...) and so is a key press. On a touch screen
  *              (CDP touch events) a drag moves it, a flick glides on after the finger lifts, a tap and a
  *              sideways swipe do not move it, and the 3D switch still takes a tap
@@ -154,6 +154,8 @@
  *              as a home still, a link opens its page and Esc comes back to 1.0, not to the bead's stop; back at the home
  *              the nav is hidden again; exactly one console error (the browser's report of the 404, per size) and the
  *              Void's own line a warning
+ *   (Every still of the three void steps is gated with the page's text masked, so the luma floor is the scene's, and each
+ *   bead stop and the failure have a negative control: a still with the canvas hidden, whose masked floor must fail.)
  *   keyboard   Tab from the top of the home page reaches the skip link, then the language switch and the 3D toggle in
  *              that order, each with a focus ring (outline 2 px or more) and on screen, and Shift+Tab goes back; the
  *              language switch shows "EN" and its name begins with it (WCAG 2.5.3, label in name); End
@@ -1709,7 +1711,7 @@ async function scrollDesktop(browser, step) {
   await page.mouse.wheel(0, -120);
   step.check((await frameOf(page)).target === 0, 'a wheel up at the start stays at 0');
 
-  // A visit to a page and back: the scene returns to the phase the scroll is in, and the scroll goes on from there.
+  // A visit to a page and back: Back from a project page lands at its bead's stop (Task 12), and the scroll goes on from there.
   for (const key of ['PageDown', 'PageDown', 'ArrowDown', 'ArrowDown']) await page.keyboard.press(key);
   const mid = await restAt(page);
   step.check(near(mid.progress, 2.1) && mid.chapterIndex === 2, `the story rests part way through VOID_ENTRY, the overview's stretch (got ${JSON.stringify(mid)})`);
@@ -1886,10 +1888,11 @@ async function scrollTouch(browser, step) {
   await drag(700, 300);
   const far = await restAt(page);
   // The three flicks and their glides carry the story out of the rise into the dive or on into the overview (the glide's
-  // length is the finger's), so the phase it leaves HOME_IDLE for is that of the chapter it came to rest in.
-  const farChapter = HOME_CHAPTERS.units[far.chapterIndex];
-  await expectPhase(page, step, farChapter.id, `the phase leaves HOME_IDLE for that of the chapter the story rests in, ${farChapter.id}`);
-  step.check(far.target > 1 && far.chapterIndex >= 1 && farChapter.id !== 'HOME', `flicks take the story out of HOME_IDLE into the dive and on (got ${JSON.stringify(far)})`);
+  // length is the finger's), so the phase it leaves HOME_IDLE for is that of the chapter the place it rests at is in: the
+  // chapters' own table (`chapterAt`) says which, and the page's chapter index must agree with it.
+  const farChapter = chapterAt(HOME_CHAPTERS, far.progress);
+  await expectPhase(page, step, farChapter.id, `the phase leaves HOME_IDLE for that of the chapter the story rests in, ${farChapter.id} (${far.progress.toFixed(3)} is in chapter ${farChapter.index})`);
+  step.check(far.target > 1 && far.chapterIndex === farChapter.index && farChapter.id !== 'HOME', `flicks take the story out of HOME_IDLE into the dive and on, the page's chapter index agreeing with the table's (got ${JSON.stringify(far)})`);
   step.check((await page.evaluate(() => window.scrollY)) === 0, 'the page itself did not scroll');
 
   // A drag down goes back.
@@ -2952,11 +2955,17 @@ const HOME_SAMPLES = 4;
  * canvas at its own size and read back with getImageData. Luma is Rec. 709's weights on the stored sRGB values, 0..1:
  * `mean` over every pixel, `clipped`, the share of pixels at LUMA_GATE.clip or more, `peak`, the luma of the
  * brightest pixel in the scene's middle (LUMA_GATE.floor.region), and `peakAll`, the brightest pixel of the whole still.
+ *
+ * With a `mask` (`{ viewport: { width, height }, boxes: [{ left, top, right, bottom }] }`, the boxes in the page's CSS
+ * pixels, as `getBoundingClientRect` gives them, the viewport the still was taken at), the pixels under the boxes are the
+ * page's own text, not the scene: `peak` and `sceneMean` leave them out, so the floor (LUMA_GATE.floor) is the scene's. `mean`
+ * and `clipped` still count the whole picture, as the visitor sees it, which is what the ceiling judges. `masked` is the
+ * share of the picture under the boxes. Without a mask `sceneMean` is `mean` and `masked` is 0.
  */
-async function lumaOf(page, file) {
+async function lumaOf(page, file, mask = null) {
   const url = `data:image/png;base64,${readFileSync(file).toString('base64')}`;
   return page.evaluate(
-    async ([url, clip, region]) => {
+    async ([url, clip, region, mask]) => {
       const image = new Image();
       image.src = url;
       await image.decode();
@@ -2966,7 +2975,21 @@ async function lumaOf(page, file) {
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       ctx.drawImage(image, 0, 0);
       const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      // The mask, in the still's own pixels (a phone's still has two device pixels to a CSS pixel).
+      const covered = new Uint8Array(canvas.width * canvas.height);
+      if (mask !== null) {
+        const scale = canvas.width / mask.viewport.width;
+        for (const box of mask.boxes) {
+          const bx0 = Math.max(0, Math.floor(box.left * scale));
+          const bx1 = Math.min(canvas.width, Math.ceil(box.right * scale));
+          const by0 = Math.max(0, Math.floor(box.top * scale));
+          const by1 = Math.min(canvas.height, Math.ceil(box.bottom * scale));
+          for (let py = by0; py < by1; py++) covered.fill(1, py * canvas.width + bx0, py * canvas.width + bx1);
+        }
+      }
       let sum = 0;
+      let sceneSum = 0;
+      let sceneCount = 0;
       let clipped = 0;
       let peak = 0;
       let peakAll = 0;
@@ -2978,22 +3001,87 @@ async function lumaOf(page, file) {
         if (y >= clip) clipped++;
         if (y > peakAll) peakAll = y;
         const p = i / 4;
+        if (covered[p] === 1) continue;
+        sceneSum += y;
+        sceneCount++;
         const px = p % canvas.width;
         const py = (p - px) / canvas.width;
         if (y > peak && px >= x0 && px < x1 && py >= y0 && py < y1) peak = y;
       }
       const pixels = data.length / 4;
-      return { mean: sum / pixels, clipped: clipped / pixels, peak, peakAll, width: canvas.width, height: canvas.height };
+      return { mean: sum / pixels, sceneMean: sceneCount > 0 ? sceneSum / sceneCount : 0, masked: 1 - sceneCount / pixels, clipped: clipped / pixels, peak, peakAll, width: canvas.width, height: canvas.height };
     },
-    [url, LUMA_GATE.clip, LUMA_GATE.floor.region],
+    [url, LUMA_GATE.clip, LUMA_GATE.floor.region, mask],
   );
 }
 
 /**
- * Measures each still in `shots` (`{ file, kind, dark? }`, kind `home` or `loader`; `dark` marks the loader's black
- * first moment) in a page of its own context (no site page, so no policy of the site's stands between the data URL and
+ * The boxes of the page's own text in the picture, for `lumaOf`'s mask, as the page shows them now (CSS pixels, each
+ * grown by 4 px for the glyphs' soft edges): the shown bead label, the home's nav where it is shown (not the 1 px box it
+ * hides in with 3D on), the header, and the hero's visible text (its box is the whole screen, so it is its lines of text
+ * that are taken, where they are not faded out or clipped away). The still's floor is then the scene's.
+ */
+const textMask = (page) =>
+  page.evaluate(() => {
+    const grow = 4;
+    const boxes = [];
+    const add = (el) => {
+      const box = el.getBoundingClientRect();
+      if (box.width > 1 && box.height > 1) boxes.push({ left: box.left - grow, top: box.top - grow, right: box.right + grow, bottom: box.bottom + grow });
+    };
+    for (const el of document.querySelectorAll('.bead-label[data-shown], .home-nav, .site-header')) add(el);
+    const hero = document.querySelector('.hero');
+    if (hero) {
+      // A line of the hero's text counts where it can be seen: not faded out, and not inside a box clipped to a pixel.
+      const clipped = (el) => {
+        for (let e = el; e !== null && e !== hero.parentElement; e = e.parentElement) {
+          const box = e.getBoundingClientRect();
+          if (box.width <= 1 && box.height <= 1) return true;
+        }
+        return false;
+      };
+      const walker = document.createTreeWalker(hero, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+        const parent = node.parentElement;
+        if (!node.textContent.trim() || parent === null || clipped(parent) || !parent.checkVisibility({ opacityProperty: true, visibilityProperty: true })) continue;
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        for (const box of range.getClientRects()) {
+          if (box.width > 1 && box.height > 1) boxes.push({ left: box.left - grow, top: box.top - grow, right: box.right + grow, bottom: box.bottom + grow });
+        }
+      }
+    }
+    return { viewport: { width: window.innerWidth, height: window.innerHeight }, boxes };
+  });
+
+/**
+ * Hides the scene's canvas for the length of `take`, which takes a still of the page without it (the poster's night and
+ * the page's text), and puts the canvas back. Harness-only, as every step is: it is how the floor's negative control
+ * is made. Answers what `take` answers.
+ */
+async function withoutCanvas(page, take) {
+  await page.evaluate(() => {
+    for (const canvas of document.querySelectorAll('.scene-host canvas')) canvas.style.display = 'none';
+  });
+  await page.waitForTimeout(300);
+  try {
+    return await take();
+  } finally {
+    await page.evaluate(() => {
+      for (const canvas of document.querySelectorAll('.scene-host canvas')) canvas.style.display = '';
+    });
+    await page.waitForTimeout(300);
+  }
+}
+
+/**
+ * Measures each still in `shots` (`{ file, kind, dark?, mask? }`, kind `home` or `loader`; `dark` marks the loader's black
+ * first moment; `mask` the boxes of the page's own text, `textMask`, which the floor leaves out so that it is the scene's)
+ * in a page of its own context (no site page, so no policy of the site's stands between the data URL and
  * the canvas) and gates it by LUMA_GATE: its kind's ceiling, the clipped share, and the floor (the dark moment's own,
- * `darkPeak`). Prints each still's numbers and answers their rows, for results.json.
+ * `darkPeak`). A shot of kind `control` is the floor's negative control, a still taken with the canvas hidden: it has no
+ * ceiling, and its masked floor must FAIL, or the floor could not tell a scene from the page's text and its night.
+ * Prints each still's numbers and answers their rows, for results.json.
  */
 async function gateLuma(browser, step, shots) {
   const meter = await browser.newContext();
@@ -3003,10 +3091,31 @@ async function gateLuma(browser, step, shots) {
   const rows = [];
   for (const shot of shots) {
     const name = shot.file.split(/[\\/]/).pop();
-    const luma = await lumaOf(page, shot.file);
+    const luma = await lumaOf(page, shot.file, shot.mask ?? null);
     const limit = LUMA_GATE[shot.kind];
     const dark = shot.dark === true;
-    rows.push({ still: name, kind: shot.kind, ...(dark ? { dark } : {}), mean: Number(luma.mean.toFixed(4)), peak: Number(luma.peak.toFixed(3)), peakAll: Number(luma.peakAll.toFixed(3)), clipped: Number(luma.clipped.toFixed(6)), pixels: `${luma.width}x${luma.height}` });
+    const masked = shot.mask !== undefined;
+    rows.push({
+      still: name,
+      kind: shot.kind,
+      ...(dark ? { dark } : {}),
+      mean: Number(luma.mean.toFixed(4)),
+      ...(masked ? { sceneMean: Number(luma.sceneMean.toFixed(4)), masked: Number(luma.masked.toFixed(4)) } : {}),
+      peak: Number(luma.peak.toFixed(3)),
+      peakAll: Number(luma.peakAll.toFixed(3)),
+      clipped: Number(luma.clipped.toFixed(6)),
+      pixels: `${luma.width}x${luma.height}`,
+    });
+    const floorMean = masked ? luma.sceneMean : luma.mean;
+    if (shot.kind === 'control') {
+      // The negative control: the canvas hidden, the page's text masked: nothing of the scene is left, so the floor must fail.
+      step.check(
+        !(floorMean > floor.mean && luma.peak >= floor.peak),
+        `${name}: negative control, the canvas hidden and the page's text masked (${percent(luma.masked)} of the still): the floor FAILS, as it must: the scene's mean ${floorMean.toFixed(4)} (floor ${floor.mean}), the brightest pixel of the scene's middle at luma ${luma.peak.toFixed(3)} (floor ${floor.peak})`,
+      );
+      console.log(`note: luma ${name} (${luma.width}x${luma.height}), the negative control: scene mean ${floorMean.toFixed(4)}, scene peak ${luma.peak.toFixed(3)} (floor ${floor.peak}), whole mean ${luma.mean.toFixed(4)}`);
+      continue;
+    }
     step.check(luma.mean <= limit, `${name}: mean luma ${luma.mean.toFixed(4)}, at most ${limit} for a ${shot.kind} still`);
     step.check(luma.clipped <= LUMA_GATE.clipped, `${name}: ${percent(luma.clipped)} of the pixels at luma ${LUMA_GATE.clip} or more, at most ${percent(LUMA_GATE.clipped)}`);
     if (dark) {
@@ -3018,10 +3127,12 @@ async function gateLuma(browser, step, shots) {
       continue;
     }
     step.check(
-      luma.mean > floor.mean && luma.peak >= floor.peak,
-      `${name}: dark but drawn, mean luma ${luma.mean.toFixed(4)} above ${floor.mean} and the brightest pixel of the scene's middle at luma ${luma.peak.toFixed(3)}, ${floor.peak} or more`,
+      floorMean > floor.mean && luma.peak >= floor.peak,
+      masked
+        ? `${name}: dark but drawn with the page's text masked (${percent(luma.masked)} of the still): the scene's mean luma ${floorMean.toFixed(4)} above ${floor.mean} and the brightest pixel of the scene's middle at luma ${luma.peak.toFixed(3)}, ${floor.peak} or more`
+        : `${name}: dark but drawn, mean luma ${luma.mean.toFixed(4)} above ${floor.mean} and the brightest pixel of the scene's middle at luma ${luma.peak.toFixed(3)}, ${floor.peak} or more`,
     );
-    console.log(`note: luma ${name} (${luma.width}x${luma.height}): mean ${luma.mean.toFixed(4)} (gate ${limit}, floor ${floor.mean}), scene peak ${luma.peak.toFixed(3)} (floor ${floor.peak}), clipped ${percent(luma.clipped)} (gate ${percent(LUMA_GATE.clipped)})`);
+    console.log(`note: luma ${name} (${luma.width}x${luma.height}): mean ${luma.mean.toFixed(4)} (gate ${limit}, floor ${floor.mean}${masked ? `, scene mean ${floorMean.toFixed(4)} with ${percent(luma.masked)} masked` : ''}), scene peak ${luma.peak.toFixed(3)} (floor ${floor.peak}), clipped ${percent(luma.clipped)} (gate ${percent(LUMA_GATE.clipped)})`);
   }
   await meter.close();
   return rows;
@@ -4604,24 +4715,27 @@ const onJourneyShot = (state, progress, aspect) => {
 /**
  * Puts the story at `progress` through the bridge and reads the bridge in the page on the first animation frame at which
  * the scene has posed the journey there (the stretch and `local` the pure journey gives, `journeyPoseAt`), within 12
- * frames: answers `{ tick, camera }`, or null if it did not. Task 10 gave the shot one writer, strictly before the Rig, so
- * the camera of a frame stands on the shot of that same frame; before, it came a frame late. The camera read here is the
- * one of the very frame the journey was read on, in one evaluation.
+ * frames: answers `{ tick, camera, before }`, or null if it did not, where `before` is the camera as it stood when the
+ * story was put (the harness checks that it is NOT already on the new shot, or a camera that never moved would pass).
+ * Task 10 gave the shot one writer, strictly before the Rig, so the camera of a frame stands on the shot of that same
+ * frame; before, it came a frame late. The camera read here is the one of the very frame the journey was read on, in one
+ * evaluation. The journey is posed there when its stretch, `local` and bead (`project`) are the pure journey's.
  */
 async function poseOnTheFrame(page, progress, aspect) {
   const { at } = journeyPoseAt(progress, aspect);
   return page.evaluate(
-    async ([progress, stretch, local]) => {
+    async ([progress, stretch, local, project]) => {
       const bridge = window.__needleDebug;
+      const before = JSON.parse(JSON.stringify(bridge().camera));
       bridge.set({ progress });
       for (let tick = 0; tick < 12; tick++) {
         await new Promise((resolve) => requestAnimationFrame(resolve));
         const state = bridge();
-        if (state.journey.stretch === stretch && Math.abs(state.journey.local - local) < 1e-9) return { tick, camera: JSON.parse(JSON.stringify(state.camera)) };
+        if (state.journey.stretch === stretch && state.journey.project === project && Math.abs(state.journey.local - local) < 1e-9) return { tick, before, camera: JSON.parse(JSON.stringify(state.camera)) };
       }
       return null;
     },
-    [progress, at.stretch, at.local],
+    [progress, at.stretch, at.local, at.project],
   );
 }
 
@@ -4727,8 +4841,8 @@ async function voidJourney(browser, step) {
       const seen = await poseOnTheFrame(page, progress, aspect);
       ticks.push(seen === null ? 'none' : seen.tick);
       step.check(
-        seen !== null && seen.tick <= 2 && onJourneyShot({ camera: seen.camera }, progress, aspect),
-        `${at}: put at ${progress}, the first frame that poses the journey there (frame ${seen?.tick}, within 12 asked) has the camera on the journey's shot for it: [${seen?.camera.position.map((v) => v.toFixed(3)).join(', ')}] fov ${seen?.camera.fov.toFixed(3)} against [${journeyPoseAt(progress, aspect).shot.position.map((v) => v.toFixed(3)).join(', ')}] fov ${journeyPoseAt(progress, aspect).shot.fov.toFixed(3)}`,
+        seen !== null && seen.tick <= 2 && !onJourneyShot({ camera: seen.before }, progress, aspect) && onJourneyShot({ camera: seen.camera }, progress, aspect),
+        `${at}: put at ${progress} from a camera that was elsewhere ([${seen?.before.position.map((v) => v.toFixed(3)).join(', ')}]), the first frame that poses the journey there (frame ${seen?.tick}, within 12 asked) has the camera on the journey's shot for it: [${seen?.camera.position.map((v) => v.toFixed(3)).join(', ')}] fov ${seen?.camera.fov.toFixed(3)} against [${journeyPoseAt(progress, aspect).shot.position.map((v) => v.toFixed(3)).join(', ')}] fov ${journeyPoseAt(progress, aspect).shot.fov.toFixed(3)}`,
       );
     }
 
@@ -4753,7 +4867,15 @@ async function voidJourney(browser, step) {
       if (take) {
         const file = join(STILLS, `${take}-${at}.png`);
         await page.screenshot({ path: file });
-        shots.push({ file, kind: 'home' });
+        const mask = await textMask(page);
+        shots.push({ file, kind: 'home', mask });
+        if (bead) {
+          // The floor's negative control: the same stop with the canvas hidden. Only the page's text and its night are left,
+          // and with the text masked the floor must fail: a floor that passed here would not be judging the scene.
+          const control = join(STILLS, `void-control-${bead.id}-${at}.png`);
+          await withoutCanvas(page, () => page.screenshot({ path: control }));
+          shots.push({ file: control, kind: 'control', mask });
+        }
       }
       return state;
     };
@@ -4770,13 +4892,22 @@ async function voidJourney(browser, step) {
         await page.waitForTimeout(OBJECT_SETTLE_MS);
         const file = join(STILLS, `void-project-${bead.id}-hover-${at}.png`);
         await page.screenshot({ path: file });
-        shots.push({ file, kind: 'home' });
+        shots.push({ file, kind: 'home', mask: await textMask(page) });
       }
       // The middle of the picture is where the pointer leaves the home's parallax at rest (the home shot sways with the
       // pointer): the way back ends at the home, whose camera is the journey's shot only with the pointer there.
       await page.mouse.move(size.width / 2, size.height / 2);
     }
-    for (const progress of [5, 4, 3, 2, 1, 0]) await visit(progress, 'back', null);
+    let atZero = null;
+    for (const progress of [5, 4, 3, 2, 1, 0]) atZero = await visit(progress, 'back', null);
+    await waitForPhase(page, 'HOME_IDLE').catch(() => {});
+    const zero = await debugOf(page);
+    step.check(
+      scrollAll(atZero.scroll, 0) && zero.phase.kind === 'HOME_IDLE',
+      `${at}: back at 0 by .set the home is M2a's: ${scrollText(atZero.scroll)} exactly, the phase ${zero.phase.kind}`,
+    );
+    const cueZero = await cueAt(page, 1);
+    step.check(cueShown(cueZero), `${at}: and the SCROLL cue is back there (${cueText(cueZero)})`);
 
     // 4. A fling by hand through every stop and back.
     if (!touch) await page.mouse.move(size.width / 2, size.height / 2);
@@ -5016,7 +5147,7 @@ async function voidHold(browser, step) {
     step.check(later.target === rest.target && later.progress === rest.progress && later.journey.voidState === 'loading', `${at}: and a second later it has not crept: progress ${later.progress}, target ${later.target}, voidState ${later.journey.voidState}`);
     const still = join(STILLS, `void-hold-${at}.png`);
     await page.screenshot({ path: still });
-    shots.push({ file: still, kind: 'home' });
+    shots.push({ file: still, kind: 'home', mask: await textMask(page) });
 
     // Not stuck: up from the hold moves the story at once, and down again it comes to rest on the hold again.
     if (touch) await swipe(page, cdp, 200, 700);
@@ -5045,15 +5176,19 @@ async function voidHold(browser, step) {
     const heldAgain = await holdBeads(page);
     await page.goto(`${BASE}${target.path}?proof`, { waitUntil: 'load' });
     await stageReady(page);
-    await waitForProject(page, target.id);
+    const direct = await waitForProject(page, target.id);
     const settled = await landed(page).then(() => true, () => false);
     const stillLoading = await waitForVoid(page, 'loading', 10_000);
+    step.check(
+      direct.kind === 'PROJECT_FOCUS' && direct.id === target.id && settled && stillLoading === 'loading',
+      `${at}: a direct load of ${target.path} with the file held puts the scene on PROJECT_FOCUS ${target.id}, the opening lands and the void is ${stillLoading} (got ${JSON.stringify(direct)}, landed ${settled})`,
+    );
     await page.keyboard.press('Escape');
     await page.waitForURL(`${BASE}/`, { timeout: 5_000 }).catch(() => {});
     await page.waitForTimeout(1_500);
     const waiting = await debugOf(page);
     step.check(
-      settled && stillLoading === 'loading' && heldAgain.asked() >= 1 && new URL(page.url()).pathname === '/' && near(waiting.target, TUNNEL_HOLD, 1e-9) && waiting.progress === waiting.target && waiting.journey.voidState === 'loading',
+      heldAgain.asked() >= 1 && new URL(page.url()).pathname === '/' && near(waiting.target, TUNNEL_HOLD, 1e-9) && waiting.progress === waiting.target && waiting.journey.voidState === 'loading',
       `${at}: a direct load of ${target.path} (the file held again, ${heldAgain.asked()} requests), then Esc: the story waits at the hold (progress ${waiting.progress}, target ${waiting.target}, voidState ${waiting.journey.voidState}, ${waiting.phase.kind})`,
     );
     await heldAgain.release();
@@ -5142,7 +5277,11 @@ async function voidFail(browser, step) {
     await page.waitForTimeout(500);
     const still = join(STILLS, `void-fail-${at}.png`);
     await page.screenshot({ path: still });
-    shots.push({ file: still, kind: 'home' });
+    const mask = await textMask(page);
+    shots.push({ file: still, kind: 'home', mask });
+    const control = join(STILLS, `void-control-fail-${at}.png`);
+    await withoutCanvas(page, () => page.screenshot({ path: control }));
+    shots.push({ file: control, kind: 'control', mask });
 
     // The home stays usable: a link opens its project, and Esc comes back to the hold, not to a bead the void never showed.
     await page.click('.home-nav a[href="/projects/funcial/"]');
