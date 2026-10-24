@@ -1267,16 +1267,17 @@ describe('a failed void: the end page by its link and the step fade, never throu
 
   /**
    * The home's scroll as the page wires it (connectHomeScroll: the store, `frame`, HOME_CHAPTERS), its frames the test's,
-   * the store's void `failed` (or `voidState`) and the story at rest at `at`. `<html>` is a fake whose attributes the
-   * input reads (`data-end`, which Home's end view writes: `endView` writes it as Home would) and writes
-   * (`data-step-fade`); the window's `scrollY` is the end page's own scroll.
+   * the store's void `failed` (or `voidState`) and the story at rest at `at` (or, with `target`, at `at` on its way
+   * there, as a home that comes back to a story left mid-move finds it). `<html>` is a fake whose attributes the input
+   * reads (`data-end`, which Home's end view writes: `endView` writes it as Home would) and writes (`data-step-fade`);
+   * the window's `scrollY` is the end page's own scroll.
    */
-  function failedHome(at: number, options: { reduced?: boolean; voidState?: VoidState } = {}) {
+  function failedHome(at: number, options: { reduced?: boolean; voidState?: VoidState; target?: number } = {}) {
     useScene.setState(useScene.getInitialState(), true);
     useScene.setState({ phase: { kind: 'HOME_IDLE' }, threeD: true, voidState: options.voidState ?? 'failed', reducedMotion: options.reduced ?? false });
     const chapter = chapterAt(HOME_CHAPTERS, at);
     useScene.getState().dispatch({ type: 'CHAPTER', chapter: chapter.id, category: chapter.category });
-    Object.assign(storyFrame, { progress: at, target: at, velocity: 0, chapterIndex: chapter.index, loaderSkipEndsMs: null });
+    Object.assign(storyFrame, { progress: at, target: options.target ?? at, velocity: 0, chapterIndex: chapter.index, loaderSkipEndsMs: null });
     const html = new Map<string, string>();
     const win = {
       scrollY: 0,
@@ -1827,6 +1828,119 @@ describe('a failed void: the end page by its link and the step fade, never throu
       expect(goToEnd(), 'nothing connected').toBe(false);
       expect(headedToEnd(), 'nothing connected').toBe(false);
       expect(s.frames.size).toBe(0);
+    });
+  });
+
+  describe('the arrival at the end page: at rest once it looks arrived, at the move\'s 99 % (Ruling 18)', () => {
+    /** The 5→6 move as the loop's damp makes it with nothing else: each frame's progress, up to the first within `within` of the end. */
+    const plainMove = (within: number): number[] => {
+      const plain = { progress: 5 };
+      const seen: number[] = [];
+      while (END - plain.progress > within && seen.length < 3000) {
+        damp(plain, 'progress', END, GLIDE_SMOOTH, 1 / 60, Infinity, undefined, 1e-4);
+        seen.push(plain.progress);
+      }
+      return seen;
+    };
+
+    it('from 5 with the target at 6, rests on the frame it comes within 0.01: progress exactly 6, no velocity, END, no frame asked for after', async () => {
+      delete (storyFrame as { __damp?: unknown }).__damp;
+      const s = failedHome(5, { voidState: 'ready' });
+      expect(s.key('ArrowDown').defaultPrevented).toBe(true);
+      expect(storyFrame.target).toBe(END);
+      await flush();
+      const seen = s.run();
+      expect(s.frames.size, 'the loop sleeps').toBe(0);
+      expect([storyFrame.target, storyFrame.progress, storyFrame.velocity]).toEqual([END, END, 0]);
+      expect(storyFrame.chapterIndex).toBe(6);
+      expect(useScene.getState().phase.kind).toBe('END');
+      // The last frame run is the arrival, on 6 exactly; every frame before it stood more than 0.01 short of the end. The
+      // arrival within SETTLED (1e-4) ran about 1.8 s more of frames inside that last 1 %.
+      const rest = seen.length - 1;
+      expect(seen[rest]!.progress).toBe(END);
+      expect(seen.slice(0, rest).filter((f) => END - f.progress <= 0.01), 'frames within 0.01 of the end, still moving').toEqual([]);
+      // The move up to its 99 % is the same damped move as before, frame for frame: the pace is kept (§2.3).
+      const plain = plainMove(0.01);
+      expect(seen.length).toBe(plain.length);
+      for (let i = 0; i < rest; i++) expect(seen[i]!.progress, `frame ${i}`).toBeCloseTo(plain[i]!, 9);
+      expect(END - plain[rest]!, 'what the arrival closes, in units').toBeLessThanOrEqual(0.01);
+      // About 2.3 s from Cookies Clicker, where the old arrival took about 4.1 s.
+      const seconds = seen.length / 60;
+      expect(seconds).toBeGreaterThan(2.0);
+      expect(seconds).toBeLessThan(2.7);
+      expect(plainMove(1e-4).length / 60, 'the arrival within SETTLED').toBeGreaterThan(3.5);
+    });
+
+    it('lets the damping\'s own speed go at the arrival, so the next move leaves 6 as from a standstill', async () => {
+      delete (storyFrame as { __damp?: unknown }).__damp;
+      const s = failedHome(5, { voidState: 'ready' });
+      s.key('ArrowDown');
+      await flush();
+      s.run();
+      expect(storyFrame.progress).toBe(END);
+      const speed = (storyFrame as { __damp?: Record<string, number> }).__damp ?? {};
+      expect(Object.values(speed).every((v) => v === 0), `the damping's speed at rest: ${JSON.stringify(speed)}`).toBe(true);
+    });
+
+    it('still arrives only within 1e-4 at every other stop: from 4 to 5, and from 6 back to 5', async () => {
+      for (const from of [4, END]) {
+        delete (storyFrame as { __damp?: unknown }).__damp;
+        const s = failedHome(from, { voidState: 'ready' });
+        if (from === END) s.endView('rest'); // at rest at the end page, at its top: ArrowUp is the story's
+        expect(s.key(from === END ? 'ArrowUp' : 'ArrowDown').defaultPrevented).toBe(true);
+        expect(storyFrame.target).toBe(5);
+        await flush();
+        const seen = s.run();
+        expect(s.frames.size).toBe(0);
+        expect([storyFrame.target, storyFrame.progress, storyFrame.velocity], `from ${from}`).toEqual([5, 5, 0]);
+        // More than a second of frames within 0.01 of 5 still moving, and the last of them more than 1e-4 away.
+        const close = seen.slice(0, -1).filter((f) => Math.abs(f.progress - 5) <= 0.01);
+        expect(close.length, `from ${from}: frames within 0.01 of 5 before the arrival`).toBeGreaterThan(60);
+        expect(Math.abs(seen.at(-2)!.progress - 5), `from ${from}: the frame before the arrival`).toBeGreaterThan(1e-4);
+        expect(seen.at(-1)!.progress).toBe(5);
+        s.disconnect();
+        vi.unstubAllGlobals();
+      }
+    });
+
+    it('does not snap a turn back short of the threshold: ArrowUp at 5.98 on the way in goes back to 5, never at 6', async () => {
+      delete (storyFrame as { __damp?: unknown }).__damp;
+      const s = failedHome(5, { voidState: 'ready' });
+      s.key('ArrowDown');
+      await flush();
+      for (let i = 0; i < 600 && storyFrame.progress < 5.98; i++) s.frames.frame();
+      expect(storyFrame.progress).toBeGreaterThanOrEqual(5.98);
+      expect(storyFrame.progress).toBeLessThan(5.99); // short of the threshold: not yet at rest
+      s.key('ArrowUp');
+      expect(storyFrame.target).toBe(5);
+      const seen = s.run();
+      expect(seen.some((f) => f.progress === END), 'a frame on the end page').toBe(false);
+      expect([storyFrame.target, storyFrame.progress, storyFrame.velocity]).toEqual([5, 5, 0]);
+      expect(Math.abs(seen.at(-2)!.progress - 5)).toBeGreaterThan(1e-4);
+      expect(useScene.getState().phase.kind).toBe('PROJECTS');
+    });
+
+    it('does not snap a story at 5.995 whose target turns back to 5 before its frame: it travels back, damped', async () => {
+      delete (storyFrame as { __damp?: unknown }).__damp;
+      const s = failedHome(5.995, { voidState: 'ready', target: END }); // left within 0.01 of the end, headed there
+      await flush(); // the loop has asked for its frame, not yet run
+      s.key('ArrowUp'); // the target leaves the end before that frame
+      expect(storyFrame.target).toBe(5);
+      const seen = s.run();
+      expect(seen.some((f) => f.progress === END), 'a frame on the end page').toBe(false);
+      expect(seen.length).toBeGreaterThan(60); // the way back is the damped move
+      expect([storyFrame.target, storyFrame.progress]).toEqual([5, 5]);
+    });
+
+    it('lands a story left within 0.01 of the end, still headed there, on its first frame: a home that comes back to it does not leave it short', async () => {
+      delete (storyFrame as { __damp?: unknown }).__damp;
+      const s = failedHome(5.995, { voidState: 'ready', target: END });
+      await flush();
+      expect(s.frames.size, 'the loop has asked for a frame').toBe(1);
+      const seen = s.run();
+      expect(seen.map((f) => f.progress)).toEqual([END]);
+      expect([storyFrame.target, storyFrame.progress, storyFrame.velocity]).toEqual([END, END, 0]);
+      expect(useScene.getState().phase.kind).toBe('END');
     });
   });
 });

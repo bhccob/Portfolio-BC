@@ -62,6 +62,14 @@ function endPageYields(direction: 1 | -1): boolean {
 
 /** Within this many units of the target, progress is on it and the loop sleeps. */
 const SETTLED = 1e-4;
+/**
+ * Within this many units of the end page's stop (the target on `scrollEnd`), progress is on it: the move's 99 % (Ruling
+ * 18). The night's smoothstep there is at about 0.9997, so what is left of the page's rise is about 0.1 px and of the
+ * night's overlay about 0.0003 of its strength, nothing a visitor sees; the last 1 % of the damp at the beads' pace would
+ * take about 1.8 s more, the page looking arrived all the while but still inert, its wheel still the story's. Every other
+ * stop, Cookies Clicker's on the way back included, keeps SETTLED.
+ */
+export const END_SETTLED = 0.01;
 /** A frame is never longer than this, in seconds: a tab that was in the background must not lurch the scene. */
 const MAX_DT = 0.1;
 
@@ -100,7 +108,9 @@ export interface ScrollLoopOptions {
 /**
  * The frame loop of the home page's story: it moves `frame.progress` toward `frame.target`, steps the input's
  * glide, keeps `frame.chapterIndex` in step with the chapters and reports a chapter change. It runs a frame
- * at a time and sleeps when progress is on the target and nothing glides; `wake()` starts it again.
+ * at a time and sleeps when progress is on the target and nothing glides; `wake()` starts it again. Progress is on the
+ * target within SETTLED of it, or within END_SETTLED (the move's 99 %) when the target is the end page's stop, and the
+ * frame it arrives in lands it there exactly: so the end page comes to rest when it looks arrived.
  *
  * Exactly one frame is ever pending. `wake()` is called by the input at every delta, and a glide's `step`
  * makes deltas from inside a tick, so a `wake()` during a tick does nothing: the tick decides at its end
@@ -176,8 +186,18 @@ export class ScrollLoop {
     this.wake();
   }
 
-  private needsFrames(): boolean {
-    return Math.abs(this.o.frame.target - this.o.frame.progress) > SETTLED || this.o.glide.busy || this.fade !== null;
+  /**
+   * Whether the loop has something to do: progress more than `settled` off its target, a glide going, or a step fade
+   * under way. `wake` asks with SETTLED, so a story left within END_SETTLED of the end page (3D switched off, or the home
+   * left, mid-move) still gets the frame that lands it there.
+   */
+  private needsFrames(settled = SETTLED): boolean {
+    return Math.abs(this.o.frame.target - this.o.frame.progress) > settled || this.o.glide.busy || this.fade !== null;
+  }
+
+  /** How near its target progress is on it: END_SETTLED with the target on the end page's stop, else SETTLED. */
+  private settledFor(target: number): number {
+    return target === scrollEnd(this.o.chapters) ? END_SETTLED : SETTLED;
   }
 
   /** The step fade under way is over: its host fades back. */
@@ -231,9 +251,15 @@ export class ScrollLoop {
       glide.step(dt);
       const before = frame.progress;
       const faded = this.stepFade(now);
-      if (!faded) this.smooth(frame, 'progress', frame.target, smoothTimeAt(chapters, frame.progress, frame.target), dt, Infinity, undefined, SETTLED);
-      const arrived = !this.needsFrames();
-      if (arrived) frame.progress = frame.target; // on it, exactly: the next frame would snap it, but the loop sleeps first
+      const settled = this.settledFor(frame.target);
+      if (!faded) this.smooth(frame, 'progress', frame.target, smoothTimeAt(chapters, frame.progress, frame.target), dt, Infinity, undefined, settled);
+      const arrived = !this.needsFrames(settled);
+      if (arrived) {
+        frame.progress = frame.target; // on it, exactly: the next frame would snap it, but the loop sleeps first
+        // At the end page the damping still has some speed at 99 % (about 0.025 units a second): it is let go with the
+        // rest, so a move off the end page leaves from a standstill.
+        if (settled === END_SETTLED) this.letGo();
+      }
       frame.velocity = faded || arrived || dt <= 0 ? 0 : (frame.progress - before) / dt;
 
       const at = changedChapter(chapters, frame.progress, frame.chapterIndex, arrived || faded);
