@@ -1,3 +1,4 @@
+import { END_ATTRIBUTE } from '~/scene/bob/endView';
 import { type ChapterAt, type Chapters, chapterAt, riseTop, scrollEnd } from '~/state/chapters';
 import { changedChapter, holdLimit, jumpTarget, keyTarget, moveTarget, onRise, pinnedAtEnd, releaseTarget, SETTLE_SLOP_PX, settleTarget } from './target';
 import { VirtualScroll } from './VirtualScroll';
@@ -39,6 +40,29 @@ export function smoothTimeAt(c: Chapters, progress: number, target: number): num
   const index = chapterAt(c, p + toward).index;
   return index === 0 ? RISE_SMOOTH : index === 1 ? DIVE_SMOOTH : GLIDE_SMOOTH;
 }
+
+/**
+ * The end page stands at rest (`<html data-end="rest">`, written by Home's end view, src/scene/bob/endView.ts): in the
+ * page's flow, the document scrolling as any page does. Read off the attribute, so the input knows nothing of Home.
+ */
+function atEnd(): boolean {
+  return typeof document !== 'undefined' && document.documentElement.getAttribute(END_ATTRIBUTE) === 'rest';
+}
+
+/**
+ * Whether an input that goes `direction` (1 down the story, -1 up) is the page's own (VirtualScroll's `yields`): at the
+ * end page at rest, every input down, and every input up while the page is scrolled down. At the page's top an input up
+ * is the story's: back to Cookies Clicker.
+ */
+function endPageYields(direction: 1 | -1): boolean {
+  return atEnd() && (direction > 0 || window.scrollY > 0);
+}
+
+/** The page back at its top, if it is not there already (as Home's end view puts it back when the end's rest is left). */
+function pageToTop(): void {
+  if (typeof window !== 'undefined' && window.scrollY > 0) window.scrollTo(0, 0);
+}
+
 /** Within this many units of the target, progress is on it and the loop sleeps. */
 const SETTLED = 1e-4;
 /** A frame is never longer than this, in seconds: a tab that was in the background must not lurch the scene. */
@@ -246,6 +270,14 @@ export interface HomeScroll {
  * hold asks, once it ends, for the stop just past the hold and no further. Nothing past the hold is stored as a
  * debt: scrolling back up from the hold moves the story at once. A story that is already past the hold when this
  * starts (the route sync's Back to a bead's stop) is held the same way, its progress with it.
+ *
+ * **The end page.** Once the story rests at the end (`<html data-end="rest">`) the page stands in the flow and its own
+ * scroll is the browser's (VirtualScroll's `yields`, `endPageYields`): every input down is the page's, and every input
+ * up while the page is scrolled down. Each wheel gesture or drag keeps the answer its start had to its end, so a fling up
+ * the page that reaches the top stops there, and a gesture that brought the story into the night (its target pinned at
+ * the end, so no glide carries on) never scrolls the page either. At the top a new input up is the story's again: a
+ * notch or a swipe settles back on Cookies Clicker, and an arrow, Page Up or Shift+Space steps there. Home goes to the
+ * story's start from anywhere, the page back at its top first.
  */
 export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
   const { frame, chapters } = o;
@@ -342,6 +374,9 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
     onJump: (to) => {
       gesture = null;
       settling = false;
+      // Home goes to the story's start from the end page too, the page back at its top first: the end's rest is then
+      // left from the top, where Home's end view finds the page and scrolls nothing again.
+      if (to === 'home') pageToTop();
       askFor(jumpTarget(to, chapters));
       loop.wake();
     },
@@ -382,6 +417,7 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
     },
     enabled: o.enabled,
     reducedMotion: o.reducedMotion,
+    yields: endPageYields,
     swallow: o.swallow,
     wake: loop.wake,
   });

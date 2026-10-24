@@ -45,7 +45,10 @@ export interface HomeScrollPage {
  * while the home page is shown, apart from React so a test runs the very wiring. Answers its taking down.
  *
  * It takes events only while `scrollEnabled` (3D on, the scroll's phases), read live from the store at each event:
- * with 3D off the page scrolls natively and nothing here prevents anything.
+ * with 3D off the page scrolls natively and nothing here prevents anything. At the end page at rest (`<html
+ * data-end="rest">`, which Home writes) the page scrolls natively too: there `startHomeScroll` leaves the browser every
+ * gesture down and every gesture up while the page is scrolled, each gesture to its end, and takes an input up at the
+ * page's top back to Cookies Clicker; Home goes to the story's start, the page back at its top first.
  *
  * While a skipped loader's input is still arriving (`skipSwallower`, from `frame.loaderSkipEndsMs`: the fast-forward
  * and `SKIP_SWALLOW_MS` after the landing, then on while the input keeps coming without SKIP_QUIET_MS of quiet, for

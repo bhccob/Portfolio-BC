@@ -39,9 +39,23 @@ export interface VirtualScrollOptions {
   enabled: () => boolean;
   reducedMotion: () => boolean;
   /**
-   * Asked at every event the input takes (after `enabled`, so it never changes what the browser keeps): when true
-   * the event is taken and prevented as ever, and dropped. Nothing moves, no glide starts or goes on, and the page
-   * does not scroll either, which is the point: the tail of the gesture that skipped the loader arrives after the
+   * Whether the gesture is the page's own (the end page, which scrolls as any page does: src/input/scrollLoop.ts), asked
+   * with the way it goes, 1 down the story and -1 up, for every event the input would take, after `enabled`: when true
+   * the event is left to the browser, which scrolls the page, and nothing is prevented, moved, swallowed or settled for
+   * it. The answer is decided once per gesture and holds to its end, so a gesture never changes hands half-way (a fling
+   * up the page that reaches its top stops there, and only a new gesture at the top is the story's):
+   * - the wheel: its gesture's first event decides it for the whole gesture, until GESTURE_GAP_MS of quiet (an event that
+   *   goes neither way, a sideways wheel, asks as one down);
+   * - a finger: its first movement past the touch slop decides it for the whole drag, and a drag left to the page starts
+   *   no glide at its lift;
+   * - a key: each press decides alone, End as a key down; Home asks nothing, as it always goes to the story's start.
+   * Without it nothing is the page's.
+   */
+  yields?: (direction: 1 | -1) => boolean;
+  /**
+   * Asked at every event the input takes (after `enabled` and `yields`, so it never changes what the browser keeps):
+   * when true the event is taken and prevented as ever, and dropped. Nothing moves, no glide starts or goes on, and the
+   * page does not scroll either, which is the point: the tail of the gesture that skipped the loader arrives after the
    * home has begun and must not scroll it. A tap is still the browser's, as ever; a swipe that is under way when
    * this turns false carries on from where the finger is. Without it nothing is dropped.
    */
@@ -76,7 +90,8 @@ interface Drag {
  * and never takes:
  * - a wheel with ctrl held (a pinch, the browser's zoom);
  * - a key with ctrl, meta or alt held, one already handled, one typed into a text field (see `keyDelta`);
- * - a touch of two fingers (the pinch), a tap, or a swipe that goes sideways.
+ * - a touch of two fingers (the pinch), a tap, or a swipe that goes sideways;
+ * - a gesture or a key that `yields()` says is the page's own: one gesture, wheel or finger, stays the page's to its end.
  *
  * While `swallow()` says so it takes the events it would take and prevents them, but moves nothing for them.
  *
@@ -97,6 +112,10 @@ export class VirtualScroll {
   private quiet: number | null = null;
   /** The finger down took hold of the story (`onTouchDown`): its lift ends a gesture even if it never moved. */
   private holding = false;
+  /** Groups the wheel's events into the gestures `yields` decides, one answer each. */
+  private readonly wheelGestures = new GestureGroup();
+  /** The wheel's gesture under way is the page's (`yields` said so at its first event). */
+  private wheelYielded = false;
 
   constructor(
     private readonly el: HTMLElement,
@@ -164,6 +183,8 @@ export class VirtualScroll {
     this.quiet = null;
     this.stop();
     this.gesture.reset();
+    this.wheelGestures.reset();
+    this.wheelYielded = false;
   }
 
   /** The gesture under way has ended: tells the caller once, with the glide its end leaves (units). */
@@ -178,14 +199,15 @@ export class VirtualScroll {
 
   private readonly onWheel = (e: WheelEvent): void => {
     if (e.ctrlKey || e.defaultPrevented || !this.opts.enabled()) return;
+    const unit = this.opts.unitPx();
+    const { px } = normalizeWheel(e, unit);
+    if (this.wheelYields(e.timeStamp, px)) return; // the page's, as its whole gesture is: the browser scrolls it
     e.preventDefault();
     this.inertia.stop();
     if (this.opts.swallow?.()) {
       this.gesture.begins(e.timeStamp); // the burst goes on being one gesture, so its tail after the swallowing is no step
       return;
     }
-    const unit = this.opts.unitPx();
-    const { px } = normalizeWheel(e, unit);
     if (px === 0) return;
     if (this.opts.reducedMotion()) {
       // A gesture is dozens of events (and a trackpad adds its momentum): only the first one is a step.
@@ -197,6 +219,19 @@ export class VirtualScroll {
     this.quiet = 0;
     this.opts.onDelta(px / unit, 'wheel');
   };
+
+  /**
+   * Whether the wheel's event at `timeMs`, of `px` (down the story for a positive one), is the page's: the first event of
+   * a gesture asks `yields`, and every other event of it, less than GESTURE_GAP_MS after the one before, keeps that
+   * answer, whichever way it goes and whatever `yields` would say now. The gestures are told apart by the events' own
+   * times, as reduced motion's steps are: a gesture left to the page wakes no frame that could count its quiet.
+   */
+  private wheelYields(timeMs: number, px: number): boolean {
+    const yields = this.opts.yields;
+    if (!yields) return false;
+    if (this.wheelGestures.begins(timeMs)) this.wheelYielded = yields(px < 0 ? -1 : 1);
+    return this.wheelYielded;
+  }
 
   // ---------------------------------------------------------------- touch
 
@@ -230,6 +265,12 @@ export class VirtualScroll {
       if (Math.hypot(dx, dy) < TOUCH_SLOP_PX) return; // still a tap, so the click stays possible
       if (Math.abs(dx) > Math.abs(dy)) {
         this.drag = null; // a swipe sideways is not the scroll's
+        return;
+      }
+      // A finger going up the glass goes down the story. A drag the page has (`yields`) is the browser's to its lift: it
+      // scrolls the page, and the input neither prevents nor tracks any of it, so it leaves no glide.
+      if (this.opts.yields?.(dy < 0 ? 1 : -1)) {
+        this.drag = null;
         return;
       }
       drag.claimed = true;
@@ -279,6 +320,8 @@ export class VirtualScroll {
     const unit = this.opts.unitPx();
     const delta = keyDelta({ key: e.key, shiftKey: e.shiftKey, target: e.target as KeyTarget | null }, unit);
     if (delta === null) return;
+    // Each key asks alone whether the page has it, End as a key down; Home always goes to the story's start.
+    if (delta !== 'home' && this.opts.yields?.(delta === 'end' || delta > 0 ? 1 : -1)) return;
     e.preventDefault();
     this.inertia.stop();
     if (this.opts.swallow?.()) return;

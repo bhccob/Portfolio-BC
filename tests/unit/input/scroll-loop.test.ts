@@ -1,5 +1,6 @@
 import { damp } from 'maath/easing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { GESTURE_GAP_MS } from '../../../src/input/gesture';
 import { Inertia } from '../../../src/input/Inertia';
 import { SKIP_QUIET_MS, skipSwallower } from '../../../src/input/loaderSkip';
 import { DIVE_SMOOTH, GLIDE_SMOOTH, RISE_SMOOTH, type Smooth, smoothTimeAt, startHomeScroll } from '../../../src/input/scrollLoop';
@@ -984,5 +985,230 @@ describe("the pace: the dive and the moves between beads take their time, the ri
     await flush();
     expect(s.frame.target).toBe(1);
     expect(secondsToCover(s, 0, 1, 0.99)).toBeLessThan(1);
+  });
+});
+
+// ---------------------------------------------------------------- the seam: the end page's own scroll
+
+describe("the seam: at the end page the page's own scroll is the browser's, and its top hands back to the beads", () => {
+  /**
+   * The story at rest at the end page, as Home's end view leaves the document there (`<html data-end="rest">`,
+   * src/scene/bob/endView.ts), with the window's own scroll `scrollY` down the page. `scrollTo` notes where the story's
+   * target stood when it was called.
+   */
+  function atEndPage(s: ReturnType<typeof setup>, scrollY: number) {
+    const attributes = new Map<string, string>([['data-end', 'rest']]);
+    const scrolls: { to: [number, number]; target: number }[] = [];
+    const win = {
+      scrollY,
+      scrollTo: (x: number, y: number) => {
+        scrolls.push({ to: [x, y], target: s.frame.target });
+        win.scrollY = y;
+      },
+    };
+    vi.stubGlobal('document', { documentElement: { getAttribute: (name: string) => attributes.get(name) ?? null } });
+    vi.stubGlobal('window', win);
+    restAt(s, 6);
+    return { attributes, win, scrolls };
+  }
+  type Page = ReturnType<typeof atEndPage>;
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** One wheel event of `px`, then `gapMs` of frames; the browser scrolls the page by it when it is left to it. Answers whether it was prevented. */
+  async function notch(s: ReturnType<typeof setup>, page: Page, px: number, gapMs = 16): Promise<boolean> {
+    const event = fire(s.el, 'wheel', { deltaY: px, deltaMode: 0, ctrlKey: false, timeStamp: s.frames.now });
+    if (!event.defaultPrevented) page.win.scrollY = Math.max(page.win.scrollY + px, 0);
+    await flush();
+    for (let ms = 0; ms < gapMs; ms += FRAME_MS) s.frames.frame();
+    return event.defaultPrevented;
+  }
+
+  /** A quiet of more than GESTURE_GAP_MS: the frames run, and the wheel's next event starts a gesture of its own. */
+  function pause(s: ReturnType<typeof setup>): void {
+    for (let ms = 0; ms <= GESTURE_GAP_MS; ms += FRAME_MS) s.frames.frame();
+  }
+
+  /**
+   * A finger from y 300 that moves `dy` px (down the glass for a positive one: up the page and the story) in ten moves
+   * 16 ms apart, a frame after each, then lifts; the browser scrolls the page by each move it is left. Answers each move's
+   * prevention.
+   */
+  async function swipe(s: ReturnType<typeof setup>, page: Page, dy: number): Promise<boolean[]> {
+    const from = 300;
+    let t = s.frames.now;
+    let lastY = from;
+    const prevented: boolean[] = [];
+    fire(s.el, 'touchstart', { touches: [{ clientX: 100, clientY: from }], timeStamp: t });
+    for (let i = 1; i <= 10; i++) {
+      t += 16;
+      const y = from + (dy * i) / 10;
+      const move = fire(s.el, 'touchmove', { touches: [{ clientX: 100, clientY: y }], timeStamp: t });
+      if (!move.defaultPrevented) page.win.scrollY = Math.max(page.win.scrollY - (y - lastY), 0);
+      lastY = y;
+      prevented.push(move.defaultPrevented);
+      if (i === 1) await flush();
+      s.frames.frame();
+    }
+    fire(s.el, 'touchend', { touches: [], timeStamp: t + 4 });
+    await flush();
+    return prevented;
+  }
+
+  const shiftSpace = (s: ReturnType<typeof setup>) =>
+    fire(s.win, 'keydown', { key: ' ', shiftKey: true, ctrlKey: false, metaKey: false, altKey: false, repeat: false, isComposing: false, target: { tagName: 'BODY' } });
+
+  it('a story at 6 with the page at its top goes back to 5 on one wheel notch up, and rests on 5', async () => {
+    const s = setup();
+    const page = atEndPage(s, 0);
+    expect(await notch(s, page, -120)).toBe(true);
+    expect(s.frame.target).toBeCloseTo(5.88, 12);
+    s.drain();
+    expect([s.frame.target, s.frame.progress]).toEqual([5, 5]);
+    expect(s.changes.at(-1)).toMatchObject({ index: 5, id: 'PROJECTS', category: 'c' });
+    expect(page.win.scrollY).toBe(0);
+  });
+
+  it('leaves the wheel down at the end page to the browser: the page scrolls, and the story stays at 6 and runs no frame', async () => {
+    const s = setup();
+    const page = atEndPage(s, 0);
+    for (let i = 0; i < 3; i++) expect(await notch(s, page, 120)).toBe(false);
+    pause(s);
+    expect(await notch(s, page, 120)).toBe(false); // a gesture of its own: down is the page's at every place
+    expect(page.win.scrollY).toBe(480);
+    expect([s.frame.target, s.frame.progress]).toEqual([6, 6]);
+    expect(s.frames.size).toBe(0);
+  });
+
+  it('keeps a fast burst up the page with the page past its top, the story at 6, and takes the next notch after a pause back to 5 (Review Focus 1)', async () => {
+    const s = setup();
+    const page = atEndPage(s, 300);
+    const prevented: boolean[] = [];
+    for (let i = 0; i < 10; i++) prevented.push(await notch(s, page, -120)); // 16 ms apart: one gesture
+    expect(prevented).toEqual(Array(10).fill(false)); // the page reached its top at the third; the rest are its too
+    expect(page.win.scrollY).toBe(0);
+    expect([s.frame.target, s.frame.progress]).toEqual([6, 6]);
+    expect(s.frames.size).toBe(0);
+    pause(s);
+    expect(await notch(s, page, -120)).toBe(true);
+    s.drain();
+    expect([s.frame.target, s.frame.progress]).toEqual([5, 5]);
+  });
+
+  it('leaves ArrowDown, PageDown, Space and End to the page, and ArrowUp, PageUp and Shift+Space while it is scrolled', () => {
+    const s = setup();
+    const page = atEndPage(s, 300);
+    for (const k of ['ArrowDown', 'PageDown', ' ', 'End', 'ArrowUp', 'PageUp']) expect(s.key(k).defaultPrevented, k).toBe(false);
+    expect(shiftSpace(s).defaultPrevented).toBe(false);
+    page.win.scrollY = 0;
+    for (const k of ['ArrowDown', 'PageDown', ' ', 'End']) expect(s.key(k).defaultPrevented, `${k} at the top`).toBe(false);
+    expect([s.frame.target, s.frame.progress]).toEqual([6, 6]);
+    expect(s.frames.size).toBe(0);
+  });
+
+  it("steps the story back to 5 for ArrowUp, PageUp and Shift+Space at the page's top", async () => {
+    type Press = (s: ReturnType<typeof setup>) => Event;
+    const presses: Press[] = [(s) => s.key('ArrowUp'), (s) => s.key('PageUp'), shiftSpace];
+    for (const press of presses) {
+      const s = setup();
+      atEndPage(s, 0);
+      expect(press(s).defaultPrevented).toBe(true);
+      expect(s.frame.target).toBe(5);
+      await flush();
+      s.drain();
+      expect(s.frame.progress).toBe(5);
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("takes Home from the end page to the story's start, the page back at its top first", async () => {
+    const s = setup();
+    const page = atEndPage(s, 300);
+    expect(s.key('Home').defaultPrevented).toBe(true);
+    expect(page.scrolls).toEqual([{ to: [0, 0], target: 6 }]); // before the story moved
+    expect(s.frame.target).toBe(0);
+    await flush();
+    s.drain();
+    expect(s.frame.progress).toBe(0);
+    expect(page.scrolls).toHaveLength(1);
+  });
+
+  it('scrolls nothing for Home when the page is at its top already', () => {
+    const s = setup();
+    const page = atEndPage(s, 0);
+    expect(s.key('Home').defaultPrevented).toBe(true);
+    expect(page.scrolls).toEqual([]);
+    expect(s.frame.target).toBe(0);
+  });
+
+  it('leaves a swipe on the page to the browser, with no glide, and at its top a new swipe down the glass goes back to 5', async () => {
+    const s = setup();
+    const page = atEndPage(s, 300);
+    // Down the glass from part way down: up the page, to its top and on, the page's to the lift.
+    expect(await swipe(s, page, 500)).toEqual(Array(10).fill(false));
+    expect(page.win.scrollY).toBe(0);
+    expect(s.home.scroll.busy).toBe(false);
+    expect([s.frame.target, s.frame.progress]).toEqual([6, 6]);
+    expect(s.frames.size).toBe(0);
+    // Up the glass at the top: down the page, the page's.
+    expect(await swipe(s, page, -200)).toEqual(Array(10).fill(false));
+    expect(page.win.scrollY).toBe(200);
+    expect(s.frame.target).toBe(6);
+    // Back at the top, a new swipe down the glass: the story's, back to Cookies Clicker.
+    page.win.scrollY = 0;
+    expect(await swipe(s, page, 300)).toEqual(Array(10).fill(true));
+    s.drain();
+    expect([s.frame.target, s.frame.progress]).toEqual([5, 5]);
+    expect(page.win.scrollY).toBe(0);
+  });
+
+  it("keeps a wheel gesture from Cookies Clicker the story's to its end, though the story comes to rest at the end page under it", async () => {
+    const s = setup();
+    const page = atEndPage(s, 0);
+    page.attributes.delete('data-end'); // at Cookies Clicker there is no end view
+    restAt(s, 5);
+    // A long trackpad push, an event every 100 ms: the target is pinned at 6 and the story eases there as the wheel turns.
+    for (let i = 0; i < 100 && s.frame.progress !== 6; i++) expect(await notch(s, page, 120, 100)).toBe(true);
+    expect([s.frame.target, s.frame.progress]).toEqual([6, 6]);
+    expect(s.home.scroll.waiting).toBe(true); // the wheel's gesture still under way
+    page.attributes.set('data-end', 'rest'); // as Home's end view writes it, the story at rest at the end
+    for (let i = 0; i < 10; i++) expect(await notch(s, page, 120, 100)).toBe(true);
+    expect(page.win.scrollY).toBe(0); // none of it scrolled the page
+    s.drain();
+    expect([s.frame.target, s.frame.progress]).toEqual([6, 6]);
+    // The next gesture, after the quiet that ended that one, is the page's.
+    expect(await notch(s, page, 120)).toBe(false);
+    expect(page.win.scrollY).toBe(120);
+  });
+
+  it('leaves nothing to the page away from the end page, nor while the story is on its way', async () => {
+    const s = setup();
+    const page = atEndPage(s, 0);
+    page.attributes.set('data-end', 'moving');
+    expect(s.key('End').defaultPrevented).toBe(true);
+    expect(await notch(s, page, 120)).toBe(true);
+    s.drain();
+    page.attributes.delete('data-end');
+    restAt(s, 4);
+    expect(await notch(s, page, 120)).toBe(true);
+    expect(s.key('ArrowDown').defaultPrevented).toBe(true);
+    expect(page.win.scrollY).toBe(0);
+  });
+
+  it("with reduced motion keeps the same seam: the wheel down and a burst up the page are the page's, and at its top a notch up steps to 5", async () => {
+    const s = setup({ reduced: true });
+    const page = atEndPage(s, 300);
+    expect(await notch(s, page, 120)).toBe(false);
+    pause(s);
+    for (let i = 0; i < 6; i++) expect(await notch(s, page, -120)).toBe(false);
+    expect(page.win.scrollY).toBe(0);
+    expect(s.frame.target).toBe(6);
+    pause(s);
+    expect(await notch(s, page, -120)).toBe(true);
+    expect(s.frame.target).toBe(5);
+    s.drain();
+    expect(s.frame.progress).toBe(5);
   });
 });

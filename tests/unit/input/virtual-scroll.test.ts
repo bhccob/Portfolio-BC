@@ -8,7 +8,10 @@ const VH = 1000;
 interface Setup {
   el: EventTarget;
   win: EventTarget;
-  state: { enabled: boolean; reduced: boolean; swallow?: boolean };
+  /** `yields`, when given, is what the page answers (the fake `yields`); without it the input is asked nothing. */
+  state: { enabled: boolean; reduced: boolean; swallow?: boolean; yields?: (direction: 1 | -1) => boolean };
+  /** Each direction `yields` was asked with, in order. */
+  asked: number[];
   deltas: number[];
   /** Where each delta came from, in step with `deltas`. */
   bys: DeltaSource[];
@@ -31,6 +34,7 @@ function setup(state: Setup['state'] = { enabled: true, reduced: false }): Setup
     add(type, listener, options as never);
   }) as typeof el.addEventListener;
 
+  const asked: number[] = [];
   const deltas: number[] = [];
   const bys: DeltaSource[] = [];
   const ends: number[] = [];
@@ -48,8 +52,12 @@ function setup(state: Setup['state'] = { enabled: true, reduced: false }): Setup
     reducedMotion: () => state.reduced,
     swallow: () => state.swallow === true,
     wake: () => wakes.count++,
+    yields: (direction) => {
+      asked.push(direction);
+      return state.yields?.(direction) === true;
+    },
   });
-  return { el, win, state, deltas, bys, ends, jumps, wakes, listened, scroll };
+  return { el, win, state, asked, deltas, bys, ends, jumps, wakes, listened, scroll };
 }
 
 /** Dispatches a cancelable event carrying `props`; the returned event says whether it was prevented. */
@@ -669,6 +677,155 @@ describe('VirtualScroll: the end of a gesture, when the scroll settles on a stop
     wheel(s, 100, 1000);
     for (let i = 0; i < 30; i++) s.scroll.step(0.016);
     expect(s.ends).toEqual([]);
+  });
+});
+
+describe("VirtualScroll: yielding to the page (the end page's own scroll)", () => {
+  /** A setup whose page answers `yields` as `answer` says, asked live. */
+  const withPage = (answer: (direction: 1 | -1) => boolean, reduced = false) => setup({ enabled: true, reduced, yields: answer });
+
+  it('leaves a wheel down at the end to the browser', () => {
+    const s = withPage((d) => d > 0);
+    const event = wheel(s, 120);
+    expect(event.defaultPrevented).toBe(false);
+    expect(s.deltas).toEqual([]);
+    expect(s.asked).toEqual([1]);
+    expect(s.scroll.waiting).toBe(false); // no gesture of the story's under way: nothing to settle
+  });
+
+  it("takes a wheel up at the page's top", () => {
+    const s = withPage(() => false);
+    const event = wheel(s, -120);
+    expect(event.defaultPrevented).toBe(true);
+    expect(s.deltas).toHaveLength(1);
+    expect(s.deltas[0]).toBeLessThan(0);
+    expect(s.asked).toEqual([-1]);
+  });
+
+  it('keeps a gesture begun in the page with the page (Review Focus 1)', () => {
+    // A fling up the page from part way down: its first event finds the page scrolled (yields), the next two find it at
+    // its top (yields would be false now), all within GESTURE_GAP_MS of each other: one gesture, the page's to its end.
+    let page = true;
+    const s = withPage(() => page);
+    const prevented: boolean[] = [];
+    prevented.push(wheel(s, -120, 1000).defaultPrevented);
+    page = false;
+    prevented.push(wheel(s, -120, 1100).defaultPrevented);
+    prevented.push(wheel(s, -120, 1200).defaultPrevented);
+    expect(prevented).toEqual([false, false, false]);
+    expect(s.deltas).toEqual([]);
+    expect(s.asked).toEqual([-1]); // asked once, at the gesture's first event
+    for (let i = 0; i < 30; i++) s.scroll.step(0.016);
+    expect(s.ends).toEqual([]); // nothing of the story's to settle
+    // After a quiet of GESTURE_GAP_MS and a millisecond, a new gesture at the top: the story's.
+    const next = wheel(s, -120, 1200 + GESTURE_GAP_MS + 1);
+    expect(next.defaultPrevented).toBe(true);
+    expect(s.deltas).toHaveLength(1);
+    expect(s.deltas[0]).toBeLessThan(0);
+    expect(s.asked).toEqual([-1, -1]);
+  });
+
+  it("keeps a gesture begun as the story's with the story, even once the page would have it", () => {
+    // From Cookies Clicker into the night: the story comes to rest at the end page while the wheel still turns.
+    let page = false;
+    const s = withPage(() => page);
+    expect(wheel(s, 120, 1000).defaultPrevented).toBe(true);
+    page = true;
+    for (let t = 1016; t < 1600; t += 16) expect(wheel(s, 120, t).defaultPrevented).toBe(true);
+    expect(s.asked).toEqual([1]);
+    expect(s.deltas.length).toBeGreaterThan(30);
+  });
+
+  it('leaves a drag that began in the page to the browser for the whole drag, with no glide', () => {
+    let page = true;
+    const s = withPage(() => page);
+    expect(touch(s, 'touchstart', 300, 0).defaultPrevented).toBe(false);
+    expect(touch(s, 'touchmove', 340, 16).defaultPrevented).toBe(false); // down the glass: up the page, which is scrolled
+    page = false; // the page has reached its top under the finger
+    const rest: boolean[] = [];
+    for (let y = 380, t = 32; y <= 700; y += 40, t += 16) rest.push(touch(s, 'touchmove', y, t).defaultPrevented);
+    touch(s, 'touchend', 700, 180);
+    expect(rest.every((prevented) => !prevented)).toBe(true);
+    expect(s.deltas).toEqual([]);
+    expect(s.asked).toEqual([-1]); // asked once, at the slop
+    expect(s.scroll.busy).toBe(false); // no glide
+    expect(s.wakes.count).toBe(0);
+    expect(s.ends).toEqual([]);
+    // A new drag, at the top: the story's.
+    touch(s, 'touchstart', 300, 1000);
+    expect(touch(s, 'touchmove', 340, 1016).defaultPrevented).toBe(true);
+    expect(s.deltas.reduce((a, b) => a + b, 0)).toBeCloseTo(-0.04, 12);
+  });
+
+  it('asks a drag nothing before the slop, nor for a sideways swipe, and the way the finger goes past it', () => {
+    const s = withPage(() => false);
+    touch(s, 'touchstart', 500, 0);
+    touch(s, 'touchmove', 497, 16); // within the slop: a tap so far
+    touch(s, 'touchend', 497, 40);
+    touch(s, 'touchstart', 500, 100);
+    fire(s.el, 'touchmove', { touches: [finger(300, 490)], timeStamp: 116 }); // sideways
+    touch(s, 'touchend', 490, 140);
+    expect(s.asked).toEqual([]);
+    touch(s, 'touchstart', 500, 200);
+    touch(s, 'touchmove', 460, 216); // up the glass: down the story
+    touch(s, 'touchmove', 420, 232);
+    expect(s.asked).toEqual([1]);
+  });
+
+  it('keys at the end', () => {
+    const s = withPage(() => true);
+    expect(key(s, 'ArrowDown').defaultPrevented).toBe(false);
+    expect(s.deltas).toEqual([]);
+    s.state.yields = () => false; // the page at its top
+    expect(key(s, 'ArrowUp').defaultPrevented).toBe(true);
+    expect(s.deltas).toEqual([-0.15]);
+  });
+
+  it('asks each key alone, with its way: End as a key down, and Home never, which is always the story\'s', () => {
+    const s = withPage(() => true);
+    for (const k of ['ArrowDown', 'PageDown', ' ', 'End']) expect(key(s, k).defaultPrevented, k).toBe(false);
+    for (const k of ['ArrowUp', 'PageUp']) expect(key(s, k).defaultPrevented, k).toBe(false);
+    expect(key(s, ' ', { shiftKey: true }).defaultPrevented).toBe(false);
+    expect(s.asked).toEqual([1, 1, 1, 1, -1, -1, -1]);
+    expect(s.deltas).toEqual([]);
+    expect(s.jumps).toEqual([]);
+    expect(key(s, 'Home').defaultPrevented).toBe(true);
+    expect(s.jumps).toEqual(['home']);
+    expect(s.asked).toHaveLength(7); // Home asked nothing
+    expect(key(s, 'ArrowDown', { repeat: true }).defaultPrevented).toBe(false); // a held key asks at each repeat
+    expect(s.asked).toHaveLength(8);
+  });
+
+  it('is asked only for what is enabled, and before the swallowing: a gesture the page has is never swallowed', () => {
+    const s = setup({ enabled: false, reduced: false, yields: () => true });
+    wheel(s, 120);
+    key(s, 'ArrowDown');
+    touch(s, 'touchstart', 500, 0);
+    touch(s, 'touchmove', 400, 16);
+    expect(s.asked).toEqual([]);
+    const t = setup({ enabled: true, reduced: false, swallow: true, yields: () => true });
+    expect(wheel(t, 120).defaultPrevented).toBe(false);
+    expect(key(t, 'PageDown').defaultPrevented).toBe(false);
+  });
+
+  it('with reduced motion, gives no step for a gesture the page has, and one for the next gesture at the top', () => {
+    let page = true;
+    const s = withPage(() => page, true);
+    for (let t = 1000; t < 1400; t += 16) {
+      expect(wheel(s, -4, t).defaultPrevented).toBe(false);
+      page = false;
+    }
+    expect(s.deltas).toEqual([]);
+    wheel(s, -4, 1400 + GESTURE_GAP_MS);
+    wheel(s, -4, 1416 + GESTURE_GAP_MS);
+    expect(s.deltas).toHaveLength(1);
+    expect(s.deltas[0]).toBeLessThan(0);
+    // A swipe the page has gives no step at its lift either.
+    page = true;
+    touch(s, 'touchstart', 100, 3000);
+    touch(s, 'touchmove', 300, 3016);
+    touch(s, 'touchend', 300, 3032);
+    expect(s.deltas).toHaveLength(1);
   });
 });
 
