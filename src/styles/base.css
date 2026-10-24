@@ -294,6 +294,14 @@ html[data-route='home'][data-3d='on'] {
   touch-action: pinch-zoom;
 }
 
+/* The home keeps its scrollbar's room from the start: at the end page the document scrolls (the end page's rest, below),
+   and a classic desktop scrollbar coming in then would narrow the page, the header and the canvas by its width at the
+   moment the story comes to rest. Where scrollbars overlay the page (a phone, a trackpad's Mac) the room is nothing; with
+   3D off the home scrolls natively, its scrollbar always there. */
+html[data-route='home'] {
+  scrollbar-gutter: stable;
+}
+
 /* 3D off: the poster stays, the canvas is out of sight. */
 html[data-3d='off'] .scene-host {
   display: none;

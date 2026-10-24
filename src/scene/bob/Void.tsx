@@ -16,7 +16,7 @@ import { showBeadLabel } from '~/ui/BeadLabel';
 import { motion } from '../motion';
 import type { Handover } from './Home';
 import { BEADS } from './journey';
-import { beadClocks, easeHover, hoverEase, selectedBead, stepBeadClocks, voidShownFor } from './voidPose';
+import { beadClocks, easeHover, hoverEase, hoversAt, selectedBead, stepBeadClocks, voidShownFor } from './voidPose';
 import { uploadTextures, warm } from './warm';
 
 /** Where the beads' file is served from: public/models/bob-beads.glb, under the site's base. */
@@ -184,6 +184,11 @@ interface VoidRun {
    * open the selected bead, and its label shows.
    */
   reading: boolean;
+  /**
+   * The pointer may hover a bead: it is read (`reading`) and the journey is on a bead's project stretch (`hoversAt`). Off
+   * them, and so at the end page behind the page, a pointer neither turns a bead nor wakes the canvas.
+   */
+  hovering: boolean;
 }
 
 /** No screen: the label is taken away. */
@@ -275,7 +280,8 @@ export interface VoidProps {
  * - each bead's drift forward and light (`setForward`, `setLit`);
  * - the hover: on a pointer device (a mouse or pen that has moved, `frame.pointerAt`), the bead whose shell the pointer
  *   is over (a ray against `beads[id].body`), eased in and out one bead at a time (`easeHover`) and turned toward the
- *   camera, its position handed in every frame; with reduced motion it brightens at once and does not turn;
+ *   camera, its position handed in every frame; with reduced motion it brightens at once and does not turn; only on the
+ *   beads' project stretches (`hoversAt`), so at the end page a pointer behind the page turns no bead and wakes nothing;
  * - the objects' motion: each bead's clock runs only while it is the selected bead (the bead of the current project
  *   stop, `selectedBead`) or the hovered one, and not with reduced motion, and goes on from where it stopped
  *   (`stepBeadClocks`); Funcial's abacus has a clock of its own that counts back down while the bead is neither, so its
@@ -309,6 +315,7 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
     selected: null,
     time: 0,
     reading: false,
+    hovering: false,
   }));
   /** Starts the load, once: set by the mount below, called by the first frame the home has landed. */
   const start = useRef<() => void>(() => {});
@@ -419,7 +426,7 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
       start.current = () => {};
       const parts = run.parts;
       run.parts = null;
-      run.reading = false;
+      run.reading = run.hovering = false;
       motion.beads = false;
       showBeadLabel(null, NO_SIZE);
       compass.setNeedleWorld(null);
@@ -450,7 +457,7 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
   useEffect(() => {
     const move = (event: PointerEvent): void => {
       const parts = run.parts;
-      if (event.pointerType === 'touch' || !parts || !run.reading || useScene.getState().scene !== 'home') return;
+      if (event.pointerType === 'touch' || !parts || !run.hovering || useScene.getState().scene !== 'home') return;
       if (pick(parts, frame.pointer, camera) !== run.pointed) invalidate();
     };
     window.addEventListener('pointermove', move, { passive: true });
@@ -482,7 +489,7 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
       // The Opening poses the scene itself (the loader, a held seek): the needle is the armillary's, the void is not there.
       compass.setNeedleWorld(null);
       if (parts) show(parts, false);
-      run.reading = false;
+      run.reading = run.hovering = false;
       motion.beads = false;
       showBeadLabel(null, size);
       return;
@@ -503,6 +510,8 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
     const home = shown && page === 'home';
     // A bead seen close, or the camera on its way to or from one: no label, and the pointer opens and hovers nothing.
     run.reading = home && !handover.focus;
+    // The hover only on the beads' project stretches: at the end page a pointer behind the page turns no bead.
+    run.hovering = run.reading && hoversAt(pose.at);
     if (!shown) {
       Object.assign(run.hover, hoverEase());
       run.pointed = run.selected = null;
@@ -529,7 +538,7 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
     // The hover, on a pointer device: the bead under the pointer, eased one at a time, turned toward the camera.
     camera.updateMatrixWorld();
     beads.group.updateMatrixWorld();
-    const pointed = run.reading && Number.isFinite(frame.pointerAt) ? pick(parts, frame.pointer, camera) : null;
+    const pointed = run.hovering && Number.isFinite(frame.pointerAt) ? pick(parts, frame.pointer, camera) : null;
     run.pointed = pointed;
     const easing = easeHover(run.hover, pointed, dt, reduced || !home);
     const hovered = run.hover.id;

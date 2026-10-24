@@ -5,15 +5,16 @@ import { AngleSpring, wrapAngle } from '~/engine/AngleSpring';
 import type { CompassModel } from '~/engine/bob/build/compass';
 import type { EngravingModel } from '~/engine/bob/build/engraving';
 import type { SmokeModel } from '~/engine/bob/build/smoke';
-import { aimsAt, driftAngle, NEEDLE_SPRING, needleAngleAt, needleAngleFor, nextDriftRest } from '~/engine/bob/needleAim';
+import { aimsAt, driftAngle, NEEDLE_SPRING, needleAngleAt, needleAngleFor } from '~/engine/bob/needleAim';
 import { AT_REST } from '~/engine/stillness';
 import { HOME_CHAPTERS, scrollEnd, stops } from '~/state/chapters';
 import { frame } from '~/state/frame';
 import { useScene } from '~/state/store';
 import { motion } from '../motion';
 import { applyEndView, clearEndView, type EndWritten, endViewFor, endWritten } from './endView';
+import { idleRuns, stirIdle } from './idle';
 import type { JourneyPose } from './journey';
-import { IDLE_SECONDS, needleGlowAt } from './look';
+import { needleGlowAt } from './look';
 import { risingFor } from './scrollPose';
 import { nearestStop, type StepFade, stepFadeAt, stepFadeFrom } from './stepFade';
 
@@ -174,7 +175,9 @@ const pivotPx = { x: 0, y: 0 };
  * all on one clock that stops with them, so a sleeping scene is a still frame of them and a wake goes on from there.
  * The turn and the smoke go on from the world's time at the hand-over, so the hand-over moves neither; a seek that
  * takes the scene back gets the needle at its resting glow, which the opening never moves, and the compass closed, the
- * needle out of its dip and the letters dark, as the opening has them. None of it under reduced motion. Each frame it writes
+ * needle out of its dip and the letters dark, as the opening has them. None of it under reduced motion, nor at the end
+ * page (idle.ts: no stir starts it there, and a while running from before stops), where the compass is out of view
+ * behind the page and the scene sleeps as soon as the story rests. Each frame it writes
  * `motion.compass` (`idle`, `needle`, `needleSpeed`), so the Heartbeat lets the canvas sleep once the idle while is over
  * and the needle has settled; and `frame.needleAngle`, for the debug bridge. While the story moves the scroll loop
  * wakes the canvas on each of its frames (the Heartbeat's `scrolling`), so a rise draws and sleeps again at rest.
@@ -283,9 +286,9 @@ export function Home({ models, handover }: HomeProps): null {
       state.pointerAt = frame.pointerAt;
       if (aiming) stirred = true;
     }
-    if (stirred) {
-      state.idleUntil = now + IDLE_SECONDS * 1000;
-      state.driftUntil = nextDriftRest(state.idleTime + IDLE_SECONDS);
+    // A stir starts the idle while (idle.ts), but not at the end page, where the compass is out of view behind the page:
+    // arriving there (a phase change into END) starts nothing, and the scene sleeps as soon as the story rests.
+    if (stirred && stirIdle(state, journey.at.stretch, now)) {
       // The next frame, for the idle motion this starts: the Heartbeat has already run this frame, on the stillness
       // Home wrote the frame before (at rest), and a skipped mount has no phase change to wake it.
       invalidate();
@@ -293,7 +296,7 @@ export function Home({ models, handover }: HomeProps): null {
 
     const pointing = aiming && Number.isFinite(frame.pointerAt);
     const drifting = aiming && !pointing;
-    const runs = !reduced && (now < state.idleUntil || (drifting && state.idleTime < state.driftUntil));
+    const runs = idleRuns(state, journey.at.stretch, now, reduced, drifting);
     if (runs) {
       state.idleTime += dt;
       // Past the idle while, a drifting needle runs on to its rest and no further, so it falls asleep there.

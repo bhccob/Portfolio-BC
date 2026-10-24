@@ -135,3 +135,12 @@ export function writeJourney(into: { stretch: JourneyAt['stretch']; local: numbe
   into.local = at.local;
   into.project = at.project;
 }
+
+/**
+ * Whether the pointer may hover a bead with the journey at `at`: only on the beads' project stretches, where the camera
+ * stands among them. Elsewhere (the rise, the dive, the overview, the end page) it reads no hover, so at the end a
+ * pointer passing over Cookies Clicker's place behind the page neither turns the bead nor wakes the canvas.
+ */
+export function hoversAt(at: JourneyAt): boolean {
+  return at.stretch === 'project';
+}

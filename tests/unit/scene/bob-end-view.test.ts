@@ -1,10 +1,15 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { AT_REST, asleep } from '~/engine/stillness';
 import { applyEndView, clearEndView, type EndPageNode, type EndRoot, endViewFor, endWritten } from '~/scene/bob/endView';
+import { type IdleClock, idleRuns, idlesAt, stirIdle } from '~/scene/bob/idle';
 import { journeyAt, journeyPoseAt } from '~/scene/bob/journey';
-import { selectedBead } from '~/scene/bob/voidPose';
+import { IDLE_SECONDS } from '~/scene/bob/look';
+import { hoversAt, selectedBead } from '~/scene/bob/voidPose';
+import { phaseChangeDraws } from '~/scene/motion';
 import { HOME_CHAPTERS, scrollEnd } from '~/state/chapters';
+import type { Phase } from '~/state/machine';
 
 /** The end page's stop, the scroll's end (6). */
 const END = scrollEnd(HOME_CHAPTERS);
@@ -226,6 +231,70 @@ describe('applyEndView: Home writes the end view each frame, only on change', ()
   });
 });
 
+describe('the scene sleeps as soon as the story rests at the end', () => {
+  const AT_END = journeyAt(END).stretch;
+
+  /** What Home writes into `motion.compass` with the needle settled: its idle is over unless the idle motion runs. */
+  const stillness = (runs: boolean) => ({ ...AT_REST, idle: !runs, needle: 0, needleSpeed: 0 });
+
+  it('lets the idle run everywhere but the end page', () => {
+    for (const p of [0, 0.5, 1, 1.5, 2, 3, 4, 5, 5.5, 5.99]) expect(idlesAt(journeyAt(p).stretch), `at ${p}`).toBe(true);
+    expect(idlesAt(AT_END)).toBe(false);
+    expect(idlesAt(journeyAt(7).stretch)).toBe(false);
+  });
+
+  it('starts no idle while on a change into END, so motion.compass is at rest', () => {
+    const clock: IdleClock = { idleUntil: 0, idleTime: 3, driftUntil: 0 };
+    expect(stirIdle(clock, AT_END, 10_000)).toBe(false);
+    expect(clock).toEqual({ idleUntil: 0, idleTime: 3, driftUntil: 0 });
+    const runs = idleRuns(clock, AT_END, 10_000, false, false);
+    expect(runs).toBe(false);
+    expect(asleep(stillness(runs))).toBe(true);
+  });
+
+  it('stops a while still running from before at once when the story rests at 6', () => {
+    const clock: IdleClock = { idleUntil: 0, idleTime: 0, driftUntil: 0 };
+    // A stir at Cookies Clicker (a phase change, the move into the night) a second before.
+    expect(stirIdle(clock, journeyAt(5.5).stretch, 9_000)).toBe(true);
+    expect(clock.idleUntil).toBe(9_000 + IDLE_SECONDS * 1000);
+    expect(idleRuns(clock, journeyAt(5.5).stretch, 10_000, false, false)).toBe(true);
+    // At rest at the end, inside that while: no idle, and nothing of the compass asks for a frame.
+    const runs = idleRuns(clock, AT_END, 10_000, false, false);
+    expect(runs).toBe(false);
+    expect(asleep(stillness(runs))).toBe(true);
+    // Not even for a drifting needle with its run not over.
+    expect(idleRuns({ idleUntil: 0, idleTime: 1, driftUntil: 4 }, AT_END, 10_000, false, true)).toBe(false);
+  });
+
+  it('keeps the idle as it was everywhere else: within its while, a drift on to its rest, none with reduced motion', () => {
+    const clock: IdleClock = { idleUntil: 0, idleTime: 0, driftUntil: 0 };
+    stirIdle(clock, 'rise', 0);
+    expect(idleRuns(clock, 'rise', IDLE_SECONDS * 1000 - 1, false, false)).toBe(true);
+    expect(idleRuns(clock, 'rise', IDLE_SECONDS * 1000, false, false)).toBe(false);
+    expect(idleRuns({ idleUntil: 0, idleTime: 1, driftUntil: 4 }, 'rise', 10_000, false, true)).toBe(true);
+    expect(idleRuns(clock, 'rise', 1, true, false)).toBe(false);
+  });
+
+  it('gives a change into END no frames of its own: the canvas is not kept drawing for the phase change', () => {
+    expect(phaseChangeDraws({ kind: 'END' })).toBe(false);
+    const others: Phase[] = [
+      { kind: 'LOADING' },
+      { kind: 'HOME_IDLE' },
+      { kind: 'DIVE' },
+      { kind: 'VOID_ENTRY' },
+      { kind: 'PROJECTS', category: 'oscillator' },
+      { kind: 'PROJECT_FOCUS', id: 'cookies-clicker' },
+    ];
+    for (const phase of others) expect(phaseChangeDraws(phase), phase.kind).toBe(true);
+  });
+
+  it('reads no hover off the beads’ project stretches, so a pointer behind the end page turns no bead', () => {
+    for (const p of [3, 3.5, 4, 4.5, 5, 5.5, 5.99]) expect(hoversAt(journeyAt(p)), `at ${p}`).toBe(true);
+    for (const p of [0, 0.5, 1, 1.5, 2, 2.5, 2.999, 6, 7]) expect(hoversAt(journeyAt(p)), `at ${p}`).toBe(false);
+    expect(hoversAt({ stretch: 'end', local: 0, project: null })).toBe(false);
+  });
+});
+
 describe('way A in the stylesheet (src/styles/base.css)', () => {
   const base = readFileSync(fileURLToPath(new URL('../../../src/styles/base.css', import.meta.url)), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
 
@@ -329,6 +398,10 @@ describe('way A in the stylesheet (src/styles/base.css)', () => {
     // The home's lock stays as it was everywhere else.
     expect(valueOf("html[data-route='home'][data-3d='on']", 'overflow')).toBe('hidden');
     expect(valueOf("html[data-route='home'][data-3d='on']", 'touch-action')).toBe('pinch-zoom');
+  });
+
+  it('keeps the scrollbar’s room on the home page from the start, so a scrollbar coming in at rest shifts nothing', () => {
+    expect(valueOf("html[data-route='home']", 'scrollbar-gutter')).toBe('stable');
   });
 
   it('draws nothing of the end over a page of text, as data-end may outlive the home page', () => {

@@ -1,4 +1,5 @@
 import { AT_REST, type Stillness } from '~/engine/stillness';
+import type { Phase } from '~/state/machine';
 
 /**
  * What keeps the canvas drawing. The canvas renders on demand (`frameloop="demand"`): the Heartbeat asks for the
@@ -59,4 +60,13 @@ export function resetMotion(): void {
   motion.loader = false;
   motion.beads = false;
   motion.focus = false;
+}
+
+/**
+ * Whether a phase change keeps the canvas drawing for a while (the Heartbeat's TRANSITION_MS): every one but the change
+ * into END. The end page comes in by the scroll's own frames, and once the story rests there the scene sleeps behind the
+ * page at once (spec 2026-10-24-bob-end-page-design.md: it draws nothing while the page is read).
+ */
+export function phaseChangeDraws(phase: Phase): boolean {
+  return phase.kind !== 'END';
 }
