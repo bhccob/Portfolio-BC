@@ -749,10 +749,12 @@ describe('the settle: a gesture that pushes against an end and turns back settle
     expect([s.frame.target, s.frame.progress]).toEqual([2, 2]);
   });
 
-  it('from the home, 45 down then 20 up rests on the stop above where it turned back to, the first bead, never back down', async () => {
-    // 45 notches reach the end, 6 (it was 5, and the story came back up to 2.33, the overview); 20 up comes back to 3.33.
+  it('from the home, 55 down then 20 up rests on the stop above where it turned back to, the first bead, never back down', async () => {
+    // 55 notches of 120 px over 900 px are 7.33 units: the push overshoots the end, 6, by 1.33 and is pinned there (it was
+    // 45 notches, 6.0, which reach 6 with no overshoot, so pinned and unpinned gave the same). 20 up are 2.67: from the
+    // pinned 6 the story comes back to 3.33 and rests on 3; unpinned it would come back to 4.67 and rest on 4.
     const s = setup({ vh: 900 });
-    await wheelNotches(s, 45);
+    await wheelNotches(s, 55);
     await wheelNotches(s, 20, -120); // the story comes back up to 3.33
     s.drain();
     expect([s.frame.target, s.frame.progress]).toEqual([3, 3]);
