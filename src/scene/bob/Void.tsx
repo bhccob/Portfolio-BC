@@ -179,14 +179,12 @@ interface VoidRun {
   selected: number | null;
   /** The void's drift clock (its mist and dust), seconds of frames drawn while it showed. */
   time: number;
-  /**
-   * The void is shown over the home's scene and no bead is close (`handover.focus`): the pointer is read, a click may
-   * open the selected bead, and its label shows.
-   */
+  /** The void is shown over the home's scene and no bead is close (`handover.focus`): the selected bead's label shows. */
   reading: boolean;
   /**
-   * The pointer may hover a bead: it is read (`reading`) and the journey is not at the end page (`hoversAt`), where a
-   * pointer behind the page neither turns a bead nor wakes the canvas.
+   * The pointer is read: it may hover a bead, and a click may open the selected one. The void is read (`reading`) and the
+   * night has not begun (`hoversAt`): from the move into the night on, the end page rises over the scene and lets the
+   * pointer through while it moves, and a pointer there neither turns a bead, nor wakes the canvas, nor opens one.
    */
   hovering: boolean;
 }
@@ -280,8 +278,9 @@ export interface VoidProps {
  * - each bead's drift forward and light (`setForward`, `setLit`);
  * - the hover: on a pointer device (a mouse or pen that has moved, `frame.pointerAt`), the bead whose shell the pointer
  *   is over (a ray against `beads[id].body`), eased in and out one bead at a time (`easeHover`) and turned toward the
- *   camera, its position handed in every frame; with reduced motion it brightens at once and does not turn; never at the
- *   end page (`hoversAt`), where a pointer behind the page turns no bead and wakes nothing;
+ *   camera, its position handed in every frame; with reduced motion it brightens at once and does not turn; never once the
+ *   night has begun (`hoversAt`: the move into the night and the end page), where a pointer over the rising page or
+ *   behind it turns no bead and wakes nothing;
  * - the objects' motion: each bead's clock runs only while it is the selected bead (the bead of the current project
  *   stop, `selectedBead`) or the hovered one, and not with reduced motion, and goes on from where it stopped
  *   (`stepBeadClocks`); Funcial's abacus has a clock of its own that counts back down while the bead is neither, so its
@@ -292,7 +291,9 @@ export interface VoidProps {
  * A pointer move over the page wakes the canvas only when it moves the hover onto another bead or off one; the hover,
  * the label and a click read nothing on a page without the home's scene, nor while a bead is seen close or the camera
  * flies to or from one (`handover.focus`); a click on the selected bead opens it (`onOpen`), placed by the window's
- * size, which is the canvas's (it fills the window).
+ * size, which is the canvas's (it fills the window), where the hover may be read: never once the night has begun, where
+ * a click on the rising end page, which lets the pointer through to the scene while it moves, lands on Cookies Clicker's
+ * place and must open nothing.
  *
  * **Sleeping.** It keeps the canvas drawing (`motion.beads`, and a frame asked for as it starts) while an object that
  * moves (its clock runs, or Funcial's abacus slides back down) is in the camera's view, or the hover is easing; otherwise it asks for nothing, so the canvas sleeps once
@@ -464,13 +465,14 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
     return () => window.removeEventListener('pointermove', move);
   }, [camera, invalidate, run]);
 
-  // A click on the selected bead opens its project, where a hook is given (Task 12). A click on a control of the page
-  // (a link, a button, a field) is the control's.
+  // A click on the selected bead opens its project, where a hook is given (Task 12), wherever the pointer is read
+  // (`hovering`: not once the night has begun, where the click went through the rising end page). A click on a control
+  // of the page (a link, a button, a field) is the control's.
   useEffect(() => {
     if (!onOpen) return;
     const click = (event: MouseEvent): void => {
       const parts = run.parts;
-      if (!parts || !run.reading || run.selected === null || useScene.getState().scene !== 'home') return;
+      if (!parts || !run.hovering || run.selected === null || useScene.getState().scene !== 'home') return;
       if ((event.target as Element | null)?.closest?.('a, button, input, select, textarea, summary, label')) return;
       const w = window.innerWidth;
       const h = window.innerHeight;
@@ -510,8 +512,8 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
     const home = shown && page === 'home';
     // A bead seen close, or the camera on its way to or from one: no label, and the pointer opens and hovers nothing.
     run.reading = home && !handover.focus;
-    // No hover at the end page: a pointer behind the page turns no bead.
-    run.hovering = run.reading && hoversAt(pose.at);
+    // Nor once the night has begun: a pointer over the rising page, or behind it, turns no bead and opens none.
+    run.hovering = run.reading && hoversAt(pose);
     if (!shown) {
       Object.assign(run.hover, hoverEase());
       run.pointed = run.selected = null;

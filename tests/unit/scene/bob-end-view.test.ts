@@ -1,18 +1,23 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { damp } from 'maath/easing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AT_REST, asleep } from '~/engine/stillness';
+import { GLIDE_SMOOTH } from '~/input/scrollLoop';
 import { applyEndView, clearEndView, type EndPageNode, type EndRoot, endViewFor, endWritten } from '~/scene/bob/endView';
 import { type IdleClock, idleRuns, idlesAt, stirIdle } from '~/scene/bob/idle';
-import { journeyAt, journeyPoseAt } from '~/scene/bob/journey';
+import { BEADS, journeyAt, journeyPoseAt } from '~/scene/bob/journey';
 import { IDLE_SECONDS } from '~/scene/bob/look';
-import { hoversAt, selectedBead } from '~/scene/bob/voidPose';
+import { beadClocks, easeHover, hoversAt, selectedBead, stepBeadClocks } from '~/scene/bob/voidPose';
 import { phaseChangeDraws } from '~/scene/motion';
 import { HOME_CHAPTERS, scrollEnd } from '~/state/chapters';
 import type { Phase } from '~/state/machine';
 
 /** The end page's stop, the scroll's end (6). */
 const END = scrollEnd(HOME_CHAPTERS);
+
+/** Cookies Clicker's place in `BEADS`: the last bead, under the end page. */
+const COOKIES = BEADS.findIndex(({ id }) => id === 'cookies-clicker');
 
 describe('endViewFor: the end view of a frame, from its night and where the story is', () => {
   it('is nothing before the night', () => {
@@ -288,10 +293,47 @@ describe('the scene sleeps as soon as the story rests at the end', () => {
     for (const phase of others) expect(phaseChangeDraws(phase), phase.kind).toBe(true);
   });
 
-  it('reads no hover at the end page, so a pointer behind the page turns no bead; everywhere else as before', () => {
-    for (const p of [0, 0.5, 1, 1.5, 2, 2.5, 2.999, 3, 3.5, 4, 4.5, 5, 5.5, 5.99]) expect(hoversAt(journeyAt(p)), `at ${p}`).toBe(true);
-    for (const p of [6, 7]) expect(hoversAt(journeyAt(p)), `at ${p}`).toBe(false);
-    expect(hoversAt({ stretch: 'end', local: 0, project: null })).toBe(false);
+  it('reads the pointer (hover and click) at Cookies Clicker\'s stop, and not once the night has begun: 5.01, 5.5, 6', () => {
+    const at = (p: number) => hoversAt(journeyPoseAt(p, 16 / 9));
+    // At 5 a click on the bead opens it, as at every bead's stop: it is the selected one there.
+    expect(at(5)).toBe(true);
+    expect(selectedBead(journeyAt(5))).toBe(COOKIES);
+    // The move into the night, either way, and the end page: the page rises over the bead, so nothing is read.
+    for (const p of [5.01, 5.5, 5.99, 6, 7]) expect(at(p), `at ${p}`).toBe(false);
+    // Everywhere before the night as before: the overview, every bead's stop and the moves between them.
+    for (const p of [0, 0.5, 1, 1.5, 2, 2.5, 2.999, 3, 3.5, 4, 4.5, 4.999]) expect(at(p), `at ${p}`).toBe(true);
+    expect(hoversAt({ night: 0 })).toBe(true);
+    expect(hoversAt({ night: 1e-6 })).toBe(false);
+    expect(hoversAt({ night: Number.NaN }), 'NaN reads as no night, as the end view reads it').toBe(true);
+  });
+
+  it('lets a hover lit at Cookies Clicker ease out on the way into the night, so at rest at 6 nothing of the beads asks for a frame', () => {
+    // The move from 5 to 6 as the scroll loop makes it (damp, GLIDE_SMOOTH, landed exactly on 6), a frame at a time, with
+    // the pointer on Cookies Clicker's bead throughout and its hover lit as the move begins; each frame the Void reads the
+    // pointer only where `hoversAt` lets it.
+    const story = { progress: 5 };
+    const hover = { id: COOKIES as number | null, amount: 1 };
+    const clocks = beadClocks();
+    const dt = 1 / 60;
+    let t = 0;
+    let lastEased = -1;
+    let easing = true;
+    let objects = true;
+    while (story.progress !== END) {
+      t += dt;
+      damp(story, 'progress', END, GLIDE_SMOOTH, dt, Infinity, undefined, 1e-4);
+      if (Math.abs(END - story.progress) <= 1e-4) story.progress = END;
+      const pose = journeyPoseAt(story.progress, 16 / 9);
+      const pointed = hoversAt(pose) ? COOKIES : null;
+      easing = easeHover(hover, pointed, dt, false);
+      objects = stepBeadClocks(clocks, selectedBead(pose.at), pointed, dt, false);
+      if (easing) lastEased = t;
+    }
+    // At rest: the hover is out and still, and no object moves (no bead is selected at the end).
+    expect([hover.id, hover.amount, easing, objects]).toEqual([null, 0, false, false]);
+    // It went out early in the move, its ease-out (about 0.55 s) done well before the rest: none of it after.
+    expect(lastEased).toBeGreaterThan(0);
+    expect(t - lastEased).toBeGreaterThan(0.6);
   });
 });
 

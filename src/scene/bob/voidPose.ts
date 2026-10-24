@@ -6,7 +6,7 @@
  */
 import type { CameraShot } from '~/engine/bob/shots';
 import { BEAD_MOTION } from '~/engine/bob/beadMotion';
-import { BEADS, type JourneyAt } from './journey';
+import { BEADS, type JourneyAt, type JourneyPose } from './journey';
 
 /** The glass, the plane y = 0 (~/engine/bob/wordmark): above it is the home, under it the tunnel and the void. */
 const GLASS_Y = 0;
@@ -137,10 +137,15 @@ export function writeJourney(into: { stretch: JourneyAt['stretch']; local: numbe
 }
 
 /**
- * Whether the pointer may hover a bead with the journey at `at`: everywhere but the end page, where the void lies under
- * the night behind the page, so a pointer passing over Cookies Clicker's place there neither turns the bead nor wakes
- * the canvas.
+ * Whether the pointer is read for the beads with the journey at `pose`: whether it may hover a bead, and whether a click
+ * (a tap) may open the selected one (src/scene/bob/Void.tsx). Not once the night has begun (`night` above 0): the move
+ * from Cookies Clicker into the night, either way, and the end page. The end page rises over the scene there, inert
+ * while it moves, so a click on it goes through to what lies under it, and Cookies Clicker's bead does (on a laptop
+ * under the right of the column, on a phone under all of it): there a pointer neither turns a bead nor wakes the canvas,
+ * and a click or a tap opens nothing. A hover lit at Cookies Clicker's stop so eases out as the move begins, long before
+ * the rest, where the scene sleeps. Everywhere else, the overview, every bead's stop and the moves between them, as
+ * before: `night` is 0 there (a night that is not a number reads as none, as the end view reads it).
  */
-export function hoversAt(at: JourneyAt): boolean {
-  return at.stretch !== 'end';
+export function hoversAt(pose: Pick<JourneyPose, 'night'>): boolean {
+  return !(pose.night > 0);
 }
