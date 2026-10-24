@@ -1680,6 +1680,16 @@ html[data-void='failed'] .end-page {
   }
 }
 
+/* With 3D on the page takes no room until `data-end` shows it, and a transition never starts from `display: none`: the
+   frame that brings it back would show it whole where a step fade has already lifted (reduced motion's fade lifts in
+   that very frame). So it first shows at 0 and eases in with the host. Only the fades have a transition, so the move of
+   way A, whose opacity is `--end` each frame and never eased, is untouched. */
+@starting-style {
+  html[data-route='home'][data-3d='on'][data-end] .end-page {
+    opacity: 0;
+  }
+}
+
 /* The title takes the focus by script alone, when the failed void's link brings the story here (src/ui/endArrival.ts):
    the page's own place to go on from, as <main> is after a navigation, so it shows no ring. */
 .end-page > .page-title:focus {

@@ -185,6 +185,15 @@ describe('the step fade in the stylesheet', () => {
     ]);
   });
 
+  it('starts the end page at 0 as it comes back from display: none, so a fade in eases from there rather than cutting in', () => {
+    // With 3D on the page takes no room until data-end shows it, and a transition never starts from display: none: its
+    // first style after that must be 0, or the frame that shows it shows it whole (reduced motion lifts its fade in that frame).
+    const shown = "html[data-route='home'][data-3d='on'][data-end] .end-page";
+    expect(valueOf(shown, 'opacity', ['@starting-style'])).toBe('0');
+    const starting = RULES.filter((rule) => rule.groups.includes('@starting-style') && rule.selectors.some((s) => /\.end-page$/.test(s)));
+    expect(starting.map((rule) => [rule.selectors, [...rule.declarations.keys()]])).toEqual([[[shown], ['opacity']]]);
+  });
+
   it("moves the host's opacity over 150 ms, down and back", () => {
     expect(valueOf('.scene-host', 'transition')).toMatch(new RegExp(`^opacity ${STEP_FADE_MS}ms\\b`));
   });
