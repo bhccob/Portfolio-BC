@@ -168,9 +168,12 @@
  *              bead's, where one more stays; at each bead's stop
  *              its label shows whole and takes Tab; on a laptop real arrows too (0.15 a press on the rise to its top,
  *              then a stop a press), and arrows up from the last bead's focused label hand the focus bead to bead and,
- *              at the overview, to <main>
+ *              at the overview, to <main>; at 1440x900 a push against an end that turns back in one gesture (60 down
+ *              and 30 up from the home, 10 down and 8 up at the end, 10 up and 10 down at the home) rests on 1, 3 and 1;
+ *              at both laptop sizes small notches one at a time (a line-mode notch, 10 px) each step one stop
  *   void-paths  at 1440x900: the 3D switch off and on at Jontai Energy's stop keeps the story's place (not pulled to the
- *              dive's hold) and comes back on that stop with its label; under reduced motion Funcial opened by Tab and
+ *              dive's hold) and comes back on that stop with its label, and a wheel notch from Funcial's stop with the
+ *              switch off 40 ms later is finished on 4 and comes back there; under reduced motion Funcial opened by Tab and
  *              Enter and closed by Esc, each by a fade; at /en/ the three labels in English, Funcial opened and back
  *   keyboard   Tab from the top of the home page reaches the skip link, then the language switch and the 3D toggle in
  *              that order, each with a focus ring (outline 2 px or more) and on screen, and Shift+Tab goes back; the
@@ -4781,8 +4784,13 @@ async function holdBeads(page) {
   };
 }
 
-/** Pushes the story by hand in `direction` (1 down the story, -1 back): a long wheel at the pointer on a laptop, a run of flicks on a phone. */
-async function pushStory(page, cdp, direction, { notches = 60, flicks = 14 } = {}) {
+/**
+ * Pushes the story by hand in `direction` (1 down the story, -1 back): a long wheel at the pointer on a laptop, a run of
+ * flicks on a phone. With `toEnd`, a phone flicks on (up to 30 in all) until the story's target is at that end, 0 or the
+ * last stop, as a visitor would: a finger set down halts the settle of the flick before, so a quick run of flicks covers
+ * less than each one's own reach.
+ */
+async function pushStory(page, cdp, direction, { notches = 60, flicks = 14, toEnd = false } = {}) {
   if (cdp === null) {
     for (let i = 0; i < notches; i++) {
       await page.mouse.wheel(0, direction * RISE.notchPx);
@@ -4791,8 +4799,18 @@ async function pushStory(page, cdp, direction, { notches = 60, flicks = 14 } = {
     return `${notches} wheel notches`;
   }
   const [from, to] = direction > 0 ? [700, 200] : [200, 700];
-  for (let i = 0; i < flicks; i++) await swipe(page, cdp, from, to);
-  return `${flicks} flicks`;
+  let done = 0;
+  for (; done < flicks; done++) await swipe(page, cdp, from, to);
+  const atEnd = async () => {
+    await page.waitForTimeout(300);
+    const { target } = await page.evaluate(() => window.__needleDebug());
+    return direction > 0 ? target === STORY_END : target === 0;
+  };
+  while (toEnd && done < 30 && !(await atEnd())) {
+    await swipe(page, cdp, from, to);
+    done++;
+  }
+  return `${done} flicks`;
 }
 
 /** The camera of a bridge state is the pure journey's shot for `progress` on a screen of `aspect`: the position and the field. */
@@ -5001,13 +5019,13 @@ async function voidJourney(browser, step) {
 
     // 4. A fling by hand through every stop and back.
     if (!touch) await page.mouse.move(size.width / 2, size.height / 2);
-    const goDown = await pushStory(page, cdp, 1, { notches: 60, flicks: 14 });
+    const goDown = await pushStory(page, cdp, 1, { notches: 60, flicks: 14, toEnd: true });
     const end = await settledState(page);
     step.check(
       near(end.target, STORY_END, 1e-9) && end.progress === STORY_END && end.journey.stretch === 'project' && end.journey.project === BEAD_LIST.length - 1 && end.journey.voidState === 'ready',
       `${at}: a fling down by hand (${goDown}) rests at the end, ${STORY_END}, past the dive's hold at ${TUNNEL_HOLD} and not stuck in it: the journey on ${BEAD_LIST.at(-1).id}, the void ready (got progress ${end.progress}, target ${end.target}, ${JSON.stringify(end.journey)})`,
     );
-    const goUp = await pushStory(page, cdp, -1, { notches: 60, flicks: 14 });
+    const goUp = await pushStory(page, cdp, -1, { notches: 60, flicks: 14, toEnd: true });
     const flungBack = await settledState(page);
     await waitForPhase(page, 'HOME_IDLE').catch(() => {});
     const home = await debugOf(page);
@@ -5576,6 +5594,63 @@ async function voidStops(browser, step) {
         `${at}: the focus goes with the label shown, bead to bead, and at the overview, with no label, to <main>, not <body> (${focusUp.map((f) => `${f.stop}: ${f.focus}`).join(', ')})`,
       );
       summary.push(`${at}: arrows ${keyed.map((r) => (Number.isInteger(r) ? r : r.toFixed(2))).join(' ')}, the focus up to <main>`);
+
+      // 3. A push against an end that turns back within one gesture settles from where the story is, the way it turned:
+      // real notches 16 ms apart with no pause between the two ways, so the wheel is never quiet in between. The re-review's
+      // counts are for a 900 px viewport (30 notches up from 5 come back to 1.0), so these run at 1440x900.
+      await page.evaluate(() => document.activeElement?.blur?.());
+      await page.mouse.move(size.width / 2, size.height / 2);
+      const turnBack = async (startKey, down, up) => {
+        await page.keyboard.press(startKey);
+        await settledState(page);
+        for (const [count, sign] of [[down[0], down[1]], [up[0], up[1]]]) {
+          for (let i = 0; i < count; i++) {
+            await page.mouse.wheel(0, sign * RISE.notchPx);
+            await page.waitForTimeout(RISE.notchGapMs);
+          }
+        }
+        const turnedTo = (await frameOf(page)).target;
+        const state = await settledState(page);
+        return { turnedTo, rest: state.progress, target: state.target };
+      };
+      const turned = [];
+      if (size.height === 900) {
+        const downUp = await turnBack('Home', [60, 1], [30, -1]);
+        step.check(downUp.rest === RISE_TOP && downUp.target === RISE_TOP, `${at}: from the home 60 real notches down and 30 straight back up, one gesture, rest where they came back to, BOB from above, 1, not flown back down (turned back to ${downUp.turnedTo.toFixed(3)}, rests at ${downUp.rest})`);
+        const endUp = await turnBack('End', [10, 1], [8, -1]);
+        const endWant = stops(HOME_CHAPTERS).findLast((stop) => stop < endUp.turnedTo - 1e-6) ?? 0;
+        step.check(endUp.rest === endWant && endWant === 3, `${at}: at the end 10 real notches down and 8 up, one gesture, rest on the stop the way up passed, ${endWant}, not back on ${STORY_END} (turned back to ${endUp.turnedTo.toFixed(3)}, rests at ${endUp.rest})`);
+        const upDown = await turnBack('Home', [10, -1], [10, 1]);
+        step.check(upDown.rest === RISE_TOP && upDown.target === RISE_TOP, `${at}: at the home 10 real notches up and 10 down, one gesture, rest on a stop, BOB from above, 1, not part way into the dive (reached ${upDown.turnedTo.toFixed(3)}, rests at ${upDown.rest})`);
+        turned.push(downUp.rest, endUp.rest, upDown.rest);
+      }
+
+      // 4. Small notches, one at a time, each to rest: a wheel gesture of any size steps one stop in its direction. A
+      // line-mode notch (deltaMode 1, one line) is sent as a WheelEvent on the root, where the input listens; the small
+      // pixel notches are real.
+      await page.keyboard.press('Home');
+      await settledState(page);
+      for (let press = 0; press < 9 && (await debugOf(page)).progress !== BEAD_LIST[0].stop; press++) {
+        await page.keyboard.press('ArrowDown');
+        await settledState(page);
+      }
+      const lineNotch = (lines) =>
+        page.evaluate((lines) => document.documentElement.dispatchEvent(new WheelEvent('wheel', { deltaY: lines, deltaMode: 1, bubbles: true, cancelable: true })), lines);
+      const small = [];
+      for (const [how, act] of [
+        ['a line-mode notch down', () => lineNotch(1)],
+        ['a 10 px notch down', () => page.mouse.wheel(0, 10)],
+        ['a 10 px notch up', () => page.mouse.wheel(0, -10)],
+        ['a line-mode notch up', () => lineNotch(-1)],
+      ]) {
+        await act();
+        small.push({ how, rest: (await settledState(page)).progress });
+      }
+      step.check(
+        JSON.stringify(small.map((s) => s.rest)) === JSON.stringify([4, 5, 4, 3]),
+        `${at}: small notches one at a time from ${BEAD_LIST[0].id}'s stop, each to rest, step a stop each: ${small.map((s) => `${s.how} → ${s.rest}`).join(', ')}`,
+      );
+      summary.push(`${at}: ${turned.length > 0 ? `turned back to rest on ${turned.join(', ')}; ` : ''}small notches ${small.map((s) => s.rest).join(' ')}`);
     }
     await takeCsp(page, step);
     await context.close();
@@ -5637,9 +5712,33 @@ async function voidPaths(browser, step) {
       ready === 'ready' && stopped.progress === jontai.stop && stopped.target === jontai.stop && on.journey.project === jontai.index && on.journey.local === 0 && label !== null && labelInside(label),
       `3D switch: on again, the void ${ready}, the story is back on ${jontai.id}'s stop with its label shown whole (got ${JSON.stringify(stopped)}, journey ${JSON.stringify(on.journey)}, label ${label !== null})`,
     );
+    // And within a wheel gesture's quiet: from Funcial's stop one real notch down, the switch clicked 40 ms later. The
+    // gesture is finished at once on its stop, Jontai Energy's, before the void goes, and 3D back on returns there.
+    const funcial = BEAD_LIST[0];
+    const atFuncial = await arrowTo(page, funcial.stop);
+    await page.mouse.move(size.width / 2, size.height / 2);
+    await page.mouse.wheel(0, RISE.notchPx);
+    await page.waitForTimeout(40);
+    await page.click('button[role="switch"]');
+    await page.waitForFunction(() => document.documentElement.dataset['3d'] === 'off', null, { timeout: 5_000 });
+    await page.waitForTimeout(500);
+    const offQuiet = await debugOf(page);
+    step.check(
+      atFuncial.progress === funcial.stop && !offQuiet.threeD && offQuiet.target === jontai.stop,
+      `3D switch within a wheel's quiet: one notch from ${funcial.id}'s stop, then 3D off 40 ms later: the gesture is finished on the next stop, target ${offQuiet.target} (not held at ${TUNNEL_HOLD} nor capped at 2; progress ${offQuiet.progress.toFixed(3)})`,
+    );
+    await page.click('button[role="switch"]');
+    await page.waitForFunction(() => document.documentElement.dataset['3d'] === 'on', null, { timeout: 5_000 });
+    const readyQuiet = await waitForVoid(page, 'ready', 20_000);
+    const stoppedQuiet = await waitForStop(page, jontai.category, 15_000);
+    const labelQuiet = await waitForLabel(page, jontai.id);
+    step.check(
+      readyQuiet === 'ready' && stoppedQuiet.progress === jontai.stop && stoppedQuiet.target === jontai.stop && labelQuiet !== null,
+      `3D switch within a wheel's quiet: on again, the story comes back to ${jontai.id}'s stop, ${jontai.stop}, with its label, not to the overview (got ${JSON.stringify(stoppedQuiet)})`,
+    );
     await takeCsp(page, step);
     await context.close();
-    summary.push(`3D off and on at ${jontai.id}'s stop keeps ${jontai.stop}`);
+    summary.push(`3D off and on at ${jontai.id}'s stop keeps ${jontai.stop}, and within a wheel's quiet too`);
   }
 
   // 2. Opening a bead and coming back under reduced motion: fades, not flights.
