@@ -515,18 +515,6 @@
         ],
         "createdAt": "2026-10-12T15:24:58.719Z",
         "reason": "Claude's triage: .shelf__tab::after is a 3px bottom underline marking the current project tab (DESIGN.md nav-link-active pattern), not a side border on a card"
-      },
-      {
-        "rule": "design-system-font",
-        "value": "\\s*var\\(--font-label\\)/)",
-        "createdAt": "2026-10-24T09:53:11.229Z",
-        "reason": "false positive: a test asserting the CSS uses the documented --font-label / --font-title tokens (src/styles/tokens.css); no font is set by the test file"
-      },
-      {
-        "rule": "design-system-font",
-        "value": "\\s*var\\(--font-title\\)/)",
-        "createdAt": "2026-10-24T09:53:11.441Z",
-        "reason": "false positive: a test asserting the CSS uses the documented --font-label / --font-title tokens (src/styles/tokens.css); no font is set by the test file"
       }
     ]
   }
