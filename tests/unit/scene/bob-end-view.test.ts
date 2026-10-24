@@ -84,10 +84,11 @@ function fakeRoot() {
   };
 }
 
-/** A fake `#end`: its `inert`, and how many times it was written. */
+/** A fake `#end`: its `inert`, how many times it was written, and each time it was brought into view (with what). */
 function fakePage() {
   let inert = false;
   let writes = 0;
+  const intoView: ScrollIntoViewOptions[] = [];
   const page = {
     get inert(): boolean {
       return inert;
@@ -96,8 +97,11 @@ function fakePage() {
       writes++;
       inert = value;
     },
+    scrollIntoView(options: ScrollIntoViewOptions): void {
+      intoView.push(options);
+    },
   } satisfies EndPageNode;
-  return { page, writes: (): number => writes };
+  return { page, writes: (): number => writes, intoView };
 }
 
 describe('applyEndView: Home writes the end view each frame, only on change', () => {
@@ -228,6 +232,71 @@ describe('applyEndView: Home writes the end view each frame, only on change', ()
     clearEndView(dom.root, null, written);
     expect(scrollTo).toHaveBeenCalledTimes(1);
     expect([dom.end(), dom.share()]).toEqual([null, '']);
+  });
+
+  it('keeps the scroll to the top for a let-go at rest, the section there: the scene stays and the end leaves the flow', () => {
+    const scrollTo = vi.fn();
+    vi.stubGlobal('window', { scrollY: 300, scrollTo });
+    const dom = fakeRoot();
+    const { page, intoView } = fakePage();
+    const written = endWritten();
+    frameAt(dom, page, written, 6, 6);
+    clearEndView(dom.root, page, written, 'let-go');
+    expect(scrollTo).toHaveBeenCalledWith(0, 0);
+    expect(intoView).toEqual([]);
+  });
+
+  it('brings the end page into view when Home goes at rest (3D switched off at the end), not the top: the hero is in the flow again', () => {
+    const order: string[] = [];
+    const scrollTo = vi.fn();
+    vi.stubGlobal('window', { scrollY: 0, scrollTo });
+    const dom = fakeRoot();
+    const fake = fakePage();
+    const page = {
+      get inert(): boolean {
+        return fake.page.inert;
+      },
+      set inert(value: boolean) {
+        fake.page.inert = value;
+      },
+      scrollIntoView(options: ScrollIntoViewOptions): void {
+        // Into view once the end view is gone: the 3D-off home's flow is the one measured, the page not inert.
+        order.push(`into view at data-end=${dom.end()}, --end '${dom.share()}', inert ${fake.page.inert}`);
+        fake.page.scrollIntoView(options);
+      },
+    } satisfies EndPageNode;
+    const written = endWritten();
+    frameAt(dom, page, written, 6, 6);
+    clearEndView(dom.root, page, written, 'gone');
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(fake.intoView).toEqual([{ block: 'start', behavior: 'instant' }]);
+    expect(order).toEqual(["into view at data-end=null, --end '', inert false"]);
+    expect(written).toEqual(endWritten());
+  });
+
+  it('scrolls nothing when Home goes with no section in the document (another page is up), nor when the view was not at rest', () => {
+    const scrollTo = vi.fn();
+    vi.stubGlobal('window', { scrollY: 300, scrollTo });
+    // At rest, but the home page is not up: the document is that page's, and is left where it is.
+    const dom = fakeRoot();
+    const written = endWritten();
+    frameAt(dom, null, written, 6, 6);
+    clearEndView(dom.root, null, written, 'gone');
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect([dom.end(), dom.share()]).toEqual([null, '']);
+    // On the move, or before the night: the page was never in the flow to keep.
+    for (const [progress, target] of [
+      [5.5, 6],
+      [5, 5],
+    ] as const) {
+      const moving = fakeRoot();
+      const { page, intoView } = fakePage();
+      const at = endWritten();
+      frameAt(moving, page, at, progress, target);
+      clearEndView(moving.root, page, at, 'gone');
+      expect(intoView, `from ${progress}`).toEqual([]);
+    }
+    expect(scrollTo).not.toHaveBeenCalled();
   });
 
   it('selects no bead at the end, so nothing keeps drawing', () => {

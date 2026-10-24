@@ -1076,6 +1076,33 @@ describe("the seam: at the end page the page's own scroll is the browser's, and 
     expect(page.win.scrollY).toBe(0);
   });
 
+  it("takes a wheel nudge of a few pixels up at the page's top as no step: 8 px settles back on 6, and a real notch of 100 px goes to 5", async () => {
+    const s = setup({ vh: 900 });
+    const page = atEndPage(s, 0);
+    expect(await notch(s, page, -8)).toBe(true); // at the page's top an input up is the story's
+    s.drain();
+    expect([s.frame.target, s.frame.progress]).toEqual([6, 6]);
+    expect(page.win.scrollY).toBe(0);
+    pause(s);
+    expect(await notch(s, page, -100)).toBe(true);
+    s.drain();
+    expect([s.frame.target, s.frame.progress]).toEqual([5, 5]);
+  });
+
+  it('keeps no slop for a wheel anywhere but the end page: 8 px from Cookies Clicker goes on to 6, and back up 8 px goes to 5', async () => {
+    const s = setup({ vh: 900 });
+    const page = atEndPage(s, 0);
+    page.attributes.delete('data-end');
+    restAt(s, 5);
+    expect(await notch(s, page, 8)).toBe(true);
+    s.drain();
+    expect([s.frame.target, s.frame.progress]).toEqual([6, 6]);
+    restAt(s, 4);
+    expect(await notch(s, page, -8)).toBe(true);
+    s.drain();
+    expect([s.frame.target, s.frame.progress]).toEqual([3, 3]);
+  });
+
   it('leaves the wheel down at the end page to the browser: the page scrolls, and the story stays at 6 and runs no frame', async () => {
     const s = setup();
     const page = atEndPage(s, 0);
@@ -1438,6 +1465,20 @@ describe('a failed void: the end page by its link and the step fade, never throu
     // The gesture's quiet ends it, and nothing settles: the story stays on BOB from above.
     for (let i = 0; i < 30; i++) s.frames.frame();
     expect([storyFrame.target, storyFrame.progress]).toEqual([1, 1]);
+  });
+
+  it("failed: a wheel nudge of 8 px up at the end page's top leaves the story at the end, with no fade; a real notch goes back to 1 by one", async () => {
+    const s = failedHome(1);
+    await s.toEndPage();
+    const nudge = await s.wheel(1, -8);
+    expect(nudge.prevented).toEqual([true]); // the story's, so the page does not scroll
+    const still = [...nudge.seen, ...s.run()];
+    expect(still.every((f) => f.progress === END && !f.dark)).toBe(true);
+    expect([storyFrame.target, storyFrame.progress]).toEqual([END, END]);
+    for (let ms = 0; ms <= GESTURE_GAP_MS; ms += FRAME_MS) s.frames.frame(); // a new gesture after a pause
+    const notch = await s.wheel(1, -100);
+    expect(storyFrame.target).toBe(1);
+    byFade([...notch.seen, ...s.run()], END, 1);
   });
 
   it('failed: at the end page a swipe down the glass from the top goes back to 1 by the fade, with no glide after it', async () => {

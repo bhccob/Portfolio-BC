@@ -27,10 +27,20 @@ export interface EndRoot {
   removeAttribute(name: string): void;
 }
 
-/** What the view writes to the end page's section (`#end`, src/ui/EndPage.tsx): its `inert`. */
+/**
+ * What the view writes to the end page's section (`#end`, src/ui/EndPage.tsx): its `inert`; and, when Home goes at rest,
+ * it brings the section into view (`clearEndView`).
+ */
 export interface EndPageNode {
   inert: boolean;
+  scrollIntoView(options: ScrollIntoViewOptions): void;
 }
+
+/**
+ * Why the end view is cleared: Home lets go while its scene stays (`let-go`: a seek holds the loader's clock), or Home
+ * is gone (`gone`: it unmounts, as 3D is switched off or the scene fails).
+ */
+export type EndClear = 'let-go' | 'gone';
 
 /**
  * The DOM as `applyEndView` last wrote it, so a frame writes only what changes: the `--end` written (0 when unset), the
@@ -73,7 +83,7 @@ export function endWritten(): EndWritten {
  * over a page scrolled down, and the page leaves the flow where it stood at the top.
  */
 export function applyEndView(view: EndView, root: EndRoot, page: EndPageNode | null, written: EndWritten): void {
-  if (written.state === 'rest' && view.state !== 'rest') toTop();
+  if (written.state === 'rest' && view.state !== 'rest') pageToTop();
   if (view.share !== written.share) {
     if (view.share > 0) root.style.setProperty(END_PROPERTY, String(view.share));
     else root.style.removeProperty(END_PROPERTY);
@@ -88,16 +98,24 @@ export function applyEndView(view: EndView, root: EndRoot, page: EndPageNode | n
 }
 
 /**
- * Clears the end view (Home let go, or gone): no `--end`, no `data-end`, and the section not inert, so a home without the
- * scene (3D off) finds the page in its flow and usable. A clear from `rest` scrolls the page to its top first, as any
- * leaving of the rest does. Afterwards nothing is noted as written, so the next view is written whole.
+ * Clears the end view (`why`: Home let go, or gone): no `--end`, no `data-end`, and the section not inert, so a home
+ * without the scene (3D off) finds the page in its flow and usable. Afterwards nothing is noted as written, so the next
+ * view is written whole. A clear from `rest` leaves the document:
+ * - on a let-go, at its top, the page scrolled there first, as any leaving of the rest does: the scene stays, and the
+ *   page leaves the flow where it stood at the top;
+ * - when Home is gone (3D switched off at the end page, or the scene failed there), on the end page, brought into view
+ *   (its top under the header, at once) once the view is cleared: it now stands in the 3D-off home's flow, after the
+ *   hero and the project links, and the document's top is the hero's. With no section in the document (another page is
+ *   up over a story left at the end) the document is that page's, and is left where it is.
  */
-export function clearEndView(root: EndRoot, page: EndPageNode | null, written: EndWritten): void {
-  if (written.state === 'rest') toTop();
+export function clearEndView(root: EndRoot, page: EndPageNode | null, written: EndWritten, why: EndClear = 'let-go'): void {
+  const rested = written.state === 'rest';
+  if (rested && why === 'let-go') pageToTop();
   if (written.share !== 0) root.style.removeProperty(END_PROPERTY);
   if (written.state !== 'none') root.removeAttribute(END_ATTRIBUTE);
   if (page !== null && page.inert) page.inert = false;
   Object.assign(written, endWritten());
+  if (rested && why === 'gone' && page !== null) page.scrollIntoView({ block: 'start', behavior: 'instant' });
 }
 
 /** Writes the section's `inert` when it, or the section, has changed. */
@@ -108,7 +126,10 @@ function writeInert(page: EndPageNode | null, inert: boolean, written: EndWritte
   written.inert = inert;
 }
 
-/** The document back at its top, if it is not there already. */
-function toTop(): void {
+/**
+ * The document back at its top, if it is not there already: the end view's when the end's rest is left, and the scroll
+ * input's when Home goes to the story's start from the end page (src/input/scrollLoop.ts).
+ */
+export function pageToTop(): void {
   if (typeof window !== 'undefined' && window.scrollY > 0) window.scrollTo(0, 0);
 }

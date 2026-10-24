@@ -57,6 +57,14 @@ export function keyTarget(target: number, units: number, c: Chapters, places: re
 export const SETTLE_SLOP_PX = 40;
 
 /**
+ * A wheel's slop at the end page, px: a wheel gesture that begins there (at the page's top, where an input up is the
+ * story's) and carries no further than this eases back to the end page, so a pixel's nudge of a trackpad or a smooth
+ * wheel does not take the story back to Cookies Clicker; one real notch (100 px or more) still does. Everywhere else a
+ * wheel has no slop.
+ */
+export const END_WHEEL_SLOP_PX = 10;
+
+/**
  * Where a wheel or touch gesture comes to rest without reduced motion, once it has ended: `from` is where its target
  * stood when it began, `to` where it ended (a finger's with the glide its lift would carry), `slop` SETTLE_SLOP_PX in
  * units for a finger and 0 for a wheel, `direction` its direction of travel as it ended (1 down the story, -1 up, 0 for

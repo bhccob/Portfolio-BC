@@ -159,7 +159,8 @@ const pivotPx = { x: 0, y: 0 };
  * **The end.** The move from Cookies Clicker into the night and the end page (way A) is the stylesheet's, from what Home
  * writes each frame (endView.ts): `--end`, the pose's `night`, and `<html data-end>`, `moving` on the way and `rest`
  * once the progress it poses and the target are both on the end, with `#end` inert until then. Written only where it
- * changes; leaving the rest scrolls the page back to its top first; cleared on a let-go and on unmount, as the cue is.
+ * changes; leaving the rest scrolls the page back to its top first; cleared on a let-go and on unmount, as the cue is
+ * (gone at rest, as 3D goes off at the end page, the page is brought into view in the 3D-off home's flow instead).
  *
  * **Aim.** At the home itself at rest (`aimsAt`: HOME_IDLE on the home page, the rise at 0) a mouse or a pen that has
  * moved aims the needle at itself: `needleAngleFor(pointer, pivot)` in the canvas's pixels, the pivot where the camera
@@ -206,13 +207,14 @@ export function Home({ models, handover }: HomeProps): null {
   const pivot = models.compass.pivot;
 
   // Gone: nothing of the home's keeps the canvas drawing, the host is not left faded down, the cue is not left hidden,
-  // the end page is not left out of the flow or inert, and no scroll pose is reported.
+  // the end page is not left out of the flow or inert (and gone at rest there, as 3D goes off, the end page is brought
+  // into view in the 3D-off home's flow; with another page up nothing is scrolled), and no scroll pose is reported.
   useEffect(
     () => () => {
       Object.assign(motion.compass, AT_REST);
       showStepFade(state, false);
       showRising(state, false);
-      clearEndView(document.documentElement, endPage(), state.end);
+      clearEndView(document.documentElement, endPage(), state.end, 'gone');
       clearScroll();
     },
     [state],
@@ -232,7 +234,7 @@ export function Home({ models, handover }: HomeProps): null {
         models.engraving.setLetters(0);
         showStepFade(state, false);
         showRising(state, false);
-        clearEndView(document.documentElement, endPage(), state.end);
+        clearEndView(document.documentElement, endPage(), state.end, 'let-go');
         clearScroll();
       }
       state.live = false;

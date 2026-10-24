@@ -95,7 +95,9 @@ describe('the end page', () => {
       it('shows the placeholder for a missing answer, with its tag, inside each question', () => {
         const placeholders = [...html.matchAll(/<p class="end-a is-placeholder">(.*?)<\/p>/g)];
         expect(placeholders).toHaveLength(6);
-        for (const [, inner] of placeholders) expect(inner).toBe(`${t.end.placeholder}<span class="end-tag">${t.end.placeholderTag}</span>`);
+        // A space between the placeholder and its tag, so a copy and a screen reader read two words, not one.
+        for (const [, inner] of placeholders) expect(inner).toBe(`${t.end.placeholder} <span class="end-tag">${t.end.placeholderTag}</span>`);
+        for (const [, inner] of placeholders) expect(textOf(inner)).toBe(`${t.end.placeholder} ${t.end.placeholderTag}`);
         // Each one is inside its <details>, after the <summary>, and no answer is given yet.
         expect(html.match(/<\/summary><p class="end-a is-placeholder">/g)).toHaveLength(6);
         expect(t.end.questions.every((item) => item.answer === null)).toBe(true);
@@ -156,6 +158,28 @@ describe('the end page', () => {
     }
   });
 
+  it('shows the placeholder and its tag for any missing answer: one left out of a translation, or empty, never a blank', () => {
+    const translator = translatorFor('en');
+    const original = translator.t;
+    const [first, second, ...rest] = original.end.questions;
+    // A translation that leaves an answer out (no key at all, past its type) and one that gives it as an empty string.
+    const absent = { question: first.question } as unknown as (typeof original.end.questions)[number];
+    const empty = { ...second, answer: '' };
+    const withGaps: Dictionary = { ...original, end: { ...original.end, questions: [absent, empty, ...rest] as unknown as EndQuestions } };
+    (translator as { t: Dictionary }).t = withGaps;
+    try {
+      const html = render('/en/');
+      expect(html.match(/class="end-a is-placeholder"/g)).toHaveLength(6);
+      expect(html.match(/class="end-tag"/g)).toHaveLength(6);
+      for (const question of [first.question, second.question]) {
+        expect(html).toContain(`<summary>${question}</summary><p class="end-a is-placeholder">${original.end.placeholder} <span class="end-tag">${original.end.placeholderTag}</span></p>`);
+      }
+      expect(html).not.toContain('<p class="end-a"></p>');
+    } finally {
+      (translator as { t: Dictionary }).t = original;
+    }
+  });
+
   for (const [path, locale, t] of LOCALES) {
     it(`renders the contact form once, with its own ids, and the links of the profile, in ${locale}`, () => {
       vi.stubEnv('PUBLIC_WEB3FORMS_KEY', 'abc');
@@ -164,7 +188,11 @@ describe('the end page', () => {
       for (const id of ['contact-name', 'contact-email', 'contact-subject', 'contact-message', 'contact-form-title']) {
         expect(html.match(new RegExp(`\\sid="${id}"`, 'g')), id).toHaveLength(1);
       }
-      expect(html).toContain(`<h2 id="contact-form-title" class="form-title">${t.contact.formTitle}</h2>`);
+      // The form's title one level under the message part's own (an h2), so the outline does not set two h2 in a row.
+      expect(html).toContain(`<h3 id="contact-form-title" class="form-title">${t.contact.formTitle}</h3>`);
+      expect(html).not.toContain('<h2 id="contact-form-title"');
+      const outline = [...html.matchAll(/<(h[1-6])\b[^>]*>(.*?)<\/\1>/g)].map((match) => `${match[1]} ${textOf(match[2])}`);
+      expect(outline.slice(-2)).toEqual([`h2 ${stripMarkup(t.end.messageTitle)}`, `h3 ${t.contact.formTitle}`]);
       // The three links, in the profile's order, the mailto one not opening a tab.
       const links = [...html.matchAll(/<ul class="links"[^>]*>(.*?)<\/ul>/g)];
       expect(links).toHaveLength(1);
@@ -174,6 +202,28 @@ describe('the end page', () => {
         expect(anchor[1]).toContain(`href="${profile.socials[index].url}"`);
         expect(anchor[1].includes('target="_blank"')).toBe(!profile.socials[index].url.startsWith('mailto:'));
       });
+    });
+  }
+
+  for (const [path, locale, t] of [
+    ['/contact/', 'nl', nl],
+    ['/en/contact/', 'en', en],
+  ] as const) {
+    it(`keeps the form's title an h2 on the contact page, under its h1, in ${locale}: the level's default`, async () => {
+      // The contact page reads its key as it is imported: with one, the form is in its HTML, so the page is imported
+      // afresh under the key, with the React and the router it renders with.
+      vi.stubEnv('PUBLIC_WEB3FORMS_KEY', 'abc');
+      vi.resetModules();
+      const [{ default: ContactPage }, react, server, router] = await Promise.all([
+        import('~/app/routes/contact'),
+        import('react'),
+        import('react-dom/server'),
+        import('react-router'),
+      ]);
+      const html = server.renderToStaticMarkup(react.createElement(router.MemoryRouter, { initialEntries: [path] }, react.createElement(ContactPage)));
+      expect(html).toContain(`<h2 id="contact-form-title" class="form-title">${t.contact.formTitle}</h2>`);
+      expect(html).not.toContain('<h3 id="contact-form-title"');
+      expect(html.indexOf('<h1')).toBeLessThan(html.indexOf('id="contact-form-title"'));
     });
   }
 

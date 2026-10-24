@@ -1,8 +1,8 @@
-import { END_ATTRIBUTE } from '~/scene/bob/endView';
+import { END_ATTRIBUTE, pageToTop } from '~/scene/bob/endView';
 import { STEP_FADE_ATTRIBUTE, STEP_FADE_MS } from '~/scene/bob/stepFade';
 import { type ChapterAt, type Chapters, chapterAt, riseTop, scrollEnd } from '~/state/chapters';
 import type { VoidState } from '~/state/store';
-import { changedChapter, holdLimit, jumpTarget, keyTarget, moveTarget, onRise, pinnedAtEnd, releaseTarget, SETTLE_SLOP_PX, settleTarget, stopsFor } from './target';
+import { changedChapter, END_WHEEL_SLOP_PX, holdLimit, jumpTarget, keyTarget, moveTarget, onRise, pinnedAtEnd, releaseTarget, SETTLE_SLOP_PX, settleTarget, stopsFor } from './target';
 import { VirtualScroll } from './VirtualScroll';
 
 /** maath's `damp`: moves `current[prop]` toward `target` and says whether it is still moving. */
@@ -58,11 +58,6 @@ function atEnd(): boolean {
  */
 function endPageYields(direction: 1 | -1): boolean {
   return atEnd() && (direction > 0 || window.scrollY > 0);
-}
-
-/** The page back at its top, if it is not there already (as Home's end view puts it back when the end's rest is left). */
-function pageToTop(): void {
-  if (typeof window !== 'undefined' && window.scrollY > 0) window.scrollTo(0, 0);
 }
 
 /** Within this many units of the target, progress is on it and the loop sleeps. */
@@ -340,10 +335,11 @@ export interface HomeScroll {
  * `settleTarget` names, from where the gesture began, how far it carried (its reach: its deltas held to the story's ends
  * but not to the hold, so a push against 0 or the last stop counts for nothing and a push into the hold is still a fling)
  * and which way it was going as it ended (a gesture that turned back settles the way it turned): a wheel gesture of any
- * size takes at least one stop, a finger's nudge within the slop eases back, a swipe takes one stop, a fling as many as it
- * passed, and one that comes up out of the rise rests on its top, BOB from above, unless it carried more than a whole
- * unit past it. A new wheel gesture or key while a settle eases starts from where the story stands, and a finger set
- * down halts the ease there. A lift reckons in the glide it would leave and ends it, so the one damped move
+ * size takes at least one stop (but from the end page, where a nudge within END_WHEEL_SLOP_PX eases back, so a pixel of
+ * a trackpad at the page's top stays there), a finger's nudge within the slop eases back, a swipe takes one stop, a
+ * fling as many as it passed, and one that comes up out of the rise rests on its top, BOB from above, unless it carried
+ * more than a whole unit past it. A new wheel gesture or key while a settle eases starts from where the story stands,
+ * and a finger set down halts the ease there. A lift reckons in the glide it would leave and ends it, so the one damped move
  * of the loop carries the swipe to its stop, with no glide slowing to a crawl first. A gesture that ends on the rise
  * rests where it ends, and its glide runs as M2a's did, held to the rise. The move to the stop is the loop's own damped
  * one (`smoothTimeAt`: quick on the rise, slower down the dive and between the beads), never a jump, and the loop lands
@@ -421,8 +417,13 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
   } | null = null;
   /** A settle has put the target on a stop and no input has come since: a new one starts from where the story stands. */
   let settling = false;
-  /** The settle's slop for what drives a gesture, in units: a finger's SETTLE_SLOP_PX, a wheel's none. */
-  const slopOf = (by: 'wheel' | 'finger'): number => (by === 'finger' ? SETTLE_SLOP_PX / Math.max(o.unitPx(), 1) : 0);
+  /**
+   * The settle's slop, in units, for what drives a gesture that began `from`: a finger's SETTLE_SLOP_PX; a wheel's none,
+   * but END_WHEEL_SLOP_PX for one that began at the end page (at its top, where an input up is the story's), so a
+   * pixel's nudge there settles back on it. So a wheel gesture anywhere else steps one stop at least.
+   */
+  const slopOf = (by: 'wheel' | 'finger', from: number): number =>
+    (by === 'finger' ? SETTLE_SLOP_PX : from === end ? END_WHEEL_SLOP_PX : 0) / Math.max(o.unitPx(), 1);
   /** The place an input starts from: where the story stands while a settle eases it, else the target. */
   const startPlace = (): number => (settling ? frame.progress : frame.target);
   /** Whether the story must turn back to reach `place`: it lies behind the way the story is moving. */
@@ -485,7 +486,7 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
           settling = false;
           gesture.by = by;
           gesture.reach = Math.min(Math.max(gesture.reach + units, 0), end);
-          if (Math.abs(gesture.reach - gesture.anchor) > slopOf(gesture.by)) {
+          if (Math.abs(gesture.reach - gesture.anchor) > slopOf(gesture.by, gesture.from)) {
             gesture.direction = Math.sign(gesture.reach - gesture.anchor);
             gesture.anchor = gesture.reach;
           }
@@ -499,9 +500,10 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
         // With the void failed nothing lies between the end page and BOB from above: a wheel or a finger that goes up from
         // the end page takes one step back to BOB from above (the step fade), and the rest of its gesture is spent. A finger
         // first has its slop: while it has carried no further than SETTLE_SLOP_PX the story stays at the end page (a
-        // waver, a pull at the page's top), and a lift there settles back on it with no fade. A wheel has none.
+        // waver, a pull at the page's top), and a lift there settles back on it with no fade. A wheel has its own there,
+        // END_WHEEL_SLOP_PX, the same way: a nudge stays, a notch steps.
         if (gesture !== null && by !== 'glide' && place < end && pastHold(frame.target)) {
-          if (end - gesture.reach <= slopOf(gesture.by)) {
+          if (end - gesture.reach <= slopOf(gesture.by, gesture.from)) {
             place = end;
           } else {
             place = moveTarget(end, -1, chapters, true, stopsNow());
@@ -547,7 +549,7 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
       scroll.stopGlide();
       // Its direction as it ended: a lift's glide goes the way the finger last went.
       const direction = glide !== 0 ? Math.sign(glide) : g.direction;
-      let place = settleTarget(g.from, reach, chapters, slopOf(g.by), direction || undefined, stopsNow());
+      let place = settleTarget(g.from, reach, chapters, slopOf(g.by, g.from), direction || undefined, stopsNow());
       if (o.threeD()) {
         if (pastHold(g.from) && pastHold(place)) {
           // One at a failed void's end page that never left it (one that went up from it is spent) leaves the story there.

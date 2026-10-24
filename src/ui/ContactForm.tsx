@@ -54,8 +54,12 @@ function writeLastSent(time: number): void {
  * The guards against scripts are invisible to people: a honeypot box (ticked, the form says it sent and
  * sends nothing), a minimum time between opening the page and sending (a message sent sooner shows that it
  * is sending and waits out the rest: it is never dropped), and a pause of a minute after a message has gone out.
+ *
+ * Its title (and the success panel's) is a heading of `level`: an h2 by default, under the contact page's h1; the end
+ * page, whose message part has an h2 title of its own, sets it one level under that (3).
  */
-export function ContactForm({ accessKey }: { accessKey?: string }): JSX.Element | null {
+export function ContactForm({ accessKey, level = 2 }: { accessKey?: string; level?: 2 | 3 }): JSX.Element | null {
+  const Heading = level === 3 ? 'h3' : 'h2';
   const i18n = useTranslator();
   const c = i18n.t.contact;
   const key = accessKey?.trim() || undefined;
@@ -174,9 +178,9 @@ export function ContactForm({ accessKey }: { accessKey?: string }): JSX.Element 
   if (status === 'sent' || status === 'mailto') {
     return (
       <section className="form-done" ref={doneRef} tabIndex={-1} aria-labelledby="contact-done-title">
-        <h2 id="contact-done-title" className="form-title">
+        <Heading id="contact-done-title" className="form-title">
           {status === 'mailto' ? c.mailtoTitle : c.successTitle}
-        </h2>
+        </Heading>
         <p>{status === 'mailto' ? c.mailtoText : c.successText}</p>
         <button type="button" className="button" onClick={again}>
           {c.again}
@@ -192,9 +196,9 @@ export function ContactForm({ accessKey }: { accessKey?: string }): JSX.Element 
 
   return (
     <section aria-labelledby="contact-form-title">
-      <h2 id="contact-form-title" className="form-title">
+      <Heading id="contact-form-title" className="form-title">
         {c.formTitle}
-      </h2>
+      </Heading>
       <form
         ref={formRef}
         className="form"

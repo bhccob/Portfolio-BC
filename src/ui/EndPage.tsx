@@ -4,14 +4,18 @@ import { useTranslator } from '~/i18n/useTranslator';
 import { ContactForm } from './ContactForm';
 import { Markup } from './Markup';
 
+/** Whether a question's answer is there to show: a string with something in it. Anything else is a missing answer. */
+const given = (answer: string | null | undefined): answer is string => typeof answer === 'string' && answer.trim() !== '';
+
 /**
  * The end of the home: an ordinary page after the last bead. A label and a title, six questions about Bob that open and
  * close, then the message part, which is the contact page's own (its intro, `ContactForm`, its direct links).
  *
  * It is in the home's HTML, server-rendered, so the questions and the links exist without script and for crawlers. The
  * questions are `<details>` of one name, which the browser keeps to one open at a time with no script, and none is
- * open on arrival. An answer that Bob has not sent is `null` and shows the placeholder with a small tag; an answer
- * that is there replaces it with no other change.
+ * open on arrival. An answer that Bob has not sent is `null` and shows the placeholder with a small tag (one left out of
+ * a translation, or empty, is missing too, and shows the same: never a blank); an answer that is there replaces it with
+ * no other change.
  *
  * Here it only sits in the flow. The scene's hold on it (hidden while 3D is on and the story is elsewhere) is the
  * scroll's, not this component's.
@@ -35,13 +39,13 @@ export function EndPage(): JSX.Element {
         {end.questions.map(({ question, answer }) => (
           <details key={question} name="end-qa" className="end-q">
             <summary>{question}</summary>
-            {answer === null ? (
+            {given(answer) ? (
+              <p className="end-a">{answer}</p>
+            ) : (
               <p className="end-a is-placeholder">
-                {end.placeholder}
+                {end.placeholder}{' '}
                 <span className="end-tag">{end.placeholderTag}</span>
               </p>
-            ) : (
-              <p className="end-a">{answer}</p>
             )}
           </details>
         ))}
@@ -52,7 +56,8 @@ export function EndPage(): JSX.Element {
       </h2>
       <p className="lead">{t.contact.intro}</p>
 
-      <ContactForm accessKey={accessKey} />
+      {/* Its title an h3, under the message part's own h2 just above. */}
+      <ContactForm accessKey={accessKey} level={3} />
 
       <ul className="links" aria-label={t.contact.direct}>
         {profile.socials.map((social) => (
