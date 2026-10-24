@@ -5947,7 +5947,8 @@ const scrollSettled = (page) =>
 
 /**
  * The end page (src/ui/EndPage.tsx) as the page shows it now: where the story is and its phase, `<html data-end>`, the
- * section's `inert` and visibility, whether its title is seen whole inside the viewport, and the page's scroll and its bottom.
+ * section's `inert` and whether it is shown at all (`checkVisibility`: not `display: none`, as it is with 3D on away from
+ * the end, nor `visibility: hidden`), whether its title is seen whole inside the viewport, and the page's scroll and its bottom.
  */
 const endPageOf = (page) =>
   page.evaluate(() => {
@@ -5961,7 +5962,7 @@ const endPageOf = (page) =>
       phase: phase.kind,
       end: document.documentElement.getAttribute('data-end'),
       inert: section?.inert ?? null,
-      visibility: section ? getComputedStyle(section).visibility : null,
+      shown: section ? section.checkVisibility({ visibilityProperty: true }) : false,
       titleIn:
         box !== undefined &&
         box.height > 0 &&
@@ -5976,7 +5977,7 @@ const endPageOf = (page) =>
   });
 
 /** The end page's state (`endPageOf`) as a line for a check's message. */
-const endText = (s) => `story ${s.progress} → ${s.target} (${s.phase}), data-end ${s.end}, inert ${s.inert}, ${s.visibility}, title in view ${s.titleIn}, scrollY ${s.scrollY} of ${s.bottom}`;
+const endText = (s) => `story ${s.progress} → ${s.target} (${s.phase}), data-end ${s.end}, inert ${s.inert}, ${s.shown ? 'shown' : 'not shown'}, title in view ${s.titleIn}, scrollY ${s.scrollY} of ${s.bottom}`;
 
 /** True when the story rests at the end page: progress and target on the end, `<html data-end="rest">`, the phase END. */
 const restsAtEnd = (s) => s.progress === STORY_END && s.target === STORY_END && s.end === 'rest' && s.phase === 'END';
@@ -6292,7 +6293,7 @@ async function endPage(browser, step) {
         reloaded.scrollY === 0 &&
         reloaded.end === null &&
         reloaded.inert === true &&
-        reloaded.visibility === 'hidden',
+        reloaded.shown === false,
       `${at}: a reload at the end (scrollY ${reloadFrom}) lands on the home, nothing of the end page left: ${endText(reloaded)}`,
     );
 
