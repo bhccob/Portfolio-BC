@@ -7,9 +7,10 @@ const HOME: Phase = { kind: 'HOME_IDLE' };
 const DIVE: Phase = { kind: 'DIVE' };
 const VOID: Phase = { kind: 'VOID_ENTRY' };
 const PROJECTS: Phase = { kind: 'PROJECTS', category: 'front-panel' };
+const END: Phase = { kind: 'END' };
 const PROJECT: Phase = { kind: 'PROJECT_FOCUS', id: 'funcial' };
 
-const ALL: Phase[] = [LOADING, HOME, DIVE, VOID, PROJECTS, PROJECT];
+const ALL: Phase[] = [LOADING, HOME, DIVE, VOID, PROJECTS, END, PROJECT];
 const chapter = (id: ChapterId, category: string | null = null): SceneEvent => ({ type: 'CHAPTER', chapter: id, category });
 
 describe('LOADED', () => {
@@ -36,11 +37,18 @@ describe('CHAPTER', () => {
     expect(transition(PROJECTS, chapter('PROJECTS', 'oscillator'))).toEqual({ kind: 'PROJECTS', category: 'oscillator' });
   });
 
-  it('applies from HOME_IDLE, DIVE, VOID_ENTRY and PROJECTS', () => {
-    for (const phase of [HOME, VOID, PROJECTS]) {
+  it('takes the last project to the end page and back', () => {
+    const oscillator: Phase = { kind: 'PROJECTS', category: 'oscillator' };
+    expect(transition(oscillator, chapter('END'))).toEqual({ kind: 'END' });
+    expect(transition(END, chapter('PROJECTS', 'oscillator'))).toEqual({ kind: 'PROJECTS', category: 'oscillator' });
+    expect(transition(END, chapter('HOME'))).toEqual({ kind: 'HOME_IDLE' });
+  });
+
+  it('applies from HOME_IDLE, DIVE, VOID_ENTRY, PROJECTS and END', () => {
+    for (const phase of [HOME, VOID, PROJECTS, END]) {
       expect(transition(phase, chapter('DIVE')), phase.kind).toEqual({ kind: 'DIVE' });
     }
-    for (const phase of [HOME, DIVE, VOID, PROJECTS]) {
+    for (const phase of [HOME, DIVE, VOID, PROJECTS, END]) {
       expect(transition(phase, chapter('PROJECTS', 'oscillator')), phase.kind).toEqual({ kind: 'PROJECTS', category: 'oscillator' });
     }
   });
@@ -54,12 +62,14 @@ describe('CHAPTER', () => {
     expect(transition(DIVE, chapter('DIVE'))).toBe(DIVE);
     expect(transition(VOID, chapter('VOID_ENTRY'))).toBe(VOID);
     expect(transition(PROJECTS, chapter('PROJECTS', 'front-panel'))).toBe(PROJECTS);
+    expect(transition(END, chapter('END'))).toBe(END);
   });
 });
 
 describe('SCROLL_PHASES', () => {
-  it('are the phases the scroll moves through: HOME_IDLE, DIVE, VOID_ENTRY and PROJECTS', () => {
-    expect([...SCROLL_PHASES].sort()).toEqual(['DIVE', 'HOME_IDLE', 'PROJECTS', 'VOID_ENTRY']);
+  it('are the phases the scroll moves through: HOME_IDLE, DIVE, VOID_ENTRY, PROJECTS and END', () => {
+    expect([...SCROLL_PHASES].sort()).toEqual(['DIVE', 'END', 'HOME_IDLE', 'PROJECTS', 'VOID_ENTRY']);
+    expect(SCROLL_PHASES.has('END')).toBe(true);
   });
 
   it('are the phases a CHAPTER event applies from, and no others', () => {
@@ -87,7 +97,7 @@ describe('BACK', () => {
   });
 
   it('is ignored from the scroll phases', () => {
-    for (const phase of [LOADING, HOME, DIVE, VOID, PROJECTS]) expect(transition(phase, { type: 'BACK' }), phase.kind).toBe(phase);
+    for (const phase of [LOADING, HOME, DIVE, VOID, PROJECTS, END]) expect(transition(phase, { type: 'BACK' }), phase.kind).toBe(phase);
   });
 });
 
@@ -118,6 +128,8 @@ describe('samePhase', () => {
     expect(samePhase({ kind: 'HOME_IDLE' }, { kind: 'HOME_IDLE' })).toBe(true);
     expect(samePhase({ kind: 'HOME_IDLE' }, { kind: 'DIVE' })).toBe(false);
     expect(samePhase({ kind: 'DIVE' }, { kind: 'DIVE' })).toBe(true);
+    expect(samePhase({ kind: 'END' }, { kind: 'END' })).toBe(true);
+    expect(samePhase({ kind: 'END' }, { kind: 'PROJECTS', category: 'oscillator' })).toBe(false);
     expect(samePhase({ kind: 'PROJECTS', category: null }, { kind: 'PROJECTS', category: 'oscillator' })).toBe(false);
     expect(samePhase({ kind: 'PROJECT_FOCUS', id: 'funcial' }, { kind: 'PROJECT_FOCUS', id: 'funcial' })).toBe(true);
     expect(samePhase({ kind: 'PROJECT_FOCUS', id: 'funcial' }, { kind: 'PROJECT_FOCUS', id: 'jontai-energy' })).toBe(false);

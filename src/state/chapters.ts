@@ -3,10 +3,10 @@ import { categories } from '~/data/categories';
 /**
  * The chapters of the home scroll, in order. A chapter is a stretch of scroll; the scene's phase follows it.
  * They are BOB's: HOME is the rise from the home to BOB seen from above, DIVE the camera dropping through the O
- * and out under the glass, VOID_ENTRY the overview of all the beads, and PROJECTS one unit per project (the
- * needle points at that bead).
+ * and out under the glass, VOID_ENTRY the overview of all the beads, PROJECTS one unit per project (the
+ * needle points at that bead) and END the end page, the scroll's last stop (spec 2026-10-24-bob-end-page-design.md).
  */
-export type ChapterId = 'HOME' | 'DIVE' | 'VOID_ENTRY' | 'PROJECTS';
+export type ChapterId = 'HOME' | 'DIVE' | 'VOID_ENTRY' | 'PROJECTS' | 'END';
 
 export interface ChapterUnit {
   id: ChapterId;
@@ -31,11 +31,12 @@ export interface ChapterSpec {
 export const HYSTERESIS = 0.02;
 
 /**
- * HOME 1, DIVE 1, VOID_ENTRY 1, then one unit for each project category: with the three projects, six units in all,
- * and the scroll rests at six stops, the starts of the six units. Each unit is one stop of the scroll (spec §2.3, "The
- * scroll's stretches": "That makes six stops in all"). The scroll ends on the last stop, the last bead's, and never
- * goes into the last unit, which holds that bead (`scrollEnd`); `total` is where the units end. Nothing here is a
- * pixel: the scroll input turns pixels into units.
+ * HOME 1, DIVE 1, VOID_ENTRY 1, then one unit for each project category, then END 1: with the three projects, seven
+ * units in all, and the scroll rests at seven stops, the starts of the seven units. Each unit is one stop of the scroll
+ * (spec §2.3, "The scroll's stretches", which counted six, to the last bead; 2026-10-24: a seventh, the end page,
+ * follows Cookies Clicker). The last project's unit (5 to 6) is the move from its bead into the night, and the scroll
+ * ends on the last stop, the end page's, and never goes into the END unit (`scrollEnd`); `total` is where the units
+ * end. Nothing here is a pixel: the scroll input turns pixels into units.
  */
 export function buildChapters(spec: ChapterSpec): Chapters {
   const lengths: Omit<ChapterUnit, 'start'>[] = [
@@ -43,6 +44,7 @@ export function buildChapters(spec: ChapterSpec): Chapters {
     { id: 'DIVE', length: 1, category: null },
     { id: 'VOID_ENTRY', length: 1, category: null },
     ...spec.categories.map((category) => ({ id: 'PROJECTS' as const, length: 1, category })),
+    { id: 'END', length: 1, category: null },
   ];
   let start = 0;
   const units = lengths.map((unit) => {
@@ -53,7 +55,7 @@ export function buildChapters(spec: ChapterSpec): Chapters {
   return { units, total: start };
 }
 
-/** The chapters of the home page: BOB's stretches, then the project categories as the data lists them. */
+/** The chapters of the home page: BOB's stretches, the project categories as the data lists them, then the end page. */
 export const HOME_CHAPTERS: Chapters = buildChapters({ categories: categories.all().map((category) => category.id) });
 
 export interface ChapterAt {
@@ -89,8 +91,9 @@ export function stops(c: Chapters): number[] {
 }
 
 /**
- * Where the scroll ends: its last stop, the start of the last chapter, the last bead's. Past it there is nothing to
- * scroll to: the last unit holds its bead, so scrolling into it would be a unit of scroll that changes nothing.
+ * Where the scroll ends: its last stop, the start of the last chapter, the end page's. Past it there is nothing to
+ * scroll to: the end page is an ordinary page that scrolls natively, so scrolling into its unit would be a unit of
+ * scroll that changes nothing.
  */
 export function scrollEnd(c: Chapters): number {
   return c.units.at(-1)?.start ?? 0;

@@ -31,7 +31,7 @@ const LAPTOP = 16 / 9;
 const PHONE = 390 / 844;
 const SCREENS = [LAPTOP, PHONE] as const;
 const STOPS = stops(HOME_CHAPTERS);
-/** The end of the scroll: the last bead's stop, Cookies Clicker's (the last unit holds it, so nothing lies past it). */
+/** The end of the scroll: the end page's stop (2026-10-24: a seventh stop after Cookies Clicker's, 5; nothing lies past it). */
 const END = scrollEnd(HOME_CHAPTERS);
 
 // ---------------------------------------------------------------- the hold
@@ -48,9 +48,9 @@ describe('diveHoldFor: the most the scroll may reach before the void is ready', 
     }
   });
 
-  it("is the end of the scroll once the void is ready, the last bead's stop: nothing holds", () => {
+  it("is the end of the scroll once the void is ready, the end page's stop: nothing holds", () => {
     expect(diveHoldFor('ready')).toBe(END);
-    expect(END).toBe(5);
+    expect(END).toBe(6);
   });
 
   it('is BOB from above, the top of the rise, when the void failed: the dive never starts, as with 3D off', () => {
@@ -613,13 +613,19 @@ describe('voidShownFor: the void and the beads show only once the camera is unde
 });
 
 describe('selectedBead: the bead of the current project stop', () => {
-  it('is none on the rise, the dive and the overview, and the project stretch\'s bead from Funcial\'s stop on', () => {
+  it('is none on the rise, the dive and the overview, and the project stretch\'s bead from Funcial\'s stop to the end page', () => {
     for (const p of [0, 0.5, 1, 1.5, 2, 2.5, 2.999]) expect(selectedBead(journeyAt(p))).toBeNull();
     expect(selectedBead(journeyAt(3))).toBe(0);
     expect(selectedBead(journeyAt(3.5))).toBe(0);
     expect(selectedBead(journeyAt(4))).toBe(1);
     expect(selectedBead(journeyAt(5))).toBe(2);
-    expect(selectedBead(journeyAt(6))).toBe(2);
+    expect(selectedBead(journeyAt(5.5))).toBe(2); // the move into the night is Cookies' stretch
+  });
+
+  it('is none at the end page: the scene sleeps there, so no bead\'s motion keeps the canvas drawing', () => {
+    expect(selectedBead(journeyAt(6))).toBeNull();
+    expect(selectedBead(journeyAt(7))).toBeNull();
+    expect(selectedBead({ stretch: 'end', local: 0, project: null })).toBeNull();
   });
 });
 
@@ -853,9 +859,9 @@ describe("the beads' inner lights and their stand-ins", () => {
 
 // ---------------------------------------------------------------- reduced motion
 
-describe("the step fade's stops are the journey's six", () => {
-  it('fades between 0 and 5, every stop of the dive and the void, and poses each exactly', () => {
-    expect(STOPS).toEqual([0, 1, 2, 3, 4, 5]);
+describe("the step fade's stops are the journey's seven", () => {
+  it('fades between 0 and 6, every stop of the dive, the void and the end page, and poses each exactly', () => {
+    expect(STOPS).toEqual([0, 1, 2, 3, 4, 5, 6]);
     for (const stop of STOPS) {
       expect(nearestStop(STOPS, stop)).toBe(stop);
       expect(nearestStop(STOPS, stop + 0.3)).toBe(Math.min(stop, END));

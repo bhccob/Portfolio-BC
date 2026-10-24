@@ -145,11 +145,14 @@ describe('setStoryProgress', () => {
     expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'secure-element' });
   });
 
-  it('stays inside the scroll, 0 to its last stop, the last bead (the scroll ends there)', () => {
+  it('stays inside the scroll, 0 to its last stop, the end page (the scroll ends there)', () => {
+    // 2026-10-24: the end page is a seventh stop after Cookies Clicker, so the scroll ends at 6, not 5.
     setStoryProgress(99);
-    expect(frame.target).toBe(5);
+    expect(frame.target).toBe(6);
     expect(frame.target).toBe(scrollEnd(HOME_CHAPTERS));
-    expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: HOME_CHAPTERS.units.at(-1)!.category });
+    expect(useScene.getState().phase).toEqual({ kind: 'END' });
+    setStoryProgress(5);
+    expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: HOME_CHAPTERS.units.at(-2)!.category });
     setStoryProgress(-4);
     expect(frame.target).toBe(0);
     expect(useScene.getState().phase).toEqual({ kind: 'HOME_IDLE' });

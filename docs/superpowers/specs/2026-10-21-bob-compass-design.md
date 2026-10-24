@@ -174,6 +174,8 @@ Scrolling (wheel, trackpad, touch, arrow keys) scrubs one continuous camera move
 
 That makes six stops in all; the old chapters' long stretches (eleven units of "parts", two of "morph") go.
 
+*2026-10-24: a seventh, the end page, follows Cookies Clicker; see `2026-10-24-bob-end-page-design.md`.*
+
 **The pace** (Bob, 2026-10-24: the dive and the moves between beads were too fast).
 - The rise keeps M2a's quick pace, about 0.8 s from the home to BOB from above.
 - The dive takes about 3.7 s from BOB from above to the overview, most of it in the first 2 s.

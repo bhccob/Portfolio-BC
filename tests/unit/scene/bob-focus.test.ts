@@ -234,11 +234,17 @@ describe('focusGoalFor: the close view the page asks for', () => {
 });
 
 describe("restsAt: a flight leaves only from its bead's own stop, at rest", () => {
-  it("is true at the bead's stop with the story resting there, and at the end for the last bead, which holds it", () => {
+  it("is true at the bead's stop with the story resting there", () => {
     expect(restsAt('funcial', 3, 3)).toBe(true);
     expect(restsAt('jontai-energy', 4, 4)).toBe(true);
     expect(restsAt('cookies-clicker', 5, 5)).toBe(true);
-    expect(restsAt('cookies-clicker', 6, 6)).toBe(true);
+  });
+
+  it("is false for the last bead once the story has left its stop: in the move into the night (5 to 6) and at the end page (6)", () => {
+    // 2026-10-24: the stretch 5 to 6 is no longer a hold of Cookies at rest, and 6 is the end page's stop, not Cookies'.
+    expect(restsAt('cookies-clicker', 5.5, 5.5)).toBe(false);
+    expect(restsAt('cookies-clicker', 6, 6)).toBe(false);
+    expect(restsAt('cookies-clicker', 5, 5.5)).toBe(false);
   });
 
   it("is false on the way, at another bead's stop, held in the tunnel, or for no bead", () => {

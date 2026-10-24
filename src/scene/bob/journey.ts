@@ -1,10 +1,10 @@
 /**
  * The home's journey as plain numbers: from the scroll's progress (0 to 6, in the chapters' units) to where the camera
- * stands, where the needle is and what it points at, which bead has come forward and how lit each bead is, and how
- * much of the void's light shows. Pure, as the rise's pose is (./scrollPose): it imports nothing from React or three
- * and remembers no frame (it keeps only the glides' bends for the last screen shape, `bendsFor`, which give the same
- * pose either way), so the tests read the very pose the scene applies, and a progress sought to a value poses the scene
- * as the scroll did there.
+ * stands, where the needle is and what it points at, which bead has come forward and how lit each bead is, how much of
+ * the void's light shows, and how far the void has sunk into the night. Pure, as the rise's pose is (./scrollPose): it
+ * imports nothing from React or three and remembers no frame (it keeps only the glides' bends for the last screen
+ * shape, `bendsFor`, which give the same pose either way), so the tests read the very pose the scene applies, and a
+ * progress sought to a value poses the scene as the scroll did there.
  *
  * The stretches are the home's chapters (~/state/chapters; spec §2.3, "The scroll's stretches"), one stop each, and
  * the scroll rests at their starts:
@@ -13,8 +13,11 @@
  *   glass to the overview, all three beads in view, where it rests at 2;
  * - the overview, 2-3: the glide from the overview to Funcial's bead, seen close at 3;
  * - the projects, 3-6: the glide from each bead to the next (Jontai Energy at 4, Cookies Clicker at 5); the last
- *   unit holds Cookies, so 6 is Cookies at rest too. The scroll ends at 5, that unit's start (~/state/chapters
- *   `scrollEnd`), so its stretch is never reached; it stays so that every chapter is a stretch, and holds.
+ *   project's stretch, 5-6, is the move into the night (2026-10-24, the end page): the camera, the needle and the beads
+ *   hold Cookies as at 5 and only `night` rises, 0 to 1;
+ * - the end page, 6: the seventh stop and the end of the scroll (~/state/chapters `scrollEnd`). It is Cookies at rest
+ *   in the full night; the page itself is HTML over the scene (the scene sleeps behind it), so the scroll goes no
+ *   further and the progress is held to 6.
  * Within each stretch every part eases on a smoothstep, so it leaves a stop and arrives at the next with no speed, and
  * at a stop it is exactly that stop's pose. Within 1e-6 of a stop the progress is the stop, as `riseAt` has it, so a
  * sum's float residue never leaves it a hair off.
@@ -26,19 +29,20 @@
 import type { CategoryId } from '~/data/categories';
 import type { ProjectId } from '~/data/projects';
 import { type CameraShot, FRAMES, shotFor, topShotFor } from '~/engine/bob/shots';
-import { type ChapterId, chapterAt, HOME_CHAPTERS, stops } from '~/state/chapters';
+import { type ChapterId, chapterAt, HOME_CHAPTERS, scrollEnd, stops } from '~/state/chapters';
 import { mix, riseAt, type ScrollPose, scrollPoseAt, smoothstep, type Span, through } from './scrollPose';
 
 type Vec3 = readonly [number, number, number];
 type Quat = readonly [number, number, number, number];
 
 /** A stretch of the journey: one of the home's chapters, seen as the camera's move. */
-export type Stretch = 'rise' | 'dive' | 'overview' | 'project';
+export type Stretch = 'rise' | 'dive' | 'overview' | 'project' | 'end';
 
 /**
  * Where the journey is: the stretch, how far through it (0 at its stop, toward 1 at the next), and the bead whose
- * stretch it is (0, 1 or 2, in category order) on a project stretch, else null. The last project stretch holds its
- * bead, so its `local` is 0 all through it.
+ * stretch it is (0, 1 or 2, in category order) on a project stretch, else null. The last project's stretch holds its
+ * bead and carries `local` through the move into the night (`JourneyPose.night`); the end page is a stretch of its own,
+ * the last stop, where `local` is 0 and there is no project.
  */
 export interface JourneyAt {
   stretch: Stretch;
@@ -66,7 +70,9 @@ export interface NeedleOverride {
  *   start, where it is;
  * - `forward[i]`: how far bead i has drifted toward the camera, 0..1 (along `CAMERA_PATH.bead.forward`);
  * - `lit[i]`: its light, 0..1 (`BeadsModel.setLit`, where 0 is a dim 0.15 of it);
- * - `beam`, `mist`: the void's beam of light from the opening and its mist, 0..1.
+ * - `beam`, `mist`: the void's beam of light from the opening and its mist, 0..1;
+ * - `night`: how far the void has sunk into the site's night for the end page, 0..1: 0 everywhere up to Cookies
+ *   Clicker's stop, a smoothstep of the last project's stretch (the move into the night), 1 at the end page.
  */
 export interface JourneyPose {
   at: JourneyAt;
@@ -77,6 +83,7 @@ export interface JourneyPose {
   lit: readonly [number, number, number];
   beam: number;
   mist: number;
+  night: number;
 }
 
 /** One bead in the void: its project and category, its centre at rest (three's world coordinates) and its radius. */
@@ -573,22 +580,25 @@ function each(f: (bead: number) => number): readonly [number, number, number] {
 }
 
 /** The stretch each of the home's chapters is. */
-const STRETCHES: Record<ChapterId, Stretch> = { HOME: 'rise', DIVE: 'dive', VOID_ENTRY: 'overview', PROJECTS: 'project' };
+const STRETCHES: Record<ChapterId, Stretch> = { HOME: 'rise', DIVE: 'dive', VOID_ENTRY: 'overview', PROJECTS: 'project', END: 'end' };
 
 /** The index of the first PROJECTS unit: project p is unit FIRST_PROJECT + p. */
 const FIRST_PROJECT = HOME_CHAPTERS.units.findIndex((unit) => unit.id === 'PROJECTS');
 
-/** The last project, whose stretch holds its bead. */
-const LAST_PROJECT = HOME_CHAPTERS.units.length - 1 - FIRST_PROJECT;
+/** The last project, whose stretch holds its bead through the move into the night (the END unit follows it, so it is not the last unit). */
+const LAST_PROJECT = HOME_CHAPTERS.units.filter((unit) => unit.id === 'PROJECTS').length - 1;
+
+/** Where the scroll ends and the end page stands: the progress is held to it, so everything from here on is the end page. */
+const END_AT = scrollEnd(HOME_CHAPTERS);
 
 /** Within this much of a stop, the progress is on it, as `riseAt` has it: a sum's float residue is the stop. */
 const SNAP = 1e-6;
 
 const STOPS = stops(HOME_CHAPTERS);
 
-/** The progress held to the scroll's range (NaN reads as 0), and on a stop within SNAP of it. */
+/** The progress held to the scroll's range, 0 to its end (NaN reads as 0), and on a stop within SNAP of it. */
 function settled(progress: number): number {
-  const p = progress > 0 ? (progress < HOME_CHAPTERS.total ? progress : HOME_CHAPTERS.total) : 0;
+  const p = progress > 0 ? (progress < END_AT ? progress : END_AT) : 0;
   for (const stop of STOPS) if (Math.abs(p - stop) < SNAP) return stop;
   return p;
 }
@@ -621,6 +631,17 @@ export function focusShotFor(id: ProjectId, aspect: number): CameraShot {
 }
 
 /**
+ * Bead `bead` held at its stop, as the pose has it at the start of its stretch: the shot its close shot, the needle by
+ * it pointing at its centre, the bead forward and lit and the others back and unlit, the void's light full. Every
+ * project's stop is this, and the last project's stretch (the move into the night) and the end page hold it.
+ */
+function heldBead(bead: number, aspect: number): Pick<JourneyPose, 'shot' | 'needle' | 'forward' | 'lit' | 'beam' | 'mist'> {
+  const forward = each((other) => (other === bead ? 1 : 0));
+  const needle = { position: needleBy(bead), scale: NEEDLE_PATH.grow.scale, aim: centreOf(bead, 1) };
+  return { shot: shotOf(beadKey(bead, aspect)), needle, forward, lit: forward, beam: 1, mist: 1 };
+}
+
+/**
  * The shot `e` of the way from `a` to `b` (0 is `a` and 1 is `b`, exactly): the camera, the look-at point and the field
  * in straight lines, the up between theirs (absent read as +Y) and the parallax between (absent read as the whole of
  * it). The flight into a porthole is this from the bead's stop to its close view, eased (./focus.ts): both look at the
@@ -642,15 +663,17 @@ export function shotToward(a: CameraShot, b: CameraShot, e: number): CameraShot 
 /**
  * Where the journey is at this progress: the chapter it is in (~/state/chapters `chapterAt`, without hysteresis) as a
  * stretch, how far through it, and the project of a project stretch. A stop starts its stretch (1 is the dive at 0, 3
- * is Funcial's stretch at 0); 6, the end of the last unit (which the scroll, ending at 5, never reaches), is the last
- * project's at 0, as 5 is. NaN reads as 0, the progress is held to 0..6, and within 1e-6 of a stop it is the stop.
+ * is Funcial's stretch at 0, 5 is Cookies' move into the night at 0); every project's stretch has its real `local`, the
+ * last included (5.5 is half way into the night). 6 is the end page, the scroll's end: at 6 and above it is
+ * `{ stretch: 'end', local: 0, project: null }`. NaN reads as 0, the progress is held to 0..6, and within 1e-6 of a stop
+ * it is the stop.
  */
 export function journeyAt(progress: number): JourneyAt {
   const chapter = chapterAt(HOME_CHAPTERS, settled(progress));
   const stretch = STRETCHES[chapter.id];
+  if (stretch === 'end') return { stretch, local: 0, project: null };
   if (stretch !== 'project') return { stretch, local: chapter.local, project: null };
-  const project = chapter.index - FIRST_PROJECT;
-  return { stretch, local: project === LAST_PROJECT ? 0 : chapter.local, project };
+  return { stretch, local: chapter.local, project: chapter.index - FIRST_PROJECT };
 }
 
 /**
@@ -665,9 +688,13 @@ export function journeyAt(progress: number): JourneyAt {
  *   needle comes up beside it, its tip swinging from straight down to the bead within `aimLead` of the stretch.
  * - **Each project** p (3 + p to 4 + p) glides from bead p's shot to the next's, bending round a bead in the way
  *   (`bendFor`); bead p drifts back and dims as the next comes forward and lights, and the needle backs off bead p,
- *   swings to the next bead ahead of its move and comes in to it. The last holds Cookies.
+ *   swings to the next bead ahead of its move and comes in to it. The last project's stretch (5-6) is no glide: it
+ *   holds Cookies, the shot, the needle and the beads as at 5, and `night` rises on a smoothstep of it, 0 to 1: the
+ *   move into the night.
+ * - **The end page** (6) is Cookies held in the full night: its pose with `night` 1.
  * At a stop the shot is that stop's key shot exactly, the selected bead is forward and lit (1) and the others back and
- * unlit (0), and the needle stands by it, its aim the bead's centre.
+ * unlit (0), and the needle stands by it, its aim the bead's centre. `night` is 0 everywhere before the last project's
+ * stretch.
  */
 export function journeyPoseAt(progress: number, aspect: number): JourneyPose {
   const p = settled(progress);
@@ -675,13 +702,15 @@ export function journeyPoseAt(progress: number, aspect: number): JourneyPose {
   const rise = scrollPoseAt(riseAt(p), aspect);
   const { local } = at;
 
-  if (at.stretch === 'rise') return { at, rise, shot: rise.shot, needle: null, forward: NONE, lit: NONE, beam: 0, mist: 0 };
+  if (at.stretch === 'rise') return { at, rise, shot: rise.shot, needle: null, forward: NONE, lit: NONE, beam: 0, mist: 0, night: 0 };
 
   if (at.stretch === 'dive') {
     const glow = smoothstep(local);
     const lit = OVERVIEW_LIT * glow;
-    return { at, rise, shot: diveShot(local, aspect), needle: diveNeedle(local), forward: NONE, lit: [lit, lit, lit], beam: glow, mist: glow };
+    return { at, rise, shot: diveShot(local, aspect), needle: diveNeedle(local), forward: NONE, lit: [lit, lit, lit], beam: glow, mist: glow, night: 0 };
   }
+
+  if (at.stretch === 'end') return { at, rise, ...heldBead(LAST_PROJECT, aspect), night: 1 };
 
   const e = smoothstep(local);
   const swing = smoothstep(through(local, [0, NEEDLE_PATH.aimLead]));
@@ -689,7 +718,7 @@ export function journeyPoseAt(progress: number, aspect: number): JourneyPose {
   if (at.stretch === 'overview') {
     const lit = each((bead) => mix(OVERVIEW_LIT, bead === 0 ? 1 : 0, e));
     const forward = each((bead) => (bead === 0 ? e : 0));
-    const base = { at, rise, forward, lit, beam: 1, mist: 1 };
+    const base = { at, rise, forward, lit, beam: 1, mist: 1, night: 0 };
     const over = overviewKey(aspect);
     if (local === 0) return { ...base, shot: shotOf(over), needle: { position: NEEDLE_AT_OVERVIEW, scale: NEEDLE_PATH.grow.scale, aim: null } };
     const first = beadKey(0, aspect);
@@ -700,11 +729,8 @@ export function journeyPoseAt(progress: number, aspect: number): JourneyPose {
   }
 
   const from = at.project!;
-  if (from === LAST_PROJECT || local === 0) {
-    const forward = each((bead) => (bead === from ? 1 : 0));
-    const needle = { position: needleBy(from), scale: NEEDLE_PATH.grow.scale, aim: centreOf(from, 1) };
-    return { at, rise, shot: shotOf(beadKey(from, aspect)), needle, forward, lit: forward, beam: 1, mist: 1 };
-  }
+  if (from === LAST_PROJECT) return { at, rise, ...heldBead(from, aspect), night: e };
+  if (local === 0) return { at, rise, ...heldBead(from, aspect), night: 0 };
   const to = from + 1;
   const forward = each((bead) => (bead === from ? 1 - e : bead === to ? e : 0));
   const a = beadKey(from, aspect);
@@ -713,5 +739,5 @@ export function journeyPoseAt(progress: number, aspect: number): JourneyPose {
   const shift = scale(bendsFor(aspect)[from + 1]!, sine);
   const position = add(mix3(needleBy(from), needleBy(to), e), scale(BACK_OFF, NEEDLE_PATH.withdraw * sine));
   const aim = mix3(centreOf(from, 1 - e), centreOf(to, e), swing);
-  return { at, rise, shot: glide(a, b, e, shift), needle: { position, scale: NEEDLE_PATH.grow.scale, aim }, forward, lit: forward, beam: 1, mist: 1 };
+  return { at, rise, shot: glide(a, b, e, shift), needle: { position, scale: NEEDLE_PATH.grow.scale, aim }, forward, lit: forward, beam: 1, mist: 1, night: 0 };
 }

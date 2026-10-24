@@ -30,7 +30,7 @@ describe('nearestStop', () => {
 
   it('holds a place outside the story to its ends, and reads NaN as the first stop', () => {
     expect(nearestStop(PLACES, -3)).toBe(0);
-    expect(nearestStop(PLACES, HOME_CHAPTERS.total + 5)).toBe(scrollEnd(HOME_CHAPTERS)); // the last stop, the last bead's
+    expect(nearestStop(PLACES, HOME_CHAPTERS.total + 5)).toBe(scrollEnd(HOME_CHAPTERS)); // the last stop, the end page's
     expect(nearestStop(PLACES, Number.NaN)).toBe(0);
   });
 

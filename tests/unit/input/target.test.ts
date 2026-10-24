@@ -4,7 +4,8 @@ import { LINE_PX } from '../../../src/input/normalizeWheel';
 import { buildChapters } from '../../../src/state/chapters';
 import type { Phase } from '../../../src/state/machine';
 
-// stops(c) = [0, 1, 2, 3, 4, 5]: HOME, DIVE, VOID_ENTRY, then the three projects, a, b and c; the scroll ends on c's stop, 5
+// stops(c) = [0, 1, 2, 3, 4, 5, 6]: HOME, DIVE, VOID_ENTRY, the three projects, a, b and c, then END, the end page; the scroll
+// ends on END's stop, 6 (2026-10-24: a seventh stop, the end page, follows the last project; it ended on c's stop, 5)
 const c = buildChapters({ categories: ['a', 'b', 'c'] });
 
 describe('moveTarget', () => {
@@ -14,10 +15,12 @@ describe('moveTarget', () => {
       expect(moveTarget(3, -0.5, c, false)).toBeCloseTo(2.5, 12);
     });
 
-    it("stays inside the scroll: 0 to the last stop, the last unit's start, never into the unit that holds it", () => {
+    it("stays inside the scroll: 0 to the last stop, the last unit's start, never into the unit past it", () => {
       expect(moveTarget(0.2, -1, c, false)).toBe(0);
-      expect(moveTarget(4.9, 5, c, false)).toBe(5);
-      expect(moveTarget(5, 0.5, c, false)).toBe(5);
+      expect(moveTarget(4.9, 5, c, false)).toBe(6);
+      expect(moveTarget(6, 0.5, c, false)).toBe(6);
+      // The last project's stop is no longer the end: the scroll goes on into the move to the end page.
+      expect(moveTarget(5, 0.5, c, false)).toBeCloseTo(5.5, 12);
     });
   });
 
@@ -28,10 +31,12 @@ describe('moveTarget', () => {
       expect(moveTarget(1, 0.5, c, true)).toBe(2);
       expect(moveTarget(2.3, 0.01, c, true)).toBe(3);
       expect(moveTarget(4, 1, c, true)).toBe(5);
+      expect(moveTarget(5, 0.01, c, true)).toBe(6);
     });
 
     it('snaps to the previous stop for a delta up', () => {
       expect(moveTarget(5, -0.01, c, true)).toBe(4);
+      expect(moveTarget(6, -0.01, c, true)).toBe(5);
       expect(moveTarget(3, -3, c, true)).toBe(2);
       expect(moveTarget(2.3, -0.01, c, true)).toBe(2);
       expect(moveTarget(1.5, -0.01, c, true)).toBe(1);
@@ -40,7 +45,7 @@ describe('moveTarget', () => {
 
     it('stays at the ends: a step down from the last stop is no step', () => {
       expect(moveTarget(0, -1, c, true)).toBe(0);
-      expect(moveTarget(5, 1, c, true)).toBe(5);
+      expect(moveTarget(6, 1, c, true)).toBe(6);
     });
 
     it('does nothing for no delta', () => {
@@ -67,11 +72,13 @@ describe('keyTarget: an arrow, Page Up or Down, or Space, without reduced motion
     expect(keyTarget(2, 0.15, c)).toBe(3);
     expect(keyTarget(3, 0.9, c)).toBe(4);
     expect(keyTarget(4, 0.15, c)).toBe(5);
+    expect(keyTarget(5, 0.15, c)).toBe(6);
     // A target between stops (a wheel's gesture under way) steps to the next one.
     expect(keyTarget(3.4, 0.15, c)).toBe(4);
   });
 
   it('steps up to the previous stop past the top of the rise, and back on the rise moves by its distance again', () => {
+    expect(keyTarget(6, -0.15, c)).toBe(5);
     expect(keyTarget(5, -0.15, c)).toBe(4);
     expect(keyTarget(3, -0.9, c)).toBe(2);
     expect(keyTarget(2, -0.15, c)).toBe(1);
@@ -81,7 +88,7 @@ describe('keyTarget: an arrow, Page Up or Down, or Space, without reduced motion
   });
 
   it('does nothing at the ends, nor for no delta', () => {
-    expect(keyTarget(5, 0.15, c)).toBe(5);
+    expect(keyTarget(6, 0.15, c)).toBe(6);
     expect(keyTarget(0, -0.15, c)).toBe(0);
     expect(keyTarget(3, 0, c)).toBe(3);
   });
@@ -143,15 +150,20 @@ describe('settleTarget: where a wheel or touch gesture comes to rest past the ri
     expect(settleTarget(2, 1.97, c, slop)).toBe(2);
   });
 
-  it('ends on the last stop, 5, and never past it', () => {
+  it('ends on the last stop, 6, the end page, and never past it', () => {
+    expect(settleTarget(5, 6, c, slop)).toBe(6);
+    expect(settleTarget(5, 9, c, slop)).toBe(6);
+    expect(settleTarget(6, 5.97, c, slop)).toBe(6);
+    expect(settleTarget(6, 5.9, c, slop)).toBe(5);
+    // The last project's stop, 5, is one stop among the rest now: a gesture on from it steps into the night's end.
     expect(settleTarget(4, 5, c, slop)).toBe(5);
-    expect(settleTarget(4, 9, c, slop)).toBe(5);
-    expect(settleTarget(5, 4.97, c, slop)).toBe(5);
-    expect(settleTarget(5, 4.9, c, slop)).toBe(4);
+    expect(settleTarget(4, 9, c, slop)).toBe(6);
+    expect(settleTarget(5, 5.133, c, slop)).toBe(6);
+    expect(settleTarget(5, 5.03, c, slop)).toBe(5);
   });
 
   it('keeps a gesture that ended on a stop there', () => {
-    for (const stop of [1, 2, 3, 4, 5]) {
+    for (const stop of [1, 2, 3, 4, 5, 6]) {
       expect(settleTarget(stop - 0.5, stop, c, slop)).toBe(stop);
       expect(settleTarget(stop + 0.5, stop, c, slop)).toBe(stop);
     }
@@ -197,6 +209,7 @@ describe('changedChapter', () => {
     expect(changedChapter(c, 2, 1, true)).toMatchObject({ index: 2, id: 'VOID_ENTRY' });
     expect(changedChapter(c, 1, 0, true)).toMatchObject({ index: 1, id: 'DIVE' });
     expect(changedChapter(c, 5, 4, true)).toMatchObject({ index: 5, id: 'PROJECTS', category: 'c' });
+    expect(changedChapter(c, 6, 5, true)).toMatchObject({ index: 6, id: 'END', category: null });
   });
 
   it('reads a story at rest just short of a boundary as the chapter it is in', () => {
@@ -208,22 +221,23 @@ describe('changedChapter', () => {
 describe('pinnedAtEnd', () => {
   it('is true when a delta up leaves the target at the start, or a delta down at the end', () => {
     expect(pinnedAtEnd(0, -0.04, c)).toBe(true);
-    expect(pinnedAtEnd(5, 0.04, c)).toBe(true);
+    expect(pinnedAtEnd(6, 0.04, c)).toBe(true);
   });
 
   it('is false anywhere else, and for a delta away from the end it stands at', () => {
     expect(pinnedAtEnd(0.2, -0.04, c)).toBe(false);
     expect(pinnedAtEnd(4.9, 0.04, c)).toBe(false);
+    expect(pinnedAtEnd(5, 0.04, c)).toBe(false); // the last project's stop is no wall now: the end page lies on
     expect(pinnedAtEnd(0, 0.04, c)).toBe(false);
-    expect(pinnedAtEnd(5, -0.04, c)).toBe(false);
+    expect(pinnedAtEnd(6, -0.04, c)).toBe(false);
     expect(pinnedAtEnd(0, 0, c)).toBe(false);
   });
 });
 
 describe('jumpTarget', () => {
-  it('goes to the start or the end of the scroll: End is the last stop, 5', () => {
+  it('goes to the start or the end of the scroll: End is the last stop, 6, the end page', () => {
     expect(jumpTarget('home', c)).toBe(0);
-    expect(jumpTarget('end', c)).toBe(5);
+    expect(jumpTarget('end', c)).toBe(6);
   });
 });
 
@@ -231,7 +245,7 @@ describe('scrollEnabled', () => {
   const phase = (kind: Phase['kind']): Phase => ({ kind }) as Phase;
 
   it('is on for the phases the scroll moves through, with 3D on', () => {
-    for (const kind of ['HOME_IDLE', 'DIVE', 'VOID_ENTRY'] as const) {
+    for (const kind of ['HOME_IDLE', 'DIVE', 'VOID_ENTRY', 'END'] as const) {
       expect(scrollEnabled({ threeD: true, phase: phase(kind) })).toBe(true);
     }
     expect(scrollEnabled({ threeD: true, phase: { kind: 'PROJECTS', category: null } })).toBe(true);

@@ -120,7 +120,7 @@ export function releaseTarget(target: number, asked: number, limit: number, c: C
   return Math.min(limit, Math.max(asked, moveTarget(target, 1, c, true)));
 }
 
-/** Where Home and End go: the start of the story and its end, the last stop (the last bead's). */
+/** Where Home and End go: the start of the story and its end, the last stop (the end page's). */
 export function jumpTarget(to: 'home' | 'end', c: Chapters): number {
   return to === 'home' ? 0 : scrollEnd(c);
 }

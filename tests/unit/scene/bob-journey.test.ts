@@ -74,20 +74,35 @@ describe("the journey's stretches", () => {
     expect(journeyAt(2.5)).toEqual({ stretch: 'overview', local: 0.5, project: null });
     expect(journeyAt(3.5)).toEqual({ stretch: 'project', local: 0.5, project: 0 });
     expect(journeyAt(4.5)).toEqual({ stretch: 'project', local: 0.5, project: 1 });
-    // The last unit holds Cookies: nothing moves through it.
-    expect(journeyAt(5.5)).toEqual({ stretch: 'project', local: 0, project: 2 });
+    // The last project's stretch (5 to 6) is real now: the move into the night, where the camera holds Cookies.
+    expect(journeyAt(5.5)).toEqual({ stretch: 'project', local: 0.5, project: 2 });
+    // The end page is a stop of its own, 6, and holds from there on.
+    expect(journeyAt(6.5)).toEqual({ stretch: 'end', local: 0, project: null });
   });
 
-  it('rests at the start of each stretch; its last, never reached (the scroll ends at 5), holds Cookies to 6', () => {
-    expect(stops(HOME_CHAPTERS)).toEqual([0, 1, 2, 3, 4, 5]);
+  it('rests at the start of each stretch; the last, the end page, starts at 6, the end of the scroll', () => {
+    // 2026-10-24: a seventh stop, the end page, follows Cookies Clicker (it was six stops, ending at 5).
+    expect(stops(HOME_CHAPTERS)).toEqual([0, 1, 2, 3, 4, 5, 6]);
     expect(journeyAt(0)).toEqual({ stretch: 'rise', local: 0, project: null });
     expect(journeyAt(1)).toEqual({ stretch: 'dive', local: 0, project: null });
     expect(journeyAt(2)).toEqual({ stretch: 'overview', local: 0, project: null });
     expect(journeyAt(3)).toEqual({ stretch: 'project', local: 0, project: 0 });
     expect(journeyAt(4)).toEqual({ stretch: 'project', local: 0, project: 1 });
     expect(journeyAt(5)).toEqual({ stretch: 'project', local: 0, project: 2 });
-    expect(journeyAt(6)).toEqual(journeyAt(5));
-    for (const a of SCREENS) expect(journeyPoseAt(6, a)).toEqual(journeyPoseAt(5, a));
+    expect(journeyAt(6)).toEqual({ stretch: 'end', local: 0, project: null });
+    // The end page poses Cookies as it stands at 5, only the night is in: the shot, the needle and the beads are as at 5.
+    for (const a of SCREENS) {
+      const five = journeyPoseAt(5, a);
+      const six = journeyPoseAt(6, a);
+      expect(six.shot).toEqual(five.shot);
+      expect(six.needle).toEqual(five.needle);
+      expect(six.forward).toEqual(five.forward);
+      expect(six.lit).toEqual(five.lit);
+      expect([six.beam, six.mist]).toEqual([five.beam, five.mist]);
+      expect(six.rise).toEqual(five.rise);
+      expect(six.at).toEqual({ stretch: 'end', local: 0, project: null });
+      expect([five.night, six.night]).toEqual([0, 1]);
+    }
   });
 
   it('snaps within 1e-6 of every stop, as riseAt does, and not beyond it', () => {
@@ -112,6 +127,10 @@ describe("the journey's stretches", () => {
     expect(journeyAt(7)).toEqual(journeyAt(6));
     expect(journeyAt(Number.POSITIVE_INFINITY)).toEqual(journeyAt(6));
     for (const a of SCREENS) {
+      expect(journeyPoseAt(7, a)).toEqual(journeyPoseAt(6, a));
+      expect(journeyPoseAt(Number.POSITIVE_INFINITY, a)).toEqual(journeyPoseAt(6, a));
+    }
+    for (const a of SCREENS) {
       expect(journeyPoseAt(Number.NaN, a)).toEqual(journeyPoseAt(0, a));
       expect(journeyPoseAt(Number.NaN, a).shot).toEqual(homeShotFor(a));
     }
@@ -123,6 +142,66 @@ describe("the journey's stretches", () => {
     expect(BEADS.map((bead) => bead.category)).toEqual(units.map((unit) => unit.category));
     expect(BEADS.map((bead) => bead.id)).toEqual(projects.all().map((project) => project.id));
     for (const bead of BEADS) expect(projects.byId(bead.id)?.categoryId).toBe(bead.category);
+  });
+});
+
+describe('the move into the night (Cookies to the end page)', () => {
+  it('reads the last project stretch at its real progress, and holds the end page from 6', () => {
+    expect(journeyAt(5.25)).toEqual({ stretch: 'project', local: 0.25, project: 2 });
+    expect(journeyAt(5.5)).toEqual({ stretch: 'project', local: 0.5, project: 2 });
+    expect(journeyAt(5.75)).toEqual({ stretch: 'project', local: 0.75, project: 2 });
+    expect(journeyAt(6)).toEqual({ stretch: 'end', local: 0, project: null });
+    expect(journeyAt(6.5)).toEqual({ stretch: 'end', local: 0, project: null });
+  });
+
+  it('lets the night in on a smoothstep of the stretch: 0 at Cookies, 0.5 half way, 1 at the end page', () => {
+    for (const a of SCREENS) {
+      expect(journeyPoseAt(5, a).night).toBe(0);
+      expect(journeyPoseAt(5.5, a).night).toBe(0.5);
+      expect(journeyPoseAt(6, a).night).toBe(1);
+      let previous = 0;
+      for (const p of STEPS.filter((p) => p >= 5)) {
+        const { night } = journeyPoseAt(p, a);
+        const local = Math.min(p - 5, 1);
+        expect(night, `${p} at ${a}`).toBeCloseTo(local * local * (3 - 2 * local), 12);
+        expect(night).toBeGreaterThanOrEqual(previous);
+        previous = night;
+      }
+      // It leaves a stop with no speed and arrives with none, as every part of the journey does.
+      expect(journeyPoseAt(5 + 0.01, a).night).toBeLessThan(0.001);
+      expect(journeyPoseAt(6 - 0.01, a).night).toBeGreaterThan(0.999);
+    }
+  });
+
+  it('is out everywhere before the last project: the rise, the dive, the overview and the first two beads', () => {
+    for (const a of SCREENS) {
+      for (const p of [0, 1, 1.475, 2, 3, 4, 4.9]) expect(journeyPoseAt(p, a).night, `${p} at ${a}`).toBe(0);
+      for (const p of STEPS.filter((p) => p <= 5)) expect(journeyPoseAt(p, a).night, `${p} at ${a}`).toBe(0);
+    }
+  });
+
+  it('holds Cookies through the move: the camera, the needle and the beads stay as at 5, to the end page', () => {
+    for (const a of SCREENS) {
+      const rest = journeyPoseAt(5, a);
+      // At 5 the camera is on Cookies come forward, as the centring test below has it at every stop.
+      const [x, y, z] = project(rest.shot, a, forwardCentre(2));
+      expect([Math.abs(x) < 0.5, Math.abs(y) < 0.5, z < 1], `Cookies in view at ${a}`).toEqual([true, true, true]);
+      for (const p of STEPS.filter((p) => p >= 5)) {
+        const pose = journeyPoseAt(p, a);
+        expect(pose.shot, `shot at ${p} on ${a}`).toEqual(rest.shot);
+        expect(pose.needle, `needle at ${p} on ${a}`).toEqual(rest.needle);
+        expect(pose.forward, `forward at ${p} on ${a}`).toEqual([0, 0, 1]);
+        expect(pose.lit, `lit at ${p} on ${a}`).toEqual([0, 0, 1]);
+        expect([pose.beam, pose.mist]).toEqual([1, 1]);
+      }
+      expect(journeyPoseAt(5.5, a).shot).toEqual(journeyPoseAt(5, a).shot);
+      expect(journeyPoseAt(6, a).shot).toEqual(journeyPoseAt(5, a).shot);
+    }
+  });
+
+  it('is Cookies as the last project, the end page after it: the project stays 2 until 6, then none', () => {
+    expect(journeyPoseAt(5.5, LAPTOP).at.project).toBe(2);
+    expect(journeyPoseAt(6, LAPTOP).at.project).toBeNull();
   });
 });
 

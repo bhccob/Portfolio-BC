@@ -62,7 +62,7 @@ export interface NeedleDebugState {
   scroll: { u: number; letters: number; iris: number; needleDip: number };
   /**
    * Where the home's journey stands as the scene last posed it (`frame.journey`, a copy): the stretch (`rise`, `dive`,
-   * `overview`, `project`), how far through it (0 at its stop), the bead of a project stretch (0 Funcial, 1 Jontai
+   * `overview`, `project`, `end`), how far through it (0 at its stop), the bead of a project stretch (0 Funcial, 1 Jontai
    * Energy, 2 Cookies Clicker; null elsewhere), and the void's load (`idle`, `loading`, `ready`, `failed`), which holds
    * the scroll in the dive's tunnel until it is ready.
    */

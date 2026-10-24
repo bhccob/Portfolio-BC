@@ -8,7 +8,7 @@ import { buildChapters, type ChapterAt } from '../../../src/state/chapters';
 /** A viewport 1000 px high: a unit of scroll is 1000 px. */
 const VH = 1000;
 const FRAME_MS = 1000 / 60;
-const chapters = buildChapters({ categories: ['a', 'b', 'c'] }); // 6 units; stops 0, 1, 2, 3, 4, 5, the last the end
+const chapters = buildChapters({ categories: ['a', 'b', 'c'] }); // 7 units; stops 0, 1, 2, 3, 4, 5, 6, the last (END, the end page) the end
 
 /** A requestAnimationFrame that runs when the test says so, one frame at a time, on a clock the test owns. */
 class FakeFrames {
@@ -267,7 +267,7 @@ describe('the scroll loop: a glide against the end', () => {
     expect(s.home.scroll.busy).toBe(false);
   });
 
-  it('glides nowhere toward the end of the story: a fling past the rise rests on the last stop', async () => {
+  it('glides nowhere toward the end of the story: a fling past the rise rests on a stop, the last one the end page', async () => {
     const s = setup();
     s.frame.target = s.frame.progress = 3.6;
     s.frame.chapterIndex = 3;
@@ -276,6 +276,14 @@ describe('the scroll loop: a glide against the end', () => {
     s.drain();
     expect(s.frame.target).toBe(5);
     expect(s.frame.progress).toBe(5);
+    // 2026-10-24: Cookies Clicker's stop, 5, is no longer the last: the same fling from just short of it rests on the end page, 6.
+    s.frame.target = s.frame.progress = 4.6;
+    s.frame.chapterIndex = 4;
+    await s.swipe(-1); // 0.4 of a drag to 5, then a glide that would carry another 0.625, past it
+    expect(s.home.scroll.busy).toBe(false);
+    s.drain();
+    expect(s.frame.target).toBe(6);
+    expect(s.frame.progress).toBe(6);
   });
 });
 
@@ -410,9 +418,9 @@ describe('the scroll loop: damp does not load', () => {
     s.key('End');
     await flush();
     s.drain();
-    expect(s.frame.progress).toBe(5);
-    expect(s.frame.chapterIndex).toBe(5);
-    expect(s.changes.at(-1)).toMatchObject({ index: 5, id: 'PROJECTS', category: 'c' });
+    expect(s.frame.progress).toBe(6);
+    expect(s.frame.chapterIndex).toBe(6);
+    expect(s.changes.at(-1)).toMatchObject({ index: 6, id: 'END', category: null });
     expect(s.frame.velocity).toBe(0);
     expect(s.frames.size).toBe(0);
     for (const spy of quiet) expect(spy).not.toHaveBeenCalled();
@@ -526,12 +534,12 @@ describe('the settle: a wheel past the rise comes to rest on a stop', () => {
     expect([s.frame.target, s.frame.progress]).toEqual([4, 4]);
   });
 
-  it('flings from the home to Cookies Clicker and back, resting on the last stop and on the home (Review Focus 1)', async () => {
+  it('flings from the home to the end page and back, resting on the last stop and on the home (Review Focus 1)', async () => {
     const s = setup();
     await wheelNotches(s, 60);
     s.drain();
-    expect([s.frame.target, s.frame.progress]).toEqual([5, 5]);
-    expect(s.changes.at(-1)).toMatchObject({ index: 5, category: 'c' });
+    expect([s.frame.target, s.frame.progress]).toEqual([6, 6]);
+    expect(s.changes.at(-1)).toMatchObject({ index: 6, id: 'END' });
     await wheelNotches(s, 60, -120);
     s.drain();
     expect([s.frame.target, s.frame.progress]).toEqual([0, 0]);
@@ -650,13 +658,15 @@ describe('the settle: the keys step by stops past the rise', () => {
     expect(s.frame.target).toBe(4);
     s.key(' ');
     expect(s.frame.target).toBe(5);
+    s.key('ArrowDown'); // Cookies Clicker's stop is no end now: one more step, into the night, to the end page
+    expect(s.frame.target).toBe(6);
     s.key('ArrowDown'); // the end
-    expect(s.frame.target).toBe(5);
+    expect(s.frame.target).toBe(6);
     s.key('ArrowUp');
     s.key('PageUp');
-    expect(s.frame.target).toBe(3);
+    expect(s.frame.target).toBe(4);
     s.drain();
-    expect(s.frame.progress).toBe(3);
+    expect(s.frame.progress).toBe(4);
   });
 
   it('moves an arrow on the rise by its distance, as M2a did, stopping on its top, BOB from above', async () => {
@@ -683,7 +693,7 @@ describe('the settle: the keys step by stops past the rise', () => {
     restAt(s, 2.4);
     s.key('End');
     await flush();
-    expect(s.frame.target).toBe(5);
+    expect(s.frame.target).toBe(6);
     s.key('Home');
     expect(s.frame.target).toBe(0);
   });
@@ -711,9 +721,12 @@ describe('the settle: reduced motion keeps its steps', () => {
     s.key('ArrowDown');
     s.drain();
     expect(s.frame.target).toBe(5);
+    s.key('ArrowDown'); // 2026-10-24: Cookies Clicker's stop is not the last; the end page follows
+    s.drain();
+    expect(s.frame.target).toBe(6);
     s.key('ArrowDown'); // a step down from the last stop is none
     s.drain();
-    expect([s.frame.target, s.frame.progress]).toEqual([5, 5]);
+    expect([s.frame.target, s.frame.progress]).toEqual([6, 6]);
   });
 });
 
@@ -727,29 +740,31 @@ async function wheelOnce(s: ReturnType<typeof setup>, deltaY: number, deltaMode:
 }
 
 describe('the settle: a gesture that pushes against an end and turns back settles from where the story is', () => {
-  it('from the home, 60 notches down then 30 straight back up in one gesture, rests where it came back to, BOB from above', async () => {
+  it('from the home, 60 notches down then 30 straight back up in one gesture, rests where it came back to, the overview', async () => {
+    // The end is 6 now (it was 5, and the same gesture came back to BOB from above, 1): 8 units down pins at 6, 4 up is 2.
     const s = setup({ vh: 900 });
     await wheelNotches(s, 60);
     await wheelNotches(s, 30, -120);
     s.drain();
-    expect([s.frame.target, s.frame.progress]).toEqual([1, 1]);
-  });
-
-  it('from the home, 45 down then 20 up rests on the stop above where it turned back to, the overview, never back down', async () => {
-    const s = setup({ vh: 900 });
-    await wheelNotches(s, 45);
-    await wheelNotches(s, 20, -120); // the story comes back up to 2.33
-    s.drain();
     expect([s.frame.target, s.frame.progress]).toEqual([2, 2]);
   });
 
-  it('at the end, 10 notches down then 8 up, rests on the stop the way up reached past, 3, not back on 5', async () => {
+  it('from the home, 45 down then 20 up rests on the stop above where it turned back to, the first bead, never back down', async () => {
+    // 45 notches reach the end, 6 (it was 5, and the story came back up to 2.33, the overview); 20 up comes back to 3.33.
     const s = setup({ vh: 900 });
-    restAt(s, 5);
-    await wheelNotches(s, 10);
-    await wheelNotches(s, 8, -120); // 3.93
+    await wheelNotches(s, 45);
+    await wheelNotches(s, 20, -120); // the story comes back up to 3.33
     s.drain();
     expect([s.frame.target, s.frame.progress]).toEqual([3, 3]);
+  });
+
+  it('at the end, 10 notches down then 8 up, rests on the stop the way up reached past, 4, not back on 6', async () => {
+    const s = setup({ vh: 900 });
+    restAt(s, 6);
+    await wheelNotches(s, 10);
+    await wheelNotches(s, 8, -120); // 4.93
+    s.drain();
+    expect([s.frame.target, s.frame.progress]).toEqual([4, 4]);
   });
 
   it('at the home, 10 notches up then 10 down, rests on a stop, BOB from above, not part way into the dive', async () => {
@@ -876,6 +891,15 @@ describe("the pace: the dive and the moves between beads take their time, the ri
     expect(smoothTimeAt(chapters, Number.NaN, 2)).toBe(RISE_SMOOTH); // a story that is not a number reads as the start
   });
 
+  it('keeps the beads\' pace for the move into the night and at the end page: every move from the overview on is 0.7', () => {
+    expect(smoothTimeAt(chapters, 5, 6)).toBe(GLIDE_SMOOTH); // Cookies Clicker to the end page
+    expect(smoothTimeAt(chapters, 5.5, 6)).toBe(GLIDE_SMOOTH);
+    expect(smoothTimeAt(chapters, 5.5, 5)).toBe(GLIDE_SMOOTH);
+    expect(smoothTimeAt(chapters, 6, 5)).toBe(GLIDE_SMOOTH); // and back
+    expect(smoothTimeAt(chapters, 6, 6)).toBe(GLIDE_SMOOTH); // at rest on the end page
+    expect(smoothTimeAt(chapters, 4, 5)).toBe(GLIDE_SMOOTH);
+  });
+
   it('takes about 3.7 s down the dive, most of it in the first 2 s', async () => {
     const s = setup();
     restAt(s, 1);
@@ -900,6 +924,19 @@ describe("the pace: the dive and the moves between beads take their time, the ri
     const nearly = secondsToCover(s, 3, 4, 0.99);
     expect(nearly).toBeGreaterThan(2.0);
     expect(nearly).toBeLessThan(2.7);
+  });
+
+  it('takes about 2.3 s from Cookies Clicker into the night, as from one bead to the next', async () => {
+    const s = setup();
+    restAt(s, 5);
+    s.key('ArrowDown');
+    await flush();
+    expect(s.frame.target).toBe(6);
+    const nearly = secondsToCover(s, 5, 6, 0.99);
+    expect(nearly).toBeGreaterThan(2.0);
+    expect(nearly).toBeLessThan(2.7);
+    s.drain();
+    expect(s.frame.progress).toBe(6);
   });
 
   it('turns a slow dive back at once when a key or a wheel goes the other way', async () => {
