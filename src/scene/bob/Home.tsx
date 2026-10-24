@@ -12,7 +12,7 @@ import { frame } from '~/state/frame';
 import { useScene } from '~/state/store';
 import { motion } from '../motion';
 import { applyEndView, clearEndView, type EndWritten, endViewFor, endWritten } from './endView';
-import { idleRuns, stirIdle } from './idle';
+import { idleRuns, needleRests, stirIdle } from './idle';
 import type { JourneyPose } from './journey';
 import { needleGlowAt } from './look';
 import { risingFor } from './scrollPose';
@@ -170,7 +170,8 @@ const pivotPx = { x: 0, y: 0 };
  * where it was and the dip carries the needle down from there. It follows its target through
  * `new AngleSpring(NEEDLE_SPRING.zeta, NEEDLE_SPRING.omega)`, started at each hand-over from the angle the opening left
  * it at, still, and never set again until the next one, so the aim back at the home takes up from where the spring is;
- * with reduced motion the spring is set straight to the target, with no animation.
+ * with reduced motion the spring is set straight to the target, with no animation, and so it is at the end page, out of
+ * view behind the page, so a swing begun at the home does not keep the canvas drawing there (idle.ts `needleRests`).
  *
  * **Idle.** For IDLE_SECONDS after the last stir (the hand-over, a phase change, a pointer move at home, a move of the
  * rise), and for a drifting needle on to the drift's next rest (`nextDriftRest`), the bands turn (`setSpin`), the smoke
@@ -318,7 +319,8 @@ export function Home({ models, handover }: HomeProps): null {
     } else if (drifting) {
       state.target = driftAngle(state.idleTime);
     }
-    if (reduced) spring.set(state.target, 0);
+    // With reduced motion, and at the end page behind the page and the night, the needle stands on its target (idle.ts).
+    if (needleRests(journey.at.stretch, reduced)) spring.set(state.target, 0);
     const needle = spring.step(state.target, dt);
     // Up the rise unwrapped about the held target (needleAngleAt), so a spring still settling across
     // straight down does not flip the needle's roll halfway down the dip.

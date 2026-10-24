@@ -39,6 +39,17 @@ export function stirIdle(clock: IdleClock, stretch: Stretch, now: number): boole
 }
 
 /**
+ * Whether the needle's spring is set straight onto its target this frame, with no swing: with reduced motion (no
+ * animation), and at the end page (Ruling 19), where the compass is out of view behind the page and the night. A swing
+ * still under way there from the home (a pointer moved at the home just before End, which reaches the end page in about
+ * 1.4 s while the spring takes about 3.5 s to settle) would keep the canvas drawing for seconds after the rest. Leaving
+ * the end page the spring goes on from its target, still.
+ */
+export function needleRests(stretch: Stretch, reduced: boolean): boolean {
+  return reduced || !idlesAt(stretch);
+}
+
+/**
  * Whether the idle motion runs this frame: never with reduced motion nor at the end page; else within its while, or for a
  * drifting needle until the drift's rest.
  */

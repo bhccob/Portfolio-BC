@@ -2,10 +2,12 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { damp } from 'maath/easing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { AngleSpring, wrapAngle } from '~/engine/AngleSpring';
+import { NEEDLE_SPRING } from '~/engine/bob/needleAim';
 import { AT_REST, asleep } from '~/engine/stillness';
 import { GLIDE_SMOOTH } from '~/input/scrollLoop';
 import { applyEndView, clearEndView, type EndPageNode, type EndRoot, endViewFor, endWritten } from '~/scene/bob/endView';
-import { type IdleClock, idleRuns, idlesAt, stirIdle } from '~/scene/bob/idle';
+import { type IdleClock, idleRuns, idlesAt, needleRests, stirIdle } from '~/scene/bob/idle';
 import { BEADS, journeyAt, journeyPoseAt } from '~/scene/bob/journey';
 import { IDLE_SECONDS } from '~/scene/bob/look';
 import { beadClocks, easeHover, hoversAt, selectedBead, stepBeadClocks } from '~/scene/bob/voidPose';
@@ -347,6 +349,37 @@ describe('the scene sleeps as soon as the story rests at the end', () => {
     expect(idleRuns(clock, 'rise', IDLE_SECONDS * 1000, false, false)).toBe(false);
     expect(idleRuns({ idleUntil: 0, idleTime: 1, driftUntil: 4 }, 'rise', 10_000, false, true)).toBe(true);
     expect(idleRuns(clock, 'rise', 1, true, false)).toBe(false);
+  });
+
+  it('sets the needle straight onto its target at the end page and with reduced motion, and lets it swing everywhere else', () => {
+    expect(needleRests(AT_END, false)).toBe(true);
+    expect(needleRests(journeyAt(7).stretch, false)).toBe(true);
+    for (const p of [0, 0.5, 1, 1.5, 2, 3, 4, 5, 5.5, 5.99]) {
+      expect(needleRests(journeyAt(p).stretch, false), `at ${p}`).toBe(false);
+      expect(needleRests(journeyAt(p).stretch, true), `at ${p}, reduced motion`).toBe(true);
+    }
+  });
+
+  it('puts a needle still swinging from the home at rest on the first frame at 6, so the compass asks for no frame (Ruling 19)', () => {
+    // A pointer moved at the home just before End: the needle swings from 0 toward 1.2 rad (NEEDLE_SPRING settles in
+    // about 3.5 s), and the move to the end page takes about 1.4 s. Each frame as Home runs it: the rule, then the step.
+    const spring = new AngleSpring(NEEDLE_SPRING.zeta, NEEDLE_SPRING.omega);
+    const target = 1.2;
+    const dt = 1 / 60;
+    const frameAt = (p: number) => {
+      const stretch = journeyAt(p).stretch;
+      if (needleRests(stretch, false)) spring.set(target, 0);
+      spring.step(target, dt);
+      const runs = idleRuns({ idleUntil: 0, idleTime: 0, driftUntil: 0 }, stretch, 0, false, false);
+      return asleep({ ...AT_REST, idle: !runs, needle: wrapAngle(target - spring.value), needleSpeed: spring.velocity });
+    };
+    for (let i = 0; i < 84; i++) frameAt(5.5); // 1.4 s on the way (the needle out of view, still swinging)
+    expect(asleep({ ...AT_REST, needle: wrapAngle(target - spring.value), needleSpeed: spring.velocity }), 'still swinging on the way').toBe(false);
+    expect(frameAt(END), 'the first frame at rest at the end').toBe(true);
+    expect([spring.value, spring.velocity]).toEqual([wrapAngle(target), 0]);
+    // Leaving the end page it goes on from there, still: nothing swings back.
+    expect(frameAt(5.99)).toBe(true);
+    expect(spring.velocity).toBe(0);
   });
 
   it('gives a change into END no frames of its own: the canvas is not kept drawing for the phase change', () => {
