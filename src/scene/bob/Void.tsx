@@ -185,8 +185,8 @@ interface VoidRun {
    */
   reading: boolean;
   /**
-   * The pointer may hover a bead: it is read (`reading`) and the journey is on a bead's project stretch (`hoversAt`). Off
-   * them, and so at the end page behind the page, a pointer neither turns a bead nor wakes the canvas.
+   * The pointer may hover a bead: it is read (`reading`) and the journey is not at the end page (`hoversAt`), where a
+   * pointer behind the page neither turns a bead nor wakes the canvas.
    */
   hovering: boolean;
 }
@@ -280,8 +280,8 @@ export interface VoidProps {
  * - each bead's drift forward and light (`setForward`, `setLit`);
  * - the hover: on a pointer device (a mouse or pen that has moved, `frame.pointerAt`), the bead whose shell the pointer
  *   is over (a ray against `beads[id].body`), eased in and out one bead at a time (`easeHover`) and turned toward the
- *   camera, its position handed in every frame; with reduced motion it brightens at once and does not turn; only on the
- *   beads' project stretches (`hoversAt`), so at the end page a pointer behind the page turns no bead and wakes nothing;
+ *   camera, its position handed in every frame; with reduced motion it brightens at once and does not turn; never at the
+ *   end page (`hoversAt`), where a pointer behind the page turns no bead and wakes nothing;
  * - the objects' motion: each bead's clock runs only while it is the selected bead (the bead of the current project
  *   stop, `selectedBead`) or the hovered one, and not with reduced motion, and goes on from where it stopped
  *   (`stepBeadClocks`); Funcial's abacus has a clock of its own that counts back down while the bead is neither, so its
@@ -510,7 +510,7 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
     const home = shown && page === 'home';
     // A bead seen close, or the camera on its way to or from one: no label, and the pointer opens and hovers nothing.
     run.reading = home && !handover.focus;
-    // The hover only on the beads' project stretches: at the end page a pointer behind the page turns no bead.
+    // No hover at the end page: a pointer behind the page turns no bead.
     run.hovering = run.reading && hoversAt(pose.at);
     if (!shown) {
       Object.assign(run.hover, hoverEase());

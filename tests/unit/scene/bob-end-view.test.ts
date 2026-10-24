@@ -288,9 +288,9 @@ describe('the scene sleeps as soon as the story rests at the end', () => {
     for (const phase of others) expect(phaseChangeDraws(phase), phase.kind).toBe(true);
   });
 
-  it('reads no hover off the beads’ project stretches, so a pointer behind the end page turns no bead', () => {
-    for (const p of [3, 3.5, 4, 4.5, 5, 5.5, 5.99]) expect(hoversAt(journeyAt(p)), `at ${p}`).toBe(true);
-    for (const p of [0, 0.5, 1, 1.5, 2, 2.5, 2.999, 6, 7]) expect(hoversAt(journeyAt(p)), `at ${p}`).toBe(false);
+  it('reads no hover at the end page, so a pointer behind the page turns no bead; everywhere else as before', () => {
+    for (const p of [0, 0.5, 1, 1.5, 2, 2.5, 2.999, 3, 3.5, 4, 4.5, 5, 5.5, 5.99]) expect(hoversAt(journeyAt(p)), `at ${p}`).toBe(true);
+    for (const p of [6, 7]) expect(hoversAt(journeyAt(p)), `at ${p}`).toBe(false);
     expect(hoversAt({ stretch: 'end', local: 0, project: null })).toBe(false);
   });
 });
@@ -400,8 +400,16 @@ describe('way A in the stylesheet (src/styles/base.css)', () => {
     expect(valueOf("html[data-route='home'][data-3d='on']", 'touch-action')).toBe('pinch-zoom');
   });
 
-  it('keeps the scrollbar’s room on the home page from the start, so a scrollbar coming in at rest shifts nothing', () => {
-    expect(valueOf("html[data-route='home']", 'scrollbar-gutter')).toBe('stable');
+  it('keeps the header, the page, the scene and the poster as wide as the viewport while the end shows, so a scrollbar coming in at rest overlays them and moves nothing', () => {
+    const END_SHOWN = "html[data-route='home'][data-3d='on'][data-end]";
+    expect(valueOf(`${END_SHOWN} .site-header`, 'width')).toBe('100vw');
+    expect(valueOf(`${END_SHOWN} .end-page`, 'width')).toBe('100vw');
+    for (const layer of ['.scene-host', '.poster']) {
+      expect(valueOf(`${END_SHOWN} ${layer}`, 'right'), layer).toBe('auto');
+      expect(valueOf(`${END_SHOWN} ${layer}`, 'width'), layer).toBe('100vw');
+    }
+    // No gutter kept for it: the home shows no strip at its edge anywhere else.
+    for (const rule of RULES) expect(rule.declarations.has('scrollbar-gutter'), rule.selectors.join(', ')).toBe(false);
   });
 
   it('draws nothing of the end over a page of text, as data-end may outlive the home page', () => {

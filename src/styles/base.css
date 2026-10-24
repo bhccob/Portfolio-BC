@@ -294,14 +294,6 @@ html[data-route='home'][data-3d='on'] {
   touch-action: pinch-zoom;
 }
 
-/* The home keeps its scrollbar's room from the start: at the end page the document scrolls (the end page's rest, below),
-   and a classic desktop scrollbar coming in then would narrow the page, the header and the canvas by its width at the
-   moment the story comes to rest. Where scrollbars overlay the page (a phone, a trackpad's Mac) the room is nothing; with
-   3D off the home scrolls natively, its scrollbar always there. */
-html[data-route='home'] {
-  scrollbar-gutter: stable;
-}
-
 /* 3D off: the poster stays, the canvas is out of sight. */
 html[data-3d='off'] .scene-host {
   display: none;
@@ -1605,6 +1597,23 @@ html[data-route='home'][data-3d='on'][data-end] .hero-cue {
 
 html[data-3d='on'][data-end] .home-nav {
   visibility: hidden;
+}
+
+/* At rest the document scrolls, and a classic desktop scrollbar comes in. So that it overlays the right edge rather than
+   narrowing what stands there at the moment the story comes to rest, the header, the page's column, the scene and the
+   poster are as wide as the viewport (100vw, the scrollbar included) from the move on. Neither shifts, and the canvas is not
+   resized (no redraw of a scene asleep). The fixed layers add no scroll overflow, and the body clips what of the header
+   and the column reaches under the scrollbar (overflow-x: clip): only their right padding, so nothing scrolls sideways.
+   Where scrollbars overlay the page, 100vw is the page's own width and nothing changes. */
+html[data-route='home'][data-3d='on'][data-end] .site-header,
+html[data-route='home'][data-3d='on'][data-end] .end-page {
+  width: 100vw;
+}
+
+html[data-route='home'][data-3d='on'][data-end] .scene-host,
+html[data-route='home'][data-3d='on'][data-end] .poster {
+  right: auto;
+  width: 100vw;
 }
 
 /* The move: the page rises 40vh from below as it fades in, fixed where it stands in the flow (no `top`: its static
