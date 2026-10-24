@@ -6,12 +6,20 @@
  * `moveTarget`: the start of a chapter, or the end). The scene does not travel there. Home keeps the pose at the stop it
  * shows and sets `<html data-step-fade>`, so the stylesheet fades `.scene-host` down over STEP_FADE_MS; once it is dark
  * the pose jumps to the new stop and the attribute goes, so the host fades back over STEP_FADE_MS (src/styles/base.css).
- * There is no running front and no camera travel to see. Without reduced motion the attribute is never set, and the
+ * There is no running front and no camera travel to see. Without reduced motion Home never sets the attribute, and the
  * scene follows the damped progress.
+ *
+ * With the void failed, a move between the end page and the stops short of it is the same fade whether or not reduced
+ * motion is on, never a camera move through a void that is not there: the scroll input holds the progress itself while
+ * the host goes dark, jumps it, and sets the attribute without reduced motion (src/input/scrollLoop.ts `ScrollLoop`,
+ * `fades`); with reduced motion Home's own fade, as for every step, is the one on screen.
  */
 
 /** How long the scene host takes to fade down, and again to fade back, ms. */
 export const STEP_FADE_MS = 150;
+
+/** The attribute on <html> that fades the scene host down for a step (src/styles/base.css). */
+export const STEP_FADE_ATTRIBUTE = 'data-step-fade';
 
 /** True when a reduced-motion visitor has moved to another stop than the one shown: the step that fades. */
 export function stepFadeFor(prevStop: number, stop: number, reduced: boolean): boolean {

@@ -771,6 +771,37 @@ html[data-3d='on'][data-void='failed'][data-rising] .home-nav {
   background: linear-gradient(0deg, rgb(10 5 16 / 0.9) 60%, rgb(10 5 16 / 0));
 }
 
+/* The end page's way in when the void failed (spec 2026-10-24-bob-end-page-design.md, goal 6): the scroll holds at BOB
+   from above, so a button in the nav takes the story to the end page by the step fade (src/input/useHomeScroll.ts
+   `goToEnd`). It shows only then: with 3D off the end page is in the home's flow, and with the void there the scroll
+   reaches it. It reads as the nav's links do, its title in the nav's title face. */
+.end-link {
+  display: none;
+}
+
+html[data-void='failed'] .end-link {
+  display: inline-flex;
+  align-items: center;
+  align-self: end;
+  justify-self: start;
+  min-height: 44px;
+  padding: 8px 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font-family: var(--font-title);
+  font-feature-settings: var(--font-title-features);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+html[data-void='failed'] .end-link:hover {
+  color: var(--gold-title);
+}
+
 /* ---------- the void: the selected bead's label ---------- */
 /* Real text beside the selected bead at its project stop (spec §2.4, the ref-04 style; src/ui/BeadLabel.tsx): the
    category line in the mono label, the title in heavy gold and a dim hint, small, so the bead stays the one focal point.

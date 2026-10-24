@@ -50,8 +50,24 @@ describe('the home page', () => {
         expect(html.indexOf('class="hero"')).toBeLessThan(html.indexOf('class="bead-label"'));
         expect(html.lastIndexOf('class="bead-label"')).toBeLessThan(html.indexOf('class="home-nav"'));
       });
+
+      it('the failed-void link is in .home-nav with the copy, NL and EN', () => {
+        const from = html.indexOf('<nav class="home-nav"');
+        const nav = html.slice(from, html.indexOf('</nav>', from));
+        const copy = t.end.failLink.replace(/&/g, '&amp;');
+        expect(nav).toContain(`<button type="button" class="end-link">${copy}</button>`);
+        expect(html.match(/class="end-link"/g)).toHaveLength(1);
+      });
     });
   }
+
+  it("shows the failed-void link only while <html data-void='failed'>: with 3D off the end page is in the flow, and with the void there the scroll reaches it", () => {
+    expect(rule('.end-link')).toMatch(/display:\s*none/);
+    const shown = rule("html[data-void='failed'] .end-link");
+    expect(shown).toMatch(/display:\s*[a-z-]+/);
+    expect(shown).not.toMatch(/display:\s*none/);
+    expect(base.indexOf("html[data-void='failed'] .end-link {")).toBeGreaterThan(base.indexOf('.end-link {'));
+  });
 
   it('has a visually-hidden utility that leaves the text to assistive technology (clipped, never display:none or visibility:hidden)', () => {
     const css = rule('.visually-hidden');

@@ -1,6 +1,8 @@
 import { END_ATTRIBUTE } from '~/scene/bob/endView';
+import { STEP_FADE_ATTRIBUTE, STEP_FADE_MS } from '~/scene/bob/stepFade';
 import { type ChapterAt, type Chapters, chapterAt, riseTop, scrollEnd } from '~/state/chapters';
-import { changedChapter, holdLimit, jumpTarget, keyTarget, moveTarget, onRise, pinnedAtEnd, releaseTarget, SETTLE_SLOP_PX, settleTarget } from './target';
+import type { VoidState } from '~/state/store';
+import { changedChapter, holdLimit, jumpTarget, keyTarget, moveTarget, onRise, pinnedAtEnd, releaseTarget, SETTLE_SLOP_PX, settleTarget, stopsFor } from './target';
 import { VirtualScroll } from './VirtualScroll';
 
 /** maath's `damp`: moves `current[prop]` toward `target` and says whether it is still moving. */
@@ -87,6 +89,17 @@ export interface ScrollLoopOptions {
   threeD: () => boolean;
   /** Progress has moved into another chapter. */
   onChapter: (at: ChapterAt) => void;
+  /**
+   * Whether the story goes from `progress` to `target` by the step fade instead of travelling there, asked at every
+   * frame: with the void failed, a move across the void that is not there (`startHomeScroll`). Without it every move
+   * travels.
+   */
+  fades?: (progress: number, target: number) => boolean;
+  /**
+   * The step fade's scene host goes dark (true, as a fade begins) or fades back (false, once the frame the progress jumped
+   * in is drawn, or the fade is let go): `<html data-step-fade>` (src/styles/base.css). Without it nothing is shown.
+   */
+  onFade?: (dark: boolean) => void;
 }
 
 /**
@@ -97,6 +110,12 @@ export interface ScrollLoopOptions {
  * Exactly one frame is ever pending. `wake()` is called by the input at every delta, and a glide's `step`
  * makes deltas from inside a tick, so a `wake()` during a tick does nothing: the tick decides at its end
  * whether to ask for the next frame.
+ *
+ * **The step fade.** A move that `fades` says is made by the step fade (with the void failed, one across the void that is
+ * not there) is never travelled: the scene host goes dark over STEP_FADE_MS (`onFade(true)`) while the progress waits
+ * where it stands, then the progress jumps to the target, and the frame after, the jump drawn under the dark host, the
+ * host fades back (`onFade(false)`). As reduced motion's step does (src/scene/bob/stepFade.ts `stepFadeAt`), a story
+ * that turns back to the side it stands on before the host is dark lets the fade go, and nothing jumps.
  */
 export class ScrollLoop {
   private raf = 0; // the pending frame; 0 for none
@@ -105,6 +124,8 @@ export class ScrollLoop {
   private disposed = false;
   private loading = false;
   private smooth: Smooth | null = null;
+  /** The step fade under way, or null: when its host is dark (the frames' clock, ms), and whether the progress has jumped. */
+  private fade: { darkAt: number; jumped: boolean } | null = null;
 
   constructor(private readonly o: ScrollLoopOptions) {}
 
@@ -143,12 +164,16 @@ export class ScrollLoop {
     if (state) for (const key of Object.keys(state)) state[key] = 0;
   }
 
-  /** Ends the loop: the pending frame is cancelled, a tick that is already queued does nothing, and no velocity is left behind. */
+  /**
+   * Ends the loop: the pending frame is cancelled, a tick that is already queued does nothing, no velocity is left behind,
+   * and no step fade leaves the host dark.
+   */
   dispose(): void {
     this.disposed = true;
     if (this.raf !== 0) this.o.cancel(this.raf);
     this.raf = 0;
     this.o.frame.velocity = 0;
+    this.endFade();
   }
 
   private loaded(smooth: Smooth): void {
@@ -157,7 +182,40 @@ export class ScrollLoop {
   }
 
   private needsFrames(): boolean {
-    return Math.abs(this.o.frame.target - this.o.frame.progress) > SETTLED || this.o.glide.busy;
+    return Math.abs(this.o.frame.target - this.o.frame.progress) > SETTLED || this.o.glide.busy || this.fade !== null;
+  }
+
+  /** The step fade under way is over: its host fades back. */
+  private endFade(): void {
+    if (this.fade === null) return;
+    this.fade = null;
+    this.o.onFade?.(false);
+  }
+
+  /**
+   * The step fade's part of a frame at `now` (the class's doc, "The step fade"): answers whether it has the progress this
+   * frame, which then waits where it stands, or jumps to the target once the host is dark.
+   */
+  private stepFade(now: number): boolean {
+    const { frame } = this.o;
+    if (this.fade?.jumped) this.endFade(); // the jump has been drawn under the dark host: it fades back
+    const across = this.o.fades?.(frame.progress, frame.target) === true;
+    if (this.fade === null) {
+      if (!across) return false;
+      this.fade = { darkAt: now + STEP_FADE_MS, jumped: false };
+      this.letGo();
+      this.o.onFade?.(true);
+      return true;
+    }
+    if (!across) {
+      // Turned back to the side it stands on before the host was dark: nothing jumps, and the host fades back from there.
+      this.endFade();
+      return false;
+    }
+    if (now < this.fade.darkAt) return true;
+    frame.progress = frame.target;
+    this.fade.jumped = true;
+    return true;
   }
 
   private readonly tick = (now: number): void => {
@@ -167,6 +225,7 @@ export class ScrollLoop {
     if (!this.o.threeD()) {
       glide.stop(); // 3D was switched off while it ran: the glide ends, the story stays where it is
       frame.velocity = 0;
+      this.endFade(); // and a step fade is let go, so the host is not left dark
       return;
     }
     const dt = this.last === 0 ? 1 / 60 : Math.min(Math.max((now - this.last) / 1000, 0), MAX_DT);
@@ -176,12 +235,13 @@ export class ScrollLoop {
     try {
       glide.step(dt);
       const before = frame.progress;
-      this.smooth(frame, 'progress', frame.target, smoothTimeAt(chapters, frame.progress, frame.target), dt, Infinity, undefined, SETTLED);
+      const faded = this.stepFade(now);
+      if (!faded) this.smooth(frame, 'progress', frame.target, smoothTimeAt(chapters, frame.progress, frame.target), dt, Infinity, undefined, SETTLED);
       const arrived = !this.needsFrames();
       if (arrived) frame.progress = frame.target; // on it, exactly: the next frame would snap it, but the loop sleeps first
-      frame.velocity = arrived || dt <= 0 ? 0 : (frame.progress - before) / dt;
+      frame.velocity = faded || arrived || dt <= 0 ? 0 : (frame.progress - before) / dt;
 
-      const at = changedChapter(chapters, frame.progress, frame.chapterIndex, arrived);
+      const at = changedChapter(chapters, frame.progress, frame.chapterIndex, arrived || faded);
       if (at) {
         frame.chapterIndex = at.index;
         this.o.onChapter(at);
@@ -193,7 +253,7 @@ export class ScrollLoop {
   };
 }
 
-export interface HomeScrollOptions extends Omit<ScrollLoopOptions, 'glide'> {
+export interface HomeScrollOptions extends Omit<ScrollLoopOptions, 'glide' | 'fades' | 'onFade'> {
   el: HTMLElement;
   /** Pixels in one unit of scroll: the viewport's height. */
   unitPx: () => number;
@@ -214,6 +274,12 @@ export interface HomeScrollOptions extends Omit<ScrollLoopOptions, 'glide'> {
    * lets it go. Without it every hold that comes down lets the place go.
    */
   holdWaits?: () => boolean;
+  /**
+   * The void's state (the store's `voidState`), asked at every input and frame. With it `failed` the story rests only on
+   * `stopsFor`'s stops (the home, BOB from above, the end page), the end page stands past the hold, and every move
+   * between the end page and the stops short of it is the step fade. Without it the void is taken to be there.
+   */
+  voidState?: () => VoidState;
 }
 
 export interface HomeScroll {
@@ -238,6 +304,11 @@ export interface HomeScroll {
    * is held as at the start, its place kept, so the void's `ready` takes it back there; then the loop finishes the move.
    */
   resume(): void;
+  /**
+   * The end page's link (`.end-link`, shown while the void failed): the story goes to the end as End takes it, and with
+   * the void failed past the hold, by the step fade.
+   */
+  toEnd(): void;
   dispose(): void;
 }
 
@@ -278,22 +349,44 @@ export interface HomeScroll {
  * the end, so no glide carries on) never scrolls the page either. At the top a new input up is the story's again: a
  * notch or a swipe settles back on Cookies Clicker, and an arrow, Page Up or Shift+Space steps there. Home goes to the
  * story's start from anywhere, the page back at its top first.
+ *
+ * **A failed void** (`voidState` `failed`). The hold stands at BOB from above, and the keys and the settle step among
+ * `stopsFor`'s stops, the home, BOB from above and the end page. The end page stands past the hold (spec
+ * 2026-10-24-bob-end-page-design.md, goal 6): a wheel or a swipe still rests at BOB from above, but a key's step or End
+ * from there, or the page's link (`toEnd`), goes to the end page, and a story at the end page stays there. Every move
+ * between the end page and the stops short of it, either way, is the step fade (the loop's `fades`), never a camera move
+ * through a void that is not there: the scene host goes dark (`<html data-step-fade>`, set here unless reduced motion's own
+ * fade, Home's, is the one on screen), the progress waits, jumps once the host is dark, and the host fades back. From
+ * the end page's top an arrow, Page Up or Shift+Space steps back to BOB from above, and a wheel gesture or a swipe up takes
+ * that one step, the rest of it spent; Home goes to the story's start by the fade. The rise between the home and BOB
+ * from above stays the rise.
  */
 export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
   const { frame, chapters } = o;
   const top = riseTop(chapters);
+  const end = scrollEnd(chapters);
   /** The most the target may reach now. */
-  const limitNow = (): number => holdLimit(o.hold?.() ?? scrollEnd(chapters), chapters, o.reducedMotion());
+  const limitNow = (): number => holdLimit(o.hold?.() ?? end, chapters, o.reducedMotion());
+  /** The void failed: the end page stands alone past the hold, reached and left by the step fade. */
+  const failed = (): boolean => o.voidState?.() === 'failed';
+  /** The stops the story rests on now (`stopsFor` the void's state). */
+  const stopsNow = (): number[] => stopsFor(chapters, o.voidState?.() ?? 'ready');
+  /** Whether `place` may stand past the hold: the end page, with the void failed. */
+  const pastHold = (place: number): boolean => place === end && failed();
   /** Where the last input asked the target to be, past the hold it rests on; null when it asked for no more than the hold. */
   let asked: number | null = null;
-  /** Puts the target where an input asked, held to the limit, and notes what the hold kept from it. */
-  const askFor = (place: number): number => {
+  /**
+   * Puts the target where an input asked, held to the limit, and notes what the hold kept from it. With `past` a place the
+   * hold lets stand past it (`pastHold`, the end page with the void failed) is not held: a key's step or a jump to it, or
+   * an input that leaves a story already there; a wheel or a finger going on from BOB from above never is.
+   */
+  const askFor = (place: number, past = false): number => {
     const limit = limitNow();
-    frame.target = Math.min(place, limit);
-    asked = place > limit ? place : null;
+    const stands = past && place > limit && pastHold(place);
+    frame.target = stands ? place : Math.min(place, limit);
+    asked = place > limit && !stands ? place : null;
     return limit;
   };
-  const end = scrollEnd(chapters);
   /** The wheel or touch gesture under way, null while none is. */
   let gesture: {
     /** Where the target stood when it began. */
@@ -308,6 +401,8 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
     direction: number;
     /** What drives it: a wheel, whose every gesture steps, or a finger, which has the slop. */
     by: 'wheel' | 'finger';
+    /** It has taken its one step off the end page of a failed void: the rest of it moves nothing, and nothing settles. */
+    spent: boolean;
   } | null = null;
   /** A settle has put the target on a stop and no input has come since: a new one starts from where the story stands. */
   let settling = false;
@@ -318,6 +413,16 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
   /** Whether the story must turn back to reach `place`: it lies behind the way the story is moving. */
   const turnsBack = (place: number): boolean => place !== frame.progress && Math.sign(place - frame.progress) === -Math.sign(frame.velocity);
 
+  /** `<html data-step-fade>` is set by this input: it takes away only what it set (Home's reduced-motion fade sets it too). */
+  let fadeShown = false;
+  /** The step fade's host dark or back, as the loop says: not with reduced motion, whose every step Home fades already. */
+  const showFade = (dark: boolean): void => {
+    const on = dark && !o.reducedMotion();
+    if (on === fadeShown || typeof document === 'undefined') return;
+    fadeShown = on;
+    document.documentElement.toggleAttribute(STEP_FADE_ATTRIBUTE, on);
+  };
+
   const loop: ScrollLoop = new ScrollLoop({
     ...o,
     glide: {
@@ -327,6 +432,9 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
       step: (dtSec) => scroll.step(dtSec),
       stop: () => scroll.stop(),
     },
+    // With the void failed, the end page on one side and everything short of it on the other: no frame between.
+    fades: (progress, target) => failed() && (progress >= end) !== (target >= end),
+    onFade: showFade,
   });
 
   const scroll: VirtualScroll = new VirtualScroll(o.el, {
@@ -334,22 +442,28 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
     onDelta: (units, by) => {
       let place: number;
       let limit = Number.POSITIVE_INFINITY;
+      // A key's step may take the story past the hold to the end page of a failed void (`pastHold`); a wheel or a finger
+      // only leaves a story there that is there already.
+      let stepped = false;
       if (o.reducedMotion()) {
-        place = moveTarget(frame.target, units, chapters, true);
+        place = moveTarget(frame.target, units, chapters, true, stopsNow());
+        stepped = by === 'key' || by === 'held';
       } else if (by === 'key' || by === 'held') {
         gesture = null; // a key puts the target on its stop: a wheel it cut short has nothing left to settle
         const base = startPlace(); // a key during a settle steps from where the story stands
         if (by === 'held' && !onRise(base, chapters)) return;
         settling = false;
-        place = keyTarget(base, units, chapters);
+        place = keyTarget(base, units, chapters, stopsNow());
+        stepped = true;
       } else {
         if (by !== 'glide') {
           if (gesture === null) {
             // A gesture begun while a settle eases starts from where the story stands, and takes the target over at once;
             // so does one that goes against a moving story, so it turns back from there.
             if (settling || (units !== 0 && Math.sign(units) === -Math.sign(frame.velocity))) frame.target = frame.progress;
-            gesture = { from: frame.target, reach: frame.target, anchor: frame.target, direction: 0, by };
+            gesture = { from: frame.target, reach: frame.target, anchor: frame.target, direction: 0, by, spent: false };
           }
+          if (gesture.spent) return; // its one step off a failed void's end page is taken
           settling = false;
           gesture.by = by;
           gesture.reach = Math.min(Math.max(gesture.reach + units, 0), end);
@@ -364,10 +478,16 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
           place = Math.min(place, Math.max(frame.target, top));
           limit = top;
         }
+        // With the void failed nothing lies between the end page and BOB from above: a wheel or a finger that goes up from
+        // the end page takes one step back to BOB from above (the step fade), and the rest of its gesture is spent.
+        if (gesture !== null && by !== 'glide' && place < end && pastHold(frame.target)) {
+          place = moveTarget(end, -1, chapters, true, stopsNow());
+          gesture.spent = true;
+        }
       }
       // A place behind a moving story lets its speed go, so it turns at once, at the void's slower pace too.
       if (!o.reducedMotion() && turnsBack(place)) loop.letGo();
-      limit = Math.min(limit, askFor(place));
+      limit = Math.min(limit, askFor(place, stepped || pastHold(frame.target)));
       if (pinnedAtEnd(frame.target, units, chapters, limit)) scroll.stopGlide();
       loop.wake();
     },
@@ -377,7 +497,7 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
       // Home goes to the story's start from the end page too, the page back at its top first: the end's rest is then
       // left from the top, where Home's end view finds the page and scrolls nothing again.
       if (to === 'home') pageToTop();
-      askFor(jumpTarget(to, chapters));
+      askFor(jumpTarget(to, chapters), true);
       loop.wake();
     },
     onTouchDown: () => {
@@ -386,26 +506,35 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
       if (!settling || frame.progress === frame.target) return false;
       loop.halt();
       settling = false;
-      gesture = { from: frame.progress, reach: frame.progress, anchor: frame.progress, direction: 0, by: 'finger' };
+      gesture = { from: frame.progress, reach: frame.progress, anchor: frame.progress, direction: 0, by: 'finger', spent: false };
       return true;
     },
     onGestureEnd: (glide) => {
       const g = gesture;
       gesture = null;
       if (g === null || o.reducedMotion()) return;
+      if (g.spent) {
+        scroll.stopGlide(); // it took its one step off the end page: nothing settles, and no glide carries on
+        return;
+      }
       // Where it carried: its reach (held to the story's ends, not to the hold) and the glide its lift would leave.
       const reach = Math.min(Math.max(g.reach + glide, 0), end);
       if (onRise(reach, chapters)) return; // it rests where it ends, its glide (if any) as M2a's
       scroll.stopGlide();
       // Its direction as it ended: a lift's glide goes the way the finger last went.
       const direction = glide !== 0 ? Math.sign(glide) : g.direction;
-      let place = settleTarget(g.from, reach, chapters, slopOf(g.by), direction || undefined);
+      let place = settleTarget(g.from, reach, chapters, slopOf(g.by), direction || undefined, stopsNow());
       if (o.threeD()) {
-        // One that went into the hold asks for no more than the stop just past it, as a glide that presses into the hold
-        // is ended there: the void's ready takes it on to that stop, not as far as the glide would have gone.
-        const limit = limitNow();
-        if (reach > limit) place = Math.min(place, moveTarget(limit, 1, chapters, true));
-        askFor(place);
+        if (pastHold(g.from) && pastHold(place)) {
+          // One at a failed void's end page that never left it (one that went up from it is spent) leaves the story there.
+          askFor(place, true);
+        } else {
+          // One that went into the hold asks for no more than the stop just past it, as a glide that presses into the hold
+          // is ended there: the void's ready takes it on to that stop, not as far as the glide would have gone.
+          const limit = limitNow();
+          if (reach > limit) place = Math.min(place, moveTarget(limit, 1, chapters, true));
+          askFor(place);
+        }
       } else {
         // 3D has gone off under it: the gesture is finished on its stop, and the hold is `resume`'s to apply once 3D is
         // back (the void went with the Stage, and its idle hold is not the visitor's).
@@ -426,14 +555,16 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
    * A story placed past the hold while the input was away (Back from a project page puts it at the bead's stop,
    * src/state/routeSync.ts; 3D switched off and on at a bead's stop) is held as an input's would be: the target rests on
    * the hold and the place is kept as `asked`, for `holdChanged` to let go to; the story waits there too, so the camera
-   * never comes out into a void not yet there, and its chapter follows it.
+   * never comes out into a void not yet there, and its chapter follows it. A failed void's end page is not held
+   * (`pastHold`): a story there stays there.
    */
   const holdStory = (): void => {
     const limit = limitNow();
+    const held = (place: number): boolean => place > limit && !pastHold(place);
     // A target past the hold, or a progress past it on its way back (3D switched off mid-move): either is held.
-    if (!(frame.target > limit) && !(frame.progress > limit)) return;
-    if (frame.target > limit) askFor(Math.max(frame.target, asked ?? frame.target));
-    frame.progress = Math.min(frame.progress, limit);
+    if (!held(frame.target) && !held(frame.progress)) return;
+    if (held(frame.target)) askFor(Math.max(frame.target, asked ?? frame.target));
+    if (held(frame.progress)) frame.progress = limit;
     frame.velocity = 0;
     const at = changedChapter(chapters, frame.progress, frame.chapterIndex, true);
     if (at) {
@@ -454,7 +585,7 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
       // place stays as it is; `resume` holds it when 3D is back.
       if (!o.threeD()) return;
       const limit = limitNow();
-      if (frame.target > limit) {
+      if (frame.target > limit && !pastHold(frame.target)) {
         if (o.holdWaits?.()) {
           // The void will be there again (it loads anew): the story waits on the hold, its place kept for then.
           holdStory();
@@ -475,6 +606,13 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
     },
     resume: () => {
       holdStory();
+      loop.wake();
+    },
+    toEnd: () => {
+      gesture = null; // a wheel gesture still in its quiet has nothing left to settle, and a glide ends
+      settling = false;
+      scroll.stopGlide();
+      askFor(end, true);
       loop.wake();
     },
     dispose: () => {

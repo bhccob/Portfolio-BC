@@ -1,20 +1,31 @@
 import { type ChapterAt, type Chapters, chapterAt, riseTop, scrollEnd, stops } from '~/state/chapters';
 import { type Phase, SCROLL_PHASES } from '~/state/machine';
+import type { VoidState } from '~/state/store';
 
 /** How near a stop the scroll counts as being on it, in units: a target a hair short of a stop is on the stop. */
 const ON_STOP = 1e-6;
 
 /**
+ * The stops the story rests on for the void's state (`VoidState`, src/scene/bob/Void.tsx): every chapter's start
+ * (`stops`) while the void is there or still to come, and with the void failed only the home, BOB from above (the top of
+ * the rise, where the scroll holds then: src/scene/bob/diveHold.ts) and the end page, so nothing steps to a stop of a void
+ * that is not there. The scroll input steps its keys and settles its gestures among them (src/input/scrollLoop.ts).
+ */
+export function stopsFor(c: Chapters, voidState: VoidState): number[] {
+  return voidState === 'failed' ? [0, riseTop(c), scrollEnd(c)] : stops(c);
+}
+
+/**
  * Where the scroll target goes for a delta of `units` (one unit is a viewport height of scroll).
  * Normally it moves by the delta and stays inside the story, 0 to its last stop (`scrollEnd`). With reduced motion it
  * does not move by a distance but to a place: the next stop down the story for a delta down, the previous one up for
- * a delta up, whatever the size of the delta (a stop is the start of a chapter); none past the last.
+ * a delta up, whatever the size of the delta; none past the last. The stops are `places`, in order: every chapter's
+ * start (`stops`) unless given (`stopsFor` the void's state).
  */
-export function moveTarget(target: number, units: number, c: Chapters, reducedMotion: boolean): number {
+export function moveTarget(target: number, units: number, c: Chapters, reducedMotion: boolean, places: readonly number[] = stops(c)): number {
   const end = scrollEnd(c);
   if (!reducedMotion) return Math.min(Math.max(target + units, 0), end);
   if (units === 0) return target;
-  const places = stops(c);
   if (units > 0) return places.find((stop) => stop > target + ON_STOP) ?? end;
   return places.findLast((stop) => stop < target - ON_STOP) ?? 0;
 }
@@ -28,13 +39,13 @@ export function onRise(place: number, c: Chapters): boolean {
  * Where a key (an arrow, Page Up or Down, Space; `units` is its distance, signed) takes the target without reduced
  * motion. On the rise it moves by its distance, as M2a's keys did, but never past the rise's top, BOB from above, a
  * stop. From the top on it steps to the next stop down, or up to the one before, whatever its distance, as reduced
- * motion's steps do; up from the top it is back on the rise, by its distance again.
+ * motion's steps do (among `places`, `stops` unless given); up from the top it is back on the rise, by its distance again.
  */
-export function keyTarget(target: number, units: number, c: Chapters): number {
+export function keyTarget(target: number, units: number, c: Chapters, places: readonly number[] = stops(c)): number {
   if (units === 0) return target;
   const top = riseTop(c);
-  if (units > 0) return onRise(target, c) ? Math.min(target + units, top) : moveTarget(target, units, c, true);
-  return target > top + ON_STOP ? moveTarget(target, units, c, true) : Math.max(target + units, 0);
+  if (units > 0) return onRise(target, c) ? Math.min(target + units, top) : moveTarget(target, units, c, true, places);
+  return target > top + ON_STOP ? moveTarget(target, units, c, true, places) : Math.max(target + units, 0);
 }
 
 /**
@@ -57,16 +68,16 @@ export const SETTLE_SLOP_PX = 40;
  * - one that ended on a stop, or went nowhere, rests on it or on the nearer stop.
  * One that comes up out of the rise (`from` on it, travelling down) rests on its top, BOB from above, the end of M2a's
  * rise, unless it carried more than a whole unit past the top: that is a fling, and it settles as any other. One that
- * ends on the rise rests where it is (M2a's rise is continuous). Never past the last stop. The scroll's hold applies
- * after this, as to any input.
+ * ends on the rise rests where it is (M2a's rise is continuous). Never past the last stop. The stops are `places`, every
+ * chapter's start (`stops`) unless given (`stopsFor` the void's state). The scroll's hold applies after this, as to any
+ * input.
  */
-export function settleTarget(from: number, to: number, c: Chapters, slop: number, direction = Math.sign(to - from)): number {
+export function settleTarget(from: number, to: number, c: Chapters, slop: number, direction = Math.sign(to - from), places: readonly number[] = stops(c)): number {
   const end = scrollEnd(c);
   const place = Math.min(Math.max(to, 0), end);
   if (onRise(place, c)) return place;
   const top = riseTop(c);
   if (onRise(from, c) && direction > 0 && to <= top + 1 + ON_STOP) return top;
-  const places = stops(c);
   const on = places.find((stop) => Math.abs(stop - place) <= ON_STOP);
   if (on !== undefined) return on;
   // Off a stop and past the rise's top, itself a stop: there is a stop on either side.

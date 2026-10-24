@@ -6,10 +6,22 @@ import { HOME_CHAPTERS } from '~/state/chapters';
 import { frame } from '~/state/frame';
 import { useScene } from '~/state/store';
 import { skipSwallower } from './loaderSkip';
-import { type Smooth, startHomeScroll } from './scrollLoop';
+import { type HomeScroll, type Smooth, startHomeScroll } from './scrollLoop';
 import { scrollEnabled } from './target';
 
 let loadingDamp: Promise<Smooth> | null = null;
+
+/** The home page's scroll while it is connected (`connectHomeScroll`), for `goToEnd`; null while none is. */
+let connected: HomeScroll | null = null;
+
+/**
+ * The end page's link with the void failed (`.end-link` in the home's `.home-nav`, src/app/routes/home.tsx): the scroll
+ * holds at BOB from above then, so the link places the story at the end page (`scrollEnd`) by the step fade, never by a
+ * camera move through a void that is not there (`HomeScroll.toEnd`). Nothing while the home page's scroll is not connected.
+ */
+export function goToEnd(): void {
+  connected?.toEnd();
+}
 
 /**
  * maath's `damp`, loaded on the first input rather than with the page. `maath/easing` imports three.js, which
@@ -67,7 +79,9 @@ export interface HomeScrollPage {
  * failed no further than BOB from above. When the void's state changes the input is told (`holdChanged`), so a story
  * held over the tunnel goes on once the void is ready, or comes back to BOB from above if it failed. With 3D off the
  * void goes with the Stage and nothing holds the visitor's place back; 3D back on (`resume`) holds a story past the
- * hold until the void is ready again, and then takes it back where it was.
+ * hold until the void is ready again, and then takes it back where it was. With the void failed the story rests only
+ * on `stopsFor`'s stops, and the end page, past the hold, is reached by a key's step, End or the page's link (`goToEnd`)
+ * and left by the step fade (`startHomeScroll`, "A failed void").
  */
 export function connectHomeScroll(page: HomeScrollPage): () => void {
   const home = startHomeScroll({
@@ -85,6 +99,7 @@ export function connectHomeScroll(page: HomeScrollPage): () => void {
     threeD: () => useScene.getState().threeD,
     hold: () => diveHoldFor(useScene.getState().voidState),
     holdWaits: () => useScene.getState().voidState !== 'failed',
+    voidState: () => useScene.getState().voidState,
     onChapter: (at) => useScene.getState().dispatch({ type: 'CHAPTER', chapter: at.id, category: at.category }),
     loadSmooth: page.loadSmooth ?? loadDamp,
     request: (callback) => {
@@ -100,8 +115,10 @@ export function connectHomeScroll(page: HomeScrollPage): () => void {
     if (state.threeD && !previous.threeD) home.resume();
     if (state.voidState !== previous.voidState) home.holdChanged();
   });
+  connected = home;
 
   return () => {
+    if (connected === home) connected = null;
     unsubscribe();
     home.dispose();
   };

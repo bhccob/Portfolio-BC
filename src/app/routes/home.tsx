@@ -3,6 +3,7 @@ import { PAGES } from '~/data/pages';
 import { projects } from '~/data/projects';
 import { localeFromPath } from '~/i18n/locale';
 import { translatorFor, useTranslator } from '~/i18n/useTranslator';
+import { goToEnd } from '~/input/useHomeScroll';
 import { head } from '~/seo/head';
 import { personLd, websiteLd } from '~/seo/structured';
 import { BeadLabels } from '~/ui/BeadLabel';
@@ -58,6 +59,11 @@ export default function Home() {
             ))}
           </ul>
         </div>
+        {/* The end page's way in when the void failed (shown only then, src/styles/base.css): the scroll holds at BOB from
+            above, so this takes the story there by the step fade (goToEnd). */}
+        <button type="button" className="end-link" onClick={goToEnd}>
+          {t.end.failLink}
+        </button>
       </nav>
 
       {/* The end of the scroll: an ordinary page of questions and a message, after the last bead (src/ui/EndPage.tsx).

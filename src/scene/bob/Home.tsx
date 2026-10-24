@@ -16,16 +16,13 @@ import { idleRuns, stirIdle } from './idle';
 import type { JourneyPose } from './journey';
 import { needleGlowAt } from './look';
 import { risingFor } from './scrollPose';
-import { nearestStop, type StepFade, stepFadeAt, stepFadeFrom } from './stepFade';
+import { nearestStop, STEP_FADE_ATTRIBUTE, type StepFade, stepFadeAt, stepFadeFrom } from './stepFade';
 
 /** The longest step the needle and the idle clock take in one frame, seconds: a wake from sleep jumps neither. */
 const MAX_STEP = 0.1;
 
 /** Where the home's scroll comes to rest (`stops`): the step fade's places under reduced motion. */
 const STOPS = stops(HOME_CHAPTERS);
-
-/** The attribute on <html> that fades the scene host down for a reduced-motion step (src/styles/base.css). */
-const STEP_FADE_ATTRIBUTE = 'data-step-fade';
 
 /** The attribute on <html> that takes the hero's SCROLL cue away while the camera is up the rise (src/styles/base.css). */
 const RISING_ATTRIBUTE = 'data-rising';
@@ -109,7 +106,11 @@ interface HomeState {
   end: EndWritten;
 }
 
-/** Sets or takes away `<html data-step-fade>`, and notes it, writing the DOM only when it changes. */
+/**
+ * Sets or takes away `<html data-step-fade>`, and notes it, writing the DOM only when it changes. Home's fade is reduced
+ * motion's; the scroll input sets the attribute too, for a move across a failed void without reduced motion
+ * (src/input/scrollLoop.ts), and each takes away only what it set.
+ */
 function showStepFade(state: HomeState, on: boolean): void {
   if (state.faded === on) return;
   state.faded = on;

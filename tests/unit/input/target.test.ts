@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { changedChapter, jumpTarget, keyTarget, moveTarget, pinnedAtEnd, SETTLE_SLOP_PX, scrollEnabled, settleTarget } from '../../../src/input/target';
+import { changedChapter, jumpTarget, keyTarget, moveTarget, pinnedAtEnd, SETTLE_SLOP_PX, scrollEnabled, settleTarget, stopsFor } from '../../../src/input/target';
 import { LINE_PX } from '../../../src/input/normalizeWheel';
-import { buildChapters } from '../../../src/state/chapters';
+import { buildChapters, HOME_CHAPTERS, riseTop, scrollEnd, stops } from '../../../src/state/chapters';
 import type { Phase } from '../../../src/state/machine';
 
 // stops(c) = [0, 1, 2, 3, 4, 5, 6]: HOME, DIVE, VOID_ENTRY, the three projects, a, b and c, then END, the end page; the scroll
@@ -184,6 +184,56 @@ describe('settleTarget: where a wheel or touch gesture comes to rest past the ri
       expect(settleTarget(3, 3 + notch, c, SETTLE_SLOP_PX / height), `${height}`).toBe(4);
       expect(settleTarget(3, 3 - notch, c, SETTLE_SLOP_PX / height), `${height}`).toBe(2);
     }
+  });
+});
+
+describe("stopsFor: the stops the story rests on, by the void's state", () => {
+  it("is every chapter's start while the void is there or still to come", () => {
+    expect(stopsFor(HOME_CHAPTERS, 'ready')).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    for (const state of ['idle', 'loading', 'ready'] as const) expect(stopsFor(HOME_CHAPTERS, state), state).toEqual(stops(HOME_CHAPTERS));
+  });
+
+  it('is the home, BOB from above and the end page when the void failed: no stop of the void', () => {
+    expect(stopsFor(HOME_CHAPTERS, 'failed')).toEqual([0, 1, 6]);
+    expect(stopsFor(c, 'failed')).toEqual([0, riseTop(c), scrollEnd(c)]);
+  });
+});
+
+describe("a failed void's stops: the keys, reduced motion's steps and the settle step among them", () => {
+  const failed = stopsFor(c, 'failed');
+
+  it('steps a key from BOB from above to the end page, and from the end page up to BOB from above; the rise stays the rise', () => {
+    expect(keyTarget(1, 0.15, c, failed)).toBe(6);
+    expect(keyTarget(1, 0.9, c, failed)).toBe(6);
+    expect(keyTarget(6, -0.15, c, failed)).toBe(1);
+    expect(keyTarget(6, -0.9, c, failed)).toBe(1);
+    expect(keyTarget(6, 0.15, c, failed)).toBe(6);
+    expect(keyTarget(0, 0.15, c, failed)).toBeCloseTo(0.15, 12);
+    expect(keyTarget(0.9, 0.15, c, failed)).toBe(1);
+    expect(keyTarget(1, -0.15, c, failed)).toBeCloseTo(0.85, 12);
+  });
+
+  it("steps reduced motion's move the same way, and leaves a move with motion its distance", () => {
+    expect(moveTarget(1, 0.01, c, true, failed)).toBe(6);
+    expect(moveTarget(6, -0.01, c, true, failed)).toBe(1);
+    expect(moveTarget(0, 0.01, c, true, failed)).toBe(1);
+    expect(moveTarget(1, -0.01, c, true, failed)).toBe(0);
+    expect(moveTarget(6, 0.01, c, true, failed)).toBe(6);
+    expect(moveTarget(0.5, 0.25, c, false, failed)).toBeCloseTo(0.75, 12);
+  });
+
+  it('settles a gesture on them: on from BOB from above is the end page (the hold keeps a wheel there), up from the end page is BOB from above', () => {
+    expect(settleTarget(1, 1.133, c, 0, undefined, failed)).toBe(6);
+    expect(settleTarget(6, 5.867, c, 0, undefined, failed)).toBe(1);
+    expect(settleTarget(6, 2.5, c, 0, undefined, failed)).toBe(1);
+    expect(settleTarget(1, 0.6, c, 0, undefined, failed)).toBe(0.6);
+    expect(settleTarget(0.5, 1.3, c, 0, undefined, failed)).toBe(1);
+  });
+
+  it('leaves every step as it was without them', () => {
+    expect(keyTarget(1, 0.15, c, stops(c))).toBe(2);
+    expect(moveTarget(1, 0.01, c, true, stops(c))).toBe(2);
+    expect(settleTarget(1, 1.133, c, 0, undefined, stops(c))).toBe(2);
   });
 });
 
