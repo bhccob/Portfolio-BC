@@ -261,6 +261,33 @@ describe("3D off and on keeps the visitor's place", () => {
     s.switch3D(true);
     expect([s.story.target, s.story.progress]).toEqual([0.6, 0.6]);
   });
+
+  it("finishes a wheel gesture still in its quiet when 3D goes off, on the visitor's stop, and 3D back on returns there", async () => {
+    const s = held('ready', { at: 3 });
+    await s.wheel(1); // 3.12; the wheel's quiet has begun
+    s.switch3D(false);
+    s.become('idle'); // the Void goes with the Stage before the loop's next frame
+    s.frames.frame(); // the loop's 3D-off frame ends the gesture
+    expect(s.story.target).toBe(4); // settled on the next stop, not held at the idle void's hold (nor capped at 2)
+    s.switch3D(true);
+    expect(s.story.target).toBe(TUNNEL_HOLD);
+    expect(s.story.progress).toBeLessThanOrEqual(TUNNEL_HOLD);
+    s.become('loading');
+    s.become('ready');
+    await flush();
+    s.drain();
+    expect([s.story.target, s.story.progress]).toEqual([4, 4]);
+  });
+
+  it('holds a story whose progress is past the hold when 3D is back, even with its target short of it', () => {
+    const s = held('ready', { at: 4 });
+    s.story.target = 1; // on its way up to BOB from above, still at 4, when 3D goes off
+    s.switch3D(false);
+    s.become('idle');
+    s.switch3D(true);
+    expect(s.story.target).toBe(1);
+    expect(s.story.progress).toBe(TUNNEL_HOLD); // the camera never stands in a void not there
+  });
 });
 
 describe('the scroll input holds at the dive while the void loads', () => {
@@ -945,6 +972,24 @@ describe("the home scroll as the page wires it to the store (connectHomeScroll, 
       s.drain();
       expect([frame.target, frame.progress]).toEqual([4, 4]);
       expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'front-panel' });
+    } finally {
+      s.disconnect();
+    }
+  });
+
+  it("settles a wheel gesture at once when the store's 3D goes off within its quiet, before the void goes, and keeps that stop", async () => {
+    const s = wired('ready', 3);
+    try {
+      await s.wheel(1); // 3.12, the wheel's quiet begun
+      useScene.setState({ threeD: false });
+      expect(frame.target).toBe(4); // finished at once, from its reach, before the Void says idle
+      useScene.getState().setVoidState('idle');
+      expect(frame.target).toBe(4);
+      useScene.setState({ threeD: true });
+      useScene.getState().setVoidState('loading');
+      useScene.getState().setVoidState('ready');
+      s.drain();
+      expect([frame.target, frame.progress]).toEqual([4, 4]);
     } finally {
       s.disconnect();
     }

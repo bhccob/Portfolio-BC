@@ -82,6 +82,18 @@ export class ScrollLoop {
     );
   };
 
+  /**
+   * Stops the story where it stands: the target on the progress, no velocity, and the damping's own speed let go (maath's
+   * `damp` keeps it on the frame object, as `__damp`), so it neither runs on nor jumps when it next moves.
+   */
+  halt(): void {
+    const { frame } = this.o;
+    frame.target = frame.progress;
+    frame.velocity = 0;
+    const state = (frame as { __damp?: Record<string, number> }).__damp;
+    if (state) for (const key of Object.keys(state)) state[key] = 0;
+  }
+
   /** Ends the loop: the pending frame is cancelled, a tick that is already queued does nothing, and no velocity is left behind. */
   dispose(): void {
     this.disposed = true;
@@ -168,8 +180,13 @@ export interface HomeScroll {
    */
   holdChanged(): void;
   /**
-   * 3D is back on: a story past the hold now (the void went with the Stage, so it is idle) is held as at the start,
-   * its place kept, so the void's `ready` takes it back there; then the loop finishes the move.
+   * 3D is going off: the wheel or touch gesture under way (a wheel still in its quiet) is finished at once, settled on
+   * its stop from its reach, before the void goes with the Stage, so its idle hold neither clamps nor caps it.
+   */
+  suspend(): void;
+  /**
+   * 3D is back on: a story past the hold now (the void went with the Stage, so it is idle), its target or its progress,
+   * is held as at the start, its place kept, so the void's `ready` takes it back there; then the loop finishes the move.
    */
   resume(): void;
   dispose(): void;
@@ -185,9 +202,13 @@ export interface HomeScroll {
  * past the top being the one step its press took; on the rise a key moves by its distance, as M2a's did, up to the top.
  * A wheel or a finger moves the target by its distance, as on the rise, and when its gesture ends (VirtualScroll's
  * `onGestureEnd`: the wheel quiet for GESTURE_GAP_MS, or the finger's lift) the target goes on to the stop that
- * `settleTarget` names, from where the gesture began and how far it carried (its own travel, which no end or hold cut
- * short): a nudge eases back, a notch or a swipe takes one stop, a fling as many as it passed, and one that comes up out
- * of the rise rests on its top, BOB from above, unless it carried more than a whole unit past it. A lift reckons in the glide it would leave and ends it, so the one damped move
+ * `settleTarget` names, from where the gesture began, how far it carried (its reach: its deltas held to the story's ends
+ * but not to the hold, so a push against 0 or the last stop counts for nothing and a push into the hold is still a fling)
+ * and which way it was going as it ended (a gesture that turned back settles the way it turned): a wheel gesture of any
+ * size takes at least one stop, a finger's nudge within the slop eases back, a swipe takes one stop, a fling as many as it
+ * passed, and one that comes up out of the rise rests on its top, BOB from above, unless it carried more than a whole
+ * unit past it. A new wheel gesture or key while a settle eases starts from where the story stands, and a finger set
+ * down halts the ease there. A lift reckons in the glide it would leave and ends it, so the one damped move
  * of the loop carries the swipe to its stop, with no glide slowing to a crawl first. A gesture that ends on the rise
  * rests where it ends, and its glide runs as M2a's did, held to the rise. The move to the stop is the loop's own damped
  * one (`SMOOTH_TIME`), never a jump, and the loop lands progress on the stop exactly. With reduced motion every input is
@@ -215,13 +236,28 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
     asked = place > limit ? place : null;
     return limit;
   };
-  /** Where the target stood when the wheel or touch gesture under way began; null while none is. */
-  let from: number | null = null;
-  /**
-   * How far the gesture under way has carried, in units: the sum of its deltas as given, before any end of the story or
-   * the hold took them, so a long push into the hold is the fling it was.
-   */
-  let travel = 0;
+  const end = scrollEnd(chapters);
+  /** The wheel or touch gesture under way, null while none is. */
+  let gesture: {
+    /** Where the target stood when it began. */
+    from: number;
+    /**
+     * Where it has carried: its deltas as given, held to the story's ends (0 and the last stop) but not to the hold, so a
+     * long push into the hold is the fling it was, and a push against an end counts for nothing.
+     */
+    reach: number;
+    /** Where its direction was last read, and the direction (1 down, -1 up, 0 none yet): it changes once it moves past the slop. */
+    anchor: number;
+    direction: number;
+    /** What drives it: a wheel, whose every gesture steps, or a finger, which has the slop. */
+    by: 'wheel' | 'finger';
+  } | null = null;
+  /** A settle has put the target on a stop and no input has come since: a new one starts from where the story stands. */
+  let settling = false;
+  /** The settle's slop for what drives a gesture, in units: a finger's SETTLE_SLOP_PX, a wheel's none. */
+  const slopOf = (by: 'wheel' | 'finger'): number => (by === 'finger' ? SETTLE_SLOP_PX / Math.max(o.unitPx(), 1) : 0);
+  /** The place an input starts from: where the story stands while a settle eases it, else the target. */
+  const startPlace = (): number => (settling ? frame.progress : frame.target);
 
   const loop: ScrollLoop = new ScrollLoop({
     ...o,
@@ -242,16 +278,25 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
       if (o.reducedMotion()) {
         place = moveTarget(frame.target, units, chapters, true);
       } else if (by === 'key' || by === 'held') {
-        from = null; // a key puts the target on its stop: a wheel it cut short has nothing left to settle
-        if (by === 'held' && !onRise(frame.target, chapters)) return;
-        place = keyTarget(frame.target, units, chapters);
+        gesture = null; // a key puts the target on its stop: a wheel it cut short has nothing left to settle
+        const base = startPlace(); // a key during a settle steps from where the story stands
+        if (by === 'held' && !onRise(base, chapters)) return;
+        settling = false;
+        place = keyTarget(base, units, chapters);
       } else {
         if (by !== 'glide') {
-          if (from === null) {
-            from = frame.target;
-            travel = 0;
+          if (gesture === null) {
+            // A gesture begun while a settle eases starts from where the story stands, and takes the target over at once.
+            if (settling) frame.target = frame.progress;
+            gesture = { from: frame.target, reach: frame.target, anchor: frame.target, direction: 0, by };
           }
-          travel += units;
+          settling = false;
+          gesture.by = by;
+          gesture.reach = Math.min(Math.max(gesture.reach + units, 0), end);
+          if (Math.abs(gesture.reach - gesture.anchor) > slopOf(gesture.by)) {
+            gesture.direction = Math.sign(gesture.reach - gesture.anchor);
+            gesture.anchor = gesture.reach;
+          }
         }
         place = moveTarget(frame.target, units, chapters, false);
         // A glide runs only on the rise (a lift that would carry it past settles at once instead): it ends at the top.
@@ -265,25 +310,44 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
       loop.wake();
     },
     onJump: (to) => {
-      from = null;
+      gesture = null;
+      settling = false;
       askFor(jumpTarget(to, chapters));
       loop.wake();
     },
+    onTouchDown: () => {
+      // A finger set down while a settle eases halts it where it stands, and is a gesture from there: its lift (a tap
+      // included) settles the story on a stop again.
+      if (!settling || frame.progress === frame.target) return false;
+      loop.halt();
+      settling = false;
+      gesture = { from: frame.progress, reach: frame.progress, anchor: frame.progress, direction: 0, by: 'finger' };
+      return true;
+    },
     onGestureEnd: (glide) => {
-      const start = from;
-      from = null;
-      if (start === null || o.reducedMotion()) return;
-      // Where it carried: from where it began by its own travel and the glide its lift would leave, as no end or hold had
-      // stopped it (the settle holds the place to the story, and the hold below to the stop just past it).
-      const end = start + travel + glide;
-      if (onRise(end, chapters)) return; // it rests where it ends, its glide (if any) as M2a's
+      const g = gesture;
+      gesture = null;
+      if (g === null || o.reducedMotion()) return;
+      // Where it carried: its reach (held to the story's ends, not to the hold) and the glide its lift would leave.
+      const reach = Math.min(Math.max(g.reach + glide, 0), end);
+      if (onRise(reach, chapters)) return; // it rests where it ends, its glide (if any) as M2a's
       scroll.stopGlide();
-      const limit = limitNow();
-      let place = settleTarget(start, end, chapters, SETTLE_SLOP_PX / Math.max(o.unitPx(), 1));
-      // One that went into the hold asks for no more than the stop just past it, as a glide that presses into the hold is
-      // ended there: the void's ready takes it on to that stop, not as far as the glide would have gone.
-      if (end > limit) place = Math.min(place, moveTarget(limit, 1, chapters, true));
-      askFor(place);
+      // Its direction as it ended: a lift's glide goes the way the finger last went.
+      const direction = glide !== 0 ? Math.sign(glide) : g.direction;
+      let place = settleTarget(g.from, reach, chapters, slopOf(g.by), direction || undefined);
+      if (o.threeD()) {
+        // One that went into the hold asks for no more than the stop just past it, as a glide that presses into the hold
+        // is ended there: the void's ready takes it on to that stop, not as far as the glide would have gone.
+        const limit = limitNow();
+        if (reach > limit) place = Math.min(place, moveTarget(limit, 1, chapters, true));
+        askFor(place);
+      } else {
+        // 3D has gone off under it: the gesture is finished on its stop, and the hold is `resume`'s to apply once 3D is
+        // back (the void went with the Stage, and its idle hold is not the visitor's).
+        frame.target = place;
+        asked = null;
+      }
+      settling = true;
       loop.wake();
     },
     enabled: o.enabled,
@@ -299,9 +363,11 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
    * never comes out into a void not yet there, and its chapter follows it.
    */
   const holdStory = (): void => {
-    if (!(frame.target > limitNow())) return;
-    askFor(Math.max(frame.target, asked ?? frame.target));
-    frame.progress = Math.min(frame.progress, frame.target);
+    const limit = limitNow();
+    // A target past the hold, or a progress past it on its way back (3D switched off mid-move): either is held.
+    if (!(frame.target > limit) && !(frame.progress > limit)) return;
+    if (frame.target > limit) askFor(Math.max(frame.target, asked ?? frame.target));
+    frame.progress = Math.min(frame.progress, limit);
     frame.velocity = 0;
     const at = changedChapter(chapters, frame.progress, frame.chapterIndex, true);
     if (at) {
@@ -336,6 +402,10 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
         asked = asked > limit ? asked : null;
       }
       loop.wake();
+    },
+    suspend: () => {
+      // The gesture under way is finished at once, on its stop, before the Stage (and the void with it) goes.
+      scroll.stop();
     },
     resume: () => {
       holdStory();

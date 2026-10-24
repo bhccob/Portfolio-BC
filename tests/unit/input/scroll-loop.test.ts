@@ -499,21 +499,23 @@ describe('the settle: a wheel past the rise comes to rest on a stop', () => {
     expect([s.frame.target, s.frame.progress]).toEqual([3, 3]);
   });
 
-  it('takes each notch turned slowly, the wheel quiet between them, for a stop of its own: stop by stop', async () => {
+  it('takes each notch turned once the story is at rest for a stop of its own: stop by stop', async () => {
     const s = setup();
     restAt(s, 2);
-    await wheelNotches(s, 3, 120, 400);
-    s.drain();
-    expect(s.frame.target).toBe(5);
+    for (let i = 0; i < 3; i++) {
+      await wheelNotches(s, 1);
+      s.drain();
+    }
+    expect([s.frame.target, s.frame.progress]).toEqual([5, 5]);
   });
 
-  it('eases back to the stop it started from for a nudge no bigger than the slop', async () => {
+  it("steps a wheel nudge of any size, even under the slop, one stop in its direction: the slop is a finger's", async () => {
     const s = setup();
     restAt(s, 3);
     await wheelNotches(s, 1, 30); // 30 px of a 1000 px unit, under the slop's 40
     expect(s.frame.target).toBeCloseTo(3.03, 12);
     s.drain();
-    expect([s.frame.target, s.frame.progress]).toEqual([3, 3]);
+    expect([s.frame.target, s.frame.progress]).toEqual([4, 4]);
   });
 
   it('lets a fling pass several stops and rest on the one past where it ended', async () => {
@@ -712,5 +714,139 @@ describe('the settle: reduced motion keeps its steps', () => {
     s.key('ArrowDown'); // a step down from the last stop is none
     s.drain();
     expect([s.frame.target, s.frame.progress]).toEqual([5, 5]);
+  });
+});
+
+// ---------------------------------------------------------------- Ruling 36: the settle's residual fixes
+
+/** One wheel event of `deltaY` in `deltaMode` (0 pixels, 1 lines), then the frames of `gapMs`. */
+async function wheelOnce(s: ReturnType<typeof setup>, deltaY: number, deltaMode: number, gapMs = 16): Promise<void> {
+  fire(s.el, 'wheel', { deltaY, deltaMode, ctrlKey: false, timeStamp: s.frames.now });
+  await flush();
+  for (let ms = 0; ms < gapMs; ms += FRAME_MS) s.frames.frame();
+}
+
+describe('the settle: a gesture that pushes against an end and turns back settles from where the story is', () => {
+  it('from the home, 60 notches down then 30 straight back up in one gesture, rests where it came back to, BOB from above', async () => {
+    const s = setup({ vh: 900 });
+    await wheelNotches(s, 60);
+    await wheelNotches(s, 30, -120);
+    s.drain();
+    expect([s.frame.target, s.frame.progress]).toEqual([1, 1]);
+  });
+
+  it('from the home, 45 down then 20 up rests on the stop above where it turned back to, the overview, never back down', async () => {
+    const s = setup({ vh: 900 });
+    await wheelNotches(s, 45);
+    await wheelNotches(s, 20, -120); // the story comes back up to 2.33
+    s.drain();
+    expect([s.frame.target, s.frame.progress]).toEqual([2, 2]);
+  });
+
+  it('at the end, 10 notches down then 8 up, rests on the stop the way up reached past, 3, not back on 5', async () => {
+    const s = setup({ vh: 900 });
+    restAt(s, 5);
+    await wheelNotches(s, 10);
+    await wheelNotches(s, 8, -120); // 3.93
+    s.drain();
+    expect([s.frame.target, s.frame.progress]).toEqual([3, 3]);
+  });
+
+  it('at the home, 10 notches up then 10 down, rests on a stop, BOB from above, not part way into the dive', async () => {
+    const s = setup({ vh: 900 });
+    await wheelNotches(s, 10, -120);
+    await wheelNotches(s, 10); // 1.33
+    s.drain();
+    expect([s.frame.target, s.frame.progress]).toEqual([1, 1]);
+  });
+});
+
+describe('the settle: a wheel gesture of any size steps a stop; the slop is a finger\'s', () => {
+  it('steps one stop for each single line-mode notch, one at a time', async () => {
+    const s = setup({ vh: 900 });
+    restAt(s, 3);
+    await wheelOnce(s, 1, 1); // one line, 16 px
+    s.drain();
+    expect(s.frame.target).toBe(4);
+    await wheelOnce(s, 1, 1);
+    s.drain();
+    expect(s.frame.target).toBe(5);
+    await wheelOnce(s, -1, 1);
+    s.drain();
+    expect([s.frame.target, s.frame.progress]).toEqual([4, 4]);
+  });
+
+  it('steps one stop for each small pixel-mode notch, one at a time', async () => {
+    const s = setup({ vh: 900 });
+    restAt(s, 3);
+    for (const [deltaY, stop] of [[10, 4], [33, 5], [-10, 4], [-33, 3]] as const) {
+      await wheelOnce(s, deltaY, 0);
+      s.drain();
+      expect(s.frame.target, `${deltaY} px`).toBe(stop);
+    }
+  });
+});
+
+describe('the settle: a new input during a settle takes over at once', () => {
+  /** At 3, a notch down whose settle eases toward 4; answers once the story is part way there. */
+  async function easing(s: ReturnType<typeof setup>): Promise<number> {
+    restAt(s, 3);
+    await wheelNotches(s, 1);
+    for (let i = 0; i < 40 && s.frame.progress < 3.4; i++) s.frames.frame(); // the quiet, then the ease toward 4
+    expect(s.frame.target).toBe(4);
+    expect(s.frame.progress).toBeGreaterThan(3.3);
+    expect(s.frame.progress).toBeLessThan(3.9);
+    return s.frame.progress;
+  }
+
+  it('starts a wheel notch during the ease from where the story stands: a reversal turns the story back at once', async () => {
+    const s = setup();
+    const at = await easing(s);
+    fire(s.el, 'wheel', { deltaY: -120, deltaMode: 0, ctrlKey: false, timeStamp: s.frames.now });
+    expect(s.frame.target).toBeCloseTo(at - 0.12, 9); // from the story's place, not from the stop it eased to
+    const seen: number[] = [];
+    for (let i = 0; i < 12; i++) {
+      s.frames.frame();
+      seen.push(s.frame.progress);
+    }
+    // It turns back within a few frames, long before the wheel's own quiet is over.
+    const peak = seen.indexOf(Math.max(...seen));
+    expect(peak).toBeLessThan(6);
+    expect(seen.at(-1)!).toBeLessThan(seen[peak]!);
+    s.drain();
+    expect([s.frame.target, s.frame.progress]).toEqual([3, 3]);
+  });
+
+  it('steps a key during the ease from where the story stands', async () => {
+    const s = setup();
+    await easing(s);
+    s.key('ArrowUp');
+    expect(s.frame.target).toBe(3);
+    s.drain();
+    expect(s.frame.progress).toBe(3);
+  });
+
+  it('halts the ease where it stands when a finger comes down, and the finger lifted rests it on the nearer stop', async () => {
+    const s = setup();
+    const at = await easing(s);
+    fire(s.el, 'touchstart', { touches: [{ clientX: 100, clientY: 400 }], timeStamp: s.frames.now });
+    expect(s.frame.target).toBe(at);
+    for (let i = 0; i < 10; i++) s.frames.frame();
+    expect(s.frame.progress).toBe(at); // halted: it does not run on
+    fire(s.el, 'touchend', { touches: [], timeStamp: s.frames.now + 200 });
+    await flush();
+    s.drain();
+    const nearer = at - 3 <= 4 - at ? 3 : 4;
+    expect([s.frame.target, s.frame.progress]).toEqual([nearer, nearer]);
+  });
+
+  it('lets two quick key presses still step two stops: a key does not settle', async () => {
+    const s = setup();
+    restAt(s, 2);
+    s.key('ArrowDown');
+    await flush();
+    s.frames.frame();
+    s.key('ArrowDown');
+    expect(s.frame.target).toBe(4);
   });
 });

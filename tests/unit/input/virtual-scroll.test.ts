@@ -671,3 +671,36 @@ describe('VirtualScroll: the end of a gesture, when the scroll settles on a stop
     expect(s.ends).toEqual([]);
   });
 });
+
+describe('VirtualScroll: a finger that comes down on the story', () => {
+  /** A VirtualScroll whose onTouchDown answers `holds`, noting its calls and the gestures' ends. */
+  function withTouchDown(holds: boolean) {
+    const el = new EventTarget();
+    Object.defineProperty(el, 'ownerDocument', { value: { defaultView: new EventTarget() } });
+    const seen = { downs: 0, ends: [] as number[] };
+    new VirtualScroll(el as unknown as HTMLElement, {
+      unitPx: () => VH,
+      onDelta: () => {},
+      onJump: () => {},
+      onGestureEnd: (glide) => seen.ends.push(glide),
+      onTouchDown: () => {
+        seen.downs++;
+        return holds;
+      },
+      enabled: () => true,
+      reducedMotion: () => false,
+    });
+    return { el, seen };
+  }
+
+  it('asks the caller at each touch, and a touch it took hold of ends a gesture at its lift even as a tap', () => {
+    const held = withTouchDown(true);
+    fire(held.el, 'touchstart', { touches: [finger(100, 500)], timeStamp: 0 });
+    fire(held.el, 'touchend', { touches: [], timeStamp: 40 });
+    expect(held.seen).toEqual({ downs: 1, ends: [0] });
+    const free = withTouchDown(false);
+    fire(free.el, 'touchstart', { touches: [finger(100, 500)], timeStamp: 0 });
+    fire(free.el, 'touchend', { touches: [], timeStamp: 40 });
+    expect(free.seen).toEqual({ downs: 1, ends: [] });
+  });
+});

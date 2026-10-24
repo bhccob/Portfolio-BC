@@ -93,6 +93,7 @@ export function connectHomeScroll(page: HomeScrollPage): () => void {
 
   // 3D switched back on: the story is held if it is past the hold, and its move is finished. The void's state moves the hold.
   const unsubscribe = useScene.subscribe((state, previous) => {
+    if (!state.threeD && previous.threeD) home.suspend();
     if (state.threeD && !previous.threeD) home.resume();
     if (state.voidState !== previous.voidState) home.holdChanged();
   });

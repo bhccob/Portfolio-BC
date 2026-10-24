@@ -38,17 +38,19 @@ export function keyTarget(target: number, units: number, c: Chapters): number {
 }
 
 /**
- * How far a wheel or a finger must take the target from a stop to go on to the next, px: under it the scroll eases
- * back to the stop. It is less than any one notch of a wheel (Firefox's three lines of `LINE_PX`, 48 px; Chromium's
- * and Safari's 100 to 120 px), so a single notch moves one stop, and it is the distance a swipe needs to take a step
- * with reduced motion (VirtualScroll's SWIPE_STEP_PX).
+ * How far a finger must take the target from a stop to go on to the next, px: under it the scroll eases back to the
+ * stop, so a touch that only wavers is no step. It is the distance a swipe needs to take a step with reduced motion
+ * (VirtualScroll's SWIPE_STEP_PX). A wheel has none: a wheel gesture of any size steps at least one stop in its
+ * direction, as a single notch set to scroll one line (Firefox's 16 px, Chromium's 33 or so) is under any slop.
  */
 export const SETTLE_SLOP_PX = 40;
 
 /**
  * Where a wheel or touch gesture comes to rest without reduced motion, once it has ended: `from` is where its target
  * stood when it began, `to` where it ended (a finger's with the glide its lift would carry), `slop` SETTLE_SLOP_PX in
- * units. Past the rise's top every gesture rests on a stop, so a bead's label (which shows only at its stop) shows:
+ * units for a finger and 0 for a wheel, `direction` its direction of travel as it ended (1 down the story, -1 up, 0 for
+ * none known: by default the sign of `to - from`; a gesture that turned back travels the way it turned). Past the
+ * rise's top every gesture rests on a stop, so a bead's label (which shows only at its stop) shows:
  * - in its direction of travel, on the stop it last passed or left, if it is no more than `slop` past it (a nudge eases
  *   back to the stop it began on; a fling that passed a stop by a hair rests there), else on the next stop on;
  * - a fling may so pass several stops; a single notch or a small swipe moves one;
@@ -58,20 +60,20 @@ export const SETTLE_SLOP_PX = 40;
  * ends on the rise rests where it is (M2a's rise is continuous). Never past the last stop. The scroll's hold applies
  * after this, as to any input.
  */
-export function settleTarget(from: number, to: number, c: Chapters, slop: number): number {
+export function settleTarget(from: number, to: number, c: Chapters, slop: number, direction = Math.sign(to - from)): number {
   const end = scrollEnd(c);
   const place = Math.min(Math.max(to, 0), end);
   if (onRise(place, c)) return place;
   const top = riseTop(c);
-  if (onRise(from, c) && to > from && to <= top + 1 + ON_STOP) return top;
+  if (onRise(from, c) && direction > 0 && to <= top + 1 + ON_STOP) return top;
   const places = stops(c);
   const on = places.find((stop) => Math.abs(stop - place) <= ON_STOP);
   if (on !== undefined) return on;
   // Off a stop and past the rise's top, itself a stop: there is a stop on either side.
   const below = places.findLast((stop) => stop < place) ?? 0;
   const above = places.find((stop) => stop > place) ?? end;
-  if (to > from) return place - below <= slop ? below : above;
-  if (to < from) return above - place <= slop ? above : below;
+  if (direction > 0) return place - below <= slop ? below : above;
+  if (direction < 0) return above - place <= slop ? above : below;
   return place - below <= above - place ? below : above;
 }
 

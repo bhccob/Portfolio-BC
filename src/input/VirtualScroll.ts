@@ -29,6 +29,12 @@ export interface VirtualScrollOptions {
    * The caller settles its target on a stop from here (src/input/target.ts `settleTarget`). Without it nothing is told.
    */
   onGestureEnd?: (glide: number) => void;
+  /**
+   * A finger has come down on the glass, the scroll enabled: answers whether it took hold of the story (it halted a
+   * settle under way). A touch that took hold is a gesture from its start, so its lift ends one (`onGestureEnd`) even
+   * when it never moved: a tap.
+   */
+  onTouchDown?: () => boolean;
   /** Asked at every event: when false the input leaves the event to the browser, and prevents nothing. */
   enabled: () => boolean;
   reducedMotion: () => boolean;
@@ -89,6 +95,8 @@ export class VirtualScroll {
   private open = false;
   /** Ms of quiet since the wheel's last event, while a wheel gesture is open and no finger has taken it over; else null. */
   private quiet: number | null = null;
+  /** The finger down took hold of the story (`onTouchDown`): its lift ends a gesture even if it never moved. */
+  private holding = false;
 
   constructor(
     private readonly el: HTMLElement,
@@ -196,6 +204,11 @@ export class VirtualScroll {
     this.drag = null;
     if (!this.opts.enabled()) return;
     this.inertia.stop(); // a finger on the glass stops it
+    this.holding = !this.opts.reducedMotion() && this.opts.onTouchDown?.() === true;
+    if (this.holding) {
+      this.open = true;
+      this.quiet = null;
+    }
     if (e.touches.length !== 1) return;
     const touch = e.touches[0]!;
     this.drag = { x0: touch.clientX, y0: touch.clientY, lastY: touch.clientY, total: 0, claimed: false };
@@ -237,7 +250,12 @@ export class VirtualScroll {
   private readonly onTouchEnd = (e: TouchEvent): void => {
     const drag = this.drag;
     this.drag = null;
-    if (!drag?.claimed) return;
+    const holding = this.holding;
+    this.holding = false;
+    if (!drag?.claimed) {
+      if (holding) this.endGesture(0); // a tap that took hold of the story (onTouchDown) ends its gesture; any other ends none
+      return;
+    }
     if (!this.opts.enabled() || e.type === 'touchcancel' || this.opts.swallow?.()) {
       this.inertia.stop();
       this.endGesture(0);
