@@ -429,6 +429,20 @@ describe('VirtualScroll: swallowing (the input that skipped the loader)', () => 
     expect(s.scroll.busy).toBe(false);
   });
 
+  it("answers false to a jump it swallows, moving nothing, so a link that asked for it (the header's name) navigates as a link", () => {
+    const s = swallowing();
+    expect(s.scroll.jump('home')).toBe(false);
+    expect(s.scroll.jump('end')).toBe(false);
+    expect(s.jumps).toEqual([]);
+    // The keys are still taken and dropped (prevented above); once it stops swallowing, a jump is taken again.
+    s.state.swallow = false;
+    expect(s.scroll.jump('home')).toBe(true);
+    expect(s.jumps).toEqual(['home']);
+    s.state.enabled = false;
+    expect(s.scroll.jump('end')).toBe(false);
+    expect(s.jumps).toEqual(['home']);
+  });
+
   it('prevents the keys that scroll, and moves nothing and jumps nowhere', () => {
     const s = swallowing();
     for (const k of ['PageDown', 'PageUp', 'ArrowDown', 'ArrowUp', ' ', 'Home', 'End']) expect(key(s, k).defaultPrevented, k).toBe(true);

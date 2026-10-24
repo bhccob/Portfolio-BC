@@ -411,12 +411,28 @@ describe('way A in the stylesheet (src/styles/base.css)', () => {
     expect(valueOf(`${MOVING} .end-page`, 'opacity')).toBe('var(--end)');
   });
 
+  it("makes the nav's end link one of the nav's ways in whenever 3D is on, whatever the void's state, and none with 3D off", () => {
+    // With 3D on (the void ready, loading or failed) it is shown in the nav: hidden with the nav, and shown with it while
+    // it has the focus (`html[data-3d='on'] .home-nav:not(:focus-within)`), or over the scene where a failed void holds.
+    expect(valueOf("html[data-3d='on'] .end-link", 'display')).toBe('inline-flex');
+    expect(RULES.filter((rule) => rule.selectors.some((s) => s.includes('.end-link') && s.includes("[data-void='failed']")) && rule.declarations.has('display'))).toEqual([]);
+    // With 3D off the end page is in the home's flow right after the nav: no link to it.
+    expect(valueOf('.end-link', 'display')).toBe('none');
+    expect(RULES.filter((rule) => rule.selectors.some((s) => s.includes('.end-link') && !s.includes("[data-3d='on']")) && rule.declarations.get('display') !== undefined && rule.declarations.get('display') !== 'none')).toEqual([]);
+    // The nav hides it with its links while 3D is on and nothing in it has the focus.
+    expect(valueOf("html[data-3d='on'] .home-nav:not(:focus-within)", 'clip-path')).toBe('inset(50%)');
+  });
+
   it('takes the hero out of the way while the end is shown, so the page stands under the header', () => {
     const hero = "html[data-route='home'][data-3d='on'][data-end] .hero";
     expect(valueOf(hero, 'min-height')).toBe('0');
     expect(valueOf(hero, 'padding')).toBe('0');
     expect(valueOf("html[data-route='home'][data-3d='on'][data-end] .hero-cue", 'pointer-events')).toBe('none');
     expect(valueOf("html[data-3d='on'][data-end] .home-nav", 'visibility')).toBe('hidden');
+    // And out of the flow, focus or not: its end link, pressed, may hold the focus as the page rises under the header.
+    expect(valueOf("html[data-3d='on'][data-end] .home-nav", 'position')).toBe('absolute');
+    expect(valueOf("html[data-3d='on'][data-end] .home-nav", 'height')).toBe('1px');
+    expect(valueOf("html[data-3d='on'][data-end] .home-nav", 'clip-path')).toBe('inset(50%)');
   });
 
   it('sinks the scene under the night during the move, leaving it faintly at the top', () => {

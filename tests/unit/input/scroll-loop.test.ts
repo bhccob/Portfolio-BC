@@ -4,7 +4,8 @@ import { GESTURE_GAP_MS } from '../../../src/input/gesture';
 import { Inertia } from '../../../src/input/Inertia';
 import { SKIP_QUIET_MS, skipSwallower } from '../../../src/input/loaderSkip';
 import { DIVE_SMOOTH, GLIDE_SMOOTH, RISE_SMOOTH, type Smooth, smoothTimeAt, startHomeScroll } from '../../../src/input/scrollLoop';
-import { connectHomeScroll, goToEnd, goToTop } from '../../../src/input/useHomeScroll';
+import { connectHomeScroll, goToEnd, goToTop, headedToEnd } from '../../../src/input/useHomeScroll';
+import { TUNNEL_HOLD } from '../../../src/scene/bob/journey';
 import { nearestStop, STEP_FADE_MS, stepFadeAt, stepFadeFrom } from '../../../src/scene/bob/stepFade';
 import { buildChapters, type ChapterAt, chapterAt, HOME_CHAPTERS, scrollEnd, stops } from '../../../src/state/chapters';
 import { frame as storyFrame } from '../../../src/state/frame';
@@ -1685,6 +1686,105 @@ describe('a failed void: the end page by its link and the step fade, never throu
       s.disconnect();
       expect(goToTop(), 'nothing connected').toBe(false);
       expect([storyFrame.target, s.win.scrollY]).toEqual([END, 300]);
+      expect(s.frames.size).toBe(0);
+    });
+
+    it("answers false while a skipped loader's tail is dropped, moving nothing, so the name is left to navigate as a link", () => {
+      const { s } = atEnd('ready', 300);
+      storyFrame.loaderSkipEndsMs = performance.now(); // the loader skipped just now: its input's tail is being dropped
+      expect(goToTop()).toBe(false);
+      expect([storyFrame.target, s.win.scrollY]).toEqual([END, 300]);
+      expect(s.frames.size).toBe(0);
+    });
+  });
+
+  describe("goToEnd, the nav's link: End's own path, whatever the void's state", () => {
+    it('ready: from the home it moves the story to 6 through the void, no fade, frame for frame as End does, headed there until it rests', async () => {
+      delete (storyFrame as { __damp?: unknown }).__damp;
+      const s = failedHome(0, { voidState: 'ready' });
+      expect(goToEnd()).toBe(true);
+      expect(storyFrame.target).toBe(END);
+      expect(headedToEnd()).toBe(true);
+      await flush();
+      const linked = s.run();
+      expect(linked.some((f) => f.dark), 'with the void there it moves, it does not fade').toBe(false);
+      expect(linked.filter((f) => f.progress > 1 && f.progress < END).length).toBeGreaterThan(10); // through the void
+      expect([storyFrame.target, storyFrame.progress, storyFrame.velocity]).toEqual([END, END, 0]);
+      expect(useScene.getState().phase.kind).toBe('END');
+      s.disconnect();
+      vi.unstubAllGlobals();
+
+      delete (storyFrame as { __damp?: unknown }).__damp;
+      const t = failedHome(0, { voidState: 'ready' });
+      expect(t.key('End').defaultPrevented).toBe(true);
+      await flush();
+      expect(t.run(), "frame for frame the End key's own move").toEqual(linked);
+    });
+
+    it("is no longer headed for the end once the story's target leaves it: Home on the way", async () => {
+      const s = failedHome(0, { voidState: 'ready' });
+      goToEnd();
+      await flush();
+      for (let i = 0; i < 30; i++) s.frames.frame();
+      expect(storyFrame.progress).toBeGreaterThan(0);
+      expect(storyFrame.progress).toBeLessThan(END);
+      expect(headedToEnd()).toBe(true);
+      s.key('Home');
+      expect(storyFrame.target).toBe(0);
+      expect(headedToEnd()).toBe(false);
+    });
+
+    it('loading: the hold keeps it over the tunnel, headed for the end all the while, and the void ready takes it on to 6', async () => {
+      const s = failedHome(0, { voidState: 'loading' });
+      expect(goToEnd()).toBe(true);
+      expect(storyFrame.target).toBe(TUNNEL_HOLD);
+      expect(headedToEnd()).toBe(true);
+      await flush();
+      s.run();
+      expect([storyFrame.target, storyFrame.progress]).toEqual([TUNNEL_HOLD, TUNNEL_HOLD]);
+      expect(headedToEnd(), 'held, still asked for').toBe(true);
+      useScene.getState().setVoidState('ready');
+      expect(storyFrame.target).toBe(END);
+      const seen = s.run();
+      expect(seen.some((f) => f.dark)).toBe(false);
+      expect([storyFrame.target, storyFrame.progress]).toEqual([END, END]);
+    });
+
+    it('loading, then failed: the hold comes down to BOB from above and lets the end go, so it is headed there no more', async () => {
+      const s = failedHome(0, { voidState: 'loading' });
+      goToEnd();
+      await flush();
+      s.run();
+      useScene.getState().setVoidState('failed');
+      expect(storyFrame.target).toBe(1);
+      expect(headedToEnd()).toBe(false);
+    });
+
+    it('reduced motion: the target is on 6 at once and the input sets no fade of its own (Home fades the scene there)', async () => {
+      const s = failedHome(0, { voidState: 'ready', reduced: true });
+      expect(goToEnd()).toBe(true);
+      expect(storyFrame.target).toBe(END);
+      expect(headedToEnd()).toBe(true);
+      await flush();
+      expect(s.run().some((f) => f.dark)).toBe(false);
+    });
+
+    it("answers false and moves nothing with 3D off, off the scroll, while a skipped loader's tail is dropped, or with nothing connected", () => {
+      const s = failedHome(1, { voidState: 'ready' });
+      useScene.setState({ threeD: false });
+      expect(goToEnd(), '3D off').toBe(false);
+      expect(headedToEnd(), '3D off').toBe(false);
+      useScene.setState({ threeD: true, phase: { kind: 'PROJECT_FOCUS', id: 'funcial' } });
+      expect(goToEnd(), 'a bead opening').toBe(false);
+      useScene.setState({ phase: { kind: 'DIVE' } });
+      storyFrame.loaderSkipEndsMs = performance.now();
+      expect(goToEnd(), 'a skipped loader').toBe(false);
+      expect([storyFrame.target, storyFrame.progress]).toEqual([1, 1]);
+      expect(headedToEnd()).toBe(false);
+      s.disconnect();
+      storyFrame.loaderSkipEndsMs = null;
+      expect(goToEnd(), 'nothing connected').toBe(false);
+      expect(headedToEnd(), 'nothing connected').toBe(false);
       expect(s.frames.size).toBe(0);
     });
   });

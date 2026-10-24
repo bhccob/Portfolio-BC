@@ -15,12 +15,23 @@ let loadingDamp: Promise<Smooth> | null = null;
 let connected: HomeScroll | null = null;
 
 /**
- * The end page's link with the void failed (`.end-link` in the home's `.home-nav`, src/app/routes/home.tsx): the scroll
- * holds at BOB from above then, so the link places the story at the end page (`scrollEnd`) by the step fade, never by a
- * camera move through a void that is not there (`HomeScroll.toEnd`). Nothing while the home page's scroll is not connected.
+ * The nav's link to the end page (`.end-link` in the home's `.home-nav`, src/app/routes/home.tsx), a keyboard's and a
+ * screen reader's way there while 3D is on: the story goes to the end page by the End key's own path (`HomeScroll.toEnd`):
+ * with the void ready the damped move from wherever it is, with reduced motion the step fade, with the void failed the
+ * step fade past the hold at BOB from above (never a camera move through a void that is not there), and while the void
+ * loads the hold over the tunnel, then on to the end once it is ready. Answers whether the home's scroll took it: false
+ * while none is connected, or while it takes no input (3D off, a phase off the scroll, a skipped loader's tail).
  */
-export function goToEnd(): void {
-  connected?.toEnd();
+export function goToEnd(): boolean {
+  return connected?.toEnd() ?? false;
+}
+
+/**
+ * Whether the story is headed for the end page now (`HomeScroll.headedToEnd`): what the focus watch after the nav's link
+ * (src/ui/endArrival.ts) asks while it waits, so a turn back ends it. False while no home scroll is connected.
+ */
+export function headedToEnd(): boolean {
+  return connected?.headedToEnd() ?? false;
 }
 
 /**

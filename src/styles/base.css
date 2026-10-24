@@ -773,15 +773,19 @@ html[data-3d='on'][data-void='failed'][data-rising] .home-nav {
   background: linear-gradient(0deg, rgb(10 5 16 / 0.9) 60%, rgb(10 5 16 / 0));
 }
 
-/* The end page's way in when the void failed (spec 2026-10-24-bob-end-page-design.md, goal 6): the scroll holds at BOB
-   from above, so a button in the nav takes the story to the end page by the step fade (src/input/useHomeScroll.ts
-   `goToEnd`). It shows only then: with 3D off the end page is in the home's flow, and with the void there the scroll
-   reaches it. It reads as the nav's links do, its title in the nav's title face. */
+/* The end page's way in from the nav (spec 2026-10-24-bob-end-page-design.md, goals 2 and 6): with 3D on the page is not
+   in the flow until the story rests at it, and a keyboard, or a screen reader in browse mode (which takes the arrows and
+   cannot drive the story), reaches it by this button, which takes the story there by End's own path
+   (src/input/useHomeScroll.ts `goToEnd`: the move, the step fade, or the hold while the void loads) and the focus to the
+   page's title once it rests (src/ui/endArrival.ts). It is one of the nav's ways in whenever 3D is on and shows as the
+   nav does: with the void ready or loading hidden with the nav's links and shown with them while one has the focus; with
+   the void failed over the foot of the scene at BOB from above, where the scroll holds. With 3D off it takes no place:
+   the end page is in the home's flow right after the nav. It reads as the nav's links do, its title in their face. */
 .end-link {
   display: none;
 }
 
-html[data-void='failed'] .end-link {
+html[data-3d='on'] .end-link {
   display: inline-flex;
   align-items: center;
   align-self: end;
@@ -800,7 +804,7 @@ html[data-void='failed'] .end-link {
   cursor: pointer;
 }
 
-html[data-void='failed'] .end-link:hover {
+html[data-3d='on'] .end-link:hover {
   color: var(--gold-title);
 }
 
@@ -1620,7 +1624,9 @@ html[data-3d='on']:not([data-end]) .end-page {
 /* While the end is shown the hero gives up its screen: its only visible line, the SCROLL cue, left with the rise, and
    the name is the engraving, so it shrinks to nothing (the h1 stays, for a screen reader) and the page's place in the
    flow is right under the header, where it rises to and rests. The cue, gone by opacity, takes no click where it now
-   stands, over the header. The home's project links stay out of reach: Tab goes from the header to the questions. */
+   stands, over the header. The home's project links stay out of reach: Tab goes from the header to the questions. They
+   take no room either, as with 3D on away from the focus: the nav's end link may still hold the focus as the page rises
+   (a browser that does not move the focus off a hidden element), and the nav must not stand above the page then. */
 html[data-route='home'][data-3d='on'][data-end] .hero {
   min-height: 0;
   padding: 0;
@@ -1631,6 +1637,14 @@ html[data-route='home'][data-3d='on'][data-end] .hero-cue {
 }
 
 html[data-3d='on'][data-end] .home-nav {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
   visibility: hidden;
 }
 

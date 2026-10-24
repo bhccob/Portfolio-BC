@@ -4,7 +4,7 @@ import { PAGES } from '~/data/pages';
 import { projects } from '~/data/projects';
 import { localeFromPath } from '~/i18n/locale';
 import { translatorFor, useTranslator } from '~/i18n/useTranslator';
-import { goToEnd } from '~/input/useHomeScroll';
+import { goToEnd, headedToEnd } from '~/input/useHomeScroll';
 import { head } from '~/seo/head';
 import { personLd, websiteLd } from '~/seo/structured';
 import { BeadLabels } from '~/ui/BeadLabel';
@@ -29,13 +29,13 @@ export const handle: RouteHandle = HANDLES.home;
 export default function Home() {
   const i18n = useTranslator();
   const { t, locale } = i18n;
-  // The end page's link: the story to the end page by the step fade, and the focus to its title once it rests there.
+  // The end page's link: the story to the end page by End's own path, and the focus to its title once it rests there,
+  // watched for as long as the story is headed there (a turn back ends the watch).
   const stopFocus = useRef<(() => void) | null>(null);
   useEffect(() => () => stopFocus.current?.(), []);
   const toEndPage = (): void => {
     stopFocus.current?.();
-    stopFocus.current = focusEndOnArrival(document);
-    goToEnd();
+    stopFocus.current = goToEnd() ? focusEndOnArrival(document, headedToEnd) : null;
   };
 
   return (
@@ -69,8 +69,10 @@ export default function Home() {
             ))}
           </ul>
         </div>
-        {/* The end page's way in when the void failed (shown only then, src/styles/base.css): the scroll holds at BOB from
-            above, so this takes the story there by the step fade (goToEnd), and the focus follows (focusEndOnArrival). */}
+        {/* The end page's way in for a keyboard and a screen reader whenever 3D is on (src/styles/base.css: hidden with
+            the nav's links and shown with them on focus; over the scene where a failed void holds the scroll at BOB from
+            above; none with 3D off, where the page is in the flow after the nav): it takes the story there by End's own
+            path (goToEnd), and the focus follows (focusEndOnArrival). */}
         <button type="button" className="end-link" onClick={toEndPage}>
           {t.end.failLink}
         </button>

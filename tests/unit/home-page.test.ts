@@ -51,7 +51,7 @@ describe('the home page', () => {
         expect(html.lastIndexOf('class="bead-label"')).toBeLessThan(html.indexOf('class="home-nav"'));
       });
 
-      it('the failed-void link is in .home-nav with the copy, NL and EN', () => {
+      it("the end page's link is in .home-nav with the copy, NL and EN", () => {
         const from = html.indexOf('<nav class="home-nav"');
         const nav = html.slice(from, html.indexOf('</nav>', from));
         const copy = t.end.failLink.replace(/&/g, '&amp;');
@@ -61,12 +61,14 @@ describe('the home page', () => {
     });
   }
 
-  it("shows the failed-void link only while <html data-void='failed'>: with 3D off the end page is in the flow, and with the void there the scroll reaches it", () => {
+  it("shows the end page's link whenever 3D is on, in the nav (hidden with it, shown on focus), and never with 3D off, where the end page is in the flow", () => {
     expect(rule('.end-link')).toMatch(/display:\s*none/);
-    const shown = rule("html[data-void='failed'] .end-link");
+    const shown = rule("html[data-3d='on'] .end-link");
     expect(shown).toMatch(/display:\s*[a-z-]+/);
     expect(shown).not.toMatch(/display:\s*none/);
-    expect(base.indexOf("html[data-void='failed'] .end-link {")).toBeGreaterThan(base.indexOf('.end-link {'));
+    expect(base.indexOf("html[data-3d='on'] .end-link {")).toBeGreaterThan(base.indexOf('.end-link {'));
+    // Not only with the void failed any more: a screen reader needs it with the void ready too.
+    expect(base).not.toContain("html[data-void='failed'] .end-link");
   });
 
   it('has a visually-hidden utility that leaves the text to assistive technology (clipped, never display:none or visibility:hidden)', () => {

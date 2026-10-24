@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { END_FOCUS_WAIT_MS, focusEndOnArrival } from '../../../src/ui/endArrival';
+import { END_FOCUS_CAP_MS, END_FOCUS_CHECK_MS, focusEndOnArrival } from '../../../src/ui/endArrival';
 
 /** A MutationObserver the test triggers by hand, noting what it observes and whether it is still connected. */
 class FakeObserver {
@@ -26,7 +26,10 @@ class FakeObserver {
   }
 }
 
-/** A document with <html data-end>, the end page's title (a focus spy) and a window with the fake observer and the timers. */
+/**
+ * A document with <html data-end>, the end page's title (a focus spy) and a window with the fake observer and the timers;
+ * `story.heading` is what the watch is told of the story (headed for the end, or not: a turn back).
+ */
 function page() {
   const attributes = new Map<string, string>();
   const title = { focus: vi.fn() };
@@ -38,6 +41,8 @@ function page() {
       MutationObserver: FakeObserver,
       setTimeout: (callback: () => void, ms: number) => setTimeout(callback, ms),
       clearTimeout: (id: ReturnType<typeof setTimeout>) => clearTimeout(id),
+      setInterval: (callback: () => void, ms: number) => setInterval(callback, ms),
+      clearInterval: (id: ReturnType<typeof setInterval>) => clearInterval(id),
     },
   };
   /** Home's end view writes `data-end`, and the observer hears it. */
@@ -46,7 +51,9 @@ function page() {
     else attributes.set('data-end', state);
     for (const observer of FakeObserver.made) observer.trigger();
   };
-  return { doc: doc as unknown as Document, root, title, endView };
+  const story = { heading: true };
+  const heading = vi.fn(() => story.heading);
+  return { doc: doc as unknown as Document, root, title, endView, story, heading };
 }
 
 describe("focusEndOnArrival: the end page's title takes the focus once the link's move rests there", () => {
@@ -61,7 +68,7 @@ describe("focusEndOnArrival: the end page's title takes the focus once the link'
 
   it('watches <html data-end> alone, and focuses #end-title without scrolling once it says rest, then stops watching', () => {
     const p = page();
-    focusEndOnArrival(p.doc);
+    focusEndOnArrival(p.doc, p.heading);
     expect(FakeObserver.made).toHaveLength(1);
     expect(FakeObserver.made[0]!.observed).toEqual({ target: p.root, options: { attributes: true, attributeFilter: ['data-end'] } });
     p.endView('moving');
@@ -76,22 +83,50 @@ describe("focusEndOnArrival: the end page's title takes the focus once the link'
     expect(p.title.focus).toHaveBeenCalledTimes(1);
   });
 
-  it('gives up after END_FOCUS_WAIT_MS: a move that turned back, or 3D switched off, leaves the focus where it is', () => {
+  it('survives a long move from the home, through the whole void and a hold while it loads: no fixed timeout stops it', () => {
     const p = page();
-    focusEndOnArrival(p.doc);
-    vi.advanceTimersByTime(END_FOCUS_WAIT_MS - 1);
+    focusEndOnArrival(p.doc, p.heading);
+    // Ten seconds on the way, the story headed for the end all along (a damped move from the home, or the hold).
+    vi.advanceTimersByTime(10_000);
+    expect(FakeObserver.made[0]!.connected).toBe(true);
+    expect(p.heading).toHaveBeenCalled();
+    p.endView('moving');
+    p.endView('rest');
+    expect(p.title.focus).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops when the story's target leaves the end (a turn back): a later rest gives no focus", () => {
+    const p = page();
+    focusEndOnArrival(p.doc, p.heading);
+    vi.advanceTimersByTime(2 * END_FOCUS_CHECK_MS);
+    expect(FakeObserver.made[0]!.connected).toBe(true);
+    p.story.heading = false; // an arrow up, Home, a wheel back: the story is going elsewhere
+    vi.advanceTimersByTime(END_FOCUS_CHECK_MS);
+    expect(FakeObserver.made[0]!.connected).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+    // Back down to the end by other input: that rest is not the link's.
+    p.story.heading = true;
+    p.endView('rest');
+    expect(p.title.focus).not.toHaveBeenCalled();
+  });
+
+  it('gives up after END_FOCUS_CAP_MS, about 15 s, only as a last resort', () => {
+    const p = page();
+    focusEndOnArrival(p.doc, p.heading);
+    vi.advanceTimersByTime(END_FOCUS_CAP_MS - 1);
     expect(FakeObserver.made[0]!.connected).toBe(true);
     vi.advanceTimersByTime(1);
     expect(FakeObserver.made[0]!.connected).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
     p.endView('rest');
     expect(p.title.focus).not.toHaveBeenCalled();
-    expect(END_FOCUS_WAIT_MS).toBe(3_000);
+    expect(END_FOCUS_CAP_MS).toBe(15_000);
   });
 
-  it('stops at once when told (the home page unmounts, or the link is pressed again), its timer with it', () => {
+  it('stops at once when told (the home page unmounts, or the link is pressed again), its timers with it', () => {
     const p = page();
-    const stop = focusEndOnArrival(p.doc);
-    expect(vi.getTimerCount()).toBe(1);
+    const stop = focusEndOnArrival(p.doc, p.heading);
+    expect(vi.getTimerCount()).toBe(2); // the check of the story, and the cap
     stop();
     expect(FakeObserver.made[0]!.connected).toBe(false);
     expect(vi.getTimerCount()).toBe(0);
@@ -100,9 +135,9 @@ describe("focusEndOnArrival: the end page's title takes the focus once the link'
     stop(); // twice is harmless
   });
 
-  it('takes away its timer on arrival too', () => {
+  it('takes away its timers on arrival too', () => {
     const p = page();
-    focusEndOnArrival(p.doc);
+    focusEndOnArrival(p.doc, p.heading);
     p.endView('rest');
     expect(vi.getTimerCount()).toBe(0);
   });

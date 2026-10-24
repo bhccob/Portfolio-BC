@@ -335,15 +335,17 @@ export class VirtualScroll {
 
   /**
    * Home's or End's jump (`to`), as a press of the key makes it once the input has taken it: the glide stopped, then
-   * `onJump`, unless a skipped loader's tail is being dropped (`swallow`), which takes it and moves nothing, as it takes
-   * the key. The keys come here, and so does the page's own way to the story's start, the header's name on the home
-   * (src/input/scrollLoop.ts `HomeScroll.toTop`). Taken only while the input takes anything (`enabled`); answers whether
-   * it was taken.
+   * `onJump`. The keys come here, and so do the page's own ways to the story's ends: the header's name on the home
+   * (src/input/scrollLoop.ts `HomeScroll.toTop`) and the nav's link to the end page (`HomeScroll.toEnd`). Answers whether
+   * it moved the story: not while the input takes nothing (`enabled`), nor while a skipped loader's tail is being dropped
+   * (`swallow`), which moves nothing. A key is taken and prevented then all the same (`onKey`), as the swallow takes every
+   * key; a link that asked is left to do what it would do without the story, so the header's name navigates.
    */
   jump(to: 'home' | 'end'): boolean {
     if (!this.opts.enabled()) return false;
     this.inertia.stop();
-    if (!this.opts.swallow?.()) this.opts.onJump(to);
+    if (this.opts.swallow?.()) return false;
+    this.opts.onJump(to);
     return true;
   }
 }

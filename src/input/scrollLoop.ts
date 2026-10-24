@@ -305,15 +305,23 @@ export interface HomeScroll {
    */
   resume(): void;
   /**
-   * The end page's link (`.end-link`, shown while the void failed): the story goes to the end as End takes it, and with
-   * the void failed past the hold, by the step fade.
+   * The nav's link to the end page (`.end-link`, a keyboard's and a screen reader's way there with 3D on): the story goes
+   * to the end by the End key's own path (VirtualScroll's `jump('end')`, then `onJump`): the damped move, with reduced
+   * motion a step, with the void failed past the hold by the step fade, and while the void loads the hold, then on to the
+   * end once it is ready (`asked`, `holdChanged`). Answers whether the input took it: not while it takes no input (3D
+   * off, a phase off the scroll) nor while a skipped loader's tail is dropped.
    */
-  toEnd(): void;
+  toEnd(): boolean;
+  /**
+   * Whether the story is headed for the end page now: 3D on, and its target on the end, or the end asked for past a hold
+   * that keeps it (`asked`). False once an input takes the target elsewhere (a turn back), or the hold lets it go.
+   */
+  headedToEnd(): boolean;
   /**
    * The header's name on the home page: the story goes to its start by the Home key's own path (VirtualScroll's
    * `jump('home')`, then `onJump`: the page to its top first, then the move, or the step fade where the void failed).
    * Answers whether the input took it: not while it takes no input (3D off, a phase off the scroll, such as a bead
-   * opening), where the link is left to navigate.
+   * opening) nor while a skipped loader's tail is dropped, where the link is left to navigate.
    */
   toTop(): boolean;
   dispose(): void;
@@ -624,13 +632,8 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
       holdStory();
       loop.wake();
     },
-    toEnd: () => {
-      gesture = null; // a wheel gesture still in its quiet has nothing left to settle, and a glide ends
-      settling = false;
-      scroll.stopGlide();
-      askFor(end, true);
-      loop.wake();
-    },
+    toEnd: () => scroll.jump('end'),
+    headedToEnd: () => o.threeD() && (frame.target === end || asked === end),
     toTop: () => scroll.jump('home'),
     dispose: () => {
       loop.dispose();
