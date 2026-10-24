@@ -107,9 +107,9 @@ export function applyCsp(html) {
   if (at === -1) throw new Error(`applyCsp: the page has no ${PLACEHOLDER} placeholder`);
   if (html.indexOf(PLACEHOLDER, at + PLACEHOLDER.length) !== -1) throw new Error(`applyCsp: the page has more than one ${PLACEHOLDER}`);
 
-  // The policy only governs what loads after its tag, so no <script> may come first. Only scripts are checked
-  // (Ruling 7): React puts the charset and viewport metas first. Nothing else comes before this tag today (the poster is
-  // a CSS gradient, with no image to preload); a link React might hoist above it (a preload, a stylesheet) would be
+  // The policy only governs what loads after its tag, so no <script> may come first. Only scripts are checked,
+  // as only a script could act before the policy: React puts the charset and viewport metas first. Nothing else comes
+  // before this tag today (the poster is a CSS gradient, with no image to preload); a link React might hoist above it (a preload, a stylesheet) would be
   // acceptable too, as it fetches but runs nothing.
   const script = html.search(/<script\b/i);
   if (script !== -1 && script < at) throw new Error(`applyCsp: a <script> comes before the ${PLACEHOLDER} meta`);

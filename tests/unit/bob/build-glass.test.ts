@@ -351,10 +351,10 @@ describe('the glass', () => {
     }
     const material = floor.material as THREE.MeshPhysicalMaterial;
     expect(material).toBeInstanceOf(THREE.MeshPhysicalMaterial);
-    // Ruling 29: the floor is the preview's black, with the scene's background.
+    // The floor is the preview's black, with the scene's background.
     expect(material.color.getHex()).toBe(palette.black);
     // Task 12: at full specular and coat the glossy glass mirrored the reflection room's violet card over the whole floor.
-    // Ruling 31: the coat is the high tier's only, so the low tier's floor has none.
+    // The coat is the high tier's only, so the low tier's floor has none.
     expect(material.clearcoat).toBe(0);
     expect(GLASS_LOOK.floor.clearcoat).toBe(0.1);
     expect(material.specularIntensity).toBe(0.05);
@@ -468,7 +468,7 @@ describe('the glass', () => {
     }
   });
 
-  it('coats the floor and its edge on the high tier only (Ruling 31): no clearcoat below high', () => {
+  it('coats the floor and its edge on the high tier only: no clearcoat below high', () => {
     for (const tier of ['high', 'medium', 'low'] as const) {
       const g = buildGlass(tier);
       for (const name of ['floor', 'floor:edge', 'cap']) {
@@ -766,7 +766,7 @@ describe('the glass', () => {
     low.dispose();
   });
 
-  it('turns the reflection off for good (Ruling 25): the mirror out and freed, the glass solid as the other tiers build it', () => {
+  it('turns the reflection off for good: the mirror out and freed, the glass solid as the other tiers build it', () => {
     const high = buildGlass('high');
     const reflector = objectNamed(high.group, 'floor:reflector') as Reflector;
     const ring = reflector.geometry;
@@ -784,7 +784,7 @@ describe('the glass', () => {
     for (const material of [floor, edge, cap]) {
       expect(material.transparent).toBe(solid.transparent);
       expect(material.opacity).toBe(solid.opacity);
-      // Ruling 31: stepped down below high, the coat goes too, as the medium tier builds it.
+      // Stepped down below high, the coat goes too, as the medium tier builds it.
       expect(material.clearcoat).toBe(solid.clearcoat);
       expect(material.clearcoat).toBe(0);
     }

@@ -82,7 +82,7 @@ function distanceOf(shot: CameraShot): number {
  * Within this much of an end, the rise is on it. The scroll input sums its
  * deltas (src/input/target.ts `moveTarget`), so three wheel notches down and
  * three back leave the target at 5.55e-17, not 0, and the home would never be
- * the home again: no aim at u = 0 (Ruling 8).
+ * the home again: no aim at u = 0.
  */
 const RISE_SNAP = 1e-6;
 
@@ -97,7 +97,7 @@ export function riseAt(progress: number): number {
 }
 
 /**
- * The share of the rise the camera may be up while it still counts as home for the hero's SCROLL cue (Ruling 17).
+ * The share of the rise the camera may be up while it still counts as home for the hero's SCROLL cue.
  * The damped progress takes about a second to settle to exactly 0 after the last scroll; 0.01 of the rise is under a
  * pixel of camera travel, so the cue comes back as soon as the picture has stopped moving, not a second later.
  */

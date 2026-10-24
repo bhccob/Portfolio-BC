@@ -183,7 +183,7 @@ html[data-bead-open] body:has(main > .page) .scene-host[data-ready]::after {
 }
 
 /* A project page left for the home page (Back, its Escape, the header's name) fades out over the camera's flight out of
-   the bead, with its scrim, instead of vanishing at once (Ruling 30). The router takes the page away at once, so
+   the bead, with its scrim, instead of vanishing at once, which reads abrupt while the camera flies. The router takes the page away at once, so
    src/ui/pageLeave.ts stands a still copy of it where it stood, in .page-ghost, over the scene and under the header,
    inert and hidden from assistive technology, and takes it away once it has faded. The copy keeps body:has(.page) true,
    so the scrim stays and fades with it. 0.4 s on the reveal curve, as the hero's cue fades: over well within the 0.8 s

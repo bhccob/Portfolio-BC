@@ -17,7 +17,7 @@ import type { Phase } from '~/state/machine';
 
 const PATHS: readonly LoaderPath[] = ['full', 'quick', 'reduced'];
 
-describe('where an opening starts (Ruling 9c)', () => {
+describe('where an opening starts', () => {
   const KINDS: Phase['kind'][] = ['LOADING', 'HOME_IDLE', 'DIVE', 'VOID_ENTRY', 'PROJECTS', 'PROJECT_FOCUS'];
 
   it('plays the loader while the page is loading, on the path the visit and the visitor ask for', () => {
@@ -61,7 +61,7 @@ describe('marksSeen', () => {
   });
 });
 
-describe('listensForSkip (Ruling 30)', () => {
+describe('listensForSkip: only while a scene is shown', () => {
   it('listens while the full show is skippable and the page shows a scene', () => {
     expect(listensForSkip(true, true)).toBe(true);
   });

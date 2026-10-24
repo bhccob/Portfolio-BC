@@ -91,15 +91,16 @@ export interface ProbeModel {
    * Turns the cutting on or off: off hides the beam, the tip's glow, the
    * point, the sparks and the wisp, puts the light out, and leaves the probe.
    *
-   * The light stays in the scene at intensity 0 rather than hiding (Ruling
-   * 15): a light that came and went would change the number of lights, and so
+   * The light stays in the scene at intensity 0 rather than hiding: a
+   * light that came and went would change the number of lights, and so
    * every lit material's program, at each cut's start and end.
    */
   setOn(on: boolean): void;
   /**
    * Shows or hides the probe's shaft (`probe:body`), which builds shown: the Opening hides it once the probe has
    * left the picture, as a parked probe can still hang into a far camera's frame. The light is the group's own child,
-   * not the shaft's, so it stays in the scene either way (Ruling 15); the rest of the probe goes dark through `setOn`.
+   * not the shaft's, so it stays in the scene either way, and the number of lights with it; the rest of the probe goes
+   * dark through `setOn`.
    */
   setShown(shown: boolean): void;
   /** How hard it cuts, 0..1 (how many of the sparks fly, and how thick the wisp), at `time` seconds. */

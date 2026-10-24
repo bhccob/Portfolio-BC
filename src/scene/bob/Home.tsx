@@ -50,7 +50,9 @@ export interface HomeModels {
  * `pose` is the one journey pose of the frame (src/scene/bob/journey.ts `journeyPoseAt`), which the Opening computes
  * once, at the progress it stands the camera at, before the Rig: its shot is the camera's, and Home (the rise) and the
  * Void (the void, the beads, the needle out of the compass) pose the scene from it, so all three agree in every frame.
- * Null while the Opening poses the scene itself (the loader, a held seek) and once it is gone; set whenever `live` is.
+ * Null while the Opening poses the scene itself (the loader, a held seek) and once it is gone. It is set on every frame
+ * whose shot is the journey's: whenever `live` is, and also on the hand-over frame (and any frame at the home before the
+ * compass exists), where the Opening sets it while `live` is still false; a pose alone does not say Home drives.
  *
  * `focus` is true while the camera is at a bead's close view or on its way to or from one (src/scene/bob/focus.ts
  * `FocusPose.engaged`): a project page, a flight into a porthole or out, a fade to or from a close view. The Void then
@@ -138,7 +140,7 @@ const pivotPx = { x: 0, y: 0 };
  * whole stop at a time (src/input/target.ts) and each step is a short fade (stepFade.ts): the pose stays at the stop it
  * shows while `<html data-step-fade>` fades the scene host down over STEP_FADE_MS, jumps to the stop the target is
  * nearest once it is dark, and the attribute goes, so it fades back; without reduced motion the attribute is never set.
- * The hero's SCROLL cue leaves with the rise: `<html data-rising>` is set while the rise is above 0.01 (`risingFor`, Ruling 17) and
+ * The hero's SCROLL cue leaves with the rise: `<html data-rising>` is set while the rise is above 0.01 (`risingFor`) and
  * the stylesheet fades the cue out over 0.4 s (at once with reduced motion), and it is taken away again at the home, on
  * a let-go and on unmount, written to the DOM only when it changes.
  *
@@ -294,7 +296,7 @@ export function Home({ models, handover }: HomeProps): null {
     }
     if (reduced) spring.set(state.target, 0);
     const needle = spring.step(state.target, dt);
-    // Up the rise unwrapped about the held target (needleAngleAt, Ruling 9), so a spring still settling across
+    // Up the rise unwrapped about the held target (needleAngleAt), so a spring still settling across
     // straight down does not flip the needle's roll halfway down the dip.
     models.compass.setNeedle(needleAngleAt(needle, state.target, pose.u));
     frame.needleAngle = needle;

@@ -343,7 +343,7 @@ describe('the pose on the quick and reduced paths', () => {
     }
   });
 
-  it('brings the smoke up with the fade (Ruling 33): none on the dark first frame, eased up, whole once faded in', () => {
+  it('brings the smoke up with the fade: none on the dark first frame, eased up, whole once faded in', () => {
     for (const [path, clockFor] of paths) {
       // Dark until the load, and at the load itself: no smoke at all.
       expect(openingPoseAt(clockFor(-1), path).smoke, `${path} dark`).toBe(0);
@@ -456,7 +456,7 @@ describe('the home pose', () => {
     for (const [name, clock, path] of ends) expect(openingPoseAt(clock, path), name).toEqual(HOME_POSE);
   });
 
-  it('still equals the end of the quick and reduced paths with their smoke on the fade (Ruling 33), exactly', () => {
+  it('still equals the end of the quick and reduced paths with their smoke on the fade, exactly', () => {
     expect(openingPoseAt(quickClock(QUICK.home), 'quick')).toEqual(HOME_POSE);
     expect(openingPoseAt(reducedClock(LOADER.reducedFade), 'reduced')).toEqual(HOME_POSE);
     expect(openingPoseAt(quickClock(QUICK.home), 'quick').smoke).toBe(HOME_POSE.smoke);

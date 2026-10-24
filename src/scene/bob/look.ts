@@ -10,10 +10,10 @@ import { palette } from '~/engine/palette';
  * colour is a palette token.
  *
  * - `background`: the clear colour and the scene's background, the
- *   palette's black, the preview's world (Ruling 29: with the night, an
+ *   palette's black, the preview's world (with the night, an
  *   indigo, the loader came out 1.4 to 2.1 times as bright as the preview and
  *   the floor read violet).
- * - `fog`: linear fog in the background's own black (Ruling 26), none nearer
+ * - `fog`: linear fog in the background's own black, so the far glass fades into it, none nearer
  *   than `near` and all of it at `far`: the home camera stands 8.8 from the
  *   compass and the loader's 11.2, so the name and the compass stay clear, and
  *   the far glass fades into the very black the sky is. `far` lies inside the
@@ -63,7 +63,7 @@ export const LOOK = {
  * On a phone the home stands about 14.9 off, just past the fixed 14 (when it
  * stood 23 off it was a quarter of the way into the fog, Task 12, "the phone
  * home is murky"), and here its fog runs about 19.9 to 55.9, still short of
- * the slab's far edge, about 74.5 from that camera (Ruling 26). A distance that
+ * the slab's far edge, about 74.5 from that camera. A distance that
  * is not a finite, positive number reads as 0: LOOK.fog's own numbers.
  */
 export function fogFor(distance: number): { near: number; far: number } {

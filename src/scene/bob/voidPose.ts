@@ -39,7 +39,7 @@ const AT_ZERO = 1e-9;
 /**
  * The beads' motion clocks, in `BEADS` order: whether each ran on the last step, its time (seconds of its object's
  * motion), and whether its object moved on the last step (`moving`: its clock ran, or Funcial's abacus slid).
- * `abacus` is Funcial's abacus's own clock (Ruling 28), 0..`ABACUS_SPAN`.
+ * `abacus` is Funcial's abacus's own clock, 0..`ABACUS_SPAN`.
  */
 export interface BeadClocks {
   running: boolean[];
@@ -59,7 +59,7 @@ export function beadClocks(): BeadClocks {
  * object jumps back as its bead comes forward again (Jontai Energy's light passes and Cookies Clicker's tick repeat on
  * their own; Funcial's platter turns and its pulse runs on).
  *
- * Funcial's abacus reads a clock of its own (Ruling 28): `funcialMotion` slides its beads up one after another from time
+ * Funcial's abacus reads a clock of its own: `funcialMotion` slides its beads up one after another from time
  * 0 and holds them at the top, so its time counts up, to `ABACUS_SPAN` at most, while the bead is selected or hovered,
  * and back down to 0 while it is not: the beads slide back down as calmly as they came up, and slide up again from
  * wherever they are, never snapping. It too stands still with reduced motion. A step that is not a positive number of

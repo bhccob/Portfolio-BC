@@ -279,7 +279,7 @@ export interface VoidProps {
  * - the objects' motion: each bead's clock runs only while it is the selected bead (the bead of the current project
  *   stop, `selectedBead`) or the hovered one, and not with reduced motion, and goes on from where it stopped
  *   (`stepBeadClocks`); Funcial's abacus has a clock of its own that counts back down while the bead is neither, so its
- *   beads slide back down calmly and up again from where they are (Ruling 28);
+ *   beads slide back down calmly and up again from where they are, never snapping;
  * - the selected bead's label (src/ui/BeadLabel.tsx `showBeadLabel`): on its project stretch, beside the bead where the
  *   camera puts it on the screen (its centre projected, its radius from its distance and the field), in full at its stop
  *   and clear between stops; none anywhere else.
@@ -432,7 +432,7 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
     };
   }, [gl, scene, camera, invalidate, compass, run]);
 
-  // The ladder steps down while the scene is up (Ruling 25): the void sheds its mist's layers and dust, the beads' glass
+  // The ladder steps down while the scene is up: the void sheds its mist's layers and dust, the beads' glass
   // drops to the tier's, in place; never back up.
   useEffect(() => {
     const parts = run.parts;
@@ -566,7 +566,7 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
     for (let i = 0; i < BEADS.length; i++) {
       if (!run.clocks.moving[i]) continue;
       const { id, radius } = BEADS[i]!;
-      // Funcial's abacus by its own clock, which counts back down (Ruling 28).
+      // Funcial's abacus by its own clock, which counts back down, so its beads slide back rather than snap.
       beads.setMotion(id, run.clocks.time[i]!, id === 'funcial' ? run.clocks.abacus : undefined);
       const root = beads.beads[id].root;
       moving ||= frustum.intersectsSphere(sphere.set(root.getWorldPosition(centre), radius));

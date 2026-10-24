@@ -82,13 +82,13 @@ export const frame = {
    * When the fast-forward of a skipped loader ended, in the clock of `performance.now()` (ms), or null while no skip has
    * landed. The Opening writes it on the frame a skipped loader reaches the home (the skip's own listener prevents the
    * input until then), and sets it back to null when it mounts; the home's scroll input (src/input/useHomeScroll.ts)
-   * reads it and, for `SKIP_SWALLOW_MS` after it and on while the input keeps coming (`skipSwallower`, Ruling 24),
+   * reads it and, for `SKIP_SWALLOW_MS` after it and on while the input keeps coming (`skipSwallower`),
    * drops the wheel, touch and keys it hears, still preventing them, so the tail of the gesture that skipped does not
    * scroll the home or the page.
    */
   loaderSkipEndsMs: null as number | null,
   /**
-   * A bead seen close (src/scene/bob/focus.ts, Ruling 4): the camera's move between the journey's shot and a bead's
+   * A bead seen close (src/scene/bob/focus.ts): the camera's move between the journey's shot and a bead's
    * close view, and the bead being opened.
    * - `move`: the last move begun, on the clock of `performance.now()`; at rest on the journey's shot until one is. The
    *   Opening begins one whenever the close view the page asks for (`focusGoalFor`) is not the one the move goes to: the

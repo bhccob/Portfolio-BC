@@ -2,11 +2,11 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { FLIGHT_MS } from '~/scene/bob/focus';
-import { dropGhosts, fadeOutPage, leavesForHome, PAGE_OUT_MS } from '~/ui/pageLeave';
+import { dropGhosts, fadeOutPage, leavesForHome, PAGE_OUT_MS, pageFadeEffect } from '~/ui/pageLeave';
 
 // ---------------------------------------------------------------- when
 
-describe('leavesForHome: a project page fades out only when it is left for the home page (Ruling 30)', () => {
+describe('leavesForHome: a project page fades out only when it is left for the home page', () => {
   it('is true for the home page in either language', () => {
     for (const path of ['/', '/en/', '/en']) expect(leavesForHome(path), path).toBe(true);
   });
@@ -114,10 +114,51 @@ describe('dropGhosts: a project page that comes back at once stands alone (fix r
     expect(removed).toEqual([0, 1]);
   });
 
-  it('has a page that mounts drop them, and the scrim fade only while no page of its own is up', () => {
-    const source = readFileSync(fileURLToPath(new URL('../../../src/ui/pageLeave.ts', import.meta.url)), 'utf8');
-    expect(source).toMatch(/if \(page\) dropGhosts\(page\.ownerDocument\);\s*return \(\) =>/);
+  it('keeps the scrim fade to a page with no page of its own up', () => {
     expect(declarationsOf('body:has(.page-ghost) .scene-host[data-ready]::after')).toEqual([]);
+  });
+});
+
+describe("pageFadeEffect: usePageFadeOut's effect, as a project page comes and goes", () => {
+  /** The fake DOM with `querySelectorAll` over the copies still standing, as `dropGhosts` asks. */
+  function withGhosts() {
+    const dom = fakeDom();
+    const doc = (dom.page as unknown as { ownerDocument: Record<string, unknown> }).ownerDocument;
+    doc.querySelectorAll = (selector: string) =>
+      selector === '.page-ghost' ? (dom.appended as unknown as { className: string; removed: boolean }[]).filter((el) => el.className === 'page-ghost' && !el.removed) : [];
+    return dom;
+  }
+  const ghostsOf = (dom: ReturnType<typeof fakeDom>) => dom.appended as unknown as { removed: boolean }[];
+
+  it('has a page that comes in take away every copy still fading', () => {
+    const dom = withGhosts();
+    fadeOutPage(dom.page); // the page left a moment ago, still fading
+    expect(ghostsOf(dom).map((ghost) => ghost.removed)).toEqual([false]);
+    pageFadeEffect(dom.page, () => '/projects/funcial/');
+    expect(ghostsOf(dom).map((ghost) => ghost.removed)).toEqual([true]);
+  });
+
+  it('fades the page out when it goes for the home page, in either language, and not for another page', () => {
+    for (const [to, fades] of [['/', 1], ['/en/', 1], ['/lite/', 0], ['/en/projects/funcial/', 0], ['/contact/', 0]] as const) {
+      const dom = withGhosts();
+      const leave = pageFadeEffect(dom.page, () => to);
+      expect(dom.appended, to).toHaveLength(0);
+      leave();
+      expect(dom.appended, to).toHaveLength(fades);
+    }
+  });
+
+  it('reads where the visit goes when the page goes, not when it came', () => {
+    const dom = withGhosts();
+    let path = '/projects/funcial/';
+    const leave = pageFadeEffect(dom.page, () => path);
+    path = '/';
+    leave();
+    expect(dom.appended).toHaveLength(1);
+  });
+
+  it('does nothing without a page', () => {
+    expect(() => pageFadeEffect(null, () => '/')()).not.toThrow();
   });
 });
 
@@ -145,7 +186,7 @@ function declarationsOf(selector: string): string[] {
 /** The seconds of an `animation` shorthand's duration. */
 const seconds = (animation: string): number => Number(/(\d*\.?\d+)s\b/.exec(animation)?.[1] ?? Number.NaN);
 
-describe('the fades in the stylesheet (Ruling 30)', () => {
+describe('the fades in the stylesheet', () => {
   const out = declarationsOf('.page-ghost').join(';');
   const scrimOut = declarationsOf('body:has(.page-ghost):not(:has(main > .page)) .scene-host[data-ready]::after').join(';');
 

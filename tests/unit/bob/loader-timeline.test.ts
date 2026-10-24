@@ -306,7 +306,7 @@ describe('loaderAt, the skip', () => {
     expect(full(30, 12, HOLD_AT + 2).stage).toBe('home');
   });
 
-  it('never ends later than the show would have (Ruling 32): a skip at 5.75 s lands by 6.25 s', () => {
+  it('never ends later than the show would have: a skip at 5.75 s lands by 6.25 s', () => {
     // The load landed early, so the show alone comes home at SCRIPT.home, 6.25 s.
     expect(full(6.24, 0.1, 5.75).stage).not.toBe('home');
     expect(full(SCRIPT.home, 0.1, 5.75).stage).toBe('home');

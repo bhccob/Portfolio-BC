@@ -78,7 +78,7 @@
  *              does, in both cases, but a ctrl-, meta- or shift-click is left to the browser (its default is
  *              not prevented). The scene's phase follows: the page's on the page, and on the home page the stop
  *              of the page's bead after Escape or Back (Funcial's, PROJECTS secure-element at 3; Task 12), but the
- *              home itself (HOME_IDLE at 0) after the header's name, a link (Ruling 29). The "Esc" hint is aria-hidden
+ *              home itself (HOME_IDLE at 0) after the header's name, a link, a deliberate "to the top". The "Esc" hint is aria-hidden
  *              and hidden on a touch screen
  *   nav-focus  a link (a push) opens the new page at its top with the focus moved to <main>: on /lite/ scrolled down to
  *              the projects, a click on one shows its <h1> at scrollY 0, and Tab goes on inside the new page; Back (a
@@ -125,7 +125,7 @@
  *              (`m2/bob-from-above-<size>.png`) gated as a home still; one mid-rise still at `u` 0.6 put there
  *              through `.set` (`m2/bob-rising-<size>.png`, also gated as a home still); moved back, `u` and `letters` are exactly 0 and, at 1440, the
  *              needle aims at the pointer again within 1.5 s, and eight real wheel notches (1.067, inside the dive's hold
- *              of the top shot, 1.0 to 1.125) leave the camera on the top shot. The hero's SCROLL cue leaves with the rise (Ruling 15):
+ *              of the top shot, 1.0 to 1.125) leave the camera on the top shot. The hero's SCROLL cue leaves with the rise (no text during the scroll):
  *              shown at the home, gone (computed opacity 0, `<html data-rising>` set, still in the page) at `u` 1
  *              and mid-rise, and back at the home, with a 0.4 s opacity transition and none under reduced motion.
  *              With reduced motion (1440) one wheel event sets
@@ -211,11 +211,11 @@
  *              length checked, 0.9 to 1.4 s) land on the home too, and after the burst the story's progress and target
  *              stay 0 for 1.5 s (six samples), the page unscrolled: the input that skips never scrolls; and once more,
  *              Space (a real key press) 1.5 s in lands within 1.6 s and moves neither the story nor the page
- *   loader-lite  Ruling 30: a first visit to /projects/funcial/ with the compass's file held back (the load still out),
+ *   loader-lite  the skip listens only while a scene is shown: a first visit to /projects/funcial/ with the compass's file held back (the load still out),
  *              its Lite link clicked 1.5 s into the loader: on Lite five wheel turns, Space and PageDown each scroll the
  *              page (scrollY above 0, nothing prevented); the file let through and back on the project page, the skip
  *              asked for at the link lands the show
- *   loader-skip-touch  on a touch phone (390x844): the loader never draws at the high tier (Ruling 31); a tap 1.5 s in
+ *   loader-skip-touch  on a touch phone (390x844): the loader never draws at the high tier (a coarse pointer starts on medium); a tap 1.5 s in
  *              lands on HOME_IDLE within 1.6 s, its touchstart not prevented; a tap on Menu, then on its Contact link, 1.5 s
  *              into a project page's show still navigates
  *   quick-loader  a first visit plays the full show and marks the loader seen (`bob-loader-seen` in localStorage);
@@ -231,7 +231,7 @@
  *              mean Rec. 709 luma of the sRGB values (0..1) at most 0.11 on the home (every sample, so the breath's
  *              peak) and 0.07 on the loader, at most 0.4 % of the pixels at luma 0.98 or more (the dark look's gate),
  *              and dark but drawn: mean above 0.002 and some pixel of the scene's middle (where no page text stands)
- *              at luma 0.3 or more (its floor, Ruling 13)
+ *              at luma 0.3 or more (its floor: a canvas that drew nothing cannot pass for a dark one)
  *   aim        at 1440x900, once landed: the mouse to the right of the compass's pivot (the screen's middle, where the
  *              home shot looks) turns the needle to within 0.1 of pi/2 within 1.5 s (`needleAngle`; a still,
  *              `m2/aim-right-1440x900.png`, gated as a home still); on a touch phone (390x844), with no cursor, the
@@ -755,7 +755,7 @@ async function esc(browser, step) {
   );
   await takeCsp(page, step);
 
-  // The header's name is a link to the home, not Back (Ruling 29): it lands at the home, the top of the story, even
+  // The header's name is a link to the home, not Back, a deliberate "to the top": it lands at the home, the top of the story, even
   // with the story at the bead's stop, as after a flight in from it.
   await page.goto(`${BASE}/projects/funcial/?proof`, { waitUntil: 'load' });
   await stageReady(page);
@@ -2087,7 +2087,7 @@ async function cspEnforced(browser, step) {
 const SCENELESS = PAGES.filter((p) => !p.scene).map((p) => p.path);
 
 /**
- * Lite is the light version, and every page without a scene with it (Ruling 27). A visit that begins on one fetches
+ * Lite is the light version, and every page without a scene with it. A visit that begins on one fetches
  * none of the scene's files (the Stage chunk, three.js, maath, the textures), mounts no <canvas>, probes no WebGL and
  * shows no fallback card, and still leaves LOADING, with 3D left on. A canvas that came from the home page by client
  * navigation stays (one Stage, the same <canvas>) and sleeps behind the page: no requestAnimationFrame at all while the
@@ -2646,7 +2646,7 @@ async function stills(browser, step) {
       step.check(arrived, `${at}: the opening lands (loader ${JSON.stringify((await debugOf(page))?.loader)})`);
       await page.evaluate(() => document.fonts.ready);
       await page.waitForTimeout(1_200); // the canvas's and the scrim's fade-in, and the hero's after the landing
-      // On the home, a project page left for it fades out with its scrim for 0.4 s (Ruling 30, .page-ghost): wait for
+      // On the home, a project page left for it fades out with its scrim for 0.4 s (.page-ghost): wait for
       // that to be over before asking whether the home keeps the scene unveiled (at most 2 s; at once on a direct load).
       if (!text) await page.waitForFunction(() => !document.querySelector('.page-ghost'), null, { timeout: 2_000 }).catch(() => {});
       const scrim = await scrims(page);
@@ -2858,7 +2858,7 @@ let loaderShots = null;
 /**
  * At each still size, in a fresh context: `/?proof` loaded and landed (HOME_IDLE, so the real load is done), then the
  * opening's clock held at each of LOADER_MOMENTS, its `loader.stage` checked and a still taken into
- * `m2/loader-<n>-<size>.png`; then let go. The phase stays HOME_IDLE throughout (Ruling 2), so the page would show the
+ * `m2/loader-<n>-<size>.png`; then let go. The phase stays HOME_IDLE throughout (a seek holds the clock, not the phase), so the page would show the
  * hero and the header over the held loader, which no visitor sees: while the clock is held the harness sets
  * `<html data-loading>`, the page's own mark of a playing opening, which hides them as it does while the phase is
  * LOADING, and checks that the header is gone, so the stills show no text but the engraving. The last moment is the
@@ -2921,11 +2921,11 @@ async function loaderStills(browser, step) {
  * may be turned down to pass it (src/scene/bob/look.ts's exposure, bloom and lights, the glass's, the compass's, the
  * engraving's and the smoke's looks), never these numbers.
  *
- * And its floor (Ruling 13, Task 14b): dark but real. Every gated still's mean is above `floor.mean`, and at least one
+ * And its floor (Task 14b): dark but real, so a canvas that drew nothing cannot pass for a dark one. Every gated still's mean is above `floor.mean`, and at least one
  * pixel of the scene's middle (`floor.region`, shares of the still's width and height: below the hero's name and the
  * header, above the scroll cue, at both sizes) reaches `floor.peak`. The page's
  * own text is bright (the header, the hero), so a peak taken over the whole still would pass a canvas that drew
- * nothing; in the middle only the scene can make it. (The scene's black alone, Ruling 29, is a mean of about 0.001;
+ * nothing; in the middle only the scene can make it. (The scene's black alone, the preview's, is a mean of about 0.001;
  * the page's night, which the poster shows, about 0.0115.)
  *
  * The one still that is black on purpose is the loader's first moment, `dark` (0.5 s: black, the probe coming down, a
@@ -2946,7 +2946,7 @@ const LUMA_GATE = {
 /**
  * How many home stills the gate takes at each size, a quarter of the needle's breath apart (src/scene/bob/look.ts,
  * BREATHE.period: its glow swells and falls 5 % either way over 4 s), all within the idle motion's IDLE_SECONDS: the gate
- * holds for the worst of them, so it sees the breath's peak and not one moment of it (Ruling 13). The first is `m2/home-<size>.png`; the rest go to `m2/samples/`.
+ * holds for the worst of them, so it sees the breath's peak and not one moment of it. The first is `m2/home-<size>.png`; the rest go to `m2/samples/`.
  */
 const HOME_SAMPLES = 4;
 
@@ -3442,7 +3442,7 @@ const cueText = (cue) =>
  * 5. With reduced motion (1440 only), one wheel event down sets `<html data-step-fade>` with the pose still at the home,
  *    never shows a rise between 0 and 1 (no camera travel) and lands on `u` 1 with the attribute gone and the host
  *    shown again; one event up does the same back to 0.
- * 6. The hero's SCROLL cue leaves with the rise (Ruling 15; spec §3 shows no text during the scroll): at the home it is
+ * 6. The hero's SCROLL cue leaves with the rise (spec §3 shows no text during the scroll): at the home it is
  *    shown (`<html data-rising>` unset, computed opacity 1), with a 0.4 s opacity transition of its own and its pulse on
  *    the word inside; at `u` 1 and at `u` 0.6 it is gone by opacity alone (opacity 0 after its transition,
  *    `data-rising` set, still in the page with its text, displayed and visible), and back at the home it is shown
@@ -3586,7 +3586,7 @@ async function scrollBob(browser, step) {
       );
       step.check(Number.isFinite(angle) && off <= AIM.tolerance, `and it comes to rest on it: ${angle.toFixed(3)} rad ${AIM.within + AIM.settle} ms after the move, ${off.toFixed(3)} off pi/2 (at most ${AIM.tolerance})`);
 
-      // 5. A real gesture's camera (Ruling 26). Step 2 puts the story on stop 1 through `.set`, as a gesture does not rest
+      // 5. A real gesture's camera. Step 2 puts the story on stop 1 through `.set`, as a gesture does not rest
       // there; but eight notches of 120 px land at 960 / 900 = 1.067, inside the dive's hold of the top shot (progress 1.0
       // to 1.125, where BOB from above stays), so a real wheel gesture's camera is checked against the top shot too.
       for (let i = 0; i < HOLD_NOTCHES; i++) {
@@ -3822,7 +3822,7 @@ async function loaderSkip(browser, step) {
 }
 
 /**
- * The skip listens only while a scene is shown (Ruling 30). A first visit to a project page (nothing stored, so the full
+ * The skip listens only while a scene is shown, so a page of text reached mid-show scrolls. A first visit to a project page (nothing stored, so the full
  * show plays under the page's scrim), with the compass's file held back, so its load is still out when the visitor
  * leaves, as on a slow connection: CUT_AT (1.5) s into the loader a click on the header's Lite link (which also asks for the skip)
  * opens Lite by client navigation, a page with no scene, where the show cannot land. (A load that is in by then lands
@@ -3942,8 +3942,8 @@ async function loaderLite(browser, step) {
 const LITE_BACK_WITHIN_MS = 6_000;
 
 /**
- * The skip by touch (Ruling 30), on a touch phone (390x844, touch, a coarse pointer). A first visit: from the moment the
- * scene shows until the tap, the tier is never high (Ruling 31: a coarse pointer starts on the medium rung, without the
+ * The skip by touch, on a touch phone (390x844, touch, a coarse pointer). A first visit: from the moment the
+ * scene shows until the tap, the tier is never high (a coarse pointer starts on the medium rung, without the
  * floor's reflection); a tap CUT_AT (1.5) s into the full show lands on HOME_IDLE within SKIP_WITHIN_MS, the tap's start
  * being the skip's and never prevented. Then a project page's full show (the seen flag cleared): a tap on the header's
  * Contact link CUT_AT s in still navigates, to /contact/.
@@ -3977,7 +3977,7 @@ async function loaderSkipTouch(browser, step) {
   const tiers = [...new Set(shown.map((s) => s.tier))];
   step.check(
     shown.length > 0 && !tiers.includes('high'),
-    `a touch phone draws the loader below the high tier, without the floor's reflection (Ruling 31): tiers ${tiers.join(', ')} over ${shown.length} samples`,
+    `a touch phone draws the loader below the high tier, without the floor's reflection: tiers ${tiers.join(', ')} over ${shown.length} samples`,
   );
   step.check(at.stage === 'engrave' && at.elapsed >= CUT_AT && at.elapsed < CUT_AT + 2 * CUT_WITHIN, `a first visit plays the full show: ${CUT_AT} s in it engraves (stage ${at.stage} at ${at.elapsed.toFixed(2)} s)`);
   step.check(
@@ -4185,7 +4185,7 @@ const heroWhole = (page, timeout) =>
   page.waitForFunction(() => window.__heroSamples.some((sample) => sample.opacity === 1 && sample.header === 1), null, { timeout, polling: 100 }).then(() => true, () => false);
 
 /**
- * The hero's CSS fail-safe (Ruling 9a), and the header's with it. With JavaScript on but the entry chunk refused (the
+ * The hero's CSS fail-safe, and the header's with it. With JavaScript on but the entry chunk refused (the
  * route aborts it), the page never hydrates: the hero and the header are hidden (scripting is on, so the page waits for
  * the bundle) and then shown by the fail-safe, 8 s in, faded in over 0.9 s. The step expects the browser's report of
  * the refused chunk and of the failed import, and nothing else. With the page working, the hero and the header stay
@@ -5102,7 +5102,7 @@ async function beadOpen(browser, step) {
 }
 
 /**
- * The hold (spec §2.1, Ruling 27), at 1440x900 and 390x844 (touch): with `bob-beads.glb` held back, so that the void stays
+ * The hold (spec §2.1), at 1440x900 and 390x844 (touch): with `bob-beads.glb` held back, so that the void stays
  * `loading`, a long wheel (40 notches; eight flicks on the phone) rests at TUNNEL_HOLD, 1.475 (Bob's frame d01, the camera
  * above the glass over the opening: on the journey's shot, y above 0), the journey on the dive with `voidState` `loading`,
  * nothing creeping past it; a still of it (`m2/void-hold-<size>.png`) is gated as a home still. Scrolling back from there
@@ -5207,7 +5207,7 @@ async function voidHold(browser, step) {
 }
 
 /**
- * The failure (spec §2.1, Ruling 11 of Task 11), at 1440x900 and 390x844 (touch): with `bob-beads.glb` answering 404 the
+ * The failure (spec §2.1), at 1440x900 and 390x844 (touch): with `bob-beads.glb` answering 404 the
  * void fails (`voidState` `failed`, `<html data-void>`), and the home goes on without it. At the home the nav stays hidden
  * as it is with 3D on; a long push rests the scroll at 1.0 (`RISE_TOP`, BOB from above, the dive's start), and there
  * `.home-nav` shows, fixed over the foot of the screen, unclipped and opaque, its three links on screen and each the

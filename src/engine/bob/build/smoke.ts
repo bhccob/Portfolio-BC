@@ -73,7 +73,7 @@ export interface SmokeModel {
   /** Drifts the puffs to where they are at `time` seconds (NaN reads as 0); the same time is the same picture. */
   setTime(time: number): void;
   /**
-   * Steps the smoke down to `tier`'s (the quality ladder's step, Ruling 25), as a smoke built for it would be: on
+   * Steps the smoke down to `tier`'s (the quality ladder's step), as a smoke built for it would be: on
    * the low tier it sheds every other layer from the front, taking those puffs out of the group and freeing their
    * materials; the others keep their places, so the haze thins where it was. A tier above the one it stands at
    * changes nothing: the ladder never climbs back within a page view.

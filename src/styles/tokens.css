@@ -10,7 +10,7 @@
   color-scheme: dark;
 
   /* void and atmosphere */
-  --night: #040209; /* the page's night (palette.night): the poster's ground and the page chrome; the 3D scene stands on palette.black (Ruling 29) */
+  --night: #040209; /* the page's night (palette.night): the poster's ground and the page chrome; the 3D scene stands on palette.black, the preview's */
   --night-glow: rgb(42 18 80 / 0.32); /* the nebula's deep violet (palette.nebula), faint, for the poster's glow */
   --void: #0a0510;
   --void-deep: #07020b;

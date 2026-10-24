@@ -133,7 +133,8 @@ export interface LabelView {
  * keyboard reaches a label only where it can be seen and clicked; at its stop it takes Tab again. It stands where
  * `labelPlacement` says, by a transform, with `[data-side]` for its alignment, measured again when its text or the
  * screen changes. A label that had the focus hands it to the next one shown, so stepping from bead to bead with the
- * keys keeps the keyboard on the label (a focused label keeps the focus while it is clear between stops).
+ * keys keeps the keyboard on the label (a focused label keeps the focus while it is clear between stops); with none
+ * shown after it (up to the overview, a bead opened, 3D off) the focus goes to <main>, never to <body>.
  */
 export function showBeadLabel(view: LabelView | null, size: LabelBox): void {
   const el = view ? (labels.get(view.id) ?? null) : null;
@@ -149,7 +150,9 @@ export function showBeadLabel(view: LabelView | null, size: LabelBox): void {
       el.setAttribute('data-shown', '');
       el.tabIndex = -1;
     }
-    if (focused) el?.focus({ preventScroll: true });
+    // A focused label hands the focus on: to the next label shown, else to <main> (src/app/Shell.tsx, tabIndex -1), so the
+    // keyboard is not left on <body> once the label it was on has gone out of the page. Neither scrolls.
+    if (focused) (el ?? document.getElementById('main'))?.focus({ preventScroll: true });
     Object.assign(shown, { el, rest: false, x: Number.NaN, y: Number.NaN, side: '', box: null });
   }
   if (el === null || view === null) return;

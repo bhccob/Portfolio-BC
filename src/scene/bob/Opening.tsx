@@ -184,7 +184,7 @@ interface Run {
   /** Which path plays: read once at mount. */
   path: LoaderPath;
   /**
-   * The loader is skipped (Ruling 9c): the clock stands at home (HOME_CLOCK). Set at mount when the home page has already
+   * The loader is skipped: the clock stands at home (HOME_CLOCK). Set at mount when the home page has already
    * left LOADING (`openingStartFor`), so the canvas shows only once the home is loaded, straight onto it; or mid-opening,
    * once the load is done, when the visitor comes back to the home page (`skipsLoader`), whose hero now shows.
    */
@@ -207,11 +207,11 @@ interface Run {
 export interface OpeningProps {
   /**
    * The quality tier the ladder is on (`tierFor` of the Stage's rung, which the QualityGovernor also writes into the
-   * store): the parts are built for it at mount and step down with it after (Ruling 25). Handed in by the Stage, so
+   * store): the parts are built for it at mount and step down with it after. Handed in by the Stage, so
    * the first build has it before the governor's effect has written it into the store.
    */
   tier: QualityTier;
-  /** The rung's glass-floor reflection (`Quality.reflector`): once false, the reflector goes for good (Ruling 25). */
+  /** The rung's glass-floor reflection (`Quality.reflector`): once false, the reflector goes for good. */
   reflector: boolean;
   /**
    * Its loader's objects are built and their programs compiled, but the canvas is not to show yet: said once, by an
@@ -234,7 +234,7 @@ export interface OpeningProps {
  * point lights at intensity 0 that hold the beads' place in the light count, so no program compiled from here on is
  * compiled again when the beads come in). It adds them, compiles their programs and calls `onReady`: the canvas
  * fades in over the poster and the loader begins. When the ladder steps down later, the parts step down in place
- * (Ruling 25: `setReflector` and, with it, the traces' `setUnder` (they lie under the glass only while it is transparent), `setTier` on the compass and the smoke), never up.
+ * (`setReflector` and, with it, the traces' `setUnder` (they lie under the glass only while it is transparent), `setTier` on the compass and the smoke), never up.
  *
  * **Load.** Meanwhile it fetches the compass's GLB (`loadCompassFile`: three's GLTFLoader, once a page view) and paints
  * the four bands' strips (`bandStrip`), one a frame: `paint`, 0.6 of the load. Once the file is in, it builds the
@@ -243,7 +243,7 @@ export interface OpeningProps {
  * `warm`, the other 0.4. A throw anywhere in it (no 2D canvas, a file that does not load or lacks a part) fails the
  * scene; only a failed warm-up is let through, at the cost of a stall. The compass stays hidden until the iris starts
  * to open (no transmission pass runs under the shut cap), and below the high tier the transmission pass runs at half
- * resolution (`transmissionResolutionScale`, Ruling 16).
+ * resolution (`transmissionResolutionScale`).
  *
  * **Clock.** Each frame drawn: `elapsed = advanceClock(elapsed, delta)`, `shown = readout(shown, loadShare(done))`,
  * `loadedAt` once it reaches 1, then `loaderAt({ elapsed, loadedAt, skipAt, path })`, and everything is posed from the
@@ -261,13 +261,13 @@ export interface OpeningProps {
  * shot, and `frame.journey` (`writeJourney`: its stretch, local and project) for the debug bridge. While the loader's
  * shots stand, `handover.pose` is null.
  *
- * The path is
- * `pathFor(loaderSeen(localStorage), reducedMotion)`, read once at mount (reduced beats quick, quick beats full).
+ * The loader's path (full, quick or reduced) is `pathFor(loaderSeen(localStorage), reducedMotion)`, read once at mount
+ * (reduced beats quick, quick beats full).
  * `motion.loader` keeps the Heartbeat drawing until `home`; `frame.loader` says where the opening stands.
  *
  * **Skip.** While the full show plays, any click, tap, wheel turn or key fast-forwards the rest of it to the home
- * (`useLoaderSkip`; `skipAtFor` keeps the first ask; Ruling 11: the quick and reduced paths are short already and do not
- * listen). It listens only while the page shows a scene (`listensForSkip`, Ruling 30): a page of text reached mid-show
+ * (`useLoaderSkip`; `skipAtFor` keeps the first ask; the quick and reduced paths are short already and do not
+ * listen). It listens only while the page shows a scene (`listensForSkip`): a page of text reached mid-show
  * draws no frame, so the show cannot land there, and its own scroll is left alone. The skip's own listener prevents the
  * input that would scroll the page until the home; on the frame a skipped loader reaches it, `frame.loaderSkipEndsMs`
  * is set to now, so the home's scroll input swallows the rest of the gesture for SKIP_SWALLOW_MS more. It is null from
@@ -283,13 +283,13 @@ export interface OpeningProps {
  * into the dive (a resize reframes it in place, in the same frame). On a project page it lands, then fades to that
  * bead's close view under the page's scrim (src/scene/bob/focus.ts; the host stays dark until the void is in).
  *
- * **A bead seen close** (Ruling 4). The shot is the journey's at the bead's stop moved toward `focusShotFor` (source
+ * **A bead seen close.** The shot is the journey's at the bead's stop moved toward `focusShotFor` (source
  * `flight`) while the close view is in it: a project page stands over it, and the label's flight in (`openBead`,
  * src/ui/BeadLabel.tsx, which the Void's click on the selected bead calls too, `onOpen`) and Back's flight out ease
  * between the two over `FLIGHT_MS`, on the document's clock (`frame.focus`), so a route change in the middle neither
  * restarts nor jumps it. A fade (`<html data-focus-fade>`, the step fade's 150 ms) stands in where no flight can be.
  *
- * **Skipped mount** (Ruling 9c). Mounted while the home page has already left LOADING (`openingStartFor`: 3D back on
+ * **Skipped mount.** Mounted while the home page has already left LOADING (`openingStartFor`: 3D back on
  * after a failure or a toggle, a visit that began on Lite), it plays no loader under the hero that now shows: it builds
  * everything as before and says `onStarted` where a normal opening says `onReady` (`openingReadiness`, so SceneHost's
  * load timeout covers the same work either way), but says `onReady` only once the home is loaded too, and its clock
@@ -334,7 +334,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
     latest.current = { tier, onStarted, onReady, onFail };
   });
 
-  // Ruling 30: only while a scene is shown, so a page of text reached mid-show scrolls (`listensForSkip`).
+  // Only while a scene is shown, so a page of text reached mid-show scrolls (`listensForSkip`).
   useLoaderSkip(listensForSkip(skippable, sceneShown), () => {
     const state = run.current;
     if (!state?.ready || state.failed || state.skip) return;
@@ -342,7 +342,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
     invalidate();
   });
 
-  // Below the high tier the band glass's transmission pass draws at half resolution (Ruling 16); the low tier's bands
+  // Below the high tier the band glass's transmission pass draws at half resolution; the low tier's bands
   // have none to draw. The quality ladder can step down while the scene is up, so this follows the Stage's `tier` prop.
   useEffect(() => {
     gl.transmissionResolutionScale = tier === 'high' ? 1 : 0.5;
@@ -352,7 +352,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
     };
   }, [gl, tier, invalidate]);
 
-  // The ladder steps down while the scene is up (Ruling 25): the parts built for a better tier give up what the new one
+  // The ladder steps down while the scene is up: the parts built for a better tier give up what the new one
   // lacks, in place, without the Opening mounting again (which would play the loader again). The smoke sheds its low
   // tier's layers and the band glass drops to the tier's (no transmission on low); the reflector goes with its rung.
   // Never back up: the ladder does not climb within a page view, and `lowerTier` holds the parts where they are if it did.
@@ -449,7 +449,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
     const show = (): void => {
       state.ready = true;
       motion.loader = !state.skip;
-      // Only the full show listens for a skip (Ruling 11).
+      // Only the full show listens for a skip: the quick and reduced paths are short already.
       if (state.path === 'full' && !state.skip) {
         state.listening = true;
         setSkippable(true);
@@ -691,8 +691,8 @@ function clamp01(x: number): number {
  * - The engraving's five strokes in `STROKE_ORDER`, its ticks, outer ring and glow; the traces; the iris and the
  *   tunnel's light, and the lip, shown from the iris's start (`setLip`); the smoke.
  * - The probe stands where `probeAt` puts it, and its shaft is drawn only while it is shown (`setShown`); its light is
- *   the probe group's own and never hidden, so it stays in the scene and goes dark by intensity (Ruling 15). Its
- *   sparks fly while it cuts and the cut is moving.
+ *   the probe group's own and never hidden, so it stays in the scene and goes dark by intensity, and the number of
+ *   lights never changes. Its sparks fly while it cuts and the cut is moving.
  * - The compass is hidden until the iris starts to open, then risen, revealed and turned as the pose says, the needle at
  *   `settleAngle` of its settle.
  */

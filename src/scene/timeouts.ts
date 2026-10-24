@@ -14,7 +14,7 @@ export const LOAD_TIMEOUT_MS = 12_000;
 const LANDING_MARGIN = 5;
 
 /**
- * The backstop behind the opening's own give-up (Ruling 9b), ms of a scene on a visible page (`whileShown`): from the
+ * The backstop behind the opening's own give-up, ms of a scene on a visible page (`whileShown`): from the
  * loader showing (SceneHost's onReady) until the phase leaves LOADING. An opening that works lands well inside it: its
  * load gives up after LOADER.giveUp visible seconds, and no show runs longer after a load than the full script
  * (SCRIPT.home, 6.25 s: a load that lands late holds the script at the circle and plays only the rest), and a margin
@@ -117,7 +117,7 @@ export interface LandingWatch extends SceneShown {
 }
 
 /**
- * The landing backstop (Ruling 9b), started when the loader shows (SceneHost's onReady): if the phase is still LOADING
+ * The landing backstop, started when the loader shows (SceneHost's onReady): if the phase is still LOADING
  * after LANDING_TIMEOUT_MS of a scene on a visible page (`whileShown`), it calls `fail`, once, and SceneHost fails the
  * scene as it fails any other (3D off for the visit, LOADED, the fallback card). It stands down for good the moment the
  * phase leaves LOADING, and starts nothing if it already has (a skipped opening, a direct arrival on a page). If its

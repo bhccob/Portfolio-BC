@@ -92,7 +92,7 @@ describe('keyTarget: an arrow, Page Up or Down, or Space, without reduced motion
   });
 });
 
-describe('settleTarget: where a wheel or touch gesture comes to rest (Ruling 32)', () => {
+describe('settleTarget: where a wheel or touch gesture comes to rest past the rise', () => {
   const slop = 0.04;
 
   it('goes on to the next stop in the direction of travel', () => {

@@ -144,8 +144,8 @@ export const HOME_POSE: Readonly<OpeningPose> = Object.freeze({
  *   eased: the world rising from black;
  * - the smoke thickens from nothing over the script's first 2.5 s, eased, on
  *   the full path; on the quick and reduced paths, whose script stands at its
- *   end, it comes up with the clock's fade, eased, like everything else there
- *   (Ruling 33), so their dark first frame has no smoke at full density;
+ *   end, it comes up with the clock's fade, eased, like everything else there,
+ *   so their dark first frame has no smoke at full density;
  * - the compass shows whole on the full path, where it is hidden by the glass
  *   until it rises, and fades in with the clock's fade on the other two.
  */

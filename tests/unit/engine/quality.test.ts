@@ -6,7 +6,7 @@ describe('tierFor', () => {
     expect([0, 1, 2, 3, 4].map((step) => tierFor(step, true))).toEqual(['high', 'high', 'medium', 'medium', 'low']);
   });
 
-  it('cuts the coarse-pointer ladder into medium (steps 0-1) and low (2): a phone never starts high (Ruling 31)', () => {
+  it('cuts the coarse-pointer ladder into medium (steps 0-1) and low (2): a phone never starts high', () => {
     expect([0, 1, 2].map((step) => tierFor(step, false))).toEqual(['medium', 'medium', 'low']);
   });
 
@@ -49,7 +49,7 @@ describe('qualityFor', () => {
     expect(qualityFor(2, false)).toEqual({ pixelRatio: 1, reflector: false, dust: 80 });
   });
 
-  it('starts a coarse pointer without the reflection (Ruling 31): its first rung reads as medium', () => {
+  it('starts a coarse pointer without the reflection: its first rung reads as medium', () => {
     expect(qualityFor(0, false).reflector).toBe(false);
     expect(tierFor(0, false)).toBe('medium');
   });

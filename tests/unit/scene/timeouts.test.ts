@@ -95,7 +95,7 @@ describe('visibleTimeout', () => {
   });
 });
 
-describe('the landing backstop (Ruling 9b)', () => {
+describe('the landing backstop', () => {
   it("waits for the loader's give-up, then the whole of the full show, then a margin", () => {
     expect(LANDING_TIMEOUT_MS).toBe(Math.round((LOADER.giveUp + SCRIPT.home + 5) * 1000));
     expect(LANDING_TIMEOUT_MS).toBe(36_250);

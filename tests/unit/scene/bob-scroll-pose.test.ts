@@ -173,7 +173,7 @@ describe("the scroll's pose", () => {
     expect(riseAt(Number.NEGATIVE_INFINITY)).toBe(0);
   });
 
-  it('snaps to its ends within 1e-6 (Ruling 8): a summed residue is the home, a hair short of the top is the top', () => {
+  it('snaps to its ends within 1e-6: a summed residue is the home, a hair short of the top is the top', () => {
     expect(riseAt(5.55e-17)).toBe(0);
     expect(riseAt(-5.55e-17)).toBe(0);
     expect(riseAt(9.99e-7)).toBe(0);

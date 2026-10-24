@@ -326,6 +326,68 @@ describe('showBeadLabel: a shown label takes Tab only at its stop (fix round 1, 
   });
 });
 
+describe('showBeadLabel: the focus of a label that hides (final review, Minor 9)', () => {
+  const size = { width: 1440, height: 900 };
+  const at = { x: 0, y: 0 };
+  const releases: (() => void)[] = [];
+  const doc = (globalThis as { document?: unknown }).document;
+  /** <main id="main" tabIndex={-1}>, as src/app/Shell.tsx renders it: the focus calls it is given. */
+  const main = { focused: [] as unknown[], focus(options?: unknown) {
+    this.focused.push(options);
+    page.activeElement = main;
+  } };
+  const page = { activeElement: null as unknown, getElementById: (id: string) => (id === 'main' ? main : null) };
+  /** A label that notes its own focus calls and takes the page's focus. */
+  const focusable = () => {
+    const el = fakeLabel() as ReturnType<typeof fakeLabel> & { focused: unknown[] };
+    el.focused = [];
+    el.focus = ((options?: unknown) => {
+      el.focused.push(options);
+      page.activeElement = el;
+    }) as typeof el.focus;
+    return el;
+  };
+  beforeEach(() => {
+    main.focused = [];
+    page.activeElement = null;
+    (globalThis as { document?: unknown }).document = page;
+  });
+  afterEach(() => {
+    showBeadLabel(null, size);
+    for (const release of releases.splice(0)) release();
+    (globalThis as { document?: unknown }).document = doc;
+  });
+
+  it('moves the focus to <main>, without scrolling, when a focused label hides and no label is shown after it', () => {
+    const el = focusable();
+    releases.push(registerBeadLabel('funcial', el as unknown as HTMLAnchorElement));
+    showBeadLabel({ id: 'funcial', ndc: at, radius: 240, rest: true }, size);
+    page.activeElement = el; // Tab has reached it
+    showBeadLabel(null, size); // ArrowUp toward the overview: the label goes
+    expect(main.focused).toEqual([{ preventScroll: true }]);
+    expect(page.activeElement).toBe(main);
+  });
+
+  it('hands it to the next label shown instead, and leaves <main> alone', () => {
+    const funcial = focusable();
+    const jontai = focusable();
+    releases.push(registerBeadLabel('funcial', funcial as unknown as HTMLAnchorElement), registerBeadLabel('jontai-energy', jontai as unknown as HTMLAnchorElement));
+    showBeadLabel({ id: 'funcial', ndc: at, radius: 240, rest: true }, size);
+    page.activeElement = funcial;
+    showBeadLabel({ id: 'jontai-energy', ndc: at, radius: 240, rest: false }, size);
+    expect(jontai.focused).toEqual([{ preventScroll: true }]);
+    expect(main.focused).toEqual([]);
+  });
+
+  it('moves nothing when the label that hides did not have the focus', () => {
+    const el = focusable();
+    releases.push(registerBeadLabel('cookies-clicker', el as unknown as HTMLAnchorElement));
+    showBeadLabel({ id: 'cookies-clicker', ndc: at, radius: 240, rest: true }, size);
+    showBeadLabel(null, size);
+    expect(main.focused).toEqual([]);
+  });
+});
+
 describe("openBead: a new opening is never cut short by the last one's timer (fix round 1, Minor 3)", () => {
   const doc = (globalThis as { document?: unknown }).document;
   const root = (() => {

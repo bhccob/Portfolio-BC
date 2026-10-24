@@ -66,20 +66,20 @@ export const palette = {
   /**
    * Night: the page's own dark (--night in tokens.css: the poster behind the
    * canvas, the page chrome). It was the 3D scene's background too, until
-   * Ruling 29 gave the scene the preview's black (below).
+   * the scene took the preview's black (below).
    */
   night: 0x040209,
   /**
    * Black: the Blender preview's world as its frames show it (about (0.6, 0.3, 0.7) of 255 on its floor and sky,
    * measured from p01-p05 and loader-to-home.mp4), a hair of violet in true black. The 3D scene's clear colour, its
-   * background and its fog (LOOK.background, LOOK.fog, src/scene/bob/look.ts; the two stay one colour, Ruling 26) and
-   * the glass floor take it (Ruling 29): with the night there, an indigo, the loader's frames came out 1.4 to 2.1
+   * background and its fog (LOOK.background, LOOK.fog, src/scene/bob/look.ts; the two stay one colour, so the far glass fades
+   * into the black it ends against) and the glass floor take it: with the night there, an indigo, the loader's frames came out 1.4 to 2.1
    * times as bright as the preview's and the floor read violet. The page around the scene keeps the night.
    */
   black: 0x010001,
   /**
    * Fog: v3's haze in the distance; nothing in the BOB scene draws it, as its
-   * fog is the scene's black (LOOK.fog, look.ts; Ruling 26).
+   * fog is the scene's black (LOOK.fog, look.ts).
    */
   fog: 0x0d0718,
   /** Lilac (--lilac in tokens.css, the site's quiet words): the compass's band glass and the reflection room's side card. */

@@ -43,7 +43,7 @@ export default function ProjectPage() {
   const i18n = useTranslator();
   const { t, locale } = i18n;
   // Left for the home page (Back, Escape, the header's name), the page and its scrim fade out over the camera's flight
-  // out of the bead instead of vanishing at once (Ruling 30).
+  // out of the bead instead of vanishing at once, a cut that would read abrupt while the camera flies.
   const article = useRef<HTMLElement>(null);
   usePageFadeOut(article);
   const project = projects.byRoute(routeFromPath(useLocation().pathname));

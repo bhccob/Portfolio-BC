@@ -4,7 +4,7 @@
  * since removed), prefiltered through PMREM into the scene's environment, at
  * half its radiance. Metal gold shows nothing but its reflections, so these
  * few cards are what makes it gold, and the dark between them keeps the glass
- * smoked. Ported unchanged from v3's room (Ruling 23), so v3's engine can go.
+ * smoked. Ported unchanged from v3's room, so v3's engine can go.
  * No React: the Studio (src/scene/Studio.tsx) builds it again when the context
  * comes back, as milestone 1's did (the prefiltered copy lives only on the
  * GPU).

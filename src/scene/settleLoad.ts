@@ -9,7 +9,7 @@ export interface LoadOutcome {
 
 /**
  * Runs a scene's load and settles it one way or the other, once: `ready` when it has finished, `fail` when it threw.
- * A throw is a failure, never a partial scene (Ruling 19); the soft failures a load means to survive (a canvas that
+ * A throw is a failure, never a partial scene; the soft failures a load means to survive (a canvas that
  * stays plain, a warm-up that only costs a stall) are the load's own to catch. Neither is called for a scene that is
  * already gone. It never rejects: an outcome that throws is logged.
  */

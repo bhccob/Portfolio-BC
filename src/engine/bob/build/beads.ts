@@ -36,9 +36,9 @@ const DEG = Math.PI / 180;
  * harness's luminance gate (LUMA_GATE: a void still is gated as a home still, mean <= 0.11, at most 0.4 % clipped) is
  * the judge of them, and the screen's level and the hover's brightening are the first to turn down.
  *
- * - `dim`: an unselected bead's light, as a share of its full light (`setLit(id, 0)`; Ruling 3: `setLit(id, t)` is
- *   `mix(dim, 1, t)`). "Its light" is all a bead's surfaces send: what they reflect of the room and the key, what the
- *   hollow's own warm light gives them, and their own glow (the veins, the gold, the screen, the objects' lights), each
+ * - `dim`: an unselected bead's light, as a share of its full light (`setLit(id, 0)`; `setLit(id, t)` is
+ *   `mix(dim, 1, t)`, a straight line between its two ends). "Its light" is all a bead's surfaces send: what they
+ *   reflect of the room and the key, what the hollow's own warm light gives them, and their own glow (the veins, the gold, the screen, the objects' lights), each
  *   scaled the same, so a dim bead is the same bead in less light. Its inner light is not dimmed besides: that would
  *   dim the hollow twice.
  * - `hover`: a hovered bead's light is its light times 1 + `brighten`, and it turns toward the camera, at most `turn`
@@ -114,14 +114,14 @@ export interface BeadsModel {
   /**
    * Poses bead `id`'s object at `time` seconds of its clock (NaN as 0), as beadMotion has it: Funcial's platter, pulse,
    * abacus and fifth bead's light; Jontai's module tilt and cells' charge; Cookies' wheels and balance. Time 0 is the
-   * rest pose. Funcial's abacus and its fifth bead's light read `slide` instead where it is given (Ruling 28: the Void
+   * rest pose. Funcial's abacus and its fifth bead's light read `slide` instead where it is given (the Void
    * counts it up while the bead is selected or hovered and back down after, so the beads slide back down rather than
    * snap); the other beads have no use for it. Uniforms, intensities and transforms only, so a frame of it compiles
    * nothing.
    */
   setMotion(id: ProjectId, time: number, slide?: number): void;
   /**
-   * Steps the glass down to `tier`'s (the quality ladder's step, Ruling 25), as beads built for it would have: from
+   * Steps the glass down to `tier`'s (the quality ladder's step), as beads built for it would have: from
    * high's cheap transmissive look to plain transparent glass, which compiles the three glasses once. A tier above the
    * one it stands at changes nothing: the ladder never climbs back within a page view.
    */
@@ -580,8 +580,9 @@ export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens:
       light(b);
     },
     setHover(id, amount = 1, at) {
-      aiming = at !== undefined;
-      if (at) {
+      // A point given (null and undefined alike are none): the bead turns toward it, else toward its stop's camera.
+      aiming = at != null;
+      if (at != null) {
         // The point in the group's frame, where the beads' places are.
         group.updateWorldMatrix(true, false);
         group.worldToLocal(towards.set(at.x, at.y, at.z));

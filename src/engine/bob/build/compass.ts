@@ -31,7 +31,7 @@ import type { NeedleOverride } from '~/scene/bob/journey';
  *   band's own `thickness`, with a thin-film sheen (`iridescence`) and a faint
  *   violet light of its own (the haze, `emissive` at `emissiveIntensity`) so a
  *   band still reads where the room gives it nothing to transmit. The low tier
- *   has no transmission, so no transmission pass runs (Ruling 16): its glass is
+ *   has no transmission, so no transmission pass runs: its glass is
  *   plain see-through glass of the same tint at `opacity`. Task 12: the
  *   preview's glass is a pale lavender (base (0.52, 0.4, 0.86), lilac is the
  *   nearest token) glowing a blue violet (0.42, 0.26, 0.9), and reads as smoked
@@ -53,7 +53,7 @@ import type { NeedleOverride } from '~/scene/bob/journey';
  * - `spin`: band `k` (0 for band_1 up to 3 for band_4) turns at `base` +
  *   `step` * k degrees a second about its own axis, band_1 one way and each
  *   next band the other, as the preview's rings do (tools/blender/bob_animate.py
- *   turns them (0.25 + 0.1k) degrees a frame, four times this pace; Ruling 17).
+ *   turns them (0.25 + 0.1k) degrees a frame, four times this pace).
  * - `iris`: the scroll's opening (`setIris`), the preview's (tools/blender/bob_scroll.py): band `k` lies flat, turned
  *   `k` × `turn` radians about the up, and widens in its own plane until the middle of its wall is `radii[k]` from the
  *   axis (the preview's IRIS_R), and the armillary sinks to `flatY` above the glass (its ARM_FLAT_Z).
@@ -174,9 +174,9 @@ export interface CompassModel {
    */
   setReveal(level: number): void;
   /**
-   * Steps the bands' glass down to `tier`'s (the quality ladder's step, Ruling 25), as a compass built for it would
+   * Steps the bands' glass down to `tier`'s (the quality ladder's step), as a compass built for it would
    * have: its transmission, its opacity (at the reveal it shows) and whether it writes depth. Dropping to the low tier
-   * turns transmission off, so the bands compile once more and three runs no transmission pass after it (Ruling 16);
+   * turns transmission off, so the bands compile once more and three runs no transmission pass after it;
    * medium only lowers the transmission. A tier above the one it stands at changes nothing: the ladder never climbs
    * back within a page view.
    */
@@ -511,7 +511,7 @@ export function loadCompass(
    * the side holds a turn on; it changes only at straight down, where the tip
    * already is and only the needle's roll differs. While the needle dips the
    * angle is taken on the turn nearest the one the dip last took, so an angle
-   * that moves across straight down (a spring settling there, Ruling 9) goes on
+   * that moves across straight down (a spring settling there) goes on
    * round instead of flipping the roll halfway down; out of the dip it starts
    * from [-pi, pi] again.
    *

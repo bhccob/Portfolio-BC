@@ -144,7 +144,7 @@ export interface VoidModel {
   /** Drifts the mist and the dust to where they are at `t` seconds (NaN reads as 0); the same time is the same picture. */
   setTime(t: number): void;
   /**
-   * Steps the void down to `tier`'s (the quality ladder's step, Ruling 25), as a void built for it would be: the mist
+   * Steps the void down to `tier`'s (the quality ladder's step), as a void built for it would be: the mist
    * sheds the layers the tier lacks, freeing their materials (and the texture, with the last), and the dust draws
    * fewer of its points. A tier above the one it stands at changes nothing: the ladder never climbs back.
    */

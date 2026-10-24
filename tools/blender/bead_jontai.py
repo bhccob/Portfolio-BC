@@ -144,14 +144,13 @@ DISPLAY = dict(foot=(0.2446, -0.04), turn=-8.0, width=0.43)
 # farther from it, is lit softly.
 INNER = (0.25, 0.22, 0.50)
 
-# colours, linear
-
 
 def srgb(hex_rgb):
     return tuple(((c / 255 + 0.055) / 1.055) ** 2.4 if c / 255 > 0.04045 else c / 255 / 12.92
                  for c in bytes.fromhex(hex_rgb))
 
 
+# colours, linear
 GLOW = srgb("00d16a")            # the Jontai site's --accent-green, its glow (docs/projects-discovery.md, its palette)
 CELL_GLOW = 0.012                # the cells' resting charge, times GLOW: code's charge brightens each
 CELL_BLUE = (0.006, 0.010, 0.032)

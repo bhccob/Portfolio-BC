@@ -31,7 +31,7 @@ import { GLASS_RENDER_ORDER } from '~/engine/bob/build/glassFloor';
  * retune them together.
  *
  * Where the floor is opaque the traces lie `lift` above it and are drawn after
- * it, as in M1 (Ruling 11); `levelOver` is their level there, tuned to the same
+ * it, as in M1; `levelOver` is their level there, tuned to the same
  * brightness as they are seen through the glass on the high tier. Measured in the
  * 1440x900 home still, medium tier against high with the same mask: the mean luma at
  * the traces' own pixels 0.081 against 0.075 (+8 %), the brightness summed over the

@@ -24,7 +24,7 @@ export const SHOT_PRIORITY = -1;
  * - `loader`: the Opening's own shots while the loader plays (`cameraShotAt` at the live clock);
  * - `held`: the same shots at the moment the proof bridge's seek holds the clock (`frame.loaderHold`), at the home too:
  *   the held home is the home shot, whatever the scroll;
- * - `flight`: a bead's close view is in the shot (./focus.ts, Ruling 4): a project page stands over it, or the camera
+ * - `flight`: a bead's close view is in the shot (./focus.ts): a project page stands over it, or the camera
  *   flies into the porthole or back out, or a fade has jumped to it: the journey at that bead's stop, moved toward its
  *   close view (`shotToward(..., focusShotFor(id, aspect), amount)`);
  * - `home`: the clock is at the home but Home has not taken the scene over yet, the one frame in which the Opening

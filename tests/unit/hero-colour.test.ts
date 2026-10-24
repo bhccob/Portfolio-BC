@@ -34,7 +34,7 @@ function contrast(hex: string, alpha = 1): number {
   return (a + 0.05) / (b + 0.05);
 }
 
-describe("the hero's colours (Ruling 11, prototype ui-02)", () => {
+describe("the hero's colours (prototype ui-02)", () => {
   it('give the tokens the palette\'s cream and gold, as the scene has them', () => {
     expect(token('cream')).toBe(paletteCss.cream);
     expect(token('gold')).toBe(paletteCss.gold);

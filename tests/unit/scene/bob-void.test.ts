@@ -191,7 +191,7 @@ function held(voidState: VoidState, options: { reduced?: boolean; at?: number } 
   return { story, state, home, key, wheel, drain, become, switch3D, frames, el, chapters };
 }
 
-describe("3D off and on keeps the visitor's place (Ruling 34)", () => {
+describe("3D off and on keeps the visitor's place", () => {
   it("leaves the target on the bead's stop when 3D goes off: the void's idle does not pull it to the hold", () => {
     const s = held('ready', { at: 4 });
     s.switch3D(false);
@@ -430,7 +430,7 @@ describe('the scroll input holds at the dive while the void loads', () => {
     expect(s.story.target).toBe(5);
   });
 
-  describe("Back, the page's Escape and the name link from a project page, through the hold (Ruling 29)", () => {
+  describe("Back, the page's Escape and the name link from a project page, through the hold", () => {
     /** The route sync's place for the story on leaving Jontai Energy's page for the home page `how`. */
     const leave = (how: 'back' | 'escape' | 'name'): number => {
       resetRouteSync();
@@ -604,7 +604,7 @@ describe("the beads' motion clocks", () => {
     expect(clocks.time[0]).toBe(3.25);
   });
 
-  it("slides Funcial's abacus on a clock of its own (Ruling 28): up while it is selected or hovered, back down to 0 while not, never past its slide", () => {
+  it("slides Funcial's abacus on a clock of its own: up while it is selected or hovered, back down to 0 while not, never past its slide", () => {
     expect(ABACUS_SPAN).toBe(BEAD_MOTION.funcial.abacus.span);
     const clocks = beadClocks();
     expect(clocks.abacus).toBe(0);
@@ -911,7 +911,7 @@ describe("the home scroll as the page wires it to the store (connectHomeScroll, 
     }
   });
 
-  it("keeps the visitor's place across the store's 3D switch, off and back on at a bead's stop (Ruling 34)", async () => {
+  it("keeps the visitor's place across the store's 3D switch, off and back on at a bead's stop", async () => {
     const s = wired('ready', 4);
     try {
       useScene.setState({ threeD: false });

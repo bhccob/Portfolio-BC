@@ -344,7 +344,7 @@ describe('the scroll loop: the input that skipped the loader', () => {
     expect(s.frames.size).toBe(1);
   });
 
-  it("drops a trackpad's decaying 2.5 s momentum tail after a skip whole, then takes a fresh scroll after 200 ms of quiet (Ruling 24)", async () => {
+  it("drops a trackpad's decaying 2.5 s momentum tail after a skip whole, then takes a fresh scroll after 200 ms of quiet", async () => {
     const clock = { now: 0 };
     const landed = 1000;
     const s = setup({
@@ -428,7 +428,7 @@ describe('the scroll loop: damp does not load', () => {
   });
 });
 
-// ---------------------------------------------------------------- Ruling 32: every input past the rise rests on a stop
+// ---------------------------------------------------------------- the settle: every input past the rise rests on a stop
 
 /** Puts the story at rest at `at`, as an earlier input would have left it. */
 function restAt(s: ReturnType<typeof setup>, at: number): void {
@@ -470,7 +470,7 @@ function trail(s: ReturnType<typeof setup>): number[] {
   return seen;
 }
 
-describe('the settle (Ruling 32): a wheel past the rise comes to rest on a stop', () => {
+describe('the settle: a wheel past the rise comes to rest on a stop', () => {
   it('moves one notch by its distance, then, once the wheel is quiet, on to the next stop, damped and exactly on it', async () => {
     const s = setup();
     restAt(s, 3);
@@ -571,7 +571,7 @@ describe('the settle (Ruling 32): a wheel past the rise comes to rest on a stop'
   });
 });
 
-describe('the settle (Ruling 32): a finger past the rise comes to rest on a stop', () => {
+describe('the settle: a finger past the rise comes to rest on a stop', () => {
   it('moves a swipe whose finger stopped before it lifted on to the next stop: swipes go stop by stop', async () => {
     const s = setup();
     restAt(s, 3);
@@ -606,7 +606,7 @@ describe('the settle (Ruling 32): a finger past the rise comes to rest on a stop
   });
 });
 
-describe('the settle (Ruling 32): the keys step by stops past the rise', () => {
+describe('the settle: the keys step by stops past the rise', () => {
   it('steps an arrow, Page Down and Space to the next stop, and an arrow up to the one before', async () => {
     const s = setup();
     restAt(s, 2);
@@ -665,7 +665,7 @@ describe('the settle (Ruling 32): the keys step by stops past the rise', () => {
   });
 });
 
-describe('the settle (Ruling 32): reduced motion keeps its steps', () => {
+describe('the settle: reduced motion keeps its steps', () => {
   it('steps one stop for a wheel gesture, a swipe and a key, and settles nothing after', async () => {
     const s = setup({ reduced: true });
     restAt(s, 2);

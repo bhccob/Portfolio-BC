@@ -60,7 +60,7 @@ describe('goBack', () => {
     expect(calls).toEqual(['/']);
   });
 
-  it("says it is the page's own Back when it pushes the home page, so the story lands at the bead's stop (Ruling 29)", () => {
+  it("says it is the page's own Back when it pushes the home page, so the story lands at the bead's stop", () => {
     const options: unknown[] = [];
     const recording = ((to: unknown, opts?: unknown) => void options.push([to, opts])) as NavigateFunction;
     syncRoute({ pathname: '/projects/cookies-clicker/', key: 'default' });

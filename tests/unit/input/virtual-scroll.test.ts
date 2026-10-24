@@ -565,7 +565,7 @@ describe('VirtualScroll: where each delta comes from', () => {
   });
 });
 
-describe('VirtualScroll: the end of a gesture (Ruling 32), when the scroll settles on a stop', () => {
+describe('VirtualScroll: the end of a gesture, when the scroll settles on a stop', () => {
   it('ends a wheel gesture after GESTURE_GAP_MS of quiet, counted by the frames that step it, once', () => {
     const s = setup();
     expect(GESTURE_GAP_MS).toBe(250);

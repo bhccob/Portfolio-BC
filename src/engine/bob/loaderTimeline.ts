@@ -15,7 +15,7 @@
  *   just short of it, the laser creeping on, and the script goes on from there
  *   once the load lands;
  * - any input skips: the rest of the script runs in `LOADER.skip` seconds, or
- *   at its own pace when less than that is left (Ruling 32), so a skip never
+ *   at its own pace when less than that is left, so a skip never
  *   ends later than the show would have.
  *
  * The quick path (the loader was seen before) and the reduced-motion path play
@@ -219,7 +219,7 @@ interface Playback {
  *
  * A skip pressed after the load is known (`skipAt >= loadedAt`) runs the rest
  * of the script, from wherever it stood, in `LOADER.skip` seconds, or in what
- * is left of it if that is less (Ruling 32): the script plays at its own pace
+ * is left of it if that is less: the script plays at its own pace
  * from there, so a skip in its last second still lands when the show would
  * have, never later. A skip
  * pressed before that fast-forwards, at that same rate, to `H`; waits there,
@@ -250,14 +250,14 @@ function playUncapped(elapsed: number, loadedAt: number | null, skipAt: number |
   if (L !== null && skipAt >= L) {
     // A skip pressed after the home starts from the home, not past it (past it, the compression would run the script back).
     const from = Math.min(plain(skipAt), home);
-    // Ruling 32: the rest in LOADER.skip, or in what is left of it at its own pace (the load is in, so the script runs
+    // The rest in LOADER.skip, or in what is left of it at its own pace (the load is in, so the script runs
     // at 1 s a second from here), whichever is sooner. Nothing left (a skip at or after the home) is the home at once.
     const lasts = Math.min(LOADER.skip, home - from);
     const u = lasts > 0 ? (elapsed - skipAt) / lasts : 1;
     return { script: u >= 1 ? home : from + (home - from) * u, circleFloor: stalls ? crept(elapsed, H, L) : 0 };
   }
 
-  // The skip came before the load was known. Ruling 32 changes nothing here: the rest from H (home - H, 3.3 s) is
+  // The skip came before the load was known. Its own pace changes nothing here: the rest from H (home - H, 3.3 s) is
   // always longer than LOADER.skip, so the skip's second is the sooner end.
   const from = Math.min(skipAt, H);
   const holdAt = skipAt < H ? skipAt + ((H - from) * LOADER.skip) / (home - from) : H;

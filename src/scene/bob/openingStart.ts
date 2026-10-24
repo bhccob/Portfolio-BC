@@ -1,5 +1,5 @@
 /**
- * The BOB opening's wiring as plain rules (Ruling 3): how an opening begins
+ * The BOB opening's wiring as plain rules: how an opening begins
  * (straight at the home, or playing the loader on which path), which skip
  * counts, what clock a held moment of the proof bridge stands at, and what an
  * opening tells SceneHost as its build goes on. Pure, and apart from types it
@@ -10,8 +10,8 @@ import { LOADER, type LoaderClock, type LoaderInput, type LoaderPath, loaderAt, 
 import type { Phase } from '~/state/machine';
 
 /**
- * Whether an opening goes straight to the home and plays no loader (Ruling
- * 9c): the phase has already left LOADING for one of the home page's own
+ * Whether an opening goes straight to the home and plays no loader: the
+ * phase has already left LOADING for one of the home page's own
  * phases (HOME_IDLE, a scroll chapter). Its hero then shows (`data-loading`
  * is off), so a loader played now would run under it: 3D switched back on
  * after a failure or a toggle, a visit that began on Lite, or a visitor back
@@ -52,7 +52,7 @@ export function marksSeen(path: LoaderPath): boolean {
 }
 
 /**
- * Whether the opening listens for a skip now (Ruling 30): only while the full show is `skippable` and the page shows
+ * Whether the opening listens for a skip now: only while the full show is `skippable` and the page shows
  * a scene (`sceneShown`: the store's `scene` is not null). The skip's listener sits on `window` and prevents every
  * wheel turn, scrolling key and one-finger drag it hears, so it must not outlive the scene: a visitor who leaves for a
  * page of text mid-show (Lite, contact) gets a page that draws no frame, so the loader never lands there, and that

@@ -13,7 +13,7 @@ export function homeTarget(translator: Translator): string {
 /**
  * Back, for a click and for Escape: one step back through the history when the visitor came here from
  * another page of the site, and to the home page when this page is where the visit began, saying it is the page's own
- * Back (`BACK_STATE`), so the route sync lands the story at the page's bead, as a history step back does (Ruling 29).
+ * Back (`BACK_STATE`), so the route sync lands the story at the page's bead, as a history step back does.
  */
 export function goBack(navigate: NavigateFunction, home: string): void {
   if (backTarget(arrivedDirectly()) === 'history') void navigate(-1);

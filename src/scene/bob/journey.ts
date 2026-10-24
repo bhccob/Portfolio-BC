@@ -16,7 +16,8 @@
  *   unit holds Cookies, so 6 is Cookies at rest too. The scroll ends at 5, that unit's start (~/state/chapters
  *   `scrollEnd`), so its stretch is never reached; it stays so that every chapter is a stretch, and holds.
  * Within each stretch every part eases on a smoothstep, so it leaves a stop and arrives at the next with no speed, and
- * at a stop it is exactly that stop's pose. Within 1e-6 of a stop the progress is the stop (Ruling 8, as `riseAt`).
+ * at a stop it is exactly that stop's pose. Within 1e-6 of a stop the progress is the stop, as `riseAt` has it, so a
+ * sum's float residue never leaves it a hair off.
  *
  * The numbers are the Blender preview's (tools/blender/bob_scroll.py, frames 362-480: `cam_pose`, the needle's keys,
  * `PROJECTS`, `OVER_LOC`, `OVER_TGT`, `FINAL_CAM`) and spec §7's, in three's frame: Blender (x, y, z) is three
@@ -223,8 +224,8 @@ const DIVE_UNIT = HOME_CHAPTERS.units.find((unit) => unit.id === 'DIVE')!;
 const D01_FRAME = 400;
 
 /**
- * The progress at which the dive's camera stands at d01's pose (Ruling 27): where the scroll holds while the void loads
- * (Task 11's `diveHoldFor`). It is the preview's frame `D01_FRAME` in the dive's own unit (`diveShare`, frames
+ * The progress at which the dive's camera stands at d01's pose, Bob's approved frame of the glowing tunnel: where the
+ * scroll holds while the void loads (Task 11's `diveHoldFor`). It is the preview's frame `D01_FRAME` in the dive's own unit (`diveShare`, frames
  * 362-442), 1.475, at which the descent's eased share is the preview's own (`CAMERA_PATH.descent` keeps the preview's
  * frames and its `ease_io` is the same smoothstep), so a laptop's camera is `cam_pose(400)` itself. It is over the
  * opening, above the glass on every screen (a phone's, whose top shot stands higher, is 1.3 above a laptop's
@@ -580,7 +581,7 @@ const FIRST_PROJECT = HOME_CHAPTERS.units.findIndex((unit) => unit.id === 'PROJE
 /** The last project, whose stretch holds its bead. */
 const LAST_PROJECT = HOME_CHAPTERS.units.length - 1 - FIRST_PROJECT;
 
-/** Within this much of a stop, the progress is on it (Ruling 8, as `riseAt`). */
+/** Within this much of a stop, the progress is on it, as `riseAt` has it: a sum's float residue is the stop. */
 const SNAP = 1e-6;
 
 const STOPS = stops(HOME_CHAPTERS);
@@ -593,7 +594,7 @@ function settled(progress: number): number {
 }
 
 /**
- * A bead seen close (Ruling 4), the project page's view of it: the camera `standOff` in front of the porthole, along
+ * A bead seen close, the project page's view of it: the camera `standOff` in front of the porthole, along
  * the bead's facing, with the `lens` of the beads' stops (40 mm).
  */
 export const FOCUS_VIEW = { standOff: 1.6, lens: CAMERA_PATH.bead.lens } as const;
@@ -602,7 +603,7 @@ export const FOCUS_VIEW = { standOff: 1.6, lens: CAMERA_PATH.bead.lens } as cons
 const FACING: Vec3 = [0, 0, 1];
 
 /**
- * The close view of bead `id` on a screen of this aspect (Ruling 4): beside the journey, not a stretch of it, it is the
+ * The close view of bead `id` on a screen of this aspect: beside the journey, not a stretch of it, it is the
  * view a project page stands over and the end of the flight into the porthole (./focus.ts). The bead is where it stands
  * at its stop, come forward (its centre plus `CAMERA_PATH.bead.forward`, as `journeyPoseAt` poses it there), and the
  * camera stands `FOCUS_VIEW.standOff` (1.6) in front of its porthole, the front of its shell, on the porthole's axis,

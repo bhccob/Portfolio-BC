@@ -23,7 +23,7 @@ describe('risingFor: the scroll cue leaves while the camera is up the rise', () 
   });
 
   it("agrees with the pose's own rise: the wheel's float residue at the home is snapped to 0, so the cue comes back", () => {
-    // Three notches down and three back leave 5.55e-17 of progress, which riseAt snaps to exactly 0 (Ruling 8).
+    // Three notches down and three back leave 5.55e-17 of progress, which riseAt snaps to exactly 0.
     expect(risingFor(riseAt(5.55e-17))).toBe(false);
     expect(risingFor(riseAt(Number.NaN))).toBe(false);
     expect(risingFor(riseAt(0.001))).toBe(false);

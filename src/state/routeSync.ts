@@ -54,7 +54,7 @@ export function backTarget(arrivedDirect: boolean): 'history' | 'home' {
 
 /**
  * The navigation state the page's own Back (its Escape, its "Esc · terug" link, ~/ui/BackLink) pushes the home page
- * with, when the page was where the visit began: so the route sync knows it from a link home (Ruling 29).
+ * with, when the page was where the visit began: so the route sync knows it from a link home, which lands at the top.
  */
 export const BACK_STATE: Readonly<{ back: true }> = Object.freeze({ back: true });
 
@@ -122,7 +122,7 @@ function placeStory(place: number): void {
  *   "Esc · terug" link, which push the home page with `BACK_STATE` when the visit began on the page), puts the story at
  *   that project's stop (`stopForProject`, spec §2.4: "Esc or back flies out again to the same bead in the void, at its
  *   stop of the scroll"), wherever the scroll was before the page and however the visit began; by any other way (the
- *   header's name, any link to the home) it puts the story at the home, 0, a deliberate "to the top" (Ruling 29); the
+ *   header's name, any link to the home) it puts the story at the home, 0, a deliberate "to the top"; the
  *   phase follows it;
  * - any other location leaves a page phase for the phase the scroll is in. A scene that is not on a page
  *   (loading, or already on the scroll) is left alone: the scroll and the scene's own events own those.

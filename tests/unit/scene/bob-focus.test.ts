@@ -47,7 +47,7 @@ function project(shot: CameraShot, aspect: number, point: Vec3): THREE.Vector3 {
 
 // ---------------------------------------------------------------- the close view
 
-describe('focusShotFor: a bead seen close (Ruling 4)', () => {
+describe('focusShotFor: a bead seen close', () => {
   it('stands the camera 1.6 in front of the porthole, along the bead\'s facing (+z), looking into it, with the 40 mm field', () => {
     expect(FOCUS_VIEW.standOff).toBe(1.6);
     expect(FOCUS_VIEW.lens).toBe(40);

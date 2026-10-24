@@ -145,7 +145,7 @@ describe('needleAngleAt', () => {
     expect(needleAngleAt(-3.1, 3.1, Number.NaN)).toBe(-3.1);
   });
 
-  it("up the rise is the spring's angle unwrapped about the held target (Ruling 9)", () => {
+  it("up the rise is the spring's angle unwrapped about the held target", () => {
     for (const u of [1e-9, 0.3, 1]) {
       // Either side of the target, on the same side of the seam, it is the spring's angle as it is.
       expect(needleAngleAt(0.5, 0.7, u)).toBeCloseTo(0.5, 12);

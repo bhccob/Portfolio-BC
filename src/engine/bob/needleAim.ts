@@ -87,7 +87,7 @@ export function aimsAt(phase: Phase['kind'], scene: SceneKind | null, u: number)
 
 /**
  * The angle the home hands `CompassModel.setNeedle` for its spring's `value` (wrapped, as `AngleSpring` keeps it) and
- * the `target` the spring is pulled toward, at the scroll's rise `u` (Ruling 9). At the home itself it is the spring's
+ * the `target` the spring is pulled toward, at the scroll's rise `u`. At the home itself it is the spring's
  * own angle. Up the rise the target is held, and the spring may still be settling onto it; it is handed the spring's
  * angle unwrapped about the target, `target + wrapAngle(value - target)`, so a needle that swings across straight down
  * (+-pi) goes on round instead of jumping a whole turn, and the dip, which takes its side from the angle, does not flip

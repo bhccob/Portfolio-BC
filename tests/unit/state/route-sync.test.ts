@@ -138,7 +138,7 @@ describe('syncRoute', () => {
     expect(frame.target).toBe(3);
   });
 
-  it('lets the scroll start at the home when a page is left for the home page by a link (Ruling 29)', () => {
+  it('lets the scroll start at the home when a page is left for the home page by a link', () => {
     syncRoute({ pathname: '/projects/funcial/', key: 'a' });
     syncRoute({ pathname: '/', key: 'b' });
     expect(useScene.getState().phase).toEqual({ kind: 'HOME_IDLE' });
@@ -240,7 +240,7 @@ describe('syncRoute: Back from a project page', () => {
     expect([frame.target, frame.progress]).toEqual([3, 3]);
   });
 
-  it("lands the header's name link, and any other link home, at the home: stop 0, wherever the story was (Ruling 29)", () => {
+  it("lands the header's name link, and any other link home, at the home: stop 0, wherever the story was", () => {
     // A bead opened from its stop: the story is at Jontai Energy's 4 while its page is up.
     syncRoute({ pathname: '/', key: 'default' }, NavigationType.Pop);
     useScene.getState().dispatch({ type: 'LOADED' });

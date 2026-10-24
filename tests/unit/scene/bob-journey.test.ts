@@ -362,7 +362,7 @@ describe("the journey's camera", () => {
   });
 });
 
-describe('the tunnel hold (Ruling 27: the pose of d01)', () => {
+describe('the tunnel hold (the pose of d01)', () => {
   /**
    * The preview's camera at frame `f` of the dive (tools/blender/bob_scroll.py `cam_pose`, frames 372-420): straight
    * down from 12.6 above the glass to 2.6 under it on `ease_io` (3t^2 - 2t^3), the lens from 50 to 32 mm.

@@ -31,7 +31,8 @@ export function closeMenuOnLink(event: MouseEvent<HTMLElement>): void {
  * 2026-10-22). The popover is the browser's own, so it opens and closes without script, Escape and a tap outside
  * close it, and the button tells assistive technology whether it is open.
  *
- * Work and About both open Lite, at its work and about sections, until the projects void is built (milestone 2).
+ * Work and About both open Lite, at its work and about sections. Work opens Lite for now; where it goes now that the
+ * home's void holds the projects is Bob's choice.
  */
 export function SiteHeader(): JSX.Element {
   const i18n = useTranslator();

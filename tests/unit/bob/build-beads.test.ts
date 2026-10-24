@@ -496,6 +496,17 @@ describe('the hover', () => {
     model.dispose();
   });
 
+  it('takes a null point as no point at all, as it takes none given: toward the bead shot\'s camera', () => {
+    const { model } = build();
+    model.setHover('cookies-clicker');
+    const byDefault = facing(model, 'cookies-clicker').clone();
+    const near = centre('cookies-clicker').add(new THREE.Vector3(Math.sin(3 * DEG) * 6, 0, Math.cos(3 * DEG) * 6));
+    model.setHover('cookies-clicker', 1, near);
+    model.setHover('cookies-clicker', 1, null as unknown as undefined);
+    expect(angleBetween(facing(model, 'cookies-clicker'), byDefault)).toBeLessThan(1e-9);
+    model.dispose();
+  });
+
   it('eases with the amount it is given, and lets go of every bead on null', () => {
     const { model } = build();
     const camera = centre('jontai-energy').add(new THREE.Vector3(-5, 0, 2));
@@ -562,7 +573,7 @@ describe("the objects' motion", () => {
     model.dispose();
   });
 
-  it("slides Funcial's abacus, and lights its fifth bead, by a clock of its own where one is given (Ruling 28), the platter and the pulse by the time", () => {
+  it("slides Funcial's abacus, and lights its fifth bead, by a clock of its own where one is given, the platter and the pulse by the time", () => {
     const { gltf, model } = build();
     const time = 7.3;
     const slide = 0.9;

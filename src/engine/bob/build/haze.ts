@@ -80,7 +80,7 @@ export interface HazeModel {
   /** Drifts the puffs to where they are at `time` seconds (NaN reads as 0); the same time is the same picture. */
   setTime(time: number): void;
   /**
-   * Steps the haze down to `tier`'s (the quality ladder's step, Ruling 25), as a haze built for it would be: the layers
+   * Steps the haze down to `tier`'s (the quality ladder's step), as a haze built for it would be: the layers
    * the tier does not keep are taken out of the group, their materials freed (and the texture, with the last puff);
    * the others keep their places. A tier above the one it stands at changes nothing: the ladder never climbs back
    * within a page view. Answers the tier it now stands at.

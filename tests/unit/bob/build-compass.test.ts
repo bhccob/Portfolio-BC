@@ -687,7 +687,7 @@ describe('the compass', () => {
     c.dispose();
   });
 
-  it('steps its glass down to a lower tier as a compass built for it would have it (Ruling 25)', () => {
+  it('steps its glass down to a lower tier as a compass built for it would have it', () => {
     const glassOf = (c: CompassModel) => [1, 2, 3, 4].map((k) => bandMaterial(c, k));
     const looks = (c: CompassModel) => glassOf(c).map((g) => ({ transmission: g.transmission, opacity: g.opacity, depthWrite: g.depthWrite, transparent: g.transparent }));
     for (const [from, to] of [['high', 'medium'], ['high', 'low'], ['medium', 'low']] as const) {
@@ -942,7 +942,7 @@ describe('the probe', () => {
   const sparkColours = (probe: ProbeModel) => Array.from(named<THREE.Points>(probe, 'probe:sparks').geometry.getAttribute('color').array as Float32Array);
   const worldPosition = (o: THREE.Object3D) => o.getWorldPosition(new THREE.Vector3());
 
-  it('lights the probe only while it cuts, by intensity: the light never leaves the scene (Ruling 15)', () => {
+  it('lights the probe only while it cuts, by intensity: the light never leaves the scene, so the number of lights never changes', () => {
     const p = buildProbe();
     const light = named<THREE.PointLight>(p, 'probe:light');
     p.setOn(false);
@@ -1274,7 +1274,7 @@ describe('the smoke', () => {
     other.dispose();
   });
 
-  it("sheds the low tier's layers when it steps down to it (Ruling 25): the same smoke as one built low, the rest freed", () => {
+  it("sheds the low tier's layers when it steps down to it: the same smoke as one built low, the rest freed", () => {
     for (const from of ['high', 'medium'] as const) {
       const s = buildSmoke(from);
       const shed = sprites(s).filter((o) => (o.userData.layer as number) % 2 === 1);
@@ -1391,7 +1391,7 @@ describe("the builders' colours", () => {
   });
 });
 
-describe('the needle through a scroll off the home, as Home drives it (Ruling 9)', () => {
+describe('the needle through a scroll off the home, as Home drives it', () => {
   /**
    * The hover-the-cue flow: the needle settled at 2.2, the pointer moves to the SCROLL cue straight below the pivot
    * (pi - 0.01), and 0.3 s later the wheel turns, a 120 px notch on a 900 px window every 0.3 s until the story is past

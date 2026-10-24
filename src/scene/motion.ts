@@ -18,8 +18,9 @@ export const motion = {
   loader: false,
   /**
    * Something in the void moves on screen (src/scene/bob/Void.tsx): a bead's object whose clock runs (it is selected or
-   * hovered) and that the camera sees, or a hover still easing in or out. False with reduced motion, on a page without
-   * the home's scene, and while the void is not shown.
+   * hovered) and that the camera sees, a hover still easing in or out, or Funcial's abacus sliding back down once its
+   * bead is let go, about 2 s, which can run on over a project page standing over the void. False with reduced motion,
+   * on a page with no scene, and while the void is not shown.
    */
   beads: false,
   /**

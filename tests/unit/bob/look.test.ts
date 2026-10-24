@@ -6,7 +6,7 @@ import { BREATHE, breathAt, fogFor, IDLE_SECONDS, LOOK, NEEDLE_BREATH, needleGlo
 
 describe('the BOB look', () => {
   it('stands on the night, its fog from 14 to 50 (5 clear of what the camera looks at), its bloom from 0.7', () => {
-    // Ruling 29: the preview's world is black; with the night (an indigo) the loader read 1.4-2.1x the preview.
+    // The preview's world is black; with the night (an indigo) the loader read 1.4-2.1x the preview.
     expect(LOOK.background).toBe(palette.black);
     expect(LOOK.fog).toEqual({ color: palette.black, near: 14, far: 50, clear: 5 });
     expect(LOOK.bloom.threshold).toBe(0.7);
@@ -15,7 +15,7 @@ describe('the BOB look', () => {
     expect(LOOK.exposure).toBeGreaterThan(0);
   });
 
-  it("fades the far glass into the background's own black before its edge, so no horizon line shows (Ruling 26)", () => {
+  it("fades the far glass into the background's own black before its edge, so no horizon line shows", () => {
     expect(LOOK.fog.color).toBe(LOOK.background);
     expect(LOOK.fog.far).toBeLessThan(GLASS_LOOK.floor.outer);
     // Every shot stands closer to the compass than the fog begins (the phone's home aside, which stands back ~15).
@@ -57,7 +57,7 @@ describe('the BOB look', () => {
       expect(fogFor(distance(phone)).near).toBeGreaterThan(distance(phone) + LOOK.fog.clear - 1e-9);
     });
 
-    it("is all night before the slab's far edge from every camera, so no horizon line shows (Ruling 26)", () => {
+    it("is all night before the slab's far edge from every camera, so no horizon line shows", () => {
       for (const aspect of [390 / 844, 0.6, 0.99, 1, 4 / 3, 16 / 9, 21 / 9]) {
         for (const shot of [homeShotFor(aspect), wideShotFor(aspect)]) {
           // The camera stands on +z looking toward -z: the nearest edge it looks across is the far one, at z = -outer.

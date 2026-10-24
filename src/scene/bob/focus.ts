@@ -1,5 +1,5 @@
 /**
- * A bead seen close (spec §2.4, "Click or Enter flies through the porthole into the project page"; Ruling 4) as plain
+ * A bead seen close (spec §2.4, "Click or Enter flies through the porthole into the project page") as plain
  * rules: the camera's moves between the journey's shot and a bead's close view (`focusShotFor`, ./journey), what the
  * page asks for, and when a move may fly. Pure, and apart from types it imports only the journey and the step fade's
  * length, so the tests run it without R3F, three or a browser; the Opening (./Opening.tsx), the shot's one writer,

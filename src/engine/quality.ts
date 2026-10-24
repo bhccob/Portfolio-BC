@@ -5,9 +5,9 @@
  * never climbs back within a page view. Each pointer
  * gives up the cheapest-to-lose cost first: half the dust while the canvas
  * stays sharp, then the glass floor's reflection (a second render of the whole
- * scene every frame; the rung was v3's clearcoat, Ruling 25), then the pixel
+ * scene every frame; the rung was v3's clearcoat), then the pixel
  * ratio with more dust. A coarse pointer (a phone or tablet) starts softer and
- * never draws the reflection (Ruling 31): its first rung is already medium, so
+ * never draws the reflection: its first rung is already medium, so
  * the costliest part never runs on a phone's first loader, and its steps give
  * up the pixel ratio, then the post chain. The BOB scene reads the pixel ratio
  * and the reflection (src/scene/bob/Opening.tsx); nothing draws dust.
@@ -30,8 +30,8 @@ const FINE: readonly Readonly<Quality>[] = [
   { pixelRatio: 1, reflector: false, dust: 100 }
 ];
 
-// Ruling 31: no rung of a coarse pointer has the reflection. Its first rung was v3's clearcoat rung, which Ruling 25 made
-// the reflector's switch, so a phone started on the costliest rung: a second render of the scene every frame.
+// No rung of a coarse pointer has the reflection. Its first rung was v3's clearcoat rung, which became the
+// reflector's switch, so a phone started on the costliest rung: a second render of the scene every frame.
 const COARSE: readonly Readonly<Quality>[] = [
   { pixelRatio: 1.25, reflector: false, dust: 150 },
   { pixelRatio: 1, reflector: false, dust: 100 },
@@ -77,7 +77,7 @@ export function lowerTier(a: QualityTier, b: QualityTier): QualityTier {
  * none and tone-maps in the materials. The cut points follow what each rung gives up:
  *   - fine pointer: steps 0-1 high (full pixel ratio, the reflection; only dust goes), 2-3 medium (the reflection
  *     off, then the ratio drops to 1.25), 4 low (ratio 1, the last rung);
- *   - coarse pointer: 0-1 medium (never the reflection, Ruling 31; then the ratio drops to 1), 2 low (the last rung).
+ *   - coarse pointer: 0-1 medium (never the reflection; then the ratio drops to 1), 2 low (the last rung).
  * Only the last rung is low, so the composer goes only when nothing cheaper is left, and only the reflection makes a
  * rung high, which only a fine pointer has.
  */

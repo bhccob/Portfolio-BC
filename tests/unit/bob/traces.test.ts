@@ -178,7 +178,7 @@ describe('the traces under the glass', () => {
   });
 });
 
-describe('the traces over opaque glass (Ruling 11)', () => {
+describe('the traces over opaque glass, as in M1', () => {
   const layout = traceLayout();
   const gold = new THREE.Color(palette.gold);
   const linesOf = (t: ReturnType<typeof buildTraces>): THREE.LineSegments => t.group.getObjectByName('traces:lines') as THREE.LineSegments;

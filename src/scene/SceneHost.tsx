@@ -191,7 +191,7 @@ function SceneHostView({ scene }: SceneHostProps): JSX.Element {
     return () => current.cancel();
   }, [showStage, fail]);
 
-  // From the loader showing until the phase leaves LOADING, the landing backstop (Ruling 9b) stands behind the opening's
+  // From the loader showing until the phase leaves LOADING, the landing backstop stands behind the opening's
   // own give-up: an opening stalled where its clock cannot see fails as any other scene does.
   useEffect(() => {
     if (!ready) return;

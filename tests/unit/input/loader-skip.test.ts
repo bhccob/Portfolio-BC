@@ -34,7 +34,7 @@ describe('skipSwallows', () => {
     expect(skipSwallows(Number.NaN, 1000, 900)).toBe(false);
   });
 
-  it('rolls on past the first 400 ms while the input keeps coming, until it has been quiet for 200 ms (Ruling 24)', () => {
+  it('rolls on past the first 400 ms while the input keeps coming, until it has been quiet for 200 ms', () => {
     expect(SKIP_QUIET_MS).toBe(200);
     // The last input swallowed 150 ms ago: still the same stream.
     expect(skipSwallows(1600, 1000, 1450)).toBe(true);
@@ -152,7 +152,7 @@ describe('attachLoaderSkip', () => {
     expect(n).toBe(1);
   });
 
-  it('skips on a touch’s start without preventing it (Ruling 30), so a tap still clicks and a pinch still starts', () => {
+  it('skips on a touch’s start without preventing it, so a tap still clicks and a pinch still starts', () => {
     const target = new EventTarget();
     let n = 0;
     attachLoaderSkip(target, () => n++);

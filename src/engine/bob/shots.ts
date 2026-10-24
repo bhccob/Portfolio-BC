@@ -216,7 +216,7 @@ export function lerpCameraShot(a: CameraShot, b: CameraShot, t: number): CameraS
  * finite and positive leaves the camera as it was: there is nothing to frame,
  * and the maths would not be finite.
  *
- * Copied from v3's shots (Ruling 23), with the shot's `up` added: the Rig
+ * Copied from v3's shots, with the shot's `up` added: the Rig
  * places the camera through it. It calls only the camera's own methods, so this
  * module needs three's types and none of its code.
  */
