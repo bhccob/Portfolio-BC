@@ -107,8 +107,13 @@ export class ScrollLoop {
    * `damp` keeps it on the frame object, as `__damp`), so it neither runs on nor jumps when it next moves.
    */
   halt(): void {
+    this.o.frame.target = this.o.frame.progress;
+    this.letGo();
+  }
+
+  /** Lets the damping's speed go and leaves the target where it is, so a story that must turn back turns at once. */
+  letGo(): void {
     const { frame } = this.o;
-    frame.target = frame.progress;
     frame.velocity = 0;
     const state = (frame as { __damp?: Record<string, number> }).__damp;
     if (state) for (const key of Object.keys(state)) state[key] = 0;
@@ -278,8 +283,8 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
   const slopOf = (by: 'wheel' | 'finger'): number => (by === 'finger' ? SETTLE_SLOP_PX / Math.max(o.unitPx(), 1) : 0);
   /** The place an input starts from: where the story stands while a settle eases it, else the target. */
   const startPlace = (): number => (settling ? frame.progress : frame.target);
-  /** Whether an input of `units` goes against the way the story is moving. */
-  const reverses = (units: number): boolean => units !== 0 && Math.sign(units) === -Math.sign(frame.velocity);
+  /** Whether the story must turn back to reach `place`: it lies behind the way the story is moving. */
+  const turnsBack = (place: number): boolean => place !== frame.progress && Math.sign(place - frame.progress) === -Math.sign(frame.velocity);
 
   const loop: ScrollLoop = new ScrollLoop({
     ...o,
@@ -301,7 +306,6 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
         place = moveTarget(frame.target, units, chapters, true);
       } else if (by === 'key' || by === 'held') {
         gesture = null; // a key puts the target on its stop: a wheel it cut short has nothing left to settle
-        if (reverses(units)) loop.halt(); // a key that turns a moving story back turns it at once
         const base = startPlace(); // a key during a settle steps from where the story stands
         if (by === 'held' && !onRise(base, chapters)) return;
         settling = false;
@@ -309,10 +313,9 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
       } else {
         if (by !== 'glide') {
           if (gesture === null) {
-            // A gesture begun while a settle eases starts from where the story stands, and takes the target over at once.
-            // One that turns a moving story back also lets its speed go, so it turns at once at the slower void pace.
-            if (reverses(units)) loop.halt();
-            else if (settling) frame.target = frame.progress;
+            // A gesture begun while a settle eases starts from where the story stands, and takes the target over at once;
+            // so does one that goes against a moving story, so it turns back from there.
+            if (settling || (units !== 0 && Math.sign(units) === -Math.sign(frame.velocity))) frame.target = frame.progress;
             gesture = { from: frame.target, reach: frame.target, anchor: frame.target, direction: 0, by };
           }
           settling = false;
@@ -330,6 +333,8 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
           limit = top;
         }
       }
+      // A place behind a moving story lets its speed go, so it turns at once, at the void's slower pace too.
+      if (!o.reducedMotion() && turnsBack(place)) loop.letGo();
       limit = Math.min(limit, askFor(place));
       if (pinnedAtEnd(frame.target, units, chapters, limit)) scroll.stopGlide();
       loop.wake();

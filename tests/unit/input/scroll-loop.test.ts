@@ -919,6 +919,26 @@ describe("the pace: the dive and the moves between beads take their time, the ri
     }
   });
 
+  it('keeps quick keys queued on stops while the slow dive is still moving', async () => {
+    const s = setup();
+    restAt(s, 1);
+    s.key('ArrowDown');
+    await flush();
+    s.frames.frame();
+    s.key(' ');
+    expect(s.frame.target).toBe(3); // stepped from the queued stop, 2, not from where the story stands
+    s.frames.frame();
+    fire(s.win, 'keydown', { key: ' ', shiftKey: true, ctrlKey: false, metaKey: false, altKey: false, repeat: false, isComposing: false, target: { tagName: 'BODY' } });
+    expect(s.frame.target).toBe(2); // one back from the queue, still ahead of the story: it goes on, no stutter
+    expect(s.frame.velocity).toBeGreaterThan(0);
+    s.key('PageUp');
+    expect(s.frame.target).toBe(1); // behind the story now: it turns back at once
+    s.frames.frame();
+    expect(s.frame.velocity).toBeLessThanOrEqual(0);
+    s.drain();
+    expect(s.frame.progress).toBe(1);
+  });
+
   it("keeps the rise at M2a's pace: BOB from above in under a second", async () => {
     const s = setup();
     for (let i = 0; i < 7; i++) s.key('ArrowDown'); // held to the top, 1
