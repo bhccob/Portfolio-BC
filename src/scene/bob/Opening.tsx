@@ -23,7 +23,7 @@ import { openBead } from '~/ui/BeadLabel';
 import { motion } from '../motion';
 import { settleLoad } from '../settleLoad';
 import { visibleTimeout } from '../timeouts';
-import { type FocusPose, stepFocus } from './focus';
+import { FOCUS_AT_REST, type FocusPose, stepFocus } from './focus';
 import { type Handover, Home, type HomeModels } from './Home';
 import { focusShotFor, journeyPoseAt, shotToward } from './journey';
 import { cameraShotAt, loadShare, type OpeningPose, openingPoseAt } from './openingPose';
@@ -534,6 +534,8 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       motion.loader = false;
       motion.focus = false;
       showFocusFade(false);
+      // The next Opening (3D back on) starts from no move: a stale one would be taken up by its first focus step.
+      frame.focus.move = FOCUS_AT_REST;
       frame.shot = null;
       frame.loader.stage = null;
       frame.needleAngle = 0;

@@ -1,11 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { damp } from 'maath/easing';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { BEAD_MOTION, funcialMotion } from '~/engine/bob/beadMotion';
 import { readGlbJson } from '~/engine/bob/glb';
 import { readNeedleDebugState } from '~/debug/useNeedleDebug';
 import { startHomeScroll } from '~/input/scrollLoop';
+import { connectHomeScroll } from '~/input/useHomeScroll';
 import { holdLimit, releaseTarget } from '~/input/target';
 import { diveHoldFor, RISE_TOP } from '~/scene/bob/diveHold';
 import { BEADS, journeyAt, journeyPoseAt, TUNNEL_HOLD } from '~/scene/bob/journey';
@@ -146,7 +147,7 @@ function held(voidState: VoidState, options: { reduced?: boolean; at?: number } 
   const at = options.at ?? 0;
   const story = { progress: at, target: at, velocity: 0, chapterIndex: chapterAt(HOME_CHAPTERS, at).index };
   const chapters: string[] = [];
-  const state = { voidState, reduced: options.reduced ?? false };
+  const state = { voidState, reduced: options.reduced ?? false, threeD: true };
   const el = new EventTarget();
   const win = new EventTarget();
   Object.defineProperty(el, 'ownerDocument', { value: { defaultView: win } });
@@ -157,8 +158,9 @@ function held(voidState: VoidState, options: { reduced?: boolean; at?: number } 
     unitPx: () => VH,
     enabled: () => true,
     reducedMotion: () => state.reduced,
-    threeD: () => true,
+    threeD: () => state.threeD,
     hold: () => diveHoldFor(state.voidState),
+    holdWaits: () => state.voidState !== 'failed',
     onChapter: (chapter) => chapters.push(chapter.id),
     loadSmooth: () => Promise.resolve(damp),
     request: frames.request,
@@ -181,8 +183,85 @@ function held(voidState: VoidState, options: { reduced?: boolean; at?: number } 
     state.voidState = next;
     home.holdChanged();
   };
-  return { story, state, home, key, wheel, drain, become, frames, el, chapters };
+  /** The 3D switch, as the store tells the page's input: off, or back on (`resume`). */
+  const switch3D = (on: boolean): void => {
+    state.threeD = on;
+    if (on) home.resume();
+  };
+  return { story, state, home, key, wheel, drain, become, switch3D, frames, el, chapters };
 }
+
+describe("3D off and on keeps the visitor's place (Ruling 34)", () => {
+  it("leaves the target on the bead's stop when 3D goes off: the void's idle does not pull it to the hold", () => {
+    const s = held('ready', { at: 4 });
+    s.switch3D(false);
+    s.become('idle'); // the Void unmounts with the Stage
+    expect([s.story.target, s.story.progress]).toEqual([4, 4]);
+    expect(s.frames.size).toBe(0);
+  });
+
+  it("holds it in the tunnel when 3D is back while the void loads, and returns it to the bead's stop once ready", async () => {
+    const s = held('ready', { at: 4 });
+    s.switch3D(false);
+    s.become('idle');
+    s.switch3D(true);
+    // As a Back to the stop while the void loads: the story waits at the hold, its place kept for the void's ready.
+    expect([s.story.target, s.story.progress]).toEqual([TUNNEL_HOLD, TUNNEL_HOLD]);
+    expect(s.chapters.at(-1)).toBe('DIVE');
+    s.become('loading');
+    s.drain();
+    expect(s.story.target).toBe(TUNNEL_HOLD);
+    s.become('ready');
+    await flush(); // the first move fetches damp
+    s.drain();
+    expect([s.story.target, s.story.progress]).toEqual([4, 4]);
+    expect(s.chapters.at(-1)).toBe('PROJECTS');
+  });
+
+  it('does the same with reduced motion, held on BOB from above, the last stop under the hold', async () => {
+    const s = held('ready', { at: 5, reduced: true });
+    s.switch3D(false);
+    s.become('idle');
+    expect(s.story.target).toBe(5);
+    s.switch3D(true);
+    expect([s.story.target, s.story.progress]).toEqual([1, 1]);
+    s.become('loading');
+    s.become('ready');
+    await flush();
+    s.drain();
+    expect([s.story.target, s.story.progress]).toEqual([5, 5]);
+  });
+
+  it('keeps the place when the hold comes down with 3D on for a void that loads again, idle, then ready', async () => {
+    const s = held('ready', { at: 3 });
+    s.become('idle');
+    expect([s.story.target, s.story.progress]).toEqual([TUNNEL_HOLD, TUNNEL_HOLD]);
+    s.become('loading');
+    s.become('ready');
+    await flush();
+    s.drain();
+    expect([s.story.target, s.story.progress]).toEqual([3, 3]);
+  });
+
+  it('lets the place go when the void failed: the story rests at BOB from above, and a later ready leaves it there', async () => {
+    const s = held('loading', { at: 4 });
+    s.become('failed');
+    await flush();
+    s.drain();
+    expect([s.story.target, s.story.progress]).toEqual([1, 1]);
+    s.become('ready');
+    s.drain();
+    expect(s.story.target).toBe(1);
+  });
+
+  it('leaves a story short of the hold where it is across the switch', () => {
+    const s = held('ready', { at: 0.6 });
+    s.switch3D(false);
+    s.become('idle');
+    s.switch3D(true);
+    expect([s.story.target, s.story.progress]).toEqual([0.6, 0.6]);
+  });
+});
 
 describe('the scroll input holds at the dive while the void loads', () => {
   it('clamps its target to the hold: a wheel past it while loading rests at TUNNEL_HOLD', async () => {
@@ -773,11 +852,91 @@ describe('the wiring: one journey pose a frame', () => {
     expect(read('scene/bob/Opening.tsx')).toMatch(/uploadTextures\(gl, homeParts\.strips\)/);
     expect(read('scene/bob/Void.tsx')).toMatch(/uploadTextures\(gl, texturesUnder\(holder\)\)/);
   });
+});
 
-  it('gives the hold to the home scroll input from the void\'s state', () => {
-    const source = read('input/useHomeScroll.ts');
-    expect(source).toMatch(/hold:\s*\(\)\s*=>\s*diveHoldFor\(\s*useScene\.getState\(\)\.voidState\s*\)/);
-    expect(source).toMatch(/holdChanged\(\)/);
+describe("the home scroll as the page wires it to the store (connectHomeScroll, useHomeScroll's own body)", () => {
+  /** The page's scroll on a fake document element, its frames the test's, the store and `frame` the app's own. */
+  function wired(voidState: VoidState, at = 0) {
+    useScene.setState(useScene.getInitialState(), true);
+    useScene.setState({ phase: { kind: 'HOME_IDLE' }, threeD: true, voidState });
+    Object.assign(frame, { progress: at, target: at, velocity: 0, chapterIndex: chapterAt(HOME_CHAPTERS, at).index, loaderSkipEndsMs: null });
+    const frames = new FakeFrames();
+    const el = new EventTarget();
+    Object.defineProperty(el, 'ownerDocument', { value: { defaultView: new EventTarget() } });
+    const disconnect = connectHomeScroll({ el: el as unknown as HTMLElement, unitPx: () => VH, request: frames.request, cancel: frames.cancel, loadSmooth: () => Promise.resolve(damp) });
+    const wheel = async (notches: number): Promise<void> => {
+      for (let i = 0; i < notches; i++) {
+        fire(el, 'wheel', { deltaY: 120, deltaMode: 0, ctrlKey: false, timeStamp: 16 * i });
+        if (i === 0) await flush();
+        frames.frame();
+      }
+    };
+    const drain = (): void => {
+      for (let i = 0; frames.size > 0 && i < 3000; i++) frames.frame();
+    };
+    return { frames, wheel, drain, disconnect };
+  }
+
+  afterEach(() => {
+    useScene.setState(useScene.getInitialState(), true);
+    Object.assign(frame, { progress: 0, target: 0, velocity: 0, chapterIndex: 0 });
+  });
+
+  it("holds the scroll at the tunnel while the store's void loads, and lets it go on once the store says ready", async () => {
+    const s = wired('loading');
+    try {
+      await s.wheel(40);
+      s.drain();
+      expect([frame.target, frame.progress]).toEqual([TUNNEL_HOLD, TUNNEL_HOLD]);
+      expect(useScene.getState().phase).toEqual({ kind: 'DIVE' });
+      useScene.getState().setVoidState('ready');
+      s.drain();
+      expect([frame.target, frame.progress]).toEqual([2, 2]);
+      expect(useScene.getState().phase).toEqual({ kind: 'VOID_ENTRY' });
+    } finally {
+      s.disconnect();
+    }
+  });
+
+  it('brings a story pressed against it back to BOB from above when the store says the void failed', async () => {
+    const s = wired('loading');
+    try {
+      await s.wheel(40);
+      s.drain();
+      useScene.getState().setVoidState('failed');
+      s.drain();
+      expect([frame.target, frame.progress]).toEqual([1, 1]);
+    } finally {
+      s.disconnect();
+    }
+  });
+
+  it("keeps the visitor's place across the store's 3D switch, off and back on at a bead's stop (Ruling 34)", async () => {
+    const s = wired('ready', 4);
+    try {
+      useScene.setState({ threeD: false });
+      useScene.getState().setVoidState('idle'); // the Void goes with the Stage
+      expect([frame.target, frame.progress]).toEqual([4, 4]);
+      useScene.setState({ threeD: true });
+      expect([frame.target, frame.progress]).toEqual([TUNNEL_HOLD, TUNNEL_HOLD]);
+      useScene.getState().setVoidState('loading');
+      useScene.getState().setVoidState('ready');
+      await flush();
+      s.drain();
+      expect([frame.target, frame.progress]).toEqual([4, 4]);
+      expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'front-panel' });
+    } finally {
+      s.disconnect();
+    }
+  });
+
+  it('takes the input off when it is disconnected: the store no longer moves it', async () => {
+    const s = wired('loading');
+    s.disconnect();
+    await s.wheel(5);
+    useScene.getState().setVoidState('ready');
+    expect(frame.target).toBe(0);
+    expect(s.frames.size).toBe(0);
   });
 });
 

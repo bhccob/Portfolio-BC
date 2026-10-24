@@ -147,17 +147,31 @@ export interface HomeScrollOptions extends Omit<ScrollLoopOptions, 'glide'> {
    * (`holdLimit`). Without it nothing holds but the end of the story.
    */
   hold?: () => number;
+  /**
+   * Whether the hold now is one that lifts by itself (the void loads, or will: its state is not `failed`), asked when the
+   * hold comes down past the target: a story it takes back keeps its place for the hold's lifting, where a failure's
+   * lets it go. Without it every hold that comes down lets the place go.
+   */
+  holdWaits?: () => boolean;
 }
 
 export interface HomeScroll {
   scroll: VirtualScroll;
   loop: ScrollLoop;
   /**
-   * The hold has changed (the void is ready, or failed): a target above the new one comes back to it (and what the
-   * input had asked past the old one is let go); a target that rests on the old hold, which the input asked to take
-   * further, goes on (`releaseTarget`: to the next stop at least, as far as it asked at most); then the loop runs to it.
+   * The hold has changed (the void is ready, loading again, or failed); nothing at all while 3D is off, when the loop
+   * does not run and the scene is not shown (`resume` then holds the story when 3D is back). A target above the new
+   * hold comes back to it: for a hold that waits (`holdWaits`) as a story past the hold is held when this starts, its
+   * place kept for the hold's lifting, the progress with it; for a failure what the input had asked past the old one is
+   * let go. A target that rests on the old hold, which the input asked to take further, goes on (`releaseTarget`: to
+   * the next stop at least, as far as it asked at most); then the loop runs to it.
    */
   holdChanged(): void;
+  /**
+   * 3D is back on: a story past the hold now (the void went with the Stage, so it is idle) is held as at the start,
+   * its place kept, so the void's `ready` takes it back there; then the loop finishes the move.
+   */
+  resume(): void;
   dispose(): void;
 }
 
@@ -258,12 +272,15 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
     wake: loop.wake,
   });
 
-  // A story placed past the hold while the input was away (Back from a project page puts it at the bead's stop,
-  // src/state/routeSync.ts) is held as an input's would be: the target rests on the hold and what was asked is kept
-  // for `holdChanged` to let go; the story waits there too, so the camera never comes out into a void not yet there,
-  // and its chapter follows it.
-  if (frame.target > limitNow()) {
-    askFor(frame.target);
+  /**
+   * A story placed past the hold while the input was away (Back from a project page puts it at the bead's stop,
+   * src/state/routeSync.ts; 3D switched off and on at a bead's stop) is held as an input's would be: the target rests on
+   * the hold and the place is kept as `asked`, for `holdChanged` to let go to; the story waits there too, so the camera
+   * never comes out into a void not yet there, and its chapter follows it.
+   */
+  const holdStory = (): void => {
+    if (!(frame.target > limitNow())) return;
+    askFor(Math.max(frame.target, asked ?? frame.target));
     frame.progress = Math.min(frame.progress, frame.target);
     frame.velocity = 0;
     const at = changedChapter(chapters, frame.progress, frame.chapterIndex, true);
@@ -271,8 +288,9 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
       frame.chapterIndex = at.index;
       o.onChapter(at);
     }
-  }
+  };
 
+  holdStory();
   // Back from another page with the story still on its way: finish the move.
   loop.wake();
 
@@ -280,15 +298,27 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
     scroll,
     loop,
     holdChanged: () => {
+      // 3D off: the void went with the Stage (idle), but the loop does not run and nothing is shown, so the visitor's
+      // place stays as it is; `resume` holds it when 3D is back.
+      if (!o.threeD()) return;
       const limit = limitNow();
       if (frame.target > limit) {
-        // The hold came down (the void failed): what was asked past it is let go with it.
-        frame.target = limit;
-        asked = null;
+        if (o.holdWaits?.()) {
+          // The void will be there again (it loads anew): the story waits on the hold, its place kept for then.
+          holdStory();
+        } else {
+          // The hold came down for good (the void failed): what was asked past it is let go with it.
+          frame.target = limit;
+          asked = null;
+        }
       } else if (asked !== null && limit > frame.target) {
         frame.target = releaseTarget(frame.target, asked, limit, chapters);
         asked = asked > limit ? asked : null;
       }
+      loop.wake();
+    },
+    resume: () => {
+      holdStory();
       loop.wake();
     },
     dispose: () => {
