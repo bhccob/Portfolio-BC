@@ -148,8 +148,8 @@ describe('focusPoseAt: where the camera is between the journey and a close view'
     expect(focusPoseAt(FOCUS_AT_REST, 1e9).amount).toBe(0);
   });
 
-  it('flies into a bead over FLIGHT_MS (0.8 s), eased: it leaves the stop and reaches the porthole with no speed', () => {
-    expect(FLIGHT_MS).toBe(800);
+  it('flies into a bead over FLIGHT_MS (1.4 s), eased: it leaves the stop and reaches the porthole with no speed', () => {
+    expect(FLIGHT_MS).toBe(1400);
     const move = moveFocus(FOCUS_AT_REST, 'funcial', 1000, 'fly');
     expect(focusPoseAt(move, 1000).amount).toBe(0);
     expect(focusPoseAt(move, 1000 + FLIGHT_MS / 2).amount).toBeCloseTo(0.5, 9);

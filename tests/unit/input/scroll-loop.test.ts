@@ -2,7 +2,7 @@ import { damp } from 'maath/easing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Inertia } from '../../../src/input/Inertia';
 import { SKIP_QUIET_MS, skipSwallower } from '../../../src/input/loaderSkip';
-import { type Smooth, startHomeScroll } from '../../../src/input/scrollLoop';
+import { DIVE_SMOOTH, GLIDE_SMOOTH, RISE_SMOOTH, type Smooth, smoothTimeAt, startHomeScroll } from '../../../src/input/scrollLoop';
 import { buildChapters, type ChapterAt } from '../../../src/state/chapters';
 
 /** A viewport 1000 px high: a unit of scroll is 1000 px. */
@@ -848,5 +848,82 @@ describe('the settle: a new input during a settle takes over at once', () => {
     s.frames.frame();
     s.key('ArrowDown');
     expect(s.frame.target).toBe(4);
+  });
+});
+
+/** Seconds of frames until progress has covered `share` of the way from `from` to `to`; the loop runs until it sleeps. */
+function secondsToCover(s: ReturnType<typeof setup>, from: number, to: number, share: number): number {
+  let frames = 0;
+  while (s.frames.size > 0 && frames < 3000) {
+    s.frames.frame();
+    frames++;
+    if (Math.abs(s.frame.progress - from) >= share * Math.abs(to - from)) return frames / 60;
+  }
+  return Infinity;
+}
+
+describe("the pace: the dive and the moves between beads take their time, the rise keeps M2a's", () => {
+  it('reads the rise, the dive and the beads apart, by the stretch the story is moving through', () => {
+    expect([RISE_SMOOTH, DIVE_SMOOTH, GLIDE_SMOOTH]).toEqual([0.25, 1.1, 0.7]);
+    expect(smoothTimeAt(chapters, 0.5, 1)).toBe(RISE_SMOOTH);
+    expect(smoothTimeAt(chapters, 1, 0)).toBe(RISE_SMOOTH); // leaving BOB from above upward is the rise
+    expect(smoothTimeAt(chapters, 1, 2)).toBe(DIVE_SMOOTH); // leaving it downward is the dive
+    expect(smoothTimeAt(chapters, 1.5, 2)).toBe(DIVE_SMOOTH);
+    expect(smoothTimeAt(chapters, 2, 1)).toBe(DIVE_SMOOTH); // back up through the dive
+    expect(smoothTimeAt(chapters, 2, 3)).toBe(GLIDE_SMOOTH);
+    expect(smoothTimeAt(chapters, 4, 3)).toBe(GLIDE_SMOOTH);
+    expect(smoothTimeAt(chapters, 3, 3)).toBe(GLIDE_SMOOTH); // at rest on a bead
+    expect(smoothTimeAt(chapters, Number.NaN, 2)).toBe(RISE_SMOOTH); // a story that is not a number reads as the start
+  });
+
+  it('takes about 3.7 s down the dive, most of it in the first 2 s', async () => {
+    const s = setup();
+    restAt(s, 1);
+    s.key('ArrowDown');
+    await flush();
+    expect(s.frame.target).toBe(2);
+    const most = secondsToCover(s, 1, 2, 0.9);
+    const nearly = secondsToCover(s, 1, 2, 0.99) + most;
+    expect(most).toBeGreaterThan(1.9);
+    expect(most).toBeLessThan(2.4);
+    expect(nearly).toBeGreaterThan(3.3);
+    expect(nearly).toBeLessThan(4.1);
+    s.drain();
+    expect(s.frame.progress).toBe(2);
+  });
+
+  it('takes about 2.3 s from one bead to the next', async () => {
+    const s = setup();
+    restAt(s, 3);
+    s.key('ArrowDown');
+    await flush();
+    const nearly = secondsToCover(s, 3, 4, 0.99);
+    expect(nearly).toBeGreaterThan(2.0);
+    expect(nearly).toBeLessThan(2.7);
+  });
+
+  it('turns a slow dive back at once when a key or a wheel goes the other way', async () => {
+    for (const reverse of ['key', 'wheel'] as const) {
+      const s = setup();
+      restAt(s, 1);
+      s.key('ArrowDown');
+      await flush();
+      for (let i = 0; i < 30; i++) s.frames.frame(); // half a second down the dive, still moving
+      expect(s.frame.velocity).toBeGreaterThan(0);
+      if (reverse === 'key') s.key('ArrowUp');
+      else fire(s.el, 'wheel', { deltaY: -120, deltaMode: 0, ctrlKey: false, timeStamp: s.frames.now });
+      const turnedAt = s.frame.progress;
+      s.frames.frame();
+      s.frames.frame();
+      expect(s.frame.progress).toBeLessThanOrEqual(turnedAt); // no run-on past where the reversal came
+    }
+  });
+
+  it("keeps the rise at M2a's pace: BOB from above in under a second", async () => {
+    const s = setup();
+    for (let i = 0; i < 7; i++) s.key('ArrowDown'); // held to the top, 1
+    await flush();
+    expect(s.frame.target).toBe(1);
+    expect(secondsToCover(s, 0, 1, 0.99)).toBeLessThan(1);
   });
 });

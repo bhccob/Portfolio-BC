@@ -147,7 +147,7 @@
  *   bead-open  opening a bead, at 1440x900 and 390x844 (touch): at each project stop the label shows whole inside the
  *              screen with the Dutch dictionary's text (the category line, the title, the hint for the pointer), Tab
  *              reaches it with a focus ring and Enter flies into the porthole (the page still `/` 120 ms on, then the
- *              router goes to `/projects/<slug>/` after the 0.8 s flight) and Esc returns to that stop; a click or a tap
+ *              router goes to `/projects/<slug>/` after the flight (FLIGHT_MS, 1.4 s)) and Esc returns to that stop; a click or a tap
  *              on a label and on a bead open too; all by client navigation; a direct load of `/projects/cookies-clicker/`
  *              then Esc lands at stop 5
  *   void-hold  `bob-beads.glb` held back: a long wheel (flicks on the phone) rests at TUNNEL_HOLD, 1.475 (Bob's frame d01,
@@ -320,6 +320,7 @@ const { LOADER, LOADER_SEEN_KEY, QUICK, SCRIPT } = await tsImport('../../src/eng
 const { IDLE_SECONDS, BREATHE } = await tsImport('../../src/scene/bob/look.ts', import.meta.url);
 const { nextDriftRest } = await tsImport('../../src/engine/bob/needleAim.ts', import.meta.url);
 const { scrollPoseAt } = await tsImport('../../src/scene/bob/scrollPose.ts', import.meta.url);
+const { FLIGHT_MS } = await tsImport('../../src/scene/bob/focus.ts', import.meta.url);
 const { topShotFor } = await tsImport('../../src/engine/bob/shots.ts', import.meta.url);
 const { BEADS, TUNNEL_HOLD, journeyPoseAt } = await tsImport('../../src/scene/bob/journey.ts', import.meta.url);
 const { RISE_TOP, diveHoldFor } = await tsImport('../../src/scene/bob/diveHold.ts', import.meta.url);
@@ -5076,7 +5077,7 @@ async function voidJourney(browser, step) {
  *    the project's page.
  * 2. Tab reaches the label (from the skip link, within 14 presses) with a focus ring, and Enter opens the project: 120 ms
  *    on the page is still `/` with the camera flying into the porthole (`<html data-bead-open>`, PROJECT_FOCUS), the router
- *    goes to `/projects/<slug>/` once the 0.8 s flight is over, and the scene is PROJECT_FOCUS on that bead. Esc returns to
+ *    goes to `/projects/<slug>/` once the flight (FLIGHT_MS) is over, and the scene is PROJECT_FOCUS on that bead. Esc returns to
  *    that bead's stop (the story at it, at rest, PROJECTS in its category) and its label shows again. All three beads.
  * 3. The other two hands: a click (a tap on the phone) on the label of Jontai Energy and on the bead itself, the middle of
  *    the picture at its stop, of Cookies Clicker, each opens its project and Esc brings it back to its stop.
@@ -5136,7 +5137,7 @@ async function beadOpen(browser, step) {
         mid.path === '/' && mid.opening && mid.kind === 'PROJECT_FOCUS' && mid.id === bead.id,
         `${at}: ${how}: 120 ms on, the camera is still flying into ${bead.id}: the page is still ${mid.path}, <html data-bead-open> ${mid.opening}, the phase ${mid.kind} ${mid.id}`,
       );
-      step.check(arrived && took >= 700 && took <= 3_000, `${at}: ${how}: the router goes to ${bead.path} once the 0.8 s flight is over, ${took} ms after the press (at least 700, at most 3000)`);
+      step.check(arrived && took >= FLIGHT_MS - 100 && took <= FLIGHT_MS + 2_200, `${at}: ${how}: the router goes to ${bead.path} once the ${FLIGHT_MS / 1000} s flight is over, ${took} ms after the press (at least ${FLIGHT_MS - 100}, at most ${FLIGHT_MS + 2_200})`);
       const project = await waitForProject(page, bead.id);
       const heading = await page.textContent('h1');
       step.check(project.kind === 'PROJECT_FOCUS' && project.id === bead.id && heading === bead.title, `${at}: ${how}: on the page the scene is PROJECT_FOCUS ${bead.id} and the heading is "${heading}" (got ${JSON.stringify(project)})`);
@@ -5665,7 +5666,7 @@ async function voidStops(browser, step) {
  *    leaves the story's place where it was (progress and target 4, not pulled to the dive's hold), and on again, once the
  *    void is in again, the story is back on that stop with its label shown whole.
  * 2. Opening a bead and coming back under reduced motion: Funcial's stop reached by real arrows (a step a press), Tab and
- *    Enter open its page by a fade (`<html data-focus-fade>` set, the page there well before a 0.8 s flight would land),
+ *    Enter open its page by a fade (`<html data-focus-fade>` set, the page there well before a flight would land),
  *    Esc fades back to the stop with its label.
  * 3. The English labels at /en/: each bead's stop reached by real arrows shows its label with the English dictionary's
  *    text (the category line, the title, "Click to open" / "Tap to open") linking to its /en/ page; Tab and Enter on
@@ -5772,7 +5773,7 @@ async function voidPaths(browser, step) {
     const fadesIn = await page.evaluate(() => window.__fades);
     step.check(
       tab.reached > 0 && arrived && took < 700 && project.kind === 'PROJECT_FOCUS' && project.id === funcial.id && fadesIn >= 1,
-      `reduced motion: Tab and Enter open ${funcial.path} by a fade, not a flight: <html data-focus-fade> set ${fadesIn} time(s), the page there ${took} ms after the press (under the 0.8 s flight), PROJECT_FOCUS ${project.id}`,
+      `reduced motion: Tab and Enter open ${funcial.path} by a fade, not a flight: <html data-focus-fade> set ${fadesIn} time(s), the page there ${took} ms after the press (under the ${FLIGHT_MS / 1000} s flight), PROJECT_FOCUS ${project.id}`,
     );
     await page.evaluate(() => (window.__fades = 0));
     await page.keyboard.press('Escape');
@@ -5824,8 +5825,8 @@ async function voidPaths(browser, step) {
     const project = await waitForProject(page, funcial.id);
     const heading = await page.textContent('h1');
     step.check(
-      tab.reached > 0 && arrived && took >= 700 && project.kind === 'PROJECT_FOCUS' && project.id === funcial.id && heading === funcial.title,
-      `/en/: Tab and Enter on ${funcial.id}'s label fly into ${enPath} (${took} ms, the 0.8 s flight), PROJECT_FOCUS ${project.id}, the heading "${heading}"`,
+      tab.reached > 0 && arrived && took >= FLIGHT_MS - 100 && project.kind === 'PROJECT_FOCUS' && project.id === funcial.id && heading === funcial.title,
+      `/en/: Tab and Enter on ${funcial.id}'s label fly into ${enPath} (${took} ms, the ${FLIGHT_MS / 1000} s flight), PROJECT_FOCUS ${project.id}, the heading "${heading}"`,
     );
     await page.keyboard.press('Escape');
     const stopped = await waitForStop(page, funcial.category, 15_000);

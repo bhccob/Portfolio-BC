@@ -1,4 +1,4 @@
-import { type ChapterAt, type Chapters, riseTop, scrollEnd } from '~/state/chapters';
+import { type ChapterAt, type Chapters, chapterAt, riseTop, scrollEnd } from '~/state/chapters';
 import { changedChapter, holdLimit, jumpTarget, keyTarget, moveTarget, onRise, pinnedAtEnd, releaseTarget, SETTLE_SLOP_PX, settleTarget } from './target';
 import { VirtualScroll } from './VirtualScroll';
 
@@ -17,8 +17,28 @@ export interface Glide {
   stop(): void;
 }
 
-/** About how long `progress` takes to catch up with `target`, in seconds. */
-const SMOOTH_TIME = 0.25;
+/**
+ * About how long `progress` takes to catch up with `target`, in seconds, by the stretch the story moves through. maath's
+ * `damp` covers 99 % of a one-unit move in about 3.3 times its smooth time:
+ * - the rise keeps M2a's quick pace (about 0.8 s from the home to BOB from above), which Bob approved;
+ * - the dive takes its time, about 3.7 s from BOB from above to the overview, most of it in the first 2 s (Bob,
+ *   2026-10-24: the dive was too fast; the Blender preview he approved took about 5 s);
+ * - a move between the overview and the beads takes about 2.3 s.
+ */
+export const RISE_SMOOTH = 0.25;
+export const DIVE_SMOOTH = 1.1;
+export const GLIDE_SMOOTH = 0.7;
+
+/**
+ * The smooth time for a story at `progress` moving toward `target`: the pace of the stretch it moves through. At a stop
+ * it reads the stretch on the target's side, so leaving BOB from above upward is the rise and downward the dive.
+ */
+export function smoothTimeAt(c: Chapters, progress: number, target: number): number {
+  const p = Number.isFinite(progress) ? progress : 0;
+  const toward = Number.isFinite(target) && target !== p ? Math.sign(target - p) * 1e-6 : 0;
+  const index = chapterAt(c, p + toward).index;
+  return index === 0 ? RISE_SMOOTH : index === 1 ? DIVE_SMOOTH : GLIDE_SMOOTH;
+}
 /** Within this many units of the target, progress is on it and the loop sleeps. */
 const SETTLED = 1e-4;
 /** A frame is never longer than this, in seconds: a tab that was in the background must not lurch the scene. */
@@ -127,7 +147,7 @@ export class ScrollLoop {
     try {
       glide.step(dt);
       const before = frame.progress;
-      this.smooth(frame, 'progress', frame.target, SMOOTH_TIME, dt, Infinity, undefined, SETTLED);
+      this.smooth(frame, 'progress', frame.target, smoothTimeAt(chapters, frame.progress, frame.target), dt, Infinity, undefined, SETTLED);
       const arrived = !this.needsFrames();
       if (arrived) frame.progress = frame.target; // on it, exactly: the next frame would snap it, but the loop sleeps first
       frame.velocity = arrived || dt <= 0 ? 0 : (frame.progress - before) / dt;
@@ -211,8 +231,8 @@ export interface HomeScroll {
  * down halts the ease there. A lift reckons in the glide it would leave and ends it, so the one damped move
  * of the loop carries the swipe to its stop, with no glide slowing to a crawl first. A gesture that ends on the rise
  * rests where it ends, and its glide runs as M2a's did, held to the rise. The move to the stop is the loop's own damped
- * one (`SMOOTH_TIME`), never a jump, and the loop lands progress on the stop exactly. With reduced motion every input is
- * already a step to a stop (`moveTarget`).
+ * one (`smoothTimeAt`: quick on the rise, slower down the dive and between the beads), never a jump, and the loop lands
+ * progress on the stop exactly. With reduced motion every input is already a step to a stop (`moveTarget`).
  *
  * **The hold.** Every move of the target, a delta, a settle or a jump, is clamped to `hold` (`holdLimit` of it): a
  * wheel, a swipe or End past it rests on it, and a glide that presses into it is ended there, as at the end. The place
@@ -258,6 +278,8 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
   const slopOf = (by: 'wheel' | 'finger'): number => (by === 'finger' ? SETTLE_SLOP_PX / Math.max(o.unitPx(), 1) : 0);
   /** The place an input starts from: where the story stands while a settle eases it, else the target. */
   const startPlace = (): number => (settling ? frame.progress : frame.target);
+  /** Whether an input of `units` goes against the way the story is moving. */
+  const reverses = (units: number): boolean => units !== 0 && Math.sign(units) === -Math.sign(frame.velocity);
 
   const loop: ScrollLoop = new ScrollLoop({
     ...o,
@@ -279,6 +301,7 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
         place = moveTarget(frame.target, units, chapters, true);
       } else if (by === 'key' || by === 'held') {
         gesture = null; // a key puts the target on its stop: a wheel it cut short has nothing left to settle
+        if (reverses(units)) loop.halt(); // a key that turns a moving story back turns it at once
         const base = startPlace(); // a key during a settle steps from where the story stands
         if (by === 'held' && !onRise(base, chapters)) return;
         settling = false;
@@ -287,7 +310,9 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
         if (by !== 'glide') {
           if (gesture === null) {
             // A gesture begun while a settle eases starts from where the story stands, and takes the target over at once.
-            if (settling) frame.target = frame.progress;
+            // One that turns a moving story back also lets its speed go, so it turns at once at the slower void pace.
+            if (reverses(units)) loop.halt();
+            else if (settling) frame.target = frame.progress;
             gesture = { from: frame.target, reach: frame.target, anchor: frame.target, direction: 0, by };
           }
           settling = false;

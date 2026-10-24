@@ -21,8 +21,8 @@ import type { Phase } from '~/state/machine';
 import { BEADS, journeyAt } from './journey';
 import { STEP_FADE_MS } from './stepFade';
 
-/** How long the flight into a porthole (and back out) takes, ms: spec §2.4's "about 0.8 s". */
-export const FLIGHT_MS = 800;
+/** How long the flight into a porthole (and back out) takes, ms: spec §2.4's "about 1.4 s" (Bob, 2026-10-24: 0.8 s was too fast). */
+export const FLIGHT_MS = 1400;
 
 /** How long a fade's dark half takes, ms: the step fade's (the scene host's opacity moves over it, src/styles/base.css). */
 export const FOCUS_FADE_MS = STEP_FADE_MS;

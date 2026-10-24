@@ -4,7 +4,7 @@ import { routeFromPath } from '~/i18n/locale';
 
 /**
  * How long a project page left for the home page takes to fade out, with its scrim, ms: the stylesheet's `.page-ghost`
- * (src/styles/base.css; 0.4 s on the reveal curve, as the hero's cue fades), so the page is gone well within the 0.8 s
+ * (src/styles/base.css; 0.4 s on the reveal curve, as the hero's cue fades), so the page is gone well within the 1.4 s
  * flight out of the porthole (src/scene/bob/focus.ts `FLIGHT_MS`).
  */
 export const PAGE_OUT_MS = 400;

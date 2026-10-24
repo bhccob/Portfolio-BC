@@ -198,7 +198,7 @@ describe('the fades in the stylesheet', () => {
     expect(base).toMatch(/@keyframes bead-page-out\s*\{\s*to\s*\{\s*opacity:\s*0;?\s*\}\s*\}/);
   });
 
-  it('keeps the fade out short, over well within the 0.8 s flight out', () => {
+  it('keeps the fade out short, over well within the flight out', () => {
     const page = /animation:\s*([^;]+)/.exec(out)?.[1] ?? '';
     expect(seconds(page) * 1000).toBe(PAGE_OUT_MS);
     expect(PAGE_OUT_MS).toBeLessThan(FLIGHT_MS);

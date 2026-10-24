@@ -174,6 +174,12 @@ Scrolling (wheel, trackpad, touch, arrow keys) scrubs one continuous camera move
 
 That makes six stops in all; the old chapters' long stretches (eleven units of "parts", two of "morph") go.
 
+**The pace** (Bob, 2026-10-24: the dive and the moves between beads were too fast).
+- The rise keeps M2a's quick pace, about 0.8 s from the home to BOB from above.
+- The dive takes about 3.7 s from BOB from above to the overview, most of it in the first 2 s.
+- A move between the overview and a bead, or from one bead to the next, takes about 2.3 s.
+- Input that turns the story back takes over at once, whatever the pace.
+
 ### 2.4 Inside the chip: preview p09–p10, `d02`–`d03`
 
 - **The space.** You come out under the glass, which is now the sky: its underside carries the circuit traces, faintly lit, and the round opening glows where you came in.
@@ -215,7 +221,7 @@ That makes six stops in all; the old chapters' long stretches (eleven units of "
   - It is a real link to the project page, so the keyboard reaches it (Tab, then Enter) and a screen reader reads it.
 - **Hover** (pointer devices): a bead turns slightly toward you and brightens a little.
 - **Click** or Enter flies through the porthole into the project page.
-  - The flight is short (about 0.8 s): the camera moves into the porthole, and the project page's text fades in over the scene with its scrim. The 3D project interior of §2.5 is a later milestone (M3); until then the page stands over the bead seen close.
+  - The flight takes about 1.4 s (Bob, 2026-10-24: 0.8 s was too fast): the camera moves into the porthole, and the project page's text fades in over the scene with its scrim. The 3D project interior of §2.5 is a later milestone (M3); until then the page stands over the bead seen close.
   - **Esc or back** flies out again to the same bead in the void, at its stop of the scroll.
   - **A direct arrival** at a project page plays the loader (§2.1), then goes straight to that bead's close view.
 - **Loading:** the void, the beads, their objects and screens load after the home has landed (§2.1). If someone scrolls before they are ready, the dive holds in the glowing tunnel and goes on once they are.
