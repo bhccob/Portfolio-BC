@@ -7,10 +7,11 @@ import type { EngravingModel } from '~/engine/bob/build/engraving';
 import type { SmokeModel } from '~/engine/bob/build/smoke';
 import { aimsAt, driftAngle, NEEDLE_SPRING, needleAngleAt, needleAngleFor, nextDriftRest } from '~/engine/bob/needleAim';
 import { AT_REST } from '~/engine/stillness';
-import { HOME_CHAPTERS, stops } from '~/state/chapters';
+import { HOME_CHAPTERS, scrollEnd, stops } from '~/state/chapters';
 import { frame } from '~/state/frame';
 import { useScene } from '~/state/store';
 import { motion } from '../motion';
+import { applyEndView, clearEndView, type EndWritten, endViewFor, endWritten } from './endView';
 import type { JourneyPose } from './journey';
 import { IDLE_SECONDS, needleGlowAt } from './look';
 import { risingFor } from './scrollPose';
@@ -27,6 +28,12 @@ const STEP_FADE_ATTRIBUTE = 'data-step-fade';
 
 /** The attribute on <html> that takes the hero's SCROLL cue away while the camera is up the rise (src/styles/base.css). */
 const RISING_ATTRIBUTE = 'data-rising';
+
+/** The end page's stop, the scroll's end: the end view rests there (endView.ts). */
+const END = scrollEnd(HOME_CHAPTERS);
+
+/** The end page's section (src/ui/EndPage.tsx), or null while the home page is not up. */
+const endPage = (): HTMLElement | null => document.getElementById('end');
 
 /** The home's objects Home drives: built, posed through the opening and freed by the Opening, which owns them. */
 export interface HomeModels {
@@ -97,6 +104,8 @@ interface HomeState {
   faded: boolean;
   /** `<html data-rising>` is set: likewise, the DOM as Home last wrote it. */
   rising: boolean;
+  /** The end view (`--end`, `<html data-end>`, `#end`'s inert) as Home last wrote it (endView.ts). */
+  end: EndWritten;
 }
 
 /** Sets or takes away `<html data-step-fade>`, and notes it, writing the DOM only when it changes. */
@@ -144,6 +153,11 @@ const pivotPx = { x: 0, y: 0 };
  * the stylesheet fades the cue out over 0.4 s (at once with reduced motion), and it is taken away again at the home, on
  * a let-go and on unmount, written to the DOM only when it changes.
  *
+ * **The end.** The move from Cookies Clicker into the night and the end page (way A) is the stylesheet's, from what Home
+ * writes each frame (endView.ts): `--end`, the pose's `night`, and `<html data-end>`, `moving` on the way and `rest`
+ * once the progress it poses and the target are both on the end, with `#end` inert until then. Written only where it
+ * changes; leaving the rest scrolls the page back to its top first; cleared on a let-go and on unmount, as the cue is.
+ *
  * **Aim.** At the home itself at rest (`aimsAt`: HOME_IDLE on the home page, the rise at 0) a mouse or a pen that has
  * moved aims the needle at itself: `needleAngleFor(pointer, pivot)` in the canvas's pixels, the pivot where the camera
  * (parallax and all) puts the compass's pivot on the screen this frame. Until one has moved, and so always on a touch
@@ -180,18 +194,20 @@ export function Home({ models, handover }: HomeProps): null {
     fade: stepFadeFrom(0),
     faded: false,
     rising: false,
+    end: endWritten(),
   }));
   const invalidate = useThree((three) => three.invalidate);
   /** The pivot the needle turns on (`CompassModel.pivot`): the needle's own centre, the armillary's origin. */
   const pivot = models.compass.pivot;
 
   // Gone: nothing of the home's keeps the canvas drawing, the host is not left faded down, the cue is not left hidden,
-  // and no scroll pose is reported.
+  // the end page is not left out of the flow or inert, and no scroll pose is reported.
   useEffect(
     () => () => {
       Object.assign(motion.compass, AT_REST);
       showStepFade(state, false);
       showRising(state, false);
+      clearEndView(document.documentElement, endPage(), state.end);
       clearScroll();
     },
     [state],
@@ -203,7 +219,7 @@ export function Home({ models, handover }: HomeProps): null {
     if (!handover.live || journey === null) {
       // Let go (a seek holds the loader's clock): the Opening poses the scene from the held moment, which knows nothing
       // of the scroll, so the compass is closed, its needle out of the dip and the letters dark again, and the host is
-      // not left faded down nor the cue hidden.
+      // not left faded down nor the cue hidden, nor the night over the scene.
       if (state.live) {
         models.compass.setNeedleGlow(1);
         models.compass.setIris(0);
@@ -211,6 +227,7 @@ export function Home({ models, handover }: HomeProps): null {
         models.engraving.setLetters(0);
         showStepFade(state, false);
         showRising(state, false);
+        clearEndView(document.documentElement, endPage(), state.end);
         clearScroll();
       }
       state.live = false;
@@ -313,6 +330,9 @@ export function Home({ models, handover }: HomeProps): null {
     scroll.needleDip = pose.needleDip;
     // The hero's SCROLL cue goes with the rise and comes back at the home (the spec shows no text during the scroll).
     showRising(state, risingFor(pose.u));
+    // The end page (way A, endView.ts): the night's share of this frame's pose, and where the story stands, the progress
+    // Home poses (with reduced motion the stop the step fade shows) and the target; written only where it changes.
+    applyEndView(endViewFor(journey.night, shown, frame.target, END), document.documentElement, endPage(), state.end);
 
     const time = state.base + state.idleTime;
     models.compass.setSpin(time);

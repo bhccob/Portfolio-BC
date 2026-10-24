@@ -1569,6 +1569,86 @@ html[data-3d='on'][data-void='failed'][data-rising] .home-nav {
   margin-top: 56px;
 }
 
+/* ---------- the end page over the scene: way A, into the night ---------- */
+/* As the story moves from Cookies Clicker to the end page the void sinks into the site's night and the page rises from
+   below; at the end the page stands in the normal flow and the document scrolls (spec 2026-10-24-bob-end-page-design.md,
+   the approved frames of way A). Home writes the move to <html> each frame (src/scene/bob/endView.ts): `--end`, the
+   night's share 0..1, and `data-end`, `moving` on the way in or out and `rest` at the end; while neither is set the story
+   is elsewhere. With 3D off Home is not there, nothing is written, and the page is simply in the home's flow. */
+
+/* Not at the end, with 3D on: hidden, and so out of reach of Tab, but still in the HTML for crawlers. Home also keeps the
+   section inert until the story rests at the end. */
+html[data-3d='on']:not([data-end]) .end-page {
+  visibility: hidden;
+}
+
+/* While the end is shown the hero gives up its screen: its only visible line, the SCROLL cue, left with the rise, and
+   the name is the engraving, so it shrinks to nothing (the h1 stays, for a screen reader) and the page's place in the
+   flow is right under the header, where it rises to and rests. The cue, gone by opacity, takes no click where it now
+   stands, over the header. The home's project links stay out of reach: Tab goes from the header to the questions. */
+html[data-route='home'][data-3d='on'][data-end] .hero {
+  min-height: 0;
+  padding: 0;
+}
+
+html[data-route='home'][data-3d='on'][data-end] .hero-cue {
+  pointer-events: none;
+}
+
+html[data-3d='on'][data-end] .home-nav {
+  visibility: hidden;
+}
+
+/* The move: the page rises 40vh from below as it fades in, fixed where it stands in the flow (no `top`: its static
+   place, under the header), so the frame that comes to rest puts it back in the flow on the same pixel. */
+html[data-end='moving'] .end-page {
+  position: fixed;
+  left: 0;
+  right: 0;
+  transform: translateY(calc((1 - var(--end)) * 40vh));
+  opacity: var(--end);
+}
+
+/* The night over the scene, above the canvas and under the page, as a page of text has its scrim: the site's night at
+   up to 0.86, and the scene host masked off below its top third, where the poster's night shows through. At the end
+   that leaves the scene at about 14 % over the top third, fading into the night (the mock-up's end frame): the page
+   reads as standing over the scene, which sleeps behind it. Only on the home page: `data-end` stays on <html> while
+   another page is up over a story left at the end. */
+html[data-route='home'][data-end] .scene-host::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--night);
+  pointer-events: none;
+}
+
+html[data-route='home'][data-end='moving'] .scene-host::after {
+  opacity: calc(var(--end) * 0.86);
+}
+
+html[data-route='home'][data-end='moving'] .scene-host {
+  mask-image: linear-gradient(to bottom, #000 0%, rgb(0 0 0 / calc(1 - var(--end))) 33%);
+}
+
+/* At rest: the document scrolls as any page does, the night is at its end strength whatever `--end` says (a step fade
+   writes the rest a frame before the pose is there), and no bead label shows. The page needs no rule: it is in the flow. */
+html[data-route='home'][data-3d='on'][data-end='rest'] {
+  overflow-y: auto;
+  touch-action: auto;
+}
+
+html[data-route='home'][data-end='rest'] .scene-host::after {
+  opacity: 0.86;
+}
+
+html[data-route='home'][data-end='rest'] .scene-host {
+  mask-image: linear-gradient(to bottom, #000 0%, transparent 33%);
+}
+
+html[data-end='rest'] .bead-label {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
