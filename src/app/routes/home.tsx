@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Link, type MetaFunction } from 'react-router';
 import { PAGES } from '~/data/pages';
 import { projects } from '~/data/projects';
@@ -7,6 +8,7 @@ import { goToEnd } from '~/input/useHomeScroll';
 import { head } from '~/seo/head';
 import { personLd, websiteLd } from '~/seo/structured';
 import { BeadLabels } from '~/ui/BeadLabel';
+import { focusEndOnArrival } from '~/ui/endArrival';
 import { EndPage } from '~/ui/EndPage';
 import { HANDLES, type RouteHandle } from '../handle';
 
@@ -27,6 +29,14 @@ export const handle: RouteHandle = HANDLES.home;
 export default function Home() {
   const i18n = useTranslator();
   const { t, locale } = i18n;
+  // The end page's link: the story to the end page by the step fade, and the focus to its title once it rests there.
+  const stopFocus = useRef<(() => void) | null>(null);
+  useEffect(() => () => stopFocus.current?.(), []);
+  const toEndPage = (): void => {
+    stopFocus.current?.();
+    stopFocus.current = focusEndOnArrival(document);
+    goToEnd();
+  };
 
   return (
     <>
@@ -60,8 +70,8 @@ export default function Home() {
           </ul>
         </div>
         {/* The end page's way in when the void failed (shown only then, src/styles/base.css): the scroll holds at BOB from
-            above, so this takes the story there by the step fade (goToEnd). */}
-        <button type="button" className="end-link" onClick={goToEnd}>
+            above, so this takes the story there by the step fade (goToEnd), and the focus follows (focusEndOnArrival). */}
+        <button type="button" className="end-link" onClick={toEndPage}>
           {t.end.failLink}
         </button>
       </nav>

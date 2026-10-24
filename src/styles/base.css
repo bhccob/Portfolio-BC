@@ -126,8 +126,10 @@ body:has(.page) .poster::after {
 
 /* With reduced motion each step of the home's scroll is a short fade (spec §2.3): as the story moves to another stop,
    Home sets <html data-step-fade>, the scene fades down over 150 ms, the pose jumps while it is dark, and the attribute
-   goes, so the scene fades back over 150 ms (src/scene/bob/stepFade.ts). Without reduced motion the attribute is never
-   set, and nothing else moves the host's opacity. */
+   goes, so the scene fades back over 150 ms (src/scene/bob/stepFade.ts). Without reduced motion Home never sets it; the
+   scroll input does, for a move across a failed void, between the end page and the stops short of it, which is the same
+   fade with or without reduced motion (src/input/scrollLoop.ts). The end page fades with the host (below, at the end
+   page over the scene). */
 .scene-host {
   transition: opacity 150ms ease;
 }
@@ -1655,6 +1657,31 @@ html[data-end='moving'] .end-page {
   right: 0;
   transform: translateY(calc((1 - var(--end)) * 40vh));
   opacity: var(--end);
+}
+
+/* A step fade (src/scene/bob/stepFade.ts: reduced motion's every step, and a failed void's every move to the end page
+   or from it) takes the page down with the scene host and back with it, so the page neither appears whole nor goes in
+   a cut at the jump. It outweighs the move's own opacity, which a fade out of the end page leaves at 1. The page eases
+   as the host does, 150 ms, only where no move of way A runs, whose `--end`, written each frame, must never be eased:
+   with the void failed, and with reduced motion (over the sheet's last rule, as the host's own). */
+html[data-route='home'][data-step-fade] .end-page {
+  opacity: 0;
+}
+
+html[data-void='failed'] .end-page {
+  transition: opacity 150ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .end-page {
+    transition: opacity 150ms ease !important;
+  }
+}
+
+/* The title takes the focus by script alone, when the failed void's link brings the story here (src/ui/endArrival.ts):
+   the page's own place to go on from, as <main> is after a navigation, so it shows no ring. */
+.end-page > .page-title:focus {
+  outline: none;
 }
 
 /* The night over the scene, above the canvas and under the page, as a page of text has its scrim: the site's night at

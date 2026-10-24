@@ -26,7 +26,8 @@ export function EndPage(): JSX.Element {
   return (
     <section className="end-page" id="end" aria-labelledby="end-title">
       <p className="label">{end.label}</p>
-      <h2 id="end-title" className="page-title">
+      {/* Focusable by script alone: the failed void's link to this page focuses it on arrival (src/ui/endArrival.ts). */}
+      <h2 id="end-title" className="page-title" tabIndex={-1}>
         <Markup text={end.title} />
       </h2>
 

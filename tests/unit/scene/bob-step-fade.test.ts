@@ -156,12 +156,33 @@ describe('the step fade in the stylesheet', () => {
       .at(-1);
   }
 
-  it('fades the scene host down while <html data-step-fade> is set, by opacity alone', () => {
+  it('fades the scene host down while <html data-step-fade> is set, by opacity alone, and the end page with it', () => {
     expect(valueOf('html[data-step-fade] .scene-host', 'opacity')).toBe('0');
+    expect(valueOf("html[data-route='home'][data-step-fade] .end-page", 'opacity')).toBe('0');
     const fading = RULES.filter((rule) => rule.selectors.some((s) => s.includes('data-step-fade')));
-    expect(fading.length).toBe(1);
-    expect([...fading[0].declarations.keys()]).toEqual(['opacity']);
-    expect(fading[0].selectors).toEqual(['html[data-step-fade] .scene-host']);
+    expect(fading.map((rule) => rule.selectors)).toEqual([['html[data-step-fade] .scene-host'], ["html[data-route='home'][data-step-fade] .end-page"]]);
+    for (const rule of fading) expect([...rule.declarations.keys()]).toEqual(['opacity']);
+  });
+
+  /** A selector's weight as far as these rules go: its attribute and class selectors. */
+  const weight = (selector: string): number => (selector.match(/\[/g)?.length ?? 0) + (selector.match(/\./g)?.length ?? 0);
+
+  it("outweighs the move's own opacity on the end page, so a fade out of the end page takes the page down too", () => {
+    // Leaving the end page by a fade, Home writes `moving` with `--end` still 1 while the host goes dark.
+    expect(valueOf("html[data-end='moving'] .end-page", 'opacity')).toBe('var(--end)');
+    expect(weight("html[data-route='home'][data-step-fade] .end-page")).toBeGreaterThan(weight("html[data-end='moving'] .end-page"));
+  });
+
+  it("eases the end page's opacity as the host's, 150 ms, only where no move of way A runs: a failed void, and reduced motion", () => {
+    expect(valueOf("html[data-void='failed'] .end-page", 'transition')).toBe(valueOf('.scene-host', 'transition'));
+    expect(valueOf('.end-page', 'transition', REDUCED)).toBe(valueOf('.scene-host', 'transition', REDUCED));
+    expect(valueOf('.end-page', 'transition', REDUCED)).toMatch(new RegExp(`^opacity ${STEP_FADE_MS}ms\\b.*!important$`));
+    // Nowhere else: the move's `opacity: var(--end)`, written each frame, is never eased.
+    const easing = RULES.filter((rule) => rule.selectors.some((s) => /\.end-page$/.test(s)) && [...rule.declarations.keys()].some((key) => key.startsWith('transition')));
+    expect(easing.map((rule) => [rule.groups, rule.selectors])).toEqual([
+      [[], ["html[data-void='failed'] .end-page"]],
+      [REDUCED, ['.end-page']],
+    ]);
   });
 
   it("moves the host's opacity over 150 ms, down and back", () => {

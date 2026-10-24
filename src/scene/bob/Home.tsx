@@ -150,7 +150,8 @@ const pivotPx = { x: 0, y: 0 };
  * from above (the camera goes on, into the dive). It reports the pose in `frame.scroll`. With reduced motion the scroll steps a
  * whole stop at a time (src/input/target.ts) and each step is a short fade (stepFade.ts): the pose stays at the stop it
  * shows while `<html data-step-fade>` fades the scene host down over STEP_FADE_MS, jumps to the stop the target is
- * nearest once it is dark, and the attribute goes, so it fades back; without reduced motion the attribute is never set.
+ * nearest once it is dark, and the attribute goes, so it fades back; without reduced motion Home never sets it (the
+ * scroll input does, for a move across a failed void, src/input/scrollLoop.ts, and Home then poses the progress it holds).
  * The hero's SCROLL cue leaves with the rise: `<html data-rising>` is set while the rise is above 0.01 (`risingFor`) and
  * the stylesheet fades the cue out over 0.4 s (at once with reduced motion), and it is taken away again at the home, on
  * a let-go and on unmount, written to the DOM only when it changes.

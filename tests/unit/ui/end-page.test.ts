@@ -75,8 +75,9 @@ describe('the end page', () => {
         // The section is the page's end: its id is the anchor the story and the nav's link point at.
         expect(html).toMatch(/^<section class="end-page" id="end" aria-labelledby="end-title">/);
         // The label above the title, in the site's label style.
-        expect(html).toMatch(new RegExp(`<p class="label">${t.end.label}</p><h2 id="end-title" class="page-title">`));
-        const title = html.match(/<h2 id="end-title" class="page-title">(.*?)<\/h2>/)?.[1] ?? '';
+        // The title takes the focus after the failed void's link brings the story here (src/ui/endArrival.ts): tabindex -1.
+        expect(html).toMatch(new RegExp(`<p class="label">${t.end.label}</p><h2 id="end-title" class="page-title" tabindex="-1">`));
+        const title = html.match(/<h2 id="end-title" class="page-title" tabindex="-1">(.*?)<\/h2>/)?.[1] ?? '';
         expect(textOf(title)).toBe(stripMarkup(t.end.title));
         expect(title).toContain('<em>');
         // Six <details> in one exclusive group, none open on arrival, the summaries the spec's questions in order.

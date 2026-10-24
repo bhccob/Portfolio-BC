@@ -1302,8 +1302,11 @@ describe('a failed void: the end page by its link and the step fade, never throu
       }
       return { seen, prevented };
     };
-    /** A finger from y 300 that moves `dy` px (down the glass for a positive one: up the story) in ten moves, a frame after each, then lifts. */
-    const swipe = async (dy: number): Promise<{ seen: Seen[]; prevented: boolean[] }> => {
+    /**
+     * A finger from y 300 that moves `dy` px (down the glass for a positive one: up the story) in ten moves, a frame after
+     * each, then lifts `holdMs` after its last move (held still that long, it leaves no glide).
+     */
+    const swipe = async (dy: number, holdMs = 4): Promise<{ seen: Seen[]; prevented: boolean[] }> => {
       const seen: Seen[] = [];
       const prevented: boolean[] = [];
       let t = frames.now;
@@ -1315,7 +1318,7 @@ describe('a failed void: the end page by its link and the step fade, never throu
         frames.frame();
         seen.push({ now: frames.now, progress: storyFrame.progress, dark: dark() });
       }
-      fire(el, 'touchend', { touches: [], timeStamp: t + 4 });
+      fire(el, 'touchend', { touches: [], timeStamp: t + holdMs });
       await flush();
       return { seen, prevented };
     };
@@ -1446,6 +1449,27 @@ describe('a failed void: the end page by its link and the step fade, never throu
     expect(s.frames.size).toBe(0);
   });
 
+  it("failed: a finger that wavers under the slop at the end page's top leaves the story at the end, with no fade", async () => {
+    const s = failedHome(1);
+    await s.toEndPage();
+    // 30 px down the glass, under SETTLE_SLOP_PX (40), held still before the lift: a waver, or a pull-to-refresh reflex.
+    const waver = await s.swipe(30, 300);
+    expect(waver.prevented.some(Boolean)).toBe(true); // the story's, past the touch slop, so the page does not scroll
+    expect(storyFrame.target).toBe(END);
+    const still = [...waver.seen, ...s.run()];
+    expect(still.every((f) => f.progress === END && !f.dark)).toBe(true);
+    expect([storyFrame.target, storyFrame.progress]).toEqual([END, END]);
+    expect(s.win.scrollY).toBe(0);
+    // Past the slop the same finger goes back to BOB from above, by one fade.
+    const past = await s.swipe(80, 300);
+    expect(storyFrame.target).toBe(1);
+    const all = [...past.seen, ...s.run()];
+    const faded = all.findIndex((f) => f.dark);
+    expect(faded).toBeGreaterThan(0); // under the slop first, the story still at the end
+    expect(all.slice(0, faded).every((f) => f.progress === END)).toBe(true);
+    byFade(all.slice(faded), END, 1);
+  });
+
   it("failed: PageUp and Shift+Space at the top go back to 1 by the fade; down at the end page, and up while it is scrolled, are the page's", async () => {
     type Press = (s: ReturnType<typeof failedHome>) => Event;
     const presses: Press[] = [(s) => s.key('PageUp'), (s) => s.key(' ', true)];
@@ -1534,9 +1558,30 @@ describe('a failed void: the end page by its link and the step fade, never throu
     t.disconnect();
     expect(t.dark()).toBe(false);
     expect(t.frames.size).toBe(0);
+    storyFrame.target = storyFrame.progress = 1; // as the route sync might leave it
     goToEnd(); // no home scroll connected: nothing moves
-    expect(storyFrame.target).toBe(END);
+    expect([storyFrame.target, storyFrame.progress]).toEqual([1, 1]);
     expect(t.frames.size).toBe(0);
+  });
+
+  it("failed with reduced motion: a wheel step at 1 is held there, and asks for the overview, never the end page: when the void is back after 3D off and on, it goes on to 2", async () => {
+    const s = failedHome(1, { reduced: true });
+    const held = await s.wheel(1, 120);
+    expect(held.prevented).toEqual([true]);
+    s.run();
+    expect([storyFrame.target, storyFrame.progress]).toEqual([1, 1]);
+    // 3D off and on: the Void goes with the Stage (idle), then loads again, and this time it is there.
+    useScene.setState({ threeD: false });
+    useScene.getState().setVoidState('idle');
+    useScene.setState({ threeD: true });
+    useScene.getState().setVoidState('loading');
+    s.run();
+    expect(storyFrame.target).toBe(1);
+    useScene.getState().setVoidState('ready');
+    expect(storyFrame.target).toBe(2);
+    await flush(); // the story's first move fetches damp
+    s.run();
+    expect([storyFrame.target, storyFrame.progress]).toEqual([2, 2]);
   });
 
   it('failed with reduced motion: a key steps from 1 to the end page, a notch up steps back, the progress jumping, never between; Home fades the scene (the input sets no fade)', async () => {

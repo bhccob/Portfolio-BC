@@ -448,6 +448,9 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
       if (o.reducedMotion()) {
         place = moveTarget(frame.target, units, chapters, true, stopsNow());
         stepped = by === 'key' || by === 'held';
+        // A step the hold keeps (a wheel or a finger past BOB from above of a failed void) asks, for the hold's lifting,
+        // for the next of every stop, as the settle does: a void there again goes on to the overview, not the end page.
+        if (!stepped && place > limitNow() && !pastHold(frame.target)) place = moveTarget(frame.target, units, chapters, true);
       } else if (by === 'key' || by === 'held') {
         gesture = null; // a key puts the target on its stop: a wheel it cut short has nothing left to settle
         const base = startPlace(); // a key during a settle steps from where the story stands
@@ -479,10 +482,16 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
           limit = top;
         }
         // With the void failed nothing lies between the end page and BOB from above: a wheel or a finger that goes up from
-        // the end page takes one step back to BOB from above (the step fade), and the rest of its gesture is spent.
+        // the end page takes one step back to BOB from above (the step fade), and the rest of its gesture is spent. A finger
+        // first has its slop: while it has carried no further than SETTLE_SLOP_PX the story stays at the end page (a
+        // waver, a pull at the page's top), and a lift there settles back on it with no fade. A wheel has none.
         if (gesture !== null && by !== 'glide' && place < end && pastHold(frame.target)) {
-          place = moveTarget(end, -1, chapters, true, stopsNow());
-          gesture.spent = true;
+          if (end - gesture.reach <= slopOf(gesture.by)) {
+            place = end;
+          } else {
+            place = moveTarget(end, -1, chapters, true, stopsNow());
+            gesture.spent = true;
+          }
         }
       }
       // A place behind a moving story lets its speed go, so it turns at once, at the void's slower pace too.
