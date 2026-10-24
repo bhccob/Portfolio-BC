@@ -195,7 +195,8 @@ export interface HomeScroll {
  * **The hold.** Every move of the target, a delta, a settle or a jump, is clamped to `hold` (`holdLimit` of it): a
  * wheel, a swipe or End past it rests on it, and a glide that presses into it is ended there, as at the end. The place
  * the input asked for past it is kept (`asked`), until the next input that stays within it: when the hold rises
- * (`holdChanged`) the story goes on from the hold toward it (`releaseTarget`). Nothing past the hold is stored as a
+ * (`holdChanged`) the story goes on from the hold toward it (`releaseTarget`). A wheel or touch gesture that went into the
+ * hold asks, once it ends, for the stop just past the hold and no further. Nothing past the hold is stored as a
  * debt: scrolling back up from the hold moves the story at once. A story that is already past the hold when this
  * starts (the route sync's Back to a bead's stop) is held the same way, its progress with it.
  */
@@ -260,10 +261,16 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
       const start = from;
       from = null;
       if (start === null || o.reducedMotion()) return;
-      const end = (asked ?? frame.target) + glide;
+      // Where it ended: past the hold where it pressed into it (`asked`), else where its glide would carry the target.
+      const end = asked ?? frame.target + glide;
       if (onRise(end, chapters)) return; // it rests where it ends, its glide (if any) as M2a's
       scroll.stopGlide();
-      askFor(settleTarget(start, end, chapters, SETTLE_SLOP_PX / Math.max(o.unitPx(), 1)));
+      const limit = limitNow();
+      let place = settleTarget(start, end, chapters, SETTLE_SLOP_PX / Math.max(o.unitPx(), 1));
+      // One that went into the hold asks for no more than the stop just past it, as a glide that presses into the hold is
+      // ended there: the void's ready takes it on to that stop, not as far as the glide would have gone.
+      if (end > limit) place = Math.min(place, moveTarget(limit, 1, chapters, true));
+      askFor(place);
       loop.wake();
     },
     enabled: o.enabled,

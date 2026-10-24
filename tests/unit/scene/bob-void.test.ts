@@ -352,6 +352,26 @@ describe('the scroll input holds at the dive while the void loads', () => {
     expect([s.story.target, s.story.progress]).toEqual([2, 2]);
   });
 
+  it('asks a flick that would glide into the hold for the stop just past it, no further: a glide carries nothing past the hold', async () => {
+    const s = held('loading', { at: 1 });
+    let t = 0;
+    fire(s.el, 'touchstart', { touches: [{ clientX: 100, clientY: 800 }], timeStamp: t });
+    for (let i = 1; i <= 3; i++) {
+      t += 16;
+      fire(s.el, 'touchmove', { touches: [{ clientX: 100, clientY: 800 - 60 * i }], timeStamp: t });
+      if (i === 1) await flush();
+      s.frames.frame();
+    }
+    // 0.18 dragged, short of the hold, and a lift at 3750 px/s, whose glide would carry 0.94 more: 2.12, past the overview.
+    fire(s.el, 'touchend', { touches: [], timeStamp: t + 4 });
+    await flush();
+    s.drain();
+    expect([s.story.target, s.story.progress]).toEqual([TUNNEL_HOLD, TUNNEL_HOLD]);
+    s.become('ready');
+    s.drain();
+    expect([s.story.target, s.story.progress]).toEqual([2, 2]);
+  });
+
   it('leaves a scroll that rested short of the hold where it is when the void is ready', async () => {
     const s = held('loading');
     await s.wheel(5); // 0.6
