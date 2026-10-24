@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { countCanvasMount, registerStageProbe } from '../../../src/debug/stageReport';
 import { holdLoader, readNeedleDebugState, setStoryProgress } from '../../../src/debug/useNeedleDebug';
 import { onWakeScene } from '../../../src/scene/motion';
-import { HOME_CHAPTERS } from '../../../src/state/chapters';
+import { HOME_CHAPTERS, scrollEnd } from '../../../src/state/chapters';
 import { frame } from '../../../src/state/frame';
 import { useScene } from '../../../src/state/store';
 
@@ -145,9 +145,10 @@ describe('setStoryProgress', () => {
     expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'secure-element' });
   });
 
-  it('stays inside the story', () => {
+  it('stays inside the scroll, 0 to its last stop, the last bead (the scroll ends there)', () => {
     setStoryProgress(99);
-    expect(frame.target).toBe(HOME_CHAPTERS.total);
+    expect(frame.target).toBe(5);
+    expect(frame.target).toBe(scrollEnd(HOME_CHAPTERS));
     expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: HOME_CHAPTERS.units.at(-1)!.category });
     setStoryProgress(-4);
     expect(frame.target).toBe(0);

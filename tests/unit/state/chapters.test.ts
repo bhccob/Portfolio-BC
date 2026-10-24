@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildChapters, chapterAt, HOME_CHAPTERS, HYSTERESIS, stops } from '../../../src/state/chapters';
+import { buildChapters, chapterAt, HOME_CHAPTERS, HYSTERESIS, riseTop, scrollEnd, stops } from '../../../src/state/chapters';
 
 const c = buildChapters({ categories: ['a', 'b', 'c'] });
 
@@ -88,8 +88,23 @@ describe('chapterAt', () => {
 });
 
 describe('stops', () => {
-  it('lists each unit start, then the total', () => {
-    expect(stops(c)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+  it('lists each unit start: the last unit is its own stop and the end of the scroll, so nothing lies past it', () => {
+    expect(stops(c)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(stops(buildChapters({ categories: ['x'] }))).toEqual([0, 1, 2, 3]);
+  });
+});
+
+describe('scrollEnd and riseTop', () => {
+  it('ends the scroll on the last stop, the start of the last unit, short of the total', () => {
+    expect(scrollEnd(c)).toBe(5);
+    expect(scrollEnd(c)).toBe(stops(c).at(-1));
+    expect(scrollEnd(c)).toBeLessThan(c.total);
+    expect(scrollEnd(buildChapters({ categories: ['x', 'y', 'z', 'w'] }))).toBe(6);
+  });
+
+  it('puts the top of the rise at the end of the first unit, which is a stop', () => {
+    expect(riseTop(c)).toBe(1);
+    expect(stops(c)).toContain(riseTop(c));
   });
 });
 
@@ -107,8 +122,12 @@ describe('HOME_CHAPTERS', () => {
     expect(HOME_CHAPTERS.units.filter((u) => u.id === 'PROJECTS').map((u) => u.category)).toEqual(['secure-element', 'front-panel', 'oscillator']);
   });
 
-  it('has six stops, 0 to 6: the keyboard, the swipe and the reduced-motion steps all go by these', () => {
-    expect(stops(HOME_CHAPTERS)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+  it('has six stops, 0 to 5, and ends on the last, Cookies Clicker: the keyboard, the swipe and the reduced-motion steps all go by these', () => {
+    // Spec §2.3: "That makes six stops in all". The last unit holds Cookies Clicker, so a stop at its end (6) would be a
+    // whole unit of scroll that changes nothing.
+    expect(stops(HOME_CHAPTERS)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(scrollEnd(HOME_CHAPTERS)).toBe(5);
+    expect(HOME_CHAPTERS.units.at(-1)).toMatchObject({ start: 5, category: 'oscillator' });
   });
 
   it('puts a position in the right project: 3.5 in the first, 5.9 in the last', () => {

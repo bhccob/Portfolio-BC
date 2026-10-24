@@ -13,7 +13,8 @@
  *   glass to the overview, all three beads in view, where it rests at 2;
  * - the overview, 2-3: the glide from the overview to Funcial's bead, seen close at 3;
  * - the projects, 3-6: the glide from each bead to the next (Jontai Energy at 4, Cookies Clicker at 5); the last
- *   unit holds Cookies, so 6, the end of the scroll, is Cookies at rest too.
+ *   unit holds Cookies, so 6 is Cookies at rest too. The scroll ends at 5, that unit's start (~/state/chapters
+ *   `scrollEnd`), so its stretch is never reached; it stays so that every chapter is a stretch, and holds.
  * Within each stretch every part eases on a smoothstep, so it leaves a stop and arrives at the next with no speed, and
  * at a stop it is exactly that stop's pose. Within 1e-6 of a stop the progress is the stop (Ruling 8, as `riseAt`).
  *
@@ -640,8 +641,8 @@ export function shotToward(a: CameraShot, b: CameraShot, e: number): CameraShot 
 /**
  * Where the journey is at this progress: the chapter it is in (~/state/chapters `chapterAt`, without hysteresis) as a
  * stretch, how far through it, and the project of a project stretch. A stop starts its stretch (1 is the dive at 0, 3
- * is Funcial's stretch at 0); 6, the end, is the last project's at 0, as 5 is. NaN reads as 0, the progress is held to
- * 0..6, and within 1e-6 of a stop it is the stop.
+ * is Funcial's stretch at 0); 6, the end of the last unit (which the scroll, ending at 5, never reaches), is the last
+ * project's at 0, as 5 is. NaN reads as 0, the progress is held to 0..6, and within 1e-6 of a stop it is the stop.
  */
 export function journeyAt(progress: number): JourneyAt {
   const chapter = chapterAt(HOME_CHAPTERS, settled(progress));

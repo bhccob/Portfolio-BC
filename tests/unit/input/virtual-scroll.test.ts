@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { VirtualScroll } from '../../../src/input/VirtualScroll';
+import { GESTURE_GAP_MS } from '../../../src/input/gesture';
+import { type DeltaSource, VirtualScroll } from '../../../src/input/VirtualScroll';
 
 /** One pixel of a unit is a thousandth of a unit: a viewport 1000 px high. */
 const VH = 1000;
@@ -9,6 +10,10 @@ interface Setup {
   win: EventTarget;
   state: { enabled: boolean; reduced: boolean; swallow?: boolean };
   deltas: number[];
+  /** Where each delta came from, in step with `deltas`. */
+  bys: DeltaSource[];
+  /** Each gesture's end, as the glide it leaves (units). */
+  ends: number[];
   jumps: string[];
   wakes: { count: number };
   listened: { type: string; options: unknown }[];
@@ -27,18 +32,24 @@ function setup(state: Setup['state'] = { enabled: true, reduced: false }): Setup
   }) as typeof el.addEventListener;
 
   const deltas: number[] = [];
+  const bys: DeltaSource[] = [];
+  const ends: number[] = [];
   const jumps: string[] = [];
   const wakes = { count: 0 };
   const scroll = new VirtualScroll(el as unknown as HTMLElement, {
     unitPx: () => VH,
-    onDelta: (units) => deltas.push(units),
+    onDelta: (units, by) => {
+      deltas.push(units);
+      bys.push(by);
+    },
     onJump: (to) => jumps.push(to),
+    onGestureEnd: (glide) => ends.push(glide),
     enabled: () => state.enabled,
     reducedMotion: () => state.reduced,
     swallow: () => state.swallow === true,
     wake: () => wakes.count++,
   });
-  return { el, win, state, deltas, jumps, wakes, listened, scroll };
+  return { el, win, state, deltas, bys, ends, jumps, wakes, listened, scroll };
 }
 
 /** Dispatches a cancelable event carrying `props`; the returned event says whether it was prevented. */
@@ -537,5 +548,126 @@ describe('VirtualScroll: dispose', () => {
     s.scroll.dispose();
     expect(s.scroll.busy).toBe(false);
     expect(() => s.scroll.dispose()).not.toThrow();
+  });
+});
+
+describe('VirtualScroll: where each delta comes from', () => {
+  it('names the wheel, a finger, its glide, a key and a held key', () => {
+    const s = setup();
+    wheel(s, 100);
+    touch(s, 'touchstart', 500, 2000);
+    for (let y = 460, t = 2016; y >= 100; y -= 40, t += 16) touch(s, 'touchmove', y, t);
+    touch(s, 'touchend', 100, 2164);
+    s.scroll.step(1 / 60);
+    key(s, 'ArrowDown');
+    key(s, 'ArrowDown', { repeat: true });
+    expect([...new Set(s.bys)]).toEqual(['wheel', 'finger', 'glide', 'key', 'held']);
+  });
+});
+
+describe('VirtualScroll: the end of a gesture (Ruling 32), when the scroll settles on a stop', () => {
+  it('ends a wheel gesture after GESTURE_GAP_MS of quiet, counted by the frames that step it, once', () => {
+    const s = setup();
+    expect(GESTURE_GAP_MS).toBe(250);
+    wheel(s, 100, 1000);
+    expect(s.scroll.waiting).toBe(true);
+    expect(s.scroll.busy).toBe(false); // no glide: it is the wheel's quiet the caller's frames count
+    for (let ms = 0; ms < GESTURE_GAP_MS - 20; ms += 16) s.scroll.step(0.016);
+    expect(s.ends).toEqual([]);
+    s.scroll.step(0.03);
+    expect(s.ends).toEqual([0]);
+    expect(s.scroll.waiting).toBe(false);
+    for (let i = 0; i < 30; i++) s.scroll.step(0.016);
+    expect(s.ends).toEqual([0]);
+  });
+
+  it('keeps one gesture going while the wheel keeps turning: each event starts the quiet again', () => {
+    const s = setup();
+    for (let i = 0; i < 20; i++) {
+      wheel(s, 4, 1000 + 100 * i);
+      for (let f = 0; f < 6; f++) s.scroll.step(0.016); // 96 ms of frames between two events
+    }
+    expect(s.ends).toEqual([]);
+    for (let f = 0; f < 20; f++) s.scroll.step(0.016);
+    expect(s.ends).toEqual([0]);
+  });
+
+  it("ends a finger's gesture when it lifts, with the glide the lift leaves, in units", () => {
+    const s = setup();
+    touch(s, 'touchstart', 500, 0);
+    for (let y = 460, t = 16; y >= 100; y -= 40, t += 16) touch(s, 'touchmove', y, t);
+    expect(s.ends).toEqual([]);
+    touch(s, 'touchend', 100, 164);
+    expect(s.ends).toHaveLength(1);
+    // 40 px every 16 ms is 2500 px/s, which the glide carries 625 px (a quarter of a second at that speed), 0.625 of a unit
+    expect(s.ends[0]).toBeCloseTo(0.625, 6);
+    expect(s.scroll.busy).toBe(true); // the glide is the caller's to end
+  });
+
+  it('ends a finger that had stopped before it lifted with no glide', () => {
+    const s = setup();
+    touch(s, 'touchstart', 500, 0);
+    touch(s, 'touchmove', 400, 16);
+    touch(s, 'touchmove', 300, 32);
+    touch(s, 'touchend', 300, 400); // still for a third of a second
+    expect(s.ends).toEqual([0]);
+    expect(s.scroll.busy).toBe(false);
+  });
+
+  it('ends one on a touchcancel, a second finger and the scroll switched off under it, with no glide', () => {
+    for (const end of ['cancel', 'pinch', 'off'] as const) {
+      const s = setup();
+      touch(s, 'touchstart', 500, 0);
+      touch(s, 'touchmove', 400, 16);
+      if (end === 'cancel') fire(s.el, 'touchcancel', { touches: [], timeStamp: 20 });
+      if (end === 'pinch') fire(s.el, 'touchmove', { touches: [finger(100, 380), finger(200, 380)], timeStamp: 32 });
+      if (end === 'off') {
+        s.state.enabled = false;
+        touch(s, 'touchmove', 380, 32);
+      }
+      expect(s.ends, end).toEqual([0]);
+      expect(s.scroll.busy, end).toBe(false);
+    }
+  });
+
+  it('ends no gesture for a tap, nor for a sideways swipe', () => {
+    const s = setup();
+    touch(s, 'touchstart', 500, 0);
+    touch(s, 'touchend', 500, 40);
+    touch(s, 'touchstart', 500, 100);
+    fire(s.el, 'touchmove', { touches: [finger(300, 490)], timeStamp: 116 });
+    touch(s, 'touchend', 490, 140);
+    expect(s.ends).toEqual([]);
+  });
+
+  it('ends the gesture under way when the caller stops it (3D switched off), and drops it on dispose', () => {
+    const s = setup();
+    wheel(s, 100, 1000);
+    s.scroll.stop();
+    expect(s.ends).toEqual([0]);
+    const t = setup();
+    wheel(t, 100, 1000);
+    t.scroll.dispose();
+    expect(t.ends).toEqual([]);
+    expect(t.scroll.waiting).toBe(false);
+  });
+
+  it('ends nothing with reduced motion: there each gesture is already a step to a stop', () => {
+    const s = setup({ enabled: true, reduced: true });
+    wheel(s, 100, 1000);
+    for (let i = 0; i < 30; i++) s.scroll.step(0.016);
+    touch(s, 'touchstart', 500, 2000);
+    touch(s, 'touchmove', 300, 2016);
+    touch(s, 'touchend', 300, 2032);
+    expect(s.deltas).toHaveLength(2);
+    expect(s.ends).toEqual([]);
+    expect(s.scroll.waiting).toBe(false);
+  });
+
+  it('ends nothing for a wheel it swallows', () => {
+    const s = setup({ enabled: true, reduced: false, swallow: true });
+    wheel(s, 100, 1000);
+    for (let i = 0; i < 30; i++) s.scroll.step(0.016);
+    expect(s.ends).toEqual([]);
   });
 });

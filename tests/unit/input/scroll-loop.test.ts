@@ -8,7 +8,7 @@ import { buildChapters, type ChapterAt } from '../../../src/state/chapters';
 /** A viewport 1000 px high: a unit of scroll is 1000 px. */
 const VH = 1000;
 const FRAME_MS = 1000 / 60;
-const chapters = buildChapters({ categories: ['a', 'b', 'c'] }); // 6 units; stops 0, 1, 2, 3, 4, 5, 6
+const chapters = buildChapters({ categories: ['a', 'b', 'c'] }); // 6 units; stops 0, 1, 2, 3, 4, 5, the last the end
 
 /** A requestAnimationFrame that runs when the test says so, one frame at a time, on a clock the test owns. */
 class FakeFrames {
@@ -143,25 +143,29 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+/** A swipe of this many moves from the home glides on the rise and stops short of its top, so nothing settles it. */
+const RISE_SWIPE = 4;
+
 describe('the scroll loop: one frame pending at a time', () => {
   it('has at most one callback waiting through a whole touch glide', async () => {
     const s = setup();
-    await s.swipe(-1);
+    await s.swipe(-1, RISE_SWIPE);
     expect(s.frames.size).toBeLessThanOrEqual(1);
     const run = s.drain();
     expect(run.mostPending).toBe(1);
     expect(s.frames.size).toBe(0);
   });
 
-  it('lasts as long as Inertia alone says, not a handful of frames', async () => {
-    const alone = glideAlone();
+  it('lasts as long as Inertia alone says on the rise, not a handful of frames', async () => {
+    const alone = glideAlone(RISE_SWIPE);
     expect(alone.frames).toBeGreaterThan(60); // a flick of this speed glides for over a second
     const s = setup();
-    await s.swipe(-1);
+    await s.swipe(-1, RISE_SWIPE);
     const run = s.drain();
     expect(Math.abs(run.gliding - alone.frames)).toBeLessThanOrEqual(1);
-    // and it carried exactly as far: the drag, then what Inertia alone carries
-    expect(s.frame.target).toBeCloseTo(0.4 + alone.px / VH, 9);
+    // and it carried exactly as far: the drag, then what Inertia alone carries, short of the rise's top
+    expect(s.frame.target).toBeCloseTo(0.16 + alone.px / VH, 9);
+    expect(s.frame.target).toBeLessThan(1);
   });
 
   it('has one callback waiting through a long wheel gesture too', async () => {
@@ -221,7 +225,7 @@ describe('the scroll loop: going to sleep', () => {
 
   it('stops the glide when 3D is switched off, and the story stays where it is', async () => {
     const s = setup();
-    await s.swipe(-1);
+    await s.swipe(-1, RISE_SWIPE);
     s.frames.frame();
     s.state.threeD = false;
     s.frames.frame();
@@ -244,17 +248,32 @@ describe('the scroll loop: a glide against the end', () => {
     expect(s.frames.size).toBe(0);
   });
 
-  it('ends the glide that reaches the end of the story', async () => {
+  it('ends a glide on the rise that reaches its top: a glide runs on the rise alone, and stops on BOB from above', async () => {
+    // A glide's own steps carry a little further than the lift reckons (Inertia's distance is the smooth decay's): put
+    // the swipe where the lift reckons it short of the top and its steps would carry it past.
+    const alone = glideAlone(RISE_SWIPE);
+    const reckoned = 0.625; // 2500 px/s over Inertia's decay of 4/s, of a 1000 px unit
+    expect(alone.px / VH).toBeGreaterThan(reckoned);
     const s = setup();
-    s.frame.target = 5.5;
-    s.frame.progress = 5.5;
-    s.frame.chapterIndex = 5;
-    await s.swipe(-1); // 0.4 of a drag, then a glide that would carry another 0.4 or so
+    s.frame.target = s.frame.progress = 1 - 0.16 - (reckoned + alone.px / VH) / 2;
+    await s.swipe(-1, RISE_SWIPE);
+    expect(s.home.scroll.busy).toBe(true); // it glides: the lift reckoned it would rest on the rise
     const run = s.drain();
-    expect(s.frame.target).toBe(6);
-    expect(run.gliding).toBeLessThan(glideAlone().frames / 2);
+    expect(s.frame.target).toBe(1);
+    expect(s.frame.progress).toBe(1);
+    expect(run.gliding).toBeLessThan(alone.frames);
     expect(s.home.scroll.busy).toBe(false);
-    expect(s.frame.progress).toBe(6);
+  });
+
+  it('glides nowhere toward the end of the story: a fling past the rise rests on the last stop', async () => {
+    const s = setup();
+    s.frame.target = s.frame.progress = 3.6;
+    s.frame.chapterIndex = 3;
+    await s.swipe(-1); // 0.4 of a drag to 4, then a glide that would carry another 0.625, past it
+    expect(s.home.scroll.busy).toBe(false);
+    s.drain();
+    expect(s.frame.target).toBe(5);
+    expect(s.frame.progress).toBe(5);
   });
 });
 
@@ -389,7 +408,7 @@ describe('the scroll loop: damp does not load', () => {
     s.key('End');
     await flush();
     s.drain();
-    expect(s.frame.progress).toBe(6);
+    expect(s.frame.progress).toBe(5);
     expect(s.frame.chapterIndex).toBe(5);
     expect(s.changes.at(-1)).toMatchObject({ index: 5, id: 'PROJECTS', category: 'c' });
     expect(s.frame.velocity).toBe(0);
@@ -406,5 +425,261 @@ describe('the scroll loop: damp does not load', () => {
     s.drain();
     expect(s.frame.progress).toBe(0);
     expect(s.frame.chapterIndex).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------- Ruling 32: every input past the rise rests on a stop
+
+/** Puts the story at rest at `at`, as an earlier input would have left it. */
+function restAt(s: ReturnType<typeof setup>, at: number): void {
+  s.frame.target = s.frame.progress = at;
+  s.frame.chapterIndex = Math.min(Math.floor(at), chapters.units.length - 1);
+}
+
+/** `notches` wheel events of `px` (negative goes up the story), `gapMs` apart, the frames between them run. */
+async function wheelNotches(s: ReturnType<typeof setup>, notches: number, px = 120, gapMs = 16): Promise<void> {
+  for (let i = 0; i < notches; i++) {
+    fire(s.el, 'wheel', { deltaY: px, deltaMode: 0, ctrlKey: false, timeStamp: s.frames.now });
+    if (i === 0) await flush(); // the first fetches damp
+    for (let ms = 0; ms < gapMs; ms += FRAME_MS) s.frames.frame();
+  }
+}
+
+/** A finger that drags `px` (up the screen for a positive one: down the story) in ten moves 16 ms apart, then waits `holdMs` before it lifts. */
+async function drag(s: ReturnType<typeof setup>, px: number, holdMs = 0): Promise<void> {
+  let t = s.frames.now;
+  const from = 600;
+  fire(s.el, 'touchstart', { touches: [{ clientX: 100, clientY: from }], timeStamp: t });
+  for (let i = 1; i <= 10; i++) {
+    t += 16;
+    fire(s.el, 'touchmove', { touches: [{ clientX: 100, clientY: from - (px * i) / 10 }], timeStamp: t });
+    if (i === 1) await flush();
+    s.frames.frame();
+  }
+  fire(s.el, 'touchend', { touches: [], timeStamp: t + holdMs });
+  await flush();
+}
+
+/** Runs the frames to rest, noting the progress at each. */
+function trail(s: ReturnType<typeof setup>): number[] {
+  const seen: number[] = [];
+  for (let i = 0; s.frames.size > 0 && i < 3000; i++) {
+    s.frames.frame();
+    seen.push(s.frame.progress);
+  }
+  return seen;
+}
+
+describe('the settle (Ruling 32): a wheel past the rise comes to rest on a stop', () => {
+  it('moves one notch by its distance, then, once the wheel is quiet, on to the next stop, damped and exactly on it', async () => {
+    const s = setup();
+    restAt(s, 3);
+    await wheelNotches(s, 1);
+    expect(s.frame.target).toBeCloseTo(3.12, 12);
+    const seen = trail(s);
+    expect(s.frame.target).toBe(4);
+    expect(s.frame.progress).toBe(4); // exactly: the bead's label shows only at its stop
+    expect(s.frame.velocity).toBe(0);
+    expect(s.changes.at(-1)).toMatchObject({ index: 4, category: 'b' });
+    // Damped, never a jump: dozens of frames, none moving more than a tenth of the way, and none back.
+    expect(seen.length).toBeGreaterThan(40);
+    for (let i = 1; i < seen.length; i++) {
+      expect(seen[i]! - seen[i - 1]!).toBeGreaterThanOrEqual(0);
+      expect(seen[i]! - seen[i - 1]!).toBeLessThan(0.1);
+    }
+  });
+
+  it('moves one stop for a single notch up too', async () => {
+    const s = setup();
+    restAt(s, 4);
+    await wheelNotches(s, 1, -120);
+    s.drain();
+    expect([s.frame.target, s.frame.progress]).toEqual([3, 3]);
+  });
+
+  it('takes each notch turned slowly, the wheel quiet between them, for a stop of its own: stop by stop', async () => {
+    const s = setup();
+    restAt(s, 2);
+    await wheelNotches(s, 3, 120, 400);
+    s.drain();
+    expect(s.frame.target).toBe(5);
+  });
+
+  it('eases back to the stop it started from for a nudge no bigger than the slop', async () => {
+    const s = setup();
+    restAt(s, 3);
+    await wheelNotches(s, 1, 30); // 30 px of a 1000 px unit, under the slop's 40
+    expect(s.frame.target).toBeCloseTo(3.03, 12);
+    s.drain();
+    expect([s.frame.target, s.frame.progress]).toEqual([3, 3]);
+  });
+
+  it('lets a fling pass several stops and rest on the one past where it ended', async () => {
+    const s = setup();
+    restAt(s, 1);
+    await wheelNotches(s, 20); // 2.4 units, to 3.4
+    s.drain();
+    expect([s.frame.target, s.frame.progress]).toEqual([4, 4]);
+  });
+
+  it('flings from the home to Cookies Clicker and back, resting on the last stop and on the home (Review Focus 1)', async () => {
+    const s = setup();
+    await wheelNotches(s, 60);
+    s.drain();
+    expect([s.frame.target, s.frame.progress]).toEqual([5, 5]);
+    expect(s.changes.at(-1)).toMatchObject({ index: 5, category: 'c' });
+    await wheelNotches(s, 60, -120);
+    s.drain();
+    expect([s.frame.target, s.frame.progress]).toEqual([0, 0]);
+    expect(s.changes.at(-1)).toMatchObject({ index: 0, id: 'HOME' });
+  });
+
+  it('leaves a gesture that ends on the rise where it is, as M2a did', async () => {
+    const s = setup();
+    await wheelNotches(s, 5); // 0.6
+    s.drain();
+    expect(s.frame.target).toBeCloseTo(0.6, 12);
+    expect(s.frame.progress).toBe(s.frame.target);
+    restAt(s, 1);
+    await wheelNotches(s, 3, -120); // up from BOB from above into the rise: 0.64
+    s.drain();
+    expect(s.frame.target).toBeCloseTo(0.64, 12);
+  });
+
+  it('settles a gesture that goes on from the rise past its top: on to the overview', async () => {
+    const s = setup();
+    restAt(s, 0.6);
+    await wheelNotches(s, 6); // 1.32
+    s.drain();
+    expect([s.frame.target, s.frame.progress]).toEqual([2, 2]);
+  });
+
+  it('settles the gesture under way at once when 3D is switched off, so the story waits for 3D on a stop', async () => {
+    const s = setup();
+    restAt(s, 3);
+    await wheelNotches(s, 1);
+    s.frames.frame();
+    s.state.threeD = false;
+    s.frames.frame();
+    expect(s.frame.target).toBe(4);
+    expect(s.frames.size).toBe(0);
+    expect(s.frame.progress).toBeLessThan(4);
+    s.state.threeD = true;
+    s.home.loop.wake();
+    s.drain();
+    expect(s.frame.progress).toBe(4);
+  });
+});
+
+describe('the settle (Ruling 32): a finger past the rise comes to rest on a stop', () => {
+  it('moves a swipe whose finger stopped before it lifted on to the next stop: swipes go stop by stop', async () => {
+    const s = setup();
+    restAt(s, 3);
+    await drag(s, 300, 300);
+    expect(s.home.scroll.busy).toBe(false);
+    s.drain();
+    expect([s.frame.target, s.frame.progress]).toEqual([4, 4]);
+    await drag(s, 300, 300);
+    s.drain();
+    expect(s.frame.target).toBe(5);
+    await drag(s, -300, 300);
+    s.drain();
+    expect(s.frame.target).toBe(4);
+  });
+
+  it("takes a flick's glide into its reckoning and ends it: a big one passes several stops, resting on one", async () => {
+    const s = setup();
+    restAt(s, 2);
+    await drag(s, 1000); // 1 unit dragged, a lift at 6000 px/s, whose glide would carry 1.5 more: 4.5
+    expect(s.home.scroll.busy).toBe(false); // nothing glides past the rise: the target is on its stop
+    expect(s.frame.target).toBe(5);
+    s.drain();
+    expect(s.frame.progress).toBe(5);
+  });
+
+  it('eases a short drag back to the stop it left', async () => {
+    const s = setup();
+    restAt(s, 4);
+    await drag(s, 30, 300);
+    s.drain();
+    expect(s.frame.target).toBe(4);
+  });
+});
+
+describe('the settle (Ruling 32): the keys step by stops past the rise', () => {
+  it('steps an arrow, Page Down and Space to the next stop, and an arrow up to the one before', async () => {
+    const s = setup();
+    restAt(s, 2);
+    s.key('ArrowDown');
+    await flush();
+    expect(s.frame.target).toBe(3);
+    s.key('PageDown');
+    expect(s.frame.target).toBe(4);
+    s.key(' ');
+    expect(s.frame.target).toBe(5);
+    s.key('ArrowDown'); // the end
+    expect(s.frame.target).toBe(5);
+    s.key('ArrowUp');
+    s.key('PageUp');
+    expect(s.frame.target).toBe(3);
+    s.drain();
+    expect(s.frame.progress).toBe(3);
+  });
+
+  it('moves an arrow on the rise by its distance, as M2a did, stopping on its top, BOB from above', async () => {
+    const s = setup();
+    for (let i = 0; i < 7; i++) s.key('ArrowDown'); // 1.05 by distance, held to the top
+    await flush();
+    expect(s.frame.target).toBe(1);
+    s.drain();
+    expect(s.frame.progress).toBe(1);
+    s.key('ArrowUp');
+    expect(s.frame.target).toBeCloseTo(0.85, 12);
+  });
+
+  it('takes a held key past the rise for the one step its press took', () => {
+    const s = setup();
+    restAt(s, 3);
+    s.key('ArrowDown');
+    for (let i = 0; i < 10; i++) fire(s.win, 'keydown', { key: 'ArrowDown', shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, repeat: true, isComposing: false, target: { tagName: 'BODY' } });
+    expect(s.frame.target).toBe(4);
+  });
+
+  it('jumps End to the last stop and Home to the start', async () => {
+    const s = setup();
+    restAt(s, 2.4);
+    s.key('End');
+    await flush();
+    expect(s.frame.target).toBe(5);
+    s.key('Home');
+    expect(s.frame.target).toBe(0);
+  });
+
+  it('drops a wheel gesture a key cut short: the key has put the target on its stop', async () => {
+    const s = setup();
+    restAt(s, 3);
+    await wheelNotches(s, 1); // 3.12
+    s.key('ArrowDown'); // to 4, before the wheel is quiet
+    s.drain();
+    expect([s.frame.target, s.frame.progress]).toEqual([4, 4]);
+  });
+});
+
+describe('the settle (Ruling 32): reduced motion keeps its steps', () => {
+  it('steps one stop for a wheel gesture, a swipe and a key, and settles nothing after', async () => {
+    const s = setup({ reduced: true });
+    restAt(s, 2);
+    await wheelNotches(s, 10, 120, 16);
+    s.drain();
+    expect(s.frame.target).toBe(3);
+    await drag(s, 300);
+    s.drain();
+    expect(s.frame.target).toBe(4);
+    s.key('ArrowDown');
+    s.drain();
+    expect(s.frame.target).toBe(5);
+    s.key('ArrowDown'); // a step down from the last stop is none
+    s.drain();
+    expect([s.frame.target, s.frame.progress]).toEqual([5, 5]);
   });
 });

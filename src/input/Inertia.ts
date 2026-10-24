@@ -32,6 +32,14 @@ export class Inertia {
     return this.running;
   }
 
+  /**
+   * How far the glide going will still carry, px, signed (0 for none): its speed over the decay, where the smooth
+   * decay comes to rest. Its own steps carry a few per cent further, taken a frame at a time.
+   */
+  get distance(): number {
+    return this.running ? this.velocity / DECAY : 0;
+  }
+
   /** The finger moved `px` pixels (signed, in the direction the scroll should go), at `timeMs`. */
   track(timeMs: number, px: number): void {
     this.samples.push({ t: timeMs, px });

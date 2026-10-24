@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { nearestStop, STEP_FADE_MS, type StepFade, stepFadeAt, stepFadeFor, stepFadeFrom } from '~/scene/bob/stepFade';
-import { HOME_CHAPTERS, stops } from '~/state/chapters';
+import { HOME_CHAPTERS, scrollEnd, stops } from '~/state/chapters';
 
 describe('stepFadeFor', () => {
   it('fades only when a reduced-motion visitor moved to another stop', () => {
@@ -30,7 +30,7 @@ describe('nearestStop', () => {
 
   it('holds a place outside the story to its ends, and reads NaN as the first stop', () => {
     expect(nearestStop(PLACES, -3)).toBe(0);
-    expect(nearestStop(PLACES, HOME_CHAPTERS.total + 5)).toBe(HOME_CHAPTERS.total);
+    expect(nearestStop(PLACES, HOME_CHAPTERS.total + 5)).toBe(scrollEnd(HOME_CHAPTERS)); // the last stop, the last bead's
     expect(nearestStop(PLACES, Number.NaN)).toBe(0);
   });
 

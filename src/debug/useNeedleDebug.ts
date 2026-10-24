@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { Locale } from '~/i18n/Translator';
 import { wakeScene } from '~/scene/motion';
-import { chapterAt, HOME_CHAPTERS } from '~/state/chapters';
+import { chapterAt, HOME_CHAPTERS, scrollEnd } from '~/state/chapters';
 import { frame } from '~/state/frame';
 import { useScene } from '~/state/store';
 import { installNeedleDebug, type NeedleDebugState } from './needleDebug';
@@ -57,12 +57,12 @@ export function holdLoader(seconds: number): void {
 }
 
 /**
- * Puts the story at `progress` at once, as a jump would: progress and target there (clamped to the story), nothing
- * moving, the chapter in step and the phase following it (only a phase the scroll moves through takes the chapter).
- * The scene is woken so the canvas draws it.
+ * Puts the story at `progress` at once, as a jump would: progress and target there (clamped to the scroll, 0 to its last
+ * stop, as far as an input can take it), nothing moving, the chapter in step and the phase following it (only a phase
+ * the scroll moves through takes the chapter). The scene is woken so the canvas draws it.
  */
 export function setStoryProgress(progress: number): void {
-  const place = Number.isFinite(progress) ? Math.min(Math.max(progress, 0), HOME_CHAPTERS.total) : 0;
+  const place = Number.isFinite(progress) ? Math.min(Math.max(progress, 0), scrollEnd(HOME_CHAPTERS)) : 0;
   const at = chapterAt(HOME_CHAPTERS, place);
   frame.progress = place;
   frame.target = place;

@@ -78,8 +78,8 @@ describe("the journey's stretches", () => {
     expect(journeyAt(5.5)).toEqual({ stretch: 'project', local: 0, project: 2 });
   });
 
-  it('rests at the start of each stretch, and at 6 on Cookies, as at 5', () => {
-    expect(stops(HOME_CHAPTERS)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+  it('rests at the start of each stretch; its last, never reached (the scroll ends at 5), holds Cookies to 6', () => {
+    expect(stops(HOME_CHAPTERS)).toEqual([0, 1, 2, 3, 4, 5]);
     expect(journeyAt(0)).toEqual({ stretch: 'rise', local: 0, project: null });
     expect(journeyAt(1)).toEqual({ stretch: 'dive', local: 0, project: null });
     expect(journeyAt(2)).toEqual({ stretch: 'overview', local: 0, project: null });

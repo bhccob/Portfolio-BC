@@ -4,7 +4,7 @@
  * (src/input/useHomeScroll.ts) clamps its target to it, from the store's `voidState`, which the Void
  * (src/scene/bob/Void.tsx) writes. It imports no code from React or three, and only a type from the store.
  */
-import { HOME_CHAPTERS } from '~/state/chapters';
+import { HOME_CHAPTERS, scrollEnd } from '~/state/chapters';
 import type { VoidState } from '~/state/store';
 import { TUNNEL_HOLD } from './journey';
 
@@ -15,14 +15,14 @@ export const RISE_TOP = HOME_CHAPTERS.units.find((unit) => unit.id === 'DIVE')!.
  * The most the scroll's target may reach for the void's state:
  * - `idle` or `loading`: `TUNNEL_HOLD`, the dive at Bob's frame d01 (Ruling 27): the camera 3.1 over the opening, looking
  *   straight down the tunnel, whose lit wall rings the frame, the void below it dark and hidden; there it waits;
- * - `ready`: the end of the story (6): nothing holds;
+ * - `ready`: the end of the scroll, the last bead's stop (5): nothing holds;
  * - `failed`: `RISE_TOP` (1), BOB from above, where the home's project links (`.home-nav`) show as they do with 3D off
  *   (src/styles/base.css), so the home stays usable without the void.
  */
 export function diveHoldFor(state: VoidState): number {
   switch (state) {
     case 'ready':
-      return HOME_CHAPTERS.total;
+      return scrollEnd(HOME_CHAPTERS);
     case 'failed':
       return RISE_TOP;
     default:

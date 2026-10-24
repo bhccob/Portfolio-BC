@@ -21,7 +21,7 @@ import {
   writeJourney
 } from '~/scene/bob/voidPose';
 import { NavigationType } from 'react-router';
-import { chapterAt, HOME_CHAPTERS, stops } from '~/state/chapters';
+import { chapterAt, HOME_CHAPTERS, scrollEnd, stops } from '~/state/chapters';
 import { frame } from '~/state/frame';
 import { BACK_STATE, resetRouteSync, stopForProject, syncRoute } from '~/state/routeSync';
 import { useScene, type VoidState } from '~/state/store';
@@ -30,7 +30,8 @@ const LAPTOP = 16 / 9;
 const PHONE = 390 / 844;
 const SCREENS = [LAPTOP, PHONE] as const;
 const STOPS = stops(HOME_CHAPTERS);
-const END = HOME_CHAPTERS.total;
+/** The end of the scroll: the last bead's stop, Cookies Clicker's (the last unit holds it, so nothing lies past it). */
+const END = scrollEnd(HOME_CHAPTERS);
 
 // ---------------------------------------------------------------- the hold
 
@@ -46,9 +47,9 @@ describe('diveHoldFor: the most the scroll may reach before the void is ready', 
     }
   });
 
-  it('is the end of the story once the void is ready: nothing holds', () => {
+  it("is the end of the scroll once the void is ready, the last bead's stop: nothing holds", () => {
     expect(diveHoldFor('ready')).toBe(END);
-    expect(END).toBe(6);
+    expect(END).toBe(5);
   });
 
   it('is BOB from above, the top of the rise, when the void failed: the dive never starts, as with 3D off', () => {
@@ -234,9 +235,12 @@ describe('the scroll input holds at the dive while the void loads', () => {
     const s = held('loading');
     await s.wheel(40);
     s.drain();
-    s.key('PageUp'); // 0.9 up
+    s.key('PageUp'); // past the rise a key steps: up from the hold to the stop before it, BOB from above
+    expect(s.story.target).toBe(1);
     s.drain();
-    expect(s.story.target).toBeCloseTo(TUNNEL_HOLD - 0.9, 12);
+    expect(s.story.progress).toBe(1);
+    await s.wheel(3, -120); // and on the rise by its distance at once: 3 notches of 120 px
+    expect(s.story.target).toBeCloseTo(1 - 0.36, 12);
   });
 
   it('goes on once the void is ready: a scroll that pressed against the hold goes on to the overview', async () => {
@@ -257,6 +261,16 @@ describe('the scroll input holds at the dive while the void loads', () => {
     s.become('ready');
     s.drain();
     expect(s.story.target).toBe(END);
+  });
+
+  it('never settles past the hold: a notch from BOB from above settles toward the overview, waits on the hold, and ready takes it there', async () => {
+    const s = held('loading', { at: 1 });
+    await s.wheel(1); // 1.12, short of the hold; once the wheel is quiet the settle asks for the overview, 2
+    s.drain();
+    expect([s.story.target, s.story.progress]).toEqual([TUNNEL_HOLD, TUNNEL_HOLD]);
+    s.become('ready');
+    s.drain();
+    expect([s.story.target, s.story.progress]).toEqual([2, 2]);
   });
 
   it('leaves a scroll that rested short of the hold where it is when the void is ready', async () => {
@@ -713,9 +727,9 @@ describe("the beads' inner lights and their stand-ins", () => {
 
 // ---------------------------------------------------------------- reduced motion
 
-describe("the step fade's stops are the journey's seven", () => {
-  it('fades between 0 and 6, every stop of the dive and the void, and poses each exactly', () => {
-    expect(STOPS).toEqual([0, 1, 2, 3, 4, 5, 6]);
+describe("the step fade's stops are the journey's six", () => {
+  it('fades between 0 and 5, every stop of the dive and the void, and poses each exactly', () => {
+    expect(STOPS).toEqual([0, 1, 2, 3, 4, 5]);
     for (const stop of STOPS) {
       expect(nearestStop(STOPS, stop)).toBe(stop);
       expect(nearestStop(STOPS, stop + 0.3)).toBe(Math.min(stop, END));

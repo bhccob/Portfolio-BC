@@ -32,8 +32,10 @@ export const HYSTERESIS = 0.02;
 
 /**
  * HOME 1, DIVE 1, VOID_ENTRY 1, then one unit for each project category: with the three projects, six units in all,
- * and the scroll rests at seven stops (the starts of the six units, then the end). Each unit is one stop of the
- * scroll (spec §2.3, "The scroll's stretches"). Nothing here is a pixel: the scroll input turns pixels into units.
+ * and the scroll rests at six stops, the starts of the six units. Each unit is one stop of the scroll (spec §2.3, "The
+ * scroll's stretches": "That makes six stops in all"). The scroll ends on the last stop, the last bead's, and never
+ * goes into the last unit, which holds that bead (`scrollEnd`); `total` is where the units end. Nothing here is a
+ * pixel: the scroll input turns pixels into units.
  */
 export function buildChapters(spec: ChapterSpec): Chapters {
   const lengths: Omit<ChapterUnit, 'start'>[] = [
@@ -81,7 +83,24 @@ export function chapterAt(c: Chapters, p: number, previous?: { index: number }):
   return { index, id: unit.id, local, category: unit.category };
 }
 
-/** Where scrolling comes to rest: the start of each chapter, then the end. */
+/** Where scrolling comes to rest: the start of each chapter. The last is the end of the scroll (`scrollEnd`). */
 export function stops(c: Chapters): number[] {
-  return [...c.units.map((unit) => unit.start), c.total];
+  return c.units.map((unit) => unit.start);
+}
+
+/**
+ * Where the scroll ends: its last stop, the start of the last chapter, the last bead's. Past it there is nothing to
+ * scroll to: the last unit holds its bead, so scrolling into it would be a unit of scroll that changes nothing.
+ */
+export function scrollEnd(c: Chapters): number {
+  return c.units.at(-1)?.start ?? 0;
+}
+
+/**
+ * The top of the rise: the end of the first chapter (HOME, the home to BOB from above), itself a stop. Up to it the
+ * scroll is continuous, as M2a's rise was; from it on every input comes to rest on a stop (src/input/target.ts).
+ */
+export function riseTop(c: Chapters): number {
+  const first = c.units[0];
+  return first ? first.start + first.length : 0;
 }

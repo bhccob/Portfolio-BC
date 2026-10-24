@@ -1,5 +1,5 @@
-import type { ChapterAt, Chapters } from '~/state/chapters';
-import { changedChapter, holdLimit, jumpTarget, moveTarget, pinnedAtEnd, releaseTarget } from './target';
+import { type ChapterAt, type Chapters, riseTop, scrollEnd } from '~/state/chapters';
+import { changedChapter, holdLimit, jumpTarget, keyTarget, moveTarget, onRise, pinnedAtEnd, releaseTarget, SETTLE_SLOP_PX, settleTarget } from './target';
 import { VirtualScroll } from './VirtualScroll';
 
 /** maath's `damp`: moves `current[prop]` toward `target` and says whether it is still moving. */
@@ -10,7 +10,7 @@ export type ScrollFrame = { progress: number; target: number; velocity: number; 
 
 /** What the loop needs of the input's glide. */
 export interface Glide {
-  /** True while a glide is going, so the loop must keep running. */
+  /** True while a glide is going, or a gesture waits to end, so the loop must keep running. */
   readonly busy: boolean;
   /** Advances the glide by `dtSec`; it moves `frame.target` through the input's own delta. */
   step(dtSec: number): void;
@@ -166,17 +166,30 @@ export interface HomeScroll {
  * motion to the next or previous stop), and wakes the loop. A glide that is pushing into an end of the story
  * is ended there, so it does not keep the loop awake. `dispose()` takes both down.
  *
- * **The hold.** Every move of the target, a delta or a jump, is clamped to `hold` (`holdLimit` of it): a wheel, a
- * swipe or End past it rests on it, and a glide that presses into it is ended there, as at the end. The place the input
- * asked for past it is kept (`asked`), until the next input that stays within it: when the hold rises
+ * **The stops.** Past the rise's top (`riseTop`, BOB from above) every input comes to rest on a stop, so a bead's label,
+ * which shows only at its stop, shows. A key steps there to the next stop or the one before (`keyTarget`), a held key
+ * past the top being the one step its press took; on the rise a key moves by its distance, as M2a's did, up to the top.
+ * A wheel or a finger moves the target by its distance, as on the rise, and when its gesture ends (VirtualScroll's
+ * `onGestureEnd`: the wheel quiet for GESTURE_GAP_MS, or the finger's lift) the target goes on to the stop that
+ * `settleTarget` names, from where the gesture began and where it ended: a nudge eases back, a notch or a swipe takes
+ * one stop, a fling as many as it passed. A lift reckons in the glide it would leave and ends it, so the one damped move
+ * of the loop carries the swipe to its stop, with no glide slowing to a crawl first. A gesture that ends on the rise
+ * rests where it ends, and its glide runs as M2a's did, held to the rise. The move to the stop is the loop's own damped
+ * one (`SMOOTH_TIME`), never a jump, and the loop lands progress on the stop exactly. With reduced motion every input is
+ * already a step to a stop (`moveTarget`).
+ *
+ * **The hold.** Every move of the target, a delta, a settle or a jump, is clamped to `hold` (`holdLimit` of it): a
+ * wheel, a swipe or End past it rests on it, and a glide that presses into it is ended there, as at the end. The place
+ * the input asked for past it is kept (`asked`), until the next input that stays within it: when the hold rises
  * (`holdChanged`) the story goes on from the hold toward it (`releaseTarget`). Nothing past the hold is stored as a
  * debt: scrolling back up from the hold moves the story at once. A story that is already past the hold when this
  * starts (the route sync's Back to a bead's stop) is held the same way, its progress with it.
  */
 export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
   const { frame, chapters } = o;
+  const top = riseTop(chapters);
   /** The most the target may reach now. */
-  const limitNow = (): number => holdLimit(o.hold?.() ?? chapters.total, chapters, o.reducedMotion());
+  const limitNow = (): number => holdLimit(o.hold?.() ?? scrollEnd(chapters), chapters, o.reducedMotion());
   /** Where the last input asked the target to be, past the hold it rests on; null when it asked for no more than the hold. */
   let asked: number | null = null;
   /** Puts the target where an input asked, held to the limit, and notes what the hold kept from it. */
@@ -186,12 +199,14 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
     asked = place > limit ? place : null;
     return limit;
   };
+  /** Where the target stood when the wheel or touch gesture under way began; null while none is. */
+  let from: number | null = null;
 
   const loop: ScrollLoop = new ScrollLoop({
     ...o,
     glide: {
       get busy() {
-        return scroll.busy;
+        return scroll.busy || scroll.waiting;
       },
       step: (dtSec) => scroll.step(dtSec),
       stop: () => scroll.stop(),
@@ -200,13 +215,41 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
 
   const scroll: VirtualScroll = new VirtualScroll(o.el, {
     unitPx: o.unitPx,
-    onDelta: (units) => {
-      const limit = askFor(moveTarget(frame.target, units, chapters, o.reducedMotion()));
+    onDelta: (units, by) => {
+      let place: number;
+      let limit = Number.POSITIVE_INFINITY;
+      if (o.reducedMotion()) {
+        place = moveTarget(frame.target, units, chapters, true);
+      } else if (by === 'key' || by === 'held') {
+        from = null; // a key puts the target on its stop: a wheel it cut short has nothing left to settle
+        if (by === 'held' && !onRise(frame.target, chapters)) return;
+        place = keyTarget(frame.target, units, chapters);
+      } else {
+        if (by !== 'glide') from ??= frame.target;
+        place = moveTarget(frame.target, units, chapters, false);
+        // A glide runs only on the rise (a lift that would carry it past settles at once instead): it ends at the top.
+        if (by === 'glide' && units > 0) {
+          place = Math.min(place, Math.max(frame.target, top));
+          limit = top;
+        }
+      }
+      limit = Math.min(limit, askFor(place));
       if (pinnedAtEnd(frame.target, units, chapters, limit)) scroll.stopGlide();
       loop.wake();
     },
     onJump: (to) => {
+      from = null;
       askFor(jumpTarget(to, chapters));
+      loop.wake();
+    },
+    onGestureEnd: (glide) => {
+      const start = from;
+      from = null;
+      if (start === null || o.reducedMotion()) return;
+      const end = (asked ?? frame.target) + glide;
+      if (onRise(end, chapters)) return; // it rests where it ends, its glide (if any) as M2a's
+      scroll.stopGlide();
+      askFor(settleTarget(start, end, chapters, SETTLE_SLOP_PX / Math.max(o.unitPx(), 1)));
       loop.wake();
     },
     enabled: o.enabled,
