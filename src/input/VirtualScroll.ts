@@ -323,13 +323,27 @@ export class VirtualScroll {
     // Each key asks alone whether the page has it, End as a key down; Home always goes to the story's start.
     if (delta !== 'home' && this.opts.yields?.(delta === 'end' || delta > 0 ? 1 : -1)) return;
     e.preventDefault();
-    this.inertia.stop();
-    if (this.opts.swallow?.()) return;
     if (typeof delta === 'string') {
-      this.opts.onJump(delta);
+      this.jump(delta);
       return;
     }
+    this.inertia.stop();
+    if (this.opts.swallow?.()) return;
     if (this.opts.reducedMotion() && e.repeat) return; // a held key is one step, not a run through the story
     this.opts.onDelta(delta / unit, e.repeat ? 'held' : 'key');
   };
+
+  /**
+   * Home's or End's jump (`to`), as a press of the key makes it once the input has taken it: the glide stopped, then
+   * `onJump`, unless a skipped loader's tail is being dropped (`swallow`), which takes it and moves nothing, as it takes
+   * the key. The keys come here, and so does the page's own way to the story's start, the header's name on the home
+   * (src/input/scrollLoop.ts `HomeScroll.toTop`). Taken only while the input takes anything (`enabled`); answers whether
+   * it was taken.
+   */
+  jump(to: 'home' | 'end'): boolean {
+    if (!this.opts.enabled()) return false;
+    this.inertia.stop();
+    if (!this.opts.swallow?.()) this.opts.onJump(to);
+    return true;
+  }
 }

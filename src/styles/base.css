@@ -1610,9 +1610,11 @@ html[data-void='failed'] .end-link:hover {
    is elsewhere. With 3D off Home is not there, nothing is written, and the page is simply in the home's flow. */
 
 /* Not at the end, with 3D on: hidden, and so out of reach of Tab, but still in the HTML for crawlers. Home also keeps the
-   section inert until the story rests at the end. */
+   section inert until the story rests at the end. It takes no room in the flow either, so the 3D home is one viewport
+   tall and nothing can leave it scrolled below its top: not a reload's restored place (React Router's ScrollRestoration),
+   not a smooth scroll still running as 3D comes back on. The move and the rest (`data-end`) show it again. */
 html[data-3d='on']:not([data-end]) .end-page {
-  visibility: hidden;
+  display: none;
 }
 
 /* While the end is shown the hero gives up its screen: its only visible line, the SCROLL cue, left with the rise, and

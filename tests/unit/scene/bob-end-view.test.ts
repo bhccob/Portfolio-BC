@@ -353,9 +353,11 @@ describe('way A in the stylesheet (src/styles/base.css)', () => {
   const HOST_MOVING = "html[data-route='home'][data-end='moving'] .scene-host";
   const HOST_REST = "html[data-route='home'][data-end='rest'] .scene-host";
 
-  it('hides the end page with 3D on while the story is not at the end, and keeps it in the HTML', () => {
-    expect(valueOf("html[data-3d='on']:not([data-end]) .end-page", 'visibility')).toBe('hidden');
-    expect(valueOf("html[data-3d='on']:not([data-end]) .end-page", 'display')).toBeUndefined();
+  it('hides the end page with 3D on while the story is not at the end, taking no room in the flow, and keeps it in the HTML', () => {
+    // Out of the flow, so the 3D home is one viewport tall: no scroll can stand below its top (a reload's restored
+    // place, a smooth scroll still running as 3D comes back on). With 3D off no rule hides it: it is in the home's flow.
+    expect(valueOf("html[data-3d='on']:not([data-end]) .end-page", 'display')).toBe('none');
+    expect(RULES.filter((rule) => rule.selectors.some((selector) => /\.end-page$/.test(selector) && !selector.includes("[data-3d='on']")) && rule.declarations.get('display') === 'none')).toEqual([]);
   });
 
   it('raises the page from below during the move, fixed at its place in the flow, as the night comes in', () => {

@@ -1,7 +1,10 @@
 import type { JSX, MouseEvent } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import { PAGES } from '~/data/pages';
+import { routeFromPath } from '~/i18n/locale';
 import { useTranslator } from '~/i18n/useTranslator';
+import { goToTop } from '~/input/useHomeScroll';
+import { isPlainClick } from './BackLink';
 import { LangSwitch } from './LangSwitch';
 import { ThreeDToggle } from './ThreeDToggle';
 
@@ -20,10 +23,26 @@ export function closeMenuOnLink(event: MouseEvent<HTMLElement>): void {
   if (typeof menu.hidePopover === 'function' && menu.matches(':popover-open')) menu.hidePopover();
 }
 
+/** What `nameToTop` reads of a click and does to it. */
+type NameClick = Pick<MouseEvent, 'button' | 'metaKey' | 'ctrlKey' | 'shiftKey' | 'altKey' | 'defaultPrevented' | 'preventDefault'>;
+
+/**
+ * The header's name clicked on the home page, at `pathname` (the home of the page's language, which is where the name
+ * links): the story goes to its start by the Home key's own path (`toTop`, `goToTop` of src/input/useHomeScroll.ts: the
+ * page to its top, then the move, or the step fade where the void failed), and the link does not navigate. Only a plain
+ * left click that nothing has handled, and only when the home's scroll takes it; a click with a modifier or another
+ * button, a click on any other page, and one the scroll does not take (3D off, a bead opening) are the link's, as ever.
+ */
+export function nameToTop(event: NameClick, pathname: string, toTop: () => boolean = goToTop): void {
+  if (routeFromPath(pathname) !== PAGES.home || event.defaultPrevented || !isPlainClick(event)) return;
+  if (toTop()) event.preventDefault();
+}
+
 /**
  * The bar every page shows, the home page included: the way past the header to the content, the name (a link home;
- * the home's hero only says it to a screen reader), Work and About, the contact page, the language switch, the Lite
- * page and the 3D switch. It lives in the root layout, so it never remounts.
+ * the home's hero only says it to a screen reader; on the home itself it takes the story to its start, `nameToTop`), Work
+ * and About, the contact page, the language switch, the Lite page and the 3D switch. It lives in the root layout, so it
+ * never remounts.
  *
  * On a laptop the nav is one row beside the name. On a phone (720 px wide or less) the header is one row, the name and
  * a Menu button, and the nav is a popover the button opens: a dark sheet under the header with Work, About and Contact
@@ -37,6 +56,7 @@ export function closeMenuOnLink(event: MouseEvent<HTMLElement>): void {
 export function SiteHeader(): JSX.Element {
   const i18n = useTranslator();
   const { t } = i18n;
+  const { pathname } = useLocation();
 
   return (
     <>
@@ -44,7 +64,7 @@ export function SiteHeader(): JSX.Element {
         {t.nav.skip}
       </a>
       <header className="site-header">
-        <Link className="site-name" to={i18n.path(PAGES.home)} aria-label={t.nav.home}>
+        <Link className="site-name" to={i18n.path(PAGES.home)} aria-label={t.nav.home} onClick={(event) => nameToTop(event, pathname)}>
           {t.needle.hero.name}
         </Link>
         <button type="button" className="menu-toggle" popoverTarget={MENU_ID}>

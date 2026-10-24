@@ -309,6 +309,13 @@ export interface HomeScroll {
    * the void failed past the hold, by the step fade.
    */
   toEnd(): void;
+  /**
+   * The header's name on the home page: the story goes to its start by the Home key's own path (VirtualScroll's
+   * `jump('home')`, then `onJump`: the page to its top first, then the move, or the step fade where the void failed).
+   * Answers whether the input took it: not while it takes no input (3D off, a phase off the scroll, such as a bead
+   * opening), where the link is left to navigate.
+   */
+  toTop(): boolean;
   dispose(): void;
 }
 
@@ -624,6 +631,7 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
       askFor(end, true);
       loop.wake();
     },
+    toTop: () => scroll.jump('home'),
     dispose: () => {
       loop.dispose();
       scroll.dispose();

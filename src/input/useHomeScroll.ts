@@ -24,6 +24,16 @@ export function goToEnd(): void {
 }
 
 /**
+ * The header's name clicked on the home page (src/ui/SiteHeader.tsx `nameToTop`): the story goes to its start by the
+ * Home key's own path (`HomeScroll.toTop`), the page back at its top first, from any stop and from the end page, by the
+ * step fade where the void failed. Answers whether the home's scroll took it: false while none is connected, or while it
+ * takes no input (3D off, a bead opening), where the link is left to navigate as any link does.
+ */
+export function goToTop(): boolean {
+  return connected?.toTop() ?? false;
+}
+
+/**
  * maath's `damp`, loaded on the first input rather than with the page. `maath/easing` imports three.js, which
  * the scene keeps out of the page's first load (it is its own chunk, fetched after hydration): a static import
  * here would put all of three.core in front of hydration on every page. Loaded this way it shares that chunk

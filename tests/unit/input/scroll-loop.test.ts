@@ -4,7 +4,7 @@ import { GESTURE_GAP_MS } from '../../../src/input/gesture';
 import { Inertia } from '../../../src/input/Inertia';
 import { SKIP_QUIET_MS, skipSwallower } from '../../../src/input/loaderSkip';
 import { DIVE_SMOOTH, GLIDE_SMOOTH, RISE_SMOOTH, type Smooth, smoothTimeAt, startHomeScroll } from '../../../src/input/scrollLoop';
-import { connectHomeScroll, goToEnd } from '../../../src/input/useHomeScroll';
+import { connectHomeScroll, goToEnd, goToTop } from '../../../src/input/useHomeScroll';
 import { nearestStop, STEP_FADE_MS, stepFadeAt, stepFadeFrom } from '../../../src/scene/bob/stepFade';
 import { buildChapters, type ChapterAt, chapterAt, HOME_CHAPTERS, scrollEnd, stops } from '../../../src/state/chapters';
 import { frame as storyFrame } from '../../../src/state/frame';
@@ -1624,6 +1624,69 @@ describe('a failed void: the end page by its link and the step fade, never throu
     s.key('End');
     expect(storyFrame.target).toBe(END);
     expect(s.run().some((f) => f.dark)).toBe(false);
+  });
+
+  describe("goToTop, the header's name on the home: the Home key's own path", () => {
+    /**
+     * The story at rest at the end page, the void `voidState`, the page scrolled `scrollY` down; `order` notes where the
+     * story's target stood each time the page was sent to its top.
+     */
+    const atEnd = (voidState: VoidState, scrollY: number) => {
+      delete (storyFrame as { __damp?: unknown }).__damp; // the damping's own speed, kept on the frame by maath: none left over
+      const s = failedHome(END, { voidState });
+      s.endView('rest');
+      s.win.scrollY = scrollY;
+      const order: number[] = [];
+      const scrollTo = s.win.scrollTo;
+      s.win.scrollTo = (x: number, y: number) => {
+        order.push(storyFrame.target);
+        scrollTo(x, y);
+      };
+      return { s, order };
+    };
+
+    it('takes the story from the end page, scrolled down, to 0 as the Home key does: the page to its top first, then the same move', async () => {
+      const byName = atEnd('ready', 300);
+      expect(goToTop()).toBe(true);
+      expect(byName.order, 'the page went to its top before the story moved').toEqual([END]);
+      expect([byName.s.win.scrollY, storyFrame.target]).toEqual([0, 0]);
+      await flush();
+      const named = byName.s.run();
+      expect([storyFrame.target, storyFrame.progress, storyFrame.velocity]).toEqual([0, 0, 0]);
+      expect(useScene.getState().phase.kind).toBe('HOME_IDLE');
+      expect(named.some((f) => f.dark), 'with the void there it moves, it does not fade').toBe(false);
+      byName.s.disconnect();
+      vi.unstubAllGlobals();
+
+      const byKey = atEnd('ready', 300);
+      expect(byKey.s.key('Home').defaultPrevented).toBe(true);
+      expect(byKey.order).toEqual([END]);
+      await flush();
+      expect(byKey.s.run(), "frame for frame the Home key's own move").toEqual(named);
+    });
+
+    it('failed: from the end page it goes to 0 by the fade, as the Home key does, never through the void', async () => {
+      const { s } = atEnd('failed', 300);
+      expect(goToTop()).toBe(true);
+      expect([s.win.scrollY, storyFrame.target]).toEqual([0, 0]);
+      await flush();
+      byFade(s.run(), END, 0);
+      expect(useScene.getState().phase.kind).toBe('HOME_IDLE');
+    });
+
+    it('answers false and moves nothing with no home scroll connected, with 3D off, or off the scroll (a bead opening)', () => {
+      const { s } = atEnd('ready', 300);
+      useScene.setState({ threeD: false });
+      expect(goToTop(), '3D off').toBe(false);
+      expect([storyFrame.target, s.win.scrollY]).toEqual([END, 300]);
+      useScene.setState({ threeD: true, phase: { kind: 'PROJECT_FOCUS', id: 'funcial' } });
+      expect(goToTop(), 'a bead opening').toBe(false);
+      expect([storyFrame.target, s.win.scrollY]).toEqual([END, 300]);
+      s.disconnect();
+      expect(goToTop(), 'nothing connected').toBe(false);
+      expect([storyFrame.target, s.win.scrollY]).toEqual([END, 300]);
+      expect(s.frames.size).toBe(0);
+    });
   });
 });
 

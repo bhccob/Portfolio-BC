@@ -9,7 +9,7 @@ import { nl } from '../../src/i18n/nl';
 import { Translator } from '../../src/i18n/Translator';
 import { useScene } from '../../src/state/store';
 import { LangSwitch } from '../../src/ui/LangSwitch';
-import { closeMenuOnLink, MENU_ID, SiteHeader } from '../../src/ui/SiteHeader';
+import { closeMenuOnLink, MENU_ID, nameToTop, SiteHeader } from '../../src/ui/SiteHeader';
 import { ThreeDToggle } from '../../src/ui/ThreeDToggle';
 
 const render = (path: string, component: FunctionComponent): string =>
@@ -114,6 +114,72 @@ describe('the header', () => {
     expect(controls.filter((control) => control.attrs.class === 'header-control')).toHaveLength(6);
     expect(controls[6].attrs['aria-label']?.startsWith(`${other.toUpperCase()} `)).toBe(true);
     expect(controls[8].attrs['aria-label']).toBe(t.needle.toggle.label);
+  });
+});
+
+describe("the header's name on the home: the story to its start, as the Home key takes it (goToTop)", () => {
+  /** A click on the name as the link's handler receives it: a plain left click unless `overrides` say otherwise. */
+  const click = (overrides: Partial<{ button: number; metaKey: boolean; ctrlKey: boolean; shiftKey: boolean; altKey: boolean; defaultPrevented: boolean }> = {}) => {
+    const event = {
+      button: 0,
+      metaKey: false,
+      ctrlKey: false,
+      shiftKey: false,
+      altKey: false,
+      defaultPrevented: false,
+      ...overrides,
+      preventDefault() {
+        event.defaultPrevented = true;
+      },
+    };
+    return event;
+  };
+
+  it.each(['/', '/en/'])('on %s a plain click takes the story to its start by goToTop, and the link does not navigate', (path) => {
+    let asked = 0;
+    const event = click();
+    nameToTop(event, path, () => {
+      asked++;
+      return true;
+    });
+    expect([asked, event.defaultPrevented]).toEqual([1, true]);
+  });
+
+  it("leaves the link to navigate where the home's scroll does not take it (3D off, a bead opening, none connected)", () => {
+    const refused = click();
+    nameToTop(refused, '/', () => false);
+    expect(refused.defaultPrevented).toBe(false);
+    const unconnected = click(); // the real goToTop, with no home scroll connected in this test
+    nameToTop(unconnected, '/');
+    expect(unconnected.defaultPrevented).toBe(false);
+  });
+
+  it.each(['/lite/', '/en/contact/', '/projects/funcial/', '/en/projects/cookies-clicker/'])('on %s, not the home, the link navigates as ever', (path) => {
+    let asked = 0;
+    const event = click();
+    nameToTop(event, path, () => {
+      asked++;
+      return true;
+    });
+    expect([asked, event.defaultPrevented]).toEqual([0, false]);
+  });
+
+  it.each([
+    ['ctrl', { ctrlKey: true }],
+    ['meta (cmd)', { metaKey: true }],
+    ['shift', { shiftKey: true }],
+    ['alt', { altKey: true }],
+    ['the middle button', { button: 1 }],
+    ['one already handled', { defaultPrevented: true }],
+  ])('leaves a click with %s to the browser', (_, overrides) => {
+    let asked = 0;
+    const event = click(overrides);
+    nameToTop(event, '/', () => {
+      asked++;
+      return true;
+    });
+    expect(asked).toBe(0);
+    expect(event.defaultPrevented, 'prevented only if it already was').toBe('defaultPrevented' in overrides);
   });
 });
 
