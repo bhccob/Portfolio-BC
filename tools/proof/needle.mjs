@@ -6033,6 +6033,167 @@ const fadeLifted = (page) =>
 const between = (samples, from, to) => samples.filter((p) => p > from + 0.01 && p < to - 0.01);
 
 /**
+ * Waits, polling every 10 ms (no requestAnimationFrame of the harness's), until `<html data-end>` says `moving` with the
+ * story's progress at `from` or past it toward `to`; answers the progress then, or null if it never did within 8 s.
+ */
+const movingAt = (page, from, to) =>
+  page
+    .waitForFunction(
+      ([from, to]) => {
+        const { progress } = window.__needleDebug();
+        return document.documentElement.getAttribute('data-end') === 'moving' && (to > from ? progress >= from : progress <= from) ? progress : false;
+      },
+      [from, to],
+      { timeout: 8_000, polling: 10 },
+    )
+    .then((handle) => handle.jsonValue(), () => null);
+
+/**
+ * The end page's way in for a keyboard and a screen reader with the void ready (the final review's I2), at 1440x900: the
+ * nav's `.end-link`, hidden with the nav while 3D is on and shown with it while it has the focus, as the nav's links are.
+ * From the home's start Tab reaches it (from the skip link, within 20 presses), and focused it shows on screen, the
+ * element at its own middle, with the dictionary's words. Enter takes the story from the home to the end page by End's own
+ * path, the whole damped move through the void (progress samples between 1 and 6, no step fade), and once it rests there
+ * the focus is on the page's title (`#end-title`), the title in view at `scrollY` 0; the next Tab is the first question.
+ *
+ * Then 3D switched off there, by the header's switch (the final review's M1): the scene goes, and the end page stands in
+ * the 3D-off home's flow after the hero and the project links. It is brought into view, `#end-title` inside the viewport
+ * at a `scrollY` past 0, not left at the document's top, the hero's.
+ */
+async function navLinkToTheEnd(browser, step, nl) {
+  const size = STILL_SIZES[0];
+  const { context, page } = await openSeen(browser, step, size);
+  step.check(await landHome(page), "the nav's link: landed on the home");
+  await expectVoid(page, step, 'ready', "the nav's link: the void is ready");
+  await page.mouse.move(size.width - 8, size.height - 8);
+  await page.focus('a[href="#main"]');
+  let presses = 0;
+  const onLink = () => page.evaluate(() => document.activeElement?.classList.contains('end-link') === true);
+  while (presses < 20 && !(await onLink())) {
+    await page.keyboard.press('Tab');
+    presses++;
+  }
+  const link = await page.evaluate(() => {
+    const button = document.querySelector('.home-nav .end-link');
+    const box = button?.getBoundingClientRect();
+    const hit = box ? document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2) : null;
+    return {
+      focused: button !== null && document.activeElement === button,
+      text: button?.textContent ?? null,
+      shown: button?.checkVisibility({ opacityProperty: true, visibilityProperty: true }) ?? false,
+      onScreen: box !== undefined && box.width > 1 && box.height > 1 && box.top >= 0 && box.bottom <= window.innerHeight,
+      hit: hit !== null && (hit === button || button.contains(hit)),
+      nav: Math.round(document.querySelector('.home-nav').getBoundingClientRect().height),
+      progress: window.__needleDebug().progress,
+    };
+  });
+  step.check(
+    link.focused && link.shown && link.onScreen && link.hit && link.nav > 100 && link.text === nl.end.failLink && link.progress === 0,
+    `the nav's link: with the void ready, Tab from the skip link reaches .end-link (${presses} presses) at the home, and focused it shows on screen as the nav's links do, the nav ${link.nav} px high, "${link.text}" (got ${JSON.stringify(link)})`,
+  );
+  await watchEndFade(page);
+  await page.keyboard.press('Enter');
+  const view = await endViewAt(page, 'rest', 20_000);
+  await page.waitForTimeout(200); // the observer's focus, a task after the rest is written
+  const way = await takeEndFade(page);
+  const there = await endPageOf(page);
+  const focus = await page.evaluate(() => document.activeElement?.id ?? null);
+  const travelled = between(way.progress, 1, STORY_END).length;
+  step.check(
+    view === 'rest' && restsAtEnd(there) && way.fades === 0 && travelled > 0,
+    `the nav's link: Enter takes the story from the home to the end page by the move, through the void (${travelled} of ${way.progress.length} progress samples between 1 and ${STORY_END}, data-step-fade set ${way.fades} times), and it rests there (${endText(there)})`,
+  );
+  step.check(
+    focus === 'end-title' && there.titleIn && there.scrollY === 0,
+    `the nav's link: at rest the focus is on the end page's title, in view at scrollY 0 (focus ${focus}, title in view ${there.titleIn}, scrollY ${there.scrollY})`,
+  );
+  await page.keyboard.press('Tab');
+  const next = await page.evaluate(() => {
+    const el = document.activeElement;
+    const question = [...document.querySelectorAll('#end .end-q > summary')].indexOf(el);
+    return question >= 0 ? `question ${question + 1}` : el?.id || el?.tagName || null;
+  });
+  step.check(next === 'question 1', `the nav's link: the next Tab from the title reaches the first question (got ${next})`);
+
+  // 3D switched off at the end: the page in the 3D-off home's flow, brought into view.
+  await page.click('.site-header button[role="switch"]');
+  await page
+    .waitForFunction(() => document.documentElement.getAttribute('data-3d') === 'off' && !document.documentElement.hasAttribute('data-end') && !document.querySelector('.scene-host canvas'), null, { timeout: 5_000 })
+    .catch(() => {});
+  await page.waitForTimeout(300);
+  const off = await page.evaluate(() => {
+    const title = document.getElementById('end-title').getBoundingClientRect();
+    return {
+      threeD: document.documentElement.getAttribute('data-3d'),
+      end: document.documentElement.getAttribute('data-end'),
+      scrollY: window.scrollY,
+      top: Math.round(title.top),
+      bottom: Math.round(title.bottom),
+      header: Math.round(document.querySelector('.site-header').getBoundingClientRect().bottom),
+      titleIn: title.height > 0 && title.top >= 0 && title.bottom <= window.innerHeight,
+    };
+  });
+  step.check(
+    off.threeD === 'off' && off.end === null && off.titleIn && off.scrollY > 0,
+    `3D switched off at the end: the end page is brought into view in the 3D-off home's flow, #end-title inside the viewport (top ${off.top}, bottom ${off.bottom}, the header's bottom ${off.header}) at scrollY ${off.scrollY}, not the hero at the top (got ${JSON.stringify(off)})`,
+  );
+  await takeCsp(page, step);
+  await context.close();
+}
+
+/**
+ * Part 10 of the end page's step (`endPage`), at 1440x900 and on the phone: a click (a tap) on the rising page during the
+ * move into the night opens nothing. The page is inert while it moves, and an inert page lets the pointer through to
+ * what lies under it, the scene, where Cookies Clicker's bead stands in the middle of the picture (where bead-open clicks
+ * it); no bead reads the pointer once the night has begun (src/scene/bob/voidPose.ts `hoversAt`), so the click lands on
+ * nothing. Pass: the URL stays on the home, and the story rests at the end page, `data-end` at rest.
+ *
+ * On a laptop the pointer stands on the bead from its stop on, so its hover is lit as the move begins: it eases out on
+ * the way, and at rest the page asks for no frame in 600 ms. Then the same click on the way out, 6 to 5: the story rests
+ * on Cookies Clicker's stop, on the home. On the phone the tap waits until the move is past half way: a finger set down
+ * while a settle eases halts it there, and its lift settles on the nearer stop (the scroll's own rule for a finger,
+ * src/input/scrollLoop.ts `onTouchDown`), so a tap in the first half takes the story back to 5, opening nothing either.
+ */
+async function pressThroughTheNight(page, step, { at, touch, size, cdp, cookies, toCookies, allFrames }) {
+  const middle = { x: size.width / 2, y: size.height / 2 };
+  const press = () => (touch ? page.touchscreen.tap(middle.x, middle.y) : page.mouse.click(middle.x, middle.y));
+  const how = touch ? 'a tap' : 'a click';
+  const pathname = () => new URL(page.url()).pathname;
+  if (!touch) await page.mouse.move(middle.x, middle.y); // on the bead once the story stands at its stop: its hover lit
+  await toCookies();
+  if (touch) await swipeStill(page, cdp, 300);
+  else await page.mouse.wheel(0, RISE.notchPx);
+  const pressedAt = await movingAt(page, touch ? 5.6 : 5, STORY_END);
+  await press();
+  const view = await endViewAt(page, 'rest');
+  await page.waitForTimeout(100); // past the frame that wrote the rest, and the one after it
+  const from = await allFrames();
+  await page.waitForTimeout(600);
+  const frames = (await allFrames()) - from;
+  await page.waitForTimeout(500); // a bead's flight (0.8 s from the press) would have left the home by now
+  const there = await endPageOf(page);
+  step.check(
+    pressedAt !== null && view === 'rest' && restsAtEnd(there) && pathname() === '/',
+    `${at}: ${how} on the rising page over ${cookies.id}'s place (the middle of the picture), with data-end moving at progress ${pressedAt}, opens nothing: the story rests at the end page at ${pathname()}, <html data-end="${view}"> (${endText(there)})`,
+  );
+  if (touch) return;
+  step.check(frames === 0, `${at}: the pointer on ${cookies.id}'s place from its stop on, its hover lit as the move began: at rest the page asks for no frame in 600 ms, the hover gone on the way (got ${frames})`);
+
+  // The way out: one notch up at the page's top, a new gesture, and the same click while the page goes.
+  await page.waitForTimeout(GESTURE_GAP_MS + 50);
+  await page.mouse.wheel(0, -RISE.notchPx);
+  const outAt = await movingAt(page, STORY_END - 0.001, cookies.stop);
+  await page.mouse.click(middle.x, middle.y);
+  const back = await settledState(page).catch(() => debugOf(page)); // a story that never rests is the check's to report
+  await page.waitForTimeout(1_000); // a bead's flight would have left the home by now
+  const gone = await page.evaluate(() => document.documentElement.getAttribute('data-end'));
+  step.check(
+    outAt !== null && back.progress === cookies.stop && back.target === cookies.stop && gone === null && pathname() === '/' && back.phase.kind === 'PROJECTS',
+    `${at}: ${how} on the page as it goes, 6 to 5 (data-end moving at progress ${outAt}), opens nothing either: the story rests on ${cookies.id}'s stop at ${pathname()} (progress ${back.progress}, target ${back.target}, ${back.phase.kind}, data-end ${gone})`,
+  );
+}
+
+/**
  * The end page (spec 2026-10-24-bob-end-page-design.md), the story's seventh stop and an ordinary page, by real input, at
  * 1440x900, 1366x657 and 390x844 (touch), each in a fresh context landed with the seen flag set and the void ready, the
  * story put on Cookies Clicker's stop through `.set` (the pointer parked in the bottom corner, off the beads and the header):
@@ -6355,9 +6516,15 @@ async function endPage(browser, step) {
       atEndAgain === 'rest' && Math.abs(nameFrom - 300) <= 1 && named.progress === 0 && named.target === 0 && named.scrollY === 0 && named.end === null,
       `${at}: the header's name at the end (data-end ${atEndAgain}, scrollY ${nameFrom}) goes to the home: ${endText(named)}, at ${new URL(page.url()).pathname}`,
     );
+
+    // 10. A click or a tap on the rising page during the move into the night opens nothing (1440 and the phone).
+    const pressed = touch || (size.width === STILL_SIZES[0].width && size.height === STILL_SIZES[0].height);
+    if (pressed) await pressThroughTheNight(page, step, { at, touch, size, cdp, cookies, toCookies, allFrames });
     await takeCsp(page, step);
     await context.close();
-    summary.push(`${at}: ${first} and ${second} from ${cookies.id} rest at the end asleep; the page scrolls (to ${down} px${touch ? '' : ', End to its bottom'}) and back with the story at 6, a new gesture at the top back to ${cookies.stop}; a burst from 300 px stays the page's; questions, an empty send, Tab, ${size.width === STILL_SIZES[0].width && !touch ? 'a resize, ' : ''}a reload and the header's name`);
+    summary.push(
+      `${at}: ${first} and ${second} from ${cookies.id} rest at the end asleep; the page scrolls (to ${down} px${touch ? '' : ', End to its bottom'}) and back with the story at 6, a new gesture at the top back to ${cookies.stop}; a burst from 300 px stays the page's; questions, an empty send, Tab, ${size.width === STILL_SIZES[0].width && !touch ? 'a resize, ' : ''}a reload and the header's name${pressed ? `; a ${touch ? 'tap' : 'click'} on the rising page opens nothing${touch ? '' : ', in and out, the hover gone before the rest'}` : ''}`,
+    );
   }
 
   // /en/ at the end.
@@ -6384,6 +6551,10 @@ async function endPage(browser, step) {
     await takeCsp(page, step);
     await context.close();
   }
+
+  // The nav's link to the end page with the void ready, a keyboard's and a screen reader's way there from the home; then
+  // 3D switched off at the end.
+  await navLinkToTheEnd(browser, step, nl);
 
   // 3D off: the end page in the home's flow, after the project links, reached by the page's own scroll.
   {
@@ -6533,7 +6704,7 @@ async function endPage(browser, step) {
     await takeCsp(page, step);
     await context.close();
   }
-  summary.push('/en/ in English; 3D off in the flow; a failed void by its link and back by fades; reduced motion by fades');
+  summary.push("/en/ in English; the nav's link from the home with the focus to the title, and 3D switched off there in view; 3D off in the flow; a failed void by its link and back by fades; reduced motion by fades");
 
   const rows = await gateLuma(browser, step, shots);
   step.luma = rows;
