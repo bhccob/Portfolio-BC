@@ -4260,16 +4260,20 @@ const ENTRY_CHUNK = /\/assets\/entry\.client-[^/]+\.js$/;
  * it hydrates) and the phase where the bridge answers. Only from the first moment the page can paint: while a stylesheet
  * of the head is still loading, nothing is drawn (it blocks rendering) and the computed style is the browser's default,
  * opacity 1, which no visitor sees. (The home's head preloads its modules before its stylesheet, so its body is parsed
- * before the sheet has arrived.)
+ * before the sheet has arrived.) The stylesheets that hold it back are the document's own, those there once it is parsed
+ * (DOMContentLoaded): one a script inserts later (a lazy chunk's CSS) blocks no paint, and never pauses the watch.
  */
 const watchHero = (context) =>
   context.addInitScript(() => {
     window.__heroSamples = [];
+    const sheets = () => [...document.querySelectorAll('link[rel="stylesheet"]')];
+    let parsed = null; // the document's own stylesheets, once it is parsed
+    document.addEventListener('DOMContentLoaded', () => (parsed = sheets()), { once: true });
     setInterval(() => {
       const hero = document.querySelector('.hero');
       const header = document.querySelector('.site-header');
       if (!hero || !header) return;
-      if ([...document.querySelectorAll('link[rel="stylesheet"]')].some((link) => link.sheet === null)) return; // not painted yet
+      if ((parsed ?? sheets()).some((link) => link.sheet === null)) return; // not painted yet
       window.__heroSamples.push({
         t: Math.round(performance.now()),
         opacity: Number(getComputedStyle(hero).opacity),
@@ -5989,23 +5993,41 @@ const restsAtEnd = (s) => s.progress === STORY_END && s.target === STORY_END && 
  */
 const watchEndFade = (page) =>
   page.evaluate(() => {
-    const record = { fades: 0, progress: new Set() };
+    const record = { fades: 0, progress: new Set(), opacity: new Set() };
     window.__endFade = record;
     new MutationObserver((mutations) => {
       for (const mutation of mutations) if (mutation.oldValue === null) record.fades++; // it was not there: it was set
     }).observe(document.documentElement, { attributes: true, attributeOldValue: true, attributeFilter: ['data-step-fade'] });
-    setInterval(() => record.progress.add(window.__needleDebug().progress), 5);
+    const end = document.getElementById('end');
+    setInterval(() => {
+      record.progress.add(window.__needleDebug().progress);
+      record.opacity.add(Number(getComputedStyle(end).opacity));
+    }, 5);
   });
 
-/** What watchEndFade recorded since it was started or last taken: the fades set, and the progress seen. */
+/**
+ * What watchEndFade recorded since it was started or last taken: the fades set, the progress seen, and the end page's
+ * computed opacities (`fading`: those strictly between 0 and 1, the page caught part way through a fade, not cut in or out).
+ */
 const takeEndFade = (page) =>
   page.evaluate(() => {
     const record = window.__endFade;
-    const taken = { fades: record.fades, progress: [...record.progress] };
+    const opacity = [...record.opacity];
+    const taken = { fades: record.fades, progress: [...record.progress], fading: opacity.filter((o) => o > 0 && o < 1).length, opacities: opacity.length };
     record.fades = 0;
     record.progress.clear();
+    record.opacity.clear();
     return taken;
   });
+
+/**
+ * Waits until a step fade has lifted from the end page (no `<html data-step-fade>`, the page's computed opacity 1), up to
+ * 3 s, so a record taken then holds the whole fade-in; the checks that follow judge what was seen.
+ */
+const fadeLifted = (page) =>
+  page
+    .waitForFunction(() => !document.documentElement.hasAttribute('data-step-fade') && getComputedStyle(document.getElementById('end')).opacity === '1', null, { timeout: 3_000 })
+    .catch(() => {});
 
 /** The progress samples strictly between `from` and `to` (with 0.01 to spare at each end): a camera move where none may be. */
 const between = (samples, from, to) => samples.filter((p) => p > from + 0.01 && p < to - 0.01);
@@ -6082,10 +6104,18 @@ async function endPage(browser, step) {
       await settledState(page);
       return waitForLabel(page, cookies.id);
     };
-    /** The checks at rest at the end page, after `how` brought the story there. */
-    const atRest = async (how) => {
+    /** The page's count of requestAnimationFrame calls so far (countAllFrames). */
+    const allFrames = () => page.evaluate(() => window.__allRaf);
+    /**
+     * The checks at rest at the end page, after `how` brought the story there; `framesBefore` is the page's frame count
+     * before the input. The move asked for frames (the positive control of the quiet that follows: a count that never
+     * moved could not tell a sleeping scene from a counter that sees nothing).
+     */
+    const atRest = async (how, framesBefore) => {
       const view = await endViewAt(page, 'rest');
       const state = await endPageOf(page);
+      const moved = (await allFrames()) - framesBefore;
+      step.check(moved > 0, `${at}: ${how}: the move to the end page asked for frames, as the count sees (${moved})`);
       step.check(view === 'rest' && restsAtEnd(state), `${at}: ${how} from ${cookies.id}'s stop reaches the end page and rests there: <html data-end="${view}"> (${endText(state)})`);
       step.check(state.titleIn, `${at}: ${how}: at rest #end-title is seen whole inside the viewport`);
       step.check(state.inert === false, `${at}: ${how}: at rest .end-page is not inert (inert ${state.inert})`);
@@ -6100,9 +6130,10 @@ async function endPage(browser, step) {
     const label = await toCookies();
     step.check(label !== null && labelInside(label), `${at}: on ${cookies.id}'s stop, ${cookies.stop}, its label shows whole`);
     const first = touch ? 'one swipe' : 'one wheel notch';
+    const beforeFirst = await allFrames();
     if (touch) await swipeStill(page, cdp, 300);
     else await page.mouse.wheel(0, RISE.notchPx);
-    await atRest(first);
+    await atRest(first, beforeFirst);
     const still = join(STILLS, `end-${at}.png`);
     await page.screenshot({ path: still });
     shots.push({ file: still, kind: 'home', mask: await textMask(page) });
@@ -6163,9 +6194,10 @@ async function endPage(browser, step) {
 
     // ArrowDown from Cookies Clicker's stop on a laptop; on the phone a swipe again, as a phone has no keys.
     const second = touch ? 'a swipe again' : 'ArrowDown';
+    const beforeSecond = await allFrames();
     if (touch) await swipeStill(page, cdp, 300);
     else await page.keyboard.press('ArrowDown');
-    await atRest(second);
+    await atRest(second, beforeSecond);
 
     // 3. A gesture begun in the page is the page's to its end, past the page's top too.
     await page.evaluate(() => window.scrollTo(0, 300));
@@ -6285,7 +6317,8 @@ async function endPage(browser, step) {
     await page.waitForTimeout(1_000); // a late scroll restoration would have moved the page by now
     const reloaded = await endPageOf(page);
     step.check(
-      restsAtEnd(beforeReload) &&
+      Math.abs(reloadFrom - 300) <= 1 &&
+        restsAtEnd(beforeReload) &&
         relanded &&
         reloaded.progress === 0 &&
         reloaded.target === 0 &&
@@ -6435,14 +6468,16 @@ async function endPage(browser, step) {
     await page.click('.home-nav .end-link');
     await page.mouse.move(corner(size).x, corner(size).y); // off the button, whose hover is gold
     const view = await endViewAt(page, 'rest');
+    await fadeLifted(page);
     const into = await takeEndFade(page);
     const there = await endPageOf(page);
     const focus = await page.evaluate(() => document.activeElement?.id ?? null);
     const travelIn = between(into.progress, RISE_TOP, STORY_END);
     step.check(
-      view === 'rest' && restsAtEnd(there) && into.fades >= 1 && travelIn.length === 0,
+      view === 'rest' && restsAtEnd(there) && into.fades >= 1 && into.progress.length > 0 && travelIn.length === 0,
       `void failed: the button goes to the end page by a fade: <html data-step-fade> set ${into.fades} time(s), no progress between ${RISE_TOP} and ${STORY_END} (${travelIn.length} of ${into.progress.length} samples between), and it rests there (${endText(there)})`,
     );
+    step.check(into.fading > 0, `void failed: the end page fades in with the scene, not cut in: ${into.fading} of ${into.opacities} opacities seen strictly between 0 and 1`);
     step.check(focus === 'end-title', `void failed: after the button's move the focus is on the end page's title (got ${focus})`);
     await page.keyboard.press('ArrowUp');
     const upFrom = await settledState(page);
@@ -6450,9 +6485,10 @@ async function endPage(browser, step) {
     const out = await takeEndFade(page);
     const travelOut = between(out.progress, RISE_TOP, STORY_END);
     step.check(
-      near(upFrom.target, RISE_TOP, 1e-9) && upFrom.progress === upFrom.target && gone === null && out.fades >= 1 && travelOut.length === 0,
-      `void failed: ArrowUp at the page's top comes back to BOB from above, ${RISE_TOP}, by a fade (data-step-fade set ${out.fades} time(s), ${travelOut.length} progress samples between), data-end ${gone} (progress ${upFrom.progress}, target ${upFrom.target})`,
+      near(upFrom.target, RISE_TOP, 1e-9) && upFrom.progress === upFrom.target && gone === null && out.fades >= 1 && out.progress.length > 0 && travelOut.length === 0,
+      `void failed: ArrowUp at the page's top comes back to BOB from above, ${RISE_TOP}, by a fade (data-step-fade set ${out.fades} time(s), ${travelOut.length} of ${out.progress.length} progress samples between), data-end ${gone} (progress ${upFrom.progress}, target ${upFrom.target})`,
     );
+    step.check(out.fading > 0, `void failed: the end page fades out with the scene, not cut out: ${out.fading} of ${out.opacities} opacities seen strictly between 0 and 1`);
     step.check(step.expected.length - reportedBefore === 1, `void failed: the console has one error for it, the browser's report of the 404 (${step.expected.slice(reportedBefore).join(' | ')})`);
     await takeCsp(page, step);
     await context.close();
@@ -6475,12 +6511,14 @@ async function endPage(browser, step) {
     // both are there, the end view's and the story's.
     const view = await endViewAt(page, 'rest');
     await settledState(page);
+    await fadeLifted(page);
     const into = await takeEndFade(page);
     const there = await endPageOf(page);
     step.check(
       view === 'rest' && restsAtEnd(there) && into.fades >= 1,
       `reduced motion: one wheel notch from ${cookies.id}'s stop goes to the end page by a fade (<html data-step-fade> set ${into.fades} time(s)) and rests there (${endText(there)})`,
     );
+    step.check(into.fading > 0, `reduced motion: the end page fades in with the scene, not cut in: ${into.fading} of ${into.opacities} opacities seen strictly between 0 and 1`);
     await page.waitForTimeout(GESTURE_GAP_MS + 50); // a new gesture
     await page.mouse.wheel(0, -RISE.notchPx);
     const gone = await endViewAt(page, null);
@@ -6491,6 +6529,7 @@ async function endPage(browser, step) {
       gone === null && back.progress === cookies.stop && back.target === cookies.stop && label !== null && out.fades >= 1,
       `reduced motion: and one notch up at the page's top comes back to ${cookies.id}'s stop, ${cookies.stop}, by a fade (data-step-fade set ${out.fades} time(s)), its label shown (progress ${back.progress}, data-end ${gone})`,
     );
+    step.check(out.fading > 0, `reduced motion: the end page fades out with the scene, not cut out: ${out.fading} of ${out.opacities} opacities seen strictly between 0 and 1`);
     await takeCsp(page, step);
     await context.close();
   }
