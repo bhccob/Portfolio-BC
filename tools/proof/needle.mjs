@@ -178,7 +178,9 @@
  *              switch off 40 ms later is finished on 4 and comes back there; under reduced motion Funcial opened by Tab and
  *              Enter and closed by Esc, each by a fade; at /en/ the three labels in English, Funcial opened and back
  *   end-page   the end page, the seventh stop, by real input at 1440x900, 1366x657 and 390x844 (touch), from Cookies
- *              Clicker's stop: one wheel notch and ArrowDown on a laptop, one swipe on the phone; at rest <html data-end="rest">,
+ *              Clicker's stop: one wheel notch and ArrowDown on a laptop, one swipe on the phone; <html data-end="rest">
+ *              within 3 s of the input (of the swipe's lift: its own length is the visitor's) and the page's top moving at
+ *              most 0.5 px between the last frame of the move and the first at rest (Ruling 18); at rest
  *              #end-title in the viewport, .end-page not inert, no frame asked for in 600 ms, a still `m2/end-<size>.png`
  *              gated as a home still (the page's text masked as the void's stills mask it); the page's own scroll (three
  *              notches or swipes down scroll it with the story at 6, End to its bottom, back up to scrollY 0 with the story
@@ -187,7 +189,8 @@
  *              open at a time, the placeholder "Antwoord volgt."); an empty send shows the form's errors
  *              (#contact-name-error) as on /contact/; Tab from the header reaches the questions, then the form's fields; at
  *              1440 a resize to 1000x700 and back keeps the page; a reload at the end lands on the home (story 0, scrollY 0,
- *              no data-end); the header's name at the end goes to the home (the same). At 1440 once: /en/ in English; 3D
+ *              no data-end); the header's name at the end goes to the home (the same). At 1440 once: /en/ in English; the
+ *              pointer moved at the home (the needle turned) then End: at rest no frame asked for in 600 ms (Ruling 19); 3D
  *              off, #end in the flow after .home-nav, reached by native scroll; the void failed, its .end-link button to
  *              the end by a fade (data-step-fade seen, no progress between, the focus on the title) and ArrowUp at the top
  *              back to 1 by a fade; reduced motion, 5 to 6 to 5 by fades
@@ -6029,6 +6032,67 @@ const fadeLifted = (page) =>
     .waitForFunction(() => !document.documentElement.hasAttribute('data-step-fade') && getComputedStyle(document.getElementById('end')).opacity === '1', null, { timeout: 3_000 })
     .catch(() => {});
 
+/**
+ * How soon after the input that sends it there `<html data-end="rest">` must arrive, in seconds (Ruling 18): the move into
+ * the night covers 99 % of its way about 2.55 s after a wheel notch, and the page is live from there. The arrival within
+ * 1e-4 took about 4.3 s, the page looking arrived but inert, and its wheel the story's, for the last 1.8 s.
+ */
+const REST_WITHIN_S = 3.0;
+
+/** How far the page's top may move between the last frame of the move into the night and the first at rest, px (Ruling 18). */
+const SEAM_PX = 0.5;
+
+/**
+ * Starts timing a move into the night, from now on in `window.__endArrival`: when the first wheel, key or finger came
+ * (performance.now() in a capture listener on window, the first to hear it), when a finger lifted, when `<html
+ * data-end>` first said `rest`, and the end page's top (`#end`'s box, its transform included) on the last frame
+ * `moving` and the first `rest`: a MutationObserver on `data-end` and the style that carries `--end`, both written by
+ * Home's end view in one frame, its callback after that frame's writes. `takeArrival` reads the record and stops it.
+ */
+const watchArrival = (page) =>
+  page.evaluate(() => {
+    window.__endArrivalStop?.();
+    const record = { input: null, lift: null, rest: null, movingTop: null, movingEnd: null, restTop: null, moving: 0 };
+    window.__endArrival = record;
+    const first = () => {
+      record.input ??= performance.now();
+    };
+    const lift = () => {
+      record.lift = performance.now();
+    };
+    const options = { capture: true, passive: true };
+    for (const type of ['wheel', 'keydown', 'touchstart']) window.addEventListener(type, first, options);
+    window.addEventListener('touchend', lift, options);
+    const root = document.documentElement;
+    const observer = new MutationObserver(() => {
+      if (record.rest !== null) return;
+      const state = root.getAttribute('data-end');
+      const top = document.getElementById('end').getBoundingClientRect().top;
+      if (state === 'moving') {
+        record.movingTop = top;
+        record.movingEnd = root.style.getPropertyValue('--end');
+        record.moving++;
+      } else if (state === 'rest') {
+        record.rest = performance.now();
+        record.restTop = top;
+      }
+    });
+    observer.observe(root, { attributes: true, attributeFilter: ['data-end', 'style'] });
+    window.__endArrivalStop = () => {
+      observer.disconnect();
+      for (const type of ['wheel', 'keydown', 'touchstart']) window.removeEventListener(type, first, options);
+      window.removeEventListener('touchend', lift, options);
+      window.__endArrivalStop = undefined;
+    };
+  });
+
+/** What watchArrival recorded, the recorder stopped: the times (ms, the page's clock) and the page's tops (px). */
+const takeArrival = (page) =>
+  page.evaluate(() => {
+    window.__endArrivalStop?.();
+    return { ...window.__endArrival };
+  });
+
 /** The progress samples strictly between `from` and `to` (with 0.01 to spare at each end): a camera move where none may be. */
 const between = (samples, from, to) => samples.filter((p) => p > from + 0.01 && p < to - 0.01);
 
@@ -6142,6 +6206,43 @@ async function navLinkToTheEnd(browser, step, nl) {
 }
 
 /**
+ * The quickest real way to the end page, at 1440x900 (Ruling 19): the pointer moved at the home, so the needle aims at it
+ * and swings (its spring takes about 3.5 s to settle), then End, which reaches the end page in about 1.4 s. Once `<html
+ * data-end="rest">` the page asks for no frame at all in 600 ms: at the end page the needle, out of view behind the page,
+ * stands on its target. The positive controls: the pointer turned the needle (its angle moved in the 150 ms before End),
+ * and the move asked for frames. Answers the line for the summary.
+ */
+async function endFromTheHome(browser, step) {
+  const size = STILL_SIZES[0];
+  const { context, page } = await openSeen(browser, step, size);
+  await countAllFrames(context);
+  step.check(await landHome(page), 'End from the home: landed on the home');
+  await expectVoid(page, step, 'ready', 'End from the home: the void is ready');
+  const needleAt = () => page.evaluate(() => window.__needleDebug().needleAngle);
+  const before = await needleAt();
+  await page.mouse.move(8, size.height - 8, { steps: 5 }); // the bottom left: a long way round from the drift's rest
+  await page.waitForTimeout(150);
+  const turned = await needleAt();
+  const framesBefore = await page.evaluate(() => window.__allRaf);
+  await page.keyboard.press('End');
+  const view = await endViewAt(page, 'rest', 20_000);
+  const there = await endPageOf(page);
+  const moved = (await page.evaluate(() => window.__allRaf)) - framesBefore;
+  await page.waitForTimeout(100); // past the frame that wrote the rest, and the one after it
+  const from = await page.evaluate(() => window.__allRaf);
+  await page.waitForTimeout(600);
+  const frames = (await page.evaluate(() => window.__allRaf)) - from;
+  step.check(
+    Math.abs(turned - before) > 0.05 && moved > 0 && view === 'rest' && restsAtEnd(there),
+    `End from the home: the pointer moved at the home turns the needle (${before.toFixed(3)} to ${turned.toFixed(3)} rad in 150 ms), and End takes the story to the end page, asking for frames (${moved}), where it rests (${endText(there)})`,
+  );
+  step.check(frames === 0, `End from the home: at rest the page asks for no frame at all in 600 ms, the needle's swing from the home stood on its target behind the page (got ${frames})`);
+  await takeCsp(page, step);
+  await context.close();
+  return `End from the home after a pointer move rests asleep (${frames} frames in 600 ms)`;
+}
+
+/**
  * Part 10 of the end page's step (`endPage`), at 1440x900 and on the phone: a click (a tap) on the rising page during the
  * move into the night opens nothing. The page is inert while it moves, and an inert page lets the pointer through to
  * what lies under it, the scene, where Cookies Clicker's bead stands in the middle of the picture (where bead-open clicks
@@ -6199,9 +6300,10 @@ async function pressThroughTheNight(page, step, { at, touch, size, cdp, cookies,
  * story put on Cookies Clicker's stop through `.set` (the pointer parked in the bottom corner, off the beads and the header):
  *
  * 1. From there the end page is reached by real input alone: one wheel notch, and ArrowDown, on a laptop; one swipe on the
- *    phone. At rest `<html data-end="rest">`, `#end-title` is seen whole in the viewport, `.end-page` is not inert, and
- *    the page asks for no frame at all in 600 ms; a still, `m2/end-<size>.png`, is gated as a home still with the page's
- *    text masked as the void's stills mask it.
+ *    phone. `<html data-end="rest">` arrives within REST_WITHIN_S of the input (of the swipe's lift), and the page's top
+ *    moves at most SEAM_PX between the last frame of the move and the first at rest (Ruling 18). At rest `#end-title` is
+ *    seen whole in the viewport, `.end-page` is not inert, and the page asks for no frame at all in 600 ms; a still,
+ *    `m2/end-<size>.png`, is gated as a home still with the page's text masked as the void's stills mask it.
  * 2. The page's own scroll: three wheel notches down (three swipes) scroll it, the wheel not prevented, the story still at
  *    6; End reaches the page's bottom (a laptop); the wheel up (swipes down) brings it back to scrollY 0 with the story
  *    still at 6; one more notch (swipe), a new gesture after a pause at the top, goes back to 5 with Cookies Clicker's
@@ -6218,7 +6320,8 @@ async function pressThroughTheNight(page, step, { at, touch, size, cdp, cookies,
  *    hidden and inert again.
  * 9. The header's name at the end, scrolled 300 px down, goes to the home: the story at 0, scrollY 0, no `data-end`.
  *
- * And at 1440x900, once each: /en/ (the title and the first question in English); 3D off (`#end` in the home's flow after
+ * And at 1440x900, once each: /en/ (the title and the first question in English); the nav's link (`navLinkToTheEnd`);
+ * End from the home just after a pointer move there, asleep at rest (`endFromTheHome`, Ruling 19); 3D off (`#end` in the home's flow after
  * `.home-nav`, reached by native wheel scroll); the void failed (bob-beads.glb answering 404: the scroll held at BOB from
  * above, the nav's `.end-link` button shows and goes to the end page by the step fade, no progress between, the focus on
  * its title, and ArrowUp at the page's top comes back to BOB from above by a fade); reduced motion (5 to 6 and back to 5,
@@ -6267,17 +6370,39 @@ async function endPage(browser, step) {
     };
     /** The page's count of requestAnimationFrame calls so far (countAllFrames). */
     const allFrames = () => page.evaluate(() => window.__allRaf);
+    /** When the end page came to rest after each input of part 1 (Ruling 18), for the summary. */
+    const restTimes = [];
     /**
      * The checks at rest at the end page, after `how` brought the story there; `framesBefore` is the page's frame count
-     * before the input. The move asked for frames (the positive control of the quiet that follows: a count that never
-     * moved could not tell a sleeping scene from a counter that sees nothing).
+     * before the input, which came with `watchArrival` started. The move asked for frames (the positive control of the
+     * quiet that follows: a count that never moved could not tell a sleeping scene from a counter that sees nothing).
+     * `<html data-end="rest">` arrives within REST_WITHIN_S of the input (of the swipe's lift on the phone), and the
+     * page's top moves no more than SEAM_PX between the last frame of the move and the first at rest (Ruling 18).
      */
     const atRest = async (how, framesBefore) => {
       const view = await endViewAt(page, 'rest');
+      const arrival = await takeArrival(page);
       const state = await endPageOf(page);
       const moved = (await allFrames()) - framesBefore;
       step.check(moved > 0, `${at}: ${how}: the move to the end page asked for frames, as the count sees (${moved})`);
       step.check(view === 'rest' && restsAtEnd(state), `${at}: ${how} from ${cookies.id}'s stop reaches the end page and rests there: <html data-end="${view}"> (${endText(state)})`);
+      // A notch or a key is an instant; a swipe ends at its lift, where the settle takes the story on. The swipe's own length
+      // is the visitor's (swipeStill holds the finger still 150 ms before it, and its moves go out one CDP call at a time:
+      // about 0.65 s from the first touch), so the time runs from the lift.
+      const sent = touch ? arrival.lift : arrival.input;
+      const after = sent !== null && arrival.rest !== null ? (arrival.rest - sent) / 1000 : null;
+      const touched =
+        touch && arrival.input !== null && arrival.lift !== null ? ` (the swipe's own length, ${((arrival.lift - arrival.input) / 1000).toFixed(2)} s from its first touch, is the visitor's)` : '';
+      restTimes.push(`${how} ${after === null ? 'never' : `${after.toFixed(2)} s`}`);
+      step.check(
+        after !== null && after <= REST_WITHIN_S,
+        `${at}: ${how}: <html data-end="rest"> arrives ${after === null ? 'never (input or rest not seen)' : `${after.toFixed(2)} s`} after the ${touch ? "swipe's lift" : 'input'}${touched}, within ${REST_WITHIN_S} s: the page is live once it looks arrived`,
+      );
+      const seam = arrival.movingTop !== null && arrival.restTop !== null ? Math.abs(arrival.restTop - arrival.movingTop) : null;
+      step.check(
+        seam !== null && arrival.moving > 10 && seam <= SEAM_PX,
+        `${at}: ${how}: the seam: the page's top on the last frame of the move (${arrival.movingTop}, --end ${arrival.movingEnd}, ${arrival.moving} frames moving) and on the first at rest (${arrival.restTop}) differ by ${seam === null ? 'unknown' : seam.toPrecision(3)} px, at most ${SEAM_PX}`,
+      );
       step.check(state.titleIn, `${at}: ${how}: at rest #end-title is seen whole inside the viewport`);
       step.check(state.inert === false, `${at}: ${how}: at rest .end-page is not inert (inert ${state.inert})`);
       await page.waitForTimeout(100); // past the frame that wrote the rest, and the one after it
@@ -6292,6 +6417,7 @@ async function endPage(browser, step) {
     step.check(label !== null && labelInside(label), `${at}: on ${cookies.id}'s stop, ${cookies.stop}, its label shows whole`);
     const first = touch ? 'one swipe' : 'one wheel notch';
     const beforeFirst = await allFrames();
+    await watchArrival(page);
     if (touch) await swipeStill(page, cdp, 300);
     else await page.mouse.wheel(0, RISE.notchPx);
     await atRest(first, beforeFirst);
@@ -6356,6 +6482,7 @@ async function endPage(browser, step) {
     // ArrowDown from Cookies Clicker's stop on a laptop; on the phone a swipe again, as a phone has no keys.
     const second = touch ? 'a swipe again' : 'ArrowDown';
     const beforeSecond = await allFrames();
+    await watchArrival(page);
     if (touch) await swipeStill(page, cdp, 300);
     else await page.keyboard.press('ArrowDown');
     await atRest(second, beforeSecond);
@@ -6523,7 +6650,7 @@ async function endPage(browser, step) {
     await takeCsp(page, step);
     await context.close();
     summary.push(
-      `${at}: ${first} and ${second} from ${cookies.id} rest at the end asleep; the page scrolls (to ${down} px${touch ? '' : ', End to its bottom'}) and back with the story at 6, a new gesture at the top back to ${cookies.stop}; a burst from 300 px stays the page's; questions, an empty send, Tab, ${size.width === STILL_SIZES[0].width && !touch ? 'a resize, ' : ''}a reload and the header's name${pressed ? `; a ${touch ? 'tap' : 'click'} on the rising page opens nothing${touch ? '' : ', in and out, the hover gone before the rest'}` : ''}`,
+      `${at}: ${first} and ${second} from ${cookies.id} rest at the end asleep (at rest after ${restTimes.join(', ')}); the page scrolls (to ${down} px${touch ? '' : ', End to its bottom'}) and back with the story at 6, a new gesture at the top back to ${cookies.stop}; a burst from 300 px stays the page's; questions, an empty send, Tab, ${size.width === STILL_SIZES[0].width && !touch ? 'a resize, ' : ''}a reload and the header's name${pressed ? `; a ${touch ? 'tap' : 'click'} on the rising page opens nothing${touch ? '' : ', in and out, the hover gone before the rest'}` : ''}`,
     );
   }
 
@@ -6555,6 +6682,9 @@ async function endPage(browser, step) {
   // The nav's link to the end page with the void ready, a keyboard's and a screen reader's way there from the home; then
   // 3D switched off at the end.
   await navLinkToTheEnd(browser, step, nl);
+
+  // End from the home just after a pointer move there: the needle's swing does not keep the canvas drawing at the end.
+  const fromHome = await endFromTheHome(browser, step);
 
   // 3D off: the end page in the home's flow, after the project links, reached by the page's own scroll.
   {
@@ -6704,7 +6834,7 @@ async function endPage(browser, step) {
     await takeCsp(page, step);
     await context.close();
   }
-  summary.push("/en/ in English; the nav's link from the home with the focus to the title, and 3D switched off there in view; 3D off in the flow; a failed void by its link and back by fades; reduced motion by fades");
+  summary.push(`/en/ in English; the nav's link from the home with the focus to the title, and 3D switched off there in view; ${fromHome}; 3D off in the flow; a failed void by its link and back by fades; reduced motion by fades`);
 
   const rows = await gateLuma(browser, step, shots);
   step.luma = rows;
