@@ -292,6 +292,23 @@ export const nl: Dictionary = {
     mailtoTitle: 'Bijna klaar.',
     mailtoText: 'Je e-mailprogramma zou nu moeten openen met het bericht klaar om te versturen.'
   },
+  end: {
+    label: 'Vragen',
+    title: 'Vragen <em>over mij.</em>',
+    // Six, as the English has (the type says so). Every answer is missing until Bob sends it: null shows the placeholder.
+    questions: [
+      { question: 'Wie ben je?', answer: null },
+      { question: 'Wat studeer je, en waar?', answer: null },
+      { question: 'Welke rol zoek je?', answer: null },
+      { question: 'Met welke talen en tools werk je het liefst?', answer: null },
+      { question: 'Hoe werk je het liefst?', answer: null },
+      { question: 'Ben je beschikbaar voor een stage of een baan?', answer: null }
+    ],
+    placeholder: 'Antwoord volgt.',
+    placeholderTag: 'placeholder',
+    messageTitle: 'Stuur een <em>bericht.</em>',
+    failLink: 'Vragen & contact'
+  },
   project: {
     back: 'Alle categorieën',
     shelf: 'Projecten in {category}',

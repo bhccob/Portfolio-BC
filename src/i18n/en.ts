@@ -302,6 +302,30 @@ export const en = {
     mailtoTitle: 'Almost there.',
     mailtoText: 'Your email app should open with the message ready to send.'
   },
+  /**
+   * The end of the home (src/ui/EndPage.tsx), after the last bead: a label and a title, six questions about Bob, then
+   * the message part, whose intro, form and links are `contact`'s. `failLink` is the nav's link to the page when the
+   * void's files failed (the step fade takes the visitor there).
+   */
+  end: {
+    label: 'Questions',
+    title: 'Questions <em>about me.</em>',
+    // The spec's table (2026-10-24-bob-end-page-design.md, goal 3). Every answer is missing until Bob sends it: `null` shows
+    // the placeholder with its tag, and a string replaces it with no other change. Typed by `as`, not `satisfies` (as the
+    // Q&A's items are): `satisfies` would narrow each `answer` to `null`, and a translation could not then hold an answer.
+    questions: [
+      { question: 'Who are you?', answer: null },
+      { question: 'What do you study, and where?', answer: null },
+      { question: 'What role are you looking for?', answer: null },
+      { question: 'Which languages and tools do you like working with most?', answer: null },
+      { question: 'How do you like to work?', answer: null },
+      { question: 'Are you available for an internship or a job?', answer: null }
+    ] as EndQuestions,
+    placeholder: 'Answer to follow.',
+    placeholderTag: 'placeholder',
+    messageTitle: 'Send a <em>message.</em>',
+    failLink: 'Questions & contact'
+  },
   project: {
     back: 'All categories',
     shelf: 'Projects in {category}',
@@ -445,3 +469,9 @@ export type Dictionary = typeof en;
 
 /** The Q&A's questions: five, each answered in its place (src/data/qa.ts), so a translation must have exactly these five. */
 export type QaItems = [string, string, string, string, string];
+
+/** One of the end page's questions, and its answer: `null` until Bob sends it. */
+export type EndQuestion = { question: string; answer: string | null };
+
+/** The end page's questions: six, so a translation must have exactly these six. */
+export type EndQuestions = [EndQuestion, EndQuestion, EndQuestion, EndQuestion, EndQuestion, EndQuestion];

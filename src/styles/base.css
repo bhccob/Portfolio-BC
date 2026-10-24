@@ -1443,6 +1443,132 @@ html[data-3d='on'][data-void='failed'][data-rising] .home-nav {
   margin: 56px 0 12px;
 }
 
+/* ---------- the end page: questions about Bob, then a message ---------- */
+/* The home's last page (src/ui/EndPage.tsx), drawn after the approved mock-up (bob-end-page.html, §2): a left column of
+   44rem inside the gutters, the label and the title of the site's other pages, six questions between hairlines, then
+   the contact page's own form and links. It stands in the flow; the scene's hold on it is not here. Dark and calm: gold
+   only in the title, the + and the tag. */
+.end-page {
+  max-width: calc(44rem + 2 * var(--gutter));
+  padding: 16px var(--gutter) 96px;
+  scroll-margin-top: var(--header-height);
+}
+
+.end-page > .label + .page-title {
+  margin-top: 4px;
+}
+
+/* The questions: <details> of one name, so the browser keeps one open at a time with no script. The hairline above the
+   first is the list's, the one under each is its own. */
+.end-qa {
+  margin-top: 16px;
+  border-top: 1px solid rgb(228 190 127 / 0.22);
+}
+
+.end-q {
+  border-bottom: 1px solid rgb(228 190 127 / 0.22);
+}
+
+.end-q > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 64px;
+  padding: 14px 0;
+  color: var(--ink);
+  font-size: clamp(17px, 0.4vw + 15px, 20px);
+  font-weight: 500;
+  line-height: 1.4;
+  list-style: none;
+  cursor: pointer;
+}
+
+.end-q > summary::-webkit-details-marker {
+  display: none;
+}
+
+.end-q > summary:hover {
+  color: var(--gold-title);
+}
+
+/* The + is drawn, two gold strokes; open, the upright one shrinks away and it reads as a −. */
+.end-q > summary::after {
+  content: '';
+  flex: none;
+  width: 14px;
+  height: 14px;
+  background:
+    linear-gradient(var(--gold-ink), var(--gold-ink)) center / 100% 2px no-repeat,
+    linear-gradient(var(--gold-ink), var(--gold-ink)) center / 2px 100% no-repeat;
+  transition: background-size 0.3s var(--ease-hud);
+}
+
+.end-q[open] > summary::after {
+  background-size:
+    100% 2px,
+    2px 0;
+}
+
+.end-a {
+  max-width: 34em;
+  padding-bottom: 24px;
+  font-size: clamp(16px, 0.3vw + 14.5px, 18px);
+  line-height: 1.55;
+}
+
+/* No answer yet: the placeholder, dim and italic, with a small pill that says it is one. */
+.end-a.is-placeholder {
+  color: var(--ink-dim);
+  font-style: italic;
+}
+
+.end-tag {
+  display: inline-block;
+  margin-left: 12px;
+  padding: 4px 9px;
+  border: 1px solid rgb(228 190 127 / 0.22);
+  border-radius: 999px;
+  color: var(--gold-ink);
+  font-family: var(--font-label);
+  font-size: var(--label-size);
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-transform: uppercase;
+  vertical-align: 2px;
+}
+
+/* The message part: the contact page's own parts under a title in the same pair of weights. */
+.end-message-title {
+  margin: clamp(72px, 10vw, 120px) 0 20px;
+  font-family: var(--font-title);
+  font-feature-settings: var(--font-title-features);
+  font-size: clamp(26px, 2.4vw, 36px);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--gold-title);
+  overflow-wrap: break-word;
+  text-wrap: balance;
+}
+
+.end-message-title em {
+  font-style: normal;
+  font-weight: 300;
+  color: var(--ink);
+}
+
+.end-page .lead {
+  margin-bottom: 40px;
+}
+
+.end-page > .links {
+  margin-top: 56px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

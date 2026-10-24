@@ -6,6 +6,7 @@ import { translatorFor, useTranslator } from '~/i18n/useTranslator';
 import { head } from '~/seo/head';
 import { personLd, websiteLd } from '~/seo/structured';
 import { BeadLabels } from '~/ui/BeadLabel';
+import { EndPage } from '~/ui/EndPage';
 import { HANDLES, type RouteHandle } from '../handle';
 
 export const meta: MetaFunction = ({ location }) => {
@@ -58,6 +59,10 @@ export default function Home() {
           </ul>
         </div>
       </nav>
+
+      {/* The end of the scroll: an ordinary page of questions and a message, after the last bead (src/ui/EndPage.tsx).
+          In the flow here, so with 3D off the home scrolls on to it, below the project links. */}
+      <EndPage />
     </>
   );
 }
