@@ -63,6 +63,8 @@ interface SetupOptions {
   /** A swallow predicate of the test's own, in place of `state.swallow`. */
   swallowWith?: () => boolean;
   loadSmooth?: () => Promise<Smooth>;
+  /** The viewport's height, px: VH unless given. */
+  vh?: number;
 }
 
 function setup(options: SetupOptions = {}) {
@@ -77,7 +79,7 @@ function setup(options: SetupOptions = {}) {
     el: el as unknown as HTMLElement,
     frame,
     chapters,
-    unitPx: () => VH,
+    unitPx: () => options.vh ?? VH,
     enabled: () => state.threeD,
     reducedMotion: () => state.reduced,
     swallow: options.swallowWith ?? (() => state.swallow),
@@ -546,12 +548,41 @@ describe('the settle: a wheel past the rise comes to rest on a stop', () => {
     expect(s.frame.target).toBeCloseTo(0.64, 12);
   });
 
-  it('settles a gesture that goes on from the rise past its top: on to the overview', async () => {
+  it('rests a gesture that comes up out of the rise past its top on BOB from above, the top: the 8th notch at 900 px', async () => {
+    const s = setup({ vh: 900 });
+    await wheelNotches(s, 7); // 0.933, on the rise
+    s.drain();
+    expect(s.frame.target).toBeCloseTo(0.933, 3);
+    await wheelNotches(s, 1); // the 8th, 1.067: past the top, a whole unit short of a fling
+    s.drain();
+    expect([s.frame.target, s.frame.progress]).toEqual([1, 1]);
+    expect(s.changes.at(-1)).toMatchObject({ index: 1, id: 'DIVE' });
+  });
+
+  it('moves the next gesture from BOB from above on to the overview', async () => {
+    const s = setup({ vh: 900 });
+    await wheelNotches(s, 8);
+    s.drain();
+    expect(s.frame.target).toBe(1);
+    await wheelNotches(s, 1); // from 1, 1.133
+    s.drain();
+    expect([s.frame.target, s.frame.progress]).toEqual([2, 2]);
+  });
+
+  it('lets a fling from the home, more than a whole unit past the top, settle past the overview', async () => {
+    const s = setup({ vh: 900 });
+    await wheelNotches(s, 20); // 2.667 in one gesture
+    s.drain();
+    expect(s.frame.target).toBe(3);
+    expect(s.frame.progress).toBe(3);
+  });
+
+  it('rests one gesture from part way up the rise that ends a little past its top on the top too', async () => {
     const s = setup();
     restAt(s, 0.6);
     await wheelNotches(s, 6); // 1.32
     s.drain();
-    expect([s.frame.target, s.frame.progress]).toEqual([2, 2]);
+    expect([s.frame.target, s.frame.progress]).toEqual([1, 1]);
   });
 
   it('settles the gesture under way at once when 3D is switched off, so the story waits for 3D on a stop', async () => {

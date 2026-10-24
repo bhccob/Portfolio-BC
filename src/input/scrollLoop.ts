@@ -185,8 +185,9 @@ export interface HomeScroll {
  * past the top being the one step its press took; on the rise a key moves by its distance, as M2a's did, up to the top.
  * A wheel or a finger moves the target by its distance, as on the rise, and when its gesture ends (VirtualScroll's
  * `onGestureEnd`: the wheel quiet for GESTURE_GAP_MS, or the finger's lift) the target goes on to the stop that
- * `settleTarget` names, from where the gesture began and where it ended: a nudge eases back, a notch or a swipe takes
- * one stop, a fling as many as it passed. A lift reckons in the glide it would leave and ends it, so the one damped move
+ * `settleTarget` names, from where the gesture began and how far it carried (its own travel, which no end or hold cut
+ * short): a nudge eases back, a notch or a swipe takes one stop, a fling as many as it passed, and one that comes up out
+ * of the rise rests on its top, BOB from above, unless it carried more than a whole unit past it. A lift reckons in the glide it would leave and ends it, so the one damped move
  * of the loop carries the swipe to its stop, with no glide slowing to a crawl first. A gesture that ends on the rise
  * rests where it ends, and its glide runs as M2a's did, held to the rise. The move to the stop is the loop's own damped
  * one (`SMOOTH_TIME`), never a jump, and the loop lands progress on the stop exactly. With reduced motion every input is
@@ -216,6 +217,11 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
   };
   /** Where the target stood when the wheel or touch gesture under way began; null while none is. */
   let from: number | null = null;
+  /**
+   * How far the gesture under way has carried, in units: the sum of its deltas as given, before any end of the story or
+   * the hold took them, so a long push into the hold is the fling it was.
+   */
+  let travel = 0;
 
   const loop: ScrollLoop = new ScrollLoop({
     ...o,
@@ -240,7 +246,13 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
         if (by === 'held' && !onRise(frame.target, chapters)) return;
         place = keyTarget(frame.target, units, chapters);
       } else {
-        if (by !== 'glide') from ??= frame.target;
+        if (by !== 'glide') {
+          if (from === null) {
+            from = frame.target;
+            travel = 0;
+          }
+          travel += units;
+        }
         place = moveTarget(frame.target, units, chapters, false);
         // A glide runs only on the rise (a lift that would carry it past settles at once instead): it ends at the top.
         if (by === 'glide' && units > 0) {
@@ -261,8 +273,9 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
       const start = from;
       from = null;
       if (start === null || o.reducedMotion()) return;
-      // Where it ended: past the hold where it pressed into it (`asked`), else where its glide would carry the target.
-      const end = asked ?? frame.target + glide;
+      // Where it carried: from where it began by its own travel and the glide its lift would leave, as no end or hold had
+      // stopped it (the settle holds the place to the story, and the hold below to the stop just past it).
+      const end = start + travel + glide;
       if (onRise(end, chapters)) return; // it rests where it ends, its glide (if any) as M2a's
       scroll.stopGlide();
       const limit = limitNow();

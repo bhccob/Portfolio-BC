@@ -53,13 +53,17 @@ export const SETTLE_SLOP_PX = 40;
  *   back to the stop it began on; a fling that passed a stop by a hair rests there), else on the next stop on;
  * - a fling may so pass several stops; a single notch or a small swipe moves one;
  * - one that ended on a stop, or went nowhere, rests on it or on the nearer stop.
- * One that ends on the rise rests where it is (M2a's rise is continuous). Never past the last stop. The scroll's hold
- * applies after this, as to any input.
+ * One that comes up out of the rise (`from` on it, travelling down) rests on its top, BOB from above, the end of M2a's
+ * rise, unless it carried more than a whole unit past the top: that is a fling, and it settles as any other. One that
+ * ends on the rise rests where it is (M2a's rise is continuous). Never past the last stop. The scroll's hold applies
+ * after this, as to any input.
  */
 export function settleTarget(from: number, to: number, c: Chapters, slop: number): number {
   const end = scrollEnd(c);
   const place = Math.min(Math.max(to, 0), end);
   if (onRise(place, c)) return place;
+  const top = riseTop(c);
+  if (onRise(from, c) && to > from && to <= top + 1 + ON_STOP) return top;
   const places = stops(c);
   const on = places.find((stop) => Math.abs(stop - place) <= ON_STOP);
   if (on !== undefined) return on;

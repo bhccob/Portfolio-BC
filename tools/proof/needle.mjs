@@ -105,8 +105,8 @@
  *              (overflow hidden, no overscroll, pinch-zoom only) and the wheel, the keys and a finger move
  *              `target` in viewport heights instead (window.__needleDebug). A direct load of / reaches HOME_IDLE
  *              once the scene is ready. 10 wheel events of 120 px raise it by 1200 px, and once the wheel is quiet
- *              the gesture, ended past the rise, settles on the next stop, the overview (2): the damped
- *              `progress` catches up, the phase leaves HOME_IDLE for VOID_ENTRY and the scroll loop goes back to
+ *              the gesture, come up out of the rise less than a whole unit past its top, settles on the top, BOB from
+ *              above (1): the damped `progress` catches up, the phase leaves HOME_IDLE for DIVE and the scroll loop goes back to
  *              sleep (no frame asked for at rest, and only one at a time while it runs: through a wheel gesture
  *              and through a touch glide, which lasts over a second; the loop's own requests are counted through
  *              window.__needleDebug.scrollRequest, apart from the canvas's, which renders on demand through R3F's own
@@ -127,7 +127,8 @@
  *              it (`m2/bob-from-above-<size>.png`) gated as a home still; one mid-rise still at `u` 0.6 put there
  *              through `.set` (`m2/bob-rising-<size>.png`, also gated as a home still); moved back from where the ten notches
  *              summed to, `u` and `letters` are exactly 0 and, at 1440, the needle aims at the pointer again within 1.5 s,
- *              eight real wheel notches (1.067, past the rise's top by more than the slop) settle on the overview, 2, and
+ *              eight real wheel notches (1.067, past the rise's top by more than the slop, less than a whole unit) rest on
+ *              the top, BOB from above, 1, with the camera on the top shot, one more notch goes on to the overview, 2, and
  *              seven real arrow presses stop on the rise's top, 1, with the camera on the top shot. The hero's SCROLL
  *              cue leaves with the rise (no text during the scroll):
  *              shown at the home, gone (computed opacity 0, `<html data-rising>` set, still in the page) at `u` 1
@@ -162,8 +163,9 @@
  *   (Every still of the three void steps is gated with the page's text masked, so the luma floor is the scene's, and each
  *   bead stop and the failure have a negative control: a still with the canvas hidden, whose masked floor must fail.)
  *   void-stops  the void's stops by real input alone, never `.set`, at 1440x900, 1366x657 (an odd height) and 390x844
- *              (touch): wheel notches or deliberate swipes, one at a time, each to rest: on the rise where it ends, past it
- *              on a stop exactly, the next one each time, to the last bead's, where one more stays; at each bead's stop
+ *              (touch): wheel notches or deliberate swipes, one at a time, each to rest: on the rise where it ends, the one
+ *              that comes up out of it on BOB from above, past it on a stop exactly, the next one each time, to the last
+ *              bead's, where one more stays; at each bead's stop
  *              its label shows whole and takes Tab; on a laptop real arrows too (0.15 a press on the rise to its top,
  *              then a stop a press), and arrows up from the last bead's focused label hand the focus bead to bead and,
  *              at the overview, to <main>
@@ -1682,13 +1684,13 @@ async function scrollDesktop(browser, step) {
   step.check(near(pushed.target, 1200 / vh, 1e-9), `10 wheel events of 120 px move the target by 1200 px = ${1200 / vh} units (got ${pushed.target})`);
   step.check((await page.evaluate(() => window.__wheels)).length === 10 && (await page.evaluate(() => window.__wheels.every(Boolean))), 'every wheel event is prevented while the scroll is enabled');
   step.check((await page.evaluate(() => window.__raf)) > 0, 'the wheel woke the scroll loop');
-  // Past the rise every gesture comes to rest on a stop: once the wheel has been quiet for GESTURE_GAP_MS, the target goes on
-  // from 1.33, a third into the dive, to the next stop down, the overview.
+  // Past the rise every gesture comes to rest on a stop: once the wheel has been quiet for GESTURE_GAP_MS, a gesture that came
+  // up out of the rise and carried less than a whole unit past its top (1.33) settles back on the top, BOB from above.
   const rested = await restAt(page);
-  step.check(rested.target === 2 && rested.progress === 2, `once the wheel is quiet the gesture, ended past the rise, settles on the next stop, the overview, 2 (got target ${rested.target}, progress ${rested.progress})`);
-  step.check(rested.chapterIndex === 2, `frame.chapterIndex is in step with the chapter: VOID_ENTRY is 2 (got ${rested.chapterIndex})`);
+  step.check(rested.target === 1 && rested.progress === 1, `once the wheel is quiet the gesture, come up out of the rise to 1.33, settles on the rise's top, BOB from above, 1 (got target ${rested.target}, progress ${rested.progress})`);
+  step.check(rested.chapterIndex === 1, `frame.chapterIndex is in step with the chapter: DIVE is 1 (got ${rested.chapterIndex})`);
   const left = await phaseOf(page);
-  step.check(left.kind === 'VOID_ENTRY', `the phase leaves HOME_IDLE for VOID_ENTRY, through DIVE (got ${JSON.stringify(left)})`);
+  step.check(left.kind === 'DIVE', `the phase leaves HOME_IDLE for DIVE (got ${JSON.stringify(left)})`);
   step.check((await page.evaluate(() => window.scrollY)) === 0, 'the page itself did not scroll');
   await page.waitForTimeout(150);
   const ran = await takeFrames(page);
@@ -1956,7 +1958,7 @@ async function scroll(browser, step) {
   await scrollDesktop(browser, step);
   await scrollReduced(browser, step);
   await scrollTouch(browser, step);
-  return 'locked root; 10 wheel events of 120 px settle on the overview; the loop sleeps at rest; keys by distance on the rise and by stops past it, Home and End; text fields, pinch and 3D off left to the browser; reduced motion steps by stops; touch drag, glide on the rise, flicks resting on stops, tap';
+  return 'locked root; 10 wheel events of 120 px settle on BOB from above; the loop sleeps at rest; keys by distance on the rise and by stops past it, Home and End; text fields, pinch and 3D off left to the browser; reduced motion steps by stops; touch drag, glide on the rise, flicks resting on stops, tap';
 }
 
 // ---------------------------------------------------------------- the scene: loaded, no-webgl, fps
@@ -3297,7 +3299,10 @@ const RISE = { notches: 10, notchPx: 120, notchGapMs: 16, swipePx: 500 };
 /** The mid-rise still's place: 0.6 of the rise, put there through the bridge's `.set({ progress })`. */
 const RISE_MID = 0.6;
 
-/** Notches of 120 px that take a real wheel gesture just past the rise's top (8 x 120 / 900 = 1.067), by more than the settle's slop. */
+/**
+ * Notches of 120 px that take a real wheel gesture just past the rise's top (8 x 120 / 900 = 1.067), by more than the
+ * settle's slop and less than a whole unit: it rests on BOB from above.
+ */
 const HOLD_NOTCHES = 8;
 
 /** The bridge's `scroll` (src/debug/needleDebug.ts) as `u 1, letters 1, iris 1, needleDip 1`. */
@@ -3459,10 +3464,11 @@ const cueText = (cue) =>
  *
  * 1. At rest on the home `u` and `letters` are 0 (and `iris`, `needleDip`), and no B mark is cut.
  * 2. Moved the whole unit down (ten notches; swipes), at rest `u`, `letters`, `iris` and `needleDip` are all 1. The
- *    gesture ends past the unit and settles on a stop past the rise (the overview; the dive's hold while the void still
- *    loads), so the story is put on stop 1 through the bridge (`.set({ progress: 1 })`) and there the camera stands on
- *    the top shot (`topShotFor`, the whole name across the picture, which the unit test pins). A still of it,
- *    `m2/bob-from-above-<size>.png`, is gated as a home still.
+ *    gesture ends past the unit and settles on a stop (BOB from above, 1, for a gesture come up out of the rise less than
+ *    a whole unit past its top; past it for a fling), so the story is put on stop 1 through the bridge
+ *    (`.set({ progress: 1 })`) whatever the gesture did, and there the camera stands on the top shot (`topShotFor`, the
+ *    whole name across the picture, which the unit test pins). A still of it, `m2/bob-from-above-<size>.png`, is gated
+ *    as a home still.
  * 3. A mid-rise still at `u` 0.6, put there through the bridge's `.set({ progress })`: `m2/bob-rising-<size>.png`, gated as
  *    a home still; the shares of the iris, the needle and the letters are those of the pure pose (`scrollPoseAt`), each between 0 and 1.
  * 4. The story put back where the ten notches summed to (the swipes: where they left it) and moved the whole unit up
@@ -3470,8 +3476,9 @@ const cueText = (cue) =>
  *    snap away), the phase is HOME_IDLE and a still of the home again, `m2/bob-back-home-<size>.png`, is gated as a home
  *    still. At 1440 the pointer to the right of the pivot turns the needle to within AIM.tolerance of pi/2 within
  *    AIM.within ms, and it rests there AIM.settle ms later (the aim is back). Then eight real notches from the home
- *    (1.067) settle on the overview, 2, once the wheel is quiet, and seven real arrow presses from the home stop on the
- *    rise's top, 1, with the camera on the top shot: BOB from above reached by real input.
+ *    (1.067, less than a whole unit past the top) rest on BOB from above, 1, once the wheel is quiet, with the camera on
+ *    the top shot, and one more notch goes on to the overview, 2; and seven real arrow presses from the home stop on the
+ *    rise's top, 1, with the camera on the top shot: BOB from above reached by real input, both ways.
  * 5. With reduced motion (1440 only), one wheel event down sets `<html data-step-fade>` with the pose still at the home,
  *    never shows a rise between 0 and 1 (no camera travel) and lands on `u` 1 with the attribute gone and the host
  *    shown again; one event up does the same back to 0.
@@ -3526,8 +3533,8 @@ async function scrollBob(browser, step) {
       `${at}: moved the whole unit down (${touch ? `${swipesDown} swipes up` : `${RISE.notches} wheel notches of ${RISE.notchPx} px`}) and at rest, ${scrollText(down.scroll)} (phase ${down.phase.kind}, target ${down.target})`,
     );
     // The gesture goes the whole unit and on (a wheel's ten notches reach 1.33, a swipe's glide further) and, ended past the
-    // rise, settles on a stop past it, where the camera has left the top shot. BOB from above is stop 1, the end of the
-    // rise: it is put there through the bridge, as the mid-rise stop is, and the top-shot check and the still are of it.
+    // rise, settles on a stop: BOB from above, 1, unless it carried more than a whole unit past the top. The story is put on
+    // stop 1 through the bridge either way, as the mid-rise stop is, and the top-shot check and the still are of it.
     const restedProgress = down.progress;
     await page.evaluate(() => window.__needleDebug.set({ progress: 1 }));
     const atTop = await settledState(page);
@@ -3628,10 +3635,10 @@ async function scrollBob(browser, step) {
       );
       step.check(Number.isFinite(angle) && off <= AIM.tolerance, `and it comes to rest on it: ${angle.toFixed(3)} rad ${AIM.within + AIM.settle} ms after the move, ${off.toFixed(3)} off pi/2 (at most ${AIM.tolerance})`);
 
-      // 5. A real gesture past the rise, and real keys onto its top. Eight notches of 120 px reach 960 / 900 = 1.067, past
-      // the top by more than the settle's slop, so once the wheel is quiet the gesture settles on the next stop, the
-      // overview. Real arrows from the home move by their distance and stop on the rise's top, BOB from above, which no
-      // `.set` put there, and its camera stands on the top shot.
+      // 5. Real gestures onto the rise's top and on, and real keys onto it. Eight notches of 120 px reach 960 / 900 = 1.067,
+      // past the top by more than the settle's slop but a whole unit short of a fling, so once the wheel is quiet the gesture
+      // rests on the top, BOB from above, which no `.set` put there, its camera on the top shot; one more notch from there
+      // goes on to the overview. Real arrows from the home move by their distance and stop on the top too.
       await page.waitForFunction(() => window.__needleDebug().journey.voidState === 'ready', null, { timeout: 15_000 }).catch(() => {});
       for (let i = 0; i < HOLD_NOTCHES; i++) {
         await page.mouse.wheel(0, RISE.notchPx);
@@ -3640,9 +3647,16 @@ async function scrollBob(browser, step) {
       const asked = (await frameOf(page)).target;
       const settled = await settledState(page);
       const expectedAt = (HOLD_NOTCHES * RISE.notchPx) / size.height;
+      const settledTop = settled.camera.position.every((value, i) => near(value, top.position[i], 1e-3)) && near(settled.camera.fov, top.fov, 1e-3);
       step.check(
-        near(asked, expectedAt, 1e-9) && expectedAt - 1 > SETTLE_SLOP_PX / size.height && settled.progress === 2 && settled.target === 2 && settled.journey.stretch === 'overview' && settled.journey.local === 0,
-        `${at}: and ${HOLD_NOTCHES} real wheel notches move the target to ${asked.toFixed(4)} (${expectedAt.toFixed(4)}), past the rise's top by more than the slop (${(SETTLE_SLOP_PX / size.height).toFixed(4)}), and once the wheel is quiet settle on the overview, 2 (progress ${settled.progress}, journey ${JSON.stringify(settled.journey)})`,
+        near(asked, expectedAt, 1e-9) && expectedAt - 1 > SETTLE_SLOP_PX / size.height && settled.progress === 1 && settled.target === 1 && scrollAll(settled.scroll, 1) && settledTop,
+        `${at}: and ${HOLD_NOTCHES} real wheel notches move the target to ${asked.toFixed(4)} (${expectedAt.toFixed(4)}), past the rise's top by more than the slop (${(SETTLE_SLOP_PX / size.height).toFixed(4)}) and less than a whole unit, and once the wheel is quiet rest on the top, BOB from above, 1, with the camera on the top shot (progress ${settled.progress}, [${settled.camera.position.map((v) => v.toFixed(3)).join(', ')}] fov ${settled.camera.fov.toFixed(3)})`,
+      );
+      await page.mouse.wheel(0, RISE.notchPx);
+      const onward = await settledState(page);
+      step.check(
+        onward.progress === 2 && onward.target === 2 && onward.journey.stretch === 'overview' && onward.journey.local === 0,
+        `${at}: and one more notch from BOB from above goes on to the overview, 2 (progress ${onward.progress}, journey ${JSON.stringify(onward.journey)})`,
       );
       await page.keyboard.press('Home');
       await settledState(page);
@@ -3656,7 +3670,7 @@ async function scrollBob(browser, step) {
     }
     await takeCsp(page, step);
     await context.close();
-    summary.push(`${at}: ${touch ? `${swipesDown} swipes` : `${RISE.notches} notches`} down to u ${down.scroll.u} (the SCROLL cue gone), ${touch ? `${swipesUp} swipes` : `${RISE.notches} notches`} back to u ${home.scroll.u} (the cue back)${touch ? '' : `, ${HOLD_NOTCHES} notches settle on the overview and 7 arrows stop on the top shot`}`);
+    summary.push(`${at}: ${touch ? `${swipesDown} swipes` : `${RISE.notches} notches`} down to u ${down.scroll.u} (the SCROLL cue gone), ${touch ? `${swipesUp} swipes` : `${RISE.notches} notches`} back to u ${home.scroll.u} (the cue back)${touch ? '' : `, ${HOLD_NOTCHES} notches rest on the top shot, one more goes on to the overview, and 7 arrows stop on the top shot`}`);
   }
 
   // 5. Reduced motion: one wheel event is one stop, and each step is a fade with the pose still at the stop it shows.
@@ -5523,6 +5537,9 @@ async function voidStops(browser, step) {
       pastTop > 0 && offStop === 0 && skipped === 0 && beadsSeen.size === BEAD_LIST.length && rests.at(-1) === STORY_END,
       `${at}: ${how} at a time, each to rest: every rest past the rise is on a stop, the next one each time, every bead's reached and the last one, ${STORY_END}, stays (rests ${rests.map((r) => (Number.isInteger(r) ? r : r.toFixed(3))).join(' ')})`,
     );
+    // The gesture that comes up out of the rise, less than a whole unit past its top, rests on the top: BOB from above.
+    const firstPast = rests.find((r) => r > RISE_TOP - 1e-6);
+    step.check(firstPast === RISE_TOP, `${at}: the ${how} that comes up out of the rise rests on its top, BOB from above, ${RISE_TOP}, and the next goes on to the overview (first rest past the rise ${firstPast})`);
     summary.push(`${at}: ${touch ? 'swipes' : 'notches'} ${rests.map((r) => (Number.isInteger(r) ? r : r.toFixed(2))).join(' ')}`);
 
     // 2. The arrows, on a laptop.
@@ -5704,8 +5721,13 @@ async function voidPaths(browser, step) {
     await page.keyboard.press('Enter');
     const arrived = await page.waitForURL(`${BASE}${enPath}`, { timeout: 5_000 }).then(() => true, () => false);
     const took = Date.now() - pressed;
+    // The page is up (its phase, its heading) before its Escape is pressed, as bead-open waits for it.
+    const project = await waitForProject(page, funcial.id);
     const heading = await page.textContent('h1');
-    step.check(tab.reached > 0 && arrived && took >= 700 && heading === funcial.title, `/en/: Tab and Enter on ${funcial.id}'s label fly into ${enPath} (${took} ms, the 0.8 s flight), the heading "${heading}"`);
+    step.check(
+      tab.reached > 0 && arrived && took >= 700 && project.kind === 'PROJECT_FOCUS' && project.id === funcial.id && heading === funcial.title,
+      `/en/: Tab and Enter on ${funcial.id}'s label fly into ${enPath} (${took} ms, the 0.8 s flight), PROJECT_FOCUS ${project.id}, the heading "${heading}"`,
+    );
     await page.keyboard.press('Escape');
     const stopped = await waitForStop(page, funcial.category, 15_000);
     const again = await waitForLabel(page, funcial.id);

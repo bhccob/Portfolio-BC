@@ -123,11 +123,24 @@ describe('settleTarget: where a wheel or touch gesture comes to rest past the ri
     expect(settleTarget(0.5, 0, c, slop)).toBe(0);
   });
 
-  it('settles one that comes up out of the rise past its top: on the top within the slop, else on to the next stop', () => {
+  it('rests one that comes up out of the rise on its top, BOB from above, unless it carried more than a whole unit past it', () => {
     expect(settleTarget(0.5, 1.02, c, slop)).toBe(1);
-    expect(settleTarget(0.5, 1.3, c, slop)).toBe(2);
-    // and one that goes up into the rise's top from below the next stop rests on the top, never in the rise
+    expect(settleTarget(0.5, 1.3, c, slop)).toBe(1);
+    expect(settleTarget(0, (8 * 120) / 900, c, 40 / 900)).toBe(1); // the 8th notch at 900 px, 1.067
+    expect(settleTarget(0.9, 1.99, c, slop)).toBe(1);
+    expect(settleTarget(0, 2, c, slop)).toBe(1); // a whole unit past it, and no more
+    // More than a whole unit past it is a fling: it settles by the direction rule.
+    expect(settleTarget(0, 2.02, c, slop)).toBe(2);
+    expect(settleTarget(0, 2.6, c, slop)).toBe(3);
+    expect(settleTarget(0.2, 4.4, c, slop)).toBe(5);
+  });
+
+  it('moves a gesture from BOB from above on to the overview, and one from the void into the dive by the direction rule', () => {
+    expect(settleTarget(1, 1.133, c, slop)).toBe(2);
+    expect(settleTarget(1, 1.02, c, slop)).toBe(1); // within the slop
     expect(settleTarget(2, 1.02, c, slop)).toBe(1);
+    expect(settleTarget(3, 1.9, c, slop)).toBe(1);
+    expect(settleTarget(2, 1.97, c, slop)).toBe(2);
   });
 
   it('ends on the last stop, 5, and never past it', () => {
