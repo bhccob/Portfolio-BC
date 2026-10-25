@@ -12,25 +12,34 @@ import { translatorFor } from '~/i18n/useTranslator';
 import { EndPage } from '~/ui/EndPage';
 import { stripMarkup } from '~/ui/Markup';
 
-/** The spec's table of placeholder questions (2026-10-24-bob-end-page-design.md, goal 3), in order. */
+/** Bob's own six questions (2026-10-25), which replaced the spec's placeholders, in order. */
 const QUESTIONS = {
   nl: [
-    'Wie ben je?',
-    'Wat studeer je, en waar?',
-    'Welke rol zoek je?',
-    'Met welke talen en tools werk je het liefst?',
-    'Hoe werk je het liefst?',
-    'Ben je beschikbaar voor een stage of een baan?'
+    'Wat is je plan na het MBO?',
+    'Aan wat voor baan denk je?',
+    'Wat zijn je hobby’s?',
+    'Waar zie je jezelf wonen en werken?',
+    'Waar werk je op dit moment mee?',
+    'Waar is deze site mee gemaakt?'
   ],
   en: [
-    'Who are you?',
-    'What do you study, and where?',
-    'What role are you looking for?',
-    'Which languages and tools do you like working with most?',
-    'How do you like to work?',
-    'Are you available for an internship or a job?'
+    'What is your plan after MBO?',
+    'What kind of job do you have in mind?',
+    'What are your hobbies?',
+    'Where do you see yourself living and working?',
+    'What do you work with at the moment?',
+    'What is this site built with?'
   ]
 } as const;
+
+/** The line under the title (Bob, 2026-10-25: "i want one"). */
+const INTRO = {
+  nl: 'Wie ik ben, wat ik doe en waar ik naartoe wil.',
+  en: 'Who I am, what I do and where I am heading.'
+} as const;
+
+/** The end copy with every answer missing, so the placeholder's own behaviour can still be shown. */
+const unanswered = (t: Dictionary): EndQuestions => t.end.questions.map((item) => ({ ...item, answer: null })) as EndQuestions;
 
 const LOCALES = [
   ['/', 'nl', nl],
@@ -51,6 +60,10 @@ const textOf = (html: string): string =>
     .replace(/&amp;/g, '&')
     .replace(/\s+/g, ' ')
     .trim();
+
+/** Text as React's server markup escapes it. */
+const textEscape = (text: string | null): string =>
+  (text ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
 
 /** Every string in a piece of the dictionary. */
 const leaves = (value: unknown): string[] => {
@@ -92,15 +105,18 @@ describe('the end page', () => {
         expect(t.end.questions.map((item) => item.question)).toEqual([...QUESTIONS[locale]]);
       });
 
-      it('shows the placeholder for a missing answer, with its tag, inside each question', () => {
-        const placeholders = [...html.matchAll(/<p class="end-a is-placeholder">(.*?)<\/p>/g)];
-        expect(placeholders).toHaveLength(6);
-        // A space between the placeholder and its tag, so a copy and a screen reader read two words, not one.
-        for (const [, inner] of placeholders) expect(inner).toBe(`${t.end.placeholder} <span class="end-tag">${t.end.placeholderTag}</span>`);
-        for (const [, inner] of placeholders) expect(textOf(inner)).toBe(`${t.end.placeholder} ${t.end.placeholderTag}`);
-        // Each one is inside its <details>, after the <summary>, and no answer is given yet.
-        expect(html.match(/<\/summary><p class="end-a is-placeholder">/g)).toHaveLength(6);
-        expect(t.end.questions.every((item) => item.answer === null)).toBe(true);
+      it('puts the intro line under the title, before the questions', () => {
+        expect(t.end.intro).toBe(INTRO[locale]);
+        expect(html).toMatch(new RegExp(`</h2><p class="lead end-intro">${t.end.intro}</p><div class="end-qa">`));
+      });
+
+      it('shows each of Bob’s answers inside its question, and no placeholder', () => {
+        // Every answer is given: none is missing, so no placeholder and no tag shows.
+        for (const { answer } of t.end.questions) expect(typeof answer === 'string' && answer.trim().length > 20).toBe(true);
+        expect(html).not.toContain('is-placeholder');
+        expect(html).not.toContain('end-tag');
+        for (const { question, answer } of t.end.questions) expect(html).toContain(`<summary>${textEscape(question)}</summary><p class="end-a">${textEscape(answer)}</p>`);
+        // The placeholder stays in the copy, for an answer a later edit leaves out.
         expect(t.end.placeholder).toBe(locale === 'nl' ? 'Antwoord volgt.' : 'Answer to follow.');
         expect(t.end.placeholderTag).toBe('placeholder');
       });
@@ -140,7 +156,7 @@ describe('the end page', () => {
   it('shows the answer when there is one, and the placeholder for the rest', () => {
     const translator = translatorFor('en');
     const original = translator.t;
-    const [first, ...rest] = original.end.questions;
+    const [first, ...rest] = unanswered(original);
     const withAnswer: Dictionary = { ...original, end: { ...original.end, questions: [{ ...first, answer: 'X' }, ...rest] } };
     (translator as { t: Dictionary }).t = withAnswer;
     try {
@@ -161,7 +177,7 @@ describe('the end page', () => {
   it('shows the placeholder and its tag for any missing answer: one left out of a translation, or empty, never a blank', () => {
     const translator = translatorFor('en');
     const original = translator.t;
-    const [first, second, ...rest] = original.end.questions;
+    const [first, second, ...rest] = unanswered(original);
     // A translation that leaves an answer out (no key at all, past its type) and one that gives it as an empty string.
     const absent = { question: first.question } as unknown as (typeof original.end.questions)[number];
     const empty = { ...second, answer: '' };
@@ -269,14 +285,16 @@ describe('the end page', () => {
     expect([en.end.label, en.end.title, en.end.messageTitle]).toEqual(['Questions', 'Questions <em>about me.</em>', 'Send a <em>message.</em>']);
   });
 
-  it('never names the classmate of Cookies Clicker, and invents nothing about Bob in the copy', () => {
+  it('never names the classmate of Cookies Clicker, and keeps what Bob asked the answers to say', () => {
     for (const t of [en, nl]) {
       const copy = leaves(t.end).join(' ');
       expect(copy).not.toMatch(/classmate|klasgenoot|klasgenote/i);
-      // Only the questions, the labels and the placeholder: no number, no place, no tool named as a fact.
-      expect(copy).not.toMatch(/\d/);
-      expect(t.end.questions.map((item) => item.answer)).toEqual([null, null, null, null, null, null]);
     }
+    // Bob's own answers (2026-10-25): Mechatronics at Fontys after MBO, and his own company in the job answer.
+    expect(nl.end.questions[0].answer).toMatch(/Mechatronica.*Fontys/);
+    expect(en.end.questions[0].answer).toMatch(/Mechatronics.*Fontys/);
+    expect(nl.end.questions[1].answer).toMatch(/eigen bedrijf/);
+    expect(en.end.questions[1].answer).toMatch(/own company/);
   });
 });
 

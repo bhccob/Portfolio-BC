@@ -295,14 +295,38 @@ export const nl: Dictionary = {
   end: {
     label: 'Vragen',
     title: 'Vragen <em>over mij.</em>',
-    // Six, as the English has (the type says so). Every answer is missing until Bob sends it: null shows the placeholder.
+    intro: 'Wie ik ben, wat ik doe en waar ik naartoe wil.',
+    // Six, as the English has (the type says so): Bob's own questions and answers (2026-10-25). An answer left out shows
+    // the placeholder.
     questions: [
-      { question: 'Wie ben je?', answer: null },
-      { question: 'Wat studeer je, en waar?', answer: null },
-      { question: 'Welke rol zoek je?', answer: null },
-      { question: 'Met welke talen en tools werk je het liefst?', answer: null },
-      { question: 'Hoe werk je het liefst?', answer: null },
-      { question: 'Ben je beschikbaar voor een stage of een baan?', answer: null }
+      {
+        question: 'Wat is je plan na het MBO?',
+        answer:
+          'Na het MBO wil ik Mechatronica gaan studeren aan Fontys Hogeschool. Zo verbreed ik mijn kennis van (elektrische) hardware, terwijl software een rol blijft spelen. Als alles goed gaat, wil ik daarna een master behalen die hardware en software combineert.'
+      },
+      {
+        question: 'Aan wat voor baan denk je?',
+        answer:
+          'Ik heb nog geen definitieve keuze gemaakt. Technologie blijft zich ontwikkelen, en daarmee verandert ook de vraag naar banen. Daarom heb ik voor mechatronica gekozen: een brede basis waarmee ik in elk vakgebied binnen de techniek van waarde kan zijn. Op de lange termijn wil ik een eigen bedrijf oprichten.'
+      },
+      {
+        question: 'Wat zijn je hobby’s?',
+        answer: 'Ik hardloop, train met gewichten en game. Eerder kwam ik op hoog niveau uit in powerliften en tafeltennis.'
+      },
+      {
+        question: 'Waar zie je jezelf wonen en werken?',
+        answer: 'Voorlopig zie ik mijn toekomst in Europa, maar ik sta open voor andere mogelijkheden als mijn plannen veranderen.'
+      },
+      {
+        question: 'Waar werk je op dit moment mee?',
+        answer:
+          'Ik heb een full-stack basis: een gedegen beheersing van de basisprogrammeertalen, relationele databases met SQL, gameontwikkeling in Godot en moderne frameworks. Genoeg om een project te bouwen van de database tot en met de interface.'
+      },
+      {
+        question: 'Waar is deze site mee gemaakt?',
+        answer:
+          'Deze site is zelf ook een project. Hij is geschreven in TypeScript met React en React Router, en de pagina’s worden vooraf als statische HTML gegenereerd, in het Nederlands en het Engels. De 3D-scènes draaien op Three.js via React Three Fiber, met modellen die in Blender zijn gemaakt. Geautomatiseerde tests en een browsertest met echte invoer controleren de site. Voor elke release controleert een Python-auditor op elke pagina de titels, beschrijvingen, links en alt-teksten, en stopt de release als er iets niet klopt.'
+      }
     ],
     placeholder: 'Antwoord volgt.',
     placeholderTag: 'placeholder',

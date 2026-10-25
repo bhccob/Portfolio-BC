@@ -310,16 +310,39 @@ export const en = {
   end: {
     label: 'Questions',
     title: 'Questions <em>about me.</em>',
-    // The spec's table (2026-10-24-bob-end-page-design.md, goal 3). Every answer is missing until Bob sends it: `null` shows
-    // the placeholder with its tag, and a string replaces it with no other change. Typed by `as`, not `satisfies` (as the
-    // Q&A's items are): `satisfies` would narrow each `answer` to `null`, and a translation could not then hold an answer.
+    intro: 'Who I am, what I do and where I am heading.',
+    // Bob's own questions and answers (2026-10-25), which replaced the spec's placeholders. An answer left out (`null`)
+    // shows the placeholder with its tag. Typed by `as`, not `satisfies` (as the Q&A's items are): `satisfies` would
+    // narrow each `answer` to a string, and a translation could not then leave one out.
     questions: [
-      { question: 'Who are you?', answer: null },
-      { question: 'What do you study, and where?', answer: null },
-      { question: 'What role are you looking for?', answer: null },
-      { question: 'Which languages and tools do you like working with most?', answer: null },
-      { question: 'How do you like to work?', answer: null },
-      { question: 'Are you available for an internship or a job?', answer: null }
+      {
+        question: 'What is your plan after MBO?',
+        answer:
+          'After MBO, I plan to study Mechatronics at Fontys University of Applied Sciences. It broadens my knowledge of (electrical) hardware while keeping a software component. If all goes well, I then aim for a master’s degree that combines hardware and software.'
+      },
+      {
+        question: 'What kind of job do you have in mind?',
+        answer:
+          'I have not settled on one role yet. Technology keeps evolving, and with it the demand for particular jobs. That is why I chose mechatronics: a broad foundation that lets me contribute in any area of technology. In the long term, I aim to start my own company.'
+      },
+      {
+        question: 'What are your hobbies?',
+        answer: 'I run, lift weights and play games. Earlier, I competed at a high level in powerlifting and table tennis.'
+      },
+      {
+        question: 'Where do you see yourself living and working?',
+        answer: 'For now, I see my future in Europe, but I remain open to other options should my plans change.'
+      },
+      {
+        question: 'What do you work with at the moment?',
+        answer:
+          'I have a full-stack foundation: a working command of the core programming languages, relational databases with SQL, game development in Godot and modern frameworks. That is enough to build a project from the database all the way to the interface.'
+      },
+      {
+        question: 'What is this site built with?',
+        answer:
+          'This site is a project in its own right. It is written in TypeScript with React and React Router, and its pages are generated in advance as static HTML, in Dutch and English. The 3D scenes run on Three.js through React Three Fiber, with models made in Blender. Automated tests and a browser test with real input check the site. Before every release, a Python auditor checks every page’s titles, descriptions, links and alt texts, and stops the release if anything is wrong.'
+      }
     ] as EndQuestions,
     placeholder: 'Answer to follow.',
     placeholderTag: 'placeholder',

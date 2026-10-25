@@ -8,8 +8,9 @@ import { Markup } from './Markup';
 const given = (answer: string | null | undefined): answer is string => typeof answer === 'string' && answer.trim() !== '';
 
 /**
- * The end of the home: an ordinary page after the last bead. A label and a title, six questions about Bob that open and
- * close, then the message part, which is the contact page's own (its intro, `ContactForm`, its direct links).
+ * The end of the home: an ordinary page after the last bead. A label, a title and a line under it, six questions about
+ * Bob that open and close, then the message part, which is the contact page's own (its intro, `ContactForm`, its direct
+ * links).
  *
  * It is in the home's HTML, server-rendered, so the questions and the links exist without script and for crawlers. The
  * questions are `<details>` of one name, which the browser keeps to one open at a time with no script, and none is
@@ -34,6 +35,7 @@ export function EndPage(): JSX.Element {
       <h2 id="end-title" className="page-title" tabIndex={-1}>
         <Markup text={end.title} />
       </h2>
+      <p className="lead end-intro">{end.intro}</p>
 
       <div className="end-qa">
         {end.questions.map(({ question, answer }) => (
