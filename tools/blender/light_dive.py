@@ -1,6 +1,7 @@
 # The light dive and the ring of projects, built on the previs scene (docs/superpowers/specs/2026-10-25-bob-light-dive-
 # design.md). Run by run_light_dive.py after bob_build.py, bob_animate.py and bob_scroll.py, in their namespace, which
-# passes LD = {part, size, out, frames, mockup}.
+# passes LD = {part, size, out, frames, mockup, repo, node_paths}: the part rendered, its size, the folder for the PNGs,
+# the frames to render (None for the whole part), the mock-up folder, the repository, and where node finds sharp.
 #
 # The way: 300 frames at 24 fps.
 # - 1-60, the way in. BOB seen from above, as bob_scroll.py's rise ends (its frame 362, TOP_FRAME): the needle's pivot
@@ -13,7 +14,7 @@
 #   page: they are data here, not pixels.
 # - 261-300, the landing. The ring's three beads rise into view, the camera eases back and levels into the ring
 #   camera, and the light slows over the ring's centre and stretches into the needle (285-300), pointing at Funcial in
-#   front. Frame 300 is the ring's frame 0: RING_*, ring_bead_position() and ring_camera_pose() are what Task 2's
+#   front. Frame 300 is the ring's frame 0: RING_*, ring_bead_position() and ring_camera_pose() are what the ring's
 #   turntable starts from, unchanged.
 #
 # The ring: 240 frames, numbered from 0, as a turntable that loops (frame 239 runs on into frame 0).
@@ -92,7 +93,7 @@ def tan_v_of(size, lens):
     return tan_h(lens) * h / w
 
 
-# ---------------------------------------------------------------- the ring (Task 2 reuses these unchanged)
+# ---------------------------------------------------------------- the ring (the way's landing and the turntable share these)
 RING_HEIGHT = -11.0                            # the ring's plane, under the glass sky (z -1.2) in the void
 RING_CENTER = Vector((0.0, 0.0, RING_HEIGHT))  # the needle's pivot, straight under the O, where the light lands
 RING_RADIUS = 5.5                              # from the pivot to each bead's centre
@@ -102,10 +103,10 @@ RING_NEEDLE_SCALE = 2.0                        # the compass needle (bob_build.p
 # The ring camera: outside the ring on the front bead's side (-Y), `height` above its plane, looking down `pitch`
 # degrees, as in lightdive-ring2.webp (the front bead near and low, the other two behind, smaller, to the sides).
 # - desk: the pivot at (0.5, 0.44), the front bead about 18 % of the width, the back beads at x 0.25 and 0.75.
-# - phone (the controller's ruling 4): it looks straight at the pivot, which sits at the frame's centre (0.5, 0.5),
-#   the front bead 30 % of the width at y 0.67, the back beads whole at x 0.11 and 0.89, y 0.46. That needs 47 mm
-#   (a vertical field of 79 degrees): at the site's portrait cap of 50 degrees a front bead that size would put the
-#   back beads' centres on the frame's edges.
+# - phone: framed so the front bead is about 30 % of the width. It looks straight at the pivot, which sits at the
+#   frame's centre (0.5, 0.5), the front bead at y 0.67, the back beads whole at x 0.11 and 0.89, y 0.46. That needs
+#   47 mm (a vertical field of 79 degrees): at the site's portrait cap of 50 degrees a front bead that size would put
+#   the back beads' centres on the frame's edges.
 RING_CAM = {
     "desk": dict(distance=15.0, height=4.5, pitch=19.0, lens=35.0, fstop=5.6),
     "phone": dict(distance=12.1, height=5.64, pitch=25.0, lens=47.0, fstop=5.6),
@@ -872,7 +873,8 @@ OLD_DUST_REST = OLD_DUST_EMIT.default_value
 # off (BLUR_FRAMES, which ends with the glass top at 28): under the blur, dust rushing past a held light is drawn into
 # dashes converging on it, the warp look Bob turned down. bob_scroll.py's dust, a few specks through the O at BOB seen
 # from above, goes dark before the blur starts and comes back with the rest. Past frame 300 the band holds its place,
-# its wisps and the dust drift on: Task 2 evaluates void_state(300 + its frame) and carries on with no seam.
+# its wisps and the dust drift on. The ring does not run them straight on; it reads them off the looping clock of
+# ring_void_state (below), so that its last frame runs on into its first with no seam.
 VOID_IN = (20, 60)
 DUST_IN = (28, 60)
 OLD_DUST_OUT = (6, 11)
@@ -1406,19 +1408,25 @@ with open(data_path, "w", encoding="utf-8") as fh:
 print("LIGHT_DIVE data", data_path)
 
 if whole:
+    # The mock-up gets this part's own frames and nothing else: the way's 0001-0300 or the ring's 0000-0239, converted
+    # from the PNGs in OUT (a stray PNG there, from another part or an older run, is left alone), into a folder that is
+    # emptied first, so no frame from an earlier run stays beside the new ones.
     webp_dir = os.path.join(MOCKUP, "frames", f"{PART}-{SIZE}")
-    os.makedirs(webp_dir, exist_ok=True)
+    own = range(1, F_END + 1) if PART == "way" else range(RING_FRAMES)
+    assert os.path.basename(webp_dir) == f"{PART}-{SIZE}" and os.path.basename(os.path.dirname(webp_dir)) == "frames", webp_dir
+    shutil.rmtree(webp_dir, ignore_errors=True)
+    os.makedirs(webp_dir)
     js = os.path.join(OUT, "_to_webp.cjs")
     with open(js, "w", encoding="utf-8") as fh:
         fh.write(
             "const sharp = require(require.resolve('sharp', { paths: %s }));\n"
-            "const fs = require('fs'), path = require('path');\n"
-            "const [src, dst] = process.argv.slice(2);\n"
+            "const path = require('path');\n"
+            "const [src, dst, list] = process.argv.slice(2);\n"
+            "const names = JSON.parse(list);\n"
             "(async () => {\n"
-            "  const names = fs.readdirSync(src).filter((n) => /^\\d{4}\\.png$/.test(n)).sort();\n"
-            "  for (const n of names) await sharp(path.join(src, n)).webp({ quality: 82 }).toFile(path.join(dst, n.replace('.png', '.webp')));\n"
+            "  for (const n of names) await sharp(path.join(src, n + '.png')).webp({ quality: 82 }).toFile(path.join(dst, n + '.webp'));\n"
             "  console.log('webp', names.length, dst);\n"
             "})().catch((e) => { console.error(e); process.exit(1); });\n" % json.dumps(LD["node_paths"]))
     node = shutil.which("node") or r"C:\Program Files\nodejs\node.exe"
-    subprocess.run([node, js, OUT, webp_dir], check=True)
+    subprocess.run([node, js, OUT, webp_dir, json.dumps([f"{f:04d}" for f in own])], check=True)
     print("LIGHT_DIVE frames", webp_dir)
