@@ -186,7 +186,7 @@
  *              notches or swipes down scroll it with the story at 6, End to its bottom, back up to scrollY 0 with the story
  *              still at 6, one more notch or swipe after a pause back to 5 with Cookies Clicker's label); a burst of notches
  *              up (a long drag) begun at scrollY 300 stays the page's, ending at 0 with the story at 6; the questions (one
- *              open at a time, the placeholder "Antwoord volgt."); an empty send shows the form's errors
+ *              open at a time, the second answer the Dutch dictionary's own); an empty send shows the form's errors
  *              (#contact-name-error) as on /contact/; Tab from the header reaches the questions, then the form's fields; at
  *              1440 a resize to 1000x700 and back keeps the page; a reload at the end lands on the home (story 0, scrollY 0,
  *              no data-end); the header's name at the end goes to the home (the same). At 1440 once: /en/ in English; the
@@ -6311,7 +6311,7 @@ async function pressThroughTheNight(page, step, { at, touch, size, cdp, cookies,
  * 3. A gesture begun in the page stays the page's: from scrollY 300 a burst of notches up with no pause (one long drag on
  *    the phone, lifted while moving) ends at scrollY 0 with the story still at 6.
  * 4. The questions: none open on arrival; a click (a tap) opens the first, one on the second opens it and closes the
- *    first, and its answer shows the Dutch dictionary's placeholder, "Antwoord volgt.", with its tag.
+ *    first, and its answer shows the Dutch dictionary's own answer, with no placeholder.
  * 5. An empty send shows the form's errors as on /contact/: `#contact-name-error` shown, the dictionary's three errors,
  *    the focus on the name, no mailto: navigation.
  * 6. Tab from the header's last control (the 3D switch; Menu on the phone) reaches the six questions, then the form's fields.
@@ -6537,15 +6537,15 @@ async function endPage(browser, step) {
     const answer = await page.evaluate(() => {
       const shown = document.querySelectorAll('#end .end-q')[1]?.querySelector('.end-a');
       return {
-        text: shown?.firstChild?.textContent ?? null,
+        text: shown?.textContent ?? null,
         placeholder: shown?.classList.contains('is-placeholder') ?? false,
-        tag: shown?.querySelector('.end-tag')?.textContent ?? null,
+        tag: shown?.querySelector('.end-tag') !== null && shown !== undefined,
         seen: shown?.checkVisibility({ opacityProperty: true, visibilityProperty: true }) ?? false,
       };
     });
     step.check(
-      answer.text === nl.end.placeholder && answer.placeholder && answer.tag === nl.end.placeholderTag && answer.seen,
-      `${at}: its answer, shown, is the placeholder, "${nl.end.placeholder}", with its tag "${nl.end.placeholderTag}" (got ${JSON.stringify(answer)})`,
+      answer.text === nl.end.questions[1].answer && !answer.placeholder && !answer.tag && answer.seen,
+      `${at}: its answer, shown, is the Dutch dictionary's own, with no placeholder and no tag (got ${JSON.stringify(answer)})`,
     );
 
     // 5. An empty send. The build has no Web3Forms key, so the form is the page's own once it has hydrated (its mailto:
