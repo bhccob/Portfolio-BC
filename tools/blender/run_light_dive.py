@@ -6,25 +6,45 @@
 # does, then light_dive.py, which builds the light dive on that scene and renders the part asked for: the PNGs to
 # <out>, then, for a whole part, the webp frames and the per-frame data to <mockup>/frames/<part>-<size>/ and
 # <mockup>/data/<part>-<size>.json. `--frames` renders only those frames (a look at a few before the whole run); their
-# data goes to <out> instead. <mockup> defaults to the main checkout's .superpowers/light-dive-mockup.
+# data goes to <out> instead.
+#
+# The repository is the one this file is in (a worktree or the main checkout): the site's models and screenshots are
+# read from it. The main checkout is the parent of git's common folder; <mockup> defaults to its git-excluded
+# .superpowers/light-dive-mockup, and sharp is found in either's node_modules.
 import argparse
 import os
+import subprocess
 import sys
 
 import bpy  # noqa: F401  (the scripts run inside Blender)
 
 TOOLS = os.path.dirname(os.path.abspath(__file__))
-MAIN_CHECKOUT = r"C:\Users\bhcco\Downloads\Portfolio-bob"
+REPO = os.path.dirname(os.path.dirname(TOOLS))
 OLD_OUT = r'OUT_DIR = r"C:\Users\bhcco\Downloads\Portfolio-bob\.superpowers\brainstorm\bob-wordmark-2026-10-21\blender"'
 
+
+def main_checkout(repo):
+    try:
+        common = subprocess.run(["git", "-C", repo, "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                                capture_output=True, text=True, check=True).stdout.strip()
+        return os.path.normpath(os.path.dirname(common))
+    except Exception:
+        return repo
+
+
+MAIN = main_checkout(REPO)
 argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 parser = argparse.ArgumentParser(prog="run_light_dive.py", description="Render a part of the light dive mock-up.")
 parser.add_argument("--part", choices=("way", "ring"), required=True)
 parser.add_argument("--size", choices=("desk", "phone"), required=True)
 parser.add_argument("--out", required=True, help="folder for the rendered PNGs")
 parser.add_argument("--frames", default=None, help="comma-separated frames to render instead of the whole part")
-parser.add_argument("--mockup", default=os.path.join(MAIN_CHECKOUT, ".superpowers", "light-dive-mockup"))
+parser.add_argument("--mockup", default=os.path.join(MAIN, ".superpowers", "light-dive-mockup"))
 args = parser.parse_args(argv)
+if args.part == "ring":
+    raise SystemExit("run_light_dive.py: the ring part is not built yet. Task 2 renders the ring's turntable from "
+                     "light_dive.py's RING_*, ring_bead_position(), ring_camera_pose() and void_state(); only "
+                     "--part way renders for now.")
 
 OUT = os.path.normpath(os.path.abspath(args.out))
 BLEND_DIR = os.path.join(OUT, "_blend")
@@ -37,6 +57,8 @@ ns = {
         "out": OUT,
         "frames": [int(x) for x in args.frames.split(",")] if args.frames else None,
         "mockup": os.path.normpath(os.path.abspath(args.mockup)),
+        "repo": REPO,
+        "node_paths": [REPO, MAIN],
     },
 }
 

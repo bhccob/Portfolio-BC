@@ -23,24 +23,26 @@
 # Every frame's state is a function of the frame alone. The camera and the light are keyed per frame (so EEVEE's
 # motion blur sees the camera move past the glass while the light it holds stays sharp); the rest is set per frame
 # before each render. The per-frame data (the light's projected centre, its glow, the fact riding with it, the phase)
-# comes from the same state, projected through the camera with world_to_camera_view.
+# comes from the same state, projected through the camera with world_to_camera_view. The void's own clock
+# (void_state) runs on past frame 300, so the ring's turntable can carry it on with no seam.
+#
+# Borrowed from the previs namespace (bob_build.py, bob_animate.py, bob_scroll.py): sc (the BOB_previs scene); the
+# easing helpers lerp, ease_io, ease_in, ease_out, span, clamp01; mat_gold_emit; the materials M_GLASS, M_LETTER,
+# M_CIRCLE, M_TICKS, M_OUTER, M_LIP, M_TRACE, M_RIM and M_CEIL_TRACE; bob_scroll.py's preview beads (`beads`); CEIL_Z
+# (the glass sky's height). LD comes from run_light_dive.py.
 import bpy, bmesh, json, math, os, random, shutil, subprocess, time
-from mathutils import Euler, Matrix, Quaternion, Vector
+from mathutils import Euler, Matrix, Vector
 from mathutils.kdtree import KDTree
 from bpy_extras.object_utils import world_to_camera_view
 
 PART, SIZE, OUT, ONLY, MOCKUP = LD["part"], LD["size"], LD["out"], LD["frames"], LD["mockup"]
-if PART == "ring":
-    raise SystemExit("light_dive.py: the ring part is not built yet. Task 2 renders the ring's turntable from "
-                     "RING_*, ring_bead_position() and ring_camera_pose(); only --part way renders for now.")
-assert PART == "way", PART
+assert PART == "way", PART          # run_light_dive.py stops the ring part before the previs is built
 
 LD_SCENE = bpy.data.scenes["BOB_previs"]
 LD_COL = bpy.data.collections["bob_scene"]
 LD_CAM = LD_SCENE.camera
-WORKTREE = r"C:\Users\bhcco\Downloads\Portfolio-bob\.claude\worktrees\bob-dive"
-BEADS_GLB = os.path.join(WORKTREE, "public", "models", "bob-beads.glb")
-BEAD_SHOTS = os.path.join(WORKTREE, "src", "assets", "beads")
+BEADS_GLB = os.path.join(LD["repo"], "public", "models", "bob-beads.glb")
+BEAD_SHOTS = os.path.join(LD["repo"], "src", "assets", "beads")
 
 # ---------------------------------------------------------------- timing (frames)
 TOP_FRAME = 362        # bob_scroll.py: the rise to BOB seen from above ends here (held to 372)
@@ -68,8 +70,9 @@ def tan_h(lens):
     return 18.0 / lens          # half the horizontal field, sensor 36 mm wide, fitted to the frame's width
 
 
-def tan_v(lens):
-    return tan_h(lens) * RES_Y / RES_X
+def tan_v_of(size, lens):
+    w, h = SIZES[size]["res"]
+    return tan_h(lens) * h / w
 
 
 # ---------------------------------------------------------------- the ring (Task 2 reuses these unchanged)
@@ -80,17 +83,23 @@ RING_BEADS = (("funcial", 0.0), ("jontai-energy", 120.0), ("cookies-clicker", 24
 RING_RISE = 6.0                                # the beads rise this far into the ring's plane over the landing
 RING_NEEDLE_SCALE = 2.0                        # the compass needle (bob_build.py) at this scale, tip toward the front
 # The ring camera: outside the ring on the front bead's side (-Y), `height` above its plane, looking down `pitch`
-# degrees, as in lightdive-ring2.webp (the front bead near and low, the other two behind, smaller, to the sides). The
-# phone stands back so the back beads fit its width (its vertical field kept at 50 degrees, as the site's).
+# degrees, as in lightdive-ring2.webp (the front bead near and low, the other two behind, smaller, to the sides).
+# - desk: the pivot at (0.5, 0.44), the front bead about 18 % of the width, the back beads at x 0.25 and 0.75.
+# - phone (the controller's ruling 4): it looks straight at the pivot, which sits at the frame's centre (0.5, 0.5),
+#   the front bead 30 % of the width at y 0.67, the back beads whole at x 0.11 and 0.89, y 0.46. That needs 47 mm
+#   (a vertical field of 79 degrees): at the site's portrait cap of 50 degrees a front bead that size would put the
+#   back beads' centres on the frame's edges.
 RING_CAM = {
     "desk": dict(distance=15.0, height=4.5, pitch=19.0, lens=35.0, fstop=5.6),
-    "phone": dict(distance=27.0, height=8.1, pitch=19.0, lens=83.5, fstop=11.0),
+    "phone": dict(distance=12.1, height=5.64, pitch=25.0, lens=47.0, fstop=5.6),
 }
-# How the ring looks at frame 300: the needle's gold glow, the front bead's answering glow (its halo and rim; the
-# others keep the GLB's), the warm directional key on the beads (energy, the direction its light travels), the bead's
-# inner light (export_beads.py's site intensity 0.25, in preview watts), and the mist band hung behind the ring.
+# How the ring looks at frame 300: the needle's gold glow; the beads' gold glow (the GLB's: its halo, rim and display
+# edges glow at 0.2 of the gold light) and the front bead's answering glow on its halo and rim, as an emission
+# strength on the gold light (1.0, 0.52, 0.16); the warm directional key on the beads (energy, the direction its light
+# travels); the bead's inner light (export_beads.py's site intensity 0.25, in preview watts).
 RING_NEEDLE_GLOW = 0.5
-RING_FRONT_GLOW = 0.7
+RING_BEAD_GLOW = 0.2
+RING_FRONT_GLOW = 0.8
 RING_KEY = dict(energy=2.5, direction=(0.42, 0.7, -0.58))
 RING_INNER_W = 0.25 / (1.7 / 90.0)
 
@@ -266,11 +275,6 @@ def track_pose(f, size):
     return dict(loc=loc, th=th + dl, lens=lens, focus=focus, fstop=fstop, d=d, dl=dl)
 
 
-def tan_v_of(size, lens):
-    w, h = SIZES[size]["res"]
-    return tan_h(lens) * h / w
-
-
 def anchor_y(loc, th, lens, size, anchor):
     """Where `anchor` sits on the frame (from the top) for a camera at `loc` pitched `th` (Euler X)."""
     rel = anchor - loc
@@ -416,10 +420,12 @@ def mat_additive(name, colour, build_strength):
     return m, level.outputs[0]
 
 
-WHITE_GOLD = (1.0, 0.86, 0.62)
-LIGHT_GOLD = (1.0, 0.66, 0.3)
-TRAIL_GOLD = (1.0, 0.56, 0.19)
-AMBER = (0.9, 0.36, 0.07)
+# AgX desaturates bright light toward white, so the light's golds go in deeper than they come out: these read as the
+# concept frames' gold (v1: about (255, 201, 84)) near the light, with the white-hot core at its middle.
+WHITE_GOLD = (1.0, 0.62, 0.25)       # the core: white-hot where it clips, its bloom gold
+LIGHT_GOLD = (1.0, 0.40, 0.04)
+TRAIL_GOLD = (1.0, 0.33, 0.02)
+AMBER = (0.8, 0.2, 0.0)
 
 M_CORE, CORE_LEVEL = mat_emit_solid("ld_core", WHITE_GOLD, 1.0)
 
@@ -431,7 +437,7 @@ def shell_strength(N, L):
     return math_node(N, L, 'ADD', math_node(N, L, 'MULTIPLY', rim, 0.85), 0.12)    # a glassy rim, a faint face
 
 
-M_SHELL, SHELL_LEVEL = mat_additive("ld_shell", (1.0, 0.58, 0.22), shell_strength)
+M_SHELL, SHELL_LEVEL = mat_additive("ld_shell", (1.0, 0.40, 0.05), shell_strength)
 
 
 def halo_strength(N, L):
@@ -443,7 +449,7 @@ def halo_strength(N, L):
     return math_node(N, L, 'POWER', inv, 3.2)
 
 
-M_HALO, HALO_LEVEL = mat_additive("ld_halo", (1.0, 0.52, 0.17), halo_strength)
+M_HALO, HALO_LEVEL = mat_additive("ld_halo", (1.0, 0.38, 0.04), halo_strength)
 
 
 def trail_colour(N, L):
@@ -514,7 +520,7 @@ glow_ld = bpy.data.lights.new("ld_light_glow", 'POINT')
 glow_ld.color = (1.0, 0.7, 0.4)
 glow_ld.energy = 0.0
 glow_ld.volume_factor = 1.0
-glow_ob = link_new("ld_light_glow", glow_ld, light_root)
+link_new("ld_light_glow", glow_ld, light_root)
 
 # filaments: thin electric threads round the light, in units of its radius; each takes a new shape every
 # FIL_STEP frames and eases into it, so they crawl and never flicker
@@ -529,7 +535,7 @@ for k, kind in enumerate(FILAMENTS):
     cu.bevel_resolution = 1
     sp = cu.splines.new('POLY')
     sp.points.add(FIL_N - 1)
-    m, lvl = mat_emit_solid(f"ld_filament_{k}", (1.0, 0.6, 0.26), 0.0)
+    m, lvl = mat_emit_solid(f"ld_filament_{k}", (1.0, 0.45, 0.08), 0.0)
     cu.materials.append(m)
     fil_objs.append(link_new(f"ld_filament_{k}", cu, light_root))
     fil_levels.append(lvl)
@@ -566,7 +572,7 @@ def filament_shape(k, n):
         b = (a * math.cos(ang) + p * math.sin(ang)).normalized()
         for i in range(FIL_N):
             t = i / (FIL_N - 1)
-            dirv = a.slerp(b, t) if hasattr(a, "slerp") else (a.lerp(b, t)).normalized()
+            dirv = a.slerp(b, t)
             rad = 1.03 + 0.32 * math.sin(math.pi * t) + (0.0 if i in (0, FIL_N - 1) else rng.uniform(-0.06, 0.06))
             pts.append(dirv.normalized() * rad + q * rng.uniform(-0.05, 0.05) * math.sin(math.pi * t))
     return pts
@@ -671,7 +677,7 @@ BAND = {"desk": dict(y=0.40, sigma=0.075, strength=0.55), "phone": dict(y=0.40, 
 # and hides nothing behind it), and behind the ring in the landing (the camera looks down there), so the beads stand
 # in front of it, as in lightdive-ring2.
 BAND_D = 12.0
-BAND_D_RING = {"desk": 26.0, "phone": 40.0}
+BAND_D_RING = {"desk": 26.0, "phone": 30.0}
 mist_me = bpy.data.meshes.new("ld_mist")
 bm = bmesh.new()
 bmesh.ops.create_grid(bm, x_segments=1, y_segments=1, size=1.0)
@@ -795,6 +801,37 @@ ld_dust = link_new("ld_dust", dm)
 M_LD_DUST = mat_gold_emit("ld_dust", 0.0, base_metal=False)
 ld_dust.data.materials.append(M_LD_DUST)
 LD_DUST_EMIT = next(n for n in M_LD_DUST.node_tree.nodes if n.type == 'BSDF_PRINCIPLED').inputs['Emission Strength']
+OLD_DUST_EMIT = next(n for n in bpy.data.materials["bob_dust"].node_tree.nodes
+                     if n.type == 'BSDF_PRINCIPLED').inputs['Emission Strength']
+OLD_DUST_REST = OLD_DUST_EMIT.default_value
+
+# The void's clock. The mist band fades in round the light from 20. The dust waits until the passage's motion blur is
+# off (BLUR_FRAMES, which ends with the glass top at 28): under the blur, dust rushing past a held light is drawn into
+# dashes converging on it, the warp look Bob turned down. bob_scroll.py's dust, a few specks through the O at BOB seen
+# from above, goes dark before the blur starts and comes back with the rest. Past frame 300 the band holds its place,
+# its wisps and the dust drift on: Task 2 evaluates void_state(300 + its frame) and carries on with no seam.
+VOID_IN = (20, 60)
+DUST_IN = (28, 60)
+OLD_DUST_OUT = (6, 11)
+
+
+def void_state(f, size=SIZE):
+    """The void at frame f (any frame, past 300 too): the mist band's place on the frame (from the top), width,
+    distance from the camera and strength, its wisps' drift and noise W, and the dust's drift and glow."""
+    b = BAND[size]
+    dust_in = ease_io(span(f, *DUST_IN))
+    old = 1.0 - ease_io(span(f, *OLD_DUST_OUT)) if f < DUST_IN[0] else dust_in
+    return dict(
+        band_y=lerp(b["y"] + 0.02, b["y"] - 0.04, span(f, F_FALL, F_END)),
+        band_sigma=b["sigma"],
+        band_d=lerp(BAND_D, BAND_D_RING[size], ease_io(span(f, 258, 272))),
+        band_strength=b["strength"] * ease_io(span(f, *VOID_IN)),
+        drift=0.0025 * f,
+        w=0.004 * f,
+        dust_offset=DUST_DRIFT * f,
+        dust_emit=2.4 * dust_in,
+        old_dust_emit=OLD_DUST_REST * old,
+    )
 
 # ---------------------------------------------------------------- the beads, from the site's GLB, in the ring
 for root, _m in beads:                                   # bob_scroll.py's preview beads give way to the site's
@@ -835,8 +872,12 @@ for part in ("halo", "rim"):
         if slot.material and slot.material.name == "bead:gold":
             slot.link = 'OBJECT'
             slot.material = FUNCIAL_GOLD
-FUNCIAL_EMIT = next(n for n in FUNCIAL_GOLD.node_tree.nodes if n.type == 'BSDF_PRINCIPLED').inputs['Emission Strength']
-FUNCIAL_EMIT_REST = FUNCIAL_EMIT.default_value
+# The GLB carries the gold's glow in its emission colour (the gold light times 0.2, strength 1): Funcial's copy takes
+# the full gold light as its colour and the glow as its strength, so RING_BEAD_GLOW is the others' and the GLB's.
+FUNCIAL_BSDF = next(n for n in FUNCIAL_GOLD.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
+FUNCIAL_BSDF.inputs['Emission Color'].default_value = (1.0, 0.52, 0.16, 1.0)
+FUNCIAL_EMIT = FUNCIAL_BSDF.inputs['Emission Strength']
+FUNCIAL_EMIT.default_value = RING_BEAD_GLOW
 GLASS_MAT = bpy.data.materials["bead:glass"]        # as export_beads.py makes it: traced refraction, a thin slab
 GLASS_MAT.surface_render_method = 'DITHERED'
 GLASS_MAT.use_raytrace_refraction = True
@@ -911,7 +952,7 @@ WELL_LIGHT = sc.objects["bob_well_light"].data
 WELL_LIGHT_REST = WELL_LIGHT.energy
 OLD_NEEDLE = [sc.objects[n] for n in ("bob_needle", "bob_pivot", "bob_axis")]
 OLD_NEEDLE_SCALE = [ob.scale.copy() for ob in OLD_NEEDLE]
-CORE_W, SHELL_W, HALO_W, FIL_W, TRAIL_W_EM, STRAND_W, LIGHT_W = 26.0, 4.6, 1.0, 7.0, 2.4, 1.6, 30.0
+CORE_W, SHELL_W, HALO_W, FIL_W, TRAIL_W_EM, STRAND_W, LIGHT_W = 18.0, 1.4, 0.75, 2.2, 1.6, 1.0, 30.0
 LIGHT_OBJS = [core, shell, halo, trail] + fil_objs
 # the traces on the glass sky are faint from under it (bob_scroll.py lights them for its overview, from further off)
 CEIL_TRACE_EMIT = next(n for n in M_CEIL_TRACE.node_tree.nodes if n.type == 'BSDF_PRINCIPLED').inputs['Emission Strength']
@@ -921,13 +962,14 @@ CEIL_TRACE_EMIT.default_value = 0.11
 for n in ("bob_probe", "bob_probe_tip", "bob_probe_light"):
     sc.objects[n].hide_render = True
 sc.objects["bob_front_soft"].data.specular_factor = 0.0
-# the camera's motion blur is for the passage through the O, where the glass rushes past; elsewhere it would draw
-# the dust into streaks
-BLUR_FRAMES = (12, 44)
 # The glass top goes dark as the camera comes down to it: its lights, the engraving's and the rings' glow and the
 # tunnel's. The letters and the compass slide out past the edges dimming, so they never stand round the light as a
 # bright frame; by the time the camera is in the O there is only the light and the void opening round it.
 TOP_FADE = (14, 28)
+# The camera's motion blur is for the glass top rushing past, and ends with it. No dust is lit while it is on
+# (void_state).
+BLUR_FRAMES = (12, TOP_FADE[1])
+assert BLUR_FRAMES[1] <= DUST_IN[0] and OLD_DUST_OUT[1] < BLUR_FRAMES[0]
 
 
 def emission_inputs(mat):
@@ -1004,22 +1046,22 @@ def apply_frame(f):
     for ob in LIGHT_OBJS:
         ob.hide_render = f >= F_END or g <= 0.0
     # the void
-    void_in = ease_io(span(f, 20, 60))
-    b = BAND[SIZE]
+    vs = void_state(f)
     lens = cp["lens"]
-    bd = lerp(BAND_D, BAND_D_RING[SIZE], ease_io(span(f, 258, 272)))
+    bd = vs["band_d"]
     mist.location = (0.0, 0.0, -bd)
-    mist.scale = (bd * tan_h(lens) * 1.15, bd * tan_v(lens) * 1.15, 1.0)
-    band_y = lerp(b["y"] + 0.02, b["y"] - 0.04, span(f, F_FALL, F_END))
-    mist_nodes["band_c"].outputs[0].default_value = (1.0 - 2.0 * band_y) / 1.15
-    mist_nodes["band_w"].outputs[0].default_value = 2.0 * b["sigma"] / 1.15
-    mist_nodes["drift"].outputs[0].default_value = 0.0025 * f
-    mist_nodes["w"].outputs[0].default_value = 0.004 * f
-    MIST_LEVEL.default_value = b["strength"] * void_in
-    mist.hide_render = void_in <= 0.0
-    LD_DUST_EMIT.default_value = 2.4 * void_in
-    ld_dust.location = DUST_DRIFT * f
-    ld_dust.hide_render = void_in <= 0.0
+    mist.scale = (bd * tan_h(lens) * 1.15, bd * tan_v_of(SIZE, lens) * 1.15, 1.0)
+    mist_nodes["band_c"].outputs[0].default_value = (1.0 - 2.0 * vs["band_y"]) / 1.15
+    mist_nodes["band_w"].outputs[0].default_value = 2.0 * vs["band_sigma"] / 1.15
+    mist_nodes["drift"].outputs[0].default_value = vs["drift"]
+    mist_nodes["w"].outputs[0].default_value = vs["w"]
+    MIST_LEVEL.default_value = vs["band_strength"]
+    mist.hide_render = vs["band_strength"] <= 0.0
+    LD_DUST_EMIT.default_value = vs["dust_emit"]
+    ld_dust.location = vs["dust_offset"]
+    ld_dust.hide_render = vs["dust_emit"] <= 0.0
+    OLD_DUST_EMIT.default_value = vs["old_dust_emit"]
+    old_dust.hide_render = vs["old_dust_emit"] <= 0.0
     # the glass top dims, its haze and the tunnel's glow step aside as the camera comes through
     k_top = 1.0 - ease_io(span(f, *TOP_FADE))
     for inp, rest in TOP_EMIT:
@@ -1046,7 +1088,7 @@ def apply_frame(f):
         for ob in [root] + list(root.children_recursive):
             ob.hide_render = hidden
     kd2.energy = RING_KEY["energy"] * ease_io(span(f, 256, 286))
-    FUNCIAL_EMIT.default_value = lerp(FUNCIAL_EMIT_REST, RING_FRONT_GLOW, ease_io(span(f, 288, F_END)))
+    FUNCIAL_EMIT.default_value = lerp(RING_BEAD_GLOW, RING_FRONT_GLOW, ease_io(span(f, 288, F_END)))
     t = ease_io(span(f, F_NEEDLE, F_END))
     ring_needle.hide_render = ring_pivot.hide_render = f < F_NEEDLE
     sN = RING_NEEDLE_SCALE
@@ -1085,6 +1127,73 @@ for f in frames:
     print(f"LIGHT_DIVE frame {f} {times[-1]:.2f} s")
 print(f"LIGHT_DIVE rendered {len(frames)} frames in {time.time() - t_all:.1f} s (mean {sum(times) / len(times):.2f} s)")
 
+# ---------------------------------------------------------------- measure what the fixes promise
+# On frame 120: the shell's ring and the trail just above the light (it should read gold, not cream). On frame 300:
+# each bead's halo band and porthole rim (the front one should be the brightest). Mean sRGB 0..255 over an annulus
+# projected from the scene, and over its brightest third (the band itself, not the dark round it).
+def measure(f):
+    import numpy as np
+    path = os.path.join(OUT, f"{f:04d}.png")
+    if not os.path.exists(path):
+        return None
+    img = bpy.data.images.load(path, check_existing=False)
+    img.colorspace_settings.name = 'Non-Color'
+    w, h = img.size
+    px = np.array(img.pixels[:], dtype=np.float32).reshape(h, w, 4)[:, :, :3] * 255.0
+    bpy.data.images.remove(img)
+    apply_frame(f)
+    yy, xx = np.mgrid[0:h, 0:w]
+
+    def screen(p):
+        co = world_to_camera_view(LD_SCENE, LD_CAM, p)
+        return co.x * w, co.y * h, co.z
+
+    def radius_px(p, rad):
+        x0, y0, _ = screen(p)
+        x1, y1, _ = screen(p + LD_CAM.matrix_world.to_3x3() @ Vector((rad, 0.0, 0.0)))
+        return math.hypot(x1 - x0, y1 - y0)
+
+    def ring_stats(p, r_in, r_out):
+        x0, y0, _ = screen(p)
+        d = np.hypot(xx - x0, yy - y0)
+        sel = px[(d >= r_in) & (d <= r_out)]
+        if len(sel) == 0:
+            return None
+        lum = sel @ np.array([0.2126, 0.7152, 0.0722])
+        top = sel[lum >= np.quantile(lum, 2.0 / 3.0)]
+        return {"mean": [round(float(v)) for v in sel.mean(0)], "top_third": [round(float(v)) for v in top.mean(0)]}
+
+    out = {"frame": f}
+    if f < F_END:
+        c = LIGHT_POS[f]
+        rr = LIGHT_R[f]
+        rp = radius_px(c, rr)
+        out["shell"] = ring_stats(c, 0.8 * rp, 1.0 * rp)
+        far = [LIGHT_POS[f - k] for k in range(4, 40) if (LIGHT_POS[f - k] - c).length > 1.8 * rr][:10]
+        samples = []
+        for p in far:
+            x0, y0, _ = screen(p)
+            d = np.hypot(xx - x0, yy - y0)
+            samples.append(px[d <= 1.5].mean(0))
+        out["trail"] = [round(float(v)) for v in np.mean(samples, 0)] if samples else None
+    else:
+        for root, angle in ring_beads:
+            m = root.matrix_world
+            centre = m.translation.copy()
+            rim_c = m @ Vector((0.0, -0.95 * math.cos(math.radians(40.0)), 0.0))
+            hr = radius_px(centre, 0.962)
+            rr2 = radius_px(rim_c, 0.95 * math.sin(math.radians(40.0)))
+            out[root.name] = {"halo": ring_stats(centre, 0.95 * hr, 1.04 * hr), "rim": ring_stats(rim_c, 0.88 * rr2, 1.1 * rr2)}
+    return out
+
+
+MEASURED = [m for m in (measure(f) for f in (120, F_END) if f in frames) if m]
+if MEASURED:
+    with open(os.path.join(OUT, f"measure-way-{SIZE}.json"), "w", encoding="utf-8") as fh:
+        json.dump(MEASURED, fh, indent=1)
+    for m in MEASURED:
+        print("LIGHT_DIVE measure", json.dumps(m))
+
 whole = ONLY is None
 data_path = os.path.join(MOCKUP, "data", f"way-{SIZE}.json") if whole else os.path.join(OUT, f"way-{SIZE}.json")
 os.makedirs(os.path.dirname(data_path), exist_ok=True)
@@ -1096,17 +1205,16 @@ if whole:
     webp_dir = os.path.join(MOCKUP, "frames", f"way-{SIZE}")
     os.makedirs(webp_dir, exist_ok=True)
     js = os.path.join(OUT, "_to_webp.cjs")
-    sharp_path = os.path.join(r"C:\Users\bhcco\Downloads\Portfolio-bob", "node_modules", "sharp").replace("\\", "/")
     with open(js, "w", encoding="utf-8") as fh:
         fh.write(
-            "const sharp = require(%r);\n"
+            "const sharp = require(require.resolve('sharp', { paths: %s }));\n"
             "const fs = require('fs'), path = require('path');\n"
             "const [src, dst] = process.argv.slice(2);\n"
             "(async () => {\n"
             "  const names = fs.readdirSync(src).filter((n) => /^\\d{4}\\.png$/.test(n)).sort();\n"
             "  for (const n of names) await sharp(path.join(src, n)).webp({ quality: 82 }).toFile(path.join(dst, n.replace('.png', '.webp')));\n"
             "  console.log('webp', names.length, dst);\n"
-            "})().catch((e) => { console.error(e); process.exit(1); });\n" % sharp_path)
+            "})().catch((e) => { console.error(e); process.exit(1); });\n" % json.dumps(LD["node_paths"]))
     node = shutil.which("node") or r"C:\Program Files\nodejs\node.exe"
     subprocess.run([node, js, OUT, webp_dir], check=True)
     print("LIGHT_DIVE frames", webp_dir)
