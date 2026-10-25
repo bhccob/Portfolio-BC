@@ -6,7 +6,8 @@
 # does, then light_dive.py, which builds the light dive on that scene and renders the part asked for: the PNGs to
 # <out>, then, for a whole part, the webp frames and the per-frame data to <mockup>/frames/<part>-<size>/ and
 # <mockup>/data/<part>-<size>.json. `--frames` renders only those frames (a look at a few before the whole run); their
-# data goes to <out> instead.
+# data goes to <out> instead. The way's frames are 1-300, the ring's 0-239 (its frame 0 is the way's frame 300), so
+# give each part its own <out>.
 #
 # The repository is the one this file is in (a worktree or the main checkout): the site's models and screenshots are
 # read from it. The main checkout is the parent of git's common folder; <mockup> defaults to its git-excluded
@@ -41,10 +42,6 @@ parser.add_argument("--out", required=True, help="folder for the rendered PNGs")
 parser.add_argument("--frames", default=None, help="comma-separated frames to render instead of the whole part")
 parser.add_argument("--mockup", default=os.path.join(MAIN, ".superpowers", "light-dive-mockup"))
 args = parser.parse_args(argv)
-if args.part == "ring":
-    raise SystemExit("run_light_dive.py: the ring part is not built yet. Task 2 renders the ring's turntable from "
-                     "light_dive.py's RING_*, ring_bead_position(), ring_camera_pose() and void_state(); only "
-                     "--part way renders for now.")
 
 OUT = os.path.normpath(os.path.abspath(args.out))
 BLEND_DIR = os.path.join(OUT, "_blend")
