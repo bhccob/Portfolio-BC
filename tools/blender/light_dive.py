@@ -21,7 +21,10 @@
 #   last frame, the same camera, objects, glow and void. The ring turns so Jontai Energy (back left) comes round to
 #   the front at 80 and Cookies Clicker at 160; those are the rests, with Funcial in front at 0 (and again at 240).
 # - The camera holds the ring pose. The needle stays at the exact centre, pointing at the front direction, so it
-#   points at the bead nearest the front as the ring turns under it; nothing joins it to a bead.
+#   points at the bead nearest the front as the ring turns under it; nothing joins it to a bead. The bead passing
+#   straight behind the pivot rises a little (ring_lift), so it never stands on the needle's back tip in the picture.
+# - The ring's data gives each frame { f, angle, front } and, under `proj`, where the needle's tips and the beads'
+#   outlines fall on the picture, so the checks can hold the needle clear of every bead.
 # - Each bead keeps its porthole to the camera and its objects still (the site moves only the selected bead's). Its
 #   halo band and porthole rim glow with its closeness to the front, eased (ring_closeness): the front bead at a rest
 #   glows as Funcial does at the way's frame 300, the others as the GLB's gold; between rests the two nearest cross-fade.
@@ -36,7 +39,9 @@
 # motion blur sees the camera move past the glass while the light it holds stays sharp); the rest is set per frame
 # before each render. The per-frame data (the light's projected centre, its glow, the fact riding with it, the phase)
 # comes from the same state, projected through the camera with world_to_camera_view. The void's own clock
-# (void_state) runs on past frame 300, so the ring's turntable can carry it on with no seam.
+# (void_state) is defined for any frame. The ring reads its drifting fields (the wisps' drift and noise W, the dust's
+# drift) off a looping clock, 300 + (240 / 2 pi) sin(2 pi f / 240), and the rest off frame 300 (ring_void_state):
+# ring frame 0 is the way's frame 300 exactly, and the turntable loops from 239 to 0 with no pop.
 #
 # Borrowed from the previs namespace (bob_build.py, bob_animate.py, bob_scroll.py): sc (the BOB_previs scene); the
 # easing helpers lerp, ease_io, ease_in, ease_out, span, clamp01; mat_gold_emit; the materials M_GLASS, M_LETTER,
@@ -154,11 +159,33 @@ def ring_front(f):
     return int(math.floor((ring_turn(f) + RING_SPACING / 2.0) / RING_SPACING)) % len(RING_BEADS)
 
 
+def ring_rel(angle_deg, f):
+    """The bead at `angle_deg`'s angle from the front at ring frame f, in -180 .. 180."""
+    return (angle_deg - ring_turn(f) + 180.0) % 360.0 - 180.0
+
+
 def ring_closeness(angle_deg, f):
     """How near the bead at `angle_deg` is to the front at ring frame f, eased: 1 in front, 0 a bead's spacing or more
     away; the two beads either side of the front always sum to 1, so the answering glow hands over without a dip."""
-    rel = (angle_deg - ring_turn(f) + 180.0) % 360.0 - 180.0
-    return ease_io(1.0 - abs(rel) / RING_SPACING)
+    return ease_io(1.0 - abs(ring_rel(angle_deg, f)) / RING_SPACING)
+
+
+# The bead passing straight behind the pivot (at 40, 120 and 200) would stand on the needle's back tip in the picture
+# (desk: its outline 4 px over the tip at 40): the needle would read as stuck into it. So that bead alone rises a
+# little as it passes behind, RING_LIFT at the back (|rel| 180), eased from nothing at a bead's spacing from the front
+# (|rel| 120, where the back beads rest): the rests, frame 0 and the seam are untouched, and ease_io's flat ends leave
+# no kink. With RING_LIFT the back tip clears every outline by 19 px at least on desk and 28 px on phone.
+RING_LIFT = 0.35
+
+
+def ring_lift(angle_deg, f):
+    return RING_LIFT * ease_io((abs(ring_rel(angle_deg, f)) - RING_SPACING) / (180.0 - RING_SPACING))
+
+
+def ring_bead_at(angle_deg, f):
+    """The centre of the bead at `angle_deg` at ring frame f: on the ring turned by ring_turn(f), lifted as it passes
+    behind the pivot."""
+    return ring_bead_position(angle_deg, -ring_turn(f)) + Vector((0.0, 0.0, ring_lift(angle_deg, f)))
 
 
 # ---------------------------------------------------------------- freeze the previs at BOB seen from above
@@ -877,18 +904,32 @@ def void_state(f, size=SIZE):
 # speed (the clock's slope there is 1), sways forward to 300 + 38 at 60 and back through 300 at 120 to 300 - 38 at
 # 180, and is at frame 0's state again at 240.
 RING_VOID_SWING = RING_FRAMES / (2.0 * math.pi)
+RING_VOID_MOVING = ("drift", "w", "dust_offset")
 
 
 def ring_void_state(f, size=SIZE):
     vs = void_state(F_END, size)
     moving = void_state(F_END + RING_VOID_SWING * math.sin(2.0 * math.pi * f / RING_FRAMES), size)
-    for k in ("drift", "w", "dust_offset"):
+    for k in RING_VOID_MOVING:
         vs[k] = moving[k]
     return vs
 
 
-for _f in (F_END + 1, F_END + 240):   # only the drifting fields move past 300: everything else holds frame 300's
-    assert all(void_state(_f)[k] == void_state(F_END)[k] for k in void_state(F_END) if k not in ("drift", "w", "dust_offset"))
+# Over the clock's whole range (300 - 38.2 .. 300 + 38.2, sampled from 262 to 338): the drifting fields run straight
+# on with the clock, so reading them below 300 picks up none of the landing's transitions; and from 300 on the rest
+# holds frame 300's, so the ring's band and glows are the ones the way leaves.
+def _comps(v):
+    return tuple(v) if hasattr(v, "__len__") else (v,)
+
+
+_v0, _v1 = void_state(F_END), void_state(F_END + 1)
+for _c in (262.0, 275.0, 288.0, 300.0, 313.0, 326.0, 338.0):
+    _v = void_state(_c)
+    for _k in RING_VOID_MOVING:
+        assert all(abs(a - a0 - (_c - F_END) * (a1 - a0)) < 1e-5          # mathutils vectors are float32
+                   for a, a0, a1 in zip(_comps(_v[_k]), _comps(_v0[_k]), _comps(_v1[_k]))), (_c, _k)
+    if _c >= F_END:
+        assert all(_v[_k] == _v0[_k] for _k in _v0 if _k not in RING_VOID_MOVING), _c
 
 # ---------------------------------------------------------------- the beads, from the site's GLB, in the ring
 for root, _m in beads:                                   # bob_scroll.py's preview beads give way to the site's
@@ -1180,12 +1221,12 @@ def apply_frame(f):
 
 def apply_ring(f):
     """Ring frame f: the way's frame 300 (the scene's clock held there, so the camera keeps the ring pose and nothing
-    keyed moves), the ring turned ring_turn(f) under the needle, each bead's answering glow, the void's looping clock."""
+    keyed moves), the ring turned ring_turn(f) under the needle with the bead behind the pivot lifted (ring_bead_at),
+    each bead's answering glow, the void's looping clock."""
     apply_frame(F_END)
     rp = ring_camera_pose(SIZE)
-    turn = ring_turn(f)
     for root, angle in ring_beads:
-        pos = ring_bead_position(angle, -turn)
+        pos = ring_bead_at(angle, f)
         root.location = pos
         root.rotation_quaternion = bead_facing(pos, rp["loc"])
     for bid, angle in RING_BEADS:
@@ -1201,8 +1242,44 @@ def frame_data(f):
             "fact": fact, "factOpacity": op, "phase": phase_at(f)}
 
 
-def ring_data(f):
-    return {"f": f, "angle": ring_turn(f), "front": ring_front(f)}
+def bead_outline(root):
+    """The bead's outline radius (m): the furthest of its meshes' vertices from its centre."""
+    c = root.matrix_world.translation
+    r = 0.0
+    for ob in [root] + list(root.children_recursive):
+        if ob.type == 'MESH':
+            mw = ob.matrix_world
+            r = max([r] + [(mw @ v.co - c).length for v in ob.data.vertices])
+    return r
+
+
+def ring_projection(f, outline, tips):
+    """Where the needle's tips and the beads' outlines fall on ring frame f's picture (the camera at the ring pose):
+    x, y from the top left in shares of the width and height; a bead's outline radius in shares of the width."""
+    right = LD_CAM.matrix_world.to_3x3() @ Vector((1.0, 0.0, 0.0))
+
+    def scr(p):
+        co = world_to_camera_view(LD_SCENE, LD_CAM, p)
+        return co.x, 1.0 - co.y
+
+    beads = []
+    for bid, angle in RING_BEADS:
+        c = ring_bead_at(angle, f)
+        x, y = scr(c)
+        x1, y1 = scr(c + right * outline[bid])
+        beads.append([round(x, 5), round(y, 5), round(math.hypot((x1 - x) * RES_X, (y1 - y) * RES_Y) / RES_X, 5)])
+    return {"needle": {k: [round(v, 5) for v in scr(p)] for k, p in tips.items()}, "beads": beads}
+
+
+def ring_data(f, outline, tips):
+    return {"f": f, "angle": ring_turn(f), "front": ring_front(f), "proj": ring_projection(f, outline, tips)}
+
+
+def tip_gaps(entry):
+    """The gap (px) from each needle tip to the nearest bead outline on a ring frame's projection."""
+    p = entry["proj"]
+    return {k: min(math.hypot((t[0] - b[0]) * RES_X, (t[1] - b[1]) * RES_Y) - b[2] * RES_X for b in p["beads"])
+            for k, t in p["needle"].items()}
 
 
 # ---------------------------------------------------------------- render
@@ -1224,7 +1301,17 @@ else:
     print(f"LIGHT_DIVE ring {SIZE}: {RING_FRAMES} frames, {RING_STEP} degrees a frame, rests at "
           f"{[f for f in range(RING_FRAMES) if ring_turn(f) % RING_SPACING == 0.0]}; frozen {LD_FROZEN} keyed values; "
           f"samples {LD_SCENE.eevee.taa_render_samples}")
-    data = [ring_data(f) for f in range(RING_FRAMES)]
+    apply_ring(0)        # the ring pose and the needle at its full size: the outlines and tips the data projects
+    outline = {bid: bead_outline(root) for (bid, _a), (root, _b) in zip(RING_BEADS, ring_beads)}
+    nv = ring_needle.data.vertices
+    tips = {"front": ring_needle.matrix_world @ max(nv, key=lambda v: v.co.z).co,
+            "back": ring_needle.matrix_world @ min(nv, key=lambda v: v.co.z).co}
+    data = [ring_data(f, outline, tips) for f in range(RING_FRAMES)]
+    gaps = [tip_gaps(e) for e in data]
+    for k in ("back", "front"):
+        g, at = min((g[k], f) for f, g in enumerate(gaps))
+        print(f"LIGHT_DIVE ring {SIZE}: the needle's {k} tip clears every bead outline by {g:.1f} px at least (frame {at})")
+    print("LIGHT_DIVE ring outlines (m):", {k: round(v, 3) for k, v in outline.items()}, "lift", RING_LIFT)
     apply = apply_ring
 t_all = time.time()
 times = []
