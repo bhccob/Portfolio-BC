@@ -7,12 +7,20 @@
 # - 1-60, the way in. BOB seen from above, as bob_scroll.py's rise ends (its frame 362, TOP_FRAME): the needle's pivot
 #   at the O's centre lights up into the light over 1-8. From 8 the camera follows it straight down through the O, the
 #   light held at the centre of the frame; the B letters, the compass and the glass slide out past the edges, blurred
-#   by the camera's motion and focus, and are gone by 40. Below the glass sky the camera swings round to the light's
-#   side (46-84), and the void (its violet mist band, its gold dust, the traces on the glass sky) fades in from 20.
-# - 61-260, the fall. The light falls through the void, swaying on the frame as x = 0.5 + 0.04 sin(2 pi (f - 61) / 80),
-#   its tapered trail streaming up above it along its own past positions (a soft S). Bob's facts ride beside it in the
-#   page: they are data here, not pixels.
-# - 261-300, the landing. The ring's three beads rise into view, the camera eases back and levels into the ring
+#   by the camera's motion and focus, and are gone by 40. Below the glass sky the camera starts to swing round toward
+#   the light's side (46-60), and the void (its violet mist band, its gold dust, the traces on the glass sky) fades in
+#   from 20.
+# - 60-80, the turn. The camera turns on round the light into a chase behind it and a little above it, and the light
+#   turns from sinking to travelling away from the camera into the void. The mist band rises to the horizon ahead, in
+#   the upper third, where the light's line of travel vanishes.
+# - 61-260, the fall, away into depth. The camera follows close behind the light, which travels away through the void
+#   while it sinks toward the ring's plane. The ring stands under the O, where the light lands, so the light does not
+#   cross the world: the void streams back past it instead (stream_at), the dust drifting toward the camera, round and
+#   slow, opening ahead of the light. Its tapered trail streams back from it toward the camera along its past places in
+#   the void. At each fact the light makes one side move on the frame, x = 0.5 + s A sin^2(pi (f - (61 + 40i)) / 40)
+#   over fact i's window (A 0.10 desk, 0.08 phone; s -1 for 01, 03, 05 and +1 for 02, 04), the camera holding its line.
+#   Bob's facts ride beside it in the page: they are data here, not pixels.
+# - 261-300, the landing. The ring's three beads rise into view, the camera eases back out of the chase into the ring
 #   camera, and the light slows over the ring's centre and stretches into the needle (285-300), pointing at Funcial in
 #   front. Frame 300 is the ring's frame 0: RING_*, ring_bead_position() and ring_camera_pose() are what the ring's
 #   turntable starts from, unchanged.
@@ -38,11 +46,11 @@
 #
 # Every frame's state is a function of the frame alone. The camera and the light are keyed per frame (so EEVEE's
 # motion blur sees the camera move past the glass while the light it holds stays sharp); the rest is set per frame
-# before each render. The per-frame data (the light's projected centre, its glow, the fact riding with it, the phase)
-# comes from the same state, projected through the camera with world_to_camera_view. The void's own clock
-# (void_state) is defined for any frame. The ring reads its drifting fields (the wisps' drift and noise W, the dust's
-# drift) off a looping clock, 300 + (240 / 2 pi) sin(2 pi f / 240), and the rest off frame 300 (ring_void_state):
-# ring frame 0 is the way's frame 300 exactly, and the turntable loops from 239 to 0 with no pop.
+# before each render. The per-frame data (the light's projected centre, its glow, the fact riding with it, the side
+# its move takes it to, the phase) comes from the same state, projected through the camera with world_to_camera_view.
+# The void's own clock (void_state) is defined for any frame. The ring reads its drifting fields (the wisps' drift and
+# noise W, the dust's drift) off a looping clock, 300 + (240 / 2 pi) sin(2 pi f / 240), and the rest off frame 300
+# (ring_void_state): ring frame 0 is the way's frame 300 exactly, and the turntable loops from 239 to 0 with no pop.
 #
 # Borrowed from the previs namespace (bob_build.py, bob_animate.py, bob_scroll.py): sc (the BOB_previs scene); the
 # easing helpers lerp, ease_io, ease_in, ease_out, span, clamp01; mat_gold_emit; the materials M_GLASS, M_LETTER,
@@ -65,8 +73,10 @@ BEAD_SHOTS = os.path.join(LD["repo"], "src", "assets", "beads")
 # ---------------------------------------------------------------- timing (frames)
 TOP_FRAME = 362        # bob_scroll.py: the rise to BOB seen from above ends here (held to 372)
 F_IGNITE = 8           # the pivot has become the light
-F_PASS = 46            # the camera is under the glass sky; it starts to swing to the light's side
-F_SIDE = 84            # the camera is beside the light
+F_PASS = 46            # the camera is under the glass sky; it starts to swing round toward the light's side
+F_TURN = 60            # the way in's last frame: from here the camera turns into the chase
+F_CHASE = 80           # the camera is in the chase, behind the light and a little above it
+F_SETTLE = 84          # the way in's easings (its swing, the light's size, the trail, the aperture) are timed to here
 F_FALL, F_LAND, F_END = 61, 261, 300
 F_STOP = 286           # the light comes to rest at the ring's centre
 F_NEEDLE = 285         # and stretches into the needle from here to F_END
@@ -307,14 +317,84 @@ ANCHOR_Z = anchor_table(V_FALL)
 for f in range(F_STOP, F_END + 1):
     ANCHOR_Z[f] = RING_HEIGHT
 
-D_PASS, D_FALL = 2.4, 5.0     # the camera's distance from the light under the glass, and in the fall
-THETA_FALL = 95.0             # degrees from straight above: beside the light, a little under it, looking up
-Y_FALL = 0.56                 # the light's place on the frame in the fall (from the top): the trail gets the room above
-SWAY, SWAY_PERIOD = 0.04, 80.0
+D_PASS = 2.4                  # the camera's distance from the light under the glass
+# The way in's swing (F_PASS-F_TURN): the camera begins to swing round from above the light toward its side, as the
+# first mock-up's did (by THETA_SWING degrees from straight above, to D_SWING away, over F_PASS-F_SETTLE); at F_TURN
+# the turn into the chase takes it over, leaving at the swing's own rates, so frames 1-60 are the first mock-up's.
+THETA_SWING, D_SWING = 95.0, 5.0
+Y_FALL = 0.56                 # the light's place on the frame in the fall (from the top)
+
+# The chase. In the void's frame the light travels away at U_CHASE m a frame while it sinks at V_FALL (the way in's
+# fall speed, solved above to land it on the ring's plane), so its line of travel dips GLIDE below level. The camera
+# rides D_CHASE behind it and above that line, as high as puts the line's vanishing point on the mist band's middle
+# (BAND_Y_CHASE, the horizon ahead, in the upper third) while the light sits at Y_FALL: the dust streams out from the
+# horizon toward the camera, and the light's trail streams down the frame toward it, in perspective. The void streams
+# instead of the light crossing the world (the ring stands under the O): stream_at(f) is how far it has moved toward
+# the camera (-Y) by frame f, easing in over the turn and out before the landing, done before the ring's void clock
+# reads it (ring_void_state reaches back to frame 300 - 38.2).
+U_CHASE = 0.05
+D_CHASE = 4.5
+BAND_Y_CHASE = 0.30
+GLIDE = math.atan(V_FALL / U_CHASE)
 
 
-def sway_x(f):
-    return 0.5 + SWAY * math.sin(2.0 * math.pi * (f - F_FALL) / SWAY_PERIOD)
+def chase_angle(size):
+    """The camera's position angle from straight above in the chase, for `size`."""
+    tv = tan_v_of(size, SIZES[size]["lens"])
+    above = math.atan((0.5 - BAND_Y_CHASE) * 2.0 * tv) + math.atan((Y_FALL - 0.5) * 2.0 * tv)
+    return math.pi / 2 - GLIDE - above
+
+
+TH_CHASE = {size: chase_angle(size) for size in SIZES}
+STREAM_IN = (F_TURN, F_CHASE)
+STREAM_OUT = (232, 260)
+
+
+def stream_speed(f):
+    return U_CHASE * ease_io(span(f, *STREAM_IN)) * (1.0 - ease_io(span(f, *STREAM_OUT)))
+
+
+STREAM_S = [0.0] * (F_END + 1)
+for _f in range(1, F_END + 1):
+    STREAM_S[_f] = STREAM_S[_f - 1] + stream_speed(_f)
+STREAM_TOTAL = STREAM_S[F_END]
+assert STREAM_S[F_TURN] == 0.0 and STREAM_S[STREAM_OUT[1]] == STREAM_TOTAL
+
+
+def stream_at(f):
+    """How far the void has streamed toward the camera by frame f (any frame): none in the way in, all of it from the
+    landing on, between integer frames read off STREAM_S."""
+    if f <= F_TURN:
+        s = 0.0
+    elif f >= STREAM_OUT[1]:
+        s = STREAM_TOTAL
+    else:
+        i = int(math.floor(f))
+        s = lerp(STREAM_S[i], STREAM_S[i + 1], f - i)
+    return Vector((0.0, -s, 0.0))
+
+
+STREAM = [stream_at(f) for f in range(F_END + 1)]
+
+
+def swing(f):
+    """The way in's swing at frame f: the camera's position angle (from straight above) and distance from the light,
+    and their rates a frame."""
+    x = span(f, F_PASS, F_SETTLE)
+    rate = 6.0 * x * (1.0 - x) / (F_SETTLE - F_PASS)     # ease_io's slope, a frame
+    return (math.radians(THETA_SWING) * ease_io(x), lerp(D_PASS, D_SWING, ease_io(x)),
+            math.radians(THETA_SWING) * rate, (D_SWING - D_PASS) * rate)
+
+
+def turn(p0, m0, p1, t):
+    """From p0, leaving at slope m0 (a unit of t), to p1 at t = 1, arriving at rest (a cubic Hermite)."""
+    t = clamp01(t)
+    return (2 * t ** 3 - 3 * t ** 2 + 1) * p0 + (t ** 3 - 2 * t ** 2 + t) * m0 + (3 * t ** 2 - 2 * t ** 3) * p1
+
+
+_th60, _d60, _dth60, _dd60 = swing(F_TURN)
+for _p0, _m0, _p1 in [(_th60, _dth60, th) for th in TH_CHASE.values()] + [(_d60, _dd60, D_CHASE)]:
+    assert 0.0 < _m0 * (F_CHASE - F_TURN) <= 3.0 * (_p1 - _p0), (_p0, _m0, _p1)      # the turn runs one way
 
 
 def track_pose(f, size):
@@ -322,20 +402,22 @@ def track_pose(f, size):
     sz = SIZES[size]
     lens = sz["lens"]
     d0 = sz["top"] - P0.z
-    if f <= F_IGNITE:
-        d = d0
-    elif f <= F_PASS:
-        d = lerp(d0, D_PASS, ease_io(span(f, F_IGNITE, F_PASS)))
+    if f <= F_PASS:
+        th = 0.0
+        d = d0 if f <= F_IGNITE else lerp(d0, D_PASS, ease_io(span(f, F_IGNITE, F_PASS)))
+    elif f <= F_TURN:
+        th, d, _r1, _r2 = swing(f)
     else:
-        d = lerp(D_PASS, D_FALL, ease_io(span(f, F_PASS, F_SIDE)))
-    th = math.radians(THETA_FALL) * ease_io(span(f, F_PASS, F_SIDE))
+        t, n = span(f, F_TURN, F_CHASE), F_CHASE - F_TURN
+        th = turn(_th60, _dth60 * n, TH_CHASE[size], t)
+        d = turn(_d60, _dd60 * n, D_CHASE, t)
     dl_full = math.atan((Y_FALL - 0.5) * 2.0 * tan_v_of(size, lens))
     dl = dl_full * ease_io(span(f, F_FALL, F_FALL + 32))
     anchor = Vector((0.0, 0.0, ANCHOR_Z[f]))
     loc = anchor + d * Vector((0.0, -math.sin(th), math.cos(th)))
     depth = d * math.cos(dl)
     focus = lerp(sz["top"], depth, ease_io(span(f, 1, 20)))
-    fstop = lerp(sz["fstop_way"], sz["fstop_fall"], ease_io(span(f, F_PASS, F_SIDE)))
+    fstop = lerp(sz["fstop_way"], sz["fstop_fall"], ease_io(span(f, F_PASS, F_SETTLE)))
     return dict(loc=loc, th=th + dl, lens=lens, focus=focus, fstop=fstop, d=d, dl=dl)
 
 
@@ -347,8 +429,8 @@ def anchor_y(loc, th, lens, size, anchor):
 
 
 def cam_pose(f, size):
-    """The camera at frame f. In the landing it eases back to the ring camera, and pitches so the light's place on the
-    frame moves straight from where the fall held it to where the ring camera sees the pivot."""
+    """The camera at frame f. In the landing it eases back out of the chase to the ring camera, and pitches so the
+    light's place on the frame moves straight from where the fall held it to where the ring camera sees the pivot."""
     tp = track_pose(f, size)
     if f <= 260:
         return tp
@@ -365,32 +447,49 @@ def cam_pose(f, size):
                 fstop=lerp(tp["fstop"], rp["fstop"], tf), d=tp["d"], dl=tp["dl"])
 
 
-def sway_dx(f, size, d, dl):
-    lens = SIZES[size]["lens"]
-    return (sway_x(f) - 0.5) * 2.0 * d * math.cos(dl) * tan_h(lens)
+# The side moves: fact i (window F_FALL + 40i .. F_FALL + 40i + 39) takes the light out to SIDE_S[i] by SIDE_A of the
+# frame's width at the window's middle and back, eased as sin^2, so the moves join with no corner and none at all
+# between facts.
+SIDE_A = {"desk": 0.10, "phone": 0.08}
+SIDE_S = (-1, 1, -1, 1, -1)     # 01 left, 02 right, 03 left, 04 right, 05 left
+
+
+def side_at(f):
+    """The side (-1 left, 1 right) the current fact's move takes the light to; None outside the fall."""
+    return SIDE_S[(f - F_FALL) // 40] if F_FALL <= f < F_LAND else None
+
+
+def side_x(f, size):
+    """The light's x on the frame (0 left .. 1 right) at frame f of the fall, 0.5 outside it."""
+    s = side_at(f)
+    if s is None:
+        return 0.5
+    return 0.5 + s * SIDE_A[size] * math.sin(math.pi * ((f - F_FALL) % 40) / 40.0) ** 2
 
 
 def light_path(size):
-    """The light's centre, frame by frame (index 0 unused)."""
+    """The light's centre, frame by frame (index 0 unused): down the axis, and across it by what puts it at side_x on
+    the frame, the camera holding its line (its depth along the camera's view is d cos dl)."""
     pts = [None] * (F_END + 1)
-    tp260 = track_pose(260, size)
     for f in range(1, F_END + 1):
-        if f < F_FALL:
-            dx = 0.0
-        elif f <= 260:
-            tp = track_pose(f, size)
-            dx = sway_dx(f, size, tp["d"], tp["dl"])
-        else:
-            dx = sway_dx(f, size, tp260["d"], tp260["dl"]) * (1.0 - ease_io(span(f, 260, 284)))
+        tp = track_pose(f, size)
+        dx = (side_x(f, size) - 0.5) * 2.0 * tp["d"] * math.cos(tp["dl"]) * tan_h(SIZES[size]["lens"])
         pts[f] = Vector((dx, 0.0, ANCHOR_Z[f]))
     return pts
 
 
 LIGHT_POS = light_path(SIZE)
 
+
+def trail_point(f, g):
+    """At frame f, the place the light passed at frame g: its centre then, carried with the void as it has streamed
+    since, so the light's trail streams back from it toward the camera."""
+    return LIGHT_POS[g] + STREAM[f] - STREAM[g]
+
+
 # the light's size: a share of the frame's width while the camera follows it (kept so as it comes down through the O,
 # so the eye sees one steady light), then a fixed size from the landing on (it moves away from the camera, as it is).
-LIGHT_ALPHA = {"desk": (0.011, 0.025), "phone": (0.022, 0.05)}    # at F_IGNITE, and from F_SIDE on
+LIGHT_ALPHA = {"desk": (0.011, 0.025), "phone": (0.022, 0.05)}    # at F_IGNITE, and from F_SETTLE on
 
 
 def light_radius(f, size=SIZE):
@@ -399,7 +498,7 @@ def light_radius(f, size=SIZE):
     if ff <= F_IGNITE:
         a = a8 * ease_out(span(ff, 1, F_IGNITE))
     else:
-        a = lerp(a8, af, ease_io(span(ff, F_IGNITE, F_SIDE)))
+        a = lerp(a8, af, ease_io(span(ff, F_IGNITE, F_SETTLE)))
     tp = track_pose(ff, size)
     return max(a, 1e-4) * 2.0 * tp["d"] * math.cos(tp["dl"]) * tan_h(SIZES[size]["lens"])
 
@@ -653,10 +752,14 @@ def filament_brightness(k, f):
     return 0.55 + 0.45 * math.sin(2.0 * math.pi * f / (37.0 + 6.0 * k) + 1.7 * k)
 
 
-# the trail: a tapered tube along the light's past positions, rebuilt each frame in world space. It fades with age
-# (TRAIL_FRAMES) and with length (TRAIL_LENGTH m), whichever comes first, so the quick way down through the O leaves a
-# short trail, not a pillar.
+# the trail: a tapered tube along the light's past places in the void (trail_point), rebuilt each frame in world space:
+# up the axis in the way in, back toward the camera in the chase. It fades with age (TRAIL_FRAMES) and with length
+# (TRAIL_LENGTH m), whichever comes first, so the quick way down through the O leaves a short trail, not a pillar, and
+# in the chase it ends well before the camera. The stretch laid before the chase (the way in's tail and the bend of the
+# turn, which the chase camera sees folded back over the light) fades out as the turn ends (TRAIL_BEND), instead of
+# curling into a loop: the chase's trail grows from the light anew.
 TRAIL_FRAMES = 110
+TRAIL_BEND = dict(laid=(72, 92), fade=(72, 96))   # points laid before laid[0] go, after laid[1] stay, over fade
 TRAIL_LENGTH = 2.8
 TRAIL_W = 0.5
 TRAIL_SIDES = 10
@@ -669,17 +772,19 @@ trail.data.materials.append(M_STRAND)
 def build_trail(f, r_now):
     pts = []
     run = 0.0
+    bend = ease_io(span(f, *TRAIL_BEND["fade"]))
     for k in range(0, TRAIL_FRAMES + 1):
         g = f - k
         if g < F_IGNITE:
             break
-        p = LIGHT_POS[g]
+        p = trail_point(f, g)
         if pts:
             step = (p - pts[-1][0]).length
             if step < 1e-5:
                 continue
             run += step
-        u = max(k / float(TRAIL_FRAMES), run / TRAIL_LENGTH)
+        u = max(k / float(TRAIL_FRAMES), run / TRAIL_LENGTH,
+                bend * (1.0 - ease_io(span(g, *TRAIL_BEND["laid"]))))
         if u > 1.0:
             break
         pts.append((p, u))
@@ -792,39 +897,58 @@ mist.data.materials.append(M_MIST)
 mist_nodes = M_MIST.node_tree.nodes
 
 
-def all_camera_paths():
-    """Where the camera goes, for both sizes, and where the light goes: the dust keeps clear of them."""
-    pts = []
+# The dust moves with the void: bob_scroll.py's by the stream (stream_at), the light dive's by the stream and its own
+# slow drift. Each keeps clear, in its own frame, of where the camera and the light go for both sizes, of the ring
+# camera's circle round the ring at the way's end (where the ring part's camera may go) and of the beads' places as
+# they rise into the ring: a speck the camera passed through would blow up into a disc, and one inside a bead would
+# show through its glass.
+DUST_DRIFT = Vector((0.0012, 0.0, 0.0016))       # m a frame
+CLEAR = {"cam": 1.7, "light": 0.9, "bead": 1.3}
+
+
+def clear_trees(offset):
+    """KD-trees of the places the dust moved by offset(f) keeps clear of, in its own frame, one per kind."""
+    pts = {k: [] for k in CLEAR}
+    end = offset(F_END)
     for size in SIZES:
+        lp = light_path(size)
         for f in range(1, F_END + 1):
-            pts.append(("cam", cam_pose(f, size)["loc"]))
-        for p in light_path(size)[1:]:
-            pts.append(("light", p))
-    return pts
+            pts["cam"].append(cam_pose(f, size)["loc"] - offset(f))
+            pts["light"].append(lp[f] - offset(f))
+        rel = ring_camera_pose(size)["loc"] - RING_CENTER
+        for k in range(RING_FRAMES):
+            pts["cam"].append(Matrix.Rotation(2.0 * math.pi * k / RING_FRAMES, 3, 'Z') @ rel + RING_CENTER - end)
+    for _bid, angle in RING_BEADS:
+        for k in range(13):
+            pts["bead"].append(ring_bead_position(angle) - Vector((0.0, 0.0, RING_RISE * k / 12.0)) - end)
+    trees = {}
+    for kind, sel in pts.items():
+        t = KDTree(len(sel))
+        for i, p in enumerate(sel):
+            t.insert(p, i)
+        t.balance()
+        trees[kind] = t
+    return trees
 
 
-PATHS = all_camera_paths()
-CLEAR = {"cam": 1.7, "light": 0.9}
-path_tree = {}
-for kind in CLEAR:
-    sel = [p for k, p in PATHS if k == kind]
-    t = KDTree(len(sel))
-    for i, p in enumerate(sel):
-        t.insert(p, i)
-    t.balance()
-    path_tree[kind] = t
+def too_close(c, trees, margin=0.0):
+    return any(trees[k].find(c)[2] < CLEAR[k] + margin for k in CLEAR)
 
 
-def too_close(c, margin=0.0):
-    return any(path_tree[k].find(c)[2] < CLEAR[k] + margin for k in CLEAR)
+def round_specks(bm):
+    for fc in bm.faces:
+        fc.smooth = True
 
 
-# bob_scroll.py's dust, less the specks the camera's new path would pass through (they would blow up into discs)
+# bob_scroll.py's dust, less the specks the camera's new path would pass through, each speck remade as a smooth
+# sphere of its own centre and size (bob_scroll.py's are one-step icospheres, hexagons up close)
 old_dust = sc.objects["bob_void_dust"]
+OLD_DUST_LOC = old_dust.location.copy()
+old_trees = clear_trees(stream_at)
 bm = bmesh.new()
 bm.from_mesh(old_dust.data)
 bm.verts.ensure_lookup_table()
-seen, drop = set(), []
+seen, kept = set(), []
 LD_OLD_DUST_DROPPED = 0
 for v in bm.verts:
     if v.index in seen:
@@ -840,25 +964,31 @@ for v in bm.verts:
                 seen.add(b.index)
                 stack.append(b)
     c = sum((x.co for x in island), Vector()) / len(island)
-    if too_close(old_dust.matrix_world @ c):
-        drop.extend(island)
+    if too_close(old_dust.matrix_world @ c, old_trees):
         LD_OLD_DUST_DROPPED += 1
-bmesh.ops.delete(bm, geom=drop, context='VERTS')
+    else:
+        kept.append((c, sum((x.co - c).length for x in island) / len(island)))
+bm.free()
+bm = bmesh.new()
+for c, rad in kept:
+    bmesh.ops.create_icosphere(bm, subdivisions=3, radius=rad, matrix=Matrix.Translation(c))
+round_specks(bm)
 bm.to_mesh(old_dust.data)
 bm.free()
 
 # more dust through the depth of the fall, fading in with the void
+ld_trees = clear_trees(lambda f: DUST_DRIFT * f + stream_at(f))
 random.seed(25)
 dm = bpy.data.meshes.new("ld_dust")
 bm = bmesh.new()
 placed = 0
-DUST_DRIFT = Vector((0.0012, 0.0, 0.0016))       # m a frame
 while placed < 340:
     c = Vector((random.uniform(-14, 14), random.uniform(-9, 32), random.uniform(RING_HEIGHT - 7.0, -1.7)))
-    if too_close(c, 0.6):
+    if too_close(c, ld_trees, 0.6):
         continue
-    bmesh.ops.create_icosphere(bm, subdivisions=1, radius=random.uniform(0.007, 0.024), matrix=Matrix.Translation(c))
+    bmesh.ops.create_icosphere(bm, subdivisions=3, radius=random.uniform(0.007, 0.024), matrix=Matrix.Translation(c))
     placed += 1
+round_specks(bm)
 bm.to_mesh(dm)
 bm.free()
 ld_dust = link_new("ld_dust", dm)
@@ -882,18 +1012,22 @@ OLD_DUST_OUT = (6, 11)
 
 def void_state(f, size=SIZE):
     """The void at frame f (any frame, past 300 too): the mist band's place on the frame (from the top), width,
-    distance from the camera and strength, its wisps' drift and noise W, and the dust's drift and glow."""
+    distance from the camera and strength, its wisps' drift and noise W, how far the void has streamed toward the
+    camera, and the dust's place (the stream and its own drift) and glow."""
     b = BAND[size]
     dust_in = ease_io(span(f, *DUST_IN))
     old = 1.0 - ease_io(span(f, *OLD_DUST_OUT)) if f < DUST_IN[0] else dust_in
+    chase_y = lerp(b["y"] + 0.02, BAND_Y_CHASE, ease_io(span(f, F_TURN, F_CHASE)))
+    stream = stream_at(f)
     return dict(
-        band_y=lerp(b["y"] + 0.02, b["y"] - 0.04, span(f, F_FALL, F_END)),
+        band_y=lerp(chase_y, b["y"] - 0.04, ease_io(span(f, F_LAND - 1, F_END))),
         band_sigma=b["sigma"],
         band_d=lerp(BAND_D, BAND_D_RING[size], ease_io(span(f, 258, 272))),
         band_strength=b["strength"] * ease_io(span(f, *VOID_IN)),
         drift=0.0025 * f,
         w=0.004 * f,
-        dust_offset=DUST_DRIFT * f,
+        stream=stream,
+        dust_offset=DUST_DRIFT * f + stream,
         dust_emit=2.4 * dust_in,
         old_dust_emit=OLD_DUST_REST * old,
     )
@@ -907,6 +1041,7 @@ def void_state(f, size=SIZE):
 # 180, and is at frame 0's state again at 240.
 RING_VOID_SWING = RING_FRAMES / (2.0 * math.pi)
 RING_VOID_MOVING = ("drift", "w", "dust_offset")
+assert STREAM_OUT[1] <= F_END - RING_VOID_SWING      # the stream is over before the ring's clock reaches back
 
 
 def ring_void_state(f, size=SIZE):
@@ -1150,6 +1285,7 @@ def set_void(vs, lens):
     ld_dust.location = vs["dust_offset"]
     ld_dust.hide_render = vs["dust_emit"] <= 0.0
     OLD_DUST_EMIT.default_value = vs["old_dust_emit"]
+    old_dust.location = OLD_DUST_LOC + vs["stream"]
     old_dust.hide_render = vs["old_dust_emit"] <= 0.0
 
 
@@ -1177,7 +1313,7 @@ def apply_frame(f):
         for p, co in zip(sp.points, filament_at(i, f)):
             p.co = (co.x, co.y, co.z, 1.0)
         lvl.default_value = FIL_W * g * fade_fil * filament_brightness(i, f)
-    trail_on = ease_io(span(f, 40, F_SIDE)) * (1.0 - ease_io(span(f, 272, 296)))
+    trail_on = ease_io(span(f, 40, F_SETTLE)) * (1.0 - ease_io(span(f, 272, 296)))
     TRAIL_LEVEL.default_value = TRAIL_W_EM * g * trail_on
     STRAND_LEVEL.default_value = STRAND_W * g * trail_on
     build_trail(f, rr)
@@ -1241,7 +1377,7 @@ def frame_data(f):
     co = world_to_camera_view(LD_SCENE, LD_CAM, LIGHT_POS[f])
     fact, op = fact_at(f)
     return {"f": f, "light": {"x": round(co.x, 5), "y": round(1.0 - co.y, 5)}, "glow": round(glow_at(f), 4),
-            "fact": fact, "factOpacity": op, "phase": phase_at(f)}
+            "fact": fact, "factOpacity": op, "side": side_at(f), "phase": phase_at(f)}
 
 
 def bead_outline(root):
@@ -1292,6 +1428,11 @@ if PART == "way":
           f"old dust dropped {LD_OLD_DUST_DROPPED}; samples {LD_SCENE.eevee.taa_render_samples}")
     print("LIGHT_DIVE camera z / light z:", ", ".join(f"{f}: {cam_pose(f, SIZE)['loc'].z:.2f}/{LIGHT_POS[f].z:.2f}"
                                                       for f in (8, 16, 20, 24, 28, 30, 32, 36, 38, 40, 42, 46, 60, 84)))
+    _cp, _rp = cam_pose(F_END, SIZE), ring_camera_pose(SIZE)
+    print(f"LIGHT_DIVE chase: glide {math.degrees(GLIDE):.2f} deg, camera at {math.degrees(TH_CHASE[SIZE]):.2f} deg "
+          f"from above, {D_CHASE} m back; the void streams {STREAM_TOTAL:.3f} m; frame {F_END} against the ring "
+          f"camera: loc {(_cp['loc'] - _rp['loc']).length:.2e} m, pitch {abs(_cp['th'] - _rp['th']):.2e} rad, "
+          f"lens {abs(_cp['lens'] - _rp['lens']):.2e} mm")
     data = []
     for f in range(1, F_END + 1):
         LD_SCENE.frame_set(f)
@@ -1370,7 +1511,7 @@ def measure(f):
         rr = LIGHT_R[f]
         rp = radius_px(c, rr)
         out["shell"] = ring_stats(c, 0.8 * rp, 1.0 * rp)
-        far = [LIGHT_POS[f - k] for k in range(4, 40) if (LIGHT_POS[f - k] - c).length > 1.8 * rr][:10]
+        far = [p for p in (trail_point(f, f - k) for k in range(4, 40)) if (p - c).length > 1.8 * rr][:10]
         samples = []
         for p in far:
             x0, y0, _ = screen(p)
