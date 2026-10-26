@@ -10,6 +10,7 @@ import { personLd, websiteLd } from '~/seo/structured';
 import { BeadLabels } from '~/ui/BeadLabel';
 import { focusEndOnArrival } from '~/ui/endArrival';
 import { EndPage } from '~/ui/EndPage';
+import { LightFactLabels, LightFactList } from '~/ui/LightFacts';
 import { HANDLES, type RouteHandle } from '../handle';
 
 export const meta: MetaFunction = ({ location }) => {
@@ -51,6 +52,11 @@ export default function Home() {
       {/* The selected bead's label in the void, one per project: hidden until the scene shows one beside its bead, at
           its stop (src/ui/BeadLabel.tsx). Before the nav, so Tab reaches a shown label first in the page. */}
       <BeadLabels />
+
+      {/* Bob's five facts: drawn beside the light in the light dive for the eye (src/ui/LightFacts.tsx), and as a list for
+          readers and for 3D off, visually hidden while 3D is on, as the nav is. */}
+      <LightFactLabels />
+      <LightFactList />
 
       {/* Visible while 3D is off; while it is on the scene is the way in, and this stays for
           crawlers and keyboards: visually hidden, shown again while a link has focus. The way to About is the header's. */}

@@ -119,3 +119,22 @@ describe('the needle dictionary', () => {
     for (const locale of locales) expect(JSON.stringify(dictionaries[locale].needle)).not.toMatch(/jontaienergy\.com/i);
   });
 });
+
+// Bob's five facts and the skip button's words, verbatim from the light dive's spec (Bob approved it on 2026-10-26).
+const lightDiveSpec = readFileSync(fileURLToPath(new URL('../../docs/superpowers/specs/2026-10-25-bob-light-dive-design.md', import.meta.url)), 'utf8');
+
+describe('the light dive copy', () => {
+  it("the facts are the table's, verbatim, NL and EN, in its order", () => {
+    const table = [...lightDiveSpec.matchAll(/^\s*\| (0[1-5]) \| (.+?) \| (.+?) \|\s*$/gm)];
+    expect(table.map((row) => row[1])).toEqual(['01', '02', '03', '04', '05']);
+    expect([...nl.lightDive.facts]).toEqual(table.map((row) => row[2]));
+    expect([...en.lightDive.facts]).toEqual(table.map((row) => row[3]));
+  });
+
+  it("the skip button's words are the spec's, NL and EN", () => {
+    const [, nlSkip, enSkip] = lightDiveSpec.match(/The skip button: "(.+?)" \/ "(.+?)"/) ?? [];
+    expect(nl.lightDive.skip).toBe(nlSkip);
+    expect(en.lightDive.skip).toBe(enSkip);
+    expect(nl.lightDive.skip).toBe('Snel naar vragen ↓');
+  });
+});

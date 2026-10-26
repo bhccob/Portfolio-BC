@@ -402,6 +402,17 @@ export const nl: Dictionary = {
     // The bead's label (src/ui/BeadLabel.tsx): spec §2.4's wording, not the copy budget's.
     bead: { hint: 'Klik om te openen', hintTouch: 'Tik om te openen' }
   },
+  // Verbatim from the NL column of the light dive's spec (docs/superpowers/specs/2026-10-25-bob-light-dive-design.md).
+  lightDive: {
+    facts: [
+      '20 jaar',
+      'Chinees van afkomst / geboren en getogen op Aruba / woont in Nederland',
+      'Hakka-erfgoed',
+      'Oud-nationaal kampioen powerliften van Aruba',
+      'Oud-nationaal kampioen tafeltennis van Aruba'
+    ],
+    skip: 'Snel naar vragen ↓'
+  },
   compass: {
     meta: {
       title: 'Kompasstudie | Bob Chung',

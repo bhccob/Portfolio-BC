@@ -905,6 +905,153 @@ html[data-3d='on'] .end-link:hover {
   }
 }
 
+/* ---------- Bob's five facts in the light dive ---------- */
+/* Beside the light (src/ui/LightFacts.tsx), as the approved mock-up draws them (.superpowers/light-dive-mockup/mockup.css
+   .fact): a fine gold line from the light's side, then a small number and small, thin, tracked capitals glowing with
+   the light (--glow, 0 to 1: its brightness on the frame). The scene shows one at a time by its opacity and stands its
+   line and words by transforms (src/ui/factPlace.ts): [data-side] says where they hang (right or left of the light on a
+   desk, below it on a phone), [data-align] how the words hang on their point. For the eye only (aria-hidden): the list
+   after them is what a screen reader reads. Sizes are the mock-up's frame px: 15 of a 1440-wide frame, 18 of a phone's
+   585; the colours are its gold (the number), its words' cream and its line's pale gold. */
+.light-fact-layer {
+  --fact-size: clamp(13px, 1.0417vw, 17px);
+  --fact-number: max(11px, calc(0.74 * var(--fact-size)));
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+@media (orientation: portrait) {
+  .light-fact-layer {
+    --fact-size: clamp(12px, 3.077vw, 16px);
+  }
+}
+
+html:not([data-3d='on']) .light-fact-layer {
+  display: none;
+}
+
+.light-fact {
+  --glow: 0;
+  font-size: var(--fact-size);
+  opacity: 0;
+}
+
+.light-fact-line,
+.light-fact-words {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+}
+
+.light-fact-line {
+  display: block;
+  background: linear-gradient(90deg, rgb(243 210 140 / 0), rgb(243 210 140 / 0.85));
+  box-shadow: 0 0 0.38em rgb(226 165 74 / calc(0.6 * var(--glow)));
+}
+
+/* The light moving right: the label rides on its left, and the line brightens toward the words. */
+.light-fact[data-side='left'] .light-fact-line {
+  background: linear-gradient(270deg, rgb(243 210 140 / 0), rgb(243 210 140 / 0.85));
+}
+
+/* A portrait phone: the line hangs below the light, a step aside off the tail that streams down under it. */
+.light-fact[data-side='below'] .light-fact-line {
+  background: linear-gradient(180deg, rgb(243 210 140 / 0), rgb(243 210 140 / 0.85));
+}
+
+.light-fact-words {
+  display: block;
+  width: max-content;
+  max-width: max(160px, min(30.556vw, calc(39.514vw - 16px))); /* room beside the light at the middle, either side */
+  margin-top: calc(-0.85 * var(--fact-number)); /* the number above the line, the words level with it */
+  color: #f6e2b4;
+  font-family: var(--font-label);
+  font-size: var(--fact-size);
+  font-weight: 300;
+  line-height: 1.7;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  text-wrap: balance;
+  text-shadow:
+    0 0 0.48em rgb(243 210 140 / calc(0.75 * var(--glow))),
+    0 0 1.52em rgb(226 165 74 / calc(0.35 * var(--glow)));
+}
+
+.light-fact-words[data-align='right'] {
+  translate: -100% 0;
+  text-align: right;
+}
+
+/* Below the light, the words stand centred under the line, past the tail's end, with room for the longest "/" line. */
+.light-fact-words[data-align='center'] {
+  max-width: min(calc(100vw - 32px), calc(32 * var(--fact-size)));
+  margin-top: 0;
+  padding-left: 0.22em; /* the tracking after the last letter, so the centred words sit on the line */
+  translate: -50% 0;
+  text-align: center;
+}
+
+.light-fact-n {
+  display: block;
+  color: #e2a54a;
+  font-size: var(--fact-number);
+  font-weight: 400;
+  letter-spacing: 0.3em;
+  opacity: 0.8;
+}
+
+.light-fact-words[data-align='center'] .light-fact-n {
+  padding-left: 0.3em;
+}
+
+/* The facts as a list (src/ui/LightFacts.tsx): in the flow with 3D off, after the hero and before the project links,
+   in the labels' face with their small numbers. */
+.light-facts {
+  display: grid;
+  gap: 16px;
+  max-width: 64rem;
+  margin: 0;
+  padding: 0 var(--gutter) 64px;
+  color: var(--ink);
+  font-family: var(--font-label);
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.7;
+  letter-spacing: 0.22em;
+  list-style: none;
+  text-transform: uppercase;
+  counter-reset: fact;
+}
+
+.light-facts li {
+  counter-increment: fact;
+}
+
+.light-facts li::before {
+  display: block;
+  color: var(--gold);
+  font-size: var(--label-size);
+  font-weight: 400;
+  letter-spacing: 0.3em;
+  content: counter(fact, decimal-leading-zero);
+}
+
+/* While 3D is on, the scene shows them beside the light: the list stays for screen readers and crawlers, visually
+   hidden, as the nav is. */
+html[data-3d='on'] .light-facts {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* ---------- a page: a project, Lite, contact ---------- */
 .page {
   max-width: calc(44rem + 2 * var(--gutter)); /* the text column is 44rem wide inside the gutters */

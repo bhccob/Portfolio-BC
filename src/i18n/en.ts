@@ -431,6 +431,21 @@ export const en = {
     bead: { hint: 'Click to open', hintTouch: 'Tap to open' }
   },
   /**
+   * The light dive (docs/superpowers/specs/2026-10-25-bob-light-dive-design.md, Bob approved it on 2026-10-26): his
+   * five facts, verbatim from its table and in its order, shown in capitals with "/" as a line break (src/ui/LightFacts.tsx),
+   * and the ring's button to the end page's questions.
+   */
+  lightDive: {
+    facts: [
+      '20 years old',
+      'Chinese by descent / born and raised in Aruba / living in the Netherlands',
+      'Hakka heritage',
+      'Former national powerlifting champion of Aruba',
+      'Former national table tennis champion of Aruba'
+    ] satisfies LightFactCopy,
+    skip: 'Skip to questions ↓'
+  },
+  /**
    * The redesign's compass page (/lab/compass/): its head, the hero's role line
    * and hints, the About heading (its lead is `about.lead`), the three homes'
    * labels, the stacked page's six stills' alt texts and the loader's readout
@@ -489,6 +504,9 @@ export const en = {
 };
 
 export type Dictionary = typeof en;
+
+/** Bob's five facts in the light dive: five, in the spec's order, so a translation must have exactly these five. */
+export type LightFactCopy = readonly [string, string, string, string, string];
 
 /** The Q&A's questions: five, each answered in its place (src/data/qa.ts), so a translation must have exactly these five. */
 export type QaItems = [string, string, string, string, string];

@@ -51,6 +51,24 @@ describe('the home page', () => {
         expect(html.lastIndexOf('class="bead-label"')).toBeLessThan(html.indexOf('class="home-nav"'));
       });
 
+      it('server-renders the five facts as a list before the nav, the words of the table with "/" as a line break', () => {
+        const from = html.indexOf('<ol class="light-facts"');
+        expect(from).toBeGreaterThan(-1);
+        expect(from).toBeLessThan(html.indexOf('class="home-nav"'));
+        const list = html.slice(from, html.indexOf('</ol>', from));
+        const items = [...list.matchAll(/<li>(.*?)<\/li>/g)].map((match) => match[1]!.replace(/<br\/>/g, ' / '));
+        expect(items).toEqual([...t.lightDive.facts]);
+      });
+
+      it("draws the facts beside the light as one layer the screen reader skips: five labels, number, line and words", () => {
+        const from = html.indexOf('<div class="light-fact-layer" aria-hidden="true">');
+        expect(from).toBeGreaterThan(-1);
+        const layer = html.slice(from, html.indexOf('<ol class="light-facts"'));
+        expect(layer.match(/class="light-fact"/g)).toHaveLength(5);
+        expect(layer.match(/class="light-fact-line"/g)).toHaveLength(5);
+        expect(layer).toContain('<span class="light-fact-n">05</span>');
+      });
+
       it("the end page's link is in .home-nav with the copy, NL and EN", () => {
         const from = html.indexOf('<nav class="home-nav"');
         const nav = html.slice(from, html.indexOf('</nav>', from));
@@ -69,6 +87,14 @@ describe('the home page', () => {
     expect(base.indexOf("html[data-3d='on'] .end-link {")).toBeGreaterThan(base.indexOf('.end-link {'));
     // Not only with the void failed any more: a screen reader needs it with the void ready too.
     expect(base).not.toContain("html[data-void='failed'] .end-link");
+  });
+
+  it('hides the facts list visually with 3D on, as the nav is (clipped, for screen readers), and leaves it in the flow with 3D off', () => {
+    const css = rule("html[data-3d='on'] .light-facts");
+    expect(css).toMatch(/position:\s*absolute/);
+    expect(css).toMatch(/clip-path:\s*inset\(50%\)/);
+    expect(css).not.toMatch(/display:\s*none/);
+    expect(rule('.light-facts')).not.toMatch(/display:\s*none/);
   });
 
   it('has a visually-hidden utility that leaves the text to assistive technology (clipped, never display:none or visibility:hidden)', () => {

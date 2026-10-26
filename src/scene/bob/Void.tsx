@@ -14,6 +14,7 @@ import { lowerTier, type QualityTier } from '~/engine/quality';
 import { frame } from '~/state/frame';
 import { useScene, type VoidState } from '~/state/store';
 import { showBeadLabel } from '~/ui/BeadLabel';
+import { showLightFacts } from '~/ui/LightFacts';
 import { motion } from '../motion';
 import type { Handover } from './Home';
 import { BEADS, type LightPose } from './journey';
@@ -232,6 +233,7 @@ const frustum = new THREE.Frustum();
 const viewProjection = new THREE.Matrix4();
 const sphere = new THREE.Sphere();
 const centre = new THREE.Vector3();
+const lightAt = new THREE.Vector3();
 /** Each bead's place on the frame, by id, handed to `BeadsModel.place`: filled in place, never made per frame. */
 const places = Object.fromEntries(BEADS.map(({ id }) => [id, [0, 0, 0]])) as Record<ProjectId, [number, number, number]>;
 
@@ -298,7 +300,9 @@ export interface VoidProps {
  *   frame 272, drawn out of the light at the ring and round it; null again while the Opening poses the scene itself (the
  *   loader, a held seek) and on unmount. Its glow where the journey holds it (`needleGlowFor`): 6 as it arrives, down
  *   to its rest glow by frame 296, after Home's breath, which it overrides;
- * - the light (the Opening's, `LightModel.setPose`): the journey's `light`, dark where there is none;
+ * - the light (the Opening's, `LightModel.setPose`): the journey's `light`, dark where there is none; and Bob's fact
+ *   riding beside it (src/ui/LightFacts.tsx `showLightFacts`): the journey's `fact`, at its opacity and the light's glow,
+ *   placed by the light's centre on the screen; none anywhere else, nor while the Opening poses the scene itself;
  * - the void shows from the light dive's frame 20 (`voidShownAt`), as its band comes in, while the glass dissolves round
  *   the light (Home, `GlassModel.setDissolve`); its glass sky only once the camera is under it (`setSky`), as from
  *   above it would stand round the hole as a second rim; the beads only from their own frame (the journey's `beads`),
@@ -487,6 +491,7 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
       run.reading = run.hovering = false;
       motion.beads = false;
       showBeadLabel(null, NO_SIZE);
+      showLightFacts(null, NO_SIZE);
       compass.setNeedleWorld(null);
       if (space) {
         scene.remove(space.model.group);
@@ -565,6 +570,7 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
       // The Opening poses the scene itself (the loader, a held seek): the needle is the armillary's, the void is not there.
       compass.setNeedleWorld(null);
       light.setPose(DARK, camera);
+      showLightFacts(null, size);
       if (space) showSpace(space, false);
       if (parts) show(parts, false);
       run.reading = run.hovering = false;
@@ -581,6 +587,13 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
     if (glow !== null) compass.setNeedleGlow(glow);
     camera.updateMatrixWorld();
     light.setPose(pose.light ?? DARK, camera);
+    const fact = pose.fact;
+    if (pose.light !== null && fact !== null && fact.index !== null && fact.side !== null) {
+      lightAt.set(...pose.light.position).project(camera);
+      showLightFacts({ index: fact.index, side: fact.side, opacity: fact.opacity, glow: pose.light.glow, light: { x: lightAt.x, y: lightAt.y } }, size);
+    } else {
+      showLightFacts(null, size);
+    }
     if (!space) {
       motion.beads = false;
       showBeadLabel(null, size);
