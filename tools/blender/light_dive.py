@@ -24,17 +24,27 @@
 # - 261-300, the landing. The ring's three beads rise into view, the camera eases back out of the chase into the ring
 #   camera, and the light slows over the ring's centre and stretches into the needle (285-300), pointing at Funcial in
 #   front; its trail has faded by 274. Frame 300 is the ring's frame 0: RING_*, ring_bead_position() and
-#   ring_camera_pose() are what the ring's turntable starts from, unchanged.
+#   ring_camera_pose() are what the ring's orbit starts from, unchanged. Over 272-296 the mist band's wisps dissolve
+#   into the ring's world-fixed ones (MIST_RING_IN), so frame 300 already shows the ring's mist.
 #
-# The ring: 240 frames, numbered from 0, as a turntable that loops (frame 239 runs on into frame 0).
-# - Ring frame f is the way's frame 300 with the ring turned 1.5 f degrees about the needle's axis: frame 0 is the way's
-#   last frame, the same camera, objects, glow and void. The ring turns so Jontai Energy (back left) comes round to
-#   the front at 80 and Cookies Clicker at 160; those are the rests, with Funcial in front at 0 (and again at 240).
-# - The camera holds the ring pose. The needle stays at the exact centre, pointing at the front direction, so it
-#   points at the bead nearest the front as the ring turns under it; nothing joins it to a bead. The bead passing
-#   straight behind the pivot rises a little (ring_lift), so it never stands on the needle's back tip in the picture.
-# - The ring's data gives each frame { f, angle, front } and, under `proj`, where the needle's tips and the beads'
-#   outlines fall on the picture, so the checks can hold the needle clear of every bead.
+# The ring: 240 frames, numbered from 0, as an orbit that loops (frame 239 runs on into frame 0).
+# - The beads stand still at ring_bead_position's 0, 120 and 240 degrees, and the camera glides round them: at ring
+#   frame f it is the ring camera (ring_camera_pose: its distance, height, pitch and lens) carried 1.5 f degrees round
+#   the ring's axis (ring_cam), toward the side of the bead at that angle, looking at the pivot. Frame 0 is the way's
+#   last frame, the same camera, objects, glow and void. Jontai Energy (back left) comes round to the front at 80 and
+#   Cookies Clicker at 160; those are the rests, with Funcial in front at 0 (and again at 240).
+# - The needle stays at the exact centre and turns with the camera (its yaw is the camera's azimuth), so it points at
+#   the bead the camera faces; nothing joins it to a bead. Each bead's angle relative to the camera (ring_rel) drives
+#   the rest: the bead passing straight behind the pivot, as the camera sees it, rises a little (ring_lift), so it
+#   never stands on the needle's back tip in the picture; the beads' answering glow (ring_closeness); and the warm key
+#   on the beads rides with the camera (from its side, above and to the left), so each bead, come round to the front,
+#   is lit as Funcial is at frame 0. Relative to the camera the beads and the needle stand as the first mock-up's
+#   turntable stood them. What the orbit adds is the world round them turning past in true perspective: the dust, the
+#   glass sky's traces, the fog, and the mist band's wisps, which are world-fixed in the ring (a ring of mist round the
+#   void, MIST_RING_R).
+# - The ring's data gives each frame { f, angle, cam, front }: cam is the camera's azimuth in degrees, and angle, the
+#   turn relative to the front, equals it. Under `proj` it gives where the needle's tips and the beads' outlines fall
+#   on the picture, so the checks can hold the needle clear of every bead.
 # - Each bead keeps its porthole to the camera and its objects still (the site moves only the selected bead's). Its
 #   halo band and porthole rim glow with its closeness to the front, eased (ring_closeness): the front bead at a rest
 #   glows as Funcial does at the way's frame 300, the others as the GLB's gold; between rests the two nearest cross-fade.
@@ -45,13 +55,14 @@
 # bob_scroll.py's preview beads, which are hidden: the ring must show what the site will show (and lightdive-ring2.webp
 # shows the objects inside).
 #
-# Every frame's state is a function of the frame alone. The camera and the light are keyed per frame (so EEVEE's
-# motion blur sees the camera move past the glass while the light it holds stays sharp); the rest is set per frame
-# before each render. The per-frame data (the light's projected centre, its glow, the fact riding with it, the side
-# its move takes it to, the phase) comes from the same state, projected through the camera with world_to_camera_view.
+# Every frame's state is a function of the frame alone. In the way the camera and the light are keyed per frame (so
+# EEVEE's motion blur sees the camera move past the glass while the light it holds stays sharp); in the ring, which has
+# no motion blur, the camera is set per frame, as the rest is, before each render. The per-frame data (the light's
+# projected centre, its glow, the fact riding with it, the side its move takes it to, the phase; the ring's needle
+# tips and bead outlines) comes from the same state, projected through the camera with world_to_camera_view.
 # The void's own clock (void_state) is defined for any frame. The ring reads its drifting fields (the wisps' drift and
 # noise W, the dust's drift) off a looping clock, 300 + (240 / 2 pi) sin(2 pi f / 240), and the rest off frame 300
-# (ring_void_state): ring frame 0 is the way's frame 300 exactly, and the turntable loops from 239 to 0 with no pop.
+# (ring_void_state): ring frame 0 is the way's frame 300 exactly, and the orbit loops from 239 to 0 with no pop.
 #
 # Borrowed from the previs namespace (bob_build.py, bob_animate.py, bob_scroll.py): sc (the BOB_previs scene); the
 # easing helpers lerp, ease_io, ease_in, ease_out, span, clamp01; mat_gold_emit; the materials M_GLASS, M_LETTER,
@@ -104,7 +115,7 @@ def tan_v_of(size, lens):
     return tan_h(lens) * h / w
 
 
-# ---------------------------------------------------------------- the ring (the way's landing and the turntable share these)
+# ---------------------------------------------------------------- the ring (the way's landing and the orbit share it)
 RING_HEIGHT = -11.0                            # the ring's plane, under the glass sky (z -1.2) in the void
 RING_CENTER = Vector((0.0, 0.0, RING_HEIGHT))  # the needle's pivot, straight under the O, where the light lands
 RING_RADIUS = 5.5                              # from the pivot to each bead's centre
@@ -133,19 +144,22 @@ RING_KEY = dict(energy=2.5, direction=(0.42, 0.7, -0.58))
 RING_INNER_W = 0.25 / (1.7 / 90.0)
 
 
-def ring_bead_position(angle_deg, turn_deg=0.0):
-    """A bead's centre at `angle_deg` round the pivot (0 = in front, toward the ring camera; 120 = back left; 240 =
-    back right, seen from the camera), the ring turned by `turn_deg` (turning by -120 brings index 1 to the front)."""
-    a = math.radians(angle_deg + turn_deg)
+def ring_bead_position(angle_deg):
+    """A bead's centre at `angle_deg` round the pivot (0 = in front, toward the ring camera at azimuth 0; 120 = back
+    left; 240 = back right, seen from there)."""
+    a = math.radians(angle_deg)
     return RING_CENTER + Vector((-RING_RADIUS * math.sin(a), -RING_RADIUS * math.cos(a), 0.0))
 
 
-def ring_camera_pose(size):
-    """The ring camera of `size`: location, rotation (XYZ Euler; it only pitches), lens, focus distance, f-stop."""
+def ring_camera_pose(size, azimuth_deg=0.0):
+    """The ring camera of `size` carried `azimuth_deg` round the ring's axis, the way the bead angles run (at 120 it
+    stands where it faces the bead at 120): location, rotation (XYZ Euler: it pitches by th, then turns by yaw about
+    the axis), lens, focus distance, f-stop. At azimuth 0 it is the way's frame 300."""
     c = RING_CAM[size]
-    loc = RING_CENTER + Vector((0.0, -c["distance"], c["height"]))
-    return dict(loc=loc, th=math.radians(90.0 - c["pitch"]), lens=c["lens"], focus=(RING_CENTER - loc).length,
-                fstop=c["fstop"])
+    yaw = -math.radians(azimuth_deg)
+    loc = RING_CENTER + Matrix.Rotation(yaw, 3, 'Z') @ Vector((0.0, -c["distance"], c["height"]))
+    return dict(loc=loc, th=math.radians(90.0 - c["pitch"]), yaw=yaw, lens=c["lens"],
+                focus=(RING_CENTER - loc).length, fstop=c["fstop"])
 
 
 def bead_facing(pos, cam_loc):
@@ -154,26 +168,26 @@ def bead_facing(pos, cam_loc):
     return (-look).to_track_quat('Y', 'Z')
 
 
-# ---------------------------------------------------------------- the ring's turntable (the ring part)
-RING_FRAMES = 240                           # a full turn, frames 0..239; frame 240 would be frame 0 again
+# ---------------------------------------------------------------- the ring's orbit (the ring part)
+RING_FRAMES = 240                           # a full orbit, frames 0..239; frame 240 would be frame 0 again
 RING_STEP = 360.0 / RING_FRAMES             # 1.5 degrees a frame
 RING_SPACING = 360.0 / len(RING_BEADS)      # 120 degrees between beads: the rests are frames 0, 80 and 160
 
 
-def ring_turn(f):
-    """How far the ring has turned at ring frame f, in degrees. The beads stand at ring_bead_position(angle, -turn):
-    at 80 Jontai Energy (120) is in front, at 160 Cookies Clicker (240)."""
+def ring_cam(f):
+    """The camera's azimuth round the ring at ring frame f, in degrees (ring_camera_pose's): at 80 it faces Jontai
+    Energy (120), at 160 Cookies Clicker (240). It is also the turn relative to the front (the data's `angle`)."""
     return RING_STEP * f
 
 
 def ring_front(f):
     """The index of the bead nearest the front at ring frame f; halfway between two beads, the one coming in."""
-    return int(math.floor((ring_turn(f) + RING_SPACING / 2.0) / RING_SPACING)) % len(RING_BEADS)
+    return int(math.floor((ring_cam(f) + RING_SPACING / 2.0) / RING_SPACING)) % len(RING_BEADS)
 
 
 def ring_rel(angle_deg, f):
-    """The bead at `angle_deg`'s angle from the front at ring frame f, in -180 .. 180."""
-    return (angle_deg - ring_turn(f) + 180.0) % 360.0 - 180.0
+    """The bead at `angle_deg`'s angle from the camera's front at ring frame f, in -180 .. 180."""
+    return (angle_deg - ring_cam(f) + 180.0) % 360.0 - 180.0
 
 
 def ring_closeness(angle_deg, f):
@@ -182,11 +196,12 @@ def ring_closeness(angle_deg, f):
     return ease_io(1.0 - abs(ring_rel(angle_deg, f)) / RING_SPACING)
 
 
-# The bead passing straight behind the pivot (at 40, 120 and 200) would stand on the needle's back tip in the picture
-# (desk: its outline 4 px over the tip at 40): the needle would read as stuck into it. So that bead alone rises a
-# little as it passes behind, RING_LIFT at the back (|rel| 180), eased from nothing at a bead's spacing from the front
-# (|rel| 120, where the back beads rest): the rests, frame 0 and the seam are untouched, and ease_io's flat ends leave
-# no kink. With RING_LIFT the back tip clears every outline by 19 px at least on desk and 28 px on phone.
+# The bead passing straight behind the pivot as the camera sees it (at 40, 120 and 200) would stand on the needle's
+# back tip in the picture (desk: its outline 4 px over the tip at 40): the needle would read as stuck into it. So that
+# bead alone rises a little as it passes behind, RING_LIFT at the back (|rel| 180), eased from nothing at a bead's
+# spacing from the front (|rel| 120, where the back beads rest): the rests, frame 0 and the seam are untouched, and
+# ease_io's flat ends leave no kink. With RING_LIFT the back tip clears every outline by 19 px at least on desk and 28
+# px on phone.
 RING_LIFT = 0.35
 
 
@@ -195,9 +210,9 @@ def ring_lift(angle_deg, f):
 
 
 def ring_bead_at(angle_deg, f):
-    """The centre of the bead at `angle_deg` at ring frame f: on the ring turned by ring_turn(f), lifted as it passes
-    behind the pivot."""
-    return ring_bead_position(angle_deg, -ring_turn(f)) + Vector((0.0, 0.0, ring_lift(angle_deg, f)))
+    """The centre of the bead at `angle_deg` at ring frame f: in its place on the ring, lifted as it passes behind the
+    pivot, seen from the camera."""
+    return ring_bead_position(angle_deg) + Vector((0.0, 0.0, ring_lift(angle_deg, f)))
 
 
 # ---------------------------------------------------------------- freeze the previs at BOB seen from above
@@ -777,8 +792,8 @@ def filament_brightness(k, f):
 # and TRAIL_CHASE_LENGTH in the chase (eased to over the turn), as the chase camera, above the light, sees the trail
 # stream back toward it a long way down the frame. The way in's pillar fades out early in the turn, point by point as
 # it was laid (TRAIL_PILLAR_FADE: points laid before laid[0] go, after laid[1] stay, over the frames `fade`), so the
-# turning light is one focal point. The trail fades out in the landing (TRAIL_OUT), before the camera sinks toward the ring camera's
-# lower angle.
+# turning light is one focal point. The trail fades out in the landing (TRAIL_OUT), before the camera sinks toward the
+# ring camera's lower angle.
 TRAIL_FRAMES = 110
 TRAIL_PILLAR_FADE = dict(laid=(52, 62), fade=(F_TURN, 70))
 TRAIL_OUT = (254, 274)
@@ -878,6 +893,70 @@ bm.to_mesh(mist_me)
 bm.free()
 mist = link_new("ld_mist", mist_me, LD_CAM)
 mist.location = (0.0, 0.0, -BAND_D)
+# The ring of mist (revision 2). In the ring the camera glides round the beads, and wisps held on the camera would
+# stand still on the frame while everything else turned past. So in the ring the band's wisps are world-fixed: a ring
+# of mist round the void, a cylinder of radius MIST_RING_R about the ring's axis (outside the ring camera's circle on
+# both sizes, so the camera is always inside it), each point of the band showing the noise where the camera's ray
+# through it meets that cylinder, sized so that at frame 300 the wisps at the band's middle are the size on the frame
+# that the band's own are (MIST_RATE, set below). The band's fall-off, the haze across the frame, stays on the camera:
+# a ring of mist's would look the same from every point of the orbit too, as the camera circles the ring's axis, and
+# this one keeps frame 300's look. The landing dissolves the band's own wisps into the ring's over MIST_RING_IN
+# (void_state's ring_mist), so the ring's frame 0 is the way's frame 300.
+MIST_RING_R = 20.0
+MIST_RING_IN = (272, 296)
+
+
+def vec_node(N, L, op, a, b=None):
+    n = N('ShaderNodeVectorMath')
+    n.operation = op
+    for i, v in enumerate((a, b)):
+        if v is None:
+            continue
+        if isinstance(v, tuple):
+            n.inputs[i].default_value = v
+        else:
+            L(v, n.inputs[i])
+    return n
+
+
+def wisp_noise(N, L, vec, w):
+    """The wisps at `vec` (noise space) and noise time `w`: 0 .. 1."""
+    nz = N('ShaderNodeTexNoise')
+    nz.noise_dimensions = '4D'
+    nz.inputs['Scale'].default_value = 1.4
+    nz.inputs['Detail'].default_value = 7.0
+    nz.inputs['Roughness'].default_value = 0.62
+    nz.inputs['Distortion'].default_value = 0.6
+    L(vec, nz.inputs['Vector'])
+    L(w, nz.inputs['W'])
+    mr = N('ShaderNodeMapRange')
+    mr.inputs['From Min'].default_value = 0.36
+    mr.inputs['From Max'].default_value = 0.72
+    L(nz.outputs['Fac'], mr.inputs['Value'])
+    return mr.outputs['Result']
+
+
+def ring_mist_point(N, L):
+    """Where the camera's ray through the shaded point meets the ring of mist (world space). The camera is inside the
+    cylinder, so the ray leaves it once, at t = (sqrt(b^2 - a k) - b) / a along the ray; a is kept off 0 (a ray
+    straight down, as in the way in, where the ring's wisps are not shown, would divide by it)."""
+    geo = N('ShaderNodeNewGeometry')
+    cam = N('ShaderNodeCombineXYZ'); cam.name = "cam"           # the camera's place, set per frame (set_void)
+    ray = vec_node(N, L, 'NORMALIZE', vec_node(N, L, 'SUBTRACT', geo.outputs['Position'], cam.outputs[0]).outputs[0])
+    flat = (1.0, 1.0, 0.0)
+    c = vec_node(N, L, 'MULTIPLY', cam.outputs[0], flat).outputs[0]
+    e = vec_node(N, L, 'MULTIPLY', ray.outputs[0], flat).outputs[0]
+    a = math_node(N, L, 'MAXIMUM', vec_node(N, L, 'DOT_PRODUCT', e, e).outputs['Value'], 1e-6)
+    b = vec_node(N, L, 'DOT_PRODUCT', c, e).outputs['Value']
+    k = math_node(N, L, 'SUBTRACT', vec_node(N, L, 'DOT_PRODUCT', c, c).outputs['Value'], MIST_RING_R ** 2)
+    disc = math_node(N, L, 'MAXIMUM', math_node(N, L, 'SUBTRACT', math_node(N, L, 'MULTIPLY', b, b),
+                                                 math_node(N, L, 'MULTIPLY', a, k)), 0.0)
+    t = math_node(N, L, 'DIVIDE', math_node(N, L, 'SUBTRACT', math_node(N, L, 'SQRT', disc), b), a)
+    along = N('ShaderNodeVectorMath')
+    along.operation = 'SCALE'
+    L(ray.outputs[0], along.inputs[0])
+    L(t, along.inputs['Scale'])
+    return vec_node(N, L, 'ADD', cam.outputs[0], along.outputs[0]).outputs[0]
 
 
 def mist_strength(N, L):
@@ -888,6 +967,8 @@ def mist_strength(N, L):
     w = N('ShaderNodeValue'); w.name = "band_w"
     z = math_node(N, L, 'DIVIDE', math_node(N, L, 'SUBTRACT', sep.outputs['Y'], c.outputs[0]), w.outputs[0])
     band = math_node(N, L, 'EXPONENT', math_node(N, L, 'MULTIPLY', math_node(N, L, 'MULTIPLY', z, z), -1.0))
+    wv = N('ShaderNodeValue'); wv.name = "w"
+    # the band's own wisps, on the plane, drifting across it
     mp = N('ShaderNodeMapping')
     mp.inputs['Scale'].default_value = (1.6, 5.0, 1.0)
     L(tc.outputs['Object'], mp.inputs['Vector'])
@@ -895,20 +976,21 @@ def mist_strength(N, L):
     comb = N('ShaderNodeCombineXYZ')
     L(drift.outputs[0], comb.inputs['X'])
     L(comb.outputs[0], mp.inputs['Location'])
-    nz = N('ShaderNodeTexNoise')
-    nz.noise_dimensions = '4D'
-    nz.inputs['Scale'].default_value = 1.4
-    nz.inputs['Detail'].default_value = 7.0
-    nz.inputs['Roughness'].default_value = 0.62
-    nz.inputs['Distortion'].default_value = 0.6
-    wv = N('ShaderNodeValue'); wv.name = "w"
-    L(mp.outputs['Vector'], nz.inputs['Vector'])
-    L(wv.outputs[0], nz.inputs['W'])
-    mr = N('ShaderNodeMapRange')
-    mr.inputs['From Min'].default_value = 0.36
-    mr.inputs['From Max'].default_value = 0.72
-    L(nz.outputs['Fac'], mr.inputs['Value'])
-    wisps = math_node(N, L, 'ADD', math_node(N, L, 'MULTIPLY', mr.outputs['Result'], 0.75), 0.25)
+    own = wisp_noise(N, L, mp.outputs['Vector'], wv.outputs[0])
+    # the ring's: on the ring of mist, turned about its axis by the drift (mist_turn, set per frame)
+    turn = N('ShaderNodeVectorRotate')
+    turn.rotation_type = 'Z_AXIS'
+    L(ring_mist_point(N, L), turn.inputs['Vector'])
+    mist_turn = N('ShaderNodeValue'); mist_turn.name = "mist_turn"
+    L(mist_turn.outputs[0], turn.inputs['Angle'])
+    rate = N('ShaderNodeCombineXYZ'); rate.name = "ring_rate"    # MIST_RATE (round, round, up), set below
+    scaled = vec_node(N, L, 'MULTIPLY', turn.outputs['Vector'], rate.outputs[0]).outputs[0]
+    ring = wisp_noise(N, L, scaled, wv.outputs[0])
+    # the dissolve from the band's own to the ring's (ring_mist: 0 in the way until the landing, 1 in the ring)
+    k = N('ShaderNodeValue'); k.name = "ring_mist"
+    gap = math_node(N, L, 'SUBTRACT', ring, own)
+    mixed = math_node(N, L, 'ADD', own, math_node(N, L, 'MULTIPLY', gap, k.outputs[0]))
+    wisps = math_node(N, L, 'ADD', math_node(N, L, 'MULTIPLY', mixed, 0.75), 0.25)
     # fade at the plane's sides, which sit past the frame's edges
     ax = math_node(N, L, 'ABSOLUTE', sep.outputs['X'])
     side = math_node(N, L, 'SUBTRACT', 1.0, math_node(N, L, 'POWER', ax, 6.0), clamp=True)
@@ -923,7 +1005,7 @@ mist_nodes = M_MIST.node_tree.nodes
 
 # The dust moves with the void: bob_scroll.py's by the stream (stream_at), the light dive's by the stream and its own
 # slow drift. Each keeps clear, in its own frame, of where the camera and the light go for both sizes, of the ring
-# camera's circle round the ring at the way's end (where the ring part's camera may go) and of the beads' places as
+# camera's circle round the ring at the way's end (where the ring part's camera goes) and of the beads' places as
 # they rise into the ring: a speck the camera passed through would blow up into a disc, and one inside a bead would
 # show through its glass.
 DUST_DRIFT = Vector((0.0012, 0.0, 0.0016))       # m a frame
@@ -1036,8 +1118,9 @@ OLD_DUST_OUT = (6, 11)
 
 def void_state(f, size=SIZE):
     """The void at frame f (any frame, past 300 too): the mist band's place on the frame (from the top), width,
-    distance from the camera and strength, its wisps' drift and noise W, how far the void has streamed toward the
-    camera, and the dust's place (the stream and its own drift) and glow."""
+    distance from the camera and strength, its wisps' drift and noise W and how far they have dissolved into the ring
+    of mist's, how far the void has streamed toward the camera, and the dust's place (the stream and its own drift)
+    and glow."""
     b = BAND[size]
     dust_in = ease_io(span(f, *DUST_IN))
     old = 1.0 - ease_io(span(f, *OLD_DUST_OUT)) if f < DUST_IN[0] else dust_in
@@ -1050,6 +1133,7 @@ def void_state(f, size=SIZE):
         band_strength=b["strength"] * ease_io(span(f, *VOID_IN)),
         drift=0.0025 * f,
         w=0.004 * f,
+        ring_mist=ease_io(span(f, *MIST_RING_IN)),
         stream=stream,
         dust_offset=DUST_DRIFT * f + stream,
         dust_emit=2.4 * dust_in,
@@ -1091,6 +1175,35 @@ for _c in (262.0, 275.0, 288.0, 300.0, 313.0, 326.0, 338.0):
                    for a, a0, a1 in zip(_comps(_v[_k]), _comps(_v0[_k]), _comps(_v1[_k]))), (_c, _k)
     if _c >= F_END:
         assert all(_v[_k] == _v0[_k] for _k in _v0 if _k not in RING_VOID_MOVING), _c
+
+
+def mist_ring_rate(size):
+    """The ring of mist's noise per metre (round it, up it) that draws its wisps at frame 300's band middle the size
+    on the frame the band's own are there. The band's are 1.6 and 5.0 noise units (its Mapping) across its plane's half
+    width and half height; a feature the same angle on the frame covers d / cos(incidence) of a surface, d along the
+    ray: the plane faces the camera's axis, the ring of mist stands upright, its middle met square on from the side."""
+    rp = ring_camera_pose(size)
+    vs = void_state(F_END, size)
+    bd, lens = vs["band_d"], rp["lens"]
+    pitch = math.pi / 2 - rp["th"]
+    fwd = Vector((0.0, math.cos(pitch), -math.sin(pitch)))
+    up = Vector((0.0, math.sin(pitch), math.cos(pitch)))
+    ray = (fwd + up * ((0.5 - vs["band_y"]) * 2.0 * tan_v_of(size, lens))).normalized()
+    d_plane = bd / ray.dot(fwd)
+    c, e = rp["loc"].xy, ray.xy
+    a, b, k = e.dot(e), c.dot(e), c.dot(c) - MIST_RING_R ** 2
+    assert k < 0.0, size                                    # the ring camera inside the ring of mist
+    d_ring = (math.sqrt(b * b - a * k) - b) / a
+    across = 1.6 / (bd * tan_h(lens) * 1.15)
+    upward = 5.0 / (bd * tan_v_of(size, lens) * 1.15)
+    on_plane, on_ring = d_plane / ray.dot(fwd), d_ring / math.cos(math.asin(abs(ray.z)))
+    return across * d_plane / d_ring, upward * on_plane / on_ring
+
+
+MIST_RATE = mist_ring_rate(SIZE)
+mist_nodes["ring_rate"].inputs[0].default_value = MIST_RATE[0]
+mist_nodes["ring_rate"].inputs[1].default_value = MIST_RATE[0]
+mist_nodes["ring_rate"].inputs[2].default_value = MIST_RATE[1]
 
 # ---------------------------------------------------------------- the beads, from the site's GLB, in the ring
 for root, _m in beads:                                   # bob_scroll.py's preview beads give way to the site's
@@ -1162,11 +1275,18 @@ GLASS_MAT.surface_render_method = 'DITHERED'
 GLASS_MAT.use_raytrace_refraction = True
 GLASS_MAT.thickness_mode = 'SLAB'
 
-# the bead key: the site's key is directional; warm, from the camera's side, above and to the left
+# the bead key: the site's key is directional; warm, from the camera's side, above and to the left. In the ring it
+# rides with the camera, turned by its yaw, so each bead come round to the front is lit as Funcial is at frame 0.
 kd2 = bpy.data.lights.new("ld_bead_key", 'SUN')
 kd2.energy, kd2.angle, kd2.color, kd2.volume_factor = 0.0, math.radians(1.0), (1.0, 0.75, 0.48), 0.0
 bead_key2 = link_new("ld_bead_key", kd2)
-bead_key2.rotation_euler = Vector(RING_KEY["direction"]).to_track_quat('-Z', 'Y').to_euler()
+
+
+def key_rotation(yaw=0.0):
+    return (Matrix.Rotation(yaw, 3, 'Z') @ Vector(RING_KEY["direction"])).to_track_quat('-Z', 'Y').to_euler()
+
+
+bead_key2.rotation_euler = key_rotation()
 
 # the needle at the ring's centre: the compass needle and pivot, free, nothing holding them
 M_RING_NEEDLE = mat_gold_emit("ld_needle_gold", RING_NEEDLE_GLOW)
@@ -1175,7 +1295,10 @@ ring_needle = link_new("ld_ring_needle", sc.objects["bob_needle"].data.copy())
 ring_needle.data.materials.clear()
 ring_needle.data.materials.append(M_RING_NEEDLE)
 ring_needle.location = RING_CENTER
-ring_needle.rotation_euler = (math.pi / 2, 0.0, 0.0)          # tip (local +Z) toward the front bead (-Y)
+# its tip (local +Z) toward the front bead (-Y); in the ring it turns with the camera about the axis (set_ring_pose)
+ring_needle.rotation_euler = (math.pi / 2, 0.0, 0.0)
+NEEDLE_TIP_V = (max(ring_needle.data.vertices, key=lambda v: v.co.z).index,    # its front and back tips' vertices
+                min(ring_needle.data.vertices, key=lambda v: v.co.z).index)
 ring_pivot = link_new("ld_ring_pivot", sc.objects["bob_pivot"].data.copy())
 ring_pivot.data.materials.clear()
 ring_pivot.data.materials.append(M_RING_NEEDLE)
@@ -1197,22 +1320,29 @@ rt = LD_SCENE.eevee.ray_tracing_options
 rt.resolution_scale = '1'
 
 # ---------------------------------------------------------------- keys: the camera and the light, every frame
+# The ring sets its camera per frame instead (set_ring_pose): keys would put it back on the way's pose at each render.
 prefs = bpy.context.preferences.edit
 old_interp = prefs.keyframe_new_interpolation_type
 prefs.keyframe_new_interpolation_type = 'LINEAR'
 LIGHT_R = [0.0] * (F_END + 1)
+
+
+def set_camera(pose, yaw=0.0):
+    LD_CAM.location = pose["loc"]
+    LD_CAM.rotation_euler = Euler((pose["th"], 0.0, yaw))
+    LD_CAM.data.lens = pose["lens"]
+    LD_CAM.data.dof.focus_distance = pose["focus"]
+    LD_CAM.data.dof.aperture_fstop = pose["fstop"]
+
+
 for f in range(1, F_END + 1):
-    cp = cam_pose(f, SIZE)
-    LD_CAM.location = cp["loc"]
-    LD_CAM.rotation_euler = Euler((cp["th"], 0.0, 0.0))
-    LD_CAM.data.lens = cp["lens"]
-    LD_CAM.data.dof.focus_distance = cp["focus"]
-    LD_CAM.data.dof.aperture_fstop = cp["fstop"]
-    LD_CAM.keyframe_insert("location", frame=f)
-    LD_CAM.keyframe_insert("rotation_euler", frame=f)
-    LD_CAM.data.keyframe_insert("lens", frame=f)
-    LD_CAM.data.dof.keyframe_insert("focus_distance", frame=f)
-    LD_CAM.data.dof.keyframe_insert("aperture_fstop", frame=f)
+    if PART == "way":
+        set_camera(cam_pose(f, SIZE))
+        LD_CAM.keyframe_insert("location", frame=f)
+        LD_CAM.keyframe_insert("rotation_euler", frame=f)
+        LD_CAM.data.keyframe_insert("lens", frame=f)
+        LD_CAM.data.dof.keyframe_insert("focus_distance", frame=f)
+        LD_CAM.data.dof.keyframe_insert("aperture_fstop", frame=f)
     rr = light_radius(f)
     LIGHT_R[f] = rr
     light_root.location = LIGHT_POS[f]
@@ -1294,8 +1424,10 @@ SKY_OBJECTS = [sc.objects[n] for n in ("bob_void_ceiling", "bob_ceiling_traces",
 SKY_Z = CEIL_Z - 0.1          # the camera is under the glass sky below this
 
 
-def set_void(vs, lens):
-    """The void as `vs` (void_state's fields) for a camera of `lens` mm: the mist band on the camera, the dust."""
+def set_void(vs, lens, cam_loc):
+    """The void as `vs` (void_state's fields) for a camera of `lens` mm at `cam_loc`: the mist band on the camera, its
+    wisps (the band's own drifting across it, the ring of mist's turned round the ring's axis by the same drift at its
+    middle, which the ray from cam_loc finds), the dust."""
     bd = vs["band_d"]
     mist.location = (0.0, 0.0, -bd)
     mist.scale = (bd * tan_h(lens) * 1.15, bd * tan_v_of(SIZE, lens) * 1.15, 1.0)
@@ -1303,6 +1435,10 @@ def set_void(vs, lens):
     mist_nodes["band_w"].outputs[0].default_value = 2.0 * vs["band_sigma"] / 1.15
     mist_nodes["drift"].outputs[0].default_value = vs["drift"]
     mist_nodes["w"].outputs[0].default_value = vs["w"]
+    mist_nodes["mist_turn"].outputs[0].default_value = -vs["drift"] / (MIST_RATE[0] * MIST_RING_R)
+    mist_nodes["ring_mist"].outputs[0].default_value = vs["ring_mist"]
+    for i in range(3):
+        mist_nodes["cam"].inputs[i].default_value = cam_loc[i]
     MIST_LEVEL.default_value = vs["band_strength"]
     mist.hide_render = vs["band_strength"] <= 0.0
     LD_DUST_EMIT.default_value = vs["dust_emit"]
@@ -1344,7 +1480,7 @@ def apply_frame(f):
     for ob in LIGHT_OBJS:
         ob.hide_render = f >= F_END or g <= 0.0
     # the void
-    set_void(void_state(f), cp["lens"])
+    set_void(void_state(f), cp["lens"], cp["loc"])
     # the glass top dims, its haze and the tunnel's glow step aside as the camera comes through
     k_top = 1.0 - ease_io(span(f, *TOP_FADE))
     for inp, rest in TOP_EMIT:
@@ -1381,19 +1517,31 @@ def apply_frame(f):
     LD_SCENE.view_layers[0].update()
 
 
+def set_ring_pose(f):
+    """The camera at ring frame f, carried ring_cam(f) round the ring's axis, and the needle turned with it (its tip
+    toward the bead the camera faces): their pose, which the data's projection and the render share."""
+    rp = ring_camera_pose(SIZE, ring_cam(f))
+    set_camera(rp, rp["yaw"])
+    ring_needle.rotation_euler = (math.pi / 2, 0.0, rp["yaw"])
+    LD_SCENE.view_layers[0].update()
+    return rp
+
+
 def apply_ring(f):
-    """Ring frame f: the way's frame 300 (the scene's clock held there, so the camera keeps the ring pose and nothing
-    keyed moves), the ring turned ring_turn(f) under the needle with the bead behind the pivot lifted (ring_bead_at),
-    each bead's answering glow, the void's looping clock."""
+    """Ring frame f: the way's frame 300 (the scene's clock held there, so nothing keyed moves), the camera carried
+    round the still beads and the needle turned with it (set_ring_pose), the bead behind the pivot lifted
+    (ring_bead_at), each bead facing the camera with its answering glow, the key turned with the camera, the void's
+    looping clock seen from the camera."""
     apply_frame(F_END)
-    rp = ring_camera_pose(SIZE)
+    rp = set_ring_pose(f)
     for root, angle in ring_beads:
         pos = ring_bead_at(angle, f)
         root.location = pos
         root.rotation_quaternion = bead_facing(pos, rp["loc"])
     for bid, angle in RING_BEADS:
         BEAD_GLOW[bid].default_value = lerp(RING_BEAD_GLOW, RING_FRONT_GLOW, ring_closeness(angle, f))
-    set_void(ring_void_state(f), rp["lens"])
+    bead_key2.rotation_euler = key_rotation(rp["yaw"])
+    set_void(ring_void_state(f), rp["lens"], rp["loc"])
     LD_SCENE.view_layers[0].update()
 
 
@@ -1415,10 +1563,14 @@ def bead_outline(root):
     return r
 
 
-def ring_projection(f, outline, tips):
-    """Where the needle's tips and the beads' outlines fall on ring frame f's picture (the camera at the ring pose):
-    x, y from the top left in shares of the width and height; a bead's outline radius in shares of the width."""
+def ring_projection(f, outline):
+    """Where the needle's tips and the beads' outlines fall on ring frame f's picture (the camera and the needle posed
+    for f): x, y from the top left in shares of the width and height; a bead's outline radius in shares of the
+    width."""
+    set_ring_pose(f)
     right = LD_CAM.matrix_world.to_3x3() @ Vector((1.0, 0.0, 0.0))
+    nv, mw = ring_needle.data.vertices, ring_needle.matrix_world
+    tips = {"front": mw @ nv[NEEDLE_TIP_V[0]].co, "back": mw @ nv[NEEDLE_TIP_V[1]].co}
 
     def scr(p):
         co = world_to_camera_view(LD_SCENE, LD_CAM, p)
@@ -1433,8 +1585,9 @@ def ring_projection(f, outline, tips):
     return {"needle": {k: [round(v, 5) for v in scr(p)] for k, p in tips.items()}, "beads": beads}
 
 
-def ring_data(f, outline, tips):
-    return {"f": f, "angle": ring_turn(f), "front": ring_front(f), "proj": ring_projection(f, outline, tips)}
+def ring_data(f, outline):
+    return {"f": f, "angle": ring_cam(f), "cam": ring_cam(f), "front": ring_front(f),
+            "proj": ring_projection(f, outline)}
 
 
 def tip_gaps(entry):
@@ -1465,15 +1618,14 @@ if PART == "way":
 else:
     frames = ONLY if ONLY is not None else list(range(RING_FRAMES))
     assert all(0 <= f < RING_FRAMES for f in frames), frames
-    print(f"LIGHT_DIVE ring {SIZE}: {RING_FRAMES} frames, {RING_STEP} degrees a frame, rests at "
-          f"{[f for f in range(RING_FRAMES) if ring_turn(f) % RING_SPACING == 0.0]}; frozen {LD_FROZEN} keyed values; "
-          f"samples {LD_SCENE.eevee.taa_render_samples}")
-    apply_ring(0)        # the ring pose and the needle at its full size: the outlines and tips the data projects
+    print(f"LIGHT_DIVE ring {SIZE}: {RING_FRAMES} frames, the camera {RING_STEP} degrees a frame round the ring, rests "
+          f"at {[f for f in range(RING_FRAMES) if ring_cam(f) % RING_SPACING == 0.0]}; frozen {LD_FROZEN} keyed "
+          f"values; samples {LD_SCENE.eevee.taa_render_samples}")
+    print(f"LIGHT_DIVE ring {SIZE}: the ring of mist {MIST_RING_R} m round the axis, noise per m "
+          f"{MIST_RATE[0]:.4f} round and {MIST_RATE[1]:.4f} up")
+    apply_ring(0)        # the needle at its full size and the beads in place: the outlines the data projects
     outline = {bid: bead_outline(root) for (bid, _a), (root, _b) in zip(RING_BEADS, ring_beads)}
-    nv = ring_needle.data.vertices
-    tips = {"front": ring_needle.matrix_world @ max(nv, key=lambda v: v.co.z).co,
-            "back": ring_needle.matrix_world @ min(nv, key=lambda v: v.co.z).co}
-    data = [ring_data(f, outline, tips) for f in range(RING_FRAMES)]
+    data = [ring_data(f, outline) for f in range(RING_FRAMES)]
     gaps = [tip_gaps(e) for e in data]
     for k in ("back", "front"):
         g, at = min((g[k], f) for f, g in enumerate(gaps))
