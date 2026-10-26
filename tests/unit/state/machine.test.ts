@@ -4,13 +4,12 @@ import { SCROLL_PHASES, samePhase, transition, type Phase, type SceneEvent } fro
 
 const LOADING: Phase = { kind: 'LOADING' };
 const HOME: Phase = { kind: 'HOME_IDLE' };
-const DIVE: Phase = { kind: 'DIVE' };
-const VOID: Phase = { kind: 'VOID_ENTRY' };
+const LIGHT: Phase = { kind: 'LIGHT' };
 const PROJECTS: Phase = { kind: 'PROJECTS', category: 'front-panel' };
 const END: Phase = { kind: 'END' };
 const PROJECT: Phase = { kind: 'PROJECT_FOCUS', id: 'funcial' };
 
-const ALL: Phase[] = [LOADING, HOME, DIVE, VOID, PROJECTS, END, PROJECT];
+const ALL: Phase[] = [LOADING, HOME, LIGHT, PROJECTS, END, PROJECT];
 const chapter = (id: ChapterId, category: string | null = null): SceneEvent => ({ type: 'CHAPTER', chapter: id, category });
 
 describe('LOADED', () => {
@@ -25,57 +24,52 @@ describe('LOADED', () => {
 
 describe('CHAPTER', () => {
   it('maps each chapter to its phase from the home phases', () => {
-    expect(transition(HOME, chapter('DIVE'))).toEqual({ kind: 'DIVE' });
-    expect(transition(DIVE, chapter('VOID_ENTRY'))).toEqual({ kind: 'VOID_ENTRY' });
-    expect(transition(VOID, chapter('HOME'))).toEqual({ kind: 'HOME_IDLE' });
-    expect(transition(DIVE, chapter('HOME'))).toEqual({ kind: 'HOME_IDLE' });
-    expect(transition(VOID, chapter('DIVE'))).toEqual({ kind: 'DIVE' });
+    expect(transition(HOME, chapter('LIGHT'))).toEqual({ kind: 'LIGHT' });
+    expect(transition(LIGHT, chapter('HOME'))).toEqual({ kind: 'HOME_IDLE' });
   });
 
-  it('carries the category into PROJECTS and follows it from one category to the next', () => {
-    expect(transition(VOID, chapter('PROJECTS', 'secure-element'))).toEqual({ kind: 'PROJECTS', category: 'secure-element' });
-    expect(transition(PROJECTS, chapter('PROJECTS', 'oscillator'))).toEqual({ kind: 'PROJECTS', category: 'oscillator' });
+  it("takes the ring and the sheet to PROJECTS with the unit's project, and follows it from one to the next", () => {
+    expect(transition(LIGHT, chapter('RING', 'secure-element'))).toEqual({ kind: 'PROJECTS', category: 'secure-element' });
+    expect(transition(PROJECTS, chapter('RING', 'oscillator'))).toEqual({ kind: 'PROJECTS', category: 'oscillator' });
+    expect(transition(LIGHT, chapter('SHEET', 'oscillator'))).toEqual({ kind: 'PROJECTS', category: 'oscillator' });
   });
 
-  it('takes the last project to the end page and back', () => {
+  it('takes the sheet to the end page and back', () => {
     const oscillator: Phase = { kind: 'PROJECTS', category: 'oscillator' };
     expect(transition(oscillator, chapter('END'))).toEqual({ kind: 'END' });
-    expect(transition(END, chapter('PROJECTS', 'oscillator'))).toEqual({ kind: 'PROJECTS', category: 'oscillator' });
+    expect(transition(END, chapter('SHEET', 'oscillator'))).toEqual({ kind: 'PROJECTS', category: 'oscillator' });
     expect(transition(END, chapter('HOME'))).toEqual({ kind: 'HOME_IDLE' });
   });
 
-  it('applies from HOME_IDLE, DIVE, VOID_ENTRY, PROJECTS and END', () => {
-    for (const phase of [HOME, VOID, PROJECTS, END]) {
-      expect(transition(phase, chapter('DIVE')), phase.kind).toEqual({ kind: 'DIVE' });
-    }
-    for (const phase of [HOME, DIVE, VOID, PROJECTS, END]) {
-      expect(transition(phase, chapter('PROJECTS', 'oscillator')), phase.kind).toEqual({ kind: 'PROJECTS', category: 'oscillator' });
+  it('applies from HOME_IDLE, LIGHT, PROJECTS and END', () => {
+    for (const phase of [HOME, PROJECTS, END]) expect(transition(phase, chapter('LIGHT')), phase.kind).toEqual({ kind: 'LIGHT' });
+    for (const phase of [HOME, LIGHT, PROJECTS, END]) {
+      expect(transition(phase, chapter('RING', 'oscillator')), phase.kind).toEqual({ kind: 'PROJECTS', category: 'oscillator' });
     }
   });
 
   it('is ignored while loading and on a page', () => {
-    for (const phase of [LOADING, PROJECT]) expect(transition(phase, chapter('DIVE')), phase.kind).toBe(phase);
+    for (const phase of [LOADING, PROJECT]) expect(transition(phase, chapter('LIGHT')), phase.kind).toBe(phase);
   });
 
   it('returns the same object when the chapter is the one already shown', () => {
     expect(transition(HOME, chapter('HOME'))).toBe(HOME);
-    expect(transition(DIVE, chapter('DIVE'))).toBe(DIVE);
-    expect(transition(VOID, chapter('VOID_ENTRY'))).toBe(VOID);
-    expect(transition(PROJECTS, chapter('PROJECTS', 'front-panel'))).toBe(PROJECTS);
+    expect(transition(LIGHT, chapter('LIGHT'))).toBe(LIGHT);
+    expect(transition(PROJECTS, chapter('RING', 'front-panel'))).toBe(PROJECTS);
     expect(transition(END, chapter('END'))).toBe(END);
   });
 });
 
 describe('SCROLL_PHASES', () => {
-  it('are the phases the scroll moves through: HOME_IDLE, DIVE, VOID_ENTRY, PROJECTS and END', () => {
-    expect([...SCROLL_PHASES].sort()).toEqual(['DIVE', 'END', 'HOME_IDLE', 'PROJECTS', 'VOID_ENTRY']);
+  it('are the phases the scroll moves through: HOME_IDLE, LIGHT, PROJECTS and END', () => {
+    expect([...SCROLL_PHASES].sort()).toEqual(['END', 'HOME_IDLE', 'LIGHT', 'PROJECTS']);
     expect(SCROLL_PHASES.has('END')).toBe(true);
   });
 
   it('are the phases a CHAPTER event applies from, and no others', () => {
     // A CHAPTER event for the last project takes every scroll phase there and leaves the others (LOADING, a project page) where they are.
     for (const phase of ALL) {
-      const next = transition(phase, chapter('PROJECTS', 'oscillator'));
+      const next = transition(phase, chapter('RING', 'oscillator'));
       expect(samePhase(next, { kind: 'PROJECTS', category: 'oscillator' }), phase.kind).toBe(SCROLL_PHASES.has(phase.kind));
     }
   });
@@ -97,7 +91,7 @@ describe('BACK', () => {
   });
 
   it('is ignored from the scroll phases', () => {
-    for (const phase of [LOADING, HOME, DIVE, VOID, PROJECTS, END]) expect(transition(phase, { type: 'BACK' }), phase.kind).toBe(phase);
+    for (const phase of [LOADING, HOME, LIGHT, PROJECTS, END]) expect(transition(phase, { type: 'BACK' }), phase.kind).toBe(phase);
   });
 });
 
@@ -112,22 +106,22 @@ describe('ignored events', () => {
   it('return the identical object', () => {
     expect(transition(PROJECT, { type: 'LOADED' })).toBe(PROJECT);
     expect(transition(HOME, { type: 'OPEN_PROJECT', id: 'funcial' })).toBe(HOME);
-    expect(transition(DIVE, { type: 'BACK' })).toBe(DIVE);
+    expect(transition(LIGHT, { type: 'BACK' })).toBe(LIGHT);
   });
 
   it('leave the phase it was given untouched', () => {
-    const phase: Phase = { kind: 'DIVE' };
+    const phase: Phase = { kind: 'LIGHT' };
     transition(phase, { type: 'OPEN_PROJECT', id: 'funcial' });
     transition(phase, { type: 'BACK' });
-    expect(phase).toEqual({ kind: 'DIVE' });
+    expect(phase).toEqual({ kind: 'LIGHT' });
   });
 });
 
 describe('samePhase', () => {
   it('compares kind and the fields the kind carries', () => {
     expect(samePhase({ kind: 'HOME_IDLE' }, { kind: 'HOME_IDLE' })).toBe(true);
-    expect(samePhase({ kind: 'HOME_IDLE' }, { kind: 'DIVE' })).toBe(false);
-    expect(samePhase({ kind: 'DIVE' }, { kind: 'DIVE' })).toBe(true);
+    expect(samePhase({ kind: 'HOME_IDLE' }, { kind: 'LIGHT' })).toBe(false);
+    expect(samePhase({ kind: 'LIGHT' }, { kind: 'LIGHT' })).toBe(true);
     expect(samePhase({ kind: 'END' }, { kind: 'END' })).toBe(true);
     expect(samePhase({ kind: 'END' }, { kind: 'PROJECTS', category: 'oscillator' })).toBe(false);
     expect(samePhase({ kind: 'PROJECTS', category: null }, { kind: 'PROJECTS', category: 'oscillator' })).toBe(false);

@@ -4,20 +4,20 @@ import { PAGES } from '~/data/pages';
 import { type ProjectId, projects } from '~/data/projects';
 import { routeFromPath } from '~/i18n/locale';
 import { type Locale, Translator } from '~/i18n/Translator';
-import { chapterAt, HOME_CHAPTERS } from './chapters';
+import { chapterAt, HOME_CHAPTERS, projectStop } from './chapters';
 import { frame } from './frame';
 import { type Phase, samePhase, transition } from './machine';
 import { useScene } from './store';
 
 /**
- * The stop of a project on the home's scroll, where its bead is selected: the start of the PROJECTS unit of its
- * category (~/state/chapters), so 3 for Funcial, 4 for Jontai Energy and 5 for Cookies Clicker.
+ * The stop of a project on the home's scroll, where its bead is in front of the ring: the start of the RING unit its
+ * category starts, or of SHEET for the last (~/state/chapters `projectStop`), so 4 for Funcial, 5 for Jontai Energy and
+ * 6 for Cookies Clicker.
  */
 export function stopForProject(id: ProjectId): number {
   const category = projects.byId(id)?.categoryId;
-  const unit = HOME_CHAPTERS.units.find((u) => u.id === 'PROJECTS' && u.category === category);
-  if (!unit) throw new TypeError(`no stop on the home's scroll for the project "${id}"`);
-  return unit.start;
+  if (category === undefined) throw new TypeError(`no stop on the home's scroll for the project "${id}"`);
+  return projectStop(HOME_CHAPTERS, category);
 }
 
 /**

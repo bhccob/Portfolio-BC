@@ -64,8 +64,7 @@ describe('pathForPhase', () => {
   it('gives nothing for the phases that live on the home page', () => {
     expect(pathForPhase({ kind: 'LOADING' }, 'nl')).toBeNull();
     expect(pathForPhase({ kind: 'HOME_IDLE' }, 'nl')).toBeNull();
-    expect(pathForPhase({ kind: 'DIVE' }, 'en')).toBeNull();
-    expect(pathForPhase({ kind: 'VOID_ENTRY' }, 'nl')).toBeNull();
+    expect(pathForPhase({ kind: 'LIGHT' }, 'en')).toBeNull();
     expect(pathForPhase({ kind: 'PROJECTS', category: null }, 'en')).toBeNull();
   });
 
@@ -135,7 +134,7 @@ describe('syncRoute', () => {
     syncRoute({ pathname: '/projects/funcial/', key: 'a' });
     syncRoute({ pathname: '/', key: 'b' }, NavigationType.Pop);
     expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'secure-element' });
-    expect(frame.target).toBe(3);
+    expect(frame.target).toBe(4);
   });
 
   it('lets the scroll start at the home when a page is left for the home page by a link', () => {
@@ -147,27 +146,27 @@ describe('syncRoute', () => {
 
   it('puts the scene back on the chapter the scroll is in when a page is left for a page without a scene', () => {
     syncRoute({ pathname: '/projects/funcial/', key: 'a' });
-    frame.progress = 4.2;
-    frame.chapterIndex = 4;
+    frame.progress = 5.2;
+    frame.chapterIndex = 3;
     syncRoute({ pathname: '/en/lite/', key: 'b' });
     expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'front-panel' });
-    expect(frame.progress).toBe(4.2);
+    expect(frame.progress).toBe(5.2);
   });
 
-  it('puts the scene in the dive when the scroll is part way through it (progress 1.5) and a page is left for Lite', () => {
+  it('puts the scene in the light dive when the scroll is part way through it (progress 2.5) and a page is left for Lite', () => {
     syncRoute({ pathname: '/projects/funcial/', key: 'a' });
-    frame.progress = 1.5;
+    frame.progress = 2.5;
     frame.chapterIndex = 1;
     syncRoute({ pathname: '/lite/', key: 'b' });
-    expect(useScene.getState().phase).toEqual({ kind: 'DIVE' });
+    expect(useScene.getState().phase).toEqual({ kind: 'LIGHT' });
   });
 
-  it('puts the scene in the overview when the scroll rests at its stop (progress 2) and a page is left for contact', () => {
+  it('puts the scene on the sheet when the scroll is part way up it (progress 6.5) and a page is left for contact', () => {
     syncRoute({ pathname: '/projects/cookies-clicker/', key: 'a' });
-    frame.progress = 2;
-    frame.chapterIndex = 2;
+    frame.progress = 6.5;
+    frame.chapterIndex = 4;
     syncRoute({ pathname: '/contact/', key: 'b' });
-    expect(useScene.getState().phase).toEqual({ kind: 'VOID_ENTRY' });
+    expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'oscillator' });
   });
 
   it('lets the scroll decide when a page is left for a page without a scene', () => {
@@ -184,15 +183,15 @@ describe('syncRoute', () => {
 });
 
 describe('stopForProject', () => {
-  it('gives each project its stop on the home scroll: Funcial 3, Jontai Energy 4, Cookies Clicker 5', () => {
-    expect(stopForProject('funcial')).toBe(3);
-    expect(stopForProject('jontai-energy')).toBe(4);
-    expect(stopForProject('cookies-clicker')).toBe(5);
+  it('gives each project its ring stop on the home scroll: Funcial 4, Jontai Energy 5, Cookies Clicker 6', () => {
+    expect(stopForProject('funcial')).toBe(4);
+    expect(stopForProject('jontai-energy')).toBe(5);
+    expect(stopForProject('cookies-clicker')).toBe(6);
   });
 
-  it("reads them from the chapters: the start of the PROJECTS unit of the project's category, one of the scroll's stops", () => {
+  it("reads them from the chapters: the start of the ring or sheet unit of the project's category, one of the scroll's stops", () => {
     for (const project of projects.all()) {
-      const unit = HOME_CHAPTERS.units.find((u) => u.id === 'PROJECTS' && u.category === project.categoryId);
+      const unit = HOME_CHAPTERS.units.find((u) => (u.id === 'RING' || u.id === 'SHEET') && u.category === project.categoryId);
       expect(stopForProject(project.id)).toBe(unit?.start);
       expect(stops(HOME_CHAPTERS)).toContain(stopForProject(project.id));
     }
@@ -216,18 +215,18 @@ describe('syncRoute: Back from a project page', () => {
     useScene.getState().dispatch({ type: 'LOADED' });
     syncRoute({ pathname: '/projects/jontai-energy/', key: 'k1' }, NavigationType.Push); // the home's link
     syncRoute({ pathname: '/', key: 'default' }, NavigationType.Pop); // Back
-    expect(frame.target).toBe(4);
-    expect(frame.progress).toBe(4);
+    expect(frame.target).toBe(5);
+    expect(frame.progress).toBe(5);
     expect(frame.velocity).toBe(0);
-    expect(frame.chapterIndex).toBe(chapterAt(HOME_CHAPTERS, 4).index);
+    expect(frame.chapterIndex).toBe(chapterAt(HOME_CHAPTERS, 5).index);
     expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'front-panel' });
   });
 
   it("does the same for the page's own Escape after a direct arrival, which pushes the home page with BACK_STATE", () => {
     syncRoute({ pathname: '/en/projects/cookies-clicker/', key: 'default' }, NavigationType.Pop);
     syncRoute({ pathname: '/en/', key: 'k1', state: BACK_STATE }, NavigationType.Push);
-    expect(frame.target).toBe(5);
-    expect(frame.progress).toBe(5);
+    expect(frame.target).toBe(6);
+    expect(frame.progress).toBe(6);
     expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'oscillator' });
   });
 
@@ -237,15 +236,15 @@ describe('syncRoute: Back from a project page', () => {
     syncRoute({ pathname: '/', key: 'default' });
     syncRoute({ pathname: '/projects/funcial/', key: 'k1' });
     syncRoute({ pathname: '/', key: 'default' }, NavigationType.Pop);
-    expect([frame.target, frame.progress]).toEqual([3, 3]);
+    expect([frame.target, frame.progress]).toEqual([4, 4]);
   });
 
   it("lands the header's name link, and any other link home, at the home: stop 0, wherever the story was", () => {
-    // A bead opened from its stop: the story is at Jontai Energy's 4 while its page is up.
+    // A bead opened from its stop: the story is at Jontai Energy's 5 while its page is up.
     syncRoute({ pathname: '/', key: 'default' }, NavigationType.Pop);
     useScene.getState().dispatch({ type: 'LOADED' });
-    frame.progress = frame.target = 4;
-    frame.chapterIndex = 4;
+    frame.progress = frame.target = 5;
+    frame.chapterIndex = 3;
     syncRoute({ pathname: '/projects/jontai-energy/', key: 'k1' }, NavigationType.Push);
     syncRoute({ pathname: '/', key: 'k2' }, NavigationType.Push); // the name link: a push, no BACK_STATE
     expect([frame.target, frame.progress, frame.chapterIndex]).toEqual([0, 0, 0]);
