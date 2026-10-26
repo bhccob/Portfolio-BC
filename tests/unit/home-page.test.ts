@@ -95,6 +95,8 @@ describe('the home page', () => {
     expect(css).toMatch(/clip-path:\s*inset\(50%\)/);
     expect(css).not.toMatch(/display:\s*none/);
     expect(rule('.light-facts')).not.toMatch(/display:\s*none/);
+    // Its words wrap in the clipped box: a fact on one line would reach past a phone's edge (the harness's mobile step).
+    expect(css).not.toMatch(/white-space:\s*nowrap/);
   });
 
   it('has a visually-hidden utility that leaves the text to assistive technology (clipped, never display:none or visibility:hidden)', () => {

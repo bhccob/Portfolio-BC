@@ -680,6 +680,25 @@ describe("the sheet's finish: follow, then finish", () => {
     expect([s.frame.target, s.frame.progress]).toEqual([END, END]);
   });
 
+  it("hands a finger's flick into the sheet straight to the finish: no glide crawling it up, the end page within 1.3 s of the lift", async () => {
+    const s = setup();
+    restAt(s, 6);
+    await drag(s, 120); // a quick short swipe up the screen, lifted while moving: down the story, into the sheet
+    const lift = s.frames.now;
+    const after = frames(s);
+    const start = after.findIndex((f) => f.tween === 'finish');
+    const landed = after.findIndex((f) => f.progress === END);
+    expect(start).toBeGreaterThanOrEqual(0);
+    // The finish begins once the quiet after the lift is over, not after a glide has run its course.
+    expect(start * FRAME_MS).toBeLessThanOrEqual(SHEET_FINISH_MS + 2 * FRAME_MS);
+    expect(after[start]!.heading).toBe(END);
+    expect(landed * FRAME_MS).toBeLessThan(1300);
+    expect(s.frames.now - lift).toBeGreaterThan(0);
+    const speed = Math.max(...after.slice(0, start + 1).map((f) => f.velocity));
+    for (const f of after.slice(start + 1, landed)) if (f.progress < 6.9) expect(f.velocity).toBeGreaterThanOrEqual(speed / 2);
+    expect([s.frame.target, s.frame.progress]).toEqual([END, END]);
+  });
+
   it('never moves the ring by itself: a wheel stopped between two projects stays there', async () => {
     const s = setup();
     restAt(s, 4);

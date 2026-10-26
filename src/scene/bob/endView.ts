@@ -92,6 +92,10 @@ export function applyEndView(view: EndView, root: EndRoot, page: EndPageNode | n
   if (view.state !== written.state) {
     if (view.state === 'none') root.removeAttribute(END_ATTRIBUTE);
     else root.setAttribute(END_ATTRIBUTE, view.state);
+    // Come to rest, the page stands at its top, its title in view: a step fade jumps here from a document a focused nav
+    // link may have scrolled, where the sheet's move, fixed and a screen tall, left nothing to scroll. Not with another
+    // page up (no section): the document is that page's.
+    if (view.state === 'rest' && page !== null) pageToTop();
     written.state = view.state;
   }
   writeInert(page, view.state !== 'rest', written);

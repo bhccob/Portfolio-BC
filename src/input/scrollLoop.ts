@@ -864,6 +864,14 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
       glideOnRise = onRise(reach, chapters);
       // Its direction as it ended: a lift's glide goes the way the finger last went.
       const direction = glide !== 0 ? Math.sign(glide) : g.direction;
+      // Lifted part-way up the sheet, a finger hands over to the finish at once, the way it last went: no glide crawls
+      // it on, and the finish carries on at the speed the story has ("Follow, then finish").
+      if (g.by === 'finger' && frame.target > sheet && frame.target < end) {
+        scroll.stopGlide();
+        loop.input(direction);
+        loop.wake();
+        return;
+      }
       if (!glideOnRise && restsAtTop(g.from, reach, chapters, direction || undefined)) {
         scroll.stopGlide();
         if (o.threeD()) {

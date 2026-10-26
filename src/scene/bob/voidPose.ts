@@ -205,10 +205,17 @@ export function easeHover(hover: HoverEase, target: number | null, dt: number, r
 }
 
 /** Writes where the journey stands into `frame.journey` (its stretch, local and project), leaving its `voidState`. */
-export function writeJourney(into: { stretch: JourneyAt['stretch']; local: number; project: number | null }, at: JourneyAt): void {
+export function writeJourney(
+  into: { stretch: JourneyAt['stretch']; local: number; project: number | null; frame: number | null; angle: number | null; sheet: number },
+  pose: Pick<JourneyPose, 'at' | 'sheet'>
+): void {
+  const { at } = pose;
   into.stretch = at.stretch;
   into.local = at.local;
   into.project = at.project;
+  into.frame = at.frame;
+  into.angle = at.angle;
+  into.sheet = pose.sheet;
 }
 
 /**

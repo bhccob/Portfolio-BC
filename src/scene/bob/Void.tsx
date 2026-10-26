@@ -8,6 +8,7 @@ import jontaiScreen from '~/assets/beads/jontai-energy.webp';
 import type { ProjectId } from '~/data/projects';
 import { type BeadsModel, loadBeads } from '~/engine/bob/build/beads';
 import type { CompassModel } from '~/engine/bob/build/compass';
+import { debugBridge } from '~/debug/needleDebug';
 import type { LightModel } from '~/engine/bob/build/light';
 import { buildVoid, VOID_LOOK, type VoidModel } from '~/engine/bob/build/void';
 import { lowerTier, type QualityTier } from '~/engine/quality';
@@ -237,6 +238,38 @@ const viewProjection = new THREE.Matrix4();
 const sphere = new THREE.Sphere();
 const centre = new THREE.Vector3();
 const lightAt = new THREE.Vector3();
+/** The ring on the screen for the debug bridge (`frame.journey.ring`), filled in place. */
+const ringView = { front: [0, 0] as [number, number], back: [0, 0] as [number, number], beads: BEADS.map((): [number, number, number] => [0, 0, 0]) };
+const tip = new THREE.Vector3();
+
+/**
+ * Writes `ringView` for the proof harness: the needle's tips (its mesh's +Y and -Y ends, from its bounding box, in the
+ * world) and each bead's centre and radius (its outline's, at its distance and the field), on a screen of `size`.
+ */
+function writeRingView(needle: THREE.Mesh, beads: BeadsModel, camera: THREE.Camera, size: { width: number; height: number }): void {
+  const toPx = (v: THREE.Vector3, into: number[]): void => {
+    v.project(camera);
+    into[0] = ((v.x + 1) / 2) * size.width;
+    into[1] = ((1 - v.y) / 2) * size.height;
+  };
+  needle.geometry.boundingBox ?? needle.geometry.computeBoundingBox();
+  const box = needle.geometry.boundingBox!;
+  needle.updateWorldMatrix(true, false);
+  toPx(tip.set(0, box.max.y, 0).applyMatrix4(needle.matrixWorld), ringView.front);
+  toPx(tip.set(0, box.min.y, 0).applyMatrix4(needle.matrixWorld), ringView.back);
+  const fov = (camera as THREE.PerspectiveCamera).fov;
+  for (let i = 0; i < BEADS.length; i++) {
+    const { id, radius } = BEADS[i]!;
+    beads.beads[id].root.getWorldPosition(tip);
+    const distance = tip.distanceTo(camera.position);
+    const at = ringView.beads[i]!;
+    toPx(tip, at);
+    at[2] = (radius / (distance * Math.tan((fov * DEG) / 2))) * (size.height / 2);
+  }
+}
+
+/** The light's centre on the screen, NDC: `frame.journey.light` while there is a light. */
+const lightPoint = { x: 0, y: 0 };
 /** Each bead's place on the frame, by id, handed to `BeadsModel.place`: filled in place, never made per frame. */
 const places = Object.fromEntries(BEADS.map(({ id }) => [id, [0, 0, 0]])) as Record<ProjectId, [number, number, number]>;
 
@@ -352,6 +385,8 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
   const scene = useThree((state) => state.scene);
   const camera = useThree((state) => state.camera);
   const invalidate = useThree((state) => state.invalidate);
+  // Behind `?proof` the ring on the screen is reported to the debug bridge. Asked once, at mount.
+  const [proof] = useState(() => debugBridge() !== null);
   const [run] = useState<VoidRun>(() => ({
     state: 'idle',
     space: null,
@@ -499,6 +534,7 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
       motion.beads = false;
       showBeadLabel(null, NO_SIZE);
       showLightFacts(null, NO_SIZE);
+      frame.journey.light = null;
       writeRing(document.documentElement, false, run.ring);
       compass.setNeedleWorld(null);
       if (space) {
@@ -578,6 +614,7 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
       // The Opening poses the scene itself (the loader, a held seek): the needle is the armillary's, the void is not there.
       compass.setNeedleWorld(null);
       light.setPose(DARK, camera);
+      frame.journey.light = null;
       showLightFacts(null, size);
       writeRing(document.documentElement, false, run.ring);
       if (space) showSpace(space, false);
@@ -596,10 +633,18 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
     if (glow !== null) compass.setNeedleGlow(glow);
     camera.updateMatrixWorld();
     light.setPose(pose.light ?? DARK, camera);
+    // The light's centre on the screen (for the debug bridge too), and the fact riding with it.
+    if (pose.light !== null) {
+      lightAt.set(...pose.light.position).project(camera);
+      lightPoint.x = lightAt.x;
+      lightPoint.y = lightAt.y;
+      frame.journey.light = lightPoint;
+    } else {
+      frame.journey.light = null;
+    }
     const fact = pose.fact;
     if (pose.light !== null && fact !== null && fact.index !== null && fact.side !== null) {
-      lightAt.set(...pose.light.position).project(camera);
-      showLightFacts({ index: fact.index, side: fact.side, opacity: fact.opacity, glow: pose.light.glow, light: { x: lightAt.x, y: lightAt.y } }, size);
+      showLightFacts({ index: fact.index, side: fact.side, opacity: fact.opacity, glow: pose.light.glow, light: lightPoint }, size);
     } else {
       showLightFacts(null, size);
     }
@@ -662,6 +707,14 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
         beads.setFacing(bead.id, camera.position);
         beads.setLit(bead.id, bead.lit);
       }
+    }
+
+    // The ring on the screen, for the proof harness: the needle's tips and the beads, where both stand in the ring.
+    if (proof) {
+      const needle = compass.group.getObjectByName('needle');
+      const inRingNow = pose.needle !== null && pose.beads !== null && needle instanceof THREE.Mesh;
+      if (inRingNow) writeRingView(needle, beads, camera, size);
+      frame.journey.ring = inRingNow ? ringView : null;
     }
 
     // The hover, on a pointer device: the bead under the pointer, eased one at a time, turned toward the camera.

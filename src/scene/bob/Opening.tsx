@@ -628,7 +628,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       const pose = close === null ? journey : { ...journey, shot: shotToward(journey.shot, focusShotFor(close, aspect), focus.amount) };
       frame.shot = pose.shot;
       handover.pose = pose;
-      writeJourney(frame.journey, pose.at);
+      writeJourney(frame.journey, pose);
     }
     // The close view's state for Home and the Void (no label, no pointer while it is in play), the host faded down for a
     // fade's dark half and over a close view whose void is not in yet (the page stands over the dark poster until the

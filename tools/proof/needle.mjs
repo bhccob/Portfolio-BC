@@ -25,8 +25,9 @@
  * the five engraved marks is cut; the loader cuts the circle alone, so the four B marks stay 0 and only the circle, the
  * last, runs to 1), the compass's `needleAngle` (radians, 0 up the screen, clockwise positive) and the home's `scroll`
  * (`u`, the rise from the home to BOB seen from above, 0 to 1, and `letters`, `iris` and `needleDip`, each 0 to 1) and
- * the home's `journey` (`stretch`: `rise`, `dive`, `overview` or `project`; `local`; the bead of a project stretch,
- * `project`; and the void's load, `voidState`: `idle`, `loading`, `ready` or `failed`);
+ * the home's `journey` (`stretch`: `rise`, `light`, `ring`, `sheet` or `end`; `local`; the bead in front of the ring,
+ * `project`; the void's load, `voidState`: `idle`, `loading`, `ready` or `failed`; the way `frame`, the ring's `angle`,
+ * the `sheet`, the `light`'s place (NDC) and the `ring` on the screen: the needle's tips and the beads, px);
  * `.set({ progress })` puts the story somewhere, `.dispatch(event)` sends a scene event, `.seekLoader(seconds)` holds
  * the opening's clock at a moment (-1 lets go), and `.scrollRequest` is the scroll loop's requestAnimationFrame, which
  * `watchFrames` wraps. Without `?proof` there is no bridge and nothing of the site reads or writes a hook (step bridge).
@@ -41,7 +42,8 @@
  *              a load, the opening's landing and a wheel gesture's frames (every hook name is trapped on the window);
  *              with ?proof the old hooks are gone, the state has exactly its fields and sensible values (landed: the
  *              circle cut whole and no B mark cut, a needle angle, the scroll at 0, the journey on the rise), `.set` puts the story in a chapter
- *              (2.5 is half way through VOID_ENTRY, and the journey says the overview, half way) and stops at the end (6, the end
+ *              (4.5 is half way through the ring's first unit, and the journey says the ring, 60 degrees round, no bead in
+ *              front; at fact 02's peak it reports way frame 121 and the light's place) and stops at the end (7, the end
  *              page's stop, where the scroll ends: chapter END, the phase END, the journey's `end` stretch), `.dispatch` sends an
  *              event (a project opens from the last bead's stop), a wheel's frames go through `.scrollRequest`, and the language
  *              switch shows in the state
@@ -49,7 +51,7 @@
  *              history entry), then history.back() to / and history.forward(): the Stage mounted once and
  *              the same <canvas> node throughout, with no document load after the first; the scene's phase
  *              is PROJECT_FOCUS funcial on the project page, the language switch keeps that very phase (no new
- *              transition), going back to / puts it at Funcial's stop (Task 12) and going forward restores it
+ *              transition), going back to / puts it at Funcial's ring stop, 4, and going forward restores it
  *   lang-keeps-phase  on /projects/funcial/ the phase is PROJECT_FOCUS funcial; after a client-side switch to
  *              /en/projects/funcial/ (and back) it is still PROJECT_FOCUS funcial, the very same state, with locale and
  *              route right, canvasMounts 1 and the same <canvas>; the same on /projects/cookies-clicker/
@@ -78,7 +80,7 @@
  *              /contact/, Escape still goes home (in the current language). Clicking the link does what Escape
  *              does, in both cases, but a ctrl-, meta- or shift-click is left to the browser (its default is
  *              not prevented). The scene's phase follows: the page's on the page, and on the home page the stop
- *              of the page's bead after Escape or Back (Funcial's, PROJECTS secure-element at 3; Task 12), but the
+ *              of the page's bead after Escape or Back (Funcial's, PROJECTS secure-element at 4), but the
  *              home itself (HOME_IDLE at 0) after the header's name, a link, a deliberate "to the top". The "Esc" hint is aria-hidden
  *              and hidden on a touch screen
  *   nav-focus  a link (a push) opens the new page at its top with the focus moved to <main>: on /lite/ scrolled down to
@@ -129,58 +131,59 @@
  *              through `.set` (`m2/bob-rising-<size>.png`, also gated as a home still); moved back from where the ten notches
  *              summed to, `u` and `letters` are exactly 0 and, at 1440, the needle aims at the pointer again within 1.5 s,
  *              eight real wheel notches (1.067, past the rise's top by more than the slop, less than a whole unit) rest on
- *              the top, BOB from above, 1, with the camera on the top shot, one more notch goes on to the overview, 2, and
+ *              the top, BOB from above, 1, with the camera on the top shot, one more notch goes on into the light dive by
+ *              its distance and rests there, and
  *              seven real arrow presses stop on the rise's top, 1, with the camera on the top shot. The hero's SCROLL
  *              cue leaves with the rise (no text during the scroll):
  *              shown at the home, gone (computed opacity 0, `<html data-rising>` set, still in the page) at `u` 1
  *              and mid-rise, and back at the home, with a 0.4 s opacity transition and none under reduced motion.
  *              With reduced motion (1440) one wheel event sets
  *              `<html data-step-fade>` with the pose still at the home, then lands on `u` 1 with the attribute gone
- *   void-journey  the void's journey, at 1440x900 and 390x844 (touch): the story put through every stop down and back
- *              (1, the dive mid-way, 2, 3, 4, 5, 6 the end page, then 5 to 0), each waited for at rest, with the journey's `stretch`,
- *              `project` and `local` those of the stop, the void `ready`, the camera on the journey's shot and a bead's
- *              label whole inside the screen; the camera of the first frame that poses the journey is on that frame's
- *              shot (the same-frame check, Task 10); stills `m2/void-<stretch>[-<id>]-<size>.png` (the dive mid-way, the
- *              overview, each bead; at 1440 each bead again with the pointer on it) gated as home stills; then a fling by
- *              hand through every stop and back (a long wheel, a run of flicks): it rests at the end, 6, past the dive's hold,
- *              and back at the home, which is M2a's exactly (the rise 0, HOME_IDLE, the SCROLL cue back, the journey on
- *              the rise, at 1440 the needle aiming at the pointer)
+ *   light-dive  at 1440x900 and 390x844 (touch): the light where the mock-up's data puts it (tests/fixtures/light-dive)
+ *              within 6 px at way frames 20, 60, 121, 241 and 280; the camera turning on round the ring across frame 300
+ *              at the ring's own rate (no stop at Funcial); from BOB from above, notches (swipes) run the way frames up to
+ *              the ring and never back, and from the fall notches up run them back; stopped mid-fall the story rests where
+ *              the input stopped, not on a stop, and the canvas sleeps within a second
+ *   light-facts  at 1440x900, 1366x657 and 390x844 (touch), in Dutch and English: at each fact's peak one label, its
+ *              number and the dictionary's words in capitals ("/" a line break), never two at once through the fall;
+ *              its words 13 px or more on a laptop, 11 on the phone; on a laptop level with the light on the side away
+ *              from its move; on the phone below it, the line stepped aside away from the move, the picture under the line
+ *              dark (mean luma 0.05 or less)
+ *   ring       at 1440x900, 1366x657 and 390x844 (touch), from the bridge's `journey.ring` (the needle's tips and the
+ *              beads as drawn): the needle points at the front bead at 0, 120 and 240 degrees; every 10 degrees its tips
+ *              stay 8 px or more clear of every bead's outline; the label shows whole at 15 degrees standing still, none at
+ *              30; half a screen of slow wheel (a slow finger) from Funcial turns the ring on with it and rests where it
+ *              stopped, 60 degrees, still 60 two seconds later, with no label
+ *   ring-drag  at 1440x900 and 1366x657 with a mouse, 390x844 with a finger: a 300 px sideways drag turns the ring 75
+ *              degrees and nothing settles it; dragged far on it stops at Cookies Clicker, 240
+ *   sheet      at 1440x900 (the wheel) and 390x844 (a finger): one input past Cookies Clicker and the sheet finishes up
+ *              by itself within 1.5 s, never below half its starting speed before 0.9; at rest the page scrolls natively;
+ *              at its top an input up takes it down onto Cookies Clicker; one input back from half way finishes it down
+ *   resize     at fact 02's peak at 1440x900, turned to 390x844: the way frame stays, and the label rides below the light
  *   bead-open  opening a bead, at 1440x900 and 390x844 (touch): at each project stop the label shows whole inside the
  *              screen with the Dutch dictionary's text (the category line, the title, the hint for the pointer), Tab
  *              reaches it with a focus ring and Enter flies into the porthole (the page still `/` 120 ms on, then the
  *              router goes to `/projects/<slug>/` after the flight (FLIGHT_MS, 1.4 s)) and Esc returns to that stop; a click or a tap
- *              on a label and on a bead open too; all by client navigation; a direct load of `/projects/cookies-clicker/`
- *              then Esc lands at stop 5
- *   void-hold  `bob-beads.glb` held back: a long wheel (flicks on the phone) rests at TUNNEL_HOLD, 1.475 (Bob's frame d01,
- *              the camera over the opening, above the glass) with `voidState` `loading`, a still of it gated as a home
- *              still; up from the hold moves at once (three notches exactly their distance) and settles on BOB from above;
- *              let through, the void is `ready` and the scroll goes on to the overview (2); a direct arrival's Esc while
- *              the file is held waits at the hold, then reaches its stop
- *   void-fail  `bob-beads.glb` answering 404: `voidState` `failed`; the scroll holds at 1.0 (RISE_TOP, BOB from above),
- *              `.home-nav` shows (fixed over the foot of the screen, its links on screen and reachable), a still of it gated
- *              as a home still, a link opens its page and Esc comes back to 1.0, not to the bead's stop; back at the home
+ *              on a label (Back returns to Jontai Energy's stop, 5, it in front, its label shown) and on a bead (where the
+ *              ring puts it) open too; all by client navigation; a direct load of `/projects/cookies-clicker/` then Esc
+ *              lands at stop 6
+ *   void-hold  `bob-beads.glb` held back: a long wheel (flicks on the phone) plays the light dive and rests at
+ *              LANDING_HOLD, way frame 258, with `voidState` `loading`, the light still, a still of it gated as a home
+ *              still; up from the hold moves at once (three notches exactly their distance) and rests where it stopped;
+ *              let through, the void is `ready` and the story goes on into the ring; a direct arrival's Esc while the file
+ *              is held waits at the hold, then reaches its stop
+ *   void-fail  `bob-beads.glb` answering 404: `voidState` `failed`; the light dive plays and the scroll holds at
+ *              LANDING_HOLD, where (`<html data-held>`) `.home-nav` shows (fixed over the foot of the screen, its links
+ *              on screen and reachable, its link to the questions with them) and no skip button does; a still of it gated as
+ *              a home still; a link opens its page and Esc comes back to the hold, not to the bead's stop; back at the home
  *              the nav is hidden again; exactly one console error (the browser's report of the 404, per size) and the
  *              Void's own line a warning
- *   (Every still of the three void steps is gated with the page's text masked, so the luma floor is the scene's, and each
- *   bead stop and the failure have a negative control: a still with the canvas hidden, whose masked floor must fail.)
- *   void-stops  the void's stops by real input alone, never `.set`, at 1440x900, 1366x657 (an odd height) and 390x844
- *              (touch): wheel notches or deliberate swipes, one at a time, each to rest: on the rise where it ends, the one
- *              that comes up out of it on BOB from above, past it on a stop exactly, the next one each time, to the end
- *              page's, 6, where one more stays (the walk ends ... 5 6 6: there it is the page's own scroll); at each bead's
- *              stop its label shows whole and takes Tab; on a laptop real arrows too (0.15 a press on the rise to its top,
- *              then a stop a press, to 6 and 6 again), arrows up from the end page back to the last bead's stop, and arrows
- *              up from its focused label hand the focus bead to bead and, at the overview, to <main>; at 1440x900 a push
- *              against an end that turns back in one gesture (60 down and 30 up from the home, 10 down against the end
- *              and 8 up from the last bead's stop, 10 up and 10 down at the home) rests on 2, 4 and 1; at both laptop
- *              sizes small notches one at a time (a line-mode notch, 10 px) each step one stop
- *   void-paths  at 1440x900: the 3D switch off and on at Jontai Energy's stop keeps the story's place (not pulled to the
- *              dive's hold) and comes back on that stop with its label, and a wheel notch from Funcial's stop with the
- *              switch off 40 ms later is finished on 4 and comes back there; under reduced motion Funcial opened by Tab and
- *              Enter and closed by Esc, each by a fade; at /en/ the three labels in English, Funcial opened and back
- *   end-page   the end page, the seventh stop, by real input at 1440x900, 1366x657 and 390x844 (touch), from Cookies
- *              Clicker's stop: one wheel notch and ArrowDown on a laptop, one swipe on the phone; <html data-end="rest">
- *              within 3 s of the input (of the swipe's lift: its own length is the visitor's) and the page's top moving at
- *              most 0.5 px between the last frame of the move and the first at rest (Ruling 18); at rest
+ *   (Every still of the two void steps is gated with the page's text masked, so the luma floor is the scene's, and the
+ *   failure has a negative control: a still with the canvas hidden, whose masked floor must fail.)
+ *   end-page   the end page, the last stop (7), by real input at 1440x900, 1366x657 and 390x844 (touch), from Cookies
+ *              Clicker's stop (6): one wheel notch and ArrowDown on a laptop, one swipe on the phone; <html data-end="rest">
+ *              within 3 s of the input (of the swipe's lift: its own length is the visitor's) and the page's words moving
+ *              at most 0.5 px between the last frame of the sheet's move and the first at rest (Ruling 18); at rest
  *              #end-title in the viewport, .end-page not inert, no frame asked for in 600 ms, a still `m2/end-<size>.png`
  *              gated as a home still (the page's text masked as the void's stills mask it); the page's own scroll (three
  *              notches or swipes down scroll it with the story at 6, End to its bottom, back up to scrollY 0 with the story
@@ -191,19 +194,23 @@
  *              1440 a resize to 1000x700 and back keeps the page; a reload at the end lands on the home (story 0, scrollY 0,
  *              no data-end); the header's name at the end goes to the home (the same). At 1440 once: /en/ in English; the
  *              pointer moved at the home (the needle turned) then End: at rest no frame asked for in 600 ms (Ruling 19); 3D
- *              off, #end in the flow after .home-nav, reached by native scroll; the void failed, its .end-link button to
- *              the end by a fade (data-step-fade seen, no progress between, the focus on the title) and ArrowUp at the top
- *              back to 1 by a fade; reduced motion, 5 to 6 to 5 by fades
+ *              off, #end in the flow after .home-nav, reached by native scroll; the nav's .end-link with the void ready by
+ *              End's fade, the title in view at scrollY 0; the void failed, its .end-link button to the end by a fade
+ *              (data-step-fade seen, no progress between, the focus on the title) and ArrowUp at the top back to the
+ *              landing hold by a fade; reduced motion, Cookies Clicker to the end and back by fades
  *   keyboard   Tab from the top of the home page reaches the skip link, then the language switch and the 3D toggle in
  *              that order, each with a focus ring (outline 2 px or more) and on screen, and Shift+Tab goes back; the
  *              language switch shows "EN" and its name begins with it (WCAG 2.5.3, label in name); End
- *              jumps to the last chapter (the end of the story, 6, the end page's stop, END) and Home returns to the
- *              start, both with the focus on the toggle
+ *              jumps to the last chapter (the end of the story, 7, the end page's stop, END) and Home returns to the
+ *              start, both by the step fade with the focus on the toggle; from BOB from above the arrows step every key
+ *              stop (the facts, the projects, the end page); at Jontai Energy's stop Tab from the toggle reaches its label,
+ *              then the skip button, and Enter on it fades to the end page with the focus on its title
  *   reduced-motion  with prefers-reduced-motion: reduce (page.emulateMedia, before the load) one wheel event moves
- *              `target` to exactly the next stop, through every stop of the story (0 home, 1 BOB from above, 2 the
- *              overview, 3 Funcial, 4 Jontai Energy, 5 Cookies Clicker, 6 the end page, the end) and back, and the story
- *              arrives at each, in the right chapter; one more at the end is no step (no fade at all): it is the end
- *              page's own scroll, and one up takes the page back to its top before the walk back up
+ *              `target` to exactly the next key stop, through every one (0 home, 1 BOB from above, the five facts at
+ *              their peaks, 4 Funcial, 5 Jontai Energy, 6 Cookies Clicker, 7 the end page, the end) and back, and the
+ *              story arrives at each, in the right chapter, by the step fade, with no pose between the two stops; one more
+ *              at the end is no step (no fade at all): it is the end page's own scroll, and one up takes the page back to
+ *              its top before the walk back up
  *   loaded     a direct load of / goes from LOADING to HOME_IDLE once the opening has landed, within the load
  *              timeout and with no navigation on the way; the canvas is shown then, and the wheel moves
  *              `frame.progress` straight away. The canvas renders on demand: after the home's idle motion it
@@ -238,7 +245,8 @@
  *              `en-home-390x844.png`, `fallback-390x844.png`); on a project page the poster's scrim is
  *              over the scene once it shows, and before then only the poster's own (the Stage chunk is held while
  *              that is measured, so it cannot race); on Lite and contact no scene loads and the poster carries the
- *              page scrim
+ *              page scrim; and the light dive (way frames 60, 121, 241, 280) and the ring (0, 80 and 160 degrees) at both
+ *              sizes, gated by LUMA_GATE as home stills with the page's text masked
  *   loader-stills  at 1440x900 and 390x844, in a fresh context, once the real load has landed (HOME_IDLE): the
  *              opening's clock held (`seekLoader`) at five moments of the BOB loader, which cuts the circle alone and
  *              runs 6.25 s: 0.5 s (dark: the probe coming down), 50/24 s (engrave: half the circle), 3.6 s (open: the
@@ -293,7 +301,8 @@
  *
  * The harness reads src/data/pages.ts, src/app/handle.ts (which pages have a scene) and src/state/chapters.ts (through
  * tsx) and the build in dist/client to know which pages, scenes and stops to expect. The void's steps also read the
- * journey (src/scene/bob/journey.ts: the beads, TUNNEL_HOLD, the pure poses), the dive's hold (src/scene/bob/diveHold.ts),
+ * journey (src/scene/bob/journey.ts: the beads, the pure poses), the landing's hold (src/scene/bob/landingHold.ts), the
+ * light dive's fixtures (tests/fixtures/light-dive),
  * the categories (src/data/categories.ts) and the Dutch dictionary (src/i18n/Translator.ts); the project titles are read
  * from the text of src/data/projects.ts, which cannot be imported here (it globs the screenshots with Vite).
  *
@@ -333,8 +342,9 @@ const { Translator, locales } = await tsImport('../../src/i18n/Translator.ts', i
 const { HANDLES, PAGE_KINDS } = await tsImport('../../src/app/handle.ts', import.meta.url);
 const { MIN_FILL_MS, SEND_TIMEOUT_MS } = await tsImport('../../src/ui/contactSubmit.ts', import.meta.url);
 const { LOAD_TIMEOUT_MS, RESTORE_TIMEOUT_MS } = await tsImport('../../src/scene/timeouts.ts', import.meta.url);
-const { HOME_CHAPTERS, chapterAt, scrollEnd, stops } = await tsImport('../../src/state/chapters.ts', import.meta.url);
+const { HOME_CHAPTERS, chapterAt, keyStops, placeOfFrame, projectStop, scrollEnd, stops } = await tsImport('../../src/state/chapters.ts', import.meta.url);
 const { SETTLE_SLOP_PX } = await tsImport('../../src/input/target.ts', import.meta.url);
+const { SHEET_FINISH_MS } = await tsImport('../../src/input/scrollLoop.ts', import.meta.url);
 const { GESTURE_GAP_MS } = await tsImport('../../src/input/gesture.ts', import.meta.url);
 const { LOADER, LOADER_SEEN_KEY, QUICK, SCRIPT } = await tsImport('../../src/engine/bob/loaderTimeline.ts', import.meta.url);
 const { IDLE_SECONDS, BREATHE } = await tsImport('../../src/scene/bob/look.ts', import.meta.url);
@@ -342,8 +352,8 @@ const { nextDriftRest } = await tsImport('../../src/engine/bob/needleAim.ts', im
 const { scrollPoseAt } = await tsImport('../../src/scene/bob/scrollPose.ts', import.meta.url);
 const { FLIGHT_MS } = await tsImport('../../src/scene/bob/focus.ts', import.meta.url);
 const { topShotFor } = await tsImport('../../src/engine/bob/shots.ts', import.meta.url);
-const { BEADS, TUNNEL_HOLD, journeyPoseAt } = await tsImport('../../src/scene/bob/journey.ts', import.meta.url);
-const { RISE_TOP, diveHoldFor } = await tsImport('../../src/scene/bob/diveHold.ts', import.meta.url);
+const { BEADS, journeyAt, journeyPoseAt } = await tsImport('../../src/scene/bob/journey.ts', import.meta.url);
+const { RISE_TOP, LANDING_HOLD, landingHoldFor } = await tsImport('../../src/scene/bob/landingHold.ts', import.meta.url);
 const { categories } = await tsImport('../../src/data/categories.ts', import.meta.url);
 /**
  * How long the canvas may keep drawing after the last thing that stirred it, ms: the home's idle motion
@@ -581,8 +591,8 @@ const waitForProject = async (page, id) => {
 /**
  * The void under the glass once it is in `state` (`journey.voidState`: `idle`, `loading`, `ready`, `failed`; the Void,
  * src/scene/bob/Void.tsx, says it), as the state the page then reports. The void loads once the home has landed (about a
- * quarter of a second on this machine) and until it is `ready` the scroll's target is held at TUNNEL_HOLD, so a step that
- * scrolls past the dive waits for it first. It waits up to `timeout` ms and swallows the timeout: the caller checks what it
+ * quarter of a second on this machine) and until it is `ready` the scroll's target is held at LANDING_HOLD, so a step that
+ * scrolls past the landing waits for it first. It waits up to `timeout` ms and swallows the timeout: the caller checks what it
  * returns (`expectVoid` does).
  */
 const waitForVoid = async (page, state = 'ready', timeout = 15_000) => {
@@ -669,8 +679,8 @@ async function persist(browser, step) {
   // Back from a project page lands at its bead's stop (spec §2.4), here Funcial's, 3, once the void is in.
   const afterBack = await waitForStop(page, 'secure-element');
   step.check(
-    afterBack.kind === 'PROJECTS' && afterBack.category === 'secure-element' && afterBack.progress === 3,
-    `going back to / puts the scene at Funcial's stop, PROJECTS secure-element at 3 (got ${JSON.stringify(afterBack)})`,
+    afterBack.kind === 'PROJECTS' && afterBack.category === 'secure-element' && afterBack.progress === BEAD_LIST[0].stop,
+    `going back to / puts the scene at Funcial's stop, PROJECTS secure-element at ${BEAD_LIST[0].stop} (got ${JSON.stringify(afterBack)})`,
   );
   await page.evaluate(() => history.forward());
   await page.waitForURL(`${BASE}/en/projects/funcial/`);
@@ -792,8 +802,8 @@ async function esc(browser, step) {
   step.check(documents.length === 0, `by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
   const afterDirect = await waitForStop(page, 'secure-element');
   step.check(
-    afterDirect.kind === 'PROJECTS' && afterDirect.category === 'secure-element' && afterDirect.progress === 3,
-    `leaving the page for the home page puts the scene at the bead's stop, Funcial's 3 (got ${JSON.stringify(afterDirect)})`,
+    afterDirect.kind === 'PROJECTS' && afterDirect.category === 'secure-element' && afterDirect.progress === BEAD_LIST[0].stop,
+    `leaving the page for the home page puts the scene at the bead's stop, Funcial's ${BEAD_LIST[0].stop} (got ${JSON.stringify(afterDirect)})`,
   );
   await takeCsp(page, step);
 
@@ -802,7 +812,7 @@ async function esc(browser, step) {
   await page.goto(`${BASE}/projects/funcial/?proof`, { waitUntil: 'load' });
   await stageReady(page);
   await waitForProject(page, 'funcial');
-  await page.evaluate(() => window.__needleDebug.set({ progress: 3 }));
+  await page.evaluate((progress) => window.__needleDebug.set({ progress }), BEAD_LIST[0].stop);
   documents.length = 0;
   await page.click('.site-name');
   await page.waitForURL(`${BASE}/`, { timeout: 5_000 });
@@ -828,8 +838,8 @@ async function esc(browser, step) {
   step.check(documents.length === 0, `by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
   const steppedBack = await waitForStop(page, 'secure-element');
   step.check(
-    steppedBack.kind === 'PROJECTS' && steppedBack.category === 'secure-element' && steppedBack.progress === 3,
-    `Escape back to the home page from a page reached from it puts the scene at the bead's stop, Funcial's 3 (got ${JSON.stringify(steppedBack)})`,
+    steppedBack.kind === 'PROJECTS' && steppedBack.category === 'secure-element' && steppedBack.progress === BEAD_LIST[0].stop,
+    `Escape back to the home page from a page reached from it puts the scene at the bead's stop, Funcial's ${BEAD_LIST[0].stop} (got ${JSON.stringify(steppedBack)})`,
   );
   await page.evaluate(() => history.forward());
   const forwarded = await page.waitForURL(`${BASE}/projects/funcial/`, { timeout: 5_000 }).then(() => true, () => false);
@@ -1687,9 +1697,9 @@ async function scrollDesktop(browser, step) {
   await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
   await stageReady(page);
   await reachHomeIdle(page);
-  // The void loads once the home has landed, and until it is ready the dive holds the scroll at TUNNEL_HOLD: the keys and
-  // the End below go past it, so the step starts with the void in.
-  await expectVoid(page, step, 'ready', 'the void under the glass is ready, so nothing holds the dive');
+  // The beads load once the home has landed, and until they are ready the landing holds the scroll at LANDING_HOLD: the
+  // keys and the End below go past it, so the step starts with them in.
+  await expectVoid(page, step, 'ready', 'the beads under the glass are ready, so nothing holds the landing');
   await watchFrames(page);
   const vh = await page.evaluate(() => window.innerHeight);
 
@@ -1718,9 +1728,9 @@ async function scrollDesktop(browser, step) {
   // up out of the rise and carried less than a whole unit past its top (1.33) settles back on the top, BOB from above.
   const rested = await restAt(page);
   step.check(rested.target === 1 && rested.progress === 1, `once the wheel is quiet the gesture, come up out of the rise to 1.33, settles on the rise's top, BOB from above, 1 (got target ${rested.target}, progress ${rested.progress})`);
-  step.check(rested.chapterIndex === 1, `frame.chapterIndex is in step with the chapter: DIVE is 1 (got ${rested.chapterIndex})`);
+  step.check(rested.chapterIndex === 1, `frame.chapterIndex is in step with the chapter: LIGHT is 1 (got ${rested.chapterIndex})`);
   const left = await phaseOf(page);
-  step.check(left.kind === 'DIVE', `the phase leaves HOME_IDLE for DIVE (got ${JSON.stringify(left)})`);
+  step.check(left.kind === 'LIGHT', `the phase leaves HOME_IDLE for LIGHT (got ${JSON.stringify(left)})`);
   step.check((await page.evaluate(() => window.scrollY)) === 0, 'the page itself did not scroll');
   await page.waitForTimeout(150);
   const ran = await takeFrames(page);
@@ -1742,12 +1752,13 @@ async function scrollDesktop(browser, step) {
   step.check(near((await frameOf(page)).target, 0.15), 'on the rise an arrow moves 0.15 of a viewport');
   await page.keyboard.press('PageDown');
   step.check((await frameOf(page)).target === 1, 'and Page Down 0.9, held at the top of the rise: BOB from above, 1');
+  const [F81, F121] = [placeOfFrame(81), placeOfFrame(121)];
   await page.keyboard.press('ArrowDown');
-  step.check((await frameOf(page)).target === 2, 'from the top an arrow steps to the next stop, the overview, 2');
+  step.check((await frameOf(page)).target === F81, `from the top an arrow steps to the next key stop, fact 01 at its peak, ${F81.toFixed(4)}`);
   await page.keyboard.press('Space');
-  step.check((await frameOf(page)).target === 3, "Space steps to the next stop too, Funcial's, 3");
+  step.check((await frameOf(page)).target === F121, `Space steps to the next key stop too, fact 02, ${F121.toFixed(4)}`);
   await page.keyboard.press('Shift+Space');
-  step.check((await frameOf(page)).target === 2, 'Shift+Space steps back, 2');
+  step.check((await frameOf(page)).target === F81, 'Shift+Space steps back, to fact 01');
   await page.keyboard.press('PageUp');
   step.check((await frameOf(page)).target === 1, 'Page Up steps back to the top of the rise, 1');
   await page.keyboard.press('PageUp');
@@ -1771,7 +1782,7 @@ async function scrollDesktop(browser, step) {
   // the scroll goes on from there.
   for (const key of ['PageDown', 'PageDown', 'ArrowDown']) await page.keyboard.press(key);
   const mid = await restAt(page);
-  step.check(mid.progress === 2 && mid.chapterIndex === 2, `the story rests on the overview, VOID_ENTRY's stop, 2 (got ${JSON.stringify(mid)})`);
+  step.check(mid.progress === placeOfFrame(81) && mid.chapterIndex === 1, `the story rests on fact 01's peak, in LIGHT, ${placeOfFrame(81).toFixed(4)} (got ${JSON.stringify(mid)})`);
   await page.focus('.home-nav a[href="/projects/funcial/"]');
   await page.keyboard.press('Enter');
   await page.waitForURL((url) => url.pathname === '/projects/funcial/', { timeout: 5_000 });
@@ -1784,10 +1795,10 @@ async function scrollDesktop(browser, step) {
   await expectPhase(page, step, 'PROJECTS', "coming back to / puts the scene on the scroll's phase, PROJECTS (Back lands at the bead's stop), and not on HOME_IDLE");
   // Task 12: Back from a project page lands at its bead's stop (spec §2.4), not where the scroll was before the page.
   const back = await frameOf(page);
-  step.check(near(back.progress, 3) && back.chapterIndex === 3, `the story is at Funcial's stop, 3, where Back from its page lands (got ${JSON.stringify(back)})`);
+  step.check(near(back.progress, BEAD_LIST[0].stop) && back.chapterIndex === 2, `the story is at Funcial's ring stop, ${BEAD_LIST[0].stop}, where Back from its page lands (got ${JSON.stringify(back)})`);
   await page.keyboard.press('PageDown');
   const resumed = await restAt(page);
-  step.check(resumed.target === 4 && resumed.progress === 4, `and the scroll goes on from there, a step to Jontai Energy's stop, 4 (got ${resumed.target})`);
+  step.check(resumed.target === BEAD_LIST[1].stop && resumed.progress === BEAD_LIST[1].stop, `and the scroll goes on from there, a step to Jontai Energy's stop, ${BEAD_LIST[1].stop} (got ${resumed.target})`);
   await page.keyboard.press('Home');
   await restAt(page);
 
@@ -1848,14 +1859,14 @@ async function scrollDesktop(browser, step) {
   await context.close();
 }
 
-/** With reduced motion every wheel gesture, swipe and key press is one stop: the start of the next chapter. */
+/** With reduced motion every wheel gesture, swipe and key press is one key stop: BOB from above, a fact, a project, the end. */
 async function scrollReduced(browser, step) {
   const { context, page } = await openPage(browser, step, () => false, { width: 1440, height: 900 }, { reducedMotion: 'reduce' });
   await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
   await stageReady(page);
   step.check(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches), 'the page asks for reduced motion');
   await reachHomeIdle(page);
-  await expectVoid(page, step, 'ready', 'the void under the glass is ready, so nothing holds the dive');
+  await expectVoid(page, step, 'ready', 'the beads under the glass are ready, so nothing holds the landing');
   await page.mouse.move(720, 450);
 
   // A gesture: ten events 16 ms apart. Then 300 ms of quiet, then another.
@@ -1863,31 +1874,32 @@ async function scrollReduced(browser, step) {
     await page.mouse.wheel(0, 40);
     await page.waitForTimeout(16);
   }
-  step.check((await frameOf(page)).target === 1, `a whole wheel gesture is one stop: BOB from above, the start of DIVE (got ${(await frameOf(page)).target})`);
+  step.check((await frameOf(page)).target === 1, `a whole wheel gesture is one stop: BOB from above, the start of LIGHT (got ${(await frameOf(page)).target})`);
   await page.waitForTimeout(300);
   for (let i = 0; i < 10; i++) {
     await page.mouse.wheel(0, 40);
     await page.waitForTimeout(16);
   }
-  step.check((await frameOf(page)).target === 2, `the next gesture, after a quiet gap, is the next stop: the overview, VOID_ENTRY's start (got ${(await frameOf(page)).target})`);
+  step.check((await frameOf(page)).target === placeOfFrame(81), `the next gesture, after a quiet gap, is the next key stop: fact 01's peak (got ${(await frameOf(page)).target})`);
   const rested = await restAt(page);
-  step.check(rested.progress === 2 && rested.chapterIndex === 2, `the story arrives at the stop (got ${JSON.stringify(rested)})`);
-  await expectPhase(page, step, 'VOID_ENTRY', 'and the phase is VOID_ENTRY');
+  step.check(rested.progress === placeOfFrame(81) && rested.chapterIndex === 1, `the story arrives at the stop (got ${JSON.stringify(rested)})`);
+  await expectPhase(page, step, 'LIGHT', 'and the phase is LIGHT');
 
-  // Keys: one stop a press, and a held key is one press.
-  const stops = [];
+  // Keys: one key stop a press, and a held key is one press.
+  const visited = [];
   for (const key of ['PageDown', 'PageDown', 'PageDown']) {
     await page.keyboard.press(key);
-    stops.push((await frameOf(page)).target);
+    visited.push((await frameOf(page)).target);
   }
-  step.check(JSON.stringify(stops) === '[3,4,5]', `Page Down is a stop a press, the three beads' stops (got ${JSON.stringify(stops)})`);
+  const wantStops = [121, 161, 201].map(placeOfFrame);
+  step.check(JSON.stringify(visited) === JSON.stringify(wantStops), `Page Down is a key stop a press, facts 02, 03 and 04 (got ${JSON.stringify(visited)})`);
   await page.keyboard.press('ArrowUp');
-  step.check((await frameOf(page)).target === 4, 'an arrow up is the previous stop');
+  step.check((await frameOf(page)).target === wantStops[1], 'an arrow up is the previous key stop');
   await page.keyboard.down('PageDown');
   await page.keyboard.down('PageDown'); // auto-repeat: keydown with repeat = true
   await page.keyboard.down('PageDown');
   await page.keyboard.up('PageDown');
-  step.check((await frameOf(page)).target === 5, `a held key is one step (got ${(await frameOf(page)).target})`);
+  step.check((await frameOf(page)).target === wantStops[2], `a held key is one step (got ${(await frameOf(page)).target})`);
   await page.keyboard.press('Home');
   step.check((await frameOf(page)).target === 0, 'Home still goes to the start');
   await restAt(page);
@@ -1902,7 +1914,7 @@ async function scrollTouch(browser, step) {
   await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
   await stageReady(page);
   await reachHomeIdle(page);
-  await expectVoid(page, step, 'ready', 'the void under the glass is ready, so nothing holds the dive');
+  await expectVoid(page, step, 'ready', 'the beads under the glass are ready, so nothing holds the landing');
   await watchFrames(page);
   const cdp = await context.newCDPSession(page);
   const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
@@ -1948,21 +1960,21 @@ async function scrollTouch(browser, step) {
   await restAt(page);
   await drag(700, 300);
   const far = await restAt(page);
-  // The flicks and their glides carry the story out of the rise, and each lift past it settles the story on a stop (the
-  // glide's length is the finger's, so which one is the flicks' own): the phase it leaves HOME_IDLE for is that stop's
-  // chapter, which the chapters' own table (`chapterAt`) says, and the page's chapter index must agree with it.
+  // The flicks and their glides carry the story out of the rise into the light dive, where a lift glides on as a page's
+  // scroll would and rests where the glide ends (the glide's length is the finger's): the phase it leaves HOME_IDLE for is
+  // that place's chapter, which the chapters' own table (`chapterAt`) says, and the page's chapter index must agree with it.
   const farChapter = chapterAt(HOME_CHAPTERS, far.progress);
   await expectPhase(page, step, farChapter.id, `the phase leaves HOME_IDLE for that of the chapter the story rests in, ${farChapter.id} (${far.progress} is in chapter ${farChapter.index})`);
   step.check(
-    far.target > 1 && far.progress === far.target && stops(HOME_CHAPTERS).includes(far.target) && far.chapterIndex === farChapter.index && farChapter.id !== 'HOME',
-    `flicks take the story out of HOME_IDLE past the rise, to rest on a stop, the page's chapter index agreeing with the table's (got ${JSON.stringify(far)})`,
+    far.target > 1 && far.progress === far.target && far.chapterIndex === farChapter.index && farChapter.id !== 'HOME',
+    `flicks take the story out of HOME_IDLE past the rise, to rest where the glide ends, the page's chapter index agreeing with the table's (got ${JSON.stringify(far)})`,
   );
   step.check((await page.evaluate(() => window.scrollY)) === 0, 'the page itself did not scroll');
 
-  // A drag down goes back, to rest on a stop again or on the rise.
+  // A drag down goes back, to rest where its glide ends.
   await drag(200, 700);
   const returned = await restAt(page);
-  step.check(returned.target < far.target && (returned.target < 1 || stops(HOME_CHAPTERS).includes(returned.target)), `a drag down goes back (${far.target} then ${returned.target})`);
+  step.check(returned.target < far.target && returned.progress === returned.target, `a drag down goes back (${far.target} then ${returned.target})`);
 
   // A sideways swipe is not the scroll's, and a tap is nobody's but the page's.
   const before = await frameOf(page);
@@ -1990,7 +2002,7 @@ async function scroll(browser, step) {
   await scrollDesktop(browser, step);
   await scrollReduced(browser, step);
   await scrollTouch(browser, step);
-  return 'locked root; 10 wheel events of 120 px settle on BOB from above; the loop sleeps at rest; keys by distance on the rise and by stops past it, Home and End; text fields, pinch and 3D off left to the browser; reduced motion steps by stops; touch drag, glide on the rise, flicks resting on stops, tap';
+  return 'locked root; 10 wheel events of 120 px settle on BOB from above; the loop sleeps at rest; keys by distance on the rise and by key stops past it, Home and End; text fields, pinch and 3D off left to the browser; reduced motion steps by key stops; touch drag, glide on the rise and on into the light dive, tap';
 }
 
 // ---------------------------------------------------------------- the scene: loaded, no-webgl, fps
@@ -2657,6 +2669,10 @@ const landed = (page) =>
  * scrim over the whole canvas once the scene shows; the home page keeps the scene unveiled. Before the scene shows, only
  * the poster's own scrim is there: the Stage chunk is held (holdStage) while that is measured, so the scene cannot be
  * ready at the time, and then released.
+ *
+ * The light dive and the ring at both sizes, put there through the bridge: way frames 60, 121, 241 and 280
+ * (`m2/light-<frame>-<size>.png`) and the ring at 0, 80 and 160 degrees (`m2/ring-<degrees>-<size>.png`), each gated by
+ * LUMA_GATE as a home still, the page's text (the facts, the label, the skip button) masked from the floor.
  */
 async function stills(browser, step) {
   const sizes = STILL_SIZES;
@@ -2731,6 +2747,27 @@ async function stills(browser, step) {
     }
     await context.close();
   }
+  // The light dive and the ring, through the luma gate.
+  const gated = [];
+  for (const size of sizes) {
+    const at = sizeName(size);
+    const { context, page } = await readyHome(browser, step, size);
+    const places = [
+      ...[60, 121, 241, 280].map((frame) => ({ name: `light-${frame}`, progress: placeOfFrame(frame) })),
+      ...[0, 80, 160].map((degrees) => ({ name: `ring-${degrees}`, progress: ringPlace(degrees) })),
+    ];
+    for (const place of places) {
+      await poseAt(page, place.progress);
+      await page.waitForTimeout(500);
+      const file = join(dir, `${place.name}-${at}.png`);
+      await page.screenshot({ path: file });
+      gated.push({ file, kind: 'home', mask: await textMask(page) });
+    }
+    await takeCsp(page, step);
+    await context.close();
+  }
+  const rows = await gateLuma(browser, step, gated);
+  step.luma = rows;
   const own = await chromium.launch({ channel: 'msedge', headless: true, args: NO_WEBGL });
   try {
     for (const { width, height, options } of sizes) {
@@ -2752,7 +2789,7 @@ async function stills(browser, step) {
   }
   step.check(shots.length === PAGES.length * sizes.length + sizes.length, `${shots.length} stills: ${PAGES.length} pages at ${sizes.length} sizes, and the fallback at each`);
   console.log(`note: stills (${shots.length}) in ${dir}`);
-  return `${shots.length} stills in ${dir}: ${PAGES.length} pages at 1440x900 and 390x844 once landed, the fallback; the page scrim over the scene on every page of text`;
+  return `${shots.length} stills in ${dir}: ${PAGES.length} pages at 1440x900 and 390x844 once landed, the fallback; the page scrim over the scene on every page of text; ${rows.length} light dive and ring stills, ${lumaSummary(rows, 'home')}`;
 }
 
 /**
@@ -3094,6 +3131,12 @@ const textMask = (page) =>
       if (box.width > 1 && box.height > 1) boxes.push({ left: box.left - grow, top: box.top - grow, right: box.right + grow, bottom: box.bottom + grow });
     };
     for (const el of document.querySelectorAll('.bead-label[data-shown], .home-nav, .site-header')) add(el);
+    // The light dive's shown fact (its words and its line) and the ring's skip button, where they show.
+    for (const fact of document.querySelectorAll('.light-fact')) {
+      if (Number(getComputedStyle(fact).opacity) > 0.01) for (const part of fact.querySelectorAll('.light-fact-words, .light-fact-line')) add(part);
+    }
+    const skip = document.querySelector('.skip-button');
+    if (skip && getComputedStyle(skip).visibility === 'visible') add(skip);
     const hero = document.querySelector('.hero');
     if (hero) {
       // A line of the hero's text counts where it can be seen: not faded out, and not inside a box clipped to a pixel.
@@ -3687,8 +3730,8 @@ async function scrollBob(browser, step) {
       await page.mouse.wheel(0, RISE.notchPx);
       const onward = await settledState(page);
       step.check(
-        onward.progress === 2 && onward.target === 2 && onward.journey.stretch === 'overview' && onward.journey.local === 0,
-        `${at}: and one more notch from BOB from above goes on to the overview, 2 (progress ${onward.progress}, journey ${JSON.stringify(onward.journey)})`,
+        near(onward.progress, 1 + RISE.notchPx / size.height, 1e-9) && onward.target === onward.progress && onward.journey.stretch === 'light',
+        `${at}: and one more notch from BOB from above goes on into the light dive by its distance and rests there, ${(1 + RISE.notchPx / size.height).toFixed(4)} (progress ${onward.progress}, the journey ${onward.journey.stretch} at way frame ${onward.journey.frame})`,
       );
       await page.keyboard.press('Home');
       await settledState(page);
@@ -4472,14 +4515,23 @@ async function bridge(browser, step) {
   );
 
   // .set puts the story somewhere at once: progress and target there, nothing moving, the chapter and the phase with it.
-  // 2.5 is half way through the third unit, VOID_ENTRY (the overview's stretch, 2 to 3), and the journey, which the scene
-  // poses on the next frame it draws, says the same.
-  await page.evaluate(() => window.__needleDebug.set({ progress: 2.5 }));
+  // 4.5 is half way through the third unit, the ring's first (Funcial's to Jontai Energy's, 0 to 120 degrees), and the
+  // journey, which the scene poses on the next frame it draws, says the same: 60 degrees round, between two projects.
+  await page.evaluate(() => window.__needleDebug.set({ progress: 4.5 }));
   const mid = await debugOf(page);
-  step.check(mid.progress === 2.5 && mid.target === 2.5 && mid.velocity === 0 && mid.chapter.index === 2 && mid.chapter.id === 'VOID_ENTRY' && mid.phase.kind === 'VOID_ENTRY', `.set({ progress: 2.5 }) puts the story in VOID_ENTRY at 2.5 (got ${JSON.stringify([mid.progress, mid.target, mid.chapter, mid.phase])})`);
+  step.check(
+    mid.progress === 4.5 && mid.target === 4.5 && mid.velocity === 0 && mid.chapter.index === 2 && mid.chapter.id === 'RING' && mid.phase.kind === 'PROJECTS' && mid.phase.category === BEAD_LIST[0].category,
+    `.set({ progress: 4.5 }) puts the story in the ring at 4.5, PROJECTS ${BEAD_LIST[0].category} (got ${JSON.stringify([mid.progress, mid.target, mid.chapter, mid.phase])})`,
+  );
   step.check(near(mid.chapter.local, 0.5, 1e-9), `and the chapter's local is how far through it, half way (got ${mid.chapter.local})`);
-  const overview = await journeyAfter(page, 'overview');
-  step.check(overview.stretch === 'overview' && near(overview.local, 0.5, 1e-9) && overview.project === null, `and the journey says so: the overview, half way to Funcial's stop, no bead (got ${JSON.stringify(overview)})`);
+  const turned = await journeyAfter(page, 'ring');
+  step.check(
+    turned.stretch === 'ring' && near(turned.local, 0.5, 1e-9) && turned.project === null && near(turned.angle, 60, 1e-9) && turned.frame === null && turned.sheet === 0,
+    `and the journey says so: the ring 60 degrees round, half way to Jontai Energy, no bead in front (got ${JSON.stringify(turned)})`,
+  );
+  await page.evaluate(() => window.__needleDebug.set({ progress: 1 + (3 * (121 - 1)) / 299 }));
+  const falling = await journeyAfter(page, 'light');
+  step.check(falling.stretch === 'light' && near(falling.frame, 121, 1e-6) && falling.light !== null, `and in the light dive it reports the way frame, 121 at fact 02's peak, and the light's place (got ${JSON.stringify(falling)})`);
   await page.evaluate(() => window.__needleDebug.set({ progress: 999 }));
   const end = await debugOf(page);
   step.check(
@@ -4529,15 +4581,30 @@ async function bridge(browser, step) {
  * The keyboard on the home page with 3D on: Tab from the top reaches the skip link, then the header in its order (the
  * name, Work, About, Contact, the language switch, Lite and the 3D toggle), the language switch and the toggle each with a
  * visible focus ring on screen, and Shift+Tab goes back; End goes to the last
- * chapter (the end of the story, the end page) and Home returns to the start, both from a focused control.
+ * chapter (the end of the story, the end page) and Home returns to the start, both from a focused control, each by the
+ * step fade. From BOB from above the arrows step the facts (each at its peak), then the projects, then the end page.
+ * At Jontai Energy's stop, Tab from the 3D toggle reaches the front bead's label, then the skip button, and Enter on the
+ * skip button takes the story to the end page and the focus to its title.
  */
 async function keyboard(browser, step) {
   const { context, page } = await openPage(browser, step);
   await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
   await stageReady(page);
   await reachHomeIdle(page);
-  // The End below goes past the dive's hold (TUNNEL_HOLD) once the void is in; the Tab presses take longer than it does.
-  await expectVoid(page, step, 'ready', 'the void under the glass is ready, so nothing holds the dive');
+  // The End below goes past the landing's hold (LANDING_HOLD) once the beads are in; the Tab presses take longer than it does.
+  await expectVoid(page, step, 'ready', 'the beads under the glass are ready, so nothing holds the landing');
+  /** Whether <html data-step-fade> is set at any moment from now until `fadeSeen()` is read. */
+  const watchFade = () =>
+    page.evaluate(() => {
+      const html = document.documentElement;
+      window.__fadeSeen = html.hasAttribute('data-step-fade');
+      window.__fadeWatch?.disconnect();
+      window.__fadeWatch = new MutationObserver(() => {
+        if (html.hasAttribute('data-step-fade')) window.__fadeSeen = true;
+      });
+      window.__fadeWatch.observe(html, { attributes: true, attributeFilter: ['data-step-fade'] });
+    });
+  const fadeSeen = () => page.evaluate(() => window.__fadeSeen === true);
 
   const focused = () =>
     page.evaluate(() => {
@@ -4589,22 +4656,55 @@ async function keyboard(browser, step) {
   step.check(isToggle(await focused()), 'and Tab to the toggle again');
 
   // End and Home work from a focused control: a button keeps Space and Enter, not these.
+  await watchFade();
   await page.keyboard.press('End');
   const last = await restAt(page);
+  step.check(await fadeSeen(), 'End goes by the step fade');
   step.check(last.target === STORY_END && last.progress === STORY_END && last.chapterIndex === LAST_UNIT, `End jumps to the last chapter: the end of the story, ${STORY_END}, chapter ${LAST_UNIT} (got ${JSON.stringify(last)})`);
   const reachedEnd = await waitForPhase(page, 'END').then(() => true, () => false);
   const atEnd = await debugOf(page);
   step.check(reachedEnd && atEnd.chapter.id === LAST_CHAPTER && LAST_CHAPTER === 'END' && atEnd.phase.kind === 'END', `and it is the end page, ${LAST_CHAPTER} (got ${JSON.stringify([atEnd.chapter, atEnd.phase])})`);
   step.check(isToggle(await focused()), 'with the focus still on the 3D toggle');
+  await watchFade();
   await page.keyboard.press('Home');
   const first = await restAt(page);
   step.check(first.target === 0 && first.progress === 0 && first.chapterIndex === 0, `Home returns to the start (got ${JSON.stringify(first)})`);
+  step.check(await fadeSeen(), 'Home from the end page goes by the step fade');
   await waitForPhase(page, 'HOME_IDLE');
   const atStart = await debugOf(page);
   step.check(atStart.chapter.id === 'HOME' && atStart.phase.kind === 'HOME_IDLE', `and to HOME, HOME_IDLE (got ${JSON.stringify([atStart.chapter, atStart.phase])})`);
+
+  // The arrows from BOB from above: each fact at its peak, then each project, then the end page.
+  await poseAt(page, RISE_TOP);
+  const walk = keyStops(HOME_CHAPTERS).filter((stop) => stop > RISE_TOP);
+  const reachedStops = [];
+  for (const stop of walk) {
+    await page.keyboard.press('ArrowDown');
+    const rested = await restAt(page);
+    reachedStops.push(rested.target);
+    step.check(near(rested.target, stop, 1e-9) && near(rested.progress, rested.target, 1e-4), `ArrowDown steps to the next key stop, ${stop.toFixed(4)} (got ${rested.target})`);
+    await page.waitForTimeout(150);
+  }
+
+  // At Jontai Energy's stop: Tab from the 3D toggle reaches the front bead's label, then the skip button; Enter on it.
+  await poseAt(page, 5);
+  const jontai = await waitForLabel(page, 'jontai-energy');
+  step.check(jontai !== null, "at Jontai Energy's stop its label shows whole");
+  await page.getByRole('switch', { name: '3D', exact: true }).focus();
+  await page.keyboard.press('Tab');
+  const onLabel = await page.evaluate(() => document.activeElement?.closest('.bead-label')?.getAttribute('data-bead') ?? null);
+  await page.keyboard.press('Tab');
+  const onSkip = await page.evaluate(() => document.activeElement?.classList.contains('skip-button') ?? false);
+  step.check(onLabel === 'jontai-energy' && onSkip, `Tab from the 3D toggle reaches the front bead's label (${onLabel}), then the skip button (${onSkip})`);
+  await watchFade();
+  await page.keyboard.press('Enter');
+  const endState = await endViewAt(page, 'rest');
+  await page.waitForFunction(() => document.activeElement?.id === 'end-title', null, { timeout: 5_000 }).catch(() => {});
+  const focusedTitle = await page.evaluate(() => document.activeElement?.id ?? null);
+  step.check(endState === 'rest' && focusedTitle === 'end-title' && (await fadeSeen()), `Enter on the skip button fades the story to the end page (data-end ${endState}) and the focus goes to its title (${focusedTitle})`);
   await takeCsp(page, step);
   await context.close();
-  return `Tab: skip link, language switch (press ${langAt + 1}), 3D toggle (press ${toggleAt + 1}), each ringed and on screen; End goes to ${STORY_END} (the end page, ${LAST_CHAPTER}), Home back to 0`;
+  return `Tab: skip link, language switch (press ${langAt + 1}), 3D toggle (press ${toggleAt + 1}), each ringed and on screen; End goes to ${STORY_END} (the end page, ${LAST_CHAPTER}), Home back to 0, both by the fade; the arrows walk ${reachedStops.length} key stops; Tab to Jontai Energy's label, then the skip button, Enter to the end title`;
 }
 
 /**
@@ -4659,8 +4759,10 @@ async function langKeepsPhase(browser, step) {
 
 /**
  * With `prefers-reduced-motion: reduce` (emulated before the page loads) a wheel event is a step, not a distance: one
- * event moves `target` to exactly the next stop, down through every stop of the story to its end, and one event up goes back
- * through them; the story arrives at each, and the chapter and phase are those of the stop.
+ * event moves `target` to exactly the next key stop (BOB from above, each fact at its peak, each project, the end page),
+ * down through every one of them to the end, and one event up goes back through them; the story arrives at each, the
+ * chapter and phase those of the stop. Each step goes by the step fade, and the scene never shows a pose between two
+ * stops: every pose the bridge reports on the way is the stop it left or the stop it comes to.
  */
 async function reducedMotion(browser, step) {
   const { context, page } = await openPage(browser, step);
@@ -4669,28 +4771,62 @@ async function reducedMotion(browser, step) {
   await stageReady(page);
   step.check(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches), 'the page asks for reduced motion');
   await reachHomeIdle(page);
-  // Under reduced motion the dive's hold is the last stop under TUNNEL_HOLD (1) while the void loads, and every stop
-  // after it needs the void: the step starts with it in.
-  await expectVoid(page, step, 'ready', 'the void under the glass is ready, so nothing holds the story at BOB from above');
+  // Under reduced motion the landing's hold is the last key stop under LANDING_HOLD (fact 05) while the beads load, and
+  // every stop after it needs them: the step starts with them in.
+  await expectVoid(page, step, 'ready', 'the beads under the glass are ready, so nothing holds the story at the landing');
   await page.mouse.move(720, 450);
 
-  const places = stops(HOME_CHAPTERS); // 0 home, 1 BOB from above, 2 the overview, 3 Funcial, 4 Jontai Energy, 5 Cookies Clicker, 6 the end page, the end
-  step.check(JSON.stringify(places) === '[0,1,2,3,4,5,6]', `the story's seven stops are the spec's, the end page's the end (got ${JSON.stringify(places)})`);
-  const arrive = async (stop, how) => {
+  // 0 home, 1 BOB from above, the five facts at their peaks, 4 Funcial, 5 Jontai Energy, 6 Cookies Clicker, 7 the end page
+  const places = keyStops(HOME_CHAPTERS);
+  step.check(places.length === 11 && places[0] === 0 && places[1] === 1 && places.at(-1) === STORY_END, `the story's eleven key stops, the end page's the end (got ${places.map((p) => p.toFixed(3)).join(', ')})`);
+  const sameAt = (a, b) => a.stretch === b.stretch && (a.frame === null ? b.frame === null : b.frame !== null && Math.abs(a.frame - b.frame) < 1e-6) && (a.angle === null ? b.angle === null : b.angle !== null && Math.abs(a.angle - b.angle) < 1e-6);
+  /** Watches every pose the bridge reports (5 ms apart) and every step fade from now until `stopWatch()`. */
+  const watchStep = () =>
+    page.evaluate(() => {
+      const html = document.documentElement;
+      const seen = { faded: false, poses: [] };
+      window.__step = seen;
+      const observer = new MutationObserver(() => {
+        if (html.hasAttribute('data-step-fade')) seen.faded = true;
+      });
+      observer.observe(html, { attributes: true, attributeFilter: ['data-step-fade'] });
+      const timer = setInterval(() => {
+        const { stretch, frame, angle } = window.__needleDebug().journey;
+        const last = seen.poses.at(-1);
+        if (!last || last.stretch !== stretch || last.frame !== frame || last.angle !== angle) seen.poses.push({ stretch, frame, angle });
+      }, 5);
+      window.__stepStop = () => {
+        observer.disconnect();
+        clearInterval(timer);
+        return seen;
+      };
+    });
+  const stopWatch = () => page.evaluate(() => window.__stepStop());
+  const arrive = async (stop, how, from) => {
     const rested = await restAt(page);
+    await page.waitForTimeout(250); // the fade back up
     const at = await debugOf(page);
     const unit = chapterAt(HOME_CHAPTERS, stop);
     step.check(
       rested.progress === stop && at.chapter.index === unit.index && at.chapter.id === unit.id && at.chapter.category === unit.category,
-      `${how}: the story arrives at ${stop}, in chapter ${unit.index} (${unit.id}) (got progress ${rested.progress}, chapter ${JSON.stringify(at.chapter)})`,
+      `${how}: the story arrives at ${stop.toFixed(4)}, in chapter ${unit.index} (${unit.id}) (got progress ${rested.progress}, chapter ${JSON.stringify(at.chapter)})`,
+    );
+    const seen = await stopWatch();
+    const ends = [journeyAt(from), journeyAt(stop)];
+    const between = seen.poses.filter((pose) => !ends.some((end) => sameAt(end, pose)));
+    step.check(
+      seen.faded && between.length === 0,
+      `${how} to ${stop.toFixed(4)}: by the step fade (${seen.faded}), no pose between the two stops (${seen.poses.length} poses seen, ${between.length} between: ${JSON.stringify(between.slice(0, 3))})`,
     );
   };
 
-  for (const stop of places.slice(1)) {
+  for (let i = 1; i < places.length; i++) {
+    const stop = places[i];
+    await watchStep();
     await page.mouse.wheel(0, 40); // one event
     const target = (await frameOf(page)).target;
-    step.check(target === stop, `one wheel event down moves the target to exactly the next stop, ${stop} (got ${target})`);
-    await arrive(stop, 'down');
+    step.check(target === stop, `one wheel event down moves the target to exactly the next key stop, ${stop.toFixed(4)} (got ${target})`);
+    await arrive(stop, 'down', places[i - 1]);
     await page.waitForTimeout(300); // the next event is the next gesture
   }
   // A step down from the last stop is no step: nothing moves and the scene host does not fade down and back.
@@ -4728,11 +4864,13 @@ async function reducedMotion(browser, step) {
     `and at the end page the wheel is the page's own scroll: that event scrolled it to ${scrolled}, and one up back to ${topAgain}, the story still at the end`,
   );
   await page.waitForTimeout(300); // the next event is the next gesture
-  for (const stop of places.slice(0, -1).reverse()) {
+  for (let i = places.length - 2; i >= 0; i--) {
+    const stop = places[i];
+    await watchStep();
     await page.mouse.wheel(0, -40);
     const target = (await frameOf(page)).target;
-    step.check(target === stop, `one wheel event up moves the target to exactly the previous stop, ${stop} (got ${target})`);
-    await arrive(stop, 'up');
+    step.check(target === stop, `one wheel event up moves the target to exactly the previous key stop, ${stop.toFixed(4)} (got ${target})`);
+    await arrive(stop, 'up', places[i + 1]);
     await page.waitForTimeout(300);
   }
   await page.mouse.wheel(0, -40);
@@ -4740,7 +4878,7 @@ async function reducedMotion(browser, step) {
   await expectPhase(page, step, 'HOME_IDLE', 'and the phase is HOME_IDLE again');
   await takeCsp(page, step);
   await context.close();
-  return `one wheel event a stop: ${places.join(', ')} down and back up, each arrived at`;
+  return `one wheel event a key stop: ${places.map((p) => p.toFixed(3)).join(', ')} down and back up, each arrived at by the fade, no pose between`;
 }
 
 // ---------------------------------------------------------------- the void: its journey, opening a bead, the hold, the failure
@@ -4754,42 +4892,35 @@ const PROJECTS_SOURCE = readFileSync(fileURLToPath(new URL('../../src/data/proje
 const projectTitle = (id) => PROJECTS_SOURCE.match(new RegExp(`id: '${id}',\\s+title: '([^']+)'`))?.[1] ?? null;
 
 /**
- * The three beads in the void's order (BEADS, src/scene/bob/journey.ts) with the stop of each (the start of its
- * category's PROJECTS unit: 3, 4 and 5), the page of the project (src/data/pages.ts) and its title.
+ * The three beads in the ring's order (BEADS, src/scene/bob/journey.ts) with the ring stop of each (`projectStop`: 4, 5
+ * and 6), the page of the project (src/data/pages.ts) and its title.
  */
 const BEAD_LIST = BEADS.map((bead, index) => ({
   id: bead.id,
   index,
   category: bead.category,
-  stop: HOME_CHAPTERS.units.find((unit) => unit.id === 'PROJECTS' && unit.category === bead.category).start,
+  stop: projectStop(HOME_CHAPTERS, bead.category),
   path: SITE_PAGES[`project-${bead.id}`],
   title: projectTitle(bead.id),
 }));
 
 /**
  * What the journey says at each of the story's stops, 0 to the end (`journey.stretch` and `journey.project`; `local` is 0
- * at each): 0 the home, 1 BOB from above (the dive's start), 2 the overview, 3 Funcial, 4 Jontai Energy, 5 Cookies
- * Clicker (its stretch, 5 to 6, is the move into the night) and 6 the end page, the end of the scroll (its unit, END, is
- * one the scroll never goes into: past its start the page scrolls natively).
+ * at each): 0 the home, 1 BOB from above (the light dive's start), 4 Funcial, 5 Jontai Energy, 6 Cookies Clicker (the
+ * sheet's start: its stretch, 6 to 7, is the end page sliding up) and 7 the end page, the end of the scroll (its unit,
+ * END, is one the scroll never goes into: past its start the page scrolls natively).
  */
 const JOURNEY_STOPS = [
   { stop: 0, stretch: 'rise', project: null },
-  { stop: 1, stretch: 'dive', project: null },
-  { stop: 2, stretch: 'overview', project: null },
-  { stop: 3, stretch: 'project', project: 0 },
-  { stop: 4, stretch: 'project', project: 1 },
-  { stop: 5, stretch: 'project', project: 2 },
-  { stop: 6, stretch: 'end', project: null },
+  { stop: 1, stretch: 'light', project: null },
+  { stop: 4, stretch: 'ring', project: 0 },
+  { stop: 5, stretch: 'ring', project: 1 },
+  { stop: 6, stretch: 'sheet', project: 2 },
+  { stop: 7, stretch: 'end', project: null },
 ];
 
-/** The dive mid-way, the still `void-dive-<size>.png`: half way through the dive's unit (1 to 2). */
-const DIVE_MID = 1.5;
-
-/** Where `poseOnTheFrame` puts the story: the rise (0.6) and the glides between the stops, where the camera moves fastest. */
-const SAME_FRAME_AT = [0.6, DIVE_MID, 2.5, 3.5, 4.5];
-
-/** How long a bead's object is given to be in its motion before a still of it (Funcial's abacus slides up over 2 s), ms. */
-const OBJECT_SETTLE_MS = 2_200;
+/** Where `poseOnTheFrame` puts the story: the rise (0.6), the fall (fact 03's peak) and the turns of the ring. */
+const SAME_FRAME_AT = [0.6, placeOfFrame(161), 4.5, 5.5];
 
 /** The pixels from the screen's edges the label keeps, and the header it stays under (src/ui/BeadLabel.tsx, `labelMargin`, `HEADER`). */
 const labelMarginOf = (width) => (width < 720 ? 24 : 16);
@@ -4956,176 +5087,11 @@ const labelInside = (label) => {
 };
 
 /**
- * The void's journey (spec §2.3, §2.4), at 1440x900 and at 390x844 (touch, the medium tier), each in a fresh context that
- * lands with the seen flag set, the void ready:
- *
- * 1. The home at its start: the journey on the rise at 0, the void `ready`.
- * 2. The camera is on the shot of the frame it is drawn in: the story put at the rise (0.6) and at points in the dive and
- *    between the stops, the first frame that has posed the journey there has the camera on the pure journey's shot
- *    (`poseOnTheFrame`), which is what Task 10's single writer promises.
- * 3. Every stop down (1, the dive mid-way, 2, 3, 4, 5, 6 the end page) and back (5, 4, 3, 2, 1, 0), each put through `.set`
- *    and waited for at rest: `journey.stretch`, `project` and `local` are those of the stop, `voidState` is `ready`, the camera is on
- *    the pure journey's shot there, and at a bead's stop its label shows whole inside the screen. Going down the dive
- *    mid-way, the overview and each bead are stilled (`m2/void-<stretch>[-<id>]-<size>.png`; at 1440 a bead is stilled
- *    again with the pointer on it, `...-hover-...`) and gated as home stills.
- * 4. A fling by hand through every stop and back (a long wheel at 1440, a run of flicks on the phone): down it rests at the end
- *    (6) with the journey on the end page, past the dive's hold, where it must not stick; back it rests at the home, which is
- *    M2a's home exactly: the rise 0 in every share, HOME_IDLE, the SCROLL cue back, the journey on the rise at 0, and at
- *    1440 the needle aiming at the pointer again.
- */
-async function voidJourney(browser, step) {
-  mkdirSync(STILLS, { recursive: true });
-  const shots = [];
-  const summary = [];
-  step.check(
-    JOURNEY_STOPS.length === stops(HOME_CHAPTERS).length && JOURNEY_STOPS.every((row, i) => row.stop === stops(HOME_CHAPTERS)[i]) && BEAD_LIST.every((bead) => JOURNEY_STOPS[bead.stop].project === bead.index),
-    `the harness's table of stops is the story's: ${JSON.stringify(stops(HOME_CHAPTERS))}, the beads at ${BEAD_LIST.map((bead) => `${bead.id} ${bead.stop}`).join(', ')}`,
-  );
-  for (const size of STILL_SIZES) {
-    const at = sizeName(size);
-    const touch = size.options.hasTouch === true;
-    const aspect = size.width / size.height;
-    const { context, page } = await openSeen(browser, step, size);
-    const cdp = touch ? await context.newCDPSession(page) : null;
-    step.check(await landHome(page), `${at}: landed on the home, the hero shown whole`);
-    await expectVoid(page, step, 'ready', `${at}: the void under the glass is ready`);
-
-    // 1. The home at its start.
-    const start = await debugOf(page);
-    step.check(
-      start.phase.kind === 'HOME_IDLE' && start.journey.stretch === 'rise' && start.journey.local === 0 && start.journey.project === null && start.journey.voidState === 'ready',
-      `${at}: the home at its start, the journey on the rise at 0 with the void ready (tier ${start.tier}; got ${JSON.stringify(start.journey)}, ${start.phase.kind})`,
-    );
-
-    // 2. The camera on the shot of the frame it is drawn in.
-    const ticks = [];
-    for (const progress of SAME_FRAME_AT) {
-      const seen = await poseOnTheFrame(page, progress, aspect);
-      ticks.push(seen === null ? 'none' : seen.tick);
-      step.check(
-        seen !== null && seen.tick <= 2 && !onJourneyShot({ camera: seen.before }, progress, aspect) && onJourneyShot({ camera: seen.camera }, progress, aspect),
-        `${at}: put at ${progress} from a camera that was elsewhere ([${seen?.before.position.map((v) => v.toFixed(3)).join(', ')}]), the first frame that poses the journey there (frame ${seen?.tick}, within 12 asked) has the camera on the journey's shot for it: [${seen?.camera.position.map((v) => v.toFixed(3)).join(', ')}] fov ${seen?.camera.fov.toFixed(3)} against [${journeyPoseAt(progress, aspect).shot.position.map((v) => v.toFixed(3)).join(', ')}] fov ${journeyPoseAt(progress, aspect).shot.fov.toFixed(3)}`,
-      );
-    }
-
-    // 3. Every stop down and back.
-    const visit = async (progress, way, take) => {
-      const expected = progress === DIVE_MID ? { stretch: 'dive', project: null, local: 0.5 } : { ...JOURNEY_STOPS.find((row) => row.stop === progress), local: 0 };
-      await page.evaluate((progress) => window.__needleDebug.set({ progress }), progress);
-      const state = await settledState(page);
-      const { journey } = state;
-      const label = progress === DIVE_MID ? '' : ` (${expected.stretch}${expected.project === null ? '' : ` ${BEAD_LIST[expected.project].id}`})`;
-      step.check(
-        journey.stretch === expected.stretch && journey.project === expected.project && near(journey.local, expected.local, 1e-9) && journey.voidState === 'ready' && state.progress === progress,
-        `${at}: ${way} at ${progress}${label}, at rest: stretch ${expected.stretch}, project ${expected.project}, local ${expected.local}, the void ready (got ${JSON.stringify(journey)}, progress ${state.progress})`,
-      );
-      step.check(onJourneyShot(state, progress, aspect), `${at}: ${way} at ${progress}, the camera stands on the journey's shot: [${state.camera.position.map((v) => v.toFixed(3)).join(', ')}] fov ${state.camera.fov.toFixed(3)}`);
-      const bead = expected.stretch === 'project' ? BEAD_LIST[expected.project] : null;
-      if (bead) {
-        const shown = await waitForLabel(page, bead.id);
-        step.check(shown !== null && labelInside(shown), `${at}: ${way} at ${progress}, ${bead.id}'s label shows whole and inside the screen: [${shown && Object.values(shown.box).map((v) => Math.round(v)).join(', ')}] in ${shown?.viewport.width}x${shown?.viewport.height}`);
-        if (take) await page.waitForTimeout(OBJECT_SETTLE_MS);
-      }
-      if (take) {
-        const file = join(STILLS, `${take}-${at}.png`);
-        await page.screenshot({ path: file });
-        const mask = await textMask(page);
-        shots.push({ file, kind: 'home', mask });
-        if (bead) {
-          // The floor's negative control: the same stop with the canvas hidden. Only the page's text and its night are left,
-          // and with the text masked the floor must fail: a floor that passed here would not be judging the scene.
-          const control = join(STILLS, `void-control-${bead.id}-${at}.png`);
-          await withoutCanvas(page, () => page.screenshot({ path: control }));
-          shots.push({ file: control, kind: 'control', mask });
-        }
-      }
-      return state;
-    };
-    const stillOf = (progress) => (progress === DIVE_MID ? 'void-dive' : progress === 2 ? 'void-overview' : progress >= 3 && progress <= 5 ? `void-project-${BEAD_LIST[progress - 3].id}` : null);
-    const down = [1, DIVE_MID, 2, 3, 4, 5, 6];
-    for (const progress of down) await visit(progress, 'down', stillOf(progress));
-    if (!touch) {
-      // A pointer on the selected bead lights it (hover): the bead is at the middle of the picture at its stop.
-      for (const bead of BEAD_LIST) {
-        await page.mouse.move(0, 0);
-        await page.evaluate((progress) => window.__needleDebug.set({ progress }), bead.stop);
-        await settledState(page);
-        await page.mouse.move(size.width / 2, size.height / 2, { steps: 4 });
-        await page.waitForTimeout(OBJECT_SETTLE_MS);
-        const file = join(STILLS, `void-project-${bead.id}-hover-${at}.png`);
-        await page.screenshot({ path: file });
-        shots.push({ file, kind: 'home', mask: await textMask(page) });
-      }
-      // The middle of the picture is where the pointer leaves the home's parallax at rest (the home shot sways with the
-      // pointer): the way back ends at the home, whose camera is the journey's shot only with the pointer there.
-      await page.mouse.move(size.width / 2, size.height / 2);
-    }
-    let atZero = null;
-    const back = [5, 4, 3, 2, 1, 0];
-    for (const progress of back) atZero = await visit(progress, 'back', null);
-    await waitForPhase(page, 'HOME_IDLE').catch(() => {});
-    const zero = await debugOf(page);
-    step.check(
-      scrollAll(atZero.scroll, 0) && zero.phase.kind === 'HOME_IDLE',
-      `${at}: back at 0 by .set the home is M2a's: ${scrollText(atZero.scroll)} exactly, the phase ${zero.phase.kind}`,
-    );
-    const cueZero = await cueAt(page, 1);
-    step.check(cueShown(cueZero), `${at}: and the SCROLL cue is back there (${cueText(cueZero)})`);
-
-    // 4. A fling by hand through every stop and back.
-    if (!touch) await page.mouse.move(size.width / 2, size.height / 2);
-    const goDown = await pushStory(page, cdp, 1, { notches: 60, flicks: 14, toEnd: true });
-    const end = await settledState(page);
-    step.check(
-      near(end.target, STORY_END, 1e-9) && end.progress === STORY_END && end.journey.stretch === 'end' && end.journey.project === null && end.journey.voidState === 'ready',
-      `${at}: a fling down by hand (${goDown}) rests at the end, ${STORY_END}, past the dive's hold at ${TUNNEL_HOLD} and not stuck in it: the journey on the end page, past ${BEAD_LIST.at(-1).id}, the void ready (got progress ${end.progress}, target ${end.target}, ${JSON.stringify(end.journey)})`,
-    );
-    const goUp = await pushStory(page, cdp, -1, { notches: 60, flicks: 14, toEnd: true });
-    const flungBack = await settledState(page);
-    await waitForPhase(page, 'HOME_IDLE').catch(() => {});
-    const home = await debugOf(page);
-    step.check(
-      scrollAll(home.scroll, 0) && home.phase.kind === 'HOME_IDLE' && home.target <= 1e-6 && home.progress <= 1e-6,
-      `${at}: a fling back by hand (${goUp}) rests at the home, which is M2a's: ${scrollText(home.scroll)} exactly, the phase ${home.phase.kind}, progress ${home.progress}, target ${flungBack.target}`,
-    );
-    step.check(
-      home.journey.stretch === 'rise' && home.journey.local === 0 && home.journey.project === null && home.journey.voidState === 'ready',
-      `${at}: and the journey is on the rise at 0 again, the void still ready (got ${JSON.stringify(home.journey)})`,
-    );
-    const cueHome = await cueAt(page, 1);
-    step.check(cueShown(cueHome), `${at}: and the SCROLL cue is back (${cueText(cueHome)})`);
-    if (!touch) {
-      const pivot = pivotOf(page.viewportSize());
-      const to = { x: Math.round(pivot.x + 0.3 * size.width), y: Math.round(pivot.y) };
-      await page.mouse.move(to.x, to.y, { steps: 8 });
-      const moved = Date.now();
-      let reachedAt = null;
-      let angle = Number.NaN;
-      while (Date.now() - moved < AIM.within + AIM.settle) {
-        await page.waitForTimeout(100);
-        angle = (await debugOf(page)).needleAngle;
-        if (reachedAt === null && Math.abs(angle - Math.PI / 2) <= AIM.tolerance) reachedAt = Date.now() - moved;
-      }
-      step.check(
-        reachedAt !== null && reachedAt <= AIM.within && Math.abs(angle - Math.PI / 2) <= AIM.tolerance,
-        `${at}: and the needle aims at the pointer again: to the right of the pivot (${to.x}, ${to.y}) it points at it within ${AIM.tolerance} of pi/2 ${reachedAt} ms later (within ${AIM.within} ms) and rests on it (${angle.toFixed(3)} rad)`,
-      );
-    }
-    await takeCsp(page, step);
-    await context.close();
-    summary.push(`${at}: the camera on the frame's shot (frames ${ticks.join(', ')}), ${down.length} stops down and ${back.length} back with the void ready, a fling there (${goDown}) and back (${goUp}) to the home`);
-  }
-  const rows = await gateLuma(browser, step, shots);
-  step.luma = rows;
-  return `${summary.join('; ')}; ${rows.filter((row) => row.kind !== 'control').length} stills (m2/void-*) and ${rows.filter((row) => row.kind === 'control').length} negative controls, ${lumaSummary(rows, 'home')}`;
-}
-
-/**
  * Opening a bead (spec §2.4), at 1440x900 and at 390x844 (touch), each in a fresh context that lands with the seen flag set
  * and the void ready. The bridge has no field for a bead being opened, so the step reads the page: the label
  * (`.bead-label`, src/ui/BeadLabel.tsx), the URL and the scene's phase.
  *
- * 1. At each project stop (3, 4, 5, put there through `.set`) the label shows whole, inside the screen with the margin the
+ * 1. At each ring stop (4, 5, 6, put there through `.set`) the label shows whole, inside the screen with the margin the
  *    site keeps, and its lines are the Dutch dictionary's: the category line (`categories`), the title (read from
  *    src/data/projects.ts), the hint and the touch hint (`t.needle.bead`), the one for the pointer shown; it is the link to
  *    the project's page.
@@ -5133,11 +5099,12 @@ async function voidJourney(browser, step) {
  *    on the page is still `/` with the camera flying into the porthole (`<html data-bead-open>`, PROJECT_FOCUS), the router
  *    goes to `/projects/<slug>/` once the flight (FLIGHT_MS) is over, and the scene is PROJECT_FOCUS on that bead. Esc returns to
  *    that bead's stop (the story at it, at rest, PROJECTS in its category) and its label shows again. All three beads.
- * 3. The other two hands: a click (a tap on the phone) on the label of Jontai Energy and on the bead itself, the middle of
- *    the picture at its stop, of Cookies Clicker, each opens its project and Esc brings it back to its stop.
+ * 3. The other two hands: a click (a tap on the phone) on the label of Jontai Energy, which the browser's Back brings back
+ *    to its stop, 5, Jontai Energy in front and its label shown; and on the bead itself of Cookies Clicker, where the ring
+ *    puts it on the screen (the bridge's `journey.ring`), which Esc brings back to its stop.
  * 4. None of it loads a document: it is all client navigation.
  * 5. A direct load of `/projects/cookies-clicker/`, then Esc once the opening has landed (the void may still be loading: the
- *    hold carries the story on), lands at stop 5, Cookies Clicker's, with its label.
+ *    hold carries the story on), lands at stop 6, Cookies Clicker's, with its label.
  */
 async function beadOpen(browser, step) {
   const dutch = new Translator('nl').t.needle.bead;
@@ -5172,6 +5139,18 @@ async function beadOpen(browser, step) {
       step.check(
         pathNow() === '/' && stopped.kind === 'PROJECTS' && stopped.category === bead.category && stopped.progress === bead.stop && stopped.target === bead.stop,
         `${at}: ${how}: Esc returns to ${bead.id}'s stop, ${bead.stop}, at rest (path ${pathNow()}, got ${JSON.stringify(stopped)})`,
+      );
+      const again = await waitForLabel(page, bead.id);
+      step.check(again !== null && labelInside(again), `${at}: ${how}: and its label shows again, whole and inside the screen`);
+    };
+    /** From a bead's page, the browser's Back: back at the home on that bead's stop, at rest, it in front and its label shown again. */
+    const backTo = async (bead, how) => {
+      await page.goBack();
+      const stopped = await waitForStop(page, bead.category, 15_000);
+      const state = await debugOf(page);
+      step.check(
+        pathNow() === '/' && stopped.kind === 'PROJECTS' && stopped.category === bead.category && stopped.progress === bead.stop && stopped.target === bead.stop && state.journey.project === bead.index,
+        `${at}: ${how}: Back returns to ${bead.id}'s stop, ${bead.stop}, at rest, ${bead.id} in front (path ${pathNow()}, got ${JSON.stringify(stopped)}, project ${state.journey.project})`,
       );
       const again = await waitForLabel(page, bead.id);
       step.check(again !== null && labelInside(again), `${at}: ${how}: and its label shows again, whole and inside the screen`);
@@ -5228,10 +5207,11 @@ async function beadOpen(browser, step) {
     await arriveAt(onLabel);
     const labelAt = page.locator(`.bead-label[data-bead="${onLabel.id}"]`);
     await opens(onLabel, touch ? 'a tap on the label' : 'a click on the label', () => (touch ? labelAt.tap() : labelAt.click()));
-    await escapeTo(onLabel, touch ? 'a tap on the label' : 'a click on the label');
+    await backTo(onLabel, touch ? 'a tap on the label' : 'a click on the label');
     const onBead = BEAD_LIST[2];
     await arriveAt(onBead);
-    await opens(onBead, touch ? 'a tap on the bead' : 'a click on the bead', () => (touch ? page.touchscreen.tap(size.width / 2, size.height / 2) : page.mouse.click(size.width / 2, size.height / 2)));
+    const [beadX, beadY] = (await debugOf(page)).journey.ring?.beads[onBead.index] ?? [size.width / 2, size.height / 2];
+    await opens(onBead, touch ? 'a tap on the bead' : 'a click on the bead', () => (touch ? page.touchscreen.tap(beadX, beadY) : page.mouse.click(beadX, beadY)));
     await escapeTo(onBead, touch ? 'a tap on the bead' : 'a click on the bead');
 
     // 4. All of it by client navigation.
@@ -5265,23 +5245,22 @@ async function beadOpen(browser, step) {
 }
 
 /**
- * The hold (spec §2.1), at 1440x900 and 390x844 (touch): with `bob-beads.glb` held back, so that the void stays
- * `loading`, a long wheel (40 notches; eight flicks on the phone) rests at TUNNEL_HOLD, 1.475 (Bob's frame d01, the camera
- * above the glass over the opening: on the journey's shot, y above 0), the journey on the dive with `voidState` `loading`,
- * nothing creeping past it; a still of it (`m2/void-hold-<size>.png`) is gated as a home still. Scrolling back from there
- * moves the story at once (at 1440 exactly the notches' distance, then the gesture settles on BOB from above, 1; on the
- * phone the flick's glide carries it on up the rise), and down again it rests on the hold again. On release the void
- * becomes `ready` and the scroll goes on to the overview (stop 2, the next stop: a gesture that went into the hold asks
- * for the stop just past it, no further). A direct arrival at a project's page whose Esc is pressed while the file is held waits at
- * the hold too, and reaches the project's stop once the file is let through.
+ * The hold (spec: the landing waits for the beads), at 1440x900 and 390x844 (touch): with `bob-beads.glb` held back, so
+ * that the void stays `loading`, a long wheel (32 notches; flicks on the phone) plays the light dive and rests at
+ * LANDING_HOLD, way frame 258 (the light just short of the ring, on the journey's shot), the journey in the light with
+ * `voidState` `loading`, the light still and nothing creeping past it; a still of it (`m2/void-hold-<size>.png`) is gated
+ * as a home still. Scrolling back from there moves the story at once (at 1440 exactly the notches' distance) and it rests
+ * where the input stopped; down again it rests on the hold again. On release the void becomes `ready` and the story
+ * goes on into the ring. A direct arrival at a project's page whose Esc is pressed while the file is held waits at the
+ * hold too, and reaches the project's stop once the file is let through.
  */
 async function voidHold(browser, step) {
   mkdirSync(STILLS, { recursive: true });
   const shots = [];
   const summary = [];
   step.check(
-    near(TUNNEL_HOLD, 1.475, 1e-9) && diveHoldFor('idle') === TUNNEL_HOLD && diveHoldFor('loading') === TUNNEL_HOLD && diveHoldFor('ready') === STORY_END && diveHoldFor('failed') === RISE_TOP,
-    `the hold is TUNNEL_HOLD, ${TUNNEL_HOLD} (d01's frame) while the void is idle or loading, the end (${STORY_END}) once ready, and ${RISE_TOP} if it failed`,
+    near(LANDING_HOLD, placeOfFrame(258), 1e-12) && landingHoldFor('idle') === LANDING_HOLD && landingHoldFor('loading') === LANDING_HOLD && landingHoldFor('ready') === STORY_END && landingHoldFor('failed') === LANDING_HOLD,
+    `the hold is LANDING_HOLD, ${LANDING_HOLD} (way frame 258) while the void is idle, loading or failed, and the end (${STORY_END}) once ready`,
   );
   for (const size of STILL_SIZES) {
     const at = sizeName(size);
@@ -5296,19 +5275,19 @@ async function voidHold(browser, step) {
     if (!touch) await page.mouse.move(size.width / 2, size.height / 2);
     const vh = size.height;
 
-    const pushed = await pushStory(page, cdp, 1, { notches: 40, flicks: 8 });
+    const pushed = await pushStory(page, cdp, 1, { notches: 32, flicks: 16 });
     const rest = await settledState(page);
     step.check(
-      near(rest.target, TUNNEL_HOLD, 1e-9) && rest.progress === rest.target && rest.journey.stretch === 'dive' && rest.journey.voidState === 'loading' && rest.phase.kind === 'DIVE',
-      `${at}: a long push (${pushed}) rests at TUNNEL_HOLD, ${TUNNEL_HOLD}: progress ${rest.progress}, target ${rest.target}, the journey on the ${rest.journey.stretch} (local ${rest.journey.local}), voidState ${rest.journey.voidState}, the phase ${rest.phase.kind}`,
+      near(rest.target, LANDING_HOLD, 1e-9) && rest.progress === rest.target && rest.journey.stretch === 'light' && Math.round(rest.journey.frame) === 258 && rest.journey.voidState === 'loading' && rest.phase.kind === 'LIGHT',
+      `${at}: a long push (${pushed}) plays the light dive and rests at LANDING_HOLD, ${LANDING_HOLD}: progress ${rest.progress}, target ${rest.target}, the journey ${rest.journey.stretch} at way frame ${rest.journey.frame}, voidState ${rest.journey.voidState}, the phase ${rest.phase.kind}`,
     );
-    step.check(
-      onJourneyShot(rest, TUNNEL_HOLD, aspect) && rest.camera.position[1] > 0,
-      `${at}: and the camera is d01's pose over the opening, above the glass, on the journey's shot for it: [${rest.camera.position.map((v) => v.toFixed(3)).join(', ')}] fov ${rest.camera.fov.toFixed(3)}`,
-    );
+    step.check(onJourneyShot(rest, LANDING_HOLD, aspect), `${at}: and the camera is on the journey's shot for it: [${rest.camera.position.map((v) => v.toFixed(3)).join(', ')}] fov ${rest.camera.fov.toFixed(3)}`);
     await page.waitForTimeout(1_000);
     const later = await debugOf(page);
-    step.check(later.target === rest.target && later.progress === rest.progress && later.journey.voidState === 'loading', `${at}: and a second later it has not crept: progress ${later.progress}, target ${later.target}, voidState ${later.journey.voidState}`);
+    step.check(
+      later.target === rest.target && later.progress === rest.progress && later.journey.voidState === 'loading' && JSON.stringify(later.journey.light) === JSON.stringify(rest.journey.light),
+      `${at}: and a second later it has not crept and the light stands still: progress ${later.progress}, target ${later.target}, voidState ${later.journey.voidState}, the light ${JSON.stringify(later.journey.light)}`,
+    );
     const still = join(STILLS, `void-hold-${at}.png`);
     await page.screenshot({ path: still });
     shots.push({ file: still, kind: 'home', mask: await textMask(page) });
@@ -5320,28 +5299,26 @@ async function voidHold(browser, step) {
     const moved = await frameOf(page);
     const up = await settledState(page);
     step.check(
-      touch ? moved.target < TUNNEL_HOLD - 0.3 : near(moved.target, TUNNEL_HOLD - (3 * RISE.notchPx) / vh, 1e-9),
-      `${at}: up from the hold the story moves at once${touch ? ' (a flick)' : ', exactly the 3 notches'}: target ${moved.target} from ${TUNNEL_HOLD}`,
+      touch ? moved.target < LANDING_HOLD - 0.1 : near(moved.target, LANDING_HOLD - (3 * RISE.notchPx) / vh, 1e-9),
+      `${at}: up from the hold the story moves at once${touch ? ' (a flick)' : ', exactly the 3 notches'}: target ${moved.target} from ${LANDING_HOLD}`,
     );
     step.check(
-      touch ? up.progress === up.target && (up.target < RISE_TOP || stops(HOME_CHAPTERS).includes(up.target)) : up.target === RISE_TOP && up.progress === RISE_TOP,
-      touch
-        ? `${at}: and the flick, its glide carrying it on up the rise, rests where it ends there, or on a stop (progress ${up.progress}, target ${up.target})`
-        : `${at}: and once the gesture ends it rests on the stop above the hold, BOB from above, ${RISE_TOP} (progress ${up.progress}, target ${up.target})`,
+      up.progress === up.target && up.target < LANDING_HOLD - 0.1 && up.target > RISE_TOP,
+      `${at}: and it rests where the input stopped, in the fall (progress ${up.progress}, target ${up.target})`,
     );
-    await pushStory(page, cdp, 1, { notches: 40, flicks: 8 });
+    await pushStory(page, cdp, 1, { notches: 32, flicks: 16 });
     const again = await settledState(page);
-    step.check(near(again.target, TUNNEL_HOLD, 1e-9) && again.progress === again.target && again.journey.voidState === 'loading', `${at}: and pushed down again it rests on the hold again (progress ${again.progress}, target ${again.target}, ${again.journey.voidState})`);
+    step.check(near(again.target, LANDING_HOLD, 1e-9) && again.progress === again.target && again.journey.voidState === 'loading', `${at}: and pushed down again it rests on the hold again (progress ${again.progress}, target ${again.target}, ${again.journey.voidState})`);
 
-    // The file is let through: the void becomes ready and the scroll goes on to the overview.
+    // The file is let through: the void becomes ready and the story goes on into the ring.
     await held.release();
     const ready = await waitForVoid(page, 'ready');
     const through = await settledState(page);
     step.check(
-      ready === 'ready' && near(through.target, 2, 1e-9) && through.progress === 2 && through.journey.stretch === 'overview' && through.journey.local === 0 && through.journey.voidState === 'ready',
-      `${at}: let through, the void is ${ready} and the scroll goes on to the overview, stop 2: progress ${through.progress}, target ${through.target}, the journey ${JSON.stringify(through.journey)}`,
+      ready === 'ready' && through.target >= 4 && through.progress === through.target && through.journey.voidState === 'ready' && ['ring', 'sheet', 'end'].includes(through.journey.stretch),
+      `${at}: let through, the void is ${ready} and the story goes on into the ring: progress ${through.progress}, target ${through.target}, the journey ${through.journey.stretch} at ${through.journey.angle} degrees`,
     );
-    step.check(onJourneyShot(through, 2, aspect), `${at}: with the camera on the overview's shot`);
+    step.check(onJourneyShot(through, through.progress, aspect), `${at}: with the camera on the journey's shot there`);
 
     // A direct arrival at a project's page, Esc while the file is still held: it waits at the hold, then reaches the stop.
     const target = BEAD_LIST[2];
@@ -5360,7 +5337,7 @@ async function voidHold(browser, step) {
     await page.waitForTimeout(1_500);
     const waiting = await debugOf(page);
     step.check(
-      heldAgain.asked() >= 1 && new URL(page.url()).pathname === '/' && near(waiting.target, TUNNEL_HOLD, 1e-9) && waiting.progress === waiting.target && waiting.journey.voidState === 'loading',
+      heldAgain.asked() >= 1 && new URL(page.url()).pathname === '/' && near(waiting.target, LANDING_HOLD, 1e-9) && waiting.progress === waiting.target && waiting.journey.voidState === 'loading',
       `${at}: a direct load of ${target.path} (the file held again, ${heldAgain.asked()} requests), then Esc: the story waits at the hold (progress ${waiting.progress}, target ${waiting.target}, voidState ${waiting.journey.voidState}, ${waiting.phase.kind})`,
     );
     await heldAgain.release();
@@ -5371,7 +5348,7 @@ async function voidHold(browser, step) {
     );
     await takeCsp(page, step);
     await context.close();
-    summary.push(`${at}: held, a long push (${pushed}) rests at ${TUNNEL_HOLD} loading, up and down again, let through it goes on to 2, and a direct arrival's Esc waits at the hold then reaches stop ${target.stop}`);
+    summary.push(`${at}: held, a long push (${pushed}) rests at ${LANDING_HOLD.toFixed(4)} loading, up and down again, let through it goes on into the ring (${through.target.toFixed(3)}), and a direct arrival's Esc waits at the hold then reaches stop ${target.stop}`);
   }
   const rows = await gateLuma(browser, step, shots);
   step.luma = rows;
@@ -5381,12 +5358,12 @@ async function voidHold(browser, step) {
 /**
  * The failure (spec §2.1), at 1440x900 and 390x844 (touch): with `bob-beads.glb` answering 404 the
  * void fails (`voidState` `failed`, `<html data-void>`), and the home goes on without it. At the home the nav stays hidden
- * as it is with 3D on; a long push rests the scroll at 1.0 (`RISE_TOP`, BOB from above, the dive's start), and there
- * `.home-nav` shows, fixed over the foot of the screen, unclipped and opaque, its three links on screen and each the
- * element at its own middle; a still of it (`m2/void-fail-<size>.png`) is gated as a home still. A link opens its project,
- * and Esc brings the story back to the hold at 1.0, not to the bead's stop; scrolled back to the home the nav is hidden
- * again and the SCROLL cue is back. The console has exactly one error for it, the browser's own report of the 404 (the
- * Void's own line is a warning, `[needle] the void could not be loaded`, and there is one), per size.
+ * as it is with 3D on; a long push plays the light dive and rests the scroll at LANDING_HOLD (way frame 258), and there
+ * (`<html data-held>`) `.home-nav` shows, fixed over the foot of the screen, unclipped and opaque, its three links on
+ * screen and each the element at its own middle, its end link with them; the skip button never shows; a still of it
+ * (`m2/void-fail-<size>.png`) is gated as a home still. A link opens its project, and Esc brings the story back to the
+ * hold, not to the bead's stop; scrolled back to the home the nav is hidden again and the SCROLL cue is back. The console has exactly one error for it, the browser's own report of the 404 (the
+ * Void's own line is a warning, `[needle] the beads could not be loaded`, and there is one), per size.
  */
 async function voidFail(browser, step) {
   mkdirSync(STILLS, { recursive: true });
@@ -5400,7 +5377,7 @@ async function voidFail(browser, step) {
     const cdp = touch ? await context.newCDPSession(page) : null;
     const warnings = [];
     page.on('console', (message) => {
-      if (message.type() === 'warning' && /^\[needle\] the void could not be loaded/.test(message.text())) warnings.push(message.text());
+      if (message.type() === 'warning' && /^\[needle\] the beads could not be loaded/.test(message.text())) warnings.push(message.text());
     });
     let answered = 0;
     await page.route(BEADS_GLB, (route) => {
@@ -5411,19 +5388,19 @@ async function voidFail(browser, step) {
     step.check(await landHome(page), `${at}: landed on the home with bob-beads.glb answering 404, the hero shown whole`);
     const failedState = await waitForVoid(page, 'failed', 10_000);
     step.check(failedState === 'failed' && answered >= 1, `${at}: the page asked for the file (${answered} requests) and the void failed (voidState ${failedState})`);
-    const flags = () => page.evaluate(() => ({ void: document.documentElement.dataset.void ?? null, rising: document.documentElement.hasAttribute('data-rising') }));
+    const flags = () => page.evaluate(() => ({ void: document.documentElement.dataset.void ?? null, held: document.documentElement.hasAttribute('data-held') }));
     const atHome = await flags();
     step.check(
-      atHome.void === 'failed' && !atHome.rising && visuallyHidden(await boxOf(page, '.home-nav')),
-      `${at}: at the home <html data-void> says ${atHome.void}, the rise has not begun (data-rising ${atHome.rising}) and .home-nav stays hidden, as with 3D on (the SCROLL cue keeps the foot of the screen)`,
+      atHome.void === 'failed' && !atHome.held && visuallyHidden(await boxOf(page, '.home-nav')),
+      `${at}: at the home <html data-void> says ${atHome.void}, nothing is held (data-held ${atHome.held}) and .home-nav stays hidden, as with 3D on (the SCROLL cue keeps the foot of the screen)`,
     );
 
     if (!touch) await page.mouse.move(size.width / 2, size.height / 2);
-    const pushed = await pushStory(page, cdp, 1, { notches: 40, flicks: 8 });
+    const pushed = await pushStory(page, cdp, 1, { notches: 32, flicks: 16 });
     const rest = await settledState(page);
     step.check(
-      near(rest.target, RISE_TOP, 1e-9) && rest.progress === rest.target && rest.phase.kind === 'DIVE' && rest.journey.stretch === 'dive' && rest.journey.local === 0 && rest.journey.voidState === 'failed',
-      `${at}: a long push (${pushed}) holds the scroll at ${RISE_TOP}, BOB from above: progress ${rest.progress}, target ${rest.target}, the phase ${rest.phase.kind}, the journey ${JSON.stringify(rest.journey)}`,
+      near(rest.target, LANDING_HOLD, 1e-9) && rest.progress === rest.target && rest.phase.kind === 'LIGHT' && rest.journey.stretch === 'light' && rest.journey.voidState === 'failed',
+      `${at}: a long push (${pushed}) plays the light dive and holds the scroll at LANDING_HOLD, ${LANDING_HOLD.toFixed(4)}: progress ${rest.progress}, target ${rest.target}, the phase ${rest.phase.kind}, the journey ${rest.journey.stretch} at way frame ${rest.journey.frame}`,
     );
     const navAt = () =>
       page.evaluate(() => {
@@ -5435,13 +5412,27 @@ async function voidFail(browser, step) {
           const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
           return { href: link.getAttribute('href'), onScreen: r.height > 0 && r.top >= 0 && r.left >= 0 && r.bottom <= window.innerHeight && r.right <= window.innerWidth, hit: hit === link || link.contains(hit) };
         });
-        return { void: document.documentElement.dataset.void ?? null, rising: document.documentElement.hasAttribute('data-rising'), position: style.position, clip: style.clipPath, opacity: Number(style.opacity), height: box.height, links };
+        const endLink = nav.querySelector('.end-link');
+        const skip = document.querySelector('.skip-button');
+        return {
+          void: document.documentElement.dataset.void ?? null,
+          held: document.documentElement.hasAttribute('data-held'),
+          position: style.position,
+          clip: style.clipPath,
+          opacity: Number(style.opacity),
+          height: box.height,
+          links,
+          endLink: endLink === null ? null : { text: endLink.textContent, shown: endLink.getClientRects().length > 0 },
+          skip: skip === null ? 'none' : getComputedStyle(skip).display,
+        };
       });
     const nav = await navAt();
     step.check(
-      nav.void === 'failed' && nav.rising && nav.position === 'fixed' && nav.clip === 'none' && nav.opacity === 1 && nav.height > 100,
-      `${at}: there .home-nav shows over the foot of the screen: ${nav.position}, clip-path ${nav.clip}, opacity ${nav.opacity}, ${Math.round(nav.height)} px high (data-void ${nav.void}, data-rising ${nav.rising})`,
+      nav.void === 'failed' && nav.held && nav.position === 'fixed' && nav.clip === 'none' && nav.opacity === 1 && nav.height > 100,
+      `${at}: there .home-nav shows over the foot of the screen: ${nav.position}, clip-path ${nav.clip}, opacity ${nav.opacity}, ${Math.round(nav.height)} px high (data-void ${nav.void}, data-held ${nav.held})`,
     );
+    step.check(nav.endLink !== null && nav.endLink.shown && nav.endLink.text === new Translator('nl').t.end.failLink, `${at}: with its link to the questions, "${nav.endLink?.text}"`);
+    step.check(nav.skip === 'none', `${at}: and no skip button (display ${nav.skip})`);
     step.check(
       JSON.stringify(nav.links.map((link) => link.href)) === JSON.stringify(HOME_LINKS) && nav.links.every((link) => link.onScreen && link.hit),
       `${at}: with its three links on screen, each the element at its own middle (got ${JSON.stringify(nav.links)})`,
@@ -5464,8 +5455,8 @@ async function voidFail(browser, step) {
     await page.waitForURL((url) => url.pathname === '/', { timeout: 5_000 }); // a page reached from the home steps back to /?proof
     const back = await settledState(page);
     step.check(
-      near(back.target, RISE_TOP, 1e-9) && back.progress === back.target && back.journey.voidState === 'failed',
-      `${at}: Esc brings the story back to the hold at ${RISE_TOP}, not to Funcial's stop (progress ${back.progress}, target ${back.target}, voidState ${back.journey.voidState})`,
+      near(back.target, LANDING_HOLD, 1e-9) && back.progress === back.target && back.journey.voidState === 'failed',
+      `${at}: Esc brings the story back to the hold at ${LANDING_HOLD.toFixed(4)}, not to Funcial's stop (progress ${back.progress}, target ${back.target}, voidState ${back.journey.voidState})`,
     );
     if (!touch) await page.mouse.move(size.width / 2, size.height / 2);
     await pushStory(page, cdp, -1, { notches: 40, flicks: 8 });
@@ -5474,7 +5465,7 @@ async function voidFail(browser, step) {
     const cue = await cueAt(page, 1);
     const flagsHome = await flags();
     step.check(
-      home.target <= 1e-6 && (await phaseOf(page)).kind === 'HOME_IDLE' && !flagsHome.rising && visuallyHidden(await boxOf(page, '.home-nav')) && cueShown(cue),
+      home.target <= 1e-6 && (await phaseOf(page)).kind === 'HOME_IDLE' && !flagsHome.held && visuallyHidden(await boxOf(page, '.home-nav')) && cueShown(cue),
       `${at}: scrolled back to the home the nav is hidden again, the SCROLL cue is back (${cueText(cue)}) and the phase is HOME_IDLE (target ${home.target})`,
     );
 
@@ -5485,7 +5476,7 @@ async function voidFail(browser, step) {
     );
     await takeCsp(page, step);
     await context.close();
-    summary.push(`${at}: 404, the scroll holds at ${RISE_TOP} (${pushed}) with .home-nav shown and usable, back at the home it is hidden again; one reported error, one warning`);
+    summary.push(`${at}: 404, the scroll holds at ${LANDING_HOLD.toFixed(4)} (${pushed}) with .home-nav shown and usable, no skip button, back at the home it is hidden again; one reported error, one warning`);
   }
   const rows = await gateLuma(browser, step, shots);
   step.luma = rows;
@@ -5505,26 +5496,6 @@ const STOP_SIZES = [
 const nextStopAfter = (place) => stops(HOME_CHAPTERS).find((stop) => stop > place + 1e-6) ?? STORY_END;
 
 /**
- * Tab from the skip link until bead `id`'s label has the focus, 14 presses at most: answers how many it took (0 for never)
- * and whether the label then shows a focus ring (an outline of 2 px or more). Tab is no scroll key: the story stays.
- */
-async function tabToLabel(page, id) {
-  await page.focus('a[href="#main"]');
-  let reached = 0;
-  for (let press = 1; press <= 14 && reached === 0; press++) {
-    await page.keyboard.press('Tab');
-    if (await page.evaluate((id) => document.activeElement?.getAttribute('data-bead') === id, id)) reached = press;
-  }
-  const ringed =
-    reached > 0 &&
-    (await page.evaluate(() => {
-      const style = getComputedStyle(document.activeElement);
-      return style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) >= 2;
-    }));
-  return { reached, ringed };
-}
-
-/**
  * One deliberate swipe on a touch screen (CDP touch events): the finger moves `px` up the screen (a negative `px` down)
  * in 12 steps 16 ms apart along the middle, and stops 150 ms before it lifts, so the lift leaves no glide: the swipe's own
  * distance is all it moves the story.
@@ -5539,390 +5510,6 @@ async function swipeStill(page, cdp, px) {
   }
   await page.waitForTimeout(150);
   await touch('touchEnd');
-}
-
-/**
- * The void's stops by real input alone, never `.set` (spec §2.3, §2.4; the final review's Critical 1), at 1440x900, at an
- * odd height, 1366x657, and at 390x844 (touch), each in a fresh context landed with the seen flag set and the void ready:
- *
- * 1. Real wheel notches of 120 px on a laptop, or real deliberate swipes of 300 px (the finger still before it lifts) on
- *    the phone, one at a time, each left to come to rest. On the rise each rests where it ends; every one past it rests
- *    on a stop exactly, the next one down each time (stop by stop), until the end page's, 6, where one more stays (it is
- *    the page's own scroll there). At each bead's stop its label shows whole inside the screen (`data-shown`, `data-rest`,
- *    opacity 1) and takes Tab: it is in the Tab order (no `tabindex`) and Tab from the skip link reaches it, ringed.
- * 2. On a laptop, real arrow presses from the home: on the rise each moves 0.15 of a viewport, up to its top, BOB from
- *    above, exactly; past it each press is the next stop, to the end page's, where one more stays, and every bead's label
- *    shows whole and takes Tab. Then arrows up from the end page come back to the last bead's stop once the page is at its
- *    top, and with the focus on its label, arrows up step back bead by bead (the focus going with the label shown) and on
- *    to the overview, where no label shows: the focus goes to <main>, never to <body>.
- */
-async function voidStops(browser, step) {
-  const summary = [];
-  for (const size of STOP_SIZES) {
-    const at = sizeName(size);
-    const touch = size.options.hasTouch === true;
-    const { context, page } = await openSeen(browser, step, size);
-    const cdp = touch ? await context.newCDPSession(page) : null;
-    step.check(await landHome(page), `${at}: landed on the home, the hero shown whole`);
-    await expectVoid(page, step, 'ready', `${at}: the void under the glass is ready`);
-    if (!touch) await page.mouse.move(size.width / 2, size.height / 2);
-
-    /** At a bead's stop: its label shows whole inside the screen and takes Tab. */
-    const atBead = async (bead, how) => {
-      const label = await waitForLabel(page, bead.id);
-      step.check(
-        label !== null && label.shown && label.rest && label.opacity === 1 && label.tabindex === null && labelInside(label),
-        `${at}: ${how} rests on ${bead.id}'s stop, ${bead.stop}, and its label shows whole inside the screen, in the Tab order (${label === null ? 'never shown whole' : `[${Object.values(label.box).map((v) => Math.round(v)).join(', ')}], tabindex ${label.tabindex}`})`,
-      );
-      const tab = await tabToLabel(page, bead.id);
-      step.check(tab.reached > 0 && tab.ringed, `${at}: ${how}: Tab from the skip link reaches ${bead.id}'s label after ${tab.reached} presses, with a focus ring`);
-      const still = await debugOf(page);
-      step.check(still.progress === bead.stop && still.target === bead.stop, `${at}: ${how}: and Tab leaves the story on the stop (progress ${still.progress}, target ${still.target})`);
-    };
-
-    // 1. The wheel, or the finger: one gesture at a time, each to rest.
-    const how = touch ? 'a 300 px swipe' : `a wheel notch of ${RISE.notchPx} px`;
-    const rests = [];
-    let pastTop = 0;
-    let offStop = 0;
-    let skipped = 0;
-    let previous = 0;
-    const beadsSeen = new Set();
-    for (let gesture = 1; gesture <= 30; gesture++) {
-      if (touch) await swipeStill(page, cdp, 300);
-      else await page.mouse.wheel(0, RISE.notchPx);
-      const state = await settledState(page);
-      rests.push(state.progress);
-      if (state.progress > RISE_TOP - 1e-6 || previous > RISE_TOP - 1e-6) {
-        pastTop++;
-        if (!(state.progress === state.target && stops(HOME_CHAPTERS).includes(state.progress))) offStop++;
-        // Stop by stop: from a stop past the rise the next gesture rests on the next stop (from the rise, on the first stop past where it ended).
-        if (previous > RISE_TOP - 1e-6 && state.progress !== nextStopAfter(previous)) skipped++;
-      }
-      const bead = BEAD_LIST.find((b) => b.stop === state.progress);
-      if (bead && !beadsSeen.has(bead.id)) {
-        beadsSeen.add(bead.id);
-        await atBead(bead, `${how} at a time`);
-      }
-      if (previous === STORY_END && state.progress === STORY_END) break;
-      previous = state.progress;
-    }
-    step.check(
-      pastTop > 0 && offStop === 0 && skipped === 0 && beadsSeen.size === BEAD_LIST.length && rests.at(-1) === STORY_END,
-      `${at}: ${how} at a time, each to rest: every rest past the rise is on a stop, the next one each time, every bead's reached and the last one, ${STORY_END}, stays (rests ${rests.map((r) => (Number.isInteger(r) ? r : r.toFixed(3))).join(' ')})`,
-    );
-    // The gesture that comes up out of the rise, less than a whole unit past its top, rests on the top: BOB from above.
-    const firstPast = rests.find((r) => r > RISE_TOP - 1e-6);
-    step.check(firstPast === RISE_TOP, `${at}: the ${how} that comes up out of the rise rests on its top, BOB from above, ${RISE_TOP}, and the next goes on to the overview (first rest past the rise ${firstPast})`);
-    summary.push(`${at}: ${touch ? 'swipes' : 'notches'} ${rests.map((r) => (Number.isInteger(r) ? r : r.toFixed(2))).join(' ')}`);
-
-    // 2. The arrows, on a laptop.
-    if (!touch) {
-      await page.keyboard.press('Home');
-      await settledState(page);
-      const keyed = [];
-      for (let press = 1; press <= 16; press++) {
-        await page.keyboard.press('ArrowDown');
-        const state = await settledState(page);
-        keyed.push(state.progress);
-        const bead = BEAD_LIST.find((b) => b.stop === state.progress);
-        if (bead && keyed.filter((p) => p === bead.stop).length === 1) await atBead(bead, `the arrow press ${press}`);
-        if (state.progress === STORY_END && keyed.at(-2) === STORY_END) break;
-      }
-      const rise = keyed.filter((p) => p < RISE_TOP);
-      const firstTop = keyed.indexOf(RISE_TOP);
-      const after = keyed.slice(firstTop);
-      // Every stop from the rise's top on, each once, and the end page's again: one more press there is the page's own.
-      const walk = [...stops(HOME_CHAPTERS).filter((stop) => stop >= RISE_TOP), STORY_END];
-      step.check(
-        rise.every((p, i) => near(p, 0.15 * (i + 1), 1e-9)) && firstTop === rise.length && JSON.stringify(after) === JSON.stringify(walk),
-        `${at}: real arrow presses from the home move 0.15 a press on the rise, stop exactly on its top, BOB from above, and from there step stop by stop to the end page's, ${STORY_END}, where one more stays (rests ${keyed.map((r) => (Number.isInteger(r) ? r : r.toFixed(2))).join(' ')})`,
-      );
-      // Up again with the focus on the last bead's label: it goes with the label shown, then to <main> at the overview. The
-      // last bead's stop is reached from the end page by real arrows up: the page's own scroll back to its top, then a step.
-      const cookies = BEAD_LIST.at(-1);
-      const upToCookies = [];
-      for (let press = 0; press < 8 && (await debugOf(page)).progress !== cookies.stop; press++) {
-        await page.keyboard.press('ArrowUp');
-        await scrollSettled(page);
-        upToCookies.push((await settledState(page)).progress);
-      }
-      step.check((await debugOf(page)).progress === cookies.stop, `${at}: arrows up from the end page come back to ${cookies.id}'s stop, ${cookies.stop}, once the page is at its top (rests ${upToCookies.join(' ')})`);
-      await waitForLabel(page, cookies.id);
-      await tabToLabel(page, cookies.id);
-      const focusUp = [];
-      for (const stop of [4, 3, 2]) {
-        await page.keyboard.press('ArrowUp');
-        const state = await settledState(page);
-        focusUp.push({ stop: state.progress, focus: await page.evaluate(() => document.activeElement?.getAttribute('data-bead') ?? document.activeElement?.id ?? document.activeElement?.tagName) });
-        step.check(state.progress === stop, `${at}: an arrow up steps back to ${stop} (got ${state.progress})`);
-      }
-      step.check(
-        focusUp[0].focus === BEAD_LIST[1].id && focusUp[1].focus === BEAD_LIST[0].id && focusUp[2].focus === 'main',
-        `${at}: the focus goes with the label shown, bead to bead, and at the overview, with no label, to <main>, not <body> (${focusUp.map((f) => `${f.stop}: ${f.focus}`).join(', ')})`,
-      );
-      summary.push(`${at}: arrows ${keyed.map((r) => (Number.isInteger(r) ? r : r.toFixed(2))).join(' ')}, the focus up to <main>`);
-
-      // 3. A push against an end that turns back within one gesture settles from where the story is, the way it turned:
-      // real notches 16 ms apart with no pause between the two ways, so the wheel is never quiet in between. The re-review's
-      // counts are for a 900 px viewport (30 notches back from the end are exactly 4 units, onto a stop), so these run at
-      // 1440x900.
-      await page.evaluate(() => document.activeElement?.blur?.());
-      await page.mouse.move(size.width / 2, size.height / 2);
-      const turnBack = async (startKeys, down, up) => {
-        for (const key of startKeys) {
-          await page.keyboard.press(key);
-          await settledState(page);
-        }
-        for (const [count, sign] of [[down[0], down[1]], [up[0], up[1]]]) {
-          for (let i = 0; i < count; i++) {
-            await page.mouse.wheel(0, sign * RISE.notchPx);
-            await page.waitForTimeout(RISE.notchGapMs);
-          }
-        }
-        const turnedTo = (await frameOf(page)).target;
-        const state = await settledState(page);
-        return { turnedTo, rest: state.progress, target: state.target };
-      };
-      const turned = [];
-      if (size.height === 900) {
-        // 60 notches (8 units) pin the story at the end; 30 back (4 units) come back to the stop 4 units short of it.
-        const downUp = await turnBack(['Home'], [60, 1], [30, -1]);
-        const downTo = STORY_END - (30 * RISE.notchPx) / size.height;
-        const downWant = stops(HOME_CHAPTERS).find((stop) => near(stop, downTo, 1e-6));
-        step.check(
-          near(downUp.turnedTo, downTo, 1e-9) && downWant !== undefined && downUp.rest === downWant && downUp.target === downWant,
-          `${at}: from the home 60 real notches down and 30 straight back up, one gesture, rest where they came back to, ${downWant} (${downTo.toFixed(3)}), not flown back down to ${STORY_END} (turned back to ${downUp.turnedTo.toFixed(3)}, rests at ${downUp.rest})`,
-        );
-        // The push against the end starts on the last bead's stop (End, then an arrow up from the end page's top): at the
-        // end page itself a gesture down is the page's own scroll, so the story's end is pushed against from the stop
-        // before it. Pinned at the end, the way up turns back from the end exactly, and passes the last bead's stop.
-        const endUp = await turnBack(['End', 'ArrowUp'], [10, 1], [8, -1]);
-        const endWant = stops(HOME_CHAPTERS).findLast((stop) => stop < endUp.turnedTo - 1e-6) ?? 0;
-        const pinnedTo = STORY_END - (8 * RISE.notchPx) / size.height;
-        step.check(
-          near(endUp.turnedTo, pinnedTo, 1e-9) && endUp.rest === endWant && endWant < BEAD_LIST.at(-1).stop,
-          `${at}: from the last bead's stop 10 real notches down against the end and 8 up, one gesture: pinned at the end, ${STORY_END}, it turns back from there (to ${endUp.turnedTo.toFixed(3)}, ${pinnedTo.toFixed(3)} from the end) and rests on the stop the way up passed, ${endWant}, not back on ${BEAD_LIST.at(-1).stop} nor ${STORY_END} (rests at ${endUp.rest})`,
-        );
-        const upDown = await turnBack(['Home'], [10, -1], [10, 1]);
-        step.check(upDown.rest === RISE_TOP && upDown.target === RISE_TOP, `${at}: at the home 10 real notches up and 10 down, one gesture, rest on a stop, BOB from above, 1, not part way into the dive (reached ${upDown.turnedTo.toFixed(3)}, rests at ${upDown.rest})`);
-        turned.push(downUp.rest, endUp.rest, upDown.rest);
-      }
-
-      // 4. Small notches, one at a time, each to rest: a wheel gesture of any size steps one stop in its direction. A
-      // line-mode notch (deltaMode 1, one line) is sent as a WheelEvent on the root, where the input listens; the small
-      // pixel notches are real.
-      await page.keyboard.press('Home');
-      await settledState(page);
-      for (let press = 0; press < 9 && (await debugOf(page)).progress !== BEAD_LIST[0].stop; press++) {
-        await page.keyboard.press('ArrowDown');
-        await settledState(page);
-      }
-      const lineNotch = (lines) =>
-        page.evaluate((lines) => document.documentElement.dispatchEvent(new WheelEvent('wheel', { deltaY: lines, deltaMode: 1, bubbles: true, cancelable: true })), lines);
-      const small = [];
-      for (const [how, act] of [
-        ['a line-mode notch down', () => lineNotch(1)],
-        ['a 10 px notch down', () => page.mouse.wheel(0, 10)],
-        ['a 10 px notch up', () => page.mouse.wheel(0, -10)],
-        ['a line-mode notch up', () => lineNotch(-1)],
-      ]) {
-        await act();
-        small.push({ how, rest: (await settledState(page)).progress });
-      }
-      step.check(
-        JSON.stringify(small.map((s) => s.rest)) === JSON.stringify([4, 5, 4, 3]),
-        `${at}: small notches one at a time from ${BEAD_LIST[0].id}'s stop, each to rest, step a stop each: ${small.map((s) => `${s.how} → ${s.rest}`).join(', ')}`,
-      );
-      summary.push(`${at}: ${turned.length > 0 ? `turned back to rest on ${turned.join(', ')}; ` : ''}small notches ${small.map((s) => s.rest).join(' ')}`);
-    }
-    await takeCsp(page, step);
-    await context.close();
-  }
-  return summary.join('; ');
-}
-
-/**
- * The paths across the tasks that the other steps miss (the final review's Minor 8), at 1440x900:
- *
- * 1. The 3D switch at a bead's stop (Important 3): Jontai Energy's stop reached by real arrows, the header's switch off
- *    leaves the story's place where it was (progress and target 4, not pulled to the dive's hold), and on again, once the
- *    void is in again, the story is back on that stop with its label shown whole.
- * 2. Opening a bead and coming back under reduced motion: Funcial's stop reached by real arrows (a step a press), Tab and
- *    Enter open its page by a fade (`<html data-focus-fade>` set, the page there well before a flight would land),
- *    Esc fades back to the stop with its label.
- * 3. The English labels at /en/: each bead's stop reached by real arrows shows its label with the English dictionary's
- *    text (the category line, the title, "Click to open" / "Tap to open") linking to its /en/ page; Tab and Enter on
- *    Funcial's fly into /en/projects/funcial/, and Esc comes back to its stop on /en/.
- */
-async function voidPaths(browser, step) {
-  const summary = [];
-  const size = STILL_SIZES[0];
-  const arrowTo = async (page, stop) => {
-    await page.keyboard.press('Home');
-    await settledState(page);
-    for (let press = 0; press < 20; press++) {
-      if ((await debugOf(page)).progress === stop) break;
-      await page.keyboard.press('ArrowDown');
-      await settledState(page);
-    }
-    return debugOf(page);
-  };
-
-  // 1. The 3D switch at a bead's stop.
-  {
-    const { context, page } = await openSeen(browser, step, size);
-    step.check(await landHome(page), '3D switch: landed on the home');
-    await expectVoid(page, step, 'ready', '3D switch: the void is ready');
-    const jontai = BEAD_LIST[1];
-    const there = await arrowTo(page, jontai.stop);
-    const before = await waitForLabel(page, jontai.id);
-    step.check(there.progress === jontai.stop && before !== null, `3D switch: real arrows rest on ${jontai.id}'s stop, ${jontai.stop}, with its label (progress ${there.progress})`);
-    await page.click('button[role="switch"]');
-    await page.waitForFunction(() => document.documentElement.dataset['3d'] === 'off', null, { timeout: 5_000 });
-    await page.waitForTimeout(1_000);
-    const off = await debugOf(page);
-    step.check(
-      !off.threeD && off.progress === jontai.stop && off.target === jontai.stop && off.journey.voidState === 'idle',
-      `3D switch: off, the story keeps its place: progress ${off.progress}, target ${off.target}, not pulled to the dive's hold (${TUNNEL_HOLD}); the void ${off.journey.voidState}`,
-    );
-    await page.click('button[role="switch"]');
-    await page.waitForFunction(() => document.documentElement.dataset['3d'] === 'on', null, { timeout: 5_000 });
-    const ready = await waitForVoid(page, 'ready', 20_000);
-    const stopped = await waitForStop(page, jontai.category, 15_000);
-    const label = await waitForLabel(page, jontai.id);
-    const on = await debugOf(page);
-    step.check(
-      ready === 'ready' && stopped.progress === jontai.stop && stopped.target === jontai.stop && on.journey.project === jontai.index && on.journey.local === 0 && label !== null && labelInside(label),
-      `3D switch: on again, the void ${ready}, the story is back on ${jontai.id}'s stop with its label shown whole (got ${JSON.stringify(stopped)}, journey ${JSON.stringify(on.journey)}, label ${label !== null})`,
-    );
-    // And within a wheel gesture's quiet: from Funcial's stop one real notch down, the switch clicked 40 ms later. The
-    // gesture is finished at once on its stop, Jontai Energy's, before the void goes, and 3D back on returns there.
-    const funcial = BEAD_LIST[0];
-    const atFuncial = await arrowTo(page, funcial.stop);
-    await page.mouse.move(size.width / 2, size.height / 2);
-    await page.mouse.wheel(0, RISE.notchPx);
-    await page.waitForTimeout(40);
-    await page.click('button[role="switch"]');
-    await page.waitForFunction(() => document.documentElement.dataset['3d'] === 'off', null, { timeout: 5_000 });
-    await page.waitForTimeout(500);
-    const offQuiet = await debugOf(page);
-    step.check(
-      atFuncial.progress === funcial.stop && !offQuiet.threeD && offQuiet.target === jontai.stop,
-      `3D switch within a wheel's quiet: one notch from ${funcial.id}'s stop, then 3D off 40 ms later: the gesture is finished on the next stop, target ${offQuiet.target} (not held at ${TUNNEL_HOLD} nor capped at 2; progress ${offQuiet.progress.toFixed(3)})`,
-    );
-    await page.click('button[role="switch"]');
-    await page.waitForFunction(() => document.documentElement.dataset['3d'] === 'on', null, { timeout: 5_000 });
-    const readyQuiet = await waitForVoid(page, 'ready', 20_000);
-    const stoppedQuiet = await waitForStop(page, jontai.category, 15_000);
-    const labelQuiet = await waitForLabel(page, jontai.id);
-    step.check(
-      readyQuiet === 'ready' && stoppedQuiet.progress === jontai.stop && stoppedQuiet.target === jontai.stop && labelQuiet !== null,
-      `3D switch within a wheel's quiet: on again, the story comes back to ${jontai.id}'s stop, ${jontai.stop}, with its label, not to the overview (got ${JSON.stringify(stoppedQuiet)})`,
-    );
-    await takeCsp(page, step);
-    await context.close();
-    summary.push(`3D off and on at ${jontai.id}'s stop keeps ${jontai.stop}, and within a wheel's quiet too`);
-  }
-
-  // 2. Opening a bead and coming back under reduced motion: fades, not flights.
-  {
-    const { context, page } = await openPage(browser, step, () => false, { width: size.width, height: size.height }, { reducedMotion: 'reduce' });
-    await context.addInitScript((key) => localStorage.setItem(key, '1'), LOADER_SEEN_KEY);
-    step.check(await landHome(page), 'reduced motion: landed on the home');
-    await expectVoid(page, step, 'ready', 'reduced motion: the void is ready');
-    const funcial = BEAD_LIST[0];
-    const presses = [];
-    await page.keyboard.press('Home');
-    await settledState(page);
-    for (let press = 0; press < funcial.stop; press++) {
-      await page.keyboard.press('ArrowDown');
-      presses.push((await settledState(page)).progress);
-    }
-    const label = await waitForLabel(page, funcial.id);
-    step.check(JSON.stringify(presses) === '[1,2,3]' && label !== null && labelInside(label), `reduced motion: real arrows step a stop a press, ${presses.join(', ')}, to ${funcial.id}'s stop, with its label shown whole`);
-    await page.evaluate(() => {
-      window.__fades = 0;
-      new MutationObserver(() => {
-        if (document.documentElement.hasAttribute('data-focus-fade')) window.__fades++;
-      }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-focus-fade'] });
-    });
-    const tab = await tabToLabel(page, funcial.id);
-    const pressed = Date.now();
-    await page.keyboard.press('Enter');
-    const arrived = await page.waitForURL(`${BASE}${funcial.path}`, { timeout: 5_000 }).then(() => true, () => false);
-    const took = Date.now() - pressed;
-    const project = await waitForProject(page, funcial.id);
-    const fadesIn = await page.evaluate(() => window.__fades);
-    step.check(
-      tab.reached > 0 && arrived && took < 700 && project.kind === 'PROJECT_FOCUS' && project.id === funcial.id && fadesIn >= 1,
-      `reduced motion: Tab and Enter open ${funcial.path} by a fade, not a flight: <html data-focus-fade> set ${fadesIn} time(s), the page there ${took} ms after the press (under the ${FLIGHT_MS / 1000} s flight), PROJECT_FOCUS ${project.id}`,
-    );
-    await page.evaluate(() => (window.__fades = 0));
-    await page.keyboard.press('Escape');
-    const stopped = await waitForStop(page, funcial.category, 15_000);
-    const fadesOut = await page.evaluate(() => window.__fades);
-    const again = await waitForLabel(page, funcial.id);
-    step.check(
-      new URL(page.url()).pathname === '/' && stopped.progress === funcial.stop && stopped.target === funcial.stop && fadesOut >= 1 && again !== null && labelInside(again),
-      `reduced motion: Esc fades back (<html data-focus-fade> set ${fadesOut} time(s)) to ${funcial.id}'s stop, ${funcial.stop}, with its label shown whole (got ${JSON.stringify(stopped)})`,
-    );
-    await takeCsp(page, step);
-    await context.close();
-    summary.push(`reduced motion: open ${funcial.id} by a fade in ${took} ms and back to ${funcial.stop}`);
-  }
-
-  // 3. The English labels at /en/.
-  {
-    const english = new Translator('en').t.needle.bead;
-    const { context, page } = await openSeen(browser, step, size);
-    step.check(await landHome(page, '/en/'), '/en/: landed on the English home');
-    await expectVoid(page, step, 'ready', '/en/: the void is ready');
-    for (const bead of BEAD_LIST) {
-      await arrowTo(page, bead.stop);
-      const label = await waitForLabel(page, bead.id);
-      const want = { category: categories.byId(bead.category).heading('en'), title: bead.title, hintFine: english.hint, hintTouch: english.hintTouch, href: Translator.pathFor('en', bead.path) };
-      step.check(
-        label !== null &&
-          labelInside(label) &&
-          label.category === want.category &&
-          label.title === want.title &&
-          label.hintFine === want.hintFine &&
-          label.hintTouch === want.hintTouch &&
-          label.href === want.href &&
-          label.fineShown &&
-          !label.touchShown,
-        `/en/: at ${bead.id}'s stop, reached by real arrows, the label says what the English dictionary says, "${want.category}", "${want.title}", "${want.hintFine}" / "${want.hintTouch}", and links to ${want.href} (got ${JSON.stringify(label && [label.category, label.title, label.hintFine, label.hintTouch, label.href])})`,
-      );
-    }
-    const funcial = BEAD_LIST[0];
-    const enPath = Translator.pathFor('en', funcial.path);
-    await arrowTo(page, funcial.stop);
-    await waitForLabel(page, funcial.id);
-    const tab = await tabToLabel(page, funcial.id);
-    const pressed = Date.now();
-    await page.keyboard.press('Enter');
-    const arrived = await page.waitForURL(`${BASE}${enPath}`, { timeout: 5_000 }).then(() => true, () => false);
-    const took = Date.now() - pressed;
-    // The page is up (its phase, its heading) before its Escape is pressed, as bead-open waits for it.
-    const project = await waitForProject(page, funcial.id);
-    const heading = await page.textContent('h1');
-    step.check(
-      tab.reached > 0 && arrived && took >= FLIGHT_MS - 100 && project.kind === 'PROJECT_FOCUS' && project.id === funcial.id && heading === funcial.title,
-      `/en/: Tab and Enter on ${funcial.id}'s label fly into ${enPath} (${took} ms, the ${FLIGHT_MS / 1000} s flight), PROJECT_FOCUS ${project.id}, the heading "${heading}"`,
-    );
-    await page.keyboard.press('Escape');
-    const stopped = await waitForStop(page, funcial.category, 15_000);
-    const again = await waitForLabel(page, funcial.id);
-    step.check(
-      new URL(page.url()).pathname === '/en/' && stopped.progress === funcial.stop && again !== null && again.href === enPath,
-      `/en/: Esc comes back to /en/ at ${funcial.id}'s stop with its English label (path ${new URL(page.url()).pathname}, got ${JSON.stringify(stopped)})`,
-    );
-    await takeCsp(page, step);
-    await context.close();
-    summary.push(`/en/: the three labels in English, ${funcial.id} opened and back`);
-  }
-  return summary.join('; ');
 }
 
 // ---------------------------------------------------------------- the end page
@@ -6039,14 +5626,15 @@ const fadeLifted = (page) =>
  */
 const REST_WITHIN_S = 3.0;
 
-/** How far the page's top may move between the last frame of the move into the night and the first at rest, px (Ruling 18). */
+/** How far the page's words may move between the last frame of the sheet's move and the first at rest, px (Ruling 18). */
 const SEAM_PX = 0.5;
 
 /**
  * Starts timing a move into the night, from now on in `window.__endArrival`: when the first wheel, key or finger came
  * (performance.now() in a capture listener on window, the first to hear it), when a finger lifted, when `<html
- * data-end>` first said `rest`, and the end page's top (`#end`'s box, its transform included) on the last frame
- * `moving` and the first `rest`: a MutationObserver on `data-end` and the style that carries `--end`, both written by
+ * data-end>` first said `rest`, and the top of the end page's words (its first line, the label over the title, its
+ * transform included: the sheet stands from the screen's top while it moves, a header higher than the page at rest, its
+ * words where they stand at rest) on the last frame `moving` and the first `rest`: a MutationObserver on `data-end` and the style that carries `--end`, both written by
  * Home's end view in one frame, its callback after that frame's writes. `takeArrival` reads the record and stops it.
  */
 const watchArrival = (page) =>
@@ -6067,7 +5655,7 @@ const watchArrival = (page) =>
     const observer = new MutationObserver(() => {
       if (record.rest !== null) return;
       const state = root.getAttribute('data-end');
-      const top = document.getElementById('end').getBoundingClientRect().top;
+      const top = document.getElementById('end').firstElementChild.getBoundingClientRect().top;
       if (state === 'moving') {
         record.movingTop = top;
         record.movingEnd = root.style.getPropertyValue('--end');
@@ -6117,8 +5705,9 @@ const movingAt = (page, from, to) =>
  * nav's `.end-link`, hidden with the nav while 3D is on and shown with it while it has the focus, as the nav's links are.
  * From the home's start Tab reaches it (from the skip link, within 20 presses), and focused it shows on screen, the
  * element at its own middle, with the dictionary's words. Enter takes the story from the home to the end page by End's own
- * path, the whole damped move through the void (progress samples between 1 and 6, no step fade), and once it rests there
- * the focus is on the page's title (`#end-title`), the title in view at `scrollY` 0; the next Tab is the first question.
+ * path, the step fade (no progress between 1 and the end), and once it rests there the focus is on the page's title
+ * (`#end-title`), the title in view at `scrollY` 0 (the Tab through the nav's links had scrolled the document to them);
+ * the next Tab is the first question.
  *
  * Then 3D switched off there, by the header's switch (the final review's M1): the scene goes, and the end page stands in
  * the 3D-off home's flow after the hero and the project links. It is brought into view, `#end-title` inside the viewport
@@ -6164,8 +5753,8 @@ async function navLinkToTheEnd(browser, step, nl) {
   const focus = await page.evaluate(() => document.activeElement?.id ?? null);
   const travelled = between(way.progress, 1, STORY_END).length;
   step.check(
-    view === 'rest' && restsAtEnd(there) && way.fades === 0 && travelled > 0,
-    `the nav's link: Enter takes the story from the home to the end page by the move, through the void (${travelled} of ${way.progress.length} progress samples between 1 and ${STORY_END}, data-step-fade set ${way.fades} times), and it rests there (${endText(there)})`,
+    view === 'rest' && restsAtEnd(there) && way.fades >= 1 && travelled === 0,
+    `the nav's link: Enter takes the story from the home to the end page by End's step fade (${travelled} of ${way.progress.length} progress samples between 1 and ${STORY_END}, data-step-fade set ${way.fades} times), and it rests there (${endText(there)})`,
   );
   step.check(
     focus === 'end-title' && there.titleIn && there.scrollY === 0,
@@ -6762,8 +6351,8 @@ async function endPage(browser, step) {
       };
     });
     step.check(
-      failed === 'failed' && link.void === 'failed' && near(held.target, RISE_TOP, 1e-9) && held.progress === held.target && link.shown && link.onScreen && link.hit && link.text === nl.end.failLink,
-      `void failed: the scroll holds at BOB from above, ${RISE_TOP} (progress ${held.progress}), and the nav's .end-link button shows on screen, "${nl.end.failLink}", the element at its own middle (got ${JSON.stringify(link)})`,
+      failed === 'failed' && link.void === 'failed' && near(held.target, LANDING_HOLD, 1e-9) && held.progress === held.target && link.shown && link.onScreen && link.hit && link.text === nl.end.failLink,
+      `void failed: the scroll holds at the landing, ${LANDING_HOLD.toFixed(4)} (progress ${held.progress}), and the nav's .end-link button shows on screen, "${nl.end.failLink}", the element at its own middle (got ${JSON.stringify(link)})`,
     );
     await watchEndFade(page);
     await page.click('.home-nav .end-link');
@@ -6773,10 +6362,10 @@ async function endPage(browser, step) {
     const into = await takeEndFade(page);
     const there = await endPageOf(page);
     const focus = await page.evaluate(() => document.activeElement?.id ?? null);
-    const travelIn = between(into.progress, RISE_TOP, STORY_END);
+    const travelIn = between(into.progress, LANDING_HOLD, STORY_END);
     step.check(
       view === 'rest' && restsAtEnd(there) && into.fades >= 1 && into.progress.length > 0 && travelIn.length === 0,
-      `void failed: the button goes to the end page by a fade: <html data-step-fade> set ${into.fades} time(s), no progress between ${RISE_TOP} and ${STORY_END} (${travelIn.length} of ${into.progress.length} samples between), and it rests there (${endText(there)})`,
+      `void failed: the button goes to the end page by a fade: <html data-step-fade> set ${into.fades} time(s), no progress between ${LANDING_HOLD} and ${STORY_END} (${travelIn.length} of ${into.progress.length} samples between), and it rests there (${endText(there)})`,
     );
     step.check(into.fading > 0, `void failed: the end page fades in with the scene, not cut in: ${into.fading} of ${into.opacities} opacities seen strictly between 0 and 1`);
     step.check(focus === 'end-title', `void failed: after the button's move the focus is on the end page's title (got ${focus})`);
@@ -6784,10 +6373,10 @@ async function endPage(browser, step) {
     const upFrom = await settledState(page);
     const gone = await endViewAt(page, null);
     const out = await takeEndFade(page);
-    const travelOut = between(out.progress, RISE_TOP, STORY_END);
+    const travelOut = between(out.progress, LANDING_HOLD, STORY_END);
     step.check(
-      near(upFrom.target, RISE_TOP, 1e-9) && upFrom.progress === upFrom.target && gone === null && out.fades >= 1 && out.progress.length > 0 && travelOut.length === 0,
-      `void failed: ArrowUp at the page's top comes back to BOB from above, ${RISE_TOP}, by a fade (data-step-fade set ${out.fades} time(s), ${travelOut.length} of ${out.progress.length} progress samples between), data-end ${gone} (progress ${upFrom.progress}, target ${upFrom.target})`,
+      near(upFrom.target, LANDING_HOLD, 1e-9) && upFrom.progress === upFrom.target && gone === null && out.fades >= 1 && out.progress.length > 0 && travelOut.length === 0,
+      `void failed: ArrowUp at the page's top comes back to the landing hold, ${LANDING_HOLD.toFixed(4)}, by a fade (data-step-fade set ${out.fades} time(s), ${travelOut.length} of ${out.progress.length} progress samples between), data-end ${gone} (progress ${upFrom.progress}, target ${upFrom.target})`,
     );
     step.check(out.fading > 0, `void failed: the end page fades out with the scene, not cut out: ${out.fading} of ${out.opacities} opacities seen strictly between 0 and 1`);
     step.check(step.expected.length - reportedBefore === 1, `void failed: the console has one error for it, the browser's report of the 404 (${step.expected.slice(reportedBefore).join(' | ')})`);
@@ -6841,6 +6430,538 @@ async function endPage(browser, step) {
   return `${summary.join('; ')}; ${rows.length} stills (m2/end-*), ${lumaSummary(rows, 'home')}`;
 }
 
+// ---------------------------------------------------------------- the light dive, its facts, the ring, its drag and the sheet
+
+/** The light dive's sizes: a laptop, a short laptop and a phone (touch, coarse pointer, two device pixels). */
+const DIVE_SIZES = [
+  { width: 1440, height: 900, options: {} },
+  { width: 1366, height: 657, options: {} },
+  { width: 390, height: 844, options: { isMobile: true, hasTouch: true, deviceScaleFactor: 2 } },
+];
+
+/** The laptop and the phone alone, for the steps that run at two sizes. */
+const TWO_SIZES = [DIVE_SIZES[0], DIVE_SIZES[2]];
+
+/** The mock-up's data per way frame (tests/fixtures/light-dive, the previs's export): the light's place on the frame, 0..1. */
+const WAY_FIXTURE = {
+  desk: JSON.parse(readFileSync(fileURLToPath(new URL('../../tests/fixtures/light-dive/way-desk.json', import.meta.url)), 'utf8')),
+  phone: JSON.parse(readFileSync(fileURLToPath(new URL('../../tests/fixtures/light-dive/way-phone.json', import.meta.url)), 'utf8')),
+};
+
+/** The way frames each fact peaks at (01 to 05), and the side each fact's move takes the light to (-1 left, 1 right). */
+const FACT_PEAKS = [81, 121, 161, 201, 241];
+const FACT_SIDES = [-1, 1, -1, 1, -1];
+
+/** The way frames the light is checked against the mock-up's data at, within LIGHT_PX. */
+const LIGHT_FRAMES = [20, 60, 121, 241, 280];
+const LIGHT_PX = 6;
+
+/** The ring's place for an angle, degrees: Funcial's stop is 4, 120 degrees a unit. */
+const ringPlace = (degrees) => 4 + degrees / 120;
+
+/** The degrees a CSS px of a sideways drag turns the ring (src/input/VirtualScroll.ts DRAG_DEG). */
+const DRAG_DEG = 0.25;
+
+/** How close a needle tip may come to a bead's outline on the screen, px. */
+const RING_CLEAR_PX = 8;
+
+/** The angle from a to b, degrees, wrapped to -180..180. */
+const turnOf = (a, b) => ((((b - a) % 360) + 540) % 360) - 180;
+
+/** A point from the bridge's NDC (+y up) to CSS px on a screen of `size`. */
+const ndcToPx = (ndc, size) => ({ x: ((ndc.x + 1) / 2) * size.width, y: ((1 - ndc.y) / 2) * size.height });
+
+/**
+ * A page at `size` with the seen flag set and every requestAnimationFrame counted (`window.__allRaf`), landed on the home
+ * with the void ready; a CDP session for a touch screen. Answers `{ context, page, cdp, touch }`.
+ */
+async function readyHome(browser, step, size, path = '/') {
+  const { context, page } = await openSeen(browser, step, size);
+  await countAllFrames(context);
+  const touch = size.options.hasTouch === true;
+  const cdp = touch ? await context.newCDPSession(page) : null;
+  await landHome(page, path);
+  await page.waitForFunction(() => window.__needleDebug().journey.voidState === 'ready', null, { timeout: 30_000 });
+  await page.mouse.move(size.width * 0.5, size.height * 0.2);
+  return { context, page, cdp, touch };
+}
+
+/** Puts the story at `progress` through the bridge and answers the bridge's state once the scene has posed it (three frames). */
+const poseAt = (page, progress) =>
+  page.evaluate(async (p) => {
+    window.__needleDebug.set({ progress: p });
+    for (let i = 0; i < 3; i++) await new Promise((resolve) => requestAnimationFrame(resolve));
+    return JSON.parse(JSON.stringify(window.__needleDebug()));
+  }, progress);
+
+/**
+ * A slow finger on a touch screen (CDP), from (x0, y0) to (x1, y1) in steps of 8 px 16 ms apart, held still `hold` ms
+ * before the lift, so no glide goes on from it: the story rests where the finger stopped.
+ */
+async function slowTouch(page, cdp, [x0, y0], [x1, y1], hold = 250) {
+  const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+  await touch('touchStart', x0, y0);
+  const steps = Math.max(1, Math.round(Math.hypot(x1 - x0, y1 - y0) / 8));
+  for (let i = 1; i <= steps; i++) {
+    await touch('touchMove', x0 + ((x1 - x0) * i) / steps, y0 + ((y1 - y0) * i) / steps);
+    await page.waitForTimeout(16);
+  }
+  await page.waitForTimeout(hold);
+  await touch('touchEnd', x1, y1);
+}
+
+/** One step down the story (1) or up it (-1) as a visitor gives it: a wheel notch, or on a phone a short swipe with no glide. */
+async function nudge(page, cdp, direction, px = RISE.notchPx) {
+  if (cdp === null) {
+    await page.mouse.wheel(0, direction * px);
+    return;
+  }
+  await slowTouch(page, cdp, [195, 500], [195, 500 - direction * px], 40);
+}
+
+/**
+ * Records the bridge's `journey.sheet`, `<html data-end>` and the target on every animation frame for `ms`, from now,
+ * each row at its time on the page's clock (`t`, ms). `inputEnded(page)` stamps the end of the input (a notch sent, a
+ * finger lifted) on that clock, and the record answers it as `inputEnd`.
+ */
+const recordSheet = (page, ms) =>
+  page.evaluate(
+    (ms) =>
+      new Promise((resolve) => {
+        const rows = [];
+        const start = performance.now();
+        window.__inputEnd = null;
+        const tick = (now) => {
+          const state = window.__needleDebug();
+          rows.push({ t: now, sheet: state.journey.sheet, end: document.documentElement.getAttribute('data-end'), target: state.target });
+          if (now - start < ms) requestAnimationFrame(tick);
+          else resolve({ rows, inputEnd: window.__inputEnd });
+        };
+        requestAnimationFrame(tick);
+      }),
+    ms,
+  );
+const inputEnded = (page) => page.evaluate(() => (window.__inputEnd = performance.now()));
+
+/**
+ * The light dive (spec §2): at 1440x900 and at 390x844 (touch), each in a fresh context with the void ready.
+ * 1. The light stands where the mock-up's data puts it (tests/fixtures/light-dive/way-<desk|phone>.json) at way frames
+ *    20, 60, 121, 241 and 280, within LIGHT_PX: the bridge's `journey.light` (the pose projected) against the frame's.
+ * 2. Across way frame 300 the camera's azimuth about the ring's axis turns on at the ring's own rate, no stop at
+ *    Funcial: its rate just before the landing ends is within a third of its rate just after, both the same way.
+ * 3. From BOB from above, wheel notches (swipes on the phone) run the way frames up to the ring, never back; from the
+ *    fall, notches up run them back, never forward.
+ * 4. Stopped mid-fall (two notches from fact 03's frame), the story rests where the input stopped, not on a stop, and
+ *    the canvas sleeps within a second.
+ */
+async function lightDive(browser, step) {
+  const summary = [];
+  for (const size of TWO_SIZES) {
+    const at = sizeName(size);
+    const { context, page, cdp, touch } = await readyHome(browser, step, size);
+    const set = size.width < size.height ? 'phone' : 'desk';
+    let worst = 0;
+    for (const f of LIGHT_FRAMES) {
+      const state = await poseAt(page, placeOfFrame(f));
+      const want = WAY_FIXTURE[set][f - 1].light;
+      const light = state.journey.light === null ? null : ndcToPx(state.journey.light, size);
+      const off = light === null ? Number.POSITIVE_INFINITY : Math.hypot(light.x - want.x * size.width, light.y - want.y * size.height);
+      worst = Math.max(worst, off);
+      step.check(
+        state.journey.stretch === 'light' && Math.round(state.journey.frame) === f && off <= LIGHT_PX,
+        `${at}: way frame ${f} (the bridge's ${state.journey.frame?.toFixed(2)}): the light at ${light === null ? 'none' : `(${light.x.toFixed(1)}, ${light.y.toFixed(1)})`} px, ${off.toFixed(2)} px from the mock-up's (${(want.x * size.width).toFixed(1)}, ${(want.y * size.height).toFixed(1)}), at most ${LIGHT_PX}`,
+      );
+    }
+    // The camera of the first frame that poses the journey stands on that frame's shot (the same-frame check): on the
+    // rise, in the fall and in the ring's turns, where the camera moves fastest.
+    const aspect = size.width / size.height;
+    for (const p of SAME_FRAME_AT) {
+      const posed = await poseOnTheFrame(page, p, aspect);
+      const shot = journeyPoseAt(p, aspect).shot;
+      const on = posed !== null && posed.camera.position.every((v, i) => near(v, shot.position[i], 1e-3)) && near(posed.camera.fov, shot.fov, 1e-3);
+      step.check(on, `${at}: at ${p.toFixed(3)} the first frame that poses the journey has its camera on that frame's shot (tick ${posed?.tick})`);
+    }
+    // 2. The azimuth across 300.
+    const azimuth = async (p) => {
+      const { camera } = await poseAt(page, p);
+      return (Math.atan2(camera.position[0], camera.position[2]) * 180) / Math.PI;
+    };
+    const [a296, a300, a304] = [await azimuth(placeOfFrame(296)), await azimuth(4), await azimuth(4 + (4 - placeOfFrame(296)))];
+    const before = turnOf(a296, a300);
+    const after = turnOf(a300, a304);
+    step.check(
+      Math.sign(before) === Math.sign(after) && Math.abs(after) > 0.5 && Math.abs(before) >= Math.abs(after) * 0.67 && Math.abs(before) <= Math.abs(after) * 1.5,
+      `${at}: the camera turns on round the ring across way frame 300, no stop at Funcial: ${before.toFixed(2)} degrees over the last 4 frames, ${after.toFixed(2)} over as much of the ring after`,
+    );
+    // 3. Down from BOB from above to the ring, and back up from the fall.
+    await poseAt(page, 1);
+    const down = [];
+    for (let i = 0; i < 60; i++) {
+      if (touch) await swipe(page, cdp, 560, 400);
+      else await page.mouse.wheel(0, RISE.notchPx);
+      await page.waitForTimeout(touch ? 150 : 70);
+      const s = await debugOf(page);
+      down.push(s.journey.stretch === 'light' ? s.journey.frame : s.journey.stretch === 'ring' ? 301 : s.journey.stretch === 'rise' ? 0 : 999);
+      if (s.journey.stretch === 'ring') break;
+    }
+    const monotone = (list, sign) => list.every((v, i) => i === 0 || sign * (v - list[i - 1]) >= -1e-6);
+    step.check(monotone(down, 1) && down.at(-1) === 301 && down.length > 4, `${at}: ${touch ? 'swipes' : 'wheel notches'} from BOB from above run the way frames forward to the ring, never back (${down.length} inputs: ${down.map((f) => Math.round(f)).join(' ')})`);
+    await poseAt(page, placeOfFrame(220));
+    const up = [];
+    for (let i = 0; i < 6; i++) {
+      if (touch) await swipe(page, cdp, 400, 560);
+      else await page.mouse.wheel(0, -RISE.notchPx);
+      await page.waitForTimeout(touch ? 150 : 70);
+      const s = await debugOf(page);
+      up.push(s.journey.stretch === 'light' ? s.journey.frame : 0);
+    }
+    step.check(monotone(up, -1) && up.at(-1) < 220, `${at}: scrolling up from way frame 220 runs it back, never forward (${up.map((f) => Math.round(f)).join(' ')})`);
+    // 4. Stopped mid-fall.
+    await poseAt(page, placeOfFrame(140));
+    await nudge(page, cdp, 1);
+    await nudge(page, cdp, 1);
+    const rest = await restAt(page);
+    const sleptIn = await sleepWithin(page, 4_000);
+    const onStop = keyStops(HOME_CHAPTERS).some((stop) => near(stop, rest.target, 1e-3));
+    step.check(!onStop && rest.target > placeOfFrame(140) && rest.target < 4, `${at}: two inputs from way frame 140 rest where they stopped, ${rest.target.toFixed(4)}, not on a stop`);
+    step.check(sleptIn !== null && sleptIn <= 1_000, `${at}: at rest mid-fall the canvas sleeps within a second (asked for no frame from ${sleptIn} ms on)`);
+    summary.push(`${at}: the light within ${worst.toFixed(1)} px of the data, ${down.length} inputs to the ring`);
+    await context.close();
+  }
+  return summary.join('; ');
+}
+
+/**
+ * Bob's five facts beside the light (spec §3), at 1440x900, 1366x657 and 390x844 (touch), in Dutch and in English:
+ * - at each fact's peak exactly one label shows, its number (01 to 05) and the dictionary's words in capitals, "/" a
+ *   line break, in order; through the whole fall (every other way frame, 61 to 260) never two at once;
+ * - its words at least 13 CSS px on a laptop and 11 on the phone;
+ * - on a laptop the label rides level with the light on the side away from its move (01 right of it, 02 left, ...);
+ * - on the phone it hangs below the light, its line stepped aside away from the move, and the picture under the line
+ *   (the label hidden) is dark: mean luma at most 0.05, so the line never lies on the tail.
+ */
+async function lightFacts(browser, step) {
+  const meter = await browser.newContext();
+  const meterPage = await meter.newPage();
+  const summary = [];
+  for (const size of DIVE_SIZES) {
+    const at = sizeName(size);
+    const phone = size.width < size.height;
+    for (const lang of ['nl', 'en']) {
+      const { t } = new Translator(lang);
+      const { context, page } = await readyHome(browser, step, size, lang === 'nl' ? '/' : '/en/');
+      for (let i = 0; i < 5; i++) {
+        const state = await poseAt(page, placeOfFrame(FACT_PEAKS[i]));
+        const shown = await page.evaluate(() =>
+          [...document.querySelectorAll('.light-fact')]
+            .map((el) => {
+              const box = (part) => {
+                const r = el.querySelector(part).getBoundingClientRect();
+                return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+              };
+              const text = el.querySelector('.light-fact-text');
+              return {
+                opacity: Number(getComputedStyle(el).opacity),
+                n: el.querySelector('.light-fact-n').textContent,
+                text: text.innerText,
+                size: Number.parseFloat(getComputedStyle(text).fontSize),
+                line: box('.light-fact-line'),
+                words: box('.light-fact-words'),
+              };
+            })
+            .filter((label) => label.opacity > 0.01),
+        );
+        const want = t.lightDive.facts[i].toUpperCase().split(' / ').join('\n');
+        const label = shown[0];
+        step.check(
+          shown.length === 1 && label.n === `0${i + 1}` && label.text === want,
+          `${at} ${lang}: at fact 0${i + 1}'s peak one label shows, 0${i + 1}, "${want.replace(/\n/g, ' / ')}" (got ${JSON.stringify(shown.map((l) => [l.n, l.text]))})`,
+        );
+        if (label === undefined) continue;
+        step.check(label.size >= (phone ? 11 : 13), `${at} ${lang}: fact 0${i + 1}'s words at ${label.size} px, at least ${phone ? 11 : 13}`);
+        const light = ndcToPx(state.journey.light, size);
+        if (!phone) {
+          const right = FACT_SIDES[i] < 0;
+          step.check(
+            right ? label.line.left > light.x && label.words.left > light.x : label.line.right < light.x && label.words.right < light.x,
+            `${at} ${lang}: fact 0${i + 1} rides ${right ? 'right' : 'left'} of the light (x ${light.x.toFixed(0)}), away from its move: line ${label.line.left.toFixed(0)}-${label.line.right.toFixed(0)}, words ${label.words.left.toFixed(0)}-${label.words.right.toFixed(0)}`,
+          );
+          step.check(Math.abs((label.line.top + label.line.bottom) / 2 - light.y) <= 1.5, `${at} ${lang}: fact 0${i + 1}'s line is level with the light (y ${light.y.toFixed(1)}, line ${label.line.top.toFixed(1)})`);
+        } else {
+          const lineX = (label.line.left + label.line.right) / 2;
+          const aside = (24 * size.width) / 585;
+          step.check(
+            label.words.top > light.y && near(lineX - light.x, -FACT_SIDES[i] * aside, 2),
+            `${at} ${lang}: fact 0${i + 1} hangs below the light, its line ${(lineX - light.x).toFixed(1)} px aside (${(-FACT_SIDES[i] * aside).toFixed(1)}, away from the move), its words from y ${label.words.top.toFixed(0)}`,
+          );
+          if (lang === 'nl') {
+            await page.evaluate(() => document.querySelector('.light-fact-layer').style.setProperty('visibility', 'hidden'));
+            await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+            const file = join(STILLS, `fact-line-${at}-${i + 1}.png`);
+            mkdirSync(STILLS, { recursive: true });
+            await page.screenshot({ path: file, clip: { x: label.line.left - 3, y: label.line.top, width: label.line.right - label.line.left + 6, height: label.line.bottom - label.line.top } });
+            await page.evaluate(() => document.querySelector('.light-fact-layer').style.removeProperty('visibility'));
+            const luma = await lumaOf(meterPage, file);
+            step.check(luma.mean <= 0.05, `${at}: the picture under fact 0${i + 1}'s line is dark, mean luma ${luma.mean.toFixed(4)}, at most 0.05`);
+          }
+        }
+      }
+      if (lang === 'nl' && size !== DIVE_SIZES[1]) {
+        const most = await page.evaluate(async ([from, to]) => {
+          let most = 0;
+          for (let f = from; f <= to; f += 2) {
+            window.__needleDebug.set({ progress: 1 + (3 * (f - 1)) / 299 });
+            await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            most = Math.max(most, [...document.querySelectorAll('.light-fact')].filter((el) => Number(getComputedStyle(el).opacity) > 0.01).length);
+          }
+          return most;
+        }, [61, 260]);
+        step.check(most <= 1, `${at}: through the fall, never two labels at once (at most ${most})`);
+      }
+      await context.close();
+    }
+    summary.push(`${at}: five facts, NL and EN`);
+  }
+  await meter.close();
+  return summary.join('; ');
+}
+
+/**
+ * The ring (spec §4), at 1440x900, 1366x657 and 390x844 (touch):
+ * - the needle points at the front bead at 0, 120 and 240 degrees: on the screen the line from its back tip to its front
+ *   tip runs to the front bead's centre within 3 degrees (the bridge's `journey.ring`, the needle and the beads as drawn);
+ * - nothing touches a bead: every 10 degrees from 0 to 240, both needle tips stand RING_CLEAR_PX or more clear of every
+ *   bead's outline;
+ * - the front bead's label shows whole within 20 degrees of its project when the ring stands still (15), and none at 30;
+ * - a slow wheel (a slow finger on the phone) of half a screen from Funcial turns the ring continuously and rests where
+ *   the input stopped, 60 degrees, still 60 two seconds later, with no label.
+ */
+async function ring(browser, step) {
+  const summary = [];
+  for (const size of DIVE_SIZES) {
+    const at = sizeName(size);
+    const { context, page, cdp } = await readyHome(browser, step, size);
+    let clearest = Number.POSITIVE_INFINITY;
+    let where = '';
+    for (let degrees = 0; degrees <= 240; degrees += 10) {
+      const state = await poseAt(page, ringPlace(degrees));
+      const view = state.journey.ring;
+      if (view === null) {
+        step.check(false, `${at}: at ${degrees} degrees the bridge has the ring on the screen`);
+        continue;
+      }
+      for (const [name, tip] of [['front', view.front], ['back', view.back]]) {
+        view.beads.forEach(([x, y, r], k) => {
+          const clear = Math.hypot(tip[0] - x, tip[1] - y) - r;
+          if (clear < clearest) {
+            clearest = clear;
+            where = `${degrees} degrees, the ${name} tip and ${BEAD_LIST[k].id}`;
+          }
+        });
+      }
+      if (degrees % 120 === 0) {
+        const k = degrees / 120;
+        const [bx, by] = view.beads[k];
+        const axis = Math.atan2(view.front[1] - view.back[1], view.front[0] - view.back[0]);
+        const toBead = Math.atan2(by - view.back[1], bx - view.back[0]);
+        const off = Math.abs(turnOf((axis * 180) / Math.PI, (toBead * 180) / Math.PI));
+        step.check(off <= 3, `${at}: at ${degrees} degrees the needle points at ${BEAD_LIST[k].id}, the front bead (${off.toFixed(2)} degrees off)`);
+      }
+    }
+    step.check(clearest >= RING_CLEAR_PX, `${at}: nothing touches a bead: the needle's tips stay ${clearest.toFixed(1)} px or more clear of every bead's outline (closest at ${where}), at least ${RING_CLEAR_PX}`);
+    // The label within 20 degrees, at rest.
+    await poseAt(page, ringPlace(15));
+    const near15 = await waitForLabel(page, 'funcial');
+    step.check(near15 !== null, `${at}: at 15 degrees, standing still, Funcial's label shows whole`);
+    await poseAt(page, ringPlace(30));
+    await page.waitForTimeout(300);
+    const none30 = await page.evaluate(() => document.querySelector('.bead-label[data-shown]') === null);
+    step.check(none30, `${at}: at 30 degrees no label shows`);
+    // A slow input of half a screen from Funcial: the ring turns on with it and rests where it stops.
+    await poseAt(page, 4);
+    const half = size.height / 2;
+    const angles = [];
+    if (cdp === null) {
+      await page.mouse.move(size.width * 0.5, size.height * 0.2);
+      for (let i = 0; i < 9; i++) {
+        await page.mouse.wheel(0, half / 9);
+        await page.waitForTimeout(90);
+        angles.push((await debugOf(page)).journey.angle);
+      }
+    } else {
+      const sampling = (async () => {
+        for (let i = 0; i < 12; i++) {
+          await page.waitForTimeout(80);
+          angles.push((await debugOf(page)).journey.angle);
+        }
+      })();
+      await slowTouch(page, cdp, [195, 600], [195, 600 - half], 300);
+      await sampling;
+    }
+    const rest = await restAt(page);
+    const a1 = (await debugOf(page)).journey.angle;
+    await page.waitForTimeout(2_000);
+    const later = await debugOf(page);
+    const labelShown = await page.evaluate(() => document.querySelector('.bead-label[data-shown]') !== null);
+    const distinct = new Set(angles.map((a) => a.toFixed(2))).size;
+    step.check(
+      near(a1, 60, 1.5) && near(later.journey.angle, a1, 1e-6) && !labelShown && distinct >= 4 && angles.every((a, i) => i === 0 || a >= angles[i - 1] - 1e-6),
+      `${at}: half a screen of slow input from Funcial turns the ring on with it (${distinct} angles on the way: ${angles.map((a) => a.toFixed(1)).join(' ')}) and rests where it stopped, ${a1.toFixed(2)} degrees (target ${rest.target.toFixed(4)}), still ${later.journey.angle.toFixed(2)} two seconds later, no label`,
+    );
+    summary.push(`${at}: clear by ${clearest.toFixed(0)} px, rests at ${a1.toFixed(1)} degrees`);
+    await context.close();
+  }
+  return summary.join('; ');
+}
+
+/**
+ * Dragging the ring (spec §4), at 1440x900 and 1366x657 with a mouse and at 390x844 with a finger: a 300 px drag to the
+ * right from Funcial turns it 75 degrees (DRAG_DEG) and nothing settles it on the release (still 75 a second and a half
+ * later); a drag far past Cookies Clicker stops there, 240.
+ */
+async function ringDrag(browser, step) {
+  const summary = [];
+  for (const size of DIVE_SIZES) {
+    const at = sizeName(size);
+    const { context, page, cdp } = await readyHome(browser, step, size);
+    const drag = async (px) => {
+      const y = size.height * 0.25;
+      const x0 = size.width * 0.3;
+      if (cdp === null) {
+        await page.mouse.move(x0, y);
+        await page.mouse.down();
+        const steps = Math.max(1, Math.round(Math.abs(px) / 10));
+        for (let i = 1; i <= steps; i++) {
+          await page.mouse.move(x0 + (px * i) / steps, y);
+          await page.waitForTimeout(12);
+        }
+        await page.mouse.up();
+      } else {
+        await slowTouch(page, cdp, [40, y], [40 + px, y], 150);
+      }
+      await page.waitForTimeout(300);
+    };
+    await poseAt(page, 4);
+    const px = Math.min(300, size.width - 80);
+    await drag(px);
+    await restAt(page); // the follow catches the drag up
+    const dragged = (await debugOf(page)).journey.angle;
+    await page.waitForTimeout(1_500);
+    const still = await debugOf(page);
+    step.check(
+      near(dragged, px * DRAG_DEG, 1) && near(still.journey.angle, dragged, 1e-6) && still.progress === still.target,
+      `${at}: a ${px} px ${cdp === null ? 'mouse drag' : 'sideways swipe'} turns the ring ${dragged.toFixed(2)} degrees (${(px * DRAG_DEG).toFixed(1)}), and nothing settles it: ${still.journey.angle.toFixed(2)} a second and a half later`,
+    );
+    for (let i = 0; i < 4; i++) await drag(Math.min(300, size.width - 80));
+    const end = await debugOf(page);
+    step.check(near(end.journey.angle, 240, 1e-6) || (end.journey.stretch === 'sheet' && end.journey.local === 0), `${at}: dragged far on, it stops at Cookies Clicker, 240 degrees (got ${end.journey.angle}, ${end.journey.stretch} ${end.journey.local})`);
+    summary.push(`${at}: ${px} px gave ${dragged.toFixed(1)} degrees`);
+    await context.close();
+  }
+  return summary.join('; ');
+}
+
+/**
+ * The end page's sheet (spec §5), at 1440x900 with the wheel and at 390x844 with a finger:
+ * - one input past Cookies Clicker and the sheet finishes up by itself within 1.5 s of the input's end (the notch, the
+ *   lift: `<html data-end="rest">`), never slower than half the speed it had as the finish began (SHEET_FINISH_MS after
+ *   the input's end) before it is 0.9 up;
+ * - one input back from part-way (0.5 up) and it finishes down onto Cookies Clicker;
+ * - at rest the page scrolls natively (the document moves, the story stays at the end);
+ * - back at the page's top, an input up takes the sheet down again.
+ */
+async function sheet(browser, step) {
+  const summary = [];
+  for (const size of TWO_SIZES) {
+    const at = sizeName(size);
+    const { context, page, cdp } = await readyHome(browser, step, size);
+    // Up.
+    await poseAt(page, 6);
+    const recording = recordSheet(page, 2_500);
+    await nudge(page, cdp, 1);
+    await inputEnded(page);
+    const { rows, inputEnd } = await recording;
+    const restRow = rows.find((row) => row.end === 'rest');
+    const speeds = [];
+    for (let i = 1; i < rows.length; i++) {
+      const dt = (rows[i].t - rows[i - 1].t) / 1000;
+      if (dt > 0) speeds.push({ t: rows[i].t, sheet: rows[i].sheet, v: (rows[i].sheet - rows[i - 1].sheet) / dt });
+    }
+    const finishAt = inputEnd + SHEET_FINISH_MS;
+    const begun = speeds.find((sp) => sp.t >= finishAt + 16);
+    const start = begun?.v ?? 0;
+    const slowest = Math.min(...speeds.filter((sp) => sp.t > (begun?.t ?? Infinity) && sp.sheet < 0.9).map((sp) => sp.v));
+    step.check(
+      restRow !== undefined && restRow.t - inputEnd <= 1_500,
+      `${at}: one ${cdp === null ? 'notch' : 'short swipe'} past Cookies Clicker and the sheet finishes up by itself, at rest ${restRow === undefined ? 'never' : `${Math.round(restRow.t - inputEnd)} ms after the input's end`} (within 1500)`,
+    );
+    step.check(Number.isFinite(slowest) && start > 0 && slowest >= start * 0.5, `${at}: the sheet never slows below half the speed it had as the finish began, before 0.9: ${slowest.toFixed(3)} a second at its slowest against ${start.toFixed(3)} as it began`);
+    // At rest the page scrolls natively.
+    await page.waitForTimeout(400);
+    if (cdp === null) {
+      await page.mouse.move(size.width * 0.5, size.height * 0.5);
+      for (let i = 0; i < 3; i++) await page.mouse.wheel(0, RISE.notchPx);
+    } else {
+      await swipe(page, cdp, 600, 300);
+    }
+    await page.waitForTimeout(600);
+    const scrolled = await page.evaluate(() => ({ y: window.scrollY, target: window.__needleDebug().target, end: document.documentElement.getAttribute('data-end') }));
+    step.check(scrolled.y > 0 && scrolled.target === STORY_END && scrolled.end === 'rest', `${at}: at rest the page scrolls natively: scrollY ${scrolled.y}, the story still at the end (${scrolled.target}, ${scrolled.end})`);
+    // At its top, an input up takes it down: the page's own scroll (a phone's fling too) settled first, then at its top.
+    await scrollSettled(page);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await scrollSettled(page);
+    await page.waitForTimeout(300);
+    const recordingDown = recordSheet(page, 2_500);
+    await nudge(page, cdp, -1);
+    await inputEnded(page);
+    const { rows: downRows } = await recordingDown;
+    const last = downRows.at(-1);
+    step.check(last.sheet === 0 && last.end === null && last.target === 6, `${at}: at the page's top an input up takes the sheet down onto Cookies Clicker (sheet ${last.sheet}, data-end ${last.end}, target ${last.target})`);
+    // Back from part-way.
+    await poseAt(page, 6.5);
+    const recordingBack = recordSheet(page, 2_500);
+    await nudge(page, cdp, -1);
+    await inputEnded(page);
+    const { rows: backRows, inputEnd: backEnd } = await recordingBack;
+    const back = backRows.at(-1);
+    const backAt = backRows.find((row) => row.sheet === 0);
+    step.check(
+      back.sheet === 0 && back.target === 6 && backAt !== undefined && backAt.t - backEnd <= 1_500,
+      `${at}: one input back from half way and the sheet finishes down by itself onto Cookies Clicker (${backAt === undefined ? 'never' : `${Math.round(backAt.t - backEnd)} ms after the input's end`}, target ${back.target})`,
+    );
+    summary.push(`${at}: up in ${restRow === undefined ? '?' : Math.round(restRow.t - inputEnd)} ms after the input`);
+    await context.close();
+  }
+  return summary.join('; ');
+}
+
+/**
+ * A portrait resize mid-fall (spec §2: the label readable at every size): at 1440x900 at fact 02's peak, the window
+ * turned to 390x844 keeps the story's way frame, and the label still rides by the light, now below it.
+ */
+async function resize(browser, step) {
+  const { context, page } = await readyHome(browser, step, DIVE_SIZES[0]);
+  const before = await poseAt(page, placeOfFrame(121));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(600);
+  const after = await debugOf(page);
+  const label = await page.evaluate(() => {
+    const el = [...document.querySelectorAll('.light-fact')].find((f) => Number(getComputedStyle(f).opacity) > 0.01);
+    if (!el) return null;
+    const r = el.querySelector('.light-fact-words').getBoundingClientRect();
+    return { side: el.dataset.side, left: r.left, right: r.right, top: r.top };
+  });
+  const light = after.journey.light === null ? null : ndcToPx(after.journey.light, { width: 390, height: 844 });
+  step.check(near(after.journey.frame, before.journey.frame, 1e-6), `the way frame stays through the resize: ${before.journey.frame?.toFixed(2)} then ${after.journey.frame?.toFixed(2)}`);
+  step.check(
+    label !== null && light !== null && label.side === 'below' && label.top > light.y && label.left < light.x + 40 && label.right > light.x - 40,
+    `the label stays on the light, below it now: ${JSON.stringify(label)}, the light at ${light === null ? 'none' : `(${light.x.toFixed(0)}, ${light.y.toFixed(0)})`}`,
+  );
+  await context.close();
+  return `fact 02 at frame ${after.journey.frame?.toFixed(1)}, below the light after the turn`;
+}
+
 const STEPS = {
   routes,
   slash,
@@ -6857,12 +6978,15 @@ const STEPS = {
   lite,
   scroll,
   'scroll-bob': scrollBob,
-  'void-journey': voidJourney,
+  'light-dive': lightDive,
+  'light-facts': lightFacts,
+  ring,
+  'ring-drag': ringDrag,
+  sheet,
+  resize,
   'bead-open': beadOpen,
   'void-hold': voidHold,
   'void-fail': voidFail,
-  'void-stops': voidStops,
-  'void-paths': voidPaths,
   'end-page': endPage,
   keyboard,
   'reduced-motion': reducedMotion,

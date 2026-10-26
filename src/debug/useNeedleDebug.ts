@@ -42,7 +42,11 @@ export function readNeedleDebugState(view: ShellView): NeedleDebugState {
     loader: { stage, elapsed, strokes: [...strokes] },
     needleAngle: frame.needleAngle,
     scroll: { u, letters, iris, needleDip },
-    journey: { ...frame.journey },
+    journey: {
+      ...frame.journey,
+      light: frame.journey.light ? { ...frame.journey.light } : null,
+      ring: frame.journey.ring ? (JSON.parse(JSON.stringify(frame.journey.ring)) as typeof frame.journey.ring) : null,
+    },
   };
 }
 

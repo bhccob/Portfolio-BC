@@ -1058,7 +1058,8 @@ html:not([data-3d='on']) .light-fact-layer {
 }
 
 /* While 3D is on, the scene shows them beside the light: the list stays for screen readers and crawlers, visually
-   hidden, as the nav is. */
+   hidden, as the nav is. Its words wrap in the clipped box (no nowrap): a fact on one line would reach past a phone's
+   edge, though clipped. */
 html[data-3d='on'] .light-facts {
   position: absolute;
   width: 1px;
@@ -1067,7 +1068,6 @@ html[data-3d='on'] .light-facts {
   padding: 0;
   overflow: hidden;
   clip-path: inset(50%);
-  white-space: nowrap;
 }
 
 /* ---------- a page: a project, Lite, contact ---------- */

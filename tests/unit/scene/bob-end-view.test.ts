@@ -173,10 +173,12 @@ describe('applyEndView: Home writes the end view each frame, only on change', ()
     const written = endWritten();
     const order: string[] = [];
     const scrollTo = vi.fn(() => order.push(`scrollTo at data-end=${dom.end()}`));
-    vi.stubGlobal('window', { scrollY: 300, scrollTo });
+    const win = { scrollY: 0, scrollTo };
+    vi.stubGlobal('window', win);
 
     frameAt(dom, page, written, 7, 7);
     expect(scrollTo).not.toHaveBeenCalled();
+    win.scrollY = 300; // the visitor scrolls the page down
 
     frameAt(dom, page, written, 6.5, 6);
     expect(scrollTo).toHaveBeenCalledTimes(1);
@@ -188,6 +190,24 @@ describe('applyEndView: Home writes the end view each frame, only on change', ()
     frameAt(dom, page, written, 6.4, 6);
     frameAt(dom, page, written, 6, 6);
     expect(scrollTo).toHaveBeenCalledTimes(1);
+  });
+
+  it('brings the page to its top as the view comes to rest, so a jump straight there (a step fade) shows its title, as the move did', () => {
+    // A keyboard visitor Tabbed through the nav's links (focused, the nav shows in the flow and the document scrolls to
+    // them), then End's step fade jumps from the home straight to the rest: the page must stand at its top, not at 257.
+    const dom = fakeRoot();
+    const order: string[] = [];
+    const scrollTo = vi.fn(() => order.push(`scrollTo at data-end=${dom.end()}`));
+    vi.stubGlobal('window', { scrollY: 257, scrollTo });
+    const { page } = fakePage();
+    const written = endWritten();
+    frameAt(dom, page, written, 0, 0);
+    frameAt(dom, page, written, 7, 7);
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+    expect(scrollTo).toHaveBeenCalledWith(0, 0);
+    expect(order).toEqual(['scrollTo at data-end=rest']);
+    frameAt(dom, page, written, 7, 7);
+    expect(scrollTo).toHaveBeenCalledTimes(1); // only on the way in
   });
 
   it('leaves the scroll alone when the page is already at its top, or the story never rested at the end', () => {
@@ -225,11 +245,13 @@ describe('applyEndView: Home writes the end view each frame, only on change', ()
 
   it('scrolls the page back to its top when it clears a rest, and clears with no section at all', () => {
     const scrollTo = vi.fn();
-    vi.stubGlobal('window', { scrollY: 300, scrollTo });
+    const win = { scrollY: 0, scrollTo };
+    vi.stubGlobal('window', win);
     const dom = fakeRoot();
     const { page } = fakePage();
     const written = endWritten();
     frameAt(dom, page, written, 7, 7);
+    win.scrollY = 300; // the visitor scrolls the page down
     clearEndView(dom.root, null, written);
     expect(scrollTo).toHaveBeenCalledTimes(1);
     expect([dom.end(), dom.share()]).toEqual([null, '']);
@@ -237,11 +259,13 @@ describe('applyEndView: Home writes the end view each frame, only on change', ()
 
   it('keeps the scroll to the top for a let-go at rest, the section there: the scene stays and the end leaves the flow', () => {
     const scrollTo = vi.fn();
-    vi.stubGlobal('window', { scrollY: 300, scrollTo });
+    const win = { scrollY: 0, scrollTo };
+    vi.stubGlobal('window', win);
     const dom = fakeRoot();
     const { page, intoView } = fakePage();
     const written = endWritten();
     frameAt(dom, page, written, 7, 7);
+    win.scrollY = 300; // the visitor scrolls the page down
     clearEndView(dom.root, page, written, 'let-go');
     expect(scrollTo).toHaveBeenCalledWith(0, 0);
     expect(intoView).toEqual([]);

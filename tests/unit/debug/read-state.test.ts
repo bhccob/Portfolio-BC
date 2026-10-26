@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { countCanvasMount, registerStageProbe } from '../../../src/debug/stageReport';
 import { holdLoader, readNeedleDebugState, setStoryProgress } from '../../../src/debug/useNeedleDebug';
 import { onWakeScene } from '../../../src/scene/motion';
-import { HOME_CHAPTERS, scrollEnd } from '../../../src/state/chapters';
+import { chapterAt, HOME_CHAPTERS, scrollEnd } from '../../../src/state/chapters';
 import { frame } from '../../../src/state/frame';
 import { useScene } from '../../../src/state/store';
 
@@ -28,22 +28,22 @@ describe('readNeedleDebugState', () => {
       progress: 1.5,
       target: 2,
       velocity: 0.4,
-      chapter: { index: 1, id: 'DIVE', category: null },
+      chapter: { index: 1, id: 'LIGHT', category: null },
       route: 'home',
       locale: 'en',
       tier: 'medium',
       contextLost: true,
       threeD: true,
     });
-    expect(state.chapter.local).toBeCloseTo(0.5, 9);
+    expect(state.chapter.local).toBeCloseTo(chapterAt(HOME_CHAPTERS, 1.5).local, 9);
   });
 
   it('reads the chapter the way the scroll loop does: the one it was in is kept at the edge', () => {
-    // 2.01 is inside VOID_ENTRY (starts at 2) but within HYSTERESIS of DIVE's end, and the frame says DIVE.
-    Object.assign(frame, { progress: 2.01, target: 2.01, chapterIndex: 1 });
+    // 4.01 is inside the ring's first unit (starts at 4) but within HYSTERESIS of the light dive's end, and the frame says LIGHT.
+    Object.assign(frame, { progress: 4.01, target: 4.01, chapterIndex: 1 });
     expect(readNeedleDebugState({ route: 'home', locale: 'nl' }).chapter.index).toBe(1);
-    Object.assign(frame, { progress: 2.5, target: 2.5, chapterIndex: 1 });
-    expect(readNeedleDebugState({ route: 'home', locale: 'nl' }).chapter).toMatchObject({ index: 2, id: 'VOID_ENTRY' });
+    Object.assign(frame, { progress: 4.5, target: 4.5, chapterIndex: 1 });
+    expect(readNeedleDebugState({ route: 'home', locale: 'nl' }).chapter).toMatchObject({ index: 2, id: 'RING' });
   });
 
   it('counts the Stages mounted and takes dpr, fps and the camera from the Stage while one reports', () => {
@@ -85,6 +85,23 @@ describe('readNeedleDebugState', () => {
     expect(state.scroll).not.toBe(frame.scroll);
     frame.scroll.u = 1;
     expect(state.scroll.u).toBe(0.5);
+  });
+
+  it("reports where the journey stands, its way frame, its ring angle, its sheet and the light's point, as a copy", () => {
+    const before = { ...frame.journey };
+    try {
+      const light = { x: 0.2, y: -0.1 };
+      const ring = { front: [720, 380] as [number, number], back: [720, 300] as [number, number], beads: [[720, 600, 120] as [number, number, number]] };
+      Object.assign(frame.journey, { stretch: 'light', local: 0.4, project: null, voidState: 'ready', frame: 121, angle: null, sheet: 0, light, ring });
+      const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
+      expect(state.journey).toEqual({ stretch: 'light', local: 0.4, project: null, voidState: 'ready', frame: 121, angle: null, sheet: 0, light: { x: 0.2, y: -0.1 }, ring });
+      expect(state.journey.ring).not.toBe(ring);
+      expect(state.journey.light).not.toBe(light);
+      light.x = 0.9;
+      expect(state.journey.light?.x).toBe(0.2);
+    } finally {
+      Object.assign(frame.journey, before);
+    }
   });
 
   it('has no constellation and no pointed country: the frame and the state carry none (the countries are gone)', () => {
@@ -139,19 +156,19 @@ describe('setStoryProgress', () => {
   it('puts the story at a place: progress and target there, nothing moving, the chapter and the phase with it', () => {
     setStoryProgress(1.5);
     expect(frame).toMatchObject({ progress: 1.5, target: 1.5, velocity: 0, chapterIndex: 1 });
-    expect(useScene.getState().phase).toEqual({ kind: 'DIVE' });
-    setStoryProgress(3.5);
-    expect(frame).toMatchObject({ progress: 3.5, target: 3.5, velocity: 0, chapterIndex: 3 });
+    expect(useScene.getState().phase).toEqual({ kind: 'LIGHT' });
+    setStoryProgress(4.5);
+    expect(frame).toMatchObject({ progress: 4.5, target: 4.5, velocity: 0, chapterIndex: 2 });
     expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'secure-element' });
   });
 
   it('stays inside the scroll, 0 to its last stop, the end page (the scroll ends there)', () => {
-    // 2026-10-24: the end page is a seventh stop after Cookies Clicker, so the scroll ends at 6, not 5.
+    // 2026-10-26: the light dive is three units long, so the scroll ends at 7, the end page.
     setStoryProgress(99);
-    expect(frame.target).toBe(6);
+    expect(frame.target).toBe(7);
     expect(frame.target).toBe(scrollEnd(HOME_CHAPTERS));
     expect(useScene.getState().phase).toEqual({ kind: 'END' });
-    setStoryProgress(5);
+    setStoryProgress(6);
     expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: HOME_CHAPTERS.units.at(-2)!.category });
     setStoryProgress(-4);
     expect(frame.target).toBe(0);

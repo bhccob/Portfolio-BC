@@ -545,27 +545,35 @@ describe('the scroll input holds at the landing while the beads load', () => {
 // ---------------------------------------------------------------- frame.journey
 
 describe('frame.journey: where the journey stands, for the debug bridge', () => {
-  it('is filled from the pose the scene is posed at: its stretch, how far through it and its project', () => {
-    const into = { stretch: 'rise' as const, local: 0, project: null as number | null, voidState: 'idle' as VoidState };
+  it('is filled from the pose the scene is posed at: its stretch, how far through it, its project, way frame, ring angle and sheet', () => {
+    const into = { ...frame.journey, voidState: 'idle' as VoidState, light: null };
     for (const p of [0, 0.5, 1, LANDING_HOLD, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 6.5, 7]) {
       const pose = journeyPoseAt(p, LAPTOP);
-      writeJourney(into, pose.at);
+      writeJourney(into, pose);
       const at = journeyAt(p);
-      expect({ stretch: into.stretch, local: into.local, project: into.project }, `at ${p}`).toEqual({ stretch: at.stretch, local: at.local, project: at.project });
+      expect({ stretch: into.stretch, local: into.local, project: into.project, frame: into.frame, angle: into.angle }, `at ${p}`).toEqual({
+        stretch: at.stretch,
+        local: at.local,
+        project: at.project,
+        frame: at.frame,
+        angle: at.angle
+      });
+      expect(into.sheet, `at ${p}`).toBe(pose.sheet);
     }
     expect(into.voidState).toBe('idle'); // the void's own field: the Void writes it
+    expect(into.light).toBeNull(); // and the light's point on the screen, which the Void projects
   });
 
   it('starts at the home, with an idle void', () => {
-    expect(frame.journey).toEqual({ stretch: 'rise', local: 0, project: null, voidState: 'idle' });
+    expect(frame.journey).toEqual({ stretch: 'rise', local: 0, project: null, voidState: 'idle', frame: null, angle: null, sheet: 0, light: null, ring: null });
   });
 
   it('is on the debug state as a copy, voidState included', () => {
     const before = { ...frame.journey };
     try {
-      Object.assign(frame.journey, { stretch: 'ring', local: 0, project: 1, voidState: 'ready' });
+      Object.assign(frame.journey, { stretch: 'ring', local: 0, project: 1, voidState: 'ready', frame: null, angle: 120, sheet: 0, light: null, ring: null });
       const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
-      expect(state.journey).toEqual({ stretch: 'ring', local: 0, project: 1, voidState: 'ready' });
+      expect(state.journey).toEqual({ stretch: 'ring', local: 0, project: 1, voidState: 'ready', frame: null, angle: 120, sheet: 0, light: null, ring: null });
       expect(state.journey).not.toBe(frame.journey);
     } finally {
       Object.assign(frame.journey, before);
