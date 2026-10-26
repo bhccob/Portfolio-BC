@@ -16,14 +16,15 @@
 # - 61-260, the fall, away into depth. The camera follows close behind the light, which travels away through the void
 #   while it sinks toward the ring's plane. The ring stands under the O, where the light lands, so the light does not
 #   cross the world: the void streams back past it instead (stream_at), the dust drifting toward the camera, round and
-#   slow, opening ahead of the light. Its tapered trail streams back from it toward the camera along its past places in
-#   the void. At each fact the light makes one side move on the frame, x = 0.5 + s A sin^2(pi (f - (61 + 40i)) / 40)
-#   over fact i's window (A 0.10 desk, 0.08 phone; s -1 for 01, 03, 05 and +1 for 02, 04), the camera holding its line.
-#   Bob's facts ride beside it in the page: they are data here, not pixels.
+#   slow, opening ahead of the light. Its short tapered trail streams back from it toward the camera, down the frame,
+#   bending a little toward where the light came from. At each fact the light makes one side move on the frame,
+#   x = 0.5 + s A sin^2(pi (f - (61 + 40i)) / 40) over fact i's window (A 0.10 desk, 0.08 phone; s -1 for 01, 03, 05
+#   and +1 for 02, 04), the camera holding its line. Bob's facts ride beside it in the page: they are data here, not
+#   pixels.
 # - 261-300, the landing. The ring's three beads rise into view, the camera eases back out of the chase into the ring
 #   camera, and the light slows over the ring's centre and stretches into the needle (285-300), pointing at Funcial in
-#   front. Frame 300 is the ring's frame 0: RING_*, ring_bead_position() and ring_camera_pose() are what the ring's
-#   turntable starts from, unchanged.
+#   front; its trail has faded by 274. Frame 300 is the ring's frame 0: RING_*, ring_bead_position() and
+#   ring_camera_pose() are what the ring's turntable starts from, unchanged.
 #
 # The ring: 240 frames, numbered from 0, as a turntable that loops (frame 239 runs on into frame 0).
 # - Ring frame f is the way's frame 300 with the ring turned 1.5 f degrees about the needle's axis: frame 0 is the way's
@@ -374,9 +375,6 @@ def stream_at(f):
     return Vector((0.0, -s, 0.0))
 
 
-STREAM = [stream_at(f) for f in range(F_END + 1)]
-
-
 def swing(f):
     """The way in's swing at frame f: the camera's position angle (from straight above) and distance from the light,
     and their rates a frame."""
@@ -392,8 +390,9 @@ def turn(p0, m0, p1, t):
     return (2 * t ** 3 - 3 * t ** 2 + 1) * p0 + (t ** 3 - 2 * t ** 2 + t) * m0 + (3 * t ** 2 - 2 * t ** 3) * p1
 
 
-_th60, _d60, _dth60, _dd60 = swing(F_TURN)
-for _p0, _m0, _p1 in [(_th60, _dth60, th) for th in TH_CHASE.values()] + [(_d60, _dd60, D_CHASE)]:
+# where the turn takes over: the swing's angle and distance at F_TURN, and their rates a frame
+TURN_TH, TURN_D, TURN_TH_RATE, TURN_D_RATE = swing(F_TURN)
+for _p0, _m0, _p1 in [(TURN_TH, TURN_TH_RATE, th) for th in TH_CHASE.values()] + [(TURN_D, TURN_D_RATE, D_CHASE)]:
     assert 0.0 < _m0 * (F_CHASE - F_TURN) <= 3.0 * (_p1 - _p0), (_p0, _m0, _p1)      # the turn runs one way
 
 
@@ -409,8 +408,8 @@ def track_pose(f, size):
         th, d, _r1, _r2 = swing(f)
     else:
         t, n = span(f, F_TURN, F_CHASE), F_CHASE - F_TURN
-        th = turn(_th60, _dth60 * n, TH_CHASE[size], t)
-        d = turn(_d60, _dd60 * n, D_CHASE, t)
+        th = turn(TURN_TH, TURN_TH_RATE * n, TH_CHASE[size], t)
+        d = turn(TURN_D, TURN_D_RATE * n, D_CHASE, t)
     dl_full = math.atan((Y_FALL - 0.5) * 2.0 * tan_v_of(size, lens))
     dl = dl_full * ease_io(span(f, F_FALL, F_FALL + 32))
     anchor = Vector((0.0, 0.0, ANCHOR_Z[f]))
@@ -481,10 +480,30 @@ def light_path(size):
 LIGHT_POS = light_path(SIZE)
 
 
+# The trail streams back toward the camera as the void does (TRAIL_S), but it keeps the chase's speed when the void
+# eases to a stop (STREAM_OUT), where the light's path turns from the glide to a sink: a trail laid along that would
+# fold up over the light and point at the camera, as if the light came toward it. From the turn on, the trail also
+# forgets the light's path as it ages (TRAIL_MEMORY frames): near the light it follows where the light came from, its
+# side moves and its sink, and further back it streams straight back toward the camera at the light's height, which
+# the camera, above the light all through the chase and the landing, sees run down the frame. Laid along the whole
+# path, a side move's way out and way back would pile up beside the light as a fold, and the glide, which heads for the
+# horizon the camera looks along, would be seen end on, where the trail's glassy shading goes dark. The way in (to
+# F_TURN) keeps its whole path.
+TRAIL_MEMORY = 10.0
+TRAIL_S = [0.0] * (F_END + 1)
+for _f in range(1, F_END + 1):
+    TRAIL_S[_f] = TRAIL_S[_f - 1] + U_CHASE * ease_io(span(_f, *STREAM_IN))
+assert all(TRAIL_S[f] == STREAM_S[f] for f in range(STREAM_OUT[0] + 1))     # the void's stream until it eases out
+
+
 def trail_point(f, g):
-    """At frame f, the place the light passed at frame g: its centre then, carried with the void as it has streamed
-    since, so the light's trail streams back from it toward the camera."""
-    return LIGHT_POS[g] + STREAM[f] - STREAM[g]
+    """At frame f, the place the light passed at frame g: its centre then, drawn toward the light's centre now as it
+    ages (from the turn on), and carried back toward the camera by the trail's stream since."""
+    if f <= F_TURN:
+        return LIGHT_POS[g].copy()
+    now = LIGHT_POS[f]
+    w = lerp(1.0, math.exp(-(f - g) / TRAIL_MEMORY), ease_io(span(f, F_TURN, F_CHASE)))
+    return now + (LIGHT_POS[g] - now) * w + Vector((0.0, TRAIL_S[g] - TRAIL_S[f], 0.0))
 
 
 # the light's size: a share of the frame's width while the camera follows it (kept so as it comes down through the O,
@@ -752,15 +771,19 @@ def filament_brightness(k, f):
     return 0.55 + 0.45 * math.sin(2.0 * math.pi * f / (37.0 + 6.0 * k) + 1.7 * k)
 
 
-# the trail: a tapered tube along the light's past places in the void (trail_point), rebuilt each frame in world space:
-# up the axis in the way in, back toward the camera in the chase. It fades with age (TRAIL_FRAMES) and with length
-# (TRAIL_LENGTH m), whichever comes first, so the quick way down through the O leaves a short trail, not a pillar, and
-# in the chase it ends well before the camera. The stretch laid before the chase (the way in's tail and the bend of the
-# turn, which the chase camera sees folded back over the light) fades out as the turn ends (TRAIL_BEND), instead of
-# curling into a loop: the chase's trail grows from the light anew.
+# the trail: a tapered tube along the light's past places (trail_point), rebuilt each frame in world space: up the
+# axis in the way in, back toward the camera in the chase. It fades with age (TRAIL_FRAMES) and with length, whichever
+# comes first: TRAIL_LENGTH m in the way in, so the quick way down through the O leaves a short trail, not a pillar,
+# and TRAIL_CHASE_LENGTH in the chase (eased to over the turn), as the chase camera, above the light, sees the trail
+# stream back toward it a long way down the frame. The way in's pillar fades out early in the turn, point by point as
+# it was laid (TRAIL_PILLAR_FADE: points laid before laid[0] go, after laid[1] stay, over the frames `fade`), so the
+# turning light is one focal point. The trail fades out in the landing (TRAIL_OUT), before the camera sinks toward the ring camera's
+# lower angle.
 TRAIL_FRAMES = 110
-TRAIL_BEND = dict(laid=(72, 92), fade=(72, 96))   # points laid before laid[0] go, after laid[1] stay, over fade
+TRAIL_PILLAR_FADE = dict(laid=(52, 62), fade=(F_TURN, 70))
+TRAIL_OUT = (254, 274)
 TRAIL_LENGTH = 2.8
+TRAIL_CHASE_LENGTH = 1.1
 TRAIL_W = 0.5
 TRAIL_SIDES = 10
 trail_me = bpy.data.meshes.new("ld_trail")
@@ -772,7 +795,8 @@ trail.data.materials.append(M_STRAND)
 def build_trail(f, r_now):
     pts = []
     run = 0.0
-    bend = ease_io(span(f, *TRAIL_BEND["fade"]))
+    pillar = ease_io(span(f, *TRAIL_PILLAR_FADE["fade"]))
+    length = lerp(TRAIL_LENGTH, TRAIL_CHASE_LENGTH, ease_io(span(f, F_TURN, F_CHASE)))
     for k in range(0, TRAIL_FRAMES + 1):
         g = f - k
         if g < F_IGNITE:
@@ -783,8 +807,8 @@ def build_trail(f, r_now):
             if step < 1e-5:
                 continue
             run += step
-        u = max(k / float(TRAIL_FRAMES), run / TRAIL_LENGTH,
-                bend * (1.0 - ease_io(span(g, *TRAIL_BEND["laid"]))))
+        u = max(k / float(TRAIL_FRAMES), run / length,
+                pillar * (1.0 - ease_io(span(g, *TRAIL_PILLAR_FADE["laid"]))))
         if u > 1.0:
             break
         pts.append((p, u))
@@ -1313,7 +1337,7 @@ def apply_frame(f):
         for p, co in zip(sp.points, filament_at(i, f)):
             p.co = (co.x, co.y, co.z, 1.0)
         lvl.default_value = FIL_W * g * fade_fil * filament_brightness(i, f)
-    trail_on = ease_io(span(f, 40, F_SETTLE)) * (1.0 - ease_io(span(f, 272, 296)))
+    trail_on = ease_io(span(f, 40, F_SETTLE)) * (1.0 - ease_io(span(f, *TRAIL_OUT)))
     TRAIL_LEVEL.default_value = TRAIL_W_EM * g * trail_on
     STRAND_LEVEL.default_value = STRAND_W * g * trail_on
     build_trail(f, rr)
