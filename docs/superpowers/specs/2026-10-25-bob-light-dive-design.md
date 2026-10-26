@@ -28,6 +28,10 @@ Bob, 2026-10-25, in his words, in order:
   - "im not sure if rotating the project would be sort of 3d where the camera transition wit hthe scrolls"; asked to confirm, he answered: "Yes: the camera glides around the ring with my scroll, like the fall does, and settles on the nearest project when I stop.";
   - "the light looks too 2d i want it to be more 3d, i t hink that the light going away from the screen is better where it will flow more naturally and every facvt about me that comes make the light thnen move to the side but not too agressive";
   - "when end of project the scroll brings up a 2d page like sliding a page from below".
+- On the second mock-up, 2026-10-26: "the transition is too slow and it doesnt feel continuos transition its like it has to wait something to happen which i dont like". Asked where, he picked the fall into the ring: the light slows before the projects, and the landing takes too long. His answers:
+  - the landing: "One unbroken move": the light never slows, the projects come into view while it is still flying, and it becomes the needle the moment it arrives at the centre;
+  - the ring: "Exactly with my scroll": the camera turns only while he scrolls and stops where he stops, never moving by itself;
+  - the end page: "Follow, then finish": it follows the scroll, and when he stops it finishes sliding up (or down) by itself straight away, with no pause.
 
 Today the dive from BOB seen from above is one quick scroll stop: the camera drops through the O and out under the glass into the void, where three project beads float at different depths and a large needle points at them. It says nothing about Bob. He wants the way down to become a journey of its own, and he wants the projects to become a place.
 
@@ -83,11 +87,12 @@ The frames are generated concept stills. The labels, the button and the diagrams
    - **The layout.** The project beads float in a ring around a common centre, evenly spaced like the points of a compass. Today the three are 120° apart. Each project added later is one more bead, and the ring respaces evenly until it is a full circle.
    - **The camera** looks slightly down at the ring from outside it, as in `lightdive-ring2.webp`: the front bead is near and large, and the others sit to the back, smaller and dimmer.
    - **The light lands at the centre** of the ring and becomes the needle there: slender, gold, balanced on its pivot in the open, with nothing holding it. It points at the bead in front, and that bead answers with a soft glow along its gold band and porthole.
+   - **The landing is one unbroken move** (revised 2026-10-26: "One unbroken move"). The light never slows before the projects: the void streams past at the fall's own pace to the very end. The projects come into view while the light is still flying, and the camera swings into its path round the ring as the light arrives, so the motion carries straight on into the ring. The light becomes the needle the moment it reaches the centre. Nothing on screen waits.
    - **Nothing joins the needle to a bead:** no line, no beam, no ribbon, no drawn ring.
-   - **Going round the ring: the camera glides with the scroll** (revised 2026-10-26: "the camera glides around the ring with my scroll, like the fall does, and settles on the nearest project when I stop").
-     - The beads stay where they are, and the camera moves round the ring through 360°, so the projects, the void, the mist and the dust shift in true perspective as it goes.
-     - The scroll drives it continuously, as it drives the fall: it moves while the visitor scrolls and stops where they stop. When the scroll comes to rest, the camera settles, eased, on the project nearest the front.
-     - A drag (a mouse, or a sideways swipe on a phone) glides it the same way in either direction, and it settles on the nearest project.
+   - **Going round the ring: the camera moves exactly with the scroll** (revised 2026-10-26, after the second mock-up: "Exactly with my scroll"; this replaces the settle on the nearest project).
+     - The beads stay where they are, and the camera moves round the ring, so the projects, the void, the mist and the dust shift in true perspective as it goes.
+     - The scroll drives it continuously, as it drives the fall: it turns only while the visitor scrolls and stops wherever they stop, between projects too. It never moves by itself.
+     - A drag (a mouse, or a sideways swipe on a phone) turns it the same way, as a scroll would, and it stays where it is let go.
      - The arrow keys move it one project at a time.
      - The needle at the centre turns to point at the bead the camera faces.
    - **What stays as now:**
@@ -97,7 +102,7 @@ The frames are generated concept stills. The labels, the button and the diagrams
    - **After the last project** in the ring, scrolling on slides the end page up from below (goal 4b).
    - **It replaces the void's layout.** The three beads at different depths, the overview stop and the large pointer give way to this ring. The ring's first position, with Funcial in front, is where the fall ends, and it shows all the projects at once.
 4b. **The end page slides up from below** (2026-10-26: "when end of project the scroll brings up a 2d page like sliding a page from below").
-   - After the last project, scrolling on slides the 2D end page (the questions and the message form) up from the bottom of the screen like a sheet, over the ring. It follows the scroll and stops where the visitor stops.
+   - After the last project, scrolling on slides the 2D end page (the questions and the message form) up from the bottom of the screen like a sheet, over the ring. It follows the scroll; when the visitor stops part-way, it finishes by itself straight away, up if they were scrolling on and down if they were scrolling back, with no pause and without slowing first (revised 2026-10-26: "Follow, then finish").
    - Once it covers the screen, it is the ordinary end page, scrolling natively as today.
    - At the end page's top, scrolling back up slides it down again and uncovers the ring on the last project.
    - This replaces the end page's way in, "into the night" (the void sinking into night while the page rose 40vh). The end page itself, its seam, its rest and its contents stay as they are.
@@ -204,6 +209,10 @@ Everything binding on M2b and on the end page still binds:
   - a gentle side move with each fact, not aggressive;
   - the camera glides round the ring with the scroll and settles on the nearest project;
   - the end page slides up from below after the last project.
+- After the second mock-up (2026-10-26):
+  - the landing is one unbroken move: the light never slows, the projects come into view while it flies, and it becomes the needle on arrival;
+  - the ring moves exactly with the scroll and never by itself (no settle);
+  - the end page follows the scroll and, when the scroll stops part-way, finishes straight away in the scroll's direction.
 
 ## My calls (Bob may change any)
 
@@ -212,10 +221,11 @@ Everything binding on M2b and on the end page still binds:
 - **The side moves.** Each fact's side move is about a tenth of the screen width, eased in and out over the fact's stretch, alternating sides (01 left, 02 right, and so on). The fact rides on the side the light moves away from.
 - **The ring's controls:**
   - about one screen height of scroll per project;
-  - the settle on the nearest project starts about 0.15 s after the scroll stops and takes about 0.6 s;
-  - the arrows move one project;
+  - the camera's swing into the ring at the landing leaves it turning at the same rate the scroll then turns it, so the fall runs on into the ring with no change of pace;
+  - a drag turns the ring by moving the page's scroll, so the ring has one place, from Funcial to Cookies Clicker;
+  - the arrows move one project, gliding about 1.2 s;
   - the first ring position replaces the overview stop.
-- **The end sheet** takes about one screen height of scroll to cover the screen.
+- **The end sheet** takes about one screen height of scroll to cover the screen. When the scroll stops part-way, the sheet carries on at the speed it had, easing only at its end (about 0.08 s after the last scroll input counts as stopped).
 - **The ring's camera,** slightly above and outside it, as in the frame.
 - **The fine gold line and the small numbers on the labels,** and the wording in the table: "Chinees van afkomst", "Hakka-erfgoed" / "Hakka heritage", "van Aruba", and no full stops on labels.
 - **"20 jaar" is fixed text,** to be changed on Bob's birthday.
