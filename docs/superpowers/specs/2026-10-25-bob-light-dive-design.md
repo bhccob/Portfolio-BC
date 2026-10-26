@@ -23,6 +23,11 @@ Bob, 2026-10-25, in his words, in order:
 - On the way-in frame: "the start of the fall is the sides of the compass so it wont feel natural when transition and not smooth it has to flow iwth the vbiewers eyes". On the needle frame: "the needle is just like randomly placed there, this is a 3d animation where user should be able to rotate 360 when theres enough projects".
 - "Yes: the projects in a ring around the needle, the ring turns 360° and the needle points at the one in front."
 - "yes this is good enough though dont immediately build it to website when you do animation show me a video or and a mockup before building it to website"
+- On the first mock-up, 2026-10-26:
+  - "its solid";
+  - "im not sure if rotating the project would be sort of 3d where the camera transition wit hthe scrolls"; asked to confirm, he answered: "Yes: the camera glides around the ring with my scroll, like the fall does, and settles on the nearest project when I stop.";
+  - "the light looks too 2d i want it to be more 3d, i t hink that the light going away from the screen is better where it will flow more naturally and every facvt about me that comes make the light thnen move to the side but not too agressive";
+  - "when end of project the scroll brings up a 2d page like sliding a page from below".
 
 Today the dive from BOB seen from above is one quick scroll stop: the camera drops through the O and out under the glass into the void, where three project beads float at different depths and a large needle points at them. It says nothing about Bob. He wants the way down to become a journey of its own, and he wants the projects to become a place.
 
@@ -50,10 +55,11 @@ The frames are generated concept stills. The labels, the button and the diagrams
      - they never frame the screen like a porthole;
      - the violet void of the projects fades in around the light.
    - **There is no cut** anywhere between BOB seen from above and the projects.
-2. **The fall happens in the projects' own void.**
+2. **The light flows away from the screen, through the projects' own void** (revised 2026-10-26: "the light looks too 2d ... the light going away from the screen is better").
    - There is no tunnel and no streaks: only the void's violet mist, its drifting gold dust and the faint traces on the glass sky above. It is the same space the projects are in.
-   - The light falls from above, its long, smooth trail streaming up above it, as in `lightdive-v1.webp`.
-   - It sways gently from side to side as it falls, so its trail curves into a soft S. That is like the reference clip but much less: a slow drift either side of the middle of the screen, never a zigzag.
+   - **The light flows away into depth.** It does not drop down the screen. The camera follows close behind it as it travels into the depth of the void, so the light reads as a real 3D light moving through space: it stays near the middle of the screen, with the void, the mist and the dust streaming past and opening ahead.
+   - **Its trail** streams back from it toward the camera, in perspective.
+   - **One side move per fact** ("make the light then move to the side but not too aggressive"). As each fact comes up, the light swerves gently to one side, alternating left and right, and the fact rides beside it in the room it leaves. Then it flows on. It is a calm, eased drift, never a sharp turn. There is no continuous sway between facts.
    - The light is an orb of gold light with a soft white-gold core and a gentle halo. The camera is close and focused on it. A few delicate electric filaments flicker around it, for Bob's mechatronics, never strobing or flashing.
    - Only gold and violet are used, on the near-black. It is calmer than the clip, and the void stays dark. The light is a little smaller and softer than in the concept frame.
    - **It follows the scroll continuously,** with no stops in it, like the rise from the home to BOB. A visitor can stop anywhere and it waits there. Scrolling back up runs it in reverse, at once.
@@ -78,17 +84,24 @@ The frames are generated concept stills. The labels, the button and the diagrams
    - **The camera** looks slightly down at the ring from outside it, as in `lightdive-ring2.webp`: the front bead is near and large, and the others sit to the back, smaller and dimmer.
    - **The light lands at the centre** of the ring and becomes the needle there: slender, gold, balanced on its pivot in the open, with nothing holding it. It points at the bead in front, and that bead answers with a soft glow along its gold band and porthole.
    - **Nothing joins the needle to a bead:** no line, no beam, no ribbon, no drawn ring.
-   - **Turning the ring,** through 360°:
-     - scroll turns it one project at a time, and the next project comes round to the front and rests there;
-     - a drag (a mouse, or a sideways swipe on a phone) spins it freely in either direction, and it settles on the project nearest the front;
-     - the arrow keys turn it.
-     - Each way, the needle keeps pointing at the bead in front.
+   - **Going round the ring: the camera glides with the scroll** (revised 2026-10-26: "the camera glides around the ring with my scroll, like the fall does, and settles on the nearest project when I stop").
+     - The beads stay where they are, and the camera moves round the ring through 360°, so the projects, the void, the mist and the dust shift in true perspective as it goes.
+     - The scroll drives it continuously, as it drives the fall: it moves while the visitor scrolls and stops where they stop. When the scroll comes to rest, the camera settles, eased, on the project nearest the front.
+     - A drag (a mouse, or a sideways swipe on a phone) glides it the same way in either direction, and it settles on the nearest project.
+     - The arrow keys move it one project at a time.
+     - The needle at the centre turns to point at the bead the camera faces.
    - **What stays as now:**
      - the bead in front carries its label, with the category line, the title and "Klik om te openen" / "Click to open";
      - a click on it or Enter flies into the project, and Esc or back returns to the same bead in front;
      - the beads keep their objects and real screens, and their motion runs only for the bead in front or hovered.
-   - **After the last project** in the ring, scrolling on goes into the night and the end page, as now.
+   - **After the last project** in the ring, scrolling on slides the end page up from below (goal 4b).
    - **It replaces the void's layout.** The three beads at different depths, the overview stop and the large pointer give way to this ring. The ring's first position, with Funcial in front, is where the fall ends, and it shows all the projects at once.
+4b. **The end page slides up from below** (2026-10-26: "when end of project the scroll brings up a 2d page like sliding a page from below").
+   - After the last project, scrolling on slides the 2D end page (the questions and the message form) up from the bottom of the screen like a sheet, over the ring. It follows the scroll and stops where the visitor stops.
+   - Once it covers the screen, it is the ordinary end page, scrolling natively as today.
+   - At the end page's top, scrolling back up slides it down again and uncovers the ring on the last project.
+   - This replaces the end page's way in, "into the night" (the void sinking into night while the page rose 40vh). The end page itself, its seam, its rest and its contents stay as they are.
+
 5. **The skip button: "Snel naar vragen ↓" / "Skip to questions ↓".**
    - **Where it shows.** It shows while the story is at the ring, the turns between projects included. It is gone everywhere else: in the rise, the way in, the fall, the move into the night, at the end page, and on the project pages.
    - **What it does.** One click, tap, or Enter takes the visitor straight to the end page by the step fade (out, the story placed at the end page, in), never by turning through the ring. On arrival the focus moves to the end page's title.
@@ -111,7 +124,7 @@ Before anything of this goes into the site's code, Bob sees and approves:
 
 Together they show:
 - the needle lighting up and the light held at the centre through the O;
-- the fall through the void with its sway and two or three facts;
+- the light flowing away through the void, with a side move at each of two or three facts;
 - the landing in the ring as the needle;
 - the ring turning by scroll and by drag;
 - all of it at 1440×900 and on a phone.
@@ -123,6 +136,7 @@ The site build waits for his OK, and anything he changes goes back through the m
 - The project pages' 3D interiors (M3), which follow this.
 - Any change to the loader, the home, the rise, BOB seen from above, the bead objects and screens, opening a project, or the end page. The exceptions:
   - the ring's layout (goal 4);
+  - the end page's way in, which now slides up from below instead of "into the night" (goal 4b);
   - the skip button arriving at the end page;
   - the stops moving along the scroll, which shifts their place but not what they do.
 - Lite, contact and sound.
@@ -176,8 +190,8 @@ Everything binding on M2b and on the end page still binds:
 - The look follows his clip (0:13–0:17), "similar but not exactly the same":
   - gold and violet;
   - calmer and dark;
-  - the light falling from above with the camera close on it;
-  - a gentle sway, less than the clip.
+  - the light falling from above with the camera close on it (revised 2026-10-26: flowing away from the screen into depth);
+  - a gentle sway, less than the clip (revised 2026-10-26: a gentle side move at each fact).
 - The facts are small, thin labels like the site's, glowing in sync with the light, each travelling with it while shown.
 - No tunnel: the fall is in the projects' own void.
 - The way in is creative and seamless and flows with the viewer's eye.
@@ -185,16 +199,23 @@ Everything binding on M2b and on the end page still binds:
 - The projects form a ring around the needle that turns 360°, and the needle points at the one in front.
 - The skip button to the Q&A lives among the projects.
 - A video and a mock-up before any building into the site.
+- After the first mock-up (2026-10-26):
+  - the light flows away from the screen into depth, more 3D, instead of dropping down it;
+  - a gentle side move with each fact, not aggressive;
+  - the camera glides round the ring with the scroll and settles on the nearest project;
+  - the end page slides up from below after the last project.
 
 ## My calls (Bob may change any)
 
 - **The needle becomes the light at the O's centre,** and the light becomes the needle at the ring's centre: needle, light, needle.
 - **The light held at the centre of the screen** through the way in, and near it through the fall.
+- **The side moves.** Each fact's side move is about a tenth of the screen width, eased in and out over the fact's stretch, alternating sides (01 left, 02 right, and so on). The fact rides on the side the light moves away from.
 - **The ring's controls:**
-  - scroll turns one project at a time, with rests;
-  - a drag spins freely and settles on the nearest project;
-  - the arrows turn it;
+  - about one screen height of scroll per project;
+  - the settle on the nearest project starts about 0.15 s after the scroll stops and takes about 0.6 s;
+  - the arrows move one project;
   - the first ring position replaces the overview stop.
+- **The end sheet** takes about one screen height of scroll to cover the screen.
 - **The ring's camera,** slightly above and outside it, as in the frame.
 - **The fine gold line and the small numbers on the labels,** and the wording in the table: "Chinees van afkomst", "Hakka-erfgoed" / "Hakka heritage", "van Aruba", and no full stops on labels.
 - **"20 jaar" is fixed text,** to be changed on Bob's birthday.
@@ -215,6 +236,11 @@ Everything binding on M2b and on the end page still binds:
 On the companion, `.superpowers/brainstorm/625-1792939158/content/` in the main checkout (git-excluded, copied from the earlier folder `1850-1792919258`):
 - **The approved look:** `bob-light-dive-9.html`, with its frames `lightdive-t1.webp`, `lightdive-t2b.webp`, `lightdive-v1.webp` and `lightdive-ring2.webp`, and its diagrams.
 - **The labels:** `bob-light-dive-6.html`.
+- **The first mock-up** ("its solid"), in `.superpowers/light-dive-mockup/` in the main checkout: `review.html`, the page at `/`, and the videos in `video/`. Its way in, its labels, its light's look and its ring's layout and glow stand. Four things are revised by Bob's notes of 2026-10-26, above:
+  - the light's direction;
+  - the side moves;
+  - the ring's camera glide;
+  - the end page's slide.
 - **Bob's clip:** YouTube `5nYfR36QHyo`, 0:13–0:17. A light streaks through dark space past speed lines, then through curving trails and a tunnel of streaks, to a white burst. He kept the flow and turned down the colours, the intensity, the streaks and the burst.
 - **Turned down along the way, kept as history:** `bob-light-dive.html` and `-2` to `-5` (panes, drifting words, one by one, 3D letters, big written letters), `-7`'s options and `-8`'s way-in and needle frames.
 
@@ -229,7 +255,7 @@ Where they differ from this document, this document wins.
   - the camera's path through the O and down into the void;
   - how the compass slides away around the held light;
   - how the light, its filaments and its trail are drawn;
-  - how the sway moves;
+  - how the side moves ease;
   - where each label sits on each screen size.
 - **The ring.** Its radius, height and spacing; how the beads' existing objects and screens sit in it; the needle's model, how the light turns into it, and how it follows the ring; and the drag's feel and settling.
 - **The hold and the failed void:** how the hold moves to just above the ring, and how the failed void reaches the same place.
