@@ -1,9 +1,9 @@
 /**
- * The end page on the screen (spec 2026-10-24-bob-end-page-design.md, way A, "into the night"): as the story moves from
- * Cookies Clicker (5) to the end page (6) the void sinks into the site's night and the page rises from below; at the
- * end the page stands in the normal flow and the document scrolls.
+ * The end page on the screen (spec 2026-10-25-bob-light-dive-design.md, the sheet): as the story moves from Cookies
+ * Clicker (6) to the end page (7) the page slides up from below over the ring; at the end the page stands in the normal
+ * flow and the document scrolls.
  *
- * Home works out the view of each frame from the frame's one journey pose (`JourneyPose.night`) and where the story is
+ * Home works out the view of each frame from the frame's one journey pose (`JourneyPose.sheet`) and where the story is
  * (`endViewFor`), and writes it to the DOM (`applyEndView`), only what has changed. The stylesheet draws way A from what
  * it writes (src/styles/base.css, "the end page over the scene"):
  * - `--end` on <html>: the night's share, 0..1, unset at 0;

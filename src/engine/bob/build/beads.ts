@@ -25,11 +25,17 @@ import {
 } from '~/engine/bob/beadMotion';
 import { palette } from '~/engine/palette';
 import { lowerTier, type QualityTier } from '~/engine/quality';
-import { BEADS, CAMERA_PATH } from '~/scene/bob/journey';
+import { BEADS } from '~/scene/bob/journey';
 
 type Vec3 = readonly [number, number, number];
 
 const DEG = Math.PI / 180;
+
+/** A bead's drift toward the camera at `setForward(id, 1)`: none, the ring's beads stand at their places. */
+const BEAD_DRIFT: Vec3 = [0, 0, 0];
+
+/** Where a hover with no point turns a bead: its porthole's own axis, +z. */
+const BEAD_TOWARD: Vec3 = [0, 0, 1];
 
 /**
  * How the beads look. Starting values, kept low for the site's rule (dark, calm, one focal point); the proof
@@ -98,7 +104,7 @@ export interface BeadsModel {
   beads: Readonly<Record<ProjectId, { root: THREE.Object3D; body: THREE.Mesh }>>;
   /** Puts each bead's centre at its position in the group's frame (built at the journey's `BEADS`); its drift and hover turn stay on top. */
   place(positions: Readonly<Record<ProjectId, Vec3>>): void;
-  /** Drifts bead `id` toward the camera, 0..1 (held to it, NaN as 0): `t` times the journey's drift (`CAMERA_PATH.bead.forward`) from its place. */
+  /** Drifts bead `id` toward the camera, 0..1 (held to it, NaN as 0): on the ring the beads stand at their places, so there is no drift (`BEAD_DRIFT` is none). */
   setForward(id: ProjectId, t: number): void;
   /** Lights bead `id`, 0..1 (held to it, NaN as 0): `mix(BEADS_LOOK.dim, 1, t)` of its full light. */
   setLit(id: ProjectId, t: number): void;
@@ -106,7 +112,7 @@ export interface BeadsModel {
    * Hovers bead `id` by `amount`, 0..1 (default 1; held to it, NaN as 0), and lets every other bead go; `null` lets them
    * all go. A hovered bead brightens by `amount` × `BEADS_LOOK.hover.brighten` and turns its porthole toward `towards`
    * (a world point, the camera's position) by `amount` × the smaller of 8° and how far off its axis the point is, so it
-   * never turns past it. With no point it turns toward where its own stop's camera stands (`CAMERA_PATH.bead.offset`).
+   * never turns past it. With no point it turns along its own porthole's axis (`BEAD_TOWARD`, +z).
    * The amount is the caller's to ease (springs, no snapping); one bead at a time, so a hover moving to another bead
    * eases the first out before the next comes in. The turn is about the bead's centre and is kept as it drifts.
    */
@@ -383,8 +389,8 @@ export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens:
   const Y = new THREE.Vector3(0, 1, 0);
   const Z = new THREE.Vector3(0, 0, 1);
   const turn = new THREE.Quaternion();
-  const drift = new THREE.Vector3(...CAMERA_PATH.bead.forward);
-  const shot = new THREE.Vector3(...CAMERA_PATH.bead.offset).normalize();
+  const drift = new THREE.Vector3(...BEAD_DRIFT);
+  const shot = new THREE.Vector3(...BEAD_TOWARD);
   const towards = new THREE.Vector3();
   let aiming = false;
   const facing = new THREE.Vector3();

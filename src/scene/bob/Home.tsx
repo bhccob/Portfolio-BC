@@ -339,9 +339,9 @@ export function Home({ models, handover }: HomeProps): null {
     scroll.needleDip = pose.needleDip;
     // The hero's SCROLL cue goes with the rise and comes back at the home (the spec shows no text during the scroll).
     showRising(state, risingFor(pose.u));
-    // The end page (way A, endView.ts): the night's share of this frame's pose, and where the story stands, the progress
+    // The end page (endView.ts): how far it has slid up in this frame's pose, and where the story stands, the progress
     // Home poses (with reduced motion the stop the step fade shows) and the target; written only where it changes.
-    applyEndView(endViewFor(journey.night, shown, frame.target, END), document.documentElement, endPage(), state.end);
+    applyEndView(endViewFor(journey.sheet, shown, frame.target, END), document.documentElement, endPage(), state.end);
 
     const time = state.base + state.idleTime;
     models.compass.setSpin(time);

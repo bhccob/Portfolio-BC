@@ -42,7 +42,7 @@ export const frame = {
   scroll: { u: 0, letters: 0, iris: 0, needleDip: 0 },
   /**
    * Where the home's journey stands (src/scene/bob/journey.ts `journeyAt`), as the scene last posed it: the stretch
-   * (`rise`, `dive`, `overview`, `project`, `end`), how far through it, and the bead of a project stretch (0, 1 or 2) or null.
+   * (`rise`, `light`, `ring`, `sheet`, `end`), how far through it, and the project in front of the ring (0, 1 or 2) or null.
    * The Opening writes these three on every frame it poses the journey, from the one pose it publishes for that frame
    * (`writeJourney`, src/scene/bob/voidPose.ts); a frame of the loader or of a held seek leaves them as they were.
    * `voidState` is the void's load (the store's `voidState`), which the Void writes as it changes. The debug bridge

@@ -183,8 +183,8 @@ interface VoidRun {
   reading: boolean;
   /**
    * The pointer is read: it may hover a bead, and a click may open the selected one. The void is read (`reading`) and the
-   * night has not begun (`hoversAt`): from the move into the night on, the end page rises over the scene and lets the
-   * pointer through while it moves, and a pointer there neither turns a bead, nor wakes the canvas, nor opens one.
+   * end page has not begun to slide up (`hoversAt`): from there on the page covers the scene and lets the pointer through
+   * while it moves, and a pointer there neither turns a bead, nor wakes the canvas, nor opens one.
    */
   hovering: boolean;
 }
@@ -273,13 +273,13 @@ export interface VoidProps {
  * - the void and the beads show only once the camera is under the glass (`voidShownFor`): hidden on the rise, at BOB
  *   from above and down to the opening, where on the high tier the floor would show the void's traces under the home's
  *   and its reflector would draw them again; the beads' inner lights go dark with them, by intensity;
- * - the void's light (`setLight(pose.beam, pose.mist)`) and its drift (`setTime`, on a clock that runs only on frames
- *   drawn while it shows, and not with reduced motion);
- * - each bead's drift forward and light (`setForward`, `setLit`);
+ * - the void's light (`setLight`, the ring's mist, until the void's own pose replaces it) and its drift (`setTime`, on
+ *   a clock that runs only on frames drawn while it shows, and not with reduced motion);
+ * - each bead's light (`setLit`, the light dive's `lit`); no drift forward (`setForward(id, 0)`);
  * - the hover: on a pointer device (a mouse or pen that has moved, `frame.pointerAt`), the bead whose shell the pointer
  *   is over (a ray against `beads[id].body`), eased in and out one bead at a time (`easeHover`) and turned toward the
  *   camera, its position handed in every frame; with reduced motion it brightens at once and does not turn; never once the
- *   night has begun (`hoversAt`: the move into the night and the end page), where a pointer over the rising page or
+ *   end page has begun to slide up (`hoversAt`: the sheet and the end page), where a pointer over the rising page or
  *   behind it turns no bead and wakes nothing;
  * - the objects' motion: each bead's clock runs only while it is the selected bead (the bead of the current project
  *   stop, `selectedBead`) or the hovered one, and not with reduced motion, and goes on from where it stopped
@@ -526,15 +526,15 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
     const { void: space, beads } = parts;
 
     // The void's light, from the opening, and its slow drift.
-    space.setLight(pose.beam, pose.mist);
+    space.setLight(0, pose.void?.ringMist ?? 0);
     if (!reduced) run.time += dt;
     space.setTime(run.time);
 
     // Each bead's place in the journey.
     for (let i = 0; i < BEADS.length; i++) {
       const { id } = BEADS[i]!;
-      beads.setForward(id, pose.forward[i]!);
-      beads.setLit(id, pose.lit[i]!);
+      beads.setForward(id, 0);
+      beads.setLit(id, pose.beads?.find((bead) => bead.id === id)?.lit ?? 0);
     }
 
     // The hover, on a pointer device: the bead under the pointer, eased one at a time, turned toward the camera.

@@ -679,3 +679,8 @@ export function beadsAt(f: number, aspect: number): BeadAt[] {
     return { id, position: toThree([c[0], c[1], c[2] + liftFrom(at, az) - RING.rise * (1 - rise)]), towards: cam, lit, shown: f >= BEADS_IN };
   });
 }
+
+/** A bead's centre at rest `angle` degrees round the ring, three's frame: where it stands with no lift and fully risen. */
+export function beadRest(angle: number): Vec3 {
+  return toThree(beadCentre(angle));
+}

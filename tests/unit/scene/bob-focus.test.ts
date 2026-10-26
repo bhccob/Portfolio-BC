@@ -14,7 +14,8 @@ import {
   restsAt,
   stepFocus
 } from '~/scene/bob/focus';
-import { BEADS, CAMERA_PATH, fieldFor, FOCUS_VIEW, focusShotFor, journeyPoseAt, lensField, shotToward } from '~/scene/bob/journey';
+import { BEADS, fieldFor, FOCUS_VIEW, focusShotFor, journeyPoseAt, lensField, shotToward } from '~/scene/bob/journey';
+import { ringShot } from '~/scene/bob/lightDive';
 import { STEP_FADE_MS } from '~/scene/bob/stepFade';
 import { voidShownFor } from '~/scene/bob/voidPose';
 import { frame } from '~/state/frame';
@@ -32,10 +33,15 @@ const near = (a: Vec3, b: Vec3, digits = 9): void => {
   for (let i = 0; i < 3; i++) expect(a[i]).toBeCloseTo(b[i]!, digits);
 };
 
-/** A bead's centre where it stands at its stop: its place plus the journey's whole drift forward. */
-const atStop = (bead: (typeof BEADS)[number]): Vec3 => {
-  const f = CAMERA_PATH.bead.forward;
-  return [bead.centre[0] + f[0], bead.centre[1] + f[1], bead.centre[2] + f[2]];
+/** A bead's centre where it stands at its stop: its place on the ring (the beads do not drift there). */
+const atStop = (bead: (typeof BEADS)[number]): Vec3 => bead.centre;
+
+/** The unit line from a bead's centre toward the ring's camera at the bead's own stop (its angle, 120° apart). */
+const towardStop = (bead: (typeof BEADS)[number], aspect: number): Vec3 => {
+  const camera = ringShot(120 * BEADS.indexOf(bead), aspect).position;
+  const d: Vec3 = [camera[0] - bead.centre[0], camera[1] - bead.centre[1], camera[2] - bead.centre[2]];
+  const length = Math.hypot(...d);
+  return [d[0] / length, d[1] / length, d[2] / length];
 };
 
 /** Where `point` lands on a screen of this aspect through `shot`, NDC. */
@@ -48,27 +54,31 @@ function project(shot: CameraShot, aspect: number, point: Vec3): THREE.Vector3 {
 // ---------------------------------------------------------------- the close view
 
 describe('focusShotFor: a bead seen close', () => {
-  it('stands the camera 1.6 in front of the porthole, along the bead\'s facing (+z), looking into it, with the 40 mm field', () => {
+  it('stands the camera 1.6 in front of the porthole, on the line to its ring stop\'s camera, looking into it, with the 40 mm field', () => {
     expect(FOCUS_VIEW.standOff).toBe(1.6);
     expect(FOCUS_VIEW.lens).toBe(40);
     for (const bead of BEADS) {
       const shot = focusShotFor(bead.id, LAPTOP);
       const centre = atStop(bead);
+      const u = towardStop(bead, LAPTOP);
+      const d = bead.radius + 1.6;
       near(shot.target, centre);
-      // The porthole is the front of the shell, the bead's radius out along +z; the camera 1.6 beyond it.
-      near(shot.position, [centre[0], centre[1], centre[2] + bead.radius + 1.6]);
+      // The porthole faces the ring's camera at the bead's stop, the bead's radius out; the camera 1.6 beyond it.
+      near(shot.position, [centre[0] + u[0] * d, centre[1] + u[1] * d, centre[2] + u[2] * d]);
       expect(shot.fov).toBeCloseTo(fieldFor(lensField(40), LAPTOP).fov, 9);
       near(shot.up ?? [0, 1, 0], [0, 1, 0]);
     }
   });
 
-  it('stands a phone back along the same axis by the width rule (fieldFor), so it sees the same width across', () => {
+  it('stands a phone back along the same line by the width rule (fieldFor), so it sees the same width across', () => {
     for (const bead of BEADS) {
       const shot = focusShotFor(bead.id, PHONE);
       const { fov, back } = fieldFor(lensField(40), PHONE);
       const centre = atStop(bead);
+      const u = towardStop(bead, PHONE);
+      const d = (bead.radius + 1.6) * back;
       expect(back).toBeGreaterThan(1);
-      near(shot.position, [centre[0], centre[1], centre[2] + (bead.radius + 1.6) * back]);
+      near(shot.position, [centre[0] + u[0] * d, centre[1] + u[1] * d, centre[2] + u[2] * d]);
       expect(shot.fov).toBeCloseTo(fov, 9);
     }
   });
@@ -104,7 +114,7 @@ describe('focusShotFor: a bead seen close', () => {
 });
 
 describe("shotToward: the flight's straight move between two shots", () => {
-  const stop = journeyPoseAt(3, LAPTOP).shot;
+  const stop = journeyPoseAt(stopForProject('funcial'), LAPTOP).shot;
   const close = focusShotFor('funcial', LAPTOP);
 
   it('is the first shot at 0 and the second at 1, exactly', () => {
@@ -234,26 +244,26 @@ describe('focusGoalFor: the close view the page asks for', () => {
 });
 
 describe("restsAt: a flight leaves only from its bead's own stop, at rest", () => {
-  it("is true at the bead's stop with the story resting there", () => {
-    expect(restsAt('funcial', 3, 3)).toBe(true);
-    expect(restsAt('jontai-energy', 4, 4)).toBe(true);
-    expect(restsAt('cookies-clicker', 5, 5)).toBe(true);
+  it("is true at the bead's ring stop with the story resting there", () => {
+    expect(restsAt('funcial', 4, 4)).toBe(true);
+    expect(restsAt('jontai-energy', 5, 5)).toBe(true);
+    expect(restsAt('cookies-clicker', 6, 6)).toBe(true);
   });
 
-  it("is false for the last bead once the story has left its stop: in the move into the night (5 to 6) and at the end page (6)", () => {
-    // 2026-10-24: the stretch 5 to 6 is no longer a hold of Cookies at rest, and 6 is the end page's stop, not Cookies'.
-    expect(restsAt('cookies-clicker', 5.5, 5.5)).toBe(false);
-    expect(restsAt('cookies-clicker', 6, 6)).toBe(false);
-    expect(restsAt('cookies-clicker', 5, 5.5)).toBe(false);
+  it("is false for the last bead once the story has left its stop: on the sheet (6 to 7) and at the end page (7)", () => {
+    expect(restsAt('cookies-clicker', 6.5, 6.5)).toBe(false);
+    expect(restsAt('cookies-clicker', 7, 7)).toBe(false);
+    expect(restsAt('cookies-clicker', 6, 6.5)).toBe(false);
   });
 
-  it("is false on the way, at another bead's stop, held in the tunnel, or for no bead", () => {
-    expect(restsAt('funcial', 3, 3.4)).toBe(false);
-    expect(restsAt('funcial', 3.5, 3.5)).toBe(false);
-    expect(restsAt('jontai-energy', 3, 3)).toBe(false);
-    expect(restsAt('funcial', 1.475, 1.475)).toBe(false);
+  it("is false on the way round the ring, at another bead's stop, in the light dive, or for no bead", () => {
+    expect(restsAt('funcial', 4, 4.4)).toBe(false);
+    expect(restsAt('funcial', 4.1, 4.1)).toBe(false);
+    expect(restsAt('funcial', 4.5, 4.5)).toBe(false);
+    expect(restsAt('jontai-energy', 4, 4)).toBe(false);
+    expect(restsAt('funcial', 2.5, 2.5)).toBe(false);
     expect(restsAt('funcial', 1, 1)).toBe(false);
-    expect(restsAt(null, 3, 3)).toBe(false);
+    expect(restsAt(null, 4, 4)).toBe(false);
   });
 });
 
@@ -310,7 +320,7 @@ describe('stepFocus: Back flies out of a page reached any way, whatever frame fa
         expect(mid).toMatchObject({ id: 'funcial', amount: 1, dark: false });
         expect(midTo).toBe('funcial');
       }
-      expect([frame.progress, frame.target]).toEqual([3, 3]);
+      expect([frame.progress, frame.target]).toEqual([4, 4]);
       expect(frame.focus.move.mode).toBe('fly');
       expect(frame.focus.move.to).toBeNull();
       expect(after).toMatchObject({ id: 'funcial', dark: false, moving: true });
@@ -327,7 +337,7 @@ describe('stepFocus: Back flies out of a page reached any way, whatever frame fa
       navigate('project', { pathname: '/projects/cookies-clicker/', key: 'default' }, NavigationType.Pop, 0, false);
       stepFocus(frame.focus, input(), 1000);
       navigate('home', { pathname: '/', key: 'k1', state: BACK_STATE }, NavigationType.Push, 2000, between);
-      expect([frame.target, frame.focus.move.mode, frame.focus.move.to]).toEqual([5, 'fly', null]);
+      expect([frame.target, frame.focus.move.mode, frame.focus.move.to]).toEqual([6, 'fly', null]);
     }
   });
 

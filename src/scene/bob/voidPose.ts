@@ -22,9 +22,9 @@ export function voidShownFor(shot: CameraShot): boolean {
   return shot.position[1] < GLASS_Y;
 }
 
-/** The selected bead: the bead of the project stretch the journey is on (0, 1 or 2, in `BEADS` order), else none. */
+/** The selected bead: the project in front of the ring (0, 1 or 2, in `BEADS` order, within `PROJECT_NEAR` of it), else none. */
 export function selectedBead(at: JourneyAt): number | null {
-  return at.stretch === 'project' ? at.project : null;
+  return at.stretch === 'ring' || at.stretch === 'sheet' ? at.project : null;
 }
 
 /** Funcial's place in `BEADS`: the one bead whose abacus has a clock of its own. */
@@ -138,14 +138,12 @@ export function writeJourney(into: { stretch: JourneyAt['stretch']; local: numbe
 
 /**
  * Whether the pointer is read for the beads with the journey at `pose`: whether it may hover a bead, and whether a click
- * (a tap) may open the selected one (src/scene/bob/Void.tsx). Not once the night has begun (`night` above 0): the move
- * from Cookies Clicker into the night, either way, and the end page. The end page rises over the scene there, inert
- * while it moves, so a click on it goes through to what lies under it, and Cookies Clicker's bead does (on a laptop
- * under the right of the column, on a phone under all of it): there a pointer neither turns a bead nor wakes the canvas,
- * and a click or a tap opens nothing. A hover lit at Cookies Clicker's stop so eases out as the move begins, long before
- * the rest, where the scene sleeps. Everywhere else, the overview, every bead's stop and the moves between them, as
- * before: `night` is 0 there (a night that is not a number reads as none, as the end view reads it).
+ * (a tap) may open the selected one (src/scene/bob/Void.tsx). Not once the end page has begun to slide up (`sheet` above
+ * 0), either way, nor at the end page: the page covers the scene there, inert while it moves, so a click on it would go
+ * through to Cookies Clicker's bead under it; there a pointer neither turns a bead nor wakes the canvas, and a click or a
+ * tap opens nothing. Everywhere else, round the ring, as before: `sheet` is 0 there (a sheet that is not a number reads
+ * as none, as the end view reads it).
  */
-export function hoversAt(pose: Pick<JourneyPose, 'night'>): boolean {
-  return !(pose.night > 0);
+export function hoversAt(pose: Pick<JourneyPose, 'sheet'>): boolean {
+  return !(pose.sheet > 0);
 }

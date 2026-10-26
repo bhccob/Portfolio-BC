@@ -9,7 +9,8 @@ import { startHomeScroll } from '~/input/scrollLoop';
 import { connectHomeScroll } from '~/input/useHomeScroll';
 import { holdLimit, releaseTarget } from '~/input/target';
 import { diveHoldFor, RISE_TOP } from '~/scene/bob/diveHold';
-import { BEADS, journeyAt, journeyPoseAt, TUNNEL_HOLD } from '~/scene/bob/journey';
+import { BEADS, journeyAt, journeyPoseAt } from '~/scene/bob/journey';
+import { F, LIGHT_FRAMES } from '~/scene/bob/lightDive';
 import { nearestStop } from '~/scene/bob/stepFade';
 import {
   ABACUS_SPAN,
@@ -22,7 +23,7 @@ import {
   writeJourney
 } from '~/scene/bob/voidPose';
 import { NavigationType } from 'react-router';
-import { chapterAt, HOME_CHAPTERS, scrollEnd, stops } from '~/state/chapters';
+import { chapterAt, HOME_CHAPTERS, placeOfFrame, scrollEnd, stops } from '~/state/chapters';
 import { frame } from '~/state/frame';
 import { BACK_STATE, resetRouteSync, stopForProject, syncRoute } from '~/state/routeSync';
 import { useScene, type VoidState } from '~/state/store';
@@ -562,9 +563,9 @@ describe('frame.journey: where the journey stands, for the debug bridge', () => 
   it('is on the debug state as a copy, voidState included', () => {
     const before = { ...frame.journey };
     try {
-      Object.assign(frame.journey, { stretch: 'project', local: 0, project: 1, voidState: 'ready' });
+      Object.assign(frame.journey, { stretch: 'ring', local: 0, project: 1, voidState: 'ready' });
       const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
-      expect(state.journey).toEqual({ stretch: 'project', local: 0, project: 1, voidState: 'ready' });
+      expect(state.journey).toEqual({ stretch: 'ring', local: 0, project: 1, voidState: 'ready' });
       expect(state.journey).not.toBe(frame.journey);
     } finally {
       Object.assign(frame.journey, before);
@@ -593,39 +594,41 @@ describe('voidShownFor: the void and the beads show only once the camera is unde
     }
   });
 
-  it('hides them while the camera is above the glass in the dive: BOB from above and the descent to the opening', () => {
+  it('hides them while the camera is above the glass in the light dive: BOB from above and the way in', () => {
     // On the high tier the floor shows what lies under it, and the void's traces draw with no depth test.
     for (const a of SCREENS) {
       expect(voidShownFor(journeyPoseAt(1, a).shot)).toBe(false);
-      for (let p = 1; p < 2; p += 1 / 128) {
-        const shot = journeyPoseAt(p, a).shot;
-        if (shot.position[1] >= 0) expect(voidShownFor(shot), `at ${p}`).toBe(false);
+      expect(voidShownFor(journeyPoseAt(placeOfFrame(30), a).shot)).toBe(false);
+      for (let f = 1; f <= LIGHT_FRAMES; f++) {
+        const shot = journeyPoseAt(placeOfFrame(f), a).shot;
+        if (shot.position[1] >= 0) expect(voidShownFor(shot), `at frame ${f}`).toBe(false);
       }
     }
   });
 
-  it('shows them from inside the tunnel on (the overview and every bead), never at the hold, over the opening', () => {
+  it('shows them once the camera is under the glass, through the fall, round the ring and under the sheet', () => {
     for (const a of SCREENS) {
-      expect(voidShownFor(journeyPoseAt(TUNNEL_HOLD, a).shot)).toBe(false);
-      for (const p of [2, 2.5, 3, 3.5, 4, 4.5, 5, 6]) expect(voidShownFor(journeyPoseAt(p, a).shot), `at ${p}`).toBe(true);
+      for (const f of [F.PASS, F.CHASE, 121, F.LAND, F.END]) expect(voidShownFor(journeyPoseAt(placeOfFrame(f), a).shot), `at frame ${f}`).toBe(true);
+      for (const p of [4, 4.5, 5, 5.5, 6, 6.5, 7]) expect(voidShownFor(journeyPoseAt(p, a).shot), `at ${p}`).toBe(true);
     }
   });
 });
 
-describe('selectedBead: the bead of the current project stop', () => {
-  it('is none on the rise, the dive and the overview, and the project stretch\'s bead from Funcial\'s stop to the end page', () => {
-    for (const p of [0, 0.5, 1, 1.5, 2, 2.5, 2.999]) expect(selectedBead(journeyAt(p))).toBeNull();
-    expect(selectedBead(journeyAt(3))).toBe(0);
-    expect(selectedBead(journeyAt(3.5))).toBe(0);
-    expect(selectedBead(journeyAt(4))).toBe(1);
-    expect(selectedBead(journeyAt(5))).toBe(2);
-    expect(selectedBead(journeyAt(5.5))).toBe(2); // the move into the night is Cookies' stretch
+describe('selectedBead: the project in front of the ring', () => {
+  it('is none on the rise and the light dive, and the front project round the ring, within 20 degrees of it', () => {
+    for (const p of [0, 0.5, 1, placeOfFrame(121), placeOfFrame(F.END - 1), 3.999]) expect(selectedBead(journeyAt(p))).toBeNull();
+    expect(selectedBead(journeyAt(4))).toBe(0);
+    expect(selectedBead(journeyAt(4.15))).toBe(0);
+    expect(selectedBead(journeyAt(4.2))).toBeNull();
+    expect(selectedBead(journeyAt(4.5))).toBeNull();
+    expect(selectedBead(journeyAt(5))).toBe(1);
+    expect(selectedBead(journeyAt(6))).toBe(2);
+    expect(selectedBead(journeyAt(6.5))).toBe(2); // the sheet rises over Cookies Clicker
   });
 
   it('is none at the end page: the scene sleeps there, so no bead\'s motion keeps the canvas drawing', () => {
-    expect(selectedBead(journeyAt(6))).toBeNull();
     expect(selectedBead(journeyAt(7))).toBeNull();
-    expect(selectedBead({ stretch: 'end', local: 0, project: null })).toBeNull();
+    expect(selectedBead({ stretch: 'end', local: 0, frame: null, angle: 240, project: null })).toBeNull();
   });
 });
 

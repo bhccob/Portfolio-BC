@@ -1,284 +1,71 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { COMPASS_LOOK } from '~/engine/bob/build/compass';
-import { GLASS_LOOK } from '~/engine/bob/build/glassFloor';
-import { applyCameraShot, type CameraShot, homeShotFor, MAX_VFOV, topShotFor } from '~/engine/bob/shots';
-import { WORDMARK } from '~/engine/bob/wordmark';
 import { categories } from '~/data/categories';
-import { projects } from '~/data/projects';
-import {
-  BEADS,
-  CAMERA_PATH,
-  fieldFor,
-  journeyAt,
-  journeyPoseAt,
-  lensField,
-  NEEDLE_PATH,
-  TUNNEL_HOLD,
-  VOID_CEILING,
-  VOID_ROOF
-} from '~/scene/bob/journey';
+import { applyCameraShot, type CameraShot, homeShotFor, MAX_VFOV, topShotFor } from '~/engine/bob/shots';
+import { BEADS, fieldFor, focusShotFor, FOCUS_VIEW, journeyAt, journeyPoseAt, lensField } from '~/scene/bob/journey';
+import { BEADS_IN, beadsAt, F, factAt, lightAt, ringBeads, ringNeedle, ringShot, voidAt, wayNeedle, wayShot } from '~/scene/bob/lightDive';
 import { riseAt, scrollPoseAt } from '~/scene/bob/scrollPose';
-import { HOME_CHAPTERS, stops } from '~/state/chapters';
+import { HOME_CHAPTERS, placeOfFrame, scrollEnd, stops } from '~/state/chapters';
 
 type Vec3 = readonly [number, number, number];
 
 const DEG = 180 / Math.PI;
-const LAPTOP = 16 / 9;
+const LAPTOP = 1440 / 900;
 const PHONE = 390 / 844;
 const SCREENS = [LAPTOP, PHONE] as const;
 
-/** Progress from 0 to 6 in steps of 1/400 (each stop is hit exactly: 400 k / 400 is k). */
-const STEPS = Array.from({ length: 6 * 400 + 1 }, (_, i) => i / 400);
+/** Progress from 0 to 7 in steps of 1/1000 (each integer stop is hit exactly). */
+const STEPS = Array.from({ length: 7 * 1000 + 1 }, (_, i) => i / 1000);
 
-/** Blender (x, y, z) in three's frame: (x, z, -y). */
-const fromBlender = (x: number, y: number, z: number): Vec3 => [x, z, -y];
-
-const add = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const sub = (a: Vec3, b: Vec3): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const length = (a: Vec3): number => Math.hypot(a[0], a[1], a[2]);
-const unit = (a: Vec3): Vec3 => {
-  const l = length(a);
-  return [a[0] / l, a[1] / l, a[2] / l];
-};
-const angleBetween = (a: Vec3, b: Vec3): number => {
-  const c = (a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) / (length(a) * length(b));
-  return Math.acos(Math.min(1, Math.max(-1, c))) * DEG;
-};
 
-/** Bead `i`'s centre once it has come all the way forward. */
-const forwardCentre = (i: number): Vec3 => add(BEADS[i]!.centre, CAMERA_PATH.bead.forward);
+/** How far one shot is from another: the camera's move, in metres, and its turn (the look's), in degrees. */
+function shotStep(a: CameraShot, b: CameraShot): { move: number; turn: number } {
+  const da = sub(a.target, a.position);
+  const db = sub(b.target, b.position);
+  const c = (da[0] * db[0] + da[1] * db[1] + da[2] * db[2]) / (length(da) * length(db));
+  return { move: length(sub(a.position, b.position)), turn: Math.acos(Math.min(1, Math.max(-1, c))) * DEG };
+}
 
-/** A camera placed by `shot` on a screen of this aspect, as the Rig places it. */
-function cameraFor(shot: CameraShot, aspect: number): THREE.PerspectiveCamera {
+/** Where `p` lands on the screen through `shot`: NDC x, y. */
+function project(shot: CameraShot, aspect: number, p: Vec3): [number, number] {
   const camera = new THREE.PerspectiveCamera(50, aspect, 0.1, 200);
   applyCameraShot(camera, shot, aspect);
-  return camera;
-}
-
-/** Where `p` lands on the screen through `shot`: NDC x, y (-1..1 on screen) and z (below 1 in front of the camera). */
-function project(shot: CameraShot, aspect: number, p: Vec3): [number, number, number] {
-  const v = new THREE.Vector3(...p).project(cameraFor(shot, aspect));
-  return [v.x, v.y, v.z];
-}
-
-/** The way the needle's tip points: at its aim, or straight down when it has none. */
-function tipOf(needle: { position: Vec3; aim: Vec3 | null }): Vec3 {
-  return needle.aim ? unit(sub(needle.aim, needle.position)) : [0, -1, 0];
+  const v = new THREE.Vector3(...p).project(camera);
+  return [v.x, v.y];
 }
 
 describe("the journey's stretches", () => {
-  it('names every stretch at the midpoints of the stops', () => {
-    expect(journeyAt(0.5)).toEqual({ stretch: 'rise', local: 0.5, project: null });
-    expect(journeyAt(1.5)).toEqual({ stretch: 'dive', local: 0.5, project: null });
-    expect(journeyAt(2.5)).toEqual({ stretch: 'overview', local: 0.5, project: null });
-    expect(journeyAt(3.5)).toEqual({ stretch: 'project', local: 0.5, project: 0 });
-    expect(journeyAt(4.5)).toEqual({ stretch: 'project', local: 0.5, project: 1 });
-    // The last project's stretch (5 to 6) is real now: the move into the night, where the camera holds Cookies.
-    expect(journeyAt(5.5)).toEqual({ stretch: 'project', local: 0.5, project: 2 });
-    // The end page is a stop of its own, 6, and holds from there on.
-    expect(journeyAt(6.5)).toEqual({ stretch: 'end', local: 0, project: null });
+  it('names the rise, the light dive, the ring, the sheet and the end', () => {
+    expect(journeyAt(0.5)).toMatchObject({ stretch: 'rise', frame: null, angle: null, project: null });
+    expect(journeyAt(placeOfFrame(121))).toMatchObject({ stretch: 'light', frame: 121, angle: null, project: null });
+    expect(journeyAt(4.5)).toMatchObject({ stretch: 'ring', frame: null, angle: 60, project: null });
+    expect(journeyAt(6.25)).toMatchObject({ stretch: 'sheet', angle: 240, project: 2 });
+    expect(journeyAt(7)).toEqual({ stretch: 'end', local: 0, frame: null, angle: 240, project: null });
   });
 
-  it('rests at the start of each stretch; the last, the end page, starts at 6, the end of the scroll', () => {
-    // 2026-10-24: a seventh stop, the end page, follows Cookies Clicker (it was six stops, ending at 5).
-    expect(stops(HOME_CHAPTERS)).toEqual([0, 1, 2, 3, 4, 5, 6]);
-    expect(journeyAt(0)).toEqual({ stretch: 'rise', local: 0, project: null });
-    expect(journeyAt(1)).toEqual({ stretch: 'dive', local: 0, project: null });
-    expect(journeyAt(2)).toEqual({ stretch: 'overview', local: 0, project: null });
-    expect(journeyAt(3)).toEqual({ stretch: 'project', local: 0, project: 0 });
-    expect(journeyAt(4)).toEqual({ stretch: 'project', local: 0, project: 1 });
-    expect(journeyAt(5)).toEqual({ stretch: 'project', local: 0, project: 2 });
-    expect(journeyAt(6)).toEqual({ stretch: 'end', local: 0, project: null });
-    // The end page poses Cookies as it stands at 5, only the night is in: the shot, the needle and the beads are as at 5.
-    for (const a of SCREENS) {
-      const five = journeyPoseAt(5, a);
-      const six = journeyPoseAt(6, a);
-      expect(six.shot).toEqual(five.shot);
-      expect(six.needle).toEqual(five.needle);
-      expect(six.forward).toEqual(five.forward);
-      expect(six.lit).toEqual(five.lit);
-      expect([six.beam, six.mist]).toEqual([five.beam, five.mist]);
-      expect(six.rise).toEqual(five.rise);
-      expect(six.at).toEqual({ stretch: 'end', local: 0, project: null });
-      expect([five.night, six.night]).toEqual([0, 1]);
-    }
+  it('turns the ring exactly with the scroll, and names the project in front within 20 degrees of it', () => {
+    expect(journeyAt(4)).toMatchObject({ angle: 0, project: 0 });
+    expect(journeyAt(4.15).angle).toBeCloseTo(18, 9);
+    expect(journeyAt(4.15).project).toBe(0);
+    expect(journeyAt(4.2).project).toBeNull();
+    expect(journeyAt(5)).toMatchObject({ angle: 120, project: 1 });
+    expect(journeyAt(5.85)).toMatchObject({ project: 2 });
   });
 
-  it('snaps within 1e-6 of every stop, as riseAt does, and not beyond it', () => {
-    for (const stop of stops(HOME_CHAPTERS)) {
-      for (const off of [-9.99e-7, -1e-9, 1e-9, 9.99e-7]) {
-        const p = stop + off;
-        if (p < 0 || p > 6) continue;
-        expect(journeyAt(p), `${stop} ${off}`).toEqual(journeyAt(stop));
-        for (const a of SCREENS) expect(journeyPoseAt(p, a), `${stop} ${off} at ${a}`).toEqual(journeyPoseAt(stop, a));
-      }
-    }
-    // Just past the snap it is the stretch itself.
-    expect(journeyAt(3 + 2e-6).local).toBeCloseTo(2e-6, 12);
-    expect(journeyAt(3 - 2e-6)).toMatchObject({ stretch: 'overview', project: null });
-    expect(journeyAt(3 - 2e-6).local).toBeCloseTo(1 - 2e-6, 12);
+  it('runs the light dive frame by frame: BOB from above is frame 1, the ring is frame 300', () => {
+    expect(journeyAt(1)).toMatchObject({ stretch: 'light', frame: 1 });
+    expect(journeyAt(placeOfFrame(260.5)).frame).toBeCloseTo(260.5, 9);
+    expect(journeyAt(4)).toMatchObject({ stretch: 'ring', angle: 0 });
   });
 
-  it('reads NaN as the home, and holds progress to 0..6', () => {
-    expect(journeyAt(Number.NaN)).toEqual(journeyAt(0));
-    expect(journeyAt(-1)).toEqual(journeyAt(0));
-    expect(journeyAt(Number.NEGATIVE_INFINITY)).toEqual(journeyAt(0));
-    expect(journeyAt(7)).toEqual(journeyAt(6));
-    expect(journeyAt(Number.POSITIVE_INFINITY)).toEqual(journeyAt(6));
-    for (const a of SCREENS) {
-      expect(journeyPoseAt(7, a)).toEqual(journeyPoseAt(6, a));
-      expect(journeyPoseAt(Number.POSITIVE_INFINITY, a)).toEqual(journeyPoseAt(6, a));
-    }
-    for (const a of SCREENS) {
-      expect(journeyPoseAt(Number.NaN, a)).toEqual(journeyPoseAt(0, a));
-      expect(journeyPoseAt(Number.NaN, a).shot).toEqual(homeShotFor(a));
-    }
-  });
-
-  it("takes the stretches from the home's chapters: one bead for each project unit, in category order", () => {
-    const units = HOME_CHAPTERS.units.filter((unit) => unit.id === 'PROJECTS');
-    expect(units.map((unit) => unit.category)).toEqual(categories.all().map((category) => category.id));
-    expect(BEADS.map((bead) => bead.category)).toEqual(units.map((unit) => unit.category));
-    expect(BEADS.map((bead) => bead.id)).toEqual(projects.all().map((project) => project.id));
-    for (const bead of BEADS) expect(projects.byId(bead.id)?.categoryId).toBe(bead.category);
-  });
-});
-
-describe('the move into the night (Cookies to the end page)', () => {
-  it('reads the last project stretch at its real progress, and holds the end page from 6', () => {
-    expect(journeyAt(5.25)).toEqual({ stretch: 'project', local: 0.25, project: 2 });
-    expect(journeyAt(5.5)).toEqual({ stretch: 'project', local: 0.5, project: 2 });
-    expect(journeyAt(5.75)).toEqual({ stretch: 'project', local: 0.75, project: 2 });
-    expect(journeyAt(6)).toEqual({ stretch: 'end', local: 0, project: null });
-    expect(journeyAt(6.5)).toEqual({ stretch: 'end', local: 0, project: null });
-  });
-
-  it('lets the night in on a smoothstep of the stretch: 0 at Cookies, 0.5 half way, 1 at the end page', () => {
-    for (const a of SCREENS) {
-      expect(journeyPoseAt(5, a).night).toBe(0);
-      expect(journeyPoseAt(5.5, a).night).toBe(0.5);
-      expect(journeyPoseAt(6, a).night).toBe(1);
-      let previous = 0;
-      for (const p of STEPS.filter((p) => p >= 5)) {
-        const { night } = journeyPoseAt(p, a);
-        const local = Math.min(p - 5, 1);
-        expect(night, `${p} at ${a}`).toBeCloseTo(local * local * (3 - 2 * local), 12);
-        expect(night).toBeGreaterThanOrEqual(previous);
-        previous = night;
-      }
-      // It leaves a stop with no speed and arrives with none, as every part of the journey does.
-      expect(journeyPoseAt(5 + 0.01, a).night).toBeLessThan(0.001);
-      expect(journeyPoseAt(6 - 0.01, a).night).toBeGreaterThan(0.999);
-    }
-  });
-
-  it('is out everywhere before the last project: the rise, the dive, the overview and the first two beads', () => {
-    for (const a of SCREENS) {
-      for (const p of [0, 1, 1.475, 2, 3, 4, 4.9]) expect(journeyPoseAt(p, a).night, `${p} at ${a}`).toBe(0);
-      for (const p of STEPS.filter((p) => p <= 5)) expect(journeyPoseAt(p, a).night, `${p} at ${a}`).toBe(0);
-    }
-  });
-
-  it('holds Cookies through the move: the camera, the needle and the beads stay as at 5, to the end page', () => {
-    for (const a of SCREENS) {
-      const rest = journeyPoseAt(5, a);
-      // At 5 the camera is on Cookies come forward, as the centring test below has it at every stop.
-      const [x, y, z] = project(rest.shot, a, forwardCentre(2));
-      expect([Math.abs(x) < 0.5, Math.abs(y) < 0.5, z < 1], `Cookies in view at ${a}`).toEqual([true, true, true]);
-      for (const p of STEPS.filter((p) => p >= 5)) {
-        const pose = journeyPoseAt(p, a);
-        expect(pose.shot, `shot at ${p} on ${a}`).toEqual(rest.shot);
-        expect(pose.needle, `needle at ${p} on ${a}`).toEqual(rest.needle);
-        expect(pose.forward, `forward at ${p} on ${a}`).toEqual([0, 0, 1]);
-        expect(pose.lit, `lit at ${p} on ${a}`).toEqual([0, 0, 1]);
-        expect([pose.beam, pose.mist]).toEqual([1, 1]);
-      }
-      expect(journeyPoseAt(5.5, a).shot).toEqual(journeyPoseAt(5, a).shot);
-      expect(journeyPoseAt(6, a).shot).toEqual(journeyPoseAt(5, a).shot);
-    }
-  });
-
-  it('is Cookies as the last project, the end page after it: the project stays 2 until 6, then none', () => {
-    expect(journeyPoseAt(5.5, LAPTOP).at.project).toBe(2);
-    expect(journeyPoseAt(6, LAPTOP).at.project).toBeNull();
-  });
-});
-
-describe('the preview, in three coordinates', () => {
-  it("puts the beads at spec §7's site positions, radius 0.95, in category order", () => {
-    expect(BEADS.map((bead) => bead.id)).toEqual(['funcial', 'jontai-energy', 'cookies-clicker']);
-    expect(BEADS[0]!.centre).toEqual(fromBlender(1.2, 3.6, -6.9));
-    expect(BEADS[1]!.centre).toEqual(fromBlender(-5.0, 9.5, -5.7));
-    expect(BEADS[2]!.centre).toEqual(fromBlender(5.4, 13.0, -8.7));
-    expect(BEADS.map((bead) => bead.centre)).toEqual([
-      [1.2, -6.9, -3.6],
-      [-5.0, -5.7, -9.5],
-      [5.4, -8.7, -13.0]
-    ]);
-    for (const bead of BEADS) expect(bead.radius).toBe(0.95);
-  });
-
-  it("takes the void's camera from bob_scroll.py: OVER_LOC, OVER_TGT, FINAL_CAM and the first bead's drift", () => {
-    expect(CAMERA_PATH.out.position).toEqual(fromBlender(0, -5.5, -4.4));
-    expect(CAMERA_PATH.out.target).toEqual(fromBlender(0, 9.0, -7.2));
-    expect(CAMERA_PATH.bead.forward).toEqual(fromBlender(-0.4, -1.4, 0.4));
-    // FINAL_CAM (0, -4, -5.5) looks at Funcial come forward: the offset of every bead's shot.
-    const finalCam = fromBlender(0, -4.0, -5.5);
-    const offset = sub(finalCam, forwardCentre(0));
-    CAMERA_PATH.bead.offset.forEach((value, i) => expect(offset[i]).toBeCloseTo(value, 12));
-    expect(CAMERA_PATH.bead.offset).toEqual([-0.8, 1.0, 6.2]);
-    expect(CAMERA_PATH.descent.bottom).toEqual([0, -2.6, 0]);
-    expect([CAMERA_PATH.descent.lens, CAMERA_PATH.out.lens, CAMERA_PATH.bead.lens]).toEqual([32, 30, 40]);
-  });
-
-  it("keeps the preview's frames 362-442 as shares of the dive: hold 362-372, dive 372-420, out 420-442", () => {
-    expect(CAMERA_PATH.hold).toEqual([0, 0.125]);
-    expect(CAMERA_PATH.descent.span[0]).toBeCloseTo((372 - 362) / 80, 12);
-    expect(CAMERA_PATH.descent.span[1]).toBeCloseTo((420 - 362) / 80, 12);
-    expect(CAMERA_PATH.out.span[0]).toBeCloseTo((420 - 362) / 80, 12);
-    expect(CAMERA_PATH.out.span[1]).toBe(1);
-    expect(NEEDLE_PATH.sink.span[1]).toBeCloseTo((376 - 362) / 80, 12);
-    expect(NEEDLE_PATH.lead.span).toEqual([NEEDLE_PATH.sink.span[1], expect.closeTo((424 - 362) / 80, 12)]);
-    expect(NEEDLE_PATH.grow.span[0]).toBeCloseTo((400 - 362) / 80, 12);
-    expect(NEEDLE_PATH.grow.scale).toBe(1.9);
-  });
-
-  it('starts the needle where the open compass holds it, and the void under the tunnel the glass has', () => {
-    expect(NEEDLE_PATH.pivot).toEqual([0, COMPASS_LOOK.iris.flatY, 0]);
-    expect(VOID_CEILING).toBe(GLASS_LOOK.well.bottom);
-    expect(VOID_ROOF).toBe(VOID_CEILING - 1);
-  });
-
-  it("converts a lens to the preview's horizontal field (a 36 mm wide sensor)", () => {
-    expect(lensField(50)).toBeCloseTo(39.6, 1);
-    expect(lensField(32)).toBeCloseTo(58.7, 1);
-    expect(lensField(30)).toBeCloseTo(61.9, 1);
-    expect(lensField(40)).toBeCloseTo(48.5, 1);
-  });
-});
-
-describe('the horizontal field, on a screen', () => {
-  it('is the vertical field for the aspect, at 1 times the distance, where that fits under MAX_VFOV', () => {
-    const h = lensField(30);
-    const { fov, back } = fieldFor(h, LAPTOP);
-    expect(fov).toBeCloseTo(2 * Math.atan(Math.tan(h / 2 / DEG) / LAPTOP) * DEG, 12);
-    expect(fov).toBeLessThan(MAX_VFOV);
-    expect(back).toBe(1);
-  });
-
-  it('caps at MAX_VFOV past it and stands back, so a phone sees the same width', () => {
-    for (const h of [lensField(30), lensField(32), lensField(40)]) {
-      const { fov, back } = fieldFor(h, PHONE);
-      expect(fov).toBe(MAX_VFOV);
-      expect(back).toBeGreaterThan(1);
-      // The width seen at `back` times the distance is the width the field sees at 1.
-      expect(PHONE * Math.tan(fov / 2 / DEG) * back).toBeCloseTo(Math.tan(h / 2 / DEG), 12);
-    }
-  });
-
-  it('reads a bad aspect as 16:9, as shotFor does', () => {
-    for (const bad of [Number.NaN, 0, -1, Number.POSITIVE_INFINITY]) expect(fieldFor(40, bad)).toEqual(fieldFor(40, LAPTOP));
+  it('snaps within 1e-6 of a stop, reads NaN as the home, and holds progress to 0..7', () => {
+    expect(journeyAt(4 + 5e-7)).toMatchObject({ stretch: 'ring', angle: 0 });
+    expect(journeyAt(Number.NaN).stretch).toBe('rise');
+    expect(journeyAt(-2).stretch).toBe('rise');
+    expect(journeyAt(99).stretch).toBe('end');
+    expect(scrollEnd(HOME_CHAPTERS)).toBe(7);
   });
 });
 
@@ -294,345 +81,117 @@ describe("the journey's camera", () => {
     }
   });
 
-  it('is exact at every stop: the home, BOB from above, the overview and each bead seen close', () => {
+  it('is exact at the home, BOB from above, every way frame and every ring angle', () => {
     for (const a of SCREENS) {
       expect(journeyPoseAt(0, a).shot).toEqual(homeShotFor(a));
       expect(journeyPoseAt(1, a).shot).toEqual(topShotFor(a));
-      // BOB from above holds until 1.125.
-      expect(journeyPoseAt(1.1, a).shot).toEqual(topShotFor(a));
-      expect(journeyPoseAt(1.125, a).shot).toEqual(topShotFor(a));
-    }
-    // On a laptop the void's stops are the preview's own poses.
-    const over = journeyPoseAt(2, LAPTOP).shot;
-    expect(over.position).toEqual(CAMERA_PATH.out.position);
-    expect(over.target).toEqual(CAMERA_PATH.out.target);
-    expect(over.fov).toBeCloseTo(fieldFor(lensField(30), LAPTOP).fov, 12);
-    for (const p of [0, 1, 2]) {
-      const shot = journeyPoseAt(3 + p, LAPTOP).shot;
-      expect(shot.target).toEqual(forwardCentre(p));
-      shot.position.forEach((value, i) => expect(value).toBeCloseTo(forwardCentre(p)[i]! + CAMERA_PATH.bead.offset[i]!, 12));
-      expect(shot.fov).toBeCloseTo(fieldFor(lensField(40), LAPTOP).fov, 12);
+      for (const f of [30, 121, 261, 290]) expect(journeyPoseAt(placeOfFrame(f), a).shot).toEqual(wayShot(f, a));
+      expect(journeyPoseAt(5.25, a).shot).toEqual(ringShot(150, a));
+      expect(journeyPoseAt(6.5, a).shot).toEqual(ringShot(240, a));
+      expect(journeyPoseAt(7, a).shot).toEqual(ringShot(240, a));
     }
   });
 
-  it('looks straight down on the way down, from the top shot to (0, -2.6, 0), with -z up the screen', () => {
+  it('has no seam anywhere: no 1/1000 step moves the camera more than 0.15 m or turns it more than 2 degrees', () => {
     for (const a of SCREENS) {
-      const top = topShotFor(a);
-      let previous = top.position[1];
-      for (const p of STEPS.filter((p) => p > 1.125 && p <= 1.725)) {
-        const { shot } = journeyPoseAt(p, a);
-        [0, 0, -1].forEach((value, i) => expect(shot.up![i], `up at ${p} on ${a}`).toBeCloseTo(value, 12));
-        expect(shot.sway).toBe(0);
-        expect(Math.hypot(shot.position[0], shot.position[2])).toBeLessThan(1e-12);
-        expect(Math.hypot(shot.target[0], shot.target[2])).toBeLessThan(1e-12);
-        expect(shot.target[1]).toBeLessThan(shot.position[1]);
-        expect(shot.position[1], `${p} at ${a}`).toBeLessThan(previous);
-        previous = shot.position[1];
+      let worst = { p: 0, move: 0, turn: 0 };
+      for (let i = 1; i < STEPS.length; i++) {
+        const s = shotStep(journeyPoseAt(STEPS[i - 1]!, a).shot, journeyPoseAt(STEPS[i]!, a).shot);
+        if (s.move > worst.move || s.turn > worst.turn) worst = { p: STEPS[i]!, move: Math.max(worst.move, s.move), turn: Math.max(worst.turn, s.turn) };
       }
-      expect(previous).toBeCloseTo(-2.6, 12);
-      // The horizontal field opens from the top shot's to the 32 mm lens's.
-      expect(journeyPoseAt(1.725, a).shot.fov).toBeCloseTo(fieldFor(lensField(32), a).fov, 12);
-    }
-    // On a laptop the field is the preview's 32 mm one at the bottom of the dive.
-    const bottom = journeyPoseAt(1.725, LAPTOP).shot;
-    expect(2 * Math.atan(LAPTOP * Math.tan(bottom.fov / 2 / DEG)) * DEG).toBeCloseTo(58.7, 1);
-  });
-
-  it('is continuous: no 1/400 step moves the camera more than 0.25 m, turns it more than 3 degrees, or opens it more than 0.5', () => {
-    for (const a of SCREENS) {
-      let previous = journeyPoseAt(0, a).shot;
-      let turn = cameraFor(previous, a).quaternion.clone();
-      for (const p of STEPS.slice(1)) {
-        const shot = journeyPoseAt(p, a).shot;
-        const q = cameraFor(shot, a).quaternion.clone();
-        expect(length(sub(shot.position, previous.position)), `move at ${p} on ${a}`).toBeLessThanOrEqual(0.25);
-        expect(turn.angleTo(q) * DEG, `turn at ${p} on ${a}`).toBeLessThanOrEqual(3);
-        expect(Math.abs(shot.fov - previous.fov), `fov at ${p} on ${a}`).toBeLessThanOrEqual(0.5);
-        previous = shot;
-        turn = q;
-      }
+      expect(worst.move, `at ${a}`).toBeLessThan(0.15);
+      expect(worst.turn, `at ${a}`).toBeLessThan(2);
     }
   });
 
-  it('has no parallax anywhere past the rise, and gives its own up there', () => {
-    for (const a of SCREENS) {
-      for (const p of STEPS.filter((p) => p >= 1)) {
-        const { shot } = journeyPoseAt(p, a);
-        expect(shot.sway, `${p} at ${a}`).toBe(0);
-        expect(shot.up, `${p} at ${a}`).toBeDefined();
-        expect(length(shot.up!)).toBeCloseTo(1, 9);
-      }
-    }
+  it('has no parallax past the rise', () => {
+    for (const p of [1.5, 3.9, 4.5, 6.5, 7]) expect(journeyPoseAt(p, LAPTOP).shot.sway).toBe(0);
+  });
+});
+
+describe('the light, the facts and the void', () => {
+  it("carries the light dive's own light, fact and void through it, and none on the rise or past the landing", () => {
+    const p = placeOfFrame(121);
+    const pose = journeyPoseAt(p, LAPTOP);
+    expect(pose.light).toMatchObject(lightAt(121, LAPTOP));
+    expect(pose.fact).toEqual(factAt(121));
+    expect(pose.void).toMatchObject(voidAt(121, LAPTOP));
+    expect(journeyPoseAt(0.5, LAPTOP)).toMatchObject({ light: null, fact: null, void: null });
+    expect(journeyPoseAt(4.5, LAPTOP)).toMatchObject({ light: null, fact: null });
+    expect(journeyPoseAt(4.5, LAPTOP).void).not.toBeNull();
   });
 
-  it('shows all three beads at the overview, on a laptop and on a phone', () => {
-    for (const a of SCREENS) {
-      const { shot } = journeyPoseAt(2, a);
-      for (const bead of BEADS) {
-        const [x, y, z] = project(shot, a, bead.centre);
-        expect(Math.abs(x), `${bead.id} x at ${a}`).toBeLessThan(1);
-        expect(Math.abs(y), `${bead.id} y at ${a}`).toBeLessThan(1);
-        expect(z, `${bead.id} in front at ${a}`).toBeLessThan(1);
-      }
-    }
+  it('gives the light up to the compass as it ignites: the needle hidden over way frames 2-8', () => {
+    expect(journeyPoseAt(1, LAPTOP).ignite).toBe(0);
+    expect(journeyPoseAt(placeOfFrame(8), LAPTOP).ignite).toBe(1);
+    expect(journeyPoseAt(0.5, LAPTOP).ignite).toBe(0);
+  });
+});
+
+describe('the needle and the beads', () => {
+  it('leaves the needle to the compass on the rise and in the fall, and draws it out of the light on arrival', () => {
+    expect(journeyPoseAt(0.5, LAPTOP).needle).toBeNull();
+    expect(journeyPoseAt(placeOfFrame(200), LAPTOP).needle).toBeNull();
+    expect(journeyPoseAt(placeOfFrame(280), LAPTOP).needle).toEqual(wayNeedle(280));
+    expect(journeyPoseAt(5.25, LAPTOP).needle).toEqual(ringNeedle(150));
   });
 
-  it("stands a phone back along the overview's own view line, at least 1 m under the void's ceiling", () => {
-    const laptop = journeyPoseAt(2, LAPTOP).shot;
-    const phone = journeyPoseAt(2, PHONE).shot;
-    expect(phone.target).toEqual(laptop.target);
-    expect(angleBetween(sub(phone.target, phone.position), sub(laptop.target, laptop.position))).toBeLessThan(1e-6);
-    expect(length(sub(phone.position, phone.target))).toBeGreaterThan(length(sub(laptop.position, laptop.target)));
-    expect(phone.position[1]).toBeLessThanOrEqual(VOID_ROOF + 1e-12);
-    expect(phone.fov).toBe(MAX_VFOV);
+  it('raises the beads into view from their frame on, and keeps them round the ring after', () => {
+    expect(journeyPoseAt(placeOfFrame(BEADS_IN - 1), LAPTOP).beads).toBeNull();
+    expect(journeyPoseAt(placeOfFrame(280), LAPTOP).beads).toEqual(beadsAt(280, LAPTOP));
+    expect(journeyPoseAt(5.25, LAPTOP).beads).toEqual(ringBeads(150, LAPTOP));
+    expect(journeyPoseAt(6.5, LAPTOP).beads).toEqual(ringBeads(240, LAPTOP));
   });
 
-  it('centres the selected bead at each project stop, on a laptop and on a phone', () => {
-    for (const a of SCREENS) {
-      for (const p of [0, 1, 2]) {
-        const { shot } = journeyPoseAt(3 + p, a);
-        const [x, y, z] = project(shot, a, forwardCentre(p));
-        expect(Math.abs(x), `bead ${p} x at ${a}`).toBeLessThan(0.5);
-        expect(Math.abs(y), `bead ${p} y at ${a}`).toBeLessThan(0.5);
-        expect(z).toBeLessThan(1);
-      }
-    }
+  it('keeps the projects in category order, round the ring at their rest places', () => {
+    expect(BEADS.map((b) => b.category)).toEqual(categories.all().map((c) => c.id));
+    expect(BEADS.map((b) => b.id)).toEqual(['funcial', 'jontai-energy', 'cookies-clicker']);
+    for (const [i, b] of BEADS.entries()) expect(b.centre).toEqual(ringBeads(120 * i, LAPTOP)[i]!.position);
   });
+});
 
-  it('bends up and away over Funcial from Jontai to Cookies on a laptop, where the straight line runs through it', () => {
-    /** How far the camera is off the straight line between two stops, halfway between them. */
-    const offLine = (stop: number, a: number) => {
-      const middle = add(journeyPoseAt(stop, a).shot.position, journeyPoseAt(stop + 1, a).shot.position).map((v) => v / 2) as unknown as Vec3;
-      return sub(journeyPoseAt(stop + 0.5, a).shot.position, middle);
-    };
-    // The straight line from Jontai's shot to Cookies' passes 0.9 m from Funcial's centre, inside its shell.
-    const [jontai, cookies] = [journeyPoseAt(4, LAPTOP).shot.position, journeyPoseAt(5, LAPTOP).shot.position];
-    const funcial = BEADS[0]!.centre;
-    const nearest = Math.min(...Array.from({ length: 101 }, (_, i) => length(sub(add(jontai, sub(cookies, jontai).map((v) => (v * i) / 100) as unknown as Vec3), funcial))));
-    expect(nearest).toBeLessThan(BEADS[0]!.radius);
-    const bend = offLine(4, LAPTOP);
-    expect(length(bend)).toBeGreaterThan(1);
-    expect(length(bend)).toBeLessThan(3);
-    expect(bend[1]).toBeGreaterThan(0);
-    // A phone stands further back and passes it straight; from Funcial to Jontai nothing is in the way.
-    expect(length(offLine(4, PHONE))).toBeLessThan(1e-9);
-    for (const a of SCREENS) expect(length(offLine(3, a))).toBeLessThan(1e-9);
+describe('the sheet', () => {
+  it('raises the sheet over Cookies Clicker, linearly with the scroll, and holds it at the end', () => {
+    expect(journeyPoseAt(6, LAPTOP).sheet).toBe(0);
+    expect(journeyPoseAt(6.25, LAPTOP).sheet).toBeCloseTo(0.25, 12);
+    expect(journeyPoseAt(7, LAPTOP).sheet).toBe(1);
+    expect(journeyPoseAt(5.9, LAPTOP).sheet).toBe(0);
   });
+});
 
-  it('gives the same pose whatever screen was asked for before', () => {
-    const first = journeyPoseAt(4.5, LAPTOP);
-    journeyPoseAt(4.5, PHONE);
-    journeyPoseAt(3.5, 1);
-    expect(journeyPoseAt(4.5, LAPTOP)).toEqual(first);
-  });
-
-  it("stays clear of every bead, and under the void's roof once it has come out under the glass", () => {
-    for (const a of SCREENS) {
-      for (const p of STEPS) {
-        const pose = journeyPoseAt(p, a);
-        BEADS.forEach((bead, i) => {
-          const centre = add(bead.centre, CAMERA_PATH.bead.forward.map((v) => v * pose.forward[i]!) as unknown as Vec3);
-          expect(length(sub(pose.shot.position, centre)), `${bead.id} at ${p} on ${a}`).toBeGreaterThan(2.4);
-          if (pose.needle) expect(length(sub(pose.needle.position, centre)), `needle by ${bead.id} at ${p} on ${a}`).toBeGreaterThan(2.4);
-        });
-        if (p >= 1.725) expect(pose.shot.position[1], `roof at ${p} on ${a}`).toBeLessThanOrEqual(VOID_ROOF + 1e-9);
+describe('the close view of a bead', () => {
+  it("stands in front of the bead's porthole, toward its stop's camera, 1.6 off the porthole", () => {
+    for (const a of [LAPTOP, 1]) {
+      for (const [i, b] of BEADS.entries()) {
+        const shot = focusShotFor(b.id, a);
+        const toCamera = sub(ringShot(120 * i, a).position, b.centre);
+        const toClose = sub(shot.position, b.centre);
+        const cos = (toCamera[0] * toClose[0] + toCamera[1] * toClose[1] + toCamera[2] * toClose[2]) / (length(toCamera) * length(toClose));
+        expect(cos, `${b.id} at ${a}`).toBeGreaterThan(0.9999);
+        expect(length(toClose)).toBeCloseTo(b.radius + FOCUS_VIEW.standOff, 9);
+        expect(shot.target).toEqual(b.centre);
+        expect(project(shot, a, b.centre)).toEqual([expect.closeTo(0, 6), expect.closeTo(0, 6)]);
       }
     }
   });
 });
 
-describe('the tunnel hold (the pose of d01)', () => {
-  /**
-   * The preview's camera at frame `f` of the dive (tools/blender/bob_scroll.py `cam_pose`, frames 372-420): straight
-   * down from 12.6 above the glass to 2.6 under it on `ease_io` (3t^2 - 2t^3), the lens from 50 to 32 mm.
-   */
-  function previewDive(f: number): { height: number; lens: number } {
-    const x = Math.min(Math.max((f - 372) / (420 - 372), 0), 1);
-    const t = x * x * (3 - 2 * x);
-    return { height: 12.6 + (-2.6 - 12.6) * t, lens: 50 + (32 - 50) * t };
-  }
-  /** The frame d01 is (docs/design/bob-compass/d01-dive-tunnel.webp, the M2b preview's m2b-0400.png). */
-  const D01 = 400;
-  const DEG = Math.PI / 180;
-
-  it("is the progress of the preview's frame 400, d01, in the dive's unit (its frames 362-442)", () => {
-    expect(TUNNEL_HOLD).toBeCloseTo(1 + (D01 - 362) / (442 - 362), 12);
-    expect(journeyAt(TUNNEL_HOLD).stretch).toBe('dive');
+describe('the horizontal field, on a screen', () => {
+  it("converts a lens to the preview's horizontal field (a 36 mm wide sensor)", () => {
+    expect(lensField(50)).toBeCloseTo(39.6, 1);
+    expect(lensField(40)).toBeCloseTo(48.5, 1);
   });
 
-  it("stands the camera where the preview's d01 does: on the axis, 3.1 above the glass, looking straight down", () => {
-    const shot = journeyPoseAt(TUNNEL_HOLD, LAPTOP).shot;
-    expect(shot.position[0]).toBeCloseTo(0, 9);
-    expect(shot.position[2]).toBeCloseTo(0, 9);
-    expect(shot.position[1]).toBeCloseTo(previewDive(D01).height, 6);
-    expect(shot.position[1]).toBeCloseTo(3.12, 2);
-    expect(shot.target[0]).toBeCloseTo(0, 9);
-    expect(shot.target[2]).toBeCloseTo(0, 9);
-    expect(shot.target[1]).toBeLessThan(shot.position[1]);
-    // The site eases the field in degrees, the preview the lens in millimetres: across, within 2.5 degrees.
-    const across = 2 * Math.atan(Math.tan((shot.fov * DEG) / 2) * LAPTOP) / DEG;
-    expect(Math.abs(across - lensField(previewDive(D01).lens))).toBeLessThan(2.5);
-  });
-
-  it("frames the tunnel's lit wall as d01's ring: its foot at 0.79 of the half-width, its mouth just past the width", () => {
-    const shot = journeyPoseAt(TUNNEL_HOLD, LAPTOP).shot;
-    const height = shot.position[1];
-    const halfWidth = Math.tan((shot.fov * DEG) / 2) * LAPTOP;
-    const { bottom, depth } = GLASS_LOOK.well;
-    // d01's dark disc, the opening at the foot of the well, is 1260 of its 1600 px across: 0.79 of the half-width.
-    const foot = WORDMARK.hole / (height - bottom) / halfWidth;
-    expect(foot).toBeGreaterThan(0.75);
-    expect(foot).toBeLessThan(0.83);
-    // The well's mouth lies just outside the width and inside the corners, where d01 shows the flattened rings.
-    const mouth = WORDMARK.hole / (height - (bottom + depth)) / halfWidth;
-    expect(mouth).toBeGreaterThan(1);
-    expect(mouth).toBeLessThan(Math.hypot(1, 1 / LAPTOP));
-  });
-
-  it('holds above the glass on every screen, so the camera never comes out into the void before it is ready', () => {
-    for (const a of [...SCREENS, 1]) expect(journeyPoseAt(TUNNEL_HOLD, a).shot.position[1], `at ${a}`).toBeGreaterThan(0);
+  it('caps at MAX_VFOV and stands back, so a phone sees the same width', () => {
+    const { fov, back } = fieldFor(lensField(40), PHONE);
+    expect(fov).toBe(MAX_VFOV);
+    expect(PHONE * Math.tan(fov / 2 / DEG) * back).toBeCloseTo(Math.tan(lensField(40) / 2 / DEG), 12);
   });
 });
 
-describe('the beads', () => {
-  it('brings bead p = progress - 3 forward and lights it at each project stop, the others back and dim', () => {
-    for (const a of SCREENS) {
-      for (const stop of [3, 4, 5, 6]) {
-        const p = Math.min(stop - 3, 2);
-        const pose = journeyPoseAt(stop, a);
-        for (let i = 0; i < 3; i++) {
-          expect(pose.forward[i], `forward ${i} at ${stop}`).toBe(i === p ? 1 : 0);
-          expect(pose.lit[i], `lit ${i} at ${stop}`).toBe(i === p ? 1 : 0);
-        }
-      }
-    }
-  });
-
-  it('reads all three equally at the overview: half lit, none forward', () => {
-    const pose = journeyPoseAt(2, LAPTOP);
-    expect(pose.lit).toEqual([0.5, 0.5, 0.5]);
-    expect(pose.forward).toEqual([0, 0, 0]);
-  });
-
-  it('keeps them back and dim on the rise, and moves their light and drift continuously', () => {
-    for (const p of STEPS.filter((p) => p <= 1)) {
-      const pose = journeyPoseAt(p, LAPTOP);
-      expect(pose.forward).toEqual([0, 0, 0]);
-      expect(pose.lit).toEqual([0, 0, 0]);
-    }
-    let previous = journeyPoseAt(0, LAPTOP);
-    for (const p of STEPS.slice(1)) {
-      const pose = journeyPoseAt(p, LAPTOP);
-      for (let i = 0; i < 3; i++) {
-        expect(pose.forward[i]).toBeGreaterThanOrEqual(0);
-        expect(pose.forward[i]).toBeLessThanOrEqual(1);
-        expect(pose.lit[i]).toBeGreaterThanOrEqual(0);
-        expect(pose.lit[i]).toBeLessThanOrEqual(1);
-        expect(Math.abs(pose.forward[i]! - previous.forward[i]!), `forward ${i} at ${p}`).toBeLessThan(0.01);
-        expect(Math.abs(pose.lit[i]! - previous.lit[i]!), `lit ${i} at ${p}`).toBeLessThan(0.01);
-      }
-      previous = pose;
-    }
-  });
-});
-
-describe("the void's light", () => {
-  it('is out on the rise and at BOB from above, rises through the dive, and is full from the overview on', () => {
-    for (const p of STEPS.filter((p) => p <= 1)) expect([journeyPoseAt(p, LAPTOP).beam, journeyPoseAt(p, LAPTOP).mist]).toEqual([0, 0]);
-    let previous = 0;
-    for (const p of STEPS.filter((p) => p > 1 && p < 2)) {
-      const { beam, mist } = journeyPoseAt(p, LAPTOP);
-      expect(beam).toBeGreaterThanOrEqual(previous);
-      expect(mist).toBe(beam);
-      expect(beam).toBeLessThan(1);
-      previous = beam;
-    }
-    expect(previous).toBeGreaterThan(0.99);
-    for (const p of STEPS.filter((p) => p >= 2)) expect([journeyPoseAt(p, LAPTOP).beam, journeyPoseAt(p, LAPTOP).mist]).toEqual([1, 1]);
-  });
-});
-
-describe('the needle in the void', () => {
-  it('leaves it to the compass on the rise', () => {
-    for (const a of SCREENS) for (const p of STEPS.filter((p) => p < 1)) expect(journeyPoseAt(p, a).needle).toBeNull();
-  });
-
-  it('takes over at the start of the dive where the open compass holds it: on the pivot, scale 1, tip down', () => {
-    expect(journeyPoseAt(1, LAPTOP).needle).toEqual({ position: [0, 0.09, 0], scale: 1, aim: null });
-  });
-
-  it('sinks into the tunnel, leads the dive to 9.5 under the compass, and grows to 1.9 by the overview', () => {
-    const at = (p: number) => journeyPoseAt(p, LAPTOP).needle!;
-    // Frames 362-376 sink it 1.0, 376-424 lead it to 9.5 under the armillary's 0.09.
-    expect(at(1 + (376 - 362) / 80).position[1]).toBeCloseTo(0.09 - 1, 12);
-    expect(at(1 + (424 - 362) / 80).position[1]).toBeCloseTo(0.09 - 9.5, 12);
-    expect(at(2).position).toEqual([0, 0.09 - 9.5, 0]);
-    // It grows over frames 400-442, to 1.9 at the overview.
-    expect(at(1 + (400 - 362) / 80).scale).toBe(1);
-    expect(at(1.3).scale).toBe(1);
-    expect(at(1.8).scale).toBeGreaterThan(1);
-    expect(at(2).scale).toBe(1.9);
-    // Straight down below the camera all through the dive, and always sinking.
-    let previous = Number.POSITIVE_INFINITY;
-    for (const p of STEPS.filter((p) => p >= 1 && p <= 2)) {
-      const needle = at(p);
-      expect(needle.aim).toBeNull();
-      expect([needle.position[0], needle.position[2]]).toEqual([0, 0]);
-      expect(needle.position[1]).toBeLessThanOrEqual(previous);
-      previous = needle.position[1];
-    }
-  });
-
-  it("points at the selected bead's centre at each project stop, from the preview's place beside it", () => {
-    for (const a of SCREENS) {
-      for (const p of [0, 1, 2]) {
-        const needle = journeyPoseAt(3 + p, a).needle!;
-        expect(needle.aim).toEqual(forwardCentre(p));
-        expect(needle.scale).toBe(1.9);
-        sub(needle.position, forwardCentre(p)).forEach((value, i) => expect(value).toBeCloseTo(NEEDLE_PATH.offset[i]!, 12));
-      }
-    }
-    // By Funcial it stands where the preview's needle ends: (-1.4, 0.8, -7.9) under the armillary at 0.09.
-    const funcial = journeyPoseAt(3, LAPTOP).needle!.position;
-    add(fromBlender(-1.4, 0.8, -7.9), [0, 0.09, 0]).forEach((value, i) => expect(funcial[i]).toBeCloseTo(value, 12));
-    expect(journeyPoseAt(6, LAPTOP).needle).toEqual(journeyPoseAt(5, LAPTOP).needle);
-  });
-
-  it('never goes deeper into a bead than at a stop, where its tip touches the lacquer', () => {
-    // The needle as the GLB has it (tools/blender/export_compass.py L_N): the tip 1.15 up its axis, the tail 0.85 of
-    // that down it, both at the needle's scale.
-    const stopTip = length(NEEDLE_PATH.offset) - 1.15 * NEEDLE_PATH.grow.scale;
-    expect(stopTip).toBeGreaterThan(0.7);
-    for (const a of SCREENS) {
-      for (const p of STEPS.filter((p) => p >= 1)) {
-        const pose = journeyPoseAt(p, a);
-        const needle = pose.needle!;
-        const tip = add(needle.position, tipOf(needle).map((v) => v * 1.15 * needle.scale) as unknown as Vec3);
-        const tail = sub(needle.position, tipOf(needle).map((v) => v * 1.15 * 0.85 * needle.scale) as unknown as Vec3);
-        BEADS.forEach((bead, i) => {
-          const centre = add(bead.centre, CAMERA_PATH.bead.forward.map((v) => v * pose.forward[i]!) as unknown as Vec3);
-          expect(length(sub(tip, centre)), `tip in ${bead.id} at ${p} on ${a}`).toBeGreaterThan(stopTip - 0.005);
-          expect(length(sub(tail, centre)), `tail in ${bead.id} at ${p} on ${a}`).toBeGreaterThan(bead.radius);
-        });
-      }
-    }
-  });
-
-  it('moves and swings continuously, and swings to the next bead before it gets there', () => {
-    for (const a of SCREENS) {
-      let previous = journeyPoseAt(1, a).needle!;
-      for (const p of STEPS.filter((p) => p > 1)) {
-        const needle = journeyPoseAt(p, a).needle!;
-        expect(length(sub(needle.position, previous.position)), `move at ${p} on ${a}`).toBeLessThanOrEqual(0.25);
-        expect(angleBetween(tipOf(needle), tipOf(previous)), `swing at ${p} on ${a}`).toBeLessThanOrEqual(3);
-        expect(Math.abs(needle.scale - previous.scale)).toBeLessThan(0.02);
-        previous = needle;
-      }
-    }
-    // Two thirds of the way from Funcial to Jontai the tip already points at Jontai, where it is now.
-    const pose = journeyPoseAt(3 + 2 / 3, LAPTOP);
-    const jontai = add(BEADS[1]!.centre, CAMERA_PATH.bead.forward.map((v) => v * pose.forward[1]!) as unknown as Vec3);
-    expect(pose.needle!.aim).not.toBeNull();
-    pose.needle!.aim!.forEach((value, i) => expect(value).toBeCloseTo(jontai[i]!, 12));
+describe('the stops', () => {
+  it('poses every stop exactly: the light dive lands on the ring at Funcial', () => {
+    expect(stops(HOME_CHAPTERS)).toEqual([0, 1, 4, 5, 6, 7]);
+    expect(journeyPoseAt(4, LAPTOP).shot).toEqual(wayShot(F.END, LAPTOP));
   });
 });

@@ -160,13 +160,12 @@ export function stepFocus(focus: { move: FocusMove; opening: ProjectId | null },
 }
 
 /**
- * Whether the story rests at bead `id`'s own stop: on its project stretch at its start, with the scroll's target there
- * too (for the last bead that is 5: the rest of its stretch, the move into the night, is no rest, nor is the end page,
- * 6). Only from there does a flight leave or arrive: the shot at the stop is the one the flight eases from, and the
- * bead stands there come forward.
+ * Whether the story rests at bead `id`'s own stop: the ring at the bead's own angle, with the scroll's target there too
+ * (for the last bead that is 6: the sheet past it is no rest, nor is the end page, 7). Only from there does a flight
+ * leave or arrive: the shot at the stop is the one the flight eases from.
  */
 export function restsAt(id: ProjectId | null, progress: number, target: number): boolean {
   if (id === null || progress !== target) return false;
   const at = journeyAt(progress);
-  return at.stretch === 'project' && at.local === 0 && at.project !== null && BEADS[at.project]?.id === id;
+  return (at.stretch === 'ring' || at.stretch === 'sheet') && at.local === 0 && at.project !== null && at.angle === 120 * at.project && BEADS[at.project]?.id === id;
 }
