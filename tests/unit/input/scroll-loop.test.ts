@@ -1867,3 +1867,84 @@ describe('reduced motion and the end page', () => {
     expect([s.frame.target, s.frame.progress]).toEqual([6, 6]);
   });
 });
+
+// ---------------------------------------------------------------- the ring's drag
+
+describe("the ring's drag: a sideways drag turns the ring as a scroll would", () => {
+  /** A mouse pressed at x 100 and moved `dx` to the side in ten steps, a frame after each; let go unless `hold`. */
+  async function mouseDrag(s: Setup, dx: number, hold = false): Promise<void> {
+    const at = (type: string, x: number) => fire(s.el, type, { pointerType: 'mouse', pointerId: 1, button: 0, clientX: x, clientY: 400, target: { closest: () => null } });
+    at('pointerdown', 100);
+    for (let i = 1; i <= 10; i++) {
+      at('pointermove', 100 + (dx * i) / 10);
+      if (i === 1) await flush();
+      s.frames.frame();
+    }
+    if (!hold) at('pointerup', 100 + dx);
+  }
+
+  it('moves the target 0.25 degrees a px of a mouse drag in the ring: 300 px right is 0.625 of a unit', async () => {
+    const s = setup();
+    restAt(s, 4);
+    await mouseDrag(s, 300);
+    expect(s.frame.target).toBeCloseTo(4.625, 12);
+    s.drain();
+    expect(s.frame.progress).toBe(s.frame.target);
+  });
+
+  it('stops a drag at Cookies Clicker and at Funcial', async () => {
+    const s = setup();
+    restAt(s, 6);
+    await mouseDrag(s, 300);
+    expect(s.frame.target).toBe(6);
+    restAt(s, 4);
+    await mouseDrag(s, -300);
+    expect(s.frame.target).toBe(4);
+  });
+
+  it('settles nothing on release: the target is where the drag left it 2 s on', async () => {
+    const s = setup();
+    restAt(s, 4);
+    await mouseDrag(s, 200);
+    const at = s.frame.target;
+    for (let i = 0; i < 120; i++) s.frames.frame();
+    expect(s.frame.target).toBe(at);
+    expect(s.frame.progress).toBe(at);
+  });
+
+  it('does nothing for a key pressed during a drag', async () => {
+    const s = setup();
+    restAt(s, 4);
+    await mouseDrag(s, 120, true);
+    const at = s.frame.target;
+    s.key('ArrowDown');
+    expect(s.frame.target).toBe(at);
+    expect(s.home.loop.tweening).toBeNull();
+  });
+
+  it('takes no drag in the light dive, nor with reduced motion', async () => {
+    const s = setup();
+    restAt(s, 2);
+    await mouseDrag(s, 300);
+    expect(s.frame.target).toBe(2);
+    const r = setup({ reduced: true });
+    restAt(r, 4);
+    await mouseDrag(r, 300);
+    expect(r.frame.target).toBe(4);
+  });
+
+  it('takes the story from a glide where it stands: the hand has it', async () => {
+    const s = setup();
+    restAt(s, 4);
+    s.key('ArrowDown'); // a glide to 5
+    await flush();
+    frames(s, 20);
+    const at = s.frame.progress;
+    const press = (type: string, x: number) => fire(s.el, type, { pointerType: 'mouse', pointerId: 1, button: 0, clientX: x, clientY: 400, target: { closest: () => null } });
+    press('pointerdown', 100);
+    press('pointermove', 148); // past the lock at once: 0.1 of a unit
+    expect(s.home.loop.tweening).toBeNull();
+    expect(s.frame.target).toBeCloseTo(at + 0.1, 12);
+    press('pointerup', 148);
+  });
+});

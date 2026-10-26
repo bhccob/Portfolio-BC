@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GESTURE_GAP_MS } from '../../../src/input/gesture';
-import { type DeltaSource, VirtualScroll } from '../../../src/input/VirtualScroll';
+import { type DeltaSource, DRAG_DEG, DRAG_LOCK_PX, VirtualScroll } from '../../../src/input/VirtualScroll';
 
 /** One pixel of a unit is a thousandth of a unit: a viewport 1000 px high. */
 const VH = 1000;
@@ -873,5 +873,147 @@ describe('VirtualScroll: a finger that comes down on the story', () => {
     fire(free.el, 'touchstart', { touches: [finger(100, 500)], timeStamp: 0 });
     fire(free.el, 'touchend', { touches: [], timeStamp: 40 });
     expect(free.seen).toEqual({ downs: 1, ends: [] });
+  });
+});
+
+describe("VirtualScroll: the ring's drag", () => {
+  /** A VirtualScroll whose `dragging` says the story stands in the ring while `state.ring`. */
+  function ringSetup(state = { enabled: true, ring: true, swallow: false }) {
+    const el = new EventTarget();
+    const win = new EventTarget();
+    Object.defineProperty(el, 'ownerDocument', { value: { defaultView: win } });
+    const deltas: number[] = [];
+    const bys: DeltaSource[] = [];
+    const ends: number[] = [];
+    const scroll = new VirtualScroll(el as unknown as HTMLElement, {
+      unitPx: () => VH,
+      onDelta: (units, by) => {
+        deltas.push(units);
+        bys.push(by);
+      },
+      onJump: () => {},
+      onGestureEnd: (glide) => ends.push(glide),
+      enabled: () => state.enabled,
+      reducedMotion: () => false,
+      swallow: () => state.swallow,
+      dragging: () => state.ring,
+    });
+    return { el, win, state, deltas, bys, ends, scroll };
+  }
+  type Ring = ReturnType<typeof ringSetup>;
+
+  /** A pointer event at (x, y): a mouse's unless `pointerType` says otherwise, aimed at the page (no control). */
+  const pointer = (s: Ring, type: 'pointerdown' | 'pointermove' | 'pointerup', x: number, y = 400, extra: Record<string, unknown> = {}) =>
+    fire(s.el, type, { pointerType: 'mouse', pointerId: 1, button: 0, clientX: x, clientY: y, target: { closest: () => null }, ...extra });
+
+  /** A mouse pressed at x 100 and moved `dx` to the side in ten steps, then let go. */
+  const mouseDrag = (s: Ring, dx: number): void => {
+    pointer(s, 'pointerdown', 100);
+    for (let i = 1; i <= 10; i++) pointer(s, 'pointermove', 100 + (dx * i) / 10);
+    pointer(s, 'pointerup', 100 + dx);
+  };
+
+  const sum = (values: number[]): number => values.reduce((a, b) => a + b, 0);
+
+  it('turns a mouse drag sideways in the ring into drag deltas, 0.25 degrees a px: 300 px right is 0.625 of a unit', () => {
+    expect([DRAG_DEG, DRAG_LOCK_PX]).toEqual([0.25, 6]);
+    const s = ringSetup();
+    mouseDrag(s, 300);
+    expect(sum(s.deltas)).toBeCloseTo(0.625, 12);
+    expect(new Set(s.bys)).toEqual(new Set(['drag']));
+    expect(s.ends).toEqual([]); // nothing settles a drag
+  });
+
+  it('turns left as it goes left, and a pen as a mouse', () => {
+    const s = ringSetup();
+    pointer(s, 'pointerdown', 400, 400, { pointerType: 'pen' });
+    pointer(s, 'pointermove', 160, 400, { pointerType: 'pen' });
+    pointer(s, 'pointerup', 160, 400, { pointerType: 'pen' });
+    expect(sum(s.deltas)).toBeCloseTo((-240 * 0.25) / 120, 12);
+  });
+
+  it('takes no drag outside the ring, none from a press on a control, none for a touch pointer, and none before the lock', () => {
+    const outside = ringSetup({ enabled: true, ring: false, swallow: false });
+    mouseDrag(outside, 300);
+    expect(outside.deltas).toEqual([]);
+    const control = ringSetup();
+    pointer(control, 'pointerdown', 100, 400, { target: { closest: (selector: string) => (selector.includes('a') ? {} : null) } });
+    pointer(control, 'pointermove', 400);
+    expect(control.deltas).toEqual([]);
+    const touchPointer = ringSetup();
+    pointer(touchPointer, 'pointerdown', 100, 400, { pointerType: 'touch' });
+    pointer(touchPointer, 'pointermove', 400, 400, { pointerType: 'touch' });
+    expect(touchPointer.deltas).toEqual([]);
+    const small = ringSetup();
+    pointer(small, 'pointerdown', 100);
+    pointer(small, 'pointermove', 105);
+    pointer(small, 'pointerup', 105);
+    expect(small.deltas).toEqual([]);
+  });
+
+  it('reads a sideways swipe in the ring as a drag, and an upright one as a scroll', () => {
+    const side = ringSetup();
+    fire(side.el, 'touchstart', { touches: [finger(100, 400)], timeStamp: 0 });
+    const move = fire(side.el, 'touchmove', { touches: [finger(160, 405)], timeStamp: 16 });
+    expect(side.bys).toEqual(['drag']);
+    expect(side.deltas[0]).toBeCloseTo((60 * 0.25) / 120, 12);
+    expect(move.defaultPrevented).toBe(true);
+    fire(side.el, 'touchmove', { touches: [finger(220, 300)], timeStamp: 32 }); // the axis stays the drag's
+    expect(side.bys).toEqual(['drag', 'drag']);
+    fire(side.el, 'touchend', { touches: [], timeStamp: 40 });
+    expect(side.scroll.busy).toBe(false); // no glide after a drag
+    expect(side.ends).toEqual([]);
+
+    const upright = ringSetup();
+    fire(upright.el, 'touchstart', { touches: [finger(100, 400)], timeStamp: 0 });
+    fire(upright.el, 'touchmove', { touches: [finger(105, 340)], timeStamp: 16 });
+    expect(upright.bys).toEqual(['finger']);
+  });
+
+  it('holds the finger as down while a ring drag lasts', () => {
+    const s = ringSetup();
+    fire(s.el, 'touchstart', { touches: [finger(100, 400)], timeStamp: 0 });
+    fire(s.el, 'touchmove', { touches: [finger(160, 400)], timeStamp: 16 });
+    expect(s.scroll.touching).toBe(true);
+    fire(s.el, 'touchend', { touches: [], timeStamp: 40 });
+    expect(s.scroll.touching).toBe(false);
+  });
+
+  it('does nothing for a key pressed during a drag', () => {
+    const s = ringSetup();
+    pointer(s, 'pointerdown', 100);
+    pointer(s, 'pointermove', 200);
+    const before = s.deltas.length;
+    const press = fire(s.win, 'keydown', { key: 'ArrowDown', shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, repeat: false, isComposing: false, target: { tagName: 'BODY' } });
+    expect(s.deltas.length).toBe(before);
+    expect(press.defaultPrevented).toBe(false);
+  });
+
+  it('swallows the click that ends a drag, so a drag across a bead does not open it; a press without a drag clicks', () => {
+    const s = ringSetup();
+    mouseDrag(s, 300);
+    const after = fire(s.win, 'click');
+    expect(after.defaultPrevented).toBe(true);
+    const next = fire(s.win, 'click');
+    expect(next.defaultPrevented).toBe(false);
+    pointer(s, 'pointerdown', 100);
+    pointer(s, 'pointerup', 102);
+    expect(fire(s.win, 'click').defaultPrevented).toBe(false);
+  });
+
+  it('prevents a press in the ring, so a drag selects no text, and leaves a press on a control to the control', () => {
+    const s = ringSetup();
+    expect(pointer(s, 'pointerdown', 100).defaultPrevented).toBe(true);
+    pointer(s, 'pointerup', 100);
+    const onControl = pointer(s, 'pointerdown', 100, 400, { target: { closest: () => ({}) } });
+    expect(onControl.defaultPrevented).toBe(false);
+    const outside = ringSetup({ enabled: true, ring: false, swallow: false });
+    expect(pointer(outside, 'pointerdown', 100).defaultPrevented).toBe(false);
+  });
+
+  it('drops a drag while the input swallows', () => {
+    const s = ringSetup({ enabled: true, ring: true, swallow: true });
+    mouseDrag(s, 300);
+    expect(s.deltas).toEqual([]);
   });
 });

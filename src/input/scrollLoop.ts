@@ -1,6 +1,6 @@
 import { END_ATTRIBUTE, pageToTop } from '~/scene/bob/endView';
 import { STEP_FADE_ATTRIBUTE, STEP_FADE_MS } from '~/scene/bob/stepFade';
-import { type ChapterAt, type Chapters, chapterAt, placeOfFrame, riseTop, ringStart, scrollEnd } from '~/state/chapters';
+import { type ChapterAt, type Chapters, chapterAt, placeOfFrame, riseTop, ringStart, scrollEnd, sheetStart } from '~/state/chapters';
 import type { VoidState } from '~/state/store';
 import { changedChapter, finishTarget, holdLimit, jumpTarget, keyTarget, moveTarget, onRise, pinnedAtEnd, releaseTarget, restsAtTop, SETTLE_SLOP_PX, stopsFor } from './target';
 import { VirtualScroll } from './VirtualScroll';
@@ -594,7 +594,9 @@ export interface HomeScroll {
  * the loop's `finishTarget`); input during the finish, or a key's glide, rides along when it goes the tween's own way
  * short of its end, and otherwise stops it, the target where the input put it. A key steps among the key stops
  * (`keyTarget`: each fact, each project, the end page), counted from where a glide is going: within the light dive the
- * target moves and the follow eases after it, and a move that starts or ends past it glides (`glideTo`). Home and End
+ * target moves and the follow eases after it, and a move that starts or ends past it glides (`glideTo`). In the ring a
+ * sideways drag, a mouse's, a pen's or a finger's, moves the target as a scroll would (VirtualScroll's `'drag'`, 0.25
+ * degrees a px), held from Funcial to Cookies Clicker, and nothing settles it. Home and End
  * keep their meaning: End goes to the end page by the step fade from anywhere; Home goes to the start by the step fade
  * from the ring, the sheet and the end page, and by the follow back up from the light dive. With reduced motion every
  * input is a step to a key stop (`moveTarget`), and nothing glides or finishes by itself.
@@ -627,6 +629,7 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
   const { frame, chapters } = o;
   const top = riseTop(chapters);
   const ring = ringStart(chapters);
+  const sheet = sheetStart(chapters);
   const end = scrollEnd(chapters);
   /** The void failed: the end page stands alone past the hold, reached and left by the step fade. */
   const failed = (): boolean => o.voidState?.() === 'failed';
@@ -742,6 +745,15 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
         // A step the hold keeps (a wheel or a finger past the hold of a failed void) asks, for the hold's lifting, for
         // the next of the key stops: a void there again goes on to Funcial, not to the end page.
         if (!stepped && place > limitNow() && !pastHold(frame.target)) place = moveTarget(frame.target, units, chapters, true);
+      } else if (by === 'drag') {
+        // A drag of the ring moves it as a scroll would, from Funcial to Cookies Clicker, and nothing settles it. The hand
+        // takes the story from wherever it stands, a glide included.
+        gesture = null;
+        glideOnRise = false;
+        settling = false;
+        const base = loop.heading === null ? frame.target : frame.progress;
+        loop.stopTween();
+        place = Math.min(Math.max(base + units, ring), sheet);
       } else if (by === 'key' || by === 'held') {
         gesture = null; // a key puts the target on its stop: a wheel it cut short has nothing left
         glideOnRise = false;
@@ -870,6 +882,8 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
     yields: endPageYields,
     swallow: o.swallow,
     wake: loop.wake,
+    // The ring is dragged while the story stands in it, from Funcial to Cookies Clicker; with reduced motion it is not.
+    dragging: () => !o.reducedMotion() && frame.progress >= ring && frame.progress <= sheet,
   });
 
   /**
