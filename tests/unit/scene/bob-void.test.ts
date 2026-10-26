@@ -18,7 +18,9 @@ import {
   beadClocks,
   easeHover,
   hoverEase,
+  labelFor,
   needleFor,
+  needleGlowFor,
   selectedBead,
   stepBeadClocks,
   VOID_FROM,
@@ -1143,5 +1145,44 @@ describe('voidShownAt: the void shows from the light dive\'s frame 20, its band 
     expect(VOID_FROM).toBe(20);
     for (const p of [0, 0.5, 1, placeOfFrame(10), placeOfFrame(19.9)]) expect(voidShownAt(journeyPoseAt(p, LAPTOP)), `at ${p}`).toBe(false);
     for (const p of [placeOfFrame(20), placeOfFrame(30), placeOfFrame(121), 4, 5.5, 6.5, 7]) expect(voidShownAt(journeyPoseAt(p, PHONE)), `at ${p}`).toBe(true);
+  });
+});
+
+describe('labelFor: the front bead\'s label in the ring', () => {
+  it('shows the label of the project within 20 degrees of the front, and none between projects, nor in the light dive', () => {
+    expect(labelFor(journeyAt(4.5), true)).toBeNull(); // 60 degrees: between Funcial and Jontai Energy
+    expect(labelFor(journeyAt(placeOfFrame(121)), true)).toBeNull();
+    expect(labelFor(journeyAt(4.15), true)).toEqual({ project: 0, rest: true }); // 18 degrees: Funcial
+    expect(labelFor(journeyAt(5 + 102 / 120), true)).toEqual({ project: 2, rest: true }); // 222 degrees: Cookies Clicker
+    expect(labelFor(journeyAt(7), true)).toBeNull();
+  });
+
+  it('shows it in full only while the ring stands still, and clear while it turns', () => {
+    expect(labelFor(journeyAt(4), false)).toEqual({ project: 0, rest: false });
+    expect(labelFor(journeyAt(5), true)).toEqual({ project: 1, rest: true });
+  });
+});
+
+describe('needleGlowFor: the needle as it lands', () => {
+  it('leaves the needle to the home on the rise, and to the light before it is drawn out of it (frame 272)', () => {
+    expect(needleGlowFor(journeyAt(0.5))).toBeNull();
+    expect(needleGlowFor(journeyAt(placeOfFrame(200)))).toBeNull();
+    expect(needleGlowFor(journeyAt(placeOfFrame(271)))).toBeNull();
+  });
+
+  it("glows 6 at the arrival (frame 273), the mock-up's near-white flash, down to its rest glow (1) by frame 296, never brighter on the way", () => {
+    expect(needleGlowFor(journeyAt(placeOfFrame(272)))).toBeCloseTo(6, 9);
+    expect(needleGlowFor(journeyAt(placeOfFrame(F.ARRIVE)))).toBeCloseTo(6, 9);
+    expect(needleGlowFor(journeyAt(placeOfFrame(296)))).toBeCloseTo(1, 9);
+    let last = Infinity;
+    for (let f = F.ARRIVE; f <= 300; f++) {
+      const glow = needleGlowFor(journeyAt(placeOfFrame(f)))!;
+      expect(glow).toBeLessThanOrEqual(last + 1e-12);
+      last = glow;
+    }
+  });
+
+  it('rests at 1 round the ring, under the sheet and at the end page', () => {
+    for (const p of [4, 4.5, 5, 6, 6.5, 7]) expect(needleGlowFor(journeyAt(p))).toBe(1);
   });
 });

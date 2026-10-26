@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { inflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
+import { BEADS_LOOK } from '~/engine/bob/build/beads';
 import { BEADS_GLB_BUDGET, readGlbJson } from '~/engine/bob/glb';
-import { CAMERA_PATH } from '~/scene/bob/journey';
 
 /**
  * The beads' GLB (tools/blender/export_beads.py), read from the file itself:
@@ -918,14 +918,14 @@ describe("Funcial's object", () => {
 
   it("keeps the bead's inner light from mirroring in the phone's glossy front", () => {
     // On the axis above the slot, the light's mirror image in the phone's front fell on its top-left edge, a hot spot.
-    // Seen along the porthole's axis and from the bead shot's camera (CAMERA_PATH.bead.offset), the point of the
+    // Seen along the porthole's axis and from a camera the hover's 8 degrees off it (the ring's camera faces each bead straight on), the point of the
     // front's plane that mirrors the light must lie clear of the phone.
     const glass = placed('bead_funcial_display', 'bead:display');
     const f = frameOf('bead_funcial_display');
     const n = axisOf(f, [0, 0, 1]);
     const light = node('bead_funcial_inner').translation!;
     const xs = glass.map((p) => p[0]);
-    for (const view of [[0, 0, 1], [...CAMERA_PATH.bead.offset]]) {
+    for (const view of [[0, 0, 1], [Math.sin(BEADS_LOOK.hover.turn), 0, Math.cos(BEADS_LOOK.hover.turn)]]) {
       const spot = mirroredLight(light, glass[0], n, view);
       const outside = Math.max(Math.min(...xs) - spot[0], spot[0] - Math.max(...xs));
       expect(outside, `the mirrored light at ${spot}, seen along ${view}`).toBeGreaterThan(0.08);
@@ -1356,7 +1356,7 @@ describe("Jontai Energy's object", () => {
       const n = axisOf(f, [0, 0, 1]);
       const local = outline.map((p) => toLocal(f, p));
       const [[x0, x1], [y0, y1]] = [span(local, 0), span(local, 1)];
-      for (const view of [[0, 0, 1], [...CAMERA_PATH.bead.offset]]) {
+      for (const view of [[0, 0, 1], [Math.sin(BEADS_LOOK.hover.turn), 0, Math.cos(BEADS_LOOK.hover.turn)]]) {
         const spot = toLocal(f, mirroredLight(light, plane[0], n, view));
         const outside = Math.max(x0 - spot[0], spot[0] - x1, y0 - spot[1], spot[1] - y1);
         expect(outside, `${frame}: the mirrored light at ${spot}, seen along ${view}`).toBeGreaterThan(0.08);
@@ -1711,7 +1711,7 @@ describe("Cookies Clicker's object", () => {
     const n = axisOf(f, [0, 0, 1]);
     const local = glass.map((p) => toLocal(f, p));
     const [[x0, x1], [y0, y1]] = [span(local, 0), span(local, 1)];
-    for (const view of [[0, 0, 1], [...CAMERA_PATH.bead.offset]]) {
+    for (const view of [[0, 0, 1], [Math.sin(BEADS_LOOK.hover.turn), 0, Math.cos(BEADS_LOOK.hover.turn)]]) {
       const spot = toLocal(f, mirroredLight(light, glass[0], n, view));
       const outside = Math.max(x0 - spot[0], spot[0] - x1, y0 - spot[1], spot[1] - y1);
       expect(outside, `the mirrored light at ${spot}, seen along ${view}`).toBeGreaterThan(0.08);

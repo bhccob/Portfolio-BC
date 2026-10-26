@@ -140,7 +140,7 @@ export interface CompassModel {
    * An override puts the needle's origin, the point it turns about, at `position` in world coordinates and its size
    * at `scale` times its own, and turns its tip (+Y) toward the world point `aim`, or straight down when `aim` is
    * null (or on the position itself, which has no direction). The pivot goes with it, to the same position and
-   * size, as the preview's does (tools/blender/bob_scroll.py moves `bob_pivot` with `bob_needle`); the bands, rims
+   * size, in the needle's brass (its glow, and none of the top's dark), as the preview's does (tools/blender/bob_scroll.py moves `bob_pivot` with `bob_needle`); the bands, rims
    * and axis stay in the armillary. It is a pose in the world, whatever the group or the armillary is doing.
    *
    * The roll is the dipped needle's. With `aim` null the needle stands exactly as `setNeedleDip(1)` leaves it at the
@@ -611,10 +611,13 @@ export function loadCompass(
         pivot.position.copy(pivotHome.position);
         pivot.quaternion.copy(pivotHome.quaternion);
         pivot.scale.copy(pivotHome.scale);
+        pivot.material = gold;
         poseNeedle();
         return;
       }
       held = true;
+      // Held, the pivot is the needle's: it wears the needle's brass, glows with it and never darkens with the top.
+      pivot.material = needleGold;
       const { position, scale, aim } = override;
       heldAt.set(finiteOr(position[0], 0), finiteOr(position[1], 0), finiteOr(position[2], 0));
       heldScale = finiteOr(scale, 1);

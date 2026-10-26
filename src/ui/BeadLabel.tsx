@@ -3,6 +3,8 @@ import { Link, type NavigateFunction, useNavigate } from 'react-router';
 import { type ProjectId, projects } from '~/data/projects';
 import { useTranslator } from '~/i18n/useTranslator';
 import { FLIGHT_MS, FOCUS_FADE_MS, moveFocus, restsAt } from '~/scene/bob/focus';
+import { BEADS } from '~/scene/bob/journey';
+import { ringShot } from '~/scene/bob/lightDive';
 import { wakeScene } from '~/scene/motion';
 import { frame } from '~/state/frame';
 import { useScene } from '~/state/store';
@@ -47,12 +49,16 @@ const LABEL_GAP = 20;
 const HEADER = 64;
 
 /**
- * A bead's radius on the screen at its stop, CSS px: a third of the picture's half-width. The stop's shot stands
- * 6.33 m off the bead (`CAMERA_PATH.bead.offset`) with the 40 mm field, and a narrow screen stands back by the width
- * rule (`fieldFor`), so the bead's 0.95 m fills the same third of the width on every screen.
+ * A bead's radius on the screen at its ring stop, CSS px: the front bead's, seen from the ring's shot on a screen of
+ * this shape (`ringShot`, src/scene/bob/lightDive.ts). The camera stands as far from each bead at its stop, so it is the
+ * same for every project: about a twelfth of the width on a laptop, a seventh on a phone.
  */
 export function stopRadius(size: LabelBox): number {
-  return size.width / 6;
+  const aspect = size.width > 0 && size.height > 0 ? size.width / size.height : 16 / 9;
+  const { position, fov } = ringShot(0, aspect);
+  const { centre, radius } = BEADS[0]!;
+  const distance = Math.hypot(position[0] - centre[0], position[1] - centre[1], position[2] - centre[2]);
+  return (radius / (distance * Math.tan((fov * Math.PI) / 360))) * (size.height / 2);
 }
 
 const clamp = (x: number, lo: number, hi: number): number => (x < lo ? lo : x > hi ? hi : x);
@@ -92,9 +98,19 @@ export function labelPlacement(beadNdc: { x: number; y: number }, size: LabelBox
 /** The labels on the page, by bead, as React mounts them. */
 const labels = new Map<ProjectId, HTMLAnchorElement>();
 
-/** Puts bead `id`'s label element where `showBeadLabel` finds it (the label's ref does). Answers its taking away. */
+/** Puts a label out of reach: out of the Tab order and inert, as every label is while the scene does not show it. */
+function putAway(el: HTMLAnchorElement): void {
+  el.tabIndex = -1;
+  el.setAttribute('inert', '');
+}
+
+/**
+ * Puts bead `id`'s label element where `showBeadLabel` finds it (the label's ref does), out of reach until the scene
+ * shows it. Answers its taking away.
+ */
 export function registerBeadLabel(id: ProjectId, el: HTMLAnchorElement): () => void {
   labels.set(id, el);
+  if (el !== shown.el) putAway(el);
   return () => {
     if (labels.get(id) === el) labels.delete(id);
   };
@@ -130,7 +146,8 @@ export interface LabelView {
  * none. The Void (src/scene/bob/Void.tsx) calls it on each frame it poses the void. A shown label is
  * `[data-shown]` (in the page, so the keyboard reaches it) and, at its bead's stop, `[data-rest]` (in full; between
  * stops it is clear, src/styles/base.css). Between stops it is out of the Tab order too (`tabindex="-1"`), so the
- * keyboard reaches a label only where it can be seen and clicked; at its stop it takes Tab again. It stands where
+ * keyboard reaches a label only where it can be seen and clicked; at its stop it takes Tab again. A label not shown is
+ * out of the Tab order and `inert`, from its registration on. It stands where
  * `labelPlacement` says, by a transform, with `[data-side]` for its alignment, measured again when its text or the
  * screen changes. A label that had the focus hands it to the next one shown, so stepping from bead to bead with the
  * keys keeps the keyboard on the label (a focused label keeps the focus while it is clear between stops); with none
@@ -144,10 +161,11 @@ export function showBeadLabel(view: LabelView | null, size: LabelBox): void {
     if (was) {
       was.removeAttribute('data-shown');
       was.removeAttribute('data-rest');
-      was.removeAttribute('tabindex');
+      putAway(was);
     }
     if (el) {
       el.setAttribute('data-shown', '');
+      el.removeAttribute('inert');
       el.tabIndex = -1;
     }
     // A focused label hands the focus on: to the next label shown, else to <main> (src/app/Shell.tsx, tabIndex -1), so the

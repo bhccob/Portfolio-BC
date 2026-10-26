@@ -1917,6 +1917,21 @@ describe('the glass top fading as the light dive comes down (setTopFade)', () =>
     c.dispose();
   });
 
+  it("dresses the pivot in the needle's brass while the journey holds the needle, so it glows with it and the top's dark never reaches it", () => {
+    const c = loadCompass(fakeGltf(), 'high', stripStub);
+    const pivot = () => (node(c, 'pivot') as THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>).material;
+    expect(pivot()).toBe(gold(c)); // at home it holds still with the rims
+    c.setTopFade(1);
+    c.setNeedleWorld({ position: [0, -11, 0], scale: 2, aim: [0, -11, 5.5] });
+    expect(pivot()).toBe(needleGold(c));
+    c.setNeedleGlow(2.5);
+    expect(pivot().emissiveIntensity).toBeCloseTo(COMPASS_LOOK.gold.emissiveIntensity * 2.5, 12);
+    expect(pivot().color.r).toBeGreaterThan(0);
+    c.setNeedleWorld(null);
+    expect(pivot()).toBe(gold(c));
+    c.dispose();
+  });
+
   it('takes the bands, their rims and the axis out at 1, and leaves the needle and the pivot where the light needs them', () => {
     const c = loadCompass(fakeGltf(), 'high', stripStub);
     c.setTopFade(1);

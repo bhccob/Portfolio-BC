@@ -354,3 +354,16 @@ describe('stepFocus: Back flies out of a page reached any way, whatever frame fa
     expect(frame.focus.move.to).toBeNull();
   });
 });
+
+describe('the flight from the ring', () => {
+  it("ends at the bead's close view: the shot at the move's end is focusShotFor(id), from its ring stop", () => {
+    for (const bead of BEADS) {
+      const flight = moveFocus(FOCUS_AT_REST, bead.id, 1000, 'fly');
+      const end = focusPoseAt(flight, 1000 + FLIGHT_MS);
+      const stop = journeyPoseAt(stopForProject(bead.id), LAPTOP).shot;
+      expect(end).toMatchObject({ id: bead.id, amount: 1, moving: false });
+      expect(shotToward(stop, focusShotFor(bead.id, LAPTOP), end.amount)).toEqual(focusShotFor(bead.id, LAPTOP));
+      expect(restsAt(bead.id, stopForProject(bead.id), stopForProject(bead.id))).toBe(true);
+    }
+  });
+});

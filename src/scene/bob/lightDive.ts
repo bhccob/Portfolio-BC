@@ -632,6 +632,14 @@ export function ringNeedle(angle: number): NeedleAt {
   return { position: RING.centre, scale: RING.needleScale, aim: aimFor(-(angle + RING_TURN0) * RAD) };
 }
 
+/** How bright the needle glows as it arrives, times its rest glow. */
+const NEEDLE_GLOW = 6;
+
+/** The needle's glow at way frame f: NEEDLE_GLOW at the arrival, eased down to its rest glow, 1, by frame 296. */
+export function needleGlow(f: number): number {
+  return lerp(NEEDLE_GLOW, 1, easeIo(span(f, F.ARRIVE, 296)));
+}
+
 /** The needle at way frame f: none before the light becomes it; drawn out of the light from NEEDLE over NEEDLE_FRAMES. */
 export function wayNeedle(f: number): NeedleAt | null {
   if (f < F.NEEDLE) return null;

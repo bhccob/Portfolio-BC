@@ -246,11 +246,12 @@ describe('labelPlacement: the label beside its bead, inside the screen', () => {
     for (const size of SIZES) expect(labelPlacement({ x: Number.NaN, y: Number.NaN }, size)).toEqual(labelPlacement({ x: 0, y: 0 }, size));
   });
 
-  it("takes for the bead's radius, by default, the one it has at its stop: a third of the half-width on every screen", () => {
-    for (const size of SIZES) {
+  it("takes for the bead's radius, by default, the one the front bead has at its ring stop, on every screen", () => {
+    for (const size of [...SIZES, { width: 1280, height: 720 }, { width: 768, height: 1024 }]) {
       const aspect = size.width / size.height;
       for (let p = 0; p < BEADS.length; p++) {
-        const { position, target, fov } = journeyPoseAt(3 + p, aspect).shot;
+        const { position, fov } = journeyPoseAt(4 + p, aspect).shot;
+        const target = BEADS[p]!.centre;
         const distance = Math.hypot(position[0] - target[0], position[1] - target[1], position[2] - target[2]);
         // The bead's radius over the picture's half-height at its distance, in pixels of the half-height.
         const pixels = (BEADS[p]!.radius / (distance * Math.tan((fov * Math.PI) / 360))) * (size.height / 2);
@@ -314,7 +315,22 @@ describe('showBeadLabel: a shown label takes Tab only at its stop (fix round 1, 
     showBeadLabel({ id: 'funcial', ndc: at, radius: 240, rest: false }, size);
     expect(el.attributes.get('tabindex')).toBe('-1');
     showBeadLabel(null, size);
-    expect([...el.attributes.keys()]).toEqual([]);
+    expect([...el.attributes.keys()].sort()).toEqual(['inert', 'tabindex']);
+  });
+
+  it('keeps a label out of reach while it is hidden: tabindex -1 and inert from its registration, and again once it hides', () => {
+    const el = fakeLabel();
+    release = registerBeadLabel('jontai-energy', el as unknown as HTMLAnchorElement);
+    expect(el.attributes.get('tabindex')).toBe('-1');
+    expect(el.attributes.has('inert')).toBe(true);
+    showBeadLabel({ id: 'jontai-energy', ndc: at, radius: 120, rest: false }, size);
+    expect(el.attributes.has('inert')).toBe(false);
+    expect(el.attributes.get('tabindex')).toBe('-1');
+    showBeadLabel({ id: 'jontai-energy', ndc: at, radius: 120, rest: true }, size);
+    expect(el.attributes.has('tabindex')).toBe(false);
+    showBeadLabel(null, size);
+    expect(el.attributes.get('tabindex')).toBe('-1');
+    expect(el.attributes.has('inert')).toBe(true);
   });
 
   it('lets a label shown straight at its stop take Tab at once', () => {
@@ -404,7 +420,7 @@ describe("openBead: a new opening is never cut short by the last one's timer (fi
     (globalThis as { document?: unknown }).document = { documentElement: root };
     useScene.setState(useScene.getInitialState(), true);
     useScene.setState({ phase: { kind: 'PROJECTS', category: 'secure-element' } });
-    frame.progress = frame.target = 3;
+    frame.progress = frame.target = 4;
     frame.focus.opening = null;
   });
   afterEach(() => {

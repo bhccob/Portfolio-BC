@@ -7,7 +7,7 @@ import type { ProjectId } from '~/data/projects';
 import { cookiesMotion, funcialMotion, jontaiMotion } from '~/engine/bob/beadMotion';
 import { BEAD_PARTS, BEADS_LOOK, type BeadsModel, loadBeads } from '~/engine/bob/build/beads';
 import type { QualityTier } from '~/engine/quality';
-import { BEADS, CAMERA_PATH } from '~/scene/bob/journey';
+import { BEADS } from '~/scene/bob/journey';
 
 const IDS = ['funcial', 'jontai-energy', 'cookies-clicker'] as const satisfies readonly ProjectId[];
 const DEG = Math.PI / 180;
@@ -323,14 +323,18 @@ describe('loading the beads', () => {
     model.dispose();
   });
 
-  it('places the beads where it is told, and keeps each one\'s drift and turn on top', () => {
+  it('places the beads where it is told, and keeps each one\'s facing and turn on top', () => {
     const { model } = build();
     model.place({ funcial: [1, 2, 3], 'jontai-energy': [-4, -5, -6], 'cookies-clicker': [7, 8, 9] });
     expect(model.beads.funcial.root.position.toArray()).toEqual([1, 2, 3]);
     expect(model.beads['cookies-clicker'].root.position.toArray()).toEqual([7, 8, 9]);
-    model.setForward('jontai-energy', 1);
-    model.place({ funcial: [1, 2, 3], 'jontai-energy': [0, 0, 0], 'cookies-clicker': [7, 8, 9] });
-    expect(model.beads['jontai-energy'].root.position.toArray()).toEqual([...CAMERA_PATH.bead.forward]);
+    const camera = new THREE.Vector3(2, 4, 12);
+    model.setFacing('funcial', camera);
+    model.place({ funcial: [0, 0, 0], 'jontai-energy': [-4, -5, -6], 'cookies-clicker': [7, 8, 9] });
+    // The facing is a turn, kept as the bead moves: the next frame's setFacing takes the new place.
+    expect(model.beads.funcial.root.position.toArray()).toEqual([0, 0, 0]);
+    model.setFacing('funcial', camera);
+    expect(angleBetween(facing(model, 'funcial'), camera.clone().normalize())).toBeLessThan(1e-9);
     model.dispose();
   });
 });
@@ -444,18 +448,36 @@ describe('the light', () => {
   });
 });
 
-describe('the drift forward', () => {
-  it('moves a bead along (-0.4, 0.4, 1.4) from its place, the journey\'s own drift, and no other', () => {
+describe('the facing (setFacing)', () => {
+  it('turns the porthole (+z) to the point, within half a degree, from round the ring, above it and below it', () => {
     const { model } = build();
-    expect([...CAMERA_PATH.bead.forward]).toEqual([-0.4, 0.4, 1.4]);
-    model.setForward('funcial', 1);
-    const drift = new THREE.Vector3(...CAMERA_PATH.bead.forward);
-    expect(model.beads.funcial.root.position.distanceTo(centre('funcial').add(drift))).toBeLessThan(1e-12);
-    model.setForward('funcial', 0.25);
-    expect(model.beads.funcial.root.position.distanceTo(centre('funcial').addScaledVector(drift, 0.25))).toBeLessThan(1e-12);
-    expect(model.beads['jontai-energy'].root.position.toArray()).toEqual(centre('jontai-energy').toArray());
-    model.setForward('funcial', Number.NaN);
-    expect(model.beads.funcial.root.position.toArray()).toEqual(centre('funcial').toArray());
+    for (const id of IDS) {
+      for (const offset of [[0, 0, 6], [6, 0, 0], [-3, 2, 5], [0, -4, 4], [2, 5, -6], [0, 0, -7]] as const) {
+        const camera = centre(id).add(new THREE.Vector3(...offset));
+        model.setFacing(id, camera);
+        const want = camera.clone().sub(centre(id)).normalize();
+        expect(angleBetween(facing(model, id), want), `${id} toward ${offset}`).toBeLessThan(0.5 * DEG);
+      }
+    }
+    model.dispose();
+  });
+
+  it('keeps the bead upright as it turns: its x stays level, so the display never rolls', () => {
+    const { model } = build();
+    const camera = centre('jontai-energy').add(new THREE.Vector3(4, 3, 5));
+    model.setFacing('jontai-energy', camera);
+    const side = new THREE.Vector3(1, 0, 0).applyQuaternion(model.beads['jontai-energy'].root.quaternion);
+    expect(Math.abs(side.y)).toBeLessThan(1e-9);
+    model.dispose();
+  });
+
+  it('takes no point (or one on the bead itself) as its rest facing, +z', () => {
+    const { model } = build();
+    model.setFacing('funcial', centre('funcial').add(new THREE.Vector3(5, 0, 1)));
+    model.setFacing('funcial', null);
+    expect(angleBetween(facing(model, 'funcial'), Z)).toBeLessThan(1e-9);
+    model.setFacing('funcial', centre('funcial'));
+    expect(angleBetween(facing(model, 'funcial'), Z)).toBeLessThan(1e-9);
     model.dispose();
   });
 });
@@ -481,22 +503,19 @@ describe('the hover', () => {
     model.dispose();
   });
 
-  it('turns only as far as the camera is off its axis, and by default toward the bead shot\'s camera', () => {
+  it('turns only as far as the camera is off its axis, and with no point does not turn at all', () => {
     const { model } = build();
     // A camera 3 degrees off the axis: the bead turns 3 degrees and faces it.
     const near = centre('cookies-clicker').add(new THREE.Vector3(Math.sin(3 * DEG) * 6, 0, Math.cos(3 * DEG) * 6));
     model.setHover('cookies-clicker', 1, near);
     expect(angleBetween(facing(model, 'cookies-clicker'), near.clone().sub(centre('cookies-clicker')).normalize())).toBeLessThan(1e-9);
-    // No camera: toward where the bead's own stop stands the camera, at CAMERA_PATH.bead.offset.
+    // No point: along its own facing, so it brightens and does not turn.
     model.setHover('cookies-clicker');
-    const offset = new THREE.Vector3(...CAMERA_PATH.bead.offset).normalize();
-    const face = facing(model, 'cookies-clicker');
-    expect(angleBetween(face, Z)).toBeCloseTo(Math.min(8 * DEG, angleBetween(offset, Z)), 9);
-    expect(angleBetween(face, offset)).toBeLessThan(angleBetween(Z, offset));
+    expect(angleBetween(facing(model, 'cookies-clicker'), Z)).toBeLessThan(1e-9);
     model.dispose();
   });
 
-  it('takes a null point as no point at all, as it takes none given: toward the bead shot\'s camera', () => {
+  it('takes a null point as no point at all, as it takes none given: no turn', () => {
     const { model } = build();
     model.setHover('cookies-clicker');
     const byDefault = facing(model, 'cookies-clicker').clone();
@@ -527,13 +546,13 @@ describe('the hover', () => {
     model.dispose();
   });
 
-  it('keeps the turn toward the camera as the bead drifts forward', () => {
+  it('keeps the hover\'s turn on top of the facing: a point 5 degrees off the faced camera is faced', () => {
     const { model } = build();
-    const camera = centre('funcial').add(new THREE.Vector3(...CAMERA_PATH.bead.forward)).add(new THREE.Vector3(0.3, 0, 6));
-    model.setHover('funcial', 1, camera);
-    model.setForward('funcial', 1);
-    const toCamera = camera.clone().sub(model.beads.funcial.root.position).normalize();
-    expect(angleBetween(facing(model, 'funcial'), toCamera)).toBeLessThan(1e-9);
+    const camera = centre('funcial').add(new THREE.Vector3(0, 0, 6));
+    model.setFacing('funcial', camera);
+    const off = centre('funcial').add(new THREE.Vector3(Math.sin(5 * DEG) * 6, 0, Math.cos(5 * DEG) * 6));
+    model.setHover('funcial', 1, off);
+    expect(angleBetween(facing(model, 'funcial'), off.clone().sub(centre('funcial')).normalize())).toBeLessThan(1e-9);
     model.dispose();
   });
 });
@@ -663,7 +682,7 @@ describe("the objects' motion", () => {
       for (const id of IDS) {
         model.setMotion(id, t);
         model.setLit(id, (i % 7) / 6);
-        model.setForward(id, (i % 5) / 4);
+        model.setFacing(id, new THREE.Vector3(i % 3, 1, 6 + (i % 5)));
       }
       model.setHover(IDS[i % 3]!, (i % 4) / 3, camera);
       model.setHover(null);

@@ -2,8 +2,8 @@
  * The three project beads as the void shows them (spec §2.4): the GLB from Blender (public/models/bob-beads.glb,
  * tools/blender/export_beads.py and the object scripts bead_funcial.py, bead_jontai.py and bead_cookies.py, whose headers
  * document every node, material, pivot and axis read here), readied for the site. Each bead gets the project's real
- * screenshot on its display, lit as part of the bead; its own light, from dim to lit (`setLit`); its drift toward the
- * camera (`setForward`); a gentle hover (`setHover`); and its object's motion (`setMotion`, the numbers of
+ * screenshot on its display, lit as part of the bead; its own light, from dim to lit (`setLit`); its porthole turned to
+ * the ring's camera (`setFacing`); a gentle hover (`setHover`); and its object's motion (`setMotion`, the numbers of
  * ~/engine/bob/beadMotion). No React: the Void (Task 11) mounts the group and poses it from the journey every frame.
  *
  * The beads are the void's one focal point (Bob: dark, calm, one focal point), so the unselected beads stay dim, the
@@ -30,12 +30,6 @@ import { BEADS } from '~/scene/bob/journey';
 type Vec3 = readonly [number, number, number];
 
 const DEG = Math.PI / 180;
-
-/** A bead's drift toward the camera at `setForward(id, 1)`: none, the ring's beads stand at their places. */
-const BEAD_DRIFT: Vec3 = [0, 0, 0];
-
-/** Where a hover with no point turns a bead: its porthole's own axis, +z. */
-const BEAD_TOWARD: Vec3 = [0, 0, 1];
 
 /**
  * How the beads look. Starting values, kept low for the site's rule (dark, calm, one focal point); the proof
@@ -102,19 +96,23 @@ export interface BeadsModel {
   group: THREE.Group;
   /** Each bead's root and its body, the lacquer shell, for the pointer's ray (the body's open front holds the cavity). */
   beads: Readonly<Record<ProjectId, { root: THREE.Object3D; body: THREE.Mesh }>>;
-  /** Puts each bead's centre at its position in the group's frame (built at the journey's `BEADS`); its drift and hover turn stay on top. */
+  /** Puts each bead's centre at its position in the group's frame (built at the journey's `BEADS`); its facing and hover turn stay on top. */
   place(positions: Readonly<Record<ProjectId, Vec3>>): void;
-  /** Drifts bead `id` toward the camera, 0..1 (held to it, NaN as 0): on the ring the beads stand at their places, so there is no drift (`BEAD_DRIFT` is none). */
-  setForward(id: ProjectId, t: number): void;
+  /**
+   * Turns bead `id`'s porthole (its +z) to `towards`, a world point (the ring's camera), its up kept on the world's up so
+   * the display never rolls; `null`, or a point on the bead itself, turns it back to its rest, facing +z. The hover's turn
+   * stays on top. Taken from the bead's place as it stands: after a `place`, face it again.
+   */
+  setFacing(id: ProjectId, towards: THREE.Vector3Like | null): void;
   /** Lights bead `id`, 0..1 (held to it, NaN as 0): `mix(BEADS_LOOK.dim, 1, t)` of its full light. */
   setLit(id: ProjectId, t: number): void;
   /**
    * Hovers bead `id` by `amount`, 0..1 (default 1; held to it, NaN as 0), and lets every other bead go; `null` lets them
    * all go. A hovered bead brightens by `amount` × `BEADS_LOOK.hover.brighten` and turns its porthole toward `towards`
    * (a world point, the camera's position) by `amount` × the smaller of 8° and how far off its axis the point is, so it
-   * never turns past it. With no point it turns along its own porthole's axis (`BEAD_TOWARD`, +z).
+   * never turns past it. With no point it does not turn, and only brightens.
    * The amount is the caller's to ease (springs, no snapping); one bead at a time, so a hover moving to another bead
-   * eases the first out before the next comes in. The turn is about the bead's centre and is kept as it drifts.
+   * eases the first out before the next comes in. The turn is about the bead's centre, on top of its facing.
    */
   setHover(id: ProjectId | null, amount?: number, towards?: THREE.Vector3Like): void;
   /**
@@ -290,10 +288,10 @@ interface Bead {
   root: THREE.Object3D;
   body: THREE.Mesh;
   inner: THREE.PointLight;
-  /** The root's rest turn (none, in the file) and its place, drift, light and hover. */
+  /** The root's rest turn (none, in the file), its facing (`setFacing`) on top of it, and its place, light and hover. */
   rest: THREE.Quaternion;
+  facing: THREE.Quaternion;
   place: THREE.Vector3;
-  forward: number;
   lit: number;
   hover: number;
   /** Its light, the uniform every one of its materials reads. */
@@ -389,8 +387,9 @@ export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens:
   const Y = new THREE.Vector3(0, 1, 0);
   const Z = new THREE.Vector3(0, 0, 1);
   const turn = new THREE.Quaternion();
-  const drift = new THREE.Vector3(...BEAD_DRIFT);
-  const shot = new THREE.Vector3(...BEAD_TOWARD);
+  const lookAt = new THREE.Matrix4();
+  const origin = new THREE.Vector3();
+  const base = new THREE.Quaternion();
   const towards = new THREE.Vector3();
   let aiming = false;
   const facing = new THREE.Vector3();
@@ -508,7 +507,7 @@ export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens:
       inner: part(`bead_${id}_inner`) as THREE.PointLight,
       rest: root.quaternion.clone(),
       place: new THREE.Vector3(...centre),
-      forward: 0,
+      facing: new THREE.Quaternion(),
       lit: 0,
       hover: 0,
       light,
@@ -535,22 +534,22 @@ export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens:
    * square to both, so it neither rolls nor turns past the point. Scratch vectors only.
    */
   const pose = (b: Bead): void => {
-    b.root.position.copy(b.place).addScaledVector(drift, b.forward);
-    b.root.quaternion.copy(b.rest);
-    if (b.hover <= 0) return;
-    if (aiming) toward.subVectors(towards, b.root.position);
-    else toward.copy(shot);
+    b.root.position.copy(b.place);
+    base.copy(b.facing).multiply(b.rest);
+    b.root.quaternion.copy(base);
+    if (b.hover <= 0 || !aiming) return;
+    toward.subVectors(towards, b.root.position);
     const length = toward.length();
     if (!(length > 1e-9)) return;
     toward.divideScalar(length);
-    facing.copy(Z).applyQuaternion(b.rest);
+    facing.copy(Z).applyQuaternion(base);
     const angle = facing.angleTo(toward);
     axis.crossVectors(facing, toward);
     const sine = axis.length();
     // Straight ahead there is nothing to turn; straight behind any axis square to the porthole's will do.
     if (sine < 1e-9) {
       if (angle < Math.PI / 2) return;
-      axis.copy(Y).applyQuaternion(b.rest);
+      axis.copy(Y).applyQuaternion(base);
     } else {
       axis.divideScalar(sine);
     }
@@ -575,9 +574,15 @@ export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens:
         pose(b);
       }
     },
-    setForward(id, t) {
+    setFacing(id, at) {
       const b = bead(id);
-      b.forward = clamp01(t);
+      b.facing.identity();
+      if (at != null) {
+        // The point in the group's frame, where the beads' places are; the porthole's +z along the way to it, up kept up.
+        group.updateWorldMatrix(true, false);
+        group.worldToLocal(toward.set(at.x, at.y, at.z)).sub(b.place);
+        if (toward.lengthSq() > 1e-18) b.facing.setFromRotationMatrix(lookAt.lookAt(toward, origin, Y));
+      }
       pose(b);
     },
     setLit(id, t) {
@@ -586,7 +591,7 @@ export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens:
       light(b);
     },
     setHover(id, amount = 1, at) {
-      // A point given (null and undefined alike are none): the bead turns toward it, else toward its stop's camera.
+      // A point given (null and undefined alike are none): the bead turns toward it, else it does not turn.
       aiming = at != null;
       if (at != null) {
         // The point in the group's frame, where the beads' places are.

@@ -2,11 +2,12 @@
  * The void's per-frame decisions as plain rules: when the void and the beads show, which bead is selected, how the
  * beads' motion clocks run and how the hover eases, and what `frame.journey` reports. Pure, so the tests read the very
  * decisions the Void (src/scene/bob/Void.tsx) and the Opening make on each frame; it imports no code from React or three
- * (types only, the journey's beads and the objects' motion numbers).
+ * (types only, the journey's beads, the light dive's needle glow and the objects' motion numbers).
  */
 import type { CameraShot } from '~/engine/bob/shots';
 import { BEAD_MOTION } from '~/engine/bob/beadMotion';
 import { BEADS, type JourneyAt, type JourneyPose, type NeedleOverride } from './journey';
+import { F, needleGlow } from './lightDive';
 
 type Vec3 = readonly [number, number, number];
 
@@ -51,9 +52,37 @@ export function needleFor(pose: Pick<JourneyPose, 'needle' | 'ignite'>): NeedleO
   return pose.ignite > 0 ? { position: PIVOT, scale: 1 - pose.ignite, aim: null } : null;
 }
 
+/**
+ * The needle's glow (`CompassModel.setNeedleGlow`) where the journey holds it: drawn out of the light from way frame 272
+ * (`F.NEEDLE`), 6 at the arrival (the mock-up's near-white flash), down to its rest glow by frame 296 (`needleGlow`),
+ * and 1 round the ring, under the sheet and at the end page. Null where the journey does not hold it: on the rise, where
+ * the home breathes it, and in the light dive before it is drawn out, where it is hidden.
+ */
+export function needleGlowFor(at: JourneyAt): number | null {
+  if (at.stretch === 'rise') return null;
+  if (at.stretch === 'light') return at.frame !== null && at.frame >= F.NEEDLE ? needleGlow(at.frame) : null;
+  return 1;
+}
+
 /** The selected bead: the project in front of the ring (0, 1 or 2, in `BEADS` order, within `PROJECT_NEAR` of it), else none. */
 export function selectedBead(at: JourneyAt): number | null {
   return at.stretch === 'ring' || at.stretch === 'sheet' ? at.project : null;
+}
+
+/** What the front bead's label shows: the project's bead, in `BEADS` order, and whether it shows in full. */
+export interface LabelFor {
+  project: number;
+  rest: boolean;
+}
+
+/**
+ * The front bead's label in the ring: the project in front (within `PROJECT_NEAR`, 20 degrees, of the ring's front),
+ * shown in full while the ring stands still (`still`: the shown place on its target) and clear while it turns; none
+ * between projects, in the light dive, under the sheet or at the end page.
+ */
+export function labelFor(at: JourneyAt, still: boolean): LabelFor | null {
+  if (at.stretch !== 'ring' || at.project === null) return null;
+  return { project: at.project, rest: still };
 }
 
 /** Funcial's place in `BEADS`: the one bead whose abacus has a clock of its own. */
