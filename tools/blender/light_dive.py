@@ -36,15 +36,17 @@
 # - The needle stays at the exact centre and turns with the camera (its yaw is the camera's azimuth), so it points at
 #   the bead the camera faces; nothing joins it to a bead. Each bead's angle relative to the camera (ring_rel) drives
 #   the rest: the bead passing straight behind the pivot, as the camera sees it, rises a little (ring_lift), so it
-#   never stands on the needle's back tip in the picture; the beads' answering glow (ring_closeness); and the warm key
-#   on the beads rides with the camera (from its side, above and to the left), so each bead, come round to the front,
-#   is lit as Funcial is at frame 0. Relative to the camera the beads and the needle stand as the first mock-up's
-#   turntable stood them. What the orbit adds is the world round them turning past in true perspective: the dust, the
-#   glass sky's traces, the fog, and the mist band's wisps, which are world-fixed in the ring (a ring of mist round the
-#   void, MIST_RING_R).
+#   never stands on the needle's back tip in the picture; and the beads' answering glow (ring_closeness). The lights
+#   that light the beads ride with the camera: the warm key (from its side, above and to the left) and the void's
+#   violet fill below the ring, turned about the axis by the camera's yaw, so each bead, come round to the front, is
+#   lit as Funcial is at frame 0. Relative to the camera the beads, the needle and their light stand as the first
+#   mock-up's turntable stood them. What the orbit adds is the world round them turning past in true perspective: the
+#   dust, the glass sky's traces, the fog, and the mist band's wisps, which are world-fixed in the ring (a ring of mist
+#   round the void, MIST_RING_R).
 # - The ring's data gives each frame { f, angle, cam, front }: cam is the camera's azimuth in degrees, and angle, the
 #   turn relative to the front, equals it. Under `proj` it gives where the needle's tips and the beads' outlines fall
-#   on the picture, so the checks can hold the needle clear of every bead.
+#   on the picture, so the checks can hold the needle clear of every bead, and where the mist band lies (`band`), so
+#   they can crop it.
 # - Each bead keeps its porthole to the camera and its objects still (the site moves only the selected bead's). Its
 #   halo band and porthole rim glow with its closeness to the front, eased (ring_closeness): the front bead at a rest
 #   glows as Funcial does at the way's frame 300, the others as the GLB's gold; between rests the two nearest cross-fade.
@@ -1287,6 +1289,20 @@ def key_rotation(yaw=0.0):
 
 
 bead_key2.rotation_euler = key_rotation()
+# The void's violet fill (bob_scroll.py's 24 m disc below the ring, aimed up) lights the beads' insides: at frame 0 it
+# lays Funcial's soft veil over the lower half of its porthole. Held in the world while the camera glides, it swept a
+# hard lavender sheet across the front bead and lit each rest differently, so in the ring it too turns with the camera
+# about the ring's axis, keeping its aim relative to the camera (turn_fill). At yaw 0 it stands exactly where it stood
+# (the Euler's z gains the yaw, as its XYZ order turns it about the world's Z last), so frame 0 and the seam hold.
+VOID_FILL = sc.objects["bob_void_fill"]
+assert VOID_FILL.rotation_mode == 'XYZ' and VOID_FILL.parent is None
+VOID_FILL_REST = (VOID_FILL.location.copy(), VOID_FILL.rotation_euler.copy())
+
+
+def turn_fill(yaw):
+    loc, rot = VOID_FILL_REST
+    VOID_FILL.location = Matrix.Rotation(yaw, 3, 'Z') @ loc
+    VOID_FILL.rotation_euler = Euler((rot.x, rot.y, rot.z + yaw))
 
 # the needle at the ring's centre: the compass needle and pivot, free, nothing holding them
 M_RING_NEEDLE = mat_gold_emit("ld_needle_gold", RING_NEEDLE_GLOW)
@@ -1530,8 +1546,8 @@ def set_ring_pose(f):
 def apply_ring(f):
     """Ring frame f: the way's frame 300 (the scene's clock held there, so nothing keyed moves), the camera carried
     round the still beads and the needle turned with it (set_ring_pose), the bead behind the pivot lifted
-    (ring_bead_at), each bead facing the camera with its answering glow, the key turned with the camera, the void's
-    looping clock seen from the camera."""
+    (ring_bead_at), each bead facing the camera with its answering glow, the key and the void's fill turned with the
+    camera, the void's looping clock seen from the camera."""
     apply_frame(F_END)
     rp = set_ring_pose(f)
     for root, angle in ring_beads:
@@ -1541,6 +1557,7 @@ def apply_ring(f):
     for bid, angle in RING_BEADS:
         BEAD_GLOW[bid].default_value = lerp(RING_BEAD_GLOW, RING_FRONT_GLOW, ring_closeness(angle, f))
     bead_key2.rotation_euler = key_rotation(rp["yaw"])
+    turn_fill(rp["yaw"])
     set_void(ring_void_state(f), rp["lens"], rp["loc"])
     LD_SCENE.view_layers[0].update()
 
@@ -1564,9 +1581,10 @@ def bead_outline(root):
 
 
 def ring_projection(f, outline):
-    """Where the needle's tips and the beads' outlines fall on ring frame f's picture (the camera and the needle posed
-    for f): x, y from the top left in shares of the width and height; a bead's outline radius in shares of the
-    width."""
+    """Where the needle's tips, the beads' outlines and the mist band fall on ring frame f's picture (the camera and the
+    needle posed for f): x, y from the top left in shares of the width and height; a bead's outline radius in shares
+    of the width; the band's middle y and width sigma in shares of the height (its fall-off is exp(-((y - band y) /
+    sigma)^2), the band held on the camera)."""
     set_ring_pose(f)
     right = LD_CAM.matrix_world.to_3x3() @ Vector((1.0, 0.0, 0.0))
     nv, mw = ring_needle.data.vertices, ring_needle.matrix_world
@@ -1582,7 +1600,9 @@ def ring_projection(f, outline):
         x, y = scr(c)
         x1, y1 = scr(c + right * outline[bid])
         beads.append([round(x, 5), round(y, 5), round(math.hypot((x1 - x) * RES_X, (y1 - y) * RES_Y) / RES_X, 5)])
-    return {"needle": {k: [round(v, 5) for v in scr(p)] for k, p in tips.items()}, "beads": beads}
+    vs = ring_void_state(f)
+    return {"needle": {k: [round(v, 5) for v in scr(p)] for k, p in tips.items()}, "beads": beads,
+            "band": {"y": round(vs["band_y"], 5), "sigma": round(vs["band_sigma"], 5)}}
 
 
 def ring_data(f, outline):
