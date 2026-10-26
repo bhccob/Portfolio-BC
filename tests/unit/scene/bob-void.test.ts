@@ -8,7 +8,7 @@ import { readNeedleDebugState } from '~/debug/useNeedleDebug';
 import { startHomeScroll } from '~/input/scrollLoop';
 import { connectHomeScroll } from '~/input/useHomeScroll';
 import { holdLimit, releaseTarget } from '~/input/target';
-import { LANDING_HOLD, landingHoldFor, RISE_TOP } from '~/scene/bob/landingHold';
+import { heldAtLanding, LANDING_HOLD, landingHoldFor, RISE_TOP } from '~/scene/bob/landingHold';
 import { BEADS, journeyAt, journeyPoseAt } from '~/scene/bob/journey';
 import { F, LIGHT_FRAMES } from '~/scene/bob/lightDive';
 import { nearestStop } from '~/scene/bob/stepFade';
@@ -21,6 +21,7 @@ import {
   labelFor,
   needleFor,
   needleGlowFor,
+  ringStill,
   selectedBead,
   stepBeadClocks,
   VOID_FROM,
@@ -1019,8 +1020,8 @@ describe("the home scroll as the page wires it to the store (connectHomeScroll, 
 describe('the home\'s links when the void failed, in the stylesheet', () => {
   const css = readFileSync(fileURLToPath(new URL('../../../src/styles/base.css', import.meta.url)), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
 
-  it('shows .home-nav over the scene at BOB from above once the void failed, undoing the hidden-while-3D-is-on rule', () => {
-    const at = css.indexOf("html[data-3d='on'][data-void='failed'][data-rising] .home-nav {");
+  it('shows .home-nav over the scene at the landing hold once the void failed, undoing the hidden-while-3D-is-on rule', () => {
+    const at = css.indexOf("html[data-3d='on'][data-void='failed'][data-held] .home-nav {");
     expect(at).toBeGreaterThan(-1);
     const body = css.slice(at, css.indexOf('}', at));
     expect(body).toMatch(/position:\s*fixed/);
@@ -1162,6 +1163,13 @@ describe('labelFor: the front bead\'s label in the ring', () => {
     expect(labelFor(journeyAt(5), true)).toEqual({ project: 1, rest: true });
   });
 
+  it('counts the ring as still once the story is on its target, and always with reduced motion, whose shown stop never moves', () => {
+    expect(ringStill(4, 4, false)).toBe(true);
+    expect(ringStill(4.6, 5, false)).toBe(false);
+    // Reduced motion: the target jumps a stop and the scroll's own progress catches up unseen; the step fade shows stops.
+    expect(ringStill(4.6, 5, true)).toBe(true);
+  });
+
   it("shows Cookies Clicker's at its own stop, 6, where the sheet's stretch begins, and none once the sheet is up at all", () => {
     expect(journeyAt(6).stretch).toBe('sheet');
     expect(labelFor(journeyAt(6), true)).toEqual({ project: 2, rest: true });
@@ -1190,5 +1198,31 @@ describe('needleGlowFor: the needle as it lands', () => {
 
   it('rests at 1 round the ring, under the sheet and at the end page', () => {
     for (const p of [4, 4.5, 5, 6, 6.5, 7]) expect(needleGlowFor(journeyAt(p))).toBe(1);
+  });
+});
+
+describe('a failed void: the fall plays, the story holds at the landing, and the nav shows there', () => {
+  const css = readFileSync(fileURLToPath(new URL('../../../src/styles/base.css', import.meta.url)), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const ruleFor = (selector: string): string | undefined => {
+    for (const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) if (match[1]!.trim() === selector) return match[2];
+    return undefined;
+  };
+
+  it('holds at LANDING_HOLD, and counts as held only there, with the void failed, short of the end page', () => {
+    expect(landingHoldFor('failed')).toBe(LANDING_HOLD);
+    expect(heldAtLanding(LANDING_HOLD, 'failed')).toBe(true);
+    expect(heldAtLanding(LANDING_HOLD - 0.01, 'failed')).toBe(false);
+    expect(heldAtLanding(placeOfFrame(121), 'failed')).toBe(false);
+    expect(heldAtLanding(LANDING_HOLD, 'loading')).toBe(false);
+    expect(heldAtLanding(7, 'failed')).toBe(false);
+  });
+
+  it('shows the home nav, its "Vragen & contact" link with it, over the scene at the hold only, never over the facts', () => {
+    expect(ruleFor("html[data-3d='on'][data-void='failed'][data-held] .home-nav")).toMatch(/position:\s*fixed/);
+    expect(ruleFor("html[data-3d='on'][data-void='failed'][data-rising] .home-nav")).toBeUndefined();
+  });
+
+  it('never shows the skip button with the void failed: there is no ring', () => {
+    expect(ruleFor("html[data-void='failed'] .skip-button")).toMatch(/display:\s*none/);
   });
 });

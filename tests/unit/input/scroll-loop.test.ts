@@ -1431,14 +1431,24 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
       byFade(s.run(), 0, STORY_END);
     });
 
-    it('failed: a key from BOB from above steps to the hold, travelled, with no fade', async () => {
+    it('failed: a key from BOB from above steps to fact 01, travelled, with no fade; the fall still plays', async () => {
       const s = wiredHome(1);
+      s.key('ArrowDown');
+      expect(storyFrame.target).toBe(F81);
+      await flush();
+      const seen = s.run();
+      expect(seen.some((f) => f.dark)).toBe(false);
+      expect(seen.some((f) => f.progress > 1 && f.progress < F81)).toBe(true);
+    });
+
+    it('failed: a key from the last fact steps to the hold, travelled, with no fade', async () => {
+      const s = wiredHome(F241);
       s.key('ArrowDown');
       expect(storyFrame.target).toBe(H);
       await flush();
       const seen = s.run();
       expect(seen.some((f) => f.dark)).toBe(false);
-      expect(seen.some((f) => f.progress > 1 && f.progress < H)).toBe(true);
+      expect(seen.some((f) => f.progress > F241 && f.progress < H)).toBe(true);
     });
 
     it('failed: the rise stays the rise: a key or a wheel from the home moves up it by distance, with no fade', async () => {

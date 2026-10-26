@@ -1,8 +1,38 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { nearestStop, STEP_FADE_MS, type StepFade, stepFadeAt, stepFadeFor, stepFadeFrom } from '~/scene/bob/stepFade';
-import { HOME_CHAPTERS, scrollEnd, stops } from '~/state/chapters';
+import { stopsFor } from '~/input/target';
+import { LANDING_HOLD } from '~/scene/bob/landingHold';
+import { nearestStop, STEP_FADE_MS, type StepFade, stepFadeAt, stepFadeFor, stepFadeFrom, stepStopFor } from '~/scene/bob/stepFade';
+import { HOME_CHAPTERS, keyStops, placeOfFrame, scrollEnd, stops } from '~/state/chapters';
+
+describe('stepStopFor: reduced motion stands on keyStops with no frame between', () => {
+  const KEY = keyStops(HOME_CHAPTERS);
+
+  it('is always one of the key stops: BOB from above, each fact at its peak, each project, the end', () => {
+    for (let target = 0; target <= 7; target += 0.01) expect(KEY, `at ${target}`).toContain(stepStopFor(target, 'ready'));
+    for (const stop of KEY) expect(stepStopFor(stop, 'ready')).toBe(stop);
+    expect(stepStopFor(3, 'ready')).toBe(placeOfFrame(201)); // fact 04's peak, not the ring
+    expect(stepStopFor(3, 'loading')).toBe(placeOfFrame(201));
+  });
+
+  it("is one of a failed void's stops, the facts among them, with the void failed", () => {
+    const failed = stopsFor(HOME_CHAPTERS, 'failed');
+    for (let target = 0; target <= 7; target += 0.01) expect(failed, `at ${target}`).toContain(stepStopFor(target, 'failed'));
+    expect(stepStopFor(placeOfFrame(121), 'failed')).toBe(placeOfFrame(121));
+    expect(stepStopFor(LANDING_HOLD + 0.1, 'failed')).toBe(LANDING_HOLD);
+  });
+
+  it('shows a step from BOB from above to fact 01 as the two stops alone: nothing of the fall between', () => {
+    const fade = stepFadeFrom(1);
+    const shown = new Set<number>();
+    for (let t = 0; t <= 400; t += 16) {
+      stepFadeAt(fade, stepStopFor(placeOfFrame(81), 'ready'), true, t);
+      shown.add(fade.shown);
+    }
+    expect([...shown]).toEqual([1, placeOfFrame(81)]);
+  });
+});
 
 describe('stepFadeFor', () => {
   it('fades only when a reduced-motion visitor moved to another stop', () => {
@@ -160,8 +190,20 @@ describe('the step fade in the stylesheet', () => {
     expect(valueOf('html[data-step-fade] .scene-host', 'opacity')).toBe('0');
     expect(valueOf("html[data-route='home'][data-step-fade] .end-page", 'opacity')).toBe('0');
     const fading = RULES.filter((rule) => rule.selectors.some((s) => s.includes('data-step-fade')));
-    expect(fading.map((rule) => rule.selectors)).toEqual([['html[data-step-fade] .scene-host'], ["html[data-route='home'][data-step-fade] .end-page"]]);
+    expect(fading.map((rule) => rule.selectors)).toEqual([
+      ['html[data-step-fade] .scene-host'],
+      ['html[data-step-fade] .light-fact-layer', 'html[data-step-fade] .bead-label'],
+      ["html[data-route='home'][data-step-fade] .end-page"]
+    ]);
     for (const rule of fading) expect([...rule.declarations.keys()]).toEqual(['opacity']);
+  });
+
+  it("fades the facts beside the light and the bead's label with the host, as fast, so a step shows no label of the stop it left", () => {
+    expect(valueOf('html[data-step-fade] .light-fact-layer', 'opacity')).toBe('0');
+    expect(valueOf('html[data-step-fade] .bead-label', 'opacity')).toBe('0');
+    for (const selector of ['.light-fact-layer', '.bead-label']) {
+      expect(valueOf(selector, 'transition', REDUCED), selector).toBe(valueOf('.scene-host', 'transition', REDUCED));
+    }
   });
 
   /** A selector's weight as far as these rules go: its attribute and class selectors. */

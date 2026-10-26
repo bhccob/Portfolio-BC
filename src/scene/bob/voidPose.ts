@@ -77,6 +77,15 @@ export function inRing(at: Pick<JourneyAt, 'stretch' | 'local'>): boolean {
   return at.stretch === 'ring' || (at.stretch === 'sheet' && at.local === 0);
 }
 
+/**
+ * Whether the ring stands still for the label (`labelFor`): the story on its target (the shown place, `progress`, is
+ * where the input asked); and always with reduced motion, where the step fade shows stops alone and the scroll's own
+ * progress catches up with the target unseen.
+ */
+export function ringStill(progress: number, target: number, reduced: boolean): boolean {
+  return reduced || progress === target;
+}
+
 /** What the front bead's label shows: the project's bead, in `BEADS` order, and whether it shows in full. */
 export interface LabelFor {
   project: number;

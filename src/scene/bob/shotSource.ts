@@ -6,7 +6,7 @@
  * Opening applies exactly these.
  */
 import type { LoaderStage } from '~/engine/bob/loaderTimeline';
-import { HOME_CHAPTERS, stops } from '~/state/chapters';
+import { HOME_CHAPTERS, keyStops } from '~/state/chapters';
 import { nearestStop } from './stepFade';
 
 /**
@@ -49,8 +49,8 @@ export function shotSourceFor(stage: LoaderStage, held: number | null, live: boo
   return live ? 'journey' : 'home';
 }
 
-/** Where the home's scroll comes to rest (`stops`): the step fade's places under reduced motion. */
-const STOPS = stops(HOME_CHAPTERS);
+/** Where the home's scroll comes to rest (`keyStops`): the step fade's places under reduced motion. */
+const STOPS = keyStops(HOME_CHAPTERS);
 
 /**
  * The progress the home and the journey pose the shot at, so the camera stands where the compass and the beads are

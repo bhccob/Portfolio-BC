@@ -15,6 +15,10 @@
  * `fades`); with reduced motion Home's own fade, as for every step, is the one on screen.
  */
 
+import { stopsFor } from '~/input/target';
+import { HOME_CHAPTERS } from '~/state/chapters';
+import type { VoidState } from '~/state/store';
+
 /** How long the scene host takes to fade down, and again to fade back, ms. */
 export const STEP_FADE_MS = 150;
 
@@ -36,6 +40,16 @@ export function nearestStop(places: readonly number[], at: number): number {
   let best = places[0]!;
   for (const place of places) if (Math.abs(place - at) < Math.abs(best - at)) best = place;
   return best;
+}
+
+/**
+ * The stop reduced motion shows for the scroll's `target`: the nearest of the stops the story rests on for the void's
+ * state (src/input/target.ts `stopsFor`): the key stops (BOB from above, each fact at its peak with the light still,
+ * each project, the end page), or with the void failed the facts, the landing hold and the end page. Nothing between two
+ * of them is ever posed: the step fade jumps from one to the next.
+ */
+export function stepStopFor(target: number, voidState: VoidState): number {
+  return nearestStop(stopsFor(HOME_CHAPTERS, voidState), target);
 }
 
 /** Where a step fade stands: the stop the scene is posed at, the one it goes to, and when the host is dark. */

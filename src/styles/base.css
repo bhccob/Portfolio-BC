@@ -138,6 +138,24 @@ html[data-step-fade] .scene-host {
   opacity: 0;
 }
 
+/* The facts beside the light and the front bead's label fade with the host, as fast, so a step never shows the label of
+   the stop it left over the stop it comes to (src/ui/LightFacts.tsx, src/ui/BeadLabel.tsx). */
+html[data-step-fade] .light-fact-layer,
+html[data-step-fade] .bead-label {
+  opacity: 0;
+}
+
+.light-fact-layer {
+  transition: opacity 150ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .light-fact-layer,
+  .bead-label {
+    transition: opacity 150ms ease !important;
+  }
+}
+
 /* A fade to or from a bead seen close (src/scene/bob/focus.ts) is the same fade: the Opening sets <html data-focus-fade>
    for its dark half, the shot jumps while the host is dark, and it fades back. With reduced motion it stands in for the
    flight into a porthole and out. The host stays down too while a close view waits for the void to load, so a project
@@ -754,12 +772,12 @@ html[data-3d='on'] .home-nav:not(:focus-within) {
   white-space: nowrap;
 }
 
-/* The void's files could not be had (src/scene/bob/Void.tsx sets <html data-void>): the scroll holds at BOB from above,
-   where the dive would have begun (src/scene/bob/diveHold.ts), and there the links show over the foot of the scene, as
-   they do below the hero with 3D off. At the home itself (no data-rising) they stay as they are with 3D on, so the
-   scroll cue keeps the foot of the first screen to itself. A scrim of the fallback card's night under them keeps them
-   readable where they meet the engraved name (on a laptop the heading reaches the foot of the B letters). */
-html[data-3d='on'][data-void='failed'][data-rising] .home-nav {
+/* The beads' file could not be had (src/scene/bob/Void.tsx sets <html data-void>): the way in and the fall still play,
+   the facts with them, and the story holds at the landing, just short of where the ring would be (src/scene/bob/
+   landingHold.ts). There, and only there (<html data-held>, which Home writes), the links show over the foot of the
+   scene, as they do below the hero with 3D off, with the end page's link: never over the facts on the way. A scrim of the
+   fallback card's night under them keeps them readable over the void's band. */
+html[data-3d='on'][data-void='failed'][data-held] .home-nav {
   position: fixed;
   inset: auto 0 0;
   width: auto;
@@ -779,7 +797,7 @@ html[data-3d='on'][data-void='failed'][data-rising] .home-nav {
    (src/input/useHomeScroll.ts `goToEnd`: the move, the step fade, or the hold while the void loads) and the focus to the
    page's title once it rests (src/ui/endArrival.ts). It is one of the nav's ways in whenever 3D is on and shows as the
    nav does: with the void ready or loading hidden with the nav's links and shown with them while one has the focus; with
-   the void failed over the foot of the scene at BOB from above, where the scroll holds. With 3D off it takes no place:
+   the void failed over the foot of the scene at the landing, where the scroll holds. With 3D off it takes no place:
    the end page is in the home's flow right after the nav. It reads as the nav's links do, its title in their face. */
 .end-link {
   display: none;
@@ -1929,6 +1947,11 @@ html[data-end='rest'] .bead-label {
 .skip-button[data-alt] {
   top: calc(var(--header-height) + max(16px, 2vw));
   bottom: auto;
+}
+
+/* A failed void has no ring: the button never shows (the nav's end link is the way to the questions there). */
+html[data-void='failed'] .skip-button {
+  display: none;
 }
 
 html[data-route='home'][data-3d='on'][data-ring] .skip-button {

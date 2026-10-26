@@ -145,26 +145,30 @@ describe("stopsFor: the stops the story rests on, by the void's state", () => {
     for (const state of ['idle', 'loading', 'ready'] as const) expect(stopsFor(HOME_CHAPTERS, state), state).toEqual(keyStops(HOME_CHAPTERS));
   });
 
-  it('is the home, BOB from above, the landing hold and the end page when the void failed', () => {
-    expect(stopsFor(c, 'failed')).toEqual([0, riseTop(c), LANDING_HOLD, scrollEnd(c)]);
-    expect(stopsFor(HOME_CHAPTERS, 'failed')).toEqual([0, 1, LANDING_HOLD, 7]);
+  it('is the home, BOB from above, the facts, the landing hold and the end page when the void failed: the fall still plays', () => {
+    const facts = [81, 121, 161, 201, 241].map(placeOfFrame);
+    expect(stopsFor(c, 'failed')).toEqual([0, riseTop(c), ...facts, LANDING_HOLD, scrollEnd(c)]);
+    expect(stopsFor(HOME_CHAPTERS, 'failed')).toEqual([0, 1, ...facts, LANDING_HOLD, 7]);
   });
 });
 
 describe("a failed void's stops: the keys and reduced motion's steps among them", () => {
   const failed = stopsFor(c, 'failed');
 
-  it('steps a key from BOB from above to the hold, on to the end page, and back; the rise stays the rise', () => {
-    expect(keyTarget(1, 0.15, c, failed)).toBe(LANDING_HOLD);
+  it('steps a key from BOB from above through the facts to the hold, on to the end page, and back; the rise stays the rise', () => {
+    expect(keyTarget(1, 0.15, c, failed)).toBe(F81);
+    expect(keyTarget(F241, 0.15, c, failed)).toBe(LANDING_HOLD);
     expect(keyTarget(LANDING_HOLD, 0.15, c, failed)).toBe(7);
     expect(keyTarget(7, -0.15, c, failed)).toBe(LANDING_HOLD);
-    expect(keyTarget(LANDING_HOLD, -0.9, c, failed)).toBe(1);
+    expect(keyTarget(LANDING_HOLD, -0.9, c, failed)).toBe(F241);
+    expect(keyTarget(F81, -0.9, c, failed)).toBe(1);
     expect(keyTarget(0, 0.15, c, failed)).toBeCloseTo(0.15, 12);
     expect(keyTarget(1, -0.15, c, failed)).toBeCloseTo(0.85, 12);
   });
 
   it("steps reduced motion's move the same way, and leaves a move with motion its distance", () => {
-    expect(moveTarget(1, 0.01, c, true, failed)).toBe(LANDING_HOLD);
+    expect(moveTarget(1, 0.01, c, true, failed)).toBe(F81);
+    expect(moveTarget(F241, 0.01, c, true, failed)).toBe(LANDING_HOLD);
     expect(moveTarget(7, -0.01, c, true, failed)).toBe(LANDING_HOLD);
     expect(moveTarget(0.5, 0.25, c, false, failed)).toBeCloseTo(0.75, 12);
   });

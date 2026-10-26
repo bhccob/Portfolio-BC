@@ -14,7 +14,9 @@ const ON_STOP = 1e-6;
  * to a place of a ring that is not there. The scroll input steps its keys among them (src/input/scrollLoop.ts).
  */
 export function stopsFor(c: Chapters, voidState: VoidState): number[] {
-  return voidState === 'failed' ? [0, riseTop(c), LANDING_HOLD, scrollEnd(c)] : keyStops(c);
+  if (voidState !== 'failed') return keyStops(c);
+  // The way in and the fall still play: the key stops short of the hold (the home, BOB from above, the facts), the hold.
+  return [...keyStops(c).filter((place) => place < LANDING_HOLD), LANDING_HOLD, scrollEnd(c)];
 }
 
 /**

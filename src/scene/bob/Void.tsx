@@ -19,7 +19,7 @@ import { showsSkip, writeRing } from '~/ui/SkipButton';
 import { motion } from '../motion';
 import type { Handover } from './Home';
 import { BEADS, type LightPose } from './journey';
-import { beadClocks, easeHover, hoverEase, hoversAt, labelFor, needleFor, needleGlowFor, selectedBead, stepBeadClocks, voidShownAt } from './voidPose';
+import { beadClocks, easeHover, hoverEase, hoversAt, labelFor, needleFor, needleGlowFor, ringStill, selectedBead, stepBeadClocks, voidShownAt } from './voidPose';
 import { loadVoid, type VoidLoadSteps } from './voidLoad';
 import { uploadTextures, warm } from './warm';
 
@@ -330,7 +330,8 @@ export interface VoidProps {
  *   home page and no bead is close or flown to, and never while the Opening poses the scene itself or after unmount;
  * - the front bead's label (src/ui/BeadLabel.tsx `showBeadLabel`, `labelFor`): in the ring, within 20 degrees of a
  *   project, beside the bead where the camera puts it on the screen (its centre projected, its radius from its distance
- *   and the field), in full while the ring stands still (the shown place on its target) and clear while it turns; none
+ *   and the field), in full while the ring stands still (`ringStill`: the shown place on its target, and always with
+ *   reduced motion) and clear while it turns; none
  *   anywhere else.
  * A pointer move over the page wakes the canvas only when it moves the hover onto another bead or off one; the hover,
  * the label and a click read nothing on a page without the home's scene, nor while a bead is seen close or the camera
@@ -681,7 +682,7 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
     run.selected = selected;
 
     // The front bead's label beside it, in the ring: in full while the ring stands still, clear while it turns.
-    const labelled = run.reading ? labelFor(pose.at, frame.progress === frame.target) : null;
+    const labelled = run.reading ? labelFor(pose.at, ringStill(frame.progress, frame.target, reduced)) : null;
     if (labelled === null) {
       showBeadLabel(null, size);
     } else {

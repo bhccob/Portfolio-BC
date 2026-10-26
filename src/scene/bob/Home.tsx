@@ -9,7 +9,7 @@ import type { SmokeModel } from '~/engine/bob/build/smoke';
 import type { TracesModel } from '~/engine/bob/build/traces';
 import { aimsAt, driftAngle, NEEDLE_SPRING, needleAngleAt, needleAngleFor } from '~/engine/bob/needleAim';
 import { AT_REST } from '~/engine/stillness';
-import { HOME_CHAPTERS, scrollEnd, stops } from '~/state/chapters';
+import { HOME_CHAPTERS, scrollEnd } from '~/state/chapters';
 import { frame } from '~/state/frame';
 import { useScene } from '~/state/store';
 import { motion } from '../motion';
@@ -18,17 +18,20 @@ import { idleRuns, needleRests, stirIdle } from './idle';
 import type { JourneyPose } from './journey';
 import { needleGlowAt } from './look';
 import { HOME_POSE } from './openingPose';
+import { heldAtLanding } from './landingHold';
 import { risingFor } from './scrollPose';
-import { nearestStop, STEP_FADE_ATTRIBUTE, type StepFade, stepFadeAt, stepFadeFrom } from './stepFade';
+import { STEP_FADE_ATTRIBUTE, type StepFade, stepFadeAt, stepFadeFrom, stepStopFor } from './stepFade';
 
 /** The longest step the needle and the idle clock take in one frame, seconds: a wake from sleep jumps neither. */
 const MAX_STEP = 0.1;
 
 /** Where the home's scroll comes to rest (`stops`): the step fade's places under reduced motion. */
-const STOPS = stops(HOME_CHAPTERS);
 
 /** The attribute on <html> that takes the hero's SCROLL cue away while the camera is up the rise (src/styles/base.css). */
 const RISING_ATTRIBUTE = 'data-rising';
+
+/** The attribute on <html> while a failed void holds the story at the landing (landingHold.ts `heldAtLanding`). */
+const HELD_ATTRIBUTE = 'data-held';
 
 /** The end page's stop, the scroll's end: the end view rests there (endView.ts). */
 const END = scrollEnd(HOME_CHAPTERS);
@@ -108,6 +111,8 @@ interface HomeState {
   faded: boolean;
   /** `<html data-rising>` is set: likewise, the DOM as Home last wrote it. */
   rising: boolean;
+  /** `<html data-held>` is set: likewise. */
+  held: boolean;
   /** The end view (`--end`, `<html data-end>`, `#end`'s inert) as Home last wrote it (endView.ts). */
   end: EndWritten;
   /** The glass top's fade and the glass's dissolve as Home last wrote them (NaN when not written since a hand-over). */
@@ -148,6 +153,13 @@ function showRising(state: HomeState, on: boolean): void {
   if (state.rising === on) return;
   state.rising = on;
   document.documentElement.toggleAttribute(RISING_ATTRIBUTE, on);
+}
+
+/** Sets or takes away `<html data-held>`, and notes it, writing the DOM only when it changes. */
+function showHeld(state: HomeState, on: boolean): void {
+  if (state.held === on) return;
+  state.held = on;
+  document.documentElement.toggleAttribute(HELD_ATTRIBUTE, on);
 }
 
 /** `frame.scroll` with nothing driving the home: every share 0. */
@@ -227,6 +239,7 @@ export function Home({ models, handover }: HomeProps): null {
     fade: stepFadeFrom(0),
     faded: false,
     rising: false,
+    held: false,
     end: endWritten(),
     top: Number.NaN,
     dissolve: Number.NaN,
@@ -243,6 +256,7 @@ export function Home({ models, handover }: HomeProps): null {
       Object.assign(motion.compass, AT_REST);
       showStepFade(state, false);
       showRising(state, false);
+      showHeld(state, false);
       clearEndView(document.documentElement, endPage(), state.end, 'gone');
       clearScroll();
     },
@@ -266,6 +280,7 @@ export function Home({ models, handover }: HomeProps): null {
         state.top = state.dissolve = Number.NaN;
         showStepFade(state, false);
         showRising(state, false);
+        showHeld(state, false);
         clearEndView(document.documentElement, endPage(), state.end, 'let-go');
         clearScroll();
       }
@@ -274,10 +289,11 @@ export function Home({ models, handover }: HomeProps): null {
     }
     const now = performance.now();
     const dt = Math.min(Math.max(delta, 0), MAX_STEP);
-    const { reducedMotion: reduced, transitionId, phase, scene } = useScene.getState();
+    const { reducedMotion: reduced, transitionId, phase, scene, voidState } = useScene.getState();
 
-    // The stop the scroll's target is nearest: what the step fade shows once it has faded there (reduced motion only).
-    const stop = nearestStop(STOPS, frame.target);
+    // The stop the scroll's target is nearest, of the stops the story rests on (the key stops, or a failed void's): what
+    // the step fade shows once it has faded there (reduced motion only).
+    const stop = stepStopFor(frame.target, voidState);
 
     // What stirs the idle motion: the hand-over (the needle starts where the opening left it, still, and the idle clock
     // at its start, where the drift sets off from the rest), a phase change, a pointer move at home, and the scroll.
@@ -380,6 +396,8 @@ export function Home({ models, handover }: HomeProps): null {
     }
     // The hero's SCROLL cue goes with the rise and comes back at the home (the spec shows no text during the scroll).
     showRising(state, risingFor(pose.u));
+    // A failed void holds the story at the landing: the home's nav shows over the scene there.
+    showHeld(state, heldAtLanding(shown, voidState));
     // The end page (endView.ts): how far it has slid up in this frame's pose, and where the story stands, the progress
     // Home poses (with reduced motion the stop the step fade shows) and the target; written only where it changes.
     applyEndView(endViewFor(journey.sheet, shown, frame.target, END), document.documentElement, endPage(), state.end);

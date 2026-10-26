@@ -23,3 +23,12 @@ export const LANDING_HOLD = placeOfFrame(258);
 export function landingHoldFor(state: VoidState): number {
   return state === 'ready' ? scrollEnd(HOME_CHAPTERS) : LANDING_HOLD;
 }
+
+/**
+ * Whether the story stands held at the landing for good: the void failed, and the progress shown is at the hold (or past
+ * it, short of the end page, which a failed void never poses). There the home's nav shows over the scene, with its link
+ * to the questions (src/styles/base.css, `<html data-held>`, which Home writes).
+ */
+export function heldAtLanding(progress: number, state: VoidState): boolean {
+  return state === 'failed' && progress >= LANDING_HOLD - 1e-6 && progress < scrollEnd(HOME_CHAPTERS) - 1e-6;
+}

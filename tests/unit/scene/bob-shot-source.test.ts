@@ -4,12 +4,12 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { LoaderStage } from '~/engine/bob/loaderTimeline';
 import { SHOT_PRIORITY, type ShotSource, shotSourceFor, shownProgressFor } from '~/scene/bob/shotSource';
-import { HOME_CHAPTERS, stops } from '~/state/chapters';
+import { HOME_CHAPTERS, keyStops, placeOfFrame } from '~/state/chapters';
 
 const STAGES: readonly LoaderStage[] = ['dark', 'engrave', 'open', 'rise', 'home'];
 const LOADER_STAGES = STAGES.filter((stage) => stage !== 'home');
 const HELD: readonly (number | null)[] = [null, 0, 1.75, 5, 8.25];
-const STOPS = stops(HOME_CHAPTERS);
+const STOPS = keyStops(HOME_CHAPTERS);
 
 describe('shotSourceFor: who writes the camera shot', () => {
   it('is the loader on every stage before the home, whether or not a seek holds the clock and whether or not Home was live', () => {
@@ -85,11 +85,11 @@ describe('shownProgressFor: the progress the home and the journey pose the shot 
     expect(shownProgressFor('journey', true, 5, 6, 3)).toBe(3);
   });
 
-  it('with reduced motion is the stop the target is nearest at the hand-over (the home), as Home poses it with no fade', () => {
+  it('with reduced motion is the key stop the target is nearest at the hand-over (the home), as Home poses it with no fade', () => {
     expect(shownProgressFor('home', true, 0.2, 0, 4)).toBe(0);
-    expect(shownProgressFor('home', true, 2.9, 3, 0)).toBe(3);
+    expect(shownProgressFor('home', true, 2.9, 3, 0)).toBe(placeOfFrame(201));
     // The progress is mid-travel, the target at a stop: the stop it is going to.
-    expect(shownProgressFor('home', true, 1.4, 2, 0)).toBe(2);
+    expect(shownProgressFor('home', true, 1.4, placeOfFrame(81), 0)).toBe(placeOfFrame(81));
     expect(shownProgressFor('home', true, 4.9, 5.2, 0)).toBe(5);
   });
 
