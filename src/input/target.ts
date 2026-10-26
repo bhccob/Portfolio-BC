@@ -1,4 +1,5 @@
-import { type ChapterAt, type Chapters, chapterAt, riseTop, scrollEnd, stops } from '~/state/chapters';
+import { LANDING_HOLD } from '~/scene/bob/landingHold';
+import { type ChapterAt, type Chapters, chapterAt, keyStops, riseTop, scrollEnd, sheetStart } from '~/state/chapters';
 import { type Phase, SCROLL_PHASES } from '~/state/machine';
 import type { VoidState } from '~/state/store';
 
@@ -6,23 +7,24 @@ import type { VoidState } from '~/state/store';
 const ON_STOP = 1e-6;
 
 /**
- * The stops the story rests on for the void's state (`VoidState`, src/scene/bob/Void.tsx): every chapter's start
- * (`stops`) while the void is there or still to come, and with the void failed only the home, BOB from above (the top of
- * the rise, where the scroll holds then: src/scene/bob/diveHold.ts) and the end page, so nothing steps to a stop of a void
- * that is not there. The scroll input steps its keys and settles its gestures among them (src/input/scrollLoop.ts).
+ * The stops a key, and reduced motion's every input, steps among for the void's state (`VoidState`,
+ * src/scene/bob/Void.tsx): the key stops (`keyStops`: the home, BOB from above, each fact at its full strength, each
+ * project, the end page) while the void is there or still to come, and with the void failed only the home, BOB from
+ * above, the landing hold (src/scene/bob/landingHold.ts, where the scroll holds then) and the end page, so nothing steps
+ * to a place of a ring that is not there. The scroll input steps its keys among them (src/input/scrollLoop.ts).
  */
 export function stopsFor(c: Chapters, voidState: VoidState): number[] {
-  return voidState === 'failed' ? [0, riseTop(c), scrollEnd(c)] : stops(c);
+  return voidState === 'failed' ? [0, riseTop(c), LANDING_HOLD, scrollEnd(c)] : keyStops(c);
 }
 
 /**
  * Where the scroll target goes for a delta of `units` (one unit is a viewport height of scroll).
- * Normally it moves by the delta and stays inside the story, 0 to its last stop (`scrollEnd`). With reduced motion it
+ * Normally it moves by the delta and stays inside the story, 0 to the end page (`scrollEnd`). With reduced motion it
  * does not move by a distance but to a place: the next stop down the story for a delta down, the previous one up for
- * a delta up, whatever the size of the delta; none past the last. The stops are `places`, in order: every chapter's
- * start (`stops`) unless given (`stopsFor` the void's state).
+ * a delta up, whatever the size of the delta; none past the last. The stops are `places`, in order: the key stops
+ * (`keyStops`) unless given (`stopsFor` the void's state).
  */
-export function moveTarget(target: number, units: number, c: Chapters, reducedMotion: boolean, places: readonly number[] = stops(c)): number {
+export function moveTarget(target: number, units: number, c: Chapters, reducedMotion: boolean, places: readonly number[] = keyStops(c)): number {
   const end = scrollEnd(c);
   if (!reducedMotion) return Math.min(Math.max(target + units, 0), end);
   if (units === 0) return target;
@@ -30,7 +32,7 @@ export function moveTarget(target: number, units: number, c: Chapters, reducedMo
   return places.findLast((stop) => stop < target - ON_STOP) ?? 0;
 }
 
-/** True for a place on the rise, below its top (`riseTop`): there the scroll is continuous and nothing settles. */
+/** True for a place on the rise, below its top (`riseTop`): there the scroll is M2a's, and a key moves by its distance. */
 export function onRise(place: number, c: Chapters): boolean {
   return place < riseTop(c) - ON_STOP;
 }
@@ -39,9 +41,10 @@ export function onRise(place: number, c: Chapters): boolean {
  * Where a key (an arrow, Page Up or Down, Space; `units` is its distance, signed) takes the target without reduced
  * motion. On the rise it moves by its distance, as M2a's keys did, but never past the rise's top, BOB from above, a
  * stop. From the top on it steps to the next stop down, or up to the one before, whatever its distance, as reduced
- * motion's steps do (among `places`, `stops` unless given); up from the top it is back on the rise, by its distance again.
+ * motion's steps do (among `places`, the key stops unless given): in the light dive from fact to fact, then from project
+ * to project and on to the end page; up from the top it is back on the rise, by its distance again.
  */
-export function keyTarget(target: number, units: number, c: Chapters, places: readonly number[] = stops(c)): number {
+export function keyTarget(target: number, units: number, c: Chapters, places: readonly number[] = keyStops(c)): number {
   if (units === 0) return target;
   const top = riseTop(c);
   if (units > 0) return onRise(target, c) ? Math.min(target + units, top) : moveTarget(target, units, c, true, places);
@@ -49,51 +52,37 @@ export function keyTarget(target: number, units: number, c: Chapters, places: re
 }
 
 /**
- * How far a finger must take the target from a stop to go on to the next, px: under it the scroll eases back to the
- * stop, so a touch that only wavers is no step. It is the distance a swipe needs to take a step with reduced motion
- * (VirtualScroll's SWIPE_STEP_PX). A wheel has none: a wheel gesture of any size steps at least one stop in its
- * direction, as a single notch set to scroll one line (Firefox's 16 px, Chromium's 33 or so) is under any slop.
+ * How far a finger must take the story from the end page of a failed void before it steps back (src/input/scrollLoop.ts),
+ * px: under it the story stays there, so a touch that only wavers, or a pull at the page's top, makes no fade. It is the
+ * distance a swipe needs to take a step with reduced motion (VirtualScroll's SWIPE_STEP_PX).
  */
 export const SETTLE_SLOP_PX = 40;
 
 /**
- * A wheel's slop at the end page, px: a wheel gesture that begins there (at the page's top, where an input up is the
- * story's) and carries no further than this eases back to the end page, so a pixel's nudge of a trackpad or a smooth
- * wheel does not take the story back to Cookies Clicker; one real notch (100 px or more) still does. Everywhere else a
- * wheel has no slop.
+ * Whether a wheel or touch gesture rests on the rise's top, BOB from above, once it has ended: one that came up out of
+ * the rise (`from` on it, travelling down, `direction` by default the sign of `to - from`) and ended past the top by no
+ * more than a whole unit, the end of M2a's rise; further it is a fling, and rests where it ends, as every gesture past the
+ * rise does. One that ends on the rise rests where it is (M2a's rise is continuous).
  */
-export const END_WHEEL_SLOP_PX = 10;
+export function restsAtTop(from: number, to: number, c: Chapters, direction = Math.sign(to - from)): boolean {
+  const top = riseTop(c);
+  return onRise(from, c) && direction > 0 && !onRise(to, c) && to <= top + 1 + ON_STOP;
+}
+
+/** A sheet stopped under this share of its way up goes back down onto Cookies Clicker, whichever way the scroll went. */
+export const SHEET_BACK = 0.03;
 
 /**
- * Where a wheel or touch gesture comes to rest without reduced motion, once it has ended: `from` is where its target
- * stood when it began, `to` where it ended (a finger's with the glide its lift would carry), `slop` SETTLE_SLOP_PX in
- * units for a finger and 0 for a wheel, `direction` its direction of travel as it ended (1 down the story, -1 up, 0 for
- * none known: by default the sign of `to - from`; a gesture that turned back travels the way it turned). Past the
- * rise's top every gesture rests on a stop, so a bead's label (which shows only at its stop) shows:
- * - in its direction of travel, on the stop it last passed or left, if it is no more than `slop` past it (a nudge eases
- *   back to the stop it began on; a fling that passed a stop by a hair rests there), else on the next stop on;
- * - a fling may so pass several stops; a single notch or a small swipe moves one;
- * - one that ended on a stop, or went nowhere, rests on it or on the nearer stop.
- * One that comes up out of the rise (`from` on it, travelling down) rests on its top, BOB from above, the end of M2a's
- * rise, unless it carried more than a whole unit past the top: that is a fling, and it settles as any other. One that
- * ends on the rise rests where it is (M2a's rise is continuous). Never past the last stop. The stops are `places`, every
- * chapter's start (`stops`) unless given (`stopsFor` the void's state). The scroll's hold applies after this, as to any
- * input.
+ * Where the sheet finishes once the scroll has stopped part-way up it, at `place` ("Follow, then finish", spec
+ * 2026-10-25-bob-light-dive-design.md): on up to the end page if the last move went down (`direction` above 0) and the
+ * sheet is at least SHEET_BACK up, else back down onto Cookies Clicker, the sheet's start. Null off the sheet, and at
+ * its two ends, where there is nothing to finish: the ring never moves by itself.
  */
-export function settleTarget(from: number, to: number, c: Chapters, slop: number, direction = Math.sign(to - from), places: readonly number[] = stops(c)): number {
+export function finishTarget(place: number, direction: number, c: Chapters): number | null {
+  const start = sheetStart(c);
   const end = scrollEnd(c);
-  const place = Math.min(Math.max(to, 0), end);
-  if (onRise(place, c)) return place;
-  const top = riseTop(c);
-  if (onRise(from, c) && direction > 0 && to <= top + 1 + ON_STOP) return top;
-  const on = places.find((stop) => Math.abs(stop - place) <= ON_STOP);
-  if (on !== undefined) return on;
-  // Off a stop and past the rise's top, itself a stop: there is a stop on either side.
-  const below = places.findLast((stop) => stop < place) ?? 0;
-  const above = places.find((stop) => stop > place) ?? end;
-  if (direction > 0) return place - below <= slop ? below : above;
-  if (direction < 0) return above - place <= slop ? above : below;
-  return place - below <= above - place ? below : above;
+  if (!(place > start && place < end)) return null;
+  return direction > 0 && place - start >= SHEET_BACK * (end - start) ? end : start;
 }
 
 /**
@@ -110,7 +99,7 @@ export function changedChapter(c: Chapters, progress: number, chapterIndex: numb
 
 /**
  * True when a delta of `units` has left `target` against an end of the story: a delta up at 0, or down at the end (the
- * last stop), or at `limit`, the most the target may reach now (`holdLimit`; the end by default). A glide that is
+ * end page), or at `limit`, the most the target may reach now (`holdLimit`; the end by default). A glide that is
  * pushing into the wall has nowhere to go, so it is ended instead of keeping the frame loop awake.
  */
 export function pinnedAtEnd(target: number, units: number, c: Chapters, limit = scrollEnd(c)): boolean {
@@ -118,28 +107,28 @@ export function pinnedAtEnd(target: number, units: number, c: Chapters, limit = 
 }
 
 /**
- * The most the target may reach under a hold of `hold` units (src/scene/bob/diveHold.ts `diveHoldFor`): the hold, kept
- * within the story, 0 to its last stop (one that is not a number holds nothing). With reduced motion, which rests on
- * stops alone and never travels between them, it is the last stop at or under the hold, so a step that the hold stops is
- * no step at all.
+ * The most the target may reach under a hold of `hold` units (src/scene/bob/landingHold.ts `landingHoldFor`): the hold,
+ * kept within the story, 0 to the end page (one that is not a number holds nothing). With reduced motion, which rests on
+ * stops alone and never travels between them, it is the last of `places` (the key stops unless given) at or under the
+ * hold, so a step that the hold stops is no step at all.
  */
-export function holdLimit(hold: number, c: Chapters, reducedMotion: boolean): number {
+export function holdLimit(hold: number, c: Chapters, reducedMotion: boolean, places: readonly number[] = keyStops(c)): number {
   const end = scrollEnd(c);
   const limit = Number.isNaN(hold) ? end : Math.min(Math.max(hold, 0), end);
   if (!reducedMotion) return limit;
-  return stops(c).findLast((stop) => stop <= limit + ON_STOP) ?? 0;
+  return places.findLast((stop) => stop <= limit + ON_STOP) ?? 0;
 }
 
 /**
- * Where a target that rests on a hold goes once the hold rises to `limit` (the void is ready), when the input had
- * asked for `asked`, past the old hold: on to the next stop at least (the dive goes on to its end, the overview), or as
- * far as it asked if that is further (End, a long wheel), and never past the new limit.
+ * Where a target that rests on a hold goes once the hold rises to `limit` (the beads are ready), when the input had
+ * asked for `asked`, past the old hold: on to the next key stop at least (from the landing hold, Funcial's), or as far
+ * as it asked if that is further (End, a long wheel), and never past the new limit.
  */
 export function releaseTarget(target: number, asked: number, limit: number, c: Chapters): number {
   return Math.min(limit, Math.max(asked, moveTarget(target, 1, c, true)));
 }
 
-/** Where Home and End go: the start of the story and its end, the last stop (the end page's). */
+/** Where Home and End go: the start of the story and its end, the end page's stop. */
 export function jumpTarget(to: 'home' | 'end', c: Chapters): number {
   return to === 'home' ? 0 : scrollEnd(c);
 }

@@ -26,7 +26,8 @@ export interface VirtualScrollOptions {
    *   and the caller may end that glide (`stopGlide`) to settle the scroll itself;
    * - either, with no glide, when it is cut short: a touchcancel, a second finger, the scroll no longer enabled under
    *   it, or `stop`.
-   * The caller settles its target on a stop from here (src/input/target.ts `settleTarget`). Without it nothing is told.
+   * The caller rests a gesture that came up out of the rise on its top from here (src/input/target.ts `restsAtTop`), and
+   * counts the sheet's quiet from a lift. Without it nothing is told.
    */
   onGestureEnd?: (glide: number) => void;
   /**
@@ -98,8 +99,7 @@ interface Drag {
  * With reduced motion nothing glides and nothing moves by a distance: a whole wheel gesture (events less than
  * 250 ms apart), a swipe, or a key press gives one `onDelta`, which the caller turns into one step.
  *
- * Without it each wheel or touch gesture that moved the scroll is told when it ends (`onGestureEnd`), so the caller
- * can settle the story on a stop.
+ * Without it each wheel or touch gesture that moved the scroll is told when it ends (`onGestureEnd`).
  */
 export class VirtualScroll {
   private readonly inertia = new Inertia();
@@ -139,6 +139,11 @@ export class VirtualScroll {
   /** True while a wheel gesture waits out its quiet to end, so the caller must keep calling `step`, which counts it. */
   get waiting(): boolean {
     return this.quiet !== null;
+  }
+
+  /** True while a finger is on the glass and the input has it (its drag, or its hold of the story): it has not lifted. */
+  get touching(): boolean {
+    return this.drag !== null || this.holding;
   }
 
   /**

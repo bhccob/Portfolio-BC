@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { debugBridge } from '~/debug/needleDebug';
-import { diveHoldFor } from '~/scene/bob/diveHold';
+import { landingHoldFor } from '~/scene/bob/landingHold';
 import { wakeScene } from '~/scene/motion';
 import { HOME_CHAPTERS } from '~/state/chapters';
 import { frame } from '~/state/frame';
@@ -16,11 +16,10 @@ let connected: HomeScroll | null = null;
 
 /**
  * The nav's link to the end page (`.end-link` in the home's `.home-nav`, src/app/routes/home.tsx), a keyboard's and a
- * screen reader's way there while 3D is on: the story goes to the end page by the End key's own path (`HomeScroll.toEnd`):
- * with the void ready the damped move from wherever it is, with reduced motion the step fade, with the void failed the
- * step fade past the hold at BOB from above (never a camera move through a void that is not there), and while the void
- * loads the hold over the tunnel, then on to the end once it is ready. Answers whether the home's scroll took it: false
- * while none is connected, or while it takes no input (3D off, a phase off the scroll, a skipped loader's tail).
+ * screen reader's way there while 3D is on, and the ring's skip button's: the story goes to the end page by the End key's
+ * own path (`HomeScroll.toEnd`), the step fade from wherever it is, and while the beads load the follow to the landing
+ * hold, then the fade on to the end once they are ready. Answers whether the home's scroll took it: false while none is
+ * connected, or while it takes no input (3D off, a phase off the scroll, a skipped loader's tail).
  */
 export function goToEnd(): boolean {
   return connected?.toEnd() ?? false;
@@ -36,8 +35,8 @@ export function headedToEnd(): boolean {
 
 /**
  * The header's name clicked on the home page (src/ui/SiteHeader.tsx `nameToTop`): the story goes to its start by the
- * Home key's own path (`HomeScroll.toTop`), the page back at its top first, from any stop and from the end page, by the
- * step fade where the void failed. Answers whether the home's scroll took it: false while none is connected, or while it
+ * Home key's own path (`HomeScroll.toTop`), the page back at its top first: by the step fade from the ring, the sheet
+ * and the end page, back up by the follow from the light dive. Answers whether the home's scroll took it: false while none is connected, or while it
  * takes no input (3D off, a bead opening), where the link is left to navigate as any link does.
  */
 export function goToTop(): boolean {
@@ -90,19 +89,19 @@ export interface HomeScrollPage {
  * `enabled`, because an event `enabled` turns away is left to the browser, and the browser would scroll with it.
  *
  * A requestAnimationFrame loop (not R3F's `useFrame`: the canvas renders on demand) moves `frame.progress`
- * toward `frame.target` and sleeps when it arrives and no glide is going; an input wakes it. It dispatches
+ * toward `frame.target` (on the rise by M2a's damp, past it by the follow, the sheet's finish and the keys' glides) and
+ * sleeps when it arrives and nothing glides; an input wakes it. It dispatches
  * `CHAPTER` when `progress` crosses into another chapter, and keeps `frame.chapterIndex` in step with
  * `chapterAt` (the route sync reads it when a visitor comes back to `/`). Each frame it asks for also wakes the
  * canvas (`wakeScene`), so the scene draws the frames in which the story moves.
  *
- * The void under the glass holds it (`diveHoldFor` of the store's `voidState`, src/scene/bob/diveHold.ts): while the
- * void loads the target goes no further than the dive's hold over the tunnel's opening (Bob's frame d01), and if it
- * failed no further than BOB from above. When the void's state changes the input is told (`holdChanged`), so a story
- * held over the tunnel goes on once the void is ready, or comes back to BOB from above if it failed. With 3D off the
- * void goes with the Stage and nothing holds the visitor's place back; 3D back on (`resume`) holds a story past the
- * hold until the void is ready again, and then takes it back where it was. With the void failed the story rests only
- * on `stopsFor`'s stops, and the end page, past the hold, is reached by a key's step, End or the page's link (`goToEnd`)
- * and left by the step fade (`startHomeScroll`, "A failed void").
+ * The beads under the glass hold it (`landingHoldFor` of the store's `voidState`, src/scene/bob/landingHold.ts): until
+ * they are ready, the target goes no further than the landing hold, the light just short of the ring. When the void's
+ * state changes the input is told (`holdChanged`), so a story held there goes on once the beads are ready. With 3D off
+ * the void goes with the Stage and nothing holds the visitor's place back; 3D back on (`resume`) holds a story past the
+ * hold until the void is ready again, and then takes it back where it was. With the void failed the hold stands, the
+ * keys step only among `stopsFor`'s stops, and the end page, past the hold, is reached by a key's step, End or the
+ * page's link (`goToEnd`) and left by the step fade (`startHomeScroll`, "A failed void").
  */
 export function connectHomeScroll(page: HomeScrollPage): () => void {
   const home = startHomeScroll({
@@ -118,7 +117,7 @@ export function connectHomeScroll(page: HomeScrollPage): () => void {
     ),
     reducedMotion: () => useScene.getState().reducedMotion,
     threeD: () => useScene.getState().threeD,
-    hold: () => diveHoldFor(useScene.getState().voidState),
+    hold: () => landingHoldFor(useScene.getState().voidState),
     holdWaits: () => useScene.getState().voidState !== 'failed',
     voidState: () => useScene.getState().voidState,
     onChapter: (at) => useScene.getState().dispatch({ type: 'CHAPTER', chapter: at.id, category: at.category }),

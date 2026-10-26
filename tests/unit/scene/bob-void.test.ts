@@ -8,7 +8,7 @@ import { readNeedleDebugState } from '~/debug/useNeedleDebug';
 import { startHomeScroll } from '~/input/scrollLoop';
 import { connectHomeScroll } from '~/input/useHomeScroll';
 import { holdLimit, releaseTarget } from '~/input/target';
-import { diveHoldFor, RISE_TOP } from '~/scene/bob/diveHold';
+import { LANDING_HOLD, landingHoldFor, RISE_TOP } from '~/scene/bob/landingHold';
 import { BEADS, journeyAt, journeyPoseAt } from '~/scene/bob/journey';
 import { F, LIGHT_FRAMES } from '~/scene/bob/lightDive';
 import { nearestStop } from '~/scene/bob/stepFade';
@@ -23,7 +23,7 @@ import {
   writeJourney
 } from '~/scene/bob/voidPose';
 import { NavigationType } from 'react-router';
-import { chapterAt, HOME_CHAPTERS, placeOfFrame, scrollEnd, stops } from '~/state/chapters';
+import { chapterAt, HOME_CHAPTERS, keyStops, placeOfFrame, scrollEnd, stops } from '~/state/chapters';
 import { frame } from '~/state/frame';
 import { BACK_STATE, resetRouteSync, stopForProject, syncRoute } from '~/state/routeSync';
 import { useScene, type VoidState } from '~/state/store';
@@ -31,71 +31,66 @@ import { useScene, type VoidState } from '~/state/store';
 const LAPTOP = 16 / 9;
 const PHONE = 390 / 844;
 const SCREENS = [LAPTOP, PHONE] as const;
-const STOPS = stops(HOME_CHAPTERS);
-/** The end of the scroll: the end page's stop (2026-10-24: a seventh stop after Cookies Clicker's, 5; nothing lies past it). */
+const KEY_STOPS = keyStops(HOME_CHAPTERS);
+/** The end of the scroll: the end page's stop, 7 (nothing lies past it). */
 const END = scrollEnd(HOME_CHAPTERS);
 
 // ---------------------------------------------------------------- the hold
 
-describe('diveHoldFor: the most the scroll may reach before the void is ready', () => {
-  it('is TUNNEL_HOLD while the void is idle or loading: the dive holds over the opening, looking down the glowing tunnel (d01), the void out of sight', () => {
-    expect(diveHoldFor('idle')).toBe(TUNNEL_HOLD);
-    expect(diveHoldFor('loading')).toBe(TUNNEL_HOLD);
-    expect(journeyAt(diveHoldFor('loading')).stretch).toBe('dive');
-    for (const a of SCREENS) {
-      const shot = journeyPoseAt(diveHoldFor('loading'), a).shot;
-      expect(shot.position[1]).toBeGreaterThan(0);
-      expect(voidShownFor(shot)).toBe(false);
-    }
+/** The last fact's place, the light dive's frame 241: reduced motion's hold, the last key stop under the landing hold. */
+const F241 = placeOfFrame(241);
+/** The landing hold. */
+const H = LANDING_HOLD;
+
+describe('landingHoldFor: the most the scroll may reach before the beads are ready', () => {
+  it('is LANDING_HOLD, the light just short of the ring, until the void is ready, failed included', () => {
+    for (const state of ['idle', 'loading', 'failed'] as const) expect(landingHoldFor(state), state).toBe(H);
+    expect(H).toBe(placeOfFrame(258));
+    expect(journeyAt(H).stretch).toBe('light');
+    expect(journeyAt(H).frame).toBeCloseTo(258, 9);
+    for (const a of SCREENS) expect(journeyPoseAt(H, a).beads, 'the beads not yet in sight').toBeNull();
   });
 
   it("is the end of the scroll once the void is ready, the end page's stop: nothing holds", () => {
-    expect(diveHoldFor('ready')).toBe(END);
-    expect(END).toBe(6);
-  });
-
-  it('is BOB from above, the top of the rise, when the void failed: the dive never starts, as with 3D off', () => {
-    expect(diveHoldFor('failed')).toBe(1);
-    expect(RISE_TOP).toBe(1);
-    expect(journeyPoseAt(RISE_TOP, LAPTOP).rise.u).toBe(1);
-    expect(STOPS).toContain(diveHoldFor('failed'));
+    expect(landingHoldFor('ready')).toBe(END);
+    expect(END).toBe(7);
   });
 
   it('answers a hold for every state, never above the end nor below the top of the rise', () => {
     for (const state of ['idle', 'loading', 'ready', 'failed'] as const satisfies readonly VoidState[]) {
-      expect(diveHoldFor(state)).toBeGreaterThanOrEqual(RISE_TOP);
-      expect(diveHoldFor(state)).toBeLessThanOrEqual(END);
+      expect(landingHoldFor(state)).toBeGreaterThanOrEqual(RISE_TOP);
+      expect(landingHoldFor(state)).toBeLessThanOrEqual(END);
     }
   });
 });
 
 describe('holdLimit and releaseTarget: the hold as the scroll input applies it', () => {
   it('is the hold itself without reduced motion, within the story', () => {
-    expect(holdLimit(TUNNEL_HOLD, HOME_CHAPTERS, false)).toBe(TUNNEL_HOLD);
+    expect(holdLimit(H, HOME_CHAPTERS, false)).toBe(H);
     expect(holdLimit(END, HOME_CHAPTERS, false)).toBe(END);
     expect(holdLimit(99, HOME_CHAPTERS, false)).toBe(END);
     expect(holdLimit(-1, HOME_CHAPTERS, false)).toBe(0);
     expect(holdLimit(Number.NaN, HOME_CHAPTERS, false)).toBe(END);
   });
 
-  it('is the last stop at or under the hold with reduced motion, which rests on stops alone', () => {
-    expect(holdLimit(TUNNEL_HOLD, HOME_CHAPTERS, true)).toBe(1);
+  it('is the last key stop at or under the hold with reduced motion, which rests on stops alone', () => {
+    expect(holdLimit(H, HOME_CHAPTERS, true)).toBe(F241);
     expect(holdLimit(1, HOME_CHAPTERS, true)).toBe(1);
     expect(holdLimit(END, HOME_CHAPTERS, true)).toBe(END);
-    for (let hold = 0; hold <= END; hold += 0.125) expect(STOPS).toContain(holdLimit(hold, HOME_CHAPTERS, true));
+    for (let hold = 0; hold <= END; hold += 0.125) expect(KEY_STOPS).toContain(holdLimit(hold, HOME_CHAPTERS, true));
   });
 
-  it('goes on to the next stop once the hold rises, or further where the input asked further, never past the new hold', () => {
-    // A wheel that pressed a notch past the tunnel's hold: the dive goes on to the overview.
-    expect(releaseTarget(TUNNEL_HOLD, TUNNEL_HOLD + 0.133, END, HOME_CHAPTERS)).toBe(2);
+  it('goes on to the next key stop once the hold rises, or further where the input asked further, never past the new hold', () => {
+    // A wheel that pressed a notch past the hold: on to Funcial.
+    expect(releaseTarget(H, H + 0.1, END, HOME_CHAPTERS)).toBe(4);
     // End, pressed while held: the end.
-    expect(releaseTarget(TUNNEL_HOLD, END, END, HOME_CHAPTERS)).toBe(END);
-    // A long wheel that asked for 3.4: there.
-    expect(releaseTarget(TUNNEL_HOLD, 3.4, END, HOME_CHAPTERS)).toBe(3.4);
-    // Reduced motion, held on stop 1 and asked for stop 2: stop 2.
-    expect(releaseTarget(1, 2, END, HOME_CHAPTERS)).toBe(2);
+    expect(releaseTarget(H, END, END, HOME_CHAPTERS)).toBe(END);
+    // A long wheel that asked for 4.6: there.
+    expect(releaseTarget(H, 4.6, END, HOME_CHAPTERS)).toBe(4.6);
+    // Reduced motion, held on the last fact and asked for Funcial: Funcial.
+    expect(releaseTarget(F241, 4, END, HOME_CHAPTERS)).toBe(4);
     // Never past the hold it is released to.
-    expect(releaseTarget(TUNNEL_HOLD, END, 4.5, HOME_CHAPTERS)).toBe(4.5);
+    expect(releaseTarget(H, END, 4.5, HOME_CHAPTERS)).toBe(4.5);
   });
 });
 
@@ -160,8 +155,9 @@ function held(voidState: VoidState, options: { reduced?: boolean; at?: number } 
     enabled: () => true,
     reducedMotion: () => state.reduced,
     threeD: () => state.threeD,
-    hold: () => diveHoldFor(state.voidState),
+    hold: () => landingHoldFor(state.voidState),
     holdWaits: () => state.voidState !== 'failed',
+    voidState: () => state.voidState,
     onChapter: (chapter) => chapters.push(chapter.id),
     loadSmooth: () => Promise.resolve(damp),
     request: frames.request,
@@ -176,6 +172,19 @@ function held(voidState: VoidState, options: { reduced?: boolean; at?: number } 
       frames.frame();
     }
   };
+  /** A finger that drags `moves` steps of `px` up the glass (down the story), 16 ms apart, then lifts at once: a flick. */
+  const flick = async (moves: number, px: number): Promise<void> => {
+    let t = 0;
+    fire(el, 'touchstart', { touches: [{ clientX: 100, clientY: 800 }], timeStamp: t });
+    for (let i = 1; i <= moves; i++) {
+      t += 16;
+      fire(el, 'touchmove', { touches: [{ clientX: 100, clientY: 800 - px * i }], timeStamp: t });
+      if (i === 1) await flush();
+      frames.frame();
+    }
+    fire(el, 'touchend', { touches: [], timeStamp: t + 4 });
+    await flush();
+  };
   const drain = (): void => {
     for (let i = 0; frames.size > 0 && i < 3000; i++) frames.frame();
   };
@@ -189,70 +198,71 @@ function held(voidState: VoidState, options: { reduced?: boolean; at?: number } 
     state.threeD = on;
     if (on) home.resume();
   };
-  return { story, state, home, key, wheel, drain, become, switch3D, frames, el, chapters };
+  return { story, state, home, key, wheel, flick, drain, become, switch3D, frames, el, chapters };
 }
 
 describe("3D off and on keeps the visitor's place", () => {
   it("leaves the target on the bead's stop when 3D goes off: the void's idle does not pull it to the hold", () => {
-    const s = held('ready', { at: 4 });
+    const s = held('ready', { at: 5 });
     s.switch3D(false);
     s.become('idle'); // the Void unmounts with the Stage
-    expect([s.story.target, s.story.progress]).toEqual([4, 4]);
+    expect([s.story.target, s.story.progress]).toEqual([5, 5]);
     expect(s.frames.size).toBe(0);
   });
 
-  it("holds it in the tunnel when 3D is back while the void loads, and returns it to the bead's stop once ready", async () => {
-    const s = held('ready', { at: 4 });
+  it("holds it at the landing when 3D is back while the beads load, and returns it to the bead's stop once ready", async () => {
+    const s = held('ready', { at: 5 });
     s.switch3D(false);
     s.become('idle');
     s.switch3D(true);
-    // As a Back to the stop while the void loads: the story waits at the hold, its place kept for the void's ready.
-    expect([s.story.target, s.story.progress]).toEqual([TUNNEL_HOLD, TUNNEL_HOLD]);
-    expect(s.chapters.at(-1)).toBe('DIVE');
+    // As a Back to the stop while the beads load: the story waits at the hold, its place kept for the beads' ready.
+    expect([s.story.target, s.story.progress]).toEqual([H, H]);
+    expect(s.chapters.at(-1)).toBe('LIGHT');
     s.become('loading');
     s.drain();
-    expect(s.story.target).toBe(TUNNEL_HOLD);
+    expect(s.story.target).toBe(H);
     s.become('ready');
     await flush(); // the first move fetches damp
     s.drain();
-    expect([s.story.target, s.story.progress]).toEqual([4, 4]);
-    expect(s.chapters.at(-1)).toBe('PROJECTS');
+    expect([s.story.target, s.story.progress]).toEqual([5, 5]);
+    expect(s.chapters.at(-1)).toBe('RING');
   });
 
-  it('does the same with reduced motion, held on BOB from above, the last stop under the hold', async () => {
-    const s = held('ready', { at: 5, reduced: true });
+  it('does the same with reduced motion, held on the last fact, the last key stop under the hold', async () => {
+    const s = held('ready', { at: 6, reduced: true });
     s.switch3D(false);
     s.become('idle');
-    expect(s.story.target).toBe(5);
+    expect(s.story.target).toBe(6);
     s.switch3D(true);
-    expect([s.story.target, s.story.progress]).toEqual([1, 1]);
+    expect([s.story.target, s.story.progress]).toEqual([F241, F241]);
     s.become('loading');
     s.become('ready');
     await flush();
     s.drain();
-    expect([s.story.target, s.story.progress]).toEqual([5, 5]);
+    expect([s.story.target, s.story.progress]).toEqual([6, 6]);
   });
 
   it('keeps the place when the hold comes down with 3D on for a void that loads again, idle, then ready', async () => {
-    const s = held('ready', { at: 3 });
+    const s = held('ready', { at: 4.5 });
     s.become('idle');
-    expect([s.story.target, s.story.progress]).toEqual([TUNNEL_HOLD, TUNNEL_HOLD]);
+    expect([s.story.target, s.story.progress]).toEqual([H, H]);
     s.become('loading');
     s.become('ready');
     await flush();
     s.drain();
-    expect([s.story.target, s.story.progress]).toEqual([3, 3]);
+    expect([s.story.target, s.story.progress]).toEqual([4.5, 4.5]);
   });
 
-  it('lets the place go when the void failed: the story rests at BOB from above, and a later ready leaves it there', async () => {
-    const s = held('loading', { at: 4 });
+  it('keeps the story at the hold when the void failed, and lets the place go: a later ready leaves it there', async () => {
+    const s = held('loading', { at: 5 });
+    expect([s.story.target, s.story.progress]).toEqual([H, H]);
     s.become('failed');
     await flush();
     s.drain();
-    expect([s.story.target, s.story.progress]).toEqual([1, 1]);
+    expect([s.story.target, s.story.progress]).toEqual([H, H]);
     s.become('ready');
     s.drain();
-    expect(s.story.target).toBe(1);
+    expect(s.story.target).toBe(H);
   });
 
   it('leaves a story short of the hold where it is across the switch', () => {
@@ -263,101 +273,92 @@ describe("3D off and on keeps the visitor's place", () => {
     expect([s.story.target, s.story.progress]).toEqual([0.6, 0.6]);
   });
 
-  it("finishes a wheel gesture still in its quiet when 3D goes off, on the visitor's stop, and 3D back on returns there", async () => {
-    const s = held('ready', { at: 3 });
-    await s.wheel(1); // 3.12; the wheel's quiet has begun
+  it('ends a wheel gesture still in its quiet when 3D goes off where it is, and 3D back on returns there once ready', async () => {
+    const s = held('ready', { at: 4 });
+    await s.wheel(1); // 4.12; the wheel's quiet has begun
     s.switch3D(false);
     s.become('idle'); // the Void goes with the Stage before the loop's next frame
     s.frames.frame(); // the loop's 3D-off frame ends the gesture
-    expect(s.story.target).toBe(4); // settled on the next stop, not held at the idle void's hold (nor capped at 2)
+    expect(s.story.target).toBeCloseTo(4.12, 12); // where the wheel put it, not held at the idle void's hold
     s.switch3D(true);
-    expect(s.story.target).toBe(TUNNEL_HOLD);
-    expect(s.story.progress).toBeLessThanOrEqual(TUNNEL_HOLD);
+    expect(s.story.target).toBe(H);
+    expect(s.story.progress).toBeLessThanOrEqual(H);
     s.become('loading');
     s.become('ready');
     await flush();
     s.drain();
-    expect([s.story.target, s.story.progress]).toEqual([4, 4]);
+    expect(s.story.target).toBeCloseTo(4.12, 12);
+    expect(s.story.progress).toBe(s.story.target);
   });
 
   it('holds a story whose progress is past the hold when 3D is back, even with its target short of it', () => {
-    const s = held('ready', { at: 4 });
-    s.story.target = 1; // on its way up to BOB from above, still at 4, when 3D goes off
+    const s = held('ready', { at: 5 });
+    s.story.target = 1; // on its way up to BOB from above, still at 5, when 3D goes off
     s.switch3D(false);
     s.become('idle');
     s.switch3D(true);
     expect(s.story.target).toBe(1);
-    expect(s.story.progress).toBe(TUNNEL_HOLD); // the camera never stands in a void not there
+    expect(s.story.progress).toBe(H); // the camera never stands in a ring not there
   });
 });
 
-describe('the scroll input holds at the dive while the void loads', () => {
-  it('clamps its target to the hold: a wheel past it while loading rests at TUNNEL_HOLD', async () => {
+describe('the scroll input holds at the landing while the beads load', () => {
+  it('clamps its target to the hold: a wheel past it while loading rests at LANDING_HOLD', async () => {
     const s = held('loading');
     await s.wheel(40); // 4.8 units asked for
     s.drain();
-    expect(s.story.target).toBe(TUNNEL_HOLD);
-    expect(s.story.progress).toBe(TUNNEL_HOLD);
+    expect(s.story.target).toBe(H);
+    expect(s.story.progress).toBe(H);
   });
 
   it('holds the same while idle, before the load has begun', async () => {
     const s = held('idle');
     await s.wheel(40);
     s.drain();
-    expect(s.story.target).toBe(TUNNEL_HOLD);
+    expect(s.story.target).toBe(H);
   });
 
   it('ends a glide that is pressing into the hold, as at the end of the story, so the loop sleeps', async () => {
-    const s = held('loading');
-    s.story.target = s.story.progress = 1.5;
-    s.story.chapterIndex = 1;
-    let t = 0;
-    fire(s.el, 'touchstart', { touches: [{ clientX: 100, clientY: 800 }], timeStamp: t });
-    for (let i = 1; i <= 10; i++) {
-      t += 16;
-      fire(s.el, 'touchmove', { touches: [{ clientX: 100, clientY: 800 - 40 * i }], timeStamp: t });
-      if (i === 1) await flush();
-      s.frames.frame();
-    }
-    fire(s.el, 'touchend', { touches: [], timeStamp: t + 4 });
-    await flush();
-    expect(s.home.scroll.busy).toBe(false);
+    const s = held('loading', { at: 3.3 });
+    await s.flick(10, 40); // 0.4 dragged, to the hold, then a glide pressing into it
     s.drain();
-    expect(s.story.target).toBe(TUNNEL_HOLD);
+    expect(s.story.target).toBe(H);
+    expect(s.home.scroll.busy).toBe(false);
     expect(s.frames.size).toBe(0);
   });
 
-  it('jumps End to the hold, and Home all the way back', async () => {
+  it('goes End to the hold, and Home all the way back', async () => {
     const s = held('loading');
     s.key('End');
+    expect(s.story.target).toBe(H);
     await flush();
     s.drain();
-    expect(s.story.target).toBe(TUNNEL_HOLD);
+    expect(s.story.progress).toBe(H);
     s.key('Home');
     s.drain();
-    expect(s.story.target).toBe(0);
+    expect([s.story.target, s.story.progress]).toEqual([0, 0]);
   });
 
   it('keeps no excess: scrolling back up from the hold moves the story at once', async () => {
     const s = held('loading');
     await s.wheel(40);
     s.drain();
-    s.key('PageUp'); // past the rise a key steps: up from the hold to the stop before it, BOB from above
-    expect(s.story.target).toBe(1);
+    s.key('PageUp'); // a key steps: up from the hold to the key stop before it, the last fact
+    expect(s.story.target).toBe(F241);
     s.drain();
-    expect(s.story.progress).toBe(1);
-    await s.wheel(3, -120); // and on the rise by its distance at once: 3 notches of 120 px
-    expect(s.story.target).toBeCloseTo(1 - 0.36, 12);
+    expect(s.story.progress).toBe(F241);
+    await s.wheel(3, -120); // and a wheel by its distance at once: 3 notches of 120 px
+    expect(s.story.target).toBeCloseTo(F241 - 0.36, 12);
   });
 
-  it('goes on once the void is ready: a scroll that pressed against the hold goes on to the overview', async () => {
+  it('goes on once ready: a wheel that pressed against the hold goes on as far as it went', async () => {
     const s = held('loading');
     await s.wheel(40);
     s.drain();
     s.become('ready');
     s.drain();
-    expect(s.story.target).toBe(2);
-    expect(s.story.progress).toBe(2);
+    expect(s.story.target).toBeCloseTo(4.8, 12);
+    expect(s.story.progress).toBe(s.story.target);
   });
 
   it('goes on to the end for End pressed while held', async () => {
@@ -367,37 +368,28 @@ describe('the scroll input holds at the dive while the void loads', () => {
     s.drain();
     s.become('ready');
     s.drain();
-    expect(s.story.target).toBe(END);
+    expect([s.story.target, s.story.progress]).toEqual([END, END]);
   });
 
-  it('never settles past the hold: a notch from BOB from above settles toward the overview, waits on the hold, and ready takes it there', async () => {
+  it('rests a notch short of the hold where it ends, and ready leaves it there', async () => {
     const s = held('loading', { at: 1 });
-    await s.wheel(1); // 1.12, short of the hold; once the wheel is quiet the settle asks for the overview, 2
+    await s.wheel(1); // 1.12, short of the hold
     s.drain();
-    expect([s.story.target, s.story.progress]).toEqual([TUNNEL_HOLD, TUNNEL_HOLD]);
+    expect(s.story.target).toBeCloseTo(1.12, 12);
+    expect(s.story.progress).toBe(s.story.target);
     s.become('ready');
     s.drain();
-    expect([s.story.target, s.story.progress]).toEqual([2, 2]);
+    expect(s.story.target).toBeCloseTo(1.12, 12);
   });
 
-  it('asks a flick that would glide into the hold for the stop just past it, no further: a glide carries nothing past the hold', async () => {
-    const s = held('loading', { at: 1 });
-    let t = 0;
-    fire(s.el, 'touchstart', { touches: [{ clientX: 100, clientY: 800 }], timeStamp: t });
-    for (let i = 1; i <= 3; i++) {
-      t += 16;
-      fire(s.el, 'touchmove', { touches: [{ clientX: 100, clientY: 800 - 60 * i }], timeStamp: t });
-      if (i === 1) await flush();
-      s.frames.frame();
-    }
-    // 0.18 dragged, short of the hold, and a lift at 3750 px/s, whose glide would carry 0.94 more: 2.12, past the overview.
-    fire(s.el, 'touchend', { touches: [], timeStamp: t + 4 });
-    await flush();
+  it('asks a flick whose glide presses into the hold for the key stop just past it, no further', async () => {
+    const s = held('loading', { at: 3.2 });
+    await s.flick(3, 60); // 0.18 dragged, short of the hold, and a glide that would carry about 0.94 more
     s.drain();
-    expect([s.story.target, s.story.progress]).toEqual([TUNNEL_HOLD, TUNNEL_HOLD]);
+    expect([s.story.target, s.story.progress]).toEqual([H, H]);
     s.become('ready');
     s.drain();
-    expect([s.story.target, s.story.progress]).toEqual([2, 2]);
+    expect([s.story.target, s.story.progress]).toEqual([4, 4]);
   });
 
   it('leaves a scroll that rested short of the hold where it is when the void is ready', async () => {
@@ -405,7 +397,7 @@ describe('the scroll input holds at the dive while the void loads', () => {
     await s.wheel(5); // 0.6
     s.drain();
     const at = s.story.target;
-    expect(at).toBeLessThan(TUNNEL_HOLD);
+    expect(at).toBeLessThan(H);
     s.become('ready');
     s.drain();
     expect(s.story.target).toBe(at);
@@ -419,63 +411,60 @@ describe('the scroll input holds at the dive while the void loads', () => {
     expect(s.story.target).toBe(END);
   });
 
-  it('holds at BOB from above when the void failed, bringing a story held in the tunnel back there', async () => {
+  it('holds at the landing when the void failed, keeping a story held there', async () => {
     const s = held('loading');
     await s.wheel(40);
     s.drain();
     s.become('failed');
     s.drain();
-    expect(s.story.target).toBe(1);
-    expect(s.story.progress).toBe(1);
+    expect([s.story.target, s.story.progress]).toEqual([H, H]);
     await s.wheel(10);
     s.drain();
-    expect(s.story.target).toBe(1);
+    expect(s.story.target).toBe(H);
   });
 
-  it("holds Back to a bead's stop at TUNNEL_HOLD while the void loads, then goes on to the stop once it is ready", async () => {
-    // Back (or Escape) from Jontai Energy's page while the void still loads: the route sync put the story at stop 4.
-    const s = held('loading', { at: 4 });
-    expect(s.story.target).toBe(TUNNEL_HOLD);
-    expect(s.story.progress).toBe(TUNNEL_HOLD);
-    // The chapter follows the story to the hold: the dive.
+  it("holds Back to a bead's stop at the landing while the beads load, then goes on to the stop once they are ready", async () => {
+    // Back (or Escape) from Jontai Energy's page while the beads still load: the route sync put the story at its stop, 5.
+    const s = held('loading', { at: 5 });
+    expect([s.story.target, s.story.progress]).toEqual([H, H]);
+    // The chapter follows the story to the hold: the light dive.
     expect(s.story.chapterIndex).toBe(1);
-    expect(s.chapters).toEqual(['DIVE']);
+    expect(s.chapters).toEqual(['LIGHT']);
     s.drain();
-    expect(s.story.target).toBe(TUNNEL_HOLD);
+    expect(s.story.target).toBe(H);
     s.become('ready');
     await flush();
     s.drain();
-    expect(s.story.target).toBe(4);
-    expect(s.story.progress).toBe(4);
-    expect(s.chapters.at(-1)).toBe('PROJECTS');
+    expect([s.story.target, s.story.progress]).toEqual([5, 5]);
+    expect(s.chapters.at(-1)).toBe('RING');
   });
 
   it('holds it the same while the void is idle, before its load has begun', () => {
-    const s = held('idle', { at: 5 });
-    expect([s.story.target, s.story.progress]).toEqual([TUNNEL_HOLD, TUNNEL_HOLD]);
+    const s = held('idle', { at: 6 });
+    expect([s.story.target, s.story.progress]).toEqual([H, H]);
   });
 
-  it("rests Back at BOB from above when the void failed, never at the bead's stop", async () => {
-    const s = held('failed', { at: 3 });
-    expect([s.story.target, s.story.progress]).toEqual([1, 1]);
+  it("rests Back at the landing hold when the void failed, never at the bead's stop", async () => {
+    const s = held('failed', { at: 4 });
+    expect([s.story.target, s.story.progress]).toEqual([H, H]);
     await flush();
     s.drain();
-    expect([s.story.target, s.story.progress]).toEqual([1, 1]);
+    expect([s.story.target, s.story.progress]).toEqual([H, H]);
   });
 
   it('goes straight to the stop when the void is ready: nothing holds', () => {
-    const s = held('ready', { at: 4 });
-    expect([s.story.target, s.story.progress]).toEqual([4, 4]);
+    const s = held('ready', { at: 5 });
+    expect([s.story.target, s.story.progress]).toEqual([5, 5]);
     expect(s.chapters).toEqual([]);
   });
 
-  it('with reduced motion holds Back on the last stop under the hold, then goes on to the bead\'s stop', async () => {
-    const s = held('loading', { at: 5, reduced: true });
-    expect([s.story.target, s.story.progress]).toEqual([1, 1]);
+  it("with reduced motion holds Back on the last key stop under the hold, then goes on to the bead's stop", async () => {
+    const s = held('loading', { at: 6, reduced: true });
+    expect([s.story.target, s.story.progress]).toEqual([F241, F241]);
     s.become('ready');
     await flush();
     s.drain();
-    expect(s.story.target).toBe(5);
+    expect(s.story.target).toBe(6);
   });
 
   describe("Back, the page's Escape and the name link from a project page, through the hold", () => {
@@ -504,15 +493,15 @@ describe('the scroll input holds at the dive while the void loads', () => {
     };
 
     for (const how of ['back', 'escape'] as const) {
-      it(`lands ${how} at the bead's stop, held in the tunnel while the void loads, then there once it is ready`, async () => {
+      it(`lands ${how} at the bead's stop, held at the landing while the beads load, then there once they are ready`, async () => {
         const at = leave(how);
         expect(at).toBe(stopForProject('jontai-energy'));
         const s = held('loading', { at });
-        expect([s.story.target, s.story.progress]).toEqual([TUNNEL_HOLD, TUNNEL_HOLD]);
+        expect([s.story.target, s.story.progress]).toEqual([H, H]);
         s.become('ready');
         await flush();
         s.drain();
-        expect([s.story.target, s.story.progress]).toEqual([4, 4]);
+        expect([s.story.target, s.story.progress]).toEqual([5, 5]);
       });
     }
 
@@ -528,18 +517,21 @@ describe('the scroll input holds at the dive while the void loads', () => {
     });
   });
 
-  it('steps by stops with reduced motion and holds on the last stop under the hold: BOB from above while loading', async () => {
+  it('steps by key stops with reduced motion and holds on the last under the hold: the last fact while loading', async () => {
     const s = held('loading', { reduced: true });
     s.key('PageDown');
     await flush();
     s.drain();
     expect(s.story.target).toBe(1);
-    s.key('PageDown');
+    for (let i = 0; i < 5; i++) s.key('PageDown'); // the five facts
     s.drain();
-    expect(s.story.target).toBe(1);
+    expect(s.story.target).toBe(F241);
+    s.key('PageDown'); // Funcial's, past the hold: held
+    s.drain();
+    expect(s.story.target).toBe(F241);
     s.become('ready');
     s.drain();
-    expect(s.story.target).toBe(2);
+    expect(s.story.target).toBe(4);
   });
 });
 
@@ -548,10 +540,11 @@ describe('the scroll input holds at the dive while the void loads', () => {
 describe('frame.journey: where the journey stands, for the debug bridge', () => {
   it('is filled from the pose the scene is posed at: its stretch, how far through it and its project', () => {
     const into = { stretch: 'rise' as const, local: 0, project: null as number | null, voidState: 'idle' as VoidState };
-    for (const p of [0, 0.5, 1, TUNNEL_HOLD, 2, 2.5, 3, 3.5, 4, 5, 5.5, 6]) {
+    for (const p of [0, 0.5, 1, LANDING_HOLD, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 6.5, 7]) {
       const pose = journeyPoseAt(p, LAPTOP);
       writeJourney(into, pose.at);
-      expect({ stretch: into.stretch, local: into.local, project: into.project }, `at ${p}`).toEqual(journeyAt(p));
+      const at = journeyAt(p);
+      expect({ stretch: into.stretch, local: into.local, project: into.project }, `at ${p}`).toEqual({ stretch: at.stretch, local: at.local, project: at.project });
     }
     expect(into.voidState).toBe('idle'); // the void's own field: the Void writes it
   });
@@ -862,9 +855,10 @@ describe("the beads' inner lights and their stand-ins", () => {
 
 // ---------------------------------------------------------------- reduced motion
 
-describe("the step fade's stops are the journey's seven", () => {
-  it('fades between 0 and 6, every stop of the dive, the void and the end page, and poses each exactly', () => {
-    expect(STOPS).toEqual([0, 1, 2, 3, 4, 5, 6]);
+describe("the step fade's stops are the journey's chapter starts", () => {
+  it('fades between 0 and 7, BOB from above, every project and the end page, and poses each exactly', () => {
+    const STOPS = stops(HOME_CHAPTERS);
+    expect(STOPS).toEqual([0, 1, 4, 5, 6, 7]);
     for (const stop of STOPS) {
       expect(nearestStop(STOPS, stop)).toBe(stop);
       expect(nearestStop(STOPS, stop + 0.3)).toBe(Math.min(stop, END));
@@ -938,67 +932,69 @@ describe("the home scroll as the page wires it to the store (connectHomeScroll, 
     Object.assign(frame, { progress: 0, target: 0, velocity: 0, chapterIndex: 0 });
   });
 
-  it("holds the scroll at the tunnel while the store's void loads, and lets it go on once the store says ready", async () => {
+  it("holds the scroll at the landing while the store's beads load, and lets it go on once the store says ready", async () => {
     const s = wired('loading');
     try {
       await s.wheel(40);
       s.drain();
-      expect([frame.target, frame.progress]).toEqual([TUNNEL_HOLD, TUNNEL_HOLD]);
-      expect(useScene.getState().phase).toEqual({ kind: 'DIVE' });
+      expect([frame.target, frame.progress]).toEqual([H, H]);
+      expect(useScene.getState().phase).toEqual({ kind: 'LIGHT' });
       useScene.getState().setVoidState('ready');
       s.drain();
-      expect([frame.target, frame.progress]).toEqual([2, 2]);
-      expect(useScene.getState().phase).toEqual({ kind: 'VOID_ENTRY' });
+      expect(frame.target).toBeCloseTo(4.8, 12); // as far as the wheel went
+      expect(frame.progress).toBe(frame.target);
+      expect(useScene.getState().phase.kind).toBe('PROJECTS');
     } finally {
       s.disconnect();
     }
   });
 
-  it('brings a story pressed against it back to BOB from above when the store says the void failed', async () => {
+  it('keeps a story pressed against it at the hold when the store says the void failed', async () => {
     const s = wired('loading');
     try {
       await s.wheel(40);
       s.drain();
       useScene.getState().setVoidState('failed');
       s.drain();
-      expect([frame.target, frame.progress]).toEqual([1, 1]);
+      expect([frame.target, frame.progress]).toEqual([H, H]);
     } finally {
       s.disconnect();
     }
   });
 
   it("keeps the visitor's place across the store's 3D switch, off and back on at a bead's stop", async () => {
-    const s = wired('ready', 4);
+    const s = wired('ready', 5);
     try {
       useScene.setState({ threeD: false });
       useScene.getState().setVoidState('idle'); // the Void goes with the Stage
-      expect([frame.target, frame.progress]).toEqual([4, 4]);
+      expect([frame.target, frame.progress]).toEqual([5, 5]);
       useScene.setState({ threeD: true });
-      expect([frame.target, frame.progress]).toEqual([TUNNEL_HOLD, TUNNEL_HOLD]);
+      expect([frame.target, frame.progress]).toEqual([H, H]);
       useScene.getState().setVoidState('loading');
       useScene.getState().setVoidState('ready');
       await flush();
       s.drain();
-      expect([frame.target, frame.progress]).toEqual([4, 4]);
+      expect([frame.target, frame.progress]).toEqual([5, 5]);
       expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'front-panel' });
     } finally {
       s.disconnect();
     }
   });
 
-  it("settles a wheel gesture at once when the store's 3D goes off within its quiet, before the void goes, and keeps that stop", async () => {
-    const s = wired('ready', 3);
+  it("ends a wheel gesture at once when the store's 3D goes off within its quiet, before the void goes, and keeps its place", async () => {
+    const s = wired('ready', 4);
     try {
-      await s.wheel(1); // 3.12, the wheel's quiet begun
+      await s.wheel(1); // 4.12, the wheel's quiet begun
       useScene.setState({ threeD: false });
-      expect(frame.target).toBe(4); // finished at once, from its reach, before the Void says idle
+      expect(frame.target).toBeCloseTo(4.12, 12); // ended at once where it went, before the Void says idle
       useScene.getState().setVoidState('idle');
-      expect(frame.target).toBe(4);
+      expect(frame.target).toBeCloseTo(4.12, 12);
       useScene.setState({ threeD: true });
       useScene.getState().setVoidState('loading');
       useScene.getState().setVoidState('ready');
       s.drain();
-      expect([frame.target, frame.progress]).toEqual([4, 4]);
+      expect(frame.target).toBeCloseTo(4.12, 12);
+      expect(frame.progress).toBe(frame.target);
     } finally {
       s.disconnect();
     }
