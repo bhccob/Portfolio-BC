@@ -567,6 +567,9 @@ export function factAt(f: number): FactAt {
 
 // ---------------------------------------------------------------- the void
 const BAND = { desk: { y: 0.4, sigma: 0.075 }, phone: { y: 0.4, sigma: 0.045 } } as const;
+/** How far ahead of the camera the band hangs, m: near in the way, behind the ring from the landing (258-272). */
+const BAND_D = 12;
+const BAND_D_RING = { desk: 26, phone: 30 } as const;
 
 /** How far the void has streamed toward the camera by way frame f, m: the light's travel, easing out as it arrives. */
 export function streamAt(f: number): number {
@@ -584,6 +587,8 @@ export interface VoidAt {
   /** Where the band's middle is on the frame (from the top), and its width (the fall-off's sigma), shares of the height. */
   bandY: number;
   bandSigma: number;
+  /** How far ahead of the camera the band hangs, m: 12 in the way, out to 26 (desk) or 30 (phone) over 258-272. */
+  bandDistance: number;
   /** How far the band's wisps have dissolved into the ring's world-fixed mist, 0..1 (272-296). */
   ringMist: number;
   /** The dust's glow, 0..1 (28-60, after the passage's blur). */
@@ -602,6 +607,7 @@ export function voidAt(f: number, aspect: number): VoidAt {
     band: easeIo(span(f, 20, 60)),
     bandY: lerp(chaseY, b.y - 0.04, easeIo(span(f, F.LAND - 1, F.END))),
     bandSigma: b.sigma,
+    bandDistance: lerp(BAND_D, BAND_D_RING[sizeFor(aspect)], easeIo(span(f, 258, 272))),
     ringMist: easeIo(span(f, 272, 296)),
     dust: easeIo(span(f, 28, 60)),
     topFade: easeIo(span(f, 14, 28)),

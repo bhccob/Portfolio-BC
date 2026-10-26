@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { damp } from 'maath/easing';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BEAD_MOTION, funcialMotion } from '~/engine/bob/beadMotion';
 import { readGlbJson } from '~/engine/bob/glb';
 import { readNeedleDebugState } from '~/debug/useNeedleDebug';
@@ -12,6 +12,7 @@ import { LANDING_HOLD, landingHoldFor, RISE_TOP } from '~/scene/bob/landingHold'
 import { BEADS, journeyAt, journeyPoseAt } from '~/scene/bob/journey';
 import { F, LIGHT_FRAMES } from '~/scene/bob/lightDive';
 import { nearestStop } from '~/scene/bob/stepFade';
+import { loadVoid } from '~/scene/bob/voidLoad';
 import {
   ABACUS_SPAN,
   beadClocks,
@@ -1024,5 +1025,85 @@ describe('the home\'s links when the void failed, in the stylesheet', () => {
     expect(body).toMatch(/overflow:\s*visible/);
     // It comes after the rule it undoes, which it outweighs anyway (two attributes more).
     expect(at).toBeGreaterThan(css.indexOf("html[data-3d='on'] .home-nav:not(:focus-within)"));
+  });
+});
+
+// ---------------------------------------------------------------- the load: the void at the hand-over, the beads after
+
+describe('loadVoid: the void is built at the hand-over, the beads once their file is in', () => {
+  /** A load whose steps the test owns: the beads' file arrives when `release` is called (or fails with `fail`). */
+  function steps(options: { voidFails?: boolean } = {}) {
+    const said: VoidState[] = [];
+    const scene: string[] = [];
+    const freed: string[] = [];
+    let gone = false;
+    let release!: (beads: string) => void;
+    let fail!: (error: Error) => void;
+    const file = new Promise<string>((resolve, reject) => {
+      release = resolve;
+      fail = reject;
+    });
+    const run = loadVoid<string, string>({
+      buildVoid: async () => {
+        if (options.voidFails) throw new Error('no void');
+        return 'void';
+      },
+      freeVoid: (space) => freed.push(space),
+      buildBeads: () => file,
+      say: (state) => said.push(state),
+      gone: () => gone,
+      onVoid: (space) => scene.push(space),
+      onBeads: (beads) => scene.push(beads)
+    });
+    return { said, scene, freed, run, release, fail, leave: () => (gone = true) };
+  }
+
+  it("puts the void in the scene before the beads' file is in, saying loading, then ready with the beads", async () => {
+    const s = steps();
+    await flush();
+    expect(s.said).toEqual(['loading']);
+    expect(s.scene).toEqual(['void']);
+    s.release('beads');
+    await s.run;
+    expect(s.said).toEqual(['loading', 'ready']);
+    expect(s.scene).toEqual(['void', 'beads']);
+  });
+
+  it('keeps the void in the scene when the beads fail, saying failed', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const s = steps();
+    await flush();
+    s.fail(new Error('404'));
+    await s.run;
+    expect(s.said).toEqual(['loading', 'failed']);
+    expect(s.scene).toEqual(['void']);
+    expect(s.freed).toEqual([]);
+    expect(warn).toHaveBeenCalledOnce();
+    warn.mockRestore();
+  });
+
+  it('says failed with nothing in the scene when the void itself cannot be built', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const s = steps({ voidFails: true });
+    await s.run;
+    expect(s.said).toEqual(['loading', 'failed']);
+    expect(s.scene).toEqual([]);
+    warn.mockRestore();
+  });
+
+  it('frees a void built after the Void has gone, and says nothing more', async () => {
+    const s = steps();
+    s.leave();
+    await s.run;
+    expect(s.freed).toEqual(['void']);
+    expect(s.scene).toEqual([]);
+    expect(s.said).toEqual(['loading']);
+  });
+
+  it('is what the Void runs: the void posed from the journey, no beam and no setLight', () => {
+    const source = read('scene/bob/Void.tsx');
+    expect(source).toMatch(/\bloadVoid\(/);
+    for (const call of ['setBand', 'setRingMist', 'setDust', 'setStream']) expect(source, call).toContain(`.${call}(`);
+    expect(source).not.toMatch(/\.setLight\(/);
   });
 });

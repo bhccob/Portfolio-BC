@@ -17,6 +17,7 @@ import { motion } from '../motion';
 import type { Handover } from './Home';
 import { BEADS } from './journey';
 import { beadClocks, easeHover, hoverEase, hoversAt, selectedBead, stepBeadClocks, voidShownFor } from './voidPose';
+import { loadVoid, type VoidLoadSteps } from './voidLoad';
 import { uploadTextures, warm } from './warm';
 
 /** Where the beads' file is served from: public/models/bob-beads.glb, under the site's base. */
@@ -148,9 +149,15 @@ export function drawnParts(root: THREE.Object3D): THREE.Object3D[] {
   return root.children.flatMap((child) => ((child as THREE.Light).isLight ? [] : holdsLight(child) ? drawnParts(child) : [child]));
 }
 
-/** The void and the beads once built, and what the frame poses of them. */
+/** The void once built: its model, the tier it stands at, and whether it is shown now (null before the first frame). */
+interface SpaceParts {
+  model: VoidModel;
+  standing: QualityTier;
+  shown: boolean | null;
+}
+
+/** The beads once built, and what the frame poses of them. */
 interface VoidParts {
-  void: VoidModel;
   beads: BeadsModel;
   file: GLTF;
   screens: Record<ProjectId, THREE.Texture>;
@@ -163,13 +170,16 @@ interface VoidParts {
   bodies: THREE.Mesh[];
   /** The tier the parts stand at: built at the ladder's, stepped down since, never up. */
   standing: QualityTier;
-  /** Whether the void and the beads are shown now (`show`); null before the first frame poses them. */
+  /** Whether the beads are shown now (`show`); null before the first frame poses them. */
   shown: boolean | null;
 }
 
 /** The Void's running state: plain values, written per frame and by the load. */
 interface VoidRun {
   state: VoidState;
+  /** The void, from the hand-over on; null before it is built. */
+  space: SpaceParts | null;
+  /** The beads, once their file is in; null before (and for good if it failed). */
   parts: VoidParts | null;
   clocks: ReturnType<typeof beadClocks>;
   hover: ReturnType<typeof hoverEase>;
@@ -194,11 +204,17 @@ const NO_SIZE = { width: 0, height: 0 };
 
 const DEG = Math.PI / 180;
 
-/** Shows or hides the void and the beads' drawn parts, and lights or darkens the beads' inner lights with them. */
+/** Shows or hides the void. */
+function showSpace(space: SpaceParts, shown: boolean): void {
+  if (space.shown === shown) return;
+  space.shown = shown;
+  space.model.group.visible = shown;
+}
+
+/** Shows or hides the beads' drawn parts, and lights or darkens the beads' inner lights with them. */
 function show(parts: VoidParts, shown: boolean): void {
   if (parts.shown === shown) return;
   parts.shown = shown;
-  parts.void.group.visible = shown;
   for (const part of parts.drawn) part.visible = shown;
   for (let i = 0; i < parts.inner.length; i++) parts.inner[i]!.intensity = shown ? parts.innerIntensity[i]! : 0;
   if (!shown) parts.beads.setHover(null);
@@ -255,16 +271,18 @@ export interface VoidProps {
  *
  * **Loading.** It mounts with Home, once the compass is there, and does nothing until the home has landed (the first
  * frame `handover.live` is true: the Opening has posed the home and handed it over; never during the loader). Then it
- * loads `bob-beads.glb` (three's GLTFLoader, once a page view) and the three screenshots, builds the void
- * (`buildVoid`) and the beads (`loadBeads`) at the ladder's tier, and warms them up: their textures uploaded, and their
- * programs compiled lit and shown, as the scene will draw them (`warm` into the scene, which still holds the beads'
- * light stand-ins, the beads' own lights hidden meanwhile, so the count compiled for is the count drawn with). Then, in
- * one step between two frames, the stand-ins go out and the void and the beads go in: no lit material is compiled
- * again. `voidState` (the store, `frame.journey`, `<html data-void>`) says `loading`, then `ready`; any throw of the load
- * or the build (a file that does not load, a GLB that lacks a part, a screen that does not decode) says `failed`
- * instead, logged as a warning (the browser's own report of a failed file is the one console error), and what was built
- * is freed. The home's scroll holds by it (src/scene/bob/diveHold.ts): over the tunnel's opening while it loads (d01), at BOB from above
- * if it failed, where the home's project links show (src/styles/base.css). A failed warm-up only costs a stall.
+ * runs `loadVoid` (./voidLoad.ts): it builds the void (`buildVoid`) at the ladder's tier at once, warms it and puts it
+ * in, so the light dive has its band, its ring of mist and its dust from its first frame; then it loads
+ * `bob-beads.glb` (three's GLTFLoader, once a page view) and the three screenshots, builds the beads (`loadBeads`) and
+ * warms them: their textures uploaded, and their programs compiled lit and shown, as the scene will draw them (`warm`
+ * into the scene, which still holds the beads' light stand-ins, the beads' own lights hidden meanwhile, so the count
+ * compiled for is the count drawn with). Then, in one step between two frames, the stand-ins go out and the beads go
+ * in: no lit material is compiled again. `voidState` (the store, `frame.journey`, `<html data-void>`) says `loading`,
+ * then `ready` with the beads in; any throw of the beads' load or build (a file that does not load, a GLB that lacks a
+ * part, a screen that does not decode) says `failed` instead, logged as a warning (the browser's own report of a failed
+ * file is the one console error), what was built of the beads is freed, and the void stays. The home's scroll holds by
+ * it (src/scene/bob/landingHold.ts): just short of the ring until the beads are ready, and there for good if they
+ * failed, where the home's project links show (src/styles/base.css). A failed warm-up only costs a stall.
  *
  * **Each frame** (after Home's, so after the Rig has placed the camera and Home has posed the compass) it applies the
  * Opening's one pose of the frame (`handover.pose`, the journey at the progress the camera stands at):
@@ -273,8 +291,10 @@ export interface VoidProps {
  * - the void and the beads show only once the camera is under the glass (`voidShownFor`): hidden on the rise, at BOB
  *   from above and down to the opening, where on the high tier the floor would show the void's traces under the home's
  *   and its reflector would draw them again; the beads' inner lights go dark with them, by intensity;
- * - the void's light (`setLight`, the ring's mist, until the void's own pose replaces it) and its drift (`setTime`, on
- *   a clock that runs only on frames drawn while it shows, and not with reduced motion);
+ * - the void, from the journey's `void`: the mist band held to the camera at its place on the frame (`setBand`), the
+ *   ring of mist it dissolves into at the landing (`setRingMist`), the dust's glow (`setDust`) and the stream that
+ *   carries the dust toward the camera (`setStream`); and its drift (`setTime`, on a clock that runs only on frames
+ *   drawn while it shows, and not with reduced motion);
  * - each bead's light (`setLit`, the light dive's `lit`); no drift forward (`setForward(id, 0)`);
  * - the hover: on a pointer device (a mouse or pen that has moved, `frame.pointerAt`), the bead whose shell the pointer
  *   is over (a ray against `beads[id].body`), eased in and out one bead at a time (`easeHover`) and turned toward the
@@ -309,6 +329,7 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
   const invalidate = useThree((state) => state.invalidate);
   const [run] = useState<VoidRun>(() => ({
     state: 'idle',
+    space: null,
     parts: null,
     clocks: beadClocks(),
     hover: hoverEase(),
@@ -337,102 +358,127 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
       useScene.getState().setVoidState(state);
     };
 
-    /** Frees what the load built, and the GPU side of the files it built from. */
+    /** Frees what the beads' load built, and the GPU side of the files it built from. */
     const free = (parts: VoidParts): void => {
-      parts.void.dispose();
       parts.beads.dispose();
       freeFileGpu(parts.file);
       for (const texture of Object.values(parts.screens)) texture.dispose();
     };
 
-    const load = async (): Promise<void> => {
-      const [file, screens] = await Promise.all([loadBeadsFile(), loadScreens()]);
-      if (disposed) return;
-      const built = latest.current.tier;
-      const voidModel = buildVoid(built);
-      let beads: BeadsModel;
-      try {
-        beads = loadBeads(file, built, screens);
-      } catch (error) {
-        voidModel.dispose();
-        throw error;
-      }
-      const roots = BEADS.map(({ id }) => beads.beads[id].root);
-      const inner = BEADS.map(({ id }, i) => roots[i]!.getObjectByName(`bead_${id}_inner`) as THREE.PointLight);
-      const parts: VoidParts = {
-        void: voidModel,
-        beads,
-        file,
-        screens,
-        drawn: roots.flatMap(drawnParts),
-        inner,
-        innerIntensity: inner.map((light) => light.intensity),
-        bodies: BEADS.map(({ id }) => beads.beads[id].body),
-        standing: built,
-        shown: null,
-      };
-
-      // The warm-up: everything shown and lit, compiled as the scene will draw it, beside the scene. The beads' own
-      // lights are hidden for it: the scene's stand-ins count for them (or, where BEAD_LIGHTS drops them, nothing does).
-      const holder = new THREE.Group();
-      holder.add(voidModel.group, beads.group);
-      voidModel.group.visible = true;
-      voidModel.setLight(1, 1);
-      for (const light of inner) light.visible = false;
-      try {
-        uploadTextures(gl, texturesUnder(holder));
-        await warm(gl, holder, camera, 'the void', scene);
-      } catch (error) {
-        free(parts);
-        throw error;
-      }
-      if (disposed) {
-        free(parts);
-        return;
-      }
-      holder.remove(voidModel.group, beads.group);
-      voidModel.setLight(0, 0);
-
-      // In, between two frames: the stand-ins out and the beads' own lights in, so the light count stays.
-      const lights = latest.current.standIns.length > 0;
-      scene.remove(...latest.current.standIns);
-      for (const light of inner) light.visible = lights;
-      show(parts, false);
-      scene.add(voidModel.group, beads.group);
-      run.parts = parts;
-      // The ladder may have stepped down while it loaded.
+    /** The ladder may have stepped down while a part loaded: it stands at the ladder's now, never above what it was built at. */
+    const catchUp = (built: QualityTier, step: (to: QualityTier) => void): QualityTier => {
       const now = lowerTier(built, latest.current.tier);
-      if (now !== built) {
-        parts.standing = now;
-        voidModel.setTier(now);
-        beads.setTier(now);
-      }
-      say('ready');
-      // A camera already under the glass (held in the tunnel) sees the void now; nothing draws on a page without a scene.
-      if (useScene.getState().scene !== null) invalidate();
+      if (now !== built) step(now);
+      return now;
+    };
+
+    const steps: VoidLoadSteps<SpaceParts, VoidParts> = {
+      // The void, at the hand-over: built, and warmed shown and lit as the scene will draw it, beside the scene.
+      buildVoid: async () => {
+        const built = latest.current.tier;
+        const model = buildVoid(built);
+        const holder = new THREE.Group();
+        holder.add(model.group);
+        model.group.visible = true;
+        model.setBand({ shown: true, y: 0.4, sigma: 0.075, strength: 1 }, camera);
+        model.setRingMist(0.5);
+        model.setDust(1);
+        try {
+          uploadTextures(gl, texturesUnder(holder));
+          await warm(gl, holder, camera, 'the void', scene);
+        } catch (error) {
+          model.dispose();
+          throw error;
+        }
+        holder.remove(model.group);
+        model.setBand({ shown: false, y: 0.4, sigma: 0.075, strength: 0 }, camera);
+        model.setRingMist(0);
+        model.setDust(0);
+        return { model, standing: built, shown: null };
+      },
+      freeVoid: (space) => space.model.dispose(),
+      onVoid: (space) => {
+        showSpace(space, false);
+        scene.add(space.model.group);
+        run.space = space;
+        space.standing = catchUp(space.standing, (to) => space.model.setTier(to));
+        // A camera already under the glass sees the void now; nothing draws on a page without a scene.
+        if (useScene.getState().scene !== null) invalidate();
+      },
+      // The beads, once their file and the screens are in: built, and warmed shown and lit, their own lights hidden for
+      // it (the scene's stand-ins count for them, or, where BEAD_LIGHTS drops them, nothing does).
+      buildBeads: async () => {
+        const [file, screens] = await Promise.all([loadBeadsFile(), loadScreens()]);
+        if (disposed) return null;
+        const built = latest.current.tier;
+        const beads = loadBeads(file, built, screens);
+        const roots = BEADS.map(({ id }) => beads.beads[id].root);
+        const inner = BEADS.map(({ id }, i) => roots[i]!.getObjectByName(`bead_${id}_inner`) as THREE.PointLight);
+        const parts: VoidParts = {
+          beads,
+          file,
+          screens,
+          drawn: roots.flatMap(drawnParts),
+          inner,
+          innerIntensity: inner.map((light) => light.intensity),
+          bodies: BEADS.map(({ id }) => beads.beads[id].body),
+          standing: built,
+          shown: null,
+        };
+        const holder = new THREE.Group();
+        holder.add(beads.group);
+        for (const light of inner) light.visible = false;
+        try {
+          uploadTextures(gl, texturesUnder(holder));
+          await warm(gl, holder, camera, 'the beads', scene);
+        } catch (error) {
+          free(parts);
+          throw error;
+        }
+        holder.remove(beads.group);
+        if (disposed) {
+          free(parts);
+          return null;
+        }
+        return parts;
+      },
+      // In, between two frames: the stand-ins out and the beads' own lights in, so the light count stays.
+      onBeads: (parts) => {
+        const lights = latest.current.standIns.length > 0;
+        scene.remove(...latest.current.standIns);
+        for (const light of parts.inner) light.visible = lights;
+        show(parts, false);
+        scene.add(parts.beads.group);
+        run.parts = parts;
+        parts.standing = catchUp(parts.standing, (to) => parts.beads.setTier(to));
+        if (useScene.getState().scene !== null) invalidate();
+      },
+      say,
+      gone: () => disposed,
     };
 
     start.current = () => {
       if (run.state !== 'idle' || disposed) return;
-      say('loading');
-      load().catch((error: unknown) => {
-        if (disposed) return;
-        console.warn('[needle] the void could not be loaded: the scroll holds at BOB from above, where the home links show', error);
-        say('failed');
-      });
+      void loadVoid(steps);
     };
 
     return () => {
       disposed = true;
       start.current = () => {};
+      const space = run.space;
       const parts = run.parts;
+      run.space = null;
       run.parts = null;
       run.reading = run.hovering = false;
       motion.beads = false;
       showBeadLabel(null, NO_SIZE);
       compass.setNeedleWorld(null);
+      if (space) {
+        scene.remove(space.model.group);
+        space.model.dispose();
+      }
       if (parts) {
-        scene.remove(parts.void.group, parts.beads.group);
+        scene.remove(parts.beads.group);
         free(parts);
       }
       say('idle');
@@ -440,17 +486,29 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
     };
   }, [gl, scene, camera, invalidate, compass, run]);
 
-  // The ladder steps down while the scene is up: the void sheds its mist's layers and dust, the beads' glass
-  // drops to the tier's, in place; never back up.
+  // The ladder steps down while the scene is up: the void sheds its ring of mist and dust, the beads' glass drops to the
+  // tier's, in place; never back up.
   useEffect(() => {
+    let stepped = false;
+    const space = run.space;
+    if (space) {
+      const to = lowerTier(space.standing, tier);
+      if (to !== space.standing) {
+        space.standing = to;
+        space.model.setTier(to);
+        stepped = true;
+      }
+    }
     const parts = run.parts;
-    if (!parts) return;
-    const to = lowerTier(parts.standing, tier);
-    if (to === parts.standing) return;
-    parts.standing = to;
-    parts.void.setTier(to);
-    parts.beads.setTier(to);
-    invalidate();
+    if (parts) {
+      const to = lowerTier(parts.standing, tier);
+      if (to !== parts.standing) {
+        parts.standing = to;
+        parts.beads.setTier(to);
+        stepped = true;
+      }
+    }
+    if (stepped) invalidate();
   }, [tier, invalidate, run]);
 
   // A pointer move wakes the canvas only when it moves the hover onto a bead, off one or to another: the frame eases it.
@@ -486,10 +544,12 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
 
   useFrame(({ size }, delta) => {
     const pose = handover.pose;
+    const space = run.space;
     const parts = run.parts;
     if (!handover.live || pose === null) {
       // The Opening poses the scene itself (the loader, a held seek): the needle is the armillary's, the void is not there.
       compass.setNeedleWorld(null);
+      if (space) showSpace(space, false);
       if (parts) show(parts, false);
       run.reading = run.hovering = false;
       motion.beads = false;
@@ -498,16 +558,17 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
     }
     // The home has landed: the void loads now, once.
     start.current();
-    // The needle leaves the compass from the dive on (null on the rise: the compass holds it), after Home has posed it.
+    // The needle leaves the compass from the light dive on (null on the rise: the compass holds it), after Home has posed it.
     compass.setNeedleWorld(pose.needle);
-    if (!parts) {
+    if (!space) {
       motion.beads = false;
       showBeadLabel(null, size);
       return;
     }
 
     const shown = voidShownFor(pose.shot);
-    show(parts, shown);
+    showSpace(space, shown);
+    if (parts) show(parts, shown);
     const { reducedMotion: reduced, scene: page } = useScene.getState();
     const home = shown && page === 'home';
     // A bead seen close, or the camera on its way to or from one: no label, and the pointer opens and hovers nothing.
@@ -523,12 +584,23 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
       return;
     }
     const dt = Math.min(Math.max(delta, 0), MAX_STEP);
-    const { void: space, beads } = parts;
 
-    // The void's light, from the opening, and its slow drift.
-    space.setLight(0, pose.void?.ringMist ?? 0);
+    // The void from the journey: the band held to the camera, the ring of mist, the dust's glow and the stream; and its
+    // slow drift.
+    camera.updateMatrixWorld();
+    const v = pose.void;
+    space.model.setBand({ shown: v !== null, y: v?.bandY ?? 0, sigma: v?.bandSigma ?? 0, strength: v?.band ?? 0, distance: v?.bandDistance }, camera);
+    space.model.setRingMist(v?.ringMist ?? 0);
+    space.model.setDust(v?.dust ?? 0);
+    space.model.setStream(v?.stream ?? 0);
     if (!reduced) run.time += dt;
-    space.setTime(run.time);
+    space.model.setTime(run.time);
+    if (!parts) {
+      motion.beads = false;
+      showBeadLabel(null, size);
+      return;
+    }
+    const { beads } = parts;
 
     // Each bead's place in the journey.
     for (let i = 0; i < BEADS.length; i++) {
@@ -538,7 +610,6 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
     }
 
     // The hover, on a pointer device: the bead under the pointer, eased one at a time, turned toward the camera.
-    camera.updateMatrixWorld();
     beads.group.updateMatrixWorld();
     const pointed = run.hovering && Number.isFinite(frame.pointerAt) ? pick(parts, frame.pointer, camera) : null;
     run.pointed = pointed;

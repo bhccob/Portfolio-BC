@@ -12,7 +12,7 @@ export type Tier = 'high' | 'medium' | 'low';
 /**
  * Where the void under the glass stands (src/scene/bob/Void.tsx): `idle` until its load begins (once the home has
  * landed) and again once no Stage is up, `loading` while its files come and its programs compile, `ready` once it is in
- * the scene, `failed` if any of it could not be had. The home's scroll holds by it (src/scene/bob/diveHold.ts).
+ * the scene, `failed` if any of it could not be had. The home's scroll holds by it (src/scene/bob/landingHold.ts).
  */
 export type VoidState = 'idle' | 'loading' | 'ready' | 'failed';
 

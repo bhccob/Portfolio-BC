@@ -107,4 +107,12 @@ describe('the light dive, ported from the previs (tools/blender/light_dive.py, 4
     expect(voidAt(20, 1.6).band).toBe(0);
     expect(voidAt(60, 1.6).band).toBe(1);
   });
+
+  it('stands the mist band 12 m off the camera in the fall, and behind the ring from the landing: 26 m on a desk, 30 on a phone', () => {
+    for (const f of [20, 121, 258]) expect(voidAt(f, 1.6).bandDistance).toBe(12);
+    expect(voidAt(272, 1.6).bandDistance).toBe(26);
+    expect(voidAt(300, 0.46).bandDistance).toBe(30);
+    expect(voidAt(265, 1.6).bandDistance).toBeGreaterThan(12);
+    expect(voidAt(265, 1.6).bandDistance).toBeLessThan(26);
+  });
 });

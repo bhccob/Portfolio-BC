@@ -4,13 +4,17 @@ import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { GLASS_LOOK } from '~/engine/bob/build/glassFloor';
 import { TRACES_LOOK, TRACES_RENDER_ORDER } from '~/engine/bob/build/traces';
-import { buildVoid, VOID_HAZE_ORDER, VOID_LOOK, type VoidModel } from '~/engine/bob/build/void';
+import { buildVoid, CLEAR, VOID_HAZE_ORDER, VOID_LOOK, type VoidModel } from '~/engine/bob/build/void';
+import { applyCameraShot } from '~/engine/bob/shots';
 import { TRACE, traceLayout } from '~/engine/bob/traces';
 import { WORDMARK } from '~/engine/bob/wordmark';
 import { palette } from '~/engine/palette';
 import type { QualityTier } from '~/engine/quality';
+import { beadRest, F, lightAt, RING, ringShot, streamAt, wayShot } from '~/scene/bob/lightDive';
 
 const TIERS: readonly QualityTier[] = ['high', 'medium', 'low'];
+const DESK = 1440 / 900;
+const PHONE = 390 / 844;
 
 /** The object called `name` under `root`, which must exist. */
 function objectNamed<T extends THREE.Object3D>(root: THREE.Object3D, name: string): T {
@@ -19,22 +23,34 @@ function objectNamed<T extends THREE.Object3D>(root: THREE.Object3D, name: strin
   return found as T;
 }
 
-/** The void's mist sprites, in the order the group holds them. */
-function sprites(v: VoidModel): THREE.Sprite[] {
-  return objectNamed(v.group, 'void:mist').children.filter((o): o is THREE.Sprite => (o as THREE.Sprite).isSprite);
+/** The sprites under the part called `name`, in the order its group holds them. */
+function spritesOf(v: VoidModel, name: string): THREE.Sprite[] {
+  return objectNamed(v.group, name).children.filter((o): o is THREE.Sprite => (o as THREE.Sprite).isSprite);
 }
+const band = (v: VoidModel) => spritesOf(v, 'void:band');
+const ringMist = (v: VoidModel) => spritesOf(v, 'void:ringMist');
 
-/** The dust: the points, and how many of them are drawn. */
-function dust(v: VoidModel): { points: THREE.Points; drawn: number; at: (i: number) => THREE.Vector3 } {
-  const points = objectNamed<THREE.Points>(v.group, 'void:dust');
+/** The dust: its group, the points, how many of them are drawn, and each one's place in the dust's own frame. */
+function dust(v: VoidModel): { group: THREE.Object3D; points: THREE.Points; drawn: number; at: (i: number) => THREE.Vector3 } {
+  const group = objectNamed(v.group, 'void:dust');
+  const points = objectNamed<THREE.Points>(v.group, 'void:dust:points');
   const position = points.geometry.getAttribute('position');
   const drawn = points.geometry.drawRange.count;
-  return { points, drawn, at: (i) => new THREE.Vector3().fromBufferAttribute(position, i) };
+  return { group, points, drawn, at: (i) => new THREE.Vector3().fromBufferAttribute(position, i) };
 }
 
-/** The beam's material. */
-function beamMaterial(v: VoidModel): THREE.MeshBasicMaterial {
-  return objectNamed<THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>>(v.group, 'void:beam').material;
+/** A camera on `shot` for a screen of `aspect`. */
+function cameraOn(shot: Parameters<typeof applyCameraShot>[1], aspect: number): THREE.PerspectiveCamera {
+  const camera = new THREE.PerspectiveCamera(50, aspect, 0.1, 400);
+  applyCameraShot(camera, shot, aspect);
+  camera.updateMatrixWorld(true);
+  return camera;
+}
+
+/** Where `p` (world) falls on the frame through `camera`: x, y from the top left in shares of the width and height. */
+function onFrame(p: THREE.Vector3, camera: THREE.Camera): { x: number; y: number } {
+  const v = p.clone().project(camera);
+  return { x: (v.x + 1) / 2, y: (1 - v.y) / 2 };
 }
 
 /** A colour as a multiple of a palette hex, in linear light, as the builders make it. */
@@ -48,22 +64,14 @@ function expectColour(actual: THREE.Color, expected: THREE.Color): void {
   expect(actual.b).toBeCloseTo(expected.b, 6);
 }
 
-/** Everything drawn that two models should agree on if they are the same void: the mist and the dust, as numbers. */
+/** Everything drawn that two models should agree on if they are the same void: the haze and the dust, as numbers. */
 function picture(v: VoidModel): number[] {
   const { at, drawn } = dust(v);
   return [
-    ...sprites(v).flatMap((o) => [o.userData.layer as number, ...o.position.toArray(), o.material.opacity, o.scale.x, o.scale.y]),
+    ...[...band(v), ...ringMist(v)].flatMap((o) => [...o.position.toArray(), o.material.opacity, o.scale.x, o.scale.y]),
     drawn,
-    ...Array.from({ length: drawn }, (_, i) => at(i).toArray()).flat(),
-    beamMaterial(v).opacity
+    ...Array.from({ length: drawn }, (_, i) => at(i).toArray()).flat()
   ];
-}
-
-/** The distance from `p` to the segment from `a` to `b`. */
-function distanceToSegment(p: THREE.Vector3, a: THREE.Vector3, b: THREE.Vector3): number {
-  const ab = b.clone().sub(a);
-  const t = Math.max(0, Math.min(1, p.clone().sub(a).dot(ab) / ab.lengthSq()));
-  return p.distanceTo(a.clone().add(ab.multiplyScalar(t)));
 }
 
 describe('the void', () => {
@@ -72,22 +80,31 @@ describe('the void', () => {
       const v = buildVoid(tier);
       expect(v.group.isGroup).toBe(true);
       expect(v.group.name).toBe('void');
-      expect(v.group.children.map((o) => o.name)).toEqual(['void:ceiling', 'void:traces', 'void:ring', 'void:mist', 'void:dust', 'void:beam']);
+      expect(v.group.children.map((o) => o.name)).toEqual(['void:ceiling', 'void:traces', 'void:ring', 'void:band', 'void:ringMist', 'void:dust']);
       v.dispose();
     }
   });
 
-  it('is the preview: the ceiling at 1.2 under the glass from the 1.585 hole out to 60, the traces at 0.35, 3 / 2 / 0 mist layers, 400 / 200 / 60 dust points', () => {
+  it('is the preview: the ceiling at 1.2 under the glass from the 1.585 hole out to 60, the traces at 0.35, 400 / 200 / 60 dust points, a ring of mist 20 m round', () => {
     expect(VOID_LOOK.ceiling.y).toBe(-1.2);
     expect(VOID_LOOK.ceiling.inner).toBe(1.585);
     expect(VOID_LOOK.ceiling.outer).toBe(60);
     expect(VOID_LOOK.traces.level).toBe(0.35);
-    expect(VOID_LOOK.mist.layers).toEqual({ high: 3, medium: 2, low: 0 });
     expect(VOID_LOOK.dust.count).toEqual({ high: 400, medium: 200, low: 60 });
+    expect(VOID_LOOK.ringMist.radius).toBe(20);
+    expect(VOID_LOOK.ringMist.count).toEqual({ high: 12, medium: 8, low: 0 });
+    expect(CLEAR).toEqual({ cam: 1.7, light: 0.9, bead: 1.3 });
     // The glass's own numbers, so the ceiling and the glass stay one slab: the tunnel's foot and the hole and the floor's reach.
     expect(VOID_LOOK.ceiling.y).toBe(GLASS_LOOK.well.bottom);
     expect(VOID_LOOK.ceiling.inner).toBe(WORDMARK.hole);
     expect(VOID_LOOK.ceiling.outer).toBe(GLASS_LOOK.floor.outer);
+  });
+
+  it('has no beam and no setLight: the light dive has no beam', () => {
+    const v = buildVoid('high');
+    expect(v.group.getObjectByName('void:beam')).toBeUndefined();
+    expect((v as unknown as { setLight?: unknown }).setLight).toBeUndefined();
+    v.dispose();
   });
 });
 
@@ -203,76 +220,129 @@ describe('the gold ring', () => {
   });
 });
 
-describe('the mist', () => {
-  it('lies in 3 layers on high, 2 on medium and none on low', () => {
-    const layersOf = (v: VoidModel) => [...new Set(sprites(v).map((o) => o.userData.layer as number))];
-    const high = buildVoid('high');
-    const medium = buildVoid('medium');
-    const low = buildVoid('low');
-    expect(layersOf(high)).toEqual([0, 1, 2]);
-    expect(layersOf(medium)).toEqual([0, 1]);
-    expect(layersOf(low)).toEqual([]);
-    expect(sprites(high)).toHaveLength(3 * VOID_LOOK.mist.puffs);
-    expect(sprites(medium)).toHaveLength(2 * VOID_LOOK.mist.puffs);
-    expect(sprites(low)).toHaveLength(0);
-    // Medium is the high tier's mist, thinned: the same puffs where it keeps them.
-    expect(sprites(medium).map((o) => o.position.toArray())).toEqual(sprites(high).filter((o) => (o.userData.layer as number) < 2).map((o) => o.position.toArray()));
-    for (const v of [high, medium, low]) v.dispose();
+describe('the mist band', () => {
+  const chase = (aspect: number) => cameraOn(wayShot(121, aspect), aspect);
+
+  it('is the haze in one layer, dimmed and added to what is behind, on every tier, hidden until it is shown', () => {
+    for (const tier of TIERS) {
+      const v = buildVoid(tier);
+      expect(band(v)).toHaveLength(VOID_LOOK.band.puffs);
+      for (const o of band(v)) {
+        const m = o.material;
+        expectColour(m.color, times(VOID_LOOK.band.colour, VOID_LOOK.band.dim));
+        expect(m.blending).toBe(THREE.AdditiveBlending);
+        expect(m.depthWrite).toBe(false);
+        expect(m.depthTest).toBe(true);
+        expect(m.fog).toBe(false);
+        expect(o.visible).toBe(false);
+      }
+      v.dispose();
+    }
+    expect(VOID_LOOK.band.colour).toBe(palette.haze);
   });
 
-  it('is layers, not balls: soft sprites far wider than tall, from the beads back, each layer deeper than the last', () => {
-    const v = buildVoid('high');
-    const depth = (layer: number) => sprites(v).filter((o) => o.userData.layer === layer).map((o) => o.position.z);
-    for (const o of sprites(v)) {
-      expect(o.scale.x).toBeGreaterThan(1.5 * o.scale.y);
-      expect(o.material.map).toBeInstanceOf(THREE.DataTexture);
+  it('follows the camera: its middle at y of the frame, across it, `distance` ahead, on a desk and on a phone', () => {
+    for (const aspect of [DESK, PHONE]) {
+      const v = buildVoid('high');
+      const camera = chase(aspect);
+      v.setBand({ shown: true, y: 0.3, sigma: 0.075, strength: 1, distance: 12 }, camera);
+      v.group.updateMatrixWorld(true);
+      const group = objectNamed(v.group, 'void:band');
+      const middle = group.getWorldPosition(new THREE.Vector3());
+      const at = onFrame(middle, camera);
+      expect(at.x).toBeCloseTo(0.5, 9);
+      expect(at.y).toBeCloseTo(0.3, 9);
+      const ahead = middle.clone().sub(camera.position).dot(camera.getWorldDirection(new THREE.Vector3()));
+      expect(ahead).toBeCloseTo(12, 9);
+      // As wide as the frame there, and its sigma a share of the frame's height there.
+      const halfHeight = 12 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+      expect(group.scale.x).toBeCloseTo(halfHeight * aspect, 9);
+      expect(group.scale.y).toBeCloseTo(0.075 * 2 * halfHeight, 9);
+      v.dispose();
     }
-    // The farthest bead (Cookies) stands at z -13: the haze is its backdrop, never in front of any bead.
-    for (const o of sprites(v)) expect(o.position.z + VOID_LOOK.mist.sway.z).toBeLessThan(-13.5);
-    expect(Math.max(...depth(1))).toBeLessThan(Math.min(...depth(0)));
-    expect(Math.max(...depth(2))).toBeLessThan(Math.min(...depth(1)));
-    // Under the ceiling, wholly.
-    for (const o of sprites(v)) expect(o.position.y + o.scale.y / 2).toBeLessThan(VOID_LOOK.ceiling.y);
+  });
+
+  it('shows at its strength, less what has dissolved into the ring of mist, and not at all unless shown', () => {
+    const v = buildVoid('high');
+    const camera = chase(DESK);
+    v.setTime(5);
+    v.setBand({ shown: true, y: 0.3, sigma: 0.075, strength: 1, distance: 12 }, camera);
+    const full = band(v).map((o) => o.material.opacity);
+    for (const o of band(v)) expect(o.visible).toBe(true);
+    v.setBand({ shown: true, y: 0.3, sigma: 0.075, strength: 0.5, distance: 12 }, camera);
+    band(v).forEach((o, i) => expect(o.material.opacity).toBeCloseTo(full[i]! / 2, 9));
+    v.setRingMist(0.5);
+    band(v).forEach((o, i) => expect(o.material.opacity).toBeCloseTo(full[i]! / 4, 9));
+    v.setRingMist(1);
+    for (const o of band(v)) expect(o.visible).toBe(false);
+    v.setRingMist(0);
+    v.setBand({ shown: false, y: 0.3, sigma: 0.075, strength: 1, distance: 12 }, camera);
+    for (const o of band(v)) expect(o.visible).toBe(false);
+    v.dispose();
+  });
+});
+
+describe('the ring of mist', () => {
+  it('is world-fixed haze on a cylinder 20 m round the ring\'s axis, hidden until the band dissolves into it', () => {
+    const v = buildVoid('high');
+    expect(ringMist(v)).toHaveLength(12);
+    for (const o of ringMist(v)) {
+      expect(Math.hypot(o.position.x, o.position.z)).toBeCloseTo(VOID_LOOK.ringMist.radius, 6);
+      expect(o.visible).toBe(false);
+      expect(o.material.blending).toBe(THREE.AdditiveBlending);
+      expect(o.material.depthWrite).toBe(false);
+    }
     v.dispose();
   });
 
-  it('is the haze, dimmed, added to what is behind: writes no depth, tests it, and stays out of the fog', () => {
-    const v = buildVoid('high');
-    const expected = new THREE.Color(palette.haze).multiplyScalar(VOID_LOOK.mist.dim);
-    expect(VOID_LOOK.mist.colour).toBe(palette.haze);
-    const textures = new Set<THREE.Texture | null>();
-    for (const o of sprites(v)) {
-      const m = o.material;
-      expectColour(m.color, expected);
-      expect(m.blending).toBe(THREE.AdditiveBlending);
-      expect(m.transparent).toBe(true);
-      expect(m.depthWrite).toBe(false);
-      expect(m.depthTest).toBe(true);
-      expect(m.fog).toBe(false);
-      textures.add(m.map);
+  it("lies at the band's height: the cylinder's point ahead of a ring camera stands on the band's middle", () => {
+    for (const aspect of [DESK, PHONE]) {
+      const v = buildVoid('high');
+      const camera = cameraOn(ringShot(60, aspect), aspect);
+      v.setBand({ shown: true, y: 0.36, sigma: 0.075, strength: 1, distance: 26 }, camera);
+      v.group.updateMatrixWorld(true);
+      const ring = objectNamed(v.group, 'void:ringMist');
+      const forward = camera.getWorldDirection(new THREE.Vector3()).setY(0).normalize();
+      // From the camera along its forward on the ground, to the cylinder.
+      const c = camera.position;
+      const b = c.x * forward.x + c.z * forward.z;
+      const t = -b + Math.sqrt(b * b - (c.x * c.x + c.z * c.z - VOID_LOOK.ringMist.radius ** 2));
+      const ahead = new THREE.Vector3(c.x + forward.x * t, ring.position.y, c.z + forward.z * t);
+      expect(onFrame(ahead, camera).y).toBeCloseTo(0.36, 6);
+      v.dispose();
     }
-    expect(textures.size).toBe(1);
-    v.dispose();
   });
 
-  it('drifts on its period: the same picture a period on, a different one in between, from the time alone, slowly', () => {
+  it('dissolves in as the band dissolves out, at the band\'s strength', () => {
     const v = buildVoid('high');
-    v.setLight(1, 1);
-    const mist = () => sprites(v).flatMap((o) => [o.position.x, o.position.y, o.position.z, o.material.opacity]);
-    const random = vi.spyOn(Math, 'random');
-    v.setTime(17);
-    const first = mist();
-    v.setTime(17 + VOID_LOOK.mist.period / 2.5);
-    const between = mist();
-    v.setTime(17 + VOID_LOOK.mist.period);
-    const later = mist();
-    expect(random).not.toHaveBeenCalled();
-    random.mockRestore();
-    later.forEach((x, i) => expect(x).toBeCloseTo(first[i]!, 6));
-    expect(between).not.toEqual(first);
-    v.setTime(17 + 1 / 60);
-    const next = mist();
-    for (let i = 0; i < first.length; i += 4) expect(Math.abs(next[i]! - first[i]!)).toBeLessThan(0.01);
+    const camera = cameraOn(ringShot(0, DESK), DESK);
+    v.setBand({ shown: true, y: 0.36, sigma: 0.075, strength: 1, distance: 26 }, camera);
+    v.setRingMist(1);
+    const full = ringMist(v).map((o) => o.material.opacity);
+    for (const o of ringMist(v)) expect(o.visible).toBe(true);
+    v.setRingMist(0.5);
+    ringMist(v).forEach((o, i) => expect(o.material.opacity).toBeCloseTo(full[i]! / 2, 9));
+    v.setRingMist(Number.NaN);
+    for (const o of ringMist(v)) expect(o.visible).toBe(false);
+    v.dispose();
+  });
+});
+
+describe('the stream', () => {
+  it('moves the dust toward the camera, and not the ring of mist nor the band', () => {
+    const v = buildVoid('high');
+    const camera = cameraOn(ringShot(0, DESK), DESK);
+    v.setBand({ shown: true, y: 0.36, sigma: 0.075, strength: 1, distance: 26 }, camera);
+    const ringAt = objectNamed(v.group, 'void:ringMist').position.toArray();
+    const bandAt = objectNamed(v.group, 'void:band').position.toArray();
+    const rest = dust(v).at(0).toArray();
+    v.setStream(2);
+    expect(dust(v).group.position.toArray()).toEqual([0, 0, 2]);
+    expect(dust(v).at(0).toArray()).toEqual(rest); // the points keep their places in the dust's own frame
+    expect(objectNamed(v.group, 'void:ringMist').position.toArray()).toEqual(ringAt);
+    expect(objectNamed(v.group, 'void:band').position.toArray()).toEqual(bandAt);
+    v.setStream(Number.NaN);
+    expect(dust(v).group.position.z).toBe(0);
     v.dispose();
   });
 });
@@ -294,44 +364,52 @@ describe('the dust', () => {
     low.dispose();
   });
 
-  it('is gold points added to what is behind, writing no depth and out of the fog', () => {
+  it('is gold points added to what is behind, writing no depth and out of the fog, dark until its glow comes in', () => {
     const v = buildVoid('high');
     const { points } = dust(v);
     const m = points.material as THREE.PointsMaterial;
     expectColour(m.color, times(VOID_LOOK.dust.colour, VOID_LOOK.dust.dim));
     expect(VOID_LOOK.dust.colour).toBe(palette.goldLight);
     expect(m.blending).toBe(THREE.AdditiveBlending);
-    expect(m.transparent).toBe(true);
     expect(m.depthWrite).toBe(false);
     expect(m.depthTest).toBe(true);
     expect(m.fog).toBe(false);
     expect(m.map).toBeInstanceOf(THREE.DataTexture);
-    // The drift moves every point, so it is never culled by a box taken before it moved.
     expect(points.frustumCulled).toBe(false);
+    expect(points.visible).toBe(false);
+    v.setDust(1);
+    expect([points.visible, m.opacity]).toEqual([true, VOID_LOOK.dust.opacity]);
+    v.setDust(0.5);
+    expect(m.opacity).toBeCloseTo(VOID_LOOK.dust.opacity / 2, 12);
+    v.setDust(Number.NaN);
+    expect(points.visible).toBe(false);
     v.dispose();
   });
 
-  it("scatters through the void's own box, under the ceiling, and never on the camera's way down and out", () => {
+  it("keeps clear, in its own moving frame, of the camera's path on both sizes, the light's, the ring camera's orbit and the beads' rise", () => {
+    const shift = (p: readonly number[], f: number) => new THREE.Vector3(p[0], p[1], p[2]! - streamAt(f));
+    const cam: THREE.Vector3[] = [];
+    const light: THREE.Vector3[] = [];
+    for (const aspect of [DESK, PHONE]) {
+      for (let f = 1; f <= F.END; f++) {
+        cam.push(shift(wayShot(f, aspect).position, f));
+        light.push(shift(lightAt(f, aspect).position, f));
+      }
+      for (let angle = 0; angle < 360; angle += 3) cam.push(shift(ringShot(angle, aspect).position, F.END));
+    }
+    const beads: THREE.Vector3[] = [];
+    for (const angle of [0, 120, 240]) for (let k = 0; k <= 12; k++) beads.push(shift(beadRest(angle), F.END).sub(new THREE.Vector3(0, (RING.rise * k) / 12, 0)));
+    const nearest = (p: THREE.Vector3, path: THREE.Vector3[]) => Math.min(...path.map((q) => p.distanceTo(q)));
     const v = buildVoid('high');
-    const { at, drawn } = dust(v);
-    const { box, avoid } = VOID_LOOK.dust;
-    const [a0, b0] = avoid.path[0]!.map((p) => new THREE.Vector3(...p)) as [THREE.Vector3, THREE.Vector3];
-    const [a1, b1] = avoid.path[1]!.map((p) => new THREE.Vector3(...p)) as [THREE.Vector3, THREE.Vector3];
-    expect(avoid.radius).toBe(2.2);
-    for (const t of [0, 11, 23, 37, 45, 60, 71, 89.5]) {
+    for (const t of [0, 23, 45, 71]) {
       v.setTime(t);
+      const { at, drawn } = dust(v);
       for (let i = 0; i < drawn; i++) {
         const p = at(i);
+        expect(nearest(p, cam), `point ${i} at ${t} s from the camera`).toBeGreaterThanOrEqual(CLEAR.cam);
+        expect(nearest(p, light), `point ${i} at ${t} s from the light`).toBeGreaterThanOrEqual(CLEAR.light);
+        expect(nearest(p, beads), `point ${i} at ${t} s from a bead`).toBeGreaterThanOrEqual(CLEAR.bead);
         expect(p.y).toBeLessThan(VOID_LOOK.ceiling.y);
-        // The drift is taken off the box's edges, so a point is in the box at every moment.
-        expect(p.x).toBeGreaterThanOrEqual(box.x[0] - 1e-4);
-        expect(p.x).toBeLessThanOrEqual(box.x[1] + 1e-4);
-        expect(p.y).toBeGreaterThanOrEqual(box.y[0] - 1e-4);
-        expect(p.y).toBeLessThanOrEqual(box.y[1] + 1e-4);
-        expect(p.z).toBeGreaterThanOrEqual(box.z[0] - 1e-4);
-        expect(p.z).toBeLessThanOrEqual(box.z[1] + 1e-4);
-        expect(distanceToSegment(p, a0, b0)).toBeGreaterThanOrEqual(avoid.radius - 1e-6);
-        expect(distanceToSegment(p, a1, b1)).toBeGreaterThanOrEqual(avoid.radius - 1e-6);
       }
     }
     v.dispose();
@@ -353,7 +431,6 @@ describe('the dust', () => {
     expect(between.some((p, i) => p.distanceTo(first[i]!) > 0.05)).toBe(true);
     v.setTime(31 + 1 / 60);
     cloud().forEach((p, i) => expect(p.distanceTo(first[i]!)).toBeLessThan(0.01));
-    // NaN reads as 0.
     v.setTime(0);
     const zero = cloud().map((p) => p.toArray());
     v.setTime(Number.NaN);
@@ -362,150 +439,8 @@ describe('the dust', () => {
   });
 });
 
-describe('the beam', () => {
-  it("is a cone of light from the opening: open, widening from the hole's radius at the ceiling down into the void", () => {
-    const v = buildVoid('high');
-    const beam = objectNamed<THREE.Mesh<THREE.CylinderGeometry, THREE.MeshBasicMaterial>>(v.group, 'void:beam');
-    const { parameters } = beam.geometry;
-    expect(parameters.openEnded).toBe(true);
-    expect(parameters.radiusTop).toBe(1.585);
-    expect(parameters.radiusBottom).toBe(VOID_LOOK.beam.reach);
-    expect(VOID_LOOK.beam.reach).toBeGreaterThan(parameters.radiusTop);
-    expect(parameters.height).toBe(VOID_LOOK.beam.length);
-    expect(beam.position.y).toBeCloseTo(-1.2, 9);
-    // Its apex ring is at the opening and the rest hangs below it.
-    beam.geometry.computeBoundingBox();
-    expect(beam.geometry.boundingBox!.max.y).toBeCloseTo(0, 6);
-    expect(beam.geometry.boundingBox!.min.y).toBeCloseTo(-VOID_LOOK.beam.length, 6);
-    v.dispose();
-  });
-
-  it("is dim gold light, added to what is behind, seen from inside or out, writing no depth, out of the fog", () => {
-    const v = buildVoid('high');
-    const m = beamMaterial(v);
-    expectColour(m.color, times(VOID_LOOK.beam.colour, VOID_LOOK.beam.dim));
-    expect(VOID_LOOK.beam.colour).toBe(palette.goldLight);
-    expect(m.blending).toBe(THREE.AdditiveBlending);
-    expect(m.transparent).toBe(true);
-    expect(m.depthWrite).toBe(false);
-    expect(m.depthTest).toBe(true);
-    expect(m.side).toBe(THREE.DoubleSide);
-    expect(m.fog).toBe(false);
-    expect(VOID_LOOK.beam.opacity).toBeGreaterThan(0);
-    expect(VOID_LOOK.beam.opacity).toBeLessThanOrEqual(0.2);
-    v.dispose();
-  });
-
-  it('softens its edge and fades along its length in the material\'s own shader, keeping the rest of three\'s', () => {
-    const v = buildVoid('high');
-    const m = beamMaterial(v);
-    const shader = { uniforms: {} as Record<string, THREE.IUniform>, vertexShader: THREE.ShaderLib.basic.vertexShader, fragmentShader: THREE.ShaderLib.basic.fragmentShader };
-    m.onBeforeCompile(shader as never, {} as never);
-    // Both stages declare what they share, the vertex stage fills it and the fragment stage reads it.
-    for (const stage of [shader.vertexShader, shader.fragmentShader]) {
-      expect(stage).toContain('varying vec3 vBeamNormal;');
-      expect(stage).toContain('varying vec3 vBeamView;');
-      expect(stage).toContain('varying float vBeamAlong;');
-    }
-    expect(shader.vertexShader).toContain('vBeamNormal =');
-    expect(shader.vertexShader).toContain('vBeamView =');
-    expect(shader.vertexShader).toContain('vBeamAlong =');
-    expect(shader.fragmentShader).toContain('diffuseColor.a *=');
-    // Three's chunks are all still there, so tone mapping, colour space and the clipping planes work.
-    for (const chunk of ['#include <project_vertex>', '#include <begin_vertex>']) expect(shader.vertexShader).toContain(chunk);
-    for (const chunk of ['#include <color_fragment>', '#include <opaque_fragment>', '#include <tonemapping_fragment>', '#include <colorspace_fragment>']) {
-      expect(shader.fragmentShader).toContain(chunk);
-    }
-    // The patch gets a program of its own, apart from every plain MeshBasicMaterial.
-    expect(m.customProgramCacheKey()).toBe('bob-void-beam');
-    v.dispose();
-  });
-
-  it('holds the base of every power in its patch to 0..1, so no fragment is ever NaN', () => {
-    // An interpolated varying can stray an ulp past the ends of what the vertices hold: 1.0 - vBeamAlong a hair under 0
-    // at the far end of the beam, whose pow() is NaN; the bloom's mip chain then spreads one NaN pixel over the whole
-    // frame, black (a phone's overview, Task 11).
-    const v = buildVoid('high');
-    const m = beamMaterial(v);
-    const shader = { uniforms: {} as Record<string, THREE.IUniform>, vertexShader: THREE.ShaderLib.basic.vertexShader, fragmentShader: THREE.ShaderLib.basic.fragmentShader };
-    m.onBeforeCompile(shader as never, {} as never);
-    const patch = shader.fragmentShader.slice(shader.fragmentShader.indexOf('diffuseColor.a *='));
-    const bases = [...patch.matchAll(/pow\(\s*(clamp\()?/g)];
-    expect(bases.length).toBe(2);
-    for (const base of bases) expect(base[1], base[0]).toBe('clamp(');
-    expect(patch).toContain('clamp( 1.0 - vBeamAlong, 0.0, 1.0 )');
-    v.dispose();
-  });
-});
-
-describe('the light', () => {
-  it('hides the beam and the mist at setLight(0, 0): opacity 0 and not drawn', () => {
-    const v = buildVoid('high');
-    v.setLight(0, 0);
-    expect(beamMaterial(v).opacity).toBe(0);
-    expect(objectNamed(v.group, 'void:beam').visible).toBe(false);
-    for (const o of sprites(v)) {
-      expect(o.material.opacity).toBe(0);
-      expect(o.visible).toBe(false);
-    }
-    // The mist keeps its place and keeps drifting while hidden, so showing it again shows the picture of that time.
-    v.setTime(9);
-    for (const o of sprites(v)) expect(o.material.opacity).toBe(0);
-    v.dispose();
-  });
-
-  it("shows them at the look's levels at setLight(1, 1)", () => {
-    const v = buildVoid('high');
-    v.setLight(1, 1);
-    expect(beamMaterial(v).opacity).toBe(VOID_LOOK.beam.opacity);
-    expect(objectNamed(v.group, 'void:beam').visible).toBe(true);
-    const [low, high] = VOID_LOOK.mist.opacity;
-    for (const o of sprites(v)) {
-      expect(o.visible).toBe(true);
-      // The puff's own opacity at its breath: never above the look's top, never below its bottom less the breath.
-      expect(o.material.opacity).toBeGreaterThan(low * (1 - VOID_LOOK.mist.breathe) - 1e-9);
-      expect(o.material.opacity).toBeLessThanOrEqual(high + 1e-9);
-    }
-    v.dispose();
-  });
-
-  it('scales the beam and the mist with their own level, independently, held to 0..1 (NaN is 0)', () => {
-    const v = buildVoid('medium');
-    v.setTime(5);
-    v.setLight(1, 1);
-    const full = sprites(v).map((o) => o.material.opacity);
-    v.setLight(0.5, 0.25);
-    expect(beamMaterial(v).opacity).toBeCloseTo(VOID_LOOK.beam.opacity / 2, 9);
-    sprites(v).forEach((o, i) => expect(o.material.opacity).toBeCloseTo(full[i]! / 4, 9));
-    v.setLight(1, 0);
-    expect(beamMaterial(v).opacity).toBe(VOID_LOOK.beam.opacity);
-    for (const o of sprites(v)) expect(o.material.opacity).toBe(0);
-    v.setLight(0, 1);
-    expect(beamMaterial(v).opacity).toBe(0);
-    sprites(v).forEach((o, i) => expect(o.material.opacity).toBeCloseTo(full[i]!, 9));
-    v.setLight(7, 7);
-    expect(beamMaterial(v).opacity).toBe(VOID_LOOK.beam.opacity);
-    sprites(v).forEach((o, i) => expect(o.material.opacity).toBeCloseTo(full[i]!, 9));
-    v.setLight(Number.NaN, -3);
-    expect(beamMaterial(v).opacity).toBe(0);
-    for (const o of sprites(v)) expect(o.material.opacity).toBe(0);
-    v.dispose();
-  });
-
-  it('keeps the dust, the ceiling and the traces as they are, whatever the light', () => {
-    const v = buildVoid('high');
-    const before = dust(v).points.visible;
-    v.setLight(0, 0);
-    expect(dust(v).points.visible).toBe(before);
-    expect(objectNamed(v.group, 'void:ceiling').visible).toBe(true);
-    expect(objectNamed(v.group, 'void:traces').visible).toBe(true);
-    expect(objectNamed(v.group, 'void:ring').visible).toBe(true);
-    v.dispose();
-  });
-});
-
 describe('under the beads', () => {
-  it('writes no depth through the beads: the mist, the dust, the beam and the traces never write it', () => {
+  it('writes no depth through the beads: the haze, the dust and the traces never write it', () => {
     const v = buildVoid('high');
     const writes: string[] = [];
     v.group.traverse((o) => {
@@ -517,47 +452,48 @@ describe('under the beads', () => {
     v.dispose();
   });
 
-  it('draws its haze before the default order, so the beads\' glass lies over it and the haze never over a bead\'s glass', () => {
+  it("draws its haze before the default order, so the beads' glass lies over it and the haze never over a bead's glass", () => {
     const v = buildVoid('high');
     expect(VOID_HAZE_ORDER).toBeLessThan(0);
-    for (const name of ['void:mist', 'void:dust', 'void:beam']) expect(objectNamed(v.group, name).renderOrder, name).toBe(VOID_HAZE_ORDER);
-    // The void's own group adds no order of its own.
+    for (const name of ['void:band', 'void:ringMist', 'void:dust:points']) expect(objectNamed(v.group, name).renderOrder, name).toBe(VOID_HAZE_ORDER);
     expect(v.group.renderOrder).toBe(0);
     v.dispose();
   });
 
   it('is never hit by the pointer: nothing in it takes a ray, so a bead behind the mist is still picked', () => {
     const v = buildVoid('high');
-    v.setLight(1, 1);
+    const camera = cameraOn(ringShot(0, DESK), DESK);
+    v.setBand({ shown: true, y: 0.36, sigma: 0.075, strength: 1, distance: 26 }, camera);
+    v.setRingMist(1);
+    v.setDust(1);
     v.group.updateMatrixWorld(true);
-    const camera = new THREE.PerspectiveCamera();
-    camera.position.set(0, -3, 4);
-    camera.updateMatrixWorld(true);
-    const raycaster = new THREE.Raycaster(new THREE.Vector3(0, -3, 4), new THREE.Vector3(0, -0.2, -1).normalize());
+    const raycaster = new THREE.Raycaster();
     raycaster.camera = camera;
-    expect(raycaster.intersectObject(v.group, true)).toHaveLength(0);
-    // And straight up through the ceiling and down the beam.
-    for (const direction of [new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, -1, 0)]) {
-      const r = new THREE.Raycaster(new THREE.Vector3(0.3, -3, 0.2), direction);
-      r.camera = camera;
-      expect(r.intersectObject(v.group, true)).toHaveLength(0);
+    for (const [x, y] of [[0, 0], [0, 0.3], [0.5, -0.2], [-0.7, 0.1]] as const) {
+      raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
+      expect(raycaster.intersectObject(v.group, true)).toHaveLength(0);
     }
     v.dispose();
   });
 });
 
 describe('the tier', () => {
-  it("sheds the lower tiers' mist layers and dust as it steps down, the same void as one built for that tier", () => {
+  /** The void at one frame's light dive pose, the same for every model. */
+  const pose = (v: VoidModel) => {
+    v.setBand({ shown: true, y: 0.36, sigma: 0.075, strength: 0.8, distance: 26 }, cameraOn(ringShot(0, DESK), DESK));
+    v.setRingMist(0.6);
+    v.setDust(0.7);
+    v.setTime(23);
+  };
+
+  it("sheds the lower tiers' ring of mist and dust as it steps down, the same void as one built for that tier", () => {
     for (const from of ['high', 'medium'] as const) {
       for (const to of ['medium', 'low'] as const) {
         if (from === to) continue;
         const v = buildVoid(from);
         v.setTier(to);
         const built = buildVoid(to);
-        for (const model of [v, built]) {
-          model.setLight(0.8, 0.6);
-          model.setTime(23);
-        }
+        for (const model of [v, built]) pose(model);
         expect(picture(v), `${from} to ${to}`).toEqual(picture(built));
         v.dispose();
         built.dispose();
@@ -565,60 +501,41 @@ describe('the tier', () => {
     }
   });
 
-  it('frees what it sheds, once: the layers\' materials, and the mist\'s texture when no layer is left', () => {
+  it("frees what it sheds, once: the ring's sprites' materials, and its texture when none is left", () => {
     const v = buildVoid('high');
-    const all = sprites(v);
-    const shedOnMedium = all.filter((o) => o.userData.layer === 2);
-    const kept = all.filter((o) => o.userData.layer !== 2);
+    const all = ringMist(v);
     const texture = all[0]!.material.map!;
     const textureSpy = vi.spyOn(texture, 'dispose');
-    const shedSpies = shedOnMedium.map((o) => vi.spyOn(o.material, 'dispose'));
-    const keptSpies = kept.map((o) => vi.spyOn(o.material, 'dispose'));
+    const spies = all.map((o) => vi.spyOn(o.material, 'dispose'));
     v.setTier('medium');
-    for (const spy of shedSpies) expect(spy).toHaveBeenCalledOnce();
-    for (const o of shedOnMedium) expect(o.parent).toBeNull();
-    for (const spy of keptSpies) expect(spy).not.toHaveBeenCalled();
+    spies.forEach((spy, i) => expect(spy, `sprite ${i}`).toHaveBeenCalledTimes(i < 8 ? 0 : 1));
     expect(textureSpy).not.toHaveBeenCalled();
     v.setTier('low');
-    for (const spy of keptSpies) expect(spy).toHaveBeenCalledOnce();
+    for (const spy of spies) expect(spy).toHaveBeenCalledOnce();
     expect(textureSpy).toHaveBeenCalledOnce();
-    expect(sprites(v)).toHaveLength(0);
-    expect(dust(v).drawn).toBe(60);
-    // Freeing the void frees nothing a second time.
-    v.dispose();
-    for (const spy of [...shedSpies, ...keptSpies, textureSpy]) expect(spy).toHaveBeenCalledOnce();
-  });
-
-  it('only steps down: a tier above the one it stands at changes nothing, and a layer once shed does not come back', () => {
-    const v = buildVoid('high');
-    v.setTier('high');
-    expect(sprites(v)).toHaveLength(3 * VOID_LOOK.mist.puffs);
-    expect(dust(v).drawn).toBe(400);
-    v.setTier('medium');
-    expect(sprites(v)).toHaveLength(2 * VOID_LOOK.mist.puffs);
-    expect(dust(v).drawn).toBe(200);
-    v.setTier('high');
-    expect(sprites(v)).toHaveLength(2 * VOID_LOOK.mist.puffs);
-    expect(dust(v).drawn).toBe(200);
-    v.setTier('low');
-    v.setTier('medium');
-    v.setTier('high');
-    expect(sprites(v)).toHaveLength(0);
+    expect(ringMist(v)).toHaveLength(0);
     expect(dust(v).drawn).toBe(60);
     v.dispose();
-
-    const medium = buildVoid('medium');
-    medium.setTier('high');
-    expect(sprites(medium)).toHaveLength(2 * VOID_LOOK.mist.puffs);
-    expect(dust(medium).drawn).toBe(200);
-    medium.dispose();
+    for (const spy of [...spies, textureSpy]) expect(spy).toHaveBeenCalledOnce();
   });
 
-  it('keeps the ceiling, the traces, the ring and the beam whatever the tier', () => {
+  it('only steps down: a tier above the one it stands at changes nothing', () => {
     const v = buildVoid('high');
-    const before = ['void:ceiling', 'void:traces', 'void:ring', 'void:beam'].map((name) => objectNamed(v.group, name));
+    v.setTier('medium');
+    expect(ringMist(v)).toHaveLength(8);
+    expect(dust(v).drawn).toBe(200);
+    v.setTier('high');
+    expect(ringMist(v)).toHaveLength(8);
+    expect(dust(v).drawn).toBe(200);
+    v.dispose();
+  });
+
+  it('keeps the ceiling, the traces, the ring and the band whatever the tier', () => {
+    const v = buildVoid('high');
+    const before = ['void:ceiling', 'void:traces', 'void:ring', 'void:band'].map((name) => objectNamed(v.group, name));
     v.setTier('low');
     for (const part of before) expect(part.parent).toBe(v.group);
+    expect(band(v)).toHaveLength(VOID_LOOK.band.puffs);
     v.dispose();
   });
 });
@@ -639,25 +556,16 @@ describe('freeing', () => {
     return parts;
   }
 
-  it('frees every geometry, material and texture it made, and not the sprites\' shared quad', () => {
+  it("frees every geometry, material and texture it made, and not the sprites' shared quad", () => {
     const v = buildVoid('high');
     const parts = resources(v.group);
-    // Ceiling (2), traces (2), ring (2), nine sprite materials and their texture (10), dust (geometry, material, texture: 3), beam (2).
-    expect(parts.size).toBe(2 + 2 + 2 + 10 + 3 + 2);
+    // Ceiling (2), traces (2), ring (2), the band's sprites and their texture, the ring of mist's and theirs, dust (3).
+    expect(parts.size).toBe(2 + 2 + 2 + (VOID_LOOK.band.puffs + 1) + (12 + 1) + 3);
     const spies = [...parts].map((part) => vi.spyOn(part, 'dispose'));
-    const shared = vi.spyOn(sprites(v)[0]!.geometry, 'dispose');
+    const shared = vi.spyOn(band(v)[0]!.geometry, 'dispose');
     v.dispose();
     for (const spy of spies) expect(spy).toHaveBeenCalled();
     expect(shared).not.toHaveBeenCalled();
-  });
-
-  it('has no mist texture to make or free on the low tier', () => {
-    const v = buildVoid('low');
-    const parts = resources(v.group);
-    expect(parts.size).toBe(2 + 2 + 2 + 3 + 2);
-    const spies = [...parts].map((part) => vi.spyOn(part, 'dispose'));
-    v.dispose();
-    for (const spy of spies) expect(spy).toHaveBeenCalled();
   });
 });
 
