@@ -21,11 +21,14 @@
 #   x = 0.5 + s A sin^2(pi (f - (61 + 40i)) / 40) over fact i's window (A 0.10 desk, 0.08 phone; s -1 for 01, 03, 05
 #   and +1 for 02, 04), the camera holding its line. Bob's facts ride beside it in the page: they are data here, not
 #   pixels.
-# - 261-300, the landing. The ring's three beads rise into view, the camera eases back out of the chase into the ring
-#   camera, and the light slows over the ring's centre and stretches into the needle (285-300), pointing at Funcial in
-#   front; its trail has faded by 274. Frame 300 is the ring's frame 0: RING_*, ring_bead_position() and
-#   ring_camera_pose() are what the ring's orbit starts from, unchanged. Over 272-296 the mist band's wisps dissolve
-#   into the ring's world-fixed ones (MIST_RING_IN), so frame 300 already shows the ring's mist.
+# - 261-300, the landing, one unbroken move (Bob, after the second mock-up: the light never slows before the projects).
+#   The light keeps its speed, sinking and travelling on, until it reaches the ring's centre at F_ARRIVE, and becomes
+#   the needle there at once, pointing at Funcial in front; its trail has faded by 274. The beads rise into view while
+#   it is still flying. The camera leaves the chase at 260 and swings out and round into the ring camera's path: it
+#   arrives at frame 300 turning round the ring at ORBIT_RATE, the rate the page's scroll then turns it, so the fall
+#   runs on into the orbit with no change of pace. Frame 300 is the ring's frame 0: RING_*, ring_bead_position() and
+#   ring_camera_pose() are what the ring's orbit starts from. Over 272-296 the mist band's wisps dissolve into the
+#   ring's world-fixed ones (MIST_RING_IN), so frame 300 already shows the ring's mist.
 #
 # The ring: 240 frames, numbered from 0, as an orbit that loops (frame 239 runs on into frame 0).
 # - The beads stand still at ring_bead_position's 0, 120 and 240 degrees, and the camera glides round them: at ring
@@ -92,8 +95,10 @@ F_TURN = 60            # the way in's last frame: from here the camera turns int
 F_CHASE = 80           # the camera is in the chase, behind the light and a little above it
 F_SETTLE = 84          # the way in's easings (its swing, the light's size, the trail, the aperture) are timed to here
 F_FALL, F_LAND, F_END = 61, 261, 300
-F_STOP = 286           # the light comes to rest at the ring's centre
-F_NEEDLE = 285         # and stretches into the needle from here to F_END
+F_ARRIVE = 273         # the light reaches the ring's centre at its fall's own speed
+F_NEEDLE = F_ARRIVE - 1                # and becomes the needle at once, over NEEDLE_FRAMES
+NEEDLE_FRAMES = 10
+BEADS_IN = 262         # the beads start to rise into view, as the camera swings out (the light still flying)
 FPS = 24
 
 # ---------------------------------------------------------------- the two sizes
@@ -144,21 +149,29 @@ RING_BEAD_GLOW = 0.2
 RING_FRONT_GLOW = 0.8
 RING_KEY = dict(energy=2.5, direction=(0.42, 0.7, -0.58))
 RING_INNER_W = 0.25 / (1.7 / 90.0)
+# The landing's swing into the orbit. The page scrolls the way's 300 frames over 3 viewport heights (299 steps) and the
+# orbit 120 degrees a viewport height, so a frame of the way's scroll turns the ring ORBIT_RATE degrees. The camera
+# leaves the chase (on the ring's -Y side, which is where azimuth -RING_TURN0 stands) at rest in its turn and gathers
+# that rate evenly over the landing's 40 frames, which takes it RING_TURN0 round: the ring is set that far round in the
+# world, so that the turn ends at azimuth 0 with Funcial in front.
+ORBIT_RATE = 120.0 / (299.0 / 3.0)
+RING_TURN0 = ORBIT_RATE * (F_END - (F_LAND - 1)) / 2.0
 
 
 def ring_bead_position(angle_deg):
     """A bead's centre at `angle_deg` round the pivot (0 = in front, toward the ring camera at azimuth 0; 120 = back
     left; 240 = back right, seen from there)."""
-    a = math.radians(angle_deg)
+    a = math.radians(angle_deg + RING_TURN0)
     return RING_CENTER + Vector((-RING_RADIUS * math.sin(a), -RING_RADIUS * math.cos(a), 0.0))
 
 
 def ring_camera_pose(size, azimuth_deg=0.0):
     """The ring camera of `size` carried `azimuth_deg` round the ring's axis, the way the bead angles run (at 120 it
     stands where it faces the bead at 120): location, rotation (XYZ Euler: it pitches by th, then turns by yaw about
-    the axis), lens, focus distance, f-stop. At azimuth 0 it is the way's frame 300."""
+    the axis), lens, focus distance, f-stop. At azimuth 0 it is the way's frame 300. The ring stands RING_TURN0 round
+    in the world, so at azimuth -RING_TURN0 the camera is on the -Y side, where the chase is."""
     c = RING_CAM[size]
-    yaw = -math.radians(azimuth_deg)
+    yaw = -math.radians(azimuth_deg + RING_TURN0)
     loc = RING_CENTER + Matrix.Rotation(yaw, 3, 'Z') @ Vector((0.0, -c["distance"], c["height"]))
     return dict(loc=loc, th=math.radians(90.0 - c["pitch"]), yaw=yaw, lens=c["lens"],
                 focus=(RING_CENTER - loc).length, fstop=c["fstop"])
@@ -187,9 +200,14 @@ def ring_front(f):
     return int(math.floor((ring_cam(f) + RING_SPACING / 2.0) / RING_SPACING)) % len(RING_BEADS)
 
 
+def rel_to(angle_deg, cam_deg):
+    """The bead at `angle_deg`'s angle from the front of a camera at azimuth `cam_deg`, in -180 .. 180."""
+    return (angle_deg - cam_deg + 180.0) % 360.0 - 180.0
+
+
 def ring_rel(angle_deg, f):
     """The bead at `angle_deg`'s angle from the camera's front at ring frame f, in -180 .. 180."""
-    return (angle_deg - ring_cam(f) + 180.0) % 360.0 - 180.0
+    return rel_to(angle_deg, ring_cam(f))
 
 
 def ring_closeness(angle_deg, f):
@@ -207,14 +225,15 @@ def ring_closeness(angle_deg, f):
 RING_LIFT = 0.35
 
 
-def ring_lift(angle_deg, f):
-    return RING_LIFT * ease_io((abs(ring_rel(angle_deg, f)) - RING_SPACING) / (180.0 - RING_SPACING))
+def lift_from(angle_deg, cam_deg):
+    """How far the bead at `angle_deg` rises as it passes behind the pivot, seen from a camera at azimuth `cam_deg`."""
+    return RING_LIFT * ease_io((abs(rel_to(angle_deg, cam_deg)) - RING_SPACING) / (180.0 - RING_SPACING))
 
 
 def ring_bead_at(angle_deg, f):
     """The centre of the bead at `angle_deg` at ring frame f: in its place on the ring, lifted as it passes behind the
     pivot, seen from the camera."""
-    return ring_bead_position(angle_deg) + Vector((0.0, 0.0, ring_lift(angle_deg, f)))
+    return ring_bead_position(angle_deg) + Vector((0.0, 0.0, lift_from(angle_deg, ring_cam(f))))
 
 
 # ---------------------------------------------------------------- freeze the previs at BOB seen from above
@@ -305,10 +324,8 @@ def speed_table(v_fall):
             v = V_PEAK
         elif f <= 80:
             v = lerp(V_PEAK, v_fall, ease_io((f - 36) / 44.0))
-        elif f <= 260:
-            v = v_fall
-        elif f <= F_STOP:
-            v = v_fall * (1.0 - ease_io((f - 260) / float(F_STOP - 260)))
+        elif f <= F_ARRIVE:
+            v = v_fall                  # the fall's speed to the end: it does not slow before the ring
         else:
             v = 0.0
         s[f] = v
@@ -323,16 +340,16 @@ def anchor_table(v_fall):
     return z
 
 
-lo, hi = 0.0005, 0.3                 # the fall's speed that lands the light on the ring's plane at F_STOP
+lo, hi = 0.0005, 0.3                 # the fall's speed that lands the light on the ring's plane at F_ARRIVE
 for _ in range(80):
     mid = 0.5 * (lo + hi)
-    if anchor_table(mid)[F_STOP] > RING_HEIGHT:
+    if anchor_table(mid)[F_ARRIVE] > RING_HEIGHT:
         lo = mid
     else:
         hi = mid
 V_FALL = 0.5 * (lo + hi)
 ANCHOR_Z = anchor_table(V_FALL)
-for f in range(F_STOP, F_END + 1):
+for f in range(F_ARRIVE, F_END + 1):
     ANCHOR_Z[f] = RING_HEIGHT
 
 D_PASS = 2.4                  # the camera's distance from the light under the glass
@@ -348,8 +365,8 @@ Y_FALL = 0.56                 # the light's place on the frame in the fall (from
 # (BAND_Y_CHASE, the horizon ahead, in the upper third) while the light sits at Y_FALL: the dust streams out from the
 # horizon toward the camera, and the light's trail streams down the frame toward it, in perspective. The void streams
 # instead of the light crossing the world (the ring stands under the O): stream_at(f) is how far it has moved toward
-# the camera (-Y) by frame f, easing in over the turn and out before the landing, done before the ring's void clock
-# reads it (ring_void_state reaches back to frame 300 - 38.2).
+# the camera (-Y) by frame f, easing in over the turn and out only as the light arrives at the ring's centre (the
+# ring's void holds it at its total: ring_void_state).
 U_CHASE = 0.05
 D_CHASE = 4.5
 BAND_Y_CHASE = 0.30
@@ -365,7 +382,7 @@ def chase_angle(size):
 
 TH_CHASE = {size: chase_angle(size) for size in SIZES}
 STREAM_IN = (F_TURN, F_CHASE)
-STREAM_OUT = (232, 260)
+STREAM_OUT = (F_ARRIVE - 10, F_ARRIVE)
 
 
 def stream_speed(f):
@@ -438,28 +455,51 @@ def track_pose(f, size):
 
 
 def anchor_y(loc, th, lens, size, anchor):
-    """Where `anchor` sits on the frame (from the top) for a camera at `loc` pitched `th` (Euler X)."""
+    """Where `anchor`, on the ring's axis, sits on the frame (from the top) for a camera at `loc` pitched `th` (Euler
+    X) and turned to face the axis."""
     rel = anchor - loc
-    beta = math.atan2(-rel.z, rel.y)                    # below the camera's horizontal
+    beta = math.atan2(-rel.z, rel.xy.length)            # below the camera's horizontal
     return 0.5 + math.tan(beta - (math.pi / 2 - th)) / (2.0 * tan_v_of(size, lens))
 
 
+def hermite(p0, m0, p1, m1, t):
+    """From p0 at slope m0 to p1 at slope m1 over t 0..1 (slopes a unit of t)."""
+    t = clamp01(t)
+    return ((2 * t ** 3 - 3 * t ** 2 + 1) * p0 + (t ** 3 - 2 * t ** 2 + t) * m0 + (3 * t ** 2 - 2 * t ** 3) * p1
+            + (t ** 3 - t ** 2) * m1)
+
+
 def cam_pose(f, size):
-    """The camera at frame f. In the landing it eases back out of the chase to the ring camera, and pitches so the
-    light's place on the frame moves straight from where the fall held it to where the ring camera sees the pivot."""
-    tp = track_pose(f, size)
-    if f <= 260:
+    """The camera at frame f, with its yaw (it faces the ring's axis). In the landing it leaves the chase at 260 on
+    the chase's own course (sinking with the light) and swings out and round into the ring camera, round the ring's
+    axis: out to the ring camera's distance and height, arriving at rest in both, and round from the chase's side
+    (azimuth -RING_TURN0) to azimuth 0, gathering the orbit's own rate evenly (from none to ORBIT_RATE at 300), so the
+    turn carries straight on into the ring's. It pitches so the light's place on the frame moves smoothly from where
+    the fall held it to where the ring camera sees the pivot."""
+    tp = track_pose(min(f, F_LAND - 1), size)
+    tp["yaw"] = 0.0
+    if f <= F_LAND - 1:
         return tp
-    t = ease_io(span(f, 260, F_END))
-    tf = ease_io(span(f, 260, 284))
     rp = ring_camera_pose(size)
-    loc = tp["loc"].lerp(rp["loc"], t)
-    lens = lerp(tp["lens"], rp["lens"], t)
-    y_s = lerp(Y_FALL, anchor_y(rp["loc"], rp["th"], rp["lens"], size, RING_CENTER), t)
-    rel = Vector((0.0, 0.0, ANCHOR_Z[f])) - loc
-    beta = math.atan2(-rel.z, rel.y)
+    if f >= F_END:
+        return dict(rp, d=tp["d"], dl=tp["dl"])
+    n = F_END - (F_LAND - 1)
+    t = span(f, F_LAND - 1, F_END)
+    rho0, z0 = tp["loc"].xy.length, tp["loc"].z
+    rho1, z1 = (rp["loc"] - RING_CENTER).xy.length, rp["loc"].z
+    rho = hermite(rho0, 0.0, rho1, 0.0, t)
+    z = hermite(z0, -V_FALL * n, z1, 0.0, t)
+    turned = hermite(0.0, 0.0, RING_TURN0, ORBIT_RATE * n, t)            # degrees round from the chase's side
+    yaw = -math.radians(turned)
+    loc = RING_CENTER + Matrix.Rotation(yaw, 3, 'Z') @ Vector((0.0, -rho, 0.0))
+    loc.z = z
+    e = ease_io(t)
+    lens = lerp(tp["lens"], rp["lens"], e)
+    y_s = lerp(Y_FALL, anchor_y(rp["loc"], rp["th"], rp["lens"], size, RING_CENTER), e)
+    beta = math.atan2(z - ANCHOR_Z[f], rho)
     th = math.pi / 2 - (beta - math.atan((y_s - 0.5) * 2.0 * tan_v_of(size, lens)))
-    return dict(loc=loc, th=th, lens=lens, focus=lerp(tp["focus"], rp["focus"], tf),
+    tf = ease_io(span(f, F_LAND - 1, F_ARRIVE + 8))
+    return dict(loc=loc, th=th, yaw=yaw, lens=lens, focus=lerp(tp["focus"], rp["focus"], tf),
                 fstop=lerp(tp["fstop"], rp["fstop"], tf), d=tp["d"], dl=tp["dl"])
 
 
@@ -546,7 +586,7 @@ def glow_at(f):
     g = ease_io(span(f, 1, F_IGNITE))
     if f > F_IGNITE:
         g *= 1.0 - 0.08 * (0.5 - 0.5 * math.cos(2.0 * math.pi * (f - F_IGNITE) / 48.0))
-    g *= 1.0 - ease_io(span(f, 287, F_END))
+    g *= 1.0 - ease_io(span(f, F_NEEDLE + 1, F_NEEDLE + NEEDLE_FRAMES - 1))
     return clamp01(g)
 
 
@@ -1148,17 +1188,19 @@ def void_state(f, size=SIZE):
 # away from frame 0's at the wrap and jump back, and the wisps would change. So the ring reads them off a looping
 # clock, 300 + (240 / 2 pi) sin(2 pi f / 240): frame 0 is frame 300 exactly, the drift leaves it at the way's own
 # speed (the clock's slope there is 1), sways forward to 300 + 38 at 60 and back through 300 at 120 to 300 - 38 at
-# 180, and is at frame 0's state again at 240.
+# 180, and is at frame 0's state again at 240. The dust's place is its drift on that clock plus the stream's total:
+# the void streams on into the landing (the light keeps flying until F_ARRIVE), which the clock reaches back into.
 RING_VOID_SWING = RING_FRAMES / (2.0 * math.pi)
 RING_VOID_MOVING = ("drift", "w", "dust_offset")
-assert STREAM_OUT[1] <= F_END - RING_VOID_SWING      # the stream is over before the ring's clock reaches back
 
 
 def ring_void_state(f, size=SIZE):
     vs = void_state(F_END, size)
-    moving = void_state(F_END + RING_VOID_SWING * math.sin(2.0 * math.pi * f / RING_FRAMES), size)
+    c = F_END + RING_VOID_SWING * math.sin(2.0 * math.pi * f / RING_FRAMES)
+    moving = void_state(c, size)
     for k in RING_VOID_MOVING:
         vs[k] = moving[k]
+    vs["dust_offset"] = DUST_DRIFT * c + stream_at(F_END)
     return vs
 
 
@@ -1169,12 +1211,15 @@ def _comps(v):
     return tuple(v) if hasattr(v, "__len__") else (v,)
 
 
-_v0, _v1 = void_state(F_END), void_state(F_END + 1)
+assert ring_void_state(0)["dust_offset"] == void_state(F_END)["dust_offset"]
+_v0, _v1 = ring_void_state(0), void_state(F_END + 1)
 for _c in (262.0, 275.0, 288.0, 300.0, 313.0, 326.0, 338.0):
     _v = void_state(_c)
+    _rc = dict(_v, dust_offset=DUST_DRIFT * _c + stream_at(F_END))
     for _k in RING_VOID_MOVING:
+        _a1 = _v1[_k] if _k != "dust_offset" else _v0[_k] + DUST_DRIFT
         assert all(abs(a - a0 - (_c - F_END) * (a1 - a0)) < 1e-5          # mathutils vectors are float32
-                   for a, a0, a1 in zip(_comps(_v[_k]), _comps(_v0[_k]), _comps(_v1[_k]))), (_c, _k)
+                   for a, a0, a1 in zip(_comps(_rc[_k]), _comps(_v0[_k]), _comps(_a1))), (_c, _k)
     if _c >= F_END:
         assert all(_v[_k] == _v0[_k] for _k in _v0 if _k not in RING_VOID_MOVING), _c
 
@@ -1183,8 +1228,9 @@ def mist_ring_rate(size):
     """The ring of mist's noise per metre (round it, up it) that draws its wisps at frame 300's band middle the size
     on the frame the band's own are there. The band's are 1.6 and 5.0 noise units (its Mapping) across its plane's half
     width and half height; a feature the same angle on the frame covers d / cos(incidence) of a surface, d along the
-    ray: the plane faces the camera's axis, the ring of mist stands upright, its middle met square on from the side."""
-    rp = ring_camera_pose(size)
+    ray: the plane faces the camera's axis, the ring of mist stands upright, its middle met square on from the side.
+    The ring of mist is round the axis, so it is reckoned for the camera on the -Y side, facing +Y."""
+    rp = ring_camera_pose(size, -RING_TURN0)
     vs = void_state(F_END, size)
     bd, lens = vs["band_d"], rp["lens"]
     pitch = math.pi / 2 - rp["th"]
@@ -1353,7 +1399,8 @@ def set_camera(pose, yaw=0.0):
 
 for f in range(1, F_END + 1):
     if PART == "way":
-        set_camera(cam_pose(f, SIZE))
+        _cp = cam_pose(f, SIZE)
+        set_camera(_cp, _cp["yaw"])
         LD_CAM.keyframe_insert("location", frame=f)
         LD_CAM.keyframe_insert("rotation_euler", frame=f)
         LD_CAM.data.keyframe_insert("lens", frame=f)
@@ -1362,9 +1409,13 @@ for f in range(1, F_END + 1):
     rr = light_radius(f)
     LIGHT_R[f] = rr
     light_root.location = LIGHT_POS[f]
-    s = ease_io(span(f, F_NEEDLE, F_END))                # the light stretches along the needle (toward -Y)
-    light_root.scale = (rr * (1 - 0.65 * s), rr * (1 + 5.0 * s), rr * (1 - 0.65 * s))
+    # the light turns with the camera's swing (its halo faces the camera), and stretches along the needle, which points
+    # where the camera looks
+    light_root.rotation_euler = (0.0, 0.0, cam_pose(f, SIZE)["yaw"])
+    s = ease_io(span(f, F_NEEDLE, F_NEEDLE + NEEDLE_FRAMES))
+    light_root.scale = (rr * (1 - 0.65 * s), rr * (1 + 3.0 * s), rr * (1 - 0.65 * s))
     light_root.keyframe_insert("location", frame=f)
+    light_root.keyframe_insert("rotation_euler", frame=f)
     light_root.keyframe_insert("scale", frame=f)
 prefs.keyframe_new_interpolation_type = old_interp
 
@@ -1483,7 +1534,7 @@ def apply_frame(f):
     halo.rotation_euler = Euler((cp["th"], 0.0, 0.0))
     glow_ld.energy = LIGHT_W * g
     glow_ld.shadow_soft_size = rr
-    fade_fil = 1.0 - ease_io(span(f, 282, 294))
+    fade_fil = 1.0 - ease_io(span(f, F_NEEDLE - 4, F_NEEDLE + 6))
     for i, (ob, lvl) in enumerate(zip(fil_objs, fil_levels)):
         sp = ob.data.splines[0]
         for p, co in zip(sp.points, filament_at(i, f)):
@@ -1512,24 +1563,29 @@ def apply_frame(f):
     SMOKE_DENS.default_value = SMOKE_REST * (1.0 - ease_io(span(f, 12, 28)))
     WELL_EMIT.default_value = WELL_REST * (1.0 - ease_io(span(f, 10, 26)))
     WELL_LIGHT.energy = WELL_LIGHT_REST * (1.0 - ease_io(span(f, 10, 26)))
-    # the ring rises into view, faces its camera, the needle is drawn out of the light
-    rise = ease_out(span(f, 256, 292))
-    rp = ring_camera_pose(SIZE)
+    # The ring rises into view while the light is still flying, each bead facing the camera and lifted as the ring's
+    # beads are, from the camera's azimuth in its swing; the lights on the beads turn with the camera, as in the ring;
+    # the needle is drawn out of the light the moment it arrives, pointing where the camera looks.
+    rise = ease_out(span(f, BEADS_IN, 292))
+    az = -math.degrees(cp["yaw"]) - RING_TURN0
     for root, angle in ring_beads:
-        pos = ring_bead_position(angle) + Vector((0.0, 0.0, -RING_RISE * (1.0 - rise)))
+        pos = ring_bead_position(angle) + Vector((0.0, 0.0, lift_from(angle, az) - RING_RISE * (1.0 - rise)))
         root.location = pos
-        root.rotation_quaternion = bead_facing(pos, rp["loc"])
-        hidden = f < 250
+        root.rotation_quaternion = bead_facing(pos, cp["loc"])
+        hidden = f < BEADS_IN
         for ob in [root] + list(root.children_recursive):
             ob.hide_render = hidden
-    kd2.energy = RING_KEY["energy"] * ease_io(span(f, 256, 286))
-    FUNCIAL_EMIT.default_value = lerp(RING_BEAD_GLOW, RING_FRONT_GLOW, ease_io(span(f, 288, F_END)))
-    t = ease_io(span(f, F_NEEDLE, F_END))
+    kd2.energy = RING_KEY["energy"] * ease_io(span(f, BEADS_IN, F_ARRIVE + 8))
+    bead_key2.rotation_euler = key_rotation(cp["yaw"])
+    turn_fill(cp["yaw"])
+    FUNCIAL_EMIT.default_value = lerp(RING_BEAD_GLOW, RING_FRONT_GLOW, ease_io(span(f, F_ARRIVE, F_END)))
+    t = ease_io(span(f, F_NEEDLE, F_NEEDLE + NEEDLE_FRAMES))
     ring_needle.hide_render = ring_pivot.hide_render = f < F_NEEDLE
+    ring_needle.rotation_euler = (math.pi / 2, 0.0, cp["yaw"])
     sN = RING_NEEDLE_SCALE
     ring_needle.scale = (sN * (0.45 + 0.55 * t), sN * (0.45 + 0.55 * t), sN * max(ease_out(t), 1e-3))
     ring_pivot.scale = (sN * max(ease_out(span(f, F_NEEDLE, F_NEEDLE + 8)), 1e-3),) * 3
-    RING_NEEDLE_EMIT.default_value = lerp(6.0, RING_NEEDLE_GLOW, ease_io(span(f, F_NEEDLE + 3, F_END)))
+    RING_NEEDLE_EMIT.default_value = lerp(2.5, RING_NEEDLE_GLOW, ease_io(span(f, F_NEEDLE + 3, F_END - 4)))
     LD_SCENE.view_layers[0].update()
 
 
