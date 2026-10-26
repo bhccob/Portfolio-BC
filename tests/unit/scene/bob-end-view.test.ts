@@ -1,11 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { damp } from 'maath/easing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AngleSpring, wrapAngle } from '~/engine/AngleSpring';
 import { NEEDLE_SPRING } from '~/engine/bob/needleAim';
 import { AT_REST, asleep } from '~/engine/stillness';
-import { GLIDE_SMOOTH } from '~/input/scrollLoop';
+import { follow } from '~/input/scrollLoop';
 import { applyEndView, clearEndView, type EndPageNode, type EndRoot, endViewFor, endWritten } from '~/scene/bob/endView';
 import { idleRuns, needleRests } from '~/scene/bob/idle';
 import { BEADS, journeyAt, journeyPoseAt } from '~/scene/bob/journey';
@@ -15,18 +14,18 @@ import { phaseChangeDraws } from '~/scene/motion';
 import { HOME_CHAPTERS, scrollEnd } from '~/state/chapters';
 import type { Phase } from '~/state/machine';
 
-/** The end page's stop, the scroll's end (6). */
+/** The end page's stop, the scroll's end (7). */
 const END = scrollEnd(HOME_CHAPTERS);
 
 /** Cookies Clicker's place in `BEADS`: the last bead, under the end page. */
 const COOKIES = BEADS.findIndex(({ id }) => id === 'cookies-clicker');
 
-describe('endViewFor: the end view of a frame, from its night and where the story is', () => {
-  it('is nothing before the night', () => {
+describe('endViewFor: the end view of a frame, from its sheet and where the story is', () => {
+  it('is nothing before the sheet', () => {
     expect(endViewFor(0, 5, 5, 6)).toEqual({ share: 0, state: 'none' });
   });
 
-  it('is moving on the way into the night', () => {
+  it('is moving as the sheet slides up', () => {
     expect(endViewFor(0.5, 5.5, 6, 6)).toEqual({ share: 0.5, state: 'moving' });
   });
 
@@ -34,7 +33,7 @@ describe('endViewFor: the end view of a frame, from its night and where the stor
     expect(endViewFor(1, 6, 6, 6)).toEqual({ share: 1, state: 'rest' });
   });
 
-  it('reads a night that is not a number as none', () => {
+  it('reads a sheet that is not a number as none', () => {
     expect(endViewFor(Number.NaN, 6, 5, 6)).toEqual({ share: 0, state: 'none' });
   });
 
@@ -113,7 +112,7 @@ describe('applyEndView: Home writes the end view each frame, only on change', ()
 
   /** One of Home's frames: the frame's journey pose at `progress`, its end view, written. */
   function frameAt(dom: ReturnType<typeof fakeRoot>, page: EndPageNode | null, written: ReturnType<typeof endWritten>, progress: number, target: number): void {
-    applyEndView(endViewFor(journeyPoseAt(progress, 16 / 9).night, progress, target, END), dom.root, page, written);
+    applyEndView(endViewFor(journeyPoseAt(progress, 16 / 9).sheet, progress, target, END), dom.root, page, written);
   }
 
   it('keeps the end page inert until the story rests at it', () => {
@@ -121,16 +120,16 @@ describe('applyEndView: Home writes the end view each frame, only on change', ()
     const { page } = fakePage();
     const written = endWritten();
 
-    frameAt(dom, page, written, 5, 5);
+    frameAt(dom, page, written, 6, 6);
     expect([dom.end(), dom.share(), page.inert]).toEqual([null, '', true]);
 
-    frameAt(dom, page, written, 5.5, 6);
+    frameAt(dom, page, written, 6.5, 7);
     expect([dom.end(), dom.share(), page.inert]).toEqual(['moving', '0.5', true]);
 
-    frameAt(dom, page, written, 6, 6);
+    frameAt(dom, page, written, 7, 7);
     expect([dom.end(), dom.share(), page.inert]).toEqual(['rest', '1', false]);
 
-    frameAt(dom, page, written, 5, 5);
+    frameAt(dom, page, written, 6, 6);
     expect([dom.end(), dom.share(), page.inert]).toEqual([null, '', true]);
   });
 
@@ -139,9 +138,9 @@ describe('applyEndView: Home writes the end view each frame, only on change', ()
     const page = fakePage();
     const written = endWritten();
     for (const [progress, target] of [
-      [5, 5],
-      [5.5, 6],
       [6, 6],
+      [6.5, 7],
+      [7, 7],
     ] as const) {
       frameAt(dom, page.page, written, progress, target);
       const writes = dom.writes.length;
@@ -157,14 +156,14 @@ describe('applyEndView: Home writes the end view each frame, only on change', ()
     const dom = fakeRoot();
     const first = fakePage();
     const written = endWritten();
-    frameAt(dom, first.page, written, 5, 5);
+    frameAt(dom, first.page, written, 6, 6);
     expect(first.page.inert).toBe(true);
     // The home page left and came back: a new section, not inert, under a view that has not changed.
     const second = fakePage();
-    frameAt(dom, second.page, written, 5, 5);
+    frameAt(dom, second.page, written, 6, 6);
     expect(second.page.inert).toBe(true);
     // No section at all (another page is up): nothing to write, and none written to.
-    frameAt(dom, null, written, 6, 6);
+    frameAt(dom, null, written, 7, 7);
     expect(dom.end()).toBe('rest');
   });
 
@@ -176,18 +175,18 @@ describe('applyEndView: Home writes the end view each frame, only on change', ()
     const scrollTo = vi.fn(() => order.push(`scrollTo at data-end=${dom.end()}`));
     vi.stubGlobal('window', { scrollY: 300, scrollTo });
 
-    frameAt(dom, page, written, 6, 6);
+    frameAt(dom, page, written, 7, 7);
     expect(scrollTo).not.toHaveBeenCalled();
 
-    frameAt(dom, page, written, 5.5, 5);
+    frameAt(dom, page, written, 6.5, 6);
     expect(scrollTo).toHaveBeenCalledTimes(1);
     expect(scrollTo).toHaveBeenCalledWith(0, 0);
     // First: the page is at its top before it leaves the flow.
     expect(order).toEqual(['scrollTo at data-end=rest']);
     expect(dom.end()).toBe('moving');
 
-    frameAt(dom, page, written, 5.4, 5);
-    frameAt(dom, page, written, 5, 5);
+    frameAt(dom, page, written, 6.4, 6);
+    frameAt(dom, page, written, 6, 6);
     expect(scrollTo).toHaveBeenCalledTimes(1);
   });
 
@@ -197,20 +196,20 @@ describe('applyEndView: Home writes the end view each frame, only on change', ()
     const dom = fakeRoot();
     const { page } = fakePage();
     const written = endWritten();
-    frameAt(dom, page, written, 6, 6);
-    frameAt(dom, page, written, 5.5, 5);
+    frameAt(dom, page, written, 7, 7);
+    frameAt(dom, page, written, 6.5, 6);
     expect(scrollTo).not.toHaveBeenCalled();
 
     vi.stubGlobal('window', { scrollY: 300, scrollTo });
-    frameAt(dom, page, written, 5.5, 6);
-    frameAt(dom, page, written, 5, 5);
+    frameAt(dom, page, written, 6.5, 7);
+    frameAt(dom, page, written, 6, 6);
     expect(scrollTo).not.toHaveBeenCalled();
   });
 
   it('clears the end view on let-go and unmount', () => {
     for (const [progress, target] of [
-      [5.5, 6],
-      [6, 6],
+      [6.5, 7],
+      [7, 7],
     ] as const) {
       const dom = fakeRoot();
       const { page } = fakePage();
@@ -219,7 +218,7 @@ describe('applyEndView: Home writes the end view each frame, only on change', ()
       clearEndView(dom.root, page, written);
       expect([dom.end(), dom.share(), page.inert], `from ${progress}`).toEqual([null, '', false]);
       // Cleared, the next frame writes its view again.
-      frameAt(dom, page, written, 6, 6);
+      frameAt(dom, page, written, 7, 7);
       expect([dom.end(), dom.share(), page.inert], `from ${progress}`).toEqual(['rest', '1', false]);
     }
   });
@@ -230,7 +229,7 @@ describe('applyEndView: Home writes the end view each frame, only on change', ()
     const dom = fakeRoot();
     const { page } = fakePage();
     const written = endWritten();
-    frameAt(dom, page, written, 6, 6);
+    frameAt(dom, page, written, 7, 7);
     clearEndView(dom.root, null, written);
     expect(scrollTo).toHaveBeenCalledTimes(1);
     expect([dom.end(), dom.share()]).toEqual([null, '']);
@@ -242,7 +241,7 @@ describe('applyEndView: Home writes the end view each frame, only on change', ()
     const dom = fakeRoot();
     const { page, intoView } = fakePage();
     const written = endWritten();
-    frameAt(dom, page, written, 6, 6);
+    frameAt(dom, page, written, 7, 7);
     clearEndView(dom.root, page, written, 'let-go');
     expect(scrollTo).toHaveBeenCalledWith(0, 0);
     expect(intoView).toEqual([]);
@@ -268,7 +267,7 @@ describe('applyEndView: Home writes the end view each frame, only on change', ()
       },
     } satisfies EndPageNode;
     const written = endWritten();
-    frameAt(dom, page, written, 6, 6);
+    frameAt(dom, page, written, 7, 7);
     clearEndView(dom.root, page, written, 'gone');
     expect(scrollTo).not.toHaveBeenCalled();
     expect(fake.intoView).toEqual([{ block: 'start', behavior: 'instant' }]);
@@ -282,14 +281,14 @@ describe('applyEndView: Home writes the end view each frame, only on change', ()
     // At rest, but the home page is not up: the document is that page's, and is left where it is.
     const dom = fakeRoot();
     const written = endWritten();
-    frameAt(dom, null, written, 6, 6);
+    frameAt(dom, null, written, 7, 7);
     clearEndView(dom.root, null, written, 'gone');
     expect(scrollTo).not.toHaveBeenCalled();
     expect([dom.end(), dom.share()]).toEqual([null, '']);
     // On the move, or before the night: the page was never in the flow to keep.
     for (const [progress, target] of [
-      [5.5, 6],
-      [5, 5],
+      [6.5, 7],
+      [6, 6],
     ] as const) {
       const moving = fakeRoot();
       const { page, intoView } = fakePage();
@@ -302,7 +301,7 @@ describe('applyEndView: Home writes the end view each frame, only on change', ()
   });
 
   it('selects no bead at the end, so nothing keeps drawing', () => {
-    expect(selectedBead(journeyAt(6))).toBeNull();
+    expect(END).toBe(7);
     expect(selectedBead(journeyAt(END))).toBeNull();
   });
 });
@@ -329,7 +328,7 @@ describe('the scene sleeps as soon as the story rests at the end', () => {
     expect(frameAt(END), 'the first frame at rest at the end').toBe(true);
     expect([spring.value, spring.velocity]).toEqual([wrapAngle(target), 0]);
     // Leaving the end page it goes on from there, still: nothing swings back.
-    expect(frameAt(5.99)).toBe(true);
+    expect(frameAt(6.99)).toBe(true);
     expect(spring.velocity).toBe(0);
   });
 
@@ -338,33 +337,32 @@ describe('the scene sleeps as soon as the story rests at the end', () => {
     const others: Phase[] = [
       { kind: 'LOADING' },
       { kind: 'HOME_IDLE' },
-      { kind: 'DIVE' },
-      { kind: 'VOID_ENTRY' },
+      { kind: 'LIGHT' },
       { kind: 'PROJECTS', category: 'oscillator' },
       { kind: 'PROJECT_FOCUS', id: 'cookies-clicker' },
     ];
     for (const phase of others) expect(phaseChangeDraws(phase), phase.kind).toBe(true);
   });
 
-  it('reads the pointer (hover and click) at Cookies Clicker\'s stop, and not once the night has begun: 5.01, 5.5, 6', () => {
+  it('reads the pointer (hover and click) at Cookies Clicker\'s stop, and not once the sheet has begun: 6.01, 6.5, 7', () => {
     const at = (p: number) => hoversAt(journeyPoseAt(p, 16 / 9));
-    // At 5 a click on the bead opens it, as at every bead's stop: it is the selected one there.
-    expect(at(5)).toBe(true);
-    expect(selectedBead(journeyAt(5))).toBe(COOKIES);
-    // The move into the night, either way, and the end page: the page rises over the bead, so nothing is read.
-    for (const p of [5.01, 5.5, 5.99, 6, 7]) expect(at(p), `at ${p}`).toBe(false);
-    // Everywhere before the night as before: the overview, every bead's stop and the moves between them.
-    for (const p of [0, 0.5, 1, 1.5, 2, 2.5, 2.999, 3, 3.5, 4, 4.5, 4.999]) expect(at(p), `at ${p}`).toBe(true);
-    expect(hoversAt({ night: 0 })).toBe(true);
-    expect(hoversAt({ night: 1e-6 })).toBe(false);
-    expect(hoversAt({ night: Number.NaN }), 'NaN reads as no night, as the end view reads it').toBe(true);
+    // At 6 a click on the bead opens it, as at every bead's stop: it is the selected one there.
+    expect(at(6)).toBe(true);
+    expect(selectedBead(journeyAt(6))).toBe(COOKIES);
+    // The sheet, either way, and the end page: the page slides up over the bead, so nothing is read.
+    for (const p of [6.01, 6.5, 6.99, 7]) expect(at(p), `at ${p}`).toBe(false);
+    // Everywhere before the sheet as before: the rise, the light dive, every bead's stop and the turns between them.
+    for (const p of [0, 0.5, 1, 2, 3, 4, 4.5, 5, 5.5, 5.999, 6]) expect(at(p), `at ${p}`).toBe(true);
+    expect(hoversAt({ sheet: 0 })).toBe(true);
+    expect(hoversAt({ sheet: 1e-6 })).toBe(false);
+    expect(hoversAt({ sheet: Number.NaN }), 'NaN reads as no sheet, as the end view reads it').toBe(true);
   });
 
-  it('lets a hover lit at Cookies Clicker ease out on the way into the night, so at rest at 6 nothing of the beads asks for a frame', () => {
-    // The move from 5 to 6 as the scroll loop makes it (damp, GLIDE_SMOOTH, landed exactly on 6), a frame at a time, with
-    // the pointer on Cookies Clicker's bead throughout and its hover lit as the move begins; each frame the Void reads the
-    // pointer only where `hoversAt` lets it.
-    const story = { progress: 5 };
+  it('lets a hover lit at Cookies Clicker ease out as the sheet slides up, so at rest at 7 nothing of the beads asks for a frame', () => {
+    // The move from 6 to 7 as the scroll loop's follow makes it (landed exactly on 7), a frame at a time, with the pointer
+    // on Cookies Clicker's bead throughout and its hover lit as the move begins; each frame the Void reads the pointer
+    // only where `hoversAt` lets it.
+    const story = { progress: 6 };
     const hover = { id: COOKIES as number | null, amount: 1 };
     const clocks = beadClocks();
     const dt = 1 / 60;
@@ -374,8 +372,7 @@ describe('the scene sleeps as soon as the story rests at the end', () => {
     let objects = true;
     while (story.progress !== END) {
       t += dt;
-      damp(story, 'progress', END, GLIDE_SMOOTH, dt, Infinity, undefined, 1e-4);
-      if (Math.abs(END - story.progress) <= 1e-4) story.progress = END;
+      story.progress = follow(story.progress, END, dt);
       const pose = journeyPoseAt(story.progress, 16 / 9);
       const pointed = hoversAt(pose) ? COOKIES : null;
       easing = easeHover(hover, pointed, dt, false);
@@ -390,7 +387,7 @@ describe('the scene sleeps as soon as the story rests at the end', () => {
   });
 });
 
-describe('way A in the stylesheet (src/styles/base.css)', () => {
+describe('the end sheet in the stylesheet (src/styles/base.css)', () => {
   const base = readFileSync(fileURLToPath(new URL('../../../src/styles/base.css', import.meta.url)), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
 
   /** A style rule of base.css: the at-rules it sits in (outermost first), its selectors and its declarations. */
@@ -455,13 +452,27 @@ describe('way A in the stylesheet (src/styles/base.css)', () => {
     expect(RULES.filter((rule) => rule.selectors.some((selector) => /\.end-page$/.test(selector) && !selector.includes("[data-3d='on']")) && rule.declarations.get('display') === 'none')).toEqual([]);
   });
 
-  it('raises the page from below during the move, fixed at its place in the flow, as the night comes in', () => {
+  it('slides the page up from below as a sheet during the move, a screen tall, its words where they stand at rest', () => {
     expect(valueOf(`${MOVING} .end-page`, 'position')).toBe('fixed');
-    expect(valueOf(`${MOVING} .end-page`, 'top')).toBeUndefined(); // its static place: where it stands in the flow
+    // From the screen's top, under the header, which stands over it: its words stand a header and 16 px down, as they do
+    // at rest in the flow under the header, so the frame that comes to rest puts them back on the same pixel.
+    expect(valueOf(`${MOVING} .end-page`, 'top')).toBe('0');
+    expect(valueOf(`${MOVING} .end-page`, 'padding-top')).toBe('calc(var(--header-height) + 16px)');
+    expect(valueOf("html[data-route='home'][data-3d='on'][data-end] .site-header", 'z-index')).toBe('3');
     expect(valueOf(`${MOVING} .end-page`, 'left')).toBe('0');
     expect(valueOf(`${MOVING} .end-page`, 'right')).toBe('0');
-    expect(valueOf(`${MOVING} .end-page`, 'transform')).toBe('translateY(calc((1 - var(--end)) * 40vh))');
-    expect(valueOf(`${MOVING} .end-page`, 'opacity')).toBe('var(--end)');
+    const transform = valueOf(`${MOVING} .end-page`, 'transform');
+    expect(transform).toBe('translateY(calc((1 - var(--end)) * 100%))');
+    // --end 0.25: a quarter of the sheet is up, the rest still below the screen.
+    const share = /calc\(\(1 - var\(--end\)\) \* (\d+)%\)/.exec(transform ?? '');
+    expect((1 - 0.25) * Number(share?.[1])).toBe(75);
+    // Its 100 % is the screen: the sheet's top comes in from the screen's foot at the move's start.
+    expect(valueOf(`${MOVING} .end-page`, 'height')).toBe('100dvh');
+    expect(valueOf(`${MOVING} .end-page`, 'overflow')).toBe('hidden');
+    // The night across the whole width, and the mock-up's soft shadow above its edge, laying it over the ring as a page.
+    expect(valueOf(`${MOVING} .end-page`, 'border-image')).toBe('linear-gradient(rgb(0 0 0 / 0) 0, rgb(0 0 0 / 0.55) 56px, var(--night) 56px) fill 0 / 0 / 56px 100vmax 0');
+    // Opaque: no fade.
+    expect(valueOf(`${MOVING} .end-page`, 'opacity')).toBeUndefined();
   });
 
   it("makes the nav's end link one of the nav's ways in whenever 3D is on, whatever the void's state, and none with 3D off", () => {
@@ -488,20 +499,25 @@ describe('way A in the stylesheet (src/styles/base.css)', () => {
     expect(valueOf("html[data-3d='on'][data-end] .home-nav", 'clip-path')).toBe('inset(50%)');
   });
 
-  it('sinks the scene under the night during the move, leaving it faintly at the top', () => {
-    expect(valueOf(`${HOST_MOVING}::after`, 'opacity')).toBe('calc(var(--end) * 0.86)');
-    expect(valueOf(`${HOST_MOVING}`, 'mask-image')).toBe('linear-gradient(to bottom, #000 0%, rgb(0 0 0 / calc(1 - var(--end))) 33%)');
-    const overlay = "html[data-route='home'][data-end] .scene-host::after";
-    expect(valueOf(overlay, 'content')).toBe("''");
-    expect(valueOf(overlay, 'position')).toBe('absolute');
-    expect(valueOf(overlay, 'inset')).toBe('0');
-    expect(valueOf(overlay, 'background')).toBe('var(--night)');
-    expect(valueOf(overlay, 'pointer-events')).toBe('none');
+  it('lays the page over the ring opaque at rest, full width and up behind the header: no night over the scene', () => {
+    const sheet = "html[data-route='home'][data-3d='on'][data-end='rest'] .end-page";
+    expect(valueOf(sheet, 'border-image')).toBe('linear-gradient(var(--night) 0 0) fill 0 / 0 / var(--header-height) 100vmax 0');
+    expect(valueOf(sheet, 'min-height')).toBe('calc(100dvh - var(--header-height))');
+    // The scene is not dimmed or masked: the sheet itself covers it.
+    for (const rule of RULES) {
+      if (!rule.selectors.some((selector) => selector.includes('data-end') && selector.includes('.scene-host'))) continue;
+      expect(rule.declarations.has('mask-image'), rule.selectors.join(', ')).toBe(false);
+      expect(rule.declarations.has('opacity'), rule.selectors.join(', ')).toBe(false);
+      expect(rule.selectors.some((selector) => selector.endsWith('::after')), rule.selectors.join(', ')).toBe(false);
+    }
+    expect(valueOf(`${HOST_MOVING}`, 'mask-image')).toBeUndefined();
+    expect(valueOf(`${HOST_REST}`, 'mask-image')).toBeUndefined();
   });
 
-  it('holds the night at its end strength at rest, whatever --end says', () => {
-    expect(valueOf(`${HOST_REST}::after`, 'opacity')).toBe('0.86');
-    expect(valueOf(`${HOST_REST}`, 'mask-image')).toBe('linear-gradient(to bottom, #000 0%, transparent 33%)');
+  it('keeps the end page at rest in the flow, scrolling natively, as before', () => {
+    const rest = RULES.filter((rule) => rule.selectors.some((selector) => selector.includes("[data-end='rest']") && selector.endsWith('.end-page')));
+    for (const rule of rest) expect(rule.declarations.get('position'), rule.selectors.join(', ')).not.toBe('fixed');
+    expect(valueOf(REST, 'overflow-y')).toBe('auto');
   });
 
   it('lets the document scroll at rest, and hides the bead labels', () => {

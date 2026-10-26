@@ -1161,6 +1161,12 @@ describe('labelFor: the front bead\'s label in the ring', () => {
     expect(labelFor(journeyAt(4), false)).toEqual({ project: 0, rest: false });
     expect(labelFor(journeyAt(5), true)).toEqual({ project: 1, rest: true });
   });
+
+  it("shows Cookies Clicker's at its own stop, 6, where the sheet's stretch begins, and none once the sheet is up at all", () => {
+    expect(journeyAt(6).stretch).toBe('sheet');
+    expect(labelFor(journeyAt(6), true)).toEqual({ project: 2, rest: true });
+    expect(labelFor(journeyAt(6.001), true)).toBeNull();
+  });
 });
 
 describe('needleGlowFor: the needle as it lands', () => {

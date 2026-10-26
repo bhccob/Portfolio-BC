@@ -167,9 +167,10 @@ describe('the step fade in the stylesheet', () => {
   /** A selector's weight as far as these rules go: its attribute and class selectors. */
   const weight = (selector: string): number => (selector.match(/\[/g)?.length ?? 0) + (selector.match(/\./g)?.length ?? 0);
 
-  it("outweighs the move's own opacity on the end page, so a fade out of the end page takes the page down too", () => {
-    // Leaving the end page by a fade, Home writes `moving` with `--end` still 1 while the host goes dark.
-    expect(valueOf("html[data-end='moving'] .end-page", 'opacity')).toBe('var(--end)');
+  it('takes the end page down with the host whatever the sheet says, so a fade out of the end page takes the page down too', () => {
+    // Leaving the end page by a fade, Home writes `moving` with `--end` still 1 while the host goes dark. The sheet has
+    // no opacity of its own (it slides, opaque), and the fade's rule outweighs the move's anyway.
+    expect(valueOf("html[data-end='moving'] .end-page", 'opacity')).toBeUndefined();
     expect(weight("html[data-route='home'][data-step-fade] .end-page")).toBeGreaterThan(weight("html[data-end='moving'] .end-page"));
   });
 

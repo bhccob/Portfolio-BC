@@ -1,0 +1,109 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { MemoryRouter } from 'react-router';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('~/input/useHomeScroll', () => ({ goToEnd: vi.fn(() => true), headedToEnd: vi.fn(() => true) }));
+vi.mock('~/ui/endArrival', () => ({ focusEndOnArrival: vi.fn(() => () => {}) }));
+
+import { en } from '~/i18n/en';
+import { nl } from '~/i18n/nl';
+import { goToEnd, headedToEnd } from '~/input/useHomeScroll';
+import { journeyAt } from '~/scene/bob/journey';
+import { labelPlacement } from '~/ui/BeadLabel';
+import { focusEndOnArrival } from '~/ui/endArrival';
+import { SkipButton, showsSkip, skipAlt, skipHome, skipPlace, skipToEnd, writeRing } from '~/ui/SkipButton';
+
+const base = readFileSync(fileURLToPath(new URL('../../../src/styles/base.css', import.meta.url)), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+function rule(selector: string): string {
+  for (const match of base.matchAll(/([^{}]+)\{([^{}]*)\}/g)) if (match[1]!.trim() === selector) return match[2]!;
+  throw new Error(`no rule for ${selector}`);
+}
+
+describe('the skip button shows only in the ring', () => {
+  it('shows round the ring, from Funcial to Cookies Clicker, and nowhere else', () => {
+    for (const p of [4, 4.5, 5, 5.9, 6]) expect(showsSkip(journeyAt(p)), `at ${p}`).toBe(true);
+    for (const p of [0, 0.5, 1, 2.5, 3.99, 6.5, 7]) expect(showsSkip(journeyAt(p)), `at ${p}`).toBe(false);
+  });
+
+  it('is shown by <html data-ring>, written only on change, and hidden without it', () => {
+    const attributes = new Map<string, string>();
+    const writes: string[] = [];
+    const root = {
+      setAttribute: (k: string, v: string) => (writes.push(`set ${k}`), attributes.set(k, v)),
+      removeAttribute: (k: string) => (writes.push(`remove ${k}`), attributes.delete(k))
+    };
+    const written = { shown: false };
+    writeRing(root, true, written);
+    writeRing(root, true, written);
+    expect(attributes.has('data-ring')).toBe(true);
+    writeRing(root, false, written);
+    writeRing(root, false, written);
+    expect(attributes.has('data-ring')).toBe(false);
+    expect(writes).toEqual(['set data-ring', 'remove data-ring']);
+    expect(rule('.skip-button')).toMatch(/visibility:\s*hidden/);
+    expect(rule("html[data-route='home'][data-3d='on'][data-ring] .skip-button")).toMatch(/visibility:\s*visible/);
+  });
+});
+
+describe('the skip button', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('says "Snel naar vragen ↓" in Dutch and "Skip to questions ↓" in English', () => {
+    for (const [path, t] of [
+      ['/', nl],
+      ['/en/', en]
+    ] as const) {
+      const html = renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: [path] }, createElement(SkipButton)));
+      expect(html).toBe(`<button type="button" class="skip-button">${t.lightDive.skip}</button>`);
+    }
+  });
+
+  it("fades to the end by End's own path and gives the end page's title the focus once it rests there", () => {
+    const doc = {} as Document;
+    skipToEnd(doc);
+    expect(goToEnd).toHaveBeenCalledTimes(1);
+    expect(focusEndOnArrival).toHaveBeenCalledWith(doc, headedToEnd);
+  });
+
+  it('watches for no arrival when the scroll takes no input (a bead opening)', () => {
+    vi.mocked(goToEnd).mockReturnValueOnce(false);
+    skipToEnd({} as Document);
+    expect(focusEndOnArrival).not.toHaveBeenCalled();
+  });
+});
+
+describe('the skip button never covers the label', () => {
+  const size = { width: 1366, height: 657 };
+  const pill = { w: 220, h: 40 };
+
+  it('stands at the bottom right by default, and under the header at the right in its alternate place', () => {
+    const home = skipHome(size, pill);
+    expect(home.x + home.w).toBeCloseTo(1366 - Math.max(16, 0.034 * 1366), 9);
+    expect(home.y + home.h).toBeCloseTo(657 - Math.max(24, 0.032 * 1366), 9);
+    const alt = skipAlt(size, pill);
+    expect(alt.x).toBe(home.x);
+    expect(alt.y).toBeCloseTo(64 + Math.max(16, 0.02 * 1366), 9);
+  });
+
+  it('takes its alternate place when the label would overlap its own, by 8 px or less, and stays home otherwise', () => {
+    const home = skipHome(size, pill);
+    expect(skipPlace({ x: home.x - 40, y: home.y - 30, w: 200, h: 60 }, size, pill)).toBe('alt');
+    expect(skipPlace({ x: home.x - 200 - 7, y: home.y, w: 200, h: 60 }, size, pill)).toBe('alt');
+    expect(skipPlace({ x: home.x - 200 - 9, y: home.y, w: 200, h: 60 }, size, pill)).toBe('home');
+    expect(skipPlace(null, size, pill)).toBe('home');
+  });
+
+  it("lets the label take the first side clear of the pill first, as the mock-up's placement does", () => {
+    const avoid = skipHome(size, pill);
+    const box = { width: 260, height: 90 };
+    // A bead low on the right: its right side would run into the pill, so the label goes to its left.
+    const ndc = { x: (1000 / 1366) * 2 - 1, y: 1 - (560 / 657) * 2 };
+    expect(labelPlacement(ndc, size, { radius: 40, box }).side).toBe('right');
+    const clear = labelPlacement(ndc, size, { radius: 40, box, avoid });
+    expect(clear.side).toBe('left');
+    expect(clear.clear).toBe(true);
+  });
+});

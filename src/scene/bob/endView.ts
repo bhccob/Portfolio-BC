@@ -5,8 +5,8 @@
  *
  * Home works out the view of each frame from the frame's one journey pose (`JourneyPose.sheet`) and where the story is
  * (`endViewFor`), and writes it to the DOM (`applyEndView`), only what has changed. The stylesheet draws way A from what
- * it writes (src/styles/base.css, "the end page over the scene"):
- * - `--end` on <html>: the night's share, 0..1, unset at 0;
+ * it writes (src/styles/base.css, "the end page over the scene: the sheet"):
+ * - `--end` on <html>: the sheet's share, 0..1, unset at 0;
  * - `<html data-end>`: `moving` during the move, `rest` once the story rests at the end, unset otherwise;
  * - `#end`'s `inert`: true unless the view is at rest, so Tab never lands in a page that is not shown.
  */
@@ -14,7 +14,7 @@
 /** Where the end page stands: not shown, on its way (in or out), or at rest at the end. */
 export type EndState = 'none' | 'moving' | 'rest';
 
-/** A frame's end view: the night's share, 0..1, and the state it stands in. */
+/** A frame's end view: the sheet's share, 0..1, and the state it stands in. */
 export interface EndView {
   share: number;
   state: EndState;
@@ -54,19 +54,19 @@ export interface EndWritten {
   inert: boolean;
 }
 
-/** The custom property on <html> that carries the night's share. */
+/** The custom property on <html> that carries the sheet's share. */
 export const END_PROPERTY = '--end';
 
 /** The attribute on <html> that says where the end page stands. */
 export const END_ATTRIBUTE = 'data-end';
 
 /**
- * The end view of a frame. `share` is the pose's `night` held to 0..1, with NaN read as 0. The state is `rest` when the
- * story and its target are both on the end (`end`, `scrollEnd`); else `moving` while there is any night, on the way in
- * or out; else `none`.
+ * The end view of a frame. `share` is the pose's `sheet` held to 0..1, with NaN read as 0. The state is `rest` when the
+ * story and its target are both on the end (`end`, `scrollEnd`); else `moving` while any of the sheet is up, on the way
+ * in or out; else `none`.
  */
-export function endViewFor(night: number, progress: number, target: number, end: number): EndView {
-  const share = night > 0 ? Math.min(night, 1) : 0; // NaN fails the test, so it reads as 0
+export function endViewFor(sheet: number, progress: number, target: number, end: number): EndView {
+  const share = sheet > 0 ? Math.min(sheet, 1) : 0; // NaN fails the test, so it reads as 0
   const state: EndState = progress === end && target === end ? 'rest' : share > 0 ? 'moving' : 'none';
   return { share, state };
 }

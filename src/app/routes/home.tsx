@@ -11,6 +11,7 @@ import { BeadLabels } from '~/ui/BeadLabel';
 import { focusEndOnArrival } from '~/ui/endArrival';
 import { EndPage } from '~/ui/EndPage';
 import { LightFactLabels, LightFactList } from '~/ui/LightFacts';
+import { SkipButton } from '~/ui/SkipButton';
 import { HANDLES, type RouteHandle } from '../handle';
 
 export const meta: MetaFunction = ({ location }) => {
@@ -57,6 +58,10 @@ export default function Home() {
           readers and for 3D off, visually hidden while 3D is on, as the nav is. */}
       <LightFactLabels />
       <LightFactList />
+
+      {/* "Snel naar vragen ↓": shown only round the ring, it fades the story straight to the end page (src/ui/SkipButton.tsx).
+          After the bead labels, so Tab reaches the shown label first, then the button. */}
+      <SkipButton />
 
       {/* Visible while 3D is off; while it is on the scene is the way in, and this stays for
           crawlers and keyboards: visually hidden, shown again while a link has focus. The way to About is the header's. */}

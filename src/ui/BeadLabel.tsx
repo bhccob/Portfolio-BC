@@ -9,17 +9,22 @@ import { wakeScene } from '~/scene/motion';
 import { frame } from '~/state/frame';
 import { useScene } from '~/state/store';
 import { isPlainClick } from './BackLink';
+import { type Box, overlaps, setSkipAlt, skipAlt, skipBox, skipHome, skipIsAlt } from './SkipButton';
 
 // ---------------------------------------------------------------- where it stands
 
 /** Which side of its bead the label stands. */
 export type LabelSide = 'right' | 'left' | 'below' | 'above';
 
-/** The label's place: its top-left corner in the viewport's CSS pixels, and the side of the bead it is on. */
+/**
+ * The label's place: its top-left corner in the viewport's CSS pixels, and the side of the bead it is on; and, when the
+ * placement was asked to keep clear of a box, whether it does.
+ */
 export interface LabelPlace {
   x: number;
   y: number;
   side: LabelSide;
+  clear?: boolean;
 }
 
 /** A box's size, CSS px. */
@@ -68,9 +73,11 @@ const clamp = (x: number, lo: number, hi: number): number => (x < lo ? lo : x > 
  * on a screen of `size` (CSS px): to its right, level with it; else to its left; else below it, in the middle; else
  * above; clear of the bead's edge (`radius`, px, by default its radius at its stop) by LABEL_GAP. However it is placed,
  * the whole box (`box`, measured, or LABEL_BOX) is held inside the screen with `labelMargin` to spare, and below the
- * header. An NDC that is not a number reads as the middle; the bead's centre is held to the screen.
+ * header. An NDC that is not a number reads as the middle; the bead's centre is held to the screen. Given a box to keep
+ * clear of (`avoid`: the skip button), the first of those sides, held, that keeps 8 px clear of it wins, as the mock-up
+ * places it, and `clear` says whether one did (if none does, the first side stands, not clear).
  */
-export function labelPlacement(beadNdc: { x: number; y: number }, size: LabelBox, options: { radius?: number; box?: LabelBox } = {}): LabelPlace {
+export function labelPlacement(beadNdc: { x: number; y: number }, size: LabelBox, options: { radius?: number; box?: LabelBox; avoid?: Box } = {}): LabelPlace {
   const { width, height } = size;
   const margin = labelMargin(width);
   const box = options.box ?? (width < PHONE_WIDTH ? LABEL_BOX.phone : LABEL_BOX.laptop);
@@ -82,15 +89,25 @@ export function labelPlacement(beadNdc: { x: number; y: number }, size: LabelBox
   const [left, right, top, bottom] = [margin, width - margin, margin + HEADER, height - margin];
   const off = radius + LABEL_GAP;
 
-  let place: LabelPlace;
-  if (cx + off + box.width <= right) place = { x: cx + off, y: cy - box.height / 2, side: 'right' };
-  else if (cx - off - box.width >= left) place = { x: cx - off - box.width, y: cy - box.height / 2, side: 'left' };
-  else if (cy + off + box.height <= bottom || !(cy - off - box.height >= top)) place = { x: cx - box.width / 2, y: cy + off, side: 'below' };
-  else place = { x: cx - box.width / 2, y: cy - off - box.height, side: 'above' };
-
-  place.x = clamp(place.x, left, Math.max(left, right - box.width));
-  place.y = clamp(place.y, top, Math.max(top, bottom - box.height));
-  return place;
+  // The sides that fit, in order: right, left, below, above; below if none does.
+  const sides: LabelPlace[] = [];
+  if (cx + off + box.width <= right) sides.push({ x: cx + off, y: cy - box.height / 2, side: 'right' });
+  if (cx - off - box.width >= left) sides.push({ x: cx - off - box.width, y: cy - box.height / 2, side: 'left' });
+  if (cy + off + box.height <= bottom) sides.push({ x: cx - box.width / 2, y: cy + off, side: 'below' });
+  if (cy - off - box.height >= top) sides.push({ x: cx - box.width / 2, y: cy - off - box.height, side: 'above' });
+  if (sides.length === 0) sides.push({ x: cx - box.width / 2, y: cy + off, side: 'below' });
+  const held = (place: LabelPlace): LabelPlace => ({
+    x: clamp(place.x, left, Math.max(left, right - box.width)),
+    y: clamp(place.y, top, Math.max(top, bottom - box.height)),
+    side: place.side
+  });
+  const avoid = options.avoid;
+  if (avoid === undefined) return held(sides[0]!);
+  for (const side of sides) {
+    const place = held(side);
+    if (!overlaps({ x: place.x, y: place.y, w: box.width, h: box.height }, avoid)) return { ...place, clear: true };
+  }
+  return { ...held(sides[0]!), clear: false };
 }
 
 // ---------------------------------------------------------------- the scene shows it
@@ -147,7 +164,9 @@ export interface LabelView {
  * `[data-shown]` (in the page, so the keyboard reaches it) and, at its bead's stop, `[data-rest]` (in full; between
  * stops it is clear, src/styles/base.css). Between stops it is out of the Tab order too (`tabindex="-1"`), so the
  * keyboard reaches a label only where it can be seen and clicked; at its stop it takes Tab again. A label not shown is
- * out of the Tab order and `inert`, from its registration on. It stands where
+ * out of the Tab order and `inert`, from its registration on. It keeps clear of the skip button (src/ui/SkipButton.tsx):
+ * at rest it takes the first side clear of the button's own place, and where none is, the button takes its alternate
+ * place and the label keeps clear of that; while the ring turns the button stays where it stands. It stands where
  * `labelPlacement` says, by a transform, with `[data-side]` for its alignment, measured again when its text or the
  * screen changes. A label that had the focus hands it to the next one shown, so stepping from bead to bead with the
  * keys keeps the keyboard on the label (a focused label keeps the focus while it is clear between stops); with none
@@ -173,7 +192,10 @@ export function showBeadLabel(view: LabelView | null, size: LabelBox): void {
     if (focused) (el ?? document.getElementById('main'))?.focus({ preventScroll: true });
     Object.assign(shown, { el, rest: false, x: Number.NaN, y: Number.NaN, side: '', box: null });
   }
-  if (el === null || view === null) return;
+  if (el === null || view === null) {
+    setSkipAlt(false);
+    return;
+  }
   if (shown.rest !== view.rest) {
     el.toggleAttribute('data-rest', view.rest);
     if (view.rest) el.removeAttribute('tabindex');
@@ -185,7 +207,18 @@ export function showBeadLabel(view: LabelView | null, size: LabelBox): void {
     shown.box = el.offsetWidth > 0 ? { width: el.offsetWidth, height: el.offsetHeight } : null;
     Object.assign(shown, { text, width: size.width, height: size.height });
   }
-  const at = labelPlacement(view.ndc, size, { radius: view.radius, box: shown.box ?? undefined });
+  const box = shown.box ?? undefined;
+  const pill = skipBox(size);
+  let at: LabelPlace;
+  if (pill === null) {
+    at = labelPlacement(view.ndc, size, { radius: view.radius, box });
+  } else if (view.rest) {
+    at = labelPlacement(view.ndc, size, { radius: view.radius, box, avoid: skipHome(size, pill) });
+    setSkipAlt(at.clear === false);
+    if (at.clear === false) at = labelPlacement(view.ndc, size, { radius: view.radius, box, avoid: skipAlt(size, pill) });
+  } else {
+    at = labelPlacement(view.ndc, size, { radius: view.radius, box, avoid: skipIsAlt() ? skipAlt(size, pill) : skipHome(size, pill) });
+  }
   const x = Math.round(at.x);
   const y = Math.round(at.y);
   if (x !== shown.x || y !== shown.y) {

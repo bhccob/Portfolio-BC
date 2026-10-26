@@ -1753,12 +1753,13 @@ html[data-3d='on'] .light-facts {
   margin-top: 56px;
 }
 
-/* ---------- the end page over the scene: way A, into the night ---------- */
-/* As the story moves from Cookies Clicker to the end page the void sinks into the site's night and the page rises from
-   below; at the end the page stands in the normal flow and the document scrolls (spec 2026-10-24-bob-end-page-design.md,
-   the approved frames of way A). Home writes the move to <html> each frame (src/scene/bob/endView.ts): `--end`, the
-   night's share 0..1, and `data-end`, `moving` on the way in or out and `rest` at the end; while neither is set the story
-   is elsewhere. With 3D off Home is not there, nothing is written, and the page is simply in the home's flow. */
+/* ---------- the end page over the scene: the sheet ---------- */
+/* As the story moves from Cookies Clicker (6) to the end page (7) the page slides up from the screen's foot over the
+   ring, an opaque sheet, as the light dive's mock-up draws it; at the end the page stands in the normal flow and the
+   document scrolls (spec 2026-10-25-bob-light-dive-design.md, the end sheet). Home writes the move to <html> each frame
+   (src/scene/bob/endView.ts): `--end`, the sheet's share 0..1, and `data-end`, `moving` on the way in or out and `rest`
+   at the end; while neither is set the story is elsewhere. With 3D off Home is not there, nothing is written, and the
+   page is simply in the home's flow. */
 
 /* Not at the end, with 3D on: hidden, and so out of reach of Tab, but still in the HTML for crawlers. Home also keeps the
    section inert until the story rests at the end. It takes no room in the flow either, so the 3D home is one viewport
@@ -1806,26 +1807,38 @@ html[data-route='home'][data-3d='on'][data-end] .end-page {
   width: 100vw;
 }
 
+/* The header stands over the sheet, which comes up under it (both are in <main>'s layer otherwise, the page after it). */
+html[data-route='home'][data-3d='on'][data-end] .site-header {
+  z-index: 3;
+}
+
 html[data-route='home'][data-3d='on'][data-end] .scene-host,
 html[data-route='home'][data-3d='on'][data-end] .poster {
   right: auto;
   width: 100vw;
 }
 
-/* The move: the page rises 40vh from below as it fades in, fixed where it stands in the flow (no `top`: its static
-   place, under the header), so the frame that comes to rest puts it back in the flow on the same pixel. */
+/* The move: the page is a sheet a screen tall, from the screen's top under the header, slid down by the share still to
+   come, so its top comes in from the screen's foot. Its words stand a header and 16 px down, where they stand at rest
+   in the flow under the header, so the frame that comes to rest puts them back on the same pixel. It is opaque: the
+   night across the whole width (a border image's outset, which takes no room and scrolls nothing), and the mock-up's
+   soft shadow above its edge, laying it over the ring as a page. */
 html[data-end='moving'] .end-page {
   position: fixed;
+  top: 0;
   left: 0;
   right: 0;
-  transform: translateY(calc((1 - var(--end)) * 40vh));
-  opacity: var(--end);
+  height: 100dvh;
+  padding-top: calc(var(--header-height) + 16px);
+  overflow: hidden;
+  border-image: linear-gradient(rgb(0 0 0 / 0) 0, rgb(0 0 0 / 0.55) 56px, var(--night) 56px) fill 0 / 0 / 56px 100vmax 0;
+  transform: translateY(calc((1 - var(--end)) * 100%));
 }
 
 /* A step fade (src/scene/bob/stepFade.ts: reduced motion's every step, and a failed void's every move to the end page
    or from it) takes the page down with the scene host and back with it, so the page neither appears whole nor goes in
    a cut at the jump. It outweighs the move's own opacity, which a fade out of the end page leaves at 1. The page eases
-   as the host does, 150 ms, only where no move of way A runs, whose `--end`, written each frame, must never be eased:
+   as the host does, 150 ms, only where no move of the sheet runs, whose `--end`, written each frame, must never be eased:
    with the void failed, and with reduced motion (over the sheet's last rule, as the host's own). */
 html[data-route='home'][data-step-fade] .end-page {
   opacity: 0;
@@ -1843,8 +1856,8 @@ html[data-void='failed'] .end-page {
 
 /* With 3D on the page takes no room until `data-end` shows it, and a transition never starts from `display: none`: the
    frame that brings it back would show it whole where a step fade has already lifted (reduced motion's fade lifts in
-   that very frame). So it first shows at 0 and eases in with the host. Only the fades have a transition, so the move of
-   way A, whose opacity is `--end` each frame and never eased, is untouched. */
+   that very frame). So it first shows at 0 and eases in with the host. Only the fades have a transition, so the sheet's
+   move, which has no opacity of its own, is untouched. */
 @starting-style {
   html[data-route='home'][data-3d='on'][data-end] .end-page {
     opacity: 0;
@@ -1857,44 +1870,80 @@ html[data-void='failed'] .end-page {
   outline: none;
 }
 
-/* The night over the scene, above the canvas and under the page, as a page of text has its scrim: the site's night at
-   up to 0.86, and the scene host masked off below its top third, where the poster's night shows through. At the end
-   that leaves the scene at about 14 % over the top third, fading into the night (the mock-up's end frame): the page
-   reads as standing over the scene, which sleeps behind it. Only on the home page: `data-end` stays on <html> while
-   another page is up over a story left at the end. */
-html[data-route='home'][data-end] .scene-host::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--night);
-  pointer-events: none;
-}
-
-html[data-route='home'][data-end='moving'] .scene-host::after {
-  opacity: calc(var(--end) * 0.86);
-}
-
-html[data-route='home'][data-end='moving'] .scene-host {
-  mask-image: linear-gradient(to bottom, #000 0%, rgb(0 0 0 / calc(1 - var(--end))) 33%);
-}
-
-/* At rest: the document scrolls as any page does, the night is at its end strength whatever `--end` says (a step fade
-   writes the rest a frame before the pose is there), and no bead label shows. The page needs no rule: it is in the flow. */
+/* At rest: the document scrolls as any page does, and no bead label shows. The page is in the flow under the header,
+   at least a screen tall, and as opaque as the sheet: the night across the whole width and up behind the header, so the
+   ring, asleep behind it, shows nowhere (the mock-up's end frame). */
 html[data-route='home'][data-3d='on'][data-end='rest'] {
   overflow-y: auto;
   touch-action: auto;
 }
 
-html[data-route='home'][data-end='rest'] .scene-host::after {
-  opacity: 0.86;
-}
-
-html[data-route='home'][data-end='rest'] .scene-host {
-  mask-image: linear-gradient(to bottom, #000 0%, transparent 33%);
+html[data-route='home'][data-3d='on'][data-end='rest'] .end-page {
+  min-height: calc(100dvh - var(--header-height));
+  border-image: linear-gradient(var(--night) 0 0) fill 0 / 0 / var(--header-height) 100vmax 0;
 }
 
 html[data-end='rest'] .bead-label {
   display: none;
+}
+
+/* ---------- the skip button ---------- */
+/* "Snel naar vragen ↓" (src/ui/SkipButton.tsx): a pill at the bottom right, shown only round the ring (<html data-ring>,
+   which the Void writes), in the mock-up's look: the label face in the title gold, a thin gold rim on a dark glass. Where
+   the front bead's label would cover it, it stands at the right under the header instead ([data-alt]). It fades in and
+   out, and takes no Tab or click while hidden. */
+.skip-button {
+  position: fixed;
+  right: max(16px, 3.4vw);
+  bottom: calc(max(24px, 3.2vw) + env(safe-area-inset-bottom, 0px));
+  margin: 0;
+  padding: clamp(11px, 1vw, 15px) clamp(16px, 1.8vw, 26px);
+  border: 1px solid rgb(228 190 127 / 0.45);
+  border-radius: 999px;
+  background: rgb(5 3 8 / 0.55);
+  color: var(--gold-title);
+  font: 400 clamp(11px, 0.85vw, 13px) / 1 var(--font-label);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  appearance: none;
+  touch-action: manipulation;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    border-color 0.3s,
+    opacity 0.5s var(--ease-reveal),
+    visibility 0s linear 0.5s;
+}
+
+.skip-button:hover {
+  border-color: rgb(243 210 140 / 0.8);
+}
+
+.skip-button:focus-visible {
+  outline: 1px solid var(--gold-title);
+  outline-offset: 3px;
+}
+
+.skip-button[data-alt] {
+  top: calc(var(--header-height) + max(16px, 2vw));
+  bottom: auto;
+}
+
+html[data-route='home'][data-3d='on'][data-ring] .skip-button {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    border-color 0.3s,
+    opacity 0.5s var(--ease-reveal),
+    visibility 0s;
+}
+
+@media (max-width: 720px) {
+  .skip-button {
+    padding: 10px 14px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

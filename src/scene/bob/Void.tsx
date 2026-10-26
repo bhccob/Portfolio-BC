@@ -15,6 +15,7 @@ import { frame } from '~/state/frame';
 import { useScene, type VoidState } from '~/state/store';
 import { showBeadLabel } from '~/ui/BeadLabel';
 import { showLightFacts } from '~/ui/LightFacts';
+import { showsSkip, writeRing } from '~/ui/SkipButton';
 import { motion } from '../motion';
 import type { Handover } from './Home';
 import { BEADS, type LightPose } from './journey';
@@ -196,6 +197,8 @@ interface VoidRun {
    * while it moves, and a pointer there neither turns a bead, nor wakes the canvas, nor opens one.
    */
   hovering: boolean;
+  /** `<html data-ring>` as last written: the skip button shows (src/ui/SkipButton.tsx). */
+  ring: { shown: boolean };
 }
 
 /** No screen: the label is taken away. */
@@ -323,6 +326,8 @@ export interface VoidProps {
  *   stop, `selectedBead`) or the hovered one, and not with reduced motion, and goes on from where it stopped
  *   (`stepBeadClocks`); Funcial's abacus has a clock of its own that counts back down while the bead is neither, so its
  *   beads slide back down calmly and up again from where they are, never snapping;
+ * - the skip button (src/ui/SkipButton.tsx): `<html data-ring>` while the journey stands in the ring (`showsSkip`) on the
+ *   home page and no bead is close or flown to, and never while the Opening poses the scene itself or after unmount;
  * - the front bead's label (src/ui/BeadLabel.tsx `showBeadLabel`, `labelFor`): in the ring, within 20 degrees of a
  *   project, beside the bead where the camera puts it on the screen (its centre projected, its radius from its distance
  *   and the field), in full while the ring stands still (the shown place on its target) and clear while it turns; none
@@ -357,6 +362,7 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
     time: 0,
     reading: false,
     hovering: false,
+    ring: { shown: false },
   }));
   /** Starts the load, once: set by the mount below, called by the first frame the home has landed. */
   const start = useRef<() => void>(() => {});
@@ -492,6 +498,7 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
       motion.beads = false;
       showBeadLabel(null, NO_SIZE);
       showLightFacts(null, NO_SIZE);
+      writeRing(document.documentElement, false, run.ring);
       compass.setNeedleWorld(null);
       if (space) {
         scene.remove(space.model.group);
@@ -571,6 +578,7 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
       compass.setNeedleWorld(null);
       light.setPose(DARK, camera);
       showLightFacts(null, size);
+      writeRing(document.documentElement, false, run.ring);
       if (space) showSpace(space, false);
       if (parts) show(parts, false);
       run.reading = run.hovering = false;
@@ -594,6 +602,8 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
     } else {
       showLightFacts(null, size);
     }
+    // The skip button, round the ring on the home page, and not while a bead is close or the camera flies to one.
+    writeRing(document.documentElement, useScene.getState().scene === 'home' && !handover.focus && showsSkip(pose.at), run.ring);
     if (!space) {
       motion.beads = false;
       showBeadLabel(null, size);

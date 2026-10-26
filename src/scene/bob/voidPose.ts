@@ -69,6 +69,14 @@ export function selectedBead(at: JourneyAt): number | null {
   return at.stretch === 'ring' || at.stretch === 'sheet' ? at.project : null;
 }
 
+/**
+ * Whether the journey stands in the ring: round it, and at Cookies Clicker's stop (6), which `journeyAt` reads as the
+ * sheet's start; not once the sheet is up at all.
+ */
+export function inRing(at: Pick<JourneyAt, 'stretch' | 'local'>): boolean {
+  return at.stretch === 'ring' || (at.stretch === 'sheet' && at.local === 0);
+}
+
 /** What the front bead's label shows: the project's bead, in `BEADS` order, and whether it shows in full. */
 export interface LabelFor {
   project: number;
@@ -81,7 +89,7 @@ export interface LabelFor {
  * between projects, in the light dive, under the sheet or at the end page.
  */
 export function labelFor(at: JourneyAt, still: boolean): LabelFor | null {
-  if (at.stretch !== 'ring' || at.project === null) return null;
+  if (!inRing(at) || at.project === null) return null;
   return { project: at.project, rest: still };
 }
 

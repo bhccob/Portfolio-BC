@@ -182,8 +182,8 @@ const pivotPx = { x: 0, y: 0 };
  * the stylesheet fades the cue out over 0.4 s (at once with reduced motion), and it is taken away again at the home, on
  * a let-go and on unmount, written to the DOM only when it changes.
  *
- * **The end.** The move from Cookies Clicker into the night and the end page (way A) is the stylesheet's, from what Home
- * writes each frame (endView.ts): `--end`, the pose's `night`, and `<html data-end>`, `moving` on the way and `rest`
+ * **The end.** The end page sliding up from Cookies Clicker as a sheet is the stylesheet's, from what Home writes each
+ * frame (endView.ts): `--end`, the pose's `sheet`, and `<html data-end>`, `moving` on the way and `rest`
  * once the progress it poses and the target are both on the end, with `#end` inert until then. Written only where it
  * changes; leaving the rest scrolls the page back to its top first; cleared on a let-go and on unmount, as the cue is
  * (gone at rest, as 3D goes off at the end page, the page is brought into view in the 3D-off home's flow instead).
@@ -255,7 +255,7 @@ export function Home({ models, handover }: HomeProps): null {
     if (!handover.live || journey === null) {
       // Let go (a seek holds the loader's clock): the Opening poses the scene from the held moment, which knows nothing
       // of the scroll, so the compass is closed, its needle out of the dip and the letters dark again, and the host is
-      // not left faded down nor the cue hidden, nor the night over the scene.
+      // not left faded down nor the cue hidden, nor the end page's sheet over the scene.
       if (state.live) {
         models.compass.setNeedleGlow(1);
         models.compass.setIris(0);
@@ -350,7 +350,7 @@ export function Home({ models, handover }: HomeProps): null {
     } else if (drifting) {
       state.target = driftAngle(state.idleTime);
     }
-    // With reduced motion, and at the end page behind the page and the night, the needle stands on its target (idle.ts).
+    // With reduced motion, and at the end page behind its sheet, the needle stands on its target (idle.ts).
     if (needleRests(journey.at, reduced)) spring.set(state.target, 0);
     const needle = spring.step(state.target, dt);
     // Up the rise unwrapped about the held target (needleAngleAt), so a spring still settling across
