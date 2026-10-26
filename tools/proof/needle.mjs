@@ -6738,13 +6738,26 @@ async function lightFacts(browser, step) {
  */
 async function ring(browser, step) {
   const summary = [];
+  const meter = await browser.newContext();
+  const meterPage = await meter.newPage();
+  mkdirSync(STILLS, { recursive: true });
   for (const size of DIVE_SIZES) {
     const at = sizeName(size);
     const { context, page, cdp } = await readyHome(browser, step, size);
     let clearest = Number.POSITIVE_INFINITY;
     let where = '';
+    let faintest = null;
     for (let degrees = 0; degrees <= 240; degrees += 10) {
       const state = await poseAt(page, ringPlace(degrees));
+      if (degrees % 20 === 0) {
+        // The mist band round the ring, as the mock-up has it at every angle: the strip of its rows (0.32 to 0.40 of the
+        // height) holds the haze across the picture.
+        await page.waitForTimeout(250);
+        const file = join(STILLS, `ring-band-${at}-${degrees}.png`);
+        await page.screenshot({ path: file, clip: { x: size.width * 0.05, y: size.height * 0.32, width: size.width * 0.9, height: size.height * 0.08 } });
+        const band = await bandOf(meterPage, file);
+        if (faintest === null || band.blue < faintest.blue) faintest = { ...band, degrees };
+      }
       const view = state.journey.ring;
       if (view === null) {
         step.check(false, `${at}: at ${degrees} degrees the bridge has the ring on the screen`);
@@ -6769,6 +6782,10 @@ async function ring(browser, step) {
       }
     }
     step.check(clearest >= RING_CLEAR_PX, `${at}: nothing touches a bead: the needle's tips stay ${clearest.toFixed(1)} px or more clear of every bead's outline (closest at ${where}), at least ${RING_CLEAR_PX}`);
+    step.check(
+      faintest !== null && faintest.blue >= RING_BAND.blue && faintest.lit >= RING_BAND.lit,
+      `${at}: the mist band runs round the ring at every 20 degrees: at its faintest (${faintest?.degrees} degrees) its rows' mean blue ${faintest?.blue.toFixed(1)} (at least ${RING_BAND.blue}) with ${Math.round((faintest?.lit ?? 0) * 100)} % of its columns lit (at least ${RING_BAND.lit * 100} %)`,
+    );
     // The label within 20 degrees, at rest.
     await poseAt(page, ringPlace(15));
     const near15 = await waitForLabel(page, 'funcial');
@@ -6808,10 +6825,43 @@ async function ring(browser, step) {
       near(a1, 60, 1.5) && near(later.journey.angle, a1, 1e-6) && !labelShown && distinct >= 4 && angles.every((a, i) => i === 0 || a >= angles[i - 1] - 1e-6),
       `${at}: half a screen of slow input from Funcial turns the ring on with it (${distinct} angles on the way: ${angles.map((a) => a.toFixed(1)).join(' ')}) and rests where it stopped, ${a1.toFixed(2)} degrees (target ${rest.target.toFixed(4)}), still ${later.journey.angle.toFixed(2)} two seconds later, no label`,
     );
-    summary.push(`${at}: clear by ${clearest.toFixed(0)} px, rests at ${a1.toFixed(1)} degrees`);
+    summary.push(`${at}: clear by ${clearest.toFixed(0)} px, the band's blue at least ${faintest?.blue.toFixed(0)}, rests at ${a1.toFixed(1)} degrees`);
     await context.close();
   }
+  await meter.close();
   return summary.join('; ');
+}
+
+/**
+ * The mist band's floor round the ring: the mean blue of its rows (0..255) and the share of its columns whose mean blue is
+ * above 40. The mock-up's band holds about 80 to 105 blue at every angle at both sizes, and the site's matches it within
+ * about 15 %; a ring of mist gone thin (the band seen only in patches, or not at all on a phone's view) falls far under.
+ */
+const RING_BAND = { blue: 55, lit: 0.6 };
+
+/** The mean colour of a strip of the picture (a PNG), its mean blue and the share of its columns whose mean blue is above 40. */
+async function bandOf(meterPage, file) {
+  const url = `data:image/png;base64,${readFileSync(file).toString('base64')}`;
+  return meterPage.evaluate(async (url) => {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth;
+    c.height = img.naturalHeight;
+    const g = c.getContext('2d');
+    g.drawImage(img, 0, 0);
+    const { data, width, height } = g.getImageData(0, 0, c.width, c.height);
+    let blue = 0;
+    let lit = 0;
+    for (let x = 0; x < width; x++) {
+      let column = 0;
+      for (let y = 0; y < height; y++) column += data[(y * width + x) * 4 + 2];
+      blue += column;
+      if (column / height > 40) lit++;
+    }
+    return { blue: blue / (width * height), lit: lit / width };
+  }, url);
 }
 
 /**

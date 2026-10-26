@@ -87,10 +87,10 @@ export const VOID_LOOK = {
     colour: palette.haze,
     dim: 0.9,
     radius: 20,
-    count: { high: 12, medium: 8, low: 0 },
-    width: [14, 20] as const,
-    height: [4, 6] as const,
-    opacity: [0.08, 0.14] as const,
+    count: { high: 24, medium: 16, low: 0 },
+    width: [20, 28] as const,
+    height: [5, 7] as const,
+    opacity: [0.4, 0.6] as const,
     turn: 600,
     seed: 2027
   },
@@ -113,6 +113,9 @@ export const VOID_LOOK = {
  * (`TRACES_RENDER_ORDER`, which draw without a depth test and so would be painted over by a slab that came after).
  */
 export const VOID_HAZE_ORDER = -1;
+
+/** The golden ratio's fraction: a turn by it each puff spreads any first few of them evenly round the ring. */
+const GOLDEN = (Math.sqrt(5) - 1) / 2;
 
 /** The mist band as the journey places it on the frame (src/scene/bob/lightDive.ts `voidAt`). */
 export interface BandPose {
@@ -361,8 +364,10 @@ export function buildVoid(tier: QualityTier): VoidModel {
   let ringTexture: THREE.DataTexture | undefined = ringCount > 0 ? smokeTexture(128, ringLook.seed) : undefined;
   const ringColour = new THREE.Color(ringLook.colour).multiplyScalar(ringLook.dim);
   const nextRing = random(ringLook.seed);
+  // Round the axis by the golden angle, so the first puffs of any tier ring it all the way round (a phone's medium tier
+  // takes the first two thirds of them), each nudged a little off its place.
   const ringPuffs = Array.from({ length: ringLook.count.high }, (_, i) => ({
-    angle: ((i + 0.2 + 0.6 * nextRing()) / ringLook.count.high) * 2 * Math.PI,
+    angle: ((i * GOLDEN + 0.2 + ((nextRing() - 0.5) * 0.3) / ringLook.count.high) % 1) * 2 * Math.PI,
     width: mix(ringLook.width[0], ringLook.width[1], nextRing()),
     height: mix(ringLook.height[0], ringLook.height[1], nextRing()),
     opacity: mix(ringLook.opacity[0], ringLook.opacity[1], nextRing()),
@@ -456,9 +461,11 @@ export function buildVoid(tier: QualityTier): VoidModel {
     backdrop.visible = level > 0;
     bandHaze.setLevel(level * (1 - dissolved));
     const ringLevel = level * dissolved;
+    // A lower tier's fewer puffs, each as much brighter as there are fewer: the band as strong, in fewer draws.
+    const fill = ringSprites.length > 0 ? ringLook.count.high / ringSprites.length : 0;
     for (let i = 0; i < ringSprites.length; i++) {
       const sprite = ringSprites[i]!;
-      sprite.material.opacity = ringPuffs[i]!.opacity * ringLevel;
+      sprite.material.opacity = Math.min(1, ringPuffs[i]!.opacity * ringLevel * fill);
       sprite.visible = ringLevel > 0;
     }
   };

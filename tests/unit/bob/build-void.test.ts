@@ -92,7 +92,8 @@ describe('the void', () => {
     expect(VOID_LOOK.traces.level).toBe(0.35);
     expect(VOID_LOOK.dust.count).toEqual({ high: 400, medium: 200, low: 60 });
     expect(VOID_LOOK.ringMist.radius).toBe(20);
-    expect(VOID_LOOK.ringMist.count).toEqual({ high: 12, medium: 8, low: 0 });
+    // Enough puffs, wide enough, that the band runs unbroken round the ring even in a phone's narrow view (the mock-up's).
+    expect(VOID_LOOK.ringMist.count).toEqual({ high: 24, medium: 16, low: 0 });
     expect(CLEAR).toEqual({ cam: 1.7, light: 0.9, bead: 1.3 });
     // The glass's own numbers, so the ceiling and the glass stay one slab: the tunnel's foot and the hole and the floor's reach.
     expect(VOID_LOOK.ceiling.y).toBe(GLASS_LOOK.well.bottom);
@@ -283,9 +284,24 @@ describe('the mist band', () => {
 });
 
 describe('the ring of mist', () => {
+  it("goes all the way round the ring at every tier that has it: no gap between two puffs wider than 45 degrees", () => {
+    // A phone starts on the medium tier: its puffs, the first of the seeded set, must ring the axis too, or the band
+    // goes missing for a third of the turn.
+    for (const tier of ['high', 'medium'] as const) {
+      const v = buildVoid(tier);
+      const angles = ringMist(v)
+        .map((sprite) => (((Math.atan2(sprite.position.x, sprite.position.z) * 180) / Math.PI) + 360) % 360)
+        .sort((a, b) => a - b);
+      expect(angles.length, tier).toBe(VOID_LOOK.ringMist.count[tier]);
+      const gaps = angles.map((a, i) => (i === 0 ? a + 360 - angles.at(-1)! : a - angles[i - 1]!));
+      expect(Math.max(...gaps), tier).toBeLessThanOrEqual(45);
+      v.dispose();
+    }
+  });
+
   it('is world-fixed haze on a cylinder 20 m round the ring\'s axis, hidden until the band dissolves into it', () => {
     const v = buildVoid('high');
-    expect(ringMist(v)).toHaveLength(12);
+    expect(ringMist(v)).toHaveLength(VOID_LOOK.ringMist.count.high);
     for (const o of ringMist(v)) {
       expect(Math.hypot(o.position.x, o.position.z)).toBeCloseTo(VOID_LOOK.ringMist.radius, 6);
       expect(o.visible).toBe(false);
@@ -293,6 +309,22 @@ describe('the ring of mist', () => {
       expect(o.material.depthWrite).toBe(false);
     }
     v.dispose();
+  });
+
+  it('makes up for the puffs a lower tier has not: each as much brighter as there are fewer, so the band is as strong', () => {
+    const camera = cameraOn(ringShot(60, DESK), DESK);
+    const opacities = (tier: 'high' | 'medium') => {
+      const v = buildVoid(tier);
+      v.setBand({ shown: true, y: 0.36, sigma: 0.075, strength: 1, distance: 26 }, camera);
+      v.setRingMist(1);
+      const all = ringMist(v).map((o) => o.material.opacity);
+      v.dispose();
+      return all;
+    };
+    const high = opacities('high');
+    const medium = opacities('medium');
+    const fill = VOID_LOOK.ringMist.count.high / VOID_LOOK.ringMist.count.medium;
+    medium.forEach((o, i) => expect(o, `puff ${i}`).toBeCloseTo(Math.min(1, high[i]! * fill), 12));
   });
 
   it("lies at the band's height: the cylinder's point ahead of a ring camera stands on the band's middle", () => {
@@ -508,7 +540,7 @@ describe('the tier', () => {
     const textureSpy = vi.spyOn(texture, 'dispose');
     const spies = all.map((o) => vi.spyOn(o.material, 'dispose'));
     v.setTier('medium');
-    spies.forEach((spy, i) => expect(spy, `sprite ${i}`).toHaveBeenCalledTimes(i < 8 ? 0 : 1));
+    spies.forEach((spy, i) => expect(spy, `sprite ${i}`).toHaveBeenCalledTimes(i < VOID_LOOK.ringMist.count.medium ? 0 : 1));
     expect(textureSpy).not.toHaveBeenCalled();
     v.setTier('low');
     for (const spy of spies) expect(spy).toHaveBeenCalledOnce();
@@ -522,10 +554,10 @@ describe('the tier', () => {
   it('only steps down: a tier above the one it stands at changes nothing', () => {
     const v = buildVoid('high');
     v.setTier('medium');
-    expect(ringMist(v)).toHaveLength(8);
+    expect(ringMist(v)).toHaveLength(VOID_LOOK.ringMist.count.medium);
     expect(dust(v).drawn).toBe(200);
     v.setTier('high');
-    expect(ringMist(v)).toHaveLength(8);
+    expect(ringMist(v)).toHaveLength(VOID_LOOK.ringMist.count.medium);
     expect(dust(v).drawn).toBe(200);
     v.dispose();
   });
@@ -560,7 +592,7 @@ describe('freeing', () => {
     const v = buildVoid('high');
     const parts = resources(v.group);
     // Backdrop (2), ceiling (2), traces (2), ring (2), the band's sprites and their texture, the ring of mist's and theirs, dust (3).
-    expect(parts.size).toBe(2 + 2 + 2 + 2 + (VOID_LOOK.band.puffs + 1) + (12 + 1) + 3);
+    expect(parts.size).toBe(2 + 2 + 2 + 2 + (VOID_LOOK.band.puffs + 1) + (VOID_LOOK.ringMist.count.high + 1) + 3);
     const spies = [...parts].map((part) => vi.spyOn(part, 'dispose'));
     const shared = vi.spyOn(band(v)[0]!.geometry, 'dispose');
     v.dispose();
