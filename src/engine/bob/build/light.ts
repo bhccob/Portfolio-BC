@@ -17,7 +17,7 @@ import * as THREE from 'three';
 import { clamp01 } from '~/engine/bob/build/haze';
 import { palette } from '~/engine/palette';
 import { lowerTier, type QualityTier } from '~/engine/quality';
-import { glowTexture } from '~/engine/studio/noise';
+
 import type { LightPose } from '~/scene/bob/journey';
 import { filamentsAt } from '~/scene/bob/lightDive';
 
@@ -34,7 +34,7 @@ const TRAIL_RINGS = 111;
  * - `core`: a sphere of `radius`, flat gold light, the white-hot middle once the bloom has it.
  * - `shell`: the sphere of radius 1, its rim `rim.weight` times the face's angle to the power `rim.power`, and `rim.face`
  *   over its whole face.
- * - `halo`: a sprite `radius` across each way from the middle, the glow texture's soft fall-off.
+ * - `halo`: a sprite `radius` across each way from the middle, its light falling as (1 - r) to the power `fall`.
  * - `filaments`: the journey's threads round the light, each at its brightness.
  * - `trail`: a tube `width` wide at the light, narrowing as `(1 - u)` to the power `taper` toward its tail; its light
  *   falls with its age as `(1 - u)` to the power `age` and toward its edges as the face's angle to the power `core`; gold
@@ -44,12 +44,12 @@ const TRAIL_RINGS = 111;
  *   z: the previs's y), and thinned `across` times it across.
  */
 export const LIGHT_LOOK = {
-  core: { radius: 0.32, colour: palette.goldLight, level: 8, segments: [32, 16] as const },
+  core: { radius: 0.32, colour: palette.goldLight, level: 14, segments: [32, 16] as const },
   shell: { colour: palette.gold, level: 1.4, rim: { power: 2.2, weight: 0.85, face: 0.12 }, segments: [48, 24] as const },
-  halo: { radius: 5, colour: palette.gold, level: 0.75 },
+  halo: { radius: 4, colour: palette.gold, level: 0.35, fall: 3.2 },
   filaments: { colour: palette.goldLight, level: 2.2 },
-  trail: { width: 0.5, taper: 1.35, colour: palette.gold, headColour: palette.goldLight, head: 0.15, level: 1.6, age: 1.7, core: 1.6 },
-  lamp: { colour: palette.goldLight, level: 30, distance: 12 },
+  trail: { width: 0.5, taper: 1.35, colour: palette.gold, headColour: palette.goldLight, head: 0.15, level: 0.6, age: 1.7, core: 1.6 },
+  lamp: { colour: palette.goldLight, level: 2, distance: 8 },
   stretch: { along: 3, across: 0.65 }
 } as const;
 
@@ -82,6 +82,26 @@ function ignoreRays(object: THREE.Object3D): void {
 /** A number as a GLSL float literal, to three places. */
 function glsl(n: number): string {
   return n.toFixed(3);
+}
+
+/**
+ * The halo's texture: white, its alpha falling from the middle to the edge as (1 - r) to the power `LIGHT_LOOK.halo.fall`
+ * (the previs's halo), made on the CPU with no canvas, so the node tests build it.
+ */
+function haloTexture(size: number): THREE.DataTexture {
+  const data = new Uint8Array(size * size * 4);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const r = Math.min(1, Math.hypot(x / (size - 1) - 0.5, y / (size - 1) - 0.5) * 2);
+      data.set([255, 255, 255, Math.round(255 * Math.pow(1 - r, LIGHT_LOOK.halo.fall))], (y * size + x) * 4);
+    }
+  }
+  const texture = new THREE.DataTexture(data, size, size);
+  texture.magFilter = THREE.LinearFilter;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.generateMipmaps = true;
+  texture.needsUpdate = true;
+  return texture;
 }
 
 /** Additive light that writes no depth: what every part of the light is drawn with. */
@@ -159,8 +179,8 @@ export function buildLight(tier: QualityTier): LightModel {
   const shell = new THREE.Mesh(shellGeometry, shellMaterial);
   shell.name = 'light:shell';
 
-  const haloTexture = glowTexture(64);
-  const haloMaterial = new THREE.SpriteMaterial({ name: 'light:halo', map: haloTexture, color: look.halo.colour, ...ADDED });
+  const haloMap = haloTexture(64);
+  const haloMaterial = new THREE.SpriteMaterial({ name: 'light:halo', map: haloMap, color: look.halo.colour, ...ADDED });
   const halo = new THREE.Sprite(haloMaterial);
   halo.name = 'light:halo';
   halo.scale.set(2 * look.halo.radius, 2 * look.halo.radius, 1);
@@ -322,7 +342,7 @@ export function buildLight(tier: QualityTier): LightModel {
     dispose() {
       for (const geometry of [coreGeometry, shellGeometry, filamentGeometry, trailGeometry]) geometry.dispose();
       for (const material of [coreMaterial, shellMaterial, haloMaterial, filamentMaterial, trailMaterial]) material.dispose();
-      haloTexture.dispose();
+      haloMap.dispose();
     }
   };
 }

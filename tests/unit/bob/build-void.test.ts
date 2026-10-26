@@ -80,7 +80,7 @@ describe('the void', () => {
       const v = buildVoid(tier);
       expect(v.group.isGroup).toBe(true);
       expect(v.group.name).toBe('void');
-      expect(v.group.children.map((o) => o.name)).toEqual(['void:ceiling', 'void:traces', 'void:ring', 'void:band', 'void:ringMist', 'void:dust']);
+      expect(v.group.children.map((o) => o.name)).toEqual(['void:backdrop', 'void:ceiling', 'void:traces', 'void:ring', 'void:band', 'void:ringMist', 'void:dust']);
       v.dispose();
     }
   });
@@ -559,8 +559,8 @@ describe('freeing', () => {
   it("frees every geometry, material and texture it made, and not the sprites' shared quad", () => {
     const v = buildVoid('high');
     const parts = resources(v.group);
-    // Ceiling (2), traces (2), ring (2), the band's sprites and their texture, the ring of mist's and theirs, dust (3).
-    expect(parts.size).toBe(2 + 2 + 2 + (VOID_LOOK.band.puffs + 1) + (12 + 1) + 3);
+    // Backdrop (2), ceiling (2), traces (2), ring (2), the band's sprites and their texture, the ring of mist's and theirs, dust (3).
+    expect(parts.size).toBe(2 + 2 + 2 + 2 + (VOID_LOOK.band.puffs + 1) + (12 + 1) + 3);
     const spies = [...parts].map((part) => vi.spyOn(part, 'dispose'));
     const shared = vi.spyOn(band(v)[0]!.geometry, 'dispose');
     v.dispose();
@@ -574,5 +574,37 @@ describe("the builders' colours", () => {
     const source = readFileSync(fileURLToPath(new URL('../../../src/engine/bob/build/void.ts', import.meta.url)), 'utf8');
     expect(source).not.toMatch(/\b0x[0-9a-f]{6}\b/i);
     expect(source).not.toMatch(/Color\(\s*[\d.]+\s*,/);
+  });
+});
+
+describe('the glass sky', () => {
+  it('takes the ceiling, its traces and its ring out while the camera is above them, and back once it is under', () => {
+    const v = buildVoid('high');
+    const sky = ['void:ceiling', 'void:traces', 'void:ring'].map((name) => objectNamed(v.group, name));
+    v.setSky(false);
+    for (const part of sky) expect(part.visible, part.name).toBe(false);
+    expect(objectNamed(v.group, 'void:band').visible).toBe(true); // the haze and the dust are not the sky's
+    expect(objectNamed(v.group, 'void:dust').visible).toBe(true);
+    v.setSky(true);
+    for (const part of sky) expect(part.visible, part.name).toBe(true);
+    v.dispose();
+  });
+});
+
+describe('the backdrop', () => {
+  it("is the site's night round everything, seen from inside, behind it all, coming in with the band", () => {
+    const v = buildVoid('high');
+    const backdrop = objectNamed<THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>>(v.group, 'void:backdrop');
+    expect(VOID_LOOK.backdrop.colour).toBe(palette.night);
+    expectColour(backdrop.material.color, new THREE.Color(palette.night));
+    expect(backdrop.material.side).toBe(THREE.BackSide);
+    expect(backdrop.material.depthWrite).toBe(false);
+    expect(backdrop.renderOrder).toBeLessThan(VOID_HAZE_ORDER);
+    expect(backdrop.visible).toBe(false);
+    v.setBand({ shown: true, y: 0.3, sigma: 0.075, strength: 0.6, distance: 12 }, cameraOn(wayShot(121, DESK), DESK));
+    expect([backdrop.visible, backdrop.material.opacity]).toEqual([true, 0.6]);
+    v.setRingMist(1); // the backdrop stays as the band's wisps go into the ring of mist
+    expect(backdrop.material.opacity).toBe(0.6);
+    v.dispose();
   });
 });

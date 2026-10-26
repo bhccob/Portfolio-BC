@@ -566,6 +566,8 @@ export function factAt(f: number): FactAt {
 }
 
 // ---------------------------------------------------------------- the void
+/** The glass top dims over these way frames as the camera comes down to it (the previs's TOP_FADE); the glass dissolves from two frames in. */
+export const TOP_FADE = [14, 28] as const;
 const BAND = { desk: { y: 0.4, sigma: 0.075 }, phone: { y: 0.4, sigma: 0.045 } } as const;
 /** How far ahead of the camera the band hangs, m: near in the way, behind the ring from the landing (258-272). */
 const BAND_D = 12;
@@ -610,8 +612,8 @@ export function voidAt(f: number, aspect: number): VoidAt {
     bandDistance: lerp(BAND_D, BAND_D_RING[sizeFor(aspect)], easeIo(span(f, 258, 272))),
     ringMist: easeIo(span(f, 272, 296)),
     dust: easeIo(span(f, 28, 60)),
-    topFade: easeIo(span(f, 14, 28)),
-    glassDissolve: easeIo(span(f, 16, 28))
+    topFade: easeIo(span(f, TOP_FADE[0], TOP_FADE[1])),
+    glassDissolve: easeIo(span(f, TOP_FADE[0] + 2, TOP_FADE[1]))
   };
 }
 

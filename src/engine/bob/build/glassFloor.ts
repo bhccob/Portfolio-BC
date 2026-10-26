@@ -379,6 +379,15 @@ export interface GlassModel {
    * glass, so nothing needs a renderer at build time.
    */
   setRenderer(renderer: Pick<THREE.WebGLRenderer, 'getDrawingBufferSize'>): void;
+  /**
+   * Dissolves the glass as the light dive's camera comes down through it (the previs's DISSOLVE, way frames 16-28),
+   * 0..1 (held to it; NaN reads as 0), so the void opens all round the light and never only through the hole: the
+   * tunnel's glow and its light fade with it, and the lip's; the reflection goes at the middle; the floor fades out
+   * where it is see-through (the high tier's mirror glass) and goes at the middle where it is opaque (below high, and
+   * once the mirror is off), so no material changes its program. At 1 nothing of the glass is drawn, but the tunnel's
+   * light stays in the scene at 0, so the light count never changes; 0 is exactly the glass as it was.
+   */
+  setDissolve(share: number): void;
   /** Frees every geometry, material, texture and render target the glass made. */
   dispose(): void;
 }
@@ -499,20 +508,51 @@ export function buildGlass(tier: QualityTier): GlassModel {
   }
   group.add(capMesh, well, lip, light);
 
+  let iris = 0;
+  let glow = 0;
+  let lipShown = true;
+  let dissolve = 0;
+  /** The glass at its iris, glow and lip, dissolved `dissolve` of the way. */
+  const pose = (): void => {
+    const kept = 1 - dissolve;
+    // See-through glass fades; opaque glass is cut at the middle, as a fade would change its program.
+    const fades = glass.transparent;
+    const floorShown = fades ? dissolve < 1 : dissolve < 0.5;
+    floor.visible = floorShown;
+    edge.visible = floorShown;
+    if (fades) {
+      glass.opacity = look.reflection.opacity * kept;
+      wallMaterial.opacity = look.reflection.opacity * kept;
+    }
+    if (reflector) reflector.visible = dissolve < 0.5;
+    capMesh.scale.setScalar(1 - iris);
+    capMesh.visible = iris < 1 && floorShown;
+    wellMaterial.emissiveIntensity = look.well.emissive * glow * kept;
+    light.intensity = look.well.light.intensity * glow * kept;
+    well.visible = dissolve < 1;
+    lip.visible = lipShown && dissolve < 1;
+    lipMaterial.emissiveIntensity = look.lip.emissiveIntensity * kept;
+    // Lit metal: its colour is its reflection, so the room's light goes off it as the colour darkens.
+    lipMaterial.color.set(look.lip.colour).multiplyScalar(kept);
+  };
+
   return {
     group,
     setIris(open) {
-      const o = clamp01(open);
-      capMesh.scale.setScalar(1 - o);
-      capMesh.visible = o < 1;
+      iris = clamp01(open);
+      pose();
     },
     setGlow(level) {
-      const g = clamp01(level);
-      wellMaterial.emissiveIntensity = look.well.emissive * g;
-      light.intensity = look.well.light.intensity * g;
+      glow = clamp01(level);
+      pose();
     },
     setLip(shown) {
-      lip.visible = shown;
+      lipShown = shown;
+      pose();
+    },
+    setDissolve(share) {
+      dissolve = clamp01(share);
+      pose();
     },
     setReflector(on) {
       if (on || !reflector) return;
@@ -527,6 +567,7 @@ export function buildGlass(tier: QualityTier): GlassModel {
         material.clearcoat = 0;
         material.needsUpdate = true;
       }
+      pose();
     },
     setRenderer(renderer) {
       if (!reflector) return;

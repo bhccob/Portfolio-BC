@@ -13,6 +13,8 @@ import { AngleSpring, wrapAngle } from '~/engine/AngleSpring';
 import { aimsAt, NEEDLE_SPRING, needleAngleAt } from '~/engine/bob/needleAim';
 import { moveTarget } from '~/input/target';
 import { BEADS, journeyPoseAt, type NeedleOverride } from '~/scene/bob/journey';
+import { needleFor } from '~/scene/bob/voidPose';
+import { placeOfFrame } from '~/state/chapters';
 import { riseAt, scrollPoseAt } from '~/scene/bob/scrollPose';
 import { HOME_CHAPTERS } from '~/state/chapters';
 
@@ -1520,12 +1522,6 @@ describe('the needle leaves the compass (setNeedleWorld, Task 9)', () => {
     c.setIris(pose.iris);
   }
 
-  /** The journey's override at `progress`, which must be one. */
-  function overrideAt(progress: number): NeedleOverride {
-    const needle = journeyPoseAt(progress, ASPECT).needle;
-    expect(needle, `progress ${progress}`).not.toBeNull();
-    return needle as NeedleOverride;
-  }
 
   it("is the armillary's needle exactly with null, at any setNeedle, setNeedleDip, setIris and setRise, whenever null is handed in", () => {
     for (const rise of [1, 0.25]) {
@@ -1686,17 +1682,21 @@ describe('the needle leaves the compass (setNeedleWorld, Task 9)', () => {
     c.dispose();
   });
 
-  describe('at the hand-over (progress 1), where the rise ends and the dive begins', () => {
-    it("starts the dive at M2a's last frame: (0, 0.09, 0), scale 1, no aim", () => {
-      const o = overrideAt(1);
+  describe('in the light dive: the needle gives itself to the light over way frames 2-8, and comes back at the ring', () => {
+    /** The needle the Void hands the compass at way frame f. */
+    const atFrame = (f: number) => needleFor(journeyPoseAt(placeOfFrame(f), ASPECT));
+
+    it("keeps the armillary's needle up to frame 2, and from there holds it at the pivot, (0, 0.09, 0), its tip straight down", () => {
+      expect(atFrame(1)).toBeNull();
+      expect(atFrame(2)).toBeNull();
+      const o = atFrame(2.01)!;
       expect(o.position).toEqual([0, 0.09, 0]);
-      expect(o.scale).toBe(1);
+      expect(o.scale).toBeCloseTo(1, 3);
       expect(o.aim).toBeNull();
-      expect(journeyPoseAt(1 - 1e-3, ASPECT).needle).toBeNull();
     });
 
     it('is the fully dipped needle, in position, scale and roll, from any angle: no jump when null becomes the override', async () => {
-      const handed = overrideAt(1);
+      const handed = { ...atFrame(2.01)!, scale: 1 };
       for (const gltf of [fakeGltf(), await loadRealGlb()]) {
         for (const angle of ANGLES) {
           const c = loadCompass(gltf, 'high', stripStub);
@@ -1706,7 +1706,6 @@ describe('the needle leaves the compass (setNeedleWorld, Task 9)', () => {
           c.setNeedleWorld(handed);
           expect(matrixGap(worldMatrix(c, 'needle'), needle), `needle from ${angle}`).toBeLessThan(1e-6);
           expect(matrixGap(worldMatrix(c, 'pivot'), pivot), `pivot from ${angle}`).toBeLessThan(1e-6);
-          // And the frames after, when Home still poses the rise as it did: the override holds.
           poseAsHome(c, 1, angle);
           expect(matrixGap(worldMatrix(c, 'needle'), needle), `needle again from ${angle}`).toBeLessThan(1e-6);
           c.dispose();
@@ -1714,23 +1713,29 @@ describe('the needle leaves the compass (setNeedleWorld, Task 9)', () => {
       }
     });
 
-    it('holds the roll all through the dive, where the needle sinks and grows with its tip straight down', async () => {
+    it('shrinks it at the pivot to nothing by frame 8, holding its roll, and keeps it so through the fall', async () => {
       const c = loadCompass(await loadRealGlb(), 'high', stripStub);
       poseAsHome(c, 1, 0.8);
       const start = worldPose(c, 'needle').quaternion.clone();
-      for (let p = 1; p <= 2; p += 0.01) {
-        const o = overrideAt(p);
+      for (let f = 2.05; f <= 8; f += 0.05) {
+        const o = atFrame(f)!;
         c.setNeedleWorld(o);
+        if (o.scale === 0) {
+          // Nothing left of it: a matrix of no size has no turn to read, only its size.
+          expect(node(c, 'needle').scale.length(), `scale at ${f}`).toBe(0);
+          continue;
+        }
         const { position, quaternion, scale } = worldPose(c, 'needle');
-        expect(angleOf(start.clone().invert().multiply(quaternion)), `roll at ${p}`).toBeLessThan(1e-6);
-        expect(position.distanceTo(new THREE.Vector3(...o.position)), `position at ${p}`).toBeLessThan(1e-6);
-        expect(scale.x, `scale at ${p}`).toBeCloseTo(o.scale, 6);
+        if (o.scale > 1e-3) expect(angleOf(start.clone().invert().multiply(quaternion)), `roll at ${f}`).toBeLessThan(1e-5);
+        expect(position.distanceTo(new THREE.Vector3(...o.position)), `position at ${f}`).toBeLessThan(1e-6);
+        expect(scale.x, `scale at ${f}`).toBeCloseTo(o.scale, 6);
       }
+      for (const f of [8, 61, 200, 271]) expect(atFrame(f)!.scale, `frame ${f}`).toBe(0);
       c.dispose();
     });
   });
 
-  describe('as the aim leaves straight down for the beads', () => {
+  describe('round the ring', () => {
     /** The most the needle's world orientation turns between neighbouring poses handed in, in degrees. */
     function sweep(c: CompassModel, poses: Iterable<NeedleOverride>): number {
       const before = new THREE.Quaternion();
@@ -1751,7 +1756,6 @@ describe('the needle leaves the compass (setNeedleWorld, Task 9)', () => {
     it('turns without a flip along a great circle through straight down, from either side of it', () => {
       const c = loadCompass(fakeGltf(), 'high', stripStub);
       const at: [number, number, number] = [-1.4, -7.8, -0.8];
-      // The aim at 3 m, off the down by theta degrees in a plane, theta from -80 to 80 in tenths of a degree.
       for (const plane of [0, 0.7, 2.1]) {
         const poses = function* (): Generator<NeedleOverride> {
           for (let tenths = -800; tenths <= 800; tenths++) {
@@ -1768,44 +1772,33 @@ describe('the needle leaves the compass (setNeedleWorld, Task 9)', () => {
       c.dispose();
     });
 
-    it("turns the tip from straight down to the first bead without a jump over 1 degree, in the journey's own steps", async () => {
+    it('draws the needle out of the light at the ring from frame 272 and turns it through every project and back without a jump over 1 degree', async () => {
       const c = loadCompass(await loadRealGlb(), 'high', stripStub);
-      const poses = function* (): Generator<NeedleOverride> {
-        for (let i = 0; i <= 2000; i++) yield overrideAt(2 + i / 2000);
+      const out = function* (): Generator<NeedleOverride> {
+        for (let i = 0; i <= 280; i++) yield needleFor(journeyPoseAt(placeOfFrame(272) + ((4 - placeOfFrame(272)) * i) / 280, ASPECT))!;
       };
-      expect(sweep(c, poses())).toBeLessThan(1);
-      // And it ends on the bead: the tip's line runs through Funcial's centre, come forward.
-      const o = overrideAt(3);
-      c.setNeedleWorld(o);
-      const toBead = new THREE.Vector3(...o.aim!).sub(new THREE.Vector3(...o.position)).normalize();
-      expect(tipDirection(c).distanceTo(toBead)).toBeLessThan(1e-6);
-      expect(BEADS[0].id).toBe('funcial');
-      c.dispose();
-    });
-
-    it('turns the tip through every stop and back without a jump over 1 degree', async () => {
-      const c = loadCompass(await loadRealGlb(), 'high', stripStub);
       const forth = function* (): Generator<NeedleOverride> {
-        for (let i = 0; i <= 5000; i++) yield overrideAt(1 + i / 1000);
+        for (let i = 0; i <= 3000; i++) yield needleFor(journeyPoseAt(4 + i / 1000, ASPECT))!;
       };
       const back = function* (): Generator<NeedleOverride> {
-        for (let i = 5000; i >= 0; i--) yield overrideAt(1 + i / 1000);
+        for (let i = 3000; i >= 0; i--) yield needleFor(journeyPoseAt(4 + i / 1000, ASPECT))!;
       };
+      expect(sweep(c, out())).toBeLessThan(1);
       expect(sweep(c, forth())).toBeLessThan(1);
       expect(sweep(c, back())).toBeLessThan(1);
       c.dispose();
     });
 
-    it('points at each bead at its stop, and straight down at the overview', async () => {
+    it('points at the project in front at each stop, its tip on the line to the aim', async () => {
       const c = loadCompass(await loadRealGlb(), 'high', stripStub);
-      for (const stop of [3, 4, 5, 6]) {
-        const o = overrideAt(stop);
+      for (const [i, stop] of [4, 5, 6].entries()) {
+        const o = needleFor(journeyPoseAt(stop, ASPECT))!;
         c.setNeedleWorld(o);
-        const toBead = new THREE.Vector3(...o.aim!).sub(new THREE.Vector3(...o.position)).normalize();
-        expect(tipDirection(c).distanceTo(toBead), `stop ${stop}`).toBeLessThan(1e-6);
+        const toAim = new THREE.Vector3(...o.aim!).sub(new THREE.Vector3(...o.position)).normalize();
+        expect(tipDirection(c).distanceTo(toAim), `stop ${stop}`).toBeLessThan(1e-6);
+        const toBead = new THREE.Vector3(...BEADS[i]!.centre).sub(new THREE.Vector3(...o.position)).normalize();
+        expect(toAim.angleTo(toBead) / DEG, `stop ${stop} faces ${BEADS[i]!.id}`).toBeLessThan(5);
       }
-      c.setNeedleWorld(overrideAt(2));
-      expect(tipDirection(c).distanceTo(DOWN)).toBeLessThan(1e-6);
       c.dispose();
     });
   });
@@ -1866,5 +1859,75 @@ describe('the needle leaves the compass (setNeedleWorld, Task 9)', () => {
       vi.doUnmock('three');
       vi.resetModules();
     }
+  });
+});
+
+describe('the glass top fading as the light dive comes down (setTopFade)', () => {
+  const bandGlass = (c: CompassModel, k: number) => (node(c, `band_${k}`) as THREE.Mesh<THREE.BufferGeometry, THREE.MeshPhysicalMaterial>).material;
+  const gold = (c: CompassModel) => (node(c, 'rim_1') as THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>).material;
+  const needleGold = (c: CompassModel) => (node(c, 'needle') as THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>).material;
+
+  it("dims the bands' and the rims' glow with it, and leaves the needle's own", () => {
+    const c = loadCompass(fakeGltf(), 'high', stripStub);
+    const bands = [1, 2, 3, 4].map((k) => bandGlass(c, k).emissiveIntensity);
+    const rims = gold(c).emissiveIntensity;
+    const needle = needleGold(c).emissiveIntensity;
+    c.setTopFade(0.25);
+    [1, 2, 3, 4].forEach((k, i) => expect(bandGlass(c, k).emissiveIntensity).toBeCloseTo(bands[i]! * 0.75, 12));
+    expect(gold(c).emissiveIntensity).toBeCloseTo(rims * 0.75, 12);
+    expect(needleGold(c).emissiveIntensity).toBe(needle);
+    c.dispose();
+  });
+
+  it('darkens the gold itself with it, so the rims, lit metal, go dark as the previs\'s top lights do', () => {
+    const c = loadCompass(fakeGltf(), 'high', stripStub);
+    const rest = gold(c).color.clone();
+    c.setTopFade(0.75);
+    expect(gold(c).color.r).toBeCloseTo(rest.r * 0.25, 12);
+    expect(gold(c).color.g).toBeCloseTo(rest.g * 0.25, 12);
+    expect(needleGold(c).color.r).toBeCloseTo(rest.r, 12); // the needle's own brass is the light's
+    c.setTopFade(0);
+    expect(gold(c).color.equals(rest)).toBe(true);
+    c.dispose();
+  });
+
+  it("lets the void through the fading bands: their glass writes no depth while the top fades, and does again at home", () => {
+    const c = loadCompass(fakeGltf(), 'high', stripStub);
+    expect(bandGlass(c, 1).depthWrite).toBe(true); // the high tier's transmission writes depth
+    c.setTopFade(0.1);
+    for (const k of [1, 2, 3, 4]) expect(bandGlass(c, k).depthWrite, `band_${k}`).toBe(false);
+    c.setTier('medium');
+    expect(bandGlass(c, 1).depthWrite).toBe(false);
+    c.setTopFade(0);
+    expect(bandGlass(c, 1).depthWrite).toBe(true);
+    c.dispose();
+  });
+
+  it("fades the bands' glass with it, lit as it is by the room, and keeps that through the reveal and a tier's step", () => {
+    const c = loadCompass(fakeGltf(), 'high', stripStub);
+    const rest = bandGlass(c, 1).opacity;
+    c.setTopFade(0.5);
+    expect(bandGlass(c, 1).opacity).toBeCloseTo(rest * 0.5, 12);
+    c.setReveal(1);
+    expect(bandGlass(c, 1).opacity).toBeCloseTo(rest * 0.5, 12);
+    c.setTier('medium');
+    expect(bandGlass(c, 1).opacity).toBeCloseTo(COMPASS_LOOK.bandGlass.opacity.medium * 0.5, 12);
+    c.setTopFade(0);
+    expect(bandGlass(c, 1).opacity).toBeCloseTo(COMPASS_LOOK.bandGlass.opacity.medium, 12);
+    c.dispose();
+  });
+
+  it('takes the bands, their rims and the axis out at 1, and leaves the needle and the pivot where the light needs them', () => {
+    const c = loadCompass(fakeGltf(), 'high', stripStub);
+    c.setTopFade(1);
+    for (const k of [1, 2, 3, 4]) expect(node(c, `band_${k}`).visible, `band_${k}`).toBe(false);
+    expect(node(c, 'axis').visible).toBe(false);
+    for (const name of ['needle', 'pivot']) expect(node(c, name).visible, name).toBe(true);
+    c.setTopFade(0);
+    for (const k of [1, 2, 3, 4]) expect(node(c, `band_${k}`).visible).toBe(true);
+    expect(node(c, 'axis').visible).toBe(true);
+    c.setTopFade(Number.NaN);
+    expect(node(c, 'band_1').visible).toBe(true);
+    c.dispose();
   });
 });

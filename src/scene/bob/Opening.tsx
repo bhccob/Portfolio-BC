@@ -5,6 +5,7 @@ import { type GLTF, GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { bandStrip, COMPASS_PARTS, type CompassModel, loadCompass } from '~/engine/bob/build/compass';
 import { buildEngraving, type EngravingModel } from '~/engine/bob/build/engraving';
 import { buildGlass, type GlassModel } from '~/engine/bob/build/glassFloor';
+import { buildLight, type LightModel } from '~/engine/bob/build/light';
 import { buildProbe, type ProbeModel } from '~/engine/bob/build/probe';
 import { buildSmoke, type SmokeModel } from '~/engine/bob/build/smoke';
 import { buildTraces, tracesUnder, type TracesModel } from '~/engine/bob/build/traces';
@@ -101,12 +102,18 @@ interface LoaderParts {
    * own lights in for them. The Opening's to free.
    */
   standIns: THREE.PointLight[];
+  /**
+   * The light the needle becomes in the light dive (~/engine/bob/build/light): built here, dark, so it is compiled with
+   * the loader and its lamp is in the scene's light count from the first frame; the Void poses it. The Opening's to free.
+   */
+  light: LightModel;
 }
 
 /** What the Opening mounts Home and the Void with, once the compass exists. */
 interface Mounted {
   home: HomeModels;
   standIns: readonly THREE.PointLight[];
+  light: LightModel;
 }
 
 /** The home's part, the compass, built while the loader engraves: the Opening's to free with its strips and its file's geometries. */
@@ -363,6 +370,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
     if (to !== standing.current) {
       standing.current = to;
       parts.smoke.setTier(to);
+      parts.light.setTier(to);
       home.current?.compass?.setTier(to);
     }
     if (!reflector) parts.glass.setReflector(false);
@@ -392,9 +400,11 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       made.push(probe);
       const smoke = buildSmoke(built);
       made.push(smoke);
+      const light = buildLight(built);
+      made.push(light);
       const standIns = beadLightStandIns(built);
-      scene.add(glass.group, traces.group, engraving.group, probe.group, smoke.group, ...standIns);
-      parts = { glass, engraving, traces, probe, smoke, standIns };
+      scene.add(glass.group, traces.group, engraving.group, probe.group, smoke.group, light.group, ...standIns);
+      parts = { glass, engraving, traces, probe, smoke, standIns, light };
     } catch (error) {
       for (const part of made) part.dispose();
       latest.current.onFail('the loader could not be built', error);
@@ -504,7 +514,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       const now = clockOf(state);
       pose(parts, compass, openingPoseAt(now, state.path), state.elapsed, state);
       // Home and the Void mount now; they drive nothing until the Opening hands the home over.
-      setModels({ home: { compass, engraving: parts.engraving, smoke: parts.smoke }, standIns: parts.standIns });
+      setModels({ home: { compass, engraving: parts.engraving, smoke: parts.smoke, glass: parts.glass, traces: parts.traces }, standIns: parts.standIns, light: parts.light });
 
       // The strips go up to the GPU now, not on the frame that first shows the bands, and the home's programs compile.
       uploadTextures(gl, homeParts.strips);
@@ -539,7 +549,8 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       frame.shot = null;
       frame.loader.stage = null;
       frame.needleAngle = 0;
-      scene.remove(parts.glass.group, parts.traces.group, parts.engraving.group, parts.probe.group, parts.smoke.group);
+      scene.remove(parts.glass.group, parts.traces.group, parts.engraving.group, parts.probe.group, parts.smoke.group, parts.light.group);
+      parts.light.dispose();
       parts.glass.dispose();
       parts.engraving.dispose();
       parts.traces.dispose();
@@ -667,7 +678,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
   return models ? (
     <>
       <Home models={models.home} handover={handover} />
-      <Void compass={models.home.compass} handover={handover} tier={tier} standIns={models.standIns} onOpen={openBead} />
+      <Void compass={models.home.compass} light={models.light} handover={handover} tier={tier} standIns={models.standIns} onOpen={openBead} />
     </>
   ) : null;
 }

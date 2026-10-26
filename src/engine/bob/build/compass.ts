@@ -174,6 +174,16 @@ export interface CompassModel {
    */
   setReveal(level: number): void;
   /**
+   * Dims the glass top's glow as the light dive's camera comes down to it (the previs's TOP_EMIT and TOP_LIGHTS, way
+   * frames 14-28), 0..1 (held to it; NaN reads as 0): the bands' glow and their marks, and the gold's (the rims, the pivot
+   * and the axis), to (1 - `share`) of their rest; the bands' glass, which the room lights, fades by as much, and the gold's
+   * own colour darkens by as much, so its lit metal goes dark too. At 1 the bands (each with its rim) and the axis are taken out, so they never stand
+   * round the light as a bright frame and three runs no transmission pass for them; the needle and the pivot stay, as
+   * the light and the ring's needle are theirs (`setNeedleWorld`), and the needle's own glow is the light's to give.
+   * 0 is exactly the compass as it was.
+   */
+  setTopFade(share: number): void;
+  /**
    * Steps the bands' glass down to `tier`'s (the quality ladder's step), as a compass built for it would
    * have: its transmission, its opacity (at the reveal it shows) and whether it writes depth. Dropping to the low tier
    * turns transmission off, so the bands compile once more and three runs no transmission pass after it;
@@ -354,6 +364,8 @@ export function loadCompass(
   let standing: QualityTier = tier;
   const transmission = look.bandGlass.transmission[tier];
   let glassOpacity: number = look.bandGlass.opacity[tier];
+  // What the glass top's fade keeps (`setTopFade`), 1 at home: the bands' opacity is the tier's times the reveal times it.
+  let topKept = 1;
   const Y = new THREE.Vector3(0, 1, 0);
   const Z = new THREE.Vector3(0, 0, 1);
   const bands = [1, 2, 3, 4].map((k, i) => {
@@ -614,9 +626,25 @@ export function loadCompass(
       const r = clamp01(level);
       gold.opacity = r;
       needleGold.opacity = r;
-      for (let i = 0; i < bands.length; i++) bands[i].glass.opacity = glassOpacity * r;
+      for (let i = 0; i < bands.length; i++) bands[i].glass.opacity = glassOpacity * r * topKept;
       reveal.value = r;
       armillary.visible = r > 0;
+    },
+    setTopFade(share) {
+      const kept = 1 - clamp01(share);
+      topKept = kept;
+      for (let i = 0; i < bands.length; i++) {
+        bands[i].glass.emissiveIntensity = look.bandGlass.emissiveIntensity * kept;
+        bands[i].glass.opacity = glassOpacity * reveal.value * kept;
+        // Fading, it lets the void behind it through: depth is written only by the whole glass (render state, no program).
+        bands[i].glass.depthWrite = bands[i].glass.transmission > 0 && kept === 1;
+        bands[i].mesh.visible = kept > 0;
+      }
+      marks.value.set(look.bandMarks.colour).multiplyScalar(look.bandMarks.intensity * kept);
+      gold.emissiveIntensity = look.gold.emissiveIntensity * kept;
+      // Lit metal: its colour is its reflection, so the room's light goes off it as the colour darkens.
+      gold.color.set(look.gold.colour).multiplyScalar(kept);
+      part('axis').visible = kept > 0;
     },
     setNeedleGlow(level) {
       const share = Number.isFinite(level) && level >= 0 ? level : 1;
@@ -633,8 +661,8 @@ export function loadCompass(
         // Transmission on or off is another program; a lower amount of it is a uniform.
         if ((glass.transmission > 0) !== (passes > 0)) glass.needsUpdate = true;
         glass.transmission = passes;
-        glass.depthWrite = passes > 0;
-        glass.opacity = glassOpacity * reveal.value;
+        glass.depthWrite = passes > 0 && topKept === 1;
+        glass.opacity = glassOpacity * reveal.value * topKept;
       }
     },
     dispose() {

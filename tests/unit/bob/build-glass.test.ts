@@ -1001,3 +1001,64 @@ describe('the traces', () => {
     for (const spy of spies) expect(spy).toHaveBeenCalled();
   });
 });
+
+describe('the glass dissolving as the light dive comes through it (setDissolve)', () => {
+  const floorOf = (glass: ReturnType<typeof buildGlass>) => meshNamed(glass.group, 'floor') as THREE.Mesh<THREE.BufferGeometry, THREE.MeshPhysicalMaterial>;
+  const wellOf = (glass: ReturnType<typeof buildGlass>) => meshNamed(glass.group, 'well') as THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
+  const lipOf = (glass: ReturnType<typeof buildGlass>) => meshNamed(glass.group, 'lip') as THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
+
+  it('fades the see-through floor of the high tier, darkens the tunnel and the lip with it, and takes the mirror out by the middle', () => {
+    const glass = buildGlass('high');
+    glass.setGlow(1);
+    const floor = floorOf(glass);
+    const rest = floor.material.opacity;
+    const wellRest = wellOf(glass).material.emissiveIntensity;
+    const lipRest = lipOf(glass).material.emissiveIntensity;
+    glass.setDissolve(0.4);
+    expect(floor.material.opacity).toBeCloseTo(rest * 0.6, 12);
+    expect(objectNamed(glass.group, 'floor:reflector').visible).toBe(true);
+    expect(wellOf(glass).material.emissiveIntensity).toBeCloseTo(wellRest * 0.6, 12);
+    expect(lipOf(glass).material.emissiveIntensity).toBeCloseTo(lipRest * 0.6, 12);
+    // Lit metal: its colour darkens with it, so the room's light goes off it too.
+    expect(lipOf(glass).material.color.r).toBeCloseTo(new THREE.Color(GLASS_LOOK.lip.colour).r * 0.6, 12);
+    glass.setDissolve(0.5);
+    expect(objectNamed(glass.group, 'floor:reflector').visible).toBe(false);
+    glass.setDissolve(1);
+    for (const name of ['floor', 'floor:edge', 'cap', 'well', 'lip']) expect(objectNamed(glass.group, name).visible, name).toBe(false);
+    // The tunnel's light stays in the scene at 0, so the light count never changes.
+    const light = objectNamed(glass.group, 'well:light') as THREE.PointLight;
+    expect([light.visible, light.intensity]).toEqual([true, 0]);
+    glass.dispose();
+  });
+
+  it('gives the glass back exactly at 0: the floor, the mirror, the tunnel and the lip as they were', () => {
+    const glass = buildGlass('high');
+    glass.setGlow(1);
+    glass.setIris(1);
+    const before = [floorOf(glass).material.opacity, wellOf(glass).material.emissiveIntensity, lipOf(glass).material.emissiveIntensity];
+    glass.setDissolve(1);
+    glass.setDissolve(0);
+    expect([floorOf(glass).material.opacity, wellOf(glass).material.emissiveIntensity, lipOf(glass).material.emissiveIntensity]).toEqual(before);
+    for (const name of ['floor', 'floor:edge', 'floor:reflector', 'well', 'lip']) expect(objectNamed(glass.group, name).visible, name).toBe(true);
+    expect(objectNamed(glass.group, 'cap').visible).toBe(false); // the iris is open: the cap stays as the iris left it
+    glass.setDissolve(Number.NaN);
+    expect(floorOf(glass).material.opacity).toBe(before[0]);
+    glass.dispose();
+  });
+
+  it('cuts the opaque floor below high at the middle, compiling nothing: no material changes its program', () => {
+    for (const tier of ['medium', 'low'] as const) {
+      const glass = buildGlass(tier);
+      const floor = floorOf(glass);
+      const version = floor.material.version;
+      glass.setDissolve(0.49);
+      expect(floor.visible).toBe(true);
+      glass.setDissolve(0.5);
+      expect(floor.visible).toBe(false);
+      expect(objectNamed(glass.group, 'floor:edge').visible).toBe(false);
+      expect(floor.material.version).toBe(version);
+      expect(floor.material.transparent).toBe(false);
+      glass.dispose();
+    }
+  });
+});

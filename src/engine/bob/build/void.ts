@@ -41,6 +41,9 @@ export const CLEAR = { cam: 1.7, light: 0.9, bead: 1.3 } as const;
  * How the void looks and moves, in metres and seconds. These are starting values, from the previs and then taken
  * down for the site's rule (dark, calm, one focal point); the proof harness's luminance gate is the judge of them.
  *
+ * - `backdrop`: the void's depth, the site's night (the page's own, which the end page stands in too) on a sphere of
+ *   `radius` round everything (inside the camera's far plane, 100, from wherever the void's cameras stand), seen from
+ *   inside, coming in with the band: the previs's void is not black but a night.
  * - `ceiling`, `traces` and `ring`: the glass's underside, its traces and the gold ring at the hole's rim, as the dive's
  *   void had them: the glass's own numbers, so the two stay one slab.
  * - `band`: the mist band, the haze's sprites in one layer, in the haze (`colour` times `dim`), `puffs` across the frame.
@@ -55,6 +58,7 @@ export const CLEAR = { cam: 1.7, light: 0.9, bead: 1.3 } as const;
  *   furthest it strays, a share of it per axis) once round every `drift.period` seconds.
  */
 export const VOID_LOOK = {
+  backdrop: { colour: palette.night, radius: 80, segments: [32, 16] as const, order: -100 },
   ceiling: {
     y: GLASS_LOOK.well.bottom,
     inner: WORDMARK.hole,
@@ -69,11 +73,11 @@ export const VOID_LOOK = {
   band: {
     colour: palette.haze,
     dim: 0.9,
-    puffs: 5,
+    puffs: 7,
     box: { x: 1, y: [-2, 2] as const },
-    width: [0.7, 1.1] as const,
-    height: [2.4, 3.4] as const,
-    opacity: [0.14, 0.22] as const,
+    width: [0.8, 1.2] as const,
+    height: [3, 4] as const,
+    opacity: [0.3, 0.45] as const,
     sway: { x: 0.06, z: 0 },
     period: 60,
     breathe: 0.25,
@@ -93,10 +97,10 @@ export const VOID_LOOK = {
   dust: {
     count: { high: 400, medium: 200, low: 60 },
     box: { x: [-14, 14] as const, y: [-18, -1.7] as const, z: [-32, 9] as const },
-    size: 0.08,
+    size: 0.2,
     colour: palette.goldLight,
-    dim: 0.45,
-    opacity: 0.6,
+    dim: 3,
+    opacity: 0.9,
     drift: { amplitude: [0.3, 0.9] as const, period: 90 },
     seed: 7
   }
@@ -127,7 +131,7 @@ export interface BandPose {
 /** The void as the scene holds it. */
 export interface VoidModel {
   /**
-   * `void`: the parts `void:ceiling`, `void:traces` (its lines `void:traces:lines`), `void:ring`, `void:band` (its
+   * `void`: the parts `void:backdrop`, `void:ceiling`, `void:traces` (its lines `void:traces:lines`), `void:ring`, `void:band` (its
    * sprites `void:band:<i>`), `void:ringMist` (its sprites `void:ringMist:<i>`) and `void:dust` (its points
    * `void:dust:points`), in that order. Nothing in it takes a ray. It builds dark: no band, no ring of mist, no dust.
    */
@@ -145,6 +149,11 @@ export interface VoidModel {
   setDust(level: number): void;
   /** How far the void has streamed toward the camera, m: the dust's group moves that far along +z (NaN reads as 0). */
   setStream(metres: number): void;
+  /**
+   * Shows or hides the glass sky (the ceiling, its traces and its ring): out while the camera is above it, where it would
+   * stand round the hole as a second rim (the previs's SKY_OBJECTS), back once the camera is under it.
+   */
+  setSky(shown: boolean): void;
   /** Drifts the haze and the dust to where they are at `t` seconds (NaN reads as 0); the same time is the same picture. */
   setTime(t: number): void;
   /**
@@ -263,6 +272,28 @@ export function buildVoid(tier: QualityTier): VoidModel {
   const look = VOID_LOOK;
   const group = new THREE.Group();
   group.name = 'void';
+
+  // The backdrop: the night round everything, seen from inside, behind all of it, never in the way. Added to what is
+  // there (the black it stands in, and the haze in front, which three may draw before it), so it lifts the dark into the
+  // night and paints over nothing.
+  const backdropGeometry = new THREE.SphereGeometry(look.backdrop.radius, look.backdrop.segments[0], look.backdrop.segments[1]);
+  const backdropMaterial = new THREE.MeshBasicMaterial({
+    name: 'void:backdrop',
+    color: look.backdrop.colour,
+    side: THREE.BackSide,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    opacity: 0,
+    depthWrite: false,
+    depthTest: true,
+    fog: false
+  });
+  const backdrop = new THREE.Mesh(backdropGeometry, backdropMaterial);
+  backdrop.name = 'void:backdrop';
+  backdrop.renderOrder = look.backdrop.order;
+  backdrop.frustumCulled = false;
+  backdrop.visible = false;
+  ignoreRays(backdrop);
 
   // The ceiling: the glass's ring again, turned to face down. Opaque and writing depth, so that from below it hides
   // the home above it; it draws first of the void so the traces (no depth test) lie over it.
@@ -395,7 +426,7 @@ export function buildVoid(tier: QualityTier): VoidModel {
   ignoreRays(points);
   dustGroup.add(points);
 
-  group.add(ceiling, traces.group, ring, bandHaze.group, ringGroup, dustGroup);
+  group.add(backdrop, ceiling, traces.group, ring, bandHaze.group, ringGroup, dustGroup);
 
   let seconds = 0;
   let bandShown = false;
@@ -421,6 +452,8 @@ export function buildVoid(tier: QualityTier): VoidModel {
   /** The band at its strength less what has dissolved, and the ring of mist at what has. */
   const poseHaze = (): void => {
     const level = bandShown ? strength : 0;
+    backdropMaterial.opacity = level;
+    backdrop.visible = level > 0;
     bandHaze.setLevel(level * (1 - dissolved));
     const ringLevel = level * dissolved;
     for (let i = 0; i < ringSprites.length; i++) {
@@ -474,6 +507,11 @@ export function buildVoid(tier: QualityTier): VoidModel {
     setStream(metres) {
       dustGroup.position.z = Number.isFinite(metres) ? metres : 0;
     },
+    setSky(shown) {
+      ceiling.visible = shown;
+      traces.group.visible = shown;
+      ring.visible = shown;
+    },
     setTime(t) {
       seconds = Number.isFinite(t) ? t : 0;
       bandHaze.setTime(seconds);
@@ -498,8 +536,8 @@ export function buildVoid(tier: QualityTier): VoidModel {
     },
     dispose() {
       traces.dispose();
-      for (const geometry of [ceilingGeometry, ringGeometry, dustGeometry]) geometry.dispose();
-      for (const material of [ceilingMaterial, ringMaterial, dustMaterial]) material.dispose();
+      for (const geometry of [backdropGeometry, ceilingGeometry, ringGeometry, dustGeometry]) geometry.dispose();
+      for (const material of [backdropMaterial, ceilingMaterial, ringMaterial, dustMaterial]) material.dispose();
       bandHaze.dispose();
       for (const sprite of ringSprites) sprite.material.dispose();
       ringSprites = [];

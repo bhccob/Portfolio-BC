@@ -8,15 +8,16 @@ import jontaiScreen from '~/assets/beads/jontai-energy.webp';
 import type { ProjectId } from '~/data/projects';
 import { type BeadsModel, loadBeads } from '~/engine/bob/build/beads';
 import type { CompassModel } from '~/engine/bob/build/compass';
-import { buildVoid, type VoidModel } from '~/engine/bob/build/void';
+import type { LightModel } from '~/engine/bob/build/light';
+import { buildVoid, VOID_LOOK, type VoidModel } from '~/engine/bob/build/void';
 import { lowerTier, type QualityTier } from '~/engine/quality';
 import { frame } from '~/state/frame';
 import { useScene, type VoidState } from '~/state/store';
 import { showBeadLabel } from '~/ui/BeadLabel';
 import { motion } from '../motion';
 import type { Handover } from './Home';
-import { BEADS } from './journey';
-import { beadClocks, easeHover, hoverEase, hoversAt, selectedBead, stepBeadClocks, voidShownFor } from './voidPose';
+import { BEADS, type LightPose } from './journey';
+import { beadClocks, easeHover, hoverEase, hoversAt, needleFor, selectedBead, stepBeadClocks, voidShownAt } from './voidPose';
 import { loadVoid, type VoidLoadSteps } from './voidLoad';
 import { uploadTextures, warm } from './warm';
 
@@ -202,6 +203,12 @@ interface VoidRun {
 /** No screen: the label is taken away. */
 const NO_SIZE = { width: 0, height: 0 };
 
+/** The light out: no glow, so its body and its trail are hidden and its lamp is at 0. */
+const DARK: LightPose = { position: [0, 0, 0], radius: 0, glow: 0, stretch: 0, yaw: 0, trail: [], trailLevel: 0, filaments: [] };
+
+/** Below this the camera is under the void's glass sky (the previs's SKY_Z, a hair under the ceiling), which shows from there. */
+const UNDER_SKY = VOID_LOOK.ceiling.y - 0.1;
+
 const DEG = Math.PI / 180;
 
 /** Shows or hides the void. */
@@ -250,8 +257,10 @@ function pick(parts: VoidParts, pointer: { x: number; y: number }, camera: THREE
 }
 
 export interface VoidProps {
-  /** The compass, whose needle the Void holds in the void (`setNeedleWorld`) once the dive starts. */
+  /** The compass, whose needle the Void gives to the light and holds in the ring (`setNeedleWorld`). */
   compass: CompassModel;
+  /** The light the needle becomes in the light dive, the Opening's (built with the loader's parts); the Void poses it. */
+  light: LightModel;
   /** The Opening's hand-over: whether the journey is live, and the one pose of this frame (`pose`). */
   handover: Handover;
   /** The ladder's tier now: the void and the beads are built at it and step down with it after, never up. */
@@ -286,11 +295,15 @@ export interface VoidProps {
  *
  * **Each frame** (after Home's, so after the Rig has placed the camera and Home has posed the compass) it applies the
  * Opening's one pose of the frame (`handover.pose`, the journey at the progress the camera stands at):
- * - the needle: `setNeedleWorld(pose.needle)`, null on the rise (a no-op while not held), the override from the dive on;
- *   null again while the Opening poses the scene itself (the loader, a held seek) and on unmount;
- * - the void and the beads show only once the camera is under the glass (`voidShownFor`): hidden on the rise, at BOB
- *   from above and down to the opening, where on the high tier the floor would show the void's traces under the home's
- *   and its reflector would draw them again; the beads' inner lights go dark with them, by intensity;
+ * - the needle: `setNeedleWorld(needleFor(pose))` (./voidPose.ts): null on the rise (a no-op while not held); held at
+ *   the pivot and shrunk to nothing as the light ignites (way frames 2-8) and through the fall; the journey's own from
+ *   frame 272, drawn out of the light at the ring and round it; null again while the Opening poses the scene itself (the
+ *   loader, a held seek) and on unmount;
+ * - the light (the Opening's, `LightModel.setPose`): the journey's `light`, dark where there is none;
+ * - the void shows from the light dive's frame 20 (`voidShownAt`), as its band comes in, while the glass dissolves round
+ *   the light (Home, `GlassModel.setDissolve`); its glass sky only once the camera is under it (`setSky`), as from
+ *   above it would stand round the hole as a second rim; the beads only from their own frame (the journey's `beads`),
+ *   their inner lights going dark with them, by intensity;
  * - the void, from the journey's `void`: the mist band held to the camera at its place on the frame (`setBand`), the
  *   ring of mist it dissolves into at the landing (`setRingMist`), the dust's glow (`setDust`) and the stream that
  *   carries the dust toward the camera (`setStream`); and its drift (`setTime`, on a clock that runs only on frames
@@ -322,7 +335,7 @@ export interface VoidProps {
  *
  * Unmounting frees the void, the beads, the screens' and the file's GPU side, gives the needle back and says `idle`.
  */
-export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): null {
+export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidProps): null {
   const gl = useThree((state) => state.gl);
   const scene = useThree((state) => state.scene);
   const camera = useThree((state) => state.camera);
@@ -549,6 +562,7 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
     if (!handover.live || pose === null) {
       // The Opening poses the scene itself (the loader, a held seek): the needle is the armillary's, the void is not there.
       compass.setNeedleWorld(null);
+      light.setPose(DARK, camera);
       if (space) showSpace(space, false);
       if (parts) show(parts, false);
       run.reading = run.hovering = false;
@@ -558,17 +572,23 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
     }
     // The home has landed: the void loads now, once.
     start.current();
-    // The needle leaves the compass from the light dive on (null on the rise: the compass holds it), after Home has posed it.
-    compass.setNeedleWorld(pose.needle);
+    // The needle gives itself to the light as it ignites (way frames 2-8), and comes back out of it at the ring; the
+    // compass holds it on the rise. After Home has posed it.
+    compass.setNeedleWorld(needleFor(pose));
+    camera.updateMatrixWorld();
+    light.setPose(pose.light ?? DARK, camera);
     if (!space) {
       motion.beads = false;
       showBeadLabel(null, size);
       return;
     }
 
-    const shown = voidShownFor(pose.shot);
+    const shown = voidShownAt(pose);
     showSpace(space, shown);
-    if (parts) show(parts, shown);
+    // The beads come up into the ring from their own frame of the light dive (the journey's `beads`).
+    if (parts) show(parts, shown && pose.beads !== null);
+    // The glass sky only from under it: seen from above it would stand round the hole as a second rim.
+    space.model.setSky(camera.position.y < UNDER_SKY);
     const { reducedMotion: reduced, scene: page } = useScene.getState();
     const home = shown && page === 'home';
     // A bead seen close, or the camera on its way to or from one: no label, and the pointer opens and hovers nothing.
@@ -587,7 +607,6 @@ export function Void({ compass, handover, tier, standIns, onOpen }: VoidProps): 
 
     // The void from the journey: the band held to the camera, the ring of mist, the dust's glow and the stream; and its
     // slow drift.
-    camera.updateMatrixWorld();
     const v = pose.void;
     space.model.setBand({ shown: v !== null, y: v?.bandY ?? 0, sigma: v?.bandSigma ?? 0, strength: v?.band ?? 0, distance: v?.bandDistance }, camera);
     space.model.setRingMist(v?.ringMist ?? 0);

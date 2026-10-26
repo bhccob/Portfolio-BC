@@ -6,7 +6,9 @@
  */
 import type { CameraShot } from '~/engine/bob/shots';
 import { BEAD_MOTION } from '~/engine/bob/beadMotion';
-import { BEADS, type JourneyAt, type JourneyPose } from './journey';
+import { BEADS, type JourneyAt, type JourneyPose, type NeedleOverride } from './journey';
+
+type Vec3 = readonly [number, number, number];
 
 /** The glass, the plane y = 0 (~/engine/bob/wordmark): above it is the home, under it the tunnel and the void. */
 const GLASS_Y = 0;
@@ -20,6 +22,33 @@ const GLASS_Y = 0;
  */
 export function voidShownFor(shot: CameraShot): boolean {
   return shot.position[1] < GLASS_Y;
+}
+
+/** The light dive's frame from which the void shows (the previs's VOID_IN): its band fades in from here. */
+export const VOID_FROM = 20;
+
+/**
+ * Whether the void shows at `pose`: from the light dive's frame 20 on, through the ring, the sheet and the end; never on
+ * the rise. Above the glass, where the void would show under the home's, the glass dissolves over frames 16-28
+ * (`GlassModel.setDissolve`) and the void's own glass sky is out (`VoidModel.setSky`) while the camera is above it.
+ */
+export function voidShownAt(pose: Pick<JourneyPose, 'at' | 'void'>): boolean {
+  if (pose.void === null) return false;
+  return pose.at.frame === null || pose.at.frame >= VOID_FROM;
+}
+
+/** The compass's pivot at BOB from above, where the light ignites (M2a's last frame: the needle there at scale 1). */
+const PIVOT: Vec3 = [0, 0.09, 0];
+
+/**
+ * The needle the Void hands the compass (`CompassModel.setNeedleWorld`) at `pose`: the journey's own where it has one
+ * (drawn out of the light at the ring from way frame 272, and round the ring); else, once the light ignites (way frames
+ * 2-8, `pose.ignite`), the compass's needle held at its pivot, its tip straight down as the rise left it, shrinking to
+ * nothing as the light takes its place, and nothing through the fall; and none on the rise, where the compass holds it.
+ */
+export function needleFor(pose: Pick<JourneyPose, 'needle' | 'ignite'>): NeedleOverride | null {
+  if (pose.needle !== null) return pose.needle;
+  return pose.ignite > 0 ? { position: PIVOT, scale: 1 - pose.ignite, aim: null } : null;
 }
 
 /** The selected bead: the project in front of the ring (0, 1 or 2, in `BEADS` order, within `PROJECT_NEAR` of it), else none. */

@@ -18,8 +18,11 @@ import {
   beadClocks,
   easeHover,
   hoverEase,
+  needleFor,
   selectedBead,
   stepBeadClocks,
+  VOID_FROM,
+  voidShownAt,
   voidShownFor,
   writeJourney
 } from '~/scene/bob/voidPose';
@@ -891,7 +894,7 @@ describe('the wiring: one journey pose a frame', () => {
 
   it('has the Void hand the needle its place every frame it drives it, and give it back', () => {
     const source = read('scene/bob/Void.tsx');
-    expect(source).toMatch(/setNeedleWorld\(\s*pose\.needle\s*\)/);
+    expect(source).toMatch(/setNeedleWorld\(\s*needleFor\(\s*pose\s*\)\s*\)/);
     expect(source).toMatch(/setNeedleWorld\(\s*null\s*\)/);
   });
 
@@ -1105,5 +1108,40 @@ describe('loadVoid: the void is built at the hand-over, the beads once their fil
     expect(source).toMatch(/\bloadVoid\(/);
     for (const call of ['setBand', 'setRingMist', 'setDust', 'setStream']) expect(source, call).toContain(`.${call}(`);
     expect(source).not.toMatch(/\.setLight\(/);
+  });
+});
+
+// ---------------------------------------------------------------- the way in: the needle becomes the light, the void opens
+
+describe('needleFor: the needle the Void hands the compass', () => {
+  it("is the compass's own on the rise and at BOB from above: none", () => {
+    for (const p of [0, 0.5, 1, placeOfFrame(2)]) expect(needleFor(journeyPoseAt(p, LAPTOP)), `at ${p}`).toBeNull();
+  });
+
+  it('gives the needle to the light over way frames 2-8: at the pivot, shrinking to nothing, its tip straight down', () => {
+    let last = 1;
+    for (const f of [2.5, 3, 4, 5, 6, 7, 7.9]) {
+      const o = needleFor(journeyPoseAt(placeOfFrame(f), LAPTOP));
+      expect(o, `frame ${f}`).not.toBeNull();
+      expect(o!.position).toEqual([0, 0.09, 0]);
+      expect(o!.aim).toBeNull();
+      expect(o!.scale).toBeLessThan(last);
+      last = o!.scale;
+    }
+    expect(needleFor(journeyPoseAt(placeOfFrame(8), LAPTOP))!.scale).toBe(0);
+  });
+
+  it('keeps it in the light through the fall, and draws it out at the ring from frame 272', () => {
+    for (const f of [9, 61, 121, 241, 271]) expect(needleFor(journeyPoseAt(placeOfFrame(f), LAPTOP))!.scale, `frame ${f}`).toBe(0);
+    for (const f of [272, 280, 299]) expect(needleFor(journeyPoseAt(placeOfFrame(f), LAPTOP)), `frame ${f}`).toEqual(journeyPoseAt(placeOfFrame(f), LAPTOP).needle);
+    expect(needleFor(journeyPoseAt(5, LAPTOP))!.scale).toBe(2);
+  });
+});
+
+describe('voidShownAt: the void shows from the light dive\'s frame 20, its band fading in from there', () => {
+  it('hides it on the rise and in the way in before frame 20, and shows it from 20 through the ring and the sheet', () => {
+    expect(VOID_FROM).toBe(20);
+    for (const p of [0, 0.5, 1, placeOfFrame(10), placeOfFrame(19.9)]) expect(voidShownAt(journeyPoseAt(p, LAPTOP)), `at ${p}`).toBe(false);
+    for (const p of [placeOfFrame(20), placeOfFrame(30), placeOfFrame(121), 4, 5.5, 6.5, 7]) expect(voidShownAt(journeyPoseAt(p, PHONE)), `at ${p}`).toBe(true);
   });
 });

@@ -4,7 +4,9 @@ import * as THREE from 'three';
 import { AngleSpring, wrapAngle } from '~/engine/AngleSpring';
 import type { CompassModel } from '~/engine/bob/build/compass';
 import type { EngravingModel } from '~/engine/bob/build/engraving';
+import type { GlassModel } from '~/engine/bob/build/glassFloor';
 import type { SmokeModel } from '~/engine/bob/build/smoke';
+import type { TracesModel } from '~/engine/bob/build/traces';
 import { aimsAt, driftAngle, NEEDLE_SPRING, needleAngleAt, needleAngleFor } from '~/engine/bob/needleAim';
 import { AT_REST } from '~/engine/stillness';
 import { HOME_CHAPTERS, scrollEnd, stops } from '~/state/chapters';
@@ -15,6 +17,7 @@ import { applyEndView, clearEndView, type EndWritten, endViewFor, endWritten } f
 import { idleRuns, needleRests, stirIdle } from './idle';
 import type { JourneyPose } from './journey';
 import { needleGlowAt } from './look';
+import { HOME_POSE } from './openingPose';
 import { risingFor } from './scrollPose';
 import { nearestStop, STEP_FADE_ATTRIBUTE, type StepFade, stepFadeAt, stepFadeFrom } from './stepFade';
 
@@ -38,6 +41,9 @@ export interface HomeModels {
   compass: CompassModel;
   engraving: EngravingModel;
   smoke: SmokeModel;
+  /** The glass floor and its traces: posed by the Opening to the home, and dimmed and dissolved by Home in the light dive. */
+  glass: GlassModel;
+  traces: TracesModel;
 }
 
 /**
@@ -104,6 +110,26 @@ interface HomeState {
   rising: boolean;
   /** The end view (`--end`, `<html data-end>`, `#end`'s inert) as Home last wrote it (endView.ts). */
   end: EndWritten;
+  /** The glass top's fade and the glass's dissolve as Home last wrote them (NaN when not written since a hand-over). */
+  top: number;
+  dissolve: number;
+}
+
+/**
+ * The glass top at `top` of its fade and the glass at `dissolve` of its dissolve (the light dive's way in, journey.ts
+ * `VoidAt`): the compass's glow and the engraving's, the traces and the smoke dim to (1 - `top`) of the home's (the
+ * Opening's `HOME_POSE`), and so does the tunnel's glow; the engraving goes once it is dark; the glass dissolves. 0 and 0
+ * are the home exactly as the Opening posed it.
+ */
+function poseTop(models: HomeModels, top: number, dissolve: number): void {
+  const kept = 1 - top;
+  models.compass.setTopFade(top);
+  models.engraving.setGlow(HOME_POSE.engraveGlow * kept);
+  models.engraving.group.visible = kept > 0;
+  models.traces.setLevel(HOME_POSE.traces * kept);
+  models.smoke.setDensity(HOME_POSE.smoke * kept);
+  models.glass.setGlow(HOME_POSE.wellGlow * kept);
+  models.glass.setDissolve(dissolve);
 }
 
 /**
@@ -202,6 +228,8 @@ export function Home({ models, handover }: HomeProps): null {
     faded: false,
     rising: false,
     end: endWritten(),
+    top: Number.NaN,
+    dissolve: Number.NaN,
   }));
   const invalidate = useThree((three) => three.invalidate);
   /** The pivot the needle turns on (`CompassModel.pivot`): the needle's own centre, the armillary's origin. */
@@ -233,6 +261,9 @@ export function Home({ models, handover }: HomeProps): null {
         models.compass.setIris(0);
         models.compass.setNeedleDip(0);
         models.engraving.setLetters(0);
+        // The glass top as the home has it: the Opening poses its glow from the held moment from here.
+        poseTop(models, 0, 0);
+        state.top = state.dissolve = Number.NaN;
         showStepFade(state, false);
         showRising(state, false);
         clearEndView(document.documentElement, endPage(), state.end, 'let-go');
@@ -293,7 +324,7 @@ export function Home({ models, handover }: HomeProps): null {
     }
     // A stir starts the idle while (idle.ts), but not at the end page, where the compass is out of view behind the page:
     // arriving there (a phase change into END) starts nothing, and the scene sleeps as soon as the story rests.
-    if (stirred && stirIdle(state, journey.at.stretch, now)) {
+    if (stirred && stirIdle(state, journey.at, now)) {
       // The next frame, for the idle motion this starts: the Heartbeat has already run this frame, on the stillness
       // Home wrote the frame before (at rest), and a skipped mount has no phase change to wake it.
       invalidate();
@@ -301,7 +332,7 @@ export function Home({ models, handover }: HomeProps): null {
 
     const pointing = aiming && Number.isFinite(frame.pointerAt);
     const drifting = aiming && !pointing;
-    const runs = idleRuns(state, journey.at.stretch, now, reduced, drifting);
+    const runs = idleRuns(state, journey.at, now, reduced, drifting);
     if (runs) {
       state.idleTime += dt;
       // Past the idle while, a drifting needle runs on to its rest and no further, so it falls asleep there.
@@ -320,7 +351,7 @@ export function Home({ models, handover }: HomeProps): null {
       state.target = driftAngle(state.idleTime);
     }
     // With reduced motion, and at the end page behind the page and the night, the needle stands on its target (idle.ts).
-    if (needleRests(journey.at.stretch, reduced)) spring.set(state.target, 0);
+    if (needleRests(journey.at, reduced)) spring.set(state.target, 0);
     const needle = spring.step(state.target, dt);
     // Up the rise unwrapped about the held target (needleAngleAt), so a spring still settling across
     // straight down does not flip the needle's roll halfway down the dip.
@@ -337,6 +368,16 @@ export function Home({ models, handover }: HomeProps): null {
     scroll.letters = pose.letters;
     scroll.iris = pose.iris;
     scroll.needleDip = pose.needleDip;
+    // The way in (the light dive's frames 14-28): the glass top goes dark as the camera comes down to it and the glass
+    // dissolves round the light, so by the time the camera is in the O there is only the light and the void opening round
+    // it; back as it was on the way up. Written only where it changes.
+    const top = journey.void?.topFade ?? 0;
+    const dissolve = journey.void?.glassDissolve ?? 0;
+    if (top !== state.top || dissolve !== state.dissolve) {
+      state.top = top;
+      state.dissolve = dissolve;
+      poseTop(models, top, dissolve);
+    }
     // The hero's SCROLL cue goes with the rise and comes back at the home (the spec shows no text during the scroll).
     showRising(state, risingFor(pose.u));
     // The end page (endView.ts): how far it has slid up in this frame's pose, and where the story stands, the progress

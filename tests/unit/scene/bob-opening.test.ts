@@ -14,11 +14,15 @@ import {
   skipsLoader,
 } from '~/scene/bob/openingStart';
 import type { Phase } from '~/state/machine';
+import { journeyPoseAt } from '~/scene/bob/journey';
+import { wayShot } from '~/scene/bob/lightDive';
+import { shownProgressFor } from '~/scene/bob/shotSource';
+import { placeOfFrame } from '~/state/chapters';
 
 const PATHS: readonly LoaderPath[] = ['full', 'quick', 'reduced'];
 
 describe('where an opening starts', () => {
-  const KINDS: Phase['kind'][] = ['LOADING', 'HOME_IDLE', 'DIVE', 'VOID_ENTRY', 'PROJECTS', 'PROJECT_FOCUS'];
+  const KINDS: Phase['kind'][] = ['LOADING', 'HOME_IDLE', 'LIGHT', 'PROJECTS', 'END', 'PROJECT_FOCUS'];
 
   it('plays the loader while the page is loading, on the path the visit and the visitor ask for', () => {
     expect(openingStartFor('LOADING', false, false)).toEqual({ skip: false, path: 'full' });
@@ -34,7 +38,7 @@ describe('where an opening starts', () => {
         expect(openingStartFor('HOME_IDLE', seen, reduced)).toEqual({ skip: true, path: reduced ? 'reduced' : seen ? 'quick' : 'full' });
       }
     }
-    for (const kind of ['DIVE', 'VOID_ENTRY', 'PROJECTS'] as const) expect(skipsLoader(kind), kind).toBe(true);
+    for (const kind of ['LIGHT', 'PROJECTS', 'END'] as const) expect(skipsLoader(kind), kind).toBe(true);
   });
 
   it("still plays it on a project page, where it runs under the page's scrim as a direct arrival does", () => {
@@ -42,7 +46,7 @@ describe('where an opening starts', () => {
     expect(skipsLoader('LOADING')).toBe(false);
     expect(openingStartFor('PROJECT_FOCUS', false, false)).toEqual({ skip: false, path: 'full' });
     // Every phase has an answer.
-    expect(KINDS.filter(skipsLoader)).toEqual(['HOME_IDLE', 'DIVE', 'VOID_ENTRY', 'PROJECTS']);
+    expect(KINDS.filter(skipsLoader)).toEqual(['HOME_IDLE', 'LIGHT', 'PROJECTS', 'END']);
   });
 });
 
@@ -168,5 +172,18 @@ describe('what an opening tells SceneHost (openingReadiness)', () => {
     expect(openingReadiness(true, { loader: true, home: false })).toEqual({ started: true, shown: false, budget: true });
     // The budget is the loader's own give-up time, so a visit that began on Lite has the whole of it, as a loader would.
     expect(SKIPPED_HOME_BUDGET_MS).toBe(LOADER.giveUp * 1000);
+  });
+});
+
+describe("the Opening's shot in the light dive", () => {
+  it("is the journey's, the way's own shot at each frame, on a desk and on a phone", () => {
+    for (const aspect of [1440 / 900, 390 / 844]) {
+      for (const f of [1, 30, 61, 121, 261, 300]) {
+        const p = placeOfFrame(f);
+        // As the Opening writes it each frame: the journey's pose at the progress the home poses the scene at.
+        const at = shownProgressFor('journey', false, p, p, p);
+        expect(journeyPoseAt(at, aspect).shot, `frame ${f} at ${aspect}`).toEqual(wayShot(f, aspect));
+      }
+    }
   });
 });
