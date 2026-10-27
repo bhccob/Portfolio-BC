@@ -17,7 +17,7 @@ import { frame } from '~/state/frame';
 import { useScene, type VoidState } from '~/state/store';
 import { showBeadLabel } from '~/ui/BeadLabel';
 import { showLightFacts } from '~/ui/LightFacts';
-import { writeRing } from '~/ui/SkipButton';
+import { showsSkip, writeSkip } from '~/ui/SkipButton';
 import { motion } from '../motion';
 import type { Handover } from './Home';
 import { BEADS, type LightPose } from './journey';
@@ -208,8 +208,8 @@ interface VoidRun {
    * while it moves, and a pointer there neither turns a bead, nor wakes the canvas, nor opens one.
    */
   hovering: boolean;
-  /** `<html data-ring>` as last written: the skip button shows (src/ui/SkipButton.tsx). */
-  ring: { shown: boolean };
+  /** `<html data-skip>` as last written: the skip button shows (src/ui/SkipButton.tsx). */
+  skip: { shown: boolean };
 }
 
 /** No screen: the label is taken away. */
@@ -378,7 +378,10 @@ export interface VoidProps {
  *   is over (a ray against `beads[id].body`) where the path lets the pointer take it (`pointerMode`: the bead in view in
  *   an orbit or an inside, any bead in the look back), eased in and out one bead at a time (`easeHover`) and turned
  *   toward the camera; with reduced motion it brightens at once and does not turn; never once the sheet over the look
- *   back has begun (`hoversAt`), where a pointer over the rising page or behind it turns no bead and wakes nothing.
+ *   back has begun (`hoversAt`), where a pointer over the rising page or behind it turns no bead and wakes nothing;
+ * - the skip button (src/ui/SkipButton.tsx): `<html data-skip>` from the first project's arrival through the look back
+ *   (`showsSkip`) on the home page and no bead close or flown to, and never while the Opening poses the scene itself or
+ *   after unmount.
  * A pointer move over the page wakes the canvas only when it moves the hover onto another bead or off one; the hover and
  * a click read nothing on a page without the home's scene, nor while a bead is seen close or the camera flies to or from
  * one (`handover.focus`); a click opens what the pointer may take (`onOpen`): the bead in view, any bead of the look
@@ -412,7 +415,7 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
     time: 0,
     reading: false,
     hovering: false,
-    ring: { shown: false },
+    skip: { shown: false },
   }));
   /** Starts the load, once: set by the mount below, called by the first frame the home has landed. */
   const start = useRef<() => void>(() => {});
@@ -550,7 +553,7 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
       showBeadLabel(null, NO_SIZE);
       showLightFacts(null, NO_SIZE);
       frame.journey.light = null;
-      writeRing(document.documentElement, false, run.ring);
+      writeSkip(document.documentElement, false, run.skip);
       compass.setNeedleWorld(null);
       if (space) {
         scene.remove(space.model.group);
@@ -650,7 +653,7 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
       light.setPose(DARK, camera);
       frame.journey.light = null;
       showLightFacts(null, size);
-      writeRing(document.documentElement, false, run.ring);
+      writeSkip(document.documentElement, false, run.skip);
       if (space) showSpace(space, false);
       if (parts) show(parts, false);
       run.reading = run.hovering = false;
@@ -682,8 +685,9 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
     } else {
       showLightFacts(null, size);
     }
-    // The skip button and the bead labels are the path's (src/ui/SkipButton.tsx, src/ui/BeadLabel.tsx).
-    writeRing(document.documentElement, false, run.ring);
+    // The skip button, from the first project through the look back on the home page, and not while a bead is close or
+    // the camera flies to one.
+    writeSkip(document.documentElement, useScene.getState().scene === 'home' && !handover.focus && showsSkip(pose), run.skip);
     if (!space) {
       motion.beads = false;
       showBeadLabel(null, size);

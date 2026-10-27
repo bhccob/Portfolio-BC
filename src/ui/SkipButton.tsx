@@ -1,31 +1,34 @@
 import { type JSX, useCallback, useEffect } from 'react';
 import { useTranslator } from '~/i18n/useTranslator';
 import { goToEnd, headedToEnd } from '~/input/useHomeScroll';
-import type { JourneyAt } from '~/scene/bob/journey';
-import { inRing } from '~/scene/bob/voidPose';
+import type { JourneyPose } from '~/scene/bob/journey';
 import { focusEndOnArrival } from './endArrival';
 
 // ---------------------------------------------------------------- when it shows
 
-/** Whether the skip button shows: only round the ring (spec §5), from Funcial's stop to Cookies Clicker's (`inRing`). */
-export function showsSkip(at: Pick<JourneyAt, 'stretch' | 'local'>): boolean {
-  return inRing(at);
+/**
+ * Whether the skip button shows (spec 2026-10-27-bob-light-path-design.md, goal 9): from the first project's arrival
+ * through the look back, its own stop included (the path's `skip`, src/scene/bob/lightPath.ts); not in the fall, under
+ * the sheet nor at the credits.
+ */
+export function showsSkip(pose: Pick<JourneyPose, 'path'>): boolean {
+  return pose.path?.skip === true;
 }
 
 /** The attribute on <html> that shows the skip button: the Void writes it (src/scene/bob/Void.tsx). */
-export const RING_ATTRIBUTE = 'data-ring';
+export const SKIP_ATTRIBUTE = 'data-skip';
 
-/** What `writeRing` writes to: <html>. */
-export interface RingRoot {
+/** What `writeSkip` writes to: <html>. */
+export interface SkipRoot {
   setAttribute(name: string, value: string): void;
   removeAttribute(name: string): void;
 }
 
-/** Writes `<html data-ring>` when `shown` changes from what `written` says it last wrote. */
-export function writeRing(root: RingRoot, shown: boolean, written: { shown: boolean }): void {
+/** Writes `<html data-skip>` when `shown` changes from what `written` says it last wrote. */
+export function writeSkip(root: SkipRoot, shown: boolean, written: { shown: boolean }): void {
   if (shown === written.shown) return;
-  if (shown) root.setAttribute(RING_ATTRIBUTE, '');
-  else root.removeAttribute(RING_ATTRIBUTE);
+  if (shown) root.setAttribute(SKIP_ATTRIBUTE, '');
+  else root.removeAttribute(SKIP_ATTRIBUTE);
   written.shown = shown;
 }
 
@@ -108,8 +111,8 @@ export function setSkipAlt(alt: boolean): void {
 let stopFocus: (() => void) | null = null;
 
 /**
- * The button pressed: the story goes to the end page by End's own path (`goToEnd`, the step fade from the ring), and
- * once it rests there the end page's title takes the focus (`focusEndOnArrival`), as the nav's end link does. Nothing is
+ * The button pressed: the story goes to the credits by End's own path (`goToEnd`, the step fade from the path), and
+ * once it rests there their "Q&A" heading takes the focus (`focusEndOnArrival`), as the nav's end link does. Nothing is
  * watched when the scroll takes no input (a bead opening).
  */
 export function skipToEnd(doc: Document): void {
@@ -118,9 +121,9 @@ export function skipToEnd(doc: Document): void {
 }
 
 /**
- * "Snel naar vragen ↓" / "Skip to questions ↓" (spec §5): a pill at the bottom right that shows only round the ring
- * (`<html data-ring>`), never over the front bead's label (src/ui/BeadLabel.tsx places the label clear of it, and where
- * no side is, stands the button in its alternate place), and fades the story straight to the end page.
+ * "Snel naar vragen ↓" / "Skip to questions ↓": a pill at the bottom right that shows from the first project through
+ * the look back (`<html data-skip>`), never over a bead's label (src/ui/BeadLabel.tsx places the label clear of it, and
+ * where no side is, stands the button in its alternate place), and fades the story straight to the credits.
  */
 export function SkipButton(): JSX.Element {
   const { t } = useTranslator();

@@ -773,7 +773,7 @@ html[data-3d='on'] .home-nav:not(:focus-within) {
 }
 
 /* The beads' file could not be had (src/scene/bob/Void.tsx sets <html data-void>): the way in and the fall still play,
-   the facts with them, and the story holds at the landing, just short of where the ring would be (src/scene/bob/
+   the facts with them, and the story holds at the hand-over, where the first project would begin (src/scene/bob/
    landingHold.ts). There, and only there (<html data-held>, which Home writes), the links show over the foot of the
    scene, as they do below the hero with 3D off, with the end page's link: never over the facts on the way. A scrim of the
    fallback card's night under them keeps them readable over the void's band. */
@@ -1906,10 +1906,10 @@ html[data-end='rest'] .bead-label {
 }
 
 /* ---------- the skip button ---------- */
-/* "Snel naar vragen ↓" (src/ui/SkipButton.tsx): a pill at the bottom right, shown only round the ring (<html data-ring>,
-   which the Void writes), in the mock-up's look: the label face in the title gold, a thin gold rim on a dark glass. Where
-   the front bead's label would cover it, it stands at the right under the header instead ([data-alt]). It fades in and
-   out, and takes no Tab or click while hidden. */
+/* "Snel naar vragen ↓" (src/ui/SkipButton.tsx): a pill at the bottom right, shown from the first project through the
+   look back (<html data-skip>, which the Void writes), in the mock-up's look: the label face in the title gold, a thin
+   gold rim on a dark glass. Where a bead's label would cover it, it stands at the right under the header instead
+   ([data-alt]). It fades in and out, and takes no Tab or click while hidden. */
 .skip-button {
   position: fixed;
   right: max(16px, 3.4vw);
@@ -1949,12 +1949,12 @@ html[data-end='rest'] .bead-label {
   bottom: auto;
 }
 
-/* A failed void has no ring: the button never shows (the nav's end link is the way to the questions there). */
+/* A failed void has no projects on the way: the button never shows (the nav's end link is the way to the questions). */
 html[data-void='failed'] .skip-button {
   display: none;
 }
 
-html[data-route='home'][data-3d='on'][data-ring] .skip-button {
+html[data-route='home'][data-3d='on'][data-skip] .skip-button {
   opacity: 1;
   visibility: visible;
   transition:

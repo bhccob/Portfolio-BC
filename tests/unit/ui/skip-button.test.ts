@@ -11,10 +11,11 @@ vi.mock('~/ui/endArrival', () => ({ focusEndOnArrival: vi.fn(() => () => {}) }))
 import { en } from '~/i18n/en';
 import { nl } from '~/i18n/nl';
 import { goToEnd, headedToEnd } from '~/input/useHomeScroll';
-import { journeyAt } from '~/scene/bob/journey';
+import { journeyPoseAt } from '~/scene/bob/journey';
+import { HOME_CHAPTERS, pathStart } from '~/state/chapters';
 import { labelPlacement } from '~/ui/BeadLabel';
 import { focusEndOnArrival } from '~/ui/endArrival';
-import { SkipButton, showsSkip, skipAlt, skipHome, skipPlace, skipToEnd, writeRing } from '~/ui/SkipButton';
+import { SKIP_ATTRIBUTE, SkipButton, showsSkip, skipAlt, skipHome, skipPlace, skipToEnd, writeSkip } from '~/ui/SkipButton';
 
 const base = readFileSync(fileURLToPath(new URL('../../../src/styles/base.css', import.meta.url)), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
 function rule(selector: string): string {
@@ -22,13 +23,16 @@ function rule(selector: string): string {
   throw new Error(`no rule for ${selector}`);
 }
 
-describe('the skip button shows only in the ring', () => {
-  it('shows round the ring, from Funcial to Cookies Clicker, and nowhere else', () => {
-    for (const p of [4, 4.5, 5, 5.9, 6]) expect(showsSkip(journeyAt(p)), `at ${p}`).toBe(true);
-    for (const p of [0, 0.5, 1, 2.5, 3.99, 6.5, 7]) expect(showsSkip(journeyAt(p)), `at ${p}`).toBe(false);
+describe('the skip button shows from the first project through the look back', () => {
+  it('shows from the first arrival through the look back, nowhere else', () => {
+    const L = pathStart(HOME_CHAPTERS);
+    const at = (p: number) => showsSkip(journeyPoseAt(p, 1440 / 900));
+    // TRAVEL 0, ORBIT 0's start, INSIDE 1, the look back's own stop, part-way up the sheet, the credits
+    expect([L + 1.0, L + 1.25, L + 7, L + 14.55, L + 14.6, L + 15.55].map(at)).toEqual([false, true, true, true, false, false]);
+    for (const p of [0, 0.5, 1, 2.5, L - 0.01]) expect(at(p), `at ${p}`).toBe(false);
   });
 
-  it('is shown by <html data-ring>, written only on change, and hidden without it', () => {
+  it('is shown by <html data-skip>, written only on change, and hidden without it', () => {
     const attributes = new Map<string, string>();
     const writes: string[] = [];
     const root = {
@@ -36,15 +40,16 @@ describe('the skip button shows only in the ring', () => {
       removeAttribute: (k: string) => (writes.push(`remove ${k}`), attributes.delete(k))
     };
     const written = { shown: false };
-    writeRing(root, true, written);
-    writeRing(root, true, written);
-    expect(attributes.has('data-ring')).toBe(true);
-    writeRing(root, false, written);
-    writeRing(root, false, written);
-    expect(attributes.has('data-ring')).toBe(false);
-    expect(writes).toEqual(['set data-ring', 'remove data-ring']);
+    expect(SKIP_ATTRIBUTE).toBe('data-skip');
+    writeSkip(root, true, written);
+    writeSkip(root, true, written);
+    expect(attributes.has('data-skip')).toBe(true);
+    writeSkip(root, false, written);
+    writeSkip(root, false, written);
+    expect(attributes.has('data-skip')).toBe(false);
+    expect(writes).toEqual(['set data-skip', 'remove data-skip']);
     expect(rule('.skip-button')).toMatch(/visibility:\s*hidden/);
-    expect(rule("html[data-route='home'][data-3d='on'][data-ring] .skip-button")).toMatch(/visibility:\s*visible/);
+    expect(rule("html[data-route='home'][data-3d='on'][data-skip] .skip-button")).toMatch(/visibility:\s*visible/);
   });
 });
 
