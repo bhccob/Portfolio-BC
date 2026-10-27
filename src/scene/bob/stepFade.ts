@@ -45,8 +45,9 @@ export function nearestStop(places: readonly number[], at: number): number {
 /**
  * The stop reduced motion shows for the scroll's `target`: the nearest of the stops the story rests on for the void's
  * state (src/input/target.ts `stopsFor`): the key stops (BOB from above, each fact at its peak with the light still,
- * each project, the end page), or with the void failed the facts, the landing hold and the end page. Nothing between two
- * of them is ever posed: the step fade jumps from one to the next.
+ * each project's arrival with its label whole and its inside with its objects built, the look back's start and its own
+ * stop, the credits), or with the void failed the facts, the landing hold and the credits. Nothing between two of them
+ * is ever posed: the step fade jumps from one to the next, and the poses at the stops are the path's own.
  */
 export function stepStopFor(target: number, voidState: VoidState): number {
   return nearestStop(stopsFor(HOME_CHAPTERS, voidState), target);

@@ -295,6 +295,22 @@ const AT_END = "html[data-route='home'][data-3d='on'][data-end]";
 const MOVE = "html[data-route='home'][data-3d='on'][data-end='moving']";
 
 describe('the credits’ look (src/styles/base.css)', () => {
+  it('is a normal centred page in the flow with 3D off, no WebGL or the fallback card: every move, hold and fade names 3D on', () => {
+    const LAYOUT = /(?:^|;)\s*(?:(?:position|transform|padding-top|min-height|height|opacity|background)\s*:|display\s*:\s*none)/;
+    for (const match of base.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const selectors = match[1].trim().replace(/\s+/g, ' ').split(', ');
+      for (const selector of selectors) {
+        if (!/\.end-(page|roll|final)(::before|::after)?$/.test(selector) || !LAYOUT.test(match[2])) continue;
+        // A step fade is Home's, and Home runs only with 3D on.
+        if (selector.includes('[data-step-fade]')) continue;
+        expect(selector, selector).toMatch(/\[data-3d='on'\]/);
+      }
+    }
+    // Its own rules: a column in the middle of the page, under the page's own padding.
+    expect(rule('.end-page')).toMatch(/padding:\s*48px var\(--gutter\) 96px/);
+    expect(rule('.end-roll')).toMatch(/margin:\s*0 auto/);
+  });
+
   it('sets one column of 580 px in the middle, its text centred', () => {
     const roll = rule('.end-roll');
     expect(roll).toMatch(/width:\s*min\(580px, 100%\)/);

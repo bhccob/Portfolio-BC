@@ -18,7 +18,7 @@ export const END_FOCUS_CAP_MS = 15_000;
 /** How often the watch asks whether the story is still headed for the end, ms. */
 export const END_FOCUS_CHECK_MS = 100;
 
-/** The end page's title (src/ui/EndPage.tsx), which has `tabIndex={-1}` so it can take the focus. */
+/** The credits' heading, "Q&A" (src/ui/EndPage.tsx), which has `tabIndex={-1}` so it can take the focus. */
 const TITLE_ID = 'end-title';
 
 /**
