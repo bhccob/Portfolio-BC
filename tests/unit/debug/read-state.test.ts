@@ -97,12 +97,29 @@ describe('readNeedleDebugState', () => {
       const label = { index: 0, opacity: 1 };
       Object.assign(frame.journey, { stretch: 'light', local: 0.4, project: null, voidState: 'ready', frame: 121, sheet: 0, light, beads, label, wake: [10] });
       const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
-      expect(state.journey).toEqual({ stretch: 'light', local: 0.4, project: null, voidState: 'ready', frame: 121, sheet: 0, light: { x: 0.2, y: -0.1 }, beads, label, wake: [10] });
+      expect(state.journey).toEqual({ stretch: 'light', local: 0.4, project: null, voidState: 'ready', frame: 121, sheet: 0, light: { x: 0.2, y: -0.1 }, beads, label, wake: [10], engraved: null });
       expect(state.journey.beads).not.toBe(beads);
       expect(state.journey.label).not.toBe(label);
       expect(state.journey.light).not.toBe(light);
       light.x = 0.9;
       expect(state.journey.light?.x).toBe(0.2);
+    } finally {
+      Object.assign(frame.journey, before);
+    }
+  });
+
+  it("reports the engraved way's levels on the journey: a copy, its trips a fresh array, null when unset", () => {
+    const before = { ...frame.journey };
+    try {
+      expect(readNeedleDebugState({ route: 'home', locale: 'nl' }).journey.engraved).toBeNull();
+      const engraved = { throat: 0, hall: 0.5, trips: [1, 0, 0] };
+      frame.journey.engraved = engraved;
+      const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
+      expect(state.journey.engraved).toEqual({ throat: 0, hall: 0.5, trips: [1, 0, 0] });
+      expect(state.journey.engraved).not.toBe(engraved);
+      expect(state.journey.engraved?.trips).not.toBe(engraved.trips);
+      engraved.trips[0] = 0.2;
+      expect(state.journey.engraved?.trips[0]).toBe(1);
     } finally {
       Object.assign(frame.journey, before);
     }

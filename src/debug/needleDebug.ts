@@ -68,7 +68,8 @@ export interface NeedleDebugState {
    * load (`idle`, `loading`, `ready`, `failed`), which holds the scroll at the hand-over until it is ready, the light
    * dive's way frame (1-256, null elsewhere), how far the sheet over the look back is up (0..1), the light's centre on the
    * screen (NDC, +y up; null where there is no light), each bead on the screen (CSS px, `BEADS` order; null before the
-   * path), the bead label beside the light and its opacity, and how far each bead's veins have woken (radians; 10 all).
+   * path), the bead label beside the light and its opacity, how far each bead's veins have woken (radians; 10 all), and
+   * the engraved way's levels (0..1: the shaft's throat and hall, and each trip's line; null where the void is not posed).
    */
   journey: {
     stretch: Stretch;
@@ -81,6 +82,7 @@ export interface NeedleDebugState {
     beads: BeadOnScreen[] | null;
     label: { index: number; opacity: number } | null;
     wake: number[];
+    engraved: { throat: number; hall: number; trips: number[] } | null;
   };
 }
 

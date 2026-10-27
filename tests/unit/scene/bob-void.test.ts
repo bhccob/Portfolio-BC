@@ -570,7 +570,7 @@ describe('frame.journey: where the journey stands, for the debug bridge', () => 
   });
 
   it('starts at the home, with an idle void', () => {
-    expect(frame.journey).toEqual({ stretch: 'rise', local: 0, project: null, voidState: 'idle', frame: null, sheet: 0, light: null, beads: null, label: null, wake: [] });
+    expect(frame.journey).toEqual({ stretch: 'rise', local: 0, project: null, voidState: 'idle', frame: null, sheet: 0, light: null, beads: null, label: null, wake: [], engraved: null });
   });
 
   it('is on the debug state as a copy, voidState included', () => {
@@ -579,7 +579,7 @@ describe('frame.journey: where the journey stands, for the debug bridge', () => 
       const beads = [{ x: 10, y: 20, r: 30, visible: true }];
       Object.assign(frame.journey, { stretch: 'orbit', local: 0.5, project: 1, voidState: 'ready', frame: null, sheet: 0, light: null, beads, label: { index: 1, opacity: 1 }, wake: [10, 3.1, 0] });
       const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
-      expect(state.journey).toEqual({ stretch: 'orbit', local: 0.5, project: 1, voidState: 'ready', frame: null, sheet: 0, light: null, beads, label: { index: 1, opacity: 1 }, wake: [10, 3.1, 0] });
+      expect(state.journey).toEqual({ stretch: 'orbit', local: 0.5, project: 1, voidState: 'ready', frame: null, sheet: 0, light: null, beads, label: { index: 1, opacity: 1 }, wake: [10, 3.1, 0], engraved: null });
       expect(state.journey).not.toBe(frame.journey);
       expect(state.journey.beads).not.toBe(beads);
       expect(state.journey.wake).not.toBe(frame.journey.wake);
@@ -804,6 +804,21 @@ describe('the wiring: one journey pose a frame', () => {
     expect(calls).toEqual(['scene/bob/warm.ts']);
     expect(read('scene/bob/Opening.tsx')).toMatch(/uploadTextures\(gl, homeParts\.strips\)/);
     expect(read('scene/bob/Void.tsx')).toMatch(/uploadTextures\(gl, texturesUnder\(holder\)\)/);
+  });
+
+  it('builds the engraved way per path, frees the last on a new aspect, and writes its levels each frame from engravedLevels', () => {
+    const source = read('scene/bob/Void.tsx');
+    // One build a path (and tier), from the shaft's rings and the path's trips; the last one taken out and freed.
+    expect(source).toMatch(/buildEngraved\(\s*shaftRings\(\)\s*,\s*tripPoints\(\s*path\s*\)\s*,\s*tier\s*\)/);
+    expect(source).toMatch(/engravedFor\(\s*pathFor\(/);
+    expect(source).toMatch(/scene\.remove\(\s*kept\.model\.group\s*\)[\s\S]{0,80}kept\.model\.dispose\(\)/);
+    // Each posed frame: the levels from the pose, the light's place and the fog; on the bridge behind ?proof.
+    expect(source).toMatch(/engravedLevels\(\s*pose\.at\s*,\s*pose\.path\s*,/);
+    expect(source).toMatch(/\.update\(\s*levels\s*,\s*pose\.light\?\.position \?\? null\s*,/);
+    expect(source).toMatch(/if \(proof\) frame\.journey\.engraved = /);
+    // Unposed and unmounted: nothing shows, and the bridge says null.
+    expect(source.match(/frame\.journey\.engraved = null/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(source).toMatch(/run\.engraved = null/);
   });
 });
 

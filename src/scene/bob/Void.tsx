@@ -9,6 +9,7 @@ import { type ProjectId, projects } from '~/data/projects';
 import { type BeadsModel, loadBeads } from '~/engine/bob/build/beads';
 import type { CompassModel } from '~/engine/bob/build/compass';
 import { debugBridge } from '~/debug/needleDebug';
+import { buildEngraved, type EngravedModel } from '~/engine/bob/build/engraved';
 import type { LightModel } from '~/engine/bob/build/light';
 import { buildVoid, VOID_LOOK, type VoidModel } from '~/engine/bob/build/void';
 import { buildOffPathLights, buildWayLine, type OffPathLightsModel, type WayLineModel } from '~/engine/bob/build/wayLine';
@@ -20,6 +21,7 @@ import { showLightFacts } from '~/ui/LightFacts';
 import { showTouchPoints } from '~/ui/TouchPoints';
 import { showsSkip, writeSkip } from '~/ui/SkipButton';
 import { motion } from '../motion';
+import { engravedLevels, shaftRings, tripPoints } from './engravedWay';
 import type { Handover } from './Home';
 import { BEAD_RADIUS, BEADS, type LightPose } from './journey';
 import { lookingBack, type Path, type PathFrame, pathFor } from './lightPath';
@@ -191,6 +193,8 @@ interface VoidRun {
   parts: VoidParts | null;
   /** The look back's line of the way and the lights off it, for the path they were built for (an aspect's); null before. */
   way: { path: Path; line: WayLineModel; lights: OffPathLightsModel; places: [number, number, number][] } | null;
+  /** The engraved way (the compass's shaft and the trips' lines), for the path and the tier it was built for; null before. */
+  engraved: { path: Path; tier: QualityTier; model: EngravedModel } | null;
   /** Each bead's build as last written (`setBuild`), in `BEADS` order: written again only when it changes. */
   built: number[];
   hover: ReturnType<typeof hoverEase>;
@@ -461,6 +465,7 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
     space: null,
     parts: null,
     way: null,
+    engraved: null,
     built: BEADS.map(() => Number.NaN),
     hover: hoverEase(),
     pointed: null,
@@ -627,6 +632,13 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
         way.line.dispose();
         way.lights.dispose();
       }
+      const engraved = run.engraved;
+      run.engraved = null;
+      if (engraved) {
+        scene.remove(engraved.model.group);
+        engraved.model.dispose();
+      }
+      frame.journey.engraved = null;
       say('idle');
       document.documentElement.removeAttribute('data-void');
     };
@@ -713,6 +725,8 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
       writeSkip(document.documentElement, false, run.skip);
       if (space) showSpace(space, false);
       if (parts) show(parts, false);
+      if (run.engraved) run.engraved.model.group.visible = false;
+      frame.journey.engraved = null;
       run.reading = run.hovering = false;
       motion.beads = false;
       hideWords(size);
@@ -775,6 +789,12 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
     const level = shown && path !== null ? path.way * (1 - path.black) : 0;
     way.line.setLevel(level);
     way.lights.setLevel(level);
+    // The engraved way at this aspect: the shaft round the fall, a line on every trip, each as the pose has it, glowing
+    // near the light; the shaft's throat in its own fog, the rest in the scene's.
+    const engraved = engravedFor(pathFor(size.width / Math.max(size.height, 1)));
+    const levels = engravedLevels(pose.at, pose.path, engraved.path.count);
+    engraved.model.update(levels, pose.light?.position ?? null, scene.fog instanceof THREE.Fog ? scene.fog : LOOK.fog);
+    if (proof) frame.journey.engraved = levels;
     if (!shown) {
       Object.assign(run.hover, hoverEase());
       run.pointed = run.selected = null;
@@ -938,6 +958,20 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
       return { x: corner[1] === 'l' ? box.x0 : box.x1, y: corner[0] === 't' ? box.y0 + CORNER_INSET : box.y1 - CORNER_INSET };
     });
     showTouchPoints({ id, opacity: points.opacity, at }, size.width);
+  }
+
+  /** The engraved way for `path` at the ladder's tier, built afresh for another path (a new aspect) or a lower tier. */
+  function engravedFor(path: Path): NonNullable<VoidRun['engraved']> {
+    const kept = run.engraved;
+    if (kept && kept.path === path && kept.tier === tier) return kept;
+    if (kept) {
+      scene.remove(kept.model.group);
+      kept.model.dispose();
+    }
+    const made = { path, tier, model: buildEngraved(shaftRings(), tripPoints(path), tier) };
+    scene.add(made.model.group);
+    run.engraved = made;
+    return made;
   }
 
   /** The look back's line and the lights off the way for `path`, built afresh when the path is another (a new aspect). */
