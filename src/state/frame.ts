@@ -3,6 +3,7 @@ import type { ProjectId } from '~/data/projects';
 import type { LoaderStage } from '~/engine/bob/loaderTimeline';
 import type { CameraShot } from '~/engine/bob/shots';
 import type { EngravedLevels } from '~/scene/bob/engravedWay';
+import type { NebulaLevels } from '~/scene/bob/nebulaWay';
 import type { FocusMove } from '~/scene/bob/focus';
 import type { Stretch } from '~/scene/bob/journey';
 import type { VoidState } from './store';
@@ -73,7 +74,8 @@ export const frame = {
     beads: null as BeadOnScreen[] | null,
     label: null as { index: number; opacity: number } | null,
     wake: [] as number[],
-    engraved: null as EngravedLevels | null
+    engraved: null as EngravedLevels | null,
+    nebula: null as NebulaLevels | null
   },
   /** The index of the chapter `progress` is in (`chapterAt(...).index`). */
   chapterIndex: 0,

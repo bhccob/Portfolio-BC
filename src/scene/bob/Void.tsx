@@ -11,6 +11,7 @@ import { type BeadsModel, loadBeads } from '~/engine/bob/build/beads';
 import type { CompassModel } from '~/engine/bob/build/compass';
 import { debugBridge } from '~/debug/needleDebug';
 import { buildEngraved, type EngravedModel } from '~/engine/bob/build/engraved';
+import { buildNebula, type NebulaModel } from '~/engine/bob/build/nebula';
 import type { LightModel } from '~/engine/bob/build/light';
 import { buildVoid, VOID_LOOK, type VoidModel } from '~/engine/bob/build/void';
 import { buildOffPathLights, buildWayLine, type OffPathLightsModel, type WayLineModel } from '~/engine/bob/build/wayLine';
@@ -29,6 +30,7 @@ import { insideBuild, insideClockRuns, insidePoints } from './inside';
 import { BEAD_RADIUS, BEADS, type LightPose } from './journey';
 import { lookingBack, type Path, type PathFrame, pathFor } from './lightPath';
 import { LOOK } from './look';
+import { cloudLayout, nebulaLevels } from './nebulaWay';
 import { offPathPlaces } from './offPath';
 import { TOUCH_POINTS } from './touchPoints';
 import { easeHover, hoverEase, hoversAt, needleFor, needleGlowFor, pointerMode, selectedBead, voidShownAt, wakeFor } from './voidPose';
@@ -198,6 +200,13 @@ interface VoidRun {
   way: { path: Path; line: WayLineModel; lights: OffPathLightsModel; places: [number, number, number][] } | null;
   /** The engraved way (the compass's shaft and the trips' lines), for the path and the tier it was built for; null before. */
   engraved: { path: Path; tier: QualityTier; model: EngravedModel } | null;
+  /**
+   * The nebula (./nebulaWay.ts, ../../engine/bob/build/nebula.ts) for the path and the tier it was built for, null before;
+   * and the build asked for and not yet made (`asked`), which a later ask for another path or tier, or the unmount,
+   * replaces.
+   */
+  nebula: { path: Path; tier: QualityTier; model: NebulaModel } | null;
+  nebulaAsked: { path: Path; tier: QualityTier } | null;
   /** Each bead's build as last written (`setBuild`), in `BEADS` order: written again only when it changes. */
   built: number[];
   hover: ReturnType<typeof hoverEase>;
@@ -295,6 +304,8 @@ const lightAt = new THREE.Vector3();
 const inView = new THREE.Vector3();
 /** A point a bead's porthole turns to, handed to `BeadsModel.setFacing`. */
 const facingAt = new THREE.Vector3();
+/** The camera's place, for the nebula's bands (scratch, written each frame). */
+const eyeAt: [number, number, number] = [0, 0, 0];
 /** How near the pointer a light off the way takes it, CSS px. */
 const LIGHT_PICK_PX = 18;
 
@@ -496,6 +507,8 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
     parts: null,
     way: null,
     engraved: null,
+    nebula: null,
+    nebulaAsked: null,
     built: BEADS.map(() => Number.NaN),
     inside: { id: null, time: 0, stirred: Number.NEGATIVE_INFINITY },
     float: { index: null, time: 0, stirred: Number.NEGATIVE_INFINITY, yaw: 0, pitch: 0, screen: null, finger: null, drag: 0 },
@@ -670,7 +683,15 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
         scene.remove(engraved.model.group);
         engraved.model.dispose();
       }
+      const nebula = run.nebula;
+      run.nebula = null;
+      run.nebulaAsked = null;
+      if (nebula) {
+        scene.remove(nebula.model.group);
+        nebula.model.dispose();
+      }
       frame.journey.engraved = null;
+      frame.journey.nebula = null;
       say('idle');
       document.documentElement.removeAttribute('data-void');
     };
@@ -815,7 +836,9 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
       if (space) showSpace(space, false);
       if (parts) show(parts, false);
       if (run.engraved) run.engraved.model.group.visible = false;
+      if (run.nebula) run.nebula.model.group.visible = false;
       frame.journey.engraved = null;
+      frame.journey.nebula = null;
       run.reading = run.hovering = false;
       motion.beads = false;
       hideWords(size);
@@ -884,6 +907,12 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
     const levels = engravedLevels(pose.at, pose.path, engraved.path.count);
     engraved.model.update(levels, pose.light?.position ?? null, scene.fog instanceof THREE.Fog ? scene.fog : LOOK.fog);
     if (proof) frame.journey.engraved = levels;
+    // The nebula at this aspect: its clouds the light falls through and the camera flies through, its far bands turning
+    // with the place, as the pose has them (./nebulaWay.ts); the void's own violet band and ring of mist give way to it.
+    const clouds = nebulaLevels(pose.at, pose.path);
+    camera.position.toArray(eyeAt);
+    nebulaFor(pathFor(size.width / Math.max(size.height, 1)))?.update(clouds, handover.shown, eyeAt);
+    if (proof) frame.journey.nebula = clouds;
     if (!shown) {
       Object.assign(run.hover, hoverEase());
       run.pointed = run.selected = null;
@@ -897,8 +926,9 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
     // The void from the journey: the band held to the camera, the ring of mist, the dust's glow and the stream; and its
     // slow drift.
     const v = pose.void;
-    space.model.setBand({ shown: v !== null, y: v?.bandY ?? 0, sigma: v?.bandSigma ?? 0, strength: v?.band ?? 0, distance: v?.bandDistance }, camera);
-    space.model.setRingMist(v?.ringMist ?? 0);
+    const giving = 1 - clouds.clouds;
+    space.model.setBand({ shown: v !== null, y: v?.bandY ?? 0, sigma: v?.bandSigma ?? 0, strength: (v?.band ?? 0) * giving, distance: v?.bandDistance }, camera);
+    space.model.setRingMist((v?.ringMist ?? 0) * giving);
     space.model.setDust(v?.dust ?? 0);
     space.model.setStream(v?.stream ?? 0);
     if (!reduced) run.time += dt;
@@ -1113,6 +1143,38 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
       return { x: corner[1] === 'l' ? box.x0 : box.x1, y: corner[0] === 't' ? box.y0 + CORNER_INSET : box.y1 - CORNER_INSET };
     });
     showTouchPoints({ id, opacity: points.opacity, at }, size.width);
+  }
+
+  /**
+   * The nebula for `path` at the ladder's tier, or the last one built while it is being made (null before the first):
+   * its build is asked for on the first frame that needs it and made apart from the frame (a timeout), so its textures
+   * and its points never stall a frame of the scroll; it is needed only from the fall's frame 50, seconds of scrolling
+   * after the landing. A new path (a new aspect) or a lower tier asks for it afresh, and the new one takes the old one's
+   * place, which is freed.
+   */
+  function nebulaFor(path: Path): NebulaModel | null {
+    const kept = run.nebula;
+    if (kept && kept.path === path && kept.tier === tier) return kept.model;
+    const asked = run.nebulaAsked;
+    if (!asked || asked.path !== path || asked.tier !== tier) {
+      const ask = { path, tier };
+      run.nebulaAsked = ask;
+      setTimeout(() => {
+        if (run.nebulaAsked !== ask) return;
+        run.nebulaAsked = null;
+        const made = { path, tier: ask.tier, model: buildNebula(cloudLayout(path, ask.tier), path, ask.tier) };
+        const old = run.nebula;
+        if (old) {
+          scene.remove(old.model.group);
+          old.model.dispose();
+        }
+        scene.add(made.model.group);
+        void warm(gl, made.model.group, camera, 'the nebula', scene);
+        run.nebula = made;
+        invalidate();
+      }, 0);
+    }
+    return kept?.model ?? null;
   }
 
   /** The engraved way for `path` at the ladder's tier, built afresh for another path (a new aspect) or a lower tier. */

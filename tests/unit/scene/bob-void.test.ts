@@ -570,7 +570,7 @@ describe('frame.journey: where the journey stands, for the debug bridge', () => 
   });
 
   it('starts at the home, with an idle void', () => {
-    expect(frame.journey).toEqual({ stretch: 'rise', local: 0, project: null, voidState: 'idle', frame: null, sheet: 0, light: null, beads: null, label: null, wake: [], engraved: null });
+    expect(frame.journey).toEqual({ stretch: 'rise', local: 0, project: null, voidState: 'idle', frame: null, sheet: 0, light: null, beads: null, label: null, wake: [], engraved: null, nebula: null });
   });
 
   it('is on the debug state as a copy, voidState included', () => {
@@ -579,7 +579,7 @@ describe('frame.journey: where the journey stands, for the debug bridge', () => 
       const beads = [{ x: 10, y: 20, r: 30, visible: true }];
       Object.assign(frame.journey, { stretch: 'arrive', local: 0.5, project: 1, voidState: 'ready', frame: null, sheet: 0, light: null, beads, label: { index: 1, opacity: 1 }, wake: [10, 3.1, 0] });
       const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
-      expect(state.journey).toEqual({ stretch: 'arrive', local: 0.5, project: 1, voidState: 'ready', frame: null, sheet: 0, light: null, beads, label: { index: 1, opacity: 1 }, wake: [10, 3.1, 0], engraved: null });
+      expect(state.journey).toEqual({ stretch: 'arrive', local: 0.5, project: 1, voidState: 'ready', frame: null, sheet: 0, light: null, beads, label: { index: 1, opacity: 1 }, wake: [10, 3.1, 0], engraved: null, nebula: null });
       expect(state.journey).not.toBe(frame.journey);
       expect(state.journey.beads).not.toBe(beads);
       expect(state.journey.wake).not.toBe(frame.journey.wake);

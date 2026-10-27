@@ -32,7 +32,7 @@ const STRIP = { width: 2048, height: 64, tick: 12, glyph: 230 } as const;
  *
  * @throws TypeError when the canvas gives no 2D context.
  */
-function engravingTexture(canvas: HTMLCanvasElement): THREE.CanvasTexture {
+export function engravingTexture(canvas: HTMLCanvasElement): THREE.CanvasTexture {
   const { width: w, height: h } = STRIP;
   canvas.width = w;
   canvas.height = h;
@@ -137,7 +137,7 @@ const FRAGMENT = /* glsl */ `
   }
 `;
 
-function engravedMaterial(map: THREE.Texture, look: { base: number; glow: number; reach: number }, axes: Vec3): THREE.ShaderMaterial {
+export function engravedMaterial(map: THREE.Texture, look: { base: number; glow: number; reach: number }, axes: Vec3): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     vertexShader: VERTEX,
     fragmentShader: FRAGMENT,
@@ -160,7 +160,7 @@ function engravedMaterial(map: THREE.Texture, look: { base: number; glow: number
 }
 
 /** A flat level ring band of radius r and width w: u runs round it (`repeat` engravings), v across. */
-function ringGeometry(r: number, w: number, repeat: number): THREE.BufferGeometry {
+export function ringGeometry(r: number, w: number, repeat: number): THREE.BufferGeometry {
   const n = 256;
   const pos: number[] = [];
   const uv: number[] = [];

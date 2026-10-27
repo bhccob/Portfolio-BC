@@ -34,11 +34,12 @@ describe('the shaft: the throat round the fall, and the hall that opens out', ()
 });
 
 describe('the levels: each part of the engraved way, at a pose', () => {
-  it('shows the throat from above at the fall’s start and the hall from the turn on', () => {
+  it('shows the throat from above at the fall’s start and the hall from the turn on, till the nebula’s clouds take its place', () => {
     const at = (frame: number) => engravedLevels({ stretch: 'light', frame }, null, 3);
     expect(at(1)).toMatchObject({ throat: 0, hall: 0 });
     expect(at(40).throat).toBe(1);
-    expect(at(121)).toMatchObject({ throat: 0, hall: 1 });
+    expect(at(72).hall).toBeGreaterThan(0.9);
+    expect(at(121)).toMatchObject({ throat: 0, hall: 0 });
   });
 
   it('the throat is gone whenever a fact shows', () => {
@@ -50,7 +51,7 @@ describe('the levels: each part of the engraved way, at a pose', () => {
     const lv = (part: PathPart, index: number, t: number, black = 0) => engravedLevels({ stretch: part, frame: null }, { part, index, t, black }, 3);
     expect(lv('travel', 1, 0.5).trips).toEqual([0, 1, 0]);
     expect(lv('travel', 0, 0.02).trips[0]).toBe(0); // the first line comes in after the turn
-    expect(lv('travel', 0, 0.5).hall).toBeGreaterThan(0); // the hall fades out over the first trip
+    expect(lv('travel', 0, 0.5).hall).toBe(0); // the hall gave way to the clouds in the fall
     expect(lv('arrive', 1, 0.5).trips[1]).toBe(0);
     expect(lv('arrive', 1, 0.1).trips[1]).toBeGreaterThan(0); // still fading as the light comes to rest
     expect(Math.max(...lv('look', -1, 1).trips)).toBeCloseTo(0.32, 9);
@@ -66,12 +67,12 @@ describe('the levels: each part of the engraved way, at a pose', () => {
     }
   });
 
-  it('shows nothing on the rise and on the end page, and the hall goes out as the first trip goes on', () => {
+  it('shows nothing on the rise and on the end page, and no hall on the path', () => {
     expect(engravedLevels({ stretch: 'rise', frame: null }, null, 3)).toEqual({ throat: 0, hall: 0, trips: [0, 0, 0] });
     expect(engravedLevels({ stretch: 'end', frame: null }, null, 3)).toEqual({ throat: 0, hall: 0, trips: [0, 0, 0] });
     const first = (t: number) => engravedLevels({ stretch: 'travel', frame: null }, { part: 'travel', index: 0, t, black: 0 }, 3);
-    expect(first(0)).toMatchObject({ throat: 0, hall: 1 });
-    expect(first(ENGRAVED.HALL_OUT_T).hall).toBe(0);
+    expect(first(0)).toMatchObject({ throat: 0, hall: 0 });
+    expect(first(0.6).hall).toBe(0);
     expect(first(0.25).trips[0]).toBe(1);
     expect(engravedLevels({ stretch: 'travel', frame: null }, { part: 'travel', index: 1, t: 0, black: 0 }, 3).hall).toBe(0);
   });

@@ -7,12 +7,14 @@
  * - the throat: narrow gold rings round the fall, inside the glass floor's hole, seen from above as the light drops
  *   through the compass; gone before the first fact shows;
  * - the hall: wide rings the camera stands inside once it turns to follow the light from the side, opening out below
- *   `HALL.open` (wider, further apart, a little tilted) and fading over the first trip;
+ *   `HALL.open` (wider, further apart, a little tilted), giving way to the nebula's clouds as they come in (./nebulaWay.ts
+ *   `NEBULA.HALL_GIVES`, the 3D world's spec): none on the path;
  * - the trips: the light's own line along each travel, coming in as the light leaves the last bead (or the turn out of
  *   the fall), out early in the next bead's arrival, none inside, all faint in the look back behind the way's gold line.
  */
 import type { JourneyAt } from './journey';
 import type { Path, PathFrame, Vec3 } from './lightPath';
+import { NEBULA } from './nebulaWay';
 import { smoothstep, type Span, through } from './scrollPose';
 
 /** One ring of the shaft: its height, radius and band width (m), its tilt about x and z, and the part it belongs to. */
@@ -40,8 +42,6 @@ export const ENGRAVED = {
   THROAT_OUT: [46, 60],
   /** The hall comes in as the camera turns to the side. */
   HALL_IN: [52, 72],
-  /** Over the first travel's t, the hall fades out by this. */
-  HALL_OUT_T: 0.6,
   /** The first trip's line begins this far into its travel, past the turn out of the fall. */
   FIRST_TRIP_FROM_T: 0.12,
   /**
@@ -94,7 +94,7 @@ export function engravedLevels(
   const levels: number[] = new Array(trips).fill(0);
   if (at.stretch === 'light' && at.frame !== null) {
     const f = at.frame;
-    return { throat: over(ENGRAVED.THROAT_IN, f) * (1 - over(ENGRAVED.THROAT_OUT, f)), hall: over(ENGRAVED.HALL_IN, f), trips: levels };
+    return { throat: over(ENGRAVED.THROAT_IN, f) * (1 - over(ENGRAVED.THROAT_OUT, f)), hall: over(ENGRAVED.HALL_IN, f) * (1 - over(NEBULA.HALL_GIVES, f)), trips: levels };
   }
   if (path === null) return { throat: 0, hall: 0, trips: levels };
   const { part, index, t } = path;
@@ -103,8 +103,7 @@ export function engravedLevels(
   else if (part === 'arrive' && own) levels[index] = 1 - smoothstep(t / ENGRAVED.ARRIVE_OUT_T);
   else if (part === 'look') levels.fill(ENGRAVED.LOOK.level * over(ENGRAVED.LOOK.in, t));
   else if (part === 'sheet') levels.fill(ENGRAVED.LOOK.level * (1 - path.black));
-  const hall = part === 'travel' && index === 0 ? 1 - smoothstep(t / ENGRAVED.HALL_OUT_T) : 0;
-  return { throat: 0, hall, trips: levels };
+  return { throat: 0, hall: 0, trips: levels };
 }
 
 /** The furthest the trips are sampled past the path's start (units): past any way's look back. */

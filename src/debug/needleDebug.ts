@@ -69,7 +69,8 @@ export interface NeedleDebugState {
    * dive's way frame (1-256, null elsewhere), how far the sheet over the look back is up (0..1), the light's centre on the
    * screen (NDC, +y up; null where there is no light), each bead on the screen (CSS px, `BEADS` order; null before the
    * path), the bead label beside the light and its opacity, how far each bead's veins have woken (radians; 10 all), and
-   * the engraved way's levels (0..1: the shaft's throat and hall, and each trip's line; null where the void is not posed).
+   * the engraved way's levels (0..1: the shaft's throat and hall, and each trip's line; null where the void is not posed),
+   * and the nebula's (0..1: its clouds, its far bands and the look back's rings; null where the void is not posed).
    */
   journey: {
     stretch: Stretch;
@@ -83,6 +84,7 @@ export interface NeedleDebugState {
     label: { index: number; opacity: number } | null;
     wake: number[];
     engraved: { throat: number; hall: number; trips: number[] } | null;
+    nebula: { clouds: number; bands: number; rings: number } | null;
   };
 }
 

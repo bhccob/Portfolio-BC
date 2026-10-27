@@ -22,7 +22,7 @@ function state(over: Partial<NeedleDebugState> = {}): NeedleDebugState {
     loader: { stage: 'home', elapsed: SCRIPT.home, strokes: [0, 0, 0, 0, 1] },
     needleAngle: 0.66,
     scroll: { u: 0, letters: 0, iris: 0, needleDip: 0 },
-    journey: { stretch: 'rise', local: 0, project: null, voidState: 'ready', frame: null, sheet: 0, light: null, beads: null, label: null, wake: [], engraved: null },
+    journey: { stretch: 'rise', local: 0, project: null, voidState: 'ready', frame: null, sheet: 0, light: null, beads: null, label: null, wake: [], engraved: null, nebula: null },
     ...over,
   };
 }

@@ -97,7 +97,7 @@ describe('readNeedleDebugState', () => {
       const label = { index: 0, opacity: 1 };
       Object.assign(frame.journey, { stretch: 'light', local: 0.4, project: null, voidState: 'ready', frame: 121, sheet: 0, light, beads, label, wake: [10] });
       const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
-      expect(state.journey).toEqual({ stretch: 'light', local: 0.4, project: null, voidState: 'ready', frame: 121, sheet: 0, light: { x: 0.2, y: -0.1 }, beads, label, wake: [10], engraved: null });
+      expect(state.journey).toEqual({ stretch: 'light', local: 0.4, project: null, voidState: 'ready', frame: 121, sheet: 0, light: { x: 0.2, y: -0.1 }, beads, label, wake: [10], engraved: null, nebula: null });
       expect(state.journey.beads).not.toBe(beads);
       expect(state.journey.label).not.toBe(label);
       expect(state.journey.light).not.toBe(light);

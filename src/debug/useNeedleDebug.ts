@@ -49,6 +49,7 @@ export function readNeedleDebugState(view: ShellView): NeedleDebugState {
       label: frame.journey.label ? { ...frame.journey.label } : null,
       wake: [...frame.journey.wake],
       engraved: frame.journey.engraved ? { ...frame.journey.engraved, trips: [...frame.journey.engraved.trips] } : null,
+      nebula: frame.journey.nebula ? { ...frame.journey.nebula } : null,
     },
   };
 }
