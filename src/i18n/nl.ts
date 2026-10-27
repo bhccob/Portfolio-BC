@@ -293,9 +293,7 @@ export const nl: Dictionary = {
     mailtoText: 'Je e-mailprogramma zou nu moeten openen met het bericht klaar om te versturen.'
   },
   end: {
-    label: 'Vragen',
-    title: 'Vragen <em>over mij.</em>',
-    intro: 'Wie ik ben, wat ik doe en waar ik naartoe wil.',
+    head: 'Q&A',
     // Six, as the English has (the type says so): Bob's own questions and answers (2026-10-25). An answer left out shows
     // the placeholder.
     questions: [

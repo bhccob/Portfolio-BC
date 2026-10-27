@@ -1692,78 +1692,60 @@ html[data-3d='on'] .light-facts {
   margin: 56px 0 12px;
 }
 
-/* ---------- the end page: questions about Bob, then a message ---------- */
-/* The home's last page (src/ui/EndPage.tsx), drawn after the approved mock-up (bob-end-page.html, §2): a left column of
-   44rem inside the gutters, the label and the title of the site's other pages, six questions between hairlines, then
-   the contact page's own form and links. It stands in the flow; the scene's hold on it is not here. Dark and calm: gold
-   only in the title, the + and the tag. */
+/* ---------- the end page: the credits ---------- */
+/* The home's last page (src/ui/EndPage.tsx): the questions as the end credits of a film (spec
+   2026-10-27-bob-light-path-design.md, goal 8; the approved credits-simple.html). One narrow column in the middle, its
+   text centred: a small "Q&A" in the label face, gold and widely tracked; each question a small line of gold capitals in
+   the label face, its answer under it in plain reading text; a short gold rule and Bob's name; then "Stuur een bericht."
+   in the title face, small, over the contact page's own form and links. A step smaller than the end page was: answers
+   19 px, questions 13 px, the heading and the name 15 px, the column 580 px; on a phone 16, 12 and the title 26 px. With
+   3D off, no WebGL or the fallback card it stands so in the home's flow, a normal centred page. */
 .end-page {
-  max-width: calc(44rem + 2 * var(--gutter));
-  padding: 16px var(--gutter) 96px;
+  padding: 48px var(--gutter) 96px;
   scroll-margin-top: var(--header-height);
 }
 
-.end-page > .label + .page-title {
-  margin-top: 4px;
+.end-roll {
+  width: min(580px, 100%);
+  margin: 0 auto;
+  text-align: center;
 }
 
-/* The questions: <details> of one name, so the browser keeps one open at a time with no script. The hairline above the
-   first is the list's, the one under each is its own. */
-.end-qa {
-  margin-top: 16px;
-  border-top: 1px solid rgb(228 190 127 / 0.22);
+.end-head,
+.end-name {
+  margin: 0;
+  font-family: var(--font-label);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: var(--gold-ink);
+}
+
+.end-block {
+  margin-top: 140px;
+}
+
+.end-head + .end-block {
+  margin-top: 150px;
 }
 
 .end-q {
-  border-bottom: 1px solid rgb(228 190 127 / 0.22);
-}
-
-.end-q > summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  min-height: 64px;
-  padding: 14px 0;
-  color: var(--ink);
-  font-size: clamp(17px, 0.4vw + 15px, 20px);
-  font-weight: 500;
-  line-height: 1.4;
-  list-style: none;
-  cursor: pointer;
-}
-
-.end-q > summary::-webkit-details-marker {
-  display: none;
-}
-
-.end-q > summary:hover {
-  color: var(--gold-title);
-}
-
-/* The + is drawn, two gold strokes; open, the upright one shrinks away and it reads as a −. */
-.end-q > summary::after {
-  content: '';
-  flex: none;
-  width: 14px;
-  height: 14px;
-  background:
-    linear-gradient(var(--gold-ink), var(--gold-ink)) center / 100% 2px no-repeat,
-    linear-gradient(var(--gold-ink), var(--gold-ink)) center / 2px 100% no-repeat;
-  transition: background-size 0.3s var(--ease-hud);
-}
-
-.end-q[open] > summary::after {
-  background-size:
-    100% 2px,
-    2px 0;
+  margin: 0;
+  font-family: var(--font-label);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.6;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold-ink);
 }
 
 .end-a {
-  max-width: 34em;
-  padding-bottom: 24px;
-  font-size: clamp(16px, 0.3vw + 14.5px, 18px);
-  line-height: 1.55;
+  margin: 14px 0 0;
+  font-size: 19px;
+  line-height: 1.7;
+  color: var(--ink);
 }
 
 /* No answer yet: the placeholder, dim and italic, with a small pill that says it is one. */
@@ -1789,19 +1771,37 @@ html[data-3d='on'] .light-facts {
   vertical-align: 2px;
 }
 
-/* The message part: the contact page's own parts under a title in the same pair of weights. */
+/* The sign-off: a short gold rule and Bob's name. Then the message part, the contact page's own parts under a title in
+   the same pair of weights. */
+.end-sign {
+  margin-top: 170px;
+}
+
+.end-line {
+  display: block;
+  width: 56px;
+  height: 1px;
+  margin: 0 auto 22px;
+  background: rgb(217 165 32 / 0.7);
+}
+
+.end-final {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 220px;
+}
+
 .end-message-title {
-  margin: clamp(72px, 10vw, 120px) 0 20px;
+  margin: 0;
   font-family: var(--font-title);
   font-feature-settings: var(--font-title-features);
-  font-size: clamp(26px, 2.4vw, 36px);
+  font-size: 34px;
   font-weight: 800;
   line-height: 1.1;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   text-transform: uppercase;
   color: var(--gold-title);
-  overflow-wrap: break-word;
-  text-wrap: balance;
 }
 
 .end-message-title em {
@@ -1810,21 +1810,56 @@ html[data-3d='on'] .light-facts {
   color: var(--ink);
 }
 
-.end-page .lead {
-  margin-bottom: 40px;
+/* The contact page's own form (its <section>, or the panel that thanks for a message sent) and links: the form's fields
+   left-aligned in their column, the links in the middle. As in the approved mock-up only the message title stands over
+   the fields: the form's own title, "Jouw bericht", is for a screen reader alone, still the form's label. */
+.end-final > section {
+  width: min(400px, 100%);
+  margin-top: 32px;
+  text-align: left;
 }
 
-.end-page > .links {
-  margin-top: 56px;
+.end-final #contact-form-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
-/* ---------- the end page over the scene: the sheet ---------- */
-/* As the story moves from Cookies Clicker (6) to the end page (7) the page slides up from the screen's foot over the
-   ring, an opaque sheet, as the light dive's mock-up draws it; at the end the page stands in the normal flow and the
-   document scrolls (spec 2026-10-25-bob-light-dive-design.md, the end sheet). Home writes the move to <html> each frame
-   (src/scene/bob/endView.ts): `--end`, the sheet's share 0..1, and `data-end`, `moving` on the way in or out and `rest`
-   at the end; while neither is set the story is elsewhere. With 3D off Home is not there, nothing is written, and the
-   page is simply in the home's flow. */
+.end-final > .links {
+  justify-content: center;
+  margin-top: 30px;
+}
+
+@media (max-width: 600px) {
+  .end-a {
+    font-size: 16px;
+  }
+
+  .end-q {
+    font-size: 12px;
+  }
+
+  .end-block {
+    margin-top: 110px;
+  }
+
+  .end-message-title {
+    font-size: 26px;
+  }
+}
+
+/* ---------- the credits over the scene ---------- */
+/* As the story moves over the sheet, from the look back's own stop to the credits' stop, the look back fades to black
+   and the credits rise from below; at the end the page stands in the normal flow and the document scrolls, which rolls
+   them. Home writes the move to <html> each frame (src/scene/bob/endView.ts): `--end-black` and `--end-rise`, how far
+   the black and the rise have come, 0..1, and `data-end`, `moving` on the way in or out and `rest` at the end; while
+   neither is set the story is elsewhere. With 3D off Home is not there, nothing is written, and the page is simply in
+   the home's flow. */
 
 /* Not at the end, with 3D on: hidden, and so out of reach of Tab, but still in the HTML for crawlers. Home also keeps the
    section inert until the story rests at the end. It takes no room in the flow either, so the 3D home is one viewport
@@ -1883,27 +1918,91 @@ html[data-route='home'][data-3d='on'][data-end] .poster {
   width: 100vw;
 }
 
-/* The move: the page is a sheet a screen tall, from the screen's top under the header, slid down by the share still to
-   come, so its top comes in from the screen's foot. Its words stand a header and 16 px down, where they stand at rest
-   in the flow under the header, so the frame that comes to rest puts them back on the same pixel. It is opaque: the
-   night across the whole width (a border image's outset, which takes no room and scrolls nothing), and the mock-up's
-   soft shadow above its edge, laying it over the ring as a page. */
-html[data-end='moving'] .end-page {
+/* "Q&A" stands at 55 % of the screen's height, on the same pixel on the way in and at rest: at rest the page is in the
+   flow under the header, its top that much under it; moving, it is fixed a screen tall from the screen's top, its night
+   the black's share of the night, and its column slid down by the rise still to come, so "Q&A" comes in from the
+   screen's foot. The final part is a screen tall less the header, its contents in the middle, so at the end of the
+   document's scroll the form rests in the middle of the screen. The moving rules name the whole state, as the rule
+   at the end does, so they outweigh it. */
+html[data-route='home'][data-3d='on'][data-end] .end-page {
+  padding-top: calc(55dvh - var(--header-height));
+  padding-bottom: 0;
+}
+
+html[data-route='home'][data-3d='on'][data-end] .end-final {
+  min-height: calc(100dvh - var(--header-height));
+  justify-content: center;
+}
+
+html[data-route='home'][data-3d='on'][data-end='moving'] .end-page {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   height: 100dvh;
-  padding-top: calc(var(--header-height) + 16px);
+  padding-top: 55dvh;
   overflow: hidden;
-  border-image: linear-gradient(rgb(0 0 0 / 0) 0, rgb(0 0 0 / 0.55) 56px, var(--night) 56px) fill 0 / 0 / 56px 100vmax 0;
-  transform: translateY(calc((1 - var(--end)) * 100%));
+  background: rgb(4 2 9 / var(--end-black, 0));
+}
+
+html[data-route='home'][data-3d='on'][data-end='moving'] .end-roll {
+  transform: translateY(calc((1 - var(--end-rise, 0)) * 45dvh));
+}
+
+/* Text fades in at the screen's foot and out at its top, as credits do: the night over the column's edges, fixed to the
+   screen. The top one starts at the screen's very top, as the header scrolls away at rest. The header stands over it
+   while it is there. Not with reduced motion, where the credits are the same page with no fade at the edges.
+   On the way in they come with the rise's first step, when the black is already whole and they show over the text
+   alone: over the fade to black they would darken the look back's edges before its middle. Once the message part is up
+   (`data-final`, src/ui/endFinal.ts) they lift, so the form and its links read whole wherever the scroll stops. */
+html[data-route='home'][data-3d='on'][data-end] .end-page::before,
+html[data-route='home'][data-3d='on'][data-end] .end-page::after {
+  content: '';
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  height: 20dvh;
+  pointer-events: none;
+}
+
+html[data-route='home'][data-3d='on'][data-end] .end-page::before {
+  top: 0;
+  background: linear-gradient(var(--night), rgb(4 2 9 / 0));
+}
+
+html[data-route='home'][data-3d='on'][data-end] .end-page::after {
+  bottom: 0;
+  background: linear-gradient(rgb(4 2 9 / 0), var(--night));
+}
+
+html[data-route='home'][data-3d='on'][data-end='moving'] .end-page::before,
+html[data-route='home'][data-3d='on'][data-end='moving'] .end-page::after {
+  opacity: calc(var(--end-rise, 0) * 1000);
+}
+
+html[data-route='home'][data-3d='on'][data-end='rest'] .end-page::before,
+html[data-route='home'][data-3d='on'][data-end='rest'] .end-page::after {
+  transition: opacity 0.4s ease;
+}
+
+html[data-route='home'][data-3d='on'][data-end] .end-page[data-final]::before,
+html[data-route='home'][data-3d='on'][data-end] .end-page[data-final]::after {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-route='home'][data-3d='on'][data-end] .end-page::before,
+  html[data-route='home'][data-3d='on'][data-end] .end-page::after {
+    display: none;
+  }
 }
 
 /* A step fade (src/scene/bob/stepFade.ts: reduced motion's every step, and a failed void's every move to the end page
    or from it) takes the page down with the scene host and back with it, so the page neither appears whole nor goes in
    a cut at the jump. It outweighs the move's own opacity, which a fade out of the end page leaves at 1. The page eases
-   as the host does, 150 ms, only where no move of the sheet runs, whose `--end`, written each frame, must never be eased:
+   as the host does, 150 ms, only where no move of the sheet runs, whose `--end-black` and `--end-rise`, written each
+   frame, must never be eased:
    with the void failed, and with reduced motion (over the sheet's last rule, as the host's own). */
 html[data-route='home'][data-step-fade] .end-page {
   opacity: 0;
@@ -1929,15 +2028,15 @@ html[data-void='failed'] .end-page {
   }
 }
 
-/* The title takes the focus by script alone, when the failed void's link brings the story here (src/ui/endArrival.ts):
-   the page's own place to go on from, as <main> is after a navigation, so it shows no ring. */
-.end-page > .page-title:focus {
+/* "Q&A" takes the focus by script alone, when the skip button or the failed void's link brings the story here
+   (src/ui/endArrival.ts): the page's own place to go on from, as <main> is after a navigation, so it shows no ring. */
+.end-head:focus {
   outline: none;
 }
 
 /* At rest: the document scrolls as any page does, and no bead label shows. The page is in the flow under the header,
-   at least a screen tall, and as opaque as the sheet: the night across the whole width and up behind the header, so the
-   ring, asleep behind it, shows nowhere (the mock-up's end frame). */
+   at least a screen tall, and opaque: the night across the whole width and up behind the header, so the look back,
+   asleep behind it, shows nowhere. */
 html[data-route='home'][data-3d='on'][data-end='rest'] {
   overflow-y: auto;
   touch-action: auto;

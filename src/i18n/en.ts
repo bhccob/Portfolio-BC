@@ -308,9 +308,8 @@ export const en = {
    * void's files failed (the step fade takes the visitor there).
    */
   end: {
-    label: 'Questions',
-    title: 'Questions <em>about me.</em>',
-    intro: 'Who I am, what I do and where I am heading.',
+    // The credits' heading (spec 2026-10-27-bob-light-path-design.md, goal 10): "Q&A" in both languages.
+    head: 'Q&A',
     // Bob's own questions and answers (2026-10-25), which replaced the spec's placeholders. An answer left out (`null`)
     // shows the placeholder with its tag. Typed by `as`, not `satisfies` (as the Q&A's items are): `satisfies` would
     // narrow each `answer` to a string, and a translation could not then leave one out.

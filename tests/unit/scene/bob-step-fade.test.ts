@@ -223,7 +223,7 @@ describe('the step fade in the stylesheet', () => {
     expect(valueOf("html[data-void='failed'] .end-page", 'transition')).toBe(valueOf('.scene-host', 'transition'));
     expect(valueOf('.end-page', 'transition', REDUCED)).toBe(valueOf('.scene-host', 'transition', REDUCED));
     expect(valueOf('.end-page', 'transition', REDUCED)).toMatch(new RegExp(`^opacity ${STEP_FADE_MS}ms\\b.*!important$`));
-    // Nowhere else: the move's `opacity: var(--end)`, written each frame, is never eased.
+    // Nowhere else: the move's `--end-black` and `--end-rise`, written each frame, are never eased.
     const easing = RULES.filter((rule) => rule.selectors.some((s) => /\.end-page$/.test(s)) && [...rule.declarations.keys()].some((key) => key.startsWith('transition')));
     expect(easing.map((rule) => [rule.groups, rule.selectors])).toEqual([
       [[], ["html[data-void='failed'] .end-page"]],

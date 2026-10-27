@@ -32,12 +32,6 @@ const QUESTIONS = {
   ]
 } as const;
 
-/** The line under the title (Bob, 2026-10-25: "i want one"). */
-const INTRO = {
-  nl: 'Wie ik ben, wat ik doe en waar ik naartoe wil.',
-  en: 'Who I am, what I do and where I am heading.'
-} as const;
-
 /** The end copy with every answer missing, so the placeholder's own behaviour can still be shown. */
 const unanswered = (t: Dictionary): EndQuestions => t.end.questions.map((item) => ({ ...item, answer: null })) as EndQuestions;
 
@@ -73,71 +67,60 @@ const leaves = (value: unknown): string[] => {
   return [];
 };
 
-/** The `<details>` start tags and the `<summary>` texts of a page, in order. */
-const detailsTags = (html: string): string[] => [...html.matchAll(/<details\b[^>]*>/g)].map((match) => match[0]);
-const summaries = (html: string): string[] => [...html.matchAll(/<summary\b[^>]*>(.*?)<\/summary>/g)].map((match) => textOf(match[1]));
+/** The texts of a page's questions and of its answers, in order. */
+const questionsOf = (html: string): string[] => [...html.matchAll(/<h3 class="end-q">(.*?)<\/h3>/g)].map((match) => textOf(match[1]));
+const answersOf = (html: string): string[] => [...html.matchAll(/<p class="end-a[^"]*">(.*?)<\/p>/g)].map((match) => textOf(match[1]));
 
-describe('the end page', () => {
+describe('the end page: the credits', () => {
   afterEach(() => vi.unstubAllEnvs());
 
   for (const [path, locale, t] of LOCALES) {
     describe(`${locale} (${path})`, () => {
       const html = render(path);
 
-      it('renders the label, the title and six closed questions', () => {
-        // The section is the page's end: its id is the anchor the story and the nav's link point at.
-        expect(html).toMatch(/^<section class="end-page" id="end" aria-labelledby="end-title">/);
-        // The label above the title, in the site's label style.
-        // The title takes the focus after the failed void's link brings the story here (src/ui/endArrival.ts): tabindex -1.
-        expect(html).toMatch(new RegExp(`<p class="label">${t.end.label}</p><h2 id="end-title" class="page-title" tabindex="-1">`));
-        const title = html.match(/<h2 id="end-title" class="page-title" tabindex="-1">(.*?)<\/h2>/)?.[1] ?? '';
-        expect(textOf(title)).toBe(stripMarkup(t.end.title));
-        expect(title).toContain('<em>');
-        // Six <details> in one exclusive group, none open on arrival, the summaries the spec's questions in order.
-        const tags = detailsTags(html);
-        expect(tags).toHaveLength(6);
-        for (const tag of tags) {
-          expect(tag).toContain('name="end-qa"');
-          expect(tag).toContain('class="end-q"');
-          expect(tag).not.toMatch(/\sopen[\s=>]/);
-        }
-        expect(summaries(html)).toEqual([...QUESTIONS[locale]]);
+      it('is the credits: Q&A, six questions with their answers, the name, the message part', () => {
+        // The section is the page's end: its id is the anchor the story and the nav's link point at. One column in it.
+        // "Q&A" takes the focus after the skip button or the failed void's link brings the story here: tabindex -1.
+        expect(html).toMatch(/^<section class="end-page" id="end" aria-labelledby="end-title"><div class="end-roll"><h2 id="end-title" class="end-head" tabindex="-1">Q&amp;A<\/h2>/);
+        expect(t.end.head).toBe('Q&A');
+        expect(questionsOf(html)).toEqual([...QUESTIONS[locale]]);
         expect(t.end.questions.map((item) => item.question)).toEqual([...QUESTIONS[locale]]);
+        expect(answersOf(html)).toEqual(t.end.questions.map((item) => item.answer ?? `${t.end.placeholder} ${t.end.placeholderTag}`));
+        expect(html).toContain(`<div class="end-sign"><span class="end-line" aria-hidden="true"></span><p class="end-name">${profile.name}</p></div>`);
+        // Nothing opens or closes, and the old page's label, title and intro line are gone.
+        expect(html).not.toMatch(/<details|<summary|end-intro|page-title|class="label"/);
+        // The form itself waits for hydration without the deploy's key, as on /contact/: the title and the links are prerendered.
+        const final = html.slice(html.indexOf('<div class="end-final">'));
+        expect(final).toMatch(/^<div class="end-final"><h2 class="end-message-title">/);
+        expect(textOf(final.match(/<h2 class="end-message-title">(.*?)<\/h2>/)?.[1] ?? '')).toBe(stripMarkup(t.end.messageTitle));
+        expect(final).toContain('<ul class="links"');
+        expect(html).not.toContain(t.contact.intro);
+        // In the credits' order: the heading, the six blocks, the name, the message part, its links.
+        const order = ['id="end-title"', 'class="end-block"', 'class="end-sign"', 'class="end-final"', '<ul class="links"'].map((marker) => html.indexOf(marker));
+        expect(order.every((place) => place >= 0)).toBe(true);
+        expect([...order].sort((a, b) => a - b)).toEqual(order);
+        expect(html.match(/class="end-block"/g)).toHaveLength(6);
       });
 
-      it('puts the intro line under the title, before the questions', () => {
-        expect(t.end.intro).toBe(INTRO[locale]);
-        expect(html).toMatch(new RegExp(`</h2><p class="lead end-intro">${t.end.intro}</p><div class="end-qa">`));
-      });
-
-      it('shows each of Bob’s answers inside its question, and no placeholder', () => {
+      it('shows each of Bob’s answers under its question, and no placeholder', () => {
         // Every answer is given: none is missing, so no placeholder and no tag shows.
         for (const { answer } of t.end.questions) expect(typeof answer === 'string' && answer.trim().length > 20).toBe(true);
         expect(html).not.toContain('is-placeholder');
         expect(html).not.toContain('end-tag');
-        for (const { question, answer } of t.end.questions) expect(html).toContain(`<summary>${textEscape(question)}</summary><p class="end-a">${textEscape(answer)}</p>`);
+        for (const { question, answer } of t.end.questions) {
+          expect(html).toContain(`<div class="end-block"><h3 class="end-q">${textEscape(question)}</h3><p class="end-a">${textEscape(answer)}</p></div>`);
+        }
         // The placeholder stays in the copy, for an answer a later edit leaves out.
         expect(t.end.placeholder).toBe(locale === 'nl' ? 'Antwoord volgt.' : 'Answer to follow.');
         expect(t.end.placeholderTag).toBe('placeholder');
       });
 
-      it('has the message part: its title, the contact intro, then the form and the links', () => {
-        const title = html.match(/<h2 class="end-message-title">(.*?)<\/h2>/)?.[1] ?? '';
-        expect(textOf(title)).toBe(stripMarkup(t.end.messageTitle));
-        expect(title).toContain('<em>');
-        expect(html).toContain(`<p class="lead">${t.contact.intro}</p>`);
-        const order = ['id="end-title"', 'class="end-message-title"', `<p class="lead">`, '<ul class="links"'].map((marker) => html.indexOf(marker));
-        expect(order.every((place) => place >= 0)).toBe(true);
-        expect([...order].sort((a, b) => a - b)).toEqual(order);
-        // The questions come before the message part.
-        expect(html.lastIndexOf('<details')).toBeLessThan(html.indexOf('class="end-message-title"'));
-      });
-
-      it('has no word outside the dictionaries (and the profile’s links)', () => {
+      it('has no word outside the dictionaries (and the profile’s name and links)', () => {
         const pieces = (value: string): string[] => [stripMarkup(value), ...value.split(/<\/?em>/)].map((piece) => piece.trim());
         const allowed = new Set([
           ...[...leaves(t.end), ...leaves(t.contact)].flatMap(pieces),
           `(${t.contact.optional})`,
+          profile.name,
           ...profile.socials.map((social) => `${social.label} · ${social.handle}`)
         ]);
         // With an access key, so the form's own words are on the page too.
@@ -161,14 +144,14 @@ describe('the end page', () => {
     (translator as { t: Dictionary }).t = withAnswer;
     try {
       const html = render('/en/');
-      expect(html).toContain(`<summary>${first.question}</summary><p class="end-a">X</p>`);
+      expect(html).toContain(`<h3 class="end-q">${first.question}</h3><p class="end-a">X</p>`);
       expect(html.match(/class="end-a is-placeholder"/g)).toHaveLength(5);
       expect(html.match(/class="end-tag"/g)).toHaveLength(5);
       // The answered question reads "X" with no tag in it.
-      const firstDetails = html.slice(html.indexOf('<details'), html.indexOf('</details>'));
-      expect(firstDetails).not.toContain('end-tag');
-      expect(firstDetails).not.toContain('is-placeholder');
-      expect(firstDetails.match(/<p class="end-a">(.*?)<\/p>/)?.[1]).toBe('X');
+      const firstBlock = html.slice(html.indexOf('<div class="end-block">'), html.indexOf('</div>', html.indexOf('<div class="end-block">')));
+      expect(firstBlock).not.toContain('end-tag');
+      expect(firstBlock).not.toContain('is-placeholder');
+      expect(firstBlock.match(/<p class="end-a">(.*?)<\/p>/)?.[1]).toBe('X');
     } finally {
       (translator as { t: Dictionary }).t = original;
     }
@@ -188,7 +171,7 @@ describe('the end page', () => {
       expect(html.match(/class="end-a is-placeholder"/g)).toHaveLength(6);
       expect(html.match(/class="end-tag"/g)).toHaveLength(6);
       for (const question of [first.question, second.question]) {
-        expect(html).toContain(`<summary>${question}</summary><p class="end-a is-placeholder">${original.end.placeholder} <span class="end-tag">${original.end.placeholderTag}</span></p>`);
+        expect(html).toContain(`<h3 class="end-q">${question}</h3><p class="end-a is-placeholder">${original.end.placeholder} <span class="end-tag">${original.end.placeholderTag}</span></p>`);
       }
       expect(html).not.toContain('<p class="end-a"></p>');
     } finally {
@@ -251,12 +234,12 @@ describe('the end page', () => {
   });
 
   it('is on the home page, after the project links of the nav, in both languages', () => {
-    for (const [path, , t] of LOCALES) {
+    for (const [path] of LOCALES) {
       const home = renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: [path] }, createElement(Home)));
       expect(home.indexOf('class="home-nav"')).toBeGreaterThan(-1);
       expect(home.indexOf('class="home-nav"')).toBeLessThan(home.indexOf('id="end"'));
       expect(home.match(/id="end"/g)).toHaveLength(1);
-      expect(home).toContain(`>${t.end.label}</p>`);
+      expect(home).toContain('class="end-head" tabindex="-1">Q&amp;A</h2>');
     }
   });
 
@@ -281,8 +264,10 @@ describe('the end page', () => {
     expect(nl.end.questions).toHaveLength(6);
     expect(nl.end.failLink).toBe('Vragen & contact');
     expect(en.end.failLink).toBe('Questions & contact');
-    expect([nl.end.label, nl.end.title, nl.end.messageTitle]).toEqual(['Vragen', 'Vragen <em>over mij.</em>', 'Stuur een <em>bericht.</em>']);
-    expect([en.end.label, en.end.title, en.end.messageTitle]).toEqual(['Questions', 'Questions <em>about me.</em>', 'Send a <em>message.</em>']);
+    expect([nl.end.head, nl.end.messageTitle]).toEqual(['Q&A', 'Stuur een <em>bericht.</em>']);
+    expect([en.end.head, en.end.messageTitle]).toEqual(['Q&A', 'Send a <em>message.</em>']);
+    expect(Object.keys(nl.end)).not.toEqual(expect.arrayContaining(['label']));
+    for (const gone of ['label', 'title', 'intro']) expect(Object.keys(en.end)).not.toContain(gone);
   });
 
   it('never names the classmate of Cookies Clicker, and keeps what Bob asked the answers to say', () => {
@@ -298,30 +283,112 @@ describe('the end page', () => {
   });
 });
 
-/** The declarations of the first rule of base.css whose selector is exactly `selector`. */
+/** base.css with its comments removed. */
 const base = readFileSync(fileURLToPath(new URL('../../../src/styles/base.css', import.meta.url)), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+/** The declarations of the first rule of base.css whose selector is exactly `selector` (white space collapsed). */
 function rule(selector: string): string {
-  for (const match of base.matchAll(/([^{}]+)\{([^{}]*)\}/g)) if (match[1].trim() === selector) return match[2];
+  for (const match of base.matchAll(/([^{}]+)\{([^{}]*)\}/g)) if (match[1].trim().replace(/\s+/g, ' ') === selector) return match[2];
   throw new Error(`no rule for ${selector}`);
 }
 
-describe('the end page’s look (src/styles/base.css)', () => {
-  it('keeps its column to 44rem inside the gutters, the width of the site’s other pages', () => {
-    expect(rule('.end-page')).toMatch(/max-width:\s*calc\(44rem \+ 2 \* var\(--gutter\)\)/);
+const AT_END = "html[data-route='home'][data-3d='on'][data-end]";
+const MOVE = "html[data-route='home'][data-3d='on'][data-end='moving']";
+
+describe('the credits’ look (src/styles/base.css)', () => {
+  it('sets one column of 580 px in the middle, its text centred', () => {
+    const roll = rule('.end-roll');
+    expect(roll).toMatch(/width:\s*min\(580px, 100%\)/);
+    expect(roll).toMatch(/margin:\s*0 auto/);
+    expect(roll).toMatch(/text-align:\s*center/);
   });
 
-  it('puts a hairline between the questions, in the gold of the site at 0.22', () => {
-    expect(rule('.end-q')).toMatch(/border-bottom:\s*1px solid rgb\(228 190 127 \/ 0\.22\)/);
-    expect(rule('.end-qa')).toMatch(/border-top:\s*1px solid rgb\(228 190 127 \/ 0\.22\)/);
+  it('sizes the credits as the mock-up: "Q&A" and the name 15 px, questions 13 px gold capitals, answers 19 px', () => {
+    const head = rule('.end-head, .end-name');
+    expect(head).toMatch(/font-family:\s*var\(--font-label\)/);
+    expect(head).toMatch(/font-size:\s*15px/);
+    expect(head).toMatch(/letter-spacing:\s*0\.4em/);
+    expect(head).toMatch(/color:\s*var\(--gold-ink\)/);
+    const question = rule('.end-q');
+    expect(question).toMatch(/font-size:\s*13px/);
+    expect(question).toMatch(/letter-spacing:\s*0\.22em/);
+    expect(question).toMatch(/text-transform:\s*uppercase/);
+    expect(question).toMatch(/color:\s*var\(--gold-ink\)/);
+    const answer = rule('.end-a');
+    expect(answer).toMatch(/font-size:\s*19px/);
+    expect(answer).toMatch(/line-height:\s*1\.7/);
+    expect(answer).toMatch(/color:\s*var\(--ink\)/);
+    expect(rule('.end-message-title')).toMatch(/font-size:\s*34px/);
   });
 
-  it('draws a gold + on the summary that turns to − when it is open, and hides the browser’s marker', () => {
-    expect(rule('.end-q > summary')).toMatch(/list-style:\s*none/);
-    expect(rule('.end-q > summary::-webkit-details-marker')).toMatch(/display:\s*none/);
-    expect(rule('.end-q > summary::after')).toMatch(/var\(--gold-ink\)/);
-    expect(rule('.end-q > summary::after')).toMatch(/content:\s*''/);
-    // Open: the upright stroke is gone, and the + is a −.
-    expect(rule('.end-q[open] > summary::after')).toMatch(/background-size:/);
+  it('spaces them as the mock-up: 140 px between blocks, 150 after "Q&A", 170 before the name, 220 before the message', () => {
+    expect(rule('.end-block')).toMatch(/margin-top:\s*140px/);
+    expect(rule('.end-head + .end-block')).toMatch(/margin-top:\s*150px/);
+    expect(rule('.end-sign')).toMatch(/margin-top:\s*170px/);
+    expect(rule('.end-final')).toMatch(/margin-top:\s*220px/);
+    expect(rule('.end-line')).toMatch(/width:\s*56px/);
+  });
+
+  it('is a step smaller on a phone: answers 16 px, questions 12 px, blocks 110 px apart, the title 26 px', () => {
+    const phone = base.match(/@media \(max-width: 600px\) \{\s*\.end-a \{([^}]*)\}\s*\.end-q \{([^}]*)\}\s*\.end-block \{([^}]*)\}\s*\.end-message-title \{([^}]*)\}\s*\}/);
+    expect(phone).not.toBeNull();
+    const [, answer, question, block, title] = phone!;
+    expect(answer).toMatch(/font-size:\s*16px/);
+    expect(question).toMatch(/font-size:\s*12px/);
+    expect(block).toMatch(/margin-top:\s*110px/);
+    expect(title).toMatch(/font-size:\s*26px/);
+  });
+
+  it('stands "Q&A" at 55 % of the screen at rest and at the rise’s end: in the flow under the header, or fixed a screen tall', () => {
+    expect(rule(`${AT_END} .end-page`)).toMatch(/padding-top:\s*calc\(55dvh - var\(--header-height\)\)/);
+    const moving = rule(`${MOVE} .end-page`);
+    expect(moving).toMatch(/position:\s*fixed/);
+    expect(moving).toMatch(/height:\s*100dvh/);
+    expect(moving).toMatch(/padding-top:\s*55dvh/);
+    expect(moving).toMatch(/overflow:\s*hidden/);
+    // Its night is the black's share of the night; its column slides up from the screen's foot with the rise.
+    expect(moving).toMatch(/background:\s*rgb\(4 2 9 \/ var\(--end-black, 0\)\)/);
+    expect(rule(`${MOVE} .end-roll`)).toMatch(/transform:\s*translateY\(calc\(\(1 - var\(--end-rise, 0\)\) \* 45dvh\)\)/);
+    expect(base).not.toMatch(/var\(--end\)/);
+  });
+
+  it('rests the message part a screen tall less the header, its contents in the middle', () => {
+    const final = rule(`${AT_END} .end-final`);
+    expect(final).toMatch(/min-height:\s*calc\(100dvh - var\(--header-height\)\)/);
+    expect(final).toMatch(/justify-content:\s*center/);
+    expect(rule('.end-final')).toMatch(/flex-direction:\s*column/);
+  });
+
+  it('fades the text at the screen’s top and foot, fixed and 20 % tall, and not with reduced motion', () => {
+    const edges = rule(`${AT_END} .end-page::before, ${AT_END} .end-page::after`);
+    expect(edges).toMatch(/position:\s*fixed/);
+    expect(edges).toMatch(/height:\s*20dvh/);
+    expect(edges).toMatch(/pointer-events:\s*none/);
+    // From the screen's very top: at rest the header scrolls away with the page.
+    expect(rule(`${AT_END} .end-page::before`)).toMatch(/top:\s*0;/);
+    expect(rule(`${AT_END} .end-page::after`)).toMatch(/bottom:\s*0/);
+    // On the way in, only once the rise has begun, when the black is whole.
+    expect(rule(`${MOVE} .end-page::before, ${MOVE} .end-page::after`)).toMatch(/opacity:\s*calc\(var\(--end-rise, 0\) \* 1000\)/);
+    expect(base).toMatch(
+      /@media \(prefers-reduced-motion: reduce\) \{\s*html\[data-route='home'\]\[data-3d='on'\]\[data-end\] \.end-page::before,\s*html\[data-route='home'\]\[data-3d='on'\]\[data-end\] \.end-page::after \{\s*display:\s*none;\s*\}\s*\}/
+    );
+  });
+
+  it('lifts the edge fades once the message part is up (data-final), easing at rest only', () => {
+    expect(rule(`${AT_END} .end-page[data-final]::before, ${AT_END} .end-page[data-final]::after`)).toMatch(/opacity:\s*0/);
+    const REST = "html[data-route='home'][data-3d='on'][data-end='rest']";
+    expect(rule(`${REST} .end-page::before, ${REST} .end-page::after`)).toMatch(/transition:\s*opacity 0\.4s ease/);
+  });
+
+  it('sets the form’s part in a 400 px column, its fields left-aligned, its own title for a screen reader alone', () => {
+    const form = rule('.end-final > section');
+    expect(form).toMatch(/width:\s*min\(400px, 100%\)/);
+    expect(form).toMatch(/margin-top:\s*32px/);
+    expect(form).toMatch(/text-align:\s*left/);
+    // The approved mock-up shows only the message title over the fields; the form keeps its label for a screen reader.
+    const title = rule('.end-final #contact-form-title');
+    expect(title).toMatch(/position:\s*absolute/);
+    expect(title).toMatch(/clip-path:\s*inset\(50%\)/);
+    expect(title).not.toMatch(/display:\s*none/);
   });
 
   it('sets the placeholder in the dim colour, in italics, and the tag as a small pill in the label font', () => {
