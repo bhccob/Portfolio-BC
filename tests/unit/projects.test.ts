@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { categories } from '../../src/data/categories';
 import { PAGES } from '../../src/data/pages';
-import { projects } from '../../src/data/projects';
+import { type ProjectData, ProjectCatalog, projects } from '../../src/data/projects';
 import { locales } from '../../src/i18n/Translator';
 
 const all = projects.all();
@@ -184,5 +184,29 @@ describe('projects', () => {
         expect(copy.metaDescription.length, `${entry.id} ${locale}`).toBeLessThanOrEqual(170);
       }
     }
+  });
+});
+
+describe('the projects on the way (spec 2026-10-27-bob-light-path-design.md, goal 6: Way 2)', () => {
+  /** Seven copies of Funcial's data, ordered 1 to 7, flagged on the way where listed. */
+  const sevenStubs = ({ flagged }: { flagged: number[] }): ProjectData[] => {
+    const funcial = (projects as unknown as { items: { data: ProjectData }[] }).items[0]!.data;
+    return Array.from({ length: 7 }, (_, k) => ({ ...funcial, order: k + 1, onPath: flagged.includes(k + 1) }));
+  };
+
+  it('puts every project on the way while there are five or fewer', () => {
+    expect(projects.onPath().map((p) => p.id)).toEqual(['funcial', 'jontai-energy', 'cookies-clicker']);
+    expect(projects.offPath()).toEqual([]);
+  });
+
+  it('takes the flagged projects onto the way when there are more than five', () => {
+    const seven = new ProjectCatalog(sevenStubs({ flagged: [1, 2, 4, 5, 7] }));
+    expect(seven.onPath().map((p) => p.order)).toEqual([1, 2, 4, 5, 7]);
+    expect(seven.offPath().map((p) => p.order)).toEqual([3, 6]);
+  });
+
+  it('refuses more than five flagged, or none, past five projects', () => {
+    expect(() => new ProjectCatalog(sevenStubs({ flagged: [1, 2, 3, 4, 5, 6] })).onPath()).toThrow(/at most 5/);
+    expect(() => new ProjectCatalog(sevenStubs({ flagged: [] })).onPath()).toThrow(/at most 5/);
   });
 });

@@ -47,8 +47,16 @@ export interface ProjectData {
   links: { live?: string; repo?: string };
   /** Screenshot file name in src/assets, e.g. "cookies.png"; a project without one has none. */
   image?: string;
+  /**
+   * On the light's way through the projects (`ProjectCatalog.onPath`): read only once there are more than `PATH_LIMIT`
+   * projects, where the way takes the flagged ones. Up to the limit every project is on it.
+   */
+  onPath?: boolean;
   copy: Record<Locale, ProjectCopy>;
 }
+
+/** The most projects the light's way visits (spec 2026-10-27-bob-light-path-design.md, goal 6: Way 2). */
+export const PATH_LIMIT = 5;
 
 export class Project {
   constructor(private readonly data: ProjectData) {}
@@ -64,6 +72,7 @@ export class Project {
   get motion() { return this.data.motion; }
   get stack() { return this.data.stack; }
   get links() { return this.data.links; }
+  get onPath() { return this.data.onPath === true; }
 
   /** The built URL of the screenshot, if the project has one. */
   get image(): string | undefined {
@@ -95,6 +104,25 @@ export class ProjectCatalog {
 
   all(): Project[] {
     return [...this.items];
+  }
+
+  /**
+   * The projects the light's way visits, in order: every project while there are `PATH_LIMIT` or fewer, else the ones
+   * flagged `onPath`, of which there must be at least one and at most `PATH_LIMIT`.
+   */
+  onPath(): Project[] {
+    if (this.items.length <= PATH_LIMIT) return [...this.items];
+    const flagged = this.items.filter((project) => project.onPath);
+    if (flagged.length === 0 || flagged.length > PATH_LIMIT) {
+      throw new TypeError(`past ${PATH_LIMIT} projects the way takes the flagged ones: at most ${PATH_LIMIT}, at least 1`);
+    }
+    return flagged;
+  }
+
+  /** The projects the light's way does not visit, in order: small lights beside its trail in the look back. */
+  offPath(): Project[] {
+    const on = new Set(this.onPath());
+    return this.items.filter((project) => !on.has(project));
   }
 
   byId(id: string): Project | undefined {
