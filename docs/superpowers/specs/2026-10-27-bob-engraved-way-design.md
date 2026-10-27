@@ -82,3 +82,21 @@ the shaft follows the light's sideways moves toward each fact's side; the medium
 1. A 3D mock-up in the light-path mock-up (`.superpowers/light-path-mockup`, served on 4432), with a video at both sizes
    and stills beside the approved pictures. Bob approves it before any build.
 2. Then a build plan, and the build on `bob-dive`, inline, as before.
+
+## Added after the build: the light's tail (Bob, 2026-10-27)
+
+Seeing the built fall, Bob: "the light doesnt look like its falling since the tail sits below not above". From the
+camera's turn to the side on, the previs carried the tail's points back toward the camera, which from the camera's
+height drew the tail below the light. He then asked for it "bigger and longer and look more mature", and "maybe add a
+few electricity sparks". He approved a mock-up of each in the engraved-mock copy ("that works"; "Yes, the tail with the
+sparks is right. Build it into the site.").
+
+- **The tail stands above the light** all the way down the fall: its points keep the height of the light's path, and
+  its sideways moves toward each fact draw in toward the light over about 14 way frames, so it leans toward where the
+  light came from instead of snaking.
+- **Bigger and longer:** it rises about 1.6 m (it was 1.1 m), 1.5 times the light's radius wide at the light (it was
+  0.5), its light gathered to its core and fading along its length. The path's tail is as long, as it already followed
+  the fall's.
+- **A few sparks:** three thin gold sparks, like the light's filaments, jump off the tail near the light; each flashes
+  over five way frames and then jumps from another place, a third of a life apart, so one or two show at a time. They
+  move by the frame alone: they crackle while the scroll moves and hold still when it rests. None on the low tier.
