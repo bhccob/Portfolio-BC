@@ -366,6 +366,7 @@ const { topShotFor } = await tsImport('../../src/engine/bob/shots.ts', import.me
 const { BEADS, journeyAt, journeyPoseAt } = await tsImport('../../src/scene/bob/journey.ts', import.meta.url);
 const { RISE_TOP, LANDING_HOLD, landingHoldFor } = await tsImport('../../src/scene/bob/landingHold.ts', import.meta.url);
 const { categories } = await tsImport('../../src/data/categories.ts', import.meta.url);
+const { engravedLevels } = await tsImport('../../src/scene/bob/engravedWay.ts', import.meta.url);
 /**
  * How long the canvas may keep drawing after the last thing that stirred it, ms: the home's idle motion
  * (src/scene/bob/look.ts, IDLE_SECONDS: 12 s) and the needle's spring settling, with room to spare. Counted from the
@@ -2767,7 +2768,7 @@ async function stills(browser, step) {
     const at = sizeName(size);
     const { context, page } = await readyHome(browser, step, size);
     const places = [
-      ...[60, 121, 241].map((frame) => ({ name: `light-${frame}`, progress: placeOfFrame(frame) })),
+      ...[32, 60, 121, 241].map((frame) => ({ name: `light-${frame}`, progress: placeOfFrame(frame) })),
       ...BEAD_LIST.flatMap((bead) => [
         { name: `arrival-${bead.id}`, progress: bead.stop },
         { name: `inside-${bead.id}`, progress: bead.inside, kind: 'inside' },
@@ -5007,6 +5008,13 @@ async function holdBeads(page) {
 }
 
 /**
+ * Wheel notches that carry the story from the home to the hand-over (LANDING_HOLD) at 1440x900, where the long pushes
+ * run, with a third more to spare, or back from it to the home: the hold's place in viewport heights at RISE.notchPx a
+ * notch. It follows the fall's pace (FALL_PACE): twice the old 32 now the fall is twice as long.
+ */
+const PUSH_NOTCHES = Math.ceil((1.3 * LANDING_HOLD * 900) / RISE.notchPx);
+
+/**
  * Pushes the story by hand in `direction` (1 down the story, -1 back): a long wheel at the pointer on a laptop, a run of
  * flicks on a phone. With `toEnd`, a phone flicks on (up to 30 in all) until the story's target is at that end, 0 or the
  * last stop, as a visitor would: a finger set down halts the settle of the flick before, so a quick run of flicks covers
@@ -5311,7 +5319,7 @@ async function beadOpen(browser, step) {
 
 /**
  * The hold (spec: the landing waits for the beads), at 1440x900 and 390x844 (touch): with `bob-beads.glb` held back, so
- * that the void stays `loading`, a long wheel (32 notches; flicks on the phone) plays the light dive and rests at
+ * that the void stays `loading`, a long wheel (PUSH_NOTCHES; flicks on the phone) plays the light dive and rests at
  * LANDING_HOLD, the hand-over (way frame 256, where the path begins, on the journey's shot), the journey at its travel's start with
  * `voidState` `loading`, the light still and nothing creeping past it; a still of it (`m2/void-hold-<size>.png`) is gated
  * as a home still. Scrolling back from there moves the story at once (at 1440 exactly the notches' distance) and it rests
@@ -5340,7 +5348,7 @@ async function voidHold(browser, step) {
     if (!touch) await page.mouse.move(size.width / 2, size.height / 2);
     const vh = size.height;
 
-    const pushed = await pushStory(page, cdp, 1, { notches: 32, flicks: 16 });
+    const pushed = await pushStory(page, cdp, 1, { notches: PUSH_NOTCHES, flicks: 16 });
     const rest = await settledState(page);
     step.check(
       near(rest.target, LANDING_HOLD, 1e-9) && rest.progress === rest.target && rest.journey.stretch === 'travel' && rest.journey.local === 0 && rest.journey.project === 0 && rest.journey.voidState === 'loading' && rest.phase.kind === 'PROJECTS',
@@ -5371,7 +5379,7 @@ async function voidHold(browser, step) {
       up.progress === up.target && up.target < LANDING_HOLD - 0.1 && up.target > RISE_TOP,
       `${at}: and it rests where the input stopped, in the fall (progress ${up.progress}, target ${up.target})`,
     );
-    await pushStory(page, cdp, 1, { notches: 32, flicks: 16 });
+    await pushStory(page, cdp, 1, { notches: PUSH_NOTCHES, flicks: 16 });
     const again = await settledState(page);
     step.check(near(again.target, LANDING_HOLD, 1e-9) && again.progress === again.target && again.journey.voidState === 'loading', `${at}: and pushed down again it rests on the hold again (progress ${again.progress}, target ${again.target}, ${again.journey.voidState})`);
 
@@ -5461,7 +5469,7 @@ async function voidFail(browser, step) {
     );
 
     if (!touch) await page.mouse.move(size.width / 2, size.height / 2);
-    const pushed = await pushStory(page, cdp, 1, { notches: 32, flicks: 16 });
+    const pushed = await pushStory(page, cdp, 1, { notches: PUSH_NOTCHES, flicks: 16 });
     const rest = await settledState(page);
     step.check(
       near(rest.target, LANDING_HOLD, 1e-9) && rest.progress === rest.target && rest.phase.kind === 'PROJECTS' && rest.journey.stretch === 'travel' && rest.journey.local === 0 && rest.journey.voidState === 'failed',
@@ -5524,7 +5532,7 @@ async function voidFail(browser, step) {
       `${at}: Esc brings the story back to the hold at ${LANDING_HOLD.toFixed(4)}, not to Funcial's stop (progress ${back.progress}, target ${back.target}, voidState ${back.journey.voidState})`,
     );
     if (!touch) await page.mouse.move(size.width / 2, size.height / 2);
-    await pushStory(page, cdp, -1, { notches: 40, flicks: 8 });
+    await pushStory(page, cdp, -1, { notches: PUSH_NOTCHES, flicks: 8, toEnd: true });
     const home = await settledState(page);
     await waitForPhase(page, 'HOME_IDLE').catch(() => {});
     const cue = await cueAt(page, 1);
@@ -6378,7 +6386,7 @@ async function endPage(browser, step) {
     step.check(await landHome(page), 'void failed: landed on the home with bob-beads.glb answering 404');
     const failed = await waitForVoid(page, 'failed', 10_000);
     await page.mouse.move(size.width / 2, size.height / 2);
-    await pushStory(page, null, 1, { notches: 40 });
+    await pushStory(page, null, 1, { notches: PUSH_NOTCHES });
     const held = await settledState(page);
     const link = await page.evaluate(() => {
       const button = document.querySelector('.home-nav .end-link');
@@ -6722,6 +6730,143 @@ async function lightFacts(browser, step) {
       await context.close();
     }
     summary.push(`${at}: five facts, NL and EN`);
+  }
+  await meter.close();
+  return summary.join('; ');
+}
+
+/** Each project's travel on the home's chapters, in the way's order: where it starts and how long it is. */
+const TRAVELS = HOME_CHAPTERS.units.filter((unit) => unit.id === 'TRAVEL');
+
+/** The middle of the travel to bead `index` (0 Funcial). */
+const tripMiddle = (index) => TRAVELS[index].start + TRAVELS[index].length / 2;
+
+/**
+ * The engraved way (spec 2026-10-27-bob-engraved-way-design.md), at 1440x900 and 390x844 (touch), each in a fresh
+ * context landed with the void ready:
+ * - from BOB from above, wheel notches (short swipes) run the fall: the shaft's throat (the bridge's
+ *   `journey.engraved.throat`) lights as the light drops into the compass, and is 0 at every sample where one of Bob's
+ *   facts shows;
+ * - posed at way frames 32, 40 and 121, the bridge's levels are the rules' (`engravedLevels`): the throat whole by 40,
+ *   the hall whole at fact 02's peak;
+ * - from fact 01's peak to fact 05's by input: the way frame runs 299/6 frames a viewport height of input, half the
+ *   first fall's pace, so the 160 frames take 3.21 viewport heights where they took 1.61;
+ * - each trip's line whole at its travel's middle, the others out; none half way through a bead's inside (at its
+ *   inside stop the next trip has begun, its line on behind the bead's walls); in the look back every line faint, 0.32
+ *   at most;
+ * - stills at way frames 32 and 121 through the home's luma gate, and at the second trip's middle under its ceiling
+ *   (0.11): there the light is small and dim on a phone, as the approved light path has it, so the floor's bright pixel
+ *   in the scene's middle is not asked of it.
+ */
+async function engraved(browser, step) {
+  const summary = [];
+  const gated = [];
+  const ceilingOnly = [];
+  const span = placeOfFrame(241) - placeOfFrame(81);
+  for (const size of TWO_SIZES) {
+    const at = sizeName(size);
+    const { context, page, cdp, touch } = await readyHome(browser, step, size);
+    const input = touch ? 'short swipes' : 'wheel notches';
+
+    // Down the fall by real input, the throat out wherever a fact shows.
+    await poseAt(page, 1);
+    await restAt(page);
+    const samples = [];
+    for (let i = 0; i < 90; i++) {
+      await nudge(page, cdp, 1);
+      await page.waitForTimeout(touch ? 40 : 90);
+      const sample = await page.evaluate(() => {
+        const d = window.__needleDebug();
+        const fact = [...document.querySelectorAll('.light-fact')].some((el) => Number(getComputedStyle(el).opacity) > 0.01);
+        return { stretch: d.journey.stretch, frame: d.journey.frame, throat: d.journey.engraved?.throat ?? null, fact };
+      });
+      samples.push(sample);
+      if (sample.stretch === 'travel') break;
+    }
+    const fall = samples.filter((sample) => sample.stretch === 'light');
+    const withFact = fall.filter((sample) => sample.fact);
+    const crossed = withFact.filter((sample) => sample.throat !== 0);
+    const most = Math.max(0, ...fall.map((sample) => sample.throat ?? 0));
+    step.check(
+      samples.at(-1)?.stretch === 'travel' && withFact.length >= 5 && crossed.length === 0,
+      `${at}: ${samples.length} ${input} from BOB from above run down the fall to the path; the throat is 0 at every one of the ${withFact.length} samples where a fact shows (not at ${crossed.map((sample) => `frame ${sample.frame?.toFixed(0)}: ${sample.throat}`).join(', ') || 'any'})`
+    );
+    step.check(most > 0.5, `${at}: and the throat shows as the light drops into the compass (at most ${most.toFixed(3)} on the way down)`);
+
+    // Posed: the rules' levels.
+    const posed = {};
+    for (const f of [32, 40, 121]) {
+      const state = await poseAt(page, placeOfFrame(f));
+      const got = state.journey.engraved;
+      const want = engravedLevels({ stretch: 'light', frame: state.journey.frame }, null, BEAD_LIST.length);
+      posed[f] = got;
+      step.check(
+        got !== null && near(got.throat, want.throat, 1e-9) && near(got.hall, want.hall, 1e-9) && got.trips.length === BEAD_LIST.length && got.trips.every((level) => level === 0),
+        `${at}: at way frame ${f} the bridge's levels are the rules': throat ${got?.throat.toFixed(4)} (${want.throat.toFixed(4)}), hall ${got?.hall.toFixed(4)} (${want.hall.toFixed(4)}), trips ${JSON.stringify(got?.trips)}`
+      );
+    }
+    step.check(posed[40]?.throat > 0.9 && posed[121]?.hall > 0.9 && posed[121]?.throat === 0, `${at}: the throat whole by way frame 40 (${posed[40]?.throat}), the hall whole at fact 02's peak and the throat gone (${posed[121]?.hall}, ${posed[121]?.throat})`);
+
+    // The pace, by input: fact 01's peak to past fact 05's.
+    await poseAt(page, placeOfFrame(81));
+    await restAt(page);
+    let inputs = 0;
+    while (inputs < 60 && (await debugOf(page)).target < placeOfFrame(241)) {
+      await nudge(page, cdp, 1);
+      inputs++;
+      await page.waitForTimeout(touch ? 40 : 60);
+    }
+    const rest = await restAt(page);
+    const restState = await debugOf(page);
+    const moved = rest.target - placeOfFrame(81);
+    const perHeight = (restState.journey.frame - 81) / moved;
+    const wheelExact = touch || near(moved, (inputs * RISE.notchPx) / size.height, 1e-6);
+    step.check(
+      restState.journey.stretch === 'light' && restState.journey.frame >= 241 && near(perHeight, 299 / 6, 0.05) && wheelExact,
+      `${at}: from fact 01's peak, ${inputs} ${input} of ${RISE.notchPx} px reach fact 05's (frame ${restState.journey.frame?.toFixed(1)}) over ${moved.toFixed(3)} viewport heights: ${perHeight.toFixed(2)} frames a height, 299/6 = ${(299 / 6).toFixed(2)}, half the first fall's ${(299 / 3).toFixed(2)}; fact 01 to 05 is ${span.toFixed(3)} heights, twice ${(span / 2).toFixed(3)}`
+    );
+
+    // The trips' lines.
+    for (const bead of BEAD_LIST) {
+      const mid = await poseAt(page, tripMiddle(bead.index));
+      const trips = mid.journey.engraved?.trips ?? [];
+      step.check(
+        mid.journey.stretch === 'travel' && mid.journey.project === bead.index && trips.length === BEAD_LIST.length && trips.every((level, k) => level === (k === bead.index ? 1 : 0)),
+        `${at}: half way to ${bead.id} its own line is whole and the others out (${JSON.stringify(trips)})`
+      );
+      const inside = await poseAt(page, (bead.stop + bead.inside) / 2);
+      const lv = inside.journey.engraved;
+      step.check(
+        inside.journey.stretch === 'inside' && lv !== null && lv.throat === 0 && lv.hall === 0 && lv.trips.every((level) => level === 0),
+        `${at}: half way through ${bead.id}'s inside none of it shows (${inside.journey.stretch}, ${JSON.stringify(lv)})`
+      );
+    }
+    const look = await poseAt(page, LOOK_STOP);
+    const faint = look.journey.engraved?.trips ?? [];
+    step.check(faint.length === BEAD_LIST.length && faint.every((level) => level > 0 && level <= 0.32 + 1e-9), `${at}: in the look back every line shows, faint: ${faint.map((level) => level.toFixed(3)).join(', ')}, 0.32 at most`);
+
+    // Stills: the fall's through the home's luma gate, the trip's under its ceiling.
+    mkdirSync(STILLS, { recursive: true });
+    for (const [name, progress] of [['fall-32', placeOfFrame(32)], ['fall-121', placeOfFrame(121)], ['trip-2', tripMiddle(1)]]) {
+      await poseAt(page, progress);
+      await page.waitForTimeout(500);
+      const file = join(STILLS, `engraved-${name}-${at}.png`);
+      await page.screenshot({ path: file });
+      if (name === 'trip-2') ceilingOnly.push(file);
+      else gated.push({ file, kind: 'home', mask: await textMask(page) });
+    }
+    await takeCsp(page, step);
+    summary.push(`${at}: ${samples.length} inputs down the fall, ${inputs} from fact 01 to 05`);
+    await context.close();
+  }
+  step.luma = await gateLuma(browser, step, gated);
+  const meter = await browser.newContext();
+  const meterPage = await meter.newPage();
+  for (const file of ceilingOnly) {
+    const luma = await lumaOf(meterPage, file);
+    const name = file.split(/[\\/]/).pop();
+    step.luma.push({ still: name, kind: 'home', mean: Number(luma.mean.toFixed(4)), peak: Number(luma.peak.toFixed(3)), clipped: Number(luma.clipped.toFixed(6)), ceilingOnly: true });
+    step.check(luma.mean <= LUMA_GATE.home && luma.clipped <= LUMA_GATE.clipped, `${name}: mean luma ${luma.mean.toFixed(4)}, at most ${LUMA_GATE.home}, and ${(luma.clipped * 100).toFixed(3)} % of it clipped, at most ${(LUMA_GATE.clipped * 100).toFixed(3)} %`);
   }
   await meter.close();
   return summary.join('; ');
@@ -7165,7 +7310,8 @@ async function credits(browser, step) {
  * A portrait resize mid-fall and mid-orbit (spec: the labels readable at every size), at 1440x900 turned to 390x844:
  * - at fact 02's peak the way frame stays, and the fact still rides by the light, now below it;
  * - late in Funcial's orbit, its label whole right of the light, the place stays and the label stays with the bead,
- *   now under it.
+ *   now under it;
+ * - half way to Jontai Energy, its engraved line stays whole through the turn (the engraved way built for the new aspect).
  */
 async function resize(browser, step) {
   const { context, page } = await readyHome(browser, step, DIVE_SIZES[0]);
@@ -7206,8 +7352,20 @@ async function resize(browser, step) {
     wide !== null && wideSide?.side === 'right' && tall !== null && tallSide?.side === 'below' && bead !== undefined && tall.box.top >= bead.y + bead.r - 1 && tall.box.left < bead.x && tall.box.right > bead.x,
     `and Funcial's label stays with it: right of the light at 1440 (${wideSide?.side}), under the bead at 390 (${tallSide?.side}, its box [${tall === null ? '-' : Object.values(tall.box).map((v) => Math.round(v)).join(', ')}], the bead at ${bead === undefined ? 'none' : `(${Math.round(bead.x)}, ${Math.round(bead.y)}) r ${Math.round(bead.r)}`})`,
   );
+
+  // Mid-trip: the line of the trip in view stays whole through the turn.
+  await page.setViewportSize({ width: DIVE_SIZES[0].width, height: DIVE_SIZES[0].height });
+  await page.waitForTimeout(400);
+  const wideTrip = await poseAt(page, tripMiddle(1));
+  await page.setViewportSize(phone);
+  await page.waitForTimeout(700);
+  const tallTrip = await debugOf(page);
+  step.check(
+    wideTrip.journey.engraved?.trips[1] === 1 && tallTrip.journey.engraved?.trips[1] === 1 && tallTrip.journey.stretch === 'travel' && tallTrip.progress === tripMiddle(1),
+    `half way to Jontai Energy its engraved line stays whole through the turn: ${JSON.stringify(wideTrip.journey.engraved?.trips)} at 1440, ${JSON.stringify(tallTrip.journey.engraved?.trips)} at 390 (${tallTrip.journey.stretch})`
+  );
   await context.close();
-  return `fact 02 at frame ${after.journey.frame?.toFixed(1)}, below the light after the turn; Funcial's label right of the light, then under its bead`;
+  return `fact 02 at frame ${after.journey.frame?.toFixed(1)}, below the light after the turn; Funcial's label right of the light, then under its bead; the trip's line whole through the turn`;
 }
 
 const STEPS = {
@@ -7228,6 +7386,7 @@ const STEPS = {
   'scroll-bob': scrollBob,
   'light-dive': lightDive,
   'light-facts': lightFacts,
+  engraved,
   path: lightPath,
   'look-back': lookBack,
   credits,
