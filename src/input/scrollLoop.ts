@@ -1,6 +1,6 @@
 import { END_ATTRIBUTE, pageToTop } from '~/scene/bob/endView';
 import { STEP_FADE_ATTRIBUTE, STEP_FADE_MS } from '~/scene/bob/stepFade';
-import { type ChapterAt, type Chapters, chapterAt, placeOfFrame, riseTop, ringStart, scrollEnd, sheetStart } from '~/state/chapters';
+import { type ChapterAt, type Chapters, chapterAt, pathStart, placeOfFrame, riseTop, scrollEnd, sheetStart } from '~/state/chapters';
 import type { VoidState } from '~/state/store';
 import { changedChapter, finishTarget, holdLimit, jumpTarget, keyTarget, moveTarget, onRise, pinnedAtEnd, releaseTarget, restsAtTop, SETTLE_SLOP_PX, stopsFor } from './target';
 import { VirtualScroll } from './VirtualScroll';
@@ -74,8 +74,8 @@ export const FINISH_S = [0.35, 1.2] as const;
 export const GLIDE_S = 1.2;
 export const GLIDE_MIN_S = 0.6;
 
-/** The furthest a glide or the finish may first run the wrong way before it turns, units: 0.4° of the ring's 120° a project. */
-const SLACK = 0.4 / 120;
+/** The furthest a glide or the finish may first run the wrong way before it turns, units: a hair, 1/300 of a unit. */
+const SLACK = 1 / 300;
 
 /** The two moves the loop makes by a curve of its own: the sheet's finish, and a key's glide past the light dive. */
 export type TweenKind = 'finish' | 'glide';
@@ -151,7 +151,7 @@ function atEnd(): boolean {
 /**
  * Whether an input that goes `direction` (1 down the story, -1 up) is the page's own (VirtualScroll's `yields`): at the
  * end page at rest, every input down, and every input up while the page is scrolled down. At the page's top an input up
- * is the story's: the sheet slides back down over Cookies Clicker.
+ * is the story's: the sheet slides back down over the look back.
  */
 function endPageYields(direction: 1 | -1): boolean {
   return atEnd() && (direction > 0 || window.scrollY > 0);
@@ -212,13 +212,13 @@ export interface ScrollLoopOptions {
  * frame it arrives in lands it there exactly.
  *
  * **The pace.** On the rise the story moves by M2a's damp (RISE_SMOOTH). Past it, it follows the scroll (`follow`): the
- * light dive and the ring move exactly with the scroll, eased by FOLLOW's 0.45 s, with no stop of their own. A move
+ * light dive and the light's path move exactly with the scroll, eased by FOLLOW's 0.45 s, with no stop of their own. A move
  * across BOB from above hands the speed over, so nothing stops there.
  *
  * **The sheet's finish** ("Follow, then finish"). With the target part-way up the sheet, the story past the light dive,
  * SHEET_FINISH_MS of frames since the last input (`input`) and the sheet free to finish (`finishes`), the loop takes the
- * story on by a curve of its own (`finishTarget`): to the end page if the last input went down, else back onto Cookies
- * Clicker. **A key's glide** (`glideTo`) is the same curve from where the story stands. While one runs the target is where
+ * story on by a curve of its own (`finishTarget`): to the end page if the last input went down, else back onto the look
+ * back. **A key's glide** (`glideTo`) is the same curve from where the story stands. While one runs the target is where
  * it goes (`heading`); a target moved from outside lets it go, and the follow takes the story on from where it is.
  *
  * Exactly one frame is ever pending. `wake()` is called by the input at every delta, and a glide's `step`
@@ -453,7 +453,7 @@ export class ScrollLoop {
   private finishIfDue(): void {
     const { frame, chapters } = this.o;
     if (this.tween !== null || this.fade !== null || this.quiet < SHEET_FINISH_MS || this.o.finishes?.() !== true) return;
-    if (frame.progress < ringStart(chapters)) return; // in the light dive the story runs on into the ring first
+    if (frame.progress < pathStart(chapters)) return; // in the light dive the story runs on into the path first
     const to = finishTarget(frame.target, this.lastDirection, chapters);
     if (to === null) return;
     frame.target = to;
@@ -556,7 +556,7 @@ export interface HomeScroll {
    */
   resume(): void;
   /**
-   * The nav's link to the end page (`.end-link`) and the ring's skip button: the story goes to the end by the End key's
+   * The nav's link to the end page (`.end-link`) and the path's skip button: the story goes to the end by the End key's
    * own path (VirtualScroll's `jump('end')`, then `onJump`): the step fade, and while the beads load the follow to the
    * hold, then the fade on to the end once they are ready (`asked`, `holdChanged`). Answers whether the input took it:
    * not while it takes no input (3D off, a phase off the scroll) nor while a skipped loader's tail is dropped.
@@ -588,17 +588,15 @@ export interface HomeScroll {
  * eases starts from where the story stands, and a finger set down halts the ease there.
  *
  * **Past the rise** (spec 2026-10-25-bob-light-dive-design.md, "Exactly with my scroll"). A wheel and a finger move the
- * target by their distance and the story follows (`follow`): the light dive's frames and the ring's turn go exactly with
+ * target by their distance and the story follows (`follow`): the light dive's frames and the light's path go exactly with
  * the scroll, and stay wherever it stops, between two projects too. A finger's glide carries on as a page's would, ended
  * at the end page or the hold. The sheet finishes by itself once the scroll stops part-way up it ("Follow, then finish",
  * the loop's `finishTarget`); input during the finish, or a key's glide, rides along when it goes the tween's own way
  * short of its end, and otherwise stops it, the target where the input put it. A key steps among the key stops
  * (`keyTarget`: each fact, each project, the end page), counted from where a glide is going: within the light dive the
- * target moves and the follow eases after it, and a move that starts or ends past it glides (`glideTo`). In the ring a
- * sideways drag, a mouse's, a pen's or a finger's, moves the target as a scroll would (VirtualScroll's `'drag'`, 0.25
- * degrees a px), held from Funcial to Cookies Clicker, and nothing settles it. Home and End
+ * target moves and the follow eases after it, and a move that starts or ends past it glides (`glideTo`). Home and End
  * keep their meaning: End goes to the end page by the step fade from anywhere; Home goes to the start by the step fade
- * from the ring, the sheet and the end page, and by the follow back up from the light dive. With reduced motion every
+ * from the path, the sheet and the end page, and by the follow back up from the light dive. With reduced motion every
  * input is a step to a key stop (`moveTarget`), and nothing glides or finishes by itself.
  *
  * **The hold.** Every move of the target, a delta, a step or a jump, is clamped to `hold` (`holdLimit` of it): a wheel,
@@ -611,9 +609,9 @@ export interface HomeScroll {
  *
  * **The end page.** Once the story rests at the end (`<html data-end="rest">`) the page stands in the flow and its own
  * scroll is the browser's (VirtualScroll's `yields`, `endPageYields`): every input down is the page's, and every input
- * up while the page is scrolled down. Each wheel gesture or drag keeps the answer its start had to its end, so a fling up
+ * up while the page is scrolled down. Each wheel gesture or swipe keeps the answer its start had to its end, so a fling up
  * the page that reaches the top stops there, and a gesture that brought the story to the end never scrolls the page
- * either. At the top a new input up is the story's again: the sheet slides back down, and finishes onto Cookies Clicker.
+ * either. At the top a new input up is the story's again: the sheet slides back down, and finishes onto the look back.
  *
  * **A failed void** (`voidState` `failed`). The hold stands at the landing hold, and the keys step among `stopsFor`'s
  * stops, the home, BOB from above, the hold and the end page. The end page stands past the hold: a wheel or a swipe still
@@ -628,7 +626,7 @@ export interface HomeScroll {
 export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
   const { frame, chapters } = o;
   const top = riseTop(chapters);
-  const ring = ringStart(chapters);
+  const path = pathStart(chapters);
   const sheet = sheetStart(chapters);
   const end = scrollEnd(chapters);
   /** The void failed: the end page stands alone past the hold, reached and left by the step fade. */
@@ -743,17 +741,8 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
         place = moveTarget(frame.target, units, chapters, true, stopsNow());
         stepped = by === 'key' || by === 'held';
         // A step the hold keeps (a wheel or a finger past the hold of a failed void) asks, for the hold's lifting, for
-        // the next of the key stops: a void there again goes on to Funcial, not to the end page.
+        // the next of the key stops: a void there again goes on to the first project, not to the end page.
         if (!stepped && place > limitNow() && !pastHold(frame.target)) place = moveTarget(frame.target, units, chapters, true);
-      } else if (by === 'drag') {
-        // A drag of the ring moves it as a scroll would, from Funcial to Cookies Clicker, and nothing settles it. The hand
-        // takes the story from wherever it stands, a glide included.
-        gesture = null;
-        glideOnRise = false;
-        settling = false;
-        const base = loop.heading === null ? frame.target : frame.progress;
-        loop.stopTween();
-        place = Math.min(Math.max(base + units, ring), sheet);
       } else if (by === 'key' || by === 'held') {
         gesture = null; // a key puts the target on its stop: a wheel it cut short has nothing left
         glideOnRise = false;
@@ -819,7 +808,7 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
       if (asked !== null && gesture !== null && gesture.reach > asked) asked = gesture.reach;
       // A key's move that starts or ends past the light dive glides there; within it the follow eases after the target.
       if (stepped && !o.reducedMotion()) {
-        if ((frame.target >= ring || frame.progress >= ring) && !fades(frame.progress, frame.target)) loop.glideTo(frame.target);
+        if ((frame.target >= path || frame.progress >= path) && !fades(frame.progress, frame.target)) loop.glideTo(frame.target);
         else loop.stopTween();
       }
       loop.input(units);
@@ -836,9 +825,9 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
       if (to === 'home') pageToTop();
       const place = jumpTarget(to, chapters);
       askFor(place, true);
-      // End fades to the end page from anywhere; Home fades to the start from the ring, the sheet and the end page, and
+      // End fades to the end page from anywhere; Home fades to the start from the path, the sheet and the end page, and
       // from the light dive and the rise the story goes back up by the follow and the rise's damp.
-      fadeTo = to === 'end' || frame.progress >= ring ? place : null;
+      fadeTo = to === 'end' || frame.progress >= path ? place : null;
       loop.input(0);
       loop.wake();
     },
@@ -890,15 +879,13 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
     yields: endPageYields,
     swallow: o.swallow,
     wake: loop.wake,
-    // The ring is dragged while the story stands in it, from Funcial to Cookies Clicker; with reduced motion it is not.
-    dragging: () => !o.reducedMotion() && frame.progress >= ring && frame.progress <= sheet,
   });
 
   /**
    * A story placed past the hold while the input was away (Back from a project page puts it at the bead's stop,
-   * src/state/routeSync.ts; 3D switched off and on in the ring) is held as an input's would be: the target rests on the
+   * src/state/routeSync.ts; 3D switched off and on on the path) is held as an input's would be: the target rests on the
    * hold and the place is kept as `asked`, for `holdChanged` to let go to; the story waits there too, so the camera never
-   * comes out into a ring not yet there, and its chapter follows it. A failed void's end page is not held (`pastHold`): a
+   * comes out onto a path whose beads are not there yet, and its chapter follows it. A failed void's end page is not held (`pastHold`): a
    * story there stays there.
    */
   const holdStory = (): void => {

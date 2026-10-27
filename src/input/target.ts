@@ -9,9 +9,10 @@ const ON_STOP = 1e-6;
 /**
  * The stops a key, and reduced motion's every input, steps among for the void's state (`VoidState`,
  * src/scene/bob/Void.tsx): the key stops (`keyStops`: the home, BOB from above, each fact at its full strength, each
- * project, the end page) while the void is there or still to come, and with the void failed only the home, BOB from
- * above, the landing hold (src/scene/bob/landingHold.ts, where the scroll holds then) and the end page, so nothing steps
- * to a place of a ring that is not there. The scroll input steps its keys among them (src/input/scrollLoop.ts).
+ * project's arrival and inside, the look back, the end page) while the void is there or still to come, and with the
+ * void failed only the home, BOB from above, the landing hold (src/scene/bob/landingHold.ts, where the scroll holds
+ * then) and the end page, so nothing steps to a place on a path whose beads are not there. The scroll input steps its
+ * keys among them (src/input/scrollLoop.ts).
  */
 export function stopsFor(c: Chapters, voidState: VoidState): number[] {
   if (voidState !== 'failed') return keyStops(c);
@@ -71,14 +72,14 @@ export function restsAtTop(from: number, to: number, c: Chapters, direction = Ma
   return onRise(from, c) && direction > 0 && !onRise(to, c) && to <= top + 1 + ON_STOP;
 }
 
-/** A sheet stopped under this share of its way up goes back down onto Cookies Clicker, whichever way the scroll went. */
+/** A sheet stopped under this share of its way up goes back down onto the look back, whichever way the scroll went. */
 export const SHEET_BACK = 0.03;
 
 /**
  * Where the sheet finishes once the scroll has stopped part-way up it, at `place` ("Follow, then finish", spec
  * 2026-10-25-bob-light-dive-design.md): on up to the end page if the last move went down (`direction` above 0) and the
- * sheet is at least SHEET_BACK up, else back down onto Cookies Clicker, the sheet's start. Null off the sheet, and at
- * its two ends, where there is nothing to finish: the ring never moves by itself.
+ * sheet is at least SHEET_BACK up, else back down onto the look back, the sheet's start. Null off the sheet, and at
+ * its two ends, where there is nothing to finish: the path never moves by itself.
  */
 export function finishTarget(place: number, direction: number, c: Chapters): number | null {
   const start = sheetStart(c);
@@ -123,7 +124,7 @@ export function holdLimit(hold: number, c: Chapters, reducedMotion: boolean, pla
 
 /**
  * Where a target that rests on a hold goes once the hold rises to `limit` (the beads are ready), when the input had
- * asked for `asked`, past the old hold: on to the next key stop at least (from the landing hold, Funcial's), or as far
+ * asked for `asked`, past the old hold: on to the next key stop at least (from the landing hold, Funcial's arrival), or as far
  * as it asked if that is further (End, a long wheel), and never past the new limit.
  */
 export function releaseTarget(target: number, asked: number, limit: number, c: Chapters): number {

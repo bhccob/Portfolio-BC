@@ -24,7 +24,7 @@ import {
   writeJourney
 } from '~/scene/bob/voidPose';
 import { NavigationType } from 'react-router';
-import { chapterAt, HOME_CHAPTERS, keyStops, pathStart, placeOfFrame, scrollEnd, stops } from '~/state/chapters';
+import { arrivalStop, chapterAt, HOME_CHAPTERS, keyStops, pathStart, placeOfFrame, scrollEnd, stops } from '~/state/chapters';
 import { frame } from '~/state/frame';
 import { BACK_STATE, resetRouteSync, stopForProject, syncRoute } from '~/state/routeSync';
 import { useScene, type VoidState } from '~/state/store';
@@ -37,6 +37,10 @@ const KEY_STOPS = keyStops(HOME_CHAPTERS);
 const END = scrollEnd(HOME_CHAPTERS);
 /** The path's start, the hand-over (way frame 256). */
 const L = pathStart(HOME_CHAPTERS);
+/** Each bead's stop: its arrival, the light at rest beside it (Funcial's, Jontai Energy's, Cookies Clicker's). */
+const A0 = arrivalStop(HOME_CHAPTERS, 'secure-element');
+const A1 = arrivalStop(HOME_CHAPTERS, 'front-panel');
+const A2 = arrivalStop(HOME_CHAPTERS, 'oscillator');
 
 // ---------------------------------------------------------------- the hold
 
@@ -84,16 +88,16 @@ describe('holdLimit and releaseTarget: the hold as the scroll input applies it',
   });
 
   it('goes on to the next key stop once the hold rises, or further where the input asked further, never past the new hold', () => {
-    // A wheel that pressed a notch past the hold: on to Funcial.
-    expect(releaseTarget(H, H + 0.1, END, HOME_CHAPTERS)).toBe(4);
+    // A wheel that pressed a notch past the hold: on to Funcial's arrival.
+    expect(releaseTarget(H, H + 0.1, END, HOME_CHAPTERS)).toBe(A0);
     // End, pressed while held: the end.
     expect(releaseTarget(H, END, END, HOME_CHAPTERS)).toBe(END);
-    // A long wheel that asked for 4.6: there.
-    expect(releaseTarget(H, 4.6, END, HOME_CHAPTERS)).toBe(4.6);
+    // A long wheel that asked for a place past Funcial's arrival: there.
+    expect(releaseTarget(H, A0 + 0.4, END, HOME_CHAPTERS)).toBe(A0 + 0.4);
     // Reduced motion, held on the last fact and asked for Funcial: Funcial.
-    expect(releaseTarget(F241, 4, END, HOME_CHAPTERS)).toBe(4);
+    expect(releaseTarget(F241, A0, END, HOME_CHAPTERS)).toBe(A0);
     // Never past the hold it is released to.
-    expect(releaseTarget(H, END, 4.5, HOME_CHAPTERS)).toBe(4.5);
+    expect(releaseTarget(H, END, L + 2, HOME_CHAPTERS)).toBe(L + 2);
   });
 });
 
@@ -206,58 +210,58 @@ function held(voidState: VoidState, options: { reduced?: boolean; at?: number } 
 
 describe("3D off and on keeps the visitor's place", () => {
   it("leaves the target on the bead's stop when 3D goes off: the void's idle does not pull it to the hold", () => {
-    const s = held('ready', { at: 5 });
+    const s = held('ready', { at: A1 });
     s.switch3D(false);
     s.become('idle'); // the Void unmounts with the Stage
-    expect([s.story.target, s.story.progress]).toEqual([5, 5]);
+    expect([s.story.target, s.story.progress]).toEqual([A1, A1]);
     expect(s.frames.size).toBe(0);
   });
 
   it("holds it at the landing when 3D is back while the beads load, and returns it to the bead's stop once ready", async () => {
-    const s = held('ready', { at: 5 });
+    const s = held('ready', { at: A1 });
     s.switch3D(false);
     s.become('idle');
     s.switch3D(true);
     // As a Back to the stop while the beads load: the story waits at the hold, its place kept for the beads' ready.
     expect([s.story.target, s.story.progress]).toEqual([H, H]);
-    expect(s.chapters.at(-1)).toBe('LIGHT');
+    expect(s.chapters.at(-1)).toBe('TRAVEL'); // the hold is the path's start
     s.become('loading');
     s.drain();
     expect(s.story.target).toBe(H);
     s.become('ready');
     await flush(); // the first move fetches damp
     s.drain();
-    expect([s.story.target, s.story.progress]).toEqual([5, 5]);
-    expect(s.chapters.at(-1)).toBe('RING');
+    expect([s.story.target, s.story.progress]).toEqual([A1, A1]);
+    expect(s.chapters.at(-1)).toBe('INSIDE'); // an arrival stop is its inside's start
   });
 
   it('does the same with reduced motion, held on the last fact, the last key stop under the hold', async () => {
-    const s = held('ready', { at: 6, reduced: true });
+    const s = held('ready', { at: A2, reduced: true });
     s.switch3D(false);
     s.become('idle');
-    expect(s.story.target).toBe(6);
+    expect(s.story.target).toBe(A2);
     s.switch3D(true);
     expect([s.story.target, s.story.progress]).toEqual([F241, F241]);
     s.become('loading');
     s.become('ready');
     await flush();
     s.drain();
-    expect([s.story.target, s.story.progress]).toEqual([6, 6]);
+    expect([s.story.target, s.story.progress]).toEqual([A2, A2]);
   });
 
   it('keeps the place when the hold comes down with 3D on for a void that loads again, idle, then ready', async () => {
-    const s = held('ready', { at: 4.5 });
+    const s = held('ready', { at: L + 4.6 }); // on the way from Funcial to Jontai Energy
     s.become('idle');
     expect([s.story.target, s.story.progress]).toEqual([H, H]);
     s.become('loading');
     s.become('ready');
     await flush();
     s.drain();
-    expect([s.story.target, s.story.progress]).toEqual([4.5, 4.5]);
+    expect([s.story.target, s.story.progress]).toEqual([L + 4.6, L + 4.6]);
   });
 
   it('keeps the story at the hold when the void failed, and lets the place go: a later ready leaves it there', async () => {
-    const s = held('loading', { at: 5 });
+    const s = held('loading', { at: A1 });
     expect([s.story.target, s.story.progress]).toEqual([H, H]);
     s.become('failed');
     await flush();
@@ -277,12 +281,12 @@ describe("3D off and on keeps the visitor's place", () => {
   });
 
   it('ends a wheel gesture still in its quiet when 3D goes off where it is, and 3D back on returns there once ready', async () => {
-    const s = held('ready', { at: 4 });
-    await s.wheel(1); // 4.12; the wheel's quiet has begun
+    const s = held('ready', { at: A0 });
+    await s.wheel(1); // 0.12 on; the wheel's quiet has begun
     s.switch3D(false);
     s.become('idle'); // the Void goes with the Stage before the loop's next frame
     s.frames.frame(); // the loop's 3D-off frame ends the gesture
-    expect(s.story.target).toBeCloseTo(4.12, 12); // where the wheel put it, not held at the idle void's hold
+    expect(s.story.target).toBeCloseTo(A0 + 0.12, 12); // where the wheel put it, not held at the idle void's hold
     s.switch3D(true);
     expect(s.story.target).toBe(H);
     expect(s.story.progress).toBeLessThanOrEqual(H);
@@ -290,18 +294,18 @@ describe("3D off and on keeps the visitor's place", () => {
     s.become('ready');
     await flush();
     s.drain();
-    expect(s.story.target).toBeCloseTo(4.12, 12);
+    expect(s.story.target).toBeCloseTo(A0 + 0.12, 12);
     expect(s.story.progress).toBe(s.story.target);
   });
 
   it('holds a story whose progress is past the hold when 3D is back, even with its target short of it', () => {
-    const s = held('ready', { at: 5 });
-    s.story.target = 1; // on its way up to BOB from above, still at 5, when 3D goes off
+    const s = held('ready', { at: A1 });
+    s.story.target = 1; // on its way up to BOB from above, still at Jontai Energy, when 3D goes off
     s.switch3D(false);
     s.become('idle');
     s.switch3D(true);
     expect(s.story.target).toBe(1);
-    expect(s.story.progress).toBe(H); // the camera never stands in a ring not there
+    expect(s.story.progress).toBe(H); // the camera never stands on a path whose beads are not there
   });
 });
 
@@ -356,11 +360,11 @@ describe('the scroll input holds at the landing while the beads load', () => {
 
   it('goes on once ready: a wheel that pressed against the hold goes on as far as it went', async () => {
     const s = held('loading');
-    await s.wheel(40);
+    await s.wheel(60); // 7.2 units asked for: inside Funcial, past its arrival, the next stop past the hold
     s.drain();
     s.become('ready');
     s.drain();
-    expect(s.story.target).toBeCloseTo(4.8, 12);
+    expect(s.story.target).toBeCloseTo(7.2, 12);
     expect(s.story.progress).toBe(s.story.target);
   });
 
@@ -392,7 +396,7 @@ describe('the scroll input holds at the landing while the beads load', () => {
     expect([s.story.target, s.story.progress]).toEqual([H, H]);
     s.become('ready');
     s.drain();
-    expect([s.story.target, s.story.progress]).toEqual([4, 4]);
+    expect([s.story.target, s.story.progress]).toEqual([A0, A0]);
   });
 
   it('leaves a scroll that rested short of the hold where it is when the void is ready', async () => {
@@ -427,28 +431,28 @@ describe('the scroll input holds at the landing while the beads load', () => {
   });
 
   it("holds Back to a bead's stop at the landing while the beads load, then goes on to the stop once they are ready", async () => {
-    // Back (or Escape) from Jontai Energy's page while the beads still load: the route sync put the story at its stop, 5.
-    const s = held('loading', { at: 5 });
+    // Back (or Escape) from Jontai Energy's page while the beads still load: the route sync put the story at its arrival.
+    const s = held('loading', { at: A1 });
     expect([s.story.target, s.story.progress]).toEqual([H, H]);
-    // The chapter follows the story to the hold: the light dive.
-    expect(s.story.chapterIndex).toBe(1);
-    expect(s.chapters).toEqual(['LIGHT']);
+    // The chapter follows the story to the hold: the path's start, Funcial's travel.
+    expect(s.story.chapterIndex).toBe(2);
+    expect(s.chapters).toEqual(['TRAVEL']);
     s.drain();
     expect(s.story.target).toBe(H);
     s.become('ready');
     await flush();
     s.drain();
-    expect([s.story.target, s.story.progress]).toEqual([5, 5]);
-    expect(s.chapters.at(-1)).toBe('RING');
+    expect([s.story.target, s.story.progress]).toEqual([A1, A1]);
+    expect(s.chapters.at(-1)).toBe('INSIDE'); // an arrival stop is its inside's start
   });
 
   it('holds it the same while the void is idle, before its load has begun', () => {
-    const s = held('idle', { at: 6 });
+    const s = held('idle', { at: A2 });
     expect([s.story.target, s.story.progress]).toEqual([H, H]);
   });
 
   it("rests Back at the landing hold when the void failed, never at the bead's stop", async () => {
-    const s = held('failed', { at: 4 });
+    const s = held('failed', { at: A0 });
     expect([s.story.target, s.story.progress]).toEqual([H, H]);
     await flush();
     s.drain();
@@ -456,18 +460,18 @@ describe('the scroll input holds at the landing while the beads load', () => {
   });
 
   it('goes straight to the stop when the void is ready: nothing holds', () => {
-    const s = held('ready', { at: 5 });
-    expect([s.story.target, s.story.progress]).toEqual([5, 5]);
+    const s = held('ready', { at: A1 });
+    expect([s.story.target, s.story.progress]).toEqual([A1, A1]);
     expect(s.chapters).toEqual([]);
   });
 
   it("with reduced motion holds Back on the last key stop under the hold, then goes on to the bead's stop", async () => {
-    const s = held('loading', { at: 6, reduced: true });
+    const s = held('loading', { at: A2, reduced: true });
     expect([s.story.target, s.story.progress]).toEqual([F241, F241]);
     s.become('ready');
     await flush();
     s.drain();
-    expect(s.story.target).toBe(6);
+    expect(s.story.target).toBe(A2);
   });
 
   describe("Back, the page's Escape and the name link from a project page, through the hold", () => {
@@ -504,7 +508,7 @@ describe('the scroll input holds at the landing while the beads load', () => {
         s.become('ready');
         await flush();
         s.drain();
-        expect([s.story.target, s.story.progress]).toEqual([5, 5]);
+        expect([s.story.target, s.story.progress]).toEqual([A1, A1]);
       });
     }
 
@@ -529,12 +533,12 @@ describe('the scroll input holds at the landing while the beads load', () => {
     for (let i = 0; i < 5; i++) s.key('PageDown'); // the five facts
     s.drain();
     expect(s.story.target).toBe(F241);
-    s.key('PageDown'); // Funcial's, past the hold: held
+    s.key('PageDown'); // Funcial's arrival, past the hold: held
     s.drain();
     expect(s.story.target).toBe(F241);
     s.become('ready');
     s.drain();
-    expect(s.story.target).toBe(4);
+    expect(s.story.target).toBe(A0);
   });
 });
 
@@ -828,13 +832,14 @@ describe("the home scroll as the page wires it to the store (connectHomeScroll, 
   it("holds the scroll at the landing while the store's beads load, and lets it go on once the store says ready", async () => {
     const s = wired('loading');
     try {
-      await s.wheel(40);
+      await s.wheel(60);
       s.drain();
       expect([frame.target, frame.progress]).toEqual([H, H]);
-      expect(useScene.getState().phase).toEqual({ kind: 'LIGHT' });
+      // The hold is the path's start, where Funcial's travel begins.
+      expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'secure-element' });
       useScene.getState().setVoidState('ready');
       s.drain();
-      expect(frame.target).toBeCloseTo(4.8, 12); // as far as the wheel went
+      expect(frame.target).toBeCloseTo(7.2, 12); // as far as the wheel went
       expect(frame.progress).toBe(frame.target);
       expect(useScene.getState().phase.kind).toBe('PROJECTS');
     } finally {
@@ -856,18 +861,18 @@ describe("the home scroll as the page wires it to the store (connectHomeScroll, 
   });
 
   it("keeps the visitor's place across the store's 3D switch, off and back on at a bead's stop", async () => {
-    const s = wired('ready', 5);
+    const s = wired('ready', A1);
     try {
       useScene.setState({ threeD: false });
       useScene.getState().setVoidState('idle'); // the Void goes with the Stage
-      expect([frame.target, frame.progress]).toEqual([5, 5]);
+      expect([frame.target, frame.progress]).toEqual([A1, A1]);
       useScene.setState({ threeD: true });
       expect([frame.target, frame.progress]).toEqual([H, H]);
       useScene.getState().setVoidState('loading');
       useScene.getState().setVoidState('ready');
       await flush();
       s.drain();
-      expect([frame.target, frame.progress]).toEqual([5, 5]);
+      expect([frame.target, frame.progress]).toEqual([A1, A1]);
       expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'front-panel' });
     } finally {
       s.disconnect();
@@ -875,18 +880,18 @@ describe("the home scroll as the page wires it to the store (connectHomeScroll, 
   });
 
   it("ends a wheel gesture at once when the store's 3D goes off within its quiet, before the void goes, and keeps its place", async () => {
-    const s = wired('ready', 4);
+    const s = wired('ready', A0);
     try {
-      await s.wheel(1); // 4.12, the wheel's quiet begun
+      await s.wheel(1); // 0.12 on, the wheel's quiet begun
       useScene.setState({ threeD: false });
-      expect(frame.target).toBeCloseTo(4.12, 12); // ended at once where it went, before the Void says idle
+      expect(frame.target).toBeCloseTo(A0 + 0.12, 12); // ended at once where it went, before the Void says idle
       useScene.getState().setVoidState('idle');
-      expect(frame.target).toBeCloseTo(4.12, 12);
+      expect(frame.target).toBeCloseTo(A0 + 0.12, 12);
       useScene.setState({ threeD: true });
       useScene.getState().setVoidState('loading');
       useScene.getState().setVoidState('ready');
       s.drain();
-      expect(frame.target).toBeCloseTo(4.12, 12);
+      expect(frame.target).toBeCloseTo(A0 + 0.12, 12);
       expect(frame.progress).toBe(frame.target);
     } finally {
       s.disconnect();

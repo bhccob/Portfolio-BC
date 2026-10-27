@@ -7,16 +7,28 @@ import { FINISH_S, FOLLOW, follow, GLIDE_MIN_S, GLIDE_S, RISE_SMOOTH, SHEET_FINI
 import { connectHomeScroll, goToEnd, goToTop, headedToEnd } from '../../../src/input/useHomeScroll';
 import { LANDING_HOLD } from '../../../src/scene/bob/landingHold';
 import { nearestStop, STEP_FADE_MS, stepFadeAt, stepFadeFrom } from '../../../src/scene/bob/stepFade';
-import { buildChapters, type ChapterAt, chapterAt, HOME_CHAPTERS, LIGHT_UNITS, placeOfFrame, scrollEnd, stops } from '../../../src/state/chapters';
+import { arrivalStop, buildChapters, type ChapterAt, chapterAt, HOME_CHAPTERS, insideStop, pathStart, placeOfFrame, scrollEnd, sheetStart, stops } from '../../../src/state/chapters';
 import { frame as storyFrame } from '../../../src/state/frame';
 import { useScene, type VoidState } from '../../../src/state/store';
 
 /** A viewport 1000 px high: a unit of scroll is 1000 px. */
 const VH = 1000;
 const FRAME_MS = 1000 / 60;
-// HOME 0-1, LIGHT 1-4 (the light dive's frames 1 to 300), RING a 4-5, RING b 5-6, SHEET c 6-7, END 7: the end page, 7.
-const chapters = buildChapters({ categories: ['a', 'b', 'c'] });
+// The home's own layout: HOME 0-1, LIGHT to the hand-over (frame 256), each project's travel, orbit and inside, LOOK, SHEET, END.
+const chapters = buildChapters({ path: ['a', 'b', 'c'] });
 const END = scrollEnd(chapters);
+/** The hand-over (way frame 256): the path's start, and the landing hold. */
+const L = pathStart(chapters);
+/** Each project's arrival (the light at rest beside its bead) and its inside, on the path. */
+const A0 = arrivalStop(chapters, 'a');
+const I0 = insideStop(chapters, 'a');
+const A1 = arrivalStop(chapters, 'b');
+const I1 = insideStop(chapters, 'b');
+const A2 = arrivalStop(chapters, 'c');
+/** The look back's own stop: the sheet's start, where the credits begin to rise. */
+const S = sheetStart(chapters);
+/** The chapters' indices of an inside's start (an arrival stop reads as it), the sheet's and the end's. */
+const INDEX = { inside0: 4, sheet: 12, end: 13 } as const;
 /** The first fact's place, the light dive's frame 81: the first key stop past BOB from above. */
 const F81 = placeOfFrame(81);
 /** The last fact's place, frame 241: the key stop before Funcial's. */
@@ -24,7 +36,7 @@ const F241 = placeOfFrame(241);
 /** The landing hold: the most the scroll reaches while the beads load, or if they failed. */
 const H = LANDING_HOLD;
 /** The follow's floor, units a second: 12 of the light dive's 300 frames a second. */
-const FLOOR = (FOLLOW.floorFramesPerSecond * LIGHT_UNITS) / 299;
+const FLOOR = (FOLLOW.floorFramesPerSecond * 3) / 299;
 
 /** A requestAnimationFrame that runs when the test says so, one frame at a time, on a clock the test owns. */
 class FakeFrames {
@@ -282,12 +294,12 @@ describe('the scroll loop: going to sleep', () => {
   it('reads a story at rest as the chapter that starts where it stopped', async () => {
     const s = setup({ reduced: true });
     restAt(s, F241);
-    s.key('PageDown'); // reduced motion: the next key stop, Funcial's, 4
+    s.key('PageDown'); // reduced motion: the next key stop, Funcial's arrival
     await flush();
     s.drain();
-    expect(s.frame.progress).toBe(4);
-    expect(s.frame.chapterIndex).toBe(2);
-    expect(s.changes.at(-1)).toMatchObject({ index: 2, id: 'RING', category: 'a' });
+    expect(s.frame.progress).toBe(A0);
+    expect(s.frame.chapterIndex).toBe(INDEX.inside0);
+    expect(s.changes.at(-1)).toMatchObject({ index: INDEX.inside0, id: 'INSIDE', category: 'a' });
   });
 
   it('stops the glide when 3D is switched off, and the story stays where it is', async () => {
@@ -335,13 +347,13 @@ describe('the scroll loop: a glide', () => {
   it('glides on past the rise as a page would, resting where it ends, and ends one that reaches the end page', async () => {
     const alone = glideAlone();
     const s = setup();
-    restAt(s, 4.2);
-    await s.swipe(-1); // 0.4 dragged, to 4.6, then the glide
+    restAt(s, L + 4.2);
+    await s.swipe(-1); // 0.4 dragged, to L + 4.6, then the glide
     expect(s.home.scroll.busy).toBe(true);
     s.drain();
-    expect(s.frame.target).toBeCloseTo(4.6 + alone.px / VH, 6); // in the ring, between two projects: no stop
+    expect(s.frame.target).toBeCloseTo(L + 4.6 + alone.px / VH, 6); // on the path, between two stops: no stop
     expect(s.frame.progress).toBe(s.frame.target);
-    restAt(s, 6.8);
+    restAt(s, S + 0.8);
     await s.swipe(-1);
     s.drain();
     expect([s.frame.target, s.frame.progress]).toEqual([END, END]);
@@ -484,8 +496,8 @@ describe('the scroll loop: damp does not load', () => {
     await flush();
     s.drain();
     expect(s.frame.progress).toBe(END);
-    expect(s.frame.chapterIndex).toBe(5);
-    expect(s.changes.at(-1)).toMatchObject({ index: 5, id: 'END', category: null });
+    expect(s.frame.chapterIndex).toBe(INDEX.end);
+    expect(s.changes.at(-1)).toMatchObject({ index: INDEX.end, id: 'END', category: null });
     expect(s.frame.velocity).toBe(0);
     expect(s.frames.size).toBe(0);
     for (const spy of quiet) expect(spy).not.toHaveBeenCalled();
@@ -549,7 +561,7 @@ describe('the follow: past the rise the story follows the scroll, with no stops 
     expect(smoothTimeAt(chapters, 5, 4.5)).toBeNull();
   });
 
-  it('rests where a wheel stops, in the light dive and in the ring: no settle on a stop', async () => {
+  it('rests where a wheel stops, in the light dive and on the path: no settle on a stop', async () => {
     const s = setup();
     restAt(s, 1);
     await wheelNotches(s, 13, 100);
@@ -560,7 +572,7 @@ describe('the follow: past the rise the story follows the scroll, with no stops 
     s.drain();
     expect(s.frame.target).toBeCloseTo(4.6, 12);
     expect(s.frame.progress).toBe(s.frame.target);
-    expect(s.changes.at(-1)).toMatchObject({ id: 'RING', category: 'a' });
+    expect(s.changes.at(-1)).toMatchObject({ id: 'TRAVEL', category: 'a' });
   });
 
   it('rests a finger where it lifts past the rise, and a short drag stays where it went', async () => {
@@ -589,7 +601,7 @@ describe('the follow: past the rise the story follows the scroll, with no stops 
 // ---------------------------------------------------------------- the sheet's finish
 
 describe("the sheet's finish: follow, then finish", () => {
-  /** Wheel events into the sheet from Cookies Clicker, 16 ms apart, the frames between them run; each frame noted. */
+  /** Wheel events into the sheet from the look back, 16 ms apart, the frames between them run; each frame noted. */
   async function wheelInto(s: Setup, to: number, ms: number): Promise<Step[]> {
     const count = Math.round(ms / 16);
     const px = ((to - s.frame.target) * VH) / count;
@@ -605,9 +617,9 @@ describe("the sheet's finish: follow, then finish", () => {
   it('waits for 80 ms of quiet: none while the wheel turns, then on to the end page in under 1.3 s, never slowing below half its speed short of 0.9', async () => {
     expect([SHEET_FINISH_MS, FINISH_S]).toEqual([80, [0.35, 1.2]]);
     const s = setup();
-    restAt(s, 6);
-    const turning = await wheelInto(s, 6.2, 300);
-    expect(s.frame.target).toBeCloseTo(6.2, 9);
+    restAt(s, S);
+    const turning = await wheelInto(s, S + 0.2, 300);
+    expect(s.frame.target).toBeCloseTo(S + 0.2, 9);
     expect(turning.every((f) => f.tween === null)).toBe(true);
     const after = frames(s);
     const start = after.findIndex((f) => f.tween === 'finish');
@@ -621,27 +633,27 @@ describe("the sheet's finish: follow, then finish", () => {
     expect([s.frame.target, s.frame.progress, s.frame.velocity]).toEqual([END, END, 0]);
     const speed = after[start]!.velocity;
     expect(speed).toBeGreaterThan(0);
-    for (const f of after.slice(start + 1, landed)) if (f.progress < 6.9) expect(f.velocity).toBeGreaterThanOrEqual(speed / 2);
+    for (const f of after.slice(start + 1, landed)) if (f.progress < S + 0.9) expect(f.velocity).toBeGreaterThanOrEqual(speed / 2);
     expect(s.changes.at(-1)).toMatchObject({ id: 'END' });
   });
 
-  it('finishes back down onto Cookies Clicker under 3 % of the sheet, or when the last move went up', async () => {
+  it('finishes back down onto the look back under 3 % of the sheet, or when the last move went up', async () => {
     const s = setup();
-    restAt(s, 6);
-    await wheelInto(s, 6.02, 16);
+    restAt(s, S);
+    await wheelInto(s, S + 0.02, 16);
     s.drain();
-    expect([s.frame.target, s.frame.progress]).toEqual([6, 6]);
-    await wheelInto(s, 6.8, 160);
-    await wheelInto(s, 6.5, 48); // and up again, before the quiet
+    expect([s.frame.target, s.frame.progress]).toEqual([S, S]);
+    await wheelInto(s, S + 0.8, 160);
+    await wheelInto(s, S + 0.5, 48); // and up again, before the quiet
     const after = frames(s);
-    expect(after.find((f) => f.tween === 'finish')?.heading).toBe(6);
-    expect([s.frame.target, s.frame.progress]).toEqual([6, 6]);
+    expect(after.find((f) => f.tween === 'finish')?.heading).toBe(S);
+    expect([s.frame.target, s.frame.progress]).toEqual([S, S]);
   });
 
   it('rides along with input in its own way, and stops for input against it, where the scroll put it', async () => {
     const s = setup();
-    restAt(s, 6);
-    await wheelInto(s, 6.3, 160);
+    restAt(s, S);
+    await wheelInto(s, S + 0.3, 160);
     const before = frames(s, 20);
     expect(before.at(-1)!.tween).toBe('finish');
     fire(s.el, 'wheel', { deltaY: 30, deltaMode: 0, ctrlKey: false, timeStamp: s.frames.now });
@@ -649,9 +661,9 @@ describe("the sheet's finish: follow, then finish", () => {
     s.drain();
     expect([s.frame.target, s.frame.progress]).toEqual([END, END]);
 
-    restAt(s, 6);
+    restAt(s, S);
     for (let ms = 0; ms <= GESTURE_GAP_MS; ms += FRAME_MS) s.frames.frame();
-    await wheelInto(s, 6.3, 160);
+    await wheelInto(s, S + 0.3, 160);
     frames(s, 20);
     expect(s.home.loop.tweening).toBe('finish');
     const at = s.frame.progress;
@@ -659,12 +671,12 @@ describe("the sheet's finish: follow, then finish", () => {
     expect(s.home.loop.tweening).toBeNull();
     expect(s.frame.target).toBeCloseTo(at - 0.03, 12);
     s.drain(); // the quiet again, then the finish down: the last move went up
-    expect([s.frame.target, s.frame.progress]).toEqual([6, 6]);
+    expect([s.frame.target, s.frame.progress]).toEqual([S, S]);
   });
 
   it('waits while a finger is down, and finishes from its lift', async () => {
     const s = setup();
-    restAt(s, 6);
+    restAt(s, S);
     let t = s.frames.now;
     fire(s.el, 'touchstart', { touches: [{ clientX: 100, clientY: 600 }], timeStamp: t });
     for (let i = 1; i <= 10; i++) {
@@ -682,7 +694,7 @@ describe("the sheet's finish: follow, then finish", () => {
 
   it("hands a finger's flick into the sheet straight to the finish: no glide crawling it up, the end page within 1.3 s of the lift", async () => {
     const s = setup();
-    restAt(s, 6);
+    restAt(s, S);
     await drag(s, 120); // a quick short swipe up the screen, lifted while moving: down the story, into the sheet
     const lift = s.frames.now;
     const after = frames(s);
@@ -695,17 +707,17 @@ describe("the sheet's finish: follow, then finish", () => {
     expect(landed * FRAME_MS).toBeLessThan(1300);
     expect(s.frames.now - lift).toBeGreaterThan(0);
     const speed = Math.max(...after.slice(0, start + 1).map((f) => f.velocity));
-    for (const f of after.slice(start + 1, landed)) if (f.progress < 6.9) expect(f.velocity).toBeGreaterThanOrEqual(speed / 2);
+    for (const f of after.slice(start + 1, landed)) if (f.progress < S + 0.9) expect(f.velocity).toBeGreaterThanOrEqual(speed / 2);
     expect([s.frame.target, s.frame.progress]).toEqual([END, END]);
   });
 
-  it('never moves the ring by itself: a wheel stopped between two projects stays there', async () => {
+  it('never moves the path by itself: a wheel stopped between two stops stays there', async () => {
     const s = setup();
-    restAt(s, 4);
-    await wheelInto(s, 4.5, 160);
+    restAt(s, A0);
+    await wheelInto(s, A0 + 0.5, 160);
     const after = frames(s);
     expect(after.every((f) => f.tween === null)).toBe(true);
-    expect(s.frame.progress).toBeCloseTo(4.5, 9);
+    expect(s.frame.progress).toBeCloseTo(A0 + 0.5, 9);
   });
 });
 
@@ -725,37 +737,37 @@ describe('the keys: the facts in the light dive, then the projects, gliding past
     expect(s.frame.target).toBe(placeOfFrame(121));
   });
 
-  it('glides a key past the light dive: from Funcial to Jontai Energy in 1.2 s, eased from rest, no faster than 1.6 a second', async () => {
+  it("glides a key past the light dive: from Funcial's arrival to its inside in 1.2 s × √d, eased from rest, no faster than 1.6 a second", async () => {
     expect([GLIDE_S, GLIDE_MIN_S]).toEqual([1.2, 0.6]);
     const s = setup();
-    restAt(s, 4);
+    restAt(s, A0);
     s.key('ArrowDown');
-    expect([s.frame.target, s.home.loop.tweening, s.home.loop.heading]).toEqual([5, 'glide', 5]);
+    expect([s.frame.target, s.home.loop.tweening, s.home.loop.heading]).toEqual([I0, 'glide', I0]);
     await flush();
     const seen = frames(s);
-    expect([s.frame.target, s.frame.progress, s.frame.velocity]).toEqual([5, 5, 0]);
-    expect(Math.abs(seen.length * FRAME_MS - 1200)).toBeLessThanOrEqual(2 * FRAME_MS);
+    expect([s.frame.target, s.frame.progress, s.frame.velocity]).toEqual([I0, I0, 0]);
+    expect(Math.abs(seen.length * FRAME_MS - 1000 * GLIDE_S * Math.sqrt(I0 - A0))).toBeLessThanOrEqual(2 * FRAME_MS);
     expect(seen[0]!.velocity).toBeLessThan(0.1);
     expect(Math.max(...seen.map((f) => f.velocity))).toBeLessThanOrEqual(1.6);
   });
 
-  it('counts a second press from where the glide is going: two presses 300 ms apart rest on Cookies Clicker', async () => {
+  it("counts a second press from where the glide is going: two presses 300 ms apart rest on Jontai Energy's arrival", async () => {
     const s = setup();
-    restAt(s, 4);
+    restAt(s, A0);
     s.key('ArrowDown');
     await flush();
     frames(s, 18);
     s.key('ArrowDown');
-    expect([s.frame.target, s.home.loop.heading]).toEqual([6, 6]);
+    expect([s.frame.target, s.home.loop.heading]).toEqual([A1, A1]);
     s.drain();
-    expect([s.frame.target, s.frame.progress]).toEqual([6, 6]);
+    expect([s.frame.target, s.frame.progress]).toEqual([A1, A1]);
   });
 
-  it('glides into the ring from the last fact, and back out of it to the last fact', async () => {
+  it("glides onto the path from the last fact, to Funcial's arrival, and back off it to the last fact", async () => {
     const s = setup();
     restAt(s, F241);
     s.key('ArrowDown');
-    expect([s.frame.target, s.home.loop.tweening]).toEqual([4, 'glide']);
+    expect([s.frame.target, s.home.loop.tweening]).toEqual([A0, 'glide']);
     await flush();
     s.drain();
     s.key('ArrowUp');
@@ -777,19 +789,19 @@ describe('the keys: the facts in the light dive, then the projects, gliding past
 
   it('takes a held key past the rise for the one step its press took', () => {
     const s = setup();
-    restAt(s, 4);
+    restAt(s, A0);
     s.key('ArrowDown');
     for (let i = 0; i < 10; i++) fire(s.win, 'keydown', { key: 'ArrowDown', shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, repeat: true, isComposing: false, target: { tagName: 'BODY' } });
-    expect(s.frame.target).toBe(5);
+    expect(s.frame.target).toBe(I0);
   });
 
-  it('steps a key from a wheel stopped between two projects to the next project', async () => {
+  it("steps a key from a wheel stopped on a travel to the next project's arrival", async () => {
     const s = setup();
-    restAt(s, 4.6);
+    restAt(s, L + 4.6); // on the way from Funcial to Jontai Energy
     s.key('ArrowDown');
-    expect(s.frame.target).toBe(5);
+    expect(s.frame.target).toBe(A1);
     s.key('ArrowUp');
-    expect(s.frame.target).toBe(4); // counted from where the glide is going, 5
+    expect(s.frame.target).toBe(I0); // counted from where the glide is going, Jontai Energy's arrival
   });
 });
 
@@ -958,20 +970,20 @@ describe('reduced motion steps among the key stops', () => {
     expect(s.frame.progress).toBe(F81);
     await drag(s, 300);
     expect(s.frame.target).toBe(placeOfFrame(121));
-    restAt(s, 4);
+    restAt(s, A2);
     s.key('ArrowDown');
-    expect(s.frame.target).toBe(5);
+    expect(s.frame.target).toBe(insideStop(chapters, 'c'));
     expect(s.home.loop.tweening).toBeNull(); // no glide with reduced motion
-    s.key('ArrowDown');
+    s.key('ArrowDown'); // the look back
     s.key('ArrowDown');
     expect(s.frame.target).toBe(END);
     s.key('ArrowDown'); // a step down from the end is none
     expect(s.frame.target).toBe(END);
   });
 
-  it('never finishes the sheet by itself: its steps rest on Cookies Clicker and the end page', async () => {
+  it('never finishes the sheet by itself: its steps rest on the look back and the end page', async () => {
     const s = setup({ reduced: true });
-    restAt(s, 6);
+    restAt(s, S);
     await wheelNotches(s, 1);
     expect(s.frame.target).toBe(END);
     s.drain();
@@ -981,7 +993,7 @@ describe('reduced motion steps among the key stops', () => {
 
 // ---------------------------------------------------------------- the seam at the end page
 
-describe("the seam: at the end page the page's own scroll is the browser's, and its top hands back to the ring", () => {
+describe("the seam: at the end page the page's own scroll is the browser's, and its top hands back to the look back", () => {
   /**
    * The story at rest at the end page, as Home's end view leaves the document there (`<html data-end="rest">`,
    * src/scene/bob/endView.ts), with the window's own scroll `scrollY` down the page. `scrollTo` notes where the story's
@@ -1059,18 +1071,18 @@ describe("the seam: at the end page the page's own scroll is the browser's, and 
   const shiftSpace = (s: Setup) =>
     fire(s.win, 'keydown', { key: ' ', shiftKey: true, ctrlKey: false, metaKey: false, altKey: false, repeat: false, isComposing: false, target: { tagName: 'BODY' } });
 
-  it('a story at 7 with the page at its top slides the sheet back onto Cookies Clicker for one wheel notch up', async () => {
+  it('a story at the end with the page at its top slides the sheet back onto the look back for one wheel notch up', async () => {
     const s = setup();
     const page = atEndPage(s, 0);
     expect(await notch(s, page, -120)).toBe(true);
-    expect(s.frame.target).toBeCloseTo(6.88, 12);
+    expect(s.frame.target).toBeCloseTo(S + 0.88, 9);
     s.drain();
-    expect([s.frame.target, s.frame.progress]).toEqual([6, 6]);
-    expect(s.changes.at(-1)).toMatchObject({ index: 4, id: 'SHEET', category: 'c' });
+    expect([s.frame.target, s.frame.progress]).toEqual([S, S]);
+    expect(s.changes.at(-1)).toMatchObject({ index: INDEX.sheet, id: 'SHEET', category: null });
     expect(page.win.scrollY).toBe(0);
   });
 
-  it('leaves the wheel down at the end page to the browser: the page scrolls, and the story stays at 7 and runs no frame', async () => {
+  it('leaves the wheel down at the end page to the browser: the page scrolls, and the story stays at the end and runs no frame', async () => {
     const s = setup();
     const page = atEndPage(s, 0);
     for (let i = 0; i < 3; i++) expect(await notch(s, page, 120)).toBe(false);
@@ -1081,7 +1093,7 @@ describe("the seam: at the end page the page's own scroll is the browser's, and 
     expect(s.frames.size).toBe(0);
   });
 
-  it('keeps a fast burst up the page with the page past its top, the story at 7, and takes the next notch after a pause back to 6', async () => {
+  it('keeps a fast burst up the page with the page past its top, the story at the end, and takes the next notch after a pause back to the look back', async () => {
     const s = setup();
     const page = atEndPage(s, 300);
     const prevented: boolean[] = [];
@@ -1093,7 +1105,7 @@ describe("the seam: at the end page the page's own scroll is the browser's, and 
     pause(s);
     expect(await notch(s, page, -120)).toBe(true);
     s.drain();
-    expect([s.frame.target, s.frame.progress]).toEqual([6, 6]);
+    expect([s.frame.target, s.frame.progress]).toEqual([S, S]);
   });
 
   it('leaves ArrowDown, PageDown, Space and End to the page, and ArrowUp, PageUp and Shift+Space while it is scrolled', () => {
@@ -1107,17 +1119,17 @@ describe("the seam: at the end page the page's own scroll is the browser's, and 
     expect(s.frames.size).toBe(0);
   });
 
-  it("glides the story back to 6 for ArrowUp, PageUp and Shift+Space at the page's top", async () => {
+  it("glides the story back to the look back for ArrowUp, PageUp and Shift+Space at the page's top", async () => {
     type Press = (s: Setup) => Event;
     const presses: Press[] = [(s) => s.key('ArrowUp'), (s) => s.key('PageUp'), shiftSpace];
     for (const press of presses) {
       const s = setup();
       atEndPage(s, 0);
       expect(press(s).defaultPrevented).toBe(true);
-      expect([s.frame.target, s.home.loop.tweening]).toEqual([6, 'glide']);
+      expect([s.frame.target, s.home.loop.tweening]).toEqual([S, 'glide']);
       await flush();
       s.drain();
-      expect(s.frame.progress).toBe(6);
+      expect(s.frame.progress).toBe(S);
       vi.unstubAllGlobals();
     }
   });
@@ -1142,7 +1154,7 @@ describe("the seam: at the end page the page's own scroll is the browser's, and 
     expect(s.frame.target).toBe(0);
   });
 
-  it('leaves a swipe on the page to the browser, with no glide, and at its top a new swipe down the glass slides the sheet back to 6', async () => {
+  it('leaves a swipe on the page to the browser, with no glide, and at its top a new swipe down the glass slides the sheet back to the look back', async () => {
     const s = setup();
     const page = atEndPage(s, 300);
     // Down the glass from part way down: up the page, to its top and on, the page's to the lift.
@@ -1155,19 +1167,19 @@ describe("the seam: at the end page the page's own scroll is the browser's, and 
     expect(await swipe(s, page, -200)).toEqual(Array(10).fill(false));
     expect(page.win.scrollY).toBe(200);
     expect(s.frame.target).toBe(END);
-    // Back at the top, a new swipe down the glass: the story's, back to Cookies Clicker.
+    // Back at the top, a new swipe down the glass: the story's, back to the look back.
     page.win.scrollY = 0;
     expect(await swipe(s, page, 300)).toEqual(Array(10).fill(true));
     s.drain();
-    expect([s.frame.target, s.frame.progress]).toEqual([6, 6]);
+    expect([s.frame.target, s.frame.progress]).toEqual([S, S]);
     expect(page.win.scrollY).toBe(0);
   });
 
-  it("keeps a wheel gesture from Cookies Clicker the story's to its end, though the story comes to rest at the end page under it", async () => {
+  it("keeps a wheel gesture from the look back the story's to its end, though the story comes to rest at the end page under it", async () => {
     const s = setup();
     const page = atEndPage(s, 0);
-    page.attributes.delete('data-end'); // at Cookies Clicker there is no end view
-    restAt(s, 6);
+    page.attributes.delete('data-end'); // at the look back there is no end view
+    restAt(s, S);
     // A long trackpad push, an event every 100 ms: the sheet finishes between them, each riding along with it.
     for (let i = 0; i < 100 && s.frame.progress !== END; i++) expect(await notch(s, page, 120, 100)).toBe(true);
     expect([s.frame.target, s.frame.progress]).toEqual([END, END]);
@@ -1190,13 +1202,13 @@ describe("the seam: at the end page the page's own scroll is the browser's, and 
     expect(await notch(s, page, 120)).toBe(true);
     s.drain();
     page.attributes.delete('data-end');
-    restAt(s, 4);
+    restAt(s, A0);
     expect(await notch(s, page, 120)).toBe(true);
     expect(s.key('ArrowDown').defaultPrevented).toBe(true);
     expect(page.win.scrollY).toBe(0);
   });
 
-  it("with reduced motion keeps the same seam: the wheel down and a burst up the page are the page's, and at its top a notch up steps to 6", async () => {
+  it("with reduced motion keeps the same seam: the wheel down and a burst up the page are the page's, and at its top a notch up steps to the look back", async () => {
     const s = setup({ reduced: true });
     const page = atEndPage(s, 300);
     expect(await notch(s, page, 120)).toBe(false);
@@ -1206,9 +1218,9 @@ describe("the seam: at the end page the page's own scroll is the browser's, and 
     expect(s.frame.target).toBe(END);
     pause(s);
     expect(await notch(s, page, -120)).toBe(true);
-    expect(s.frame.target).toBe(6);
+    expect(s.frame.target).toBe(S);
     s.drain();
-    expect(s.frame.progress).toBe(6);
+    expect(s.frame.progress).toBe(S);
   });
 });
 
@@ -1357,31 +1369,31 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
     expect([storyFrame.target, storyFrame.progress, storyFrame.velocity]).toEqual([to, to, 0]);
   }
 
-  describe('the landing hold: the story waits just above the ring while the beads load', () => {
+  describe('the landing hold: the story waits at the hand-over, before the first project, while the beads load', () => {
     it("holds a wheel past it at LANDING_HOLD while loading, and the beads' ready takes it on to where the wheel went", async () => {
-      expect(H).toBe(placeOfFrame(258));
+      expect(H).toBe(placeOfFrame(256)); // the hand-over
       const s = wiredHome(1, { voidState: 'loading' });
-      await s.wheel(40, 100); // to 5
+      await s.wheel(60, 100); // to 7, inside Funcial: past its arrival, the next stop past the hold
       const held = s.run();
       expect([storyFrame.target, storyFrame.progress]).toEqual([H, H]);
       expect(Math.max(...held.map((f) => f.progress))).toBeLessThanOrEqual(H);
       useScene.getState().setVoidState('ready');
-      expect(storyFrame.target).toBeCloseTo(5, 9);
+      expect(storyFrame.target).toBeCloseTo(7, 9);
       s.run();
-      expect(storyFrame.progress).toBeCloseTo(5, 9);
+      expect(storyFrame.progress).toBeCloseTo(7, 9);
       expect(useScene.getState().phase.kind).toBe('PROJECTS');
     });
 
-    it('holds a key there too, and lets it on to Funcial once ready', async () => {
+    it("holds a key there too, and lets it on to Funcial's arrival once ready", async () => {
       const s = wiredHome(placeOfFrame(241), { voidState: 'loading' });
       s.key('ArrowDown');
       expect(storyFrame.target).toBe(H);
       await flush();
       s.run();
       useScene.getState().setVoidState('ready');
-      expect(storyFrame.target).toBe(4);
+      expect(storyFrame.target).toBe(A0);
       s.run();
-      expect(storyFrame.progress).toBe(4);
+      expect(storyFrame.progress).toBe(A0);
     });
 
     it('moves the story at once back up from the hold: nothing past it is kept as a debt', async () => {
@@ -1394,10 +1406,10 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
     });
 
     it("holds Back to a bead's stop at the hold while loading, then goes on to the stop once ready", async () => {
-      wiredHome(5, { voidState: 'loading' });
+      wiredHome(A1, { voidState: 'loading' });
       expect([storyFrame.target, storyFrame.progress]).toEqual([H, H]);
       useScene.getState().setVoidState('ready');
-      expect(storyFrame.target).toBe(5);
+      expect(storyFrame.target).toBe(A1);
     });
   });
 
@@ -1415,7 +1427,8 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
       expect(s.key('ArrowUp').defaultPrevented).toBe(true);
       expect(storyFrame.target).toBe(H);
       byFade(s.run(), STORY_END, H);
-      expect(useScene.getState().phase.kind).toBe('LIGHT');
+      // The hold is the path's start, where Funcial's travel begins.
+      expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'secure-element' });
       expect(s.frames.size).toBe(0);
     });
 
@@ -1500,7 +1513,7 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
     it('failed: at the end page a swipe down the glass from the top goes back to the hold by the fade, with no glide after it', async () => {
       const s = wiredHome(H);
       await s.toEndPage();
-      const { seen, prevented } = await s.swipe(400);
+      const { seen, prevented } = await s.swipe(440); // each move past the 40 px slop, the first too
       expect(prevented).toEqual(Array(10).fill(true));
       expect(storyFrame.target).toBe(H);
       byFade([...seen, ...s.run()], STORY_END, H);
@@ -1589,7 +1602,7 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
       expect([storyFrame.target, storyFrame.progress]).toEqual([STORY_END, STORY_END]);
       for (const disconnect of left.splice(0)) disconnect();
       vi.unstubAllGlobals();
-      wiredHome(4);
+      wiredHome(A0);
       expect([storyFrame.target, storyFrame.progress]).toEqual([H, H]);
     });
 
@@ -1620,7 +1633,7 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
       expect(t.frames.size).toBe(0);
     });
 
-    it('failed with reduced motion: a wheel step at the hold is held there, asking for Funcial, never the end page; when the void is back after 3D off and on, it goes on to 4', async () => {
+    it("failed with reduced motion: a wheel step at the hold is held there, asking for Funcial, never the end page; when the void is back after 3D off and on, it goes on to Funcial's arrival", async () => {
       const s = wiredHome(H, { reduced: true });
       const held = await s.wheel(1, 120);
       expect(held.prevented).toEqual([true]);
@@ -1633,10 +1646,10 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
       s.run();
       expect(storyFrame.target).toBe(placeOfFrame(241)); // reduced motion's hold: the last key stop under it
       useScene.getState().setVoidState('ready');
-      expect(storyFrame.target).toBe(4);
+      expect(storyFrame.target).toBe(A0);
       await flush();
       s.run();
-      expect([storyFrame.target, storyFrame.progress]).toEqual([4, 4]);
+      expect([storyFrame.target, storyFrame.progress]).toEqual([A0, A0]);
     });
 
     it('failed with reduced motion: a key steps from the hold to the end page, a notch up steps back, never between; Home fades the scene (the input sets no fade)', async () => {
@@ -1830,8 +1843,8 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
   });
 
   describe('the arrival at the end page: on it exactly, and at rest', () => {
-    it('from 6, ArrowDown glides to 7 and rests on it: progress exactly 7, no velocity, END, no frame asked for after', async () => {
-      const s = wiredHome(6, { voidState: 'ready' });
+    it('from the look back, ArrowDown glides to the end and rests on it: progress exactly on it, no velocity, END, no frame asked for after', async () => {
+      const s = wiredHome(S, { voidState: 'ready' });
       expect(s.key('ArrowDown').defaultPrevented).toBe(true);
       expect(storyFrame.target).toBe(STORY_END);
       await flush();
@@ -1843,7 +1856,7 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
     });
 
     it('lands a story left within 0.01 of the end, still headed there, on its first frame: a home that comes back to it does not leave it short', async () => {
-      const s = wiredHome(6.995, { voidState: 'ready', target: STORY_END });
+      const s = wiredHome(S + 0.995, { voidState: 'ready', target: STORY_END });
       await flush();
       expect(s.frames.size, 'the loop has asked for a frame').toBe(1);
       const seen = s.run();
@@ -1852,128 +1865,49 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
       expect(useScene.getState().phase.kind).toBe('END');
     });
 
-    it('does not snap a turn back short of the end: ArrowUp at 6.98 on the way in glides back to 6, never at 7', async () => {
-      const s = wiredHome(6, { voidState: 'ready' });
+    it('does not snap a turn back short of the end: ArrowUp at 0.98 of the way in glides back to the look back, never at the end', async () => {
+      const s = wiredHome(S, { voidState: 'ready' });
       s.key('ArrowDown');
       await flush();
-      for (let i = 0; i < 600 && storyFrame.progress < 6.98; i++) s.frames.frame();
-      expect(storyFrame.progress).toBeGreaterThanOrEqual(6.98);
+      for (let i = 0; i < 600 && storyFrame.progress < S + 0.98; i++) s.frames.frame();
+      expect(storyFrame.progress).toBeGreaterThanOrEqual(S + 0.98);
       expect(storyFrame.progress).toBeLessThan(STORY_END);
       s.key('ArrowUp');
-      expect(storyFrame.target).toBe(6);
+      expect(storyFrame.target).toBe(S);
       const seen = s.run();
       expect(seen.some((f) => f.progress === STORY_END), 'a frame on the end page').toBe(false);
-      expect([storyFrame.target, storyFrame.progress, storyFrame.velocity]).toEqual([6, 6, 0]);
+      expect([storyFrame.target, storyFrame.progress, storyFrame.velocity]).toEqual([S, S, 0]);
     });
   });
 });
 
 describe('reduced motion and the end page', () => {
-  it('reduced motion: one wheel step from 6 goes to 7 by a fade, and one up goes back to 6', async () => {
+  it('reduced motion: one wheel step from the look back goes to the end by a fade, and one up goes back', async () => {
     const s = setup({ reduced: true });
-    restAt(s, 6);
+    restAt(s, S);
     // Home's step fade, as it runs it on each frame it poses (src/scene/bob/Home.tsx): the stop the target is nearest.
-    const fade = stepFadeFrom(6);
+    const fade = stepFadeFrom(S);
     const shown = (now: number): number => stepFadeAt(fade, nearestStop(stops(chapters), s.frame.target), true, now).shown;
 
     await wheelNotches(s, 10, 120, 16); // one gesture: one step
     expect(s.frame.target).toBe(END);
-    expect(shown(0)).toBe(6); // the host fades down, the scene still at Cookies Clicker
+    expect(shown(0)).toBe(S); // the host fades down, the scene still at the look back
     expect(fade.darkAt).toBe(STEP_FADE_MS);
-    expect(shown(STEP_FADE_MS - 1)).toBe(6);
+    expect(shown(STEP_FADE_MS - 1)).toBe(S);
     expect(shown(STEP_FADE_MS)).toBe(END); // dark: the scene is at the end page, and the host fades back
     expect(fade.darkAt).toBeNull();
     s.drain();
     expect([s.frame.target, s.frame.progress]).toEqual([END, END]);
 
     await wheelNotches(s, 10, -120, 16);
-    expect(s.frame.target).toBe(6);
+    expect(s.frame.target).toBe(S);
     const at = 10_000;
     expect(shown(at)).toBe(END);
     expect(fade.darkAt).toBe(at + STEP_FADE_MS);
-    expect(shown(at + STEP_FADE_MS)).toBe(6);
+    expect(shown(at + STEP_FADE_MS)).toBe(S);
     s.drain();
-    expect([s.frame.target, s.frame.progress]).toEqual([6, 6]);
+    expect([s.frame.target, s.frame.progress]).toEqual([S, S]);
   });
 });
 
 // ---------------------------------------------------------------- the ring's drag
-
-describe("the ring's drag: a sideways drag turns the ring as a scroll would", () => {
-  /** A mouse pressed at x 100 and moved `dx` to the side in ten steps, a frame after each; let go unless `hold`. */
-  async function mouseDrag(s: Setup, dx: number, hold = false): Promise<void> {
-    const at = (type: string, x: number) => fire(s.el, type, { pointerType: 'mouse', pointerId: 1, button: 0, clientX: x, clientY: 400, target: { closest: () => null } });
-    at('pointerdown', 100);
-    for (let i = 1; i <= 10; i++) {
-      at('pointermove', 100 + (dx * i) / 10);
-      if (i === 1) await flush();
-      s.frames.frame();
-    }
-    if (!hold) at('pointerup', 100 + dx);
-  }
-
-  it('moves the target 0.25 degrees a px of a mouse drag in the ring: 300 px right is 0.625 of a unit', async () => {
-    const s = setup();
-    restAt(s, 4);
-    await mouseDrag(s, 300);
-    expect(s.frame.target).toBeCloseTo(4.625, 12);
-    s.drain();
-    expect(s.frame.progress).toBe(s.frame.target);
-  });
-
-  it('stops a drag at Cookies Clicker and at Funcial', async () => {
-    const s = setup();
-    restAt(s, 6);
-    await mouseDrag(s, 300);
-    expect(s.frame.target).toBe(6);
-    restAt(s, 4);
-    await mouseDrag(s, -300);
-    expect(s.frame.target).toBe(4);
-  });
-
-  it('settles nothing on release: the target is where the drag left it 2 s on', async () => {
-    const s = setup();
-    restAt(s, 4);
-    await mouseDrag(s, 200);
-    const at = s.frame.target;
-    for (let i = 0; i < 120; i++) s.frames.frame();
-    expect(s.frame.target).toBe(at);
-    expect(s.frame.progress).toBe(at);
-  });
-
-  it('does nothing for a key pressed during a drag', async () => {
-    const s = setup();
-    restAt(s, 4);
-    await mouseDrag(s, 120, true);
-    const at = s.frame.target;
-    s.key('ArrowDown');
-    expect(s.frame.target).toBe(at);
-    expect(s.home.loop.tweening).toBeNull();
-  });
-
-  it('takes no drag in the light dive, nor with reduced motion', async () => {
-    const s = setup();
-    restAt(s, 2);
-    await mouseDrag(s, 300);
-    expect(s.frame.target).toBe(2);
-    const r = setup({ reduced: true });
-    restAt(r, 4);
-    await mouseDrag(r, 300);
-    expect(r.frame.target).toBe(4);
-  });
-
-  it('takes the story from a glide where it stands: the hand has it', async () => {
-    const s = setup();
-    restAt(s, 4);
-    s.key('ArrowDown'); // a glide to 5
-    await flush();
-    frames(s, 20);
-    const at = s.frame.progress;
-    const press = (type: string, x: number) => fire(s.el, type, { pointerType: 'mouse', pointerId: 1, button: 0, clientX: x, clientY: 400, target: { closest: () => null } });
-    press('pointerdown', 100);
-    press('pointermove', 148); // past the lock at once: 0.1 of a unit
-    expect(s.home.loop.tweening).toBeNull();
-    expect(s.frame.target).toBeCloseTo(at + 0.1, 12);
-    press('pointerup', 148);
-  });
-});

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { countCanvasMount, registerStageProbe } from '../../../src/debug/stageReport';
 import { holdLoader, readNeedleDebugState, setStoryProgress } from '../../../src/debug/useNeedleDebug';
 import { onWakeScene } from '../../../src/scene/motion';
-import { chapterAt, HOME_CHAPTERS, scrollEnd } from '../../../src/state/chapters';
+import { chapterAt, HOME_CHAPTERS, pathStart, scrollEnd, sheetStart } from '../../../src/state/chapters';
 import { frame } from '../../../src/state/frame';
 import { useScene } from '../../../src/state/store';
 
@@ -39,11 +39,13 @@ describe('readNeedleDebugState', () => {
   });
 
   it('reads the chapter the way the scroll loop does: the one it was in is kept at the edge', () => {
-    // 4.01 is inside the ring's first unit (starts at 4) but within HYSTERESIS of the light dive's end, and the frame says LIGHT.
-    Object.assign(frame, { progress: 4.01, target: 4.01, chapterIndex: 1 });
+    // Just past the hand-over is inside Funcial's travel (it starts there) but within HYSTERESIS of the light dive's end,
+    // and the frame says LIGHT.
+    const hand = pathStart(HOME_CHAPTERS);
+    Object.assign(frame, { progress: hand + 0.01, target: hand + 0.01, chapterIndex: 1 });
     expect(readNeedleDebugState({ route: 'home', locale: 'nl' }).chapter.index).toBe(1);
-    Object.assign(frame, { progress: 4.5, target: 4.5, chapterIndex: 1 });
-    expect(readNeedleDebugState({ route: 'home', locale: 'nl' }).chapter).toMatchObject({ index: 2, id: 'RING' });
+    Object.assign(frame, { progress: hand + 0.5, target: hand + 0.5, chapterIndex: 1 });
+    expect(readNeedleDebugState({ route: 'home', locale: 'nl' }).chapter).toMatchObject({ index: 2, id: 'TRAVEL' });
   });
 
   it('counts the Stages mounted and takes dpr, fps and the camera from the Stage while one reports', () => {
@@ -87,15 +89,17 @@ describe('readNeedleDebugState', () => {
     expect(state.scroll.u).toBe(0.5);
   });
 
-  it("reports where the journey stands, its way frame, its ring angle, its sheet and the light's point, as a copy", () => {
+  it("reports where the journey stands, its way frame, its sheet, the light's point and the path on the screen, as a copy", () => {
     const before = { ...frame.journey };
     try {
       const light = { x: 0.2, y: -0.1 };
-      const ring = { front: [720, 380] as [number, number], back: [720, 300] as [number, number], beads: [[720, 600, 120] as [number, number, number]] };
-      Object.assign(frame.journey, { stretch: 'light', local: 0.4, project: null, voidState: 'ready', frame: 121, angle: null, sheet: 0, light, ring });
+      const beads = [{ x: 720, y: 600, r: 120, visible: true }];
+      const label = { index: 0, opacity: 1 };
+      Object.assign(frame.journey, { stretch: 'light', local: 0.4, project: null, voidState: 'ready', frame: 121, sheet: 0, light, beads, label, wake: [10] });
       const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
-      expect(state.journey).toEqual({ stretch: 'light', local: 0.4, project: null, voidState: 'ready', frame: 121, angle: null, sheet: 0, light: { x: 0.2, y: -0.1 }, ring });
-      expect(state.journey.ring).not.toBe(ring);
+      expect(state.journey).toEqual({ stretch: 'light', local: 0.4, project: null, voidState: 'ready', frame: 121, sheet: 0, light: { x: 0.2, y: -0.1 }, beads, label, wake: [10] });
+      expect(state.journey.beads).not.toBe(beads);
+      expect(state.journey.label).not.toBe(label);
       expect(state.journey.light).not.toBe(light);
       light.x = 0.9;
       expect(state.journey.light?.x).toBe(0.2);
@@ -163,13 +167,12 @@ describe('setStoryProgress', () => {
   });
 
   it('stays inside the scroll, 0 to its last stop, the end page (the scroll ends there)', () => {
-    // 2026-10-26: the light dive is three units long, so the scroll ends at 7, the end page.
+    // 2026-10-27: the scroll ends on the credits, past the light's path.
     setStoryProgress(99);
-    expect(frame.target).toBe(7);
     expect(frame.target).toBe(scrollEnd(HOME_CHAPTERS));
     expect(useScene.getState().phase).toEqual({ kind: 'END' });
-    setStoryProgress(6);
-    expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: HOME_CHAPTERS.units.at(-2)!.category });
+    setStoryProgress(sheetStart(HOME_CHAPTERS) + 0.5);
+    expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: null });
     setStoryProgress(-4);
     expect(frame.target).toBe(0);
     expect(useScene.getState().phase).toEqual({ kind: 'HOME_IDLE' });

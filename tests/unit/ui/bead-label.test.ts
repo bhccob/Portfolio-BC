@@ -11,6 +11,7 @@ import type { Locale } from '~/i18n/Translator';
 import { FLIGHT_MS } from '~/scene/bob/focus';
 import { BEADS, journeyPoseAt } from '~/scene/bob/journey';
 import { frame } from '~/state/frame';
+import { stopForProject } from '~/state/routeSync';
 import { useScene } from '~/state/store';
 import { BeadLabel, BeadLabels, LABEL_BOX, labelMargin, labelPlacement, lendOpener, openBead, registerBeadLabel, showBeadLabel, stopRadius } from '~/ui/BeadLabel';
 
@@ -420,7 +421,7 @@ describe("openBead: a new opening is never cut short by the last one's timer (fi
     (globalThis as { document?: unknown }).document = { documentElement: root };
     useScene.setState(useScene.getInitialState(), true);
     useScene.setState({ phase: { kind: 'PROJECTS', category: 'secure-element' } });
-    frame.progress = frame.target = 4;
+    frame.progress = frame.target = stopForProject('funcial'); // its arrival: a flight leaves from there
     frame.focus.opening = null;
   });
   afterEach(() => {

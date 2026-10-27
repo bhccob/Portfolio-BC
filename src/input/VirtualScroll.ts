@@ -3,26 +3,8 @@ import { Inertia } from './Inertia';
 import { type KeyTarget, keyDelta } from './keyDelta';
 import { normalizeWheel } from './normalizeWheel';
 
-/**
- * Where a delta came from: the wheel, a finger on the glass, the glide a finger's lift left, a key pressed, a key held
- * down (its repeats), or a sideways drag of the ring (a mouse, a pen or a finger).
- */
-export type DeltaSource = 'wheel' | 'finger' | 'glide' | 'key' | 'held' | 'drag';
-
-/** Degrees of the ring a CSS px of a sideways drag turns it: one project, 120 degrees, is 480 px. */
-export const DRAG_DEG = 0.25;
-
-/** The degrees between two projects round the ring: a drag's units are its degrees over this. */
-const PROJECT_DEG = 120;
-
-/**
- * How far a touch or a press must go before it is a move and not a tap, px: a finger's first DRAG_LOCK_PX decide its
- * axis (sideways a ring drag, upright a scroll), and a mouse's decide that it drags.
- */
-export const DRAG_LOCK_PX = 6;
-
-/** The page's controls: a press on one is the control's, never a drag. */
-const CONTROLS = 'a, button, input, select, textarea, summary, label';
+/** Where a delta came from: the wheel, a finger on the glass, the glide a finger's lift left, a key pressed, or a key held down (its repeats). */
+export type DeltaSource = 'wheel' | 'finger' | 'glide' | 'key' | 'held';
 
 export interface VirtualScrollOptions {
   /** Pixels in one unit of scroll: the viewport's height (`window.innerHeight`). */
@@ -78,27 +60,17 @@ export interface VirtualScrollOptions {
   swallow?: () => boolean;
   /** Called when a glide begins (the finger lifted while moving), so a frame loop that went to sleep can run `step`. */
   wake?: () => void;
-  /**
-   * Whether a sideways drag may take the ring now, asked as a press or a touch begins and as a touch decides its axis:
-   * the story stands in the ring (src/input/scrollLoop.ts). A drag then reports `onDelta(dx · DRAG_DEG / 120, 'drag')`
-   * for every move, a mouse's or a pen's held down (pointer events) or a finger's that went sideways (touch events),
-   * and nothing settles it: no gesture end, no glide. Without it no drag is taken, and a sideways swipe is ignored.
-   */
-  dragging?: () => boolean;
 }
 
-/** How far a finger must travel before it is a swipe and not a tap, in px: the drag's lock. */
-const TOUCH_SLOP_PX = DRAG_LOCK_PX;
+/** How far a finger must travel before it is a swipe and not a tap, in px: its first this much decides its axis. */
+const TOUCH_SLOP_PX = 6;
 /** With reduced motion, how far a swipe must travel to take one step, in px. */
 const SWIPE_STEP_PX = 40;
 
 interface Drag {
   x0: number;
   y0: number;
-  lastX: number;
   lastY: number;
-  /** True once the movement went sideways in the ring: a drag of the ring, to its lift. */
-  ring: boolean;
   /** Everything the finger moved since the slop was passed, in the scroll's direction (px). */
   total: number;
   /** True once the movement is a vertical swipe: from then on the input has the touch. */
@@ -141,10 +113,6 @@ export class VirtualScroll {
   private readonly wheelGestures = new GestureGroup();
   /** The wheel's gesture under way is the page's (`yields` said so at its first event). */
   private wheelYielded = false;
-  /** A mouse or a pen held down in the ring, and whether it has dragged past the lock; null while none is. */
-  private press: { id: number; x0: number; lastX: number; moved: boolean } | null = null;
-  /** A press has dragged the ring and let go: the click its release makes is swallowed, so it opens nothing. */
-  private swallowClick = false;
 
   constructor(
     private readonly el: HTMLElement,
@@ -157,12 +125,7 @@ export class VirtualScroll {
     el.addEventListener('touchmove', this.onTouchMove, { passive: false });
     el.addEventListener('touchend', this.onTouchEnd, { passive: true });
     el.addEventListener('touchcancel', this.onTouchEnd, { passive: true });
-    el.addEventListener('pointerdown', this.onPointerDown);
-    el.addEventListener('pointermove', this.onPointerMove);
-    el.addEventListener('pointerup', this.onPointerUp);
-    el.addEventListener('pointercancel', this.onPointerUp);
     this.view.addEventListener('keydown', this.onKey);
-    this.view.addEventListener('click', this.onClick, { capture: true });
   }
 
   /** True while a glide is going, so the caller must keep calling `step` every frame. */
@@ -178,11 +141,6 @@ export class VirtualScroll {
   /** True while a finger is on the glass and the input has it (its drag, or its hold of the story): it has not lifted. */
   get touching(): boolean {
     return this.drag !== null || this.holding;
-  }
-
-  /** True while the ring is being dragged, by a press or a finger. */
-  private get draggingRing(): boolean {
-    return this.press?.moved === true || this.drag?.ring === true;
   }
 
   /**
@@ -221,13 +179,7 @@ export class VirtualScroll {
     this.el.removeEventListener('touchmove', this.onTouchMove);
     this.el.removeEventListener('touchend', this.onTouchEnd);
     this.el.removeEventListener('touchcancel', this.onTouchEnd);
-    this.el.removeEventListener('pointerdown', this.onPointerDown);
-    this.el.removeEventListener('pointermove', this.onPointerMove);
-    this.el.removeEventListener('pointerup', this.onPointerUp);
-    this.el.removeEventListener('pointercancel', this.onPointerUp);
     this.view.removeEventListener('keydown', this.onKey);
-    this.view.removeEventListener('click', this.onClick, { capture: true });
-    this.press = null;
     // The gesture under way is dropped, not ended: nobody is there to settle it.
     this.open = false;
     this.quiet = null;
@@ -296,7 +248,7 @@ export class VirtualScroll {
     }
     if (e.touches.length !== 1) return;
     const touch = e.touches[0]!;
-    this.drag = { x0: touch.clientX, y0: touch.clientY, lastX: touch.clientX, lastY: touch.clientY, ring: false, total: 0, claimed: false };
+    this.drag = { x0: touch.clientX, y0: touch.clientY, lastY: touch.clientY, total: 0, claimed: false };
   };
 
   private readonly onTouchMove = (e: TouchEvent): void => {
@@ -309,29 +261,13 @@ export class VirtualScroll {
       return;
     }
     const touch = e.touches[0]!;
-    if (drag.ring) {
-      // A drag of the ring, to its lift: every move turns it, whichever way it goes now.
-      if (e.cancelable) e.preventDefault();
-      this.dragBy(touch.clientX - drag.lastX);
-      drag.lastX = touch.clientX;
-      return;
-    }
     if (!drag.claimed) {
       const dx = touch.clientX - drag.x0;
       const dy = touch.clientY - drag.y0;
       if (Math.hypot(dx, dy) < TOUCH_SLOP_PX) return; // still a tap, so the click stays possible
       if (Math.abs(dx) > Math.abs(dy)) {
-        // A swipe sideways turns the ring, in the ring; anywhere else it is not the input's.
-        if (this.opts.reducedMotion() || this.opts.dragging?.() !== true) {
-          this.drag = null;
-          return;
-        }
-        drag.ring = true;
-        drag.claimed = true;
-        if (e.cancelable) e.preventDefault();
-        this.inertia.stop();
-        this.dragBy(touch.clientX - drag.x0);
-        drag.lastX = touch.clientX;
+        // A swipe sideways is not the input's.
+        this.drag = null;
         return;
       }
       // A finger going up the glass goes down the story. A drag the page has (`yields`) is the browser's to its lift: it
@@ -364,7 +300,6 @@ export class VirtualScroll {
       if (holding) this.endGesture(0); // a tap that took hold of the story (onTouchDown) ends its gesture; any other ends none
       return;
     }
-    if (drag.ring) return; // a drag of the ring leaves the ring where it let go: no glide, nothing to settle
     if (!this.opts.enabled() || e.type === 'touchcancel' || this.opts.swallow?.()) {
       this.inertia.stop();
       this.endGesture(0);
@@ -380,61 +315,10 @@ export class VirtualScroll {
     if (this.inertia.active) this.opts.wake?.();
   };
 
-  // ---------------------------------------------------------------- the ring's drag: a mouse or a pen
-
-  /** A drag of `dx` px, as the ring's turn in units: dropped while the input swallows. */
-  private dragBy(dx: number): void {
-    if (dx === 0 || this.opts.swallow?.()) return;
-    this.opts.onDelta((dx * DRAG_DEG) / PROJECT_DEG, 'drag');
-  }
-
-  private readonly onPointerDown = (e: PointerEvent): void => {
-    this.swallowClick = false;
-    this.press = null;
-    if (e.pointerType === 'touch' || e.button !== 0 || !this.opts.enabled()) return; // a finger is the touch events'
-    if (this.opts.reducedMotion() || this.opts.dragging?.() !== true) return;
-    if ((e.target as Element | null)?.closest?.(CONTROLS)) return; // a press on a control is the control's
-    // Its mouse events are the drag's: no text is selected as it moves. The click its release makes still comes.
-    e.preventDefault();
-    this.press = { id: e.pointerId, x0: e.clientX, lastX: e.clientX, moved: false };
-  };
-
-  private readonly onPointerMove = (e: PointerEvent): void => {
-    const press = this.press;
-    if (press === null || e.pointerId !== press.id) return;
-    if (!this.opts.enabled()) {
-      this.press = null;
-      return;
-    }
-    if (!press.moved) {
-      if (Math.abs(e.clientX - press.x0) < DRAG_LOCK_PX) return; // still a click
-      press.moved = true;
-      this.inertia.stop();
-    }
-    this.dragBy(e.clientX - press.lastX);
-    press.lastX = e.clientX;
-  };
-
-  private readonly onPointerUp = (e: PointerEvent): void => {
-    const press = this.press;
-    if (press === null || e.pointerId !== press.id) return;
-    this.press = null;
-    this.swallowClick = press.moved; // a release after a drag makes a click: it is the drag's, and opens nothing
-  };
-
-  /** The click a drag's release makes, swallowed before anything hears it (the Void's click on a bead, a link's). */
-  private readonly onClick = (e: MouseEvent): void => {
-    if (!this.swallowClick) return;
-    this.swallowClick = false;
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
   // ---------------------------------------------------------------- keys
 
   private readonly onKey = (e: KeyboardEvent): void => {
     if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
-    if (this.draggingRing) return; // a key pressed while the ring is dragged does nothing
     if (!this.opts.enabled()) return;
     const unit = this.opts.unitPx();
     const delta = keyDelta({ key: e.key, shiftKey: e.shiftKey, target: e.target as KeyTarget | null }, unit);

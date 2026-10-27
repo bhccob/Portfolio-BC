@@ -16,7 +16,7 @@ let connected: HomeScroll | null = null;
 
 /**
  * The nav's link to the end page (`.end-link` in the home's `.home-nav`, src/app/routes/home.tsx), a keyboard's and a
- * screen reader's way there while 3D is on, and the ring's skip button's: the story goes to the end page by the End key's
+ * screen reader's way there while 3D is on, and the path's skip button's: the story goes to the end page by the End key's
  * own path (`HomeScroll.toEnd`), the step fade from wherever it is, and while the beads load the follow to the landing
  * hold, then the fade on to the end once they are ready. Answers whether the home's scroll took it: false while none is
  * connected, or while it takes no input (3D off, a phase off the scroll, a skipped loader's tail).
@@ -35,7 +35,7 @@ export function headedToEnd(): boolean {
 
 /**
  * The header's name clicked on the home page (src/ui/SiteHeader.tsx `nameToTop`): the story goes to its start by the
- * Home key's own path (`HomeScroll.toTop`), the page back at its top first: by the step fade from the ring, the sheet
+ * Home key's own path (`HomeScroll.toTop`), the page back at its top first: by the step fade from the path, the sheet
  * and the end page, back up by the follow from the light dive. Answers whether the home's scroll took it: false while none is connected, or while it
  * takes no input (3D off, a bead opening), where the link is left to navigate as any link does.
  */
@@ -80,7 +80,7 @@ export interface HomeScrollPage {
  * with 3D off the page scrolls natively and nothing here prevents anything. At the end page at rest (`<html
  * data-end="rest">`, which Home writes) the page scrolls natively too: there `startHomeScroll` leaves the browser every
  * gesture down and every gesture up while the page is scrolled, each gesture to its end, and takes an input up at the
- * page's top back to Cookies Clicker; Home goes to the story's start, the page back at its top first.
+ * page's top back to the look back; Home goes to the story's start, the page back at its top first.
  *
  * While a skipped loader's input is still arriving (`skipSwallower`, from `frame.loaderSkipEndsMs`: the fast-forward
  * and `SKIP_SWALLOW_MS` after the landing, then on while the input keeps coming without SKIP_QUIET_MS of quiet, for
@@ -96,7 +96,7 @@ export interface HomeScrollPage {
  * canvas (`wakeScene`), so the scene draws the frames in which the story moves.
  *
  * The beads under the glass hold it (`landingHoldFor` of the store's `voidState`, src/scene/bob/landingHold.ts): until
- * they are ready, the target goes no further than the landing hold, the light just short of the ring. When the void's
+ * they are ready, the target goes no further than the landing hold, the hand-over just before the first project. When the void's
  * state changes the input is told (`holdChanged`), so a story held there goes on once the beads are ready. With 3D off
  * the void goes with the Stage and nothing holds the visitor's place back; 3D back on (`resume`) holds a story past the
  * hold until the void is ready again, and then takes it back where it was. With the void failed the hold stands, the

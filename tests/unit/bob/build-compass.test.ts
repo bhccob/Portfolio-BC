@@ -1682,7 +1682,7 @@ describe('the needle leaves the compass (setNeedleWorld, Task 9)', () => {
     c.dispose();
   });
 
-  describe('in the light dive: the needle gives itself to the light over way frames 2-8, and comes back at the ring', () => {
+  describe('in the light dive: the needle gives itself to the light over way frames 2-8', () => {
     /** The needle the Void hands the compass at way frame f. */
     const atFrame = (f: number) => needleFor(journeyPoseAt(placeOfFrame(f), ASPECT));
 
@@ -1735,7 +1735,7 @@ describe('the needle leaves the compass (setNeedleWorld, Task 9)', () => {
     });
   });
 
-  describe('round the ring', () => {
+  describe('a needle held in the world, turning', () => {
     /** The most the needle's world orientation turns between neighbouring poses handed in, in degrees. */
     function sweep(c: CompassModel, poses: Iterable<NeedleOverride>): number {
       const before = new THREE.Quaternion();
@@ -1772,35 +1772,6 @@ describe('the needle leaves the compass (setNeedleWorld, Task 9)', () => {
       c.dispose();
     });
 
-    it('draws the needle out of the light at the ring from frame 272 and turns it through every project and back without a jump over 1 degree', async () => {
-      const c = loadCompass(await loadRealGlb(), 'high', stripStub);
-      const out = function* (): Generator<NeedleOverride> {
-        for (let i = 0; i <= 280; i++) yield needleFor(journeyPoseAt(placeOfFrame(272) + ((4 - placeOfFrame(272)) * i) / 280, ASPECT))!;
-      };
-      const forth = function* (): Generator<NeedleOverride> {
-        for (let i = 0; i <= 3000; i++) yield needleFor(journeyPoseAt(4 + i / 1000, ASPECT))!;
-      };
-      const back = function* (): Generator<NeedleOverride> {
-        for (let i = 3000; i >= 0; i--) yield needleFor(journeyPoseAt(4 + i / 1000, ASPECT))!;
-      };
-      expect(sweep(c, out())).toBeLessThan(1);
-      expect(sweep(c, forth())).toBeLessThan(1);
-      expect(sweep(c, back())).toBeLessThan(1);
-      c.dispose();
-    });
-
-    it('points at the project in front at each stop, its tip on the line to the aim', async () => {
-      const c = loadCompass(await loadRealGlb(), 'high', stripStub);
-      for (const [i, stop] of [4, 5, 6].entries()) {
-        const o = needleFor(journeyPoseAt(stop, ASPECT))!;
-        c.setNeedleWorld(o);
-        const toAim = new THREE.Vector3(...o.aim!).sub(new THREE.Vector3(...o.position)).normalize();
-        expect(tipDirection(c).distanceTo(toAim), `stop ${stop}`).toBeLessThan(1e-6);
-        const toBead = new THREE.Vector3(...BEADS[i]!.centre).sub(new THREE.Vector3(...o.position)).normalize();
-        expect(toAim.angleTo(toBead) / DEG, `stop ${stop} faces ${BEADS[i]!.id}`).toBeLessThan(5);
-      }
-      c.dispose();
-    });
   });
 
   it('allocates nothing in a call: scratch only, whichever way it goes', async () => {
