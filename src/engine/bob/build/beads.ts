@@ -40,7 +40,8 @@ const DEG = Math.PI / 180;
  * the judge of them, and the screen's level and the hover's brightening are the first to turn down.
  *
  * - `dim`: an unselected bead's light, as a share of its full light (`setLit(id, 0)`; `setLit(id, t)` is
- *   `mix(dim, 1, t)`, a straight line between its two ends). "Its light" is all a bead's surfaces send: what they
+ *   `mix(dim, 1, t)`, a straight line between its two ends): the floor a bead waiting ahead in the nebula is lit at
+ *   (the 3D world's spec, goal 7: from its first mock-up, a black bead on the nebula reads as a hole; 0.38 there). "Its light" is all a bead's surfaces send: what they
  *   reflect of the room and the key, what the hollow's own warm light gives them, and their own glow (the veins, the gold, the screen, the objects' lights), each
  *   scaled the same, so a dim bead is the same bead in less light. Its inner light is not dimmed besides: that would
  *   dim the hollow twice.
@@ -68,7 +69,7 @@ const DEG = Math.PI / 180;
  *   them a glow.
  */
 export const BEADS_LOOK = {
-  dim: 0.15,
+  dim: 0.38,
   hover: { brighten: 0.15, turn: 8 * DEG },
   screen: { level: 0.3 },
   glass: { high: { opacity: 0.04 }, plain: { opacity: 0.1 } },
@@ -129,10 +130,17 @@ export interface BeadsModel {
   setMotion(id: ProjectId, time: number, slide?: number): void;
   /**
    * Fades bead `id` into the dark or out of it, `fade` 0..1 (held to it, NaN as 0): every material of it draws at its
-   * light times the fade. Its parts' showing and its inner light are the caller's (the Void's, which keeps the scene's
-   * light count).
+   * light times the fade's square root, so a bead coming in out of the dark is soon seen, dimly. Its parts' showing and
+   * its inner light are the caller's (the Void's, which keeps the scene's light count).
    */
   setFade(id: ProjectId, fade: number): void;
+  /**
+   * Floats and turns bead `id` (../../../scene/bob/beadFloat.ts): its root `y` (m) above its place, and turned by
+   * `yaw` (its porthole to the screen's right), `pitch` (up) and `roll` (about the porthole's own axis), radians, in
+   * the frame its facing gives it, on top of its facing and under the hover's turn. Its parts go with it. All 0 is its
+   * place and facing exactly; a value that is not a number is 0.
+   */
+  setPose(id: ProjectId, pose: { y: number; roll: number; pitch: number; yaw: number }): void;
   /**
    * The veins on bead `id`'s shell, as the light's sweep round it has woken them (spec 2026-10-27-bob-light-path-design.md,
    * 3A): the shell's emissive times `WAKE.rest` where the light has not passed, `WAKE.lit` where it has, and `hot` more
@@ -361,6 +369,9 @@ interface Bead {
   rest: THREE.Quaternion;
   facing: THREE.Quaternion;
   place: THREE.Vector3;
+  /** Its float and turn (`setPose`): a lift over its place, and a turn in its facing's frame. */
+  lift: number;
+  offset: THREE.Quaternion;
   lit: number;
   hover: number;
   /** How much of it shows as it fades into the dark or out of it (`setFade`). */
@@ -465,6 +476,7 @@ export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens:
   const lookAt = new THREE.Matrix4();
   const origin = new THREE.Vector3();
   const base = new THREE.Quaternion();
+  const offsetTurn = new THREE.Euler();
   const towards = new THREE.Vector3();
   let aiming = false;
   const facing = new THREE.Vector3();
@@ -616,6 +628,8 @@ export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens:
       rest: root.quaternion.clone(),
       place: new THREE.Vector3(...centre),
       facing: new THREE.Quaternion(),
+      lift: 0,
+      offset: new THREE.Quaternion(),
       lit: 0,
       hover: 0,
       fade: 1,
@@ -634,19 +648,21 @@ export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens:
     return found;
   };
 
-  /** Its light: dim to lit, brightened by its hover, faded into the dark by its fade. */
+  /** Its light: dim to lit, brightened by its hover, faded into the dark by its fade's root. */
   const light = (b: Bead): void => {
-    b.light.value = (look.dim + (1 - look.dim) * b.lit) * (1 + look.hover.brighten * b.hover) * b.fade;
+    b.light.value = (look.dim + (1 - look.dim) * b.lit) * (1 + look.hover.brighten * b.hover) * Math.sqrt(b.fade);
   };
 
   /**
-   * Its place with its drift, and its hover's turn: its porthole (its rest +z) turned toward the hover's point (or the
-   * stop's camera) by its hover's share of the smaller of the hover's turn and the angle between them, about the axis
-   * square to both, so it neither rolls nor turns past the point. Scratch vectors only.
+   * Its place with its float's lift, its facing with its float's turn, and its hover's turn: its porthole (its rest +z)
+   * turned toward the hover's point (or the stop's camera) by its hover's share of the smaller of the hover's turn and
+   * the angle between them, about the axis square to both, so it neither rolls nor turns past the point. Scratch
+   * vectors only.
    */
   const pose = (b: Bead): void => {
     b.root.position.copy(b.place);
-    base.copy(b.facing).multiply(b.rest);
+    b.root.position.y += b.lift;
+    base.copy(b.facing).multiply(b.offset).multiply(b.rest);
     b.root.quaternion.copy(base);
     if (b.hover <= 0 || !aiming) return;
     toward.subVectors(towards, b.root.position);
@@ -724,6 +740,15 @@ export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens:
       const b = bead(id);
       b.fade = clamp01(fade);
       light(b);
+    },
+    setPose(id, { y, roll, pitch, yaw }) {
+      const b = bead(id);
+      const n = (v: number): number => (Number.isFinite(v) ? v : 0);
+      b.lift = n(y);
+      // In the facing's frame: +x the screen's right, +y up, +z the porthole toward the camera. Up turns +z toward +y,
+      // a turn about +x by minus the pitch.
+      b.offset.setFromEuler(offsetTurn.set(-n(pitch), n(yaw), n(roll), 'YXZ'));
+      pose(b);
     },
     setWake(id, wake) {
       const b = bead(id);

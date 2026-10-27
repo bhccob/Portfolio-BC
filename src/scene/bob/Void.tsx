@@ -1,4 +1,5 @@
 import { useFrame, useThree } from '@react-three/fiber';
+import { damp } from 'maath/easing';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { type GLTF, GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -22,6 +23,7 @@ import { showTouchPoints } from '~/ui/TouchPoints';
 import { showsSkip, writeSkip } from '~/ui/SkipButton';
 import { motion } from '../motion';
 import { engravedLevels, shaftRings, tripPoints } from './engravedWay';
+import { FLOAT, floatAt, floatRuns, turnToward } from './beadFloat';
 import type { Handover } from './Home';
 import { insideBuild, insideClockRuns, insidePoints } from './inside';
 import { BEAD_RADIUS, BEADS, type LightPose } from './journey';
@@ -216,6 +218,22 @@ interface VoidRun {
    * object never snaps back to rest), and when the inside last stirred it (it opened, or the pointer moved), ms.
    */
   inside: { id: ProjectId | null; time: number; stirred: number };
+  /**
+   * The float of the bead at its arrival (./beadFloat.ts): the bead (its place on the way), its clock (s), when it was
+   * last stirred (an input, ms), its turn as eased (radians), where it stood on the screen on the last frame (CSS px),
+   * and a finger dragged across it on a touch screen (where it came down, and how far it has gone as a share of the
+   * bead's radius, -1 to 1).
+   */
+  float: {
+    index: number | null;
+    time: number;
+    stirred: number;
+    yaw: number;
+    pitch: number;
+    screen: { x: number; y: number; r: number } | null;
+    finger: { id: number; x: number } | null;
+    drag: number;
+  };
   /** The void is shown over the home's scene and no bead is close (`handover.focus`): the selected bead's label shows. */
   reading: boolean;
   /**
@@ -279,6 +297,12 @@ const inView = new THREE.Vector3();
 const facingAt = new THREE.Vector3();
 /** How near the pointer a light off the way takes it, CSS px. */
 const LIGHT_PICK_PX = 18;
+
+/** A bead with no float and no turn: its place and facing exactly. */
+const NO_POSE = { y: 0, roll: 0, pitch: 0, yaw: 0 } as const;
+
+/** How long the turn toward the pointer takes to ease in or back out, s (maath's damp). */
+const TURN_SMOOTH = 0.25;
 
 /** Hides the beads' labels and the touch points. */
 function hideWords(size: { width: number; height: number }): void {
@@ -474,6 +498,7 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
     engraved: null,
     built: BEADS.map(() => Number.NaN),
     inside: { id: null, time: 0, stirred: Number.NEGATIVE_INFINITY },
+    float: { index: null, time: 0, stirred: Number.NEGATIVE_INFINITY, yaw: 0, pitch: 0, screen: null, finger: null, drag: 0 },
     hover: hoverEase(),
     pointed: null,
     mode: null,
@@ -681,12 +706,69 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
   useEffect(() => {
     const move = (event: PointerEvent): void => {
       const parts = run.parts;
-      if (event.pointerType === 'touch' || !parts || !run.hovering || useScene.getState().scene !== 'home') return;
+      if (event.pointerType === 'touch' || !parts || useScene.getState().scene !== 'home') return;
+      // At an arrival the bead floats and turns toward the pointer: every move draws (and stirs its float).
+      if (run.float.index !== null) {
+        invalidate();
+        return;
+      }
+      if (!run.hovering) return;
       if (pick(parts, frame.pointer, camera) !== run.pointed) invalidate();
     };
     window.addEventListener('pointermove', move, { passive: true });
     return () => window.removeEventListener('pointermove', move);
   }, [camera, invalidate, run]);
+
+  // At an arrival a touch, a wheel or a key stirs the bead's float again, and a finger dragged across the bead turns it
+  // by its sideways move (its up and down move is the scroll's), easing back when it lifts.
+  useEffect(() => {
+    const float = run.float;
+    const stir = (): void => {
+      if (float.index === null) return;
+      float.stirred = performance.now();
+      invalidate();
+    };
+    const down = (event: TouchEvent): void => {
+      stir();
+      const touch = event.touches.length === 1 ? event.touches[0]! : null;
+      const at = float.screen;
+      float.finger = touch !== null && at !== null && float.index !== null && Math.hypot(touch.clientX - at.x, touch.clientY - at.y) <= at.r ? { id: touch.identifier, x: touch.clientX } : null;
+      float.drag = 0;
+    };
+    const drag = (event: TouchEvent): void => {
+      const finger = float.finger;
+      const at = float.screen;
+      if (finger === null || at === null) return;
+      const touch = [...event.touches].find((t) => t.identifier === finger.id);
+      if (!touch || event.touches.length !== 1) {
+        float.finger = null;
+        float.drag = 0;
+      } else {
+        float.drag = Math.max(-1, Math.min(1, (touch.clientX - finger.x) / at.r));
+      }
+      stir();
+    };
+    const lift = (): void => {
+      if (float.finger === null) return;
+      float.finger = null;
+      float.drag = 0;
+      stir();
+    };
+    window.addEventListener('touchstart', down, { passive: true });
+    window.addEventListener('touchmove', drag, { passive: true });
+    window.addEventListener('touchend', lift, { passive: true });
+    window.addEventListener('touchcancel', lift, { passive: true });
+    window.addEventListener('wheel', stir, { passive: true });
+    window.addEventListener('keydown', stir);
+    return () => {
+      window.removeEventListener('touchstart', down);
+      window.removeEventListener('touchmove', drag);
+      window.removeEventListener('touchend', lift);
+      window.removeEventListener('touchcancel', lift);
+      window.removeEventListener('wheel', stir);
+      window.removeEventListener('keydown', stir);
+    };
+  }, [invalidate, run]);
 
   // A click opens what the pointer may take (`pointerMode`), where a hook is given: in an orbit or an inside the bead in
   // view, in the look back any bead, or a light off the way; wherever the pointer is read (`hovering`: not once the sheet
@@ -900,20 +982,55 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
     run.pointed = pointed;
     run.pointedLight = mode === 'any' && hit === null && Number.isFinite(frame.pointerAt) ? pickLight(way.places, frame.pointer, camera, size) : null;
     const easing = easeHover(run.hover, pointed, dt, reduced || !home);
+
+    // The bead at its arrival floats and turns toward the pointer over it, or a finger's drag across it (./beadFloat.ts):
+    // its clock runs while `floatRuns` (an input, or the pointer's move, stirs it), its turn eases in and back out over a
+    // quarter second; with reduced motion it neither floats nor turns. Another bead, or none, lets the last one go.
+    const float = run.float;
+    const floating = home && run.reading && run.selected !== null && path !== null ? run.selected : null;
+    if (floating !== float.index) {
+      if (float.index !== null) beads.setPose(BEADS[float.index]!.id, NO_POSE);
+      Object.assign(float, { index: floating, time: 0, stirred: now, yaw: 0, pitch: 0, screen: null, finger: null, drag: 0 });
+    }
+    let floatMoving = false;
+    if (floating !== null && path !== null) {
+      const id = BEADS[floating]!.id;
+      const at = onScreen(path.beads[floating]!.centre, camera, size);
+      float.screen = at;
+      if (Number.isFinite(frame.pointerAt) && frame.pointerAt > float.stirred) float.stirred = frame.pointerAt;
+      const runs = floatRuns((now - float.stirred) / 1000, reduced);
+      if (runs) float.time += dt;
+      const drift = reduced ? NO_POSE : floatAt(float.time, floating);
+      const pointer = { x: ((frame.pointer.x + 1) / 2) * size.width, y: ((1 - frame.pointer.y) / 2) * size.height };
+      const goal = reduced
+        ? { yaw: 0, pitch: 0 }
+        : float.finger !== null
+          ? { yaw: FLOAT.turnMax * float.drag, pitch: 0 }
+          : Number.isFinite(frame.pointerAt)
+            ? turnToward(pointer, at)
+            : { yaw: 0, pitch: 0 };
+      const yawing = damp(float, 'yaw', goal.yaw, TURN_SMOOTH, dt);
+      const pitching = damp(float, 'pitch', goal.pitch, TURN_SMOOTH, dt);
+      beads.setPose(id, { y: drift.y, roll: drift.roll, pitch: drift.pitch + float.pitch, yaw: float.yaw });
+      floatMoving = runs || yawing || pitching;
+    }
+
     const hovered = run.hover.id;
     if (hovered === null || run.hover.amount <= 0) {
       beads.setHover(null);
     } else {
-      // With reduced motion no point: it brightens and does not turn.
-      beads.setHover(BEADS[hovered]!.id, run.hover.amount, reduced ? undefined : camera.position);
+      // With reduced motion no point: it brightens and does not turn. Nor does the floating bead turn to the camera:
+      // it turns toward the pointer instead.
+      beads.setHover(BEADS[hovered]!.id, run.hover.amount, reduced || hovered === float.index ? undefined : camera.position);
     }
     // The touch points of the bead the visitor is inside (the store's `inside`), once the camera is all but in.
     const within = home && closeId !== null && useScene.getState().inside === closeId;
     const points = within ? { index: BEADS.findIndex((bead) => bead.id === closeId), opacity: insidePoints(handover.close.amount) } : path?.points ?? null;
     showWords(path, size, points);
 
-    // Nothing moves by itself on the path: the canvas draws on only while the hover eases or the inside's clock runs.
-    const moving = (easing && home) || ticking;
+    // Nothing moves by itself on the path for long: the canvas draws on only while the hover eases, the inside's clock
+    // runs, or the bead at its arrival floats or its turn eases.
+    const moving = (easing && home) || ticking || floatMoving;
     // The first frame of a motion asks for the next itself: the Heartbeat has run this frame already.
     if (moving && !motion.beads) invalidate();
     motion.beads = moving;

@@ -401,27 +401,27 @@ describe('the materials', () => {
 });
 
 describe('the light', () => {
-  it('builds every bead dim, at 0.15 of its light', () => {
+  it('builds every bead dim, at 0.38 of its light: on the nebula a bead in the dark waits dimly lit, never a black hole', () => {
     const { model } = build();
     for (const id of IDS) for (const m of beadMaterials(model, id)) expect(lightOf(m), `${id} ${m.name}`).toBeCloseTo(BEADS_LOOK.dim, 12);
-    expect(BEADS_LOOK.dim).toBe(0.15);
+    expect(BEADS_LOOK.dim).toBe(0.38);
     model.dispose();
   });
 
-  it("setLit(id, t) lights the whole bead, linearly from 0.15 of its light at 0 to all of it at 1, and no other bead", () => {
+  it("setLit(id, t) lights the whole bead, linearly from 0.38 of its light at 0 to all of it at 1, and no other bead", () => {
     const { model } = build();
     model.setLit('jontai-energy', 1);
     for (const m of beadMaterials(model, 'jontai-energy')) expect(lightOf(m)).toBeCloseTo(1, 12);
-    for (const m of beadMaterials(model, 'funcial')) expect(lightOf(m)).toBeCloseTo(0.15, 12);
+    for (const m of beadMaterials(model, 'funcial')) expect(lightOf(m)).toBeCloseTo(BEADS_LOOK.dim, 12);
     model.setLit('jontai-energy', 0.5);
-    for (const m of beadMaterials(model, 'jontai-energy')) expect(lightOf(m)).toBeCloseTo(0.575, 12);
+    for (const m of beadMaterials(model, 'jontai-energy')) expect(lightOf(m)).toBeCloseTo(BEADS_LOOK.dim + (1 - BEADS_LOOK.dim) * 0.5, 12);
     model.setLit('jontai-energy', 0);
-    for (const m of beadMaterials(model, 'jontai-energy')) expect(lightOf(m)).toBeCloseTo(0.15, 12);
+    for (const m of beadMaterials(model, 'jontai-energy')) expect(lightOf(m)).toBeCloseTo(BEADS_LOOK.dim, 12);
     // Held to 0..1, NaN as 0.
     model.setLit('cookies-clicker', 3);
     for (const m of beadMaterials(model, 'cookies-clicker')) expect(lightOf(m)).toBeCloseTo(1, 12);
     model.setLit('cookies-clicker', Number.NaN);
-    for (const m of beadMaterials(model, 'cookies-clicker')) expect(lightOf(m)).toBeCloseTo(0.15, 12);
+    for (const m of beadMaterials(model, 'cookies-clicker')) expect(lightOf(m)).toBeCloseTo(BEADS_LOOK.dim, 12);
     model.dispose();
   });
 
@@ -444,6 +444,66 @@ describe('the light', () => {
     const inner = objectNamed<THREE.PointLight>(model.beads.funcial.root, 'bead_funcial_inner');
     expect(inner.isPointLight).toBe(true);
     expect(inner.intensity).toBe(0.25);
+    model.dispose();
+  });
+});
+
+describe('the bead ahead (the light floor, the fade)', () => {
+  it('lights a bead ahead at its floor, not black, as it fades in', () => {
+    const { model } = build();
+    model.setLit('jontai-energy', 0);
+    model.setFade('jontai-energy', 0.2);
+    for (const m of beadMaterials(model, 'jontai-energy')) expect(lightOf(m), m.name).toBeCloseTo(0.38 * Math.sqrt(0.2), 12);
+    model.setLit('jontai-energy', 1);
+    for (const m of beadMaterials(model, 'jontai-energy')) expect(lightOf(m), m.name).toBeCloseTo(Math.sqrt(0.2), 12);
+    model.setFade('jontai-energy', 0);
+    for (const m of beadMaterials(model, 'jontai-energy')) expect(lightOf(m), m.name).toBe(0);
+    model.dispose();
+  });
+});
+
+describe('the float and the turn (setPose)', () => {
+  it('takes a pose offset on its root, its parts with it', () => {
+    const { model } = build();
+    const id = 'funcial';
+    const { root, body } = model.beads[id];
+    model.setFacing(id, centre(id).add(new THREE.Vector3(0, 0, 6)));
+    model.group.updateMatrixWorld(true);
+    const at = root.position.clone();
+    const rest = facing(model, id);
+    const bodyAt = body.getWorldPosition(new THREE.Vector3());
+    const side = () => X.clone().applyQuaternion(root.getWorldQuaternion(new THREE.Quaternion()));
+    // Up 5 cm and turned 10 degrees to the screen's right (the faced camera's +x): its body goes with it.
+    model.setPose(id, { y: 0.05, roll: 0, pitch: 0, yaw: 10 * DEG });
+    expect(root.position.x).toBeCloseTo(at.x, 12);
+    expect(root.position.y).toBeCloseTo(at.y + 0.05, 12);
+    expect(root.position.z).toBeCloseTo(at.z, 12);
+    expect(angleBetween(facing(model, id), rest)).toBeCloseTo(10 * DEG, 9);
+    expect(facing(model, id).x).toBeGreaterThan(0);
+    model.group.updateMatrixWorld(true);
+    expect(body.getWorldPosition(new THREE.Vector3()).y - bodyAt.y).toBeCloseTo(0.05, 9);
+    // Pitched up 5 degrees: the porthole looks a little up.
+    model.setPose(id, { y: 0, roll: 0, pitch: 5 * DEG, yaw: 0 });
+    expect(angleBetween(facing(model, id), rest)).toBeCloseTo(5 * DEG, 9);
+    expect(facing(model, id).y).toBeGreaterThan(0);
+    // Rolled 1.5 degrees: the porthole stays where it looks, its side tilts.
+    model.setPose(id, { y: 0, roll: 1.5 * DEG, pitch: 0, yaw: 0 });
+    expect(angleBetween(facing(model, id), rest)).toBeLessThan(1e-9);
+    expect(Math.abs(side().y)).toBeCloseTo(Math.sin(1.5 * DEG), 9);
+    // A new place keeps the offset; none is rest again, exactly, and the other beads never moved.
+    model.setPose(id, { y: 0.04, roll: 0, pitch: 0, yaw: 0 });
+    const places = Object.fromEntries(IDS.map((b) => [b, centre(b).toArray()])) as Record<ProjectId, [number, number, number]>;
+    places[id] = [at.x + 1, at.y, at.z];
+    model.place(places);
+    expect(root.position.y).toBeCloseTo(at.y + 0.04, 12);
+    expect(root.position.x).toBeCloseTo(at.x + 1, 12);
+    model.setPose(id, { y: 0, roll: 0, pitch: 0, yaw: 0 });
+    expect(root.position.y).toBe(at.y);
+    expect(angleBetween(facing(model, id), rest)).toBeLessThan(1e-9);
+    expect(angleBetween(facing(model, 'jontai-energy'), Z)).toBeLessThan(1e-9);
+    // Not a number is no offset.
+    model.setPose(id, { y: Number.NaN, roll: Number.NaN, pitch: 0, yaw: 0 });
+    expect(root.position.y).toBe(at.y);
     model.dispose();
   });
 });
@@ -498,7 +558,7 @@ describe('the hover', () => {
     expect(angleBetween(facing(model, 'funcial'), Z)).toBeCloseTo(8 * DEG, 9);
     expect(BEADS_LOOK.hover.turn).toBeCloseTo(8 * DEG, 12);
     // The others stay as they were.
-    for (const m of beadMaterials(model, 'jontai-energy')) expect(lightOf(m)).toBeCloseTo(0.15, 12);
+    for (const m of beadMaterials(model, 'jontai-energy')) expect(lightOf(m)).toBeCloseTo(BEADS_LOOK.dim, 12);
     expect(angleBetween(facing(model, 'jontai-energy'), Z)).toBeLessThan(1e-9);
     model.dispose();
   });
@@ -531,14 +591,14 @@ describe('the hover', () => {
     const camera = centre('jontai-energy').add(new THREE.Vector3(-5, 0, 2));
     model.setHover('jontai-energy', 0.5, camera);
     expect(angleBetween(facing(model, 'jontai-energy'), Z)).toBeCloseTo(4 * DEG, 9);
-    for (const m of beadMaterials(model, 'jontai-energy')) expect(lightOf(m)).toBeCloseTo(0.15 * (1 + 0.5 * BEADS_LOOK.hover.brighten), 12);
+    for (const m of beadMaterials(model, 'jontai-energy')) expect(lightOf(m)).toBeCloseTo(BEADS_LOOK.dim * (1 + 0.5 * BEADS_LOOK.hover.brighten), 12);
     // One bead at a time: hovering another lets the first go.
     model.setHover('funcial', 1, camera);
     expect(angleBetween(facing(model, 'jontai-energy'), Z)).toBeLessThan(1e-9);
     model.setHover(null);
     for (const id of IDS) {
       expect(angleBetween(facing(model, id), Z)).toBeLessThan(1e-9);
-      for (const m of beadMaterials(model, id)) expect(lightOf(m)).toBeCloseTo(0.15, 12);
+      for (const m of beadMaterials(model, id)) expect(lightOf(m)).toBeCloseTo(BEADS_LOOK.dim, 12);
     }
     // NaN as no hover.
     model.setHover('funcial', Number.NaN, camera);
@@ -875,8 +935,8 @@ describe("the light's path: a bead fades, its veins wake, its object builds", ()
     model.setLit('funcial', 1);
     const lit = lightOf(body);
     model.setFade('funcial', 0.5);
-    expect(lightOf(body)).toBeCloseTo(0.5 * lit, 9);
-    for (const m of beadMaterials(model, 'funcial')) expect(lightOf(m), m.name).toBeCloseTo(0.5 * lit, 9);
+    expect(lightOf(body)).toBeCloseTo(Math.SQRT1_2 * lit, 9); // by the fade's root: it comes out of the dark early
+    for (const m of beadMaterials(model, 'funcial')) expect(lightOf(m), m.name).toBeCloseTo(Math.SQRT1_2 * lit, 9);
     model.setFade('funcial', 0);
     expect(lightOf(body)).toBe(0);
     model.setFade('funcial', Number.NaN);
