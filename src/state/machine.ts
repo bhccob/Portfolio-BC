@@ -41,10 +41,15 @@ function phaseOfChapter(chapter: ChapterId, category: string | null): Phase {
       return { kind: 'HOME_IDLE' };
     case 'LIGHT':
       return { kind: 'LIGHT' };
-    case 'RING':
-    case 'SHEET':
-      // the ring's units and the sheet are the projects' phase: the project at the unit's start
+    case 'TRAVEL':
+    case 'ORBIT':
+    case 'INSIDE':
+      // the path's units are the projects' phase, with the project the unit leads to
       return { kind: 'PROJECTS', category };
+    case 'LOOK':
+    case 'SHEET':
+      // the look back and the sheet over it: the projects' phase with no one project, so a bead still opens
+      return { kind: 'PROJECTS', category: null };
     case 'END':
       return { kind: 'END' };
   }

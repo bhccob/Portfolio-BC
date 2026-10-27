@@ -4,20 +4,40 @@ import { PAGES } from '~/data/pages';
 import { type ProjectId, projects } from '~/data/projects';
 import { routeFromPath } from '~/i18n/locale';
 import { type Locale, Translator } from '~/i18n/Translator';
-import { chapterAt, HOME_CHAPTERS, projectStop } from './chapters';
+import { arrivalStop, chapterAt, HOME_CHAPTERS, sheetStart } from './chapters';
 import { frame } from './frame';
 import { type Phase, samePhase, transition } from './machine';
 import { useScene } from './store';
 
 /**
- * The stop of a project on the home's scroll, where its bead is in front of the ring: the start of the RING unit its
- * category starts, or of SHEET for the last (~/state/chapters `projectStop`), so 4 for Funcial, 5 for Jontai Energy and
- * 6 for Cookies Clicker.
+ * The stop of a project on the home's scroll, where the light rests beside its bead with its label shown: the end of
+ * its orbit (~/state/chapters `arrivalStop`). A project that is not on the light's way has no bead on it: its stop is
+ * the look back's own, where it is a small light beside the trail (`sheetStart`).
  */
 export function stopForProject(id: ProjectId): number {
-  const category = projects.byId(id)?.categoryId;
-  if (category === undefined) throw new TypeError(`no stop on the home's scroll for the project "${id}"`);
-  return projectStop(HOME_CHAPTERS, category);
+  const project = projects.byId(id);
+  if (project === undefined) throw new TypeError(`no stop on the home's scroll for the project "${id}"`);
+  return projects.onPath().includes(project) ? arrivalStop(HOME_CHAPTERS, project.categoryId) : sheetStart(HOME_CHAPTERS);
+}
+
+/** The bead last opened from the home, and the place of the story it was opened at (`noteOpenedFrom`). */
+let opened: { id: ProjectId; place: number } | null = null;
+
+/**
+ * Notes that bead `id` is being opened from the home with the story at `place` (src/ui/BeadLabel.tsx `openBead`), so
+ * Back from its page comes back to that very place: its arrival, its inside or the look back (spec
+ * 2026-10-27-bob-light-path-design.md, "Coming back from a project").
+ */
+export function noteOpenedFrom(id: ProjectId, place: number): void {
+  opened = { id, place };
+}
+
+/**
+ * Where Back from project `id`'s page puts the story: the place its bead was last opened from, if it was this bead's,
+ * else the project's own stop (`stopForProject`), as for a page the visit began on.
+ */
+export function placeForProject(id: ProjectId): number {
+  return opened !== null && opened.id === id ? opened.place : stopForProject(id);
 }
 
 /**
@@ -83,9 +103,10 @@ export function arrivedDirectly(): boolean {
   return loadedOn === null || loadedOn === shown;
 }
 
-/** Forgets where the visit began. For tests: in the browser the module lives as long as the document. */
+/** Forgets where the visit began and the bead last opened. For tests: in the browser the module lives as long as the document. */
 export function resetRouteSync(): void {
   loadedOn = null;
+  opened = null;
   shown = null;
 }
 
@@ -120,8 +141,9 @@ function placeStory(place: number): void {
  *   the phase and its transition; a bead opened from the home is in it from its flight on);
  * - the home page, left a project page for by Back (a history pop) or by the page's own Back (its Escape and its
  *   "Esc · terug" link, which push the home page with `BACK_STATE` when the visit began on the page), puts the story at
- *   that project's stop (`stopForProject`, spec §2.4: "Esc or back flies out again to the same bead in the void, at its
- *   stop of the scroll"), wherever the scroll was before the page and however the visit began; by any other way (the
+ *   the place the bead was opened from, else at that project's stop (`placeForProject`; spec
+ *   2026-10-27-bob-light-path-design.md: "Coming back from a project opened at its arrival, its inside or the look back
+ *   returns to that same place"), wherever the scroll was before the page and however the visit began; by any other way (the
  *   header's name, any link to the home) it puts the story at the home, 0, a deliberate "to the top"; the
  *   phase follows it;
  * - any other location leaves a page phase for the phase the scroll is in. A scene that is not on a page
@@ -149,7 +171,7 @@ export function syncRoute(location: { pathname: string; key: string; state?: unk
     const project = projects.byId(phase.id);
     if (project && routeFromPath(location.pathname) === PAGES.home) {
       const back = navigationType === NavigationType.Pop || isBackState(location.state);
-      placeStory(back ? stopForProject(project.id) : 0);
+      placeStory(back ? placeForProject(project.id) : 0);
     }
     dispatch({ type: 'ROUTE', phase: phaseFromScroll() });
   }

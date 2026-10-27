@@ -1,22 +1,28 @@
-import { categories } from '~/data/categories';
+import { projects } from '~/data/projects';
 
 /**
  * The chapters of the home scroll, in order. A chapter is a stretch of scroll; the scene's phase follows it. They are the
- * light dive's (spec 2026-10-25-bob-light-dive-design.md): HOME is the rise from the home to BOB seen from above; LIGHT
- * the light dive, the needle lighting up into a light that flows away through the void past Bob's facts and lands as the
- * needle at the ring's centre (the way's frames 1 to 300 of the previs, tools/blender/light_dive.py); RING the camera
- * turning round the ring of projects, one unit from each project to the next, exactly with the scroll; SHEET the end
- * page sliding up from below over the last project; and END the end page, the scroll's last stop.
+ * light's path (spec 2026-10-27-bob-light-path-design.md), after the light dive (2026-10-25-bob-light-dive-design.md):
+ * - HOME, the rise from the home to BOB seen from above;
+ * - LIGHT, the light dive: the needle lighting up into a light that flows away through the void past Bob's facts (the
+ *   way's frames 1 to `HAND_F` of the previs, tools/blender/light_dive.py), where the path takes the light over;
+ * - for each project on the way, in order: TRAVEL, the light leading on to its bead; ORBIT, the light circling it and
+ *   coming to rest on its right; INSIDE, the camera through its glass, its object building with the scroll;
+ * - LOOK, the camera pulling back over the whole way;
+ * - SHEET, the look back fading to black and the credits rising from below;
+ * - END, the credits at rest, the scroll's last stop.
  */
-export type ChapterId = 'HOME' | 'LIGHT' | 'RING' | 'SHEET' | 'END';
+export type ChapterId = 'HOME' | 'LIGHT' | 'TRAVEL' | 'ORBIT' | 'INSIDE' | 'LOOK' | 'SHEET' | 'END';
 
 export interface ChapterUnit {
   id: ChapterId;
   /** Where the unit starts on the scroll axis, in units (one unit is one viewport height of scroll). */
   start: number;
   length: number;
-  /** The project at the start of a RING unit, or the last project for SHEET; null for every other chapter. */
+  /** The category of the project of a TRAVEL, ORBIT or INSIDE unit; null for every other chapter. */
   category: string | null;
+  /** That project's place on the way, 0 for the first; null for every other chapter. */
+  project: number | null;
 }
 
 export interface Chapters {
@@ -25,40 +31,57 @@ export interface Chapters {
 }
 
 export interface ChapterSpec {
-  /** The project categories in ring order: each but the last starts a RING unit, and the last is SHEET's. */
-  categories: readonly string[];
+  /** The categories of the projects on the way, in order: each has a TRAVEL, an ORBIT and an INSIDE. */
+  path: readonly string[];
 }
 
 /** How far outside a chapter, in units, the scroll may drift before the chapter changes: it stops a boundary from flickering. */
 export const HYSTERESIS = 0.02;
 
-/**
- * The light dive's length in units: the mock-up Bob approved scrolled the way's 300 frames over three viewport heights
- * (the first page's four tall, three of scroll).
- */
-export const LIGHT_UNITS = 3;
-
-/** The way's frames in the light dive (the previs's 1 to 300; frame 300 is the ring at its first project). */
+/** The way's frames in the previs (1 to 300); the light dive's pace is its 299 frames over three viewport heights. */
 const WAY_FRAMES = 300;
+
+/** The light dive's scroll per way frame: the mock-up Bob approved scrolled the way's 300 frames over three units. */
+export const UNITS_PER_FRAME = 3 / (WAY_FRAMES - 1);
+
+/** The way frame at which the path takes the light over from the light dive (the light path mock-up's hand-over). */
+export const HAND_F = 256;
+
+/** The light dive's length in units: its frames 1 to `HAND_F` at its pace. */
+export const LIGHT_UNITS = UNITS_PER_FRAME * (HAND_F - 1);
 
 /** The way frames at which each of Bob's five facts is at full strength: the middle of its 40 frames (61 + 40 i + 20). */
 export const FACT_PEAKS = [81, 121, 161, 201, 241] as const;
 
 /**
- * HOME 1, LIGHT `LIGHT_UNITS`, then a RING unit from each project to the next (its category the project at its start),
- * SHEET 1 (the last project's: the end page slides up over it), then END 1: with the three projects HOME 0-1, LIGHT 1-4,
- * RING 4-5 and 5-6, SHEET 6-7 and END from 7. The scroll ends on the last stop, the end page's, and never goes into the
- * END unit (`scrollEnd`); `total` is where the units end. Nothing here is a pixel: the scroll input turns pixels into
- * units.
+ * The path's lengths in units, from the light path mock-up Bob approved (.superpowers/light-path-mockup/path.ts,
+ * `LAYOUT`): each project's travel (the first three; a later one is the third's), its orbit and its inside, and the look
+ * back. The sheet is one unit: its first 0.55 the fade to black, the rest the credits rising.
+ */
+export const PATH_LAYOUT = { travel: [1.25, 1.45, 1.55], orbit: 1.45, inside: 1.35, look: 1.9 } as const;
+
+/** The travel to the project at place `i` on the way. */
+function travelLength(i: number): number {
+  return PATH_LAYOUT.travel[Math.min(i, PATH_LAYOUT.travel.length - 1)]!;
+}
+
+/**
+ * HOME 1, LIGHT `LIGHT_UNITS`, then TRAVEL, ORBIT and INSIDE for each project on the way, then LOOK, SHEET 1 and END 1.
+ * The scroll ends on the last stop, the credits' (`scrollEnd`), and never goes into the END unit; `total` is where the
+ * units end. Nothing here is a pixel: the scroll input turns pixels into units.
  */
 export function buildChapters(spec: ChapterSpec): Chapters {
-  const last = spec.categories.at(-1);
   const lengths: Omit<ChapterUnit, 'start'>[] = [
-    { id: 'HOME', length: 1, category: null },
-    { id: 'LIGHT', length: LIGHT_UNITS, category: null },
-    ...spec.categories.slice(0, -1).map((category) => ({ id: 'RING' as const, length: 1, category })),
-    ...(last === undefined ? [] : [{ id: 'SHEET' as const, length: 1, category: last }]),
-    { id: 'END', length: 1, category: null },
+    { id: 'HOME', length: 1, category: null, project: null },
+    { id: 'LIGHT', length: LIGHT_UNITS, category: null, project: null },
+    ...spec.path.flatMap((category, project): Omit<ChapterUnit, 'start'>[] => [
+      { id: 'TRAVEL', length: travelLength(project), category, project },
+      { id: 'ORBIT', length: PATH_LAYOUT.orbit, category, project },
+      { id: 'INSIDE', length: PATH_LAYOUT.inside, category, project }
+    ]),
+    { id: 'LOOK', length: PATH_LAYOUT.look, category: null, project: null },
+    { id: 'SHEET', length: 1, category: null, project: null },
+    { id: 'END', length: 1, category: null, project: null }
   ];
   let start = 0;
   const units = lengths.map((unit) => {
@@ -69,8 +92,8 @@ export function buildChapters(spec: ChapterSpec): Chapters {
   return { units, total: start };
 }
 
-/** The chapters of the home page: the rise, the light dive, the ring of the project categories as the data lists them, the sheet and the end page. */
-export const HOME_CHAPTERS: Chapters = buildChapters({ categories: categories.all().map((category) => category.id) });
+/** The chapters of the home page: the rise, the light dive, the path through the projects on the way, the look back, the sheet and the credits. */
+export const HOME_CHAPTERS: Chapters = buildChapters({ path: projects.onPath().map((project) => project.categoryId) });
 
 export interface ChapterAt {
   index: number;
@@ -78,6 +101,7 @@ export interface ChapterAt {
   /** How far through the unit, 0 to 1. */
   local: number;
   category: string | null;
+  project: number | null;
 }
 
 /**
@@ -96,7 +120,7 @@ export function chapterAt(c: Chapters, p: number, previous?: { index: number }):
 
   const unit = c.units[index]!;
   const local = Math.min(Math.max((position - unit.start) / unit.length, 0), 1);
-  return { index, id: unit.id, local, category: unit.category };
+  return { index, id: unit.id, local, category: unit.category, project: unit.project };
 }
 
 /** Where scrolling comes to rest: the start of each chapter. The last is the end of the scroll (`scrollEnd`). */
@@ -105,8 +129,8 @@ export function stops(c: Chapters): number[] {
 }
 
 /**
- * Where the scroll ends: its last stop, the start of the last chapter, the end page's. Past it there is nothing to
- * scroll to: the end page is an ordinary page that scrolls natively, so scrolling into its unit would be a unit of
+ * Where the scroll ends: its last stop, the start of the last chapter, the credits'. Past it there is nothing to
+ * scroll to: the credits are an ordinary page that scrolls natively, so scrolling into its unit would be a unit of
  * scroll that changes nothing.
  */
 export function scrollEnd(c: Chapters): number {
@@ -115,7 +139,7 @@ export function scrollEnd(c: Chapters): number {
 
 /**
  * The top of the rise: the end of the first chapter (HOME, the home to BOB from above), itself a stop. Up to it the
- * scroll is continuous, as M2a's rise was; from it on every input comes to rest on a stop (src/input/target.ts).
+ * scroll is continuous, as M2a's rise was; from it on the story follows the scroll.
  */
 export function riseTop(c: Chapters): number {
   const first = c.units[0];
@@ -132,37 +156,54 @@ export function lightStart(c: Chapters): number {
   return startOf(c, 'LIGHT');
 }
 
-/** Where the ring starts: its first project in front, the light landed as the needle (the way's frame 300). */
-export function ringStart(c: Chapters): number {
+/** Where the path starts: the hand-over, way frame `HAND_F`, the light still falling with the last fact beside it. */
+export function pathStart(c: Chapters): number {
   return lightStart(c) + LIGHT_UNITS;
 }
 
-/** Where the sheet starts: the last project in front, the end page about to slide up. */
+/** Where the look back starts: the camera inside the last bead, about to pull back over the whole way. */
+export function lookStart(c: Chapters): number {
+  return startOf(c, 'LOOK');
+}
+
+/** Where the sheet starts: the look back at rest, the whole way in view; also the look back's own stop. */
 export function sheetStart(c: Chapters): number {
   return startOf(c, 'SHEET');
 }
 
-/** The place of the way's frame `f` (1 to 300, fractional allowed) on the home's scroll: the light dive, linearly. */
+/** The place of the way's frame `f` (1 to `HAND_F`, fractional allowed) on the home's scroll: the light dive, linearly. */
 export function placeOfFrame(f: number): number {
-  return lightStart(HOME_CHAPTERS) + (LIGHT_UNITS * (f - 1)) / (WAY_FRAMES - 1);
+  return lightStart(HOME_CHAPTERS) + UNITS_PER_FRAME * (f - 1);
 }
 
-/**
- * The ring stop of the project of `category`: the start of the RING unit it starts, or of SHEET for the last project.
- * Throws for a category that has none.
- */
-export function projectStop(c: Chapters, category: string): number {
-  const unit = c.units.find((u) => (u.id === 'RING' || u.id === 'SHEET') && u.category === category);
-  if (!unit) throw new TypeError(`no ring stop on the home's scroll for the category "${category}"`);
-  return unit.start;
+/** The way's frame at place `p` of the home's scroll: `placeOfFrame` turned round (and its pace past the light dive too). */
+export function frameOfPlace(p: number): number {
+  return 1 + (p - lightStart(HOME_CHAPTERS)) / UNITS_PER_FRAME;
+}
+
+/** The end of the unit `id` of the project of `category`; throws for a category that is not on the way. */
+function endOf(c: Chapters, id: ChapterId, category: string): number {
+  const unit = c.units.find((u) => u.id === id && u.category === category);
+  if (!unit) throw new TypeError(`no ${id.toLowerCase()} on the home's scroll for the category "${category}"`);
+  return unit.start + unit.length;
+}
+
+/** The arrival stop of the project of `category`: the end of its orbit, the light at rest on the bead's right, its label shown. */
+export function arrivalStop(c: Chapters, category: string): number {
+  return endOf(c, 'ORBIT', category);
+}
+
+/** The inside stop of the project of `category`: the end of its inside, its object built. */
+export function insideStop(c: Chapters, category: string): number {
+  return endOf(c, 'INSIDE', category);
 }
 
 /**
  * Where a key steps (an arrow, Page Up or Down, Space, and every step with reduced motion): the home, BOB from above,
- * each fact at full strength (`FACT_PEAKS`), each project in front, and the end page.
+ * each fact at full strength (`FACT_PEAKS`), each project's arrival and inside, the look back and the credits.
  */
 export function keyStops(c: Chapters): number[] {
-  const facts = FACT_PEAKS.map((f) => lightStart(c) + (LIGHT_UNITS * (f - 1)) / (WAY_FRAMES - 1));
-  const projects = c.units.filter((u) => u.id === 'RING' || u.id === 'SHEET').map((u) => u.start);
-  return [0, riseTop(c), ...facts, ...projects, scrollEnd(c)];
+  const facts = FACT_PEAKS.map((f) => lightStart(c) + UNITS_PER_FRAME * (f - 1));
+  const path = c.units.filter((u) => u.id === 'ORBIT' || u.id === 'INSIDE').map((u) => u.start + u.length);
+  return [0, riseTop(c), ...facts, ...path, sheetStart(c), scrollEnd(c)];
 }

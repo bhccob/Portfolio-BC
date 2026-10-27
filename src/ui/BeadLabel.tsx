@@ -7,6 +7,7 @@ import { BEADS } from '~/scene/bob/journey';
 import { ringShot } from '~/scene/bob/lightDive';
 import { wakeScene } from '~/scene/motion';
 import { frame } from '~/state/frame';
+import { noteOpenedFrom } from '~/state/routeSync';
 import { useScene } from '~/state/store';
 import { isPlainClick } from './BackLink';
 import { type Box, overlaps, setSkipAlt, skipAlt, skipBox, skipHome, skipIsAlt } from './SkipButton';
@@ -281,6 +282,8 @@ export function openBead(id: ProjectId): boolean {
   if (openingClear !== null) clearTimeout(openingClear);
   openingClear = null;
   root.setAttribute(OPENING_ATTRIBUTE, '');
+  // Back from its page comes back to this very place: its arrival, its inside or the look back.
+  noteOpenedFrom(id, frame.progress);
   dispatch({ type: 'OPEN_PROJECT', id });
   wakeScene();
   const to = ways.path(id);
