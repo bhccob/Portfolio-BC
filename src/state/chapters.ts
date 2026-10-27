@@ -1,4 +1,22 @@
-import { projects } from '~/data/projects';
+import { type CategoryId, categories } from '~/data/categories';
+import { type Project, type ProjectId, projects } from '~/data/projects';
+
+/** One area of the hologram world (spec 2026-10-27-bob-hologram-world-design.md): a category and its projects on the way. */
+export interface AreaSpec {
+  category: CategoryId;
+  projects: ProjectId[];
+}
+
+/**
+ * The projects on the way grouped by category, an area each, in the categories' number order (01, 02, 03); within an
+ * area in the way's order. A category with no project on the way has no area.
+ */
+export function areasOnPath(list: readonly Project[] = projects.onPath()): AreaSpec[] {
+  return categories
+    .all()
+    .map((category) => ({ category: category.id, projects: list.filter((p) => p.categoryId === category.id).map((p) => p.id) }))
+    .filter((area) => area.projects.length > 0);
+}
 
 /**
  * The chapters of the home scroll, in order. A chapter is a stretch of scroll; the scene's phase follows it. They are the
