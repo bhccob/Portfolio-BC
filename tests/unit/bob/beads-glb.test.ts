@@ -14,7 +14,7 @@ const bytes = new Uint8Array(readFileSync('public/models/bob-beads.glb'));
 
 const IDS = ['funcial', 'jontai-energy', 'cookies-clicker'] as const;
 type Id = (typeof IDS)[number];
-const PARTS = ['body', 'halo', 'rim', 'glass', 'display', 'object', 'inner'] as const;
+const PARTS = ['body', 'halo', 'rim', 'frame', 'band', 'glass', 'display', 'object', 'inner'] as const;
 
 /** Each bead's real screenshot, whose shape its display's screen takes (src/assets/beads/). */
 const SCREENSHOTS: Record<Id, string> = {
@@ -29,8 +29,8 @@ const PORTHOLE = 0.62;
 /** The hollow behind the porthole: a sphere of this radius about (0, 0, z). */
 const CAVITY = { radius: 0.72, z: 0.331 };
 
-/** The shells' four materials (export_beads.py), and those each bead's object adds (bead_<id>.py). */
-const SHELL_MATERIALS = ['bead:display', 'bead:glass', 'bead:gold', 'bead:lacquer'];
+/** The shells' five materials (export_beads.py), and those each bead's object adds (bead_<id>.py). */
+const SHELL_MATERIALS = ['bead:display', 'bead:glass', 'bead:gold', 'bead:gold-engraved', 'bead:lacquer'];
 const OBJECT_MATERIALS = {
   funcial: ['bead:abacus', 'bead:aluminium', 'bead:track'],
   'jontai-energy': ['bead:backsheet', 'bead:cell', 'bead:polymer', 'bead:satin', 'bead:silver'],
@@ -63,6 +63,7 @@ interface Gltf {
       roughnessFactor?: number;
       metallicRoughnessTexture?: { index: number };
     };
+    normalTexture?: { index: number; scale?: number; texCoord?: number };
     extensions?: { KHR_materials_specular?: { specularFactor?: number; specularColorFactor?: number[] } };
   }[];
   textures: { source: number }[];
@@ -293,13 +294,15 @@ describe('the beads GLB', () => {
     }
   });
 
-  it("names the shells' four materials and the objects' own, and each shell part wears its own", () => {
+  it("names the shells' five materials and the objects' own, and each shell part wears its own", () => {
     expect(gltf.materials.map((m) => m.name).sort()).toEqual([...SHELL_MATERIALS, ...Object.values(OBJECT_MATERIALS).flat()].sort());
     for (const id of IDS) {
       const wears = (part: string) => primitives(`bead_${id}_${part}`).map((p) => materialName(p.material));
       expect(wears('body')).toEqual(['bead:lacquer']);
       expect(wears('halo')).toEqual(['bead:gold']);
       expect(wears('rim')).toEqual(['bead:gold']);
+      expect(wears('frame')).toEqual(['bead:gold-engraved']);
+      expect(wears('band')).toEqual(['bead:gold-engraved']);
       expect(wears('glass')).toEqual(['bead:glass']);
       // The screen and its bezel are the dark glass; a thin edge round them is gold.
       expect(wears('display').sort()).toEqual(['bead:display', 'bead:gold']);
@@ -437,6 +440,49 @@ describe('the beads GLB', () => {
     expect(level).toBeLessThanOrEqual(0.35);
   });
 
+  it('gives every bead its frame and band in the engraved gold, and stays under 1.6 MB', () => {
+    expect(bytes.byteLength).toBeLessThan(1_600_000);
+    // The frame: a thick ring of rounded section round the porthole, its inner edge just past the opening's, standing
+    // well proud of the shell over the flat rim, all of it at the front.
+    const frame = attribute('bead_funcial_frame', 'POSITION');
+    const opening = PORTHOLE * RADIUS;
+    expect(Math.min(...frame.map(offAxis))).toBeCloseTo(opening + 0.01, 2);
+    expect(Math.max(...frame.map(offAxis))).toBeGreaterThan(opening + 0.09);
+    expect(Math.max(...frame.map(offAxis))).toBeLessThan(opening + 0.16);
+    const proud = Math.max(...frame.map(length)) - RADIUS;
+    expect(proud).toBeGreaterThan(0.04);
+    expect(proud).toBeLessThan(0.07);
+    const rim = attribute('bead_funcial_rim', 'POSITION');
+    expect(proud, 'over the flat rim').toBeGreaterThan(Math.max(...rim.map(length)) - RADIUS);
+    for (const p of frame) expect(p[2]).toBeGreaterThan(0.5);
+    expect(primitives('bead_funcial_frame')[0]!.attributes.TEXCOORD_0, "the frame's UV, for its engraving").toBeTypeOf('number');
+    // The band: round the middle (about the up axis), 0.13 tall, 0.018 proud, open over the frame.
+    const band = attribute('bead_funcial_band', 'POSITION');
+    const ys = band.map((p) => p[1]);
+    expect(Math.max(...ys) - Math.min(...ys)).toBeCloseTo(0.13, 2);
+    expect(Math.abs(Math.max(...ys) + Math.min(...ys))).toBeLessThan(1e-3);
+    const round = band.map((p) => Math.hypot(p[0], p[2]));
+    expect(Math.max(...round) - RADIUS).toBeCloseTo(0.018, 3);
+    expect(Math.min(...round)).toBeGreaterThan(RADIUS - 0.03);
+    // Open over the porthole: in front, never over the opening, and its ends run in under the frame.
+    const frameInner = Math.min(...frame.map(offAxis));
+    const frameOuter = Math.max(...frame.map(offAxis));
+    const front = band.filter((p) => p[2] > 0).map(offAxis);
+    for (const r of front) expect(r, 'never over the opening').toBeGreaterThan(frameInner + 0.03);
+    expect(Math.min(...front), 'its ends under the frame').toBeLessThan(frameOuter);
+    expect(primitives('bead_funcial_band')[0]!.attributes.TEXCOORD_0).toBeTypeOf('number');
+    // The engraved gold: the gold's own factors, and a small normal map of the engraving.
+    const engraved = material('bead:gold-engraved');
+    const gold = material('bead:gold');
+    expect(engraved.pbrMetallicRoughness?.baseColorFactor).toEqual(gold.pbrMetallicRoughness?.baseColorFactor);
+    expect(engraved.pbrMetallicRoughness?.metallicFactor ?? 1).toBe(1);
+    expect(engraved.emissiveFactor).toEqual(gold.emissiveFactor);
+    expect(engraved.normalTexture, 'the engraving').toBeDefined();
+    const image = gltf.images[gltf.textures[engraved.normalTexture!.index]!.source]!;
+    expect(image.mimeType).toBe('image/png');
+    expect(gltf.bufferViews[image.bufferView!]!.byteLength, 'a small map').toBeLessThan(120_000);
+  });
+
   it('rings the outline with the gold halo', () => {
     for (const p of attribute('bead_funcial_halo', 'POSITION')) {
       expect(offAxis(p)).toBeGreaterThanOrEqual(RADIUS);
@@ -445,8 +491,8 @@ describe('the beads GLB', () => {
     }
   });
 
-  it('shares the shell, halo, rim and glass between the beads', () => {
-    for (const part of ['body', 'halo', 'rim', 'glass']) {
+  it('shares the shell, halo, rim, frame, band and glass between the beads', () => {
+    for (const part of ['body', 'halo', 'rim', 'frame', 'band', 'glass']) {
       const meshes = new Set(IDS.map((id) => node(`bead_${id}_${part}`).mesh));
       expect(meshes.size, part).toBe(1);
     }

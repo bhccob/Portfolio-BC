@@ -29,6 +29,11 @@
 # - `bead_<id>_halo`: the gold band round the outline (the circle the bead shows from the front).
 # - `bead_<id>_rim`: the porthole's gold rim, a flat band laid along the shell over the opening's
 #   edge, 0.10 wide and 0.05 deep, standing 0.02 proud.
+# - `bead_<id>_frame`: the porthole's thick gold frame (the 3D world's spec, goal 4), over the rim: a
+#   ring of rounded section round the porthole's axis, its inner edge 0.01 past the opening's, 0.12
+#   wide along the shell and 0.09 deep through it, standing about 0.055 proud, in `bead:gold-engraved`.
+# - `bead_<id>_band`: the engraved gold band round the bead's middle (about the up axis), 0.13
+#   tall, its face 0.018 proud, open where the frame stands, in `bead:gold-engraved`.
 # - `bead_<id>_glass`: the porthole's glass, a cap of a sphere of 0.935 concentric with the shell
 #   (crown on the axis at 0.935), its edge under the rim.
 # - `bead_<id>_display`: the small display beside the object slot, standing in the cavity and
@@ -60,6 +65,9 @@
 #     full (the roughness is the factor, everywhere), blue the mask (the veins are metal, the
 #     lacquer between them is not). Both are embedded; the two cost about 415 kB.
 #   - `bead:gold`: the rims, halo and display edges; the preview's bead gold, glowing at 0.2.
+#   - `bead:gold-engraved`: the frame and the band: the same gold, with a small tangent-space normal
+#     map of the engraved way's engraving (edge lines, scale ticks, a mark now and then), 512 x 64,
+#     repeating round them.
 #   - `bead:glass`: clear, transmissive (KHR_materials_transmission), roughness 0.02, its
 #     reflection dimmed to a quarter (KHR_materials_specular 0.25).
 #   - `bead:display`: black glass, glossy, no emission in the file: code puts the screenshot on it
@@ -112,6 +120,19 @@ RIM = dict(angle=40.0, width=0.10, depth=0.05, sink=0.005, seg=96, sides=16)
 # full strength the dome mirrored the key as a hard disc. Its roughness stays low: three blurs what
 # it sees through transmission by the roughness.
 GLASS = dict(radius=0.935, angle=38.5, seg=64, rings=10, specular=0.125)
+# The frame: a ring round the porthole's axis whose section is a rounded rectangle (a superellipse of
+# `exponent`) `width` along the shell's surface and `depth` through it, its centre `lift` off the
+# shell, at the angle from the axis that puts its inner edge at `inner` off the axis; the engraving
+# `repeat` times round it.
+FRAME = dict(inner=OPEN_R + 0.01, width=0.12, depth=0.09, lift=0.01, exponent=4.0, seg=160, sides=32, repeat=8)
+# The band round the middle: its face `proud` off the shell, `sunk` under it at the back, `height`
+# tall with rounded edges (`round`), open over the porthole, its two ends tucked under the frame
+# (`tuck` of the frame's width in from its outer edge), so it runs into the frame and no end shows;
+# the engraving `repeat` times round it.
+BAND = dict(height=0.13, proud=0.018, sunk=0.008, round=0.012, tuck=0.5, seg=192, repeat=10)
+# The engraving's normal map: `w` x `h` px, a tick every `tick`, a long one every fifth, a mark every
+# `mark`; `strength` its bump.
+ENGRAVING = dict(w=512, h=64, tick=16, mark=256, strength=1.0)
 SLOT_Y = -0.30                        # the object slot's centre on the axis
 SLOT_RADIUS = 0.5                     # the object stays within this of the axis
 
@@ -360,6 +381,167 @@ def rim_mesh(name):
     return b.mesh(name)
 
 
+def frame_section():
+    """The frame's section in the plane through the axis, as (r, y) points round it, and its centre's angle from the axis.
+
+    A superellipse `width` along the tangent at the centre's angle and `depth` along the normal, its
+    centre `lift` off the shell; the angle is found so that the section's nearest point to the axis
+    is FRAME['inner'] off it.
+    """
+    hw, hd, p, sides = FRAME["width"] / 2, FRAME["depth"] / 2, FRAME["exponent"], FRAME["sides"]
+    rc = R + FRAME["lift"]
+    shape = []
+    for k in range(sides):
+        a = 2 * math.pi * k / sides
+        c, s = math.cos(a), math.sin(a)
+        shape.append((hw * math.copysign(abs(c) ** (2 / p), c), hd * math.copysign(abs(s) ** (2 / p), s)))
+
+    def at(theta):
+        t = (math.cos(theta), math.sin(theta))                           # along the shell, away from the porthole: (r, y)
+        n = (math.sin(theta), -math.cos(theta))                          # out of the shell: (r, y)
+        r0, y0 = rc * math.sin(theta), -rc * math.cos(theta)
+        return [(r0 + u * t[0] + v * n[0], y0 + u * t[1] + v * n[1]) for u, v in shape]
+
+    lo, hi = math.radians(30.0), math.radians(60.0)
+    for _ in range(60):
+        mid = (lo + hi) / 2
+        if min(r for r, _ in at(mid)) < FRAME["inner"]:
+            lo = mid
+        else:
+            hi = mid
+    theta = (lo + hi) / 2
+    return at(theta), shape, theta
+
+
+def frame_mesh(name):
+    """The porthole's thick gold frame (FRAME above), round the porthole's axis, UV-mapped for its engraving.
+
+    u runs round it, FRAME['repeat'] engravings; v across its width, 0 at its inner edge to 1 at its outer,
+    on its face and its back alike.
+    """
+    b = Builder(uv=True)
+    seg = FRAME["seg"]
+    section, shape, theta = frame_section()
+    hw = FRAME["width"] / 2
+    n = (math.sin(theta), -math.cos(theta))
+    t = (math.cos(theta), math.sin(theta))
+    grid = [[b.vert((r * math.cos(2 * math.pi * i / seg), y, r * math.sin(2 * math.pi * i / seg))) for r, y in section] for i in range(seg + 1)]
+    sides = len(section)
+    for i in range(seg):
+        phi = 2 * math.pi * (i + 0.5) / seg
+        for k in range(sides):
+            m = (k + 1) % sides
+            psi = 2 * math.pi * (k + 0.5) / sides
+            fr = math.cos(psi) * t[0] + math.sin(psi) * n[0]
+            fy = math.cos(psi) * t[1] + math.sin(psi) * n[1]
+            uv = lambda ii, kk: (FRAME["repeat"] * ii / seg, 0.5 + 0.5 * shape[kk][0] / hw)
+            verts = (grid[i][k], grid[i + 1][k], grid[i + 1][m], grid[i][m])
+            b.face(verts, (fr * math.cos(phi), fy, fr * math.sin(phi)), uvs=(uv(i, k), uv(i + 1, k), uv(i + 1, m), uv(i, m)))
+    me = b.mesh(name)
+    # The seam where the ring closes on itself is welded, so its normals run on smooth.
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-6)
+    bm.to_mesh(me)
+    bm.free()
+    return me
+
+
+def frame_outer():
+    """The frame's farthest reach from the porthole's axis."""
+    return max(r for r, _ in frame_section()[0])
+
+
+def band_mesh(name):
+    """The gold band round the bead's middle (BAND above), about the up axis, open over the porthole and its frame.
+
+    Its section, in the plane through the up axis: a rounded rectangle from BAND['sunk'] under the shell
+    to BAND['proud'] off it, BAND['height'] tall, its edges rounded by BAND['round']. It runs round the
+    long way from under the frame on one side to under it on the other, its two ends closed (and hidden
+    in the frame). u runs round it,
+    BAND['repeat'] engravings; v up it, 0 at its foot to 1 at its top.
+    """
+    b = Builder(uv=True)
+    seg, h, rr = BAND["seg"], BAND["height"] / 2, BAND["round"]
+    r_in, r_out = R - BAND["sunk"], R + BAND["proud"]
+    # The section, (radius about the up axis, height), round from the outer face's foot, counter-clockwise.
+    corners = [(r_out - rr, -h + rr, -90.0, 0.0), (r_out - rr, h - rr, 0.0, 90.0)]
+    section = []
+    for cx, cz, a0, a1 in corners:
+        for k in range(5):
+            a = math.radians(a0 + (a1 - a0) * k / 4)
+            section.append((cx + rr * math.cos(a), cz + rr * math.sin(a)))
+    section += [(r_in, h), (r_in, -h)]
+    # Open over the porthole: the gap, either side of its direction (-Y), ends under the frame.
+    reach = frame_outer() - BAND["tuck"] * (frame_outer() - FRAME["inner"])
+    gap = math.asin(min(1.0, reach / r_out))
+    span = 2 * math.pi - 2 * gap
+    angle = lambda i: -math.pi / 2 + gap + span * i / seg        # from -Y round, the long way
+    loops = [[b.vert((r * math.cos(angle(i)), r * math.sin(angle(i)), z)) for r, z in section] for i in range(seg + 1)]
+    m = len(section)
+    for i in range(seg):
+        phi = angle(i + 0.5)
+        for k in range(m):
+            j = (k + 1) % m
+            (ra, za), (rb, zb) = section[k], section[j]
+            # The face's outward normal in the section's plane: square to the edge, away from its middle.
+            er, ez = rb - ra, zb - za
+            nr, nz = ez, -er
+            mid_r, mid_z = (ra + rb) / 2 - (r_in + r_out) / 2, (za + zb) / 2
+            if nr * mid_r + nz * mid_z < 0:
+                nr, nz = -nr, -nz
+            v = lambda kk: 0.5 + section[kk][1] / (2 * h)
+            u = lambda ii: BAND["repeat"] * ii / seg
+            verts = (loops[i][k], loops[i + 1][k], loops[i + 1][j], loops[i][j])
+            b.face(verts, (nr * math.cos(phi), nr * math.sin(phi), nz), uvs=((u(i), v(k)), (u(i + 1), v(k)), (u(i + 1), v(j)), (u(i), v(j))))
+    # The two ends, closed, each facing on round past it.
+    for i, sign in ((0, -1.0), (seg, 1.0)):
+        phi = angle(i)
+        facing = (-math.sin(phi) * sign, math.cos(phi) * sign, 0.0)
+        b.face(loops[i], facing, uvs=[(0.0, 0.5 + z / (2 * h)) for _, z in section])
+    return b.mesh(name, sharp_angle=math.radians(50))
+
+
+def engraving_map(folder):
+    """The engraving as a tangent-space normal map (ENGRAVING above), written as a PNG in `folder` and loaded back.
+
+    Its height: grooves along both edges, a fine tick every ENGRAVING['tick'] px (longer every fifth)
+    down from the top edge, and a small diamond every ENGRAVING['mark'] px in the lower half; softened,
+    then turned to normals (OpenGL's, +y up, as glTF's), rows from the top.
+    """
+    w, h = ENGRAVING["w"], ENGRAVING["h"]
+    height = np.zeros((h, w), np.float32)                     # row 0 at v = 0 (the foot)
+    for v0, v1 in ((0.07, 0.12), (0.88, 0.93)):
+        height[int(v0 * h):int(v1 * h), :] = -1.0
+    for k, x in enumerate(range(0, w, ENGRAVING["tick"])):
+        long = k % 5 == 0
+        top = int(0.88 * h)
+        bottom = int((0.5 if long else 0.66) * h)
+        height[bottom:top, x:x + 2] = -0.8
+    yy, xx = np.mgrid[0:h, 0:w]
+    for x in range(ENGRAVING["mark"] // 2, w, ENGRAVING["mark"]):
+        diamond = (np.abs(xx - x) + np.abs(yy - 0.3 * h)) < 6
+        ring = diamond & ~((np.abs(xx - x) + np.abs(yy - 0.3 * h)) < 3.5)
+        height[ring] = -0.9
+    # Soften (a 3 x 3 box, twice, wrapping round in u), then the slopes to normals.
+    for _ in range(2):
+        height = sum(np.roll(np.roll(height, dy, 0), dx, 1) for dy in (-1, 0, 1) for dx in (-1, 0, 1)) / 9.0
+    du = (np.roll(height, -1, 1) - np.roll(height, 1, 1)) / 2.0
+    dv = (np.roll(height, -1, 0) - np.roll(height, 1, 0)) / 2.0
+    k = 1.6
+    nx, ny, nz = -du * k, -dv * k, np.ones_like(height)
+    norm = np.sqrt(nx * nx + ny * ny + nz * nz)
+    rgb = np.stack([nx / norm, ny / norm, nz / norm], axis=-1)
+    pixels = np.round((rgb * 0.5 + 0.5) * 255).astype(np.uint8)
+    path = os.path.join(folder, "bead-engraving.png")
+    write_png(path, pixels[::-1])                             # a PNG's rows run down from the top
+    image = bpy.data.images.load(path)
+    image.name = "bead-engraving"
+    image.colorspace_settings.name = 'Non-Color'
+    image.alpha_mode = 'NONE'
+    return image
+
+
 def glass_mesh(name):
     """The porthole's glass: a cap of a sphere concentric with the shell (GLASS above), crown on the axis, edge under the rim."""
     b = Builder()
@@ -504,6 +686,26 @@ def mat_gold():
     b.inputs['Roughness'].default_value = 0.25
     b.inputs['Emission Color'].default_value = (*GOLD_EMIT, 1)
     b.inputs['Emission Strength'].default_value = GOLD_GLOW
+    return m
+
+
+def mat_gold_engraved(engraving):
+    """The bead gold of the frame and the band, with the engraving as its tangent-space normal map."""
+    m, nt, b = principled("bead:gold-engraved")
+    N, L = nt.nodes.new, nt.links.new
+    b.inputs['Base Color'].default_value = (*GOLD, 1)
+    b.inputs['Metallic'].default_value = 1.0
+    b.inputs['Roughness'].default_value = 0.25
+    b.inputs['Emission Color'].default_value = (*GOLD_EMIT, 1)
+    b.inputs['Emission Strength'].default_value = GOLD_GLOW
+    tex = N('ShaderNodeTexImage')
+    tex.image = engraving
+    tex.interpolation = 'Linear'
+    normal = N('ShaderNodeNormalMap')
+    normal.space = 'TANGENT'
+    normal.inputs['Strength'].default_value = ENGRAVING["strength"]
+    L(tex.outputs['Color'], normal.inputs['Color'])
+    L(normal.outputs['Normal'], b.inputs['Normal'])
     return m
 
 
@@ -721,6 +923,8 @@ def build():
     shell = shell_mesh("bead_body")
     halo = halo_mesh("bead_halo")
     rim = rim_mesh("bead_rim")
+    frame = frame_mesh("bead_frame")
+    band = band_mesh("bead_band")
     glass = glass_mesh("bead_glass")
     beads = {}
     for spec in BEADS:
@@ -732,6 +936,8 @@ def build():
         body.rotation_euler = (0.0, math.radians(spec["roll"]), 0.0)    # about the porthole's axis (Y)
         link(bpy.data.objects.new(f"bead_{bid}_halo", halo), root)
         link(bpy.data.objects.new(f"bead_{bid}_rim", rim), root)
+        link(bpy.data.objects.new(f"bead_{bid}_frame", frame), root)
+        link(bpy.data.objects.new(f"bead_{bid}_band", band), root)
         link(bpy.data.objects.new(f"bead_{bid}_glass", glass), root)
         dmesh, size = display_mesh(f"bead_{bid}_display", spec)
         display = link(bpy.data.objects.new(f"bead_{bid}_display", dmesh), root)
@@ -765,15 +971,15 @@ def display_scale(b):
 
 
 def dress(beads, images):
-    """The four materials on the parts. The shared meshes carry theirs; each display has gold (slot 0) and its screen (slot 1)."""
-    mats = dict(lacquer=mat_lacquer(images), gold=mat_gold(), glass=mat_glass(), display=mat_display())
+    """The five materials on the parts. The shared meshes carry theirs; each display has gold (slot 0) and its screen (slot 1)."""
+    mats = dict(lacquer=mat_lacquer(images), gold=mat_gold(), gold_engraved=mat_gold_engraved(images["engraving"]), glass=mat_glass(), display=mat_display())
     any_bead = next(iter(beads.values()))
     body = any_bead["body"].data
     body.materials.clear()
     body.materials.append(mats["lacquer"])
     for p in body.polygons:
         p.material_index = 0
-    for part, mat in (("halo", "gold"), ("rim", "gold"), ("glass", "glass")):
+    for part, mat in (("halo", "gold"), ("rim", "gold"), ("frame", "gold_engraved"), ("band", "gold_engraved"), ("glass", "glass")):
         bpy.data.objects[f"bead_{BEADS[0]['id']}_{part}"].data.materials.append(mats[mat])
     for b in beads.values():
         # fresh meshes: appending keeps the screen's faces on slot 1 (clearing would reset them to 0)
@@ -952,6 +1158,7 @@ def main():
     beads, to_bake = build()
     with tempfile.TemporaryDirectory() as folder:
         images, figures = bake_maps(to_bake, folder)
+        images["engraving"] = engraving_map(folder)
         mats = dress(beads, images)
         filled = fill_slots(beads, mats)
         dg = bpy.context.evaluated_depsgraph_get()

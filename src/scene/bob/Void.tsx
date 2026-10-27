@@ -939,6 +939,8 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
       return;
     }
     const { beads } = parts;
+    // The look back's ring round each bead, by the nebula's level for it (./nebulaWay.ts).
+    beads.setRings(clouds.rings);
 
     // Each bead on the path: its place, its porthole turned to the camera's side, its light, its fade into the dark or out
     // of it, its veins as the light has woken them (in the camera's view), and its object as the scroll has built it,

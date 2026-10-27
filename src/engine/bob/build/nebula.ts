@@ -366,7 +366,7 @@ function dust(name: string, count: number, rMin: number, rMax: number, seed: num
 // ---------------------------------------------------------------- the nebula
 
 /** How square on a band must be seen to show (|its axis · the way to it|): none below the first, whole past the second. */
-const EDGE_ON = [0.12, 0.3] as const;
+const EDGE_ON = [0.25, 0.5] as const;
 
 export interface NebulaModel {
   group: THREE.Group;

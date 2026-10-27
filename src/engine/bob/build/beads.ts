@@ -6,7 +6,9 @@
  * the path's camera (`setFacing`); a gentle hover (`setHover`); its object's motion (`setMotion`, the numbers of
  * ~/engine/bob/beadMotion); and for the light's path (spec 2026-10-27-bob-light-path-design.md) its fade into the dark
  * (`setFade`), its veins woken where the light has passed (`setWake`) and its object built with the scroll (`setBuild`,
- * ~/engine/bob/beadBuild). No React: the Void mounts the group and poses it from the journey every frame.
+ * ~/engine/bob/beadBuild); for the 3D world (spec 2026-10-27-bob-nebula-space-design.md) its float and turn (`setPose`),
+ * its thick engraved gold frame and band (the file's, dressed with its light like every surface) and a thin engraved ring
+ * round it in the look back (`setRings`). No React: the Void mounts the group and poses it from the journey every frame.
  *
  * The beads are the void's one focal point (Bob: dark, calm, one focal point), so a bead not in view stays dim or faded,
  * the hover only brightens a little and turns a few degrees, and every object holds still unless the scroll builds it.
@@ -26,6 +28,7 @@ import {
   jontaiMotion
 } from '~/engine/bob/beadMotion';
 import { type BuildPose, buildPose, WAKE } from '~/engine/bob/beadBuild';
+import { engravedMaterial, engravingTexture, ringGeometry } from '~/engine/bob/build/engraved';
 import { palette } from '~/engine/palette';
 import { lowerTier, type QualityTier } from '~/engine/quality';
 import { BEADS } from '~/scene/bob/journey';
@@ -81,8 +84,22 @@ export const BEADS_LOOK = {
   jontai: { charged: 8 }
 } as const;
 
-/** Each bead's shell parts, `bead_<id>_<part>` in the GLB: the body, halo, rim, glass, display, object slot and inner light. */
-export const BEAD_PARTS = ['body', 'halo', 'rim', 'glass', 'display', 'object', 'inner'] as const;
+/**
+ * The look-back ring round each bead (the 3D world's spec, goal 8; the first mock-up's): `radius` and `width` (m), the
+ * engraving `repeat` times round it, its `tilt` (radians, about x, y and z in the bead's frame), the engraved way's
+ * `look` (a faint base, no glow by the light) and its fog (m, view depth).
+ */
+const LOOK_RING = {
+  radius: 1.8,
+  width: 0.05,
+  repeat: 14,
+  tilt: [0.22, 0, -0.12] as [number, number, number],
+  look: { base: 0.5, glow: 0, reach: 1 },
+  fog: [40, 90] as [number, number]
+} as const;
+
+/** Each bead's shell parts, `bead_<id>_<part>` in the GLB: the body, halo, rim, frame, band, glass, display, object slot and inner light. */
+export const BEAD_PARTS = ['body', 'halo', 'rim', 'frame', 'band', 'glass', 'display', 'object', 'inner'] as const;
 
 /** The nodes each object's motion drives (the object scripts' headers), found by name under the bead's root. */
 const OBJECT_PARTS: Readonly<Record<ProjectId, readonly string[]>> = {
@@ -141,6 +158,12 @@ export interface BeadsModel {
    * place and facing exactly; a value that is not a number is 0.
    */
   setPose(id: ProjectId, pose: { y: number; roll: number; pitch: number; yaw: number }): void;
+  /**
+   * Lights every bead's look-back ring (`bead_<id>_lookring`, the engraved way's engraving on a thin ring round the
+   * bead, tilted a little, a child of its root so it floats and turns with it) at `level`, 0..1 (held to it, NaN as 0):
+   * by its level alone, not the bead's light, fade or hover.
+   */
+  setRings(level: number): void;
   /**
    * The veins on bead `id`'s shell, as the light's sweep round it has woken them (spec 2026-10-27-bob-light-path-design.md,
    * 3A): the shell's emissive times `WAKE.rest` where the light has not passed, `WAKE.lit` where it has, and `hot` more
@@ -454,7 +477,12 @@ function problems(scene: THREE.Object3D): string[] {
  *
  * @throws TypeError naming every node the glTF lacks, or that is of the wrong kind.
  */
-export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens: Readonly<Record<ProjectId, THREE.Texture>>): BeadsModel {
+export function loadBeads(
+  gltf: Pick<GLTF, 'scene'>,
+  tier: QualityTier,
+  screens: Readonly<Record<ProjectId, THREE.Texture>>,
+  canvas: () => HTMLCanvasElement = () => document.createElement('canvas')
+): BeadsModel {
   const look = BEADS_LOOK;
   const scene = gltf.scene.clone();
   const found = problems(scene);
@@ -690,6 +718,20 @@ export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens:
     b.move(0);
   }
 
+  // The look-back rings: one engraving for the three, each ring its own material, dark until `setRings`.
+  const ringMap = engravingTexture(canvas());
+  const rings = beads.map((b) => {
+    const material = engravedMaterial(ringMap, LOOK_RING.look, [0, 0, 0]);
+    material.uniforms.uFog!.value.set(...LOOK_RING.fog);
+    made.push(material);
+    const ring = new THREE.Mesh(ringGeometry(LOOK_RING.radius, LOOK_RING.width, LOOK_RING.repeat), material);
+    ring.name = `bead_${b.id}_lookring`;
+    ring.rotation.set(...LOOK_RING.tilt);
+    ring.frustumCulled = false;
+    b.root.add(ring);
+    return ring;
+  });
+
   return {
     group,
     beads: Object.fromEntries(beads.map((b) => [b.id, { root: b.root, body: b.body }])) as BeadsModel['beads'],
@@ -741,6 +783,10 @@ export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens:
       b.fade = clamp01(fade);
       light(b);
     },
+    setRings(level) {
+      const at = clamp01(level);
+      for (const ring of rings) ring.material.uniforms.uLevel!.value = at;
+    },
     setPose(id, { y, roll, pitch, yaw }) {
       const b = bead(id);
       const n = (v: number): number => (Number.isFinite(v) ? v : 0);
@@ -775,6 +821,8 @@ export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens:
     dispose() {
       for (const material of made) material.dispose();
       for (const b of beads) b.inner.dispose();
+      for (const ring of rings) ring.geometry.dispose();
+      ringMap.dispose();
     }
   };
 }

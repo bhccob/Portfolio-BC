@@ -37,9 +37,14 @@ function fileMaterials() {
   veins.name = 'bead-veins';
   const lacquer = standard('bead:lacquer', [0.5, 0.26, 0.08]);
   lacquer.emissiveMap = veins;
+  const engraving = new THREE.Texture();
+  engraving.name = 'bead-engraving';
+  const goldEngraved = standard('bead:gold-engraved', [0.2, 0.104, 0.032]);
+  goldEngraved.normalMap = engraving;
   return {
     lacquer,
     gold: standard('bead:gold', [0.2, 0.104, 0.032]),
+    goldEngraved,
     display: standard('bead:display'),
     glass,
     abacus: standard('bead:abacus'),
@@ -123,6 +128,8 @@ function fakeGltf(options: { omit?: string; swap?: string } = {}): { scene: THRE
     add(root, `bead_${id}_inner`, at(new THREE.PointLight(0xffb873, 0.25, 0, 2), 0, 0.3, 0.45));
     const slot = add(root, `bead_${id}_object`, at(new THREE.Object3D(), 0, 0, 0.3));
     add(root, `bead_${id}_rim`, mesh(m.gold));
+    add(root, `bead_${id}_frame`, mesh(m.goldEngraved));
+    add(root, `bead_${id}_band`, mesh(m.goldEngraved));
 
     if (id === 'funcial') {
       const abacus = add(slot, 'funcial_abacus', at(group('funcial_abacus', [m.lacquer, m.gold]), -0.165, -0.3172, -0.1187, [0, 0.1285, 0.0227, 0.9914]));
@@ -166,10 +173,17 @@ function screens(): Record<ProjectId, THREE.Texture> {
   return { funcial: screenStub('funcial'), 'jontai-energy': screenStub('jontai-energy'), 'cookies-clicker': screenStub('cookies-clicker') };
 }
 
+/** A canvas as a test hands it over: a 2D context that draws nothing (the look-back rings' engraving). */
+function canvas(): HTMLCanvasElement {
+  const noop = () => {};
+  const ctx = { fillRect: noop, beginPath: noop, moveTo: noop, lineTo: noop, stroke: noop, arc: noop, closePath: noop } as unknown as CanvasRenderingContext2D;
+  return { width: 0, height: 0, getContext: (kind: string) => (kind === '2d' ? ctx : null) } as unknown as HTMLCanvasElement;
+}
+
 function build(tier: QualityTier = 'high', options: Parameters<typeof fakeGltf>[0] = {}) {
   const gltf = fakeGltf(options);
   const shots = screens();
-  const model = loadBeads(gltf, tier, shots);
+  const model = loadBeads(gltf, tier, shots, canvas);
   return { gltf, shots, model };
 }
 
@@ -201,9 +215,9 @@ function materials(model: BeadsModel): Set<THREE.MeshStandardMaterial> {
   return new Set(meshes(model.group).map(materialOf));
 }
 
-/** The materials of bead `id`. */
+/** The materials of bead `id`, its look-back ring's apart (the engraved way's, lit by its level alone). */
 function beadMaterials(model: BeadsModel, id: ProjectId): Set<THREE.MeshStandardMaterial> {
-  return new Set(meshes(model.beads[id].root).map(materialOf));
+  return new Set(meshes(model.beads[id].root).filter((o) => !o.name.endsWith('_lookring')).map(materialOf));
 }
 
 /** The mesh of the display `id` that wears the screen. */
@@ -278,7 +292,7 @@ afterEach(() => {
 
 describe('loading the beads', () => {
   it('names every missing part, and a part of the wrong kind', () => {
-    for (const name of ['bead_jontai-energy_glass', 'bead_funcial_display', 'bead_cookies-clicker_inner', 'funcial_bead_5', 'funcial_track', 'jontai_cell_16', 'jontai_module', 'cookies_wheel_3', 'cookies_balance', 'bead_funcial']) {
+    for (const name of ['bead_jontai-energy_glass', 'bead_funcial_display', 'bead_cookies-clicker_inner', 'funcial_bead_5', 'funcial_track', 'jontai_cell_16', 'jontai_module', 'cookies_wheel_3', 'cookies_balance', 'bead_funcial', 'bead_jontai-energy_frame', 'bead_cookies-clicker_band']) {
       expect(() => build('high', { omit: name }), name).toThrow(TypeError);
       expect(() => build('high', { omit: name }), name).toThrow(new RegExp(`"${name}"`));
     }
@@ -286,7 +300,7 @@ describe('loading the beads', () => {
     for (const name of ['bead_funcial_inner', 'bead_jontai-energy_body', 'bead_cookies-clicker_glass', 'funcial_track', 'jontai_cell_4']) {
       expect(() => build('high', { swap: name }), name).toThrow(new RegExp(name));
     }
-    expect(BEAD_PARTS).toEqual(['body', 'halo', 'rim', 'glass', 'display', 'object', 'inner']);
+    expect(BEAD_PARTS).toEqual(['body', 'halo', 'rim', 'frame', 'band', 'glass', 'display', 'object', 'inner']);
   });
 
   it('holds the three beads in one group, each placed at its journey stop, with its root and body for the pointer', () => {
@@ -317,7 +331,7 @@ describe('loading the beads', () => {
     for (const material of materials(model)) expect(fileMaterials.has(material)).toBe(false);
     expect(gltf.materials.glass.transmission).toBe(1);
     // A second load of the same glTF (drei caches one per URL) builds the same beads.
-    const again = loadBeads(gltf, 'high', screens());
+    const again = loadBeads(gltf, 'high', screens(), canvas);
     expect(again.group.children).toHaveLength(3);
     again.dispose();
     model.dispose();
@@ -505,6 +519,57 @@ describe('the float and the turn (setPose)', () => {
     model.setPose(id, { y: Number.NaN, roll: Number.NaN, pitch: 0, yaw: 0 });
     expect(root.position.y).toBe(at.y);
     model.dispose();
+  });
+});
+
+describe('the engraved gold and the look-back ring', () => {
+  it("dresses the engraved gold with the bead's light, so it fades with the bead", () => {
+    const { gltf, model } = build();
+    for (const id of IDS) {
+      const parts = ['frame', 'band'].map((part) => materialOf(objectNamed(model.beads[id].root, `bead_${id}_${part}`)));
+      for (const m of parts) {
+        expect(m.name).toBe('bead:gold-engraved');
+        expect(m, 'its own copy, not the file\'s').not.toBe(gltf.materials.goldEngraved);
+        expect(m.normalMap, 'the engraving kept').toBe(gltf.materials.goldEngraved.normalMap);
+      }
+      model.setLit(id, 1);
+      model.setFade(id, 0.25);
+      for (const m of parts) expect(lightOf(m), m.name).toBeCloseTo(0.5, 12);
+      model.setFade(id, 1);
+      model.setLit(id, 0);
+      for (const m of parts) expect(lightOf(m), m.name).toBeCloseTo(BEADS_LOOK.dim, 12);
+    }
+    model.dispose();
+  });
+
+  it('lights the look-back ring by its level only', () => {
+    const { model } = build();
+    const rings = IDS.map((id) => objectNamed<THREE.Mesh>(model.beads[id].root, `bead_${id}_lookring`));
+    const level = (ring: THREE.Mesh) => (ring.material as THREE.ShaderMaterial).uniforms.uLevel!.value as number;
+    for (const [k, ring] of rings.entries()) {
+      expect(ring.parent, 'a child of its bead, so it floats and fades with it').toBe(model.beads[IDS[k]!].root);
+      const m = ring.material as THREE.ShaderMaterial;
+      expect([m.blending, m.depthWrite, m.transparent]).toEqual([THREE.AdditiveBlending, false, true]);
+      expect(level(ring)).toBe(0);
+    }
+    model.setRings(0.6);
+    for (const ring of rings) expect(level(ring)).toBeCloseTo(0.6, 12);
+    // The bead's own light, fade and hover leave it be.
+    model.setLit('funcial', 1);
+    model.setFade('funcial', 0.1);
+    model.setHover('funcial', 1);
+    for (const ring of rings) expect(level(ring)).toBeCloseTo(0.6, 12);
+    model.setRings(0);
+    for (const ring of rings) expect(level(ring)).toBe(0);
+    model.setRings(Number.NaN);
+    for (const ring of rings) expect(level(ring)).toBe(0);
+    model.setRings(3);
+    for (const ring of rings) expect(level(ring)).toBe(1);
+    // It frees its own: the rings' geometry and their engraving.
+    const textures = new Set(rings.map((ring) => (ring.material as THREE.ShaderMaterial).uniforms.uMap!.value as THREE.Texture));
+    const spies = [...rings.map((ring) => vi.spyOn(ring.geometry, 'dispose')), ...[...textures].map((t) => vi.spyOn(t, 'dispose'))];
+    model.dispose();
+    for (const spy of spies) expect(spy).toHaveBeenCalledOnce();
   });
 });
 
@@ -839,8 +904,9 @@ describe('dispose', () => {
     model.dispose();
     for (const spy of spies) expect(spy).toHaveBeenCalledOnce();
     for (const spy of [...fileSpies, ...shotSpies, ...geometrySpies, veinSpy]) expect(spy).not.toHaveBeenCalled();
-    // Each bead's own copies with the fifth bead's and the cells': Funcial 7 + 1, Jontai 8 + 16, Cookies 8.
-    expect(made).toHaveLength(40);
+    // Each bead's own copies with the fifth bead's and the cells': Funcial 8 + 1, Jontai 9 + 16, Cookies 9; and each
+    // bead's look-back ring.
+    expect(made).toHaveLength(46);
   });
 
   it('frees the glass it stepped down from too', () => {
@@ -865,7 +931,7 @@ describe('the real GLB', () => {
 
   it('finds every node and material it names in the file, and poses the file\'s parts', async () => {
     const gltf = await loadRealGlb();
-    const model = loadBeads(gltf, 'high', screens());
+    const model = loadBeads(gltf, 'high', screens(), canvas);
     for (const id of IDS) {
       expect(materialOf(screenOf(model, id)).emissiveMap?.name).toBe(`screen:${id}`);
       const inner = objectNamed<THREE.PointLight>(model.beads[id].root, `bead_${id}_inner`);
