@@ -9,7 +9,7 @@
  * - the hall: wide rings the camera stands inside once it turns to follow the light from the side, opening out below
  *   `HALL.open` (wider, further apart, a little tilted) and fading over the first trip;
  * - the trips: the light's own line along each travel, coming in as the light leaves the last bead (or the turn out of
- *   the fall), out early in the next bead's orbit, none inside, all faint in the look back behind the way's gold line.
+ *   the fall), out early in the next bead's arrival, none inside, all faint in the look back behind the way's gold line.
  */
 import type { JourneyAt } from './journey';
 import type { Path, PathFrame, Vec3 } from './lightPath';
@@ -49,8 +49,8 @@ export const ENGRAVED = {
    * past the bead there), whole once the light has left it. Where the mock-up had the first trip's alone.
    */
   TRIP_IN_T: [0.05, 0.25],
-  /** Over an orbit's t, its trip's line fades out by this. */
-  ORBIT_OUT_T: 0.35,
+  /** Over an arrival's t, its trip's line fades out by this. */
+  ARRIVE_OUT_T: 0.35,
   /** The look back: every line, faint, coming in over its t. */
   LOOK: { level: 0.32, in: [0.15, 0.7] }
 } as const;
@@ -100,7 +100,7 @@ export function engravedLevels(
   const { part, index, t } = path;
   const own = index >= 0 && index < trips;
   if (part === 'travel' && own) levels[index] = over(ENGRAVED.TRIP_IN_T, t);
-  else if (part === 'orbit' && own) levels[index] = 1 - smoothstep(t / ENGRAVED.ORBIT_OUT_T);
+  else if (part === 'arrive' && own) levels[index] = 1 - smoothstep(t / ENGRAVED.ARRIVE_OUT_T);
   else if (part === 'look') levels.fill(ENGRAVED.LOOK.level * over(ENGRAVED.LOOK.in, t));
   else if (part === 'sheet') levels.fill(ENGRAVED.LOOK.level * (1 - path.black));
   const hall = part === 'travel' && index === 0 ? 1 - smoothstep(t / ENGRAVED.HALL_OUT_T) : 0;

@@ -29,11 +29,11 @@ export type { LightPose, VoidPose } from './poseTypes';
 type Vec3 = readonly [number, number, number];
 
 /** A stretch of the journey: one of the home's chapters, seen as the camera's move. */
-export type Stretch = 'rise' | 'light' | 'travel' | 'orbit' | 'inside' | 'look' | 'sheet' | 'end';
+export type Stretch = 'rise' | 'light' | 'travel' | 'arrive' | 'look' | 'sheet' | 'end';
 
 /**
  * Where the journey is: the stretch and how far through it (`local`, 0 at its start); in the light dive the way's frame
- * (1 to `HAND_F`); and in a travel, an orbit or an inside the project's place on the way (0 for the first), else null.
+ * (1 to `HAND_F`); and in a travel or an arrival the project's place on the way (0 for the first), else null.
  */
 export interface JourneyAt {
   stretch: Stretch;
@@ -165,7 +165,7 @@ function settled(progress: number): number {
   return p;
 }
 
-const STRETCHES = { TRAVEL: 'travel', ORBIT: 'orbit', INSIDE: 'inside', LOOK: 'look', SHEET: 'sheet', END: 'end' } as const;
+const STRETCHES = { TRAVEL: 'travel', ARRIVE: 'arrive', LOOK: 'look', SHEET: 'sheet', END: 'end' } as const;
 
 /**
  * Where the journey is at this progress (the module's doc lists the stretches). NaN reads as 0, the progress is held to

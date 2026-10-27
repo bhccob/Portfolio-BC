@@ -1,7 +1,7 @@
 import { createMemoryRouter, NavigationType } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { projects } from '../../../src/data/projects';
-import { arrivalStop, chapterAt, HOME_CHAPTERS, pathStart, sheetStart, stops } from '../../../src/state/chapters';
+import { arrivalStop, chapterAt, HOME_CHAPTERS, keyStops, pathStart, sheetStart } from '../../../src/state/chapters';
 import { frame } from '../../../src/state/frame';
 import {
   arrivedDirectly,
@@ -18,11 +18,11 @@ import {
 } from '../../../src/state/routeSync';
 import { useScene } from '../../../src/state/store';
 
-/** The path's start (way frame 256), and each project's arrival stop: the end of its orbit. */
+/** The path's start (way frame 256), and each project's arrival stop: in its arrival, the light at rest beside the bead. */
 const L = pathStart(HOME_CHAPTERS);
-const F = L + 2.7;
-const J = L + 6.95;
-const C = L + 11.3;
+const F = L + 1.835;
+const J = L + 4.185;
+const C = L + 6.635;
 
 describe('phaseForPath', () => {
   it('has no phase for the old country addresses: they are no page now', () => {
@@ -154,11 +154,11 @@ describe('syncRoute', () => {
 
   it('puts the scene back on the chapter the scroll is in when a page is left for a page without a scene', () => {
     syncRoute({ pathname: '/projects/funcial/', key: 'a' });
-    frame.progress = L + 6.0; // Jontai Energy's orbit
-    frame.chapterIndex = 6;
+    frame.progress = L + 4.0; // Jontai Energy's arrival
+    frame.chapterIndex = 5;
     syncRoute({ pathname: '/en/lite/', key: 'b' });
     expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'front-panel' });
-    expect(frame.progress).toBe(L + 6.0);
+    expect(frame.progress).toBe(L + 4.0);
   });
 
   it('puts the scene in the light dive when the scroll is part way through it (progress 2.5) and a page is left for Lite', () => {
@@ -172,7 +172,7 @@ describe('syncRoute', () => {
   it('puts the scene on the sheet when the scroll is part way up it (the fade to black) and a page is left for contact', () => {
     syncRoute({ pathname: '/projects/cookies-clicker/', key: 'a' });
     frame.progress = sheetStart(HOME_CHAPTERS) + 0.5;
-    frame.chapterIndex = 12;
+    frame.chapterIndex = 9;
     syncRoute({ pathname: '/contact/', key: 'b' });
     expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: null });
   });
@@ -191,16 +191,16 @@ describe('syncRoute', () => {
 });
 
 describe('stopForProject', () => {
-  it("gives each project on the way its arrival stop: the end of its orbit, the light at rest beside it", () => {
+  it("gives each project on the way its arrival stop: in its arrival, the light at rest beside it", () => {
     expect(stopForProject('funcial')).toBeCloseTo(F, 9);
     expect(stopForProject('jontai-energy')).toBeCloseTo(J, 9);
     expect(stopForProject('cookies-clicker')).toBeCloseTo(C, 9);
   });
 
-  it("reads them from the chapters, each one of the scroll's stops", () => {
+  it("reads them from the chapters, each one of the keys' stops", () => {
     for (const project of projects.all()) {
       expect(stopForProject(project.id)).toBe(arrivalStop(HOME_CHAPTERS, project.categoryId));
-      expect(stops(HOME_CHAPTERS)).toContain(stopForProject(project.id));
+      expect(keyStops(HOME_CHAPTERS)).toContain(stopForProject(project.id));
     }
   });
 });
@@ -211,21 +211,21 @@ describe('placeForProject', () => {
 
   it('comes back to the place a bead was opened from, else to its arrival', () => {
     expect(placeForProject('jontai-energy')).toBeCloseTo(J, 9);
-    noteOpenedFrom('jontai-energy', L + 8.3);
-    expect(placeForProject('jontai-energy')).toBeCloseTo(L + 8.3, 9);
+    noteOpenedFrom('jontai-energy', L + 4.3);
+    expect(placeForProject('jontai-energy')).toBeCloseTo(L + 4.3, 9);
     expect(placeForProject('funcial')).toBeCloseTo(F, 9);
-    noteOpenedFrom('funcial', L + 14.55);
+    noteOpenedFrom('funcial', L + 8.85);
     expect(placeForProject('jontai-energy')).toBeCloseTo(J, 9);
   });
 
-  it('brings Back from a page opened inside a bead to that very place', () => {
+  it('brings Back from a page opened at a bead to that very place', () => {
     useScene.setState(useScene.getInitialState(), true);
     syncRoute({ pathname: '/', key: 'default' }, NavigationType.Pop);
     useScene.getState().dispatch({ type: 'LOADED' });
-    noteOpenedFrom('jontai-energy', L + 8.0); // inside Jontai Energy
+    noteOpenedFrom('jontai-energy', L + 4.0); // at Jontai Energy's arrival
     syncRoute({ pathname: '/projects/jontai-energy/', key: 'k1' }, NavigationType.Push);
     syncRoute({ pathname: '/', key: 'default' }, NavigationType.Pop);
-    expect([frame.target, frame.progress]).toEqual([L + 8.0, L + 8.0]);
+    expect([frame.target, frame.progress]).toEqual([L + 4.0, L + 4.0]);
   });
 });
 

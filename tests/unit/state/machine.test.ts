@@ -28,14 +28,14 @@ describe('CHAPTER', () => {
     expect(transition(LIGHT, chapter('HOME'))).toEqual({ kind: 'HOME_IDLE' });
   });
 
-  it("takes a travel, an orbit and an inside to PROJECTS with the unit's project, and follows it from one to the next", () => {
+  it("takes a travel and an arrival to PROJECTS with the unit's project, and follows it from one to the next", () => {
     expect(transition(LIGHT, chapter('TRAVEL', 'secure-element'))).toEqual({ kind: 'PROJECTS', category: 'secure-element' });
-    expect(transition(LIGHT, chapter('ORBIT', 'front-panel'))).toEqual({ kind: 'PROJECTS', category: 'front-panel' });
-    expect(transition(PROJECTS, chapter('INSIDE', 'oscillator'))).toEqual({ kind: 'PROJECTS', category: 'oscillator' });
+    expect(transition(LIGHT, chapter('ARRIVE', 'front-panel'))).toEqual({ kind: 'PROJECTS', category: 'front-panel' });
+    expect(transition(PROJECTS, chapter('TRAVEL', 'oscillator'))).toEqual({ kind: 'PROJECTS', category: 'oscillator' });
   });
 
   it("maps the path's chapters to the projects phase: the look back and the sheet with no project", () => {
-    expect(transition({ kind: 'LIGHT' }, chapter('ORBIT', 'front-panel'))).toEqual({ kind: 'PROJECTS', category: 'front-panel' });
+    expect(transition({ kind: 'LIGHT' }, chapter('ARRIVE', 'front-panel'))).toEqual({ kind: 'PROJECTS', category: 'front-panel' });
     expect(transition({ kind: 'PROJECTS', category: 'oscillator' }, chapter('LOOK'))).toEqual({ kind: 'PROJECTS', category: null });
     expect(transition({ kind: 'PROJECTS', category: null }, chapter('SHEET'))).toEqual({ kind: 'PROJECTS', category: null });
   });
@@ -50,7 +50,7 @@ describe('CHAPTER', () => {
   it('applies from HOME_IDLE, LIGHT, PROJECTS and END', () => {
     for (const phase of [HOME, PROJECTS, END]) expect(transition(phase, chapter('LIGHT')), phase.kind).toEqual({ kind: 'LIGHT' });
     for (const phase of [HOME, LIGHT, PROJECTS, END]) {
-      expect(transition(phase, chapter('ORBIT', 'oscillator')), phase.kind).toEqual({ kind: 'PROJECTS', category: 'oscillator' });
+      expect(transition(phase, chapter('ARRIVE', 'oscillator')), phase.kind).toEqual({ kind: 'PROJECTS', category: 'oscillator' });
     }
   });
 
@@ -61,7 +61,7 @@ describe('CHAPTER', () => {
   it('returns the same object when the chapter is the one already shown', () => {
     expect(transition(HOME, chapter('HOME'))).toBe(HOME);
     expect(transition(LIGHT, chapter('LIGHT'))).toBe(LIGHT);
-    expect(transition(PROJECTS, chapter('ORBIT', 'front-panel'))).toBe(PROJECTS);
+    expect(transition(PROJECTS, chapter('ARRIVE', 'front-panel'))).toBe(PROJECTS);
     expect(transition(END, chapter('END'))).toBe(END);
   });
 });
@@ -75,7 +75,7 @@ describe('SCROLL_PHASES', () => {
   it('are the phases a CHAPTER event applies from, and no others', () => {
     // A CHAPTER event for the last project takes every scroll phase there and leaves the others (LOADING, a project page) where they are.
     for (const phase of ALL) {
-      const next = transition(phase, chapter('ORBIT', 'oscillator'));
+      const next = transition(phase, chapter('ARRIVE', 'oscillator'));
       expect(samePhase(next, { kind: 'PROJECTS', category: 'oscillator' }), phase.kind).toBe(SCROLL_PHASES.has(phase.kind));
     }
   });

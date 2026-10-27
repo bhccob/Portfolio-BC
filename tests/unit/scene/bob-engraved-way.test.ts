@@ -46,13 +46,13 @@ describe('the levels: each part of the engraved way, at a pose', () => {
     for (let f = 1; f <= 256; f += 0.25) if (factAt(f).opacity > 0) expect(engravedLevels({ stretch: 'light', frame: f }, null, 3).throat, `at ${f}`).toBe(0);
   });
 
-  it('rides each trip on its own line, out early in the orbit, none inside, all faint in the look back', () => {
+  it('rides each trip on its own line, out early in its arrival, all faint in the look back', () => {
     const lv = (part: PathPart, index: number, t: number, black = 0) => engravedLevels({ stretch: part, frame: null }, { part, index, t, black }, 3);
     expect(lv('travel', 1, 0.5).trips).toEqual([0, 1, 0]);
     expect(lv('travel', 0, 0.02).trips[0]).toBe(0); // the first line comes in after the turn
     expect(lv('travel', 0, 0.5).hall).toBeGreaterThan(0); // the hall fades out over the first trip
-    expect(lv('orbit', 1, 0.5).trips[1]).toBe(0);
-    expect(lv('inside', 1, 0.5).trips).toEqual([0, 0, 0]);
+    expect(lv('arrive', 1, 0.5).trips[1]).toBe(0);
+    expect(lv('arrive', 1, 0.1).trips[1]).toBeGreaterThan(0); // still fading as the light comes to rest
     expect(Math.max(...lv('look', -1, 1).trips)).toBeCloseTo(0.32, 9);
     expect(lv('sheet', -1, 0.5, 1).trips).toEqual([0, 0, 0]);
   });

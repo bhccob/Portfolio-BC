@@ -42,8 +42,7 @@ function phaseOfChapter(chapter: ChapterId, category: string | null): Phase {
     case 'LIGHT':
       return { kind: 'LIGHT' };
     case 'TRAVEL':
-    case 'ORBIT':
-    case 'INSIDE':
+    case 'ARRIVE':
       // the path's units are the projects' phase, with the project the unit leads to
       return { kind: 'PROJECTS', category };
     case 'LOOK':

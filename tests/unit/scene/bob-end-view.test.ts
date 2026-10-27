@@ -415,7 +415,7 @@ describe('the scene sleeps as soon as the story rests at the end', () => {
     // The sheet, either way, and the credits: the black comes over the look back, so nothing is read.
     for (const p of [S + 0.01, MID, S + 0.775, END - 0.01, END]) expect(at(p), `at ${p}`).toBe(false);
     // Everywhere before the sheet as before: the rise, the light dive, the path and the look back.
-    for (const p of [0, 0.5, 1, 2, 3, 4, 6, 8, 10, 12, 14, 16, S - 0.001, S]) expect(at(p), `at ${p}`).toBe(true);
+    for (const p of [0, 0.5, 1, 2, 3, 4, 6, 8, 10, 12, 14, S - 0.001, S]) expect(at(p), `at ${p}`).toBe(true);
     expect(hoversAt({ sheet: 0 })).toBe(true);
     expect(hoversAt({ sheet: 1e-6 })).toBe(false);
     expect(hoversAt({ sheet: Number.NaN }), 'NaN reads as no sheet, as the end view reads it').toBe(true);

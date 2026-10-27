@@ -67,12 +67,12 @@ export function needleGlowFor(at: JourneyAt): number | null {
 }
 
 /**
- * The selected bead: the bead of an orbit or an inside (its place on the way, in `BEADS` order), whose label shows and
- * which a click or a tap opens; none in a travel, where the light is between beads, nor in the look back, where the
- * pointer picks one.
+ * The selected bead: the bead of an arrival (its place on the way, in `BEADS` order), the light at rest beside it,
+ * whose label shows and which a click or a tap opens; none in a travel, where the light is between beads, nor in the look
+ * back, where the pointer picks one.
  */
 export function selectedBead(at: JourneyAt): number | null {
-  return at.stretch === 'orbit' || at.stretch === 'inside' ? at.project : null;
+  return at.stretch === 'arrive' ? at.project : null;
 }
 
 /** The hover as the beads show it: the bead whose hover is in (`BeadsModel.setHover`) and how far, 0..1. */
@@ -159,11 +159,11 @@ export function wakeFor(bead: BeadView, path: Path, view: (p: readonly [number, 
 }
 
 /**
- * Which beads the pointer may hover and a click may open at `pose`: in an orbit or an inside the selected bead alone
+ * Which beads the pointer may hover and a click may open at `pose`: in an arrival the selected bead alone
  * (`selectedBead`), the one in view; in the look back (its own stop included) any bead on the way, and the small lights
  * of the projects off it; nowhere else (a travel, where the light is between beads, the light dive, under the sheet).
  */
 export function pointerMode(pose: Pick<JourneyPose, 'at' | 'path'>): 'selected' | 'any' | null {
-  if (pose.at.stretch === 'orbit' || pose.at.stretch === 'inside') return 'selected';
+  if (pose.at.stretch === 'arrive') return 'selected';
   return pose.path !== null && lookingBack(pose.path) ? 'any' : null;
 }

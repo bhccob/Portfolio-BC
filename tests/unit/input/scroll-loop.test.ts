@@ -7,7 +7,7 @@ import { FINISH_S, FOLLOW, follow, GLIDE_MIN_S, GLIDE_S, RISE_SMOOTH, SHEET_FINI
 import { connectHomeScroll, goToEnd, goToTop, headedToEnd } from '../../../src/input/useHomeScroll';
 import { LANDING_HOLD } from '../../../src/scene/bob/landingHold';
 import { nearestStop, STEP_FADE_MS, stepFadeAt, stepFadeFrom } from '../../../src/scene/bob/stepFade';
-import { arrivalStop, buildChapters, type ChapterAt, chapterAt, FALL_PACE, HOME_CHAPTERS, insideStop, pathStart, placeOfFrame, scrollEnd, sheetStart, stops } from '../../../src/state/chapters';
+import { arrivalStop, buildChapters, type ChapterAt, chapterAt, FALL_PACE, HOME_CHAPTERS, pathStart, placeOfFrame, scrollEnd, sheetStart, stops } from '../../../src/state/chapters';
 import { frame as storyFrame } from '../../../src/state/frame';
 import { useScene, type VoidState } from '../../../src/state/store';
 
@@ -19,16 +19,14 @@ const chapters = buildChapters({ path: ['a', 'b', 'c'] });
 const END = scrollEnd(chapters);
 /** The hand-over (way frame 256): the path's start, and the landing hold. */
 const L = pathStart(chapters);
-/** Each project's arrival (the light at rest beside its bead) and its inside, on the path. */
+/** Each project's arrival (the light at rest beside its bead), on the path: no inside on the scroll. */
 const A0 = arrivalStop(chapters, 'a');
-const I0 = insideStop(chapters, 'a');
 const A1 = arrivalStop(chapters, 'b');
-const I1 = insideStop(chapters, 'b');
 const A2 = arrivalStop(chapters, 'c');
 /** The look back's own stop: the sheet's start, where the credits begin to rise. */
 const S = sheetStart(chapters);
-/** The chapters' indices of an inside's start (an arrival stop reads as it), the sheet's and the end's. */
-const INDEX = { inside0: 4, sheet: 12, end: 13 } as const;
+/** The chapters' indices of the first arrival (its stop is inside it), the sheet's and the end's. */
+const INDEX = { arrive0: 3, sheet: 9, end: 10 } as const;
 /** The first fact's place, the light dive's frame 81: the first key stop past BOB from above. */
 const F81 = placeOfFrame(81);
 /** The last fact's place, frame 241: the key stop before Funcial's. */
@@ -291,15 +289,15 @@ describe('the scroll loop: going to sleep', () => {
     expect(s.frames.size).toBe(1);
   });
 
-  it('reads a story at rest as the chapter that starts where it stopped', async () => {
+  it('reads a story at rest as the chapter it stopped in', async () => {
     const s = setup({ reduced: true });
     restAt(s, F241);
     s.key('PageDown'); // reduced motion: the next key stop, Funcial's arrival
     await flush();
     s.drain();
     expect(s.frame.progress).toBe(A0);
-    expect(s.frame.chapterIndex).toBe(INDEX.inside0);
-    expect(s.changes.at(-1)).toMatchObject({ index: INDEX.inside0, id: 'INSIDE', category: 'a' });
+    expect(s.frame.chapterIndex).toBe(INDEX.arrive0);
+    expect(s.changes.at(-1)).toMatchObject({ index: INDEX.arrive0, id: 'ARRIVE', category: 'a' });
   });
 
   it('stops the glide when 3D is switched off, and the story stays where it is', async () => {
@@ -737,30 +735,31 @@ describe('the keys: the facts in the light dive, then the projects, gliding past
     expect(s.frame.target).toBe(placeOfFrame(121));
   });
 
-  it("glides a key past the light dive: from Funcial's arrival to its inside in 1.2 s × √d, eased from rest, no faster than 1.6 a second", async () => {
+  it("glides a key past the light dive: from Funcial's arrival to Jontai Energy's in 1.2 s × √d, eased from rest, its peak 1.25 √d a second", async () => {
     expect([GLIDE_S, GLIDE_MIN_S]).toEqual([1.2, 0.6]);
     const s = setup();
     restAt(s, A0);
     s.key('ArrowDown');
-    expect([s.frame.target, s.home.loop.tweening, s.home.loop.heading]).toEqual([I0, 'glide', I0]);
+    expect([s.frame.target, s.home.loop.tweening, s.home.loop.heading]).toEqual([A1, 'glide', A1]);
     await flush();
     const seen = frames(s);
-    expect([s.frame.target, s.frame.progress, s.frame.velocity]).toEqual([I0, I0, 0]);
-    expect(Math.abs(seen.length * FRAME_MS - 1000 * GLIDE_S * Math.sqrt(I0 - A0))).toBeLessThanOrEqual(2 * FRAME_MS);
+    expect([s.frame.target, s.frame.progress, s.frame.velocity]).toEqual([A1, A1, 0]);
+    expect(Math.abs(seen.length * FRAME_MS - 1000 * GLIDE_S * Math.sqrt(A1 - A0))).toBeLessThanOrEqual(2 * FRAME_MS);
     expect(seen[0]!.velocity).toBeLessThan(0.1);
-    expect(Math.max(...seen.map((f) => f.velocity))).toBeLessThanOrEqual(1.6);
+    // The glide's law sets its peak: about 1.5 times its mean, √d / 1.2 (1.9 a second across the 2.35 from one arrival to the next).
+    expect(Math.max(...seen.map((f) => f.velocity))).toBeLessThanOrEqual(1.25 * Math.sqrt(A1 - A0) * 1.01);
   });
 
-  it("counts a second press from where the glide is going: two presses 300 ms apart rest on Jontai Energy's arrival", async () => {
+  it("counts a second press from where the glide is going: two presses 300 ms apart rest on Cookies Clicker's arrival", async () => {
     const s = setup();
     restAt(s, A0);
     s.key('ArrowDown');
     await flush();
     frames(s, 18);
     s.key('ArrowDown');
-    expect([s.frame.target, s.home.loop.heading]).toEqual([A1, A1]);
+    expect([s.frame.target, s.home.loop.heading]).toEqual([A2, A2]);
     s.drain();
-    expect([s.frame.target, s.frame.progress]).toEqual([A1, A1]);
+    expect([s.frame.target, s.frame.progress]).toEqual([A2, A2]);
   });
 
   it("glides onto the path from the last fact, to Funcial's arrival, and back off it to the last fact", async () => {
@@ -792,16 +791,16 @@ describe('the keys: the facts in the light dive, then the projects, gliding past
     restAt(s, A0);
     s.key('ArrowDown');
     for (let i = 0; i < 10; i++) fire(s.win, 'keydown', { key: 'ArrowDown', shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, repeat: true, isComposing: false, target: { tagName: 'BODY' } });
-    expect(s.frame.target).toBe(I0);
+    expect(s.frame.target).toBe(A1);
   });
 
   it("steps a key from a wheel stopped on a travel to the next project's arrival", async () => {
     const s = setup();
-    restAt(s, L + 4.6); // on the way from Funcial to Jontai Energy
+    restAt(s, L + 3.0); // on the way from Funcial to Jontai Energy
     s.key('ArrowDown');
     expect(s.frame.target).toBe(A1);
     s.key('ArrowUp');
-    expect(s.frame.target).toBe(I0); // counted from where the glide is going, Jontai Energy's arrival
+    expect(s.frame.target).toBe(A0); // counted from where the glide is going, Jontai Energy's arrival
   });
 });
 
@@ -971,10 +970,9 @@ describe('reduced motion steps among the key stops', () => {
     await drag(s, 300);
     expect(s.frame.target).toBe(placeOfFrame(121));
     restAt(s, A2);
-    s.key('ArrowDown');
-    expect(s.frame.target).toBe(insideStop(chapters, 'c'));
-    expect(s.home.loop.tweening).toBeNull(); // no glide with reduced motion
     s.key('ArrowDown'); // the look back
+    expect(s.frame.target).toBe(S);
+    expect(s.home.loop.tweening).toBeNull(); // no glide with reduced motion
     s.key('ArrowDown');
     expect(s.frame.target).toBe(END);
     s.key('ArrowDown'); // a step down from the end is none

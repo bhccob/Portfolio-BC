@@ -46,11 +46,11 @@ describe("the journey's stretches", () => {
     expect(journeyAt(0.5)).toMatchObject({ stretch: 'rise', project: null });
     expect(journeyAt(L - 1e-3)).toMatchObject({ stretch: 'light', project: null });
     expect(journeyAt(L)).toMatchObject({ stretch: 'travel', local: 0, project: 0, frame: null });
-    expect(journeyAt(L + 2.7)).toMatchObject({ stretch: 'inside', local: 0, project: 0 });
-    expect(journeyAt(L + 6.0)).toMatchObject({ stretch: 'orbit', project: 1 });
-    expect(journeyAt(L + 12.65)).toMatchObject({ stretch: 'look', project: null });
-    expect(journeyAt(L + 14.55)).toMatchObject({ stretch: 'sheet', local: 0, project: null });
-    expect(journeyAt(L + 15.55)).toMatchObject({ stretch: 'end' });
+    expect(journeyAt(L + 2.15)).toMatchObject({ stretch: 'travel', local: 0, project: 1 });
+    expect(journeyAt(L + 4.0)).toMatchObject({ stretch: 'arrive', project: 1 });
+    expect(journeyAt(L + 6.95)).toMatchObject({ stretch: 'look', project: null });
+    expect(journeyAt(L + 8.85)).toMatchObject({ stretch: 'sheet', local: 0, project: null });
+    expect(journeyAt(L + 9.85)).toMatchObject({ stretch: 'end' });
   });
 
   it('runs the light dive frame by frame: BOB from above is frame 1, the hand-over frame 256', () => {
@@ -60,7 +60,7 @@ describe("the journey's stretches", () => {
   });
 
   it('snaps within 1e-6 of a stop, reads NaN as the home, and holds progress to the scroll', () => {
-    expect(journeyAt(L + 2.7 + 5e-7)).toMatchObject({ stretch: 'inside', local: 0 });
+    expect(journeyAt(L + 2.15 + 5e-7)).toMatchObject({ stretch: 'travel', local: 0 });
     expect(journeyAt(Number.NaN).stretch).toBe('rise');
     expect(journeyAt(99).stretch).toBe('end');
   });
@@ -120,7 +120,7 @@ describe('the light, the facts and the void', () => {
   });
 
   it('poses the path from the hand-over on', () => {
-    for (const q of [0, 1.0, 3.1, 6.0, 13.5]) { // places that are not stops, which the journey snaps to the chapters' own sums
+    for (const q of [0, 1.0, 3.1, 5.0, 8.0]) { // places that are not stops, which the journey snaps to the chapters' own sums
       const pose = journeyPoseAt(L + q, LAPTOP);
       const frame = pathFor(LAPTOP).frameAt(L + q - L); // the place past the path's start, as the journey sums it
       expect([pose.shot, pose.light, pose.path, pose.void]).toEqual([frame.shot, frame.light, frame, frame.void]);
@@ -155,17 +155,17 @@ describe('the beads on the way', () => {
     ]);
   });
 
-  it('selects the bead of an orbit or inside, nowhere else', () => {
-    // INSIDE 0, ORBIT 1, TRAVEL 0, LOOK
-    expect([L + 3, L + 6.0, L + 1.0, L + 13].map((p) => selectedBead(journeyAt(p)))).toEqual([0, 1, null, null]);
+  it('selects the bead of an arrival, nowhere else', () => {
+    // ARRIVE 0, ARRIVE 1, TRAVEL 0, LOOK
+    expect([L + 1.8, L + 4.0, L + 1.0, L + 7.5].map((p) => selectedBead(journeyAt(p)))).toEqual([0, 1, null, null]);
   });
 
   it('flies back only from a rest where the bead is in view', () => {
-    expect(restsAt('jontai-energy', L + 6.95, L + 6.95)).toBe(true); // its arrival
-    expect(restsAt('jontai-energy', L + 8.3 - 1e-3, L + 8.3 - 1e-3)).toBe(true); // its inside
-    expect(restsAt('jontai-energy', L + 14.55, L + 14.55)).toBe(true); // the look back's own stop (SHEET at local 0)
-    expect(restsAt('jontai-energy', L + 2.7, L + 2.7)).toBe(false); // Funcial's arrival
-    expect(restsAt('jontai-energy', L + 6.95, L + 7)).toBe(false); // moving
+    expect(restsAt('jontai-energy', L + 4.185, L + 4.185)).toBe(true); // its arrival stop
+    expect(restsAt('jontai-energy', L + 4.2, L + 4.2)).toBe(true); // at rest within its arrival
+    expect(restsAt('jontai-energy', L + 8.85, L + 8.85)).toBe(true); // the look back's own stop (SHEET at local 0)
+    expect(restsAt('jontai-energy', L + 2.15, L + 2.15)).toBe(false); // Funcial's arrival
+    expect(restsAt('jontai-energy', L + 4.185, L + 4.3)).toBe(false); // moving
   });
 });
 

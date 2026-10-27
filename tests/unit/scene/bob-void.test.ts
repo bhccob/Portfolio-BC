@@ -66,7 +66,7 @@ describe('landingHoldFor: the most the scroll may reach before the beads are rea
 
   it("is the end of the scroll once the void is ready, the credits' stop: nothing holds", () => {
     expect(landingHoldFor('ready')).toBe(END);
-    expect(END).toBeCloseTo(L + 15.55, 9);
+    expect(END).toBeCloseTo(L + 9.85, 9);
   });
 
   it('answers a hold for every state, never above the end nor below the top of the rise', () => {
@@ -238,7 +238,7 @@ describe("3D off and on keeps the visitor's place", () => {
     await flush(); // the first move fetches damp
     s.drain();
     expect([s.story.target, s.story.progress]).toEqual([A1, A1]);
-    expect(s.chapters.at(-1)).toBe('INSIDE'); // an arrival stop is its inside's start
+    expect(s.chapters.at(-1)).toBe('ARRIVE'); // an arrival stop is in its arrival
   });
 
   it('does the same with reduced motion, held on the last fact, the last key stop under the hold', async () => {
@@ -449,7 +449,7 @@ describe('the scroll input holds at the landing while the beads load', () => {
     await flush();
     s.drain();
     expect([s.story.target, s.story.progress]).toEqual([A1, A1]);
-    expect(s.chapters.at(-1)).toBe('INSIDE'); // an arrival stop is its inside's start
+    expect(s.chapters.at(-1)).toBe('ARRIVE'); // an arrival stop is in its arrival
   });
 
   it('holds it the same while the void is idle, before its load has begun', () => {
@@ -577,9 +577,9 @@ describe('frame.journey: where the journey stands, for the debug bridge', () => 
     const before = { ...frame.journey };
     try {
       const beads = [{ x: 10, y: 20, r: 30, visible: true }];
-      Object.assign(frame.journey, { stretch: 'orbit', local: 0.5, project: 1, voidState: 'ready', frame: null, sheet: 0, light: null, beads, label: { index: 1, opacity: 1 }, wake: [10, 3.1, 0] });
+      Object.assign(frame.journey, { stretch: 'arrive', local: 0.5, project: 1, voidState: 'ready', frame: null, sheet: 0, light: null, beads, label: { index: 1, opacity: 1 }, wake: [10, 3.1, 0] });
       const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
-      expect(state.journey).toEqual({ stretch: 'orbit', local: 0.5, project: 1, voidState: 'ready', frame: null, sheet: 0, light: null, beads, label: { index: 1, opacity: 1 }, wake: [10, 3.1, 0], engraved: null });
+      expect(state.journey).toEqual({ stretch: 'arrive', local: 0.5, project: 1, voidState: 'ready', frame: null, sheet: 0, light: null, beads, label: { index: 1, opacity: 1 }, wake: [10, 3.1, 0], engraved: null });
       expect(state.journey).not.toBe(frame.journey);
       expect(state.journey.beads).not.toBe(beads);
       expect(state.journey.wake).not.toBe(frame.journey.wake);
@@ -630,18 +630,18 @@ describe('voidShownFor: the void and the beads show only once the camera is unde
   });
 });
 
-describe('selectedBead: the bead of an orbit or an inside', () => {
-  it('is none on the rise, in the light dive and on a travel, and the bead of an orbit or an inside', () => {
-    for (const p of [0, 0.5, 1, placeOfFrame(121), L - 0.001, L, L + 1]) expect(selectedBead(journeyAt(p)), `at ${p}`).toBeNull();
-    expect(selectedBead(journeyAt(L + 1.25))).toBe(0); // Funcial's orbit begins
-    expect(selectedBead(journeyAt(L + 2.7))).toBe(0); // its arrival stop, the inside's start
-    expect(selectedBead(journeyAt(L + 4))).toBe(0); // inside it
-    expect(selectedBead(journeyAt(L + 6))).toBe(1);
-    expect(selectedBead(journeyAt(L + 11.3))).toBe(2);
+describe('selectedBead: the bead of an arrival', () => {
+  it('is none on the rise, in the light dive and on a travel, and the bead of an arrival', () => {
+    for (const p of [0, 0.5, 1, placeOfFrame(121), L - 0.001, L, L + 1, L + 3]) expect(selectedBead(journeyAt(p)), `at ${p}`).toBeNull();
+    expect(selectedBead(journeyAt(L + 1.25))).toBe(0); // Funcial's arrival begins
+    expect(selectedBead(journeyAt(L + 1.835))).toBe(0); // its arrival stop
+    expect(selectedBead(journeyAt(L + 2.1))).toBe(0); // the pause after it
+    expect(selectedBead(journeyAt(L + 4))).toBe(1);
+    expect(selectedBead(journeyAt(L + 6.635))).toBe(2);
   });
 
   it('is none in the look back, where the pointer picks a bead, under the sheet and at the credits', () => {
-    for (const p of [L + 12.65, L + 13.5, L + 14.55, L + 15, END]) expect(selectedBead(journeyAt(p)), `at ${p}`).toBeNull();
+    for (const p of [L + 6.95, L + 7.5, L + 8.85, L + 9.3, END]) expect(selectedBead(journeyAt(p)), `at ${p}`).toBeNull();
   });
 });
 
@@ -1128,11 +1128,11 @@ describe("wakeFor: the veins' wake a bead's shell is given each frame", () => {
 });
 
 describe('pointerMode: which beads the pointer may hover and open', () => {
-  it('is the selected bead alone in an orbit or an inside, any bead in the look back, and none elsewhere', () => {
+  it('is the selected bead alone in an arrival, any bead in the look back, and none elsewhere', () => {
     const at = (p: number) => pointerMode(journeyPoseAt(p, LAPTOP));
-    expect([at(0.5), at(placeOfFrame(121)), at(L + 0.5)]).toEqual([null, null, null]);
-    expect([at(L + 2), at(L + 3), at(L + 6)]).toEqual(['selected', 'selected', 'selected']);
-    expect([at(L + 13), at(L + 14.55)]).toEqual(['any', 'any']);
-    expect([at(L + 15), at(END)]).toEqual([null, null]);
+    expect([at(0.5), at(placeOfFrame(121)), at(L + 0.5), at(L + 3)]).toEqual([null, null, null, null]);
+    expect([at(L + 1.835), at(L + 4.185), at(L + 6.635)]).toEqual(['selected', 'selected', 'selected']);
+    expect([at(L + 7.5), at(L + 8.85)]).toEqual(['any', 'any']);
+    expect([at(L + 9.3), at(END)]).toEqual([null, null]);
   });
 });

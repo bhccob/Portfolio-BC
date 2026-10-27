@@ -14,19 +14,18 @@ import {
   stopsFor
 } from '../../../src/input/target';
 import { LANDING_HOLD } from '../../../src/scene/bob/landingHold';
-import { arrivalStop, buildChapters, HOME_CHAPTERS, insideStop, keyStops, pathStart, placeOfFrame, riseTop, scrollEnd, sheetStart } from '../../../src/state/chapters';
+import { arrivalStop, buildChapters, HOME_CHAPTERS, keyStops, pathStart, placeOfFrame, riseTop, scrollEnd, sheetStart } from '../../../src/state/chapters';
 import type { Phase } from '../../../src/state/machine';
 
-// The home's layout: HOME 0-1, LIGHT to the hand-over (frame 256), each project's travel, orbit and inside, LOOK,
-// SHEET, END. keyStops(c) = [0, 1, the five facts' places (frames 81, 121, 161, 201, 241), each arrival and inside, the
+// The home's layout: HOME 0-1, LIGHT to the hand-over (frame 256), each project's travel and arrival, LOOK,
+// SHEET, END. keyStops(c) = [0, 1, the five facts' places (frames 81, 121, 161, 201, 241), each arrival, the
 // look back's own stop (the sheet's start), the end].
 const c = buildChapters({ path: ['a', 'b', 'c'] });
 const [F81, F121, , , F241] = [81, 121, 161, 201, 241].map(placeOfFrame) as [number, number, number, number, number];
 /** The hand-over: the path's start, and the landing hold. */
 const L = pathStart(c);
-/** Funcial's arrival and inside, and Jontai Energy's arrival. */
+/** Funcial's arrival and Jontai Energy's: no inside on the scroll. */
 const A0 = arrivalStop(c, 'a');
-const I0 = insideStop(c, 'a');
 const A1 = arrivalStop(c, 'b');
 /** The look back's own stop, the sheet's start; and the end, the credits' stop. */
 const S = sheetStart(c);
@@ -54,7 +53,7 @@ describe('moveTarget', () => {
       expect(moveTarget(1, 0.5, c, true)).toBe(F81);
       expect(moveTarget(F81, 0.01, c, true)).toBe(F121);
       expect(moveTarget(F241 + 0.1, 0.01, c, true)).toBe(A0);
-      expect(moveTarget(A0, 1, c, true)).toBe(I0);
+      expect(moveTarget(A0, 1, c, true)).toBe(A1);
       expect(moveTarget(S, 0.01, c, true)).toBe(E);
     });
 
@@ -88,11 +87,11 @@ describe('keyTarget: an arrow, Page Up or Down, or Space, without reduced motion
     expect(keyTarget(1, 0.15, c)).toBe(F81);
     expect(keyTarget(F81, 0.9, c)).toBe(F121);
     expect(keyTarget(F241, 0.15, c)).toBe(A0);
-    expect(keyTarget(A0, 0.15, c)).toBe(I0);
+    expect(keyTarget(A0, 0.15, c)).toBe(A1);
     expect(keyTarget(S, 0.15, c)).toBe(E);
     // A target between stops (a wheel under way, or one left on a travel) steps to the next one.
     expect(keyTarget(F241 + 0.1, 0.15, c)).toBe(A0);
-    expect(keyTarget(L + 5.0, 0.15, c)).toBe(A1);
+    expect(keyTarget(L + 3.0, 0.15, c)).toBe(A1);
   });
 
   it('steps up to the previous key stop past the top of the rise, and back on the rise moves by its distance again', () => {
@@ -208,7 +207,7 @@ describe('changedChapter', () => {
   it('gives the new chapter, with its category, when progress has crossed into one', () => {
     expect(changedChapter(c, 1.5, 0, false)).toMatchObject({ index: 1, id: 'LIGHT', category: null });
     expect(changedChapter(c, L + 0.4, 1, false)).toMatchObject({ index: 2, id: 'TRAVEL', category: 'a' });
-    expect(changedChapter(c, S + 0.4, 11, false)).toMatchObject({ index: 12, id: 'SHEET', category: null });
+    expect(changedChapter(c, S + 0.4, 8, false)).toMatchObject({ index: 9, id: 'SHEET', category: null });
   });
 
   it('holds the chapter within the hysteresis of its edge while the story moves', () => {
@@ -221,8 +220,8 @@ describe('changedChapter', () => {
   it('reads a story at rest without the hysteresis: a stop on a boundary belongs to the chapter that starts there', () => {
     expect(changedChapter(c, L, 1, true)).toMatchObject({ index: 2, id: 'TRAVEL', category: 'a' });
     expect(changedChapter(c, 1, 0, true)).toMatchObject({ index: 1, id: 'LIGHT' });
-    expect(changedChapter(c, S, 11, true)).toMatchObject({ index: 12, id: 'SHEET', category: null });
-    expect(changedChapter(c, E, 12, true)).toMatchObject({ index: 13, id: 'END', category: null });
+    expect(changedChapter(c, S, 8, true)).toMatchObject({ index: 9, id: 'SHEET', category: null });
+    expect(changedChapter(c, E, 9, true)).toMatchObject({ index: 10, id: 'END', category: null });
     expect(changedChapter(c, L - 0.005, 2, true)).toMatchObject({ index: 1, id: 'LIGHT' });
   });
 });

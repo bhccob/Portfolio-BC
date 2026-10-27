@@ -243,22 +243,22 @@ describe('focusGoalFor: the close view the page asks for', () => {
 });
 
 describe('restsAt: a flight leaves only from a rest where its bead is in view', () => {
-  it("is true at the bead's arrival and inside with the story resting there", () => {
+  it("is true in the bead's arrival with the story resting there", () => {
     expect(restsAt('funcial', stopForProject('funcial'), stopForProject('funcial'))).toBe(true);
-    expect(restsAt('jontai-energy', L + 8.0, L + 8.0)).toBe(true);
-    expect(restsAt('cookies-clicker', L + 10.0, L + 10.0)).toBe(true);
+    expect(restsAt('jontai-energy', L + 4.0, L + 4.0)).toBe(true);
+    expect(restsAt('cookies-clicker', L + 6.3, L + 6.3)).toBe(true);
   });
 
   it("is true for every bead in the look back, its own stop (the sheet's start) included, and false once the sheet is up", () => {
-    for (const id of IDS) expect(restsAt(id, L + 13.5, L + 13.5)).toBe(true);
-    for (const id of IDS) expect(restsAt(id, L + 14.55, L + 14.55)).toBe(true);
-    expect(restsAt('cookies-clicker', L + 15.0, L + 15.0)).toBe(false);
-    expect(restsAt('cookies-clicker', L + 15.55, L + 15.55)).toBe(false);
+    for (const id of IDS) expect(restsAt(id, L + 7.5, L + 7.5)).toBe(true);
+    for (const id of IDS) expect(restsAt(id, L + 8.85, L + 8.85)).toBe(true);
+    expect(restsAt('cookies-clicker', L + 9.3, L + 9.3)).toBe(false);
+    expect(restsAt('cookies-clicker', L + 9.85, L + 9.85)).toBe(false);
   });
 
   it("is false while the story moves, at another bead's rest, on a travel, in the light dive, or for no bead", () => {
-    expect(restsAt('funcial', L + 2.7, L + 3)).toBe(false);
-    expect(restsAt('jontai-energy', L + 2.7, L + 2.7)).toBe(false);
+    expect(restsAt('funcial', L + 1.835, L + 2.0)).toBe(false);
+    expect(restsAt('jontai-energy', L + 1.835, L + 1.835)).toBe(false);
     expect(restsAt('funcial', L + 0.5, L + 0.5)).toBe(false);
     expect(restsAt('funcial', 2.5, 2.5)).toBe(false);
     expect(restsAt('funcial', 1, 1)).toBe(false);

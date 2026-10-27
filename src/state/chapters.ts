@@ -6,20 +6,21 @@ import { projects } from '~/data/projects';
  * - HOME, the rise from the home to BOB seen from above;
  * - LIGHT, the light dive: the needle lighting up into a light that flows away through the void past Bob's facts (the
  *   way's frames 1 to `HAND_F` of the previs, tools/blender/light_dive.py), where the path takes the light over;
- * - for each project on the way, in order: TRAVEL, the light leading on to its bead; ORBIT, the light circling it and
- *   coming to rest on its right; INSIDE, the camera through its glass, its object building with the scroll;
+ * - for each project on the way, in order: TRAVEL, the light leading on to its bead and coming to rest beside it; ARRIVE,
+ *   the light at rest there while the camera settles on the whole bead (spec 2026-10-27-bob-nebula-space-design.md: no
+ *   circling, and no inside on the scroll: a click takes the visitor inside);
  * - LOOK, the camera pulling back over the whole way;
  * - SHEET, the look back fading to black and the credits rising from below;
  * - END, the credits at rest, the scroll's last stop.
  */
-export type ChapterId = 'HOME' | 'LIGHT' | 'TRAVEL' | 'ORBIT' | 'INSIDE' | 'LOOK' | 'SHEET' | 'END';
+export type ChapterId = 'HOME' | 'LIGHT' | 'TRAVEL' | 'ARRIVE' | 'LOOK' | 'SHEET' | 'END';
 
 export interface ChapterUnit {
   id: ChapterId;
   /** Where the unit starts on the scroll axis, in units (one unit is one viewport height of scroll). */
   start: number;
   length: number;
-  /** The category of the project of a TRAVEL, ORBIT or INSIDE unit; null for every other chapter. */
+  /** The category of the project of a TRAVEL or ARRIVE unit; null for every other chapter. */
   category: string | null;
   /** That project's place on the way, 0 for the first; null for every other chapter. */
   project: number | null;
@@ -31,7 +32,7 @@ export interface Chapters {
 }
 
 export interface ChapterSpec {
-  /** The categories of the projects on the way, in order: each has a TRAVEL, an ORBIT and an INSIDE. */
+  /** The categories of the projects on the way, in order: each has a TRAVEL and an ARRIVE. */
   path: readonly string[];
 }
 
@@ -58,11 +59,11 @@ export const LIGHT_UNITS = (FALL_PACE * (HAND_F - 1)) / (WAY_FRAMES - 1);
 export const FACT_PEAKS = [81, 121, 161, 201, 241] as const;
 
 /**
- * The path's lengths in units, from the light path mock-up Bob approved (.superpowers/light-path-mockup/path.ts,
- * `LAYOUT`): each project's travel (the first three; a later one is the third's), its orbit and its inside, and the look
- * back. The sheet is one unit: its first 0.55 the fade to black, the rest the credits rising.
+ * The path's lengths in units: each project's travel (the first three, from the light path mock-up Bob approved; a later
+ * one is the third's), its arrival, where the light rests and the camera settles, and the look back. The sheet is one
+ * unit: its first 0.55 the fade to black, the rest the credits rising.
  */
-export const PATH_LAYOUT = { travel: [1.25, 1.45, 1.55], orbit: 1.45, inside: 1.35, look: 1.9 } as const;
+export const PATH_LAYOUT = { travel: [1.25, 1.45, 1.55], arrive: 0.9, look: 1.9 } as const;
 
 /** The travel to the project at place `i` on the way. */
 function travelLength(i: number): number {
@@ -70,7 +71,7 @@ function travelLength(i: number): number {
 }
 
 /**
- * HOME 1, LIGHT `LIGHT_UNITS`, then TRAVEL, ORBIT and INSIDE for each project on the way, then LOOK, SHEET 1 and END 1.
+ * HOME 1, LIGHT `LIGHT_UNITS`, then TRAVEL and ARRIVE for each project on the way, then LOOK, SHEET 1 and END 1.
  * The scroll ends on the last stop, the credits' (`scrollEnd`), and never goes into the END unit; `total` is where the
  * units end. Nothing here is a pixel: the scroll input turns pixels into units.
  */
@@ -80,8 +81,7 @@ export function buildChapters(spec: ChapterSpec): Chapters {
     { id: 'LIGHT', length: LIGHT_UNITS, category: null, project: null },
     ...spec.path.flatMap((category, project): Omit<ChapterUnit, 'start'>[] => [
       { id: 'TRAVEL', length: travelLength(project), category, project },
-      { id: 'ORBIT', length: PATH_LAYOUT.orbit, category, project },
-      { id: 'INSIDE', length: PATH_LAYOUT.inside, category, project }
+      { id: 'ARRIVE', length: PATH_LAYOUT.arrive, category, project }
     ]),
     { id: 'LOOK', length: PATH_LAYOUT.look, category: null, project: null },
     { id: 'SHEET', length: 1, category: null, project: null },
@@ -165,7 +165,7 @@ export function pathStart(c: Chapters): number {
   return lightStart(c) + LIGHT_UNITS;
 }
 
-/** Where the look back starts: the camera inside the last bead, about to pull back over the whole way. */
+/** Where the look back starts: the last bead's arrival, the camera about to pull back over the whole way. */
 export function lookStart(c: Chapters): number {
   return startOf(c, 'LOOK');
 }
@@ -190,29 +190,32 @@ function placeIn(c: Chapters, f: number): number {
   return lightStart(c) + (FALL_PACE * (f - 1)) / (WAY_FRAMES - 1);
 }
 
-/** The end of the unit `id` of the project of `category`; throws for a category that is not on the way. */
-function endOf(c: Chapters, id: ChapterId, category: string): number {
-  const unit = c.units.find((u) => u.id === id && u.category === category);
-  if (!unit) throw new TypeError(`no ${id.toLowerCase()} on the home's scroll for the category "${category}"`);
-  return unit.start + unit.length;
+/**
+ * Where in its ARRIVE a project's arrival stop stands: the light at rest, the camera settled on the whole bead and its
+ * label whole by then; the rest of the unit is a pause before the next travel. Inside the unit, so the story at rest
+ * there is at that bead's arrival, not at the next travel's start.
+ */
+export const ARRIVE_STOP = 0.65;
+
+/** The ARRIVE unit of the project of `category`; throws for a category that is not on the way. */
+function arriveOf(c: Chapters, category: string): ChapterUnit {
+  const unit = c.units.find((u) => u.id === 'ARRIVE' && u.category === category);
+  if (!unit) throw new TypeError(`no arrival on the home's scroll for the category "${category}"`);
+  return unit;
 }
 
-/** The arrival stop of the project of `category`: the end of its orbit, the light at rest on the bead's right, its label shown. */
+/** The arrival stop of the project of `category`: `ARRIVE_STOP` into its arrival, the light at rest beside the bead, its label shown. */
 export function arrivalStop(c: Chapters, category: string): number {
-  return endOf(c, 'ORBIT', category);
-}
-
-/** The inside stop of the project of `category`: the end of its inside, its object built. */
-export function insideStop(c: Chapters, category: string): number {
-  return endOf(c, 'INSIDE', category);
+  const unit = arriveOf(c, category);
+  return unit.start + ARRIVE_STOP * unit.length;
 }
 
 /**
  * Where a key steps (an arrow, Page Up or Down, Space, and every step with reduced motion): the home, BOB from above,
- * each fact at full strength (`FACT_PEAKS`), each project's arrival and inside, the look back and the credits.
+ * each fact at full strength (`FACT_PEAKS`), each project's arrival, the look back and the credits.
  */
 export function keyStops(c: Chapters): number[] {
   const facts = FACT_PEAKS.map((f) => placeIn(c, f));
-  const path = c.units.filter((u) => u.id === 'ORBIT' || u.id === 'INSIDE').map((u) => u.start + u.length);
+  const path = c.units.filter((u) => u.id === 'ARRIVE').map((u) => u.start + ARRIVE_STOP * u.length);
   return [0, riseTop(c), ...facts, ...path, sheetStart(c), scrollEnd(c)];
 }

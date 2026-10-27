@@ -6,7 +6,7 @@ import { stopsFor } from '~/input/target';
 import { journeyPoseAt } from '~/scene/bob/journey';
 import { heldAtLanding, LANDING_HOLD } from '~/scene/bob/landingHold';
 import { nearestStop, STEP_FADE_MS, type StepFade, stepFadeAt, stepFadeFor, stepFadeFrom, stepStopFor } from '~/scene/bob/stepFade';
-import { arrivalStop, HOME_CHAPTERS, insideStop, keyStops, pathStart, placeOfFrame, scrollEnd, stops } from '~/state/chapters';
+import { arrivalStop, HOME_CHAPTERS, keyStops, pathStart, placeOfFrame, scrollEnd, stops } from '~/state/chapters';
 
 describe('stepStopFor: reduced motion stands on keyStops with no frame between', () => {
   const KEY = keyStops(HOME_CHAPTERS);
@@ -21,31 +21,26 @@ describe('stepStopFor: reduced motion stands on keyStops with no frame between',
     expect(stepStopFor(placeOfFrame(201) - 0.1, 'loading')).toBe(placeOfFrame(201));
   });
 
-  it('steps reduced motion through the arrivals, the insides and the look back', () => {
-    // Each project's arrival (its label whole) and inside (its objects built), then the look back's start and its own stop.
+  it('steps reduced motion through the arrivals and the look back', () => {
+    // Each project's arrival (its label whole), then the look back's own stop and the end: no inside on the scroll.
     expect(KEY.filter((stop) => stop > L)).toEqual([
-      expect.closeTo(L + 2.7, 9),
-      expect.closeTo(L + 4.05, 9),
-      expect.closeTo(L + 6.95, 9),
-      expect.closeTo(L + 8.3, 9),
-      expect.closeTo(L + 11.3, 9),
-      expect.closeTo(L + 12.65, 9),
-      expect.closeTo(L + 14.55, 9),
-      expect.closeTo(L + 15.55, 9),
+      expect.closeTo(L + 1.835, 9),
+      expect.closeTo(L + 4.185, 9),
+      expect.closeTo(L + 6.635, 9),
+      expect.closeTo(L + 8.85, 9),
+      expect.closeTo(L + 9.85, 9),
     ]);
-    expect(stepStopFor(L + 3.0, 'ready')).toBeCloseTo(L + 2.7, 9);
-    expect(stepStopFor(L + 13.5, 'ready')).toBeCloseTo(L + 12.65, 9);
-    expect(stepStopFor(L + 14.6, 'ready')).toBeCloseTo(L + 14.55, 9);
-    // No travel or orbit is ever posed: a target in Funcial's travel stands on its arrival.
-    expect(stepStopFor(L + 2.0, 'ready')).toBeCloseTo(L + 2.7, 9);
+    expect(stepStopFor(L + 2.0, 'ready')).toBeCloseTo(L + 1.835, 9);
+    expect(stepStopFor(L + 7.5, 'ready')).toBeCloseTo(L + 6.635, 9);
+    expect(stepStopFor(L + 8.9, 'ready')).toBeCloseTo(L + 8.85, 9);
+    // No travel is ever posed: a target in Funcial's travel stands on its arrival.
+    expect(stepStopFor(L + 1.0, 'ready')).toBeCloseTo(L + 1.835, 9);
   });
 
-  it('poses each arrival with its label whole and each inside with its objects built, from the pose alone', () => {
+  it('poses each arrival with its label whole, from the pose alone', () => {
     for (const [k, project] of projects.onPath().entries()) {
       const arrival = journeyPoseAt(arrivalStop(HOME_CHAPTERS, project.categoryId), 16 / 9);
       expect(arrival.path?.label, project.id).toEqual({ index: k, opacity: 1 });
-      const inside = journeyPoseAt(insideStop(HOME_CHAPTERS, project.categoryId), 16 / 9);
-      expect(inside.path?.beads[k].build, project.id).toBe(1);
     }
   });
 
@@ -59,7 +54,7 @@ describe('stepStopFor: reduced motion stands on keyStops with no frame between',
   it('holds a failed void at the hand-over, with no projects after it', () => {
     expect(LANDING_HOLD).toBe(L);
     expect(heldAtLanding(L, 'failed')).toBe(true);
-    expect(stepStopFor(L + 5, 'failed')).toBeCloseTo(L, 9);
+    expect(stepStopFor(L + 3, 'failed')).toBeCloseTo(L, 9);
     // The failed void's stops past the fall: the hold and the credits, nothing of the path.
     expect(stopsFor(HOME_CHAPTERS, 'failed').filter((stop) => stop >= L)).toEqual([L, END]);
   });

@@ -27,8 +27,8 @@ describe('the skip button shows from the first project through the look back', (
   it('shows from the first arrival through the look back, nowhere else', () => {
     const L = pathStart(HOME_CHAPTERS);
     const at = (p: number) => showsSkip(journeyPoseAt(p, 1440 / 900));
-    // TRAVEL 0, ORBIT 0's start, INSIDE 1, the look back's own stop, part-way up the sheet, the credits
-    expect([L + 1.0, L + 1.25, L + 7, L + 14.55, L + 14.6, L + 15.55].map(at)).toEqual([false, true, true, true, false, false]);
+    // TRAVEL 0, ARRIVE 0's start, ARRIVE 1, the look back's own stop, part-way up the sheet, the credits
+    expect([L + 1.0, L + 1.25, L + 4.0, L + 8.85, L + 8.9, L + 9.85].map(at)).toEqual([false, true, true, true, false, false]);
     for (const p of [0, 0.5, 1, 2.5, L - 0.01]) expect(at(p), `at ${p}`).toBe(false);
   });
 

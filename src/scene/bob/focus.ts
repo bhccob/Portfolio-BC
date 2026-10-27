@@ -161,13 +161,13 @@ export function stepFocus(focus: { move: FocusMove; opening: ProjectId | null },
 
 /**
  * Whether the story rests where bead `id` is in view: at rest (the scroll's target where the story stands) in the
- * bead's orbit or its inside, or in the look back, where every bead on the way is in view (its own stop, the sheet's
- * start, included). Only from there does a flight leave or arrive: the shot at rest is the one the flight eases from.
+ * bead's arrival, or in the look back, where every bead on the way is in view (its own stop, the sheet's start,
+ * included). Only from there does a flight leave or arrive: the shot at rest is the one the flight eases from.
  */
 export function restsAt(id: ProjectId | null, progress: number, target: number): boolean {
   if (id === null || progress !== target) return false;
   const at = journeyAt(progress);
-  if (at.stretch === 'orbit' || at.stretch === 'inside') return at.project !== null && BEADS[at.project]?.id === id;
+  if (at.stretch === 'arrive') return at.project !== null && BEADS[at.project]?.id === id;
   const lookingBack = at.stretch === 'look' || (at.stretch === 'sheet' && at.local === 0);
   return lookingBack && BEADS.some((bead) => bead.id === id);
 }

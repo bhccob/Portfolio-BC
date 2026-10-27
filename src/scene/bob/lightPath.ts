@@ -4,13 +4,16 @@
  * labels, the skip button and the fade to black. Pure, as the journey is (./journey.ts): it imports nothing from React or
  * three and remembers no frame, so the same place is the same picture, and the tests read the very pose the scene applies.
  *
- * It is the light path mock-up Bob approved on 2026-10-27 (.superpowers/light-path-mockup/path.ts), ported with its names
- * and numbers, and tied to its own poses (tests/fixtures/light-path). The way, after the light dive hands the light over
- * at way frame `HAND_F`, for each project on the way in order (~/state/chapters):
- * - TRAVEL: the light flows on (out of the fall, or out of the last bead) to the next bead, which waits in the dark;
- * - ORBIT (3A): the light circles the bead a little more than once, behind it and in front, and comes to rest on its
- *   right; the camera pushes in gently; the bead's veins wake where the light passes;
- * - INSIDE: the camera goes through the glass, and the objects build with the scroll;
+ * It began as the light path mock-up Bob approved on 2026-10-27 (.superpowers/light-path-mockup/path.ts), whose beads'
+ * places and look back it keeps (tests/fixtures/light-path); since the 3D world (spec 2026-10-27-bob-nebula-space-design.md)
+ * the light no longer circles a bead and the scroll never goes inside one (a click does). The way, after the light dive
+ * hands the light over at way frame `HAND_F`, for each project on the way in order (~/state/chapters):
+ * - TRAVEL: the light flows on (out of the fall, or out from rest beside the last bead) to the next bead, which waits in
+ *   the dark; it passes over a point above the bead's right and comes down to rest at its front right, never round it
+ *   nor through it;
+ * - ARRIVE: the light at rest there, the camera settles on the whole bead (`ARRIVE_VIEW`), the bead lights, its veins
+ *   wake once round from the light's side, and its label comes in, all by `ARRIVE_STOP`, where the scroll rests; the
+ *   rest of the unit is a pause before the next travel;
  * then LOOK (8A): the camera pulls back out and away, and the whole way shows, the trail and every bead on it; and SHEET:
  * the look back fades to black over its first 0.55, the credits rising over the rest (the end page, src/ui/EndPage.tsx).
  *
@@ -24,7 +27,7 @@
  */
 import type { CameraShot } from '~/engine/bob/shots';
 import { shotToward } from '~/engine/bob/shots';
-import { type Chapters, frameOfPlace, HAND_F, HOME_CHAPTERS, pathStart } from '~/state/chapters';
+import { ARRIVE_STOP, type Chapters, frameOfPlace, HAND_F, HOME_CHAPTERS, pathStart } from '~/state/chapters';
 import { type FactAt, filamentsAt, lightAt, sizeFor, sparksAt, streamAt, trailAt, trailLevel, voidAt, wayShot } from './lightDive';
 import type { LightPose, VoidPose } from './poseTypes';
 
@@ -76,18 +79,22 @@ export const R_ORBIT = 1.5;
 /** The orbit's plane, rolled a little, as the 3A mock-up's ellipse is. */
 const ROLL = -9 * DEG;
 /**
- * Each orbit, in its own angle: 0 on the bead's right, pi/2 in front of it. The light comes down to the bead's back,
- * circles it a little more than once (1.31 turns), behind it and in front, and comes to rest at its front right.
+ * Where the light comes to rest beside each bead, in the orbit plane's own angle (0 on the bead's right, pi/2 in front of
+ * it): its front right. Since the 3D world (spec 2026-10-27-bob-nebula-space-design.md) it flies straight there and does
+ * not circle the bead.
  */
-export const ORBIT = { from: -Math.PI / 2, to: 0.12 * Math.PI + TAU } as const;
+export const REST_ANGLE = 0.12 * Math.PI;
 /** The way the camera looks at each bead from: in front, a little above. */
 export const TOWARD: Vec3 = norm([0, 0.13, 1]);
-/** The camera's distance from a bead as the orbit starts and as it ends (the gentle push-in), m. */
-const D_ORBIT = [8.6, 7.3] as const;
-/** The camera's distance from a bead inside it; on a phone a little further out, so the objects fit across the narrow screen. */
-const D_INSIDE = { desk: 1.75, phone: 2.3 } as const;
-/** The light's speed into an orbit, m a unit of scroll. */
-const V_IN = 2.6;
+/** The camera's distance from a bead at its arrival, m: far enough to show the whole bead floating, with room round it. */
+export const ARRIVE_VIEW = { desk: 9.6, phone: 13 } as const;
+/**
+ * The point the light passes over before it comes down to rest, from the bead's centre, m: to its right and above it, a
+ * little toward the camera, so a light coming from behind the bead goes over it, never round it nor through it.
+ */
+const OVER = { right: 2.4, up: 2.1, toward: 0.5 } as const;
+/** How far along a travel's progress the light passes over that point. */
+const OVER_AT = 0.62;
 /** How far back along the way the light's trail reaches, m. */
 const TRAIL = { desk: 1.2, phone: 1.0 } as const;
 /** The look back frames every bead within this share of the frame's half-width and half-height. */
@@ -97,7 +104,7 @@ const FIL_RATE = 16;
 /** The sheet's fade to black takes its first this much. */
 const BLACK = 0.55;
 
-export type PathPart = 'travel' | 'orbit' | 'inside' | 'look' | 'sheet';
+export type PathPart = 'travel' | 'arrive' | 'look' | 'sheet';
 
 /** The veins: none woken yet, waking along the orbit (its angle so far, and now), or all awake. */
 export type Wake = { kind: 'none' } | { kind: 'orbit'; from: number; now: number } | { kind: 'full' };
@@ -122,7 +129,7 @@ export interface BeadView {
 /** One moment of the path. */
 export interface PathFrame {
   part: PathPart;
-  /** The project's place on the way in a travel, an orbit and an inside; -1 in the look back and the sheet. */
+  /** The project's place on the way in a travel and an arrival; -1 in the look back and the sheet. */
   index: number;
   /** How far through the part, 0..1 (over the sheet, its share). */
   t: number;
@@ -155,8 +162,10 @@ export interface Path {
   wayPoints: readonly Vec3[];
   /** The look back's camera at rest. */
   lookShot: CameraShot;
-  /** The point at `angle` on bead `index`'s orbit. */
+  /** The point at `angle` on bead `index`'s orbit (its plane round the bead, R_ORBIT out). */
   orbitAt(index: number, angle: number): Vec3;
+  /** Where the light rests beside bead `index`: its orbit's point at REST_ANGLE. */
+  restAt(index: number): Vec3;
   /** The path at `q` units past its start. */
   frameAt(q: number): PathFrame;
 }
@@ -170,7 +179,7 @@ interface Segment {
   length: number;
 }
 
-const PARTS: Readonly<Record<string, PathPart>> = { TRAVEL: 'travel', ORBIT: 'orbit', INSIDE: 'inside', LOOK: 'look', SHEET: 'sheet' };
+const PARTS: Readonly<Record<string, PathPart>> = { TRAVEL: 'travel', ARRIVE: 'arrive', LOOK: 'look', SHEET: 'sheet' };
 
 /** The path's segments from the chapters: each ends where the next begins, so a stop is in exactly one. */
 function segmentsOf(c: Chapters): Segment[] {
@@ -241,7 +250,7 @@ export function makePath(aspect: number, c: Chapters = HOME_CHAPTERS): Path {
     for (const s of SEGMENTS) if (q < s.b) return { s, t: clamp01((q - s.a) / s.length) };
     return { s: SEGMENTS[SEGMENTS.length - 1]!, t: 1 };
   };
-  const count = SEGMENTS.filter((s) => s.kind === 'orbit').length;
+  const count = SEGMENTS.filter((s) => s.kind === 'arrive').length;
   const START = pathStart(c);
 
   const handLight = lightAt(HAND_F, aspect);
@@ -259,8 +268,9 @@ export function makePath(aspect: number, c: Chapters = HOME_CHAPTERS): Path {
   const u = norm(add(mul(right, Math.cos(ROLL)), mul(up, Math.sin(ROLL))));
   const w = norm([TOWARD[0], 0, TOWARD[2]]);
   const orbitAt = (i: number, th: number): Vec3 => add(centres[i]!, add(mul(u, R_ORBIT * Math.cos(th)), mul(w, R_ORBIT * Math.sin(th))));
-  const orbitDir = (th: number): Vec3 => norm(mul(add(mul(u, -Math.sin(th)), mul(w, Math.cos(th))), Math.sign(ORBIT.to - ORBIT.from)));
-  const rest = (i: number): Vec3 => orbitAt(i, ORBIT.to);
+  const rest = (i: number): Vec3 => orbitAt(i, REST_ANGLE);
+  /** The point above bead i's right the light passes over on its way in. */
+  const over = (i: number): Vec3 => add(centres[i]!, add(mul(u, OVER.right), add([0, OVER.up, 0], mul(w, OVER.toward))));
 
   // The field: at least 30 degrees tall, and wide enough across for the orbit and its label beside it.
   const fieldAt = (d: number, halfWidth: number): number => Math.max(30, (2 * Math.atan(Math.tan(Math.atan(halfWidth / d)) / aspect)) / DEG);
@@ -272,16 +282,8 @@ export function makePath(aspect: number, c: Chapters = HOME_CHAPTERS): Path {
     up: [0, 1, 0],
     sway: 0
   });
-  const inside = (i: number, k: number): CameraShot => {
-    const d = lerp(D_ORBIT[1], D_INSIDE[size], k);
-    return {
-      position: add(centres[i]!, mul(TOWARD, d)),
-      target: add(centres[i]!, [0, -0.12 * k, 0]),
-      fov: lerp(fieldAt(D_ORBIT[1], arriveHalf), phone ? 72 : 40, k),
-      up: [0, 1, 0],
-      sway: 0
-    };
-  };
+  /** The camera at rest at bead i's arrival: the whole bead, floating, with room round it and its label. */
+  const view = (i: number): CameraShot => arrival(i, ARRIVE_VIEW[size]);
   /** The bead from far off, small in the dark ahead, with room above it for the light coming down to it. */
   const approach = (i: number): CameraShot => ({
     position: add(centres[i]!, add(mul(TOWARD, 12.5), [0, 1.1, 0])),
@@ -324,27 +326,24 @@ export function makePath(aspect: number, c: Chapters = HOME_CHAPTERS): Path {
     if (s.kind === 'travel') {
       const i = s.i;
       const start = i === 0 ? L_H : rest(i - 1);
-      const end = orbitAt(i, ORBIT.from);
+      const top = over(i);
+      const end = rest(i);
       const T = s.length;
-      const gap = len(sub(end, start));
-      // Out of the fall at its own speed and direction, or out of the last bead from rest along its orbit's way.
-      const m0 = i === 0 ? mul(fallDir, 2.0 * T) : mul(orbitDir(ORBIT.to), gap * 0.9);
-      const m1 = mul(orbitDir(ORBIT.from), V_IN * T);
-      // From rest, the second and later ease in; the first carries the fall's speed on.
-      const k = hermite(0, i === 0 ? 1 : 0, 1, 1, t);
-      return hermite3(start, m0, end, m1, k);
+      const gap = len(sub(top, start));
+      // Out of the fall at its own speed and direction, or out from rest toward the next bead; over the point above the
+      // bead's right, level, and down to rest there, slowing to a stop: it never goes round the bead nor through it.
+      const m0 = i === 0 ? mul(fallDir, 2.0 * T) : mul(norm(sub(top, start)), gap * 0.9);
+      const across = norm([end[0] - start[0], 0, end[2] - start[2]]);
+      const mTop = mul(across, gap * 0.8);
+      const down = len(sub(end, top));
+      // From rest, the second and later ease in; the first carries the fall's speed on; every one ends at rest.
+      const k = hermite(0, i === 0 ? 1 : 0, 1, 0, t);
+      if (k < OVER_AT) return hermite3(start, m0, top, mTop, k / OVER_AT);
+      return hermite3(top, mul(mTop, (1 - OVER_AT) / OVER_AT), end, mul(norm(sub(end, top)), down * 0.6), (k - OVER_AT) / (1 - OVER_AT));
     }
-    if (s.kind === 'orbit') return orbitAt(s.i, orbitAngle(s.i, t));
-    if (s.kind === 'inside') return rest(s.i);
+    if (s.kind === 'arrive') return rest(s.i);
     return rest(count - 1);
   };
-
-  /** The light's angle round bead i at t of its orbit: in at V_IN, round, and to rest. */
-  function orbitAngle(i: number, t: number): number {
-    const sweep = Math.abs(ORBIT.to - ORBIT.from);
-    const s0 = (V_IN * find('orbit', i).length) / (R_ORBIT * sweep);
-    return ORBIT.from + (ORBIT.to - ORBIT.from) * hermite(0, s0, 1, 0, t);
-  }
 
   /**
    * The fall's own trail as it stood at the hand-over (./lightDive.ts `trailAt`), behind the light there, and its length:
@@ -402,29 +401,19 @@ export function makePath(aspect: number, c: Chapters = HOME_CHAPTERS): Path {
   const shotAt = (q: number): CameraShot => {
     const { s, t } = segmentAt(q);
     if (s.kind === 'travel') {
-      const d0 = arrival(s.i, D_ORBIT[0]);
       const far = approach(s.i);
       if (s.i === 0) {
-        // The fall's own chase carried on with the light, then back and level, the bead small ahead, then in to it.
+        // The fall's own chase carried on with the light, then back and level, the bead small ahead as the light swoops in.
         const at = lightPos(q);
         const carried: CameraShot = { ...handShot, position: add(at, sub(handShot.position, L_H)), target: add(at, sub(handShot.target, L_H)) };
-        if (t < 0.5) return shotToward(carried, far, ease(t / 0.5));
-        return shotToward(far, d0, ease((t - 0.5) / 0.5));
+        return t < 0.5 ? shotToward(carried, far, ease(t / 0.5)) : far;
       }
-      // Out through the glass, across to the next bead far off, and in to it.
-      const a = inside(s.i - 1, 1);
-      const b = arrival(s.i - 1, D_ORBIT[1]);
-      if (t < 0.28) return shotToward(a, b, ease(t / 0.28));
-      if (t < 0.62) return shotToward(b, far, ease((t - 0.28) / 0.34));
-      return shotToward(far, d0, ease((t - 0.62) / 0.38));
+      // From the last bead's arrival across to the next bead far off, as the light leads on to it.
+      return shotToward(view(s.i - 1), far, ease(t));
     }
-    if (s.kind === 'orbit') return arrival(s.i, lerp(D_ORBIT[0], D_ORBIT[1], ease(t)));
-    if (s.kind === 'inside') return inside(s.i, ease(seg(t, 0, 0.6)));
-    const last = count - 1;
-    if (s.kind === 'look') {
-      if (t < 0.24) return shotToward(inside(last, 1), arrival(last, D_ORBIT[1]), ease(t / 0.24));
-      return shotToward(arrival(last, D_ORBIT[1]), lookShot, ease((t - 0.24) / 0.76));
-    }
+    // The light at rest: the camera settles on the whole bead.
+    if (s.kind === 'arrive') return shotToward(approach(s.i), view(s.i), ease(seg(t, 0, ARRIVE_STOP)));
+    if (s.kind === 'look') return shotToward(view(count - 1), lookShot, ease(t));
     return lookShot;
   };
 
@@ -438,7 +427,7 @@ export function makePath(aspect: number, c: Chapters = HOME_CHAPTERS): Path {
   const handVoid = voidAt(HAND_F, aspect);
   const handStream = streamAt(HAND_F);
   const handTrail = trailLevel(HAND_F);
-  const firstOrbit = count > 0 ? find('orbit', 0).a : Number.POSITIVE_INFINITY;
+  const firstArrive = count > 0 ? find('arrive', 0).a : Number.POSITIVE_INFINITY;
   const lookEnd = SEGMENTS.find((s) => s.kind === 'look')!.b;
 
   function frameAt(q: number): PathFrame {
@@ -461,8 +450,8 @@ export function makePath(aspect: number, c: Chapters = HOME_CHAPTERS): Path {
     };
     const look = s.kind === 'look' ? ease(seg(t, 0.2, 0.9)) : s.kind === 'sheet' ? 1 : 0;
 
-    // Which bead the way is at: its travel, orbit or inside; all of them from the look back on.
-    const current = s.kind === 'travel' || s.kind === 'orbit' || s.kind === 'inside' ? s.i : count;
+    // Which bead the way is at: its travel or its arrival; all of them from the look back on.
+    const current = s.kind === 'travel' || s.kind === 'arrive' ? s.i : count;
     const beads: BeadView[] = centres.map((centre, i) => {
       const facing = add(centre, mul(TOWARD, 30));
       let visible = i <= current;
@@ -484,13 +473,11 @@ export function makePath(aspect: number, c: Chapters = HOME_CHAPTERS): Path {
           fade = ease(seg(t, i === 0 ? 0.2 : 0.5, i === 0 ? 0.55 : 0.78));
           visible = fade > 0;
           lit = 0.12 * ease(seg(t, 0.55, 1));
-        } else if (s.kind === 'orbit') {
-          lit = lerp(0.12, 0.9, ease(seg(t, 0.05, 0.85)));
-          wake = { kind: 'orbit', from: ORBIT.from, now: orbitAngle(i, t) };
         } else {
-          lit = 1;
-          wake = { kind: 'full' };
-          build = ease(seg(t, 0.22, 1));
+          // At rest beside it: it lights up, and its veins wake once round from the light's side.
+          lit = lerp(0.12, 1, ease(seg(t, 0.03, ARRIVE_STOP - 0.05)));
+          const k = ease(seg(t, 0.03, ARRIVE_STOP - 0.05));
+          wake = k >= 1 ? { kind: 'full' } : k > 0 ? { kind: 'orbit', from: REST_ANGLE, now: REST_ANGLE + TAU * k } : { kind: 'none' };
         }
       }
       if (s.kind === 'look' || s.kind === 'sheet') {
@@ -503,12 +490,9 @@ export function makePath(aspect: number, c: Chapters = HOME_CHAPTERS): Path {
     });
 
     let label: PathFrame['label'] = null;
-    if (s.kind === 'orbit') label = { index: s.i, opacity: ease(seg(t, 0.84, 0.98)) };
-    if (s.kind === 'inside') label = { index: s.i, opacity: 1 - ease(seg(t, 0.04, 0.2)) };
-    let points: PathFrame['points'] = null;
-    if (s.kind === 'inside') points = { index: s.i, opacity: ease(seg(t, 0.6, 0.78)) };
-    if (s.kind === 'travel' && s.i > 0) points = { index: s.i - 1, opacity: 1 - ease(seg(t, 0, 0.14)) };
-    if (s.kind === 'look') points = { index: count - 1, opacity: 1 - ease(seg(t, 0, 0.1)) };
+    if (s.kind === 'arrive') label = { index: s.i, opacity: ease(seg(t, 0.3, ARRIVE_STOP - 0.05)) };
+    // The touch points are the inside's (a click on a bead), never the scroll's.
+    const points: PathFrame['points'] = null;
 
     return {
       part: s.kind,
@@ -521,7 +505,7 @@ export function makePath(aspect: number, c: Chapters = HOME_CHAPTERS): Path {
       beads,
       label,
       points,
-      skip: q >= firstOrbit && q <= lookEnd,
+      skip: q >= firstArrive && q <= lookEnd,
       way: s.kind === 'look' ? ease(seg(t, 0.22, 0.8)) : s.kind === 'sheet' ? 1 : 0,
       black,
       fog: fogFor(shot, look),
@@ -529,7 +513,7 @@ export function makePath(aspect: number, c: Chapters = HOME_CHAPTERS): Path {
     };
   }
 
-  return { count, centres, wayPoints, lookShot, orbitAt, frameAt };
+  return { count, centres, wayPoints, lookShot, orbitAt, restAt: rest, frameAt };
 }
 
 /** The last path made by `pathFor`, and the aspect it was made for. */
