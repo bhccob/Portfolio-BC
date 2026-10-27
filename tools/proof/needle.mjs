@@ -25,8 +25,8 @@
  * the five engraved marks is cut; the loader cuts the circle alone, so the four B marks stay 0 and only the circle, the
  * last, runs to 1), the compass's `needleAngle` (radians, 0 up the screen, clockwise positive) and the home's `scroll`
  * (`u`, the rise from the home to BOB seen from above, 0 to 1, and `letters`, `iris` and `needleDip`, each 0 to 1) and
- * the home's `journey` (`stretch`: `rise`, `light`, `travel`, `orbit`, `inside`, `look`, `sheet` or `end`; `local`; the
- * bead of a travel, an orbit or an inside, `project`; the void's load, `voidState`: `idle`, `loading`, `ready` or `failed`;
+ * the home's `journey` (`stretch`: `rise`, `light`, `travel`, `arrive`, `look`, `sheet` or `end`; `local`; the
+ * bead of a travel or an arrival, `project`; the void's load, `voidState`: `idle`, `loading`, `ready` or `failed`;
  * the way `frame` in the light dive, the `sheet`, the `light`'s place (NDC), the `beads` on the screen (px centre and
  * radius, shown or not), the bead `label` beside the light and its opacity, and each bead's veins' `wake`, radians);
  * `.set({ progress })` puts the story somewhere, `.dispatch(event)` sends a scene event, `.seekLoader(seconds)` holds
@@ -152,15 +152,16 @@
  *              dark (mean luma 0.05 or less)
  *   path       the light's path by real input at 1440x900 and 390x844 (touch), and at 1440 on /en/: from the fall's end
  *              notches (slow swipes) run on into Funcial's travel with no stop at the hand-over; at most one bead shown
- *              with a fade of 0.5 or more all the way; along Funcial's orbit the veins' wake grows with each notch and
- *              runs back with each one up; a step (the arrow; a flick) to each arrival rests there, its label whole within
- *              1 s, right of the light on a laptop and under the bead on a phone, in the page's language; the next to its
- *              inside, the label gone and its touch points shown inside the screen (five, four, five); stopped anywhere
- *              it rests there and the canvas sleeps within a second
- *   look-back  at 1440x900, 390x844 (touch) and 1440 on /en/: a step from the last inside rests on the look back's own
- *              stop, all three beads shown inside the screen and the way's line whole; on a laptop the pointer over each
- *              bead shows its label, Tab goes Funcial, Jontai Energy, Cookies Clicker, the skip button, each label shown
- *              on focus, Enter opens Jontai Energy's page and Back returns to the look back; on a phone a tap opens one
+ *              with a fade of 0.5 or more all the way; a step (the arrow; a flick) to each arrival rests there with no
+ *              circling (the light sweeps under 150 degrees round the bead), the whole bead framed, its veins awake, its
+ *              label whole within 1 s, right of the light on a laptop and under the bead on a phone, in the page's
+ *              language; the next step goes on to the next arrival (no inside on the scroll); stopped anywhere it rests
+ *              there and the canvas sleeps within a second
+ *   look-back  at 1440x900, 390x844 (touch) and 1440 on /en/: a step from the last arrival's end rests on the look
+ *              back's own stop, all three beads shown inside the screen and the way's line whole; on a laptop the
+ *              pointer over each bead shows its label, Tab goes Funcial, Jontai Energy, Cookies Clicker, the skip button,
+ *              each label shown on focus, Enter takes the visitor inside Jontai Energy, "Bekijk project" opens its page,
+ *              Back returns inside and Back again to the look back; on a phone a tap goes inside one, then its page
  *   credits    at 1440x900, 1366x657, 390x844 (touch) and 1440 on /en/: from the look back's stop one input fades to
  *              black, then raises the credits, at rest within 3 s with "Q&A" at 55 % of the screen (2 px) on the pixel
  *              the rise brings it to; the wheel (a swipe) then scrolls the document natively; at its end the message part
@@ -169,18 +170,31 @@
  *              edge fades there, and none with reduced motion; at the document's top an input up goes back to the look
  *              back; on /en/ the English dictionary's words
  *   resize     at 1440x900 turned to 390x844: at fact 02's peak the way frame stays and the fact rides below the light;
- *              late in Funcial's orbit the place stays and its label goes from right of the light to under the bead
+ *              late in Funcial's arrival the place stays and its label goes from right of the light to under the bead
  *   bead-open  opening a bead, at 1440x900 and 390x844 (touch): at each project's arrival the label shows whole inside
  *              the screen with the Dutch dictionary's text (the category line, the title, the hint for the pointer), Tab
- *              reaches it with a focus ring and Enter flies into the porthole (the page still `/` 120 ms on, then the
- *              router goes to `/projects/<slug>/` after the flight (FLIGHT_MS)) and Esc returns to that arrival; a click
- *              or a tap on a label (Back returns to Jontai Energy's arrival, its label shown) and on a bead open too;
- *              Jontai Energy's bead opened in its inside and in the look back, Back returning to the very place each
- *              time; all by client navigation; a direct load of `/projects/cookies-clicker/` then Esc lands at its arrival
+ *              reaches it with a focus ring and Enter takes the visitor inside the bead (the page still `/` with the
+ *              inside's history entry, the camera in within FLIGHT_MS and a little, its touch points whole, "Terug" and
+ *              "Bekijk project" shown, the focus on "Terug") and Esc comes back out to that arrival; a click or a tap on
+ *              a label and on a bead go inside too; from inside "Bekijk project" opens the page, Back returns inside and
+ *              Back again out, in Jontai Energy's arrival and in the look back; all by client navigation; a direct load
+ *              of `/projects/cookies-clicker/` then Esc lands at its arrival
+ *   inside     getting out of a bead, at 1440x900, 390x844 (touch) and 1440 on /en/, at Funcial's arrival: a click (a
+ *              tap) on the bead goes inside; "Terug", Escape, three wheel notches (a swipe on the phone) and the browser's
+ *              Back each come back out to the arrival at rest, the story not moved on; then a step goes on to Jontai
+ *              Energy's arrival; a still inside gated as an inside still
+ *   float      the bead at its arrival, at 1440x900, 390x844 (touch) and 1440 with reduced motion, at Jontai Energy's
+ *              arrival: it floats (two pictures of it 1.3 s apart differ); the pointer over its right edge and its left
+ *              turn it two ways; the canvas sleeps within 13 s of the last input and a pointer move wakes it; with reduced
+ *              motion it holds still and the canvas sleeps within 1.5 s
+ *   nebula     the 3D nebula, at 1440x900 and 390x844 (touch): the bridge's levels (`journey.nebula`) are the rules' at
+ *              the fall's frames 30, 72 and 121 (the fall's at its quieter level), each trip's middle and arrival, the
+ *              look back and under the sheet; stills
+ *              of the fall, the second trip, Jontai Energy's arrival and the look back through the home's luma gate
  *   void-hold  `bob-beads.glb` held back: a long wheel (flicks on the phone) plays the light dive and rests at
  *              LANDING_HOLD, the hand-over (way frame 256), with `voidState` `loading`, the light still, a still of it gated as a home
  *              still; up from the hold moves at once (three notches exactly their distance) and rests where it stopped;
- *              let through, the void is `ready` and the story goes on into the ring; a direct arrival's Esc while the file
+ *              let through, the void is `ready` and the story goes on along the path; a direct arrival's Esc while the file
  *              is held waits at the hold, then reaches its stop
  *   void-fail  `bob-beads.glb` answering 404: `voidState` `failed`; the light dive plays and the scroll holds at
  *              LANDING_HOLD, where (`<html data-held>`) `.home-nav` shows (fixed over the foot of the screen, its links
@@ -212,12 +226,12 @@
  *              language switch shows "EN" and its name begins with it (WCAG 2.5.3, label in name); End
  *              jumps to the last chapter (the end of the story, the credits' stop, END) and Home returns to the
  *              start, both by the step fade with the focus on the toggle; from BOB from above the arrows step every key
- *              stop (the facts, each arrival and inside, the look back, the credits); at Jontai Energy's arrival Tab from
+ *              stop (the facts, each arrival, the look back, the credits); at Jontai Energy's arrival Tab from
  *              the toggle reaches its label, then the skip button, and Enter on it fades to the credits with the focus on
  *              "Q&A"
  *   reduced-motion  with prefers-reduced-motion: reduce (page.emulateMedia, before the load) one wheel event moves
- *              `target` to exactly the next key stop, through all fifteen (the home, BOB from above, the five facts at
- *              their peaks, each project's arrival and inside, the look back's own stop, the credits) and back, and the
+ *              `target` to exactly the next key stop, through all twelve (the home, BOB from above, the five facts at
+ *              their peaks, each project's arrival, the look back's own stop, the credits) and back, and the
  *              story arrives at each, in the right chapter, by the step fade, with no pose between the two stops; one
  *              more at the end is no step (no fade at all): it is the credits' own scroll, and one up takes the page back
  *              to its top before the walk back up
@@ -255,7 +269,7 @@
  *              `en-home-390x844.png`, `fallback-390x844.png`); on a project page the poster's scrim is
  *              over the scene once it shows, and before then only the poster's own (the Stage chunk is held while
  *              that is measured, so it cannot race); on Lite and contact no scene loads and the poster carries the
- *              page scrim; and the light dive (way frames 60, 121, 241), each project's arrival and inside, the look
+ *              page scrim; and the light dive (way frames 60, 121, 241), each project's arrival, the look
  *              back and the credits at both sizes, gated by LUMA_GATE as home stills, with the page's text masked but
  *              on the credits, whose text is the only picture there
  *   loader-stills  at 1440x900 and 390x844, in a fresh context, once the real load has landed (HOME_IDLE): the
@@ -353,7 +367,7 @@ const { Translator, locales } = await tsImport('../../src/i18n/Translator.ts', i
 const { HANDLES, PAGE_KINDS } = await tsImport('../../src/app/handle.ts', import.meta.url);
 const { MIN_FILL_MS, SEND_TIMEOUT_MS } = await tsImport('../../src/ui/contactSubmit.ts', import.meta.url);
 const { LOAD_TIMEOUT_MS, RESTORE_TIMEOUT_MS } = await tsImport('../../src/scene/timeouts.ts', import.meta.url);
-const { HOME_CHAPTERS, arrivalStop, chapterAt, insideStop, keyStops, lookStart, pathStart, placeOfFrame, scrollEnd, sheetStart, stops } = await tsImport('../../src/state/chapters.ts', import.meta.url);
+const { ARRIVE_STOP, HOME_CHAPTERS, arrivalStop, chapterAt, keyStops, lookStart, pathStart, placeOfFrame, scrollEnd, sheetStart, stops } = await tsImport('../../src/state/chapters.ts', import.meta.url);
 const { SETTLE_SLOP_PX } = await tsImport('../../src/input/target.ts', import.meta.url);
 const { SHEET_FINISH_MS } = await tsImport('../../src/input/scrollLoop.ts', import.meta.url);
 const { GESTURE_GAP_MS } = await tsImport('../../src/input/gesture.ts', import.meta.url);
@@ -367,6 +381,7 @@ const { BEADS, journeyAt, journeyPoseAt } = await tsImport('../../src/scene/bob/
 const { RISE_TOP, LANDING_HOLD, landingHoldFor } = await tsImport('../../src/scene/bob/landingHold.ts', import.meta.url);
 const { categories } = await tsImport('../../src/data/categories.ts', import.meta.url);
 const { engravedLevels } = await tsImport('../../src/scene/bob/engravedWay.ts', import.meta.url);
+const { NEBULA, nebulaLevels } = await tsImport('../../src/scene/bob/nebulaWay.ts', import.meta.url);
 /**
  * How long the canvas may keep drawing after the last thing that stirred it, ms: the home's idle motion
  * (src/scene/bob/look.ts, IDLE_SECONDS: 12 s) and the needle's spring settling, with room to spare. Counted from the
@@ -577,8 +592,8 @@ const waitForStop = async (page, category, timeout = 15_000) => {
     .waitForFunction(
       (category) => {
         const s = window.__needleDebug?.();
-        // The arrival: the inside's start. The hold at the path's start reads PROJECTS too, at its travel's start.
-        return s?.phase.kind === 'PROJECTS' && s.phase.category === category && s.progress === s.target && s.chapter.id === 'INSIDE' && s.chapter.local === 0;
+        // The arrival stop, inside the bead's ARRIVE. The hold at the path's start reads PROJECTS too, in its travel.
+        return s?.phase.kind === 'PROJECTS' && s.phase.category === category && s.progress === s.target && s.chapter.id === 'ARRIVE' && s.chapter.local > 0;
       },
       category,
       { timeout },
@@ -1809,10 +1824,10 @@ async function scrollDesktop(browser, step) {
   // Task 12: Back from a project page lands at its bead's stop (spec §2.4), not where the scroll was before the page.
   const back = await frameOf(page);
   const arrivalUnit = chapterAt(HOME_CHAPTERS, BEAD_LIST[0].stop).index;
-  step.check(near(back.progress, BEAD_LIST[0].stop) && back.chapterIndex === arrivalUnit, `the story is at Funcial's arrival stop, ${BEAD_LIST[0].stop}, in its inside (unit ${arrivalUnit}), where Back from its page lands (got ${JSON.stringify(back)})`);
+  step.check(near(back.progress, BEAD_LIST[0].stop) && back.chapterIndex === arrivalUnit, `the story is at Funcial's arrival stop, ${BEAD_LIST[0].stop}, in its arrival (unit ${arrivalUnit}), where Back from its page lands (got ${JSON.stringify(back)})`);
   await page.keyboard.press('PageDown');
   const resumed = await restAt(page);
-  step.check(resumed.target === BEAD_LIST[0].inside && resumed.progress === BEAD_LIST[0].inside, `and the scroll goes on from there, a step to Funcial's inside stop, ${BEAD_LIST[0].inside} (got ${resumed.target})`);
+  step.check(resumed.target === BEAD_LIST[1].stop && resumed.progress === BEAD_LIST[1].stop, `and the scroll goes on from there, a step to Jontai Energy's arrival, ${BEAD_LIST[1].stop} (got ${resumed.target})`);
   await page.keyboard.press('Home');
   await restAt(page);
 
@@ -2769,10 +2784,7 @@ async function stills(browser, step) {
     const { context, page } = await readyHome(browser, step, size);
     const places = [
       ...[32, 60, 121, 241].map((frame) => ({ name: `light-${frame}`, progress: placeOfFrame(frame) })),
-      ...BEAD_LIST.flatMap((bead) => [
-        { name: `arrival-${bead.id}`, progress: bead.stop },
-        { name: `inside-${bead.id}`, progress: bead.inside, kind: 'inside' },
-      ]),
+      ...BEAD_LIST.map((bead) => ({ name: `arrival-${bead.id}`, progress: bead.stop })),
       { name: 'look-back', progress: LOOK_STOP },
       { name: 'credits', progress: STORY_END, whole: true },
     ];
@@ -2809,7 +2821,7 @@ async function stills(browser, step) {
   }
   step.check(shots.length === PAGES.length * sizes.length + sizes.length, `${shots.length} stills: ${PAGES.length} pages at ${sizes.length} sizes, and the fallback at each`);
   console.log(`note: stills (${shots.length}) in ${dir}`);
-  return `${shots.length} stills in ${dir}: ${PAGES.length} pages at 1440x900 and 390x844 once landed, the fallback; the page scrim over the scene on every page of text; ${rows.length} stills of the light dive, the path's stops and the credits, ${lumaSummary(rows, 'home')}; ${lumaSummary(rows, 'inside')}`;
+  return `${shots.length} stills in ${dir}: ${PAGES.length} pages at 1440x900 and 390x844 once landed, the fallback; the page scrim over the scene on every page of text; ${rows.length} stills of the light dive, the path's stops and the credits, ${lumaSummary(rows, 'home')}`;
 }
 
 /**
@@ -4703,7 +4715,7 @@ async function keyboard(browser, step) {
   const atStart = await debugOf(page);
   step.check(atStart.chapter.id === 'HOME' && atStart.phase.kind === 'HOME_IDLE', `and to HOME, HOME_IDLE (got ${JSON.stringify([atStart.chapter, atStart.phase])})`);
 
-  // The arrows from BOB from above: each fact at its peak, each project's arrival and inside, the look back, the credits.
+  // The arrows from BOB from above: each fact at its peak, each project's arrival, the look back, the credits.
   await poseAt(page, RISE_TOP);
   const walk = keyStops(HOME_CHAPTERS).filter((stop) => stop > RISE_TOP);
   const reachedStops = [];
@@ -4805,12 +4817,12 @@ async function reducedMotion(browser, step) {
   await expectVoid(page, step, 'ready', 'the beads under the glass are ready, so nothing holds the story at the landing');
   await page.mouse.move(720, 450);
 
-  // 0 home, 1 BOB from above, the five facts at their peaks, each project's arrival and inside, the look back's own stop,
-  // the credits.
+  // 0 home, 1 BOB from above, the five facts at their peaks, each project's arrival, the look back's own stop, the
+  // credits: no inside on the scroll.
   const places = keyStops(HOME_CHAPTERS);
   step.check(
-    places.length === 15 && places[0] === 0 && places[1] === 1 && places.at(-2) === LOOK_STOP && places.at(-1) === STORY_END && BEAD_LIST.every((bead) => places.includes(bead.stop) && places.includes(bead.inside)),
-    `the story's fifteen key stops: the home, BOB from above, five facts, three arrivals and insides, the look back's and the credits' (got ${places.map((p) => p.toFixed(3)).join(', ')})`,
+    places.length === 12 && places[0] === 0 && places[1] === 1 && places.at(-2) === LOOK_STOP && places.at(-1) === STORY_END && BEAD_LIST.every((bead) => places.includes(bead.stop)),
+    `the story's twelve key stops: the home, BOB from above, five facts, three arrivals, the look back's and the credits' (got ${places.map((p) => p.toFixed(3)).join(', ')})`,
   );
   const sameAt = (a, b) => a.stretch === b.stretch && a.project === b.project && Math.abs(a.local - b.local) < 1e-6 && (a.frame === null ? b.frame === null : b.frame !== null && Math.abs(a.frame - b.frame) < 1e-6);
   /** Watches every pose the bridge reports (5 ms apart) and every step fade from now until `stopWatch()`. */
@@ -4926,37 +4938,42 @@ const projectTitle = (id) => PROJECTS_SOURCE.match(new RegExp(`id: '${id}',\\s+t
 
 /**
  * The three beads in the way's order (BEADS, src/scene/bob/journey.ts) with the arrival stop of each (`arrivalStop`: the
- * light round it, its label whole, where Back from its page lands) and its inside stop (`insideStop`: its objects built),
- * the page of the project (src/data/pages.ts) and its title.
+ * light at rest beside it, its label whole, where Back from its page lands; there is no inside on the scroll, a click
+ * takes the visitor inside), the page of the project (src/data/pages.ts) and its title.
  */
 const BEAD_LIST = BEADS.map((bead, index) => ({
   id: bead.id,
   index,
   category: bead.category,
   stop: arrivalStop(HOME_CHAPTERS, bead.category),
-  inside: insideStop(HOME_CHAPTERS, bead.category),
   path: SITE_PAGES[`project-${bead.id}`],
   title: projectTitle(bead.id),
 }));
 
+/** Where bead `bead`'s ARRIVE ends: the next travel's start (or the look back's), past the pause after its stop. */
+const arrivalEnd = (bead) => {
+  const unit = HOME_CHAPTERS.units.find((u) => u.id === 'ARRIVE' && u.category === bead.category);
+  return unit.start + unit.length;
+};
+
 /** The path's start, the hand-over from the fall (way frame 256): the light path's places are counted from it. */
 const PATH_START = pathStart(HOME_CHAPTERS);
-/** The look back's start (the last inside's end) and its own stop (the sheet's start, where the credits begin to come). */
+/** The look back's start (the last arrival's end) and its own stop (the sheet's start, where the credits begin to come). */
 const LOOK_START = lookStart(HOME_CHAPTERS);
 const LOOK_STOP = sheetStart(HOME_CHAPTERS);
 
 /**
  * What the journey says at each of the story's key stops, 0 to the end (`journey.stretch` and `journey.project`; `local`
- * is 0 at each), from the pure journey: the home, BOB from above, the facts, each project's arrival (`inside`, its label
- * whole) and inside (the next travel's start, or the look back's), the look back's own stop (`sheet`) and the credits
- * (`end`, the end of the scroll: past its start the page scrolls natively).
+ * is 0 at each but at an arrival, ARRIVE_STOP into it), from the pure journey: the home, BOB from above, the facts, each
+ * project's arrival (`arrive`, its label whole), the look back's own stop (`sheet`) and the credits (`end`, the end of
+ * the scroll: past its start the page scrolls natively).
  */
 const JOURNEY_STOPS = keyStops(HOME_CHAPTERS).map((stop) => {
   const at = journeyAt(stop);
   return { stop, stretch: at.stretch, project: at.project };
 });
 
-/** Where `poseOnTheFrame` puts the story: the rise (0.6), the fall (fact 03's peak), Funcial's travel and its orbit. */
+/** Where `poseOnTheFrame` puts the story: the rise (0.6), the fall (fact 03's peak), Funcial's travel and its arrival. */
 const SAME_FRAME_AT = [0.6, placeOfFrame(161), PATH_START + 0.6, PATH_START + 1.9];
 
 /** The pixels from the screen's edges the label keeps, and the header it stays under (src/ui/BeadLabel.tsx, `labelMargin`, `HEADER`). */
@@ -5131,28 +5148,99 @@ const labelInside = (label) => {
 };
 
 /**
- * Opening a bead (spec §2.4), at 1440x900 and at 390x844 (touch), each in a fresh context that lands with the seen flag set
- * and the void ready. The bridge has no field for a bead being opened, so the step reads the page: the label
- * (`.bead-label`, src/ui/BeadLabel.tsx), the URL and the scene's phase.
- *
- * 1. At each ring stop (4, 5, 6, put there through `.set`) the label shows whole, inside the screen with the margin the
- *    site keeps, and its lines are the Dutch dictionary's: the category line (`categories`), the title (read from
- *    src/data/projects.ts), the hint and the touch hint (`t.needle.bead`), the one for the pointer shown; it is the link to
- *    the project's page.
- * 2. Tab reaches the label (from the skip link, within 14 presses) with a focus ring, and Enter opens the project: 120 ms
- *    on the page is still `/` with the camera flying into the porthole (`<html data-bead-open>`, PROJECT_FOCUS), the router
- *    goes to `/projects/<slug>/` once the flight (FLIGHT_MS) is over, and the scene is PROJECT_FOCUS on that bead. Esc returns to
- *    that bead's stop (the story at it, at rest, PROJECTS in its category) and its label shows again. All three beads.
- * 3. The other two hands: a click (a tap on the phone) on the label of Jontai Energy, which the browser's Back brings
- *    back to its arrival, its label shown; and on the bead itself of Cookies Clicker, where the bridge's `journey.beads`
- *    puts it on the screen, which Esc brings back to its arrival. Then Jontai Energy's bead clicked (tapped) in its inside
- *    and in the look back: Back returns to the very place each time.
- * 4. None of it loads a document: it is all client navigation.
- * 5. A direct load of `/projects/cookies-clicker/`, then Esc once the opening has landed (the void may still be loading: the
- *    hold carries the story on), lands at stop 6, Cookies Clicker's, with its label.
+ * The inside of a bead as the page shows it now (the 3D world's spec, goal 6; src/ui/InsideControls.tsx): whether
+ * `<html data-inside>` is set, the inside the history's entry carries (React Router keeps a navigation's state in
+ * `history.state.usr`), the page's path, the two buttons (their text, box, and whether they show), the focus, the
+ * story's place and the scene's phase.
+ */
+const insideOf = (page) =>
+  page.evaluate(() => {
+    const d = window.__needleDebug();
+    const controls = document.querySelector('.inside-controls');
+    const buttons = [...document.querySelectorAll('.inside-controls .inside-button')].map((b) => {
+      const box = b.getBoundingClientRect();
+      return { text: b.textContent, height: box.height, top: box.top, bottom: box.bottom, left: box.left, right: box.right };
+    });
+    return {
+      open: document.documentElement.hasAttribute('data-inside'),
+      state: history.state?.usr?.['bob-inside'] ?? null,
+      path: location.pathname,
+      shown: controls !== null && getComputedStyle(controls).visibility === 'visible',
+      buttons,
+      focus: document.activeElement?.className ?? null,
+      progress: d.progress,
+      target: d.target,
+      phase: d.phase.kind,
+    };
+  });
+
+/**
+ * Does `act` (a click, a tap or a key that opens bead `bead`) and checks the inside that follows: within FLIGHT_MS and a
+ * little the camera is in (the bead's touch points whole), the page still `home` with the inside's own history entry,
+ * on the scroll's phase, "Terug" and "Bekijk project" shown at the foot of the screen in that order, 48 px or taller,
+ * the focus on "Terug". Answers the time it took (ms), or null.
+ */
+async function goesInside(page, step, at, size, bead, how, act, home = '/') {
+  const began = Date.now();
+  await act();
+  const took = await page
+    .waitForFunction(
+      (id) => {
+        const el = document.querySelector(`.touch-points[data-bead="${id}"]`);
+        return document.documentElement.hasAttribute('data-inside') && el !== null && el.hasAttribute('data-shown') && Number(getComputedStyle(el).opacity) === 1;
+      },
+      bead.id,
+      { timeout: 6_000 },
+    )
+    .then(() => Date.now() - began, () => null);
+  const s = await insideOf(page);
+  const words = new Translator(home === '/en/' ? 'en' : 'nl').t.needle.inside;
+  step.check(took !== null && took <= FLIGHT_MS + 600, `${at}: ${how}: inside ${bead.id} within ${FLIGHT_MS + 600} ms, its touch points whole (${took === null ? 'never' : `${took} ms`})`);
+  step.check(s.path === home && s.state === bead.id && s.phase === 'PROJECTS', `${at}: ${how}: the page still ${home}, its history entry the inside's (${s.state}), on the scroll's phase (${s.phase})`);
+  step.check(
+    s.shown && s.buttons.length === 2 && s.buttons[0].text === words.back && s.buttons[1].text === words.view && s.buttons.every((b) => b.height >= 48 && b.top >= size.height * 0.75 && b.bottom <= size.height),
+    `${at}: ${how}: "${words.back}" and "${words.view}" shown at the foot of the screen, in that order, 48 px or taller (${JSON.stringify(s.buttons.map((b) => [b.text, Math.round(b.height), Math.round(b.top)]))})`,
+  );
+  step.check(s.focus?.includes('inside-back') === true, `${at}: ${how}: the focus on "${words.back}" (${s.focus})`);
+  return took;
+}
+
+/**
+ * Does `act` (a way out of the inside) and checks that the visitor is back out at `place`, at rest, the story not moved
+ * on and the inside's mark gone; then waits out the flight back (FLIGHT_MS). With `label`, that bead's label whole again.
+ */
+async function comesOut(page, step, at, place, how, act, label = null) {
+  await act();
+  const out = await page
+    .waitForFunction(
+      (place) => {
+        const d = window.__needleDebug();
+        return !document.documentElement.hasAttribute('data-inside') && d.phase.kind === 'PROJECTS' && Math.abs(d.progress - place) < 1e-9 && Math.abs(d.target - place) < 1e-9;
+      },
+      place,
+      { timeout: 5_000 },
+    )
+    .then(() => true, () => false);
+  await page.waitForTimeout(FLIGHT_MS + 300);
+  const after = await insideOf(page);
+  step.check(out && !after.open && Math.abs(after.progress - place) < 1e-9 && Math.abs(after.target - place) < 1e-9, `${at}: ${how}: back out at ${place.toFixed(4)}, at rest and not moved on (progress ${after.progress}, target ${after.target}, inside ${after.open})`);
+  if (label !== null) {
+    const again = await waitForLabel(page, label.id);
+    step.check(again !== null && labelInside(again), `${at}: ${how}: and ${label.id}'s label shows again, whole and inside the screen`);
+  }
+}
+
+/**
+ * Opening a bead (the 3D world's spec, goal 6), at 1440x900 and 390x844 (touch): at each project's arrival the label
+ * shows whole inside the screen with the Dutch dictionary's text (the category line, the title, the hint for the
+ * pointer), Tab reaches it with a focus ring and Enter takes the visitor inside the bead (`goesInside`), and Esc comes
+ * back out to that arrival; a click or a tap on a label, and on a bead, goes inside too; from inside "Bekijk project"
+ * opens the page (its heading the title, the scene on it), Back returns inside at that very place and Back again out;
+ * Jontai Energy's bead opened in the look back the same way, back to the very place; all by client navigation; a direct
+ * load of `/projects/cookies-clicker/` then Esc lands at its arrival.
  */
 async function beadOpen(browser, step) {
-  const dutch = new Translator('nl').t.needle.bead;
+  const dutch = new Translator('nl').t.needle;
   const summary = [];
   step.check(
     BEAD_LIST.every((bead) => bead.title !== null && bead.path === `/projects/${bead.id}/`),
@@ -5177,55 +5265,29 @@ async function beadOpen(browser, step) {
       await settledState(page);
       return waitForLabel(page, bead.id);
     };
-    /** From a bead's page, Esc: back at the home on that bead's stop, at rest, its label shown again. */
-    const escapeTo = async (bead, how) => {
-      await page.keyboard.press('Escape');
-      const stopped = await waitForStop(page, bead.category, 15_000);
-      step.check(
-        pathNow() === '/' && stopped.kind === 'PROJECTS' && stopped.category === bead.category && stopped.progress === bead.stop && stopped.target === bead.stop,
-        `${at}: ${how}: Esc returns to ${bead.id}'s stop, ${bead.stop}, at rest (path ${pathNow()}, got ${JSON.stringify(stopped)})`,
-      );
-      const again = await waitForLabel(page, bead.id);
-      step.check(again !== null && labelInside(again), `${at}: ${how}: and its label shows again, whole and inside the screen`);
-    };
-    /** From a bead's page, the browser's Back: back at the home on that bead's stop, at rest, it in front and its label shown again. */
-    const backTo = async (bead, how) => {
-      await page.goBack();
-      const stopped = await waitForStop(page, bead.category, 15_000);
-      const state = await debugOf(page);
-      step.check(
-        pathNow() === '/' && stopped.kind === 'PROJECTS' && stopped.category === bead.category && stopped.progress === bead.stop && stopped.target === bead.stop && state.journey.project === bead.index,
-        `${at}: ${how}: Back returns to ${bead.id}'s stop, ${bead.stop}, at rest, ${bead.id} in front (path ${pathNow()}, got ${JSON.stringify(stopped)}, project ${state.journey.project})`,
-      );
-      const again = await waitForLabel(page, bead.id);
-      step.check(again !== null && labelInside(again), `${at}: ${how}: and its label shows again, whole and inside the screen`);
-    };
-    /** Does `act` and checks what follows: the flight into the porthole, the page, the scene on that bead. */
-    const opens = async (bead, how, act) => {
-      const began = Date.now();
-      await act();
-      await page.waitForTimeout(120);
-      const mid = await page.evaluate(() => {
-        const { phase } = window.__needleDebug();
-        return { path: location.pathname, opening: document.documentElement.hasAttribute('data-bead-open'), kind: phase.kind, id: phase.id };
-      });
+    /** From inside a bead: "Bekijk project" opens its page; Back returns inside at `place`; Back again comes out there. */
+    const viewsAndBack = async (bead, place, how) => {
+      const view = page.locator('.inside-view');
+      if (touch) await view.tap();
+      else await view.click();
       const arrived = await page.waitForURL(`${BASE}${bead.path}`, { timeout: 5_000 }).then(() => true, () => false);
-      const took = Date.now() - began;
-      step.check(
-        mid.path === '/' && mid.opening && mid.kind === 'PROJECT_FOCUS' && mid.id === bead.id,
-        `${at}: ${how}: 120 ms on, the camera is still flying into ${bead.id}: the page is still ${mid.path}, <html data-bead-open> ${mid.opening}, the phase ${mid.kind} ${mid.id}`,
-      );
-      step.check(arrived && took >= FLIGHT_MS - 100 && took <= FLIGHT_MS + 2_200, `${at}: ${how}: the router goes to ${bead.path} once the ${FLIGHT_MS / 1000} s flight is over, ${took} ms after the press (at least ${FLIGHT_MS - 100}, at most ${FLIGHT_MS + 2_200})`);
       const project = await waitForProject(page, bead.id);
       const heading = await page.textContent('h1');
-      step.check(project.kind === 'PROJECT_FOCUS' && project.id === bead.id && heading === bead.title, `${at}: ${how}: on the page the scene is PROJECT_FOCUS ${bead.id} and the heading is "${heading}" (got ${JSON.stringify(project)})`);
+      step.check(arrived && project.kind === 'PROJECT_FOCUS' && project.id === bead.id && heading === bead.title, `${at}: ${how}: "${dutch.inside.view}" opens ${bead.path}: the scene on PROJECT_FOCUS ${bead.id} and the heading "${heading}"`);
+      await page.goBack();
+      const inAgain = await page
+        .waitForFunction((place) => document.documentElement.hasAttribute('data-inside') && Math.abs(window.__needleDebug().progress - place) < 1e-9, place, { timeout: 10_000 })
+        .then(() => true, () => false);
+      const s = await insideOf(page);
+      step.check(inAgain && s.path === '/' && s.state === bead.id, `${at}: ${how}: Back from the page returns inside ${bead.id} at ${place.toFixed(4)} (path ${s.path}, inside ${s.open}, its entry's ${s.state})`);
+      await comesOut(page, step, at, place, `${how}, then Back again`, () => page.goBack());
     };
 
-    // 1 + 2. Each bead's stop: the label, Tab and Enter, Esc.
+    // 1 + 2. Each bead's stop: the label, Tab and Enter into its inside, Esc out.
     for (const bead of BEAD_LIST) {
       const label = await arriveAt(bead);
       step.check(label !== null && label.shown && label.rest && label.opacity === 1 && labelInside(label), `${at}: at ${bead.id}'s stop, ${bead.stop}, the label shows whole inside the screen: ${label === null ? 'never shown' : `[${Object.values(label.box).map((v) => Math.round(v)).join(', ')}] in ${label.viewport.width}x${label.viewport.height}, margin ${labelMarginOf(label.viewport.width)} and the header ${HEADER_PX}`}`);
-      const want = { category: categories.byId(bead.category).heading('nl'), title: bead.title, hintFine: dutch.hint, hintTouch: dutch.hintTouch };
+      const want = { category: categories.byId(bead.category).heading('nl'), title: bead.title, hintFine: dutch.bead.hint, hintTouch: dutch.bead.hintTouch };
       step.check(
         label !== null && label.category === want.category && label.title === want.title && label.hintFine === want.hintFine && label.hintTouch === want.hintTouch && label.href === bead.path,
         `${at}: and it says what the Dutch dictionary says, "${want.category}", "${want.title}", "${want.hintFine}" / "${want.hintTouch}", and links to ${bead.path} (got ${JSON.stringify(label && [label.category, label.title, label.hintFine, label.hintTouch, label.href])})`,
@@ -5243,49 +5305,37 @@ async function beadOpen(browser, step) {
         return style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) >= 2;
       });
       step.check(reached > 0 && ringed, `${at}: Tab from the skip link reaches ${bead.id}'s label after ${reached} presses, with a focus ring (outline 2 px or more)`);
-      await opens(bead, 'Tab and Enter', () => page.keyboard.press('Enter'));
-      await escapeTo(bead, 'Tab and Enter');
+      await goesInside(page, step, at, size, bead, 'Tab and Enter', () => page.keyboard.press('Enter'));
+      await comesOut(page, step, at, bead.stop, 'Tab and Enter, then Esc', () => page.keyboard.press('Escape'), bead);
     }
 
-    // 3. A click or a tap: on a label, and on a bead.
+    // 3. A click or a tap: on a label, and on a bead; from inside, the page and Back.
     const onLabel = BEAD_LIST[1];
     await arriveAt(onLabel);
     const labelAt = page.locator(`.bead-label[data-bead="${onLabel.id}"]`);
-    await opens(onLabel, touch ? 'a tap on the label' : 'a click on the label', () => (touch ? labelAt.tap() : labelAt.click()));
-    await backTo(onLabel, touch ? 'a tap on the label' : 'a click on the label');
+    const byLabel = touch ? 'a tap on the label' : 'a click on the label';
+    await goesInside(page, step, at, size, onLabel, byLabel, () => (touch ? labelAt.tap() : labelAt.click()));
+    await viewsAndBack(onLabel, onLabel.stop, byLabel);
     const onBead = BEAD_LIST[2];
     await arriveAt(onBead);
     const onScreen = (await debugOf(page)).journey.beads?.[onBead.index];
     const [beadX, beadY] = onScreen === undefined ? [size.width / 2, size.height / 2] : [onScreen.x, onScreen.y];
-    await opens(onBead, touch ? 'a tap on the bead' : 'a click on the bead', () => (touch ? page.touchscreen.tap(beadX, beadY) : page.mouse.click(beadX, beadY)));
-    await escapeTo(onBead, touch ? 'a tap on the bead' : 'a click on the bead');
+    const byBead = touch ? 'a tap on the bead' : 'a click on the bead';
+    await goesInside(page, step, at, size, onBead, byBead, () => (touch ? page.touchscreen.tap(beadX, beadY) : page.mouse.click(beadX, beadY)));
+    await comesOut(page, step, at, onBead.stop, `${byBead}, then "${dutch.inside.back}"`, () => (touch ? page.locator('.inside-back').tap() : page.locator('.inside-back').click()), onBead);
 
-    // Jontai Energy opened from its inside and from the look back: Back returns to the very place each time.
+    // Jontai Energy opened in the look back: inside, its page, Back inside, Back out, at the very place.
     const jontai = BEAD_LIST[1];
-    for (const [place, where] of [
-      [jontai.stop + 0.6, 'its inside'],
-      [LOOK_STOP, 'the look back'],
-    ]) {
-      await page.evaluate((progress) => window.__needleDebug.set({ progress }), place);
-      await settledState(page);
-      const b = (await debugOf(page)).journey.beads?.[jontai.index];
-      // A pointer comes onto the bead before it clicks: the hover follows it within a frame.
-      if (!touch && b !== undefined) {
-        await page.mouse.move(b.x, b.y);
-        await page.waitForTimeout(300);
-      }
-      const how = `${touch ? 'a tap' : 'a click'} on its bead in ${where}`;
-      await opens(jontai, how, () => (b === undefined ? Promise.resolve() : touch ? page.touchscreen.tap(b.x, b.y) : page.mouse.click(b.x, b.y)));
-      await page.goBack();
-      const backAt = await page
-        .waitForFunction((place) => { const s = window.__needleDebug(); return s.progress === place && s.target === place; }, place, { timeout: 15_000 })
-        .then(() => true, () => false);
-      step.check(backAt && pathNow() === '/', `${at}: ${how}: Back returns to the very place it was opened from, ${place.toFixed(4)} (${backAt ? 'there' : JSON.stringify(await frameOf(page))})`);
-      // The flight out of the porthole over before the next move: the opening's mark gone, the scroll's phase again.
-      await page
-        .waitForFunction(() => !document.documentElement.hasAttribute('data-bead-open') && window.__needleDebug().phase.kind === 'PROJECTS', null, { timeout: 5_000 })
-        .catch(() => {});
+    await page.evaluate((progress) => window.__needleDebug.set({ progress }), LOOK_STOP);
+    await settledState(page);
+    const b = (await debugOf(page)).journey.beads?.[jontai.index];
+    if (!touch && b !== undefined) {
+      await page.mouse.move(b.x, b.y);
+      await page.waitForTimeout(300);
     }
+    const inLook = `${touch ? 'a tap' : 'a click'} on its bead in the look back`;
+    await goesInside(page, step, at, size, jontai, inLook, () => (b === undefined ? Promise.resolve() : touch ? page.touchscreen.tap(b.x, b.y) : page.mouse.click(b.x, b.y)));
+    await viewsAndBack(jontai, LOOK_STOP, inLook);
 
     // 4. All of it by client navigation.
     step.check(documents.length === 0, `${at}: all of it by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
@@ -5312,9 +5362,226 @@ async function beadOpen(browser, step) {
     step.check(documents.length === 0, `${at}: by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
     await takeCsp(page, step);
     await context.close();
-    summary.push(`${at}: each bead's label (NL text, inside the screen), Tab and Enter, a ${touch ? 'tap' : 'click'} on a label and on a bead, Esc back to the stop, and a direct load then Esc to stop ${direct.stop} (${took} ms, void ${voidAtEsc})`);
+    summary.push(`${at}: each bead's label (NL text, inside the screen), Tab and Enter inside and Esc out, a ${touch ? 'tap' : 'click'} on a label and on a bead inside, its page and Back inside and out, in the look back too, and a direct load then Esc to stop ${direct.stop} (${took} ms, void ${voidAtEsc})`);
   }
   return summary.join('; ');
+}
+
+/**
+ * Getting out of a bead (the 3D world's spec, goal 6: "Getting out must never be hard"), at 1440x900, 390x844 (touch)
+ * and 1440 on /en/, at Funcial's arrival: a click (a tap) on the bead takes the visitor inside (`goesInside`), and every
+ * way out comes back to the arrival at rest, the story not moved on: "Terug", Escape, a wheel of three notches (on the
+ * phone a swipe up the glass) and the browser's Back; then the scroll goes on as ever (a step to Jontai Energy's
+ * arrival). A still inside is gated as an inside still (LUMA_GATE.inside), the page's text masked.
+ */
+async function inside(browser, step) {
+  const summary = [];
+  const gated = [];
+  const runs = [...TWO_SIZES.map((size) => ({ size, path: '/' })), { size: TWO_SIZES[0], path: '/en/' }];
+  for (const { size, path } of runs) {
+    const english = path === '/en/';
+    const at = `${sizeName(size)}${english ? ' /en/' : ''}`;
+    const { context, page, cdp, touch } = await readyHome(browser, step, size, path);
+    const words = new Translator(english ? 'en' : 'nl').t.needle.inside;
+    const funcial = BEAD_LIST[0];
+    await poseAt(page, funcial.stop);
+    await restAt(page);
+    await waitForLabel(page, funcial.id);
+    const b = (await debugOf(page)).journey.beads?.[funcial.index];
+    const open = (how) => goesInside(page, step, at, size, funcial, how, () => (b === undefined ? Promise.resolve() : touch ? page.touchscreen.tap(b.x, b.y) : page.mouse.click(b.x, b.y)), path);
+    const by = touch ? 'a tap on the bead' : 'a click on the bead';
+
+    const took = await open(by);
+    if (!english) {
+      mkdirSync(STILLS, { recursive: true });
+      const file = join(STILLS, `inside-${funcial.id}-${sizeName(size)}.png`);
+      await page.screenshot({ path: file });
+      gated.push({ file, kind: 'inside', mask: await textMask(page) });
+    }
+    const ways = [
+      [`"${words.back}"`, () => (touch ? page.locator('.inside-back').tap() : page.locator('.inside-back').click())],
+      ...(touch ? [] : [['Escape', () => page.keyboard.press('Escape')]]),
+      [
+        touch ? 'a swipe up the glass' : 'three wheel notches',
+        async () => {
+          if (touch) {
+            await slowTouch(page, cdp, [195, 620], [195, 420], 40);
+            return;
+          }
+          for (let i = 0; i < 3; i++) {
+            await page.mouse.wheel(0, RISE.notchPx);
+            await page.waitForTimeout(RISE.notchGapMs);
+          }
+        },
+      ],
+      ["the browser's Back", () => page.goBack()],
+    ];
+    for (const [k, [how, act]] of ways.entries()) {
+      if (k > 0) await open(by);
+      await comesOut(page, step, at, funcial.stop, how, act, funcial);
+    }
+    // Out again, the scroll goes on as ever.
+    if (!touch) await page.mouse.move(4, size.height - 4);
+    const next = await stepStop(page, cdp, BEAD_LIST[1].stop);
+    step.check(near(next.target, BEAD_LIST[1].stop, 1e-9), `${at}: once out, a step goes on to Jontai Energy's arrival as ever (${next.target.toFixed(4)})`);
+    await takeCsp(page, step);
+    summary.push(`${at}: in by ${by} in ${took} ms, out by ${ways.map(([how]) => how).join(', ')}`);
+    await context.close();
+  }
+  step.luma = await gateLuma(browser, step, gated);
+  return `${summary.join('; ')}; ${lumaSummary(step.luma, 'inside')}`;
+}
+
+/** The mean difference of two stills' pixels, 0..1 (luma, Rec. 709), measured in a page as `lumaOf` measures one. */
+async function stillsDiffer(browser, a, b) {
+  const meter = await browser.newContext();
+  const page = await meter.newPage();
+  const url = (file) => `data:image/png;base64,${readFileSync(file).toString('base64')}`;
+  const diff = await page.evaluate(
+    async ([a, b]) => {
+      const pixels = async (src) => {
+        const image = new Image();
+        image.src = src;
+        await image.decode();
+        const canvas = document.createElement('canvas');
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        ctx.drawImage(image, 0, 0);
+        return ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      };
+      const [p, q] = [await pixels(a), await pixels(b)];
+      let sum = 0;
+      const luma = (d, i) => (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255;
+      for (let i = 0; i < p.length; i += 4) sum += Math.abs(luma(p, i) - luma(q, i));
+      return sum / (p.length / 4);
+    },
+    [url(a), url(b)],
+  );
+  await meter.close();
+  return diff;
+}
+
+/**
+ * The bead at its arrival floats and turns (the 3D world's spec, goal 5), at 1440x900 and 390x844 (touch), at Jontai
+ * Energy's arrival, the camera at rest there: the bead floats (two pictures of it 1.3 s apart differ); on a laptop the
+ * pointer over its right edge and over its left turn it two ways (the two pictures differ); the canvas sleeps within 13 s
+ * of the last input and wakes on the next; and with reduced motion nothing floats (two pictures 1.3 s apart the same)
+ * and the canvas sleeps within 1.5 s.
+ */
+async function float(browser, step) {
+  const summary = [];
+  mkdirSync(STILLS, { recursive: true });
+  const runs = [...TWO_SIZES.map((size) => ({ size, reduced: false })), { size: TWO_SIZES[0], reduced: true }];
+  for (const { size, reduced } of runs) {
+    const at = `${sizeName(size)}${reduced ? ' reduced' : ''}`;
+    const { context, page, touch } = await readyHome(browser, step, reduced ? { ...size, options: { ...size.options, reducedMotion: 'reduce' } } : size);
+    const jontai = BEAD_LIST[1];
+    if (!touch) await page.mouse.move(4, size.height - 4);
+    await poseAt(page, jontai.stop);
+    await restAt(page);
+    await waitForLabel(page, jontai.id);
+    const b = (await debugOf(page)).journey.beads?.[jontai.index];
+    const clip = b === undefined ? undefined : { x: Math.max(0, b.x - b.r), y: Math.max(0, b.y - b.r), width: Math.min(size.width, 2 * b.r), height: Math.min(size.height, 2 * b.r) };
+    const shot = async (name) => {
+      const file = join(STILLS, `float-${name}-${sizeName(size)}${reduced ? '-reduced' : ''}.png`);
+      await page.screenshot({ path: file, clip });
+      return file;
+    };
+    // The scene settled (the nebula built and in, the label whole), a stir, then two pictures of the bead 1.3 s apart.
+    await page.waitForTimeout(2_000);
+    if (touch) await page.touchscreen.tap(8, size.height - 8);
+    else await page.mouse.move(6, size.height - 6);
+    const first = await shot('a');
+    await page.waitForTimeout(1_300);
+    const second = await shot('b');
+    const drift = await stillsDiffer(browser, first, second);
+    if (reduced) step.check(drift < 0.002, `${at}: with reduced motion the bead holds still (the two pictures 1.3 s apart differ by ${drift.toFixed(4)})`);
+    else step.check(drift > 0.002, `${at}: the bead floats: two pictures of it 1.3 s apart differ by ${drift.toFixed(4)}`);
+
+    if (!touch && !reduced && b !== undefined) {
+      await page.mouse.move(b.x + 0.8 * b.r, b.y, { steps: 6 });
+      await page.waitForTimeout(700);
+      const right = await shot('right');
+      await page.mouse.move(b.x - 0.8 * b.r, b.y, { steps: 6 });
+      await page.waitForTimeout(700);
+      const left = await shot('left');
+      const turned = await stillsDiffer(browser, right, left);
+      step.check(turned > 0.01, `${at}: the pointer over its right edge and over its left turn it two ways (the two pictures differ by ${turned.toFixed(4)})`);
+      await page.mouse.move(4, size.height - 4);
+    }
+
+    // The canvas sleeps once nothing has stirred it for the idle while, and wakes on the next input.
+    const slept = await sleepWithin(page, reduced ? 4_000 : 16_000);
+    const limit = reduced ? 1_500 : 13_000;
+    step.check(slept !== null && slept <= limit, `${at}: the canvas sleeps within ${limit / 1000} s of the last input (asked for no frame from ${slept} ms on)`);
+    if (!touch) {
+      const before = await page.evaluate(() => window.__allRaf);
+      await page.mouse.move(size.width / 2, size.height / 2, { steps: 4 });
+      await page.waitForTimeout(300);
+      const after = await page.evaluate(() => window.__allRaf);
+      step.check(after > before, `${at}: and a pointer move wakes it (${after - before} frames asked for)`);
+    }
+    await takeCsp(page, step);
+    summary.push(`${at}: drift ${drift.toFixed(4)}, asleep ${slept} ms after the last input`);
+    await context.close();
+  }
+  return summary.join('; ');
+}
+
+/**
+ * The nebula (the 3D world's spec, goals 1, 2 and 8), at 1440x900 and 390x844 (touch): the bridge's levels
+ * (`journey.nebula`: its clouds, its far bands, the look back's rings) are the rules' (`nebulaLevels`) at the fall's way
+ * frames 30, 72 and 121, at each trip's middle and arrival, in the look back and under the sheet; the clouds come in as
+ * the camera turns to follow the light and are whole on the path; stills of the fall (way frame 121), the second trip,
+ * Jontai Energy's arrival and the look back through the home's luma gate, the page's text masked.
+ */
+async function nebula(browser, step) {
+  const summary = [];
+  const gated = [];
+  mkdirSync(STILLS, { recursive: true });
+  for (const size of TWO_SIZES) {
+    const at = sizeName(size);
+    const { context, page } = await readyHome(browser, step, size);
+    const places = [
+      ...[30, 72, 121].map((frame) => ({ name: `fall-${frame}`, progress: placeOfFrame(frame) })),
+      ...BEAD_LIST.flatMap((bead) => [
+        { name: `trip-${bead.index + 1}`, progress: tripMiddle(bead.index) },
+        { name: `arrival-${bead.id}`, progress: bead.stop },
+      ]),
+      { name: 'look-back', progress: LOOK_STOP - 0.3 },
+      { name: 'look-stop', progress: LOOK_STOP },
+      { name: 'sheet', progress: LOOK_STOP + 0.5 },
+    ];
+    const read = {};
+    for (const place of places) {
+      const state = await poseAt(page, place.progress);
+      const got = state.journey.nebula;
+      const pose = journeyPoseAt(place.progress, size.width / size.height);
+      const want = nebulaLevels(pose.at, pose.path);
+      read[place.name] = got;
+      step.check(
+        got !== null && near(got.clouds, want.clouds, 1e-9) && near(got.bands, want.bands, 1e-9) && near(got.rings, want.rings, 1e-9),
+        `${at}: at ${place.name} the bridge's levels are the rules': ${JSON.stringify(got)} (${JSON.stringify(want)})`,
+      );
+      if (['fall-121', 'trip-2', 'arrival-jontai-energy', 'look-stop'].includes(place.name)) {
+        await page.waitForTimeout(500);
+        const file = join(STILLS, `nebula-${place.name}-${at}.png`);
+        await page.screenshot({ path: file });
+        gated.push({ file, kind: 'home', mask: await textMask(page) });
+      }
+    }
+    step.check(
+      read['fall-30']?.clouds === 0 && near(read['fall-121']?.clouds ?? 0, NEBULA.FALL_LEVEL, 1e-9) && read['arrival-funcial']?.clouds === 1,
+      `${at}: no clouds before the camera turns (frame 30: ${read['fall-30']?.clouds}), at the fall's ${NEBULA.FALL_LEVEL} behind the facts by fact 02's peak (${read['fall-121']?.clouds}), whole on the path (${read['arrival-funcial']?.clouds})`,
+    );
+    step.check(read['look-stop']?.rings > 0.5 && read['arrival-funcial']?.rings === 0, `${at}: the look back's rings in the look back alone (${read['look-stop']?.rings}, at an arrival ${read['arrival-funcial']?.rings})`);
+    await takeCsp(page, step);
+    summary.push(`${at}: ${places.length} places`);
+    await context.close();
+  }
+  step.luma = await gateLuma(browser, step, gated);
+  return `${summary.join('; ')}; ${lumaSummary(step.luma, 'home')}`;
 }
 
 /**
@@ -5324,7 +5591,7 @@ async function beadOpen(browser, step) {
  * `voidState` `loading`, the light still and nothing creeping past it; a still of it (`m2/void-hold-<size>.png`) is gated
  * as a home still. Scrolling back from there moves the story at once (at 1440 exactly the notches' distance) and it rests
  * where the input stopped; down again it rests on the hold again. On release the void becomes `ready` and the story
- * goes on into the ring. A direct arrival at a project's page whose Esc is pressed while the file is held waits at the
+ * goes on along the path. A direct arrival at a project's page whose Esc is pressed while the file is held waits at the
  * hold too, and reaches the project's stop once the file is let through.
  */
 async function voidHold(browser, step) {
@@ -5388,7 +5655,7 @@ async function voidHold(browser, step) {
     const ready = await waitForVoid(page, 'ready');
     const through = await settledState(page);
     step.check(
-      ready === 'ready' && through.target > LANDING_HOLD + 0.1 && through.progress === through.target && through.journey.voidState === 'ready' && ['travel', 'orbit', 'inside', 'look', 'sheet', 'end'].includes(through.journey.stretch),
+      ready === 'ready' && through.target > LANDING_HOLD + 0.1 && through.progress === through.target && through.journey.voidState === 'ready' && ['travel', 'arrive', 'look', 'sheet', 'end'].includes(through.journey.stretch),
       `${at}: let through, the void is ${ready} and the story goes on along the path: progress ${through.progress}, target ${through.target}, the journey ${through.journey.stretch} ${through.journey.local.toFixed(3)}`,
     );
     step.check(onJourneyShot(through, through.progress, aspect), `${at}: with the camera on the journey's shot there`);
@@ -6585,7 +6852,7 @@ async function lightDive(browser, step) {
       );
     }
     // The camera of the first frame that poses the journey stands on that frame's shot (the same-frame check): on the
-    // rise, in the fall, and on the path in a travel and an orbit, where the camera moves fastest.
+    // rise, in the fall, and on the path in a travel and an arrival, where the camera moves fastest.
     const aspect = size.width / size.height;
     for (const p of SAME_FRAME_AT) {
       const posed = await poseOnTheFrame(page, p, aspect);
@@ -6747,13 +7014,13 @@ const tripMiddle = (index) => TRAVELS[index].start + TRAVELS[index].length / 2;
  * - from BOB from above, wheel notches (short swipes) run the fall: the shaft's throat (the bridge's
  *   `journey.engraved.throat`) lights as the light drops into the compass, and is 0 at every sample where one of Bob's
  *   facts shows;
- * - posed at way frames 32, 40 and 121, the bridge's levels are the rules' (`engravedLevels`): the throat whole by 40,
- *   the hall whole at fact 02's peak;
+ * - posed at way frames 32, 40, 72 and 121, the bridge's levels are the rules' (`engravedLevels`): the throat whole by
+ *   40, the hall in as the camera turns (72) and given way to the nebula's clouds by fact 02's peak (the 3D world);
  * - from fact 01's peak to fact 05's by input: the way frame runs 299/6 frames a viewport height of input, half the
  *   first fall's pace, so the 160 frames take 3.21 viewport heights where they took 1.61;
- * - each trip's line whole at its travel's middle, the others out; none half way through a bead's inside, nor at its
- *   inside stop, where the next trip begins (a phone sees past the bead there); in the look back every line faint, 0.32
- *   at most;
+ * - each trip's line whole at its travel's middle, the others out; none at a bead's arrival stop, in the pause after
+ *   it, nor where the next trip begins (a phone sees past the bead there); in the look back every line faint, 0.32 at
+ *   most;
  * - stills at way frames 32 and 121 through the home's luma gate, and at the second trip's middle under its ceiling
  *   (0.11): there the light is small and dim on a phone, as the approved light path has it, so the floor's bright pixel
  *   in the scene's middle is not asked of it.
@@ -6795,7 +7062,7 @@ async function engraved(browser, step) {
 
     // Posed: the rules' levels.
     const posed = {};
-    for (const f of [32, 40, 121]) {
+    for (const f of [32, 40, 72, 121]) {
       const state = await poseAt(page, placeOfFrame(f));
       const got = state.journey.engraved;
       const want = engravedLevels({ stretch: 'light', frame: state.journey.frame }, null, BEAD_LIST.length);
@@ -6805,7 +7072,10 @@ async function engraved(browser, step) {
         `${at}: at way frame ${f} the bridge's levels are the rules': throat ${got?.throat.toFixed(4)} (${want.throat.toFixed(4)}), hall ${got?.hall.toFixed(4)} (${want.hall.toFixed(4)}), trips ${JSON.stringify(got?.trips)}`
       );
     }
-    step.check(posed[40]?.throat > 0.9 && posed[121]?.hall > 0.9 && posed[121]?.throat === 0, `${at}: the throat whole by way frame 40 (${posed[40]?.throat}), the hall whole at fact 02's peak and the throat gone (${posed[121]?.hall}, ${posed[121]?.throat})`);
+    step.check(
+      posed[40]?.throat > 0.9 && posed[72]?.hall > 0.9 && posed[121]?.hall === 0 && posed[121]?.throat === 0,
+      `${at}: the throat whole by way frame 40 (${posed[40]?.throat}), the hall in as the camera turns (${posed[72]?.hall}), and at fact 02's peak the hall given way to the clouds and the throat gone (${posed[121]?.hall}, ${posed[121]?.throat})`
+    );
 
     // The pace, by input: fact 01's peak to past fact 05's.
     await poseAt(page, placeOfFrame(81));
@@ -6834,12 +7104,13 @@ async function engraved(browser, step) {
         mid.journey.stretch === 'travel' && mid.journey.project === bead.index && trips.length === BEAD_LIST.length && trips.every((level, k) => level === (k === bead.index ? 1 : 0)),
         `${at}: half way to ${bead.id} its own line is whole and the others out (${JSON.stringify(trips)})`
       );
-      for (const [where, place] of [['half way through', (bead.stop + bead.inside) / 2], ['at the stop of', bead.inside]]) {
-        const inside = await poseAt(page, place);
-        const lv = inside.journey.engraved;
+      const end = arrivalEnd(bead);
+      for (const [where, place] of [['at the arrival stop of', bead.stop], ['in the pause after', (bead.stop + end) / 2], ['where the trip on from', end]]) {
+        const there = await poseAt(page, place);
+        const lv = there.journey.engraved;
         step.check(
           lv !== null && lv.throat === 0 && lv.hall === 0 && lv.trips.every((level) => level === 0),
-          `${at}: ${where} ${bead.id}'s inside none of it shows (${inside.journey.stretch} ${inside.journey.local.toFixed(2)}, ${JSON.stringify(lv)})`
+          `${at}: ${where} ${bead.id} none of it shows (${there.journey.stretch} ${there.journey.local.toFixed(2)}, ${JSON.stringify(lv)})`
         );
       }
     }
@@ -6928,13 +7199,13 @@ async function stepStop(page, cdp, place) {
  * fresh context landed with the void ready; at 1440 once more on /en/:
  * - from the fall's end, wheel notches (slow swipes) run the story on into Funcial's travel with no stop at the
  *   hand-over: it rests past it, where the input stopped;
- * - through the whole way (the travels, orbits and insides, every 0.02 of a unit, and every place a real run passed), at
- *   most one bead is shown with a fade of 0.5 or more;
- * - along Funcial's orbit the veins' wake (the bridge's `journey.wake`) grows with each notch, and runs back with each
- *   notch up;
- * - a step to Funcial's arrival stop (the arrow; a flick) rests there with its label whole within 1 s, right of the
- *   light on a laptop, under the bead on a phone; the next step, its inside, the label gone and its five touch points
- *   shown, each inside the screen; then Jontai Energy (four) and Cookies Clicker (five), in order;
+ * - through the whole way (the travels and arrivals, every 0.02 of a unit, and every place a real run passed), at most
+ *   one bead is shown with a fade of 0.5 or more;
+ * - a step to each project's arrival stop in turn (the arrow; a flick), from Funcial's travel, rests there with no
+ *   circling (the 3D world's spec: the light's place on the screen sweeps less than 150 degrees round the bead's centre
+ *   on the way in, where an orbit swept a whole turn), the whole bead framed inside the screen, its veins all awake, and
+ *   its label whole within 1 s, right of the light on a laptop, under the bead on a phone; no inside on the scroll: the
+ *   next step goes on to the next project's arrival, its label gone with its bead's;
  * - stopped anywhere on the way, it rests where the input stopped, and the canvas sleeps within a second.
  */
 async function lightPath(browser, step) {
@@ -6977,41 +7248,26 @@ async function lightPath(browser, step) {
       const crowded = [...dense, ...seen.filter((p) => p >= PATH_START && p < LOOK_START)].filter((p) => fadesAt(p, aspect).filter((fade) => fade >= 0.5).length > 1);
       step.check(crowded.length === 0, `${at}: on the way (${dense.length} places every 0.02 and ${seen.length} the run passed) at most one bead is shown with a fade of 0.5 or more (more than one at ${crowded.slice(0, 5).map((p) => p.toFixed(3)).join(', ') || 'none'})`);
 
-      // The veins wake along Funcial's orbit, and run back.
-      await poseAt(page, PATH_START + 1.3);
-      await restAt(page);
-      const wakeNow = async () => {
-        await page.waitForTimeout(200);
-        return debugOf(page);
-      };
-      const wakes = [(await wakeNow()).journey.wake[0]];
-      for (let i = 0; i < 6; i++) {
-        await nudge(page, cdp, 1, touch ? 80 : RISE.notchPx);
-        await restAt(page);
-        const s = await wakeNow();
-        if (s.journey.stretch !== 'orbit') break;
-        wakes.push(s.journey.wake[0]);
-      }
-      const up = [wakes.at(-1)];
-      for (let i = 0; i < wakes.length - 1; i++) {
-        await nudge(page, cdp, -1, touch ? 80 : RISE.notchPx);
-        await restAt(page);
-        const s = await wakeNow();
-        if (s.journey.stretch !== 'orbit') break;
-        up.push(s.journey.wake[0]);
-      }
-      const rising = wakes.every((w, i) => i === 0 || w >= wakes[i - 1] - 0.01) && wakes.at(-1) > wakes[0] + 0.3;
-      const falling = up.every((w, i) => i === 0 || w <= up[i - 1] + 0.01) && up.at(-1) < up[0] - 0.3;
-      step.check(rising && wakes.length >= 4, `${at}: along Funcial's orbit the veins' wake grows with each ${touch ? 'swipe' : 'notch'}: ${wakes.map((w) => w.toFixed(2)).join(' ')} rad`);
-      step.check(falling, `${at}: and runs back with each one up: ${up.map((w) => w.toFixed(2)).join(' ')} rad`);
     }
 
-    // Each project's arrival and inside, in order, a step at a time from Funcial's orbit, the pointer off the beads.
+    // Each project's arrival, in order, a step at a time from Funcial's travel, the pointer off the beads; the light's
+    // place on the screen watched all the way in.
     if (!touch) await page.mouse.move(4, size.height - 4);
-    await poseAt(page, PATH_START + 1.9);
+    await poseAt(page, PATH_START + 0.6);
     await restAt(page);
     for (const bead of BEAD_LIST) {
+      await page.evaluate(() => {
+        window.__lightSeen = [];
+        window.__lightTimer = setInterval(() => {
+          const d = window.__needleDebug();
+          if (d.journey.light !== null) window.__lightSeen.push(d.journey.light);
+        }, 16);
+      });
       const arrival = await stepStop(page, cdp, bead.stop);
+      const seenLight = await page.evaluate(() => {
+        clearInterval(window.__lightTimer);
+        return window.__lightSeen;
+      });
       const restedAt = Date.now();
       const label = await labelWhole(page, bead.id, 1_000);
       const shownIn = Date.now() - restedAt;
@@ -7025,6 +7281,32 @@ async function lightPath(browser, step) {
         `${at}: ${touch ? 'put' : 'a press of the arrow'} rests on ${bead.id}'s arrival, ${bead.stop.toFixed(3)} (got ${arrival.target.toFixed(3)}), its label whole within 1 s of the rest (${label === null ? 'never' : `${shownIn} ms`})`,
       );
       step.check(placed, `${at}: and the label stands ${touch ? 'under the bead' : 'right of the light'} (data-side ${side?.side}, its box [${label === null ? '-' : Object.values(label.box).map((v) => Math.round(v)).join(', ')}], the light ${light === null ? 'none' : Math.round(light.x)}, the bead ${onScreen === undefined ? 'none' : `${Math.round(onScreen.y)} r ${Math.round(onScreen.r)}`})`);
+      // No circling: round the bead's centre the light sweeps less than 150 degrees on its way in.
+      const sweep = (() => {
+        if (onScreen === undefined || seenLight.length < 2) return null;
+        let last = null;
+        let turned = 0;
+        let lo = 0;
+        let hi = 0;
+        for (const ndc of seenLight) {
+          const p = ndcToPx(ndc, size);
+          const a = Math.atan2(p.y - onScreen.y, p.x - onScreen.x);
+          if (last !== null) {
+            let d = a - last;
+            while (d > Math.PI) d -= 2 * Math.PI;
+            while (d < -Math.PI) d += 2 * Math.PI;
+            turned += d;
+            lo = Math.min(lo, turned);
+            hi = Math.max(hi, turned);
+          }
+          last = a;
+        }
+        return ((hi - lo) * 180) / Math.PI;
+      })();
+      step.check(sweep !== null && sweep < 150, `${at}: on the way in the light does not circle ${bead.id}: it sweeps ${sweep === null ? '-' : sweep.toFixed(0)} degrees round the bead's centre over ${seenLight.length} samples, under 150`);
+      const framed = onScreen !== undefined && onScreen.visible && onScreen.x - onScreen.r >= 0 && onScreen.x + onScreen.r <= size.width && onScreen.y - onScreen.r >= 0 && onScreen.y + onScreen.r <= size.height;
+      step.check(framed, `${at}: at rest the whole bead is framed inside the screen (${onScreen === undefined ? 'none' : `${Math.round(onScreen.x)}, ${Math.round(onScreen.y)} r ${Math.round(onScreen.r)}`} in ${size.width} x ${size.height})`);
+      step.check(state.journey.wake[bead.index] >= 10 - 1e-9, `${at}: and its veins all awake as the light rests beside it (wake ${state.journey.wake[bead.index]})`);
       if (bead.index === 0) {
         const want = { category: categories.byId(bead.category).heading(english ? 'en' : 'nl'), hint: touch ? t.hintTouch : t.hint };
         step.check(
@@ -7032,31 +7314,27 @@ async function lightPath(browser, step) {
           `${at}: and it says what the ${english ? 'English' : 'Dutch'} dictionary says, "${want.category}", "${bead.title}", "${want.hint}" (got ${JSON.stringify(label && [label.category, label.title, touch ? label.hintTouch : label.hintFine])})`,
         );
       }
-      const inside = await stepStop(page, cdp, bead.inside);
-      await page.waitForTimeout(500);
-      const gone = await labelOf(page, bead.id);
-      const points = await touchPointsOf(page, bead.id);
-      const within = points !== null && points.points.every((box) => box.left >= 0 && box.top >= 0 && box.right <= points.width && box.bottom <= points.height);
-      step.check(near(inside.target, bead.inside, 1e-9) && (gone === null || !gone.shown || gone.opacity === 0), `${at}: the next step rests in ${bead.id}'s inside, ${bead.inside.toFixed(3)} (got ${inside.target.toFixed(3)}), its label gone (${gone === null ? 'none' : `shown ${gone.shown}, opacity ${gone.opacity}`})`);
-      step.check(
-        points !== null && points.shown && points.opacity === 1 && points.points.length === POINT_COUNTS[bead.index] && within,
-        `${at}: and its ${POINT_COUNTS[bead.index]} touch points show, each inside the screen (got ${points === null ? 'none' : `${points.points.length}, shown ${points.shown}, opacity ${points.opacity}, inside ${within}`})`,
-      );
+      if (bead.index > 0) {
+        const left = await labelOf(page, BEAD_LIST[bead.index - 1].id);
+        step.check(left === null || !left.shown || left.opacity === 0, `${at}: and ${BEAD_LIST[bead.index - 1].id}'s label is gone with its bead, no inside between (${left === null ? 'none' : `shown ${left.shown}, opacity ${left.opacity}`})`);
+      }
     }
 
     if (!english) {
-      // Stopped anywhere on the way, it rests there and the canvas sleeps.
-      await poseAt(page, BEAD_LIST[1].stop - 0.9);
+      // Stopped anywhere on a trip, it rests there and the canvas sleeps (at an arrival the bead floats for the idle
+      // while instead: the float step's).
+      const trip = TRAVELS[1];
+      await poseAt(page, tripMiddle(1) - 0.35);
       await restAt(page);
       await nudge(page, cdp, 1);
       await nudge(page, cdp, 1);
       const rest = await restAt(page);
       const sleptIn = await sleepWithin(page, 4_000);
       const onStop = keyStops(HOME_CHAPTERS).some((stop) => near(stop, rest.target, 1e-3));
-      step.check(!onStop && rest.target > BEAD_LIST[1].stop - 0.9 && rest.target < BEAD_LIST[1].stop, `${at}: two inputs in Jontai Energy's travel rest where they stopped, ${rest.target.toFixed(4)}, not on a stop`);
+      step.check(!onStop && rest.target > tripMiddle(1) - 0.35 && rest.target < trip.start + trip.length, `${at}: two inputs in Jontai Energy's travel rest where they stopped, ${rest.target.toFixed(4)}, not on a stop and still on the trip (${trip.start.toFixed(3)} to ${(trip.start + trip.length).toFixed(3)})`);
       step.check(sleptIn !== null && sleptIn <= 1_000, `${at}: at rest on the way the canvas sleeps within a second (asked for no frame from ${sleptIn} ms on)`);
     }
-    summary.push(`${at}: three arrivals and insides by ${touch ? 'the bridge' : 'the arrow'}`);
+    summary.push(`${at}: three arrivals by ${touch ? 'the bridge' : 'the arrow'}, no circling`);
     await context.close();
   }
   return summary.join('; ');
@@ -7064,10 +7342,12 @@ async function lightPath(browser, step) {
 
 /**
  * The look back (spec 2026-10-27-bob-light-path-design.md), at 1440x900 and 390x844 (touch), and at 1440 on /en/: from
- * the last inside a step (the arrow; a flick) rests on the look back's own stop, where all three beads stand shown inside
- * the screen and the way's line is drawn whole. On a laptop the pointer over each bead shows its label, Tab goes Funcial,
- * Jontai Energy, Cookies Clicker and then the skip button, each label shown as it takes the focus, and Enter on Jontai
- * Energy's opens its page; Back returns to the look back. On the phone a tap on Cookies Clicker's bead opens its page.
+ * the last arrival's end a step (the arrow; a flick) rests on the look back's own stop, where all three beads stand
+ * shown inside the screen and the way's line is drawn whole. On a laptop the pointer over each bead shows its label, Tab
+ * goes Funcial, Jontai Energy, Cookies Clicker and then the skip button, each label shown as it takes the focus, and
+ * Enter on Jontai Energy's takes the visitor inside it, where "Bekijk project" opens its page; Back returns inside, and
+ * Back again to the look back. On the phone a tap on Cookies Clicker's bead goes inside it, and a tap on "Bekijk
+ * project" opens its page.
  */
 async function lookBack(browser, step) {
   const summary = [];
@@ -7084,7 +7364,7 @@ async function lookBack(browser, step) {
     const state = await debugOf(page);
     const beads = state.journey.beads ?? [];
     const inside = beads.length === 3 && beads.every((b) => b.visible && b.x - b.r >= 0 && b.x + b.r <= size.width && b.y - b.r >= 0 && b.y + b.r <= size.height);
-    step.check(near(rest.target, LOOK_STOP, 1e-9) && state.journey.stretch === 'sheet' && state.journey.sheet === 0, `${at}: ${touch ? 'put' : 'a press of the arrow'} from the last inside rests on the look back's own stop, ${LOOK_STOP.toFixed(3)} (got ${rest.target.toFixed(3)}, ${state.journey.stretch})`);
+    step.check(near(rest.target, LOOK_STOP, 1e-9) && state.journey.stretch === 'sheet' && state.journey.sheet === 0, `${at}: ${touch ? 'put' : 'a press of the arrow'} from the last arrival's end rests on the look back's own stop, ${LOOK_STOP.toFixed(3)} (got ${rest.target.toFixed(3)}, ${state.journey.stretch})`);
     step.check(inside, `${at}: all three beads stand shown inside the screen: ${beads.map((b) => `(${Math.round(b.x)}, ${Math.round(b.y)}) r ${Math.round(b.r)} ${b.visible ? 'shown' : 'hidden'}`).join(', ')}`);
     const way = journeyPoseAt(LOOK_STOP, size.width / size.height).path?.way ?? 0;
     step.check(way === 1, `${at}: and the way's line is drawn whole (its share ${way})`);
@@ -7123,23 +7403,25 @@ async function lookBack(browser, step) {
       if (!english) {
         const jontai = BEAD_LIST[1];
         await page.focus(`.bead-label[data-bead="${jontai.id}"]`);
+        await goesInside(page, step, at, size, jontai, `Enter on ${jontai.id}'s label`, () => page.keyboard.press('Enter'), home);
+        await page.keyboard.press('Tab');
         await page.keyboard.press('Enter');
-        const opened = await page.waitForURL(`${BASE}${jontai.path}`, { timeout: FLIGHT_MS + 4_000 }).then(() => true, () => false);
-        step.check(opened, `${at}: Enter on ${jontai.id}'s label opens ${jontai.path}`);
+        const opened = await page.waitForURL(`${BASE}${jontai.path}`, { timeout: 5_000 }).then(() => true, () => false);
+        step.check(opened, `${at}: Tab to "Bekijk project" and Enter open ${jontai.path}`);
         await page.goBack();
-        const back = await page
-          .waitForFunction((stop) => Math.abs(window.__needleDebug().target - stop) < 1e-9 && window.__needleDebug().progress === window.__needleDebug().target, LOOK_STOP, { timeout: 15_000 })
-          .then(() => true, () => false);
-        step.check(back && new URL(page.url()).pathname === home, `${at}: Back returns to the look back's stop (${back ? 'there' : JSON.stringify(await frameOf(page))})`);
+        const inAgain = await page.waitForFunction(() => document.documentElement.hasAttribute('data-inside'), null, { timeout: 10_000 }).then(() => true, () => false);
+        step.check(inAgain && new URL(page.url()).pathname === home, `${at}: Back returns inside ${jontai.id}`);
+        await comesOut(page, step, at, LOOK_STOP, 'Back again', () => page.goBack());
       }
     } else {
       const cookies = BEAD_LIST[2];
       const b = beads[cookies.index];
-      await page.touchscreen.tap(b.x, b.y);
-      const opened = await page.waitForURL(`${BASE}${cookies.path}`, { timeout: FLIGHT_MS + 4_000 }).then(() => true, () => false);
-      step.check(opened, `${at}: a tap on ${cookies.id}'s bead opens ${cookies.path}`);
+      await goesInside(page, step, at, size, cookies, `a tap on ${cookies.id}'s bead`, () => page.touchscreen.tap(b.x, b.y), home);
+      await page.locator('.inside-view').tap();
+      const opened = await page.waitForURL(`${BASE}${cookies.path}`, { timeout: 5_000 }).then(() => true, () => false);
+      step.check(opened, `${at}: a tap on "Bekijk project" opens ${cookies.path}`);
     }
-    summary.push(`${at}: three beads in view, ${touch ? 'a tap opens' : 'hover, Tab and Enter'}`);
+    summary.push(`${at}: three beads in view, ${touch ? 'a tap goes inside, then the page' : 'hover, Tab and Enter inside, then the page and Back'}`);
     await context.close();
   }
   return summary.join('; ');
@@ -7309,9 +7591,9 @@ async function credits(browser, step) {
 }
 
 /**
- * A portrait resize mid-fall and mid-orbit (spec: the labels readable at every size), at 1440x900 turned to 390x844:
+ * A portrait resize mid-fall and late in an arrival (spec: the labels readable at every size), at 1440x900 turned to 390x844:
  * - at fact 02's peak the way frame stays, and the fact still rides by the light, now below it;
- * - late in Funcial's orbit, its label whole right of the light, the place stays and the label stays with the bead,
+ * - late in Funcial's arrival, its label whole right of the light, the place stays and the label stays with the bead,
  *   now under it;
  * - half way to Jontai Energy, its engraved line stays whole through the turn (the engraved way built for the new aspect).
  */
@@ -7335,12 +7617,12 @@ async function resize(browser, step) {
     `the fact stays on the light, below it now: ${JSON.stringify(label)}, the light at ${light === null ? 'none' : `(${light.x.toFixed(0)}, ${light.y.toFixed(0)})`}`,
   );
 
-  // Mid-orbit: Funcial's label whole beside the light, then the turn.
+  // Late in Funcial's arrival: its label whole beside the light, then the turn.
   const funcial = BEAD_LIST[0];
-  const orbit = funcial.stop - 0.015;
+  const late = funcial.stop - 0.015;
   await page.setViewportSize({ width: DIVE_SIZES[0].width, height: DIVE_SIZES[0].height });
   await page.waitForTimeout(400);
-  await poseAt(page, orbit);
+  await poseAt(page, late);
   const wide = await labelWhole(page, funcial.id, 2_000);
   const wideSide = await labelSideOf(page, funcial.id);
   await page.setViewportSize(phone);
@@ -7349,7 +7631,7 @@ async function resize(browser, step) {
   const tall = await labelWhole(page, funcial.id, 2_000);
   const tallSide = await labelSideOf(page, funcial.id);
   const bead = turned.journey.beads?.[funcial.index];
-  step.check(turned.progress === orbit && turned.target === orbit && turned.journey.stretch === 'orbit', `mid-orbit the place stays through the resize: ${orbit.toFixed(4)}, then ${turned.progress} (${turned.journey.stretch})`);
+  step.check(turned.progress === late && turned.target === late && turned.journey.stretch === 'arrive', `late in Funcial's arrival the place stays through the resize: ${late.toFixed(4)}, then ${turned.progress} (${turned.journey.stretch})`);
   step.check(
     wide !== null && wideSide?.side === 'right' && tall !== null && tallSide?.side === 'below' && bead !== undefined && tall.box.top >= bead.y + bead.r - 1 && tall.box.left < bead.x && tall.box.right > bead.x,
     `and Funcial's label stays with it: right of the light at 1440 (${wideSide?.side}), under the bead at 390 (${tallSide?.side}, its box [${tall === null ? '-' : Object.values(tall.box).map((v) => Math.round(v)).join(', ')}], the bead at ${bead === undefined ? 'none' : `(${Math.round(bead.x)}, ${Math.round(bead.y)}) r ${Math.round(bead.r)}`})`,
@@ -7394,6 +7676,9 @@ const STEPS = {
   credits,
   resize,
   'bead-open': beadOpen,
+  inside,
+  float,
+  nebula,
   'void-hold': voidHold,
   'void-fail': voidFail,
   'end-page': endPage,
