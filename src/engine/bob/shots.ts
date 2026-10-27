@@ -233,3 +233,25 @@ export function applyCameraShot(camera: PerspectiveCamera, shot: CameraShot, asp
   camera.updateProjectionMatrix();
   camera.updateMatrixWorld();
 }
+
+/**
+ * The shot `e` of the way from `a` to `b` (0 is `a` and 1 is `b`, exactly): the camera, the look-at point and the field
+ * in straight lines, the up between theirs (absent read as +Y) and the parallax between (absent read as the whole of
+ * it). The flight into a porthole is this from the journey's shot to the bead's close view, eased (src/scene/bob/focus.ts),
+ * and the light's path moves its camera by it from one of its shots to the next (src/scene/bob/lightPath.ts).
+ */
+export function shotToward(a: CameraShot, b: CameraShot, e: number): CameraShot {
+  if (!(e > 0)) return a;
+  if (e >= 1) return b;
+  const ua = a.up ?? [0, 1, 0];
+  const ub = b.up ?? [0, 1, 0];
+  const u: [number, number, number] = [mix(ua[0], ub[0], e), mix(ua[1], ub[1], e), mix(ua[2], ub[2], e)];
+  const n = Math.hypot(u[0], u[1], u[2]);
+  return {
+    position: [mix(a.position[0], b.position[0], e), mix(a.position[1], b.position[1], e), mix(a.position[2], b.position[2], e)],
+    target: [mix(a.target[0], b.target[0], e), mix(a.target[1], b.target[1], e), mix(a.target[2], b.target[2], e)],
+    fov: mix(a.fov, b.fov, e),
+    up: [u[0] / n, u[1] / n, u[2] / n],
+    sway: mix(a.sway ?? 1, b.sway ?? 1, e)
+  };
+}
