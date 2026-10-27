@@ -4557,7 +4557,7 @@ async function bridge(browser, step) {
     travelling.stretch === 'travel' && near(travelling.local, 0.5, 1e-9) && travelling.project === 0 && travelling.frame === null && travelling.sheet === 0 && Array.isArray(travelling.beads) && travelling.beads.length === BEAD_LIST.length && Array.isArray(travelling.wake) && !('angle' in travelling) && !('ring' in travelling),
     `and the journey says so: the travel half way to Funcial, its beads on the screen and their wakes, no ring (got ${JSON.stringify(travelling)})`,
   );
-  await page.evaluate(() => window.__needleDebug.set({ progress: 1 + (3 * (121 - 1)) / 299 }));
+  await page.evaluate((place) => window.__needleDebug.set({ progress: place }), placeOfFrame(121));
   const falling = await journeyAfter(page, 'light');
   step.check(falling.stretch === 'light' && near(falling.frame, 121, 1e-6) && falling.light !== null, `and in the light dive it reports the way frame, 121 at fact 02's peak, and the light's place (got ${JSON.stringify(falling)})`);
   await page.evaluate(() => window.__needleDebug.set({ progress: 999 }));
@@ -6699,15 +6699,15 @@ async function lightFacts(browser, step) {
         }
       }
       if (lang === 'nl' && size !== DIVE_SIZES[1]) {
-        const most = await page.evaluate(async ([from, to]) => {
+        const most = await page.evaluate(async (places) => {
           let most = 0;
-          for (let f = from; f <= to; f += 2) {
-            window.__needleDebug.set({ progress: 1 + (3 * (f - 1)) / 299 });
+          for (const place of places) {
+            window.__needleDebug.set({ progress: place });
             await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
             most = Math.max(most, [...document.querySelectorAll('.light-fact')].filter((el) => Number(getComputedStyle(el).opacity) > 0.01).length);
           }
           return most;
-        }, [61, 260]);
+        }, Array.from({ length: 100 }, (_, i) => placeOfFrame(61 + 2 * i))); // way frames 61 to 259, every other
         step.check(most <= 1, `${at}: through the fall, never two labels at once (at most ${most})`);
         // Fact 05 across the hand-over (way frame 256, where the path takes over): it fades out as it does in the fall,
         // never cut, and is gone by frame 260 on the path's own start.

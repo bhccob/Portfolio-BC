@@ -17,8 +17,8 @@ describe('stepStopFor: reduced motion stands on keyStops with no frame between',
   it('is always one of the key stops: BOB from above, each fact at its peak, each arrival and inside, the look back, the end', () => {
     for (let target = 0; target <= END; target += 0.01) expect(KEY, `at ${target}`).toContain(stepStopFor(target, 'ready'));
     for (const stop of KEY) expect(stepStopFor(stop, 'ready')).toBe(stop);
-    expect(stepStopFor(3, 'ready')).toBe(placeOfFrame(201)); // fact 04's peak
-    expect(stepStopFor(3, 'loading')).toBe(placeOfFrame(201));
+    expect(stepStopFor(placeOfFrame(201) - 0.1, 'ready')).toBe(placeOfFrame(201)); // fact 04's peak
+    expect(stepStopFor(placeOfFrame(201) - 0.1, 'loading')).toBe(placeOfFrame(201));
   });
 
   it('steps reduced motion through the arrivals, the insides and the look back', () => {

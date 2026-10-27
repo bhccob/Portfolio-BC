@@ -161,8 +161,9 @@ describe('setStoryProgress', () => {
     setStoryProgress(1.5);
     expect(frame).toMatchObject({ progress: 1.5, target: 1.5, velocity: 0, chapterIndex: 1 });
     expect(useScene.getState().phase).toEqual({ kind: 'LIGHT' });
-    setStoryProgress(4.5);
-    expect(frame).toMatchObject({ progress: 4.5, target: 4.5, velocity: 0, chapterIndex: 2 });
+    const onTravel = pathStart(HOME_CHAPTERS) + 0.5; // on the way to Funcial
+    setStoryProgress(onTravel);
+    expect(frame).toMatchObject({ progress: onTravel, target: onTravel, velocity: 0, chapterIndex: 2 });
     expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'secure-element' });
   });
 

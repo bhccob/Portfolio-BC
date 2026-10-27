@@ -53,7 +53,7 @@ describe('moveTarget', () => {
       expect(moveTarget(0, 7, c, true)).toBe(1);
       expect(moveTarget(1, 0.5, c, true)).toBe(F81);
       expect(moveTarget(F81, 0.01, c, true)).toBe(F121);
-      expect(moveTarget(3.5, 0.01, c, true)).toBe(A0);
+      expect(moveTarget(F241 + 0.1, 0.01, c, true)).toBe(A0);
       expect(moveTarget(A0, 1, c, true)).toBe(I0);
       expect(moveTarget(S, 0.01, c, true)).toBe(E);
     });
@@ -61,7 +61,7 @@ describe('moveTarget', () => {
     it('steps to the previous key stop for a delta up', () => {
       expect(moveTarget(E, -0.01, c, true)).toBe(S);
       expect(moveTarget(A0, -0.01, c, true)).toBe(F241);
-      expect(moveTarget(2, -0.01, c, true)).toBe(F81);
+      expect(moveTarget((F81 + F121) / 2, -0.01, c, true)).toBe(F81);
       expect(moveTarget(F81, -3, c, true)).toBe(1);
       expect(moveTarget(1, -1, c, true)).toBe(0);
     });
@@ -91,7 +91,7 @@ describe('keyTarget: an arrow, Page Up or Down, or Space, without reduced motion
     expect(keyTarget(A0, 0.15, c)).toBe(I0);
     expect(keyTarget(S, 0.15, c)).toBe(E);
     // A target between stops (a wheel under way, or one left on a travel) steps to the next one.
-    expect(keyTarget(3.5, 0.15, c)).toBe(A0);
+    expect(keyTarget(F241 + 0.1, 0.15, c)).toBe(A0);
     expect(keyTarget(L + 5.0, 0.15, c)).toBe(A1);
   });
 

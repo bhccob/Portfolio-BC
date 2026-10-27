@@ -318,7 +318,7 @@ describe("3D off and on keeps the visitor's place", () => {
 describe('the scroll input holds at the landing while the beads load', () => {
   it('clamps its target to the hold: a wheel past it while loading rests at LANDING_HOLD', async () => {
     const s = held('loading');
-    await s.wheel(40); // 4.8 units asked for
+    await s.wheel(60); // 7.2 units asked for, past the hold
     s.drain();
     expect(s.story.target).toBe(H);
     expect(s.story.progress).toBe(H);
@@ -326,13 +326,13 @@ describe('the scroll input holds at the landing while the beads load', () => {
 
   it('holds the same while idle, before the load has begun', async () => {
     const s = held('idle');
-    await s.wheel(40);
+    await s.wheel(60);
     s.drain();
     expect(s.story.target).toBe(H);
   });
 
   it('ends a glide that is pressing into the hold, as at the end of the story, so the loop sleeps', async () => {
-    const s = held('loading', { at: 3.3 });
+    const s = held('loading', { at: H - 0.25 });
     await s.flick(10, 40); // 0.4 dragged, to the hold, then a glide pressing into it
     s.drain();
     expect(s.story.target).toBe(H);
@@ -354,7 +354,7 @@ describe('the scroll input holds at the landing while the beads load', () => {
 
   it('keeps no excess: scrolling back up from the hold moves the story at once', async () => {
     const s = held('loading');
-    await s.wheel(40);
+    await s.wheel(60);
     s.drain();
     s.key('PageUp'); // a key steps: up from the hold to the key stop before it, the last fact
     expect(s.story.target).toBe(F241);
@@ -366,11 +366,11 @@ describe('the scroll input holds at the landing while the beads load', () => {
 
   it('goes on once ready: a wheel that pressed against the hold goes on as far as it went', async () => {
     const s = held('loading');
-    await s.wheel(60); // 7.2 units asked for: inside Funcial, past its arrival, the next stop past the hold
+    await s.wheel(80); // 9.6 units asked for: inside Funcial, past its arrival, the next stop past the hold
     s.drain();
     s.become('ready');
     s.drain();
-    expect(s.story.target).toBeCloseTo(7.2, 12);
+    expect(s.story.target).toBeCloseTo(9.6, 12);
     expect(s.story.progress).toBe(s.story.target);
   });
 
@@ -396,7 +396,7 @@ describe('the scroll input holds at the landing while the beads load', () => {
   });
 
   it('asks a flick whose glide presses into the hold for the key stop just past it, no further', async () => {
-    const s = held('loading', { at: 3.2 });
+    const s = held('loading', { at: H - 0.36 });
     await s.flick(3, 60); // 0.18 dragged, short of the hold, and a glide that would carry about 0.94 more
     s.drain();
     expect([s.story.target, s.story.progress]).toEqual([H, H]);
@@ -426,7 +426,7 @@ describe('the scroll input holds at the landing while the beads load', () => {
 
   it('holds at the landing when the void failed, keeping a story held there', async () => {
     const s = held('loading');
-    await s.wheel(40);
+    await s.wheel(60);
     s.drain();
     s.become('failed');
     s.drain();
@@ -838,14 +838,14 @@ describe("the home scroll as the page wires it to the store (connectHomeScroll, 
   it("holds the scroll at the landing while the store's beads load, and lets it go on once the store says ready", async () => {
     const s = wired('loading');
     try {
-      await s.wheel(60);
+      await s.wheel(80);
       s.drain();
       expect([frame.target, frame.progress]).toEqual([H, H]);
       // The hold is the path's start, where Funcial's travel begins.
       expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'secure-element' });
       useScene.getState().setVoidState('ready');
       s.drain();
-      expect(frame.target).toBeCloseTo(7.2, 12); // as far as the wheel went
+      expect(frame.target).toBeCloseTo(9.6, 12); // as far as the wheel went
       expect(frame.progress).toBe(frame.target);
       expect(useScene.getState().phase.kind).toBe('PROJECTS');
     } finally {
@@ -856,7 +856,7 @@ describe("the home scroll as the page wires it to the store (connectHomeScroll, 
   it('keeps a story pressed against it at the hold when the store says the void failed', async () => {
     const s = wired('loading');
     try {
-      await s.wheel(40);
+      await s.wheel(60);
       s.drain();
       useScene.getState().setVoidState('failed');
       s.drain();

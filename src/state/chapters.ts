@@ -38,17 +38,21 @@ export interface ChapterSpec {
 /** How far outside a chapter, in units, the scroll may drift before the chapter changes: it stops a boundary from flickering. */
 export const HYSTERESIS = 0.02;
 
-/**
- * The way's frames in the previs (1 to 300): the light dive's pace is its 299 frames over three viewport heights, as the
- * mock-up Bob approved scrolled them.
- */
+/** The way's frames in the previs (1 to 300). */
 const WAY_FRAMES = 300;
+
+/**
+ * The light dive's pace: its 299 frames over this many viewport heights. Six, twice the first mock-up's three, so each of
+ * Bob's facts stays on the screen for twice the scroll (spec 2026-10-27-bob-engraved-way-design.md: "the facts just go by
+ * too fast"). The frames, the light's places and the facts do not change, only the scroll each frame takes.
+ */
+export const FALL_PACE = 6;
 
 /** The way frame at which the path takes the light over from the light dive (the light path mock-up's hand-over). */
 export const HAND_F = 256;
 
 /** The light dive's length in units: its frames 1 to `HAND_F` at its pace (`placeOfFrame(HAND_F)` is its end, exactly). */
-export const LIGHT_UNITS = (3 * (HAND_F - 1)) / (WAY_FRAMES - 1);
+export const LIGHT_UNITS = (FALL_PACE * (HAND_F - 1)) / (WAY_FRAMES - 1);
 
 /** The way frames at which each of Bob's five facts is at full strength: the middle of its 40 frames (61 + 40 i + 20). */
 export const FACT_PEAKS = [81, 121, 161, 201, 241] as const;
@@ -178,12 +182,12 @@ export function placeOfFrame(f: number): number {
 
 /** The way's frame at place `p` of the home's scroll: `placeOfFrame` turned round (and its pace past the light dive too). */
 export function frameOfPlace(p: number): number {
-  return 1 + ((p - lightStart(HOME_CHAPTERS)) / 3) * (WAY_FRAMES - 1);
+  return 1 + ((p - lightStart(HOME_CHAPTERS)) / FALL_PACE) * (WAY_FRAMES - 1);
 }
 
 /** The place of way frame `f` on the scroll of chapters `c`, as `frameOfPlace` reads it back: the very same frame. */
 function placeIn(c: Chapters, f: number): number {
-  return lightStart(c) + (3 * (f - 1)) / (WAY_FRAMES - 1);
+  return lightStart(c) + (FALL_PACE * (f - 1)) / (WAY_FRAMES - 1);
 }
 
 /** The end of the unit `id` of the project of `category`; throws for a category that is not on the way. */

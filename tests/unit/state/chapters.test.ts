@@ -4,6 +4,7 @@ import {
   buildChapters,
   chapterAt,
   FACT_PEAKS,
+  FALL_PACE,
   frameOfPlace,
   HAND_F,
   HOME_CHAPTERS,
@@ -21,14 +22,25 @@ import {
   stops,
 } from '../../../src/state/chapters';
 
-/** Where the light dive hands the light over to the path: way frame 256 (1 + 3 · 255 / 299). */
-const L = 1 + 765 / 299;
+/** Where the light dive hands the light over to the path: way frame 256 (1 + 6 · 255 / 299, the fall at its doubled pace). */
+const L = 1 + (6 * 255) / 299;
 const c = buildChapters({ path: ['a', 'b', 'c'] });
+
+describe('the fall’s pace', () => {
+  it('runs the fall over twice the scroll: 6 viewport heights per 299 frames', () => {
+    expect(FALL_PACE).toBe(6);
+    expect(LIGHT_UNITS).toBeCloseTo((6 * 255) / 299, 12);
+    for (const f of [1, 81, 121, 161, 201, 241, 256]) expect(frameOfPlace(placeOfFrame(f))).toBeCloseTo(f, 9);
+    // Each fact (40 frames apart) is twice the scroll apart: 0.803 units, 0.401 before.
+    expect(placeOfFrame(121) - placeOfFrame(81)).toBeCloseTo((6 * 40) / 299, 12);
+    expect(keyStops(HOME_CHAPTERS)).toHaveLength(15);
+  });
+});
 
 describe('buildChapters', () => {
   it("lays out the home: the rise, the fall, each project's travel, orbit and inside, the look back, the sheet, the end", () => {
     expect(HAND_F).toBe(256);
-    expect(LIGHT_UNITS).toBeCloseTo(765 / 299, 12);
+    expect(LIGHT_UNITS).toBeCloseTo((6 * 255) / 299, 12);
     expect(c.units.map((u) => [u.id, u.project, u.category])).toEqual([
       ['HOME', null, null],
       ['LIGHT', null, null],
@@ -126,7 +138,8 @@ describe('the places of the scroll', () => {
   it("maps the way's frames onto the fall, linearly, and back", () => {
     expect(placeOfFrame(1)).toBe(1);
     expect(placeOfFrame(HAND_F)).toBeCloseTo(L, 12);
-    expect(placeOfFrame(150.5)).toBeCloseTo(2.5, 10);
+    // Half way through the 299 frames: half the fall's six viewport heights past BOB from above.
+    expect(placeOfFrame(150.5)).toBeCloseTo(1 + FALL_PACE / 2, 10);
     expect(frameOfPlace(placeOfFrame(121))).toBeCloseTo(121, 9);
   });
 

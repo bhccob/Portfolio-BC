@@ -7,7 +7,7 @@ import { FINISH_S, FOLLOW, follow, GLIDE_MIN_S, GLIDE_S, RISE_SMOOTH, SHEET_FINI
 import { connectHomeScroll, goToEnd, goToTop, headedToEnd } from '../../../src/input/useHomeScroll';
 import { LANDING_HOLD } from '../../../src/scene/bob/landingHold';
 import { nearestStop, STEP_FADE_MS, stepFadeAt, stepFadeFrom } from '../../../src/scene/bob/stepFade';
-import { arrivalStop, buildChapters, type ChapterAt, chapterAt, HOME_CHAPTERS, insideStop, pathStart, placeOfFrame, scrollEnd, sheetStart, stops } from '../../../src/state/chapters';
+import { arrivalStop, buildChapters, type ChapterAt, chapterAt, FALL_PACE, HOME_CHAPTERS, insideStop, pathStart, placeOfFrame, scrollEnd, sheetStart, stops } from '../../../src/state/chapters';
 import { frame as storyFrame } from '../../../src/state/frame';
 import { useScene, type VoidState } from '../../../src/state/store';
 
@@ -35,8 +35,8 @@ const F81 = placeOfFrame(81);
 const F241 = placeOfFrame(241);
 /** The landing hold: the most the scroll reaches while the beads load, or if they failed. */
 const H = LANDING_HOLD;
-/** The follow's floor, units a second: 12 of the light dive's 300 frames a second. */
-const FLOOR = (FOLLOW.floorFramesPerSecond * 3) / 299;
+/** The follow's floor, units a second: 12 of the light dive's 300 frames a second, at the fall's pace. */
+const FLOOR = (FOLLOW.floorFramesPerSecond * FALL_PACE) / 299;
 
 /** A requestAnimationFrame that runs when the test says so, one frame at a time, on a clock the test owns. */
 class FakeFrames {
@@ -382,7 +382,7 @@ describe('the scroll loop: leaving', () => {
 
   it('leaves no velocity behind, and no tween', async () => {
     const s = setup();
-    restAt(s, 4);
+    restAt(s, L + 0.44); // on the way to Funcial
     s.key('ArrowDown');
     await flush();
     s.frames.frame();
@@ -524,11 +524,11 @@ describe('the follow: past the rise the story follows the scroll, with no stops 
   it('follows past the rise with tau 0.45: after 1 s it has covered 1 - e^(-1/0.45) of a step, within 1 %', async () => {
     const s = setup();
     restAt(s, 2);
-    s.frame.target = 2.5; // a step of half a unit, as a long wheel turn would make it
+    s.frame.target = 3; // a step of a unit, as a long wheel turn would make it (60 of the fall's frames)
     s.home.loop.wake();
     await flush();
     const seen = frames(s, 60); // one second of frames
-    const covered = (seen.at(-1)!.progress - 2) / 0.5;
+    const covered = (seen.at(-1)!.progress - 2) / 1;
     expect(Math.abs(covered - (1 - Math.exp(-1 / FOLLOW.tau)))).toBeLessThan(0.01);
   });
 
@@ -568,9 +568,9 @@ describe('the follow: past the rise the story follows the scroll, with no stops 
     s.drain();
     expect(s.frame.target).toBeCloseTo(2.3, 12);
     expect(s.frame.progress).toBe(s.frame.target);
-    await wheelNotches(s, 23, 100);
+    await wheelNotches(s, 49, 100);
     s.drain();
-    expect(s.frame.target).toBeCloseTo(4.6, 12);
+    expect(s.frame.target).toBeCloseTo(7.2, 12);
     expect(s.frame.progress).toBe(s.frame.target);
     expect(s.changes.at(-1)).toMatchObject({ id: 'TRAVEL', category: 'a' });
   });
@@ -816,7 +816,7 @@ describe('Home and End keep their meaning: the start and the end page', () => {
   }
 
   it('fades End to the end page from anywhere short of it: the rise, the light dive, the ring', async () => {
-    for (const from of [0, 2.5, 4.5]) {
+    for (const from of [0, 2.5, L + 0.94]) {
       const s = setup();
       restAt(s, from);
       s.key('End');
@@ -828,7 +828,7 @@ describe('Home and End keep their meaning: the start and the end page', () => {
   });
 
   it('fades Home to the start from the ring, the sheet and the end page, and follows back up from the light dive', async () => {
-    for (const from of [4, 6.5, END]) {
+    for (const from of [L + 0.44, L + 2.94, END]) {
       const s = setup();
       restAt(s, from);
       s.key('Home');
@@ -1373,14 +1373,14 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
     it("holds a wheel past it at LANDING_HOLD while loading, and the beads' ready takes it on to where the wheel went", async () => {
       expect(H).toBe(placeOfFrame(256)); // the hand-over
       const s = wiredHome(1, { voidState: 'loading' });
-      await s.wheel(60, 100); // to 7, inside Funcial: past its arrival, the next stop past the hold
+      await s.wheel(86, 100); // to 9.6, inside Funcial: past its arrival, the next stop past the hold
       const held = s.run();
       expect([storyFrame.target, storyFrame.progress]).toEqual([H, H]);
       expect(Math.max(...held.map((f) => f.progress))).toBeLessThanOrEqual(H);
       useScene.getState().setVoidState('ready');
-      expect(storyFrame.target).toBeCloseTo(7, 9);
+      expect(storyFrame.target).toBeCloseTo(9.6, 9);
       s.run();
-      expect(storyFrame.progress).toBeCloseTo(7, 9);
+      expect(storyFrame.progress).toBeCloseTo(9.6, 9);
       expect(useScene.getState().phase.kind).toBe('PROJECTS');
     });
 
@@ -1398,7 +1398,7 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
 
     it('moves the story at once back up from the hold: nothing past it is kept as a debt', async () => {
       const s = wiredHome(1, { voidState: 'loading' });
-      await s.wheel(40, 100);
+      await s.wheel(60, 100);
       s.run();
       for (let ms = 0; ms <= GESTURE_GAP_MS; ms += FRAME_MS) s.frames.frame();
       await s.wheel(3, -100);
@@ -1435,7 +1435,7 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
     it('failed: a long wheel down rests at the hold, and a swipe up the glass too, from the home or from BOB from above', async () => {
       for (const at of [0, 1]) {
         const s = wiredHome(at);
-        const seen = [...(await s.wheel(40, 120)).seen, ...s.run()];
+        const seen = [...(await s.wheel(60, 120)).seen, ...s.run()];
         expect([storyFrame.target, storyFrame.progress], `a wheel from ${at}`).toEqual([H, H]);
         expect(Math.max(...seen.map((f) => f.progress))).toBeLessThanOrEqual(H);
         expect(seen.some((f) => f.dark)).toBe(false);
