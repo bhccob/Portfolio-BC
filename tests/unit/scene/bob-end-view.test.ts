@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AngleSpring, wrapAngle } from '~/engine/AngleSpring';
 import { NEEDLE_SPRING } from '~/engine/bob/needleAim';
 import { AT_REST, asleep } from '~/engine/stillness';
-import { follow } from '~/input/scrollLoop';
+import { END_SETTLED, follow } from '~/input/scrollLoop';
 import { applyEndView, BLACK, clearEndView, type EndPageNode, type EndRoot, endViewFor, endWritten } from '~/scene/bob/endView';
 import { idleRuns, needleRests } from '~/scene/bob/idle';
 import { BEADS, journeyAt, journeyPoseAt } from '~/scene/bob/journey';
@@ -57,11 +57,20 @@ describe('endViewFor: the end view of a frame, from its sheet and where the stor
     expect(BLACK).toBe(0.55);
     expect(endViewFor(0.3, 1, 1, 2)).toMatchObject({ black: expect.closeTo(ease(0.3 / 0.55), 12), rise: 0, state: 'moving' });
     expect(endViewFor(0.55, 1, 1, 2)).toMatchObject({ black: 1, rise: 0 });
-    expect(endViewFor(0.775, 1, 1, 2)).toMatchObject({ black: 1, rise: expect.closeTo(0.5, 12) });
+    // Half way through the rise it has come seven eighths of the way: it eases out, 1 - (1 - x)³.
+    expect(endViewFor(0.775, 1, 1, 2)).toMatchObject({ black: 1, rise: expect.closeTo(0.875, 12) });
     expect(endViewFor(1, 2, 2, 2)).toMatchObject({ black: 1, rise: 1, state: 'rest' });
-    // The rise is linear in the share, so the credits roll exactly with the scroll.
-    const rises = [0.6, 0.7, 0.8, 0.9].map((share) => endViewFor(share, 1, 1, 2).rise);
-    for (let k = 1; k < rises.length; k++) expect(rises[k] - rises[k - 1]).toBeCloseTo(0.1 / 0.45, 12);
+    const rises = [0.56, 0.6, 0.7, 0.8, 0.9, 0.99].map((share) => endViewFor(share, 1, 1, 2).rise);
+    for (let k = 1; k < rises.length; k++) expect(rises[k]).toBeGreaterThan(rises[k - 1]);
+  });
+
+  it('looks arrived at the move’s 99 %, where the scroll lets it rest: "Q&A" within half a pixel of its place at rest', () => {
+    // The scroll rests the move into the credits once it is within END_SETTLED of the end (Ruling 18); the credits then
+    // stand in the flow. Their column slides 45 % of the screen over the rise: on a screen 1000 px tall, what is left of
+    // the rise there must be under half a pixel, or "Q&A" jumps as the move comes to rest.
+    expect(END_SETTLED).toBe(0.01);
+    const left = 1 - endViewFor(1 - END_SETTLED, 1, 1, 2).rise;
+    expect(left * 0.45 * 1000).toBeLessThan(0.5);
   });
 });
 
@@ -153,12 +162,12 @@ describe('applyEndView: Home writes the end view each frame, only on change', ()
     expect([dom.end(), dom.black(), dom.rise(), page.inert]).toEqual([null, '', '', true]);
   });
 
-  it('writes the rise once the black is whole: three quarters over the sheet, the credits half risen', () => {
+  it('writes the rise once the black is whole: three quarters over the sheet, the credits seven eighths risen', () => {
     const dom = fakeRoot();
     const { page } = fakePage();
     frameAt(dom, page, endWritten(), S + 0.775, END);
     expect(dom.black()).toBe('1');
-    expect(Number(dom.rise())).toBeCloseTo(0.5, 9);
+    expect(Number(dom.rise())).toBeCloseTo(0.875, 9);
   });
 
   it('writes nothing again while the view stays the same', () => {

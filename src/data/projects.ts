@@ -3,8 +3,12 @@ import { categories, type Category, type CategoryId } from './categories';
 import { PAGES, type PageId } from './pages';
 
 // Screenshots live in src/assets. A project names its file once; that name
-// gives the built image URL.
-const screenshots = import.meta.glob<string>('../assets/*.{png,jpg,jpeg,webp}', { query: '?url', import: 'default', eager: true });
+// gives the built image URL. Only under Vite (and Vitest), which rewrites the
+// glob: plain Node has neither, and the proof harness (tools/proof/needle.mjs)
+// reads the chapters, built from these projects, through tsx.
+const screenshots: Record<string, string> = import.meta.env
+  ? import.meta.glob<string>('../assets/*.{png,jpg,jpeg,webp}', { query: '?url', import: 'default', eager: true })
+  : {};
 
 export type ProjectId = 'funcial' | 'jontai-energy' | 'cookies-clicker';
 

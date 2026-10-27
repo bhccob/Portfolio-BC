@@ -155,6 +155,28 @@ function valueOf(selector: string, property: string, groups: string[] = []): str
     .at(-1);
 }
 
+describe("the look back's quiet labels", () => {
+  it('take no pointer until shown, so an unseen label over another bead never takes its click or tap', () => {
+    // Under each bead, a label can stand over the next one (on a phone Funcial's lies over Cookies Clicker's bead): a tap
+    // there must reach the bead, not open Funcial. Shown (its bead under the pointer, or the label focused) it is a link.
+    expect(valueOf('.bead-label[data-quiet]', 'pointer-events')).toBe('none');
+    expect(valueOf('.bead-label[data-quiet][data-hover]', 'pointer-events')).toBe('auto');
+    expect(valueOf('.bead-label[data-quiet]:focus-visible', 'pointer-events')).toBe('auto');
+    expect(valueOf('.bead-label[data-quiet][data-hover]', 'opacity')).toBe('1');
+    expect(valueOf('.bead-label[data-quiet]:focus-visible', 'opacity')).toBe('1');
+  });
+
+  it('stays shown while a mouse moves from its bead onto it, and only where a pointer can hover', () => {
+    // Shown by its bead, it takes the pointer, so its own :hover holds it as the pointer leaves the bead for its words.
+    // Unseen it takes none, so a pointer passing over it never lights it. No :hover where a finger's would stick.
+    const HOVER = ['@media (hover: hover)'];
+    expect(valueOf('.bead-label[data-quiet]:hover', 'opacity', HOVER)).toBe('1');
+    expect(valueOf('.bead-label[data-quiet]:hover', 'pointer-events', HOVER)).toBe('auto');
+    const elsewhere = RULES.filter((rule) => rule.selectors.some((s) => s.includes('[data-quiet]') && s.includes(':hover')) && JSON.stringify(rule.groups) !== JSON.stringify(HOVER));
+    expect(elsewhere).toEqual([]);
+  });
+});
+
 describe('the touch hint', () => {
   it('shows the pointer\'s hint ("Klik om te openen") and hides the touch one by default', () => {
     expect(valueOf('.bead-label-hint-touch', 'display')).toBe('none');

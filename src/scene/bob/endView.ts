@@ -72,8 +72,11 @@ export const END_ATTRIBUTE = 'data-end';
 
 /**
  * The end view of a frame. `share` is the pose's `sheet` held to 0..1, with NaN read as 0; the black is eased over its
- * first `BLACK`, as the path's black is (src/scene/bob/lightPath.ts), and the rise linear over the rest, so the credits
- * roll exactly with the scroll. The state is `rest` when the
+ * first `BLACK`, as the path's black is (src/scene/bob/lightPath.ts), and the rise eased out over the rest, 1 - (1 - x)³:
+ * the credits come up as soon as the black is whole and settle into place. The scroll lets the move rest at its 99 %
+ * (src/input/scrollLoop.ts `END_SETTLED`, Ruling 18), where the page then stands in the flow, so the rise must look
+ * arrived there: eased out, what is left of it is a hundredth of a pixel, where a linear rise would leave "Q&A" 9 px
+ * short on a laptop and jump. The state is `rest` when the
  * story and its target are both on the end (`end`, `scrollEnd`); else `moving` while any of the sheet is up, on the way
  * in or out; else `none`.
  */
@@ -81,7 +84,7 @@ export function endViewFor(sheet: number, progress: number, target: number, end:
   const share = sheet > 0 ? Math.min(sheet, 1) : 0; // NaN fails the test, so it reads as 0
   const state: EndState = progress === end && target === end ? 'rest' : share > 0 ? 'moving' : 'none';
   const black = ease(share / BLACK);
-  const rise = share > BLACK ? (share - BLACK) / (1 - BLACK) : 0;
+  const rise = share > BLACK ? 1 - (1 - (share - BLACK) / (1 - BLACK)) ** 3 : 0;
   return { share, black, rise, state };
 }
 

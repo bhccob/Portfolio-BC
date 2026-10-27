@@ -870,16 +870,27 @@ html[data-3d='on'] .end-link:hover {
   text-align: center;
 }
 
-/* The look back's: shown on hover and focus. */
+/* The look back's: shown while the pointer is on its bead (`data-hover`, the Void's pick) and on focus. Unseen, a label
+   takes no pointer: under its bead it can stand over the next one (on a phone Funcial's lies over Cookies Clicker's), and
+   a tap there must reach that bead, not open the label's. Shown, it takes the pointer, so where a mouse can hover its own
+   :hover keeps it shown as the pointer leaves the bead for its words; an unseen one is never hovered. No :hover where a
+   finger's would stick. */
 .bead-label[data-quiet] {
-  pointer-events: auto;
+  pointer-events: none;
   transition: opacity 0.25s var(--ease-reveal);
 }
 
 .bead-label[data-quiet][data-hover],
-.bead-label[data-quiet]:hover,
 .bead-label[data-quiet]:focus-visible {
   opacity: 1;
+  pointer-events: auto;
+}
+
+@media (hover: hover) {
+  .bead-label[data-quiet]:hover {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 .bead-label-title {
