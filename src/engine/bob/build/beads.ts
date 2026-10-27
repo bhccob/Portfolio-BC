@@ -3,11 +3,13 @@
  * tools/blender/export_beads.py and the object scripts bead_funcial.py, bead_jontai.py and bead_cookies.py, whose headers
  * document every node, material, pivot and axis read here), readied for the site. Each bead gets the project's real
  * screenshot on its display, lit as part of the bead; its own light, from dim to lit (`setLit`); its porthole turned to
- * the ring's camera (`setFacing`); a gentle hover (`setHover`); and its object's motion (`setMotion`, the numbers of
- * ~/engine/bob/beadMotion). No React: the Void (Task 11) mounts the group and poses it from the journey every frame.
+ * the path's camera (`setFacing`); a gentle hover (`setHover`); its object's motion (`setMotion`, the numbers of
+ * ~/engine/bob/beadMotion); and for the light's path (spec 2026-10-27-bob-light-path-design.md) its fade into the dark
+ * (`setFade`), its veins woken where the light has passed (`setWake`) and its object built with the scroll (`setBuild`,
+ * ~/engine/bob/beadBuild). No React: the Void mounts the group and poses it from the journey every frame.
  *
- * The beads are the void's one focal point (Bob: dark, calm, one focal point), so the unselected beads stay dim, the
- * hover only brightens a little and turns a few degrees, and every object holds still unless its clock runs.
+ * The beads are the void's one focal point (Bob: dark, calm, one focal point), so a bead not in view stays dim or faded,
+ * the hover only brightens a little and turns a few degrees, and every object holds still unless the scroll builds it.
  *
  * Lengths are world units, three's frame: a bead's porthole faces its root's +z and its up is +y, and its root is the
  * bead's centre (the body is a sphere of 0.95 about it).
@@ -23,6 +25,7 @@ import {
   type JontaiMotion,
   jontaiMotion
 } from '~/engine/bob/beadMotion';
+import { type BuildPose, buildPose, WAKE } from '~/engine/bob/beadBuild';
 import { palette } from '~/engine/palette';
 import { lowerTier, type QualityTier } from '~/engine/quality';
 import { BEADS } from '~/scene/bob/journey';
@@ -125,6 +128,24 @@ export interface BeadsModel {
    */
   setMotion(id: ProjectId, time: number, slide?: number): void;
   /**
+   * Fades bead `id` into the dark or out of it, `fade` 0..1 (held to it, NaN as 0): every material of it draws at its
+   * light times the fade. Its parts' showing and its inner light are the caller's (the Void's, which keeps the scene's
+   * light count).
+   */
+  setFade(id: ProjectId, fade: number): void;
+  /**
+   * The veins on bead `id`'s shell, as the light's sweep round it has woken them (spec 2026-10-27-bob-light-path-design.md,
+   * 3A): the shell's emissive times `WAKE.rest` where the light has not passed, `WAKE.lit` where it has, and `hot` more
+   * just behind it, by the angle round the bead's centre in the camera's view. Uniforms only: nothing compiles.
+   */
+  setWake(id: ProjectId, wake: BeadWake): void;
+  /**
+   * Builds bead `id`'s object to `b`, 0..1, as the camera goes into the bead (../beadBuild.ts `buildPose`): its motion's
+   * time, Funcial's abacus rising and its beads' slide, Cookies Clicker's wheels coming together, and its screen's light.
+   * Transforms, intensities and uniforms only: nothing compiles.
+   */
+  setBuild(id: ProjectId, b: number): void;
+  /**
    * Steps the glass down to `tier`'s (the quality ladder's step), as beads built for it would have: from
    * high's cheap transmissive look to plain transparent glass, which compiles the three glasses once. A tier above the
    * one it stands at changes nothing: the ladder never climbs back within a page view.
@@ -135,6 +156,19 @@ export interface BeadsModel {
    * maps) and the screens stay the caller's to free.
    */
   dispose(): void;
+}
+
+/**
+ * The light's sweep round a bead in the camera's view (src/scene/bob/lightPath.ts `wakeSweep`): the bead's centre there
+ * (x, y), the angle the sweep began at, how far it has gone (radians; 0 asleep, 2π and more all awake), its way round
+ * (+1 or -1), and the glow added just behind the light (0 once it has passed).
+ */
+export interface BeadWake {
+  centre: readonly [number, number];
+  start: number;
+  span: number;
+  dir: 1 | -1;
+  hot: number;
 }
 
 /** `x` held to [0, 1]; NaN reads as 0. */
@@ -151,7 +185,7 @@ function smoothstep01(x: number): number {
 // ---------------------------------------------------------------- the shaders' patches
 
 /** What a bead material adds to three's physical program, once, at its first compile. */
-type Dress = 'surface' | 'screen' | 'track' | 'glass-high' | 'glass-plain';
+type Dress = 'surface' | 'shell' | 'screen' | 'track' | 'glass-high' | 'glass-plain';
 
 /**
  * `source` with its one `anchor` replaced: a three update that renames a chunk fails here, loudly, rather than
@@ -203,14 +237,48 @@ const TRACK_PULSE = [
 ].join('\n');
 
 /**
+ * The shell's veins woken by the light's sweep (the light path mock-up's patch): the fragment's place in the camera's
+ * view, and the emissive times the wake's level there. `uWakeA` is the bead's centre in the view (x, y), the angle the
+ * sweep began at and how far it has gone; `uWakeB` the veins' level asleep and awake, the glow behind the light, and the
+ * sweep's way round. A span of 2π or more is all awake, of 0 all asleep.
+ */
+const WAKE_VERTEX = '#include <project_vertex>\n\tvWakeView = mvPosition.xyz;';
+const WAKE_FRAGMENT = [
+  '#include <emissivemap_fragment>',
+  '\t{',
+  '\t\tvec2 wd = vWakeView.xy - uWakeA.xy;',
+  '\t\tfloat wa = atan( wd.y, wd.x );',
+  '\t\tfloat span = uWakeA.w;',
+  '\t\tfloat d = mod( uWakeB.w * ( wa - uWakeA.z ), 6.2831853 );',
+  '\t\tfloat lit = span >= 6.2831853 ? 1.0 : ( span <= 0.0 ? 0.0 : 1.0 - smoothstep( span - 0.3, span + 0.02, d ) );',
+  '\t\tfloat head = uWakeA.z + uWakeB.w * span;',
+  '\t\tfloat behind = mod( uWakeB.w * ( head - wa ), 6.2831853 );',
+  '\t\tfloat hot = uWakeB.z > 0.0 && span > 0.0 ? exp( - pow( behind / 0.55, 2.0 ) ) : 0.0;',
+  '\t\ttotalEmissiveRadiance *= mix( uWakeB.x, uWakeB.y, lit ) + uWakeB.z * hot;',
+  '\t}'
+].join('\n');
+
+/** A shell's wake uniforms (`WAKE_FRAGMENT`): its bead's own. */
+interface WakeUniforms {
+  a: THREE.IUniform<THREE.Vector4>;
+  b: THREE.IUniform<THREE.Vector4>;
+}
+
+/**
  * Dresses `material` for its first compile: its bead's light (`light`, every kind), and the screen's mask, the
  * track's pulse (`pulse`) or the glass's look. The program key names the dress, so the materials of one dress share a
  * program across the beads, each with its own uniforms. Run again (with `needsUpdate`) only when the glass steps down.
  */
-function dress(material: THREE.MeshStandardMaterial, kind: Dress, light: THREE.IUniform<number>, pulse?: THREE.IUniform<THREE.Vector3>): void {
+function dress(material: THREE.MeshStandardMaterial, kind: Dress, light: THREE.IUniform<number>, pulse?: THREE.IUniform<THREE.Vector3>, wake?: WakeUniforms): void {
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uBeadLight = light;
     const declare = ['uniform float uBeadLight;'];
+    if (kind === 'shell') {
+      shader.uniforms.uWakeA = wake!.a;
+      shader.uniforms.uWakeB = wake!.b;
+      declare.push('varying vec3 vWakeView;', 'uniform vec4 uWakeA;', 'uniform vec4 uWakeB;');
+      shader.vertexShader = swap(swap(shader.vertexShader, '#include <common>', '#include <common>\nvarying vec3 vWakeView;'), '#include <project_vertex>', WAKE_VERTEX);
+    }
     if (kind === 'track') {
       shader.uniforms.uBeadPulse = pulse!;
       declare.push('uniform vec3 uBeadPulse;', 'varying float vBeadTrackU;');
@@ -226,6 +294,7 @@ function dress(material: THREE.MeshStandardMaterial, kind: Dress, light: THREE.I
       fragment = swap(fragment, '#include <emissivemap_fragment>', chunk);
     }
     if (kind === 'track') fragment = swap(fragment, '#include <emissivemap_fragment>', TRACK_PULSE);
+    if (kind === 'shell') fragment = swap(fragment, '#include <emissivemap_fragment>', WAKE_FRAGMENT);
     if (kind === 'glass-high' || kind === 'glass-plain') fragment = swap(fragment, SPECULAR, SOFT_SPECULAR);
     fragment = swap(fragment, '#include <opaque_fragment>', kind === 'glass-high' ? GLASS_HIGH : SCALE_LIGHT);
     shader.fragmentShader = fragment;
@@ -294,11 +363,17 @@ interface Bead {
   place: THREE.Vector3;
   lit: number;
   hover: number;
+  /** How much of it shows as it fades into the dark or out of it (`setFade`). */
+  fade: number;
   /** Its light, the uniform every one of its materials reads. */
   light: THREE.IUniform<number>;
+  /** Its shell's wake (`setWake`). */
+  wake: WakeUniforms;
   glass: THREE.MeshPhysicalMaterial;
   /** Writes its object's parts for a time of its clock (and Funcial's abacus for `slide`, where given). */
   move(time: number, slide?: number): void;
+  /** Writes what its object's build adds to its motion: Funcial's abacus's height, Cookies Clicker's wheels, the screen. */
+  build(pose: BuildPose): void;
 }
 
 /** The first object called `name` under `root` (pre-order, so a node is found before a mesh of its own of that name). */
@@ -397,9 +472,9 @@ export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens:
   const axis = new THREE.Vector3();
 
   /** A dressed copy of `source` for a bead, counted for `dispose`. */
-  const copy = <M extends THREE.MeshStandardMaterial>(source: M, kind: Dress, light: THREE.IUniform<number>, pulse?: THREE.IUniform<THREE.Vector3>): M => {
+  const copy = <M extends THREE.MeshStandardMaterial>(source: M, kind: Dress, light: THREE.IUniform<number>, pulse?: THREE.IUniform<THREE.Vector3>, wake?: WakeUniforms): M => {
     const material = source.clone() as M;
-    dress(material, kind, light, pulse);
+    dress(material, kind, light, pulse, wake);
     made.push(material);
     return material;
   };
@@ -408,7 +483,11 @@ export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens:
     const root = find(scene, `bead_${id}`)!;
     const part = (name: string) => find(root, name)!;
     const light: THREE.IUniform<number> = { value: look.dim };
+    // Asleep until the path writes it: a span of 0 (a Vector4 is made with w 1, a sweep of a radian).
+    const wake: WakeUniforms = { a: { value: new THREE.Vector4(0, 0, 0, 0) }, b: { value: new THREE.Vector4(WAKE.rest, WAKE.lit, 0, 1) } };
     const body = part(`bead_${id}_body`) as THREE.Mesh;
+    /** The shell's lacquer, as the file has it: every part of this bead that wears it shares the shell's copy, and its wake. */
+    const shellSource = body.material as THREE.Material;
     const glassMesh = part(`bead_${id}_glass`) as THREE.Mesh;
     const screenMesh = meshWearing(part(`bead_${id}_display`), 'bead:display')!;
 
@@ -426,6 +505,12 @@ export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens:
     screen.emissiveMap = screens[id];
     screen.emissiveIntensity = look.screen.level;
     own.set(screenMesh, screen);
+    /** The screen's light as the build sets it: lit with its level, unless the build has dimmed it. */
+    const lightScreen = (share: number): void => {
+      screen.emissiveIntensity = look.screen.level * share;
+    };
+
+    let build: (pose: BuildPose) => void;
 
     let move: (time: number, slide?: number) => void;
     if (id === 'funcial') {
@@ -453,6 +538,13 @@ export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens:
         for (let k = 0; k < abacus.length; k++) abacus[k]!.position.y = abacusRest[k]! + abacusAt.abacus[k]! * look.funcial.travel;
         fifth.emissiveIntensity = look.funcial.result.glow * abacusAt.abacus[4]!;
       };
+      // The abacus rises from the platter as one piece: its height, a share of its own.
+      const frame = part('funcial_abacus');
+      const frameRest = frame.scale.clone();
+      build = (pose) => {
+        frame.scale.set(frameRest.x, frameRest.y * (pose.abacus ?? 1), frameRest.z);
+        lightScreen(pose.screen);
+      };
     } else if (id === 'jontai-energy') {
       const cells = Array.from({ length: 16 }, (_, k) => {
         const mesh = part(`jontai_cell_${k + 1}`) as THREE.Mesh;
@@ -469,6 +561,7 @@ export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens:
         module.quaternion.copy(moduleRest).multiply(turn.setFromAxisAngle(X, motion.tilt));
         for (let k = 0; k < cells.length; k++) cells[k]!.emissiveIntensity = 1 + (look.jontai.charged - 1) * motion.cells[k]!;
       };
+      build = (pose) => lightScreen(pose.screen);
     } else {
       const wheels = Array.from({ length: 8 }, (_, k) => part(`cookies_wheel_${k + 1}`));
       const wheelRest = wheels.map((wheel) => wheel.quaternion.clone());
@@ -481,6 +574,21 @@ export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens:
         for (let k = 0; k < wheels.length; k++) wheels[k]!.quaternion.copy(wheelRest[k]!).multiply(turn.setFromAxisAngle(Z, motion.wheels[k]!));
         balance.quaternion.copy(balanceRest).multiply(turn.setFromAxisAngle(Z, motion.balance));
       };
+      // The wheels come in from apart: each from its rest out from the train's middle, 0.16 across and a little forward,
+      // a wheel at the middle itself to one side.
+      const wheelPlace = wheels.map((wheel) => wheel.position.clone());
+      const middle = wheelPlace.reduce((sum, at) => sum.add(at), new THREE.Vector3()).multiplyScalar(1 / wheels.length);
+      const apart = wheelPlace.map((at, k) => {
+        const out = at.clone().sub(middle);
+        out.z = 0;
+        if (out.lengthSq() < 1e-6) out.set(k % 2 ? 1 : -1, 0.3, 0);
+        return out.normalize().multiplyScalar(0.16).add(new THREE.Vector3(0, 0, 0.1 + 0.04 * (k % 3)));
+      });
+      build = (pose) => {
+        const away = pose.apart ?? 0;
+        for (let k = 0; k < wheels.length; k++) wheels[k]!.position.copy(wheelPlace[k]!).addScaledVector(apart[k]!, away);
+        lightScreen(pose.screen);
+      };
     }
 
     const shared = new Map<THREE.Material, THREE.MeshStandardMaterial>();
@@ -492,7 +600,7 @@ export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens:
         const source = mesh.material as THREE.MeshStandardMaterial;
         material = shared.get(source);
         if (!material) {
-          material = copy(source, 'surface', light);
+          material = source === shellSource ? copy(source, 'shell', light, undefined, wake) : copy(source, 'surface', light);
           shared.set(source, material);
         }
       }
@@ -510,9 +618,12 @@ export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens:
       facing: new THREE.Quaternion(),
       lit: 0,
       hover: 0,
+      fade: 1,
       light,
+      wake,
       glass,
-      move
+      move,
+      build
     };
   });
 
@@ -523,9 +634,9 @@ export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens:
     return found;
   };
 
-  /** Its light: dim to lit, brightened by its hover. */
+  /** Its light: dim to lit, brightened by its hover, faded into the dark by its fade. */
   const light = (b: Bead): void => {
-    b.light.value = (look.dim + (1 - look.dim) * b.lit) * (1 + look.hover.brighten * b.hover);
+    b.light.value = (look.dim + (1 - look.dim) * b.lit) * (1 + look.hover.brighten * b.hover) * b.fade;
   };
 
   /**
@@ -608,6 +719,22 @@ export function loadBeads(gltf: Pick<GLTF, 'scene'>, tier: QualityTier, screens:
     },
     setMotion(id, time, slide) {
       bead(id).move(time, slide);
+    },
+    setFade(id, fade) {
+      const b = bead(id);
+      b.fade = clamp01(fade);
+      light(b);
+    },
+    setWake(id, wake) {
+      const b = bead(id);
+      b.wake.a.value.set(wake.centre[0], wake.centre[1], wake.start, wake.span);
+      b.wake.b.value.set(WAKE.rest, WAKE.lit, wake.hot, wake.dir);
+    },
+    setBuild(id, b) {
+      const pose = buildPose(id, b);
+      const one = bead(id);
+      one.move(pose.time, pose.slide);
+      one.build(pose);
     },
     setTier(next) {
       const to = lowerTier(standing, next);

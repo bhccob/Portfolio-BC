@@ -840,3 +840,78 @@ describe("the builder's colours", () => {
     expect(source).not.toMatch(/Color\(\s*[\d.]+\s*,/);
   });
 });
+
+// ---------------------------------------------------------------- the light's path (spec 2026-10-27-bob-light-path-design.md)
+
+describe("the light's path: a bead fades, its veins wake, its object builds", () => {
+  it("dresses the shell with the wake, and every part that wears the shell's lacquer with it", () => {
+    const { model } = build();
+    const body = model.beads.funcial.body.material as THREE.MeshStandardMaterial;
+    expect(body.customProgramCacheKey()).toBe('bob-bead:shell');
+    const shader = compiled(body);
+    expect(shader.fragmentShader).toContain('uniform vec4 uWakeA;');
+    expect(shader.fragmentShader).toContain('totalEmissiveRadiance *= mix( uWakeB.x, uWakeB.y, lit ) + uWakeB.z * hot;');
+    expect(shader.vertexShader).toContain('vWakeView = mvPosition.xyz;');
+    expect(shader.fragmentShader).toContain('outgoingLight *= uBeadLight;');
+    // The abacus inside wears the same lacquer: the same copy, so the same wake.
+    expect(materialOf(objectNamed(model.beads.funcial.root, 'funcial_abacus').children[0]!)).toBe(body);
+  });
+
+  it('writes the wake to the shell: the centre, where the sweep began and how far, its way, and the glow behind the light', () => {
+    const { model } = build();
+    const shader = compiled(model.beads.funcial.body.material as THREE.Material);
+    expect((shader.uniforms.uWakeB!.value as THREE.Vector4).toArray()).toEqual([0.12, 1.4, 0, 1]); // asleep until written
+    model.setWake('funcial', { centre: [1, 2], start: 0.5, span: 3, dir: -1, hot: 2.6 });
+    expect((shader.uniforms.uWakeA!.value as THREE.Vector4).toArray()).toEqual([1, 2, 0.5, 3]);
+    expect((shader.uniforms.uWakeB!.value as THREE.Vector4).toArray()).toEqual([0.12, 1.4, 2.6, -1]);
+    // Each bead its own.
+    const other = compiled(model.beads['jontai-energy'].body.material as THREE.Material);
+    expect((other.uniforms.uWakeA!.value as THREE.Vector4).toArray()).toEqual([0, 0, 0, 0]);
+  });
+
+  it('fades a bead into the dark: every material of it, its light times the fade, none at nothing', () => {
+    const { model } = build();
+    const body = model.beads.funcial.body.material as THREE.Material;
+    model.setLit('funcial', 1);
+    const lit = lightOf(body);
+    model.setFade('funcial', 0.5);
+    expect(lightOf(body)).toBeCloseTo(0.5 * lit, 9);
+    for (const m of beadMaterials(model, 'funcial')) expect(lightOf(m), m.name).toBeCloseTo(0.5 * lit, 9);
+    model.setFade('funcial', 0);
+    expect(lightOf(body)).toBe(0);
+    model.setFade('funcial', Number.NaN);
+    expect(lightOf(body)).toBe(0);
+    model.setFade('funcial', 1);
+    expect(lightOf(body)).toBeCloseTo(lit, 9);
+  });
+
+  it("builds Funcial's abacus from its scale at rest, slides its beads and lights its screen with the scroll", () => {
+    const { model } = build();
+    const abacus = objectNamed(model.beads.funcial.root, 'funcial_abacus');
+    const restY = abacus.scale.y;
+    const screen = materialOf(screenOf(model, 'funcial'));
+    const level = screen.emissiveIntensity;
+    model.setBuild('funcial', 0);
+    expect(abacus.scale.y).toBeCloseTo(0.02 * restY, 9);
+    expect(screen.emissiveIntensity).toBe(0);
+    model.setBuild('funcial', 1);
+    expect(abacus.scale.y).toBeCloseTo(restY, 9);
+    expect(screen.emissiveIntensity).toBeCloseTo(level, 9);
+    expect(objectNamed(model.beads.funcial.root, 'funcial_bead_5').position.y).toBeGreaterThan(objectNamed(model.beads.funcial.root, 'funcial_bead_1').position.y - 1);
+  });
+
+  it("builds Cookies Clicker's train: the wheels apart at nothing, home at their rest from half way", () => {
+    const { model } = build();
+    const root = model.beads['cookies-clicker'].root;
+    model.setBuild('cookies-clicker', 0.5);
+    const rests = Array.from({ length: 8 }, (_, k) => objectNamed(root, `cookies_wheel_${k + 1}`).position.clone());
+    model.setBuild('cookies-clicker', 0);
+    for (let k = 0; k < 8; k++) {
+      const apart = objectNamed(root, `cookies_wheel_${k + 1}`).position.clone().sub(rests[k]!);
+      expect(Math.hypot(apart.x, apart.y), `wheel ${k + 1} across`).toBeCloseTo(0.16, 6);
+      expect(apart.z, `wheel ${k + 1} out`).toBeCloseTo(0.1 + 0.04 * (k % 3), 9);
+    }
+    model.setBuild('cookies-clicker', 0.5);
+    for (let k = 0; k < 8; k++) expect(objectNamed(root, `cookies_wheel_${k + 1}`).position.distanceTo(rests[k]!)).toBeLessThan(1e-12);
+  });
+});
