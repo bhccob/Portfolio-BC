@@ -820,6 +820,11 @@ describe('the wiring: one journey pose a frame', () => {
     expect(source.match(/frame\.journey\.engraved = null/g)?.length).toBeGreaterThanOrEqual(2);
     expect(source).toMatch(/run\.engraved = null/);
   });
+
+  it("warms the engraved way's shaders as it builds it, so the first frame it shows (the light's ignition) does not stall", () => {
+    const source = read('scene/bob/Void.tsx');
+    expect(source).toMatch(/void warm\(\s*gl\s*,\s*made\.model\.group\s*,\s*camera\s*,\s*'the engraved way'\s*,\s*scene\s*\)/);
+  });
 });
 
 describe("the home scroll as the page wires it to the store (connectHomeScroll, useHomeScroll's own body)", () => {

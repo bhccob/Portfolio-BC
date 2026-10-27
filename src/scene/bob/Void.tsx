@@ -970,6 +970,8 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
     }
     const made = { path, tier, model: buildEngraved(shaftRings(), tripPoints(path), tier) };
     scene.add(made.model.group);
+    // Built at the home, hidden until the light ignites: its shaders compiled now, so that frame does not stall.
+    void warm(gl, made.model.group, camera, 'the engraved way', scene);
     run.engraved = made;
     return made;
   }
