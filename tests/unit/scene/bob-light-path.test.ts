@@ -5,7 +5,8 @@ import { PerspectiveCamera, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { applyCameraShot, type CameraShot } from '../../../src/engine/bob/shots';
 import { makePath, pathFor, wakeSweep } from '../../../src/scene/bob/lightPath';
-import { buildChapters } from '../../../src/state/chapters';
+import { trailAt } from '../../../src/scene/bob/lightDive';
+import { buildChapters, HAND_F } from '../../../src/state/chapters';
 
 type Vec3 = readonly [number, number, number];
 const HERE = fileURLToPath(new URL('.', import.meta.url));
@@ -132,5 +133,30 @@ describe("the light's path, ported from the approved mock-up", () => {
   it('imports neither three nor React: a pure module, as the journey is', () => {
     const source = readFileSync(join(HERE, '../../../src/scene/bob/lightPath.ts'), 'utf8');
     expect(source).not.toMatch(/from ['"](?:three|react|@react-three\/[\w-]+)['"]/);
+  });
+});
+
+describe("the light's trail across the hand-over", () => {
+  it("starts the path's trail as the fall's own last one, so nothing jumps at the hand-over", () => {
+    for (const aspect of [1440 / 900, 390 / 844]) {
+      const fall = trailAt(HAND_F, aspect);
+      const path = makePath(aspect).frameAt(0).light.trail;
+      expectNear(path.map((t) => t.point), fall.map((t) => t.point), `trail at ${aspect.toFixed(2)}`, 1e-12); // -0 and 0 alike
+      expect(path[0]!.u).toBe(0);
+      expect(path.at(-1)!.u).toBe(1);
+    }
+  });
+
+  it("lets the path's own places push the fall's out as the light leads on, to about a metre", () => {
+    const path = makePath(1440 / 900);
+    const length = (q: number) => {
+      const t = path.frameAt(q).light.trail;
+      return t.slice(1).reduce((sum, p, k) => sum + Math.hypot(p.point[0] - t[k]!.point[0], p.point[1] - t[k]!.point[1], p.point[2] - t[k]!.point[2]), 0);
+    };
+    for (const q of [0.6, 3, 9]) expect(length(q), `at ${q}`).toBeLessThan(1.25);
+    // Well past the hand-over the trail is the path's alone: every point on its way, none of the fall's.
+    const late = path.frameAt(0.6).light.trail.map((t) => t.point);
+    const fall = trailAt(HAND_F, 1440 / 900).slice(1).map((t) => t.point);
+    expect(late.some((p) => fall.some((f) => f[0] === p[0] && f[1] === p[1] && f[2] === p[2]))).toBe(false);
   });
 });

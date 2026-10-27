@@ -25,7 +25,7 @@
 import type { CameraShot } from '~/engine/bob/shots';
 import { shotToward } from '~/engine/bob/shots';
 import { type Chapters, frameOfPlace, HAND_F, HOME_CHAPTERS, pathStart } from '~/state/chapters';
-import { type FactAt, filamentsAt, lightAt, sizeFor, streamAt, trailLevel, voidAt, wayShot } from './lightDive';
+import { type FactAt, filamentsAt, lightAt, sizeFor, streamAt, trailAt, trailLevel, voidAt, wayShot } from './lightDive';
 import type { LightPose, VoidPose } from './poseTypes';
 
 export type Vec3 = [number, number, number];
@@ -346,17 +346,45 @@ export function makePath(aspect: number, c: Chapters = HOME_CHAPTERS): Path {
     return ORBIT.from + (ORBIT.to - ORBIT.from) * hermite(0, s0, 1, 0, t);
   }
 
-  /** The trail: the light's places just passed, back along the path to about TRAIL m, newest first. */
+  /**
+   * The fall's own trail as it stood at the hand-over (./lightDive.ts `trailAt`), behind the light there, and its length:
+   * the path's trail begins as it, so nothing of the trail jumps at the hand-over.
+   */
+  const fallTrail = trailAt(HAND_F, aspect).slice(1).map((t) => t.point as Vec3);
+  const fallTrailLength = fallTrail.reduce((sum, p, k) => sum + len(sub(p, k === 0 ? L_H : fallTrail[k - 1]!)), 0);
+  /** How long the trail may be: about TRAIL m, and at the hand-over all of the fall's. */
+  const trailBudget = Math.max(TRAIL[size], fallTrailLength);
+
+  /**
+   * The trail: the light's places just passed, newest first, back along the path to about TRAIL m; back past the
+   * hand-over, on through the fall's own last trail, which the path's places push out as the light leads on. Each point's
+   * share of the fade (`u`) is how far back along the trail it lies.
+   */
   const trailAtQ = (q: number): { point: Vec3; u: number }[] => {
     const points: Vec3[] = [lightPos(q)];
     let gone = 0;
-    for (let k = 1; k <= 90 && gone < TRAIL[size]; k++) {
-      const p = lightPos(q - k * 0.006);
+    const add = (p: Vec3): void => {
       gone += len(sub(p, points[points.length - 1]!));
       points.push(p);
+    };
+    let handOver = false;
+    for (let k = 1; k <= 90 && gone < trailBudget; k++) {
+      const at = q - k * 0.006;
+      if (at <= 0) {
+        handOver = true;
+        break;
+      }
+      add(lightPos(at));
     }
-    const n = Math.max(points.length - 1, 1);
-    return points.map((point, k) => ({ point, u: k / n }));
+    // Back to the hand-over within its length: on through the fall's own trail behind it.
+    if (handOver && gone < trailBudget) {
+      if (q > 0) add(L_H);
+      for (let k = 0; k < fallTrail.length && gone < trailBudget; k++) add(fallTrail[k]!);
+    }
+    const run: number[] = [0];
+    for (let k = 1; k < points.length; k++) run.push(run[k - 1]! + len(sub(points[k]!, points[k - 1]!)));
+    const total = run[run.length - 1]! || 1;
+    return points.map((point, k) => ({ point, u: run[k]! / total }));
   };
 
   /**
