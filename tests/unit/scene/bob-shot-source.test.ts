@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { LoaderStage } from '~/engine/bob/loaderTimeline';
 import { SHOT_PRIORITY, type ShotSource, shotSourceFor, shownProgressFor } from '~/scene/bob/shotSource';
-import { HOME_CHAPTERS, keyStops, placeOfFrame } from '~/state/chapters';
+import { arrivalStop, HOME_CHAPTERS, keyStops, placeOfFrame } from '~/state/chapters';
 
 const STAGES: readonly LoaderStage[] = ['dark', 'engrave', 'open', 'rise', 'home'];
 const LOADER_STAGES = STAGES.filter((stage) => stage !== 'home');
@@ -90,7 +90,8 @@ describe('shownProgressFor: the progress the home and the journey pose the shot 
     expect(shownProgressFor('home', true, 2.9, 3, 0)).toBe(placeOfFrame(201));
     // The progress is mid-travel, the target at a stop: the stop it is going to.
     expect(shownProgressFor('home', true, 1.4, placeOfFrame(81), 0)).toBe(placeOfFrame(81));
-    expect(shownProgressFor('home', true, 4.9, 5.2, 0)).toBe(5);
+    // On Funcial's travel, its arrival the nearest stop.
+    expect(shownProgressFor('home', true, 4.9, 5.2, 0)).toBe(arrivalStop(HOME_CHAPTERS, 'secure-element'));
   });
 
   it('is one of the story\'s stops whenever reduced motion poses a stop', () => {

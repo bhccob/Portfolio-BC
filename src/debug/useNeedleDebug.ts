@@ -45,7 +45,9 @@ export function readNeedleDebugState(view: ShellView): NeedleDebugState {
     journey: {
       ...frame.journey,
       light: frame.journey.light ? { ...frame.journey.light } : null,
-      ring: frame.journey.ring ? (JSON.parse(JSON.stringify(frame.journey.ring)) as typeof frame.journey.ring) : null,
+      beads: frame.journey.beads ? frame.journey.beads.map((bead) => ({ ...bead })) : null,
+      label: frame.journey.label ? { ...frame.journey.label } : null,
+      wake: [...frame.journey.wake],
     },
   };
 }

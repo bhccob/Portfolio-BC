@@ -5,7 +5,7 @@ import type { Locale } from '~/i18n/Translator';
 import type { Stretch } from '~/scene/bob/journey';
 import type { ChapterId } from '~/state/chapters';
 import type { Phase, SceneEvent } from '~/state/machine';
-import type { RingView } from '~/state/frame';
+import type { BeadOnScreen } from '~/state/frame';
 import type { Tier, VoidState } from '~/state/store';
 
 /**
@@ -63,12 +63,12 @@ export interface NeedleDebugState {
   scroll: { u: number; letters: number; iris: number; needleDip: number };
   /**
    * Where the home's journey stands as the scene last posed it (`frame.journey`, a copy): the stretch (`rise`, `light`,
-   * `ring`, `sheet`, `end`), how far through it (0 at its stop), the project in front of the ring (0 Funcial, 1 Jontai
-   * Energy, 2 Cookies Clicker; null elsewhere), the void's load (`idle`, `loading`, `ready`, `failed`), which holds the
-   * scroll in the light dive short of its landing until it is ready, the light dive's way frame (1-300, null elsewhere),
-   * the ring's angle (degrees, null before the ring), how far the end page's sheet is up (0..1), and the light's centre
-   * on the screen (NDC, +y up; null where there is no light), and the ring on the screen (CSS px: the needle's tips and
-   * each bead's centre and radius; null where the needle or the beads are not in the ring).
+   * `travel`, `orbit`, `inside`, `look`, `sheet`, `end`), how far through it (0 at its stop), the project's place on the
+   * way in a travel, an orbit or an inside (0 Funcial, 1 Jontai Energy, 2 Cookies Clicker; null elsewhere), the void's
+   * load (`idle`, `loading`, `ready`, `failed`), which holds the scroll at the hand-over until it is ready, the light
+   * dive's way frame (1-256, null elsewhere), how far the sheet over the look back is up (0..1), the light's centre on the
+   * screen (NDC, +y up; null where there is no light), each bead on the screen (CSS px, `BEADS` order; null before the
+   * path), the bead label beside the light and its opacity, and how far each bead's veins have woken (radians; 10 all).
    */
   journey: {
     stretch: Stretch;
@@ -76,10 +76,11 @@ export interface NeedleDebugState {
     project: number | null;
     voidState: VoidState;
     frame: number | null;
-    angle: number | null;
     sheet: number;
     light: { x: number; y: number } | null;
-    ring: RingView | null;
+    beads: BeadOnScreen[] | null;
+    label: { index: number; opacity: number } | null;
+    wake: number[];
   };
 }
 

@@ -6,11 +6,12 @@ import type { FocusMove } from '~/scene/bob/focus';
 import type { Stretch } from '~/scene/bob/journey';
 import type { VoidState } from './store';
 
-/** The ring on the screen, CSS px: the needle's tips, and each bead's centre and radius (`[x, y, r]`, in `BEADS` order). */
-export interface RingView {
-  front: [number, number];
-  back: [number, number];
-  beads: [number, number, number][];
+/** A bead on the screen, CSS px: its centre and radius, and whether it is drawn. */
+export interface BeadOnScreen {
+  x: number;
+  y: number;
+  r: number;
+  visible: boolean;
 }
 
 /**
@@ -49,15 +50,16 @@ export const frame = {
   scroll: { u: 0, letters: 0, iris: 0, needleDip: 0 },
   /**
    * Where the home's journey stands (src/scene/bob/journey.ts `journeyAt`), as the scene last posed it: the stretch
-   * (`rise`, `light`, `ring`, `sheet`, `end`), how far through it, the project in front of the ring (0, 1 or 2) or null,
-   * the light dive's way frame (1-300, null elsewhere), the ring's angle (degrees, null before the ring) and how far the
-   * end page's sheet is up (0..1). The Opening writes these on every frame it poses the journey, from the one pose it
-   * publishes for that frame (`writeJourney`, src/scene/bob/voidPose.ts); a frame of the loader or of a held seek leaves
-   * them as they were. `voidState` is the void's load (the store's `voidState`), which the Void writes as it changes, and
-   * `light` the light's centre on the screen (NDC, null where there is no light), which the Void projects each frame it
-   * poses it; and under `?proof` alone, `ring`, the ring on the screen as the Void last drew it (CSS px): the needle's
-   * front and back tips, and each bead's centre and radius in `BEADS` order, null where the needle or the beads are not
-   * in the ring. The debug bridge reports them all.
+   * (`rise`, `light`, `travel`, `orbit`, `inside`, `look`, `sheet`, `end`), how far through it, the project's place on
+   * the way in a travel, an orbit or an inside (0 for the first) or null, the light dive's way frame (1-256, null
+   * elsewhere) and how far the sheet over the look back has come (0..1). The Opening writes these on every frame it poses
+   * the journey, from the one pose it publishes for that frame (`writeJourney`, src/scene/bob/voidPose.ts); a frame of the
+   * loader or of a held seek leaves them as they were. `voidState` is the void's load (the store's `voidState`), which the
+   * Void writes as it changes, and `light` the light's centre on the screen (NDC, null where there is no light), which the
+   * Void projects each frame it poses it; and under `?proof` alone, what the Void last drew of the path: `beads`, each
+   * bead on the screen in `BEADS` order (null before the path), `label`, the bead label beside the light and its
+   * opacity, and `wake`, how far each bead's veins have woken (the light's sweep, radians; 10 all awake). The debug bridge
+   * reports them all.
    */
   journey: {
     stretch: 'rise' as Stretch,
@@ -65,10 +67,11 @@ export const frame = {
     project: null as number | null,
     voidState: 'idle' as VoidState,
     frame: null as number | null,
-    angle: null as number | null,
     sheet: 0,
     light: null as { x: number; y: number } | null,
-    ring: null as RingView | null
+    beads: null as BeadOnScreen[] | null,
+    label: null as { index: number; opacity: number } | null,
+    wake: [] as number[]
   },
   /** The index of the chapter `progress` is in (`chapterAt(...).index`). */
   chapterIndex: 0,

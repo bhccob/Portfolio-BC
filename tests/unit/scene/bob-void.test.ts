@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { damp } from 'maath/easing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { BEAD_MOTION, funcialMotion } from '~/engine/bob/beadMotion';
 import { readGlbJson } from '~/engine/bob/glb';
 import { readNeedleDebugState } from '~/debug/useNeedleDebug';
 import { startHomeScroll } from '~/input/scrollLoop';
@@ -14,23 +13,18 @@ import { F, LIGHT_FRAMES } from '~/scene/bob/lightDive';
 import { nearestStop } from '~/scene/bob/stepFade';
 import { loadVoid } from '~/scene/bob/voidLoad';
 import {
-  ABACUS_SPAN,
-  beadClocks,
   easeHover,
   hoverEase,
-  labelFor,
   needleFor,
   needleGlowFor,
-  ringStill,
   selectedBead,
-  stepBeadClocks,
   VOID_FROM,
   voidShownAt,
   voidShownFor,
   writeJourney
 } from '~/scene/bob/voidPose';
 import { NavigationType } from 'react-router';
-import { chapterAt, HOME_CHAPTERS, keyStops, placeOfFrame, scrollEnd, stops } from '~/state/chapters';
+import { chapterAt, HOME_CHAPTERS, keyStops, pathStart, placeOfFrame, scrollEnd, stops } from '~/state/chapters';
 import { frame } from '~/state/frame';
 import { BACK_STATE, resetRouteSync, stopForProject, syncRoute } from '~/state/routeSync';
 import { useScene, type VoidState } from '~/state/store';
@@ -39,8 +33,10 @@ const LAPTOP = 16 / 9;
 const PHONE = 390 / 844;
 const SCREENS = [LAPTOP, PHONE] as const;
 const KEY_STOPS = keyStops(HOME_CHAPTERS);
-/** The end of the scroll: the end page's stop, 7 (nothing lies past it). */
+/** The end of the scroll: the credits' stop (nothing lies past it). */
 const END = scrollEnd(HOME_CHAPTERS);
+/** The path's start, the hand-over (way frame 256). */
+const L = pathStart(HOME_CHAPTERS);
 
 // ---------------------------------------------------------------- the hold
 
@@ -50,17 +46,17 @@ const F241 = placeOfFrame(241);
 const H = LANDING_HOLD;
 
 describe('landingHoldFor: the most the scroll may reach before the beads are ready', () => {
-  it('is LANDING_HOLD, the light just short of the ring, until the void is ready, failed included', () => {
+  it('is LANDING_HOLD, the hand-over just before the first project, until the void is ready, failed included', () => {
     for (const state of ['idle', 'loading', 'failed'] as const) expect(landingHoldFor(state), state).toBe(H);
-    expect(H).toBe(placeOfFrame(258));
-    expect(journeyAt(H).stretch).toBe('light');
-    expect(journeyAt(H).frame).toBeCloseTo(258, 9);
-    for (const a of SCREENS) expect(journeyPoseAt(H, a).beads, 'the beads not yet in sight').toBeNull();
+    expect(H).toBe(L);
+    expect(H).toBe(placeOfFrame(256));
+    expect(journeyAt(H)).toMatchObject({ stretch: 'travel', local: 0, project: 0 });
+    for (const a of SCREENS) expect(journeyPoseAt(H, a).path!.beads.every((bead) => !bead.visible), 'the beads not yet in sight').toBe(true);
   });
 
-  it("is the end of the scroll once the void is ready, the end page's stop: nothing holds", () => {
+  it("is the end of the scroll once the void is ready, the credits' stop: nothing holds", () => {
     expect(landingHoldFor('ready')).toBe(END);
-    expect(END).toBe(7);
+    expect(END).toBeCloseTo(L + 15.55, 9);
   });
 
   it('answers a hold for every state, never above the end nor below the top of the rise', () => {
@@ -545,18 +541,17 @@ describe('the scroll input holds at the landing while the beads load', () => {
 // ---------------------------------------------------------------- frame.journey
 
 describe('frame.journey: where the journey stands, for the debug bridge', () => {
-  it('is filled from the pose the scene is posed at: its stretch, how far through it, its project, way frame, ring angle and sheet', () => {
+  it('is filled from the pose the scene is posed at: its stretch, how far through it, its project, way frame and sheet', () => {
     const into = { ...frame.journey, voidState: 'idle' as VoidState, light: null };
-    for (const p of [0, 0.5, 1, LANDING_HOLD, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 6.5, 7]) {
+    for (const p of [0, 0.5, 1, 2, 3, LANDING_HOLD, L + 1, L + 2, L + 3, L + 6, L + 13, L + 14.55, L + 15, END]) {
       const pose = journeyPoseAt(p, LAPTOP);
       writeJourney(into, pose);
       const at = journeyAt(p);
-      expect({ stretch: into.stretch, local: into.local, project: into.project, frame: into.frame, angle: into.angle }, `at ${p}`).toEqual({
+      expect({ stretch: into.stretch, local: into.local, project: into.project, frame: into.frame }, `at ${p}`).toEqual({
         stretch: at.stretch,
         local: at.local,
         project: at.project,
-        frame: at.frame,
-        angle: at.angle
+        frame: at.frame
       });
       expect(into.sheet, `at ${p}`).toBe(pose.sheet);
     }
@@ -565,16 +560,19 @@ describe('frame.journey: where the journey stands, for the debug bridge', () => 
   });
 
   it('starts at the home, with an idle void', () => {
-    expect(frame.journey).toEqual({ stretch: 'rise', local: 0, project: null, voidState: 'idle', frame: null, angle: null, sheet: 0, light: null, ring: null });
+    expect(frame.journey).toEqual({ stretch: 'rise', local: 0, project: null, voidState: 'idle', frame: null, sheet: 0, light: null, beads: null, label: null, wake: [] });
   });
 
   it('is on the debug state as a copy, voidState included', () => {
     const before = { ...frame.journey };
     try {
-      Object.assign(frame.journey, { stretch: 'ring', local: 0, project: 1, voidState: 'ready', frame: null, angle: 120, sheet: 0, light: null, ring: null });
+      const beads = [{ x: 10, y: 20, r: 30, visible: true }];
+      Object.assign(frame.journey, { stretch: 'orbit', local: 0.5, project: 1, voidState: 'ready', frame: null, sheet: 0, light: null, beads, label: { index: 1, opacity: 1 }, wake: [10, 3.1, 0] });
       const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
-      expect(state.journey).toEqual({ stretch: 'ring', local: 0, project: 1, voidState: 'ready', frame: null, angle: 120, sheet: 0, light: null, ring: null });
+      expect(state.journey).toEqual({ stretch: 'orbit', local: 0.5, project: 1, voidState: 'ready', frame: null, sheet: 0, light: null, beads, label: { index: 1, opacity: 1 }, wake: [10, 3.1, 0] });
       expect(state.journey).not.toBe(frame.journey);
+      expect(state.journey.beads).not.toBe(beads);
+      expect(state.journey.wake).not.toBe(frame.journey.wake);
     } finally {
       Object.assign(frame.journey, before);
     }
@@ -622,139 +620,18 @@ describe('voidShownFor: the void and the beads show only once the camera is unde
   });
 });
 
-describe('selectedBead: the project in front of the ring', () => {
-  it('is none on the rise and the light dive, and the front project round the ring, within 20 degrees of it', () => {
-    for (const p of [0, 0.5, 1, placeOfFrame(121), placeOfFrame(F.END - 1), 3.999]) expect(selectedBead(journeyAt(p))).toBeNull();
-    expect(selectedBead(journeyAt(4))).toBe(0);
-    expect(selectedBead(journeyAt(4.15))).toBe(0);
-    expect(selectedBead(journeyAt(4.2))).toBeNull();
-    expect(selectedBead(journeyAt(4.5))).toBeNull();
-    expect(selectedBead(journeyAt(5))).toBe(1);
-    expect(selectedBead(journeyAt(6))).toBe(2);
-    expect(selectedBead(journeyAt(6.5))).toBe(2); // the sheet rises over Cookies Clicker
+describe('selectedBead: the bead of an orbit or an inside', () => {
+  it('is none on the rise, in the light dive and on a travel, and the bead of an orbit or an inside', () => {
+    for (const p of [0, 0.5, 1, placeOfFrame(121), L - 0.001, L, L + 1]) expect(selectedBead(journeyAt(p)), `at ${p}`).toBeNull();
+    expect(selectedBead(journeyAt(L + 1.25))).toBe(0); // Funcial's orbit begins
+    expect(selectedBead(journeyAt(L + 2.7))).toBe(0); // its arrival stop, the inside's start
+    expect(selectedBead(journeyAt(L + 4))).toBe(0); // inside it
+    expect(selectedBead(journeyAt(L + 6))).toBe(1);
+    expect(selectedBead(journeyAt(L + 11.3))).toBe(2);
   });
 
-  it('is none at the end page: the scene sleeps there, so no bead\'s motion keeps the canvas drawing', () => {
-    expect(selectedBead(journeyAt(7))).toBeNull();
-    expect(selectedBead({ stretch: 'end', local: 0, frame: null, angle: 240, project: null })).toBeNull();
-  });
-});
-
-describe("the beads' motion clocks", () => {
-  it('runs the selected bead\'s clock, and only while it is selected or hovered', () => {
-    const clocks = beadClocks();
-    expect(stepBeadClocks(clocks, null, null, 0.1, false)).toBe(false);
-    expect(clocks.time).toEqual([0, 0, 0]);
-    expect(stepBeadClocks(clocks, 1, null, 0.5, false)).toBe(true);
-    expect(clocks.time).toEqual([0, 0.5, 0]);
-    expect(clocks.running).toEqual([false, true, false]);
-    stepBeadClocks(clocks, 1, null, 0.25, false);
-    expect(clocks.time).toEqual([0, 0.75, 0]);
-    // Let go: it holds where it was.
-    stepBeadClocks(clocks, null, null, 1, false);
-    expect(clocks.time).toEqual([0, 0.75, 0]);
-    // A hovered bead runs too, beside the selected one.
-    stepBeadClocks(clocks, 1, 2, 0.5, false);
-    expect(clocks.time[2]).toBe(0.5);
-    expect(clocks.running).toEqual([false, true, true]);
-  });
-
-  it("goes on with Funcial's own clock from where it stopped, as the others' (its platter and pulse never jump back)", () => {
-    expect(BEADS[0].id).toBe('funcial');
-    const clocks = beadClocks();
-    stepBeadClocks(clocks, 0, null, 3, false);
-    stepBeadClocks(clocks, null, null, 1, false);
-    stepBeadClocks(clocks, null, 0, 0.25, false); // hovered: it goes on
-    expect(clocks.time[0]).toBe(3.25);
-  });
-
-  it("slides Funcial's abacus on a clock of its own: up while it is selected or hovered, back down to 0 while not, never past its slide", () => {
-    expect(ABACUS_SPAN).toBe(BEAD_MOTION.funcial.abacus.span);
-    const clocks = beadClocks();
-    expect(clocks.abacus).toBe(0);
-    stepBeadClocks(clocks, 0, null, 0.5, false);
-    expect(clocks.abacus).toBe(0.5);
-    stepBeadClocks(clocks, 0, null, 5, false);
-    expect(clocks.abacus).toBe(ABACUS_SPAN);
-    stepBeadClocks(clocks, null, null, 0.75, false);
-    expect(clocks.abacus).toBeCloseTo(ABACUS_SPAN - 0.75, 12);
-    expect(clocks.moving).toEqual([true, false, false]);
-    stepBeadClocks(clocks, null, 0, 0.25, false); // hovered again: up from where it is
-    expect(clocks.abacus).toBeCloseTo(ABACUS_SPAN - 0.5, 12);
-    stepBeadClocks(clocks, null, null, 9, false);
-    expect(clocks.abacus).toBe(0);
-    expect(stepBeadClocks(clocks, null, null, 1 / 60, false)).toBe(false);
-    expect(clocks.moving).toEqual([false, false, false]);
-  });
-
-  it('never jumps an abacus bead from one frame to the next across select, leave and select again: they slide back down calmly', () => {
-    const clocks = beadClocks();
-    const dt = 1 / 60;
-    let previous = funcialMotion(clocks.abacus).abacus.slice();
-    let largest = 0;
-    let downs = 0;
-    // Selected 3 s, left 1 s (partly down), selected 0.6 s, left until it is down, hovered a moment, left again.
-    const script: [number | null, number | null, number][] = [
-      [0, null, 3],
-      [null, null, 1],
-      [0, null, 0.6],
-      [null, null, 3],
-      [null, 0, 0.3],
-      [null, null, 2.5]
-    ];
-    for (const [selected, hovered, seconds] of script) {
-      for (let k = 0; k < Math.round(seconds / dt); k++) {
-        stepBeadClocks(clocks, selected, hovered, dt, false);
-        const now = funcialMotion(clocks.abacus).abacus;
-        for (let b = 0; b < now.length; b++) {
-          largest = Math.max(largest, Math.abs(now[b]! - previous[b]!));
-          if (now[b]! < previous[b]! - 1e-12) downs++;
-        }
-        previous = now.slice();
-      }
-    }
-    // A bead's slide is a smoothstep over its share of the span (0.4 s): at most 1.5 of its rod in that share, a
-    // sixtieth of it a frame at 60 fps.
-    const share = BEAD_MOTION.funcial.abacus.span / BEAD_MOTION.funcial.abacus.beads;
-    expect(largest).toBeLessThanOrEqual(1.5 / share / 60 + 1e-9);
-    expect(downs).toBeGreaterThan(0);
-    expect(previous).toEqual([0, 0, 0, 0, 0]);
-  });
-
-  it('keeps Funcial moving while its abacus slides back down, then still, so the canvas may sleep', () => {
-    const clocks = beadClocks();
-    stepBeadClocks(clocks, 0, null, ABACUS_SPAN, false);
-    let frames = 0;
-    while (stepBeadClocks(clocks, null, null, 1 / 60, false)) frames++;
-    expect(frames).toBeGreaterThanOrEqual(Math.floor(ABACUS_SPAN * 60) - 1);
-    expect(frames).toBeLessThanOrEqual(Math.ceil(ABACUS_SPAN * 60));
-    expect(clocks.abacus).toBe(0);
-    expect(clocks.moving).toEqual([false, false, false]);
-  });
-
-  it('lets Jontai Energy and Cookies Clicker go on from where they stopped: their motions repeat, with nothing to slide back', () => {
-    const clocks = beadClocks();
-    stepBeadClocks(clocks, 2, null, 2.5, false);
-    stepBeadClocks(clocks, null, null, 1, false);
-    stepBeadClocks(clocks, 2, null, 0.5, false);
-    expect(clocks.time[2]).toBe(3);
-  });
-
-  it("runs no clock with reduced motion, the abacus's included: the objects stay still", () => {
-    const clocks = beadClocks();
-    expect(stepBeadClocks(clocks, 0, 1, 1, true)).toBe(false);
-    expect(clocks.time).toEqual([0, 0, 0]);
-    expect(clocks.abacus).toBe(0);
-    expect(clocks.running).toEqual([false, false, false]);
-    expect(clocks.moving).toEqual([false, false, false]);
-  });
-
-  it('takes no step that is not a positive number of seconds', () => {
-    const clocks = beadClocks();
-    stepBeadClocks(clocks, 0, null, Number.NaN, false);
-    stepBeadClocks(clocks, 0, null, -1, false);
-    expect(clocks.time[0]).toBe(0);
-    expect(clocks.abacus).toBe(0);
+  it('is none in the look back, where the pointer picks a bead, under the sheet and at the credits', () => {
+    for (const p of [L + 12.65, L + 13.5, L + 14.55, L + 15, END]) expect(selectedBead(journeyAt(p)), `at ${p}`).toBeNull();
   });
 });
 
@@ -871,9 +748,10 @@ describe("the beads' inner lights and their stand-ins", () => {
 // ---------------------------------------------------------------- reduced motion
 
 describe("the step fade's stops are the journey's chapter starts", () => {
-  it('fades between 0 and 7, BOB from above, every project and the end page, and poses each exactly', () => {
+  it('fades between the chapter starts, from the home to the credits, and poses each exactly', () => {
     const STOPS = stops(HOME_CHAPTERS);
-    expect(STOPS).toEqual([0, 1, 4, 5, 6, 7]);
+    expect(STOPS[0]).toBe(0);
+    expect(STOPS.at(-1)).toBe(END);
     for (const stop of STOPS) {
       expect(nearestStop(STOPS, stop)).toBe(stop);
       expect(nearestStop(STOPS, stop + 0.3)).toBe(Math.min(stop, END));
@@ -1142,70 +1020,25 @@ describe('needleFor: the needle the Void hands the compass', () => {
     expect(needleFor(journeyPoseAt(placeOfFrame(8), LAPTOP))!.scale).toBe(0);
   });
 
-  it('keeps it in the light through the fall, and draws it out at the ring from frame 272', () => {
-    for (const f of [9, 61, 121, 241, 271]) expect(needleFor(journeyPoseAt(placeOfFrame(f), LAPTOP))!.scale, `frame ${f}`).toBe(0);
-    for (const f of [272, 280, 299]) expect(needleFor(journeyPoseAt(placeOfFrame(f), LAPTOP)), `frame ${f}`).toEqual(journeyPoseAt(placeOfFrame(f), LAPTOP).needle);
-    expect(needleFor(journeyPoseAt(5, LAPTOP))!.scale).toBe(2);
+  it('keeps it in the light through the fall and the whole path: the light stays the light to the end', () => {
+    for (const f of [9, 61, 121, 241, 255]) expect(needleFor(journeyPoseAt(placeOfFrame(f), LAPTOP))!.scale, `frame ${f}`).toBe(0);
+    for (const p of [L, L + 2, L + 7, L + 13, END]) expect(needleFor(journeyPoseAt(p, LAPTOP))!.scale, `at ${p}`).toBe(0);
   });
 });
 
 describe('voidShownAt: the void shows from the light dive\'s frame 20, its band fading in from there', () => {
-  it('hides it on the rise and in the way in before frame 20, and shows it from 20 through the ring and the sheet', () => {
+  it('hides it on the rise and in the way in before frame 20, and shows it from 20 through the path and the sheet', () => {
     expect(VOID_FROM).toBe(20);
     for (const p of [0, 0.5, 1, placeOfFrame(10), placeOfFrame(19.9)]) expect(voidShownAt(journeyPoseAt(p, LAPTOP)), `at ${p}`).toBe(false);
-    for (const p of [placeOfFrame(20), placeOfFrame(30), placeOfFrame(121), 4, 5.5, 6.5, 7]) expect(voidShownAt(journeyPoseAt(p, PHONE)), `at ${p}`).toBe(true);
+    for (const p of [placeOfFrame(20), placeOfFrame(30), placeOfFrame(121), L + 1, L + 6, L + 13, END]) expect(voidShownAt(journeyPoseAt(p, PHONE)), `at ${p}`).toBe(true);
   });
 });
 
-describe('labelFor: the front bead\'s label in the ring', () => {
-  it('shows the label of the project within 20 degrees of the front, and none between projects, nor in the light dive', () => {
-    expect(labelFor(journeyAt(4.5), true)).toBeNull(); // 60 degrees: between Funcial and Jontai Energy
-    expect(labelFor(journeyAt(placeOfFrame(121)), true)).toBeNull();
-    expect(labelFor(journeyAt(4.15), true)).toEqual({ project: 0, rest: true }); // 18 degrees: Funcial
-    expect(labelFor(journeyAt(5 + 102 / 120), true)).toEqual({ project: 2, rest: true }); // 222 degrees: Cookies Clicker
-    expect(labelFor(journeyAt(7), true)).toBeNull();
-  });
-
-  it('shows it in full only while the ring stands still, and clear while it turns', () => {
-    expect(labelFor(journeyAt(4), false)).toEqual({ project: 0, rest: false });
-    expect(labelFor(journeyAt(5), true)).toEqual({ project: 1, rest: true });
-  });
-
-  it('counts the ring as still once the story is on its target, and always with reduced motion, whose shown stop never moves', () => {
-    expect(ringStill(4, 4, false)).toBe(true);
-    expect(ringStill(4.6, 5, false)).toBe(false);
-    // Reduced motion: the target jumps a stop and the scroll's own progress catches up unseen; the step fade shows stops.
-    expect(ringStill(4.6, 5, true)).toBe(true);
-  });
-
-  it("shows Cookies Clicker's at its own stop, 6, where the sheet's stretch begins, and none once the sheet is up at all", () => {
-    expect(journeyAt(6).stretch).toBe('sheet');
-    expect(labelFor(journeyAt(6), true)).toEqual({ project: 2, rest: true });
-    expect(labelFor(journeyAt(6.001), true)).toBeNull();
-  });
-});
-
-describe('needleGlowFor: the needle as it lands', () => {
-  it('leaves the needle to the home on the rise, and to the light before it is drawn out of it (frame 272)', () => {
+describe('needleGlowFor: the needle the light never becomes again', () => {
+  it('leaves the needle to the home on the rise, and to the light through the fall and the path', () => {
     expect(needleGlowFor(journeyAt(0.5))).toBeNull();
     expect(needleGlowFor(journeyAt(placeOfFrame(200)))).toBeNull();
-    expect(needleGlowFor(journeyAt(placeOfFrame(271)))).toBeNull();
-  });
-
-  it("glows 6 at the arrival (frame 273), the mock-up's near-white flash, down to its rest glow (1) by frame 296, never brighter on the way", () => {
-    expect(needleGlowFor(journeyAt(placeOfFrame(272)))).toBeCloseTo(6, 9);
-    expect(needleGlowFor(journeyAt(placeOfFrame(F.ARRIVE)))).toBeCloseTo(6, 9);
-    expect(needleGlowFor(journeyAt(placeOfFrame(296)))).toBeCloseTo(1, 9);
-    let last = Infinity;
-    for (let f = F.ARRIVE; f <= 300; f++) {
-      const glow = needleGlowFor(journeyAt(placeOfFrame(f)))!;
-      expect(glow).toBeLessThanOrEqual(last + 1e-12);
-      last = glow;
-    }
-  });
-
-  it('rests at 1 round the ring, under the sheet and at the end page', () => {
-    for (const p of [4, 4.5, 5, 6, 6.5, 7]) expect(needleGlowFor(journeyAt(p))).toBe(1);
+    for (const p of [L, L + 4, L + 13, L + 15, END]) expect(needleGlowFor(journeyAt(p)), `at ${p}`).toBeNull();
   });
 });
 
@@ -1216,13 +1049,13 @@ describe('a failed void: the fall plays, the story holds at the landing, and the
     return undefined;
   };
 
-  it('holds at LANDING_HOLD, and counts as held only there, with the void failed, short of the end page', () => {
+  it('holds at LANDING_HOLD, and counts as held only there, with the void failed, short of the credits', () => {
     expect(landingHoldFor('failed')).toBe(LANDING_HOLD);
     expect(heldAtLanding(LANDING_HOLD, 'failed')).toBe(true);
     expect(heldAtLanding(LANDING_HOLD - 0.01, 'failed')).toBe(false);
     expect(heldAtLanding(placeOfFrame(121), 'failed')).toBe(false);
     expect(heldAtLanding(LANDING_HOLD, 'loading')).toBe(false);
-    expect(heldAtLanding(7, 'failed')).toBe(false);
+    expect(heldAtLanding(END, 'failed')).toBe(false);
   });
 
   it('shows the home nav, its "Vragen & contact" link with it, over the scene at the hold only, never over the facts', () => {
@@ -1230,7 +1063,7 @@ describe('a failed void: the fall plays, the story holds at the landing, and the
     expect(ruleFor("html[data-3d='on'][data-void='failed'][data-rising] .home-nav")).toBeUndefined();
   });
 
-  it('never shows the skip button with the void failed: there is no ring', () => {
+  it('never shows the skip button with the void failed: there are no projects', () => {
     expect(ruleFor("html[data-void='failed'] .skip-button")).toMatch(/display:\s*none/);
   });
 });

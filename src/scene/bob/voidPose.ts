@@ -1,12 +1,11 @@
 /**
  * The void's per-frame decisions as plain rules: when the void and the beads show, which bead is selected, how the
- * beads' motion clocks run and how the hover eases, and what `frame.journey` reports. Pure, so the tests read the very
- * decisions the Void (src/scene/bob/Void.tsx) and the Opening make on each frame; it imports no code from React or three
- * (types only, the journey's beads, the light dive's needle glow and the objects' motion numbers).
+ * hover eases, and what `frame.journey` reports. Pure, so the tests read the very decisions the Void
+ * (src/scene/bob/Void.tsx) and the Opening make on each frame; it imports no code from React or three (types only, and
+ * the light dive's needle glow).
  */
 import type { CameraShot } from '~/engine/bob/shots';
-import { BEAD_MOTION } from '~/engine/bob/beadMotion';
-import { BEADS, type JourneyAt, type JourneyPose, type NeedleOverride } from './journey';
+import type { JourneyAt, JourneyPose, NeedleOverride } from './journey';
 import { F, needleGlow } from './lightDive';
 
 type Vec3 = readonly [number, number, number];
@@ -29,7 +28,7 @@ export function voidShownFor(shot: CameraShot): boolean {
 export const VOID_FROM = 20;
 
 /**
- * Whether the void shows at `pose`: from the light dive's frame 20 on, through the ring, the sheet and the end; never on
+ * Whether the void shows at `pose`: from the light dive's frame 20 on, through the light's path, the sheet and the end; never on
  * the rise. Above the glass, where the void would show under the home's, the glass dissolves over frames 16-28
  * (`GlassModel.setDissolve`) and the void's own glass sky is out (`VoidModel.setSky`) while the camera is above it.
  */
@@ -43,9 +42,9 @@ const PIVOT: Vec3 = [0, 0.09, 0];
 
 /**
  * The needle the Void hands the compass (`CompassModel.setNeedleWorld`) at `pose`: the journey's own where it has one
- * (drawn out of the light at the ring from way frame 272, and round the ring); else, once the light ignites (way frames
- * 2-8, `pose.ignite`), the compass's needle held at its pivot, its tip straight down as the rise left it, shrinking to
- * nothing as the light takes its place, and nothing through the fall; and none on the rise, where the compass holds it.
+ * (none now: the light stays the light to the end); else, once the light ignites (way frames 2-8, `pose.ignite`), the
+ * compass's needle held at its pivot, its tip straight down as the rise left it, shrinking to nothing as the light takes
+ * its place, and nothing through the fall and the path; and none on the rise, where the compass holds it.
  */
 export function needleFor(pose: Pick<JourneyPose, 'needle' | 'ignite'>): NeedleOverride | null {
   if (pose.needle !== null) return pose.needle;
@@ -54,110 +53,23 @@ export function needleFor(pose: Pick<JourneyPose, 'needle' | 'ignite'>): NeedleO
 
 /**
  * The needle's glow (`CompassModel.setNeedleGlow`) where the journey holds it: drawn out of the light from way frame 272
- * (`F.NEEDLE`), 6 at the arrival (the mock-up's near-white flash), down to its rest glow by frame 296 (`needleGlow`),
- * and 1 round the ring, under the sheet and at the end page. Null where the journey does not hold it: on the rise, where
- * the home breathes it, and in the light dive before it is drawn out, where it is hidden.
+ * (`F.NEEDLE`), 6 at the arrival, down to its rest glow by frame 296 (`needleGlow`). Null where the journey does not
+ * hold it: on the rise, where the home breathes it, in the light dive before it would be drawn out, where it is hidden,
+ * and on the light's path, where the light stays the light to the end.
  */
 export function needleGlowFor(at: JourneyAt): number | null {
   if (at.stretch === 'rise') return null;
   if (at.stretch === 'light') return at.frame !== null && at.frame >= F.NEEDLE ? needleGlow(at.frame) : null;
-  return 1;
+  return null;
 }
 
-/** The selected bead: the project in front of the ring (0, 1 or 2, in `BEADS` order, within `PROJECT_NEAR` of it), else none. */
+/**
+ * The selected bead: the bead of an orbit or an inside (its place on the way, in `BEADS` order), whose label shows and
+ * which a click or a tap opens; none in a travel, where the light is between beads, nor in the look back, where the
+ * pointer picks one.
+ */
 export function selectedBead(at: JourneyAt): number | null {
-  return at.stretch === 'ring' || at.stretch === 'sheet' ? at.project : null;
-}
-
-/**
- * Whether the journey stands in the ring: round it, and at Cookies Clicker's stop (6), which `journeyAt` reads as the
- * sheet's start; not once the sheet is up at all.
- */
-export function inRing(at: Pick<JourneyAt, 'stretch' | 'local'>): boolean {
-  return at.stretch === 'ring' || (at.stretch === 'sheet' && at.local === 0);
-}
-
-/**
- * Whether the ring stands still for the label (`labelFor`): the story on its target (the shown place, `progress`, is
- * where the input asked); and always with reduced motion, where the step fade shows stops alone and the scroll's own
- * progress catches up with the target unseen.
- */
-export function ringStill(progress: number, target: number, reduced: boolean): boolean {
-  return reduced || progress === target;
-}
-
-/** What the front bead's label shows: the project's bead, in `BEADS` order, and whether it shows in full. */
-export interface LabelFor {
-  project: number;
-  rest: boolean;
-}
-
-/**
- * The front bead's label in the ring: the project in front (within `PROJECT_NEAR`, 20 degrees, of the ring's front),
- * shown in full while the ring stands still (`still`: the shown place on its target) and clear while it turns; none
- * between projects, in the light dive, under the sheet or at the end page.
- */
-export function labelFor(at: JourneyAt, still: boolean): LabelFor | null {
-  if (!inRing(at) || at.project === null) return null;
-  return { project: at.project, rest: still };
-}
-
-/** Funcial's place in `BEADS`: the one bead whose abacus has a clock of its own. */
-const FUNCIAL = BEADS.findIndex(({ id }) => id === 'funcial');
-
-/** How long Funcial's abacus takes to slide all the way up (~/engine/bob/beadMotion), seconds: its own clock's reach. */
-export const ABACUS_SPAN = BEAD_MOTION.funcial.abacus.span;
-
-/** Under this, a clock counting down is at 0 (a sum of frame steps leaves a few ulps). */
-const AT_ZERO = 1e-9;
-
-/**
- * The beads' motion clocks, in `BEADS` order: whether each ran on the last step, its time (seconds of its object's
- * motion), and whether its object moved on the last step (`moving`: its clock ran, or Funcial's abacus slid).
- * `abacus` is Funcial's abacus's own clock, 0..`ABACUS_SPAN`.
- */
-export interface BeadClocks {
-  running: boolean[];
-  time: number[];
-  abacus: number;
-  moving: boolean[];
-}
-
-/** Every clock stopped at 0: each object at its rest pose. */
-export function beadClocks(): BeadClocks {
-  return { running: BEADS.map(() => false), time: BEADS.map(() => 0), abacus: 0, moving: BEADS.map(() => false) };
-}
-
-/**
- * Steps the clocks (in place) by `dt` seconds. A bead's clock runs only while it is the selected bead or the hovered
- * one, and never with reduced motion, where the objects stay still; it goes on from where it stopped, so nothing of an
- * object jumps back as its bead comes forward again (Jontai Energy's light passes and Cookies Clicker's tick repeat on
- * their own; Funcial's platter turns and its pulse runs on).
- *
- * Funcial's abacus reads a clock of its own: `funcialMotion` slides its beads up one after another from time
- * 0 and holds them at the top, so its time counts up, to `ABACUS_SPAN` at most, while the bead is selected or hovered,
- * and back down to 0 while it is not: the beads slide back down as calmly as they came up, and slide up again from
- * wherever they are, never snapping. It too stands still with reduced motion. A step that is not a positive number of
- * seconds moves nothing. Answers whether any object moved.
- */
-export function stepBeadClocks(clocks: BeadClocks, selected: number | null, hovered: number | null, dt: number, reduced: boolean): boolean {
-  const step = dt > 0 ? dt : 0;
-  let any = false;
-  for (let i = 0; i < clocks.time.length; i++) {
-    const runs = !reduced && (i === selected || i === hovered);
-    if (runs) clocks.time[i]! += step;
-    clocks.running[i] = runs;
-    let moved = runs && step > 0;
-    if (i === FUNCIAL && !reduced) {
-      const was = clocks.abacus;
-      const next = runs ? Math.min(ABACUS_SPAN, was + step) : was - step;
-      clocks.abacus = next > AT_ZERO ? next : 0;
-      moved ||= clocks.abacus !== was;
-    }
-    clocks.moving[i] = moved;
-    any ||= moved;
-  }
-  return any;
+  return at.stretch === 'orbit' || at.stretch === 'inside' ? at.project : null;
 }
 
 /** The hover as the beads show it: the bead whose hover is in (`BeadsModel.setHover`) and how far, 0..1. */
@@ -206,7 +118,7 @@ export function easeHover(hover: HoverEase, target: number | null, dt: number, r
 
 /** Writes where the journey stands into `frame.journey` (its stretch, local and project), leaving its `voidState`. */
 export function writeJourney(
-  into: { stretch: JourneyAt['stretch']; local: number; project: number | null; frame: number | null; angle: number | null; sheet: number },
+  into: { stretch: JourneyAt['stretch']; local: number; project: number | null; frame: number | null; sheet: number },
   pose: Pick<JourneyPose, 'at' | 'sheet'>
 ): void {
   const { at } = pose;
@@ -214,16 +126,15 @@ export function writeJourney(
   into.local = at.local;
   into.project = at.project;
   into.frame = at.frame;
-  into.angle = at.angle;
   into.sheet = pose.sheet;
 }
 
 /**
  * Whether the pointer is read for the beads with the journey at `pose`: whether it may hover a bead, and whether a click
- * (a tap) may open the selected one (src/scene/bob/Void.tsx). Not once the end page has begun to slide up (`sheet` above
- * 0), either way, nor at the end page: the page covers the scene there, inert while it moves, so a click on it would go
- * through to Cookies Clicker's bead under it; there a pointer neither turns a bead nor wakes the canvas, and a click or a
- * tap opens nothing. Everywhere else, round the ring, as before: `sheet` is 0 there (a sheet that is not a number reads
+ * (a tap) may open the selected one (src/scene/bob/Void.tsx). Not once the sheet over the look back has begun to come up
+ * (`sheet` above 0), either way, nor at the credits: the page covers the scene there, inert while it moves, so a click
+ * on it would go through to a bead under it; there a pointer neither turns a bead nor wakes the canvas, and a click or a
+ * tap opens nothing. Everywhere else on the path, as before: `sheet` is 0 there (a sheet that is not a number reads
  * as none, as the end view reads it).
  */
 export function hoversAt(pose: Pick<JourneyPose, 'sheet'>): boolean {

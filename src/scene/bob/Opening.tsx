@@ -18,7 +18,7 @@ import { readout } from '~/engine/loading';
 import { lowerTier, type QualityTier } from '~/engine/quality';
 import { useLoaderSkip } from '~/input/loaderSkip';
 import { frame } from '~/state/frame';
-import { stopForProject } from '~/state/routeSync';
+import { placeForProject } from '~/state/routeSync';
 import { useScene } from '~/state/store';
 import { openBead } from '~/ui/BeadLabel';
 import { motion } from '../motion';
@@ -619,11 +619,11 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       handover.pose = null;
     } else {
       // The one journey pose of this frame: the camera's shot, and what Home and the Void pose the scene from. A close
-      // view poses the journey at its bead's stop (the bead come forward and lit, the needle by it) and moves the shot
-      // toward the close view by the move's eased amount: the flight, or the page standing over it.
+      // view poses the journey where its bead was opened from, else at its stop (the bead in view and lit), and moves the
+      // shot toward the close view by the move's eased amount: the flight, or the page standing over it.
       const close = source === 'flight' ? focus.id : null;
       const reduced = useScene.getState().reducedMotion;
-      const at = close === null ? shownProgressFor(source === 'home' ? 'home' : 'journey', reduced, frame.progress, frame.target, handover.shown) : stopForProject(close);
+      const at = close === null ? shownProgressFor(source === 'home' ? 'home' : 'journey', reduced, frame.progress, frame.target, handover.shown) : placeForProject(close);
       const journey = journeyPoseAt(at, aspect);
       const pose = close === null ? journey : { ...journey, shot: shotToward(journey.shot, focusShotFor(close, aspect), focus.amount) };
       frame.shot = pose.shot;

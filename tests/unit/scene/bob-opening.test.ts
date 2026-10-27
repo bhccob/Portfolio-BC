@@ -178,7 +178,7 @@ describe('what an opening tells SceneHost (openingReadiness)', () => {
 describe("the Opening's shot in the light dive", () => {
   it("is the journey's, the way's own shot at each frame, on a desk and on a phone", () => {
     for (const aspect of [1440 / 900, 390 / 844]) {
-      for (const f of [1, 30, 61, 121, 261, 300]) {
+      for (const f of [1, 30, 61, 121, 241, 255]) {
         const p = placeOfFrame(f);
         // As the Opening writes it each frame: the journey's pose at the progress the home poses the scene at.
         const at = shownProgressFor('journey', false, p, p, p);

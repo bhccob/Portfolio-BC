@@ -38,17 +38,17 @@ export interface ChapterSpec {
 /** How far outside a chapter, in units, the scroll may drift before the chapter changes: it stops a boundary from flickering. */
 export const HYSTERESIS = 0.02;
 
-/** The way's frames in the previs (1 to 300); the light dive's pace is its 299 frames over three viewport heights. */
+/**
+ * The way's frames in the previs (1 to 300): the light dive's pace is its 299 frames over three viewport heights, as the
+ * mock-up Bob approved scrolled them.
+ */
 const WAY_FRAMES = 300;
-
-/** The light dive's scroll per way frame: the mock-up Bob approved scrolled the way's 300 frames over three units. */
-export const UNITS_PER_FRAME = 3 / (WAY_FRAMES - 1);
 
 /** The way frame at which the path takes the light over from the light dive (the light path mock-up's hand-over). */
 export const HAND_F = 256;
 
-/** The light dive's length in units: its frames 1 to `HAND_F` at its pace. */
-export const LIGHT_UNITS = UNITS_PER_FRAME * (HAND_F - 1);
+/** The light dive's length in units: its frames 1 to `HAND_F` at its pace (`placeOfFrame(HAND_F)` is its end, exactly). */
+export const LIGHT_UNITS = (3 * (HAND_F - 1)) / (WAY_FRAMES - 1);
 
 /** The way frames at which each of Bob's five facts is at full strength: the middle of its 40 frames (61 + 40 i + 20). */
 export const FACT_PEAKS = [81, 121, 161, 201, 241] as const;
@@ -173,12 +173,17 @@ export function sheetStart(c: Chapters): number {
 
 /** The place of the way's frame `f` (1 to `HAND_F`, fractional allowed) on the home's scroll: the light dive, linearly. */
 export function placeOfFrame(f: number): number {
-  return lightStart(HOME_CHAPTERS) + UNITS_PER_FRAME * (f - 1);
+  return placeIn(HOME_CHAPTERS, f);
 }
 
 /** The way's frame at place `p` of the home's scroll: `placeOfFrame` turned round (and its pace past the light dive too). */
 export function frameOfPlace(p: number): number {
-  return 1 + (p - lightStart(HOME_CHAPTERS)) / UNITS_PER_FRAME;
+  return 1 + ((p - lightStart(HOME_CHAPTERS)) / 3) * (WAY_FRAMES - 1);
+}
+
+/** The place of way frame `f` on the scroll of chapters `c`, as `frameOfPlace` reads it back: the very same frame. */
+function placeIn(c: Chapters, f: number): number {
+  return lightStart(c) + (3 * (f - 1)) / (WAY_FRAMES - 1);
 }
 
 /** The end of the unit `id` of the project of `category`; throws for a category that is not on the way. */
@@ -203,7 +208,7 @@ export function insideStop(c: Chapters, category: string): number {
  * each fact at full strength (`FACT_PEAKS`), each project's arrival and inside, the look back and the credits.
  */
 export function keyStops(c: Chapters): number[] {
-  const facts = FACT_PEAKS.map((f) => lightStart(c) + UNITS_PER_FRAME * (f - 1));
+  const facts = FACT_PEAKS.map((f) => placeIn(c, f));
   const path = c.units.filter((u) => u.id === 'ORBIT' || u.id === 'INSIDE').map((u) => u.start + u.length);
   return [0, riseTop(c), ...facts, ...path, sheetStart(c), scrollEnd(c)];
 }
