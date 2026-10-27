@@ -386,20 +386,18 @@ export function lightAt(f: number, aspect: number): LightAt {
 }
 
 // ---------------------------------------------------------------- the trail
-const TRAIL_MEMORY = 10;
+/**
+ * How many way frames the tail's sideways moves take to draw in toward the light (1/e): it keeps the full height of the
+ * light's path above it, and only a lean toward where the light came from (Bob, 2026-10-27: not a snake).
+ */
+const TAIL_SWAY = 14;
 const TRAIL_FRAMES = 110;
 const TRAIL_PILLAR = { laid: [52, 62], fade: [F.TURN, 70] } as const;
 /** The trail fades out in the landing. */
 export const TRAIL_OUT = [254, 274] as const;
 const TRAIL_LENGTH = 2.8;
-const TRAIL_CHASE_LENGTH = 1.1;
-
-/** How far the trail has streamed back by frame g (the chase's speed, never easing out). */
-function trailStream(g: number): number {
-  let s = 0;
-  for (let f = 1; f <= Math.floor(g); f++) s += U_CHASE * easeIo(span(f, STREAM_IN[0], STREAM_IN[1]));
-  return s;
-}
+/** From the chase on, the tail rises this far above the light (m): Bob's "bigger and longer". */
+const TRAIL_CHASE_LENGTH = 1.6;
 
 export interface TrailPoint {
   /** Where the light passed, carried back toward the camera, three's frame. */
@@ -409,15 +407,17 @@ export interface TrailPoint {
 }
 
 /**
- * The trail at way frame f (the previs's `build_trail` points): the light's past places, newest first, drawn toward the
- * light as they age and carried back toward the camera, each with its share of the fade; empty before the light ignites.
+ * The trail at way frame f: the light's past places, newest first, each with its share of the fade; empty before the
+ * light ignites. Down the shaft they are the past places themselves (the previs's `build_trail`); from the camera's turn
+ * to the side on, they keep their height above the light, so the tail stands above it as it falls, and their sideways
+ * moves draw in toward the light as they age (TAIL_SWAY). The previs carried them back toward the camera instead, which
+ * from the camera's height drew the tail below the light (Bob, 2026-10-27: "the tail sits below, not above").
  */
 export function trailAt(f: number, aspect: number): TrailPoint[] {
   const out: TrailPoint[] = [];
   const now = lightCentre(f, aspect);
   const pillar = easeIo(span(f, TRAIL_PILLAR.fade[0], TRAIL_PILLAR.fade[1]));
   const length = lerp(TRAIL_LENGTH, TRAIL_CHASE_LENGTH, easeIo(span(f, F.TURN, F.CHASE)));
-  const sNow = trailStream(f);
   let run = 0;
   let last: V3 | null = null;
   for (let k = 0; k <= TRAIL_FRAMES; k++) {
@@ -428,8 +428,8 @@ export function trailAt(f: number, aspect: number): TrailPoint[] {
     if (f <= F.TURN) {
       p = then;
     } else {
-      const w = lerp(1, Math.exp(-(f - g) / TRAIL_MEMORY), easeIo(span(f, F.TURN, F.CHASE)));
-      p = [now[0] + (then[0] - now[0]) * w, now[1] + (then[1] - now[1]) * w + (trailStream(g) - sNow), now[2] + (then[2] - now[2]) * w];
+      const w = lerp(1, Math.exp(-(f - g) / TAIL_SWAY), easeIo(span(f, F.TURN, F.CHASE)));
+      p = [now[0] + (then[0] - now[0]) * w, then[1], then[2]];
     }
     if (last) {
       const step = Math.hypot(p[0] - last[0], p[1] - last[1], p[2] - last[2]);
@@ -543,6 +543,53 @@ export function filamentsAt(f: number): FilamentAt[] {
       points: a.map((pa, i) => toThree([lerp(pa[0], b[i]![0], t), lerp(pa[1], b[i]![1], t), lerp(pa[2], b[i]![2], t)])),
       brightness: fade * (0.55 + 0.45 * Math.sin((2 * Math.PI * f) / (37 + 6 * k) + 1.7 * k))
     };
+  });
+}
+
+// ---------------------------------------------------------------- the sparks
+/** The sparks off the tail (Bob, 2026-10-27: "a few electricity sparks"): how many, the points of each. */
+export const SPARK_N = 3;
+export const SPARK_PTS = 7;
+/** How many way frames a spark lives, flashing up and out, before it jumps from another place. */
+const SPARK_STEP = 5;
+
+export interface SparkAt {
+  /** Where along the tail it jumps from: the trail's share of the fade, 0 at the light. */
+  u: number;
+  /** Its points from there, in units of the light's radius, three's frame; the first at the tail. */
+  points: Vec3[];
+  /** How bright it is now, 0..1. */
+  brightness: number;
+}
+
+/** Spark k's n-th life: a jagged line out from the tail, sideways round it and a little up, 1.4 to 2.8 radii long. */
+function sparkShape(k: number, n: number): { u: number; points: Vec3[] } {
+  const r = rng(4409 * (k + 1) + 53 * n);
+  const u = r.uniform(0.04, 0.4);
+  const th = r.uniform(0, 2 * Math.PI);
+  const d: V3 = [Math.cos(th), r.uniform(-0.1, 0.5), Math.sin(th)];
+  const len = r.uniform(1.4, 2.8);
+  const points: Vec3[] = [[0, 0, 0]];
+  for (let i = 1; i < SPARK_PTS; i++) {
+    const t = i / (SPARK_PTS - 1);
+    const j = r.uniform(-0.38, 0.38) * (1 - 0.4 * t);
+    const lift = r.uniform(-0.18, 0.18);
+    points.push([d[0] * len * t - d[2] * j, d[1] * len * t + lift, d[2] * len * t + d[0] * j]);
+  }
+  return { u, points };
+}
+
+/**
+ * The sparks at way frame f (on the path, its filaments' frame): each flashes up and out over SPARK_STEP frames, then
+ * jumps from another place on the tail; a third of a life apart, so one or two show at a time and never all three. By
+ * the frame alone, as the filaments: they crackle as the scroll moves and hold still when it rests.
+ */
+export function sparksAt(f: number): SparkAt[] {
+  return Array.from({ length: SPARK_N }, (_, k) => {
+    const g = f + (k * SPARK_STEP) / SPARK_N;
+    const n = Math.floor(g / SPARK_STEP);
+    const t = (g - n * SPARK_STEP) / SPARK_STEP;
+    return { ...sparkShape(k, n), brightness: Math.sin(Math.PI * t) ** 2 };
   });
 }
 

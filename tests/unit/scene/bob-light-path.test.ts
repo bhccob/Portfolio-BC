@@ -147,13 +147,17 @@ describe("the light's trail across the hand-over", () => {
     }
   });
 
-  it("lets the path's own places push the fall's out as the light leads on, to about a metre", () => {
+  it("lets the path's own places push the fall's out as the light leads on, as long as the fall's own tail", () => {
     const path = makePath(1440 / 900);
     const length = (q: number) => {
       const t = path.frameAt(q).light.trail;
       return t.slice(1).reduce((sum, p, k) => sum + Math.hypot(p.point[0] - t[k]!.point[0], p.point[1] - t[k]!.point[1], p.point[2] - t[k]!.point[2]), 0);
     };
-    for (const q of [0.6, 3, 9]) expect(length(q), `at ${q}`).toBeLessThan(1.25);
+    // The fall's tail at the hand-over (Bob, 2026-10-27: bigger and longer, about 1.6 m), and the path's no longer.
+    const hand = trailAt(HAND_F, 1440 / 900);
+    const fallLength = hand.slice(1).reduce((sum, p, k) => sum + Math.hypot(p.point[0] - hand[k]!.point[0], p.point[1] - hand[k]!.point[1], p.point[2] - hand[k]!.point[2]), 0);
+    expect(fallLength).toBeGreaterThan(1.4);
+    for (const q of [0.6, 3, 9]) expect(length(q), `at ${q}`).toBeLessThan(fallLength + 0.25);
     // Well past the hand-over the trail is the path's alone: every point on its way, none of the fall's.
     const late = path.frameAt(0.6).light.trail.map((t) => t.point);
     const fall = trailAt(HAND_F, 1440 / 900).slice(1).map((t) => t.point);

@@ -226,7 +226,7 @@ interface VoidRun {
 const NO_SIZE = { width: 0, height: 0 };
 
 /** The light out: no glow, so its body and its trail are hidden and its lamp is at 0. */
-const DARK: LightPose = { position: [0, 0, 0], radius: 0, glow: 0, stretch: 0, yaw: 0, trail: [], trailLevel: 0, filaments: [] };
+const DARK: LightPose = { position: [0, 0, 0], radius: 0, glow: 0, stretch: 0, yaw: 0, trail: [], trailLevel: 0, filaments: [], sparks: [] };
 
 /** Below this the camera is under the void's glass sky (the previs's SKY_Z, a hair under the ceiling), which shows from there. */
 const UNDER_SKY = VOID_LOOK.ceiling.y - 0.1;

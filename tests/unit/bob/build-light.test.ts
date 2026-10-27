@@ -4,12 +4,12 @@ import { buildLight, LIGHT_LOOK, TRAIL_SIDES, type LightModel } from '~/engine/b
 import { applyCameraShot } from '~/engine/bob/shots';
 import { palette } from '~/engine/palette';
 import type { LightPose } from '~/scene/bob/journey';
-import { F, filamentsAt, lightAt, trailAt, trailLevel, wayShot } from '~/scene/bob/lightDive';
+import { F, filamentsAt, lightAt, sparksAt, trailAt, trailLevel, wayShot } from '~/scene/bob/lightDive';
 
 const DESK = 1440 / 900;
 
 /** The light's pose at way frame f, as the journey gives it. */
-const poseAt = (f: number, aspect = DESK): LightPose => ({ ...lightAt(f, aspect), trail: trailAt(f, aspect), trailLevel: trailLevel(f), filaments: filamentsAt(f) });
+const poseAt = (f: number, aspect = DESK): LightPose => ({ ...lightAt(f, aspect), trail: trailAt(f, aspect), trailLevel: trailLevel(f), filaments: filamentsAt(f), sparks: sparksAt(f) });
 
 /** The camera at way frame f. */
 function cameraAt(f: number, aspect = DESK): THREE.PerspectiveCamera {
@@ -43,10 +43,10 @@ function materials(light: LightModel): THREE.Material[] {
 }
 
 describe('the light', () => {
-  it('holds its parts: the body (core, shell, halo, filaments), the trail and the lamp', () => {
+  it('holds its parts: the body (core, shell, halo, filaments), the trail, its sparks and the lamp', () => {
     const light = buildLight('high');
     expect(light.group.name).toBe('light');
-    expect(light.group.children.map((o) => o.name)).toEqual(['light:body', 'light:trail', 'light:lamp']);
+    expect(light.group.children.map((o) => o.name)).toEqual(['light:body', 'light:trail', 'light:sparks', 'light:lamp']);
     expect(named(light, 'light:body').children.map((o) => o.name)).toEqual(['light:core', 'light:shell', 'light:halo', 'light:filaments']);
     expect(TRAIL_SIDES).toBe(10);
     light.dispose();
@@ -166,6 +166,33 @@ describe('the light', () => {
     light.dispose();
   });
 
+  it('draws the sparks off the tail in the world, each where it jumps from, and none with no tail or on the low tier', () => {
+    const light = buildLight('high');
+    const pose = poseAt(150);
+    light.setPose(pose, cameraAt(150));
+    const sparks = named<THREE.LineSegments>(light, 'light:sparks');
+    expect(sparks.visible).toBe(true);
+    const position = sparks.geometry.getAttribute('position');
+    const colour = sparks.geometry.getAttribute('color');
+    // The first spark's first segment: from the tail's point where it jumps, out along its own shape in the light's radius.
+    const first = pose.sparks[0]!;
+    const from = pose.trail.find((t) => t.u >= first.u)!.point;
+    for (let i = 0; i < 3; i++) {
+      expect(position.getComponent(0, i)).toBeCloseTo(from[i]!, 5);
+      expect(position.getComponent(1, i)).toBeCloseTo(from[i]! + first.points[1]![i]! * pose.radius, 5);
+    }
+    expect(colour.getX(0)).toBeCloseTo(first.brightness, 5);
+    expect(colour.getX(0)).toBe(colour.getY(0));
+    // No tail, no sparks; and none on the low tier, for good.
+    light.setPose({ ...pose, trailLevel: 0 }, cameraAt(150));
+    expect(sparks.visible).toBe(false);
+    light.setPose(pose, cameraAt(150));
+    light.setTier('low');
+    light.setPose(pose, cameraAt(150));
+    expect(sparks.visible).toBe(false);
+    light.dispose();
+  });
+
   it('drops its filaments on the low tier, and never takes them back', () => {
     const light = buildLight('high');
     light.setTier('low');
@@ -189,8 +216,8 @@ describe('the light', () => {
         if (m.map) parts.add(m.map);
       }
     });
-    // Core, shell, trail and filaments: a geometry and a material each; the halo's material and texture.
-    expect(parts.size).toBe(4 * 2 + 2);
+    // Core, shell, trail, filaments and sparks: a geometry and a material each; the halo's material and texture.
+    expect(parts.size).toBe(5 * 2 + 2);
     const spies = [...parts].map((part) => vi.spyOn(part, 'dispose'));
     light.dispose();
     for (const spy of spies) expect(spy).toHaveBeenCalled();

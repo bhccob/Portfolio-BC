@@ -19,7 +19,7 @@ import { palette } from '~/engine/palette';
 import { lowerTier, type QualityTier } from '~/engine/quality';
 
 import type { LightPose } from '~/scene/bob/journey';
-import { filamentsAt } from '~/scene/bob/lightDive';
+import { filamentsAt, SPARK_N, SPARK_PTS } from '~/scene/bob/lightDive';
 
 /** The trail tube's sides, the previs's. */
 export const TRAIL_SIDES = 10;
@@ -39,6 +39,8 @@ const TRAIL_RINGS = 111;
  * - `trail`: a tube `width` wide at the light, narrowing as `(1 - u)` to the power `taper` toward its tail; its light
  *   falls with its age as `(1 - u)` to the power `age` and toward its edges as the face's angle to the power `core`; gold
  *   light at its head, gold from `head` of the way on.
+ * - `sparks`: the journey's sparks off the trail, thin lines like the filaments in gold light, each from the trail's
+ *   point where it jumps, `level` times its brightness and the trail's level.
  * - `lamp`: a point light in gold light, `distance` its reach.
  * - `stretch`: as it becomes the needle the body is drawn out `along` times its stretch along the needle's axis (three's
  *   z: the previs's y), and thinned `across` times it across.
@@ -48,7 +50,8 @@ export const LIGHT_LOOK = {
   shell: { colour: palette.gold, level: 1.4, rim: { power: 2.2, weight: 0.85, face: 0.12 }, segments: [48, 24] as const },
   halo: { radius: 4, colour: palette.gold, level: 0.35, fall: 3.2 },
   filaments: { colour: palette.goldLight, level: 2.2 },
-  trail: { width: 0.5, taper: 1.35, colour: palette.gold, headColour: palette.goldLight, head: 0.15, level: 0.6, age: 1.7, core: 1.6 },
+  trail: { width: 1.5, taper: 1, colour: palette.gold, headColour: palette.goldLight, head: 0.3, level: 0.55, age: 2.2, core: 6 },
+  sparks: { colour: palette.goldLight, level: 2.4 },
   lamp: { colour: palette.goldLight, level: 2, distance: 8 },
   stretch: { along: 3, across: 0.65 }
 } as const;
@@ -238,7 +241,23 @@ export function buildLight(tier: QualityTier): LightModel {
 
   for (const part of [core, shell, halo, filaments, trail]) ignoreRays(part);
   body.add(core, shell, halo, filaments);
-  group.add(body, trail, lamp);
+  // The sparks: one draw of every spark's segments, in the world, each vertex's strength a grey on the material's gold.
+  const sparkSegments = SPARK_N * (SPARK_PTS - 1);
+  const sparkPositions = new THREE.BufferAttribute(new Float32Array(sparkSegments * 2 * 3), 3);
+  sparkPositions.setUsage(THREE.DynamicDrawUsage);
+  const sparkColours = new THREE.BufferAttribute(new Float32Array(sparkSegments * 2 * 3), 3);
+  sparkColours.setUsage(THREE.DynamicDrawUsage);
+  const sparkGeometry = new THREE.BufferGeometry();
+  sparkGeometry.setAttribute('position', sparkPositions);
+  sparkGeometry.setAttribute('color', sparkColours);
+  const sparkMaterial = new THREE.LineBasicMaterial({ name: 'light:sparks', color: look.sparks.colour, vertexColors: true, ...ADDED });
+  const sparks = new THREE.LineSegments(sparkGeometry, sparkMaterial);
+  sparks.name = 'light:sparks';
+  sparks.frustumCulled = false;
+  sparks.visible = false;
+  ignoreRays(sparks);
+
+  group.add(body, trail, sparks, lamp);
 
   /** Rebuilds the trail from the journey's points at a light of `radius`: answers how many rings it laid. */
   const layTrail = (points: LightPose['trail'], radius: number): number => {
@@ -303,6 +322,31 @@ export function buildLight(tier: QualityTier): LightModel {
     filamentColours.needsUpdate = true;
   };
 
+  /** Lays the sparks off the trail: each from the trail's point where it jumps, out along its shape in the light's radius. */
+  const laySparks = (list: LightPose['sparks'], points: LightPose['trail'], radius: number): void => {
+    const out = sparkPositions.array as Float32Array;
+    const grey = sparkColours.array as Float32Array;
+    let v = 0;
+    for (let k = 0; k < SPARK_N; k++) {
+      const spark = list[k];
+      const from = spark === undefined ? undefined : (points.find((p) => p.u >= spark.u) ?? points.at(-1))?.point;
+      for (let i = 0; i < SPARK_PTS - 1; i++) {
+        for (const j of [i, i + 1]) {
+          const p = spark?.points[j];
+          // Brightest at the tail, thinning out toward its tip.
+          const strength = spark && from ? Math.max(spark.brightness, 0) * (1 - j / (SPARK_PTS - 1)) ** 0.6 : 0;
+          out[v * 3] = (from?.[0] ?? 0) + (p?.[0] ?? 0) * radius;
+          out[v * 3 + 1] = (from?.[1] ?? 0) + (p?.[1] ?? 0) * radius;
+          out[v * 3 + 2] = (from?.[2] ?? 0) + (p?.[2] ?? 0) * radius;
+          grey[v * 3] = grey[v * 3 + 1] = grey[v * 3 + 2] = strength;
+          v++;
+        }
+      }
+    }
+    sparkPositions.needsUpdate = true;
+    sparkColours.needsUpdate = true;
+  };
+
   return {
     group,
     setPose(pose, _camera) {
@@ -313,6 +357,7 @@ export function buildLight(tier: QualityTier): LightModel {
       lamp.intensity = look.lamp.level * glow;
       if (!lit) {
         trail.visible = false;
+        sparks.visible = false;
         return;
       }
       const r = Math.max(pose.radius, 1e-6);
@@ -334,14 +379,19 @@ export function buildLight(tier: QualityTier): LightModel {
       trail.visible = rings >= 2;
       trailMaterial.color.set(look.trail.colour).multiplyScalar(level);
       trailUniforms.uHead.value.set(look.trail.headColour).multiplyScalar(level);
+      sparks.visible = trail.visible && standing !== 'low';
+      if (sparks.visible) {
+        sparkMaterial.color.set(look.sparks.colour).multiplyScalar(look.sparks.level * clamp01(pose.trailLevel) * glow);
+        laySparks(pose.sparks, pose.trail, r);
+      }
     },
     setTier(next) {
       standing = lowerTier(standing, next);
-      if (standing === 'low') filaments.visible = false;
+      if (standing === 'low') filaments.visible = sparks.visible = false;
     },
     dispose() {
-      for (const geometry of [coreGeometry, shellGeometry, filamentGeometry, trailGeometry]) geometry.dispose();
-      for (const material of [coreMaterial, shellMaterial, haloMaterial, filamentMaterial, trailMaterial]) material.dispose();
+      for (const geometry of [coreGeometry, shellGeometry, filamentGeometry, trailGeometry, sparkGeometry]) geometry.dispose();
+      for (const material of [coreMaterial, shellMaterial, haloMaterial, filamentMaterial, trailMaterial, sparkMaterial]) material.dispose();
       haloMap.dispose();
     }
   };

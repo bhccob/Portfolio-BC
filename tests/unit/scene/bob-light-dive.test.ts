@@ -16,10 +16,15 @@ import {
   ringNeedle,
   ringShot,
   sizeFor,
+  sparksAt,
+  trailAt,
   voidAt,
   wayNeedle,
   wayShot,
 } from '../../../src/scene/bob/lightDive';
+import { journeyPoseAt } from '../../../src/scene/bob/journey';
+import { makePath } from '../../../src/scene/bob/lightPath';
+import { placeOfFrame } from '../../../src/state/chapters';
 
 type Vec3 = readonly [number, number, number];
 const HERE = fileURLToPath(new URL('.', import.meta.url));
@@ -114,5 +119,70 @@ describe('the light dive, ported from the previs (tools/blender/light_dive.py, 4
     expect(voidAt(300, 0.46).bandDistance).toBe(30);
     expect(voidAt(265, 1.6).bandDistance).toBeGreaterThan(12);
     expect(voidAt(265, 1.6).bandDistance).toBeLessThan(26);
+  });
+});
+
+describe('the tail (Bob, 2026-10-27): above the light as it falls, bigger and longer', () => {
+  /** A point on the screen of way frame f's camera, NDC (+y up). */
+  const onScreen = (p: Vec3, f: number, aspect: number): Vector3 => {
+    const camera = new PerspectiveCamera(50, aspect, 0.1, 400);
+    applyCameraShot(camera, wayShot(f, aspect), aspect);
+    camera.updateMatrixWorld(true);
+    return new Vector3(...p).project(camera);
+  };
+  const ASPECTS = [1440 / 900, 390 / 844];
+
+  it('stands above the light on the screen at every frame of the fall, never streaming down toward the camera', () => {
+    for (const aspect of ASPECTS) {
+      for (let f = 61; f <= 256; f++) {
+        const light = onScreen(lightAt(f, aspect).position, f, aspect);
+        for (const t of trailAt(f, aspect).slice(1)) expect(onScreen(t.point, f, aspect).y, `${aspect.toFixed(2)} frame ${f}`).toBeGreaterThanOrEqual(light.y - 1e-6);
+      }
+    }
+  });
+
+  it('rises well above the light at every fact, a fifth of the screen and more', () => {
+    for (const aspect of ASPECTS) {
+      for (const f of [81, 121, 161, 201, 241]) {
+        const light = onScreen(lightAt(f, aspect).position, f, aspect);
+        const top = Math.max(...trailAt(f, aspect).map((t) => onScreen(t.point, f, aspect).y));
+        expect(top - light.y, `${aspect.toFixed(2)} frame ${f}`).toBeGreaterThan(0.4);
+      }
+    }
+  });
+});
+
+describe('the sparks off the tail (Bob, 2026-10-27)', () => {
+  it('are three small jagged sparks near the light, the same for the same frame, never a burst and never none', () => {
+    for (let f = 61; f <= 256; f += 0.5) {
+      const sparks = sparksAt(f);
+      expect(sparks).toHaveLength(3);
+      expect(sparksAt(f)).toEqual(sparks);
+      for (const s of sparks) {
+        expect(s.u).toBeGreaterThanOrEqual(0.04);
+        expect(s.u).toBeLessThanOrEqual(0.4);
+        expect(s.points[0]).toEqual([0, 0, 0]);
+        const reach = Math.hypot(...s.points.at(-1)!);
+        expect(reach, `frame ${f}`).toBeGreaterThan(1);
+        expect(reach, `frame ${f}`).toBeLessThan(3.5);
+        expect(s.brightness).toBeGreaterThanOrEqual(0);
+        expect(s.brightness).toBeLessThanOrEqual(1);
+      }
+      expect(sparks.filter((s) => s.brightness > 0.5).length, `frame ${f}`).toBeLessThanOrEqual(2);
+      expect(sparks.some((s) => s.brightness > 0.1), `frame ${f}`).toBe(true);
+    }
+  });
+
+  it('flashes each up and out over five frames, then jumps from another place on the tail', () => {
+    expect(sparksAt(100)[0]!.brightness).toBe(0);
+    expect(sparksAt(102.5)[0]!.brightness).toBeCloseTo(1, 9);
+    expect(sparksAt(105)[0]!.u).not.toBe(sparksAt(104.9)[0]!.u);
+  });
+
+  it('ride with the light in the fall and on its way to every project', () => {
+    const aspect = 1440 / 900;
+    const pose = journeyPoseAt(placeOfFrame(121), aspect);
+    expect(pose.light?.sparks).toEqual(sparksAt(pose.at.frame!));
+    expect(makePath(aspect).frameAt(1).light.sparks).toHaveLength(3);
   });
 });

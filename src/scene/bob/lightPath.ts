@@ -25,7 +25,7 @@
 import type { CameraShot } from '~/engine/bob/shots';
 import { shotToward } from '~/engine/bob/shots';
 import { type Chapters, frameOfPlace, HAND_F, HOME_CHAPTERS, pathStart } from '~/state/chapters';
-import { type FactAt, filamentsAt, lightAt, sizeFor, streamAt, trailAt, trailLevel, voidAt, wayShot } from './lightDive';
+import { type FactAt, filamentsAt, lightAt, sizeFor, sparksAt, streamAt, trailAt, trailLevel, voidAt, wayShot } from './lightDive';
 import type { LightPose, VoidPose } from './poseTypes';
 
 export type Vec3 = [number, number, number];
@@ -456,7 +456,8 @@ export function makePath(aspect: number, c: Chapters = HOME_CHAPTERS): Path {
       yaw: Math.atan2(-fwd[0], -fwd[2]),
       trail: trailAtQ(Math.max(q, 0)),
       trailLevel: handTrail,
-      filaments: filamentsAt(fil)
+      filaments: filamentsAt(fil),
+      sparks: sparksAt(fil)
     };
     const look = s.kind === 'look' ? ease(seg(t, 0.2, 0.9)) : s.kind === 'sheet' ? 1 : 0;
 
