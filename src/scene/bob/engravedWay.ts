@@ -8,8 +8,8 @@
  *   through the compass; gone before the first fact shows;
  * - the hall: wide rings the camera stands inside once it turns to follow the light from the side, opening out below
  *   `HALL.open` (wider, further apart, a little tilted) and fading over the first trip;
- * - the trips: the light's own line along each travel, out early in the bead's orbit, none inside, all faint in the
- *   look back behind the way's gold line.
+ * - the trips: the light's own line along each travel, coming in as the light leaves the last bead (or the turn out of
+ *   the fall), out early in the next bead's orbit, none inside, all faint in the look back behind the way's gold line.
  */
 import type { JourneyAt } from './journey';
 import type { Path, PathFrame, Vec3 } from './lightPath';
@@ -44,7 +44,11 @@ export const ENGRAVED = {
   HALL_OUT_T: 0.6,
   /** The first trip's line begins this far into its travel, past the turn out of the fall. */
   FIRST_TRIP_FROM_T: 0.12,
-  FIRST_TRIP_IN_T: [0.05, 0.25],
+  /**
+   * Every trip's line comes in over its travel's t: out where the travel begins, the bead's inside stop (a phone sees
+   * past the bead there), whole once the light has left it. Where the mock-up had the first trip's alone.
+   */
+  TRIP_IN_T: [0.05, 0.25],
   /** Over an orbit's t, its trip's line fades out by this. */
   ORBIT_OUT_T: 0.35,
   /** The look back: every line, faint, coming in over its t. */
@@ -95,7 +99,7 @@ export function engravedLevels(
   if (path === null) return { throat: 0, hall: 0, trips: levels };
   const { part, index, t } = path;
   const own = index >= 0 && index < trips;
-  if (part === 'travel' && own) levels[index] = index === 0 ? over(ENGRAVED.FIRST_TRIP_IN_T, t) : 1;
+  if (part === 'travel' && own) levels[index] = over(ENGRAVED.TRIP_IN_T, t);
   else if (part === 'orbit' && own) levels[index] = 1 - smoothstep(t / ENGRAVED.ORBIT_OUT_T);
   else if (part === 'look') levels.fill(ENGRAVED.LOOK.level * over(ENGRAVED.LOOK.in, t));
   else if (part === 'sheet') levels.fill(ENGRAVED.LOOK.level * (1 - path.black));

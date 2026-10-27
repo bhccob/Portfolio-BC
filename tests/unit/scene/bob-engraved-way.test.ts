@@ -57,6 +57,15 @@ describe('the levels: each part of the engraved way, at a pose', () => {
     expect(lv('sheet', -1, 0.5, 1).trips).toEqual([0, 0, 0]);
   });
 
+  it('keeps every trip’s line out where its travel begins, the bead’s inside stop, and brings it in as the light leaves', () => {
+    const lv = (index: number, t: number) => engravedLevels({ stretch: 'travel', frame: null }, { part: 'travel', index, t, black: 0 }, 3).trips[index];
+    for (const index of [0, 1, 2]) {
+      expect(lv(index, 0), `trip ${index}`).toBe(0);
+      expect(lv(index, ENGRAVED.TRIP_IN_T[0]), `trip ${index}`).toBe(0);
+      expect(lv(index, ENGRAVED.TRIP_IN_T[1]), `trip ${index}`).toBe(1);
+    }
+  });
+
   it('shows nothing on the rise and on the end page, and the hall goes out as the first trip goes on', () => {
     expect(engravedLevels({ stretch: 'rise', frame: null }, null, 3)).toEqual({ throat: 0, hall: 0, trips: [0, 0, 0] });
     expect(engravedLevels({ stretch: 'end', frame: null }, null, 3)).toEqual({ throat: 0, hall: 0, trips: [0, 0, 0] });

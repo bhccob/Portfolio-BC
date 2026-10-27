@@ -6751,8 +6751,8 @@ const tripMiddle = (index) => TRAVELS[index].start + TRAVELS[index].length / 2;
  *   the hall whole at fact 02's peak;
  * - from fact 01's peak to fact 05's by input: the way frame runs 299/6 frames a viewport height of input, half the
  *   first fall's pace, so the 160 frames take 3.21 viewport heights where they took 1.61;
- * - each trip's line whole at its travel's middle, the others out; none half way through a bead's inside (at its
- *   inside stop the next trip has begun, its line on behind the bead's walls); in the look back every line faint, 0.32
+ * - each trip's line whole at its travel's middle, the others out; none half way through a bead's inside, nor at its
+ *   inside stop, where the next trip begins (a phone sees past the bead there); in the look back every line faint, 0.32
  *   at most;
  * - stills at way frames 32 and 121 through the home's luma gate, and at the second trip's middle under its ceiling
  *   (0.11): there the light is small and dim on a phone, as the approved light path has it, so the floor's bright pixel
@@ -6834,12 +6834,14 @@ async function engraved(browser, step) {
         mid.journey.stretch === 'travel' && mid.journey.project === bead.index && trips.length === BEAD_LIST.length && trips.every((level, k) => level === (k === bead.index ? 1 : 0)),
         `${at}: half way to ${bead.id} its own line is whole and the others out (${JSON.stringify(trips)})`
       );
-      const inside = await poseAt(page, (bead.stop + bead.inside) / 2);
-      const lv = inside.journey.engraved;
-      step.check(
-        inside.journey.stretch === 'inside' && lv !== null && lv.throat === 0 && lv.hall === 0 && lv.trips.every((level) => level === 0),
-        `${at}: half way through ${bead.id}'s inside none of it shows (${inside.journey.stretch}, ${JSON.stringify(lv)})`
-      );
+      for (const [where, place] of [['half way through', (bead.stop + bead.inside) / 2], ['at the stop of', bead.inside]]) {
+        const inside = await poseAt(page, place);
+        const lv = inside.journey.engraved;
+        step.check(
+          lv !== null && lv.throat === 0 && lv.hall === 0 && lv.trips.every((level) => level === 0),
+          `${at}: ${where} ${bead.id}'s inside none of it shows (${inside.journey.stretch} ${inside.journey.local.toFixed(2)}, ${JSON.stringify(lv)})`
+        );
+      }
     }
     const look = await poseAt(page, LOOK_STOP);
     const faint = look.journey.engraved?.trips ?? [];
