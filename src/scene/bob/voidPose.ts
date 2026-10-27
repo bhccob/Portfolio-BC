@@ -4,11 +4,9 @@
  * so the tests read the very decisions the Void (src/scene/bob/Void.tsx) and the Opening make on each frame; it imports
  * no code from React or three (types only, the light dive's needle glow, the path's sweep and the veins' levels).
  */
-import { WAKE } from '~/engine/bob/beadBuild';
-import type { BeadWake } from '~/engine/bob/build/beads';
 import type { CameraShot } from '~/engine/bob/shots';
+import { LAND_STOP } from '~/state/chapters';
 import type { JourneyAt, JourneyPose, NeedleOverride } from './journey';
-import { type BeadView, lookingBack, type Path, wakeSweep } from './lightPath';
 import { F, needleGlow } from './lightDive';
 
 type Vec3 = readonly [number, number, number];
@@ -64,15 +62,6 @@ export function needleGlowFor(at: JourneyAt): number | null {
   if (at.stretch === 'rise') return null;
   if (at.stretch === 'light') return at.frame !== null && at.frame >= F.NEEDLE ? needleGlow(at.frame) : null;
   return null;
-}
-
-/**
- * The selected bead: the bead of an arrival (its place on the way, in `BEADS` order), the light at rest beside it,
- * whose label shows and which a click or a tap opens; none in a travel, where the light is between beads, nor in the look
- * back, where the pointer picks one.
- */
-export function selectedBead(at: JourneyAt): number | null {
-  return at.stretch === 'arrive' ? at.project : null;
 }
 
 /** The hover as the beads show it: the bead whose hover is in (`BeadsModel.setHover`) and how far, 0..1. */
@@ -145,25 +134,13 @@ export function hoversAt(pose: Pick<JourneyPose, 'sheet'>): boolean {
 }
 
 /**
- * The veins' wake bead `bead` is given on this frame (BeadsModel.setWake), in the camera's view (`view`: a world point to
- * its view-space x and y): its centre there, and its path's wake (./lightPath.ts) as the shell reads it. All awake is a
- * sweep past a whole turn (10), none a sweep of nothing; along the orbit, the light's sweep round the bead on the screen
- * so far (`wakeSweep`), with the glow just behind the light. Pure: the view is the caller's.
+ * Which projects the pointer may hover and a click may open at `pose` (spec 2026-10-27-bob-hologram-world-design.md):
+ * any project on the world once the world is in (its stop, and on), every area, the look back (its own stop included);
+ * none in the light dive, while the light is still coming down, and under the sheet. A click opens only at rest
+ * (./inside.ts `opensOnClick`); the hover lights a project wherever the pointer may take it.
  */
-export function wakeFor(bead: BeadView, path: Path, view: (p: readonly [number, number, number]) => readonly [number, number]): BeadWake {
-  const centre = view(bead.centre);
-  if (bead.wake.kind === 'full') return { centre, start: 0, span: 10, dir: 1, hot: 0 };
-  if (bead.wake.kind === 'none') return { centre, start: 0, span: 0, dir: 1, hot: 0 };
-  const sweep = wakeSweep((angle) => view(path.orbitAt(bead.index, angle)), centre, bead.wake.from, bead.wake.now);
-  return { centre, ...sweep, hot: WAKE.hot };
-}
-
-/**
- * Which beads the pointer may hover and a click may open at `pose`: in an arrival the selected bead alone
- * (`selectedBead`), the one in view; in the look back (its own stop included) any bead on the way, and the small lights
- * of the projects off it; nowhere else (a travel, where the light is between beads, the light dive, under the sheet).
- */
-export function pointerMode(pose: Pick<JourneyPose, 'at' | 'path'>): 'selected' | 'any' | null {
-  if (pose.at.stretch === 'arrive') return 'selected';
-  return pose.path !== null && lookingBack(pose.path) ? 'any' : null;
+export function pointerMode(pose: Pick<JourneyPose, 'at' | 'path'>): 'any' | null {
+  const { at } = pose;
+  if (at.stretch === 'land') return at.local >= LAND_STOP - 1e-6 ? 'any' : null;
+  return at.stretch === 'area' || at.stretch === 'look' || (at.stretch === 'sheet' && at.local === 0) ? 'any' : null;
 }

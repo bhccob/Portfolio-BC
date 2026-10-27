@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { LoaderStage } from '~/engine/bob/loaderTimeline';
 import { SHOT_PRIORITY, type ShotSource, shotSourceFor, shownProgressFor } from '~/scene/bob/shotSource';
-import { arrivalStop, HOME_CHAPTERS, keyStops, pathStart, placeOfFrame } from '~/state/chapters';
+import { HOME_CHAPTERS, keyStops, pathStart, placeOfFrame, worldStop } from '~/state/chapters';
 
 const STAGES: readonly LoaderStage[] = ['dark', 'engrave', 'open', 'rise', 'home'];
 const LOADER_STAGES = STAGES.filter((stage) => stage !== 'home');
@@ -90,8 +90,8 @@ describe('shownProgressFor: the progress the home and the journey pose the shot 
     expect(shownProgressFor('home', true, placeOfFrame(201) - 0.2, placeOfFrame(201) - 0.1, 0)).toBe(placeOfFrame(201));
     // The progress is mid-travel, the target at a stop: the stop it is going to.
     expect(shownProgressFor('home', true, 1.4, placeOfFrame(81), 0)).toBe(placeOfFrame(81));
-    // On Funcial's travel, its arrival the nearest stop.
-    expect(shownProgressFor('home', true, pathStart(HOME_CHAPTERS) + 1.34, pathStart(HOME_CHAPTERS) + 1.64, 0)).toBe(arrivalStop(HOME_CHAPTERS, 'secure-element'));
+    // On the land, the world's stop the nearest.
+    expect(shownProgressFor('home', true, pathStart(HOME_CHAPTERS) + 1.34, pathStart(HOME_CHAPTERS) + 1.64, 0)).toBe(worldStop(HOME_CHAPTERS));
   });
 
   it('is one of the story\'s stops whenever reduced motion poses a stop', () => {
@@ -183,7 +183,7 @@ describe('the wiring: one writer of frame.shot, before the Rig', () => {
 
   it('reads every module of src for that (the helper of the check)', () => {
     const paths = sourceFiles(SRC).map((file) => relative(SRC, file).replaceAll('\\', '/'));
-    for (const path of ['scene/bob/Opening.tsx', 'scene/bob/Home.tsx', 'scene/bob/Void.tsx', 'scene/Rig.tsx', 'engine/bob/build/beads.ts', 'state/frame.ts']) expect(paths).toContain(path);
+    for (const path of ['scene/bob/Opening.tsx', 'scene/bob/Home.tsx', 'scene/bob/Void.tsx', 'scene/Rig.tsx', 'engine/bob/build/world.ts', 'state/frame.ts']) expect(paths).toContain(path);
   });
 });
 

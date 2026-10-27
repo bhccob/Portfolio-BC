@@ -1,7 +1,7 @@
 import { createMemoryRouter, NavigationType } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { projects } from '../../../src/data/projects';
-import { arrivalStop, chapterAt, HOME_CHAPTERS, keyStops, pathStart, sheetStart } from '../../../src/state/chapters';
+import { areaStop, chapterAt, HOME_CHAPTERS, keyStops, pathStart, sheetStart } from '../../../src/state/chapters';
 import { frame } from '../../../src/state/frame';
 import {
   arrivedDirectly,
@@ -18,11 +18,11 @@ import {
 } from '../../../src/state/routeSync';
 import { useScene } from '../../../src/state/store';
 
-/** The path's start (way frame 256), and each project's arrival stop: in its arrival, the light at rest beside the bead. */
+/** The path's start (way frame 256), and each project's area stop: the camera at rest on its area. */
 const L = pathStart(HOME_CHAPTERS);
-const F = L + 1.835;
-const J = L + 4.185;
-const C = L + 6.635;
+const F = L + 2.78;
+const J = L + 4.18;
+const C = L + 5.58;
 
 describe('phaseForPath', () => {
   it('has no phase for the old country addresses: they are no page now', () => {
@@ -191,7 +191,7 @@ describe('syncRoute', () => {
 });
 
 describe('stopForProject', () => {
-  it("gives each project on the way its arrival stop: in its arrival, the light at rest beside it", () => {
+  it("gives each project on the way its area's stop: in its area, the camera at rest on it", () => {
     expect(stopForProject('funcial')).toBeCloseTo(F, 9);
     expect(stopForProject('jontai-energy')).toBeCloseTo(J, 9);
     expect(stopForProject('cookies-clicker')).toBeCloseTo(C, 9);
@@ -199,7 +199,7 @@ describe('stopForProject', () => {
 
   it("reads them from the chapters, each one of the keys' stops", () => {
     for (const project of projects.all()) {
-      expect(stopForProject(project.id)).toBe(arrivalStop(HOME_CHAPTERS, project.categoryId));
+      expect(stopForProject(project.id)).toBe(areaStop(HOME_CHAPTERS, project.categoryId));
       expect(keyStops(HOME_CHAPTERS)).toContain(stopForProject(project.id));
     }
   });
@@ -214,7 +214,7 @@ describe('placeForProject', () => {
     noteOpenedFrom('jontai-energy', L + 4.3);
     expect(placeForProject('jontai-energy')).toBeCloseTo(L + 4.3, 9);
     expect(placeForProject('funcial')).toBeCloseTo(F, 9);
-    noteOpenedFrom('funcial', L + 8.85);
+    noteOpenedFrom('funcial', L + 7.6);
     expect(placeForProject('jontai-energy')).toBeCloseTo(J, 9);
   });
 

@@ -73,7 +73,13 @@ export function worldPlaces(areas: readonly AreaSpec[]): AreaPlace[] {
   });
 }
 
+/** The top of the CPU's lid above the board, m: where the light comes to rest. */
+export const LID_TOP = 0.235;
+
 export type ObjectKind = 'lock-chip' | 'solar' | 'crystal' | 'chip';
+
+/** How high each kind of object's middle stands above its float, m: where its views look, and its click's sphere. */
+export const OBJECT_MIDDLE: Readonly<Record<ObjectKind, number>> = { 'lock-chip': 0.26, chip: 0.26, solar: 0.16, crystal: 0.38 };
 
 const KINDS: Readonly<Partial<Record<string, ObjectKind>>> = { funcial: 'lock-chip', 'jontai-energy': 'solar', 'cookies-clicker': 'crystal' };
 

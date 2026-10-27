@@ -19,13 +19,6 @@
 export const COMPASS_GLB_BUDGET = 700_000;
 
 /**
- * The most bytes the beads' GLB may take (public/models/bob-beads.glb,
- * tools/blender/export_beads.py): the three beads, their objects and the baked
- * vein maps inside it (tests/unit/bob/beads-glb.test.ts checks it).
- */
-export const BEADS_GLB_BUDGET = 1_500_000;
-
-/**
  * The part of a glTF's JSON that the compass tests read. A node's `mesh` is an
  * index into `meshes`, its `children` are indices into `nodes`, and a mesh
  * primitive's attributes map a name (`POSITION`, `TEXCOORD_0`) to an

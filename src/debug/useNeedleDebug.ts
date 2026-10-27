@@ -45,9 +45,8 @@ export function readNeedleDebugState(view: ShellView): NeedleDebugState {
     journey: {
       ...frame.journey,
       light: frame.journey.light ? { ...frame.journey.light } : null,
-      beads: frame.journey.beads ? frame.journey.beads.map((bead) => ({ ...bead })) : null,
-      label: frame.journey.label ? { ...frame.journey.label } : null,
-      wake: [...frame.journey.wake],
+      objects: frame.journey.objects ? frame.journey.objects.map((object) => ({ ...object })) : null,
+      world: frame.journey.world ? { ...frame.journey.world, caption: frame.journey.world.caption ? { ...frame.journey.world.caption } : null } : null,
       engraved: frame.journey.engraved ? { ...frame.journey.engraved, trips: [...frame.journey.engraved.trips] } : null,
       nebula: frame.journey.nebula ? { ...frame.journey.nebula } : null,
     },

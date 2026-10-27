@@ -16,7 +16,9 @@
  *   look back, at `RINGS.level`, and go out under the sheet.
  */
 import type { JourneyAt } from './journey';
-import type { Path, PathFrame, Vec3 } from './lightPath';
+import type { WorldFrame, WorldPath } from './worldPath';
+
+type Vec3 = [number, number, number];
 import { smoothstep, type Span, through } from './scrollPose';
 
 /** How much of each part shows, 0..1. */
@@ -43,8 +45,9 @@ export const CORRIDOR = 2.8;
  * part's t), how many clouds each tier lays, and where they hang.
  * - `FALL`: the fall's column, `top` to `bottom` (m), the clouds `reach` (m) out from its line, about `share` of them,
  *   their alpha times `alpha` (the facts' words stand over them);
- * - `WAY`: round the way, the projects' box grown by `margin` (m) every way, `back` (m) more behind; no cloud within
- *   `clear` (m) of a bead, nor within `sight` (m) of any camera's line to what it looks at, every `step` of the path;
+ * - `WORLD`: round the hologram world (spec 2026-10-27-bob-hologram-world-design.md, the mock-up's layout), `reach`
+ *   (m) out from the board's centre, `above` and `below` it (m); none over the board (`board` m out, `height` m up or
+ *   down), nor within `sight` (m) of any view's line from its camera to what it looks at;
  * - `SIZE`, `ALPHA`: each cloud's width (m) and alpha, between these; thin, so a cloud is a veil, never a wall.
  */
 export const NEBULA = {
@@ -58,7 +61,7 @@ export const NEBULA = {
   HALL_GIVES: [70, 110] as Span,
   COUNT: { high: 140, medium: 70, low: 35 },
   FALL: { top: -1, bottom: -12, reach: [3.2, 16] as Span, share: 0.5, alpha: 0.8 },
-  WAY: { margin: 7, back: 8, clear: 2, sight: 1.2, step: 0.1 },
+  WORLD: { reach: [7, 34] as Span, above: 8, below: 16, board: 7, height: 4, sight: 1.2 },
   SIZE: [3, 9] as Span,
   ALPHA: [0.16, 0.42] as Span
 } as const;
@@ -69,19 +72,19 @@ function over(span: Span, u: number): number {
 }
 
 /**
- * Each part's level at a pose: in the light dive by its way frame (`at.frame`), on the path by its part and t (`path`,
- * null off the path).
+ * Each part's level at a pose: in the light dive by its way frame (`at.frame`), on the world by its part and t (`path`,
+ * null off it): the clouds whole and the bands in over the land, as the light leaves the facts behind; no rings, which
+ * were the beads'.
  */
-export function nebulaLevels(at: Pick<JourneyAt, 'stretch' | 'frame'>, path: Pick<PathFrame, 'part' | 'index' | 't' | 'black'> | null): NebulaLevels {
+export function nebulaLevels(at: Pick<JourneyAt, 'stretch' | 'frame'>, path: Pick<WorldFrame, 'part' | 't' | 'black'> | null): NebulaLevels {
   if (at.stretch === 'light' && at.frame !== null) return { clouds: NEBULA.FALL_LEVEL * over(NEBULA.CLOUDS_IN, at.frame), bands: 0, rings: 0 };
   if (path === null) return { clouds: 0, bands: 0, rings: 0 };
-  const { part, index, t, black } = path;
-  if (part === 'sheet') return { clouds: 1 - black, bands: 1 - black, rings: NEBULA.RINGS.level * (1 - black) };
-  const first = part === 'travel' && index === 0;
-  const clouds = first ? NEBULA.FALL_LEVEL + (1 - NEBULA.FALL_LEVEL) * over([0, NEBULA.WHOLE_BY_T], t) : 1;
-  const bands = first ? over(NEBULA.BANDS_IN_T, t) : 1;
-  const rings = part === 'look' ? NEBULA.RINGS.level * over(NEBULA.RINGS.in, t) : 0;
-  return { clouds, bands, rings };
+  const { part, t, black } = path;
+  if (part === 'sheet') return { clouds: 1 - black, bands: 1 - black, rings: 0 };
+  const landing = part === 'land';
+  const clouds = landing ? NEBULA.FALL_LEVEL + (1 - NEBULA.FALL_LEVEL) * over([0, NEBULA.WHOLE_BY_T], t) : 1;
+  const bands = landing ? over(NEBULA.BANDS_IN_T, t) : 1;
+  return { clouds, bands, rings: 0 };
 }
 
 /** A seeded generator (mulberry32), so the clouds hang in the same places every load. */
@@ -113,40 +116,22 @@ function inCorridor(at: Vec3, size: number): boolean {
 }
 
 /**
- * Where the clouds hang for `path` on a ladder's `tier`: `NEBULA.COUNT[tier]` of them, the same for the same path every
- * time. About `FALL.share` down the fall's column, round its line; the rest round the way's box. A place is kept only
- * out of the fall's corridor, `WAY.clear` and its half width off every bead, and `WAY.sight` and its half width off the
- * line from the path's camera to the point it looks at, all along the path (`WAY.step`), the look back's included.
+ * Where the clouds hang round the world `world` on a ladder's `tier`: `NEBULA.COUNT[tier]` of them, the same for the
+ * same world every time. About `FALL.share` down the fall's column, round its line; the rest round the board. A place is
+ * kept only out of the fall's corridor, off the board (`WORLD.board` out and `WORLD.height` up or down, and its half
+ * width), and `WORLD.sight` and its half width off every view's line from its camera to what it looks at (`sights`:
+ * the land's, the world's, each area's, the look back's and every open view's).
  */
-export function cloudLayout(path: Pick<Path, 'centres' | 'frameAt' | 'lookShot'>, tier: keyof typeof NEBULA.COUNT): CloudSpec[] {
+export function cloudLayout(world: Pick<WorldPath, 'sights' | 'centre'>, tier: keyof typeof NEBULA.COUNT): CloudSpec[] {
   const random = seeded(4099);
   const count = NEBULA.COUNT[tier];
   const fallCount = Math.round(count * NEBULA.FALL.share);
-  const { centres } = path;
-
-  // Every camera on the way, with what it looks at: the travels and arrivals, then the look back's.
-  const sights: [Vec3, Vec3][] = [];
-  for (let q = 0; q < 200; q += NEBULA.WAY.step) {
-    const frame = path.frameAt(q);
-    if (frame.part === 'look' || frame.part === 'sheet') break;
-    sights.push([frame.shot.position as Vec3, frame.shot.target as Vec3]);
-  }
-  sights.push([path.lookShot.position as Vec3, path.lookShot.target as Vec3]);
-
-  // The way's box, grown by the margin, and further back behind it.
-  const lo: [number, number, number] = [Infinity, Infinity, Infinity];
-  const hi: [number, number, number] = [-Infinity, -Infinity, -Infinity];
-  for (const c of centres) {
-    for (let i = 0; i < 3; i++) {
-      lo[i] = Math.min(lo[i]!, c[i]!);
-      hi[i] = Math.max(hi[i]!, c[i]!);
-    }
-  }
-  const { margin, back, clear, sight } = NEBULA.WAY;
+  const { sights, centre: c } = world;
+  const { reach, above, below, board, height, sight } = NEBULA.WORLD;
 
   const keeps = (at: Vec3, size: number): boolean => {
     if (inCorridor(at, size)) return false;
-    for (const c of centres) if (Math.hypot(at[0] - c[0], at[1] - c[1], at[2] - c[2]) <= clear + size / 2) return false;
+    if (Math.hypot(at[0] - c[0], at[2] - c[2]) < board + size / 2 && Math.abs(at[1] - c[1]) < height + size / 2) return false;
     for (const [a, b] of sights) if (toSegment(at, a, b) <= sight + size / 2) return false;
     return true;
   };
@@ -169,7 +154,11 @@ export function cloudLayout(path: Pick<Path, 'centres' | 'frameAt' | 'lookShot'>
     const r = lerp(NEBULA.FALL.reach[0], NEBULA.FALL.reach[1], Math.sqrt(random()));
     return [Math.cos(th) * r, y, Math.sin(th) * r];
   }, fallCount, NEBULA.FALL.alpha);
-  // Round the way.
-  lay(() => [lerp(lo[0] - margin, hi[0] + margin, random()), lerp(lo[1] - margin, hi[1] + margin, random()), lerp(lo[2] - margin - back, hi[2] + margin, random())], count);
+  // Round the world.
+  lay(() => {
+    const th = random() * Math.PI * 2;
+    const r = lerp(reach[0], reach[1], Math.sqrt(random()));
+    return [c[0] + Math.cos(th) * r, lerp(c[1] - below, c[1] + above, random()), c[2] + Math.sin(th) * r];
+  }, count);
   return clouds;
 }

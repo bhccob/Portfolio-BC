@@ -18,7 +18,6 @@
 import * as THREE from 'three';
 import { engravedMaterial, engravingTexture, ringGeometry } from '~/engine/bob/build/engraved';
 import type { QualityTier } from '~/engine/quality';
-import type { Path } from '~/scene/bob/lightPath';
 import type { CloudSpec, NebulaLevels } from '~/scene/bob/nebulaWay';
 
 type Vec3 = readonly [number, number, number];
@@ -379,14 +378,14 @@ export interface NebulaModel {
 }
 
 /**
- * The nebula for `path` (its clouds laid by `cloudLayout`, the rest round the projects' middle) at the ladder's `tier`,
+ * The nebula (its clouds laid by `cloudLayout`, the rest round `middle`, the world's centre) at the ladder's `tier`,
  * hidden until a level is above 0. `canvas` makes the canvases its textures are drawn on.
  *
  * @throws TypeError when a canvas gives no 2D context.
  */
 export function buildNebula(
   clouds: readonly CloudSpec[],
-  path: Pick<Path, 'centres'>,
+  middle: readonly [number, number, number],
   tier: QualityTier,
   canvas: () => HTMLCanvasElement = () => document.createElement('canvas')
 ): NebulaModel {
@@ -399,9 +398,7 @@ export function buildNebula(
   const cloudParts = cloudsMesh(clouds, atlas);
   group.add(cloudParts);
 
-  // Round the projects' middle: the far shell, the stars, the dust and the bands.
-  const count = Math.max(1, path.centres.length);
-  const middle = path.centres.reduce<[number, number, number]>((sum, c) => [sum[0] + c[0] / count, sum[1] + c[1] / count, sum[2] + c[2] / count], [0, 0, 0]);
+  // Round the world's middle: the far shell, the stars, the dust and the bands.
   const around = new THREE.Group();
   around.position.set(...middle);
   group.add(around);

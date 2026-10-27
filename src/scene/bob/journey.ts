@@ -9,17 +9,16 @@
  * - the rise, 0-1: M2a's pose itself (`scrollPoseAt(riseAt(progress))`), the home at 0 to BOB from above at 1;
  * - the light dive: the way's frames 1 to `HAND_F` of the previs (./lightDive.ts), linearly: the needle lights up into
  *   the light, which flows away through the void past Bob's five facts;
- * - the light's path (./lightPath.ts), from the hand-over: for each project on the way its travel, its orbit and its
- *   inside, then the look back, then the sheet, the look back fading to black as the credits rise over it;
+ * - the world's path (./worldPath.ts), from the hand-over: the light landing in the CPU and the whole world, each area,
+ *   the look back, then the sheet, the look back fading to black as the credits rise over it;
  * - the end, the scroll's last stop: the credits at rest, HTML over the scene (the scene sleeps behind it).
  * Within 1e-6 of a stop the progress is the stop, as `riseAt` has it, so a sum's float residue never leaves it a hair off.
  */
-import type { CategoryId } from '~/data/categories';
-import { type ProjectId, projects } from '~/data/projects';
+import type { ProjectId } from '~/data/projects';
 import { type CameraShot, shotFor } from '~/engine/bob/shots';
-import { chapterAt, frameOfPlace, HOME_CHAPTERS, pathStart, riseTop, scrollEnd, sheetStart, stops } from '~/state/chapters';
-import { type FactAt, factAt, filamentsAt, lightAt, sizeFor, sparksAt, streamAt, trailAt, trailLevel, voidAt, wayNeedle, wayShot } from './lightDive';
-import { makePath, type PathFrame, pathFor, TOWARD } from './lightPath';
+import { areasOnPath, chapterAt, frameOfPlace, HOME_CHAPTERS, pathStart, riseTop, scrollEnd, sheetStart, stops } from '~/state/chapters';
+import { type FactAt, factAt, filamentsAt, lightAt, sparksAt, streamAt, trailAt, trailLevel, voidAt, wayNeedle, wayShot } from './lightDive';
+import { type WorldFrame, worldPathFor } from './worldPath';
 import type { LightPose, VoidPose } from './poseTypes';
 import { riseAt, type ScrollPose, scrollPoseAt, smoothstep } from './scrollPose';
 
@@ -29,11 +28,11 @@ export type { LightPose, VoidPose } from './poseTypes';
 type Vec3 = readonly [number, number, number];
 
 /** A stretch of the journey: one of the home's chapters, seen as the camera's move. */
-export type Stretch = 'rise' | 'light' | 'travel' | 'arrive' | 'look' | 'sheet' | 'end';
+export type Stretch = 'rise' | 'light' | 'land' | 'area' | 'look' | 'sheet' | 'end';
 
 /**
  * Where the journey is: the stretch and how far through it (`local`, 0 at its start); in the light dive the way's frame
- * (1 to `HAND_F`); and in a travel or an arrival the project's place on the way (0 for the first), else null.
+ * (1 to `HAND_F`); and in an area its place among the areas (0 for the first), else null.
  */
 export interface JourneyAt {
   stretch: Stretch;
@@ -63,7 +62,7 @@ export interface NeedleOverride {
  * - `fact`: Bob's fact riding with it, null where there is none;
  * - `needle`: null while the compass holds it and from then on: the light stays the light to the end;
  * - `void`: the void's state, null on the rise;
- * - `path`: the light's path at this place (./lightPath.ts), null before the hand-over;
+ * - `path`: the world's path at this place (./worldPath.ts), null before the hand-over;
  * - `sheet`: how far the sheet over the look back has come, 0..1 (its first 0.55 the black, the rest the credits rising).
  */
 export interface JourneyPose {
@@ -75,29 +74,12 @@ export interface JourneyPose {
   fact: FactAt | null;
   needle: NeedleOverride | null;
   void: VoidPose | null;
-  path: PathFrame | null;
+  path: WorldFrame | null;
   sheet: number;
 }
 
-/** One bead: its project and category, a centre it is built at (the laptop's path; the scene places it each frame) and its radius. */
-export interface Bead {
-  id: ProjectId;
-  category: CategoryId;
-  centre: Vec3;
-  radius: number;
-}
-
-/** A bead's radius, its shell's, m. */
-export const BEAD_RADIUS = 0.95;
-
-/**
- * The beads, one for each project on the light's way, in its order (01 Secure element, 02 Front panel, 03 Oscillator),
- * each built at its place on a laptop's path (`makePath(16 / 10)`); the scene places them at the path's own each frame.
- */
-export const BEADS: readonly Bead[] = (() => {
-  const centres = makePath(16 / 10).centres;
-  return projects.onPath().map((project, i) => ({ id: project.id, category: project.categoryId, centre: centres[i]!, radius: BEAD_RADIUS }));
-})();
+/** The projects on the world, in its areas' order (01 Beveiligd element, 02 Frontpaneel, 03 Oscillator). */
+export const WORLD_PROJECTS: readonly ProjectId[] = areasOnPath().flatMap((area) => area.projects);
 
 /** The width of the preview's sensor, millimetres (Blender's default; the preview renders 16:9, fitted across). */
 const SENSOR = 36;
@@ -122,42 +104,14 @@ export function fieldFor(hfov: number, aspect: number): { fov: number; back: num
   return { fov: shot.fov, back: shot.position[2] };
 }
 
-const add = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
-const scale = (a: Vec3, s: number): Vec3 => [a[0] * s, a[1] * s, a[2] * s];
-
 /**
- * The camera's distance from a bead's centre inside it, m: the approved scrolled inside's (2026-10-27), on a phone a
- * little further out, so the objects fit across the narrow screen.
- */
-export const D_INSIDE = { desk: 1.75, phone: 2.3 } as const;
-
-/** The inside's vertical field, degrees: the approved scrolled inside's, wide on a phone for the same reason. */
-export const INSIDE_FOV = { desk: 40, phone: 72 } as const;
-
-/** How far below a bead's centre the inside looks, m: at its objects, which stand low in the shell. */
-const INSIDE_BELOW = 0.12;
-
-/**
- * The inside of bead `id` on a screen of this aspect: beside the journey, not a stretch of it, it is the view a click
- * on the bead flies to (./focus.ts, ./inside.ts) and the view its project page stands over. The camera stands
- * `D_INSIDE` off the bead's centre at this aspect on the path's line toward the bead (`TOWARD`, its porthole's side),
- * just past the porthole's frame, looking a little below the centre at the objects, with `INSIDE_FOV`: the scrolled
- * inside's own view, as Bob approved it. It lets the pointer's parallax in (`sway` 1), as a page of text over the home
- * has it. A project with no bead on the way has the look back's shot.
+ * Project `id` opened, on a screen of this aspect (spec 2026-10-27-bob-hologram-world-design.md, goal 5): beside the
+ * journey, not a stretch of it, it is the view a click on the project flies to (./focus.ts, ./inside.ts) and the view
+ * its project page stands over: the world path's open view (`openShot`), the object at the picture's right on a laptop
+ * and in its upper part on a phone. A project not on the world has the look back's shot.
  */
 export function focusShotFor(id: ProjectId, aspect: number): CameraShot {
-  const path = pathFor(aspect);
-  const bead = BEADS.findIndex((b) => b.id === id);
-  if (bead === -1) return { ...path.lookShot, sway: 1 };
-  const centre = path.centres[bead]!;
-  const size = sizeFor(aspect);
-  return {
-    position: add(centre, scale(TOWARD, D_INSIDE[size])),
-    target: [centre[0], centre[1] - INSIDE_BELOW, centre[2]],
-    fov: INSIDE_FOV[size],
-    up: [0, 1, 0],
-    sway: 1
-  };
+  return worldPathFor(aspect).openShot(id);
 }
 
 const PATH_AT = pathStart(HOME_CHAPTERS);
@@ -177,7 +131,7 @@ function settled(progress: number): number {
   return p;
 }
 
-const STRETCHES = { TRAVEL: 'travel', ARRIVE: 'arrive', LOOK: 'look', SHEET: 'sheet', END: 'end' } as const;
+const STRETCHES = { LAND: 'land', AREA: 'area', LOOK: 'look', SHEET: 'sheet', END: 'end' } as const;
 
 /**
  * Where the journey is at this progress (the module's doc lists the stretches). NaN reads as 0, the progress is held to
@@ -201,7 +155,7 @@ export function journeyAt(progress: number): JourneyAt {
 /**
  * The journey's pose at this progress on a screen of this aspect (width over height). The progress reads as `journeyAt`
  * reads it. On the rise it is M2a's; in the light dive the way's frame of the previs (./lightDive.ts); from the hand-over
- * the light's path (./lightPath.ts), with the fall's last fact running out across the hand-over at the fall's own pace.
+ * the light's path (./worldPath.ts), with the fall's last fact running out across the hand-over at the fall's own pace.
  */
 export function journeyPoseAt(progress: number, aspect: number): JourneyPose {
   const p = settled(progress);
@@ -226,10 +180,10 @@ export function journeyPoseAt(progress: number, aspect: number): JourneyPose {
       sheet: 0
     };
   }
-  const path = pathFor(aspect).frameAt(p - PATH_AT);
+  const path = worldPathFor(aspect).frameAt(p - PATH_AT);
   // Fact 05 is still up at the hand-over: it runs out at the fall's own pace rather than being cut.
   const f = frameOfPlace(p);
-  const fact = at.stretch === 'travel' && at.project === 0 && f <= LAST_FACT_F ? factAt(f) : path.fact;
+  const fact = at.stretch === 'land' && f <= LAST_FACT_F ? factAt(f) : null;
   return {
     at,
     rise,

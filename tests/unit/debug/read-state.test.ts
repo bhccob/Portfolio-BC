@@ -39,13 +39,13 @@ describe('readNeedleDebugState', () => {
   });
 
   it('reads the chapter the way the scroll loop does: the one it was in is kept at the edge', () => {
-    // Just past the hand-over is inside Funcial's travel (it starts there) but within HYSTERESIS of the light dive's end,
+    // Just past the hand-over is inside the land (it starts there) but within HYSTERESIS of the light dive's end,
     // and the frame says LIGHT.
     const hand = pathStart(HOME_CHAPTERS);
     Object.assign(frame, { progress: hand + 0.01, target: hand + 0.01, chapterIndex: 1 });
     expect(readNeedleDebugState({ route: 'home', locale: 'nl' }).chapter.index).toBe(1);
     Object.assign(frame, { progress: hand + 0.5, target: hand + 0.5, chapterIndex: 1 });
-    expect(readNeedleDebugState({ route: 'home', locale: 'nl' }).chapter).toMatchObject({ index: 2, id: 'TRAVEL' });
+    expect(readNeedleDebugState({ route: 'home', locale: 'nl' }).chapter).toMatchObject({ index: 2, id: 'LAND' });
   });
 
   it('counts the Stages mounted and takes dpr, fps and the camera from the Stage while one reports', () => {
@@ -89,17 +89,18 @@ describe('readNeedleDebugState', () => {
     expect(state.scroll.u).toBe(0.5);
   });
 
-  it("reports where the journey stands, its way frame, its sheet, the light's point and the path on the screen, as a copy", () => {
+  it("reports where the journey stands, its way frame, its sheet, the light's point and the world on the screen, as a copy", () => {
     const before = { ...frame.journey };
     try {
       const light = { x: 0.2, y: -0.1 };
-      const beads = [{ x: 720, y: 600, r: 120, visible: true }];
-      const label = { index: 0, opacity: 1 };
-      Object.assign(frame.journey, { stretch: 'light', local: 0.4, project: null, voidState: 'ready', frame: 121, sheet: 0, light, beads, label, wake: [10] });
+      const objects = [{ id: 'funcial', x: 720, y: 600, r: 120, visible: true }];
+      const world = { power: 1, names: 1, caption: { index: 0, opacity: 1 }, dots: 0 };
+      Object.assign(frame.journey, { stretch: 'light', local: 0.4, project: null, voidState: 'ready', frame: 121, sheet: 0, light, objects, world });
       const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
-      expect(state.journey).toEqual({ stretch: 'light', local: 0.4, project: null, voidState: 'ready', frame: 121, sheet: 0, light: { x: 0.2, y: -0.1 }, beads, label, wake: [10], engraved: null, nebula: null });
-      expect(state.journey.beads).not.toBe(beads);
-      expect(state.journey.label).not.toBe(label);
+      expect(state.journey).toEqual({ stretch: 'light', local: 0.4, project: null, voidState: 'ready', frame: 121, sheet: 0, light: { x: 0.2, y: -0.1 }, objects, world, engraved: null, nebula: null });
+      expect(state.journey.objects).not.toBe(objects);
+      expect(state.journey.world).not.toBe(world);
+      expect(state.journey.world?.caption).not.toBe(world.caption);
       expect(state.journey.light).not.toBe(light);
       light.x = 0.9;
       expect(state.journey.light?.x).toBe(0.2);
@@ -178,9 +179,12 @@ describe('setStoryProgress', () => {
     setStoryProgress(1.5);
     expect(frame).toMatchObject({ progress: 1.5, target: 1.5, velocity: 0, chapterIndex: 1 });
     expect(useScene.getState().phase).toEqual({ kind: 'LIGHT' });
-    const onTravel = pathStart(HOME_CHAPTERS) + 0.5; // on the way to Funcial
-    setStoryProgress(onTravel);
-    expect(frame).toMatchObject({ progress: onTravel, target: onTravel, velocity: 0, chapterIndex: 2 });
+    const onLand = pathStart(HOME_CHAPTERS) + 0.5; // on the way down to the world
+    setStoryProgress(onLand);
+    expect(frame).toMatchObject({ progress: onLand, target: onLand, velocity: 0, chapterIndex: 2 });
+    expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: null });
+    const inArea = pathStart(HOME_CHAPTERS) + 2.5; // in the first area
+    setStoryProgress(inArea);
     expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'secure-element' });
   });
 

@@ -5,7 +5,7 @@ import type { Locale } from '~/i18n/Translator';
 import type { Stretch } from '~/scene/bob/journey';
 import type { ChapterId } from '~/state/chapters';
 import type { Phase, SceneEvent } from '~/state/machine';
-import type { BeadOnScreen } from '~/state/frame';
+import type { ObjectOnScreen, WorldOnScreen } from '~/state/frame';
 import type { Tier, VoidState } from '~/state/store';
 
 /**
@@ -67,10 +67,10 @@ export interface NeedleDebugState {
    * way in a travel, an orbit or an inside (0 Funcial, 1 Jontai Energy, 2 Cookies Clicker; null elsewhere), the void's
    * load (`idle`, `loading`, `ready`, `failed`), which holds the scroll at the hand-over until it is ready, the light
    * dive's way frame (1-256, null elsewhere), how far the sheet over the look back is up (0..1), the light's centre on the
-   * screen (NDC, +y up; null where there is no light), each bead on the screen (CSS px, `BEADS` order; null before the
-   * path), the bead label beside the light and its opacity, how far each bead's veins have woken (radians; 10 all), and
-   * the engraved way's levels (0..1: the shaft's throat and hall, and each trip's line; null where the void is not posed),
-   * and the nebula's (0..1: its clouds, its far bands and the look back's rings; null where the void is not posed).
+   * screen (NDC, +y up; null where there is no light), each project's object on the screen (CSS px, `WORLD_PROJECTS`
+   * order; null before the world), the world's power and words (null off it), the engraved way's levels (0..1: the
+   * shaft's throat and hall; null where the void is not posed), and the nebula's (0..1: its clouds and its far bands;
+   * null where the void is not posed).
    */
   journey: {
     stretch: Stretch;
@@ -80,9 +80,8 @@ export interface NeedleDebugState {
     frame: number | null;
     sheet: number;
     light: { x: number; y: number } | null;
-    beads: BeadOnScreen[] | null;
-    label: { index: number; opacity: number } | null;
-    wake: number[];
+    objects: ObjectOnScreen[] | null;
+    world: WorldOnScreen | null;
     engraved: { throat: number; hall: number; trips: number[] } | null;
     nebula: { clouds: number; bands: number; rings: number } | null;
   };

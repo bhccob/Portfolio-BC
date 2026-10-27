@@ -3,7 +3,7 @@ import type { ProjectId } from '~/data/projects';
 import { useTranslator } from '~/i18n/useTranslator';
 import { type KeyTarget, keyDelta } from '~/input/keyDelta';
 import { useScene } from '~/state/store';
-import { closeInside, viewInside } from './BeadLabel';
+import { closeInside, viewInside } from './projectOpen';
 
 /** The attribute on <html> while the visitor is inside a bead (the store's `inside`): the styles show the two buttons. */
 export const INSIDE_ATTRIBUTE = 'data-inside';

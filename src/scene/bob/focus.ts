@@ -3,7 +3,7 @@
  * rules: the camera's moves between the journey's shot and a bead's close view (`focusShotFor`, ./journey), what the
  * page asks for, and when a move may fly. Pure, and apart from types it imports only the journey and the step fade's
  * length, so the tests run it without R3F, three or a browser; the Opening (./Opening.tsx), the shot's one writer,
- * applies exactly these, and the label (src/ui/BeadLabel.tsx) begins the flight in.
+ * applies exactly these, and the label (src/ui/projectOpen.tsx) begins the flight in.
  *
  * - **Into a bead**: the label's link, or a click on the bead, at its stop, flies the camera into the porthole over
  *   FLIGHT_MS; then the router goes to the page, which stands over the bead seen close.
@@ -18,7 +18,8 @@
 import type { SceneKind } from '~/app/handle';
 import type { ProjectId } from '~/data/projects';
 import type { Phase } from '~/state/machine';
-import { BEADS, journeyAt } from './journey';
+import { opensOnClick } from './inside';
+import { journeyAt, WORLD_PROJECTS } from './journey';
 import { STEP_FADE_MS } from './stepFade';
 
 /** How long the flight into a porthole (and back out) takes, ms: spec §2.4's "about 1.4 s" (Bob, 2026-10-24: 0.8 s was too fast). */
@@ -109,9 +110,9 @@ export function moveFocus(move: FocusMove, to: ProjectId | null, now: number, mo
   return { from: { id: shown.id, amount: shown.amount }, to, at: now, mode: across ? 'fade' : mode };
 }
 
-/** The bead of a project id, if it has one. */
+/** The project of an id, if it is on the world. */
 function beadOf(id: string): ProjectId | null {
-  return BEADS.find((bead) => bead.id === id)?.id ?? null;
+  return WORLD_PROJECTS.find((project) => project === id) ?? null;
 }
 
 /**
@@ -170,15 +171,13 @@ export function stepFocus(focus: { move: FocusMove; opening: ProjectId | null },
 }
 
 /**
- * Whether the story rests where bead `id` is in view: at rest (the scroll's target where the story stands) in the
- * bead's arrival, or in the look back, where every bead on the way is in view (its own stop, the sheet's start,
- * included). Only from there does a flight leave or arrive: the shot at rest is the one the flight eases from.
+ * Whether the story rests where project `id` is in view: at rest (the scroll's target where the story stands) at the
+ * world's stop, an area's or the look back (its own stop, the sheet's start, included), where a click opens a project on
+ * the world (./inside.ts `opensOnClick`). Only from there does a flight leave or arrive: the shot at rest is the one the
+ * flight eases from.
  */
 export function restsAt(id: ProjectId | null, progress: number, target: number): boolean {
-  if (id === null || progress !== target) return false;
-  const at = journeyAt(progress);
-  if (at.stretch === 'arrive') return at.project !== null && BEADS[at.project]?.id === id;
-  const lookingBack = at.stretch === 'look' || (at.stretch === 'sheet' && at.local === 0);
-  return lookingBack && BEADS.some((bead) => bead.id === id);
+  if (id === null || progress !== target || !WORLD_PROJECTS.includes(id)) return false;
+  return opensOnClick(journeyAt(progress), true);
 }
 

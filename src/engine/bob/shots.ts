@@ -238,7 +238,7 @@ export function applyCameraShot(camera: PerspectiveCamera, shot: CameraShot, asp
  * The shot `e` of the way from `a` to `b` (0 is `a` and 1 is `b`, exactly): the camera, the look-at point and the field
  * in straight lines, the up between theirs (absent read as +Y) and the parallax between (absent read as the whole of
  * it). The flight into a porthole is this from the journey's shot to the bead's close view, eased (src/scene/bob/focus.ts),
- * and the light's path moves its camera by it from one of its shots to the next (src/scene/bob/lightPath.ts).
+ * and the light's path moves its camera by it from one of its shots to the next (src/scene/bob/worldPath.ts).
  */
 export function shotToward(a: CameraShot, b: CameraShot, e: number): CameraShot {
   if (!(e > 0)) return a;

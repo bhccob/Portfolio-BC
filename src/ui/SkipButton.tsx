@@ -8,7 +8,7 @@ import { focusEndOnArrival } from './endArrival';
 
 /**
  * Whether the skip button shows (spec 2026-10-27-bob-light-path-design.md, goal 9): from the first project's arrival
- * through the look back, its own stop included (the path's `skip`, src/scene/bob/lightPath.ts); not in the fall, under
+ * through the look back, its own stop included (the path's `skip`, src/scene/bob/worldPath.ts); not in the fall, under
  * the sheet nor at the credits.
  */
 export function showsSkip(pose: Pick<JourneyPose, 'path'>): boolean {

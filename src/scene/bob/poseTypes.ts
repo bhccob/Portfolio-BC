@@ -1,6 +1,6 @@
 /**
  * The light's and the void's pose as the journey hands them to the scene (src/scene/bob/journey.ts), shared by the
- * light dive and the light's path (./lightPath.ts) without either importing the journey. Types only.
+ * light dive and the light's path (./worldPath.ts) without either importing the journey. Types only.
  */
 import type { FilamentAt, LightAt, SparkAt, TrailPoint, VoidAt } from './lightDive';
 

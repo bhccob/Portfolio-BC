@@ -12,7 +12,7 @@ import { damp } from 'maath/easing';
 import { AngleSpring, wrapAngle } from '~/engine/AngleSpring';
 import { aimsAt, NEEDLE_SPRING, needleAngleAt } from '~/engine/bob/needleAim';
 import { moveTarget } from '~/input/target';
-import { BEADS, journeyPoseAt, type NeedleOverride } from '~/scene/bob/journey';
+import { journeyPoseAt, type NeedleOverride } from '~/scene/bob/journey';
 import { needleFor } from '~/scene/bob/voidPose';
 import { placeOfFrame } from '~/state/chapters';
 import { riseAt, scrollPoseAt } from '~/scene/bob/scrollPose';

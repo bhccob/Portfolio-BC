@@ -38,17 +38,12 @@ describe('the home page', () => {
         expect(html).toMatch(new RegExp(`<p class="hero-cue"><span class="hero-cue-word">${t.needle.hero.scrollCue}</span></p>`));
       });
 
-      it("links no country page, and the three projects: once from the nav and once from each bead's label", () => {
+      it('links no country page, and the three projects from the nav; no bead label is left', () => {
         expect(html).not.toContain('/about/');
         const links = html.match(/href="[^"]*\/projects\/[a-z-]+\/"/g) ?? [];
-        expect(links).toHaveLength(6);
+        expect(links).toHaveLength(3);
         expect(new Set(links).size).toBe(3);
-        expect(html.match(/<a class="bead-label"/g)).toHaveLength(3);
-      });
-
-      it('puts the bead labels after the hero and before the nav, so Tab reaches a shown label first in the page', () => {
-        expect(html.indexOf('class="hero"')).toBeLessThan(html.indexOf('class="bead-label"'));
-        expect(html.lastIndexOf('class="bead-label"')).toBeLessThan(html.indexOf('class="home-nav"'));
+        expect(html).not.toContain('bead-label');
       });
 
       it('server-renders the five facts as a list before the nav, the words of the table with "/" as a line break', () => {

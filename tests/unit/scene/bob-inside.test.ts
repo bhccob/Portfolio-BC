@@ -2,32 +2,30 @@ import { NavigationType } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { projects } from '~/data/projects';
 import { INSIDE_BUILD, INSIDE_POINTS, INSIDE_STATE, insideBuild, insideClockRuns, insideFromHistory, insidePoints, opensOnClick } from '~/scene/bob/inside';
-import { BEADS, journeyAt } from '~/scene/bob/journey';
+import { journeyAt, WORLD_PROJECTS } from '~/scene/bob/journey';
 import { IDLE_SECONDS } from '~/scene/bob/look';
 import { frame } from '~/state/frame';
-import { HOME_CHAPTERS, pathStart } from '~/state/chapters';
+import { areaStop, HOME_CHAPTERS, LAND_STOP, pathStart, sheetStart, worldStop } from '~/state/chapters';
 import { insideInHistory, noteOpenedFrom, resetRouteSync, stopForProject, syncRoute } from '~/state/routeSync';
 import { useScene } from '~/state/store';
 
-/** The path's start, the hand-over: each bead's arrival stop is past it. */
+/** The path's start, the hand-over: the world is past it. */
 const L = pathStart(HOME_CHAPTERS);
 
-describe('opensOnClick: where a click on a bead takes the visitor inside it', () => {
-  it('opens the bead the light rests beside, and any bead in the look back, and none on the way', () => {
-    // Each arrival: its own bead, and no other.
-    for (const [k, bead] of BEADS.entries()) {
-      const here = journeyAt(stopForProject(bead.id));
-      for (const j of BEADS.keys()) expect(opensOnClick(here, j), `${bead.id}'s arrival, bead ${j}`).toBe(j === k);
+describe('opensOnClick: where a click opens a project on the world', () => {
+  it('opens at rest at the world, at every area and in the look back; nowhere while moving, nor before the world', () => {
+    expect(LAND_STOP).toBe(0.85);
+    const rests = [worldStop(HOME_CHAPTERS), areaStop(HOME_CHAPTERS, 'secure-element'), areaStop(HOME_CHAPTERS, 'oscillator'), L + 6.5, sheetStart(HOME_CHAPTERS)];
+    for (const p of rests) {
+      expect(opensOnClick(journeyAt(p), true), `at rest at ${p}`).toBe(true);
+      expect(opensOnClick(journeyAt(p), false), `moving at ${p}`).toBe(false);
     }
-    // The look back, its own stop (the sheet's start) included: every bead on the way.
-    for (const p of [L + 7.5, L + 8.85]) for (const j of BEADS.keys()) expect(opensOnClick(journeyAt(p), j), `at ${p}`).toBe(true);
-    // The rise, the light dive, a travel, the sheet on its way up and the end page: none.
-    for (const p of [0, 0.5, 1, 3, L + 0.5, L + 3, L + 9.3, L + 9.85]) {
-      for (const j of BEADS.keys()) expect(opensOnClick(journeyAt(p), j), `at ${p}`).toBe(false);
+    // The rise, the light dive, the light still coming down, the sheet on its way up and the end page: none.
+    for (const p of [0, 0.5, 1, 3, L + 0.5, sheetStart(HOME_CHAPTERS) + 0.3, sheetStart(HOME_CHAPTERS) + 1]) {
+      expect(opensOnClick(journeyAt(p), true), `at ${p}`).toBe(false);
     }
-    // No bead past the way's own.
-    expect(opensOnClick(journeyAt(L + 7.5), BEADS.length)).toBe(false);
-    expect(opensOnClick(journeyAt(L + 7.5), -1)).toBe(false);
+    // A project's own place is a stop where it opens.
+    for (const id of WORLD_PROJECTS) expect(opensOnClick(journeyAt(stopForProject(id)), true), id).toBe(true);
   });
 });
 
@@ -63,7 +61,7 @@ describe("insideFromHistory: the inside a history entry carries", () => {
   it('reads the inside only from a state this session pushed', () => {
     expect(INSIDE_STATE).toBe('bob-inside');
     expect(insideFromHistory({ 'bob-inside': 'funcial' })).toBe('funcial');
-    for (const bead of BEADS) expect(insideFromHistory({ [INSIDE_STATE]: bead.id })).toBe(bead.id);
+    for (const id of WORLD_PROJECTS) expect(insideFromHistory({ [INSIDE_STATE]: id })).toBe(id);
     const offPath = projects.offPath()[0]?.id ?? 'nope';
     for (const state of [null, undefined, 'funcial', 3, {}, { 'bob-inside': 'nope' }, { 'bob-inside': 7 }, { 'bob-inside': offPath }, { back: true }]) {
       expect(insideFromHistory(state), JSON.stringify(state)).toBeNull();

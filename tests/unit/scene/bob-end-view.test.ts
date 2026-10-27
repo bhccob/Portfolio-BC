@@ -7,9 +7,9 @@ import { AT_REST, asleep } from '~/engine/stillness';
 import { END_SETTLED, follow } from '~/input/scrollLoop';
 import { applyEndView, BLACK, clearEndView, type EndPageNode, type EndRoot, endViewFor, endWritten } from '~/scene/bob/endView';
 import { idleRuns, needleRests } from '~/scene/bob/idle';
-import { BEADS, journeyAt, journeyPoseAt } from '~/scene/bob/journey';
-import { ease } from '~/scene/bob/lightPath';
-import { easeHover, hoversAt, pointerMode, selectedBead } from '~/scene/bob/voidPose';
+import { journeyAt, journeyPoseAt, WORLD_PROJECTS } from '~/scene/bob/journey';
+import { ease } from '~/scene/bob/worldPath';
+import { easeHover, hoversAt, pointerMode } from '~/scene/bob/voidPose';
 import { phaseChangeDraws } from '~/scene/motion';
 import { HOME_CHAPTERS, scrollEnd, sheetStart } from '~/state/chapters';
 import type { Phase } from '~/state/machine';
@@ -23,8 +23,8 @@ const S = sheetStart(HOME_CHAPTERS);
 /** Half way over the sheet: the black nearly whole, the credits not yet rising. */
 const MID = S + 0.5;
 
-/** Cookies Clicker's place in `BEADS`: the last bead on the way. */
-const COOKIES = BEADS.findIndex(({ id }) => id === 'cookies-clicker');
+/** Cookies Clicker's place on the world: the last project. */
+const COOKIES = WORLD_PROJECTS.indexOf('cookies-clicker');
 
 describe('endViewFor: the end view of a frame, from its sheet and where the story is', () => {
   it('is nothing before the sheet', () => {
@@ -362,10 +362,9 @@ describe('applyEndView: Home writes the end view each frame, only on change', ()
     expect(scrollTo).not.toHaveBeenCalled();
   });
 
-  it('selects no bead at the end, so nothing keeps drawing', () => {
+  it('lets the pointer take no project at the end, so nothing keeps drawing', () => {
     expect(END - S).toBeCloseTo(1, 12);
-    expect(selectedBead(journeyAt(END))).toBeNull();
-    expect(selectedBead(journeyAt(S))).toBeNull();
+    expect(pointerMode(journeyPoseAt(END, 16 / 9))).toBeNull();
   });
 });
 
@@ -415,7 +414,7 @@ describe('the scene sleeps as soon as the story rests at the end', () => {
     // The sheet, either way, and the credits: the black comes over the look back, so nothing is read.
     for (const p of [S + 0.01, MID, S + 0.775, END - 0.01, END]) expect(at(p), `at ${p}`).toBe(false);
     // Everywhere before the sheet as before: the rise, the light dive, the path and the look back.
-    for (const p of [0, 0.5, 1, 2, 3, 4, 6, 8, 10, 12, 14, S - 0.001, S]) expect(at(p), `at ${p}`).toBe(true);
+    for (const p of [0, 0.5, 1, 2, 3, 4, 6, 8, 10, 12, 13, S - 0.001, S]) expect(at(p), `at ${p}`).toBe(true);
     expect(hoversAt({ sheet: 0 })).toBe(true);
     expect(hoversAt({ sheet: 1e-6 })).toBe(false);
     expect(hoversAt({ sheet: Number.NaN }), 'NaN reads as no sheet, as the end view reads it').toBe(true);
@@ -440,7 +439,7 @@ describe('the scene sleeps as soon as the story rests at the end', () => {
       if (easing) lastEased = t;
     }
     // At rest: the hover is out and still, and no bead is selected at the end.
-    expect([hover.id, hover.amount, easing, selectedBead(journeyAt(END))]).toEqual([null, 0, false, null]);
+    expect([hover.id, hover.amount, easing, pointerMode(journeyPoseAt(END, 16 / 9))]).toEqual([null, 0, false, null]);
     // It went out early in the move, its ease-out (about 0.55 s) done well before the rest: none of it after.
     expect(lastEased).toBeGreaterThan(0);
     expect(t - lastEased).toBeGreaterThan(0.6);

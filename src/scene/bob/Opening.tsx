@@ -20,7 +20,7 @@ import { useLoaderSkip } from '~/input/loaderSkip';
 import { frame } from '~/state/frame';
 import { placeForProject } from '~/state/routeSync';
 import { useScene } from '~/state/store';
-import { openAt } from '~/ui/BeadLabel';
+import { openAt } from '~/ui/projectOpen';
 import { motion } from '../motion';
 import { settleLoad } from '../settleLoad';
 import { visibleTimeout } from '../timeouts';
@@ -40,7 +40,7 @@ import {
   skipAtFor,
   skipsLoader,
 } from './openingStart';
-import { beadLightStandIns, Void } from './Void';
+import { Void } from './Void';
 import { writeJourney } from './voidPose';
 import { uploadTextures, warm } from './warm';
 
@@ -97,12 +97,6 @@ interface LoaderParts {
   probe: ProbeModel;
   smoke: SmokeModel;
   /**
-   * The beads' light stand-ins (src/scene/bob/Void.tsx `beadLightStandIns`): in the scene from the first frame, at
-   * intensity 0, so every program the loader and the home compile counts the beads' lights; the Void swaps the beads'
-   * own lights in for them. The Opening's to free.
-   */
-  standIns: THREE.PointLight[];
-  /**
    * The light the needle becomes in the light dive (~/engine/bob/build/light): built here, dark, so it is compiled with
    * the loader and its lamp is in the scene's light count from the first frame; the Void poses it. The Opening's to free.
    */
@@ -112,7 +106,6 @@ interface LoaderParts {
 /** What the Opening mounts Home and the Void with, once the compass exists. */
 interface Mounted {
   home: HomeModels;
-  standIns: readonly THREE.PointLight[];
   light: LightModel;
 }
 
@@ -237,9 +230,8 @@ export interface OpeningProps {
  *
  * **Build.** On mount it builds the loader's parts at once for the ladder's tier (`tier`, from the Stage): the glass
  * (`buildGlass`, sized to the drawing buffer through `setRenderer`, again on every resize), the engraving, the traces
- * (`traceLayout()`), the probe and the smoke, and the beads' light stand-ins (`beadLightStandIns`, src/scene/bob/Void.tsx:
- * point lights at intensity 0 that hold the beads' place in the light count, so no program compiled from here on is
- * compiled again when the beads come in). It adds them, compiles their programs and calls `onReady`: the canvas
+ * (`traceLayout()`), the probe and the smoke (the hologram world that comes later adds no lights, so nothing compiled from
+ * here on is compiled again when it comes in). It adds them, compiles their programs and calls `onReady`: the canvas
  * fades in over the poster and the loader begins. When the ladder steps down later, the parts step down in place
  * (`setReflector` and, with it, the traces' `setUnder` (they lie under the glass only while it is transparent), `setTier` on the compass and the smoke), never up.
  *
@@ -292,7 +284,7 @@ export interface OpeningProps {
  *
  * **A bead seen close.** The shot is the journey's at the bead's stop moved toward `focusShotFor` (source
  * `flight`) while the close view is in it: a project page stands over it, and the label's flight in (`openBead`,
- * src/ui/BeadLabel.tsx, which the Void's click on the selected bead calls too, `onOpen`) and Back's flight out ease
+ * src/ui/projectOpen.tsx, which the Void's click on the selected bead calls too, `onOpen`) and Back's flight out ease
  * between the two over `FLIGHT_MS`, on the document's clock (`frame.focus`), so a route change in the middle neither
  * restarts nor jumps it. A fade (`<html data-focus-fade>`, the step fade's 150 ms) stands in where no flight can be.
  *
@@ -402,9 +394,8 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       made.push(smoke);
       const light = buildLight(built);
       made.push(light);
-      const standIns = beadLightStandIns(built);
-      scene.add(glass.group, traces.group, engraving.group, probe.group, smoke.group, light.group, ...standIns);
-      parts = { glass, engraving, traces, probe, smoke, standIns, light };
+      scene.add(glass.group, traces.group, engraving.group, probe.group, smoke.group, light.group);
+      parts = { glass, engraving, traces, probe, smoke, light };
     } catch (error) {
       for (const part of made) part.dispose();
       latest.current.onFail('the loader could not be built', error);
@@ -514,7 +505,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       const now = clockOf(state);
       pose(parts, compass, openingPoseAt(now, state.path), state.elapsed, state);
       // Home and the Void mount now; they drive nothing until the Opening hands the home over.
-      setModels({ home: { compass, engraving: parts.engraving, smoke: parts.smoke, glass: parts.glass, traces: parts.traces }, standIns: parts.standIns, light: parts.light });
+      setModels({ home: { compass, engraving: parts.engraving, smoke: parts.smoke, glass: parts.glass, traces: parts.traces }, light: parts.light });
 
       // The strips go up to the GPU now, not on the frame that first shows the bands, and the home's programs compile.
       uploadTextures(gl, homeParts.strips);
@@ -558,8 +549,6 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       parts.traces.dispose();
       parts.probe.dispose();
       parts.smoke.dispose();
-      scene.remove(...parts.standIns);
-      for (const light of parts.standIns) light.dispose();
       home.current = null;
       if (homeParts.compass) {
         scene.remove(homeParts.compass.group);
@@ -682,7 +671,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
   return models ? (
     <>
       <Home models={models.home} handover={handover} />
-      <Void compass={models.home.compass} light={models.light} handover={handover} tier={tier} standIns={models.standIns} onOpen={openAt} />
+      <Void compass={models.home.compass} light={models.light} handover={handover} tier={tier} onOpen={openAt} />
     </>
   ) : null;
 }

@@ -24,24 +24,28 @@ export function areasOnPath(list: readonly Project[] = projects.onPath()): AreaS
  * - HOME, the rise from the home to BOB seen from above;
  * - LIGHT, the light dive: the needle lighting up into a light that flows away through the void past Bob's facts (the
  *   way's frames 1 to `HAND_F` of the previs, tools/blender/light_dive.py), where the path takes the light over;
- * - for each project on the way, in order: TRAVEL, the light leading on to its bead and coming to rest beside it; ARRIVE,
- *   the light at rest there while the camera settles on the whole bead (spec 2026-10-27-bob-nebula-space-design.md: no
- *   circling, and no inside on the scroll: a click takes the visitor inside);
- * - LOOK, the camera pulling back over the whole way;
+ * - LAND, the hologram world (spec 2026-10-27-bob-hologram-world-design.md): the light falling on into the CPU at the
+ *   centre of the board below the fall, the board powering up and the camera settling on the whole world, its stop
+ *   (`LAND_STOP`) the world's;
+ * - for each category of the projects on the way, in the categories' order: AREA, the camera going round the board to
+ *   the category's area, its stop (`AREA_STOP`) the area at rest;
+ * - LOOK, the camera pulling back over the whole world;
  * - SHEET, the look back fading to black and the credits rising from below;
  * - END, the credits at rest, the scroll's last stop.
  */
-export type ChapterId = 'HOME' | 'LIGHT' | 'TRAVEL' | 'ARRIVE' | 'LOOK' | 'SHEET' | 'END';
+export type ChapterId = 'HOME' | 'LIGHT' | 'LAND' | 'AREA' | 'LOOK' | 'SHEET' | 'END';
 
 export interface ChapterUnit {
   id: ChapterId;
   /** Where the unit starts on the scroll axis, in units (one unit is one viewport height of scroll). */
   start: number;
   length: number;
-  /** The category of the project of a TRAVEL or ARRIVE unit; null for every other chapter. */
+  /** The category of an AREA unit; null for every other chapter. */
   category: string | null;
-  /** That project's place on the way, 0 for the first; null for every other chapter. */
+  /** An AREA unit's place among the areas, 0 for the first; null for every other chapter. */
   project: number | null;
+  /** An AREA unit's projects on the way, in the way's order; null for every other chapter. */
+  projects: readonly ProjectId[] | null;
 }
 
 export interface Chapters {
@@ -50,8 +54,8 @@ export interface Chapters {
 }
 
 export interface ChapterSpec {
-  /** The categories of the projects on the way, in order: each has a TRAVEL and an ARRIVE. */
-  path: readonly string[];
+  /** The areas of the world, in order (`areasOnPath`): each has an AREA unit. */
+  areas: readonly AreaSpec[];
 }
 
 /** How far outside a chapter, in units, the scroll may drift before the chapter changes: it stops a boundary from flickering. */
@@ -77,33 +81,33 @@ export const LIGHT_UNITS = (FALL_PACE * (HAND_F - 1)) / (WAY_FRAMES - 1);
 export const FACT_PEAKS = [81, 121, 161, 201, 241] as const;
 
 /**
- * The path's lengths in units: each project's travel (the first three, from the light path mock-up Bob approved; a later
- * one is the third's), its arrival, where the light rests and the camera settles, and the look back. The sheet is one
- * unit: its first 0.55 the fade to black, the rest the credits rising.
+ * The world's lengths in units (my calls, after the mock-up's pace): the land, from the hand-over to the world at rest;
+ * each area, from the stop before to the area at rest; and the look back. The sheet is one unit: its first 0.55 the fade
+ * to black, the rest the credits rising.
  */
-export const PATH_LAYOUT = { travel: [1.25, 1.45, 1.55], arrive: 0.9, look: 1.9 } as const;
-
-/** The travel to the project at place `i` on the way. */
-function travelLength(i: number): number {
-  return PATH_LAYOUT.travel[Math.min(i, PATH_LAYOUT.travel.length - 1)]!;
-}
+export const WORLD_LAYOUT = { land: 1.8, area: 1.4, look: 1.6 } as const;
 
 /**
- * HOME 1, LIGHT `LIGHT_UNITS`, then TRAVEL and ARRIVE for each project on the way, then LOOK, SHEET 1 and END 1.
+ * HOME 1, LIGHT `LIGHT_UNITS`, LAND, then an AREA for each area of the world, then LOOK, SHEET 1 and END 1.
  * The scroll ends on the last stop, the credits' (`scrollEnd`), and never goes into the END unit; `total` is where the
  * units end. Nothing here is a pixel: the scroll input turns pixels into units.
  */
 export function buildChapters(spec: ChapterSpec): Chapters {
+  const none = { category: null, project: null, projects: null };
   const lengths: Omit<ChapterUnit, 'start'>[] = [
-    { id: 'HOME', length: 1, category: null, project: null },
-    { id: 'LIGHT', length: LIGHT_UNITS, category: null, project: null },
-    ...spec.path.flatMap((category, project): Omit<ChapterUnit, 'start'>[] => [
-      { id: 'TRAVEL', length: travelLength(project), category, project },
-      { id: 'ARRIVE', length: PATH_LAYOUT.arrive, category, project }
-    ]),
-    { id: 'LOOK', length: PATH_LAYOUT.look, category: null, project: null },
-    { id: 'SHEET', length: 1, category: null, project: null },
-    { id: 'END', length: 1, category: null, project: null }
+    { id: 'HOME', length: 1, ...none },
+    { id: 'LIGHT', length: LIGHT_UNITS, ...none },
+    { id: 'LAND', length: WORLD_LAYOUT.land, ...none },
+    ...spec.areas.map((area, project): Omit<ChapterUnit, 'start'> => ({
+      id: 'AREA',
+      length: WORLD_LAYOUT.area,
+      category: area.category,
+      project,
+      projects: [...area.projects]
+    })),
+    { id: 'LOOK', length: WORLD_LAYOUT.look, ...none },
+    { id: 'SHEET', length: 1, ...none },
+    { id: 'END', length: 1, ...none }
   ];
   let start = 0;
   const units = lengths.map((unit) => {
@@ -114,8 +118,8 @@ export function buildChapters(spec: ChapterSpec): Chapters {
   return { units, total: start };
 }
 
-/** The chapters of the home page: the rise, the light dive, the path through the projects on the way, the look back, the sheet and the credits. */
-export const HOME_CHAPTERS: Chapters = buildChapters({ path: projects.onPath().map((project) => project.categoryId) });
+/** The chapters of the home page: the rise, the light dive, the world and its areas, the look back, the sheet and the credits. */
+export const HOME_CHAPTERS: Chapters = buildChapters({ areas: areasOnPath() });
 
 export interface ChapterAt {
   index: number;
@@ -178,17 +182,17 @@ export function lightStart(c: Chapters): number {
   return startOf(c, 'LIGHT');
 }
 
-/** Where the path starts: the hand-over, way frame `HAND_F`, the light still falling with the last fact beside it. */
+/** Where the world's path starts: the hand-over, way frame `HAND_F`, the light still falling with the last fact beside it. */
 export function pathStart(c: Chapters): number {
   return lightStart(c) + LIGHT_UNITS;
 }
 
-/** Where the look back starts: the last bead's arrival, the camera about to pull back over the whole way. */
+/** Where the look back starts: the last area at rest, the camera about to pull back over the whole world. */
 export function lookStart(c: Chapters): number {
   return startOf(c, 'LOOK');
 }
 
-/** Where the sheet starts: the look back at rest, the whole way in view; also the look back's own stop. */
+/** Where the sheet starts: the look back at rest, the whole world in view; also the look back's own stop. */
 export function sheetStart(c: Chapters): number {
   return startOf(c, 'SHEET');
 }
@@ -208,32 +212,37 @@ function placeIn(c: Chapters, f: number): number {
   return lightStart(c) + (FALL_PACE * (f - 1)) / (WAY_FRAMES - 1);
 }
 
-/**
- * Where in its ARRIVE a project's arrival stop stands: the light at rest, the camera settled on the whole bead and its
- * label whole by then; the rest of the unit is a pause before the next travel. Inside the unit, so the story at rest
- * there is at that bead's arrival, not at the next travel's start.
- */
-export const ARRIVE_STOP = 0.65;
+/** Where in the LAND the world's stop stands: the light in the CPU, the board powered, the camera at rest on it, the names shown. */
+export const LAND_STOP = 0.85;
 
-/** The ARRIVE unit of the project of `category`; throws for a category that is not on the way. */
-function arriveOf(c: Chapters, category: string): ChapterUnit {
-  const unit = c.units.find((u) => u.id === 'ARRIVE' && u.category === category);
-  if (!unit) throw new TypeError(`no arrival on the home's scroll for the category "${category}"`);
+/** Where in its AREA an area's stop stands: the camera at rest on it, its words shown; the rest of the unit a pause. */
+export const AREA_STOP = 0.7;
+
+/** The world's stop: `LAND_STOP` into the land. */
+export function worldStop(c: Chapters): number {
+  const unit = c.units.find((u) => u.id === 'LAND')!;
+  return unit.start + LAND_STOP * unit.length;
+}
+
+/** The AREA unit of `category`; throws for a category with no area on the way. */
+function areaOf(c: Chapters, category: string): ChapterUnit {
+  const unit = c.units.find((u) => u.id === 'AREA' && u.category === category);
+  if (!unit) throw new TypeError(`no area on the home's scroll for the category "${category}"`);
   return unit;
 }
 
-/** The arrival stop of the project of `category`: `ARRIVE_STOP` into its arrival, the light at rest beside the bead, its label shown. */
-export function arrivalStop(c: Chapters, category: string): number {
-  const unit = arriveOf(c, category);
-  return unit.start + ARRIVE_STOP * unit.length;
+/** The stop of `category`'s area: `AREA_STOP` into it, the area at rest, its words shown. */
+export function areaStop(c: Chapters, category: string): number {
+  const unit = areaOf(c, category);
+  return unit.start + AREA_STOP * unit.length;
 }
 
 /**
  * Where a key steps (an arrow, Page Up or Down, Space, and every step with reduced motion): the home, BOB from above,
- * each fact at full strength (`FACT_PEAKS`), each project's arrival, the look back and the credits.
+ * each fact at full strength (`FACT_PEAKS`), the world, each area, the look back and the credits.
  */
 export function keyStops(c: Chapters): number[] {
   const facts = FACT_PEAKS.map((f) => placeIn(c, f));
-  const path = c.units.filter((u) => u.id === 'ARRIVE').map((u) => u.start + ARRIVE_STOP * u.length);
-  return [0, riseTop(c), ...facts, ...path, sheetStart(c), scrollEnd(c)];
+  const areas = c.units.filter((u) => u.id === 'AREA').map((u) => u.start + AREA_STOP * u.length);
+  return [0, riseTop(c), ...facts, worldStop(c), ...areas, sheetStart(c), scrollEnd(c)];
 }

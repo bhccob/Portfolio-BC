@@ -12,7 +12,7 @@ import { INSIDE_STATE } from '~/scene/bob/inside';
 import { frame } from '~/state/frame';
 import { noteOpenedFrom, resetRouteSync, stopForProject, syncRoute } from '~/state/routeSync';
 import { useScene } from '~/state/store';
-import { closeInside, lendOpener, openInside, viewInside } from '~/ui/BeadLabel';
+import { closeInside, lendOpener, openInside, viewInside } from '~/ui/projectOpen';
 import { INSIDE_ATTRIBUTE, InsideControls, leaveInsideOn, SWIPE_OUT_PX } from '~/ui/InsideControls';
 
 const base = readFileSync(fileURLToPath(new URL('../../../src/styles/base.css', import.meta.url)), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');

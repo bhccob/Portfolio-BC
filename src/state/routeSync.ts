@@ -5,27 +5,27 @@ import { type ProjectId, projects } from '~/data/projects';
 import { routeFromPath } from '~/i18n/locale';
 import { type Locale, Translator } from '~/i18n/Translator';
 import { insideFromHistory } from '~/scene/bob/inside';
-import { arrivalStop, chapterAt, HOME_CHAPTERS, sheetStart } from './chapters';
+import { areaStop, chapterAt, HOME_CHAPTERS, sheetStart } from './chapters';
 import { frame } from './frame';
 import { type Phase, samePhase, transition } from './machine';
 import { useScene } from './store';
 
 /**
- * The stop of a project on the home's scroll, where the light rests beside its bead with its label shown: the end of
- * its orbit (~/state/chapters `arrivalStop`). A project that is not on the light's way has no bead on it: its stop is
- * the look back's own, where it is a small light beside the trail (`sheetStart`).
+ * The stop of a project on the home's scroll: its area's (~/state/chapters `areaStop`; spec
+ * 2026-10-27-bob-hologram-world-design.md), the camera at rest on it with its words shown. A project that is not on the
+ * way has no place on the world: its stop is the look back's own (`sheetStart`).
  */
 export function stopForProject(id: ProjectId): number {
   const project = projects.byId(id);
   if (project === undefined) throw new TypeError(`no stop on the home's scroll for the project "${id}"`);
-  return projects.onPath().includes(project) ? arrivalStop(HOME_CHAPTERS, project.categoryId) : sheetStart(HOME_CHAPTERS);
+  return projects.onPath().includes(project) ? areaStop(HOME_CHAPTERS, project.categoryId) : sheetStart(HOME_CHAPTERS);
 }
 
 /** The bead last opened from the home, and the place of the story it was opened at (`noteOpenedFrom`). */
 let opened: { id: ProjectId; place: number } | null = null;
 
 /**
- * Notes that bead `id` is being opened from the home with the story at `place` (src/ui/BeadLabel.tsx `openBead`), so
+ * Notes that bead `id` is being opened from the home with the story at `place` (src/ui/projectOpen.tsx `openBead`), so
  * Back from its page comes back to that very place: its arrival, its inside or the look back (spec
  * 2026-10-27-bob-light-path-design.md, "Coming back from a project").
  */
@@ -116,7 +116,7 @@ export function resetRouteSync(): void {
 
 /**
  * Whether the history entry being shown is the home page with a bead's inside (src/scene/bob/inside.ts), as the last
- * sync read it: Back then comes out of the inside to the entry before it (src/ui/BeadLabel.tsx `closeInside`).
+ * sync read it: Back then comes out of the inside to the entry before it (src/ui/projectOpen.tsx `closeInside`).
  */
 export function insideInHistory(): boolean {
   return shownInside;

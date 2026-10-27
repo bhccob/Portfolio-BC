@@ -13,7 +13,6 @@ import { nl } from '~/i18n/nl';
 import { goToEnd, headedToEnd } from '~/input/useHomeScroll';
 import { journeyPoseAt } from '~/scene/bob/journey';
 import { HOME_CHAPTERS, pathStart } from '~/state/chapters';
-import { pathLabelPlace } from '~/ui/BeadLabel';
 import { focusEndOnArrival } from '~/ui/endArrival';
 import { SKIP_ATTRIBUTE, SkipButton, showsSkip, skipAlt, skipHome, skipPlace, skipToEnd, writeSkip } from '~/ui/SkipButton';
 
@@ -24,11 +23,11 @@ function rule(selector: string): string {
 }
 
 describe('the skip button shows from the first project through the look back', () => {
-  it('shows from the first arrival through the look back, nowhere else', () => {
+  it("shows from the world's stop through the look back, nowhere else", () => {
     const L = pathStart(HOME_CHAPTERS);
     const at = (p: number) => showsSkip(journeyPoseAt(p, 1440 / 900));
-    // TRAVEL 0, ARRIVE 0's start, ARRIVE 1, the look back's own stop, part-way up the sheet, the credits
-    expect([L + 1.0, L + 1.25, L + 4.0, L + 8.85, L + 8.9, L + 9.85].map(at)).toEqual([false, true, true, true, false, false]);
+    // the land, the world's stop, an area, the look back's own stop, part-way up the sheet, the credits
+    expect([L + 1.0, L + 1.53, L + 4.0, L + 7.6, L + 7.65, L + 8.6].map(at)).toEqual([false, true, true, true, false, false]);
     for (const p of [0, 0.5, 1, 2.5, L - 0.01]) expect(at(p), `at ${p}`).toBe(false);
   });
 
@@ -101,11 +100,4 @@ describe('the skip button never covers the label', () => {
     expect(skipPlace(null, size, pill)).toBe('home');
   });
 
-  it("takes its alternate place where the label beside a light at rest low on the right would cover it, and stays home for one in the middle", () => {
-    const box = { w: 260, h: 90 };
-    const low = pathLabelPlace({ anchor: { x: 1000, y: 560 }, side: 'right' }, box, size);
-    expect(skipPlace({ ...low, ...box }, size, pill)).toBe('alt');
-    const middle = pathLabelPlace({ anchor: { x: 700, y: 330 }, side: 'right' }, box, size);
-    expect(skipPlace({ ...middle, ...box }, size, pill)).toBe('home');
-  });
 });

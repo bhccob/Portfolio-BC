@@ -8,7 +8,7 @@ import { startHomeScroll } from '~/input/scrollLoop';
 import { connectHomeScroll } from '~/input/useHomeScroll';
 import { holdLimit, releaseTarget } from '~/input/target';
 import { heldAtLanding, LANDING_HOLD, landingHoldFor, RISE_TOP } from '~/scene/bob/landingHold';
-import { BEADS, journeyAt, journeyPoseAt } from '~/scene/bob/journey';
+import { journeyAt, journeyPoseAt } from '~/scene/bob/journey';
 import { F, LIGHT_FRAMES } from '~/scene/bob/lightDive';
 import { nearestStop } from '~/scene/bob/stepFade';
 import { loadVoid } from '~/scene/bob/voidLoad';
@@ -18,19 +18,15 @@ import {
   needleFor,
   needleGlowFor,
   pointerMode,
-  selectedBead,
   VOID_FROM,
   voidShownAt,
   voidShownFor,
-  wakeFor,
   writeJourney
 } from '~/scene/bob/voidPose';
 import * as THREE from 'three';
-import { WAKE } from '~/engine/bob/beadBuild';
 import { applyCameraShot, type CameraShot } from '~/engine/bob/shots';
-import { pathFor } from '~/scene/bob/lightPath';
 import { NavigationType } from 'react-router';
-import { arrivalStop, chapterAt, HOME_CHAPTERS, keyStops, pathStart, placeOfFrame, scrollEnd, stops } from '~/state/chapters';
+import { areaStop, chapterAt, HOME_CHAPTERS, keyStops, pathStart, placeOfFrame, scrollEnd, stops, worldStop } from '~/state/chapters';
 import { frame } from '~/state/frame';
 import { BACK_STATE, resetRouteSync, stopForProject, syncRoute } from '~/state/routeSync';
 import { useScene, type VoidState } from '~/state/store';
@@ -43,10 +39,10 @@ const KEY_STOPS = keyStops(HOME_CHAPTERS);
 const END = scrollEnd(HOME_CHAPTERS);
 /** The path's start, the hand-over (way frame 256). */
 const L = pathStart(HOME_CHAPTERS);
-/** Each bead's stop: its arrival, the light at rest beside it (Funcial's, Jontai Energy's, Cookies Clicker's). */
-const A0 = arrivalStop(HOME_CHAPTERS, 'secure-element');
-const A1 = arrivalStop(HOME_CHAPTERS, 'front-panel');
-const A2 = arrivalStop(HOME_CHAPTERS, 'oscillator');
+/** The first stop past the hold, the world's; and two areas' stops (Jontai Energy's, Cookies Clicker's). */
+const A0 = worldStop(HOME_CHAPTERS);
+const A1 = areaStop(HOME_CHAPTERS, 'front-panel');
+const A2 = areaStop(HOME_CHAPTERS, 'oscillator');
 
 // ---------------------------------------------------------------- the hold
 
@@ -60,13 +56,13 @@ describe('landingHoldFor: the most the scroll may reach before the beads are rea
     for (const state of ['idle', 'loading', 'failed'] as const) expect(landingHoldFor(state), state).toBe(H);
     expect(H).toBe(L);
     expect(H).toBe(placeOfFrame(256));
-    expect(journeyAt(H)).toMatchObject({ stretch: 'travel', local: 0, project: 0 });
-    for (const a of SCREENS) expect(journeyPoseAt(H, a).path!.beads.every((bead) => !bead.visible), 'the beads not yet in sight').toBe(true);
+    expect(journeyAt(H)).toMatchObject({ stretch: 'land', local: 0, project: null });
+    for (const a of SCREENS) expect(journeyPoseAt(H, a).path!.power, 'the world not yet powered').toBe(0);
   });
 
   it("is the end of the scroll once the void is ready, the credits' stop: nothing holds", () => {
     expect(landingHoldFor('ready')).toBe(END);
-    expect(END).toBeCloseTo(L + 9.85, 9);
+    expect(END).toBeCloseTo(L + 8.6, 9);
   });
 
   it('answers a hold for every state, never above the end nor below the top of the rise', () => {
@@ -230,7 +226,7 @@ describe("3D off and on keeps the visitor's place", () => {
     s.switch3D(true);
     // As a Back to the stop while the beads load: the story waits at the hold, its place kept for the beads' ready.
     expect([s.story.target, s.story.progress]).toEqual([H, H]);
-    expect(s.chapters.at(-1)).toBe('TRAVEL'); // the hold is the path's start
+    expect(s.chapters.at(-1)).toBe('LAND'); // the hold is the path's start, where the land begins
     s.become('loading');
     s.drain();
     expect(s.story.target).toBe(H);
@@ -238,7 +234,7 @@ describe("3D off and on keeps the visitor's place", () => {
     await flush(); // the first move fetches damp
     s.drain();
     expect([s.story.target, s.story.progress]).toEqual([A1, A1]);
-    expect(s.chapters.at(-1)).toBe('ARRIVE'); // an arrival stop is in its arrival
+    expect(s.chapters.at(-1)).toBe('AREA'); // an arrival stop is in its arrival
   });
 
   it('does the same with reduced motion, held on the last fact, the last key stop under the hold', async () => {
@@ -442,14 +438,14 @@ describe('the scroll input holds at the landing while the beads load', () => {
     expect([s.story.target, s.story.progress]).toEqual([H, H]);
     // The chapter follows the story to the hold: the path's start, Funcial's travel.
     expect(s.story.chapterIndex).toBe(2);
-    expect(s.chapters).toEqual(['TRAVEL']);
+    expect(s.chapters).toEqual(['LAND']);
     s.drain();
     expect(s.story.target).toBe(H);
     s.become('ready');
     await flush();
     s.drain();
     expect([s.story.target, s.story.progress]).toEqual([A1, A1]);
-    expect(s.chapters.at(-1)).toBe('ARRIVE'); // an arrival stop is in its arrival
+    expect(s.chapters.at(-1)).toBe('AREA'); // an arrival stop is in its arrival
   });
 
   it('holds it the same while the void is idle, before its load has begun', () => {
@@ -570,19 +566,20 @@ describe('frame.journey: where the journey stands, for the debug bridge', () => 
   });
 
   it('starts at the home, with an idle void', () => {
-    expect(frame.journey).toEqual({ stretch: 'rise', local: 0, project: null, voidState: 'idle', frame: null, sheet: 0, light: null, beads: null, label: null, wake: [], engraved: null, nebula: null });
+    expect(frame.journey).toEqual({ stretch: 'rise', local: 0, project: null, voidState: 'idle', frame: null, sheet: 0, light: null, objects: null, world: null, engraved: null, nebula: null });
   });
 
   it('is on the debug state as a copy, voidState included', () => {
     const before = { ...frame.journey };
     try {
-      const beads = [{ x: 10, y: 20, r: 30, visible: true }];
-      Object.assign(frame.journey, { stretch: 'arrive', local: 0.5, project: 1, voidState: 'ready', frame: null, sheet: 0, light: null, beads, label: { index: 1, opacity: 1 }, wake: [10, 3.1, 0] });
+      const objects = [{ id: 'funcial', x: 10, y: 20, r: 30, visible: true }];
+      const world = { power: 1, names: 0, caption: { index: 1, opacity: 1 }, dots: 1 };
+      Object.assign(frame.journey, { stretch: 'area', local: 0.5, project: 1, voidState: 'ready', frame: null, sheet: 0, light: null, objects, world });
       const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
-      expect(state.journey).toEqual({ stretch: 'arrive', local: 0.5, project: 1, voidState: 'ready', frame: null, sheet: 0, light: null, beads, label: { index: 1, opacity: 1 }, wake: [10, 3.1, 0], engraved: null, nebula: null });
+      expect(state.journey).toEqual({ stretch: 'area', local: 0.5, project: 1, voidState: 'ready', frame: null, sheet: 0, light: null, objects, world, engraved: null, nebula: null });
       expect(state.journey).not.toBe(frame.journey);
-      expect(state.journey.beads).not.toBe(beads);
-      expect(state.journey.wake).not.toBe(frame.journey.wake);
+      expect(state.journey.objects).not.toBe(objects);
+      expect(state.journey.world).not.toBe(world);
     } finally {
       Object.assign(frame.journey, before);
     }
@@ -627,21 +624,6 @@ describe('voidShownFor: the void and the beads show only once the camera is unde
       for (const f of [F.PASS, F.CHASE, 121, F.LAND, F.END]) expect(voidShownFor(journeyPoseAt(placeOfFrame(f), a).shot), `at frame ${f}`).toBe(true);
       for (const p of [4, 4.5, 5, 5.5, 6, 6.5, 7]) expect(voidShownFor(journeyPoseAt(p, a).shot), `at ${p}`).toBe(true);
     }
-  });
-});
-
-describe('selectedBead: the bead of an arrival', () => {
-  it('is none on the rise, in the light dive and on a travel, and the bead of an arrival', () => {
-    for (const p of [0, 0.5, 1, placeOfFrame(121), L - 0.001, L, L + 1, L + 3]) expect(selectedBead(journeyAt(p)), `at ${p}`).toBeNull();
-    expect(selectedBead(journeyAt(L + 1.25))).toBe(0); // Funcial's arrival begins
-    expect(selectedBead(journeyAt(L + 1.835))).toBe(0); // its arrival stop
-    expect(selectedBead(journeyAt(L + 2.1))).toBe(0); // the pause after it
-    expect(selectedBead(journeyAt(L + 4))).toBe(1);
-    expect(selectedBead(journeyAt(L + 6.635))).toBe(2);
-  });
-
-  it('is none in the look back, where the pointer picks a bead, under the sheet and at the credits', () => {
-    for (const p of [L + 6.95, L + 7.5, L + 8.85, L + 9.3, END]) expect(selectedBead(journeyAt(p)), `at ${p}`).toBeNull();
   });
 });
 
@@ -697,66 +679,6 @@ describe('the hover: eased in and out, one bead at a time', () => {
 
 // ---------------------------------------------------------------- the light count
 
-describe("the beads' inner lights and their stand-ins", () => {
-  const glb = readGlbJson(readFileSync(fileURLToPath(new URL('../../../public/models/bob-beads.glb', import.meta.url))));
-  const lights = (glb as unknown as { extensions?: { KHR_lights_punctual?: { lights: { type: string }[] } } }).extensions?.KHR_lights_punctual?.lights ?? [];
-
-  it('are the three point lights of the GLB, one in each bead', () => {
-    expect(lights.map((light) => light.type)).toEqual(['point', 'point', 'point']);
-    expect(lights.length).toBe(BEADS.length);
-  });
-
-  it('are stood in for from the first frame by as many point lights, dark, where the tier keeps them', async () => {
-    const { BEAD_LIGHTS, beadLightStandIns } = await import('~/scene/bob/Void');
-    expect(BEAD_LIGHTS).toEqual({ high: true, medium: true, low: false });
-    for (const tier of ['high', 'medium'] as const) {
-      const standIns = beadLightStandIns(tier);
-      // The count three compiles for is the beads' own: point lights, no shadows, as many as the GLB's.
-      expect(standIns.length).toBe(lights.length);
-      for (const light of standIns) {
-        expect(light.isPointLight).toBe(true);
-        expect(light.intensity).toBe(0);
-        expect(light.castShadow).toBe(false);
-        expect(light.visible).toBe(true);
-      }
-      expect(standIns.map((light) => light.name)).toEqual(BEADS.map(({ id }) => `bead_${id}_inner:stand-in`));
-    }
-    // On low the beads' own are dropped, and so nothing stands in for them.
-    expect(beadLightStandIns('low')).toEqual([]);
-  });
-
-  it('hides a bead by what it draws, never by its root, so its light stays in the count', async () => {
-    const THREE = await import('three');
-    const { drawnParts } = await import('~/scene/bob/Void');
-    const root = new THREE.Group();
-    const body = new THREE.Mesh();
-    const slot = new THREE.Group();
-    slot.add(new THREE.Mesh(), new THREE.Mesh());
-    const light = new THREE.PointLight(undefined, 0.25);
-    // A light held a level down, in a group that also holds a drawn part.
-    const holder = new THREE.Group();
-    const lamp = new THREE.PointLight(undefined, 0.25);
-    const shade = new THREE.Mesh();
-    holder.add(lamp, shade);
-    root.add(body, slot, light, holder);
-    const parts = drawnParts(root);
-    expect(new Set(parts)).toEqual(new Set([body, slot, shade]));
-    for (const part of parts) part.visible = false;
-    const lit: unknown[] = [];
-    root.traverseVisible((o) => {
-      if ((o as { isLight?: boolean }).isLight) lit.push(o);
-    });
-    expect(lit).toEqual([light, lamp]);
-    const drawn: unknown[] = [];
-    root.traverseVisible((o) => {
-      if ((o as { isMesh?: boolean }).isMesh) drawn.push(o);
-    });
-    expect(drawn).toEqual([]);
-  });
-});
-
-// ---------------------------------------------------------------- reduced motion
-
 describe("the step fade's stops are the journey's chapter starts", () => {
   it('fades between the chapter starts, from the home to the credits, and poses each exactly', () => {
     const STOPS = stops(HOME_CHAPTERS);
@@ -798,7 +720,7 @@ describe('the wiring: one journey pose a frame', () => {
   });
 
   it('uploads textures through one call of initTexture, the one the proof harness\'s load-throw step makes throw', () => {
-    const calls = ['scene/bob/Opening.tsx', 'scene/bob/Void.tsx', 'scene/bob/warm.ts', 'scene/bob/Home.tsx', 'engine/bob/build/beads.ts', 'engine/bob/build/void.ts'].flatMap((path) =>
+    const calls = ['scene/bob/Opening.tsx', 'scene/bob/Void.tsx', 'scene/bob/warm.ts', 'scene/bob/Home.tsx', 'engine/bob/build/world.ts', 'engine/bob/build/void.ts'].flatMap((path) =>
       (read(path).match(/\.initTexture\(/g) ?? []).map(() => path)
     );
     expect(calls).toEqual(['scene/bob/warm.ts']);
@@ -806,14 +728,13 @@ describe('the wiring: one journey pose a frame', () => {
     expect(read('scene/bob/Void.tsx')).toMatch(/uploadTextures\(gl, texturesUnder\(holder\)\)/);
   });
 
-  it('builds the engraved way per path, frees the last on a new aspect, and writes its levels each frame from engravedLevels', () => {
+  it('builds the engraved shaft per tier, frees the last on a lower one, and writes its levels each frame from engravedLevels', () => {
     const source = read('scene/bob/Void.tsx');
-    // One build a path (and tier), from the shaft's rings and the path's trips; the last one taken out and freed.
-    expect(source).toMatch(/buildEngraved\(\s*shaftRings\(\)\s*,\s*tripPoints\(\s*path\s*\)\s*,\s*tier\s*\)/);
-    expect(source).toMatch(/engravedFor\(\s*pathFor\(/);
+    // One build a tier, from the shaft's rings and no trips; the last one taken out and freed.
+    expect(source).toMatch(/buildEngraved\(\s*shaftRings\(\)\s*,\s*\[\]\s*,\s*tier\s*\)/);
     expect(source).toMatch(/scene\.remove\(\s*kept\.model\.group\s*\)[\s\S]{0,80}kept\.model\.dispose\(\)/);
     // Each posed frame: the levels from the pose, the light's place and the fog; on the bridge behind ?proof.
-    expect(source).toMatch(/engravedLevels\(\s*pose\.at\s*,\s*pose\.path\s*,/);
+    expect(source).toMatch(/engravedLevels\(\s*pose\.at\s*\)/);
     expect(source).toMatch(/\.update\(\s*levels\s*,\s*pose\.light\?\.position \?\? null\s*,/);
     expect(source).toMatch(/if \(proof\) frame\.journey\.engraved = /);
     // Unposed and unmounted: nothing shows, and the bridge says null.
@@ -861,8 +782,8 @@ describe("the home scroll as the page wires it to the store (connectHomeScroll, 
       await s.wheel(80);
       s.drain();
       expect([frame.target, frame.progress]).toEqual([H, H]);
-      // The hold is the path's start, where Funcial's travel begins.
-      expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'secure-element' });
+      // The hold is the path's start, where the land begins.
+      expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: null });
       useScene.getState().setVoidState('ready');
       s.drain();
       expect(frame.target).toBeCloseTo(9.6, 12); // as far as the wheel went
@@ -953,8 +874,8 @@ describe('the home\'s links when the void failed, in the stylesheet', () => {
 
 // ---------------------------------------------------------------- the load: the void at the hand-over, the beads after
 
-describe('loadVoid: the void is built at the hand-over, the beads once their file is in', () => {
-  /** A load whose steps the test owns: the beads' file arrives when `release` is called (or fails with `fail`). */
+describe('loadVoid: the void is built at the hand-over, the world after it', () => {
+  /** A load whose steps the test owns: the world is built when `release` is called (or fails with `fail`). */
   function steps(options: { voidFails?: boolean } = {}) {
     const said: VoidState[] = [];
     const scene: string[] = [];
@@ -972,27 +893,27 @@ describe('loadVoid: the void is built at the hand-over, the beads once their fil
         return 'void';
       },
       freeVoid: (space) => freed.push(space),
-      buildBeads: () => file,
+      buildWorld: () => file,
       say: (state) => said.push(state),
       gone: () => gone,
       onVoid: (space) => scene.push(space),
-      onBeads: (beads) => scene.push(beads)
+      onWorld: (world) => scene.push(world)
     });
     return { said, scene, freed, run, release, fail, leave: () => (gone = true) };
   }
 
-  it("puts the void in the scene before the beads' file is in, saying loading, then ready with the beads", async () => {
+  it('puts the void in the scene before the world is built, saying loading, then ready with the world', async () => {
     const s = steps();
     await flush();
     expect(s.said).toEqual(['loading']);
     expect(s.scene).toEqual(['void']);
-    s.release('beads');
+    s.release('world');
     await s.run;
     expect(s.said).toEqual(['loading', 'ready']);
-    expect(s.scene).toEqual(['void', 'beads']);
+    expect(s.scene).toEqual(['void', 'world']);
   });
 
-  it('keeps the void in the scene when the beads fail, saying failed', async () => {
+  it('keeps the void in the scene when the world fails, saying failed', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const s = steps();
     await flush();
@@ -1099,40 +1020,12 @@ describe('a failed void: the fall plays, the story holds at the landing, and the
   });
 });
 
-describe("wakeFor: the veins' wake a bead's shell is given each frame", () => {
-  /** A camera's view through `shot` on a screen of this aspect: a world point to its view-space x and y. */
-  const viewFrom = (shot: CameraShot, aspect: number) => {
-    const camera = new THREE.PerspectiveCamera(50, aspect, 0.05, 400);
-    applyCameraShot(camera, shot, aspect);
-    const v = new THREE.Vector3();
-    return (p: readonly [number, number, number]): readonly [number, number] => {
-      v.set(p[0], p[1], p[2]).applyMatrix4(camera.matrixWorldInverse);
-      return [v.x, v.y];
-    };
-  };
-
-  it('wakes a bead fully, not at all, or by the light\'s sweep round it', () => {
-    const path = pathFor(LAPTOP);
-    const frame0 = path.frameAt(2.0); // Funcial's orbit
-    const bead0 = frame0.beads[0]!;
-    const view = viewFrom(frame0.shot, LAPTOP);
-    const centre = view(bead0.centre);
-    expect(wakeFor({ ...bead0, wake: { kind: 'full' } }, path, view)).toEqual({ centre, start: 0, span: 10, dir: 1, hot: 0 });
-    expect(wakeFor({ ...bead0, wake: { kind: 'none' } }, path, view)).toEqual({ centre, start: 0, span: 0, dir: 1, hot: 0 });
-    const quarter = wakeFor({ ...bead0, wake: { kind: 'orbit', from: -Math.PI / 2, now: 0 } }, path, view);
-    expect(quarter.hot).toBe(WAKE.hot);
-    expect(quarter.span).toBeGreaterThan(0.5); // from behind the bead to its right, seen a little from above
-    expect(quarter.span).toBeLessThan(Math.PI);
-    expect(quarter.centre).toEqual(centre);
-  });
-});
-
-describe('pointerMode: which beads the pointer may hover and open', () => {
-  it('is the selected bead alone in an arrival, any bead in the look back, and none elsewhere', () => {
+describe('pointerMode: which projects the pointer may hover and open', () => {
+  it('is any project once the world is in: at its stop, every area and the look back; none before it or under the sheet', () => {
     const at = (p: number) => pointerMode(journeyPoseAt(p, LAPTOP));
-    expect([at(0.5), at(placeOfFrame(121)), at(L + 0.5), at(L + 3)]).toEqual([null, null, null, null]);
-    expect([at(L + 1.835), at(L + 4.185), at(L + 6.635)]).toEqual(['selected', 'selected', 'selected']);
-    expect([at(L + 7.5), at(L + 8.85)]).toEqual(['any', 'any']);
-    expect([at(L + 9.3), at(END)]).toEqual([null, null]);
+    expect([at(0.5), at(placeOfFrame(121)), at(L + 0.5), at(L + 1.0)]).toEqual([null, null, null, null]);
+    expect([at(L + 1.53), at(L + 2.78), at(L + 4.0), at(L + 5.58)]).toEqual(['any', 'any', 'any', 'any']);
+    expect([at(L + 6.5), at(L + 7.6)]).toEqual(['any', 'any']);
+    expect([at(L + 8.0), at(END)]).toEqual([null, null]);
   });
 });

@@ -9,11 +9,21 @@ import type { Stretch } from '~/scene/bob/journey';
 import type { VoidState } from './store';
 
 /** A bead on the screen, CSS px: its centre and radius, and whether it is drawn. */
-export interface BeadOnScreen {
+/** A project's object on the hologram world, on the screen: its id, its middle (CSS px) and its click's radius there. */
+export interface ObjectOnScreen {
+  id: string;
   x: number;
   y: number;
   r: number;
   visible: boolean;
+}
+
+/** What the world's path showed on the last frame: the board's power, the names, an area's words and the dots. */
+export interface WorldOnScreen {
+  power: number;
+  names: number;
+  caption: { index: number; opacity: number } | null;
+  dots: number;
 }
 
 /**
@@ -58,10 +68,9 @@ export const frame = {
    * the journey, from the one pose it publishes for that frame (`writeJourney`, src/scene/bob/voidPose.ts); a frame of the
    * loader or of a held seek leaves them as they were. `voidState` is the void's load (the store's `voidState`), which the
    * Void writes as it changes, and `light` the light's centre on the screen (NDC, null where there is no light), which the
-   * Void projects each frame it poses it; and under `?proof` alone, what the Void last drew of the path: `beads`, each
-   * bead on the screen in `BEADS` order (null before the path), `label`, the bead label beside the light and its
-   * opacity, and `wake`, how far each bead's veins have woken (the light's sweep, radians; 10 all awake). The debug bridge
-   * reports them all.
+   * Void projects each frame it poses it; and under `?proof` alone, what the Void last drew of the world: `objects`,
+   * each project's object on the screen in `WORLD_PROJECTS` order (null before the world), and `world`, the path's
+   * power and words (null off the world). The debug bridge reports them all.
    */
   journey: {
     stretch: 'rise' as Stretch,
@@ -71,9 +80,8 @@ export const frame = {
     frame: null as number | null,
     sheet: 0,
     light: null as { x: number; y: number } | null,
-    beads: null as BeadOnScreen[] | null,
-    label: null as { index: number; opacity: number } | null,
-    wake: [] as number[],
+    objects: null as ObjectOnScreen[] | null,
+    world: null as WorldOnScreen | null,
     engraved: null as EngravedLevels | null,
     nebula: null as NebulaLevels | null
   },
@@ -123,7 +131,7 @@ export const frame = {
    *   page's own (a project page, a direct arrival included) by a fade, and back out to the journey on leaving it, by a
    *   flight from the bead's own stop or else a fade. It lives with the document, so a flight goes on across the route
    *   change, and the canvas finds it where it is on its next frame.
-   * - `opening`: the bead whose label or shell was clicked (src/ui/BeadLabel.tsx `openBead`), from the click until the
+   * - `opening`: the bead whose label or shell was clicked (src/ui/projectOpen.tsx `openBead`), from the click until the
    *   next navigation (src/state/routeSync.ts lets it go): its flight runs on the home page, and the router goes to its
    *   page once the flight is in; null otherwise.
    */

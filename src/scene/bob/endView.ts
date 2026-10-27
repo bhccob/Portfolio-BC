@@ -11,7 +11,7 @@
  * - `<html data-end>`: `moving` during the move, `rest` once the story rests at the end, unset otherwise;
  * - `#end`'s `inert`: true unless the view is at rest, so Tab never lands in a page that is not shown.
  */
-import { ease } from './lightPath';
+import { ease } from './worldPath';
 
 /** Where the end page stands: not shown, on its way (in or out), or at rest at the end. */
 export type EndState = 'none' | 'moving' | 'rest';
@@ -72,7 +72,7 @@ export const END_ATTRIBUTE = 'data-end';
 
 /**
  * The end view of a frame. `share` is the pose's `sheet` held to 0..1, with NaN read as 0; the black is eased over its
- * first `BLACK`, as the path's black is (src/scene/bob/lightPath.ts), and the rise eased out over the rest, 1 - (1 - x)³:
+ * first `BLACK`, as the path's black is (src/scene/bob/worldPath.ts), and the rise eased out over the rest, 1 - (1 - x)³:
  * the credits come up as soon as the black is whole and settle into place. The scroll lets the move rest at its 99 %
  * (src/input/scrollLoop.ts `END_SETTLED`, Ruling 18), where the page then stands in the flow, so the rise must look
  * arrived there: eased out, what is left of it is a hundredth of a pixel, where a linear rise would leave "Q&A" 9 px

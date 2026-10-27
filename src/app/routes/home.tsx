@@ -7,7 +7,7 @@ import { translatorFor, useTranslator } from '~/i18n/useTranslator';
 import { goToEnd, headedToEnd } from '~/input/useHomeScroll';
 import { head } from '~/seo/head';
 import { personLd, websiteLd } from '~/seo/structured';
-import { BeadLabels } from '~/ui/BeadLabel';
+import { ProjectOpener } from '~/ui/projectOpen';
 import { TouchPoints } from '~/ui/TouchPoints';
 import { focusEndOnArrival } from '~/ui/endArrival';
 import { EndPage } from '~/ui/EndPage';
@@ -52,14 +52,13 @@ export default function Home() {
         </p>
       </section>
 
-      {/* The beads' labels, one per project: hidden until the scene shows one beside the light at its bead, or the look
-          back's on hover and focus (src/ui/BeadLabel.tsx). Before the nav, so Tab reaches a shown label first in the page. */}
-      <BeadLabels />
+      {/* The home page's opener: it lends the world's clicks the router (src/ui/projectOpen.tsx). */}
+      <ProjectOpener />
 
-      {/* Each bead's touch points, shown on the parts they name inside it (src/ui/TouchPoints.tsx); aria-hidden. */}
+      {/* Each project's touch points, shown beside it once it is open (src/ui/TouchPoints.tsx); aria-hidden. */}
       <TouchPoints />
 
-      {/* Inside a bead a click opened: "Terug" and "Bekijk project", hidden until then (src/ui/InsideControls.tsx). */}
+      {/* A project opened on the world: "Terug" and "Bekijk project", hidden until then (src/ui/InsideControls.tsx). */}
       <InsideControls />
 
       {/* Bob's five facts: drawn beside the light in the light dive for the eye (src/ui/LightFacts.tsx), and as a list for

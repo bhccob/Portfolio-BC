@@ -23,7 +23,7 @@ import {
   wayShot,
 } from '../../../src/scene/bob/lightDive';
 import { journeyPoseAt } from '../../../src/scene/bob/journey';
-import { makePath } from '../../../src/scene/bob/lightPath';
+import { LAND_HIT, makeWorldPath } from '../../../src/scene/bob/worldPath';
 import { placeOfFrame } from '../../../src/state/chapters';
 
 type Vec3 = readonly [number, number, number];
@@ -179,10 +179,11 @@ describe('the sparks off the tail (Bob, 2026-10-27)', () => {
     expect(sparksAt(105)[0]!.u).not.toBe(sparksAt(104.9)[0]!.u);
   });
 
-  it('ride with the light in the fall and on its way to every project', () => {
+  it('ride with the light in the fall and on its way down into the CPU, and stop once it is in', () => {
     const aspect = 1440 / 900;
     const pose = journeyPoseAt(placeOfFrame(121), aspect);
     expect(pose.light?.sparks).toEqual(sparksAt(pose.at.frame!));
-    expect(makePath(aspect).frameAt(1).light.sparks).toHaveLength(3);
+    expect(makeWorldPath(aspect).frameAt(0.2).light.sparks).toHaveLength(3);
+    expect(makeWorldPath(aspect).frameAt(1.8 * LAND_HIT + 0.1).light.sparks).toEqual([]);
   });
 });

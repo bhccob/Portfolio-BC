@@ -19,7 +19,7 @@
 import * as THREE from 'three';
 import { type ProjectId, projects } from '~/data/projects';
 import type { QualityTier } from '~/engine/quality';
-import { type AreaPlace, BOARD, boardCentre, objectKind, type ObjectKind } from '~/scene/bob/worldLayout';
+import { type AreaPlace, BOARD, boardCentre, LID_TOP, OBJECT_MIDDLE, objectKind, type ObjectKind } from '~/scene/bob/worldLayout';
 
 /**
  * How the world looks (the mock-up's numbers, tuned there against the site's darkness limit): its colours; the
@@ -718,7 +718,7 @@ export function buildWorld(places: readonly AreaPlace[], tier: QualityTier, canv
   const body = new THREE.Mesh(new THREE.BoxGeometry(1.24, 0.16, 1.24), dark);
   body.position.y = 0.1;
   const cap = lid(1.1, 0.05, compassTexture(canvas()), look.cpu.lid.dark);
-  cap.mesh.position.y = 0.21;
+  cap.mesh.position.y = LID_TOP - 0.025;
   const cpuGlowMaterial = additive(new THREE.MeshBasicMaterial({ map: glow, color: GOLD, opacity: 0 })) as THREE.MeshBasicMaterial;
   const cpuGlow = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 3.2).rotateX(-Math.PI / 2), cpuGlowMaterial);
   cpuGlow.position.y = 0.01;
@@ -760,7 +760,7 @@ export function buildWorld(places: readonly AreaPlace[], tier: QualityTier, canv
       body: made,
       anchors,
       top: anchor(made, 0, 0.2, 0),
-      middle: 0.26,
+      middle: OBJECT_MIDDLE.chip,
       set(_clock, open, level) {
         const o = smooth(open);
         top.mesh.position.y = 0.092 + o * 0.3;
@@ -826,7 +826,7 @@ export function buildWorld(places: readonly AreaPlace[], tier: QualityTier, canv
       body: made,
       anchors,
       top: anchor(tilt, 0, 0.02, -size / 2),
-      middle: 0.16,
+      middle: OBJECT_MIDDLE.solar,
       set(clock, open, level) {
         materials.forEach((m, i) => {
           m.uniforms.uTime!.value = clock;
@@ -906,7 +906,7 @@ export function buildWorld(places: readonly AreaPlace[], tier: QualityTier, canv
       body: made,
       anchors,
       top: anchor(made, -0.13, 0.76, 0),
-      middle: 0.38,
+      middle: OBJECT_MIDDLE.crystal,
       set(clock, open, level) {
         // One tick a second: a quick step, then still.
         const tick = Math.floor(clock) + Math.min(1, (clock - Math.floor(clock)) / 0.16) ** 0.5;

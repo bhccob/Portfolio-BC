@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { buildNebula, NEBULA_LOOK, type NebulaModel } from '~/engine/bob/build/nebula';
-import { makePath } from '~/scene/bob/lightPath';
+import { makeWorldPath } from '~/scene/bob/worldPath';
 import { cloudLayout } from '~/scene/bob/nebulaWay';
 
 /** A canvas as a test hands it over: a 2D context that draws nothing, and pixels to write. */
@@ -21,12 +21,12 @@ function canvas(): HTMLCanvasElement {
   return { width: 0, height: 0, getContext: (kind: string) => (kind === '2d' ? ctx : null) } as unknown as HTMLCanvasElement;
 }
 
-const PATH = makePath(16 / 9);
+const PATH = makeWorldPath(16 / 9);
 const CLOUDS = cloudLayout(PATH, 'high');
 const LEVELS = { clouds: 1, bands: 1, rings: 0 };
 
 function build(tier: 'high' | 'medium' | 'low' = 'high'): NebulaModel {
-  return buildNebula(CLOUDS, PATH, tier, canvas);
+  return buildNebula(CLOUDS, PATH.centre, tier, canvas);
 }
 
 function drawn(model: NebulaModel): (THREE.Mesh | THREE.Points)[] {
@@ -152,6 +152,6 @@ describe('the nebula: clouds you fly through, a faint far shell, stars, dust and
 
   it('names a canvas that gives no 2D context', () => {
     const none = () => ({ width: 0, height: 0, getContext: () => null }) as unknown as HTMLCanvasElement;
-    expect(() => buildNebula(CLOUDS, PATH, 'high', none)).toThrow(/2D canvas context/);
+    expect(() => buildNebula(CLOUDS, PATH.centre, 'high', none)).toThrow(/2D canvas context/);
   });
 });

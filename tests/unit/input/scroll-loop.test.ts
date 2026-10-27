@@ -7,26 +7,26 @@ import { FINISH_S, FOLLOW, follow, GLIDE_MIN_S, GLIDE_S, RISE_SMOOTH, SHEET_FINI
 import { connectHomeScroll, goToEnd, goToTop, headedToEnd } from '../../../src/input/useHomeScroll';
 import { LANDING_HOLD } from '../../../src/scene/bob/landingHold';
 import { nearestStop, STEP_FADE_MS, stepFadeAt, stepFadeFrom } from '../../../src/scene/bob/stepFade';
-import { arrivalStop, buildChapters, type ChapterAt, chapterAt, FALL_PACE, HOME_CHAPTERS, pathStart, placeOfFrame, scrollEnd, sheetStart, stops } from '../../../src/state/chapters';
+import { areaStop, buildChapters, type ChapterAt, chapterAt, FALL_PACE, HOME_CHAPTERS, pathStart, placeOfFrame, scrollEnd, sheetStart, stops, worldStop } from '../../../src/state/chapters';
 import { frame as storyFrame } from '../../../src/state/frame';
 import { useScene, type VoidState } from '../../../src/state/store';
 
 /** A viewport 1000 px high: a unit of scroll is 1000 px. */
 const VH = 1000;
 const FRAME_MS = 1000 / 60;
-// The home's own layout: HOME 0-1, LIGHT to the hand-over (frame 256), each project's travel, orbit and inside, LOOK, SHEET, END.
-const chapters = buildChapters({ path: ['a', 'b', 'c'] });
+// The home's own layout: HOME 0-1, LIGHT to the hand-over (frame 256), the land, an area per category, LOOK, SHEET, END.
+const chapters = buildChapters({ areas: (['a', 'b', 'c'] as const).map((category) => ({ category: category as never, projects: [] })) });
 const END = scrollEnd(chapters);
 /** The hand-over (way frame 256): the path's start, and the landing hold. */
 const L = pathStart(chapters);
-/** Each project's arrival (the light at rest beside its bead), on the path: no inside on the scroll. */
-const A0 = arrivalStop(chapters, 'a');
-const A1 = arrivalStop(chapters, 'b');
-const A2 = arrivalStop(chapters, 'c');
+/** The first three stops past the fall: the world's, then the first two areas'. */
+const A0 = worldStop(chapters);
+const A1 = areaStop(chapters, 'a');
+const A2 = areaStop(chapters, 'b');
 /** The look back's own stop: the sheet's start, where the credits begin to rise. */
 const S = sheetStart(chapters);
-/** The chapters' indices of the first arrival (its stop is inside it), the sheet's and the end's. */
-const INDEX = { arrive0: 3, sheet: 9, end: 10 } as const;
+/** The chapters' indices of the land (the world's stop is inside it), the sheet's and the end's. */
+const INDEX = { land: 2, sheet: 7, end: 8 } as const;
 /** The first fact's place, the light dive's frame 81: the first key stop past BOB from above. */
 const F81 = placeOfFrame(81);
 /** The last fact's place, frame 241: the key stop before Funcial's. */
@@ -292,12 +292,12 @@ describe('the scroll loop: going to sleep', () => {
   it('reads a story at rest as the chapter it stopped in', async () => {
     const s = setup({ reduced: true });
     restAt(s, F241);
-    s.key('PageDown'); // reduced motion: the next key stop, Funcial's arrival
+    s.key('PageDown'); // reduced motion: the next key stop, the world's
     await flush();
     s.drain();
     expect(s.frame.progress).toBe(A0);
-    expect(s.frame.chapterIndex).toBe(INDEX.arrive0);
-    expect(s.changes.at(-1)).toMatchObject({ index: INDEX.arrive0, id: 'ARRIVE', category: 'a' });
+    expect(s.frame.chapterIndex).toBe(INDEX.land);
+    expect(s.changes.at(-1)).toMatchObject({ index: INDEX.land, id: 'LAND', category: null });
   });
 
   it('stops the glide when 3D is switched off, and the story stays where it is', async () => {
@@ -345,11 +345,11 @@ describe('the scroll loop: a glide', () => {
   it('glides on past the rise as a page would, resting where it ends, and ends one that reaches the end page', async () => {
     const alone = glideAlone();
     const s = setup();
-    restAt(s, L + 4.2);
-    await s.swipe(-1); // 0.4 dragged, to L + 4.6, then the glide
+    restAt(s, L + 3.6);
+    await s.swipe(-1); // 0.4 dragged, to L + 4.0, then the glide
     expect(s.home.scroll.busy).toBe(true);
     s.drain();
-    expect(s.frame.target).toBeCloseTo(L + 4.6 + alone.px / VH, 6); // on the path, between two stops: no stop
+    expect(s.frame.target).toBeCloseTo(L + 4.0 + alone.px / VH, 6); // on the world, between two stops: no stop
     expect(s.frame.progress).toBe(s.frame.target);
     restAt(s, S + 0.8);
     await s.swipe(-1);
@@ -380,7 +380,7 @@ describe('the scroll loop: leaving', () => {
 
   it('leaves no velocity behind, and no tween', async () => {
     const s = setup();
-    restAt(s, L + 0.44); // on the way to Funcial
+    restAt(s, L + 0.44); // on the way down to the world
     s.key('ArrowDown');
     await flush();
     s.frames.frame();
@@ -570,7 +570,7 @@ describe('the follow: past the rise the story follows the scroll, with no stops 
     s.drain();
     expect(s.frame.target).toBeCloseTo(7.2, 12);
     expect(s.frame.progress).toBe(s.frame.target);
-    expect(s.changes.at(-1)).toMatchObject({ id: 'TRAVEL', category: 'a' });
+    expect(s.changes.at(-1)).toMatchObject({ id: 'LAND', category: null });
   });
 
   it('rests a finger where it lifts past the rise, and a short drag stays where it went', async () => {
@@ -794,13 +794,13 @@ describe('the keys: the facts in the light dive, then the projects, gliding past
     expect(s.frame.target).toBe(A1);
   });
 
-  it("steps a key from a wheel stopped on a travel to the next project's arrival", async () => {
+  it("steps a key from a wheel stopped past an area's stop to the next area's", async () => {
     const s = setup();
-    restAt(s, L + 3.0); // on the way from Funcial to Jontai Energy
+    restAt(s, L + 3.0); // past the first area's stop, short of the second
     s.key('ArrowDown');
-    expect(s.frame.target).toBe(A1);
+    expect(s.frame.target).toBe(A2);
     s.key('ArrowUp');
-    expect(s.frame.target).toBe(A0); // counted from where the glide is going, Jontai Energy's arrival
+    expect(s.frame.target).toBe(A1); // counted from where the glide is going, the second area's stop
   });
 });
 
@@ -969,7 +969,7 @@ describe('reduced motion steps among the key stops', () => {
     expect(s.frame.progress).toBe(F81);
     await drag(s, 300);
     expect(s.frame.target).toBe(placeOfFrame(121));
-    restAt(s, A2);
+    restAt(s, areaStop(chapters, 'c'));
     s.key('ArrowDown'); // the look back
     expect(s.frame.target).toBe(S);
     expect(s.home.loop.tweening).toBeNull(); // no glide with reduced motion
@@ -1479,8 +1479,8 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
       expect(s.key('ArrowUp').defaultPrevented).toBe(true);
       expect(storyFrame.target).toBe(H);
       byFade(s.run(), STORY_END, H);
-      // The hold is the path's start, where Funcial's travel begins.
-      expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'secure-element' });
+      // The hold is the path's start, where the land begins: the projects' phase, no one project.
+      expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: null });
       expect(s.frames.size).toBe(0);
     });
 
