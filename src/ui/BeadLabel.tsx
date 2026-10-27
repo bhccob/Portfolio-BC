@@ -3,118 +3,90 @@ import { Link, type NavigateFunction, useNavigate } from 'react-router';
 import { type ProjectId, projects } from '~/data/projects';
 import { useTranslator } from '~/i18n/useTranslator';
 import { FLIGHT_MS, FOCUS_FADE_MS, moveFocus, restsAt } from '~/scene/bob/focus';
-import { BEADS } from '~/scene/bob/journey';
-import { ringShot } from '~/scene/bob/lightDive';
 import { wakeScene } from '~/scene/motion';
 import { frame } from '~/state/frame';
 import { noteOpenedFrom } from '~/state/routeSync';
 import { useScene } from '~/state/store';
 import { isPlainClick } from './BackLink';
-import { type Box, overlaps, setSkipAlt, skipAlt, skipBox, skipHome, skipIsAlt } from './SkipButton';
+import { setSkipAlt, skipBox, skipPlace } from './SkipButton';
 
 // ---------------------------------------------------------------- where it stands
 
-/** Which side of its bead the label stands. */
-export type LabelSide = 'right' | 'left' | 'below' | 'above';
-
-/**
- * The label's place: its top-left corner in the viewport's CSS pixels, and the side of the bead it is on; and, when the
- * placement was asked to keep clear of a box, whether it does.
- */
-export interface LabelPlace {
-  x: number;
-  y: number;
-  side: LabelSide;
-  clear?: boolean;
+/** What the scene says of one bead's label on a frame (src/scene/bob/Void.tsx). */
+export interface PathLabelView {
+  id: ProjectId;
+  /**
+   * Where it hangs from, CSS px: the light at rest beside its bead (the label right of it, level with it), or a point
+   * under the bead (the label below it, in the middle): on a phone, and in the look back.
+   */
+  anchor: { x: number; y: number };
+  side: 'right' | 'below';
+  /** How much of it shows, 0..1: an arrival's label comes in as the light comes to rest and goes as the camera goes in. */
+  opacity: number;
+  /** The look back's: shown only on hover and focus, and in reach of Tab all the while. */
+  quiet: boolean;
+  /** The pointer is over its bead (the look back's). */
+  hover: boolean;
 }
 
-/** A box's size, CSS px. */
-export interface LabelBox {
-  width: number;
-  height: number;
-}
-
-/** Below this width a screen is a phone's (the stylesheet's phone rules start there too). */
-const PHONE_WIDTH = 720;
-
-/**
- * The label's box before it is measured, CSS px: as wide and tall as its longest lines set in the stylesheet's sizes
- * ("COOKIES CLICKER" in the heavy title, "02 — FRONTPANEEL" in the label face, its padding), with room to spare.
- */
-export const LABEL_BOX = { laptop: { width: 300, height: 96 }, phone: { width: 260, height: 88 } } as const satisfies Record<string, LabelBox>;
-
-/** How far the label keeps from the screen's edges: 16 px, and 24 on a phone. */
-export function labelMargin(width: number): number {
-  return width < PHONE_WIDTH ? 24 : 16;
-}
-
-/** How far the label stands off the bead's edge, px. */
-const LABEL_GAP = 20;
-
-/** The site's header (`--header-height`, src/styles/tokens.css): the label never goes up under it. */
+/** The site's header (`--header-height`, src/styles/tokens.css): a label never goes up under it. */
 const HEADER = 64;
 
-/**
- * A bead's radius on the screen at its ring stop, CSS px: the front bead's, seen from the ring's shot on a screen of
- * this shape (`ringShot`, src/scene/bob/lightDive.ts). The camera stands as far from each bead at its stop, so it is the
- * same for every project: about a twelfth of the width on a laptop, a seventh on a phone.
- */
-export function stopRadius(size: LabelBox): number {
-  const aspect = size.width > 0 && size.height > 0 ? size.width / size.height : 16 / 9;
-  const { position, fov } = ringShot(0, aspect);
-  const { centre, radius } = BEADS[0]!;
-  const distance = Math.hypot(position[0] - centre[0], position[1] - centre[1], position[2] - centre[2]);
-  return (radius / (distance * Math.tan((fov * Math.PI) / 360))) * (size.height / 2);
-}
+/** How far a label keeps from the screen's edges, px. */
+const EDGE = 16;
+
+/** How far right of the light a label stands, px (the light path mock-up's). */
+const LIGHT_GAP = 34;
 
 const clamp = (x: number, lo: number, hi: number): number => (x < lo ? lo : x > hi ? hi : x);
 
 /**
- * Where the label stands beside a bead whose centre is at `beadNdc` (normalised device coordinates, -1 to 1, up is +1)
- * on a screen of `size` (CSS px): to its right, level with it; else to its left; else below it, in the middle; else
- * above; clear of the bead's edge (`radius`, px, by default its radius at its stop) by LABEL_GAP. However it is placed,
- * the whole box (`box`, measured, or LABEL_BOX) is held inside the screen with `labelMargin` to spare, and below the
- * header. An NDC that is not a number reads as the middle; the bead's centre is held to the screen. Given a box to keep
- * clear of (`avoid`: the skip button), the first of those sides, held, that keeps 8 px clear of it wins, as the mock-up
- * places it, and `clear` says whether one did (if none does, the first side stands, not clear).
+ * Where a label of `box` (its size, CSS px) stands on a screen of `size`: right of its anchor by LIGHT_GAP and level
+ * with it, or below it and in the middle; held inside the screen, EDGE from its sides and below the header. An anchor
+ * that is not a number reads as the middle of the screen.
  */
-export function labelPlacement(beadNdc: { x: number; y: number }, size: LabelBox, options: { radius?: number; box?: LabelBox; avoid?: Box } = {}): LabelPlace {
-  const { width, height } = size;
-  const margin = labelMargin(width);
-  const box = options.box ?? (width < PHONE_WIDTH ? LABEL_BOX.phone : LABEL_BOX.laptop);
-  const radius = options.radius !== undefined && options.radius >= 0 ? options.radius : stopRadius(size);
-  const nx = Number.isFinite(beadNdc.x) ? clamp(beadNdc.x, -1, 1) : 0;
-  const ny = Number.isFinite(beadNdc.y) ? clamp(beadNdc.y, -1, 1) : 0;
-  const cx = ((nx + 1) / 2) * width;
-  const cy = ((1 - ny) / 2) * height;
-  const [left, right, top, bottom] = [margin, width - margin, margin + HEADER, height - margin];
-  const off = radius + LABEL_GAP;
+export function pathLabelPlace(view: Pick<PathLabelView, 'anchor' | 'side'>, box: { w: number; h: number }, size: { width: number; height: number }): { x: number; y: number } {
+  const ax = Number.isFinite(view.anchor.x) ? view.anchor.x : size.width / 2;
+  const ay = Number.isFinite(view.anchor.y) ? view.anchor.y : size.height / 2;
+  const [x, y] = view.side === 'right' ? [ax + LIGHT_GAP, ay - box.h / 2] : [ax - box.w / 2, ay];
+  return {
+    x: clamp(x, EDGE, Math.max(EDGE, size.width - EDGE - box.w)),
+    y: clamp(y, HEADER + EDGE, Math.max(HEADER + EDGE, size.height - EDGE - box.h))
+  };
+}
 
-  // The sides that fit, in order: right, left, below, above; below if none does.
-  const sides: LabelPlace[] = [];
-  if (cx + off + box.width <= right) sides.push({ x: cx + off, y: cy - box.height / 2, side: 'right' });
-  if (cx - off - box.width >= left) sides.push({ x: cx - off - box.width, y: cy - box.height / 2, side: 'left' });
-  if (cy + off + box.height <= bottom) sides.push({ x: cx - box.width / 2, y: cy + off, side: 'below' });
-  if (cy - off - box.height >= top) sides.push({ x: cx - box.width / 2, y: cy - off - box.height, side: 'above' });
-  if (sides.length === 0) sides.push({ x: cx - box.width / 2, y: cy + off, side: 'below' });
-  const held = (place: LabelPlace): LabelPlace => ({
-    x: clamp(place.x, left, Math.max(left, right - box.width)),
-    y: clamp(place.y, top, Math.max(top, bottom - box.height)),
-    side: place.side
-  });
-  const avoid = options.avoid;
-  if (avoid === undefined) return held(sides[0]!);
-  for (const side of sides) {
-    const place = held(side);
-    if (!overlaps({ x: place.x, y: place.y, w: box.width, h: box.height }, avoid)) return { ...place, clear: true };
-  }
-  return { ...held(sides[0]!), clear: false };
+/**
+ * Whether Tab reaches a label: only where it can be seen and clicked. The look back's always (each shows on its focus);
+ * an arrival's once it is half in.
+ */
+export function labelFocusable(view: Pick<PathLabelView, 'quiet' | 'opacity'>): boolean {
+  return view.quiet || view.opacity >= 0.5;
 }
 
 // ---------------------------------------------------------------- the scene shows it
 
+/** A label on the page, as React mounts it, and what was last written to it: a frame writes only what has changed. */
+interface Written {
+  el: HTMLAnchorElement;
+  shown: boolean;
+  quiet: boolean;
+  hover: boolean;
+  /** `[data-side]`: which side of its anchor it stands. */
+  side: string;
+  focusable: boolean;
+  /** `[data-rest]`: an arrival's label half in or more, which takes the pointer. */
+  rest: boolean;
+  /** Its opacity and transform as written; null where nothing is written yet. */
+  opacity: string | null;
+  transform: string | null;
+  /** Its measured size, and the text and screen it was measured for. */
+  box: { w: number; h: number } | null;
+  text: string;
+  width: number;
+}
+
 /** The labels on the page, by bead, as React mounts them. */
-const labels = new Map<ProjectId, HTMLAnchorElement>();
+const labels = new Map<ProjectId, Written>();
 
 /** Puts a label out of reach: out of the Tab order and inert, as every label is while the scene does not show it. */
 function putAway(el: HTMLAnchorElement): void {
@@ -123,114 +95,106 @@ function putAway(el: HTMLAnchorElement): void {
 }
 
 /**
- * Puts bead `id`'s label element where `showBeadLabel` finds it (the label's ref does), out of reach until the scene
+ * Puts bead `id`'s label element where `showBeadLabels` finds it (the label's ref does), out of reach until the scene
  * shows it. Answers its taking away.
  */
 export function registerBeadLabel(id: ProjectId, el: HTMLAnchorElement): () => void {
-  labels.set(id, el);
-  if (el !== shown.el) putAway(el);
+  labels.set(id, { el, shown: false, quiet: false, hover: false, side: '', focusable: false, rest: false, opacity: null, transform: null, box: null, text: '', width: 0 });
+  putAway(el);
   return () => {
-    if (labels.get(id) === el) labels.delete(id);
+    if (labels.get(id)?.el === el) labels.delete(id);
   };
 }
 
-/** What the label shows now, as last written to the DOM: nothing is written that has not changed. */
-const shown = {
-  el: null as HTMLAnchorElement | null,
-  rest: false,
-  x: Number.NaN,
-  y: Number.NaN,
-  side: '',
-  box: null as LabelBox | null,
-  text: '',
-  width: 0,
-  height: 0
-};
-
-/** What the scene says of the label on a frame. */
-export interface LabelView {
-  /** The bead whose label shows: the bead of the project stretch the journey is on. */
-  id: ProjectId;
-  /** Its centre on the screen, NDC. */
-  ndc: { x: number; y: number };
-  /** Its radius on the screen, CSS px. */
-  radius: number;
-  /** The journey rests at the bead's stop: the label shows in full and takes the pointer. */
-  rest: boolean;
+/** Hides a label: out of the page's flow, its marks gone, out of reach. */
+function hide(label: Written): void {
+  const { el } = label;
+  for (const name of ['data-shown', 'data-rest', 'data-quiet', 'data-hover', 'data-side']) el.removeAttribute(name);
+  el.style.opacity = '';
+  putAway(el);
+  Object.assign(label, { shown: false, quiet: false, hover: false, side: '', focusable: false, rest: false, opacity: '', transform: null });
 }
 
 /**
- * Shows the label of `view`'s bead beside it on a screen of `size` (CSS px), and every other label not; null shows
- * none. The Void (src/scene/bob/Void.tsx) calls it on each frame it poses the void. A shown label is
- * `[data-shown]` (in the page, so the keyboard reaches it) and, at its bead's stop, `[data-rest]` (in full; between
- * stops it is clear, src/styles/base.css). Between stops it is out of the Tab order too (`tabindex="-1"`), so the
- * keyboard reaches a label only where it can be seen and clicked; at its stop it takes Tab again. A label not shown is
- * out of the Tab order and `inert`, from its registration on. It keeps clear of the skip button (src/ui/SkipButton.tsx):
- * at rest it takes the first side clear of the button's own place, and where none is, the button takes its alternate
- * place and the label keeps clear of that; while the ring turns the button stays where it stands. It stands where
- * `labelPlacement` says, by a transform, with `[data-side]` for its alignment, measured again when its text or the
- * screen changes. A label that had the focus hands it to the next one shown, so stepping from bead to bead with the
- * keys keeps the keyboard on the label (a focused label keeps the focus while it is clear between stops); with none
- * shown after it (up to the overview, a bead opened, 3D off) the focus goes to <main>, never to <body>.
+ * Shows the labels of `views` and every other label not, on a screen of `size` (CSS px). The Void (src/scene/bob/Void.tsx)
+ * calls it on each frame it poses the void.
+ * - A shown label is `[data-shown]`, out of `inert`, standing where `pathLabelPlace` says by a transform, measured
+ *   again when its text or the screen's width changes, with `[data-side]` for its alignment.
+ * - An arrival's label shows at its opacity (written to it), takes Tab and the pointer once it is half in
+ *   (`labelFocusable`, `[data-rest]`), and keeps the skip button clear: where it would cover the button's own place,
+ *   the button takes its alternate place (src/ui/SkipButton.tsx `skipPlace`).
+ * - The look back's are `[data-quiet]`: each in reach of Tab, shown by the stylesheet on hover and focus, and on
+ *   `[data-hover]` while the pointer is over its bead.
+ * - A label not shown is out of the Tab order and `inert`, from its registration on. A label that had the focus and goes
+ *   hands it to the first label shown, else to <main>, never to <body>; neither scrolls.
  */
-export function showBeadLabel(view: LabelView | null, size: LabelBox): void {
-  const el = view ? (labels.get(view.id) ?? null) : null;
-  if (el !== shown.el) {
-    const was = shown.el;
-    const focused = was !== null && was.isConnected && document.activeElement === was;
-    if (was) {
-      was.removeAttribute('data-shown');
-      was.removeAttribute('data-rest');
-      putAway(was);
+export function showBeadLabels(views: readonly PathLabelView[], size: { width: number; height: number }): void {
+  const active = typeof document === 'undefined' ? null : document.activeElement;
+  let lost = false;
+  let first: HTMLAnchorElement | null = null;
+  let arrival: { x: number; y: number; w: number; h: number } | null = null;
+  for (const [id, label] of labels) {
+    const view = views.find((v) => v.id === id);
+    const { el } = label;
+    if (!view) {
+      if (label.shown) {
+        lost ||= el.isConnected && active === el;
+        hide(label);
+      }
+      continue;
     }
-    if (el) {
+    if (!label.shown) {
       el.setAttribute('data-shown', '');
       el.removeAttribute('inert');
-      el.tabIndex = -1;
+      label.shown = true;
     }
-    // A focused label hands the focus on: to the next label shown, else to <main> (src/app/Shell.tsx, tabIndex -1), so the
-    // keyboard is not left on <body> once the label it was on has gone out of the page. Neither scrolls.
-    if (focused) (el ?? document.getElementById('main'))?.focus({ preventScroll: true });
-    Object.assign(shown, { el, rest: false, x: Number.NaN, y: Number.NaN, side: '', box: null });
+    first ??= el;
+    if (view.quiet !== label.quiet) {
+      el.toggleAttribute('data-quiet', view.quiet);
+      label.quiet = view.quiet;
+    }
+    if (view.side !== label.side) {
+      el.setAttribute('data-side', view.side);
+      label.side = view.side;
+    }
+    const hover = view.quiet && view.hover;
+    if (hover !== label.hover) {
+      el.toggleAttribute('data-hover', hover);
+      label.hover = hover;
+    }
+    const opacity = view.quiet ? '' : String(Math.round(view.opacity * 1000) / 1000);
+    if (opacity !== label.opacity) {
+      el.style.opacity = opacity;
+      label.opacity = opacity;
+    }
+    const focusable = labelFocusable(view);
+    if (focusable !== label.focusable) {
+      if (focusable) el.removeAttribute('tabindex');
+      else el.tabIndex = -1;
+      label.focusable = focusable;
+    }
+    const rest = focusable && !view.quiet;
+    if (rest !== label.rest) {
+      el.toggleAttribute('data-rest', rest);
+      label.rest = rest;
+    }
+    const text = el.textContent ?? '';
+    if (label.box === null || label.text !== text || label.width !== size.width) {
+      label.box = el.offsetWidth > 0 ? { w: el.offsetWidth, h: el.offsetHeight } : null;
+      Object.assign(label, { text, width: size.width });
+    }
+    const box = label.box ?? { w: 300, h: 96 };
+    const at = pathLabelPlace(view, box, size);
+    const transform = `translate3d(${Math.round(at.x)}px, ${Math.round(at.y)}px, 0)`;
+    if (transform !== label.transform) {
+      el.style.transform = transform;
+      label.transform = transform;
+    }
+    if (!view.quiet && view.opacity > 0) arrival = { x: at.x, y: at.y, w: box.w, h: box.h };
   }
-  if (el === null || view === null) {
-    setSkipAlt(false);
-    return;
-  }
-  if (shown.rest !== view.rest) {
-    el.toggleAttribute('data-rest', view.rest);
-    if (view.rest) el.removeAttribute('tabindex');
-    else el.tabIndex = -1;
-    shown.rest = view.rest;
-  }
-  const text = el.textContent ?? '';
-  if (shown.box === null || shown.text !== text || shown.width !== size.width || shown.height !== size.height) {
-    shown.box = el.offsetWidth > 0 ? { width: el.offsetWidth, height: el.offsetHeight } : null;
-    Object.assign(shown, { text, width: size.width, height: size.height });
-  }
-  const box = shown.box ?? undefined;
+  if (lost) (first ?? document.getElementById('main'))?.focus({ preventScroll: true });
   const pill = skipBox(size);
-  let at: LabelPlace;
-  if (pill === null) {
-    at = labelPlacement(view.ndc, size, { radius: view.radius, box });
-  } else if (view.rest) {
-    at = labelPlacement(view.ndc, size, { radius: view.radius, box, avoid: skipHome(size, pill) });
-    setSkipAlt(at.clear === false);
-    if (at.clear === false) at = labelPlacement(view.ndc, size, { radius: view.radius, box, avoid: skipAlt(size, pill) });
-  } else {
-    at = labelPlacement(view.ndc, size, { radius: view.radius, box, avoid: skipIsAlt() ? skipAlt(size, pill) : skipHome(size, pill) });
-  }
-  const x = Math.round(at.x);
-  const y = Math.round(at.y);
-  if (x !== shown.x || y !== shown.y) {
-    el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-    shown.x = x;
-    shown.y = y;
-  }
-  if (at.side !== shown.side) {
-    el.dataset.side = at.side;
-    shown.side = at.side;
-  }
+  setSkipAlt(pill !== null && skipPlace(arrival, size, pill) === 'alt');
 }
 
 // ---------------------------------------------------------------- opening a bead
@@ -309,7 +273,7 @@ export function openBead(id: ProjectId): boolean {
  * both are in the page and the stylesheet shows the one for the pointer, `@media (pointer: coarse)`; they are
  * aria-hidden, so its name is the category line and the title). It is one link to the project's page in the page's
  * language, so Tab reaches it and Enter opens it; a plain click (or Enter) flies into the bead first (`openBead`), and a
- * click that opens it elsewhere (a new tab) is the browser's. It is hidden until the scene shows it (`showBeadLabel`):
+ * click that opens it elsewhere (a new tab) is the browser's. It is hidden until the scene shows it (`showBeadLabels`):
  * without a scene there is none, and the home's nav is the way to the projects.
  */
 export function BeadLabel({ id }: { id: ProjectId }): JSX.Element {

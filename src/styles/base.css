@@ -138,11 +138,16 @@ html[data-step-fade] .scene-host {
   opacity: 0;
 }
 
-/* The facts beside the light and the front bead's label fade with the host, as fast, so a step never shows the label of
-   the stop it left over the stop it comes to (src/ui/LightFacts.tsx, src/ui/BeadLabel.tsx). */
-html[data-step-fade] .light-fact-layer,
-html[data-step-fade] .bead-label {
+/* The facts beside the light, the beads' labels and their touch points fade with the host, as fast, so a step never
+   shows the words of the stop it left over the stop it comes to (src/ui/LightFacts.tsx, src/ui/BeadLabel.tsx,
+   src/ui/TouchPoints.tsx). The labels' and the points' own opacity is written on them, so this one wins outright. */
+html[data-step-fade] .light-fact-layer {
   opacity: 0;
+}
+
+html[data-step-fade] .bead-label,
+html[data-step-fade] .touch-points {
+  opacity: 0 !important;
 }
 
 .light-fact-layer {
@@ -151,7 +156,8 @@ html[data-step-fade] .bead-label {
 
 @media (prefers-reduced-motion: reduce) {
   .light-fact-layer,
-  .bead-label {
+  .bead-label,
+  .touch-points {
     transition: opacity 150ms ease !important;
   }
 }
@@ -826,13 +832,14 @@ html[data-3d='on'] .end-link:hover {
   color: var(--gold-title);
 }
 
-/* ---------- the void: the selected bead's label ---------- */
-/* Real text beside the selected bead at its project stop (spec §2.4, the ref-04 style; src/ui/BeadLabel.tsx): the
-   category line in the mono label, the title in heavy gold and a dim hint, small, so the bead stays the one focal point.
-   It is one link. The scene shows it ([data-shown]: in the page, so the keyboard reaches it) and stands it beside the
-   bead by a transform ([data-side] says which side); it is whole at the bead's stop ([data-rest]) and clear between
-   stops, where it takes no pointer. Without a scene it never shows: the home's nav is the way to the projects. Its widest
-   line fits LABEL_BOX (300 px, 260 on a phone), which the placement holds inside the screen until it is measured. */
+/* ---------- the void: the beads' labels ---------- */
+/* Real text beside a bead (the ref-04 style; src/ui/BeadLabel.tsx): the category line in the mono label, the title in
+   heavy gold and a dim hint, small, so the bead stays the one focal point. It is one link. The scene shows it
+   ([data-shown]: in the page, so the keyboard reaches it) and stands it by a transform: right of the light as it comes to
+   rest beside its bead, its opacity following the scroll and written on it, taking the pointer once it is half in
+   ([data-rest]); or, in the look back, under each bead, quiet ([data-quiet]) until the pointer is over its bead
+   ([data-hover]), over the label itself, or the keyboard is on it. Without a scene it never shows: the home's nav is the
+   way to the projects. */
 .bead-label {
   position: fixed;
   top: 0;
@@ -846,7 +853,6 @@ html[data-3d='on'] .end-link:hover {
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.4s var(--ease-reveal);
 }
 
 .bead-label[data-shown] {
@@ -855,26 +861,25 @@ html[data-3d='on'] .end-link:hover {
 }
 
 .bead-label[data-rest] {
-  opacity: 1;
   pointer-events: auto;
 }
 
-/* Shown at its stop on the frame it is first displayed, it still fades in. */
-@starting-style {
-  .bead-label[data-rest] {
-    opacity: 0;
-  }
-}
-
-.bead-label[data-side='left'] {
-  justify-items: end;
-  text-align: right;
-}
-
-.bead-label[data-side='below'],
-.bead-label[data-side='above'] {
+/* Under its bead, its lines in the middle: on a phone, and in the look back. */
+.bead-label[data-side='below'] {
   justify-items: center;
   text-align: center;
+}
+
+/* The look back's: shown on hover and focus. */
+.bead-label[data-quiet] {
+  pointer-events: auto;
+  transition: opacity 0.25s var(--ease-reveal);
+}
+
+.bead-label[data-quiet][data-hover],
+.bead-label[data-quiet]:hover,
+.bead-label[data-quiet]:focus-visible {
+  opacity: 1;
 }
 
 .bead-label-title {
@@ -921,6 +926,48 @@ html[data-3d='on'] .end-link:hover {
   .bead-label-title {
     font-size: 16px;
   }
+}
+
+/* ---------- the void: the touch points inside a bead ---------- */
+/* Each project's test points on the parts they name as the camera goes into its bead (src/ui/TouchPoints.tsx), in the
+   light path mock-up's look: a small gold dot and its word in the label face, tracked capitals over a soft shadow. The
+   scene shows one bead's at a time ([data-shown]), their opacity written on the layer, each word stood by a transform. */
+.touch-points {
+  position: fixed;
+  inset: 0;
+  display: none;
+  pointer-events: none;
+}
+
+.touch-points[data-shown] {
+  display: block;
+}
+
+.touch-point {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-label);
+  font-size: var(--label-size);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ink);
+  text-shadow: 0 0 8px rgb(0 0 0 / 0.9);
+  will-change: transform;
+}
+
+.touch-point::before {
+  content: '';
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 8px rgb(239 181 61 / 0.9);
 }
 
 /* ---------- Bob's five facts in the light dive ---------- */
@@ -1901,7 +1948,8 @@ html[data-route='home'][data-3d='on'][data-end='rest'] .end-page {
   border-image: linear-gradient(var(--night) 0 0) fill 0 / 0 / var(--header-height) 100vmax 0;
 }
 
-html[data-end='rest'] .bead-label {
+html[data-end='rest'] .bead-label,
+html[data-end='rest'] .touch-points {
   display: none;
 }
 

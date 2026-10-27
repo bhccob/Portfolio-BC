@@ -15,15 +15,17 @@ import { buildOffPathLights, buildWayLine, type OffPathLightsModel, type WayLine
 import { lowerTier, type QualityTier } from '~/engine/quality';
 import { frame } from '~/state/frame';
 import { useScene, type VoidState } from '~/state/store';
-import { showBeadLabel } from '~/ui/BeadLabel';
+import { type PathLabelView, showBeadLabels } from '~/ui/BeadLabel';
 import { showLightFacts } from '~/ui/LightFacts';
+import { showTouchPoints } from '~/ui/TouchPoints';
 import { showsSkip, writeSkip } from '~/ui/SkipButton';
 import { motion } from '../motion';
 import type { Handover } from './Home';
-import { BEADS, type LightPose } from './journey';
-import { type Path, pathFor } from './lightPath';
+import { BEAD_RADIUS, BEADS, type LightPose } from './journey';
+import { lookingBack, type Path, type PathFrame, pathFor } from './lightPath';
 import { LOOK } from './look';
 import { offPathPlaces } from './offPath';
+import { TOUCH_POINTS } from './touchPoints';
 import { easeHover, hoverEase, hoversAt, needleFor, needleGlowFor, pointerMode, selectedBead, voidShownAt, wakeFor } from './voidPose';
 import { loadVoid, type VoidLoadSteps } from './voidLoad';
 import { uploadTextures, warm } from './warm';
@@ -196,6 +198,10 @@ interface VoidRun {
   pointed: number | null;
   /** Which beads the pointer may take on the last frame (`pointerMode`). */
   mode: 'selected' | 'any' | null;
+  /** The light off the way under the pointer on the last frame (in `projects.offPath()` order), or null. */
+  pointedLight: number | null;
+  /** Each bead's touch point anchors: its object's nodes by name, and its screen; found once the beads are in. */
+  anchors: Partial<Record<ProjectId, { nodes: Map<string, THREE.Object3D>; screen: THREE.Mesh | null }>>;
   /** The selected bead on the last frame, or null. */
   selected: number | null;
   /** The void's drift clock (its mist and dust), seconds of frames drawn while it showed. */
@@ -263,6 +269,50 @@ const inView = new THREE.Vector3();
 const facingAt = new THREE.Vector3();
 /** How near the pointer a light off the way takes it, CSS px. */
 const LIGHT_PICK_PX = 18;
+
+/** Hides the beads' labels and the touch points. */
+function hideWords(size: { width: number; height: number }): void {
+  showBeadLabels([], size);
+  showTouchPoints(null, size.width);
+}
+
+/** A world point on a screen of `size` through `camera`, CSS px, with its radius there for a bead (BEAD_RADIUS). */
+function onScreen(at: readonly [number, number, number], camera: THREE.Camera, size: { width: number; height: number }): { x: number; y: number; r: number } {
+  centre.set(at[0], at[1], at[2]);
+  const distance = centre.distanceTo(camera.position);
+  centre.project(camera);
+  const fov = (camera as THREE.PerspectiveCamera).fov;
+  return {
+    x: ((centre.x + 1) / 2) * size.width,
+    y: ((1 - centre.y) / 2) * size.height,
+    r: (BEAD_RADIUS / (distance * Math.tan((fov * DEG) / 2))) * (size.height / 2)
+  };
+}
+
+/** How far under a bead's edge its label hangs, px; and how far a corner's touch point sits in from the screen's edge. */
+const UNDER_BEAD = 18;
+const CORNER_INSET = 14;
+
+/** The screen's box on the screen (its geometry's eight corners projected), CSS px. */
+function screenBox(mesh: THREE.Mesh, camera: THREE.Camera, size: { width: number; height: number }): { x0: number; y0: number; x1: number; y1: number } {
+  mesh.updateWorldMatrix(true, false);
+  mesh.geometry.boundingBox ?? mesh.geometry.computeBoundingBox();
+  const box = mesh.geometry.boundingBox!;
+  let x0 = Number.POSITIVE_INFINITY;
+  let y0 = Number.POSITIVE_INFINITY;
+  let x1 = Number.NEGATIVE_INFINITY;
+  let y1 = Number.NEGATIVE_INFINITY;
+  for (let c = 0; c < 8; c++) {
+    centre.set(c & 1 ? box.max.x : box.min.x, c & 2 ? box.max.y : box.min.y, c & 4 ? box.max.z : box.min.z).applyMatrix4(mesh.matrixWorld).project(camera);
+    const x = ((centre.x + 1) / 2) * size.width;
+    const y = ((1 - centre.y) / 2) * size.height;
+    x0 = Math.min(x0, x);
+    x1 = Math.max(x1, x);
+    y0 = Math.min(y0, y);
+    y1 = Math.max(y1, y);
+  }
+  return { x0, y0, x1, y1 };
+}
 
 /** A bead on the screen for the proof harness: its centre (CSS px) and its radius at its distance and the field. */
 function beadOnScreen(at: readonly [number, number, number], visible: boolean, camera: THREE.Camera, size: { width: number; height: number }) {
@@ -379,6 +429,10 @@ export interface VoidProps {
  *   an orbit or an inside, any bead in the look back), eased in and out one bead at a time (`easeHover`) and turned
  *   toward the camera; with reduced motion it brightens at once and does not turn; never once the sheet over the look
  *   back has begun (`hoversAt`), where a pointer over the rising page or behind it turns no bead and wakes nothing;
+ * - the words over the path (`showWords`): the label beside the light as it comes to rest at a bead (src/ui/BeadLabel.tsx
+ *   `showBeadLabels`: right of the light, or under the bead on a phone), the look back's labels under each bead and light
+ *   off the way, quiet until the pointer or the keyboard is on one, and the touch points of the bead seen inside, on the
+ *   parts they name (src/ui/TouchPoints.tsx);
  * - the skip button (src/ui/SkipButton.tsx): `<html data-skip>` from the first project's arrival through the look back
  *   (`showsSkip`) on the home page and no bead close or flown to, and never while the Opening poses the scene itself or
  *   after unmount.
@@ -411,6 +465,8 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
     hover: hoverEase(),
     pointed: null,
     mode: null,
+    pointedLight: null,
+    anchors: {},
     selected: null,
     time: 0,
     reading: false,
@@ -550,7 +606,8 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
       run.parts = null;
       run.reading = run.hovering = false;
       motion.beads = false;
-      showBeadLabel(null, NO_SIZE);
+      showBeadLabels([], NO_SIZE);
+      showTouchPoints(null, 0);
       showLightFacts(null, NO_SIZE);
       frame.journey.light = null;
       writeSkip(document.documentElement, false, run.skip);
@@ -658,7 +715,7 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
       if (parts) show(parts, false);
       run.reading = run.hovering = false;
       motion.beads = false;
-      showBeadLabel(null, size);
+      hideWords(size);
       return;
     }
     // The home has landed: the void loads now, once.
@@ -690,7 +747,7 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
     writeSkip(document.documentElement, useScene.getState().scene === 'home' && !handover.focus && showsSkip(pose), run.skip);
     if (!space) {
       motion.beads = false;
-      showBeadLabel(null, size);
+      hideWords(size);
       return;
     }
 
@@ -723,7 +780,7 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
       run.pointed = run.selected = null;
       run.mode = null;
       motion.beads = false;
-      showBeadLabel(null, size);
+      hideWords(size);
       return;
     }
     const dt = Math.min(Math.max(delta, 0), MAX_STEP);
@@ -739,7 +796,7 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
     space.model.setTime(run.time);
     if (!parts) {
       motion.beads = false;
-      showBeadLabel(null, size);
+      hideWords(size);
       return;
     }
     const { beads } = parts;
@@ -794,6 +851,7 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
     const hit = mode !== null && Number.isFinite(frame.pointerAt) ? pick(parts, frame.pointer, camera) : null;
     const pointed = mode === 'any' ? hit : mode === 'selected' && hit === run.selected ? hit : null;
     run.pointed = pointed;
+    run.pointedLight = mode === 'any' && hit === null && Number.isFinite(frame.pointerAt) ? pickLight(way.places, frame.pointer, camera, size) : null;
     const easing = easeHover(run.hover, pointed, dt, reduced || !home);
     const hovered = run.hover.id;
     if (hovered === null || run.hover.amount <= 0) {
@@ -802,7 +860,7 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
       // With reduced motion no point: it brightens and does not turn.
       beads.setHover(BEADS[hovered]!.id, run.hover.amount, reduced ? undefined : camera.position);
     }
-    showBeadLabel(null, size);
+    showWords(path, size);
 
     // Nothing moves by itself on the path: the canvas draws on only while the hover eases.
     const moving = easing && home;
@@ -810,6 +868,77 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
     if (moving && !motion.beads) invalidate();
     motion.beads = moving;
   });
+
+  /**
+   * The words over the path on a screen of `size`: the label beside the light as it comes to rest at a bead (right of the
+   * light, or under the bead on a phone), the look back's labels under each bead and light off the way, quiet until the
+   * pointer or the keyboard is on one, and the touch points of the bead seen inside, on the parts they name. None while
+   * the void is not read (a bead close, or a page without the home's scene).
+   */
+  function showWords(path: PathFrame | null, size: { width: number; height: number }): void {
+    const parts = run.parts;
+    if (path === null || parts === null || !run.reading) {
+      hideWords(size);
+      return;
+    }
+    const phone = size.width < size.height;
+    const views: PathLabelView[] = [];
+    if (path.label !== null && path.label.opacity > 0.001) {
+      const id = BEADS[path.label.index]!.id;
+      const bead = onScreen(path.beads[path.label.index]!.centre, camera, size);
+      const light = { x: ((lightPoint.x + 1) / 2) * size.width, y: ((1 - lightPoint.y) / 2) * size.height };
+      views.push(
+        phone
+          ? { id, anchor: { x: bead.x, y: bead.y + bead.r * 1.25 + UNDER_BEAD }, side: 'below', opacity: path.label.opacity, quiet: false, hover: false }
+          : { id, anchor: light, side: 'right', opacity: path.label.opacity, quiet: false, hover: false }
+      );
+    } else if (lookingBack(path)) {
+      for (const bead of path.beads) {
+        const at = onScreen(bead.centre, camera, size);
+        views.push({ id: BEADS[bead.index]!.id, anchor: { x: at.x, y: at.y + at.r + UNDER_BEAD }, side: 'below', opacity: 0, quiet: true, hover: run.pointed === bead.index });
+      }
+      const way = run.way;
+      projects.offPath().forEach((project, k) => {
+        const place = way?.places[k];
+        if (!place) return;
+        const at = onScreen(place, camera, size);
+        views.push({ id: project.id, anchor: { x: at.x, y: at.y + UNDER_BEAD }, side: 'below', opacity: 0, quiet: true, hover: run.pointedLight === k });
+      });
+    }
+    showBeadLabels(views, size);
+
+    // The touch points of the bead seen inside.
+    const points = path.points;
+    if (points === null || points.opacity <= 0.001) {
+      showTouchPoints(null, size.width);
+      return;
+    }
+    const id = BEADS[points.index]!.id;
+    const root = parts.beads.beads[id].root;
+    let anchors = run.anchors[id];
+    if (!anchors) {
+      const nodes = new Map<string, THREE.Object3D>();
+      for (const place of TOUCH_POINTS[id]) if ('node' in place.anchor) nodes.set(place.anchor.node, root.getObjectByName(place.anchor.node)!);
+      let screen: THREE.Mesh | null = null;
+      root.getObjectByName(`bead_${id}_display`)?.traverse((o) => {
+        if (!screen && (o as THREE.Mesh).isMesh && ((o as THREE.Mesh).material as THREE.MeshStandardMaterial).emissiveMap) screen = o as THREE.Mesh;
+      });
+      anchors = { nodes, screen };
+      run.anchors[id] = anchors;
+    }
+    const box = anchors.screen ? screenBox(anchors.screen, camera, size) : null;
+    const at = TOUCH_POINTS[id].map((place) => {
+      if ('node' in place.anchor) {
+        anchors.nodes.get(place.anchor.node)?.getWorldPosition(centre);
+        centre.project(camera);
+        return { x: ((centre.x + 1) / 2) * size.width, y: ((1 - centre.y) / 2) * size.height };
+      }
+      if (box === null) return { x: Number.NaN, y: Number.NaN };
+      const { corner } = place.anchor;
+      return { x: corner[1] === 'l' ? box.x0 : box.x1, y: corner[0] === 't' ? box.y0 + CORNER_INSET : box.y1 - CORNER_INSET };
+    });
+    showTouchPoints({ id, opacity: points.opacity, at }, size.width);
+  }
 
   /** The look back's line and the lights off the way for `path`, built afresh when the path is another (a new aspect). */
   function wayFor(path: Path): NonNullable<VoidRun['way']> {

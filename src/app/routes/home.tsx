@@ -8,6 +8,7 @@ import { goToEnd, headedToEnd } from '~/input/useHomeScroll';
 import { head } from '~/seo/head';
 import { personLd, websiteLd } from '~/seo/structured';
 import { BeadLabels } from '~/ui/BeadLabel';
+import { TouchPoints } from '~/ui/TouchPoints';
 import { focusEndOnArrival } from '~/ui/endArrival';
 import { EndPage } from '~/ui/EndPage';
 import { LightFactLabels, LightFactList } from '~/ui/LightFacts';
@@ -50,17 +51,20 @@ export default function Home() {
         </p>
       </section>
 
-      {/* The selected bead's label in the void, one per project: hidden until the scene shows one beside its bead, at
-          its stop (src/ui/BeadLabel.tsx). Before the nav, so Tab reaches a shown label first in the page. */}
+      {/* The beads' labels, one per project: hidden until the scene shows one beside the light at its bead, or the look
+          back's on hover and focus (src/ui/BeadLabel.tsx). Before the nav, so Tab reaches a shown label first in the page. */}
       <BeadLabels />
+
+      {/* Each bead's touch points, shown on the parts they name inside it (src/ui/TouchPoints.tsx); aria-hidden. */}
+      <TouchPoints />
 
       {/* Bob's five facts: drawn beside the light in the light dive for the eye (src/ui/LightFacts.tsx), and as a list for
           readers and for 3D off, visually hidden while 3D is on, as the nav is. */}
       <LightFactLabels />
       <LightFactList />
 
-      {/* "Snel naar vragen ↓": shown only round the ring, it fades the story straight to the end page (src/ui/SkipButton.tsx).
-          After the bead labels, so Tab reaches the shown label first, then the button. */}
+      {/* "Snel naar vragen ↓": shown from the first project through the look back, it fades the story straight to the
+          credits (src/ui/SkipButton.tsx). After the bead labels, so Tab reaches the shown label first, then the button. */}
       <SkipButton />
 
       {/* Visible while 3D is off; while it is on the scene is the way in, and this stays for

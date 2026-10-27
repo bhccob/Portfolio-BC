@@ -13,7 +13,7 @@ import { nl } from '~/i18n/nl';
 import { goToEnd, headedToEnd } from '~/input/useHomeScroll';
 import { journeyPoseAt } from '~/scene/bob/journey';
 import { HOME_CHAPTERS, pathStart } from '~/state/chapters';
-import { labelPlacement } from '~/ui/BeadLabel';
+import { pathLabelPlace } from '~/ui/BeadLabel';
 import { focusEndOnArrival } from '~/ui/endArrival';
 import { SKIP_ATTRIBUTE, SkipButton, showsSkip, skipAlt, skipHome, skipPlace, skipToEnd, writeSkip } from '~/ui/SkipButton';
 
@@ -101,14 +101,11 @@ describe('the skip button never covers the label', () => {
     expect(skipPlace(null, size, pill)).toBe('home');
   });
 
-  it("lets the label take the first side clear of the pill first, as the mock-up's placement does", () => {
-    const avoid = skipHome(size, pill);
-    const box = { width: 260, height: 90 };
-    // A bead low on the right: its right side would run into the pill, so the label goes to its left.
-    const ndc = { x: (1000 / 1366) * 2 - 1, y: 1 - (560 / 657) * 2 };
-    expect(labelPlacement(ndc, size, { radius: 40, box }).side).toBe('right');
-    const clear = labelPlacement(ndc, size, { radius: 40, box, avoid });
-    expect(clear.side).toBe('left');
-    expect(clear.clear).toBe(true);
+  it("takes its alternate place where the label beside a light at rest low on the right would cover it, and stays home for one in the middle", () => {
+    const box = { w: 260, h: 90 };
+    const low = pathLabelPlace({ anchor: { x: 1000, y: 560 }, side: 'right' }, box, size);
+    expect(skipPlace({ ...low, ...box }, size, pill)).toBe('alt');
+    const middle = pathLabelPlace({ anchor: { x: 700, y: 330 }, side: 'right' }, box, size);
+    expect(skipPlace({ ...middle, ...box }, size, pill)).toBe('home');
   });
 });

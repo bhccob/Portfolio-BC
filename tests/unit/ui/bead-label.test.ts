@@ -9,11 +9,11 @@ import { en } from '~/i18n/en';
 import { nl } from '~/i18n/nl';
 import type { Locale } from '~/i18n/Translator';
 import { FLIGHT_MS } from '~/scene/bob/focus';
-import { BEADS, journeyPoseAt } from '~/scene/bob/journey';
+import { BEADS } from '~/scene/bob/journey';
 import { frame } from '~/state/frame';
 import { stopForProject } from '~/state/routeSync';
 import { useScene } from '~/state/store';
-import { BeadLabel, BeadLabels, LABEL_BOX, labelMargin, labelPlacement, lendOpener, openBead, registerBeadLabel, showBeadLabel, stopRadius } from '~/ui/BeadLabel';
+import { BeadLabel, BeadLabels, labelFocusable, lendOpener, openBead, type PathLabelView, pathLabelPlace, registerBeadLabel, showBeadLabels } from '~/ui/BeadLabel';
 
 /** `element` as the server renders it, on a page at `path`. */
 const render = (path: string, element: ReactElement): string => renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: [path] }, element));
@@ -174,101 +174,43 @@ const SIZES = [
   { width: 1440, height: 900 }
 ] as const;
 
-/** NDC from -1 to 1 in steps of 0.05, both ends included. */
-const NDC = Array.from({ length: 41 }, (_, i) => -1 + i * 0.05);
+describe('pathLabelPlace: the label beside the light at rest, or under the bead on a phone, inside the screen', () => {
+  const laptop = { width: 1440, height: 900 };
+  const phone = { width: 390, height: 844 };
+  const view = (anchor: { x: number; y: number }, side: 'right' | 'below'): PathLabelView => ({ id: 'funcial', anchor, side, opacity: 1, quiet: false, hover: false });
 
-describe('labelPlacement: the label beside its bead, inside the screen', () => {
-  it('keeps 16 px from the edges on a laptop and 24 px on a phone', () => {
-    expect(labelMargin(1440)).toBe(16);
-    expect(labelMargin(390)).toBe(24);
+  it('stands right of the light on a laptop, level with it', () => {
+    expect(pathLabelPlace(view({ x: 900, y: 450 }, 'right'), { w: 300, h: 96 }, laptop)).toEqual({ x: 934, y: 402 });
   });
 
-  for (const size of SIZES) {
-    it(`keeps the whole box inside at ${size.width}x${size.height}, with its margin, for any NDC in -1..1`, () => {
-      const m = labelMargin(size.width);
-      const box = size.width < 720 ? LABEL_BOX.phone : LABEL_BOX.laptop;
-      for (const x of NDC) {
-        for (const y of NDC) {
-          const at = labelPlacement({ x, y }, size);
-          const where = `NDC (${x.toFixed(2)}, ${y.toFixed(2)}): ${JSON.stringify(at)}`;
-          expect(at.x, where).toBeGreaterThanOrEqual(m);
-          expect(at.y, where).toBeGreaterThanOrEqual(m);
-          expect(at.x + box.width, where).toBeLessThanOrEqual(size.width - m);
-          expect(at.y + box.height, where).toBeLessThanOrEqual(size.height - m);
-        }
-      }
-    });
-
-    it(`keeps a measured box and the bead's own radius inside too, at ${size.width}x${size.height}`, () => {
-      const m = labelMargin(size.width);
-      const box = { width: 240, height: 70 };
-      for (const radius of [0, 40, 180, 400]) {
-        for (const x of NDC) {
-          for (const y of NDC) {
-            const at = labelPlacement({ x, y }, size, { radius, box });
-            expect(at.x).toBeGreaterThanOrEqual(m);
-            expect(at.y).toBeGreaterThanOrEqual(m);
-            expect(at.x + box.width).toBeLessThanOrEqual(size.width - m);
-            expect(at.y + box.height).toBeLessThanOrEqual(size.height - m);
-          }
-        }
-      }
-    });
-  }
-
-  it("is right of the bead on a laptop at the bead's stop (the bead in the middle), clear of its edge and level with it", () => {
-    const size = SIZES[1];
-    const at = labelPlacement({ x: 0, y: 0 }, size);
-    const radius = stopRadius(size);
-    expect(at.side).toBe('right');
-    expect(at.x).toBeGreaterThan(size.width / 2 + radius);
-    expect(at.y + LABEL_BOX.laptop.height / 2).toBeCloseTo(size.height / 2, 6);
+  it('stands under the bead on a phone, in the middle', () => {
+    expect(pathLabelPlace(view({ x: 195, y: 600 }, 'below'), { w: 260, h: 88 }, phone)).toEqual({ x: 65, y: 600 });
   });
 
-  it('goes below the bead on a phone, where neither side has room, clear of it and in the middle', () => {
-    const size = SIZES[0];
-    const at = labelPlacement({ x: 0, y: 0 }, size);
-    expect(at.side).toBe('below');
-    expect(at.y).toBeGreaterThan(size.height / 2 + stopRadius(size));
-    expect(at.x + LABEL_BOX.phone.width / 2).toBeCloseTo(size.width / 2, 6);
+  it('holds the whole label inside the screen, 16 px from its sides, and below the header', () => {
+    expect(pathLabelPlace(view({ x: 1300, y: 450 }, 'right'), { w: 300, h: 96 }, laptop).x).toBe(1124);
+    expect(pathLabelPlace(view({ x: 20, y: 600 }, 'below'), { w: 260, h: 88 }, phone).x).toBe(16);
+    expect(pathLabelPlace(view({ x: 900, y: 10 }, 'right'), { w: 300, h: 96 }, laptop).y).toBe(64 + 16);
+    expect(pathLabelPlace(view({ x: 195, y: 840 }, 'below'), { w: 260, h: 88 }, phone).y).toBe(844 - 16 - 88);
   });
 
-  it('goes to the left of a bead too far right for the label to fit beside it on the right', () => {
-    const at = labelPlacement({ x: 0.6, y: 0 }, SIZES[1]);
-    expect(at.side).toBe('left');
-    expect(at.x + LABEL_BOX.laptop.width).toBeLessThan(((0.6 + 1) / 2) * 1440 - stopRadius(SIZES[1]));
-  });
-
-  it('keeps clear of the header: never above it', () => {
-    for (const size of SIZES) for (const x of NDC) expect(labelPlacement({ x, y: 1 }, size).y).toBeGreaterThanOrEqual(64);
-  });
-
-  it('reads an NDC that is not a number as the middle of the screen', () => {
-    for (const size of SIZES) expect(labelPlacement({ x: Number.NaN, y: Number.NaN }, size)).toEqual(labelPlacement({ x: 0, y: 0 }, size));
-  });
-
-  it("takes for the bead's radius, by default, the one the front bead has at its ring stop, on every screen", () => {
-    for (const size of [...SIZES, { width: 1280, height: 720 }, { width: 768, height: 1024 }]) {
-      const aspect = size.width / size.height;
-      for (let p = 0; p < BEADS.length; p++) {
-        const { position, fov } = journeyPoseAt(4 + p, aspect).shot;
-        const target = BEADS[p]!.centre;
-        const distance = Math.hypot(position[0] - target[0], position[1] - target[1], position[2] - target[2]);
-        // The bead's radius over the picture's half-height at its distance, in pixels of the half-height.
-        const pixels = (BEADS[p]!.radius / (distance * Math.tan((fov * Math.PI) / 360))) * (size.height / 2);
-        expect(stopRadius(size) / pixels).toBeCloseTo(1, 1);
-      }
-    }
+  it('reads an anchor that is not a number as the middle of the screen', () => {
+    const at = pathLabelPlace(view({ x: Number.NaN, y: Number.NaN }, 'below'), { w: 260, h: 88 }, phone);
+    expect(at).toEqual({ x: 65, y: 422 });
   });
 });
 
-/** Every project id: the labels' ids are the projects'. */
-const _ids: readonly ProjectId[] = IDS;
-void _ids;
+describe('labelFocusable: Tab reaches a label only where it can be seen and clicked', () => {
+  const view = (opacity: number, quiet: boolean): PathLabelView => ({ id: 'funcial', anchor: { x: 0, y: 0 }, side: 'right', opacity, quiet, hover: false });
 
-// ---------------------------------------------------------------- fix round 1
+  it('takes the look back\'s labels, which show on focus, and a fading label only once it is half in', () => {
+    expect(labelFocusable(view(0, true))).toBe(true);
+    expect(labelFocusable(view(0.3, false))).toBe(false);
+    expect(labelFocusable(view(0.5, false))).toBe(true);
+    expect(labelFocusable(view(0.9, false))).toBe(true);
+  });
+});
 
-/** A fake label element: its attributes, as `showBeadLabel` writes them. */
 function fakeLabel() {
   const attributes = new Map<string, string>();
   return {
@@ -289,70 +231,19 @@ function fakeLabel() {
   };
 }
 
-describe('showBeadLabel: a shown label takes Tab only at its stop (fix round 1, Minor 5)', () => {
+
+describe('showBeadLabels: the labels the path shows', () => {
   const size = { width: 1440, height: 900 };
-  const at = { x: 0, y: 0 };
-  let release = (): void => {};
-  const doc = (globalThis as { document?: unknown }).document;
-  beforeEach(() => {
-    (globalThis as { document?: unknown }).document = { activeElement: null };
-  });
-  afterEach(() => {
-    showBeadLabel(null, size);
-    release();
-    (globalThis as { document?: unknown }).document = doc;
-  });
-
-  it('keeps a label clear between stops out of the Tab order, and lets it in at its stop', () => {
-    const el = fakeLabel();
-    release = registerBeadLabel('funcial', el as unknown as HTMLAnchorElement);
-    showBeadLabel({ id: 'funcial', ndc: at, radius: 240, rest: false }, size);
-    expect(el.attributes.has('data-shown')).toBe(true);
-    expect(el.attributes.has('data-rest')).toBe(false);
-    expect(el.attributes.get('tabindex')).toBe('-1');
-    showBeadLabel({ id: 'funcial', ndc: at, radius: 240, rest: true }, size);
-    expect(el.attributes.has('data-rest')).toBe(true);
-    expect(el.attributes.has('tabindex')).toBe(false);
-    showBeadLabel({ id: 'funcial', ndc: at, radius: 240, rest: false }, size);
-    expect(el.attributes.get('tabindex')).toBe('-1');
-    showBeadLabel(null, size);
-    expect([...el.attributes.keys()].sort()).toEqual(['inert', 'tabindex']);
-  });
-
-  it('keeps a label out of reach while it is hidden: tabindex -1 and inert from its registration, and again once it hides', () => {
-    const el = fakeLabel();
-    release = registerBeadLabel('jontai-energy', el as unknown as HTMLAnchorElement);
-    expect(el.attributes.get('tabindex')).toBe('-1');
-    expect(el.attributes.has('inert')).toBe(true);
-    showBeadLabel({ id: 'jontai-energy', ndc: at, radius: 120, rest: false }, size);
-    expect(el.attributes.has('inert')).toBe(false);
-    expect(el.attributes.get('tabindex')).toBe('-1');
-    showBeadLabel({ id: 'jontai-energy', ndc: at, radius: 120, rest: true }, size);
-    expect(el.attributes.has('tabindex')).toBe(false);
-    showBeadLabel(null, size);
-    expect(el.attributes.get('tabindex')).toBe('-1');
-    expect(el.attributes.has('inert')).toBe(true);
-  });
-
-  it('lets a label shown straight at its stop take Tab at once', () => {
-    const el = fakeLabel();
-    release = registerBeadLabel('cookies-clicker', el as unknown as HTMLAnchorElement);
-    showBeadLabel({ id: 'cookies-clicker', ndc: at, radius: 240, rest: true }, size);
-    expect(el.attributes.has('data-shown') && el.attributes.has('data-rest')).toBe(true);
-    expect(el.attributes.has('tabindex')).toBe(false);
-  });
-});
-
-describe('showBeadLabel: the focus of a label that hides (final review, Minor 9)', () => {
-  const size = { width: 1440, height: 900 };
-  const at = { x: 0, y: 0 };
   const releases: (() => void)[] = [];
   const doc = (globalThis as { document?: unknown }).document;
   /** <main id="main" tabIndex={-1}>, as src/app/Shell.tsx renders it: the focus calls it is given. */
-  const main = { focused: [] as unknown[], focus(options?: unknown) {
-    this.focused.push(options);
-    page.activeElement = main;
-  } };
+  const main = {
+    focused: [] as unknown[],
+    focus(options?: unknown) {
+      this.focused.push(options);
+      page.activeElement = main;
+    }
+  };
   const page = { activeElement: null as unknown, getElementById: (id: string) => (id === 'main' ? main : null) };
   /** A label that notes its own focus calls and takes the page's focus. */
   const focusable = () => {
@@ -364,23 +255,55 @@ describe('showBeadLabel: the focus of a label that hides (final review, Minor 9)
     }) as typeof el.focus;
     return el;
   };
+  const arrival = (id: ProjectId, opacity: number): PathLabelView => ({ id, anchor: { x: 900, y: 450 }, side: 'right', opacity, quiet: false, hover: false });
+  const quiet = (id: ProjectId, hover = false): PathLabelView => ({ id, anchor: { x: 500, y: 400 }, side: 'right', opacity: 0, quiet: true, hover });
   beforeEach(() => {
     main.focused = [];
     page.activeElement = null;
     (globalThis as { document?: unknown }).document = page;
   });
   afterEach(() => {
-    showBeadLabel(null, size);
+    showBeadLabels([], size);
     for (const release of releases.splice(0)) release();
     (globalThis as { document?: unknown }).document = doc;
+  });
+
+  it('shows the arrival\'s label at its opacity, and lets Tab and the pointer in once it is half in', () => {
+    const el = focusable();
+    releases.push(registerBeadLabel('funcial', el as unknown as HTMLAnchorElement));
+    expect([el.attributes.get('tabindex'), el.attributes.has('inert')]).toEqual(['-1', true]);
+    showBeadLabels([arrival('funcial', 0.3)], size);
+    expect(el.attributes.has('data-shown')).toBe(true);
+    expect(el.attributes.has('inert')).toBe(false);
+    expect([el.attributes.get('tabindex'), el.attributes.has('data-rest'), el.style.opacity]).toEqual(['-1', false, '0.3']);
+    showBeadLabels([arrival('funcial', 1)], size);
+    expect([el.attributes.has('tabindex'), el.attributes.has('data-rest'), el.style.opacity]).toEqual([false, true, '1']);
+    expect(el.style.transform).toBe('translate3d(934px, 409px, 0)'); // right of the light, level with it (82 px tall)
+    showBeadLabels([], size);
+    expect([...el.attributes.keys()].sort()).toEqual(['inert', 'tabindex']);
+  });
+
+  it("shows the look back's labels quiet: each in reach of Tab, shown on focus, and the one under the pointer", () => {
+    const funcial = focusable();
+    const jontai = focusable();
+    releases.push(registerBeadLabel('funcial', funcial as unknown as HTMLAnchorElement), registerBeadLabel('jontai-energy', jontai as unknown as HTMLAnchorElement));
+    showBeadLabels([quiet('funcial'), quiet('jontai-energy', true)], size);
+    for (const el of [funcial, jontai]) {
+      expect(el.attributes.has('data-shown') && el.attributes.has('data-quiet')).toBe(true);
+      expect(el.attributes.has('tabindex')).toBe(false);
+      expect(el.style.opacity).toBe('');
+    }
+    expect([funcial.attributes.has('data-hover'), jontai.attributes.has('data-hover')]).toEqual([false, true]);
+    showBeadLabels([arrival('funcial', 1)], size);
+    expect([funcial.attributes.has('data-quiet'), jontai.attributes.has('data-shown')]).toEqual([false, false]);
   });
 
   it('moves the focus to <main>, without scrolling, when a focused label hides and no label is shown after it', () => {
     const el = focusable();
     releases.push(registerBeadLabel('funcial', el as unknown as HTMLAnchorElement));
-    showBeadLabel({ id: 'funcial', ndc: at, radius: 240, rest: true }, size);
+    showBeadLabels([arrival('funcial', 1)], size);
     page.activeElement = el; // Tab has reached it
-    showBeadLabel(null, size); // ArrowUp toward the overview: the label goes
+    showBeadLabels([], size); // into the bead: the label goes
     expect(main.focused).toEqual([{ preventScroll: true }]);
     expect(page.activeElement).toBe(main);
   });
@@ -389,9 +312,9 @@ describe('showBeadLabel: the focus of a label that hides (final review, Minor 9)
     const funcial = focusable();
     const jontai = focusable();
     releases.push(registerBeadLabel('funcial', funcial as unknown as HTMLAnchorElement), registerBeadLabel('jontai-energy', jontai as unknown as HTMLAnchorElement));
-    showBeadLabel({ id: 'funcial', ndc: at, radius: 240, rest: true }, size);
+    showBeadLabels([arrival('funcial', 1)], size);
     page.activeElement = funcial;
-    showBeadLabel({ id: 'jontai-energy', ndc: at, radius: 240, rest: false }, size);
+    showBeadLabels([arrival('jontai-energy', 1)], size);
     expect(jontai.focused).toEqual([{ preventScroll: true }]);
     expect(main.focused).toEqual([]);
   });
@@ -399,8 +322,8 @@ describe('showBeadLabel: the focus of a label that hides (final review, Minor 9)
   it('moves nothing when the label that hides did not have the focus', () => {
     const el = focusable();
     releases.push(registerBeadLabel('cookies-clicker', el as unknown as HTMLAnchorElement));
-    showBeadLabel({ id: 'cookies-clicker', ndc: at, radius: 240, rest: true }, size);
-    showBeadLabel(null, size);
+    showBeadLabels([arrival('cookies-clicker', 1)], size);
+    showBeadLabels([], size);
     expect(main.focused).toEqual([]);
   });
 });

@@ -192,16 +192,19 @@ describe('the step fade in the stylesheet', () => {
     const fading = RULES.filter((rule) => rule.selectors.some((s) => s.includes('data-step-fade')));
     expect(fading.map((rule) => rule.selectors)).toEqual([
       ['html[data-step-fade] .scene-host'],
-      ['html[data-step-fade] .light-fact-layer', 'html[data-step-fade] .bead-label'],
+      ['html[data-step-fade] .light-fact-layer'],
+      ['html[data-step-fade] .bead-label', 'html[data-step-fade] .touch-points'],
       ["html[data-route='home'][data-step-fade] .end-page"]
     ]);
     for (const rule of fading) expect([...rule.declarations.keys()]).toEqual(['opacity']);
   });
 
-  it("fades the facts beside the light and the bead's label with the host, as fast, so a step shows no label of the stop it left", () => {
+  it("fades the facts beside the light, the beads' labels and the touch points with the host, as fast, so a step shows no words of the stop it left", () => {
     expect(valueOf('html[data-step-fade] .light-fact-layer', 'opacity')).toBe('0');
-    expect(valueOf('html[data-step-fade] .bead-label', 'opacity')).toBe('0');
-    for (const selector of ['.light-fact-layer', '.bead-label']) {
+    // The labels' and the touch points' own opacity is written on them: the fade's wins outright.
+    expect(valueOf('html[data-step-fade] .bead-label', 'opacity')).toBe('0 !important');
+    expect(valueOf('html[data-step-fade] .touch-points', 'opacity')).toBe('0 !important');
+    for (const selector of ['.light-fact-layer', '.bead-label', '.touch-points']) {
       expect(valueOf(selector, 'transition', REDUCED), selector).toBe(valueOf('.scene-host', 'transition', REDUCED));
     }
   });
