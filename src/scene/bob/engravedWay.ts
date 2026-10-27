@@ -48,7 +48,7 @@ export const ENGRAVED = {
   /** Over an orbit's t, its trip's line fades out by this. */
   ORBIT_OUT_T: 0.35,
   /** The look back: every line, faint, coming in over its t. */
-  LOOK: { level: 0.32, in: [0.15, 0.7] },
+  LOOK: { level: 0.32, in: [0.15, 0.7] }
 } as const;
 
 /** Smoothstep over a span. */
@@ -71,7 +71,7 @@ export function shaftRings(): RingSpec[] {
       width: 0.13 + 0.12 * e,
       // The opening rings tilt a little, each its own way, as they float apart.
       tilt: e > 0 ? [e * 0.12 * Math.sin(y * 3.1), e * 0.1 * Math.cos(y * 2.3)] : [0, 0],
-      zone: 'hall',
+      zone: 'hall'
     });
     y -= HALL.spacing + (HALL.openSpacing - HALL.spacing) * e;
   }
@@ -85,7 +85,7 @@ export function shaftRings(): RingSpec[] {
 export function engravedLevels(
   at: Pick<JourneyAt, 'stretch' | 'frame'>,
   path: Pick<PathFrame, 'part' | 'index' | 't' | 'black'> | null,
-  trips: number,
+  trips: number
 ): EngravedLevels {
   const levels: number[] = new Array(trips).fill(0);
   if (at.stretch === 'light' && at.frame !== null) {
