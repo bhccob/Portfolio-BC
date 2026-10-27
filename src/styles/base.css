@@ -2127,6 +2127,78 @@ html[data-route='home'][data-3d='on'][data-skip] .skip-button {
   }
 }
 
+/* ---------- inside a bead ---------- */
+/* "Terug" and "Bekijk project" (src/ui/InsideControls.tsx): two big pills at the foot of the screen, centred, for one
+   thumb, in the skip button's look: the label face in the title gold on a dark glass with a thin gold rim; the page's
+   way on has the stronger rim. Shown while the visitor is inside a bead (<html data-inside>), and with the skip button
+   gone then (no bead is close while it shows). They fade in and out, and take no Tab or click while hidden. */
+.inside-controls {
+  position: fixed;
+  left: 50%;
+  bottom: calc(max(24px, 3.2vw) + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  gap: 12px;
+  transform: translateX(-50%);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.5s var(--ease-reveal),
+    visibility 0s linear 0.5s;
+}
+
+.inside-button {
+  min-height: 52px;
+  margin: 0;
+  padding: 0 clamp(22px, 2.2vw, 32px);
+  border: 1px solid rgb(228 190 127 / 0.45);
+  border-radius: 999px;
+  background: rgb(5 3 8 / 0.62);
+  color: var(--gold-title);
+  font: 400 clamp(12px, 0.95vw, 14px) / 1 var(--font-label);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  appearance: none;
+  touch-action: manipulation;
+  transition: border-color 0.3s;
+}
+
+.inside-view {
+  border-color: rgb(243 210 140 / 0.85);
+}
+
+.inside-button:hover {
+  border-color: rgb(249 220 135 / 1);
+}
+
+.inside-button:focus-visible {
+  outline: 1px solid var(--gold-title);
+  outline-offset: 3px;
+}
+
+html[data-route='home'][data-3d='on'][data-inside] .inside-controls {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 0.5s var(--ease-reveal) 0.35s,
+    visibility 0s;
+}
+
+/* On a phone the two share the screen's width, each half of it. */
+@media (max-width: 720px) {
+  .inside-controls {
+    left: 16px;
+    right: 16px;
+    transform: none;
+  }
+
+  .inside-button {
+    flex: 1 1 0;
+    padding: 0 12px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

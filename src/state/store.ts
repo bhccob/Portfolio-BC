@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { create } from 'zustand';
 import type { SceneKind } from '~/app/handle';
+import type { ProjectId } from '~/data/projects';
 import { SafeStorage } from '~/engine/core/SafeStorage';
 import { type Phase, type SceneEvent, transition } from './machine';
 
@@ -31,11 +32,19 @@ export interface SceneState {
   scene: SceneKind | null;
   /** The void's load (`VoidState`); its one writer is the Void. */
   voidState: VoidState;
+  /**
+   * The bead the visitor is inside, on the home page (src/scene/bob/inside.ts): a click on it opened it and the home's
+   * history entry carries it (src/state/routeSync.ts), or null. While it is set the camera stands inside the bead, its
+   * two buttons show (src/ui/InsideControls.tsx) and the scroll takes no step (src/input/useHomeScroll.ts).
+   */
+  inside: ProjectId | null;
   dispatch(event: SceneEvent): void;
   setTier(tier: Tier): void;
   setScene(scene: SceneKind | null): void;
   /** The same state again is no change. */
   setVoidState(state: VoidState): void;
+  /** The same bead again is no change. */
+  setInside(id: ProjectId | null): void;
   /**
    * Switches 3D on or off. The visitor's switch stores the choice (`needle-3d`); the scene's own reasons (no WebGL,
    * a scene that failed or never got ready) pass `{ persist: false }`, so the page falls back for this visit and the
@@ -87,6 +96,7 @@ export const useScene = create<SceneState>()((set) => ({
   transitionId: 0,
   scene: null,
   voidState: 'idle',
+  inside: null,
 
   dispatch: (event) =>
     set((state) => {
@@ -101,6 +111,8 @@ export const useScene = create<SceneState>()((set) => ({
   setScene: (scene) => set((state) => (state.scene === scene ? state : { scene })),
 
   setVoidState: (voidState) => set((state) => (state.voidState === voidState ? state : { voidState })),
+
+  setInside: (inside) => set((state) => (state.inside === inside ? state : { inside })),
 
   setThreeD: (on, { persist = true } = {}) => {
     if (persist) SafeStorage.local().set(THREE_D_KEY, on ? 'on' : 'off');

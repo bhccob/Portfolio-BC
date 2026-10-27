@@ -398,7 +398,9 @@ export const nl: Dictionary = {
     morph: 'Dezelfde kracht die schepen stuurde, bewaart nu onze data.',
     project: { open: 'Openen', download: 'Downloaden', code: 'Code', back: 'Esc · terug' },
     // The bead's label (src/ui/BeadLabel.tsx): spec §2.4's wording, not the copy budget's.
-    bead: { hint: 'Klik om te openen', hintTouch: 'Tik om te openen' }
+    bead: { hint: 'Klik om te openen', hintTouch: 'Tik om te openen' },
+    // Inside a bead (src/ui/InsideControls.tsx): the 3D world's spec, "Bekijk project" and "Terug".
+    inside: { view: 'Bekijk project', back: 'Terug' }
   },
   // Verbatim from the NL column of the light dive's spec (docs/superpowers/specs/2026-10-25-bob-light-dive-design.md).
   lightDive: {

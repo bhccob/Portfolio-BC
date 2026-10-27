@@ -20,7 +20,7 @@ import { useLoaderSkip } from '~/input/loaderSkip';
 import { frame } from '~/state/frame';
 import { placeForProject } from '~/state/routeSync';
 import { useScene } from '~/state/store';
-import { openBead } from '~/ui/BeadLabel';
+import { openAt } from '~/ui/BeadLabel';
 import { motion } from '../motion';
 import { settleLoad } from '../settleLoad';
 import { visibleTimeout } from '../timeouts';
@@ -146,8 +146,8 @@ function showFocusFade(on: boolean): void {
 
 /** The close view on this frame: `stepFocus` (src/scene/bob/focus.ts) of `frame.focus`, from the store and the story. */
 function focusNow(now: number): FocusPose {
-  const { phase, scene, reducedMotion } = useScene.getState();
-  return stepFocus(frame.focus, { phase, scene, reducedMotion, progress: frame.progress, target: frame.target }, now);
+  const { phase, scene, reducedMotion, inside } = useScene.getState();
+  return stepFocus(frame.focus, { phase, scene, reducedMotion, inside, progress: frame.progress, target: frame.target }, now);
 }
 
 /** Frees strips' GPU side and empties their canvases (4096 x 96 each). Freeing one twice is harmless. */
@@ -330,7 +330,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
   const buffer = useRef({ seen: new THREE.Vector2(-1, -1), now: new THREE.Vector2() });
   /** The home's parts once built, which mount Home; and what the Opening hands over to it, set on each frame drawn. */
   const [models, setModels] = useState<Mounted | null>(null);
-  const [handover] = useState<Handover>(() => ({ live: false, time: 0, needle: settleAngle(1), shown: 0, pose: null, focus: false }));
+  const [handover] = useState<Handover>(() => ({ live: false, time: 0, needle: settleAngle(1), shown: 0, pose: null, focus: false, close: { id: null, amount: 0 } }));
   /** The full show is playing, so any input skips it (`useLoaderSkip`) while a scene is shown. */
   const [skippable, setSkippable] = useState(false);
   /** The page shows a scene: on a page of text (Lite, contact) the canvas draws nothing, and the skip must not listen. */
@@ -539,6 +539,8 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       handover.live = false;
       handover.pose = null;
       handover.focus = false;
+      handover.close.id = null;
+      handover.close.amount = 0;
       setModels(null);
       setSkippable(false);
       motion.loader = false;
@@ -634,6 +636,8 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
     // fade's dark half and over a close view whose void is not in yet (the page stands over the dark poster until the
     // bead is there to see), and the canvas kept drawing while a move goes on.
     handover.focus = focus.engaged;
+    handover.close.id = focus.id;
+    handover.close.amount = focus.amount;
     showFocusFade(focus.dark || (focus.amount > 0 && useScene.getState().voidState !== 'ready'));
     motion.focus = focus.moving;
     // A held clock poses every frame; the live one poses the home once, when it gets there.
@@ -678,7 +682,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
   return models ? (
     <>
       <Home models={models.home} handover={handover} />
-      <Void compass={models.home.compass} light={models.light} handover={handover} tier={tier} standIns={models.standIns} onOpen={openBead} />
+      <Void compass={models.home.compass} light={models.light} handover={handover} tier={tier} standIns={models.standIns} onOpen={openAt} />
     </>
   ) : null;
 }

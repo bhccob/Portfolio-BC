@@ -1367,6 +1367,60 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
     expect([storyFrame.target, storyFrame.progress, storyFrame.velocity]).toEqual([to, to, 0]);
   }
 
+  describe("inside a bead: the scroll takes no step, and the tail of the input that took the visitor out is dropped", () => {
+    it('drops every wheel, key and swipe while a bead is open inside, preventing them, so neither the story nor the page moves', async () => {
+      const s = wiredHome(A0, { voidState: 'ready' });
+      useScene.getState().setInside('funcial');
+      const wheeled = await s.wheel(5, 100);
+      expect(wheeled.prevented.every(Boolean)).toBe(true);
+      expect(s.key('ArrowDown').defaultPrevented).toBe(true);
+      const swiped = await s.swipe(-200);
+      expect(swiped.prevented.every(Boolean)).toBe(true);
+      s.run();
+      expect([storyFrame.target, storyFrame.progress]).toEqual([A0, A0]);
+      expect(s.win.scrolls).toBe(0);
+    });
+
+    it('drops the tail of a wheel still turning as the inside closes, and takes a scroll after a quiet moment', async () => {
+      let now = 10_000;
+      const clock = vi.spyOn(performance, 'now').mockImplementation(() => now);
+      try {
+        const s = wiredHome(A0, { voidState: 'ready' });
+        useScene.getState().setInside('funcial');
+        await s.wheel(3, 100);
+        useScene.getState().setInside(null); // the wheel took the visitor out
+        now += 50;
+        await s.wheel(4, 100); // the trackpad's momentum, still coming
+        now += 120;
+        await s.wheel(4, 60);
+        s.run();
+        expect([storyFrame.target, storyFrame.progress]).toEqual([A0, A0]);
+        // A quiet moment, then a scroll of the visitor's own: the story goes on.
+        now += 1000;
+        for (let ms = 0; ms <= GESTURE_GAP_MS; ms += FRAME_MS) s.frames.frame();
+        await s.wheel(3, 100);
+        expect(storyFrame.target).toBeGreaterThan(A0);
+      } finally {
+        clock.mockRestore();
+      }
+    });
+
+    it("drops nothing after an inside closed by its button, once the flight's first moments are past", async () => {
+      let now = 10_000;
+      const clock = vi.spyOn(performance, 'now').mockImplementation(() => now);
+      try {
+        const s = wiredHome(A0, { voidState: 'ready' });
+        useScene.getState().setInside('funcial');
+        useScene.getState().setInside(null); // Terug
+        now += 2000;
+        await s.wheel(3, 100);
+        expect(storyFrame.target).toBeGreaterThan(A0);
+      } finally {
+        clock.mockRestore();
+      }
+    });
+  });
+
   describe('the landing hold: the story waits at the hand-over, before the first project, while the beads load', () => {
     it("holds a wheel past it at LANDING_HOLD while loading, and the beads' ready takes it on to where the wheel went", async () => {
       expect(H).toBe(placeOfFrame(256)); // the hand-over

@@ -11,6 +11,7 @@ import { BeadLabels } from '~/ui/BeadLabel';
 import { TouchPoints } from '~/ui/TouchPoints';
 import { focusEndOnArrival } from '~/ui/endArrival';
 import { EndPage } from '~/ui/EndPage';
+import { InsideControls } from '~/ui/InsideControls';
 import { LightFactLabels, LightFactList } from '~/ui/LightFacts';
 import { SkipButton } from '~/ui/SkipButton';
 import { HANDLES, type RouteHandle } from '../handle';
@@ -57,6 +58,9 @@ export default function Home() {
 
       {/* Each bead's touch points, shown on the parts they name inside it (src/ui/TouchPoints.tsx); aria-hidden. */}
       <TouchPoints />
+
+      {/* Inside a bead a click opened: "Terug" and "Bekijk project", hidden until then (src/ui/InsideControls.tsx). */}
+      <InsideControls />
 
       {/* Bob's five facts: drawn beside the light in the light dive for the eye (src/ui/LightFacts.tsx), and as a list for
           readers and for 3D off, visually hidden while 3D is on, as the nav is. */}

@@ -23,6 +23,7 @@ import { showsSkip, writeSkip } from '~/ui/SkipButton';
 import { motion } from '../motion';
 import { engravedLevels, shaftRings, tripPoints } from './engravedWay';
 import type { Handover } from './Home';
+import { insideBuild, insideClockRuns, insidePoints } from './inside';
 import { BEAD_RADIUS, BEADS, type LightPose } from './journey';
 import { lookingBack, type Path, type PathFrame, pathFor } from './lightPath';
 import { LOOK } from './look';
@@ -210,6 +211,11 @@ interface VoidRun {
   selected: number | null;
   /** The void's drift clock (its mist and dust), seconds of frames drawn while it showed. */
   time: number;
+  /**
+   * The objects' clock inside a bead (./inside.ts): the bead it last ran for, its seconds (kept between insides, so an
+   * object never snaps back to rest), and when the inside last stirred it (it opened, or the pointer moved), ms.
+   */
+  inside: { id: ProjectId | null; time: number; stirred: number };
   /** The void is shown over the home's scene and no bead is close (`handover.focus`): the selected bead's label shows. */
   reading: boolean;
   /**
@@ -382,8 +388,8 @@ export interface VoidProps {
   standIns: readonly THREE.PointLight[];
   /**
    * A click (or tap) on the selected bead, the bead of the current project stop, with the void shown over the home:
-   * the Opening hands it `openBead` (src/ui/BeadLabel.tsx), the label's own way in, which flies into the porthole and
-   * then goes to the project's page. Without it, a click does nothing.
+   * the Opening hands it `openAt` (src/ui/BeadLabel.tsx), the label's own way in, which takes the visitor inside the
+   * bead (a light off the way opens its page). Without it, a click does nothing.
    */
   onOpen?(id: ProjectId): void;
 }
@@ -467,6 +473,7 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
     way: null,
     engraved: null,
     built: BEADS.map(() => Number.NaN),
+    inside: { id: null, time: 0, stirred: Number.NEGATIVE_INFINITY },
     hover: hoverEase(),
     pointed: null,
     mode: null,
@@ -839,6 +846,8 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
       };
       const wakes: number[] | null = proof ? [] : null;
       if (wakes) frame.journey.wake = wakes;
+      // The bead seen close (a click's inside, or the page over it) builds its objects as the camera goes in.
+      const close = handover.close;
       for (const bead of path.beads) {
         const id = BEADS[bead.index]!.id;
         const fade = bead.visible ? bead.fade : 0;
@@ -849,11 +858,29 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
         const wake = wakeFor(bead, way.path, toView);
         beads.setWake(id, wake);
         wakes?.push(wake.span);
-        if (fade > 0 && bead.build !== run.built[bead.index]) {
-          beads.setBuild(id, bead.build);
-          run.built[bead.index] = bead.build;
+        const build = close.id === id ? Math.max(bead.build, insideBuild(close.amount)) : bead.build;
+        if (fade > 0 && build !== run.built[bead.index]) {
+          beads.setBuild(id, build);
+          run.built[bead.index] = build;
         }
       }
+    }
+
+    // Inside a bead the objects' clock runs (`insideClockRuns`): from the inside's opening and each pointer move over it,
+    // for the home's idle while, never with reduced motion; then they rest where they are and the canvas sleeps.
+    const now = performance.now();
+    const inside = run.inside;
+    const closeId = handover.close.amount > 0 ? handover.close.id : null;
+    if (closeId !== null && closeId !== inside.id) {
+      inside.id = closeId;
+      inside.stirred = now;
+    }
+    if (closeId !== null && Number.isFinite(frame.pointerAt) && frame.pointerAt > inside.stirred) inside.stirred = frame.pointerAt;
+    if (closeId === null) inside.id = null;
+    const ticking = closeId !== null && insideClockRuns(inside.stirred, now, reduced);
+    if (ticking) {
+      inside.time += dt;
+      beads.setMotion(closeId, inside.time);
     }
 
     // The path on the screen, for the proof harness: each bead's centre and radius, and the label's opacity.
@@ -880,10 +907,13 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
       // With reduced motion no point: it brightens and does not turn.
       beads.setHover(BEADS[hovered]!.id, run.hover.amount, reduced ? undefined : camera.position);
     }
-    showWords(path, size);
+    // The touch points of the bead the visitor is inside (the store's `inside`), once the camera is all but in.
+    const within = home && closeId !== null && useScene.getState().inside === closeId;
+    const points = within ? { index: BEADS.findIndex((bead) => bead.id === closeId), opacity: insidePoints(handover.close.amount) } : path?.points ?? null;
+    showWords(path, size, points);
 
-    // Nothing moves by itself on the path: the canvas draws on only while the hover eases.
-    const moving = easing && home;
+    // Nothing moves by itself on the path: the canvas draws on only while the hover eases or the inside's clock runs.
+    const moving = (easing && home) || ticking;
     // The first frame of a motion asks for the next itself: the Heartbeat has run this frame already.
     if (moving && !motion.beads) invalidate();
     motion.beads = moving;
@@ -892,15 +922,22 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
   /**
    * The words over the path on a screen of `size`: the label beside the light as it comes to rest at a bead (right of the
    * light, or under the bead on a phone), the look back's labels under each bead and light off the way, quiet until the
-   * pointer or the keyboard is on one, and the touch points of the bead seen inside, on the parts they name. None while
-   * the void is not read (a bead close, or a page without the home's scene).
+   * pointer or the keyboard is on one, none while the void is not read (a bead close, or a page without the home's
+   * scene); and the touch points of the bead the visitor is inside (`points`), on the parts they name.
    */
-  function showWords(path: PathFrame | null, size: { width: number; height: number }): void {
+  function showWords(path: PathFrame | null, size: { width: number; height: number }, points: PathFrame['points']): void {
     const parts = run.parts;
-    if (path === null || parts === null || !run.reading) {
+    if (parts === null) {
       hideWords(size);
       return;
     }
+    if (path === null || !run.reading) showBeadLabels([], size);
+    else showLabels(path, size);
+    showPoints(parts, points, size);
+  }
+
+  /** The labels the path shows (`showWords`). */
+  function showLabels(path: PathFrame, size: { width: number; height: number }): void {
     const phone = size.width < size.height;
     const views: PathLabelView[] = [];
     if (path.label !== null && path.label.opacity > 0.001) {
@@ -926,9 +963,10 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
       });
     }
     showBeadLabels(views, size);
+  }
 
-    // The touch points of the bead seen inside.
-    const points = path.points;
+  /** The touch points of the bead seen inside, at `points`' opacity, or none (`showWords`). */
+  function showPoints(parts: NonNullable<VoidRun['parts']>, points: PathFrame['points'], size: { width: number; height: number }): void {
     if (points === null || points.opacity <= 0.001) {
       showTouchPoints(null, size.width);
       return;

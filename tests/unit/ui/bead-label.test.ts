@@ -305,6 +305,23 @@ describe('showBeadLabels: the labels the path shows', () => {
     expect([...el.attributes.keys()].sort()).toEqual(['inert', 'tabindex']);
   });
 
+  it('puts a label registered again (its link re-rendered on a navigation of the home, as an inside opens) away whole, so a hide still hides it', () => {
+    const el = focusable();
+    releases.push(registerBeadLabel('funcial', el as unknown as HTMLAnchorElement));
+    showBeadLabels([arrival('funcial', 1)], size);
+    expect(el.attributes.has('data-shown')).toBe(true);
+    // React calls the link's ref again: the last registration is taken away, and the same element registered anew.
+    releases.pop()!();
+    releases.push(registerBeadLabel('funcial', el as unknown as HTMLAnchorElement));
+    expect([...el.attributes.keys()].sort()).toEqual(['inert', 'tabindex']);
+    expect(el.style.opacity).toBe('');
+    showBeadLabels([], size);
+    expect(el.attributes.has('data-shown')).toBe(false);
+    // The next frame that shows it shows it whole again.
+    showBeadLabels([arrival('funcial', 1)], size);
+    expect([el.attributes.has('data-shown'), el.style.opacity, el.style.transform]).toEqual([true, '1', 'translate3d(934px, 409px, 0)']);
+  });
+
   it("shows the look back's labels quiet: each in reach of Tab, shown on focus, and the one under the pointer", () => {
     const funcial = focusable();
     const jontai = focusable();

@@ -427,7 +427,9 @@ export const en = {
      * The selected bead's label in the void (src/ui/BeadLabel.tsx): the hint under the title, for a pointer and for a
      * touch screen. Not in the copy budget: spec §2.4's own wording, which Bob may change.
      */
-    bead: { hint: 'Click to open', hintTouch: 'Tap to open' }
+    bead: { hint: 'Click to open', hintTouch: 'Tap to open' },
+    /** Inside a bead (src/ui/InsideControls.tsx): the way on to its page and the way back out (the 3D world's spec). */
+    inside: { view: 'View project', back: 'Back' }
   },
   /**
    * The light dive (docs/superpowers/specs/2026-10-25-bob-light-dive-design.md, Bob approved it on 2026-10-26): his

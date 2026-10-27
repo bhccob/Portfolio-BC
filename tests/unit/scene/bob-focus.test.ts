@@ -14,7 +14,7 @@ import {
   restsAt,
   stepFocus
 } from '~/scene/bob/focus';
-import { BEADS, fieldFor, FOCUS_VIEW, focusShotFor, journeyPoseAt, lensField, shotToward } from '~/scene/bob/journey';
+import { BEADS, D_INSIDE, focusShotFor, INSIDE_FOV, journeyPoseAt, shotToward } from '~/scene/bob/journey';
 import { pathFor, TOWARD } from '~/scene/bob/lightPath';
 import { STEP_FADE_MS } from '~/scene/bob/stepFade';
 import { voidShownFor } from '~/scene/bob/voidPose';
@@ -40,8 +40,6 @@ const L = pathStart(HOME_CHAPTERS);
 /** A bead's centre on the path on a screen of this aspect: where the scene places it. */
 const atStop = (bead: (typeof BEADS)[number], aspect: number): Vec3 => pathFor(aspect).centres[BEADS.indexOf(bead)]!;
 
-/** The unit line the path's camera looks at every bead along, toward the camera: its porthole faces it. */
-const towardStop = (): Vec3 => TOWARD;
 
 /** Where `point` lands on a screen of this aspect through `shot`, NDC. */
 function project(shot: CameraShot, aspect: number, point: Vec3): THREE.Vector3 {
@@ -52,42 +50,36 @@ function project(shot: CameraShot, aspect: number, point: Vec3): THREE.Vector3 {
 
 // ---------------------------------------------------------------- the close view
 
-describe('focusShotFor: a bead seen close', () => {
-  it('stands the camera 1.6 in front of the porthole, on the line to its ring stop\'s camera, looking into it, with the 40 mm field', () => {
-    expect(FOCUS_VIEW.standOff).toBe(1.6);
-    expect(FOCUS_VIEW.lens).toBe(40);
-    for (const bead of BEADS) {
-      const shot = focusShotFor(bead.id, LAPTOP);
-      const centre = atStop(bead, LAPTOP);
-      const u = towardStop();
-      const d = bead.radius + 1.6;
-      near(shot.target, centre);
-      // The porthole faces the path's camera, the bead's radius out; the camera 1.6 beyond it.
-      near(shot.position, [centre[0] + u[0] * d, centre[1] + u[1] * d, centre[2] + u[2] * d]);
-      expect(shot.fov).toBeCloseTo(fieldFor(lensField(40), LAPTOP).fov, 9);
-      near(shot.up ?? [0, 1, 0], [0, 1, 0]);
+describe('focusShotFor: the inside of a bead, a click\'s and its project page\'s view', () => {
+  it('stands inside the bead, its objects in view', () => {
+    // The approved scrolled inside's own view (2026-10-27): D_INSIDE off the centre on the path's line toward the bead,
+    // the porthole's side, looking a little below the centre at its objects, with the inside's field.
+    expect(D_INSIDE).toEqual({ desk: 1.75, phone: 2.3 });
+    expect(INSIDE_FOV).toEqual({ desk: 40, phone: 72 });
+    for (const [a, size] of [[LAPTOP, 'desk'], [PHONE, 'phone']] as const) {
+      for (const bead of BEADS) {
+        const shot = focusShotFor(bead.id, a);
+        const centre = atStop(bead, a);
+        const d = D_INSIDE[size];
+        near(shot.position, [centre[0] + TOWARD[0] * d, centre[1] + TOWARD[1] * d, centre[2] + TOWARD[2] * d]);
+        near(shot.target, [centre[0], centre[1] - 0.12, centre[2]]);
+        expect(shot.fov).toBe(INSIDE_FOV[size]);
+        near(shot.up ?? [0, 1, 0], [0, 1, 0]);
+        // Past the shell's front, through the porthole: nearer the bead than its radius and the frame's lip, never in it.
+        const off = Math.hypot(shot.position[0] - centre[0], shot.position[1] - centre[1], shot.position[2] - centre[2]);
+        expect(off).toBeGreaterThan(bead.radius + 0.5);
+        expect(off).toBeLessThan(bead.radius + 1.6);
+      }
     }
   });
 
-  it('stands a phone back along the same line by the width rule (fieldFor), so it sees the same width across', () => {
-    for (const bead of BEADS) {
-      const shot = focusShotFor(bead.id, PHONE);
-      const { fov, back } = fieldFor(lensField(40), PHONE);
-      const centre = atStop(bead, PHONE);
-      const u = towardStop();
-      const d = (bead.radius + 1.6) * back;
-      expect(back).toBeGreaterThan(1);
-      near(shot.position, [centre[0] + u[0] * d, centre[1] + u[1] * d, centre[2] + u[2] * d]);
-      expect(shot.fov).toBeCloseTo(fov, 9);
-    }
-  });
-
-  it('holds the bead in the middle of the picture, on every screen', () => {
+  it('holds the bead in the middle of the picture, a touch above it (its objects in the middle), on every screen', () => {
     for (const a of SCREENS) {
       for (const bead of BEADS) {
         const at = project(focusShotFor(bead.id, a), a, atStop(bead, a));
         expect(at.x).toBeCloseTo(0, 9);
-        expect(at.y).toBeCloseTo(0, 9);
+        expect(at.y).toBeGreaterThan(0);
+        expect(at.y).toBeLessThan(0.25);
       }
     }
   });
@@ -141,7 +133,9 @@ describe("shotToward: the flight's straight move between two shots", () => {
           const at = shotToward(from, to, k / 100).position;
           for (const other of BEADS) {
             const centre = atStop(other, a);
-            expect(Math.hypot(at[0] - centre[0], at[1] - centre[1], at[2] - centre[2])).toBeGreaterThan(other.radius + 1);
+            // Its own bead it comes up to, short of the porthole's frame; every other it passes well clear of.
+            const clear = other === bead ? 0.5 : 1;
+            expect(Math.hypot(at[0] - centre[0], at[1] - centre[1], at[2] - centre[2])).toBeGreaterThan(other.radius + clear);
           }
         }
       }
@@ -352,6 +346,74 @@ describe('stepFocus: Back flies out of a page reached any way, whatever frame fa
     useScene.setState({ phase: { kind: 'PROJECT_FOCUS', id: 'funcial' } });
     expect(stepFocus(frame.focus, input(), 0)).toMatchObject({ id: null, amount: 0, engaged: false });
     expect(frame.focus.move.to).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------- the inside, by a click
+
+describe('the inside: a click flies into the bead, and every way out flies back to its arrival', () => {
+  /** The frame's input as the Opening reads it: the real store and the real story, the inside with them. */
+  const input = () => {
+    const { phase, scene, reducedMotion, inside } = useScene.getState();
+    return { phase, scene, reducedMotion, inside, progress: frame.progress, target: frame.target };
+  };
+  const reset = (): void => {
+    resetRouteSync();
+    useScene.setState(useScene.getInitialState(), true);
+    frame.progress = frame.target = frame.velocity = frame.chapterIndex = 0;
+    frame.focus.move = { ...FOCUS_AT_REST, from: { ...FOCUS_AT_REST.from } };
+    frame.focus.opening = null;
+  };
+  beforeEach(() => {
+    reset();
+    useScene.setState({ phase: { kind: 'PROJECTS', category: 'secure-element' }, scene: 'home' });
+    frame.progress = frame.target = stopForProject('funcial');
+  });
+  afterEach(reset);
+
+  it("flies into the bead's inside on the inside, and back out to the arrival when it closes", () => {
+    const projectsAt = { kind: 'PROJECTS', category: 'secure-element' } as const;
+    expect(focusGoalFor(projectsAt, 'home', null, null, 'funcial')).toBe('funcial');
+    expect(focusGoalFor(projectsAt, 'home', null, 'funcial', null)).toBeNull();
+    expect(focusGoalFor(projectsAt, 'home', null, null, 'nope' as ProjectId)).toBeNull();
+    // A project page asks for its own bead, and the bead being opened comes first.
+    expect(focusGoalFor({ kind: 'PROJECT_FOCUS', id: 'jontai-energy' }, 'project', null, null, 'funcial')).toBe('jontai-energy');
+    expect(focusGoalFor(projectsAt, 'home', 'cookies-clicker', null, 'funcial')).toBe('cookies-clicker');
+    // An inside the history brings back (Forward) fades in; out again, the story at rest at the arrival, it flies.
+    useScene.getState().setInside('funcial');
+    expect(stepFocus(frame.focus, input(), 0)).toMatchObject({ dark: true, engaged: true });
+    expect(stepFocus(frame.focus, input(), 1000)).toMatchObject({ id: 'funcial', amount: 1, moving: false });
+    useScene.getState().setInside(null);
+    expect(stepFocus(frame.focus, input(), 2000)).toMatchObject({ id: 'funcial', amount: 1, dark: false, moving: true });
+    expect(frame.focus.move).toMatchObject({ to: null, mode: 'fly' });
+    expect(focusPoseAt(frame.focus.move, 2000 + FLIGHT_MS / 2).amount).toBeCloseTo(0.5, 9);
+    expect(focusPoseAt(frame.focus.move, 2000 + FLIGHT_MS)).toEqual({ id: null, amount: 0, dark: false, moving: false, engaged: false });
+  });
+
+  it('turns a flight in back out from where it is', () => {
+    // The click's flight (openInside) and the inside with it.
+    frame.focus.move = moveFocus(frame.focus.move, 'funcial', 0, 'fly');
+    useScene.getState().setInside('funcial');
+    const mid = stepFocus(frame.focus, input(), FLIGHT_MS * 0.3);
+    expect(frame.focus.move.at).toBe(0); // the click's own flight goes on: no new move
+    expect(mid.amount).toBeGreaterThan(0);
+    expect(mid.amount).toBeLessThan(0.5);
+    // Escape in its first half: the way out starts where the way in stands, with no jump.
+    useScene.getState().setInside(null);
+    const turned = stepFocus(frame.focus, input(), FLIGHT_MS * 0.3);
+    expect(turned.amount).toBeCloseTo(mid.amount, 12);
+    expect(frame.focus.move).toMatchObject({ to: null, mode: 'fly' });
+    expect(stepFocus(frame.focus, input(), FLIGHT_MS * 0.3 + FLIGHT_MS)).toMatchObject({ id: null, amount: 0, moving: false });
+  });
+
+  it('fades in and out with reduced motion', () => {
+    useScene.setState({ reducedMotion: true });
+    useScene.getState().setInside('funcial');
+    expect(stepFocus(frame.focus, input(), 0)).toMatchObject({ dark: true });
+    stepFocus(frame.focus, input(), 1000);
+    useScene.getState().setInside(null);
+    expect(stepFocus(frame.focus, input(), 2000)).toMatchObject({ dark: true });
+    expect(frame.focus.move.mode).toBe('fade');
   });
 });
 

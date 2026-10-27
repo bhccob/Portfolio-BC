@@ -117,7 +117,8 @@ function beadOf(id: string): ProjectId | null {
 /**
  * The close view the page asks for: the bead being opened (`opening`: its flight runs on the home page until the
  * router goes to its page); else, on a project page (`scene` 'project', the phase PROJECT_FOCUS), its project's bead;
- * else none, the journey's shot.
+ * else, on the home page, the bead the visitor is inside (`inside`, the store's: a click opened it, ./inside.ts); else
+ * none, the journey's shot.
  *
  * A PROJECT_FOCUS on the home page with nothing opening is a page that is being left and not yet synced: on Back or
  * Escape the scene turns 'home' in a layout effect (SceneHost) a moment before the route sync, a passive effect, puts
@@ -126,18 +127,26 @@ function beadOf(id: string): ProjectId | null {
  * only once the story is where Back puts it. With none (the proof bridge's OPEN_PROJECT on the home) it asks for none:
  * only a page, or a label's flight, brings a bead close.
  */
-export function focusGoalFor(phase: Phase, scene: SceneKind | null, opening: ProjectId | null, current: ProjectId | null = null): ProjectId | null {
+export function focusGoalFor(
+  phase: Phase,
+  scene: SceneKind | null,
+  opening: ProjectId | null,
+  current: ProjectId | null = null,
+  inside: ProjectId | null = null
+): ProjectId | null {
   if (opening !== null) return opening;
-  if (phase.kind !== 'PROJECT_FOCUS') return null;
+  if (phase.kind !== 'PROJECT_FOCUS') return scene === 'home' && inside !== null ? beadOf(inside) : null;
   if (scene === 'project') return beadOf(phase.id);
   return scene === 'home' ? current : null;
 }
 
-/** What a frame's focus step reads of the app: the store's phase, page and reduced motion, and the story's place. */
+/** What a frame's focus step reads of the app: the store's phase, page, reduced motion and inside, and the story's place. */
 export interface FocusInput {
   phase: Phase;
   scene: SceneKind | null;
   reducedMotion: boolean;
+  /** The bead the visitor is inside (the store's `inside`); none where it is left out. */
+  inside?: ProjectId | null;
   progress: number;
   target: number;
 }
@@ -145,13 +154,14 @@ export interface FocusInput {
 /**
  * The close view on a frame at `now`, the Opening's step of `focus` (`frame.focus`, in place): a new move is begun
  * first wherever the page asks for another close view than the last move goes to (`focusGoalFor`). Into a page's bead
- * that is a fade (the label's own flight was begun by its click, `openBead`); back out to the journey it is a flight
- * from the bead's own stop at rest (`restsAt`: the route sync put the story there and the void's hold let it stay),
- * and a fade otherwise, or with reduced motion.
+ * or an inside that is a fade (a click's own flight was begun by the click, `openBead` and `openInside`, so only an
+ * inside the history brings back comes here); back out to the journey it is a flight from where the bead opens at
+ * rest (`restsAt`: the route sync put the story there and the void's hold let it stay), and a fade otherwise, or with
+ * reduced motion.
  */
 export function stepFocus(focus: { move: FocusMove; opening: ProjectId | null }, input: FocusInput, now: number): FocusPose {
   const leaving = focus.move.to;
-  const goal = focusGoalFor(input.phase, input.scene, focus.opening, leaving);
+  const goal = focusGoalFor(input.phase, input.scene, focus.opening, leaving, input.inside ?? null);
   if (goal !== leaving) {
     const fly = goal === null && !input.reducedMotion && restsAt(leaving, input.progress, input.target);
     focus.move = moveFocus(focus.move, goal, now, fly ? 'fly' : 'fade');

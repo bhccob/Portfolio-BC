@@ -4,6 +4,7 @@ import { PAGES } from '~/data/pages';
 import { type ProjectId, projects } from '~/data/projects';
 import { routeFromPath } from '~/i18n/locale';
 import { type Locale, Translator } from '~/i18n/Translator';
+import { insideFromHistory } from '~/scene/bob/inside';
 import { arrivalStop, chapterAt, HOME_CHAPTERS, sheetStart } from './chapters';
 import { frame } from './frame';
 import { type Phase, samePhase, transition } from './machine';
@@ -89,6 +90,8 @@ export function isBackState(state: unknown): boolean {
 let loadedOn: string | null = null;
 /** The history entry being shown. */
 let shown: string | null = null;
+/** Whether the entry being shown is a home entry with an inside (`insideInHistory`). */
+let shownInside = false;
 
 /**
  * True when the page being shown is the one the visit began on: the document was loaded on this history
@@ -108,6 +111,15 @@ export function resetRouteSync(): void {
   loadedOn = null;
   opened = null;
   shown = null;
+  shownInside = false;
+}
+
+/**
+ * Whether the history entry being shown is the home page with a bead's inside (src/scene/bob/inside.ts), as the last
+ * sync read it: Back then comes out of the inside to the entry before it (src/ui/BeadLabel.tsx `closeInside`).
+ */
+export function insideInHistory(): boolean {
+  return shownInside;
 }
 
 // ---------------------------------------------------------------- URL to phase
@@ -147,7 +159,11 @@ function placeStory(place: number): void {
  *   header's name, any link to the home) it puts the story at the home, 0, a deliberate "to the top"; the
  *   phase follows it;
  * - any other location leaves a page phase for the phase the scroll is in. A scene that is not on a page
- *   (loading, or already on the scroll) is left alone: the scroll and the scene's own events own those.
+ *   (loading, or already on the scroll) is left alone: the scroll and the scene's own events own those;
+ * - a bead's inside (the store's `inside`) is the one a home entry's state carries (`insideFromHistory`), never the
+ *   entry the document was loaded on (a reload while inside shows the home as any reload does), and none on any other
+ *   page. An inside the story is not at (Forward to it after scrolling on) puts the story at the place its bead was
+ *   opened from first (`placeForProject`), and the phase follows it.
  * Every navigation lets go of a bead being opened (`frame.focus.opening`): its flight has brought the router to its
  * page, or the visit went elsewhere meanwhile, and its page asks for the close view from here on.
  *
@@ -175,6 +191,15 @@ export function syncRoute(location: { pathname: string; key: string; state?: unk
     }
     dispatch({ type: 'ROUTE', phase: phaseFromScroll() });
   }
+
+  const home = routeFromPath(location.pathname) === PAGES.home;
+  const inside = home && location.key !== loadedOn ? insideFromHistory(location.state) : null;
+  shownInside = inside !== null;
+  if (inside !== null && frame.progress !== placeForProject(inside)) {
+    placeStory(placeForProject(inside));
+    useScene.getState().dispatch({ type: 'ROUTE', phase: phaseFromScroll() });
+  }
+  useScene.getState().setInside(inside);
 }
 
 /** Syncs the scene's phase to the URL after every navigation, the first load included. */

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { applyCameraShot, type CameraShot, homeShotFor, MAX_VFOV, topShotFor } from '~/engine/bob/shots';
 import { restsAt } from '~/scene/bob/focus';
-import { BEAD_RADIUS, BEADS, fieldFor, focusShotFor, FOCUS_VIEW, journeyAt, journeyPoseAt, lensField } from '~/scene/bob/journey';
+import { BEAD_RADIUS, BEADS, D_INSIDE, fieldFor, focusShotFor, journeyAt, journeyPoseAt, lensField } from '~/scene/bob/journey';
 import { factAt, lightAt, voidAt, wayShot } from '~/scene/bob/lightDive';
 import { ease, pathFor, TOWARD } from '~/scene/bob/lightPath';
 import { riseAt, scrollPoseAt } from '~/scene/bob/scrollPose';
@@ -169,8 +169,8 @@ describe('the beads on the way', () => {
   });
 });
 
-describe('the close view of a bead', () => {
-  it("stands in front of the bead's porthole, on the path's line toward it, 1.6 off the porthole", () => {
+describe('the inside view of a bead', () => {
+  it("stands before the bead's porthole, on the path's line toward it, D_INSIDE off its centre", () => {
     for (const a of [LAPTOP, 1]) {
       const centres = pathFor(a).centres;
       for (const [i, b] of BEADS.entries()) {
@@ -179,9 +179,9 @@ describe('the close view of a bead', () => {
         const toClose = sub(shot.position, centre);
         const cos = (TOWARD[0] * toClose[0] + TOWARD[1] * toClose[1] + TOWARD[2] * toClose[2]) / length(toClose);
         expect(cos, `${b.id} at ${a}`).toBeGreaterThan(0.9999);
-        expect(length(toClose)).toBeCloseTo(b.radius + FOCUS_VIEW.standOff, 9);
-        expect(shot.target).toEqual(centre);
-        expect(project(shot, a, centre)).toEqual([expect.closeTo(0, 6), expect.closeTo(0, 6)]);
+        expect(length(toClose)).toBeCloseTo(a >= 1 ? D_INSIDE.desk : D_INSIDE.phone, 9);
+        expect(shot.target).toEqual([centre[0], centre[1] - 0.12, centre[2]]);
+        expect(project(shot, a, centre)[0]).toBeCloseTo(0, 6);
       }
     }
   });

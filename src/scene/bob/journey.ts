@@ -18,7 +18,7 @@ import type { CategoryId } from '~/data/categories';
 import { type ProjectId, projects } from '~/data/projects';
 import { type CameraShot, shotFor } from '~/engine/bob/shots';
 import { chapterAt, frameOfPlace, HOME_CHAPTERS, pathStart, riseTop, scrollEnd, sheetStart, stops } from '~/state/chapters';
-import { type FactAt, factAt, filamentsAt, lightAt, sparksAt, streamAt, trailAt, trailLevel, voidAt, wayNeedle, wayShot } from './lightDive';
+import { type FactAt, factAt, filamentsAt, lightAt, sizeFor, sparksAt, streamAt, trailAt, trailLevel, voidAt, wayNeedle, wayShot } from './lightDive';
 import { makePath, type PathFrame, pathFor, TOWARD } from './lightPath';
 import type { LightPose, VoidPose } from './poseTypes';
 import { riseAt, type ScrollPose, scrollPoseAt, smoothstep } from './scrollPose';
@@ -126,26 +126,38 @@ const add = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const scale = (a: Vec3, s: number): Vec3 => [a[0] * s, a[1] * s, a[2] * s];
 
 /**
- * A bead seen close, the project page's view of it: the camera `standOff` in front of the porthole, on the line the
- * path's camera looks at the bead along (its porthole faces that way), with the `lens` of a close view (40 mm).
+ * The camera's distance from a bead's centre inside it, m: the approved scrolled inside's (2026-10-27), on a phone a
+ * little further out, so the objects fit across the narrow screen.
  */
-export const FOCUS_VIEW = { standOff: 1.6, lens: 40 } as const;
+export const D_INSIDE = { desk: 1.75, phone: 2.3 } as const;
+
+/** The inside's vertical field, degrees: the approved scrolled inside's, wide on a phone for the same reason. */
+export const INSIDE_FOV = { desk: 40, phone: 72 } as const;
+
+/** How far below a bead's centre the inside looks, m: at its objects, which stand low in the shell. */
+const INSIDE_BELOW = 0.12;
 
 /**
- * The close view of bead `id` on a screen of this aspect: beside the journey, not a stretch of it, it is the view a
- * project page stands over and the end of the flight into the porthole (./focus.ts). The camera stands
- * `FOCUS_VIEW.standOff` in front of the porthole, the front of the shell, on the path's line toward the bead (`TOWARD`)
- * from its centre at this aspect, looking at the centre: 2.55 from it. The field is the 40 mm's through `fieldFor`, so a
- * phone keeps the same width across and stands back along the same line. It lets the pointer's parallax in (`sway` 1),
- * as a page of text over the home has it. A project with no bead on the way has the look back's shot.
+ * The inside of bead `id` on a screen of this aspect: beside the journey, not a stretch of it, it is the view a click
+ * on the bead flies to (./focus.ts, ./inside.ts) and the view its project page stands over. The camera stands
+ * `D_INSIDE` off the bead's centre at this aspect on the path's line toward the bead (`TOWARD`, its porthole's side),
+ * just past the porthole's frame, looking a little below the centre at the objects, with `INSIDE_FOV`: the scrolled
+ * inside's own view, as Bob approved it. It lets the pointer's parallax in (`sway` 1), as a page of text over the home
+ * has it. A project with no bead on the way has the look back's shot.
  */
 export function focusShotFor(id: ProjectId, aspect: number): CameraShot {
   const path = pathFor(aspect);
   const bead = BEADS.findIndex((b) => b.id === id);
   if (bead === -1) return { ...path.lookShot, sway: 1 };
   const centre = path.centres[bead]!;
-  const { fov, back } = fieldFor(lensField(FOCUS_VIEW.lens), aspect);
-  return { position: add(centre, scale(TOWARD, (BEAD_RADIUS + FOCUS_VIEW.standOff) * back)), target: centre, fov, up: [0, 1, 0], sway: 1 };
+  const size = sizeFor(aspect);
+  return {
+    position: add(centre, scale(TOWARD, D_INSIDE[size])),
+    target: [centre[0], centre[1] - INSIDE_BELOW, centre[2]],
+    fov: INSIDE_FOV[size],
+    up: [0, 1, 0],
+    sway: 1
+  };
 }
 
 const PATH_AT = pathStart(HOME_CHAPTERS);
