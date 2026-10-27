@@ -24,7 +24,7 @@ import { showTouchPoints } from '~/ui/TouchPoints';
 import { showsSkip, writeSkip } from '~/ui/SkipButton';
 import { motion } from '../motion';
 import { engravedLevels, shaftRings, tripPoints } from './engravedWay';
-import { FLOAT, floatAt, floatRuns, turnToward } from './beadFloat';
+import { FLOAT, floatAt, floatRuns, floatShare, turnToward } from './beadFloat';
 import type { Handover } from './Home';
 import { insideBuild, insideClockRuns, insidePoints } from './inside';
 import { BEAD_RADIUS, BEADS, type LightPose } from './journey';
@@ -230,8 +230,9 @@ interface VoidRun {
   /**
    * The float of the bead at its arrival (./beadFloat.ts): the bead (its place on the way), its clock (s), when it was
    * last stirred (an input, ms), its turn as eased (radians), where it stood on the screen on the last frame (CSS px),
-   * and a finger dragged across it on a touch screen (where it came down, and how far it has gone as a share of the
-   * bead's radius, -1 to 1).
+   * a finger dragged across it on a touch screen (where it came down, and how far it has gone as a share of the bead's
+   * radius, -1 to 1), and how much of its float it keeps (`floatShare`: all of it while it floats, settling to none
+   * when it stops).
    */
   float: {
     index: number | null;
@@ -242,6 +243,7 @@ interface VoidRun {
     screen: { x: number; y: number; r: number } | null;
     finger: { id: number; x: number } | null;
     drag: number;
+    share: number;
   };
   /** The void is shown over the home's scene and no bead is close (`handover.focus`): the selected bead's label shows. */
   reading: boolean;
@@ -511,7 +513,7 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
     nebulaAsked: null,
     built: BEADS.map(() => Number.NaN),
     inside: { id: null, time: 0, stirred: Number.NEGATIVE_INFINITY },
-    float: { index: null, time: 0, stirred: Number.NEGATIVE_INFINITY, yaw: 0, pitch: 0, screen: null, finger: null, drag: 0 },
+    float: { index: null, time: 0, stirred: Number.NEGATIVE_INFINITY, yaw: 0, pitch: 0, screen: null, finger: null, drag: 0, share: 0 },
     hover: hoverEase(),
     pointed: null,
     mode: null,
@@ -980,18 +982,20 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
       }
     }
 
-    // Inside a bead the objects' clock runs (`insideClockRuns`): from the inside's opening and each pointer move over it,
-    // for the home's idle while, never with reduced motion; then they rest where they are and the canvas sleeps.
+    // Inside a bead (the visitor inside it on the home page, the store's `inside`, not a project page over it) the
+    // objects' clock runs (`insideClockRuns`): from the inside's opening and each pointer move over it, for the home's
+    // idle while, never with reduced motion; then they rest where they are and the canvas sleeps.
     const now = performance.now();
     const inside = run.inside;
     const closeId = handover.close.amount > 0 ? handover.close.id : null;
-    if (closeId !== null && closeId !== inside.id) {
+    const within = home && closeId !== null && useScene.getState().inside === closeId;
+    if (within && closeId !== inside.id) {
       inside.id = closeId;
       inside.stirred = now;
     }
-    if (closeId !== null && Number.isFinite(frame.pointerAt) && frame.pointerAt > inside.stirred) inside.stirred = frame.pointerAt;
-    if (closeId === null) inside.id = null;
-    const ticking = closeId !== null && insideClockRuns(inside.stirred, now, reduced);
+    if (within && Number.isFinite(frame.pointerAt) && frame.pointerAt > inside.stirred) inside.stirred = frame.pointerAt;
+    if (!within) inside.id = null;
+    const ticking = within && insideClockRuns(inside.stirred, now, reduced);
     if (ticking) {
       inside.time += dt;
       beads.setMotion(closeId, inside.time);
@@ -1017,24 +1021,31 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
 
     // The bead at its arrival floats and turns toward the pointer over it, or a finger's drag across it (./beadFloat.ts):
     // its clock runs while `floatRuns` (an input, or the pointer's move, stirs it), its turn eases in and back out over a
-    // quarter second; with reduced motion it neither floats nor turns. Another bead, or none, lets the last one go.
+    // quarter second; with reduced motion it neither floats nor turns. When it stops floating (a click takes the camera
+    // into it, the story moves on) it settles to rest by `floatShare` and its turn eases out, never a snap; another
+    // bead's float lets the last one go.
     const float = run.float;
     const floating = home && run.reading && run.selected !== null && path !== null ? run.selected : null;
-    if (floating !== float.index) {
+    if (floating !== null && floating !== float.index) {
       if (float.index !== null) beads.setPose(BEADS[float.index]!.id, NO_POSE);
-      Object.assign(float, { index: floating, time: 0, stirred: now, yaw: 0, pitch: 0, screen: null, finger: null, drag: 0 });
+      Object.assign(float, { index: floating, time: 0, stirred: now, yaw: 0, pitch: 0, screen: null, finger: null, drag: 0, share: 0 });
     }
     let floatMoving = false;
-    if (floating !== null && path !== null) {
-      const id = BEADS[floating]!.id;
-      const at = onScreen(path.beads[floating]!.centre, camera, size);
-      float.screen = at;
-      if (Number.isFinite(frame.pointerAt) && frame.pointerAt > float.stirred) float.stirred = frame.pointerAt;
-      const runs = floatRuns((now - float.stirred) / 1000, reduced);
+    if (float.index !== null && path !== null) {
+      const index = float.index;
+      const on = floating === index;
+      const id = BEADS[index]!.id;
+      const at = onScreen(path.beads[index]!.centre, camera, size);
+      float.screen = on ? at : null;
+      if (on && Number.isFinite(frame.pointerAt) && frame.pointerAt > float.stirred) float.stirred = frame.pointerAt;
+      const runs = on && floatRuns((now - float.stirred) / 1000, reduced);
       if (runs) float.time += dt;
-      const drift = reduced ? NO_POSE : floatAt(float.time, floating);
+      const share = floatShare(float.share, on, dt);
+      const settling = share !== float.share;
+      float.share = share;
+      const drift = reduced ? NO_POSE : floatAt(float.time, index);
       const pointer = { x: ((frame.pointer.x + 1) / 2) * size.width, y: ((1 - frame.pointer.y) / 2) * size.height };
-      const goal = reduced
+      const goal = reduced || !on
         ? { yaw: 0, pitch: 0 }
         : float.finger !== null
           ? { yaw: FLOAT.turnMax * float.drag, pitch: 0 }
@@ -1043,8 +1054,13 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
             : { yaw: 0, pitch: 0 };
       const yawing = damp(float, 'yaw', goal.yaw, TURN_SMOOTH, dt);
       const pitching = damp(float, 'pitch', goal.pitch, TURN_SMOOTH, dt);
-      beads.setPose(id, { y: drift.y, roll: drift.roll, pitch: drift.pitch + float.pitch, yaw: float.yaw });
-      floatMoving = runs || yawing || pitching;
+      beads.setPose(id, { y: drift.y * share, roll: drift.roll * share, pitch: drift.pitch * share + float.pitch, yaw: float.yaw });
+      floatMoving = runs || yawing || pitching || settling;
+      // Settled to rest after it stopped floating: let it go.
+      if (!on && share === 0 && !yawing && !pitching) {
+        beads.setPose(id, NO_POSE);
+        Object.assign(float, { index: null, screen: null, finger: null, drag: 0 });
+      }
     }
 
     const hovered = run.hover.id;
@@ -1056,7 +1072,6 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
       beads.setHover(BEADS[hovered]!.id, run.hover.amount, reduced || hovered === float.index ? undefined : camera.position);
     }
     // The touch points of the bead the visitor is inside (the store's `inside`), once the camera is all but in.
-    const within = home && closeId !== null && useScene.getState().inside === closeId;
     const points = within ? { index: BEADS.findIndex((bead) => bead.id === closeId), opacity: insidePoints(handover.close.amount) } : path?.points ?? null;
     showWords(path, size, points);
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FLOAT, floatAt, floatRuns, turnToward } from '~/scene/bob/beadFloat';
+import { FLOAT, floatAt, floatRuns, floatShare, turnToward } from '~/scene/bob/beadFloat';
 import { IDLE_SECONDS } from '~/scene/bob/look';
 
 const DEG = Math.PI / 180;
@@ -55,6 +55,36 @@ describe('the turn: toward the pointer over the bead', () => {
     expect(turnToward({ x: 100, y: 100 }, bead)).toEqual({ yaw: 0, pitch: 0 });
     expect(turnToward({ x: Number.NaN, y: 450 }, bead)).toEqual({ yaw: 0, pitch: 0 });
     expect(turnToward({ x: 700, y: 450 }, { x: 700, y: 450, r: 0 })).toEqual({ yaw: 0, pitch: 0 });
+  });
+});
+
+describe('floatShare: the float and the turn settle to rest, never snap', () => {
+  it('settles the float and the turn to rest over a moment when the bead stops floating (a click opens it), with no jump', () => {
+    // Off: from all of it to none, a sixtieth of a second at a time.
+    let share = 1;
+    let t = 0;
+    while (share > 0 && t < 2) {
+      const next = floatShare(share, false, 1 / 60);
+      expect(share - next, `at ${t.toFixed(3)} s`).toBeGreaterThanOrEqual(0);
+      expect(share - next, `at ${t.toFixed(3)} s`).toBeLessThan(0.15);
+      share = next;
+      t += 1 / 60;
+    }
+    expect(share).toBe(0);
+    expect(t).toBeLessThan(0.7);
+    expect(t).toBeGreaterThan(0.2);
+    // On again: back to all of it the same way.
+    t = 0;
+    while (share < 1 && t < 2) {
+      const next = floatShare(share, true, 1 / 60);
+      expect(next - share).toBeLessThan(0.15);
+      share = next;
+      t += 1 / 60;
+    }
+    expect(share).toBe(1);
+    expect(t).toBeLessThan(0.7);
+    // A step that is not a number changes nothing.
+    expect(floatShare(0.4, false, Number.NaN)).toBe(0.4);
   });
 });
 

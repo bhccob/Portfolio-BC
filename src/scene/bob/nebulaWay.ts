@@ -4,7 +4,8 @@
  * React, no three, so the tests read the very levels and places the scene draws (src/engine/bob/build/nebula.ts).
  *
  * - **The clouds** come in over the fall (way frames `CLOUDS_IN`), as the camera turns to follow the light from the
- *   side, so the light falls through the nebula; whole on the path; out with the sheet's black. Each cloud hangs at its
+ *   side, so the light falls through the nebula, at `FALL_LEVEL` behind Bob's facts (their words stay readable); they
+ *   come up to whole over the first trip (by `WHOLE_BY_T`), and go out with the sheet's black. Each cloud hangs at its
  *   own place and depth, about half down the fall's column and the rest round the way, so they pass at their own speeds
  *   as the camera moves: a 3D nebula, not a picture behind it. None hangs between the camera and the light in the fall
  *   (`CORRIDOR`), near a bead, or on any camera's line to what it looks at on the way: one focal point, and every fact
@@ -48,6 +49,9 @@ export const CORRIDOR = 2.8;
  */
 export const NEBULA = {
   CLOUDS_IN: [50, 95] as Span,
+  /** How much of the nebula shows in the fall, behind the facts, and by when on the first trip it is whole. */
+  FALL_LEVEL: 0.6,
+  WHOLE_BY_T: 0.5,
   BANDS_IN_T: [0.2, 0.7] as Span,
   RINGS: { level: 0.6, in: [0.15, 0.7] as Span },
   /** The hall's wide rings give way to the clouds over these way frames (engravedWay's hall). */
@@ -69,13 +73,15 @@ function over(span: Span, u: number): number {
  * null off the path).
  */
 export function nebulaLevels(at: Pick<JourneyAt, 'stretch' | 'frame'>, path: Pick<PathFrame, 'part' | 'index' | 't' | 'black'> | null): NebulaLevels {
-  if (at.stretch === 'light' && at.frame !== null) return { clouds: over(NEBULA.CLOUDS_IN, at.frame), bands: 0, rings: 0 };
+  if (at.stretch === 'light' && at.frame !== null) return { clouds: NEBULA.FALL_LEVEL * over(NEBULA.CLOUDS_IN, at.frame), bands: 0, rings: 0 };
   if (path === null) return { clouds: 0, bands: 0, rings: 0 };
   const { part, index, t, black } = path;
   if (part === 'sheet') return { clouds: 1 - black, bands: 1 - black, rings: NEBULA.RINGS.level * (1 - black) };
-  const bands = part === 'travel' && index === 0 ? over(NEBULA.BANDS_IN_T, t) : 1;
+  const first = part === 'travel' && index === 0;
+  const clouds = first ? NEBULA.FALL_LEVEL + (1 - NEBULA.FALL_LEVEL) * over([0, NEBULA.WHOLE_BY_T], t) : 1;
+  const bands = first ? over(NEBULA.BANDS_IN_T, t) : 1;
   const rings = part === 'look' ? NEBULA.RINGS.level * over(NEBULA.RINGS.in, t) : 0;
-  return { clouds: 1, bands, rings };
+  return { clouds, bands, rings };
 }
 
 /** A seeded generator (mulberry32), so the clouds hang in the same places every load. */

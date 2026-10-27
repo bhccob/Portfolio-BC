@@ -10,13 +10,14 @@ const fall = (frame: number) => nebulaLevels({ stretch: 'light', frame }, null);
 const on = (part: PathPart, index: number, t: number, black = 0) => nebulaLevels({ stretch: part, frame: null }, { part, index, t, black });
 
 describe('the levels: the nebula, its far bands and the look back rings, at a pose', () => {
-  it('brings the clouds in over the fall, frames 50 to 95, whole from there on', () => {
+  it('brings the clouds in over the fall, frames 50 to 95, at the fall\'s quieter level behind Bob\'s facts', () => {
     expect(NEBULA.CLOUDS_IN).toEqual([50, 95]);
+    expect(NEBULA.FALL_LEVEL).toBe(0.6);
     expect(fall(30)).toEqual({ clouds: 0, bands: 0, rings: 0 });
     expect(fall(50).clouds).toBe(0);
-    expect(fall(72.5).clouds).toBeCloseTo(0.5, 9);
-    expect(fall(95)).toEqual({ clouds: 1, bands: 0, rings: 0 });
-    expect(fall(121)).toEqual({ clouds: 1, bands: 0, rings: 0 });
+    expect(fall(72.5).clouds).toBeCloseTo(0.3, 9);
+    expect(fall(95)).toEqual({ clouds: 0.6, bands: 0, rings: 0 });
+    expect(fall(121)).toEqual({ clouds: 0.6, bands: 0, rings: 0 });
     let last = 0;
     for (let f = 1; f <= 256; f += 0.5) {
       const { clouds } = fall(f);
@@ -25,10 +26,24 @@ describe('the levels: the nebula, its far bands and the look back rings, at a po
     }
   });
 
+  it('brings the clouds up to whole over the first trip, as the light leaves the facts behind', () => {
+    expect(NEBULA.WHOLE_BY_T).toBe(0.5);
+    expect(on('travel', 0, 0).clouds).toBeCloseTo(0.6, 12);
+    expect(on('travel', 0, 0.25).clouds).toBeCloseTo(0.8, 9);
+    expect(on('travel', 0, 0.5).clouds).toBe(1);
+    let last = 0.6;
+    for (let t = 0; t <= 1; t += 0.01) {
+      const { clouds } = on('travel', 0, t);
+      expect(clouds).toBeGreaterThanOrEqual(last - 1e-12);
+      last = clouds;
+    }
+  });
+
   it('keeps the clouds whole on the path, the bands in over the first trip, and the rings in the look back alone', () => {
-    expect(on('travel', 0, 0.1)).toEqual({ clouds: 1, bands: 0, rings: 0 });
+    expect(on('travel', 0, 0.1)).toMatchObject({ bands: 0, rings: 0 });
     expect(on('travel', 0, 0.45).bands).toBeCloseTo(0.5, 9);
     expect(on('travel', 0, 0.7)).toEqual({ clouds: 1, bands: 1, rings: 0 });
+    expect(on('travel', 1, 0.1)).toEqual({ clouds: 1, bands: 1, rings: 0 });
     expect(on('arrive', 0, 0.5)).toEqual({ clouds: 1, bands: 1, rings: 0 });
     expect(on('travel', 2, 0)).toEqual({ clouds: 1, bands: 1, rings: 0 });
     expect(on('look', -1, 0.1).rings).toBe(0);

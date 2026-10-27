@@ -54,6 +54,22 @@ export function turnToward(pointer: { x: number; y: number }, bead: { x: number;
   return { yaw: dx * k + 0, pitch: dy * k + 0 };
 }
 
+/** How quickly the float settles to rest or comes back (a time constant, s): settled within about half a second. */
+const SETTLE = 0.12;
+
+/**
+ * The share of its float a bead keeps, from `share`, `dt` seconds on: easing toward all of it while it floats (`on`)
+ * and toward none when it stops (a click opens it, the story moves on), so the bead settles to rest under the camera
+ * flying in and never snaps; within a hundredth of its end it is there (a fraction of a millimetre, of a degree). A step
+ * that is not a number changes nothing.
+ */
+export function floatShare(share: number, on: boolean, dt: number): number {
+  if (!Number.isFinite(dt)) return share;
+  const goal = on ? 1 : 0;
+  const next = share + (goal - share) * (1 - Math.exp(-Math.max(0, dt) / SETTLE));
+  return Math.abs(next - goal) < 0.01 ? goal : next;
+}
+
 /** Whether the float (and the turn's easing) runs `sinceInput` seconds after the last input: for `FLOAT.idle`, never with reduced motion. */
 export function floatRuns(sinceInput: number, reduced: boolean): boolean {
   return !reduced && sinceInput < FLOAT.idle;
