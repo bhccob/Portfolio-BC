@@ -29,7 +29,7 @@ function build(tier: 'high' | 'medium' | 'low' = 'high'): WorldModel {
 }
 
 const each = <T>(value: T): Record<ProjectId, T> => Object.fromEntries(IDS.map((id) => [id, value])) as Record<ProjectId, T>;
-const pose = (over: Partial<WorldPose> = {}): WorldPose => ({ power: 1, flash: 0, clock: 0, levels: each(1), open: each(0), float: 1, ...over });
+const pose = (over: Partial<WorldPose> = {}): WorldPose => ({ power: 1, flash: 0, clock: 0, levels: each(1), open: each(0), float: 1, world: 1, ...over });
 const named = (model: WorldModel, name: string): THREE.Object3D => {
   const found = model.group.getObjectByName(name);
   if (!found) throw new Error(`no part named ${name}`);
@@ -104,6 +104,15 @@ describe('the hologram world, built in code: the board, the CPU with the compass
     expect(gear.rotation.z).not.toBe(a);
     const source = readFileSync(fileURLToPath(new URL('../../../src/engine/bob/build/world.ts', import.meta.url)), 'utf8');
     expect(source).not.toMatch(/Date\.now|performance\.now/);
+  });
+
+  it("dims the board, the CPU and the pads with the world's level", () => {
+    const model = build();
+    const circuit = (named(model, 'world:board:circuit') as THREE.Mesh).material as THREE.ShaderMaterial;
+    model.pose(pose());
+    expect(circuit.uniforms.uLevel!.value).toBe(1);
+    model.pose(pose({ world: 0.25 }));
+    expect(circuit.uniforms.uLevel!.value).toBe(0.25);
   });
 
   it('draws the circuit smaller and sparer on the lower tiers', () => {

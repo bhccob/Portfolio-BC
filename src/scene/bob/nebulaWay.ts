@@ -16,6 +16,8 @@
  *   look back, at `RINGS.level`, and go out under the sheet.
  */
 import type { JourneyAt } from './journey';
+import { AREA_STOP } from '~/state/chapters';
+import { OPEN_LOOK } from './inside';
 import type { WorldFrame, WorldPath } from './worldPath';
 
 type Vec3 = [number, number, number];
@@ -57,6 +59,11 @@ export const NEBULA = {
   WHOLE_BY_T: 0.5,
   BANDS_IN_T: [0.2, 0.7] as Span,
   RINGS: { level: 0.6, in: [0.15, 0.7] as Span },
+  /**
+   * The clouds' level on the world (spec 2026-10-27-bob-hologram-world-design.md, the mock-up's): at the world's stop
+   * and the look back, and at an area, quieter, so the area's project stands out.
+   */
+  WORLD_LEVEL: { world: 0.8, area: 0.55 },
   /** The hall's wide rings give way to the clouds over these way frames (engravedWay's hall). */
   HALL_GIVES: [70, 110] as Span,
   COUNT: { high: 140, medium: 70, low: 35 },
@@ -72,19 +79,24 @@ function over(span: Span, u: number): number {
 }
 
 /**
- * Each part's level at a pose: in the light dive by its way frame (`at.frame`), on the world by its part and t (`path`,
- * null off it): the clouds whole and the bands in over the land, as the light leaves the facts behind; no rings, which
- * were the beads'.
+ * Each part's level at a pose: in the light dive by its way frame (`at.frame`), on the world by its part, t and area
+ * (`path`, null off it): the clouds up to the world's level and the bands in over the land, as the light leaves the facts
+ * behind; quieter over the first area's way in and back up over the look back; with a project open (`open`, 0..1) the
+ * clouds go toward `OPEN_LOOK.clouds` of their level (./inside.ts). No rings, which were the beads'.
  */
-export function nebulaLevels(at: Pick<JourneyAt, 'stretch' | 'frame'>, path: Pick<WorldFrame, 'part' | 't' | 'black'> | null): NebulaLevels {
+export function nebulaLevels(at: Pick<JourneyAt, 'stretch' | 'frame'>, path: Pick<WorldFrame, 'part' | 't' | 'black' | 'index'> | null, open = 0): NebulaLevels {
   if (at.stretch === 'light' && at.frame !== null) return { clouds: NEBULA.FALL_LEVEL * over(NEBULA.CLOUDS_IN, at.frame), bands: 0, rings: 0 };
   if (path === null) return { clouds: 0, bands: 0, rings: 0 };
-  const { part, t, black } = path;
-  if (part === 'sheet') return { clouds: 1 - black, bands: 1 - black, rings: 0 };
-  const landing = part === 'land';
-  const clouds = landing ? NEBULA.FALL_LEVEL + (1 - NEBULA.FALL_LEVEL) * over([0, NEBULA.WHOLE_BY_T], t) : 1;
-  const bands = landing ? over(NEBULA.BANDS_IN_T, t) : 1;
-  return { clouds, bands, rings: 0 };
+  const { part, t, black, index } = path;
+  const { world, area } = NEBULA.WORLD_LEVEL;
+  const quiet = 1 + (OPEN_LOOK.clouds - 1) * Math.min(1, Math.max(0, open));
+  if (part === 'sheet') return { clouds: world * (1 - black) * quiet, bands: 1 - black, rings: 0 };
+  let clouds: number = world;
+  if (part === 'land') clouds = NEBULA.FALL_LEVEL + (world - NEBULA.FALL_LEVEL) * over([0, NEBULA.WHOLE_BY_T], t);
+  else if (part === 'area') clouds = index === 0 ? world + (area - world) * over([0, AREA_STOP], t) : area;
+  else if (part === 'look') clouds = area + (world - area) * over([0, 0.9], t);
+  const bands = part === 'land' ? over(NEBULA.BANDS_IN_T, t) : 1;
+  return { clouds: clouds * quiet, bands, rings: 0 };
 }
 
 /** A seeded generator (mulberry32), so the clouds hang in the same places every load. */

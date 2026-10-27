@@ -22,7 +22,8 @@ import type { Handover } from './Home';
 import { type LightPose, WORLD_PROJECTS } from './journey';
 import { LOOK } from './look';
 import { cloudLayout, nebulaLevels } from './nebulaWay';
-import { needleFor, needleGlowFor, voidShownAt } from './voidPose';
+import { OPEN_LOOK, openLevels, openWorld, worldClockRuns } from './inside';
+import { easeHover, hoverEase, hoversAt, needleFor, needleGlowFor, pointerMode, voidShownAt } from './voidPose';
 import { loadVoid, type VoidLoadSteps } from './voidLoad';
 import { uploadTextures, warm } from './warm';
 import { worldPlaces } from './worldLayout';
@@ -85,6 +86,18 @@ interface VoidRun {
   nebulaAsked: { world: WorldPath; tier: QualityTier } | null;
   /** The void's drift clock (its mist and dust), seconds of frames drawn while it showed. */
   time: number;
+  /**
+   * The world's clock (./inside.ts `worldClockRuns`): its seconds, kept between runs so nothing snaps back; when it was
+   * last stirred (an input, the story's move, a project opening), ms; and the story's place and the open project on the
+   * last frame, to see them change.
+   */
+  clock: { time: number; stirred: number; place: number; open: ProjectId | null };
+  /** The hover, eased one project at a time (its place in `WORLD_PROJECTS`), and the project under the pointer now. */
+  hover: ReturnType<typeof hoverEase>;
+  pointed: number | null;
+  /** The world is shown over the home's scene and no project is close: the pointer is read (`hoversAt` too). */
+  reading: boolean;
+  hovering: boolean;
   /** `<html data-skip>` as last written: the skip button shows (src/ui/SkipButton.tsx). */
   skip: { shown: boolean };
 }
@@ -102,6 +115,26 @@ const DEG = Math.PI / 180;
 
 /** No project open. */
 const NONE_OPEN: Readonly<Record<ProjectId, number>> = {} as Record<ProjectId, number>;
+
+/** How much brighter the project under the pointer is, at the hover's full amount (the mock-up's 1.3). */
+const HOVER_LIFT = 0.3;
+
+// The pointer's ray against the world's projects.
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+const hits: THREE.Intersection[] = [];
+
+/** The project (its place in `WORLD_PROJECTS`) whose click sphere the pointer (`pointer`, NDC) is over, nearest first; or none. */
+function pick(model: WorldModel, pointer: { x: number; y: number }, camera: THREE.Camera): number | null {
+  ndc.set(pointer.x, pointer.y);
+  raycaster.setFromCamera(ndc, camera);
+  hits.length = 0;
+  raycaster.intersectObjects(model.hits, false, hits);
+  const id = hits[0]?.object.userData.id as ProjectId | undefined;
+  hits.length = 0;
+  const index = id === undefined ? -1 : WORLD_PROJECTS.indexOf(id);
+  return index === -1 ? null : index;
+}
 
 /** Shows or hides the void. */
 function showSpace(space: SpaceParts, shown: boolean): void {
@@ -180,13 +213,21 @@ export interface VoidProps {
  *   nebula's clouds;
  * - the engraved shaft round the fall (./engravedWay.ts) and the nebula round the world (./nebulaWay.ts), built off the
  *   frame for the world's path at this aspect;
- * - the world, with the path: shown from the hand-over on, posed by the path's power, flash and each project's light.
+ * - the world, with the path: shown from the hand-over on, posed by the path's power, flash and each project's light;
+ *   the project under the pointer (a ray against the world's click spheres, where `pointerMode` lets the pointer take
+ *   one) eased a little brighter and named in the store (`hover`, for its name); with a project open (`handover.close`)
+ *   the object opens, it is the one bright thing, and the board, the CPU, the light and the clouds step back
+ *   (./inside.ts `openLevels`, `openWorld`, `OPEN_LOOK`).
+ * A click on a project opens it (`onOpen`): wherever the pointer may take it, not on a control of the page, and not once
+ * the sheet has begun.
  *
- * **Sleeping.** Nothing on the world moves by itself here: the canvas sleeps whenever the scroll rests.
+ * **Sleeping.** The world's clock (its float, its pads' rings, the pulse along the buses and the gears) runs for the idle
+ * while after an input, the story's move or a project opening or closing (`worldClockRuns`), never with reduced motion;
+ * the canvas draws on only while it runs or the hover eases, and sleeps after.
  *
  * Unmounting frees the void, the world, the shaft and the nebula, gives the needle back and says `idle`.
  */
-export function Void({ compass, light, handover, tier }: VoidProps): null {
+export function Void({ compass, light, handover, tier, onOpen }: VoidProps): null {
   const gl = useThree((state) => state.gl);
   const scene = useThree((state) => state.scene);
   const camera = useThree((state) => state.camera);
@@ -201,14 +242,19 @@ export function Void({ compass, light, handover, tier }: VoidProps): null {
     nebula: null,
     nebulaAsked: null,
     time: 0,
+    clock: { time: 0, stirred: Number.NEGATIVE_INFINITY, place: Number.NaN, open: null },
+    hover: hoverEase(),
+    pointed: null,
+    reading: false,
+    hovering: false,
     skip: { shown: false }
   }));
   /** Starts the load, once: set by the mount below, called by the first frame the home has landed. */
   const start = useRef<() => void>(() => {});
   /** The latest props, for the load, which outlives the render that started it. */
-  const latest = useRef({ tier });
+  const latest = useRef({ tier, onOpen });
   useLayoutEffect(() => {
-    latest.current = { tier };
+    latest.current = { tier, onOpen };
   });
 
   useEffect(() => {
@@ -264,7 +310,7 @@ export function Void({ compass, light, handover, tier }: VoidProps): null {
         const model = buildWorld(worldPlaces(areasOnPath()), latest.current.tier);
         const holder = new THREE.Group();
         holder.add(model.group);
-        model.pose({ power: 1, flash: 0, clock: 0, levels: Object.fromEntries(WORLD_PROJECTS.map((id) => [id, 1])) as Record<ProjectId, number>, open: NONE_OPEN, float: 0 });
+        model.pose({ power: 1, flash: 0, clock: 0, levels: Object.fromEntries(WORLD_PROJECTS.map((id) => [id, 1])) as Record<ProjectId, number>, open: NONE_OPEN, float: 0, world: 1 });
         try {
           uploadTextures(gl, texturesUnder(holder));
           await warm(gl, holder, camera, 'the world', scene);
@@ -301,6 +347,8 @@ export function Void({ compass, light, handover, tier }: VoidProps): null {
       const world = run.world;
       run.space = null;
       run.world = null;
+      run.reading = run.hovering = false;
+      useScene.getState().setHover(null);
       motion.beads = false;
       showTouchPoints(null, 0);
       showLightFacts(null, NO_SIZE);
@@ -337,6 +385,45 @@ export function Void({ compass, light, handover, tier }: VoidProps): null {
     };
   }, [gl, scene, camera, invalidate, compass, run]);
 
+  // An input stirs the world's clock (its float, its rings, the pulse and the gears) for the idle while; a pointer move
+  // over the page draws, as the hover may move onto a project or off one. The Rig's listener, added first, has put the
+  // pointer in `frame.pointer`.
+  useEffect(() => {
+    const stir = (): void => {
+      if (!run.world || useScene.getState().scene !== 'home') return;
+      run.clock.stirred = performance.now();
+      invalidate();
+    };
+    window.addEventListener('pointermove', stir, { passive: true });
+    window.addEventListener('touchstart', stir, { passive: true });
+    window.addEventListener('wheel', stir, { passive: true });
+    window.addEventListener('keydown', stir);
+    return () => {
+      window.removeEventListener('pointermove', stir);
+      window.removeEventListener('touchstart', stir);
+      window.removeEventListener('wheel', stir);
+      window.removeEventListener('keydown', stir);
+    };
+  }, [invalidate, run]);
+
+  // A click opens the project under the pointer (`onOpen`, src/ui/projectOpen.tsx `openAt`), wherever the pointer may
+  // take one (`pointerMode`) and is read (`hovering`: not once the sheet has begun, where the click went through the
+  // rising page). A click on a control of the page (a link, a button, a field) is the control's.
+  useEffect(() => {
+    const click = (event: MouseEvent): void => {
+      const world = run.world;
+      if (!world || !run.hovering || useScene.getState().scene !== 'home') return;
+      if ((event.target as Element | null)?.closest?.('a, button, input, select, textarea, summary, label')) return;
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      if (!(w > 0 && h > 0)) return;
+      const hit = pick(world.model, { x: (event.clientX / w) * 2 - 1, y: 1 - (event.clientY / h) * 2 }, camera);
+      if (hit !== null) latest.current.onOpen?.(WORLD_PROJECTS[hit]!);
+    };
+    window.addEventListener('click', click);
+    return () => window.removeEventListener('click', click);
+  }, [camera, run]);
+
   // The ladder steps down while the scene is up: the void sheds its ring of mist and dust, in place; never back up.
   useEffect(() => {
     const space = run.space;
@@ -367,6 +454,7 @@ export function Void({ compass, light, handover, tier }: VoidProps): null {
       frame.journey.nebula = null;
       frame.journey.objects = null;
       frame.journey.world = null;
+      run.reading = run.hovering = false;
       motion.beads = false;
       showTouchPoints(null, size.width);
       return;
@@ -378,7 +466,11 @@ export function Void({ compass, light, handover, tier }: VoidProps): null {
     const glow = needleGlowFor(pose.at);
     if (glow !== null) compass.setNeedleGlow(glow);
     camera.updateMatrixWorld();
-    light.setPose(pose.light ?? DARK, camera);
+    // A project open (or its page over it): the light steps back with the rest of the world, the project the bright thing.
+    const close = handover.close;
+    const opened = close.id !== null ? Math.min(1, Math.max(0, close.amount)) : 0;
+    const dim = 1 + (OPEN_LOOK.light - 1) * opened;
+    light.setPose(pose.light === null ? DARK : opened > 0 ? { ...pose.light, glow: pose.light.glow * dim, trailLevel: pose.light.trailLevel * dim } : pose.light, camera);
     // The light's centre on the screen (for the debug bridge too), and the fact riding with it.
     if (pose.light !== null) {
       lightAt.set(...pose.light.position).project(camera);
@@ -398,8 +490,10 @@ export function Void({ compass, light, handover, tier }: VoidProps): null {
     // the camera flies to one.
     writeSkip(document.documentElement, useScene.getState().scene === 'home' && !handover.focus && showsSkip(pose), run.skip);
     showTouchPoints(null, size.width);
-    motion.beads = false;
-    if (!space) return;
+    if (!space) {
+      motion.beads = false;
+      return;
+    }
 
     const shown = voidShownAt(pose);
     showSpace(space, shown);
@@ -411,7 +505,6 @@ export function Void({ compass, light, handover, tier }: VoidProps): null {
       scene.fog.near = path?.fog.near ?? LOOK.fog.near;
       scene.fog.far = path?.fog.far ?? LOOK.fog.far;
     }
-    const reduced = useScene.getState().reducedMotion;
     // The engraved shaft round the fall, as the pose has it, glowing near the light.
     const engraved = engravedFor();
     const levels = engravedLevels(pose.at);
@@ -419,21 +512,63 @@ export function Void({ compass, light, handover, tier }: VoidProps): null {
     if (proof) frame.journey.engraved = levels;
     // The nebula round the world at this aspect, as the pose has it (./nebulaWay.ts); the void's own violet band and ring
     // of mist give way to it.
-    const clouds = nebulaLevels(pose.at, path);
+    const clouds = nebulaLevels(pose.at, path, opened);
     camera.position.toArray(eyeAt);
     nebulaFor(worldPathFor(size.width / Math.max(size.height, 1)))?.update(clouds, handover.shown, eyeAt);
     if (proof) frame.journey.nebula = clouds;
 
-    // The world, with the path: its power, its flash and each project's light.
+    // The world, with the path: its power, its flash and each project's light; the project under the pointer a little
+    // brighter, an open one the bright thing and the rest stepped back; its clock running a while after each stir.
+    const { reducedMotion, scene: page, inside } = useScene.getState();
+    const home = shown && page === 'home';
+    run.reading = home && !handover.focus;
+    run.hovering = run.reading && hoversAt(pose);
+    const dt0 = Math.min(Math.max(delta, 0), MAX_STEP);
+    let moving = false;
     if (world) {
       const on = shown && path !== null;
       showWorld(world, on);
-      if (on) world.model.pose({ power: path.power, flash: path.flash, clock: 0, levels: path.levels, open: NONE_OPEN, float: 0 });
-      if (proof) {
-        world.model.group.updateMatrixWorld();
-        frame.journey.objects = on ? objectsOnScreen(world.model, camera, size, true) : null;
+      world.model.group.updateMatrixWorld();
+      // The hover: the project under the pointer that the path lets it take, eased one at a time.
+      const mode = run.hovering ? pointerMode(pose) : null;
+      const hit = on && mode !== null && Number.isFinite(frame.pointerAt) ? pick(world.model, frame.pointer, camera) : null;
+      run.pointed = hit;
+      const easing = easeHover(run.hover, hit, dt0, reducedMotion || !home);
+      useScene.getState().setHover(hit === null ? null : WORLD_PROJECTS[hit]!);
+      // The clock: stirred by an input (the listeners above), by the story's move and by a project opening or closing.
+      const now = performance.now();
+      const clock = run.clock;
+      if (frame.progress !== clock.place) {
+        clock.place = frame.progress;
+        clock.stirred = now;
       }
+      if (inside !== clock.open) {
+        clock.open = inside;
+        clock.stirred = now;
+      }
+      const ticking = on && worldClockRuns(clock.stirred, now, reducedMotion);
+      if (ticking) clock.time += dt0;
+      if (on && path) {
+        const levels = { ...path.levels };
+        const hovered = run.hover.id === null ? null : WORLD_PROJECTS[run.hover.id];
+        if (hovered && levels[hovered] !== undefined) levels[hovered] *= 1 + HOVER_LIFT * run.hover.amount;
+        const open = close.id !== null ? ({ [close.id]: opened } as Record<ProjectId, number>) : NONE_OPEN;
+        world.model.pose({
+          power: path.power,
+          flash: path.flash,
+          clock: clock.time,
+          levels: openLevels(levels, close.id, opened),
+          open,
+          float: reducedMotion ? 0 : 1,
+          world: openWorld(opened)
+        });
+      }
+      moving = (easing && home) || ticking;
+      if (proof) frame.journey.objects = on ? objectsOnScreen(world.model, camera, size, true) : null;
     }
+    // The canvas draws on only while the hover eases or the world's clock runs; the first frame of it asks for the next.
+    if (moving && !motion.beads) invalidate();
+    motion.beads = moving;
     if (proof) frame.journey.world = path ? { power: path.power, names: path.names, caption: path.caption ? { ...path.caption } : null, dots: path.dots } : null;
     if (!shown) return;
     const dt = Math.min(Math.max(delta, 0), MAX_STEP);
@@ -446,7 +581,7 @@ export function Void({ compass, light, handover, tier }: VoidProps): null {
     space.model.setRingMist((v?.ringMist ?? 0) * giving);
     space.model.setDust(v?.dust ?? 0);
     space.model.setStream(v?.stream ?? 0);
-    if (!reduced) run.time += dt;
+    if (!reducedMotion) run.time += dt;
     space.model.setTime(run.time);
   });
 

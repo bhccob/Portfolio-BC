@@ -49,6 +49,36 @@ export function insideClockRuns(stirred: number, now: number, reduced: boolean):
 }
 
 /**
+ * Whether the world's clock runs at `now` (ms): the pulse along the buses, the pads' turning rings, the objects' float and
+ * the gears' tick (spec 2026-10-27-bob-hologram-world-design.md, "the canvas sleeps"): for IDLE_SECONDS after `stirred`
+ * (the last input, the story's last move, a project opening), never with reduced motion. Then the world stands still
+ * and the canvas sleeps.
+ */
+export function worldClockRuns(stirred: number, now: number, reduced: boolean): boolean {
+  return !reduced && now - stirred < IDLE_SECONDS * 1000;
+}
+
+/**
+ * How the world looks with a project open (the mock-up's numbers): the board, the CPU and the pads of the rest at
+ * `world` of their light, the open project at `focus`, the others at `others`, the light at `light`, and the clouds at
+ * `clouds` of their level: the open project the one bright thing.
+ */
+export const OPEN_LOOK = { world: 0.25, focus: 1.25, others: 0.3, light: 0.34, clouds: 0.5 } as const;
+
+/** Each project's light with `id` open `amount` of the way (0..1): it toward `OPEN_LOOK.focus`, the rest toward `others`. */
+export function openLevels<K extends string>(levels: Readonly<Record<K, number>>, id: NoInfer<K> | null, amount: number): Record<K, number> {
+  const a = id === null ? 0 : Math.min(1, Math.max(0, amount));
+  return Object.fromEntries(
+    (Object.entries(levels) as [K, number][]).map(([k, v]) => [k, v + ((k === id ? OPEN_LOOK.focus : OPEN_LOOK.others) - v) * a])
+  ) as Record<K, number>;
+}
+
+/** The world's own light (the board, the CPU, the light) with a project open `amount` of the way. */
+export function openWorld(amount: number): number {
+  return 1 + (OPEN_LOOK.world - 1) * Math.min(1, Math.max(0, amount));
+}
+
+/**
  * Whether a click on a project opens it on the world (spec 2026-10-27-bob-hologram-world-design.md), with the journey at
  * `at` and the story at rest (`rest`: the scroll's target where the story stands): at the world's stop, at an area's,
  * or in the look back (its own stop, the sheet's start, included), any project on the world. Nowhere else: in the light

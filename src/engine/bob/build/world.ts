@@ -56,6 +56,8 @@ export interface WorldPose {
   open: Readonly<Record<ProjectId, number>>;
   /** How much the objects float, 0 (still) to 1. */
   float: number;
+  /** The world's own light, 0..1: the board, the CPU and the rim; lower while a project is open. */
+  world: number;
 }
 
 export interface WorldModel {
@@ -1010,13 +1012,14 @@ export function buildWorld(places: readonly AreaPlace[], tier: QualityTier, canv
     hits,
     anchors: (id) => find(id).made.anchors,
     top: (id) => find(id).made.top,
-    pose({ power, flash, clock, levels, open, float }) {
+    pose({ power, flash, clock, levels, open, float, world }) {
       circuitMaterial.uniforms.uTime!.value = clock;
       circuitMaterial.uniforms.uPower!.value = power;
+      circuitMaterial.uniforms.uLevel!.value = world;
       fillMaterial.uniforms.uAlpha!.value = look.fill.alpha.dark + (look.fill.alpha.powered - look.fill.alpha.dark) * power;
-      underMaterial.opacity = power;
-      cap.top.emissiveIntensity = look.cpu.lid.dark + (look.cpu.lid.powered - look.cpu.lid.dark) * power + flash;
-      cpuGlowMaterial.opacity = look.cpu.under * power + flash * 0.6;
+      underMaterial.opacity = power * world;
+      cap.top.emissiveIntensity = (look.cpu.lid.dark + (look.cpu.lid.powered - look.cpu.lid.dark) * power) * world + flash;
+      cpuGlowMaterial.opacity = look.cpu.under * power * world + flash * 0.6;
       for (const p of placed) {
         const level = levels[p.id] ?? 0;
         const opened = open[p.id] ?? 0;

@@ -1,7 +1,7 @@
 import { NavigationType } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { projects } from '~/data/projects';
-import { INSIDE_BUILD, INSIDE_POINTS, INSIDE_STATE, insideBuild, insideClockRuns, insideFromHistory, insidePoints, opensOnClick } from '~/scene/bob/inside';
+import { INSIDE_BUILD, INSIDE_POINTS, INSIDE_STATE, insideBuild, insideClockRuns, insideFromHistory, insidePoints, OPEN_LOOK, openLevels, openWorld, opensOnClick, worldClockRuns } from '~/scene/bob/inside';
 import { journeyAt, WORLD_PROJECTS } from '~/scene/bob/journey';
 import { IDLE_SECONDS } from '~/scene/bob/look';
 import { frame } from '~/state/frame';
@@ -132,5 +132,29 @@ describe('the inside in the history (syncRoute)', () => {
     noteOpenedFrom('funcial', A0);
     syncRoute({ pathname: '/en/', key: 'k1', state: inside }, NavigationType.Push);
     expect(useScene.getState().inside).toBe('funcial');
+  });
+});
+
+describe("the world's clock and its look with a project open", () => {
+  it("runs the world's clock for 12 s after a stir, never with reduced motion", () => {
+    expect(worldClockRuns(1000, 1000, false)).toBe(true);
+    expect(worldClockRuns(1000, 1000 + 11_900, false)).toBe(true);
+    expect(worldClockRuns(1000, 1000 + 12_000, false)).toBe(false); // the canvas sleeps
+    expect(worldClockRuns(1000, 1000, true)).toBe(false);
+    expect(worldClockRuns(Number.NEGATIVE_INFINITY, 1000, false)).toBe(false);
+  });
+
+  it('dims the world, lights the open project and quiets the others as it opens', () => {
+    expect(OPEN_LOOK).toEqual({ world: 0.25, focus: 1.25, others: 0.3, light: 0.34, clouds: 0.5 });
+    const levels = { funcial: 1, 'jontai-energy': 1.1, 'cookies-clicker': 0.5 } as const;
+    expect(openLevels(levels, null, 1)).toEqual(levels);
+    expect(openLevels(levels, 'funcial', 0)).toEqual(levels);
+    expect(openLevels(levels, 'funcial', 1)).toEqual({ funcial: expect.closeTo(1.25, 12), 'jontai-energy': expect.closeTo(0.3, 12), 'cookies-clicker': expect.closeTo(0.3, 12) });
+    const half = openLevels(levels, 'jontai-energy', 0.5);
+    expect(half['jontai-energy']).toBeCloseTo(1.175, 12);
+    expect(half.funcial).toBeCloseTo(0.65, 12);
+    expect(openWorld(0)).toBe(1);
+    expect(openWorld(1)).toBe(0.25);
+    expect(openWorld(0.5)).toBeCloseTo(0.625, 12);
   });
 });

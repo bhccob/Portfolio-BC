@@ -944,6 +944,20 @@ describe('loadVoid: the void is built at the hand-over, the world after it', () 
     expect(s.said).toEqual(['loading']);
   });
 
+  it('builds the world in its load and draws no bead', () => {
+    const source = read('scene/bob/Void.tsx');
+    expect(source).toMatch(/buildWorld\(\s*worldPlaces\(\s*areasOnPath\(\)\s*\)/);
+    expect(source).not.toMatch(/bead_|loadBeads|bob-beads/);
+  });
+
+  it('lights the project under the pointer and opens it on a click, through the world\'s hits', () => {
+    const source = read('scene/bob/Void.tsx');
+    expect(source).toMatch(/intersectObjects\(\s*[a-z.]*model\.hits/);
+    expect(source).toMatch(/latest\.current\.onOpen\?\.\(/);
+    expect(source).toMatch(/setHover\(/);
+    expect(source).toMatch(/worldClockRuns\(/);
+  });
+
   it('is what the Void runs: the void posed from the journey, no beam and no setLight', () => {
     const source = read('scene/bob/Void.tsx');
     expect(source).toMatch(/\bloadVoid\(/);

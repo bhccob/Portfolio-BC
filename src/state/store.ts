@@ -38,6 +38,8 @@ export interface SceneState {
    * two buttons show (src/ui/InsideControls.tsx) and the scroll takes no step (src/input/useHomeScroll.ts).
    */
   inside: ProjectId | null;
+  /** The project on the hologram world under the pointer, lit a little, its name with it (src/scene/bob/Void.tsx), or null. */
+  hover: ProjectId | null;
   dispatch(event: SceneEvent): void;
   setTier(tier: Tier): void;
   setScene(scene: SceneKind | null): void;
@@ -45,6 +47,7 @@ export interface SceneState {
   setVoidState(state: VoidState): void;
   /** The same bead again is no change. */
   setInside(id: ProjectId | null): void;
+  setHover(id: ProjectId | null): void;
   /**
    * Switches 3D on or off. The visitor's switch stores the choice (`needle-3d`); the scene's own reasons (no WebGL,
    * a scene that failed or never got ready) pass `{ persist: false }`, so the page falls back for this visit and the
@@ -97,6 +100,7 @@ export const useScene = create<SceneState>()((set) => ({
   scene: null,
   voidState: 'idle',
   inside: null,
+  hover: null,
 
   dispatch: (event) =>
     set((state) => {
@@ -113,6 +117,7 @@ export const useScene = create<SceneState>()((set) => ({
   setVoidState: (voidState) => set((state) => (state.voidState === voidState ? state : { voidState })),
 
   setInside: (inside) => set((state) => (state.inside === inside ? state : { inside })),
+  setHover: (hover) => set((state) => (state.hover === hover ? state : { hover })),
 
   setThreeD: (on, { persist = true } = {}) => {
     if (persist) SafeStorage.local().set(THREE_D_KEY, on ? 'on' : 'off');

@@ -7,7 +7,7 @@ import { buildChapters, HOME_CHAPTERS, pathStart } from '~/state/chapters';
 
 const L = pathStart(HOME_CHAPTERS);
 const fall = (frame: number) => nebulaLevels({ stretch: 'light', frame }, null);
-const on = (part: WorldPart, t: number, black = 0) => nebulaLevels({ stretch: part, frame: null }, { part, t, black });
+const on = (part: WorldPart, t: number, black = 0) => nebulaLevels({ stretch: part, frame: null }, { part, t, black, index: part === 'area' ? 1 : -1 });
 
 describe('the levels: the nebula, its far bands and the look back rings, at a pose', () => {
   it('brings the clouds in over the fall, frames 50 to 95, at the fall\'s quieter level behind Bob\'s facts', () => {
@@ -26,11 +26,11 @@ describe('the levels: the nebula, its far bands and the look back rings, at a po
     }
   });
 
-  it('brings the clouds up to whole over the land, as the light leaves the facts behind', () => {
+  it("brings the clouds up to the world's level over the land, as the light leaves the facts behind", () => {
     expect(NEBULA.WHOLE_BY_T).toBe(0.5);
     expect(on('land', 0).clouds).toBeCloseTo(0.6, 12);
-    expect(on('land', 0.25).clouds).toBeCloseTo(0.8, 9);
-    expect(on('land', 0.5).clouds).toBe(1);
+    expect(on('land', 0.25).clouds).toBeCloseTo(0.7, 9);
+    expect(on('land', 0.5).clouds).toBeCloseTo(0.8, 12);
     let last = 0.6;
     for (let t = 0; t <= 1; t += 0.01) {
       const { clouds } = on('land', t);
@@ -39,17 +39,29 @@ describe('the levels: the nebula, its far bands and the look back rings, at a po
     }
   });
 
-  it('keeps the clouds whole on the world, the bands in over the land, and no rings: they were the beads\'', () => {
+  it('keeps the clouds at their level on the world, the bands in over the land, and no rings: they were the beads\'', () => {
     expect(on('land', 0.1)).toMatchObject({ bands: 0, rings: 0 });
     expect(on('land', 0.45).bands).toBeCloseTo(0.5, 9);
-    expect(on('land', 0.7)).toEqual({ clouds: 1, bands: 1, rings: 0 });
-    expect(on('area', 0.1)).toEqual({ clouds: 1, bands: 1, rings: 0 });
-    expect(on('look', 1)).toEqual({ clouds: 1, bands: 1, rings: 0 });
+    expect(on('land', 0.7)).toEqual({ clouds: expect.closeTo(0.8, 12), bands: 1, rings: 0 });
+    expect(on('area', 0.1)).toEqual({ clouds: expect.closeTo(0.55, 12), bands: 1, rings: 0 });
+    expect(on('look', 1)).toEqual({ clouds: expect.closeTo(0.8, 12), bands: 1, rings: 0 });
     // Under the sheet everything goes out with its black; the rise and the end page have none.
-    expect(on('sheet', 0.5, 0.5)).toEqual({ clouds: 0.5, bands: 0.5, rings: 0 });
+    expect(on('sheet', 0.5, 0.5)).toEqual({ clouds: expect.closeTo(0.4, 12), bands: 0.5, rings: 0 });
     expect(on('sheet', 1, 1)).toEqual({ clouds: 0, bands: 0, rings: 0 });
     expect(nebulaLevels({ stretch: 'rise', frame: null }, null)).toEqual({ clouds: 0, bands: 0, rings: 0 });
     expect(nebulaLevels({ stretch: 'end', frame: null }, null)).toEqual({ clouds: 0, bands: 0, rings: 0 });
+  });
+
+  it('quiets the clouds at an area and more with a project open', () => {
+    expect(NEBULA.WORLD_LEVEL).toEqual({ world: 0.8, area: 0.55 });
+    expect(on('land', 1).clouds).toBeCloseTo(0.8, 12);
+    expect(nebulaLevels({ stretch: 'area', frame: null }, { part: 'area', t: 0.7, black: 0, index: 0 }).clouds).toBeCloseTo(0.55, 12);
+    expect(nebulaLevels({ stretch: 'area', frame: null }, { part: 'area', t: 0, black: 0, index: 0 }).clouds).toBeCloseTo(0.8, 12);
+    expect(nebulaLevels({ stretch: 'area', frame: null }, { part: 'area', t: 0, black: 0, index: 1 }).clouds).toBeCloseTo(0.55, 12);
+    expect(nebulaLevels({ stretch: 'look', frame: null }, { part: 'look', t: 1, black: 0, index: -1 }).clouds).toBeCloseTo(0.8, 12);
+    // With a project open, half of it.
+    expect(nebulaLevels({ stretch: 'area', frame: null }, { part: 'area', t: 0.7, black: 0, index: 0 }, 1).clouds).toBeCloseTo(0.275, 12);
+    expect(nebulaLevels({ stretch: 'area', frame: null }, { part: 'area', t: 0.7, black: 0, index: 0 }, 0.5).clouds).toBeCloseTo(0.4125, 12);
   });
 
   it("joins the fall's end to the path's start with no jump", () => {
