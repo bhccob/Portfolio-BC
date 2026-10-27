@@ -5,22 +5,26 @@ import { type GLTF, GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import cookiesScreen from '~/assets/beads/cookies-clicker.webp';
 import funcialScreen from '~/assets/beads/funcial.webp';
 import jontaiScreen from '~/assets/beads/jontai-energy.webp';
-import type { ProjectId } from '~/data/projects';
+import { type ProjectId, projects } from '~/data/projects';
 import { type BeadsModel, loadBeads } from '~/engine/bob/build/beads';
 import type { CompassModel } from '~/engine/bob/build/compass';
 import { debugBridge } from '~/debug/needleDebug';
 import type { LightModel } from '~/engine/bob/build/light';
 import { buildVoid, VOID_LOOK, type VoidModel } from '~/engine/bob/build/void';
+import { buildOffPathLights, buildWayLine, type OffPathLightsModel, type WayLineModel } from '~/engine/bob/build/wayLine';
 import { lowerTier, type QualityTier } from '~/engine/quality';
 import { frame } from '~/state/frame';
 import { useScene, type VoidState } from '~/state/store';
 import { showBeadLabel } from '~/ui/BeadLabel';
 import { showLightFacts } from '~/ui/LightFacts';
-import { showsSkip, writeRing } from '~/ui/SkipButton';
+import { writeRing } from '~/ui/SkipButton';
 import { motion } from '../motion';
 import type { Handover } from './Home';
 import { BEADS, type LightPose } from './journey';
-import { beadClocks, easeHover, hoverEase, hoversAt, labelFor, needleFor, needleGlowFor, ringStill, selectedBead, stepBeadClocks, voidShownAt } from './voidPose';
+import { type Path, pathFor } from './lightPath';
+import { LOOK } from './look';
+import { offPathPlaces } from './offPath';
+import { easeHover, hoverEase, hoversAt, needleFor, needleGlowFor, pointerMode, selectedBead, voidShownAt, wakeFor } from './voidPose';
 import { loadVoid, type VoidLoadSteps } from './voidLoad';
 import { uploadTextures, warm } from './warm';
 
@@ -162,8 +166,9 @@ interface VoidParts {
   beads: BeadsModel;
   file: GLTF;
   screens: Record<ProjectId, THREE.Texture>;
-  /** The beads' drawn parts (`drawnParts`), in no order. */
+  /** The beads' drawn parts (`drawnParts`), in no order; and each bead's, in `BEADS` order. */
   drawn: THREE.Object3D[];
+  drawnBy: THREE.Object3D[][];
   /** Each bead's inner light and its own intensity (the file's), in `BEADS` order. */
   inner: THREE.PointLight[];
   innerIntensity: number[];
@@ -182,10 +187,15 @@ interface VoidRun {
   space: SpaceParts | null;
   /** The beads, once their file is in; null before (and for good if it failed). */
   parts: VoidParts | null;
-  clocks: ReturnType<typeof beadClocks>;
+  /** The look back's line of the way and the lights off it, for the path they were built for (an aspect's); null before. */
+  way: { path: Path; line: WayLineModel; lights: OffPathLightsModel; places: [number, number, number][] } | null;
+  /** Each bead's build as last written (`setBuild`), in `BEADS` order: written again only when it changes. */
+  built: number[];
   hover: ReturnType<typeof hoverEase>;
   /** The bead under the pointer on the last frame, or null. */
   pointed: number | null;
+  /** Which beads the pointer may take on the last frame (`pointerMode`). */
+  mode: 'selected' | 'any' | null;
   /** The selected bead on the last frame, or null. */
   selected: number | null;
   /** The void's drift clock (its mist and dust), seconds of frames drawn while it showed. */
@@ -220,6 +230,16 @@ function showSpace(space: SpaceParts, shown: boolean): void {
   space.model.group.visible = shown;
 }
 
+/**
+ * Shows bead `i` as the path has it, once the beads are shown: its drawn parts while any of it shows (`fade` above 0),
+ * its inner light at its own intensity times the fade.
+ */
+function showBead(parts: VoidParts, i: number, fade: number): void {
+  const visible = fade > 0;
+  for (const part of parts.drawnBy[i]!) part.visible = visible;
+  parts.inner[i]!.intensity = parts.innerIntensity[i]! * fade;
+}
+
 /** Shows or hides the beads' drawn parts, and lights or darkens the beads' inner lights with them. */
 function show(parts: VoidParts, shown: boolean): void {
   if (parts.shown === shown) return;
@@ -238,40 +258,43 @@ const viewProjection = new THREE.Matrix4();
 const sphere = new THREE.Sphere();
 const centre = new THREE.Vector3();
 const lightAt = new THREE.Vector3();
-/** The ring on the screen for the debug bridge (`frame.journey.ring`), filled in place. */
-const ringView = { front: [0, 0] as [number, number], back: [0, 0] as [number, number], beads: BEADS.map((): [number, number, number] => [0, 0, 0]) };
-const tip = new THREE.Vector3();
+const inView = new THREE.Vector3();
+/** A point a bead's porthole turns to, handed to `BeadsModel.setFacing`. */
+const facingAt = new THREE.Vector3();
+/** How near the pointer a light off the way takes it, CSS px. */
+const LIGHT_PICK_PX = 18;
 
-/**
- * Writes `ringView` for the proof harness: the needle's tips (its mesh's +Y and -Y ends, from its bounding box, in the
- * world) and each bead's centre and radius (its outline's, at its distance and the field), on a screen of `size`.
- */
-function writeRingView(needle: THREE.Mesh, beads: BeadsModel, camera: THREE.Camera, size: { width: number; height: number }): void {
-  const toPx = (v: THREE.Vector3, into: number[]): void => {
-    v.project(camera);
-    into[0] = ((v.x + 1) / 2) * size.width;
-    into[1] = ((1 - v.y) / 2) * size.height;
-  };
-  needle.geometry.boundingBox ?? needle.geometry.computeBoundingBox();
-  const box = needle.geometry.boundingBox!;
-  needle.updateWorldMatrix(true, false);
-  toPx(tip.set(0, box.max.y, 0).applyMatrix4(needle.matrixWorld), ringView.front);
-  toPx(tip.set(0, box.min.y, 0).applyMatrix4(needle.matrixWorld), ringView.back);
+/** A bead on the screen for the proof harness: its centre (CSS px) and its radius at its distance and the field. */
+function beadOnScreen(at: readonly [number, number, number], visible: boolean, camera: THREE.Camera, size: { width: number; height: number }) {
+  centre.set(at[0], at[1], at[2]);
+  const distance = centre.distanceTo(camera.position);
+  centre.project(camera);
   const fov = (camera as THREE.PerspectiveCamera).fov;
-  for (let i = 0; i < BEADS.length; i++) {
-    const { id, radius } = BEADS[i]!;
-    beads.beads[id].root.getWorldPosition(tip);
-    const distance = tip.distanceTo(camera.position);
-    const at = ringView.beads[i]!;
-    toPx(tip, at);
-    at[2] = (radius / (distance * Math.tan((fov * DEG) / 2))) * (size.height / 2);
-  }
+  const r = (BEADS[0]!.radius / (distance * Math.tan((fov * DEG) / 2))) * (size.height / 2);
+  return { x: ((centre.x + 1) / 2) * size.width, y: ((1 - centre.y) / 2) * size.height, r, visible };
 }
 
 /** The light's centre on the screen, NDC: `frame.journey.light` while there is a light. */
 const lightPoint = { x: 0, y: 0 };
 /** Each bead's place on the frame, by id, handed to `BeadsModel.place`: filled in place, never made per frame. */
 const places = Object.fromEntries(BEADS.map(({ id }) => [id, [0, 0, 0]])) as Record<ProjectId, [number, number, number]>;
+
+/** The light off the way nearest the pointer (`pointer`, NDC) within LIGHT_PICK_PX, on a screen of `size`; or none. */
+function pickLight(places: readonly (readonly [number, number, number])[], pointer: { x: number; y: number }, camera: THREE.Camera, size: { width: number; height: number }): number | null {
+  let best: number | null = null;
+  let nearest = LIGHT_PICK_PX;
+  for (let i = 0; i < places.length; i++) {
+    const p = places[i]!;
+    centre.set(p[0], p[1], p[2]).project(camera);
+    if (centre.z >= 1) continue;
+    const d = Math.hypot(((centre.x - pointer.x) / 2) * size.width, ((centre.y - pointer.y) / 2) * size.height);
+    if (d <= nearest) {
+      nearest = d;
+      best = i;
+    }
+  }
+  return best;
+}
 
 /** The bead whose shell the pointer (`pointer`, NDC) is over, nearest first, for a camera; or none. */
 function pick(parts: VoidParts, pointer: { x: number; y: number }, camera: THREE.Camera): number | null {
@@ -293,7 +316,7 @@ function pick(parts: VoidParts, pointer: { x: number; y: number }, camera: THREE
 }
 
 export interface VoidProps {
-  /** The compass, whose needle the Void gives to the light and holds in the ring (`setNeedleWorld`). */
+  /** The compass, whose needle the Void gives to the light (`setNeedleWorld`). */
   compass: CompassModel;
   /** The light the needle becomes in the light dive, the Opening's (built with the loader's parts); the Void poses it. */
   light: LightModel;
@@ -312,88 +335,79 @@ export interface VoidProps {
 }
 
 /**
- * The void under the glass and the project beads in it (spec §2.3 step 4 "the dive", §2.4), on the home's scroll.
+ * The void under the glass and the project beads in it, on the home's scroll: the light dive's void, then the light's
+ * path through the projects (spec 2026-10-27-bob-light-path-design.md).
  *
  * **Loading.** It mounts with Home, once the compass is there, and does nothing until the home has landed (the first
  * frame `handover.live` is true: the Opening has posed the home and handed it over; never during the loader). Then it
  * runs `loadVoid` (./voidLoad.ts): it builds the void (`buildVoid`) at the ladder's tier at once, warms it and puts it
- * in, so the light dive has its band, its ring of mist and its dust from its first frame; then it loads
- * `bob-beads.glb` (three's GLTFLoader, once a page view) and the three screenshots, builds the beads (`loadBeads`) and
- * warms them: their textures uploaded, and their programs compiled lit and shown, as the scene will draw them (`warm`
- * into the scene, which still holds the beads' light stand-ins, the beads' own lights hidden meanwhile, so the count
- * compiled for is the count drawn with). Then, in one step between two frames, the stand-ins go out and the beads go
- * in: no lit material is compiled again. `voidState` (the store, `frame.journey`, `<html data-void>`) says `loading`,
- * then `ready` with the beads in; any throw of the beads' load or build (a file that does not load, a GLB that lacks a
- * part, a screen that does not decode) says `failed` instead, logged as a warning (the browser's own report of a failed
- * file is the one console error), what was built of the beads is freed, and the void stays. The home's scroll holds by
- * it (src/scene/bob/landingHold.ts): just short of the ring until the beads are ready, and there for good if they
- * failed, where the home's project links show (src/styles/base.css). A failed warm-up only costs a stall.
+ * in, so the light dive has its band and its dust from its first frame; then it loads `bob-beads.glb` (three's
+ * GLTFLoader, once a page view) and the three screenshots, builds the beads (`loadBeads`) and warms them: their textures
+ * uploaded, and their programs compiled lit and shown, as the scene will draw them (`warm` into the scene, which still
+ * holds the beads' light stand-ins, the beads' own lights hidden meanwhile, so the count compiled for is the count drawn
+ * with). Then, in one step between two frames, the stand-ins go out and the beads go in: no lit material is compiled
+ * again. `voidState` (the store, `frame.journey`, `<html data-void>`) says `loading`, then `ready` with the beads in;
+ * any throw of the beads' load or build (a file that does not load, a GLB that lacks a part, a screen that does not
+ * decode) says `failed` instead, logged as a warning (the browser's own report of a failed file is the one console
+ * error), what was built of the beads is freed, and the void stays. The home's scroll holds by it
+ * (src/scene/bob/landingHold.ts): at the hand-over until the beads are ready, and there for good if they failed, where
+ * the home's project links show (src/styles/base.css). A failed warm-up only costs a stall.
  *
  * **Each frame** (after Home's, so after the Rig has placed the camera and Home has posed the compass) it applies the
  * Opening's one pose of the frame (`handover.pose`, the journey at the progress the camera stands at):
  * - the needle: `setNeedleWorld(needleFor(pose))` (./voidPose.ts): null on the rise (a no-op while not held); held at
- *   the pivot and shrunk to nothing as the light ignites (way frames 2-8) and through the fall; the journey's own from
- *   frame 272, drawn out of the light at the ring and round it; null again while the Opening poses the scene itself (the
- *   loader, a held seek) and on unmount. Its glow where the journey holds it (`needleGlowFor`): 6 as it arrives, down
- *   to its rest glow by frame 296, after Home's breath, which it overrides;
+ *   the pivot and shrunk to nothing as the light ignites (way frames 2-8), and nothing from then on: the light stays the
+ *   light to the end; null again while the Opening poses the scene itself (the loader, a held seek) and on unmount;
  * - the light (the Opening's, `LightModel.setPose`): the journey's `light`, dark where there is none; and Bob's fact
  *   riding beside it (src/ui/LightFacts.tsx `showLightFacts`): the journey's `fact`, at its opacity and the light's glow,
  *   placed by the light's centre on the screen; none anywhere else, nor while the Opening poses the scene itself;
  * - the void shows from the light dive's frame 20 (`voidShownAt`), as its band comes in, while the glass dissolves round
- *   the light (Home, `GlassModel.setDissolve`); its glass sky only once the camera is under it (`setSky`), as from
- *   above it would stand round the hole as a second rim; the beads only from their own frame (the journey's `beads`),
- *   their inner lights going dark with them, by intensity;
+ *   the light (Home, `GlassModel.setDissolve`); its glass sky only once the camera is under it, and not in the look back
+ *   (`setSky`); the fog the path's, drawing back as the camera pulls back, the studio's own before it; the beads with the
+ *   path, their inner lights going dark with them, by intensity;
  * - the void, from the journey's `void`: the mist band held to the camera at its place on the frame (`setBand`), the
- *   ring of mist it dissolves into at the landing (`setRingMist`), the dust's glow (`setDust`) and the stream that
- *   carries the dust toward the camera (`setStream`); and its drift (`setTime`, on a clock that runs only on frames
- *   drawn while it shows, and not with reduced motion);
- * - each bead from the journey's `beads`: its place round the ring (`place`, rising into it over the landing and lifted
- *   as it passes behind the needle), its porthole turned to the camera (`setFacing`) and its light (`setLit`: the
- *   front bead's answering glow, the others' dim);
+ *   dust's glow (`setDust`) and the stream that carries the dust toward the camera (`setStream`); and its drift
+ *   (`setTime`, on a clock that runs only on frames drawn while it shows, and not with reduced motion);
+ * - each bead from the path (./lightPath.ts): its place, its porthole turned to the camera's side (`setFacing`), its
+ *   light (`setLit`), its fade into the dark or out of it (`setFade`, its parts hidden and its inner light out at none),
+ *   its veins as the light's sweep has woken them, in the camera's view (`setWake`, `wakeFor`), and its object as the
+ *   scroll has built it (`setBuild`), written only while it shows and when it changes;
+ * - the look back's line of the whole way and the small lights of the projects off it (../../engine/bob/build/wayLine.ts),
+ *   at the path's level, built for the path of the screen's aspect;
  * - the hover: on a pointer device (a mouse or pen that has moved, `frame.pointerAt`), the bead whose shell the pointer
- *   is over (a ray against `beads[id].body`), eased in and out one bead at a time (`easeHover`) and turned toward the
- *   camera, its position handed in every frame; with reduced motion it brightens at once and does not turn; never once the
- *   end page has begun to slide up (`hoversAt`: the sheet and the end page), where a pointer over the rising page or
- *   behind it turns no bead and wakes nothing;
- * - the objects' motion: each bead's clock runs only while it is the selected bead (the bead of the current project
- *   stop, `selectedBead`) or the hovered one, and not with reduced motion, and goes on from where it stopped
- *   (`stepBeadClocks`); Funcial's abacus has a clock of its own that counts back down while the bead is neither, so its
- *   beads slide back down calmly and up again from where they are, never snapping;
- * - the skip button (src/ui/SkipButton.tsx): `<html data-ring>` while the journey stands in the ring (`showsSkip`) on the
- *   home page and no bead is close or flown to, and never while the Opening poses the scene itself or after unmount;
- * - the front bead's label (src/ui/BeadLabel.tsx `showBeadLabel`, `labelFor`): in the ring, within 20 degrees of a
- *   project, beside the bead where the camera puts it on the screen (its centre projected, its radius from its distance
- *   and the field), in full while the ring stands still (`ringStill`: the shown place on its target, and always with
- *   reduced motion) and clear while it turns; none
- *   anywhere else.
- * A pointer move over the page wakes the canvas only when it moves the hover onto another bead or off one; the hover,
- * the label and a click read nothing on a page without the home's scene, nor while a bead is seen close or the camera
- * flies to or from one (`handover.focus`); a click on the selected bead opens it (`onOpen`), placed by the window's
- * size, which is the canvas's (it fills the window), where the hover may be read: never once the night has begun, where
- * a click on the rising end page, which lets the pointer through to the scene while it moves, lands on Cookies Clicker's
- * place and must open nothing.
+ *   is over (a ray against `beads[id].body`) where the path lets the pointer take it (`pointerMode`: the bead in view in
+ *   an orbit or an inside, any bead in the look back), eased in and out one bead at a time (`easeHover`) and turned
+ *   toward the camera; with reduced motion it brightens at once and does not turn; never once the sheet over the look
+ *   back has begun (`hoversAt`), where a pointer over the rising page or behind it turns no bead and wakes nothing.
+ * A pointer move over the page wakes the canvas only when it moves the hover onto another bead or off one; the hover and
+ * a click read nothing on a page without the home's scene, nor while a bead is seen close or the camera flies to or from
+ * one (`handover.focus`); a click opens what the pointer may take (`onOpen`): the bead in view, any bead of the look
+ * back, or a light off the way within LIGHT_PICK_PX, placed by the window's size, which is the canvas's (it fills the
+ * window).
  *
- * **Sleeping.** It keeps the canvas drawing (`motion.beads`, and a frame asked for as it starts) while an object that
- * moves (its clock runs, or Funcial's abacus slides back down) is in the camera's view, or the hover is easing; otherwise it asks for nothing, so the canvas sleeps once
- * the scroll rests at the home, at BOB from above, at the overview (no bead is selected there) or with reduced motion,
- * and draws on at a bead's stop while its object moves.
+ * **Sleeping.** Nothing on the path moves by itself: the beads build with the scroll. So it keeps the canvas drawing
+ * (`motion.beads`, and a frame asked for as it starts) only while the hover eases, and the canvas sleeps whenever the
+ * scroll rests.
  *
- * Unmounting frees the void, the beads, the screens' and the file's GPU side, gives the needle back and says `idle`.
+ * Unmounting frees the void, the beads, the way's line and lights, the screens' and the file's GPU side, gives the needle
+ * back and says `idle`.
  */
 export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidProps): null {
   const gl = useThree((state) => state.gl);
   const scene = useThree((state) => state.scene);
   const camera = useThree((state) => state.camera);
   const invalidate = useThree((state) => state.invalidate);
-  // Behind `?proof` the ring on the screen is reported to the debug bridge. Asked once, at mount.
+  // Behind `?proof` the path on the screen is reported to the debug bridge. Asked once, at mount.
   const [proof] = useState(() => debugBridge() !== null);
   const [run] = useState<VoidRun>(() => ({
     state: 'idle',
     space: null,
     parts: null,
-    clocks: beadClocks(),
+    way: null,
+    built: BEADS.map(() => Number.NaN),
     hover: hoverEase(),
     pointed: null,
+    mode: null,
     selected: null,
     time: 0,
     reading: false,
@@ -480,6 +494,7 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
           file,
           screens,
           drawn: roots.flatMap(drawnParts),
+          drawnBy: roots.map(drawnParts),
           inner,
           innerIntensity: inner.map((light) => light.intensity),
           bodies: BEADS.map(({ id }) => beads.beads[id].body),
@@ -545,6 +560,13 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
         scene.remove(parts.beads.group);
         free(parts);
       }
+      const way = run.way;
+      run.way = null;
+      if (way) {
+        scene.remove(way.line.mesh, way.lights.points);
+        way.line.dispose();
+        way.lights.dispose();
+      }
       say('idle');
       document.documentElement.removeAttribute('data-void');
     };
@@ -587,20 +609,32 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
     return () => window.removeEventListener('pointermove', move);
   }, [camera, invalidate, run]);
 
-  // A click on the selected bead opens its project, where a hook is given (Task 12), wherever the pointer is read
-  // (`hovering`: not once the night has begun, where the click went through the rising end page). A click on a control
-  // of the page (a link, a button, a field) is the control's.
+  // A click opens what the pointer may take (`pointerMode`), where a hook is given: in an orbit or an inside the bead in
+  // view, in the look back any bead, or a light off the way; wherever the pointer is read (`hovering`: not once the sheet
+  // has begun, where the click went through the rising page). A click on a control of the page (a link, a button, a
+  // field) is the control's.
   useEffect(() => {
     if (!onOpen) return;
     const click = (event: MouseEvent): void => {
       const parts = run.parts;
-      if (!parts || !run.hovering || run.selected === null || useScene.getState().scene !== 'home') return;
+      if (!parts || !run.hovering || run.mode === null || useScene.getState().scene !== 'home') return;
       if ((event.target as Element | null)?.closest?.('a, button, input, select, textarea, summary, label')) return;
       const w = window.innerWidth;
       const h = window.innerHeight;
       if (!(w > 0 && h > 0)) return;
       const at = { x: (event.clientX / w) * 2 - 1, y: 1 - (event.clientY / h) * 2 };
-      if (pick(parts, at, camera) === run.selected) latest.current.onOpen?.(BEADS[run.selected]!.id);
+      const hit = pick(parts, at, camera);
+      if (run.mode === 'selected') {
+        if (hit !== null && hit === run.selected) latest.current.onOpen?.(BEADS[hit]!.id);
+        return;
+      }
+      if (hit !== null) {
+        latest.current.onOpen?.(BEADS[hit]!.id);
+        return;
+      }
+      const way = run.way;
+      const light = way ? pickLight(way.places, at, camera, { width: w, height: h }) : null;
+      if (light !== null) latest.current.onOpen?.(projects.offPath()[light]!.id);
     };
     window.addEventListener('click', click);
     return () => window.removeEventListener('click', click);
@@ -648,8 +682,8 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
     } else {
       showLightFacts(null, size);
     }
-    // The skip button, round the ring on the home page, and not while a bead is close or the camera flies to one.
-    writeRing(document.documentElement, useScene.getState().scene === 'home' && !handover.focus && showsSkip(pose.at), run.ring);
+    // The skip button and the bead labels are the path's (src/ui/SkipButton.tsx, src/ui/BeadLabel.tsx).
+    writeRing(document.documentElement, false, run.ring);
     if (!space) {
       motion.beads = false;
       showBeadLabel(null, size);
@@ -658,20 +692,32 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
 
     const shown = voidShownAt(pose);
     showSpace(space, shown);
-    // The beads come up into the ring from their own frame of the light dive (the journey's `beads`).
-    if (parts) show(parts, shown && pose.beads !== null);
-    // The glass sky only from under it: seen from above it would stand round the hole as a second rim.
-    space.model.setSky(camera.position.y < UNDER_SKY);
+    const path = pose.path;
+    // The beads come in with the path.
+    if (parts) show(parts, shown && path !== null);
+    // The glass sky only from under it, and not in the look back, which looks up toward it: from above it would stand
+    // round the hole as a second rim.
+    space.model.setSky((path?.sky ?? true) && camera.position.y < UNDER_SKY);
+    // The fog the path's (it draws back as the camera pulls back), the studio's own before it.
+    if (scene.fog instanceof THREE.Fog) {
+      scene.fog.near = path?.fog.near ?? LOOK.fog.near;
+      scene.fog.far = path?.fog.far ?? LOOK.fog.far;
+    }
     const { reducedMotion: reduced, scene: page } = useScene.getState();
     const home = shown && page === 'home';
     // A bead seen close, or the camera on its way to or from one: no label, and the pointer opens and hovers nothing.
     run.reading = home && !handover.focus;
-    // Nor once the night has begun: a pointer over the rising page, or behind it, turns no bead and opens none.
+    // Nor once the sheet has begun: a pointer over the rising page, or behind it, turns no bead and opens none.
     run.hovering = run.reading && hoversAt(pose);
+    // The look back's line and the lights off the way, built for the path at this aspect.
+    const way = wayFor(pathFor(size.width / Math.max(size.height, 1)));
+    const level = shown && path !== null ? path.way * (1 - path.black) : 0;
+    way.line.setLevel(level);
+    way.lights.setLevel(level);
     if (!shown) {
       Object.assign(run.hover, hoverEase());
       run.pointed = run.selected = null;
-      stepBeadClocks(run.clocks, null, null, 0, reduced);
+      run.mode = null;
       motion.beads = false;
       showBeadLabel(null, size);
       return;
@@ -694,32 +740,55 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
     }
     const { beads } = parts;
 
-    // Each bead's place in the journey, its porthole turned to the camera, and its light.
-    if (pose.beads !== null) {
-      for (const bead of pose.beads) {
-        const at = places[bead.id];
-        at[0] = bead.position[0];
-        at[1] = bead.position[1];
-        at[2] = bead.position[2];
+    // Each bead on the path: its place, its porthole turned to the camera's side, its light, its fade into the dark or out
+    // of it, its veins as the light has woken them (in the camera's view), and its object as the scroll has built it,
+    // written only while it shows and only when it changes.
+    if (path !== null) {
+      for (const bead of path.beads) {
+        const at = places[BEADS[bead.index]!.id];
+        at[0] = bead.centre[0];
+        at[1] = bead.centre[1];
+        at[2] = bead.centre[2];
       }
       beads.place(places);
-      for (const bead of pose.beads) {
-        beads.setFacing(bead.id, camera.position);
-        beads.setLit(bead.id, bead.lit);
+      const view = camera.matrixWorldInverse;
+      const toView = (p: readonly [number, number, number]): readonly [number, number] => {
+        inView.set(p[0], p[1], p[2]).applyMatrix4(view);
+        return [inView.x, inView.y];
+      };
+      const wakes: number[] | null = proof ? [] : null;
+      if (wakes) frame.journey.wake = wakes;
+      for (const bead of path.beads) {
+        const id = BEADS[bead.index]!.id;
+        const fade = bead.visible ? bead.fade : 0;
+        beads.setFacing(id, facingAt.set(bead.facing[0], bead.facing[1], bead.facing[2]));
+        beads.setLit(id, bead.lit);
+        beads.setFade(id, fade);
+        showBead(parts, bead.index, fade);
+        const wake = wakeFor(bead, way.path, toView);
+        beads.setWake(id, wake);
+        wakes?.push(wake.span);
+        if (fade > 0 && bead.build !== run.built[bead.index]) {
+          beads.setBuild(id, bead.build);
+          run.built[bead.index] = bead.build;
+        }
       }
     }
 
-    // The ring on the screen, for the proof harness: the needle's tips and the beads, where both stand in the ring.
+    // The path on the screen, for the proof harness: each bead's centre and radius, and the label's opacity.
     if (proof) {
-      const needle = compass.group.getObjectByName('needle');
-      const inRingNow = pose.needle !== null && pose.beads !== null && needle instanceof THREE.Mesh;
-      if (inRingNow) writeRingView(needle, beads, camera, size);
-      frame.journey.ring = inRingNow ? ringView : null;
+      frame.journey.beads = path === null ? null : path.beads.map((bead) => beadOnScreen(bead.centre, bead.visible && bead.fade > 0, camera, size));
+      frame.journey.label = path?.label ? { ...path.label } : null;
     }
 
-    // The hover, on a pointer device: the bead under the pointer, eased one at a time, turned toward the camera.
+    // The hover, on a pointer device: the bead under the pointer that the path lets it take (`pointerMode`), eased one at
+    // a time, turned toward the camera.
     beads.group.updateMatrixWorld();
-    const pointed = run.hovering && Number.isFinite(frame.pointerAt) ? pick(parts, frame.pointer, camera) : null;
+    const mode = run.hovering ? pointerMode(pose) : null;
+    run.mode = mode;
+    run.selected = home ? selectedBead(pose.at) : null;
+    const hit = mode !== null && Number.isFinite(frame.pointerAt) ? pick(parts, frame.pointer, camera) : null;
+    const pointed = mode === 'any' ? hit : mode === 'selected' && hit === run.selected ? hit : null;
     run.pointed = pointed;
     const easing = easeHover(run.hover, pointed, dt, reduced || !home);
     const hovered = run.hover.id;
@@ -729,40 +798,29 @@ export function Void({ compass, light, handover, tier, standIns, onOpen }: VoidP
       // With reduced motion no point: it brightens and does not turn.
       beads.setHover(BEADS[hovered]!.id, run.hover.amount, reduced ? undefined : camera.position);
     }
+    showBeadLabel(null, size);
 
-    // The objects: each moves only while its bead is selected or hovered, but for Funcial's abacus sliding back down.
-    const selected = home ? selectedBead(pose.at) : null;
-    run.selected = selected;
-
-    // The front bead's label beside it, in the ring: in full while the ring stands still, clear while it turns.
-    const labelled = run.reading ? labelFor(pose.at, ringStill(frame.progress, frame.target, reduced)) : null;
-    if (labelled === null) {
-      showBeadLabel(null, size);
-    } else {
-      const { id, radius } = BEADS[labelled.project]!;
-      beads.beads[id].root.getWorldPosition(centre);
-      const distance = centre.distanceTo(camera.position);
-      centre.project(camera);
-      const fov = (camera as THREE.PerspectiveCamera).fov;
-      const onScreen = (radius / (distance * Math.tan((fov * DEG) / 2))) * (size.height / 2);
-      showBeadLabel({ id, ndc: { x: centre.x, y: centre.y }, radius: onScreen, rest: labelled.rest }, size);
-    }
-    stepBeadClocks(run.clocks, selected, pointed, dt, reduced);
-    viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-    frustum.setFromProjectionMatrix(viewProjection);
-    let moving = easing && home;
-    for (let i = 0; i < BEADS.length; i++) {
-      if (!run.clocks.moving[i]) continue;
-      const { id, radius } = BEADS[i]!;
-      // Funcial's abacus by its own clock, which counts back down, so its beads slide back rather than snap.
-      beads.setMotion(id, run.clocks.time[i]!, id === 'funcial' ? run.clocks.abacus : undefined);
-      const root = beads.beads[id].root;
-      moving ||= frustum.intersectsSphere(sphere.set(root.getWorldPosition(centre), radius));
-    }
+    // Nothing moves by itself on the path: the canvas draws on only while the hover eases.
+    const moving = easing && home;
     // The first frame of a motion asks for the next itself: the Heartbeat has run this frame already.
     if (moving && !motion.beads) invalidate();
     motion.beads = moving;
   });
 
+  /** The look back's line and the lights off the way for `path`, built afresh when the path is another (a new aspect). */
+  function wayFor(path: Path): NonNullable<VoidRun['way']> {
+    const kept = run.way;
+    if (kept !== null && kept.path === path) return kept;
+    if (kept !== null) {
+      scene.remove(kept.line.mesh, kept.lights.points);
+      kept.line.dispose();
+      kept.lights.dispose();
+    }
+    const places = offPathPlaces(path.wayPoints, projects.offPath().length);
+    const way = { path, line: buildWayLine(path.wayPoints), lights: buildOffPathLights(places), places };
+    scene.add(way.line.mesh, way.lights.points);
+    run.way = way;
+    return way;
+  }
   return null;
 }

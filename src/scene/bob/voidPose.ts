@@ -1,11 +1,14 @@
 /**
- * The void's per-frame decisions as plain rules: when the void and the beads show, which bead is selected, how the
- * hover eases, and what `frame.journey` reports. Pure, so the tests read the very decisions the Void
- * (src/scene/bob/Void.tsx) and the Opening make on each frame; it imports no code from React or three (types only, and
- * the light dive's needle glow).
+ * The void's per-frame decisions as plain rules: when the void and the beads show, which bead is selected, which beads
+ * the pointer may take, how the hover eases, the veins' wake each bead is given, and what `frame.journey` reports. Pure,
+ * so the tests read the very decisions the Void (src/scene/bob/Void.tsx) and the Opening make on each frame; it imports
+ * no code from React or three (types only, the light dive's needle glow, the path's sweep and the veins' levels).
  */
+import { WAKE } from '~/engine/bob/beadBuild';
+import type { BeadWake } from '~/engine/bob/build/beads';
 import type { CameraShot } from '~/engine/bob/shots';
 import type { JourneyAt, JourneyPose, NeedleOverride } from './journey';
+import { type BeadView, lookingBack, type Path, wakeSweep } from './lightPath';
 import { F, needleGlow } from './lightDive';
 
 type Vec3 = readonly [number, number, number];
@@ -139,4 +142,28 @@ export function writeJourney(
  */
 export function hoversAt(pose: Pick<JourneyPose, 'sheet'>): boolean {
   return !(pose.sheet > 0);
+}
+
+/**
+ * The veins' wake bead `bead` is given on this frame (BeadsModel.setWake), in the camera's view (`view`: a world point to
+ * its view-space x and y): its centre there, and its path's wake (./lightPath.ts) as the shell reads it. All awake is a
+ * sweep past a whole turn (10), none a sweep of nothing; along the orbit, the light's sweep round the bead on the screen
+ * so far (`wakeSweep`), with the glow just behind the light. Pure: the view is the caller's.
+ */
+export function wakeFor(bead: BeadView, path: Path, view: (p: readonly [number, number, number]) => readonly [number, number]): BeadWake {
+  const centre = view(bead.centre);
+  if (bead.wake.kind === 'full') return { centre, start: 0, span: 10, dir: 1, hot: 0 };
+  if (bead.wake.kind === 'none') return { centre, start: 0, span: 0, dir: 1, hot: 0 };
+  const sweep = wakeSweep((angle) => view(path.orbitAt(bead.index, angle)), centre, bead.wake.from, bead.wake.now);
+  return { centre, ...sweep, hot: WAKE.hot };
+}
+
+/**
+ * Which beads the pointer may hover and a click may open at `pose`: in an orbit or an inside the selected bead alone
+ * (`selectedBead`), the one in view; in the look back (its own stop included) any bead on the way, and the small lights
+ * of the projects off it; nowhere else (a travel, where the light is between beads, the light dive, under the sheet).
+ */
+export function pointerMode(pose: Pick<JourneyPose, 'at' | 'path'>): 'selected' | 'any' | null {
+  if (pose.at.stretch === 'orbit' || pose.at.stretch === 'inside') return 'selected';
+  return pose.path !== null && lookingBack(pose.path) ? 'any' : null;
 }

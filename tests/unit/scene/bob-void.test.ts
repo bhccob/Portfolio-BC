@@ -17,12 +17,18 @@ import {
   hoverEase,
   needleFor,
   needleGlowFor,
+  pointerMode,
   selectedBead,
   VOID_FROM,
   voidShownAt,
   voidShownFor,
+  wakeFor,
   writeJourney
 } from '~/scene/bob/voidPose';
+import * as THREE from 'three';
+import { WAKE } from '~/engine/bob/beadBuild';
+import { applyCameraShot, type CameraShot } from '~/engine/bob/shots';
+import { pathFor } from '~/scene/bob/lightPath';
 import { NavigationType } from 'react-router';
 import { arrivalStop, chapterAt, HOME_CHAPTERS, keyStops, pathStart, placeOfFrame, scrollEnd, stops } from '~/state/chapters';
 import { frame } from '~/state/frame';
@@ -1070,5 +1076,43 @@ describe('a failed void: the fall plays, the story holds at the landing, and the
 
   it('never shows the skip button with the void failed: there are no projects', () => {
     expect(ruleFor("html[data-void='failed'] .skip-button")).toMatch(/display:\s*none/);
+  });
+});
+
+describe("wakeFor: the veins' wake a bead's shell is given each frame", () => {
+  /** A camera's view through `shot` on a screen of this aspect: a world point to its view-space x and y. */
+  const viewFrom = (shot: CameraShot, aspect: number) => {
+    const camera = new THREE.PerspectiveCamera(50, aspect, 0.05, 400);
+    applyCameraShot(camera, shot, aspect);
+    const v = new THREE.Vector3();
+    return (p: readonly [number, number, number]): readonly [number, number] => {
+      v.set(p[0], p[1], p[2]).applyMatrix4(camera.matrixWorldInverse);
+      return [v.x, v.y];
+    };
+  };
+
+  it('wakes a bead fully, not at all, or by the light\'s sweep round it', () => {
+    const path = pathFor(LAPTOP);
+    const frame0 = path.frameAt(2.0); // Funcial's orbit
+    const bead0 = frame0.beads[0]!;
+    const view = viewFrom(frame0.shot, LAPTOP);
+    const centre = view(bead0.centre);
+    expect(wakeFor({ ...bead0, wake: { kind: 'full' } }, path, view)).toEqual({ centre, start: 0, span: 10, dir: 1, hot: 0 });
+    expect(wakeFor({ ...bead0, wake: { kind: 'none' } }, path, view)).toEqual({ centre, start: 0, span: 0, dir: 1, hot: 0 });
+    const quarter = wakeFor({ ...bead0, wake: { kind: 'orbit', from: -Math.PI / 2, now: 0 } }, path, view);
+    expect(quarter.hot).toBe(WAKE.hot);
+    expect(quarter.span).toBeGreaterThan(0.5); // from behind the bead to its right, seen a little from above
+    expect(quarter.span).toBeLessThan(Math.PI);
+    expect(quarter.centre).toEqual(centre);
+  });
+});
+
+describe('pointerMode: which beads the pointer may hover and open', () => {
+  it('is the selected bead alone in an orbit or an inside, any bead in the look back, and none elsewhere', () => {
+    const at = (p: number) => pointerMode(journeyPoseAt(p, LAPTOP));
+    expect([at(0.5), at(placeOfFrame(121)), at(L + 0.5)]).toEqual([null, null, null]);
+    expect([at(L + 2), at(L + 3), at(L + 6)]).toEqual(['selected', 'selected', 'selected']);
+    expect([at(L + 13), at(L + 14.55)]).toEqual(['any', 'any']);
+    expect([at(L + 15), at(END)]).toEqual([null, null]);
   });
 });
