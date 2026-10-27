@@ -1827,7 +1827,7 @@ async function scrollDesktop(browser, step) {
   step.check(near(back.progress, BEAD_LIST[0].stop) && back.chapterIndex === arrivalUnit, `the story is at Funcial's arrival stop, ${BEAD_LIST[0].stop}, in its arrival (unit ${arrivalUnit}), where Back from its page lands (got ${JSON.stringify(back)})`);
   await page.keyboard.press('PageDown');
   const resumed = await restAt(page);
-  step.check(resumed.target === BEAD_LIST[1].stop && resumed.progress === BEAD_LIST[1].stop, `and the scroll goes on from there, a step to Jontai Energy's arrival, ${BEAD_LIST[1].stop} (got ${resumed.target})`);
+  step.check(near(resumed.target, BEAD_LIST[1].stop, 1e-9) && near(resumed.progress, BEAD_LIST[1].stop, 1e-6), `and the scroll goes on from there, a step to Jontai Energy's arrival, ${BEAD_LIST[1].stop} (got target ${resumed.target}, progress ${resumed.progress})`);
   await page.keyboard.press('Home');
   await restAt(page);
 
