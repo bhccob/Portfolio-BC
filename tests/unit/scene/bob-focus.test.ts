@@ -17,7 +17,7 @@ import {
   stepFocus
 } from '~/scene/bob/focus';
 import { focusShotFor, journeyPoseAt, shotToward, WORLD_PROJECTS } from '~/scene/bob/journey';
-import { BOARD, OBJECT_MIDDLE, objectKind } from '~/scene/bob/worldLayout';
+import { OBJECT_MIDDLE, objectKind, STACK } from '~/scene/bob/worldLayout';
 import { worldPathFor } from '~/scene/bob/worldPath';
 import { STEP_FADE_MS } from '~/scene/bob/stepFade';
 import { voidShownFor } from '~/scene/bob/voidPose';
@@ -40,10 +40,12 @@ const near = (a: Vec3, b: Vec3, digits = 9): void => {
 /** The path's start, the hand-over: the world is past it. */
 const L = pathStart(HOME_CHAPTERS);
 
-/** A project's object's middle on the world: where the scene floats it. */
+/** A project's object's middle on the stack: where the scene floats it over its socket. */
 const atStop = (id: ProjectId): Vec3 => {
-  const pad = worldPathFor(LAPTOP).places.flatMap((area) => area.projects).find((p) => p.id === id)!.pad;
-  return [pad[0], pad[1] + BOARD.hover + OBJECT_MIDDLE[objectKind(id)], pad[2]];
+  const path = worldPathFor(LAPTOP);
+  const board = path.places.find((b) => b.sockets.some((s) => s.id === id))!;
+  const socket = board.sockets.find((s) => s.id === id)!;
+  return [path.centre[0] + socket.at[0], board.top + STACK.hover + OBJECT_MIDDLE[objectKind(id)], path.centre[2] + socket.at[1]];
 };
 
 

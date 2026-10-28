@@ -1,7 +1,7 @@
 import { type CategoryId, categories } from '~/data/categories';
 import { type Project, type ProjectId, projects } from '~/data/projects';
 
-/** One area of the hologram world (spec 2026-10-27-bob-hologram-world-design.md): a category and its projects on the way. */
+/** One board of the quantum stack (spec 2026-10-28-bob-quantum-stack-design.md): a category and its projects on the way. */
 export interface AreaSpec {
   category: CategoryId;
   projects: ProjectId[];
@@ -24,12 +24,13 @@ export function areasOnPath(list: readonly Project[] = projects.onPath()): AreaS
  * - HOME, the rise from the home to BOB seen from above;
  * - LIGHT, the light dive: the needle lighting up into a light that flows away through the void past Bob's facts (the
  *   way's frames 1 to `HAND_F` of the previs, tools/blender/light_dive.py), where the path takes the light over;
- * - LAND, the hologram world (spec 2026-10-27-bob-hologram-world-design.md): the light falling on into the CPU at the
- *   centre of the board below the fall, the board powering up and the camera settling on the whole world, its stop
- *   (`LAND_STOP`) the world's;
- * - for each category of the projects on the way, in the categories' order: AREA, the camera going round the board to
- *   the category's area, its stop (`AREA_STOP`) the area at rest;
- * - LOOK, the camera pulling back over the whole world;
+ * - LAND, the quantum stack (spec 2026-10-28-bob-quantum-stack-design.md): the light falling on into the CPU on the
+ *   power board at the top of the stack, the closed stack exploding open, the power running down it board by board and
+ *   the camera settling on the whole machine, its stop (`LAND_STOP`) the world's;
+ * - for each category of the projects on the way, in the categories' order: AREA, the camera going round the stack's
+ *   axis and down to the category's board, seen from just under the board above it, its stop (`AREA_STOP`) the board at
+ *   rest;
+ * - LOOK, the camera pulling back and up over the whole machine;
  * - SHEET, the look back fading to black and the credits rising from below;
  * - END, the credits at rest, the scroll's last stop.
  */
@@ -187,12 +188,12 @@ export function pathStart(c: Chapters): number {
   return lightStart(c) + LIGHT_UNITS;
 }
 
-/** Where the look back starts: the last area at rest, the camera about to pull back over the whole world. */
+/** Where the look back starts: the last board at rest, the camera about to pull back over the whole machine. */
 export function lookStart(c: Chapters): number {
   return startOf(c, 'LOOK');
 }
 
-/** Where the sheet starts: the look back at rest, the whole world in view; also the look back's own stop. */
+/** Where the sheet starts: the look back at rest, the whole machine in view; also the look back's own stop. */
 export function sheetStart(c: Chapters): number {
   return startOf(c, 'SHEET');
 }
@@ -212,10 +213,10 @@ function placeIn(c: Chapters, f: number): number {
   return lightStart(c) + (FALL_PACE * (f - 1)) / (WAY_FRAMES - 1);
 }
 
-/** Where in the LAND the world's stop stands: the light in the CPU, the board powered, the camera at rest on it, the names shown. */
+/** Where in the LAND the world's stop stands: the light in the CPU, the stack open and powered, the camera at rest on the whole machine. */
 export const LAND_STOP = 0.85;
 
-/** Where in its AREA an area's stop stands: the camera at rest on it, its words shown; the rest of the unit a pause. */
+/** Where in its AREA a board's stop stands: the camera at rest on it, its words shown; the rest of the unit a pause. */
 export const AREA_STOP = 0.7;
 
 /** The world's stop: `LAND_STOP` into the land. */

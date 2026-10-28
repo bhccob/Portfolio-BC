@@ -166,8 +166,9 @@ describe('a project opened', () => {
   it('flies a project\'s focus to its open view, per screen shape: the object in the frame, aside of the middle', () => {
     for (const a of [LAPTOP, PHONE]) {
       const path = worldPathFor(a);
-      for (const area of path.places) {
-        for (const { id, pad } of area.projects) {
+      for (const board of path.places) {
+        for (const { id, at } of board.sockets) {
+          const pad = [path.centre[0] + at[0], board.top, path.centre[2] + at[1]];
           const shot = focusShotFor(id, a);
           expect(shot).toEqual(path.openShot(id));
           const [x, y] = project(shot, a, [pad[0], pad[1] + 0.6, pad[2]]);
