@@ -922,8 +922,10 @@ export function buildWorld(places: readonly AreaPlace[], tier: QualityTier, canv
     };
   };
 
+  // Steady's streak path and Porfael's ring stand as the old lock chip and a plain chip until the stack brings their own.
   const makers: Record<ObjectKind, (id: ProjectId) => Made> = {
-    'lock-chip': (id) => chip(id, lockMap),
+    streak: (id) => chip(id, lockMap),
+    portfolio: (id) => chip(id, plainMap),
     chip: (id) => chip(id, plainMap),
     solar,
     crystal
