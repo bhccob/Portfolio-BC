@@ -1,0 +1,193 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import * as THREE from 'three';
+import { describe, expect, it, vi } from 'vitest';
+import { buildPlate, PLATE_LOOK, plateLayout, type PlateSpec } from '~/engine/bob/build/plate';
+import { STACK, stackPlaces } from '~/scene/bob/worldLayout';
+import { areasOnPath } from '~/state/chapters';
+
+/** A canvas as a test hands it over: every drawing call does nothing, its size is kept. */
+function canvas(): HTMLCanvasElement {
+  const noop = () => {};
+  const gradient = { addColorStop: noop };
+  const ctx = new Proxy({} as Record<string | symbol, unknown>, {
+    get: (target, key) => (key in target ? target[key] : key === 'createRadialGradient' || key === 'createLinearGradient' ? () => gradient : noop),
+    set: (target, key, value) => {
+      target[key] = value;
+      return true;
+    }
+  }) as unknown as CanvasRenderingContext2D;
+  return { width: 0, height: 0, getContext: (kind: string) => (kind === '2d' ? ctx : null) } as unknown as HTMLCanvasElement;
+}
+
+/** The stack's boards as the plates are made from them: the power board, then a board per category. */
+const BOARDS = stackPlaces(areasOnPath());
+function specOf(k: number): PlateSpec {
+  const b = BOARDS[k]!;
+  return {
+    radius: b.radius,
+    hole: b.hole,
+    cpu: k === 0,
+    sockets: b.sockets.map((s) => s.at),
+    firstSocket: 1 + BOARDS.slice(0, k).reduce((n, o) => n + o.sockets.length, 0),
+    label: b.category ?? '',
+    facing: b.facing,
+    seed: 2025 + k * 31
+  };
+}
+const POWER = specOf(0);
+const APP = specOf(1);
+const flat = (x: number, z: number): number => Math.hypot(x, z);
+/** A part's four corners on the board. */
+function corners(p: { x: number; z: number; yaw: number; half: [number, number] }): [number, number][] {
+  const c = Math.cos(p.yaw);
+  const s = Math.sin(p.yaw);
+  return [
+    [-1, -1],
+    [1, -1],
+    [1, 1],
+    [-1, 1]
+  ].map(([a, b]) => {
+    const lx = a! * p.half[0];
+    const lz = b! * p.half[1];
+    return [p.x + lx * c + lz * s, p.z - lx * s + lz * c];
+  });
+}
+/** The grid the layout keeps parts apart on gives this much at an edge. */
+const CELL_GIVE = 0.05;
+
+describe("the stack's boards in code: mask, copper, gold, print, parts and their buses", () => {
+  it('keeps the look of the mock-up', () => {
+    expect(PLATE_LOOK).toEqual({ size: { high: 2048, medium: 1024, low: 1024 }, parts: { high: 1, medium: 0.6, low: 0.35 }, thick: 0.2 });
+    expect(PLATE_LOOK.thick).toBe(STACK.thick);
+  });
+
+  it('lays a bus to every socket and to every heat-sunk processor', () => {
+    for (const spec of [POWER, APP, specOf(2), specOf(3)]) {
+      const { parts, buses } = plateLayout(spec, 'high');
+      const sinks = parts.filter((p) => p.kind === 'sink');
+      expect(sinks.length, `${spec.label}'s processors`).toBeGreaterThanOrEqual(2);
+      expect(buses).toHaveLength(spec.sockets.length + sinks.length);
+      spec.sockets.forEach(([x, z], i) => {
+        const lines = buses[i]!;
+        expect(lines).toHaveLength(16);
+        for (const line of lines) {
+          const end = line.at(-1)!;
+          expect(flat(end[0] - x, end[1] - z)).toBeLessThan(1.4);
+          // From the middle: the spine's ring on a category board, the CPU's side on the power board.
+          expect(flat(...line[0]!)).toBeLessThan(spec.cpu ? 1.8 : spec.hole + 0.5);
+        }
+      });
+      sinks.forEach((sink, k) => {
+        const lines = buses[spec.sockets.length + k]!;
+        expect(lines).toHaveLength(8);
+        for (const line of lines) expect(flat(line.at(-1)![0] - sink.x, line.at(-1)![1] - sink.z)).toBeLessThan(0.6);
+      });
+    }
+  });
+
+  it("keeps every part out of the spine's hole, off the sockets and inside the rim", () => {
+    // A board with three projects is the busiest a board gets.
+    const busy: PlateSpec = { ...APP, sockets: [-0.773, 0, 0.773].map((d) => [Math.sin(APP.facing + d) * 4.4, Math.cos(APP.facing + d) * 4.4] as [number, number]) };
+    for (const spec of [POWER, APP, busy]) {
+      const { parts } = plateLayout(spec, 'high');
+      expect(parts.length).toBeGreaterThan(300);
+      for (const p of parts) {
+        for (const [x, z] of corners(p)) {
+          expect(flat(x, z), `${p.kind} inside the rim`).toBeLessThanOrEqual(spec.radius - 0.68 + CELL_GIVE);
+          if (!spec.cpu) expect(flat(x, z), `${p.kind} off the hole`).toBeGreaterThanOrEqual(spec.hole + 0.14 - CELL_GIVE);
+          for (const [sx, sz] of spec.sockets) expect(flat(x - sx, z - sz), `${p.kind} off a socket`).toBeGreaterThanOrEqual(1.08 - CELL_GIVE);
+        }
+        if (spec.cpu) expect(Math.max(Math.abs(p.x), Math.abs(p.z)), `${p.kind} off the CPU`).toBeGreaterThan(1.32);
+      }
+    }
+  });
+
+  it("gives the power board the CPU's power stage and a category board the spine's connector ring", () => {
+    const power = plateLayout(POWER, 'high').parts;
+    // Capacitors, chokes and switches in square rings round the CPU.
+    const ringOf = (kind: string, h: number) => power.filter((p) => p.kind === kind && Math.abs(Math.max(Math.abs(p.x), Math.abs(p.z)) - h) < 0.02);
+    expect(ringOf('elec', 1.5).length).toBeGreaterThanOrEqual(20);
+    expect(ringOf('choke', 1.86).length).toBeGreaterThanOrEqual(16);
+    expect(ringOf('soic', 2.2).length).toBeGreaterThanOrEqual(16);
+    const app = plateLayout(APP, 'high').parts;
+    // Chokes round the spine's hole where its buses leave room, and switches outside them; no CPU power stage.
+    expect(app.filter((p) => p.kind === 'choke' && Math.abs(flat(p.x, p.z) - (APP.hole + 0.42)) < 0.02).length).toBeGreaterThanOrEqual(8);
+    expect(app.filter((p) => p.kind === 'soic' && Math.abs(flat(p.x, p.z) - (APP.hole + 0.86)) < 0.02).length).toBeGreaterThanOrEqual(16);
+    expect(app.filter((p) => p.kind === 'elec')).toHaveLength(0);
+    // Rows of standing memory and big capacitors read from afar.
+    expect(app.filter((p) => p.kind === 'dimm').length).toBeGreaterThanOrEqual(4);
+    expect(app.filter((p) => p.kind === 'bigcap').length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('lays fewer small parts on the lower tiers', () => {
+    const small = (tier: 'high' | 'medium' | 'low') => plateLayout(APP, tier).parts.filter((p) => p.kind === 'r' || p.kind === 'c').length;
+    const high = small('high');
+    expect(high).toBeGreaterThan(200);
+    expect(Math.abs(small('medium') / high - 0.6)).toBeLessThan(0.12);
+    expect(Math.abs(small('low') / high - 0.35)).toBeLessThan(0.12);
+    // The big parts stay on every tier.
+    const big = (tier: 'high' | 'low') => plateLayout(APP, tier).parts.filter((p) => ['sink', 'dimm', 'bga', 'bigcap'].includes(p.kind)).length;
+    expect(big('low')).toBe(big('high'));
+  });
+
+  it('lays the same board every time for the same spec', () => {
+    expect(plateLayout(APP, 'high')).toEqual(plateLayout(APP, 'high'));
+  });
+
+  it('names its parts, and turns its reflections with the camera', () => {
+    const room = new THREE.Texture();
+    const plate = buildPlate(APP, 'high', room, canvas);
+    for (const name of ['plate:top', 'plate:light', 'plate:edge', 'plate:parts']) expect(plate.group.getObjectByName(name), name).toBeTruthy();
+    const reflecting: THREE.MeshStandardMaterial[] = [];
+    plate.group.traverse((o) => {
+      for (const m of ([] as THREE.Material[]).concat((o as THREE.Mesh).material ?? [])) {
+        if ((m as THREE.MeshStandardMaterial).isMeshStandardMaterial && (m as THREE.MeshStandardMaterial).envMap === room) reflecting.push(m as THREE.MeshStandardMaterial);
+      }
+    });
+    expect(reflecting.length).toBeGreaterThan(5);
+    plate.turn(0.7);
+    for (const m of reflecting) expect(m.envMapRotation.y).toBe(0.7);
+    // The power and the level reach its light and its dimming.
+    plate.set(3, 0.5, 0.4);
+    const light = (plate.group.getObjectByName('plate:light') as THREE.Mesh).material as THREE.ShaderMaterial;
+    expect(light.uniforms.uPower!.value).toBe(0.5);
+    expect(light.uniforms.uLevel!.value).toBe(0.4);
+    expect(light.uniforms.uTime!.value).toBe(3);
+    // Its textures by tier.
+    const map = (tier: 'high' | 'low') => (light.uniforms.uMap!.value as THREE.Texture).image as HTMLCanvasElement;
+    expect(map('high').width).toBe(2048);
+    const low = buildPlate(APP, 'low', null, canvas);
+    expect(((((low.group.getObjectByName('plate:light') as THREE.Mesh).material as THREE.ShaderMaterial).uniforms.uMap!.value as THREE.Texture).image as HTMLCanvasElement).width).toBe(1024);
+  });
+
+  it("holds every shader pow's base at zero or more", () => {
+    const source = readFileSync(fileURLToPath(new URL('../../../src/engine/bob/build/plate.ts', import.meta.url)), 'utf8');
+    const pows = [...source.matchAll(/pow\(\s*([a-z]+)\(/g)];
+    expect(source.match(/pow\(/g)?.length ?? 0).toBeGreaterThan(0);
+    expect(pows.length).toBe(source.match(/pow\(/g)!.length);
+    for (const m of pows) expect(['max', 'clamp']).toContain(m[1]);
+  });
+
+  it('frees its geometries, materials and textures on dispose', () => {
+    const plate = buildPlate(APP, 'high', null, canvas);
+    const spies: ReturnType<typeof vi.spyOn>[] = [];
+    const textures = new Set<THREE.Texture>();
+    plate.group.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      spies.push(vi.spyOn(mesh.geometry, 'dispose'));
+      for (const m of ([] as THREE.Material[]).concat(mesh.material)) {
+        spies.push(vi.spyOn(m, 'dispose'));
+        for (const value of Object.values(m)) if ((value as THREE.Texture)?.isTexture) textures.add(value as THREE.Texture);
+        const uniforms = (m as THREE.ShaderMaterial).uniforms;
+        if (uniforms) for (const u of Object.values(uniforms)) if ((u.value as THREE.Texture)?.isTexture) textures.add(u.value as THREE.Texture);
+      }
+    });
+    for (const t of textures) spies.push(vi.spyOn(t, 'dispose'));
+    expect(spies.length).toBeGreaterThan(30);
+    expect(textures.size).toBeGreaterThanOrEqual(5);
+    plate.dispose();
+    for (const spy of spies) expect(spy).toHaveBeenCalled();
+  });
+});
