@@ -1,54 +1,56 @@
 /**
- * The hologram world, built in code (spec 2026-10-27-bob-hologram-world-design.md; the mock-up Bob approved,
- * .superpowers/holo-world-mockup/world.ts): the round board of dark glass with its circuit drawn in light, the CPU at its
- * centre with the compass engraved on its lid, a pad for each project and the project's object floating above it.
+ * The quantum stack, built in code (spec 2026-10-28-bob-quantum-stack-design.md; the mock-up Bob approved,
+ * .superpowers/holo-world-4-mockup/world.ts and main.ts): the boards threaded on the spine, the CPU socketed on the power
+ * board at the top, a socket for each project on its category's board and the project's object floating over it.
  *
- * - **The board:** a disc of dark glass, and over it the circuit in three layers of light, drawn on a canvas: red the
- *   buses from the CPU to each pad, where the current runs; green the fine traces and their vias; blue the rings, the
- *   compass scale round the rim and the pads' rings. The power lights it from the middle out. A fainter rim below it.
- * - **The CPU:** a dark body on gold pins, its lid edged in gold with the compass rose engraved on top, glowing as the
- *   power comes on, and a warm glow under it.
- * - **The pads:** a soft glow, a dashed ring turning slowly and a faint column of light up to the object.
- * - **The objects:** Funcial's chip with a lock on its lid, which lifts off its die of four glowing quadrants as it
- *   opens; Jontai Energy's solar module of 16 hologram cells, which light in turn; Cookies Clicker's quartz crystal and
- *   two gold gears ticking once a second; any other project a plain chip. Each turned a little toward its views.
+ * - **The boards** (./plate.ts): the power board, then a board per category below it, each placed at the top it is posed
+ *   with, so the stack opens from closed; each lit by its own power and dimmed by its own light.
+ * - **The spine** (./spine.ts), telescoping with the boards, its light running down from the top.
+ * - **The CPU,** socketed: a frame round it, its substrate with small parts along its edge, its lid with the compass
+ *   engraved, glowing as the power comes on, and a warm glow under it.
+ * - **The sockets:** a gold collar, a soft glow, a turning dashed ring and a faint column of light up to the object; a
+ *   socket stays when its project rises off it, glowing a little more, waiting for it.
+ * - **The objects:** Steady's streak path of seven blocks and its trophy; Porfael's ring of five arcs (shares, never
+ *   amounts) and its relic; Jontai Energy's solar module of 16 hologram cells; Cookies Clicker's quartz crystal and two
+ *   gold gears ticking once a second; any other project a plain chip. Each floats over its socket facing out from the
+ *   spine, and lifted (`lift`) rises along a curve to the spot in front of the camera (../../../scene/bob/spot.ts).
+ * - **The beam:** a faint light from the spine at a lifted project's board up to it, as if the machine projected it,
+ *   and a lamp on the camera's side of it.
  *
  * It reads no clock of its own: `pose` is given the clock, so the canvas sleeps when the Void stops giving it time. The
- * gold and dark metals are lit by the scene's room and the light's own lamp; the world adds no lights.
+ * boards, the spine and the CPU reflect the room it is given, turned with the camera (`turn`); the objects the scene's.
  */
 import * as THREE from 'three';
+import type { CategoryId } from '~/data/categories';
+import { categories } from '~/data/categories';
 import { type ProjectId, projects } from '~/data/projects';
 import type { QualityTier } from '~/engine/quality';
-import { type AreaPlace, BOARD, boardCentre, LID_TOP, OBJECT_MIDDLE, objectKind, type ObjectKind } from '~/scene/bob/worldLayout';
+import { liftAt, type SpotPose } from '~/scene/bob/spot';
+import { type BoardPlace, boardCentre, LID_TOP, objectKind, type ObjectKind, STACK } from '~/scene/bob/worldLayout';
+import { ease } from '~/scene/bob/worldPath';
+import { buildPlate, type PlateModel, seeded } from './plate';
+import { buildSpine, type SpineModel } from './spine';
 
 /**
- * How the world looks (the mock-up's numbers, tuned there against the site's darkness limit): its colours; the
- * circuit's canvas size and fine traces by tier and its layers' levels; the glass's fill; the pads' glow and column;
- * the CPU's lid from dark to powered and its glow beneath.
+ * How the world looks (the mock-up's numbers, tuned there against the site's darkness limit): its colours; a socket's
+ * glow and column; the CPU's lid from dark to powered and its glow beneath; the beam's and the open project's lamp's
+ * light at a full lift.
  */
 export const WORLD_LOOK = {
   colour: { gold: 0xe2a54a, goldLight: 0xffbf6f, violet: 0x6a35b8, haze: 0x8a6cf2, deep: 0x140a24, night: 0x07040e },
-  circuit: {
-    size: { high: 2048, medium: 1024, low: 1024 },
-    traces: { high: 380, medium: 240, low: 140 },
-    bus: 0.32,
-    pulse: 1.5,
-    fine: 0.17,
-    rings: 0.34,
-    rim: 0.32
-  },
-  fill: { centre: 0.95, edge: 0.45, alpha: { dark: 0.55, powered: 0.85 } },
-  pad: { glow: 0.2, column: 0.2 },
-  cpu: { lid: { dark: 0.15, powered: 1.25 }, under: 0.32 }
+  socket: { glow: 0.2, empty: 0.15, column: 0.2 },
+  cpu: { lid: { dark: 0.15, powered: 1.25 }, under: 0.3 },
+  beam: 0.16,
+  lamp: 9
 } as const;
 
 /** What the world is posed by, each frame. */
 export interface WorldPose {
-  /** The board's power, 0 (dark) to 1 (lit from the middle out to the rim). */
+  /** The power from the CPU, 0..1: the CPU's lid and the spine's light. */
   power: number;
   /** The light's hit on the CPU, 0..1. */
   flash: number;
-  /** The world's clock, s: the pulse, the pads' rings, the float and the gears. */
+  /** The world's clock, s: the pulse, the sockets' rings, the float and the gears. */
   clock: number;
   /** Each project's light: 0 dark, 1 shown, more when in focus. */
   levels: Readonly<Record<ProjectId, number>>;
@@ -56,40 +58,45 @@ export interface WorldPose {
   open: Readonly<Record<ProjectId, number>>;
   /** How much the objects float, 0 (still) to 1. */
   float: number;
-  /** The world's own light, 0..1: the board, the CPU and the rim; lower while a project is open. */
+  /** The world's own light, 0..1: the boards, the spine, the CPU and the sockets; lower while a project is open. */
   world: number;
+  /** Each board's top, world y, the power board's first (`boardTops`): the stack closed, opening or open. */
+  tops: readonly number[];
+  /** Each board's power and light, the power board's first (the path's `boardPower`, `boardLight`). */
+  boardPower: readonly number[];
+  boardLight: readonly number[];
+  /** How far each project has risen off its socket toward the spot, 0..1 (eased here). */
+  lift: Readonly<Record<ProjectId, number>>;
+  /**
+   * The spot in front of the camera for an object one metre in radius (`spotFor(shot, aspect, 1, clock)`): each object
+   * stands there at its own size, `scale` over its radius. Null while nothing rises.
+   */
+  spot: SpotPose | null;
 }
 
 export interface WorldModel {
   group: THREE.Group;
-  /** One thing a click can hit per project, `userData.id` naming it. */
+  /** One thing a click can hit per project, `userData.id` naming it; it rides with its object. */
   hits: THREE.Object3D[];
   /** The project's touch points' anchors, one per point in the data's order. */
   anchors(id: ProjectId): THREE.Object3D[];
   /** Where the project's name's line ends. */
   top(id: ProjectId): THREE.Object3D;
   pose(input: WorldPose): void;
+  /** Turns what the boards, the spine and the CPU reflect with the camera's azimuth round the stack (rad, 0 toward +z). */
+  turn(azimuth: number): void;
   dispose(): void;
 }
 
-type P = [number, number];
 type Canvas = () => HTMLCanvasElement;
 
 const GOLD = new THREE.Color(WORLD_LOOK.colour.gold);
 const GOLD_LIGHT = new THREE.Color(WORLD_LOOK.colour.goldLight);
-const VIOLET = new THREE.Color(WORLD_LOOK.colour.violet);
 const HAZE = new THREE.Color(WORLD_LOOK.colour.haze);
-
-function seeded(seed: number): () => number {
-  let s = seed >>> 0;
-  return () => {
-    s = (s + 0x6d2b79f5) >>> 0;
-    let t = s;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+/** How far each object turns toward where its views stand, out and to the right (rad). */
+const OBJECT_TURN = 0.5;
+/** How far an object bobs as it floats, m, and over how long, s. */
+const FLOAT = { reach: 0.04, period: 5.5 } as const;
 
 function context(c: HTMLCanvasElement, size: number): CanvasRenderingContext2D {
   c.width = c.height = size;
@@ -110,234 +117,6 @@ const smooth = (x: number): number => {
   const t = Math.min(1, Math.max(0, x));
   return t * t * (3 - 2 * t);
 };
-
-// ---------------------------------------------------------------- the board's circuit
-
-/** A route from s to e in straight and 45° runs: the long way first, then the diagonal. */
-function route(s: P, e: P): P[] {
-  const dx = e[0] - s[0];
-  const dz = e[1] - s[1];
-  if (Math.abs(dx) >= Math.abs(dz)) return [s, [s[0] + Math.sign(dx) * (Math.abs(dx) - Math.abs(dz)), s[1]], e];
-  return [s, [s[0], s[1] + Math.sign(dz) * (Math.abs(dz) - Math.abs(dx))], e];
-}
-
-/** `pts` moved `d` to its left, the corners mitred. */
-function offset(pts: P[], d: number): P[] {
-  const normals = pts.slice(1).map((p, i) => {
-    const q = pts[i]!;
-    const l = Math.hypot(p[0] - q[0], p[1] - q[1]) || 1;
-    return [-(p[1] - q[1]) / l, (p[0] - q[0]) / l] as P;
-  });
-  return pts.map((p, i) => {
-    const a = normals[Math.max(0, i - 1)]!;
-    const b = normals[Math.min(normals.length - 1, i)]!;
-    let m: P = [a[0] + b[0], a[1] + b[1]];
-    const l = Math.hypot(m[0], m[1]) || 1;
-    m = [m[0] / l, m[1] / l];
-    const k = d / Math.max(0.3, m[0] * a[0] + m[1] * a[1]);
-    return [p[0] + m[0] * k, p[1] + m[1] * k];
-  });
-}
-
-/** The circuit on a canvas of `size` px, the board's (x, z) round its centre: buses red, fine traces green, rings blue. */
-function circuitTexture(c: HTMLCanvasElement, size: number, traces: number, pads: readonly P[]): THREE.CanvasTexture {
-  const g = context(c, size);
-  const R = BOARD.radius;
-  g.fillStyle = '#000';
-  g.fillRect(0, 0, size, size);
-  g.globalCompositeOperation = 'lighter';
-  const k = size / (2 * R);
-  const X = (x: number) => (x + R) * k;
-  const w = (px: number) => (px * size) / 2048;
-  const random = seeded(7);
-  const stroke = (pts: P[], colour: string, width: number) => {
-    g.strokeStyle = colour;
-    g.lineWidth = w(width);
-    g.lineJoin = 'miter';
-    g.lineCap = 'round';
-    g.beginPath();
-    pts.forEach(([x, z], i) => (i ? g.lineTo(X(x), X(z)) : g.moveTo(X(x), X(z))));
-    g.stroke();
-  };
-  const ring = (x: number, z: number, r: number, colour: string, width: number, fill = false) => {
-    g.beginPath();
-    g.arc(X(x), X(z), r * k, 0, Math.PI * 2);
-    if (fill) {
-      g.fillStyle = colour;
-      g.fill();
-    } else {
-      g.strokeStyle = colour;
-      g.lineWidth = w(width);
-      g.stroke();
-    }
-  };
-  const inCpu = (x: number, z: number) => Math.abs(x) < 0.98 && Math.abs(z) < 0.98;
-  const onPad = (x: number, z: number) => pads.some((p) => Math.hypot(x - p[0], z - p[1]) < 0.78);
-
-  // The fine traces, wandering in straight and 45° runs, a via at each end.
-  for (let n = 0; n < traces; n++) {
-    let x = 0;
-    let z = 0;
-    do {
-      const r = Math.sqrt(random()) * 3.65;
-      const t = random() * Math.PI * 2;
-      x = Math.cos(t) * r;
-      z = Math.sin(t) * r;
-    } while (inCpu(x, z) || onPad(x, z));
-    let dir = Math.floor(random() * 8);
-    const pts: P[] = [[x, z]];
-    const segments = 2 + Math.floor(random() * 5);
-    for (let s = 0; s < segments; s++) {
-      const len = 0.08 + random() * 0.34;
-      const a = (dir * Math.PI) / 4;
-      const nx = x + Math.cos(a) * len;
-      const nz = z + Math.sin(a) * len;
-      if (Math.hypot(nx, nz) > 3.7 || inCpu(nx, nz) || onPad(nx, nz)) break;
-      x = nx;
-      z = nz;
-      pts.push([x, z]);
-      if (random() < 0.6) dir = (dir + (random() < 0.5 ? 1 : 7)) % 8;
-    }
-    if (pts.length < 2) continue;
-    const level = 90 + Math.floor(random() * 120);
-    stroke(pts, `rgb(0,${level},0)`, random() < 0.2 ? 3 : 1.6);
-    for (const p of [pts[0]!, pts[pts.length - 1]!]) ring(p[0], p[1], 0.014, `rgb(0,${level},0)`, 1.6);
-  }
-
-  // The CPU's pins fanning out on every side.
-  for (let side = 0; side < 4; side++) {
-    for (let i = 0; i < 18; i++) {
-      const u = -0.5 + (i + 0.5) / 18;
-      const len = 0.12 + random() * 0.38;
-      const jog = (random() < 0.5 ? -1 : 1) * random() * 0.2;
-      const local: P[] = [
-        [u * 1.1, 0.66],
-        [u * 1.1, 0.66 + len * 0.5],
-        [u * 1.1 + jog, 0.66 + len * 0.5 + Math.abs(jog)],
-        [u * 1.1 + jog, 0.66 + len + Math.abs(jog)]
-      ];
-      const turn = (side * Math.PI) / 2;
-      const pts = local.map(([a, b]) => [a * Math.cos(turn) - b * Math.sin(turn), a * Math.sin(turn) + b * Math.cos(turn)] as P);
-      stroke(pts, 'rgb(0,200,0)', 1.6);
-      const end = pts[pts.length - 1]!;
-      ring(end[0], end[1], 0.012, 'rgb(0,200,0)', 1.4);
-    }
-  }
-
-  // The buses: a bundle of five from the CPU's edge toward each pad, a via at the pad.
-  for (const [px, pz] of pads) {
-    const l = Math.hypot(px, pz) || 1;
-    const out: P = [px / l, pz / l];
-    const edge = 0.74 / Math.max(Math.abs(out[0]), Math.abs(out[1]));
-    const s: P = [out[0] * edge, out[1] * edge];
-    const e: P = [px - out[0] * 0.66, pz - out[1] * 0.66];
-    const path = route(s, e);
-    for (let b = -2; b <= 2; b++) {
-      const pts = offset(path, b * 0.055);
-      stroke(pts, 'rgb(255,0,0)', 4.5);
-      const end = pts[pts.length - 1]!;
-      ring(end[0], end[1], 0.022, 'rgb(255,0,0)', 0, true);
-    }
-  }
-
-  // The rings: the rim, the compass scale inside it, a dashed ring, the CPU's frame and each pad's rings.
-  ring(0, 0, 3.94, 'rgb(0,0,255)', 4);
-  ring(0, 0, 3.985, 'rgb(0,0,160)', 2);
-  ring(0, 0, 3.72, 'rgb(0,0,150)', 1.6);
-  for (let d = 0; d < 360; d += 2) {
-    const len = d % 90 === 0 ? 0.26 : d % 10 === 0 ? 0.15 : 0.07;
-    const a = (d * Math.PI) / 180;
-    stroke(
-      [
-        [Math.cos(a) * 3.72, Math.sin(a) * 3.72],
-        [Math.cos(a) * (3.72 + len), Math.sin(a) * (3.72 + len)]
-      ],
-      d % 10 === 0 ? 'rgb(0,0,230)' : 'rgb(0,0,140)',
-      d % 90 === 0 ? 3 : 1.6
-    );
-  }
-  g.setLineDash([w(10), w(16)]);
-  ring(0, 0, 3.25, 'rgb(0,0,120)', 1.6);
-  g.setLineDash([]);
-  for (const h of [0.86, 0.93]) {
-    stroke(
-      [
-        [-h, -h],
-        [h, -h],
-        [h, h],
-        [-h, h],
-        [-h, -h]
-      ],
-      'rgb(0,0,170)',
-      h < 0.9 ? 2.4 : 1.4
-    );
-  }
-  for (const [px, pz] of pads) {
-    ring(px, pz, 0.6, 'rgb(0,0,220)', 3);
-    ring(px, pz, 0.48, 'rgb(0,0,140)', 1.6);
-    for (let d = 0; d < 360; d += 15) {
-      const t = (d * Math.PI) / 180;
-      stroke(
-        [
-          [px + Math.cos(t) * 0.63, pz + Math.sin(t) * 0.63],
-          [px + Math.cos(t) * 0.7, pz + Math.sin(t) * 0.7]
-        ],
-        'rgb(0,0,160)',
-        1.6
-      );
-    }
-  }
-  return texture(c);
-}
-
-const BOARD_VERTEX = /* glsl */ `
-  varying vec2 vXZ;
-  void main() {
-    vXZ = position.xz;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }
-`;
-
-const CIRCUIT_FRAGMENT = /* glsl */ `
-  uniform sampler2D uMap;
-  uniform float uTime;
-  uniform float uPower;
-  uniform float uLevel;
-  uniform float uR;
-  uniform vec3 uGold;
-  uniform vec3 uViolet;
-  uniform vec4 uLook;
-  uniform float uRim;
-  varying vec2 vXZ;
-  void main() {
-    vec4 t = texture2D(uMap, vXZ / (2.0 * uR) + 0.5);
-    float r = length(vXZ);
-    float reach = uPower * uR * 1.25;
-    float on = 1.0 - smoothstep(reach - 0.5, reach, r);
-    float front = exp(-(r - reach) * (r - reach) * 9.0) * (1.0 - step(0.999, uPower));
-    float pulse = pow(max(0.0, 0.5 + 0.5 * sin(r * 2.4 - uTime * 1.5)), 10.0);
-    vec3 c = uGold * t.r * (uLook.x + uLook.y * pulse)
-           + mix(uViolet, uGold, 0.3) * t.g * uLook.z
-           + mix(uGold, uViolet, 0.35) * t.b * uLook.w;
-    c += uViolet * exp(-(uR - r) * 16.0) * uRim;
-    c = c * on + uGold * (t.r + t.g * 0.5 + t.b * 0.5) * front * 1.4;
-    gl_FragColor = vec4(c * uLevel, 1.0);
-  }
-`;
-
-const FILL_FRAGMENT = /* glsl */ `
-  uniform float uR;
-  uniform float uAlpha;
-  uniform vec3 uDeep;
-  uniform vec3 uViolet;
-  uniform vec2 uShade;
-  varying vec2 vXZ;
-  void main() {
-    float r = length(vXZ) / uR;
-    vec3 c = mix(uDeep * uShade.x, uDeep * uShade.y, r) + uViolet * exp(-(1.0 - r) * 30.0) * 0.12;
-    gl_FragColor = vec4(c, uAlpha * (1.0 - smoothstep(0.985, 1.0, r)));
-  }
-`;
 
 // ---------------------------------------------------------------- textures drawn once
 
@@ -421,34 +200,6 @@ function compassTexture(c: HTMLCanvasElement): THREE.CanvasTexture {
   return texture(c);
 }
 
-/** A padlock on a chip's lid, drawn so it reads the right way up from outside, where its views look in from. */
-function lockTexture(c: HTMLCanvasElement): THREE.CanvasTexture {
-  const size = 256;
-  const g = context(c, size);
-  g.fillStyle = '#000';
-  g.fillRect(0, 0, size, size);
-  g.strokeStyle = '#fff';
-  g.fillStyle = '#fff';
-  g.lineWidth = size * 0.035;
-  g.beginPath();
-  g.arc(size / 2, size * 0.44, size * 0.1, Math.PI, 0);
-  g.lineTo(size * 0.6, size * 0.5);
-  g.moveTo(size * 0.4, size * 0.5);
-  g.lineTo(size * 0.4, size * 0.44);
-  g.stroke();
-  g.fillRect(size * 0.35, size * 0.5, size * 0.3, size * 0.2);
-  g.fillStyle = '#000';
-  g.beginPath();
-  g.arc(size / 2, size * 0.58, size * 0.025, 0, Math.PI * 2);
-  g.fill();
-  g.strokeStyle = '#777';
-  g.lineWidth = size * 0.008;
-  g.strokeRect(size * 0.12, size * 0.12, size * 0.76, size * 0.76);
-  const t = texture(c);
-  t.flipY = true;
-  return t;
-}
-
 /** A plain chip's lid: only its frame, no emblem. */
 function frameTexture(c: HTMLCanvasElement): THREE.CanvasTexture {
   const size = 128;
@@ -501,7 +252,44 @@ function dieTexture(c: HTMLCanvasElement): THREE.CanvasTexture {
   return texture(c, true);
 }
 
-// ---------------------------------------------------------------- shaders of the pads and the objects
+/** The CPU's substrate: dark, with rows of tiny gold contacts round its edge and a gold triangle at pin one. */
+function substrateTexture(c: HTMLCanvasElement): THREE.CanvasTexture {
+  const size = 512;
+  const g = context(c, size);
+  g.fillStyle = '#100c17';
+  g.fillRect(0, 0, size, size);
+  const random = seeded(5);
+  for (let i = 0; i < 3000; i++) {
+    g.fillStyle = `rgba(60,48,80,${0.2 + random() * 0.3})`;
+    g.fillRect(random() * size, random() * size, 1.5, 1.5);
+  }
+  g.fillStyle = '#9c7634';
+  for (let side = 0; side < 4; side++) {
+    for (let i = 0; i < 46; i++) {
+      for (const row of [0, 1]) {
+        const u = 22 + (i * (size - 44)) / 45;
+        const v = 8 + row * 9;
+        const [x, y] = (
+          [
+            [u, v],
+            [size - v, u],
+            [size - u, size - v],
+            [v, size - u]
+          ] as const
+        )[side]!;
+        g.fillRect(x - 2, y - 2, 4, 4);
+      }
+    }
+  }
+  g.beginPath();
+  g.moveTo(26, 26);
+  g.lineTo(52, 26);
+  g.lineTo(26, 52);
+  g.fill();
+  return texture(c, true);
+}
+
+// ---------------------------------------------------------------- shaders of the sockets, the beam and the objects
 
 const UV_VERTEX = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
 
@@ -549,6 +337,22 @@ const COLUMN_FRAGMENT = /* glsl */ `
   }
 `;
 
+/** The beam up to a lifted project: violet going gold toward it, brighter at its edges, scanning up. */
+const BEAM_FRAGMENT = /* glsl */ `
+  uniform float uLevel;
+  uniform float uTime;
+  uniform vec3 uViolet;
+  uniform vec3 uGold;
+  varying vec2 vUv;
+  varying float vFacing;
+  void main() {
+    float edge = pow(clamp(1.0 - vFacing, 0.0, 1.0), 1.5);
+    float scan = 0.7 + 0.3 * sin(vUv.y * 50.0 - uTime * 3.0);
+    vec3 c = mix(uViolet, uGold, 0.35 + 0.4 * vUv.y) * (0.25 + edge) * scan * smoothstep(0.0, 0.25, vUv.y);
+    gl_FragColor = vec4(c * uLevel, 1.0);
+  }
+`;
+
 const CELL_FRAGMENT = /* glsl */ `
   uniform float uTime;
   uniform float uLit;
@@ -580,7 +384,33 @@ const CRYSTAL_FRAGMENT = /* glsl */ `
   }
 `;
 
-const additive = (material: THREE.Material): THREE.Material => {
+/** A day of Steady's streak path: dark violet, warm and rimmed once marked. */
+const BLOCK_FRAGMENT = /* glsl */ `
+  uniform float uLit;
+  uniform float uLevel;
+  uniform vec3 uViolet;
+  uniform vec3 uWarm;
+  varying vec2 vUv;
+  void main() {
+    vec2 e = min(vUv, 1.0 - vUv);
+    float rim = smoothstep(0.08, 0.0, min(e.x, e.y));
+    vec3 c = (mix(uViolet * 0.2, uWarm * 0.5, uLit) * (0.3 + 0.5 * uLit) + uWarm * rim * (0.2 + 0.5 * uLit)) * 0.6;
+    gl_FragColor = vec4(c * uLevel, 1.0);
+  }
+`;
+
+/** One of Porfael's arcs: a share of the ring, in fine bands. */
+const ARC_FRAGMENT = /* glsl */ `
+  uniform float uLevel;
+  uniform vec3 uTint;
+  varying vec2 vUv;
+  void main() {
+    float band = 0.55 + 0.45 * sin(vUv.x * 60.0);
+    gl_FragColor = vec4(uTint * (0.3 + 0.35 * band) * uLevel, 1.0);
+  }
+`;
+
+const additive = <M extends THREE.Material>(material: M): M => {
   material.transparent = true;
   material.depthWrite = false;
   material.blending = THREE.AdditiveBlending;
@@ -593,8 +423,6 @@ interface Made {
   body: THREE.Group;
   anchors: THREE.Object3D[];
   top: THREE.Object3D;
-  /** How high the object's middle stands above its float, m. */
-  middle: number;
   set(clock: number, open: number, level: number): void;
 }
 
@@ -618,12 +446,14 @@ function anchorsFor(parent: THREE.Object3D, places: readonly (readonly [number, 
   });
 }
 
-export function buildWorld(places: readonly AreaPlace[], tier: QualityTier, canvas: Canvas = () => document.createElement('canvas')): WorldModel {
+/** A board's printed name: its category's number and kind, in Dutch, the site's first language (as the mock-up's). */
+const boardLabel = (category: CategoryId | null): string => (category ? categories.byId(category).heading('nl') : '');
+
+export function buildWorld(boards: readonly BoardPlace[], tier: QualityTier, room: THREE.Texture | null, canvas: Canvas = () => document.createElement('canvas')): WorldModel {
   const look = WORLD_LOOK;
   const group = new THREE.Group();
   group.name = 'world';
   const centre = boardCentre();
-  group.position.set(...centre);
 
   const glow = glowTexture(canvas());
   const speckle = speckleTexture(canvas());
@@ -631,7 +461,7 @@ export function buildWorld(places: readonly AreaPlace[], tier: QualityTier, canv
   const dark = new THREE.MeshStandardMaterial({ color: 0x0c0912, metalness: 0.55, roughness: 0.48, map: speckle });
 
   /** A lid: gold edges and a dark top whose engraving (`emblem`) glows gold. */
-  const lid = (size: number, height: number, emblem: THREE.Texture, glowing: number): { mesh: THREE.Mesh; top: THREE.MeshStandardMaterial } => {
+  const lid = (size: number, height: number, emblem: THREE.Texture, glowing: number, edges: THREE.Material = gold): { mesh: THREE.Mesh; top: THREE.MeshStandardMaterial } => {
     const top = new THREE.MeshStandardMaterial({
       color: 0x110d16,
       metalness: 0.35,
@@ -641,7 +471,7 @@ export function buildWorld(places: readonly AreaPlace[], tier: QualityTier, canv
       emissiveMap: emblem,
       emissiveIntensity: glowing
     });
-    return { mesh: new THREE.Mesh(new THREE.BoxGeometry(size, height, size), [gold, gold, top, dark, gold, gold]), top };
+    return { mesh: new THREE.Mesh(new THREE.BoxGeometry(size, height, size), [edges, edges, top, dark, edges, edges]), top };
   };
 
   /** A chip's pins: `perSide` on each side of a `size` body, reaching `reach` out and down to the board. */
@@ -663,85 +493,101 @@ export function buildWorld(places: readonly AreaPlace[], tier: QualityTier, canv
     return mesh;
   };
 
-  // The board.
-  const pads: P[] = places.flatMap((a) => a.projects.map((p): P => [p.pad[0] - centre[0], p.pad[2] - centre[2]]));
-  const board = new THREE.Group();
-  board.name = 'world:board';
-  const disc = new THREE.CircleGeometry(BOARD.radius, 160).rotateX(-Math.PI / 2);
-  const fillMaterial = new THREE.ShaderMaterial({
-    vertexShader: BOARD_VERTEX,
-    fragmentShader: FILL_FRAGMENT,
-    uniforms: {
-      uR: { value: BOARD.radius },
-      uAlpha: { value: look.fill.alpha.dark },
-      uDeep: { value: new THREE.Color(look.colour.deep) },
-      uViolet: { value: VIOLET },
-      uShade: { value: new THREE.Vector2(look.fill.centre, look.fill.edge) }
-    },
-    transparent: true,
-    depthWrite: false
+  // The boards, the power board first, and the spine they are threaded on.
+  const holders: THREE.Group[] = [];
+  const plates: PlateModel[] = [];
+  let first = 1;
+  boards.forEach((board, k) => {
+    const holder = new THREE.Group();
+    holder.name = `world:board:${k}`;
+    holder.position.set(centre[0], board.top, centre[2]);
+    const plate = buildPlate(
+      {
+        radius: board.radius,
+        hole: board.hole,
+        cpu: k === 0,
+        sockets: board.sockets.map((s) => s.at),
+        firstSocket: first,
+        label: boardLabel(board.category),
+        facing: board.facing,
+        seed: k === 0 ? 2025 : 2026 + (k - 1) * 31
+      },
+      tier,
+      room,
+      canvas
+    );
+    first += board.sockets.length;
+    holder.add(plate.group);
+    group.add(holder);
+    holders.push(holder);
+    plates.push(plate);
   });
-  const fill = new THREE.Mesh(disc, fillMaterial);
-  fill.name = 'world:board:glass';
-  fill.renderOrder = 1;
-  const c = look.circuit;
-  const circuitMaterial = additive(
-    new THREE.ShaderMaterial({
-      vertexShader: BOARD_VERTEX,
-      fragmentShader: CIRCUIT_FRAGMENT,
-      uniforms: {
-        uMap: { value: circuitTexture(canvas(), c.size[tier], c.traces[tier], pads) },
-        uTime: { value: 0 },
-        uPower: { value: 0 },
-        uLevel: { value: 1 },
-        uR: { value: BOARD.radius },
-        uGold: { value: GOLD },
-        uViolet: { value: HAZE },
-        uLook: { value: new THREE.Vector4(c.bus, c.pulse, c.fine, c.rings) },
-        uRim: { value: c.rim }
-      }
-    })
-  ) as THREE.ShaderMaterial;
-  const circuit = new THREE.Mesh(disc.clone(), circuitMaterial);
-  circuit.name = 'world:board:circuit';
-  circuit.position.y = 0.002;
-  circuit.renderOrder = 2;
-  const underMaterial = additive(new THREE.MeshBasicMaterial({ color: VIOLET.clone().multiplyScalar(0.6) })) as THREE.MeshBasicMaterial;
-  const under = new THREE.Mesh(new THREE.RingGeometry(BOARD.radius - 0.03, BOARD.radius, 160).rotateX(-Math.PI / 2), underMaterial);
-  under.name = 'world:board:under';
-  under.position.y = -0.22;
-  under.renderOrder = 2;
-  board.add(fill, circuit, under);
-  group.add(board);
+  const spine: SpineModel = buildSpine({ tops: boards.map((b) => b.top), radii: boards.map((b) => b.radius), hole: STACK.hole, thick: STACK.thick }, tier, room);
+  const spineHolder = new THREE.Group();
+  spineHolder.name = 'world:spine';
+  spineHolder.position.set(centre[0], 0, centre[2]);
+  spineHolder.add(spine.group);
+  group.add(spineHolder);
 
-  // The CPU.
+  // The CPU on the power board, socketed.
   const cpu = new THREE.Group();
   cpu.name = 'world:cpu';
-  const body = new THREE.Mesh(new THREE.BoxGeometry(1.24, 0.16, 1.24), dark);
-  body.position.y = 0.1;
-  const cap = lid(1.1, 0.05, compassTexture(canvas()), look.cpu.lid.dark);
-  cap.mesh.position.y = LID_TOP - 0.025;
-  const cpuGlowMaterial = additive(new THREE.MeshBasicMaterial({ map: glow, color: GOLD, opacity: 0 })) as THREE.MeshBasicMaterial;
-  const cpuGlow = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 3.2).rotateX(-Math.PI / 2), cpuGlowMaterial);
-  cpuGlow.position.y = 0.01;
+  const cpuMetal = new THREE.MeshStandardMaterial({ color: 0x1a1622, metalness: 0.85, roughness: 0.34, envMap: room });
+  const cpuEdges = new THREE.MeshStandardMaterial({ color: 0xd9a520, metalness: 1, roughness: 0.4, envMap: room });
+  const cpuBase = new THREE.Mesh(new THREE.BoxGeometry(2.46, 0.04, 2.46), cpuMetal);
+  cpuBase.position.y = 0.02;
+  cpu.add(cpuBase);
+  for (let side = 0; side < 4; side++) {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(2.74, 0.12, 0.12), [cpuMetal, cpuMetal, cpuEdges, cpuMetal, cpuMetal, cpuMetal]);
+    const turn = (side * Math.PI) / 2;
+    bar.position.set(Math.sin(turn) * 1.31, 0.06, Math.cos(turn) * 1.31);
+    bar.rotation.y = turn;
+    cpu.add(bar);
+  }
+  const substrate = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.06, 2.2), [
+    cpuMetal,
+    cpuMetal,
+    new THREE.MeshStandardMaterial({ map: substrateTexture(canvas()), roughness: 0.55, metalness: 0.2 }),
+    cpuMetal,
+    cpuMetal,
+    cpuMetal
+  ]);
+  substrate.position.y = 0.07;
+  const caps = new THREE.InstancedMesh(new THREE.BoxGeometry(0.07, 0.035, 0.04), new THREE.MeshStandardMaterial({ color: 0x2c2228, roughness: 0.6 }), 4 * 22);
+  {
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const one = new THREE.Vector3(1, 1, 1);
+    let n = 0;
+    for (let side = 0; side < 4; side++) {
+      q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), (side * Math.PI) / 2);
+      for (let i = 0; i < 22; i++) caps.setMatrixAt(n++, m.compose(new THREE.Vector3(-0.74 + (i * 1.48) / 21, 0.118, 0.95).applyQuaternion(q), q, one));
+    }
+  }
+  const cap = lid(1.66, 0.1, compassTexture(canvas()), look.cpu.lid.dark, cpuEdges);
+  cap.mesh.name = 'world:cpu:lid';
+  cap.mesh.position.y = LID_TOP - 0.05;
+  const cpuGlowMaterial = additive(new THREE.MeshBasicMaterial({ map: glow, color: GOLD, opacity: 0 }));
+  const cpuGlow = new THREE.Mesh(new THREE.PlaneGeometry(5.5, 5.5).rotateX(-Math.PI / 2), cpuGlowMaterial);
+  cpuGlow.position.y = 0.012;
   cpuGlow.renderOrder = 3;
-  cpu.add(body, cap.mesh, pins(1.24, 20, 0.16, 0.05), cpuGlow);
-  group.add(cpu);
+  cpu.add(substrate, caps, cap.mesh, cpuGlow);
+  holders[0]?.add(cpu);
+  const cpuDims = [cpuMetal, cpuEdges].map((m) => ({ m, colour: m.color.clone() }));
 
-  // The pads and the objects.
-  const lockMap = lockTexture(canvas());
+  // The objects.
   const plainMap = frameTexture(canvas());
   const dieMap = dieTexture(canvas());
   const testPoints = (id: ProjectId): number => projects.byId(id)?.testPoints.length ?? 0;
 
-  const chip = (id: ProjectId, emblem: THREE.Texture): Made => {
+  const chip = (id: ProjectId): Made => {
     const made = new THREE.Group();
     const base = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.07, 0.62), dark);
     base.position.y = 0.035;
     const dieMaterial = new THREE.MeshBasicMaterial({ map: dieMap, color: new THREE.Color(0.3, 0.3, 0.3) });
     const die = new THREE.Mesh(new THREE.PlaneGeometry(0.48, 0.48).rotateX(-Math.PI / 2), dieMaterial);
     die.position.y = 0.0705;
-    const top = lid(0.6, 0.04, emblem, 0.6);
+    const top = lid(0.6, 0.04, plainMap, 0.6);
     top.mesh.name = `world:object:${id}:lid`;
     top.mesh.position.y = 0.092;
     made.add(base, pins(0.62, 11, 0.08, 0.02), die, top.mesh);
@@ -762,7 +608,6 @@ export function buildWorld(places: readonly AreaPlace[], tier: QualityTier, canv
       body: made,
       anchors,
       top: anchor(made, 0, 0.2, 0),
-      middle: OBJECT_MIDDLE.chip,
       set(_clock, open, level) {
         const o = smooth(open);
         top.mesh.position.y = 0.092 + o * 0.3;
@@ -770,6 +615,137 @@ export function buildWorld(places: readonly AreaPlace[], tier: QualityTier, canv
         top.mesh.rotation.z = o * 0.08;
         dieMaterial.color.setScalar((0.3 + o * 0.75) * level);
         top.top.emissiveIntensity = 0.6 * level;
+      }
+    };
+  };
+
+  /** Steady: its streak path, seven blocks stepping away (a marked day each), a small gold trophy at the week's end. */
+  const streak = (id: ProjectId): Made => {
+    const made = new THREE.Group();
+    const warm = new THREE.Color(0xe8c890);
+    const materials: THREE.ShaderMaterial[] = [];
+    const blocks: THREE.Object3D[] = [];
+    for (let i = 0; i < 7; i++) {
+      const s = 0.15 * (1 - i * 0.055);
+      const m = additive(
+        new THREE.ShaderMaterial({
+          vertexShader: UV_VERTEX,
+          fragmentShader: BLOCK_FRAGMENT,
+          uniforms: { uLit: { value: 0 }, uLevel: { value: 1 }, uViolet: { value: HAZE }, uWarm: { value: warm } }
+        })
+      );
+      materials.push(m);
+      const block = new THREE.Mesh(new THREE.BoxGeometry(s, s, s), m);
+      block.name = `world:object:${id}:block:${i}`;
+      // Stepping away and a little up along a gentle curve, as the app's path recedes into the distance.
+      block.position.set(-0.4 + i * 0.12, 0.09 + i * 0.03, -i * 0.07 + Math.sin(i * 0.7) * 0.03);
+      block.renderOrder = 4;
+      made.add(block);
+      blocks.push(block);
+    }
+    const trophy = new THREE.MeshStandardMaterial({ color: 0xd9a520, metalness: 1, roughness: 0.35, emissive: GOLD, emissiveIntensity: 0.1 });
+    const cup = new THREE.Mesh(
+      new THREE.LatheGeometry(
+        [
+          new THREE.Vector2(0.0, 0),
+          new THREE.Vector2(0.05, 0),
+          new THREE.Vector2(0.05, 0.015),
+          new THREE.Vector2(0.015, 0.03),
+          new THREE.Vector2(0.015, 0.07),
+          new THREE.Vector2(0.06, 0.1),
+          new THREE.Vector2(0.065, 0.17),
+          new THREE.Vector2(0.055, 0.17),
+          new THREE.Vector2(0.0, 0.12)
+        ],
+        32
+      ),
+      trophy
+    );
+    cup.name = `world:object:${id}:trophy`;
+    cup.position.set(-0.4 + 7 * 0.12 + 0.02, 0.09 + 7 * 0.03 - 0.06, -7 * 0.07);
+    made.add(cup);
+    const anchors = anchorsFor(
+      made,
+      [
+        [blocks[0]!.position.x, blocks[0]!.position.y + 0.08, blocks[0]!.position.z],
+        [blocks[2]!.position.x, blocks[2]!.position.y + 0.08, blocks[2]!.position.z],
+        [blocks[4]!.position.x, blocks[4]!.position.y + 0.07, blocks[4]!.position.z],
+        [blocks[6]!.position.x, blocks[6]!.position.y + 0.06, blocks[6]!.position.z],
+        [cup.position.x, cup.position.y + 0.14, cup.position.z]
+      ],
+      testPoints(id),
+      { r: 0.45, y: 0.2 }
+    );
+    return {
+      body: made,
+      anchors,
+      top: anchor(made, 0, 0.5, -0.2),
+      set(_clock, open, level) {
+        materials.forEach((m, i) => {
+          // Three days marked at rest; opened, the rest one after another.
+          m.uniforms.uLit!.value = i < 3 ? 1 : Math.min(1, Math.max(0, open * 2.4 - ((i - 3) / 4) * 1.4));
+          m.uniforms.uLevel!.value = level;
+        });
+        trophy.emissiveIntensity = (0.1 + 0.9 * open) * level;
+      }
+    };
+  };
+
+  /** Porfael: a portfolio's allocation as a ring of five arcs (shares only, never amounts), a gold relic turning at its middle. */
+  const portfolio = (id: ProjectId): Made => {
+    const made = new THREE.Group();
+    const ring = new THREE.Group();
+    ring.position.y = 0.3;
+    ring.rotation.x = -Math.PI / 2 + 0.75;
+    made.add(ring);
+    const shares = [0.34, 0.24, 0.18, 0.14, 0.1];
+    const gap = 0.07;
+    const arcs: { mesh: THREE.Mesh; mid: number; material: THREE.ShaderMaterial }[] = [];
+    let start = 0;
+    shares.forEach((share, i) => {
+      const sweep = share * Math.PI * 2 - gap;
+      const material = additive(
+        new THREE.ShaderMaterial({
+          vertexShader: UV_VERTEX,
+          fragmentShader: ARC_FRAGMENT,
+          uniforms: { uLevel: { value: 1 }, uTint: { value: i % 2 === 0 ? HAZE.clone() : GOLD.clone() } },
+          side: THREE.DoubleSide
+        })
+      );
+      const mesh = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.055, 10, 64, sweep), material);
+      mesh.name = `world:object:${id}:arc:${i}`;
+      mesh.rotation.z = start;
+      mesh.renderOrder = 4;
+      ring.add(mesh);
+      arcs.push({ mesh, mid: start + sweep / 2, material });
+      start += share * Math.PI * 2;
+    });
+    const relic = new THREE.Group();
+    relic.position.y = 0.3;
+    const glowing = new THREE.MeshStandardMaterial({ color: 0xd9a520, metalness: 1, roughness: 0.3, emissive: GOLD, emissiveIntensity: 0.12 });
+    const medal = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.035, 6).rotateX(Math.PI / 2), glowing);
+    medal.name = `world:object:${id}:relic`;
+    const inset = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.04, 6).rotateX(Math.PI / 2), dark);
+    relic.add(medal, inset);
+    made.add(relic);
+    const onArc = (i: number): readonly [number, number, number] => {
+      const a = arcs[i]!.mid;
+      return [Math.cos(a) * 0.32, Math.sin(a) * 0.32, 0.06];
+    };
+    // The arcs' anchors on the tipped ring, the relic's at its middle.
+    const anchors = anchorsFor(ring, [onArc(0), onArc(1), onArc(2), onArc(3), [0, 0, 0.03]], testPoints(id), { r: 0.32, y: 0 });
+    return {
+      body: made,
+      anchors,
+      top: anchor(made, 0, 0.75, 0),
+      set(clock, open, level) {
+        arcs.forEach(({ mesh, mid, material }) => {
+          const out = 0.05 * open;
+          mesh.position.set(Math.cos(mid) * out, Math.sin(mid) * out, 0);
+          material.uniforms.uLevel!.value = (0.6 + 0.5 * open) * level;
+        });
+        relic.rotation.y = clock * 0.5;
+        glowing.emissiveIntensity = (0.12 + 0.8 * open) * level;
       }
     };
   };
@@ -793,7 +769,7 @@ export function buildWorld(places: readonly AreaPlace[], tier: QualityTier, canv
           uniforms: { uTime: { value: 0 }, uLit: { value: 0 }, uLevel: { value: 1 }, uGold: { value: GOLD }, uViolet: { value: HAZE } },
           side: THREE.DoubleSide
         })
-      ) as THREE.ShaderMaterial;
+      );
       const mesh = new THREE.Mesh(i === 0 ? geometry : geometry.clone(), m);
       mesh.name = `world:object:${id}:cell:${i}`;
       const [x, z] = cellAt(i);
@@ -828,7 +804,6 @@ export function buildWorld(places: readonly AreaPlace[], tier: QualityTier, canv
       body: made,
       anchors,
       top: anchor(tilt, 0, 0.02, -size / 2),
-      middle: OBJECT_MIDDLE.solar,
       set(clock, open, level) {
         materials.forEach((m, i) => {
           m.uniforms.uTime!.value = clock;
@@ -850,13 +825,13 @@ export function buildWorld(places: readonly AreaPlace[], tier: QualityTier, canv
         uniforms: { uLevel: { value: 1 }, uTime: { value: 0 }, uViolet: { value: HAZE } },
         side: THREE.DoubleSide
       })
-    ) as THREE.ShaderMaterial;
+    );
     const stone = new THREE.Group();
     stone.position.set(-0.13, 0.38, 0);
     stone.rotation.z = 0.12;
     const glass = new THREE.Mesh(lathe, glassMaterial);
     glass.renderOrder = 4;
-    const edgeMaterial = additive(new THREE.LineBasicMaterial({ color: GOLD_LIGHT })) as THREE.LineBasicMaterial;
+    const edgeMaterial = additive(new THREE.LineBasicMaterial({ color: GOLD_LIGHT }));
     const edges = new THREE.LineSegments(new THREE.EdgesGeometry(lathe, 10), edgeMaterial);
     edges.renderOrder = 4;
     stone.add(glass, edges);
@@ -908,7 +883,6 @@ export function buildWorld(places: readonly AreaPlace[], tier: QualityTier, canv
       body: made,
       anchors,
       top: anchor(made, -0.13, 0.76, 0),
-      middle: OBJECT_MIDDLE.crystal,
       set(clock, open, level) {
         // One tick a second: a quick step, then still.
         const tick = Math.floor(clock) + Math.min(1, (clock - Math.floor(clock)) / 0.16) ** 0.5;
@@ -922,117 +896,215 @@ export function buildWorld(places: readonly AreaPlace[], tier: QualityTier, canv
     };
   };
 
-  // Steady's streak path and Porfael's ring stand as the old lock chip and a plain chip until the stack brings their own.
-  const makers: Record<ObjectKind, (id: ProjectId) => Made> = {
-    streak: (id) => chip(id, lockMap),
-    portfolio: (id) => chip(id, plainMap),
-    chip: (id) => chip(id, plainMap),
-    solar,
-    crystal
+  const makers: Record<ObjectKind, (id: ProjectId) => Made> = { streak, portfolio, chip, solar, crystal };
+
+  /** A project's socket on its board: a gold collar, a glow, a turning dashed ring and a faint column up to the object. */
+  const socketMetal = new THREE.MeshStandardMaterial({ color: 0x8a6a34, metalness: 1, roughness: 0.36 });
+  const socketFor = (id: ProjectId): { group: THREE.Group; set(clock: number, level: number, empty: number): void } => {
+    const socket = new THREE.Group();
+    socket.name = `world:socket:${id}`;
+    const collar = new THREE.Mesh(
+      new THREE.LatheGeometry(
+        [
+          new THREE.Vector2(0.86, 0),
+          new THREE.Vector2(0.97, 0),
+          new THREE.Vector2(0.97, 0.045),
+          new THREE.Vector2(0.9, 0.06),
+          new THREE.Vector2(0.86, 0.06)
+        ],
+        96
+      ),
+      socketMetal
+    );
+    const glowMaterial = additive(new THREE.MeshBasicMaterial({ map: glow, color: HAZE }));
+    const socketGlow = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 2.1).rotateX(-Math.PI / 2), glowMaterial);
+    socketGlow.name = `world:socket:${id}:glow`;
+    socketGlow.position.y = 0.006;
+    const ringMaterial = additive(new THREE.ShaderMaterial({ vertexShader: UV_VERTEX, fragmentShader: RING_FRAGMENT, uniforms: { uTime: { value: 0 }, uLevel: { value: 1 }, uGold: { value: GOLD } } }));
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.76, 0.79, 160).rotateX(-Math.PI / 2), ringMaterial);
+    ring.position.y = 0.012;
+    const columnMaterial = additive(
+      new THREE.ShaderMaterial({
+        vertexShader: FACING_VERTEX,
+        fragmentShader: COLUMN_FRAGMENT,
+        uniforms: { uTime: { value: 0 }, uLevel: { value: 1 }, uViolet: { value: HAZE }, uGold: { value: GOLD } },
+        side: THREE.DoubleSide
+      })
+    );
+    const height = STACK.hover * 0.9;
+    const column = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.72, height, 64, 1, true).translate(0, height / 2, 0), columnMaterial);
+    for (const m of [socketGlow, ring, column]) m.renderOrder = 3;
+    socket.add(collar, socketGlow, ring, column);
+    return {
+      group: socket,
+      set(clock, level, empty) {
+        glowMaterial.opacity = (look.socket.glow + look.socket.empty * empty) * level;
+        ringMaterial.uniforms.uTime!.value = clock;
+        ringMaterial.uniforms.uLevel!.value = level;
+        columnMaterial.uniforms.uTime!.value = clock;
+        columnMaterial.uniforms.uLevel!.value = look.socket.column * level * (1 - empty);
+      }
+    };
   };
 
   interface Placed {
     id: ProjectId;
+    board: number;
+    at: readonly [number, number];
     made: Made;
-    float: THREE.Group;
-    pad: { set(clock: number, level: number): void };
+    root: THREE.Group;
+    /** The object's middle in its own space, and the radius round it that holds it all, at scale 1. */
+    middle: THREE.Vector3;
+    radius: number;
+    socket: ReturnType<typeof socketFor>;
     phase: number;
   }
 
   const placed: Placed[] = [];
   const hits: THREE.Object3D[] = [];
-  for (const area of places) {
-    for (const { id, pad, out } of area.projects) {
-      const holder = new THREE.Group();
-      holder.name = `world:project:${id}`;
-      holder.position.set(pad[0] - centre[0], 0, pad[2] - centre[2]);
-      // Its local +z points out from the CPU, toward where its views look in from.
-      holder.rotation.y = Math.atan2(out[0], out[2]);
-
-      const padGroup = new THREE.Group();
-      padGroup.name = `world:pad:${id}`;
-      const glowMaterial = additive(new THREE.MeshBasicMaterial({ map: glow, color: HAZE })) as THREE.MeshBasicMaterial;
-      const padGlow = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.3).rotateX(-Math.PI / 2), glowMaterial);
-      padGlow.position.y = 0.006;
-      const ringMaterial = additive(
-        new THREE.ShaderMaterial({ vertexShader: UV_VERTEX, fragmentShader: RING_FRAGMENT, uniforms: { uTime: { value: 0 }, uLevel: { value: 1 }, uGold: { value: GOLD } } })
-      ) as THREE.ShaderMaterial;
-      const ring = new THREE.Mesh(new THREE.RingGeometry(0.52, 0.545, 128).rotateX(-Math.PI / 2), ringMaterial);
-      ring.position.y = 0.008;
-      const columnMaterial = additive(
-        new THREE.ShaderMaterial({
-          vertexShader: FACING_VERTEX,
-          fragmentShader: COLUMN_FRAGMENT,
-          uniforms: { uTime: { value: 0 }, uLevel: { value: 1 }, uViolet: { value: HAZE }, uGold: { value: GOLD } },
-          side: THREE.DoubleSide
-        })
-      ) as THREE.ShaderMaterial;
-      const column = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.46, BOARD.hover * 0.9, 64, 1, true).translate(0, (BOARD.hover * 0.9) / 2, 0), columnMaterial);
-      for (const m of [padGlow, ring, column]) m.renderOrder = 3;
-      padGroup.add(padGlow, ring, column);
-
-      const made = makers[objectKind(id)](id);
-      made.body.rotation.y = BOARD.turn;
-      const float = new THREE.Group();
-      float.name = `world:object:${id}`;
-      float.position.y = BOARD.hover;
-      float.add(made.body);
-      const hit = new THREE.Mesh(new THREE.SphereGeometry(0.62, 12, 8), new THREE.MeshBasicMaterial({ visible: false }));
-      hit.name = `world:hit:${id}`;
-      hit.position.y = made.middle;
-      hit.userData.id = id;
-      float.add(hit);
+  const invisible = new THREE.MeshBasicMaterial({ visible: false });
+  boards.forEach((board, k) => {
+    for (const s of board.sockets) {
+      const socket = socketFor(s.id);
+      socket.group.position.set(s.at[0], 0, s.at[1]);
+      holders[k]!.add(socket.group);
+      const made = makers[objectKind(s.id)](s.id);
+      made.body.rotation.y = OBJECT_TURN;
+      const root = new THREE.Group();
+      root.name = `world:object:${s.id}`;
+      root.add(made.body);
+      root.updateMatrixWorld(true);
+      const sphere = new THREE.Box3().setFromObject(made.body).getBoundingSphere(new THREE.Sphere());
+      const hit = new THREE.Mesh(new THREE.SphereGeometry(sphere.radius * 1.05, 12, 8), invisible);
+      hit.name = `world:hit:${s.id}`;
+      hit.position.copy(sphere.center);
+      hit.userData.id = s.id;
+      root.add(hit);
       hits.push(hit);
-      holder.add(padGroup, float);
-      group.add(holder);
-      placed.push({
-        id,
-        made,
-        float,
-        phase: placed.length * 2.1,
-        pad: {
-          set(clock, level) {
-            glowMaterial.opacity = look.pad.glow * level;
-            ringMaterial.uniforms.uTime!.value = clock;
-            ringMaterial.uniforms.uLevel!.value = level;
-            columnMaterial.uniforms.uTime!.value = clock;
-            columnMaterial.uniforms.uLevel!.value = look.pad.column * level;
-          }
-        }
-      });
+      group.add(root);
+      placed.push({ id: s.id, board: k, at: s.at, made, root, middle: sphere.center.clone(), radius: sphere.radius, socket, phase: placed.length * 2.1 });
     }
-  }
+  });
+
+  // The beam from the spine up to a lifted project, and the lamp that lights it on the camera's side.
+  const beamMaterial = additive(
+    new THREE.ShaderMaterial({
+      vertexShader: FACING_VERTEX,
+      fragmentShader: BEAM_FRAGMENT,
+      uniforms: { uLevel: { value: 0 }, uTime: { value: 0 }, uViolet: { value: HAZE }, uGold: { value: GOLD_LIGHT } },
+      side: THREE.DoubleSide
+    })
+  );
+  // A cone one unit long along +y, narrow at the spine, wide at the project: posed each frame.
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(1, 0.06, 1, 48, 1, true).translate(0, 0.5, 0), beamMaterial);
+  beam.name = 'world:beam';
+  beam.frustumCulled = false;
+  beam.renderOrder = 4;
+  beam.visible = false;
+  const showLight = new THREE.PointLight(GOLD_LIGHT, 0, 7, 1.6);
+  showLight.name = 'world:showLight';
+  group.add(beam, showLight);
 
   const find = (id: ProjectId): Placed => {
     const p = placed.find((q) => q.id === id);
-    if (!p) throw new RangeError(`"${id}" is not on the world`);
+    if (!p) throw new RangeError(`"${id}" is not on the stack`);
     return p;
   };
+
+  // Scratch for posing.
+  const upright = new THREE.Vector3(0, 1, 0);
+  const across = new THREE.Vector3(1, 0, 0);
+  const qYaw = new THREE.Quaternion();
+  const qTilt = new THREE.Quaternion();
+  const offset = new THREE.Vector3();
+  const base = new THREE.Vector3();
+  const toward = new THREE.Vector3();
+  const middleAt = new THREE.Vector3();
 
   return {
     group,
     hits,
     anchors: (id) => find(id).made.anchors,
     top: (id) => find(id).made.top,
-    pose({ power, flash, clock, levels, open, float, world }) {
-      circuitMaterial.uniforms.uTime!.value = clock;
-      circuitMaterial.uniforms.uPower!.value = power;
-      circuitMaterial.uniforms.uLevel!.value = world;
-      fillMaterial.uniforms.uAlpha!.value = look.fill.alpha.dark + (look.fill.alpha.powered - look.fill.alpha.dark) * power;
-      underMaterial.opacity = power * world;
-      cap.top.emissiveIntensity = (look.cpu.lid.dark + (look.cpu.lid.powered - look.cpu.lid.dark) * power) * world + flash;
+    pose({ power, flash, clock, levels, open, float, world, tops, boardPower, boardLight, lift, spot }) {
+      holders.forEach((holder, k) => {
+        holder.position.y = tops[k] ?? boards[k]!.top;
+        plates[k]!.set(clock, boardPower[k] ?? power, (boardLight[k] ?? 1) * world);
+      });
+      spine.pose([...tops]);
+      spine.set(clock, power, world);
+      cap.top.emissiveIntensity = (look.cpu.lid.dark + (look.cpu.lid.powered - look.cpu.lid.dark) * power) * (0.2 + 0.8 * world) + flash;
       cpuGlowMaterial.opacity = look.cpu.under * power * world + flash * 0.6;
+      for (const { m, colour } of cpuDims) {
+        m.color.copy(colour).multiplyScalar(0.3 + 0.7 * world);
+        m.envMapIntensity = 0.34 * (0.2 + 0.8 * world);
+      }
+
+      let shown: Placed | null = null;
+      let lit = 0;
       for (const p of placed) {
+        const top = tops[p.board] ?? boards[p.board]!.top;
         const level = levels[p.id] ?? 0;
-        const opened = open[p.id] ?? 0;
-        p.float.position.y = BOARD.hover + Math.sin((clock * Math.PI * 2) / 5.5 + p.phase) * 0.035 * float;
-        p.made.set(clock, opened, level);
-        p.pad.set(clock, level * (1 - 0.65 * opened));
+        const risen = ease(lift[p.id] ?? 0);
+        // On its socket: floating over it, facing out from the spine, at the stack's size.
+        const bob = Math.sin((clock * Math.PI * 2) / FLOAT.period + p.phase) * FLOAT.reach * float;
+        const yaw = Math.atan2(p.at[0], p.at[1]);
+        offset.copy(p.middle).multiplyScalar(STACK.scale).applyAxisAngle(upright, yaw);
+        const onSocket: SpotPose = {
+          centre: [centre[0] + p.at[0] + offset.x, top + STACK.hover + bob + offset.y, centre[2] + p.at[1] + offset.z],
+          yaw,
+          tilt: 0,
+          scale: STACK.scale
+        };
+        const now = spot && risen > 0 ? liftAt(onSocket, { ...spot, scale: spot.scale / p.radius }, risen) : onSocket;
+        qYaw.setFromAxisAngle(upright, now.yaw);
+        qTilt.setFromAxisAngle(across, now.tilt);
+        p.root.quaternion.copy(qYaw).multiply(qTilt);
+        offset.copy(p.middle).multiplyScalar(now.scale).applyQuaternion(p.root.quaternion);
+        p.root.position.set(now.centre[0] - offset.x, now.centre[1] - offset.y, now.centre[2] - offset.z);
+        p.root.scale.setScalar(now.scale);
+        p.made.set(clock, open[p.id] ?? 0, level);
+        p.socket.set(clock, (boardLight[p.board] ?? 1) * world, risen);
+        if (risen > lit) {
+          lit = risen;
+          shown = p;
+        }
+      }
+
+      beamMaterial.uniforms.uTime!.value = clock;
+      if (shown && spot) {
+        // From the spine's core at the project's own board up to its middle.
+        const top = tops[shown.board] ?? boards[shown.board]!.top;
+        base.set(centre[0], top + 0.25, centre[2]);
+        shown.root.updateMatrix();
+        middleAt.copy(shown.middle).applyMatrix4(shown.root.matrix);
+        toward.copy(middleAt).sub(base);
+        const length = toward.length();
+        const width = shown.radius * shown.root.scale.x * 0.55;
+        beam.position.copy(base);
+        beam.quaternion.setFromUnitVectors(upright, toward.normalize());
+        beam.scale.set(width, length, width);
+        beam.visible = true;
+        beamMaterial.uniforms.uLevel!.value = look.beam * lit;
+        // The lamp on the side the object faces, the camera's, and above it.
+        showLight.position.set(middleAt.x + Math.sin(spot.yaw) * 2.2, middleAt.y + 1.2, middleAt.z + Math.cos(spot.yaw) * 2.2);
+        showLight.intensity = look.lamp * lit;
+      } else {
+        beam.visible = false;
+        beamMaterial.uniforms.uLevel!.value = 0;
+        showLight.intensity = 0;
       }
     },
+    turn(azimuth) {
+      for (const plate of plates) plate.turn(azimuth);
+      spine.turn(azimuth);
+      for (const { m } of cpuDims) m.envMapRotation.y = azimuth;
+    },
     dispose() {
-      const textures = new Set<THREE.Texture>([glow, speckle, lockMap, plainMap, dieMap]);
-      const materials = new Set<THREE.Material>();
+      for (const plate of plates) plate.dispose();
+      spine.dispose();
+      const textures = new Set<THREE.Texture>([glow, speckle, plainMap, dieMap]);
+      const materials = new Set<THREE.Material>([invisible]);
       group.traverse((o) => {
         const mesh = o as THREE.Mesh;
         if (!mesh.geometry) return;
@@ -1040,12 +1112,14 @@ export function buildWorld(places: readonly AreaPlace[], tier: QualityTier, canv
         for (const m of ([] as THREE.Material[]).concat(mesh.material)) materials.add(m);
       });
       for (const m of materials) {
-        for (const value of Object.values(m)) if ((value as THREE.Texture)?.isTexture) textures.add(value as THREE.Texture);
+        // The room is the scene's, not the world's: it stays.
+        for (const [key, value] of Object.entries(m)) if (key !== 'envMap' && (value as THREE.Texture)?.isTexture) textures.add(value as THREE.Texture);
         const uniforms = (m as THREE.ShaderMaterial).uniforms;
         if (uniforms) for (const u of Object.values(uniforms)) if ((u.value as THREE.Texture)?.isTexture) textures.add(u.value as THREE.Texture);
         m.dispose();
       }
       for (const t of textures) t.dispose();
+      showLight.dispose();
     }
   };
 }

@@ -944,9 +944,18 @@ describe('loadVoid: the void is built at the hand-over, the world after it', () 
     expect(s.said).toEqual(['loading']);
   });
 
-  it('builds the world in its load and draws no bead', () => {
+  it('builds the world in its load as the stack, its print font loaded first, and draws no bead', () => {
     const source = read('scene/bob/Void.tsx');
-    expect(source).toMatch(/buildWorld\(\s*worldPlaces\(\s*areasOnPath\(\)\s*\)/);
+    expect(source).toMatch(/STACK_PLACES = stackPlaces\(\s*areasOnPath\(\)\s*\)/);
+    expect(source).toMatch(/buildWorld\(\s*STACK_PLACES,\s*latest\.current\.tier,\s*scene\.environment\s*\)/);
+    // The boards' print is drawn in Martian Mono: the font is loaded before the world is built.
+    const load = source.indexOf('document.fonts?.load(PRINT_FONT)');
+    expect(load).toBeGreaterThan(-1);
+    expect(load).toBeLessThan(source.indexOf('buildWorld(STACK_PLACES'));
+    expect(source).toMatch(/PRINT_FONT = '500 40px "Martian Mono Variable"'/);
+    // Posed with the stack's tops as the path opens it, and turned with the camera.
+    expect(source).toMatch(/tops: boardTops\(STACK_PLACES, path\.explode\)/);
+    expect(source).toMatch(/world\.model\.turn\(/);
     expect(source).not.toMatch(/bead_|loadBeads|bob-beads/);
   });
 

@@ -32,7 +32,7 @@ import { insidePoints, OPEN_LOOK, openLevels, openWorld, worldClockRuns } from '
 import { easeHover, hoverEase, hoversAt, needleFor, needleGlowFor, pointerMode, voidShownAt } from './voidPose';
 import { loadVoid, type VoidLoadSteps } from './voidLoad';
 import { uploadTextures, warm } from './warm';
-import { worldPlaces } from './worldLayout';
+import { boardCentre, boardTops, stackPlaces } from './worldLayout';
 import { type WorldFrame, type WorldPath, worldPathFor } from './worldPath';
 
 /** The longest step the void's clocks take in one frame, seconds: a wake from sleep jumps nothing. */
@@ -121,6 +121,13 @@ const DEG = Math.PI / 180;
 
 /** No project open. */
 const NONE_OPEN: Readonly<Record<ProjectId, number>> = {} as Record<ProjectId, number>;
+/** No project risen off its socket (the open lifts it from the next round on). */
+const NONE_LIFTED: Readonly<Record<ProjectId, number>> = {} as Record<ProjectId, number>;
+/** The stack's boards as the path has them: where each stands open, and its sockets. */
+const STACK_PLACES = stackPlaces(areasOnPath());
+const STACK_CENTRE = boardCentre();
+/** The font the boards' print is drawn in: loaded before they are drawn, or they print in the fallback. */
+const PRINT_FONT = '500 40px "Martian Mono Variable"';
 
 /** How much brighter the project under the pointer is, at the hover's full amount (the mock-up's 1.3). */
 const HOVER_LIFT = 0.3;
@@ -392,10 +399,24 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       // harness may hold it back or fail it first (src/debug/worldGate.ts), as a slow or a broken world would.
       buildWorld: async () => {
         if (proof) await proofWorldGate();
-        const model = buildWorld(worldPlaces(areasOnPath()), latest.current.tier);
+        await document.fonts?.load(PRINT_FONT).catch(() => undefined);
+        const model = buildWorld(STACK_PLACES, latest.current.tier, scene.environment);
         const holder = new THREE.Group();
         holder.add(model.group);
-        model.pose({ power: 1, flash: 0, clock: 0, levels: Object.fromEntries(WORLD_PROJECTS.map((id) => [id, 1])) as Record<ProjectId, number>, open: NONE_OPEN, float: 0, world: 1 });
+        model.pose({
+          power: 1,
+          flash: 0,
+          clock: 0,
+          levels: Object.fromEntries(WORLD_PROJECTS.map((id) => [id, 1])) as Record<ProjectId, number>,
+          open: NONE_OPEN,
+          float: 0,
+          world: 1,
+          tops: boardTops(STACK_PLACES, 1),
+          boardPower: STACK_PLACES.map(() => 1),
+          boardLight: STACK_PLACES.map(() => 1),
+          lift: NONE_LIFTED,
+          spot: null
+        });
         try {
           uploadTextures(gl, texturesUnder(holder));
           await warm(gl, holder, camera, 'the world', scene);
@@ -654,8 +675,15 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
           levels: openLevels(levels, open, opened),
           open,
           float: reducedMotion ? 0 : 1,
-          world: openWorld(opened)
+          world: openWorld(opened),
+          tops: boardTops(STACK_PLACES, path.explode),
+          boardPower: path.boardPower,
+          boardLight: path.boardLight,
+          lift: NONE_LIFTED,
+          spot: null
         });
+        // What the boards, the spine and the CPU reflect turns with the camera round the stack, so they look the same from every side.
+        world.model.turn(Math.atan2(camera.position.x - STACK_CENTRE[0], camera.position.z - STACK_CENTRE[2]));
       }
       moving = (easing && home) || ticking;
       if (proof) frame.journey.objects = on ? objectsOnScreen(world.model, camera, size, true) : null;
