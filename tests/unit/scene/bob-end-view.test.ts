@@ -579,10 +579,12 @@ describe('the credits over the scene in the stylesheet (src/styles/base.css)', (
     expect(valueOf(REST, 'overflow-y')).toBe('auto');
   });
 
-  it('lets the document scroll at rest, and hides the bead labels', () => {
+  it("lets the document scroll at rest, and hides the world's names, an area's words and the dots", () => {
     expect(valueOf(REST, 'overflow-y')).toBe('auto');
     expect(valueOf(REST, 'touch-action')).toBe('auto');
-    expect(valueOf("html[data-end='rest'] .bead-label", 'display')).toBe('none');
+    for (const part of ['.world-lines', '.world-name', '.world-hint', '.area-caption', '.area-dots', '.touch-points']) {
+      expect(valueOf(`html[data-end='rest'] ${part}`, 'display'), part).toBe('none');
+    }
     // The home's lock stays as it was everywhere else.
     expect(valueOf("html[data-route='home'][data-3d='on']", 'overflow')).toBe('hidden');
     expect(valueOf("html[data-route='home'][data-3d='on']", 'touch-action')).toBe('pinch-zoom');

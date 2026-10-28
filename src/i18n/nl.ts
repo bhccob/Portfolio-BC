@@ -397,8 +397,12 @@ export const nl: Dictionary = {
     liteLink: 'Lichte versie',
     morph: 'Dezelfde kracht die schepen stuurde, bewaart nu onze data.',
     project: { open: 'Openen', download: 'Downloaden', code: 'Code', back: 'Esc · terug' },
-    // The bead's label (src/ui/BeadLabel.tsx): spec §2.4's wording, not the copy budget's.
-    bead: { hint: 'Klik om te openen', hintTouch: 'Tik om te openen' },
+    // The hologram world (src/ui/WorldNames.tsx, AreaCaption.tsx, AreaDots.tsx): the mock-up's words Bob approved.
+    world: {
+      hint: { click: 'Scroll of klik op een project', tap: 'Scroll of tik op een project' },
+      open: { click: 'Klik om te openen', tap: 'Tik om te openen' },
+      areas: 'Gebieden'
+    },
     // Inside a bead (src/ui/InsideControls.tsx): the 3D world's spec, "Bekijk project" and "Terug".
     inside: { view: 'Bekijk project', back: 'Terug' }
   },

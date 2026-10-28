@@ -15,7 +15,7 @@ export interface VirtualScrollOptions {
    */
   onDelta: (units: number, by: DeltaSource) => void;
   /** Home or End. */
-  onJump: (to: 'home' | 'end') => void;
+  onJump: (to: 'home' | 'end' | number) => void;
   /**
    * A wheel or touch gesture that moved the scroll has ended, without reduced motion (where each is already a step):
    * - the wheel's, once it has been quiet for GESTURE_GAP_MS, as the frames that `step` it count;
@@ -344,7 +344,7 @@ export class VirtualScroll {
    * (`swallow`), which moves nothing. A key is taken and prevented then all the same (`onKey`), as the swallow takes every
    * key; a link that asked is left to do what it would do without the story, so the header's name navigates.
    */
-  jump(to: 'home' | 'end'): boolean {
+  jump(to: 'home' | 'end' | number): boolean {
     if (!this.opts.enabled()) return false;
     this.inertia.stop();
     if (this.opts.swallow?.()) return false;

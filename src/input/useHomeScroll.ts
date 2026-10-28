@@ -44,6 +44,15 @@ export function goToTop(): boolean {
 }
 
 /**
+ * A place on the home's story asked for by the page (the hologram world's dots, src/ui/AreaDots.tsx): the story goes
+ * there by a key's glide (`HomeScroll.toPlace`). Answers whether the home's scroll took it: false while none is connected
+ * or while it takes no input.
+ */
+export function goToPlace(place: number): boolean {
+  return connected?.toPlace(place) ?? false;
+}
+
+/**
  * maath's `damp`, loaded on the first input rather than with the page. `maath/easing` imports three.js, which
  * the scene keeps out of the page's first load (it is its own chunk, fetched after hydration): a static import
  * here would put all of three.core in front of hydration on every page. Loaded this way it shares that chunk

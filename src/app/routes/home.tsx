@@ -7,6 +7,8 @@ import { translatorFor, useTranslator } from '~/i18n/useTranslator';
 import { goToEnd, headedToEnd } from '~/input/useHomeScroll';
 import { head } from '~/seo/head';
 import { personLd, websiteLd } from '~/seo/structured';
+import { AreaCaptions } from '~/ui/AreaCaption';
+import { AreaDots } from '~/ui/AreaDots';
 import { ProjectOpener } from '~/ui/projectOpen';
 import { TouchPoints } from '~/ui/TouchPoints';
 import { focusEndOnArrival } from '~/ui/endArrival';
@@ -14,6 +16,7 @@ import { EndPage } from '~/ui/EndPage';
 import { InsideControls } from '~/ui/InsideControls';
 import { LightFactLabels, LightFactList } from '~/ui/LightFacts';
 import { SkipButton } from '~/ui/SkipButton';
+import { WorldNames } from '~/ui/WorldNames';
 import { HANDLES, type RouteHandle } from '../handle';
 
 export const meta: MetaFunction = ({ location }) => {
@@ -55,6 +58,12 @@ export default function Home() {
       {/* The home page's opener: it lends the world's clicks the router (src/ui/projectOpen.tsx). */}
       <ProjectOpener />
 
+      {/* The world's names and hint at its stop, an area's words and the areas' dots over the areas: hidden, out of reach,
+          until the scene shows them (src/ui/WorldNames.tsx, AreaCaption.tsx, AreaDots.tsx). */}
+      <WorldNames />
+      <AreaCaptions />
+      <AreaDots />
+
       {/* Each project's touch points, shown beside it once it is open (src/ui/TouchPoints.tsx); aria-hidden. */}
       <TouchPoints />
 
@@ -67,7 +76,7 @@ export default function Home() {
       <LightFactList />
 
       {/* "Snel naar vragen ↓": shown from the first project through the look back, it fades the story straight to the
-          credits (src/ui/SkipButton.tsx). After the bead labels, so Tab reaches the shown label first, then the button. */}
+          credits (src/ui/SkipButton.tsx). After the names and an area's words, so Tab reaches the shown words first. */}
       <SkipButton />
 
       {/* Visible while 3D is off; while it is on the scene is the way in, and this stays for

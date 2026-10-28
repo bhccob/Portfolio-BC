@@ -814,6 +814,28 @@ describe('Home and End keep their meaning: the start and the end page', () => {
     expect(seen.at(-1)!.progress).toBe(to);
   }
 
+  it("goes to a place by a key's glide (the areas' dots), and steps there with reduced motion; nothing with 3D off", async () => {
+    const s = setup();
+    restAt(s, A0);
+    expect(s.home.toPlace(A2)).toBe(true);
+    expect(s.frame.target).toBe(A2);
+    await flush();
+    s.frames.frame();
+    expect(s.home.loop.tweening).toBe('glide');
+    s.drain();
+    expect([s.frame.target, s.frame.progress]).toEqual([A2, A2]);
+    const reduced = setup({ reduced: true });
+    restAt(reduced, A2);
+    expect(reduced.home.toPlace(A0)).toBe(true);
+    await flush(); // the first move fetches damp
+    reduced.drain();
+    expect([reduced.frame.target, reduced.frame.progress]).toEqual([A0, A0]);
+    const off = setup({ threeD: false });
+    restAt(off, A0);
+    expect(off.home.toPlace(A2)).toBe(false);
+    expect(off.frame.target).toBe(A0);
+  });
+
   it('fades End to the end page from anywhere short of it: the rise, the light dive, the ring', async () => {
     for (const from of [0, 2.5, L + 0.94]) {
       const s = setup();

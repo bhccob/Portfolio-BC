@@ -424,10 +424,15 @@ export const en = {
     morph: 'The same force that guided ships now stores our data.',
     project: { open: 'Open', download: 'Download', code: 'Code', back: 'Esc · back' },
     /**
-     * The selected bead's label in the void (src/ui/BeadLabel.tsx): the hint under the title, for a pointer and for a
-     * touch screen. Not in the copy budget: spec §2.4's own wording, which Bob may change.
+     * The hologram world (spec 2026-10-27-bob-hologram-world-design.md): the hint under the whole world, an area's words'
+     * hint, each for a pointer and for a touch screen, and the name of the areas' dots (src/ui/WorldNames.tsx,
+     * src/ui/AreaCaption.tsx, src/ui/AreaDots.tsx).
      */
-    bead: { hint: 'Click to open', hintTouch: 'Tap to open' },
+    world: {
+      hint: { click: 'Scroll or click a project', tap: 'Scroll or tap a project' },
+      open: { click: 'Click to open', tap: 'Tap to open' },
+      areas: 'Areas'
+    },
     /** Inside a bead (src/ui/InsideControls.tsx): the way on to its page and the way back out (the 3D world's spec). */
     inside: { view: 'View project', back: 'Back' }
   },

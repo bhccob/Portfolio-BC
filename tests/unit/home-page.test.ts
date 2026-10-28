@@ -38,12 +38,15 @@ describe('the home page', () => {
         expect(html).toMatch(new RegExp(`<p class="hero-cue"><span class="hero-cue-word">${t.needle.hero.scrollCue}</span></p>`));
       });
 
-      it('links no country page, and the three projects from the nav; no bead label is left', () => {
+      it("links no country page, and the three projects from the world's names, the areas' words and the nav; no bead label is left", () => {
         expect(html).not.toContain('/about/');
         const links = html.match(/href="[^"]*\/projects\/[a-z-]+\/"/g) ?? [];
-        expect(links).toHaveLength(3);
+        expect(links).toHaveLength(9);
         expect(new Set(links).size).toBe(3);
         expect(html).not.toContain('bead-label');
+        // The areas' words and dots come out of the server inert, until the scene shows them.
+        expect(html.match(/class="area-caption"[^>]*inert=""/g)).toHaveLength(3);
+        expect(html).toMatch(/class="area-dots"[^>]*inert=""/);
       });
 
       it('server-renders the five facts as a list before the nav, the words of the table with "/" as a line break', () => {

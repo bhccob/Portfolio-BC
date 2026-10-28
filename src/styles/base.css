@@ -138,14 +138,18 @@ html[data-step-fade] .scene-host {
   opacity: 0;
 }
 
-/* The facts beside the light, the beads' labels and their touch points fade with the host, as fast, so a step never
-   shows the words of the stop it left over the stop it comes to (src/ui/LightFacts.tsx, src/ui/BeadLabel.tsx,
-   src/ui/TouchPoints.tsx). The labels' and the points' own opacity is written on them, so this one wins outright. */
+/* The facts beside the light, the world's names, an area's words and the touch points fade with the host, as fast, so a
+   step never shows the words of the stop it left over the stop it comes to (src/ui/LightFacts.tsx, src/ui/WorldNames.tsx,
+   src/ui/AreaCaption.tsx, src/ui/TouchPoints.tsx). Their own opacity is written on them, so this one wins outright. The
+   areas' dots stay: they are the same at every area. */
 html[data-step-fade] .light-fact-layer {
   opacity: 0;
 }
 
-html[data-step-fade] .bead-label,
+html[data-step-fade] .world-lines,
+html[data-step-fade] .world-name,
+html[data-step-fade] .world-hint,
+html[data-step-fade] .area-caption,
 html[data-step-fade] .touch-points {
   opacity: 0 !important;
 }
@@ -156,7 +160,10 @@ html[data-step-fade] .touch-points {
 
 @media (prefers-reduced-motion: reduce) {
   .light-fact-layer,
-  .bead-label,
+  .world-lines,
+  .world-name,
+  .world-hint,
+  .area-caption,
   .touch-points {
     transition: opacity 150ms ease !important;
   }
@@ -194,7 +201,7 @@ body:has(.page) .scene-host[data-ready]::after {
   opacity: 1;
 }
 
-/* A project page reached by flying into its bead (src/ui/BeadLabel.tsx sets <html data-bead-open> from the click until
+/* A project page reached by flying into its project (src/ui/projectOpen.tsx sets <html data-bead-open> from the click until
    the page is in): its text fades in over the bead seen close, with its scrim (spec §2.4), instead of both appearing
    over the lit bead at once. A page reached any other way shows as it always has. */
 @keyframes bead-page-in {
@@ -832,110 +839,218 @@ html[data-3d='on'] .end-link:hover {
   color: var(--gold-title);
 }
 
-/* ---------- the void: the beads' labels ---------- */
-/* Real text beside a bead (the ref-04 style; src/ui/BeadLabel.tsx): the category line in the mono label, the title in
-   heavy gold and a dim hint, small, so the bead stays the one focal point. It is one link. The scene shows it
-   ([data-shown]: in the page, so the keyboard reaches it) and stands it by a transform: right of the light as it comes to
-   rest beside its bead, its opacity following the scroll and written on it, taking the pointer once it is half in
-   ([data-rest]); or, in the look back, under each bead, quiet ([data-quiet]) until the pointer is over its bead
-   ([data-hover]), over the label itself, or the keyboard is on it. Without a scene it never shows: the home's nav is the
-   way to the projects. */
-.bead-label {
+/* ---------- the hologram world: the names, an area's words and the dots ---------- */
+/* The projects' names on the whole world (src/ui/WorldNames.tsx), in the approved mock-up's look
+   (.superpowers/holo-world-mockup/style.css): a thin gold line from each object, up and out to an elbow and level to
+   the name, a small dot at the object's end, the name in the label face standing on the level run. The scene writes
+   each one's place (a transform), its opacity and its line's; a name is seen and in Tab's reach only while shown
+   ([data-shown]), lit while the pointer is on its project ([data-hot]), on the name, or the keyboard is on it. Without a
+   scene none shows: the home's nav is the way to the projects. */
+.world-lines {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.world-lines polyline {
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 1;
+  marker-start: url(#world-dot);
+  opacity: 0;
+}
+
+.world-lines circle {
+  fill: var(--gold-title);
+}
+
+.world-name {
   position: fixed;
   top: 0;
   left: 0;
-  display: none;
-  gap: 4px;
-  max-width: 300px;
-  padding: 10px 12px;
+  padding-bottom: 7px;
+  font-family: var(--font-label);
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  white-space: nowrap;
   color: var(--ink);
   text-decoration: none;
-  white-space: nowrap;
+  text-shadow: 0 0 8px rgb(0 0 0 / 0.9);
+  opacity: 0;
+  visibility: hidden;
+  will-change: transform;
+}
+
+.world-name[data-shown] {
+  visibility: visible;
+}
+
+.world-name[data-hot],
+.world-name:focus-visible {
+  color: var(--gold-title);
+}
+
+@media (hover: hover) {
+  .world-name:hover {
+    color: var(--gold-title);
+  }
+}
+
+.world-name:focus-visible,
+.area-caption-title:focus-visible,
+.area-dot:focus-visible {
+  outline: 1px solid var(--gold-title);
+  outline-offset: 4px;
+}
+
+/* The hint under the whole world, centred at the foot, in the scene's quieter lilac. */
+.world-hint {
+  position: fixed;
+  right: 0;
+  bottom: calc(34px + env(safe-area-inset-bottom, 0px));
+  left: 0;
+  margin: 0;
+  font-family: var(--font-label);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-align: center;
+  color: var(--dim);
   opacity: 0;
   pointer-events: none;
 }
 
-.bead-label[data-shown] {
-  display: grid;
-  justify-items: start;
-}
-
-.bead-label[data-rest] {
-  pointer-events: auto;
-}
-
-/* Under its bead, its lines in the middle: on a phone, and in the look back. */
-.bead-label[data-side='below'] {
-  justify-items: center;
-  text-align: center;
-}
-
-/* The look back's: shown while the pointer is on its bead (`data-hover`, the Void's pick) and on focus. Unseen, a label
-   takes no pointer: under its bead it can stand over the next one (on a phone Funcial's lies over Cookies Clicker's), and
-   a tap there must reach that bead, not open the label's. Shown, it takes the pointer, so where a mouse can hover its own
-   :hover keeps it shown as the pointer leaves the bead for its words; an unseen one is never hovered. No :hover where a
-   finger's would stick. */
-.bead-label[data-quiet] {
-  pointer-events: none;
-  transition: opacity 0.25s var(--ease-reveal);
-}
-
-.bead-label[data-quiet][data-hover],
-.bead-label[data-quiet]:focus-visible {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-@media (hover: hover) {
-  .bead-label[data-quiet]:hover {
-    opacity: 1;
-    pointer-events: auto;
-  }
-}
-
-.bead-label-title {
-  font-family: var(--font-title);
-  font-feature-settings: var(--font-title-features);
-  font-size: 18px;
-  font-weight: 800;
-  line-height: 1.15;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--gold-title);
-}
-
-/* The hint in the label face, lower case as written and in the scene's quieter lilac (6.5:1 on the night). */
-.bead-label-hint {
-  font-family: var(--font-label);
-  font-size: var(--label-size);
-  line-height: 1.5;
-  letter-spacing: 0.08em;
-  color: var(--dim);
-}
-
-.bead-label:hover .bead-label-hint,
-.bead-label:focus-visible .bead-label-hint {
-  color: var(--lilac);
-}
-
-/* "Klik om te openen" for a mouse or a pen, "Tik om te openen" on a touch screen. */
-.bead-label-hint-touch {
+/* "… klik …" for a mouse or a pen, "… tik …" on a touch screen: the world's hint and an area's. */
+.world-hint-touch {
   display: none;
 }
 
 @media (pointer: coarse) {
-  .bead-label-hint-fine {
+  .world-hint-fine {
     display: none;
   }
 
-  .bead-label-hint-touch {
+  .world-hint-touch {
     display: inline;
   }
 }
 
+/* An area's words at the foot on the left (src/ui/AreaCaption.tsx): its category in the gold label face, its project's
+   name in the title face (a link that opens it), the hint under. The scene writes the opacity; inert under half. */
+.area-caption {
+  position: fixed;
+  bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  left: var(--gutter);
+  display: grid;
+  justify-items: start;
+  opacity: 0;
+}
+
+.area-caption-category {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.24em;
+  color: var(--gold);
+}
+
+.area-caption-title {
+  margin-top: 10px;
+  font-family: var(--font-title);
+  font-feature-settings: var(--font-title-features);
+  font-size: 44px;
+  font-weight: 500;
+  line-height: 1.15;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .area-caption-title:hover {
+    color: var(--gold-title);
+  }
+}
+
+.area-caption-hint {
+  margin: 10px 0 0;
+  font-family: var(--font-label);
+  font-size: var(--label-size);
+  letter-spacing: 0.14em;
+  color: var(--dim);
+}
+
+/* The areas' dots on the right, in the middle (src/ui/AreaDots.tsx): a ring each, the area in view filled gold
+   ([aria-current]). The scene writes the opacity; inert under half. */
+.area-dots {
+  position: fixed;
+  top: 50%;
+  right: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  opacity: 0;
+  transform: translateY(-50%);
+}
+
+.area-dot {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  appearance: none;
+  touch-action: manipulation;
+}
+
+.area-dot::after {
+  content: '';
+  position: absolute;
+  top: 9px;
+  left: 9px;
+  width: 10px;
+  height: 10px;
+  box-sizing: border-box;
+  border: 1px solid var(--dim);
+  border-radius: 50%;
+}
+
+.area-dot[aria-current='true']::after {
+  border-color: var(--gold);
+  background: var(--gold);
+}
+
+html:not([data-3d='on']) .world-lines,
+html:not([data-3d='on']) .world-name,
+html:not([data-3d='on']) .world-hint,
+html:not([data-3d='on']) .area-caption,
+html:not([data-3d='on']) .area-dots {
+  display: none;
+}
+
+/* On a phone: the mock-up's smaller words, the dots near the edge, and the hint above the skip button's row. */
 @media (max-width: 720px) {
-  .bead-label-title {
-    font-size: 16px;
+  .world-name {
+    font-size: 11px;
+  }
+
+  .world-hint {
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+    font-size: 11px;
+  }
+
+  .area-caption {
+    bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .area-caption-title {
+    font-size: 32px;
+  }
+
+  .area-dots {
+    right: 8px;
   }
 }
 
@@ -2058,7 +2173,11 @@ html[data-route='home'][data-3d='on'][data-end='rest'] .end-page {
   border-image: linear-gradient(var(--night) 0 0) fill 0 / 0 / var(--header-height) 100vmax 0;
 }
 
-html[data-end='rest'] .bead-label,
+html[data-end='rest'] .world-lines,
+html[data-end='rest'] .world-name,
+html[data-end='rest'] .world-hint,
+html[data-end='rest'] .area-caption,
+html[data-end='rest'] .area-dots,
 html[data-end='rest'] .touch-points {
   display: none;
 }

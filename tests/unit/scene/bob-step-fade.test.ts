@@ -230,18 +230,25 @@ describe('the step fade in the stylesheet', () => {
     expect(fading.map((rule) => rule.selectors)).toEqual([
       ['html[data-step-fade] .scene-host'],
       ['html[data-step-fade] .light-fact-layer'],
-      ['html[data-step-fade] .bead-label', 'html[data-step-fade] .touch-points'],
+      [
+        'html[data-step-fade] .world-lines',
+        'html[data-step-fade] .world-name',
+        'html[data-step-fade] .world-hint',
+        'html[data-step-fade] .area-caption',
+        'html[data-step-fade] .touch-points'
+      ],
       ["html[data-route='home'][data-step-fade] .end-page"]
     ]);
     for (const rule of fading) expect([...rule.declarations.keys()]).toEqual(['opacity']);
   });
 
-  it("fades the facts beside the light, the beads' labels and the touch points with the host, as fast, so a step shows no words of the stop it left", () => {
+  it("fades the facts beside the light, the world's names, an area's words and the touch points with the host, as fast, so a step shows no words of the stop it left", () => {
     expect(valueOf('html[data-step-fade] .light-fact-layer', 'opacity')).toBe('0');
-    // The labels' and the touch points' own opacity is written on them: the fade's wins outright.
-    expect(valueOf('html[data-step-fade] .bead-label', 'opacity')).toBe('0 !important');
-    expect(valueOf('html[data-step-fade] .touch-points', 'opacity')).toBe('0 !important');
-    for (const selector of ['.light-fact-layer', '.bead-label', '.touch-points']) {
+    // The names', the area's words' and the touch points' own opacity is written on them: the fade's wins outright.
+    for (const part of ['.world-lines', '.world-name', '.world-hint', '.area-caption', '.touch-points']) {
+      expect(valueOf(`html[data-step-fade] ${part}`, 'opacity'), part).toBe('0 !important');
+    }
+    for (const selector of ['.light-fact-layer', '.world-lines', '.world-name', '.world-hint', '.area-caption', '.touch-points']) {
       expect(valueOf(selector, 'transition', REDUCED), selector).toBe(valueOf('.scene-host', 'transition', REDUCED));
     }
   });

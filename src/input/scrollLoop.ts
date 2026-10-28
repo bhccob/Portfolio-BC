@@ -574,6 +574,12 @@ export interface HomeScroll {
    * opening) nor while a skipped loader's tail is dropped, where the link is left to navigate.
    */
   toTop(): boolean;
+  /**
+   * A place on the story asked for by the page (the hologram world's dots, src/ui/AreaDots.tsx): the story goes there by
+   * a key's glide (VirtualScroll's `jump(place)`, then `onJump`), with reduced motion by its step. Answers whether the
+   * input took it: not while it takes no input (3D off, a phase off the scroll) nor while a skipped loader's tail is dropped.
+   */
+  toPlace(place: number): boolean;
   dispose(): void;
 }
 
@@ -820,6 +826,15 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
       settling = false;
       glideOnRise = false;
       loop.stopTween();
+      // A place the page asked for: there by a key's glide, as a key's step goes (with reduced motion, by its step).
+      if (typeof to === 'number') {
+        askFor(Math.min(Math.max(to, 0), end));
+        if (o.reducedMotion()) fadeTo = frame.target;
+        else loop.glideTo(frame.target);
+        loop.input(0);
+        loop.wake();
+        return;
+      }
       // Home goes to the story's start from the end page too, the page back at its top first: the end's rest is then
       // left from the top, where Home's end view finds the page and scrolls nothing again.
       if (to === 'home') pageToTop();
@@ -947,6 +962,7 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
     toEnd: () => scroll.jump('end'),
     headedToEnd: () => o.threeD() && (frame.target === end || asked === end),
     toTop: () => scroll.jump('home'),
+    toPlace: (place) => scroll.jump(place),
     dispose: () => {
       loop.dispose();
       scroll.dispose();

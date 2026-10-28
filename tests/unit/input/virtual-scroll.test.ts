@@ -17,7 +17,7 @@ interface Setup {
   bys: DeltaSource[];
   /** Each gesture's end, as the glide it leaves (units). */
   ends: number[];
-  jumps: string[];
+  jumps: (number | string)[];
   wakes: { count: number };
   listened: { type: string; options: unknown }[];
   scroll: VirtualScroll;
@@ -38,7 +38,7 @@ function setup(state: Setup['state'] = { enabled: true, reduced: false }): Setup
   const deltas: number[] = [];
   const bys: DeltaSource[] = [];
   const ends: number[] = [];
-  const jumps: string[] = [];
+  const jumps: (number | string)[] = [];
   const wakes = { count: 0 };
   const scroll = new VirtualScroll(el as unknown as HTMLElement, {
     unitPx: () => VH,

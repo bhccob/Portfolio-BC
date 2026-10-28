@@ -1,7 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import type { ProjectId } from '~/data/projects';
+import { type ProjectId, projects } from '~/data/projects';
 import { debugBridge } from '~/debug/needleDebug';
 import type { CompassModel } from '~/engine/bob/build/compass';
 import { buildEngraved, type EngravedModel } from '~/engine/bob/build/engraved';
@@ -13,9 +13,12 @@ import { lowerTier, type QualityTier } from '~/engine/quality';
 import { areasOnPath } from '~/state/chapters';
 import { frame, type ObjectOnScreen } from '~/state/frame';
 import { useScene, type VoidState } from '~/state/store';
+import { showAreaCaption } from '~/ui/AreaCaption';
+import { showAreaDots } from '~/ui/AreaDots';
 import { showLightFacts } from '~/ui/LightFacts';
 import { showsSkip, writeSkip } from '~/ui/SkipButton';
 import { showTouchPoints } from '~/ui/TouchPoints';
+import { showWorldNames, type WorldNamesView } from '~/ui/WorldNames';
 import { motion } from '../motion';
 import { engravedLevels, shaftRings } from './engravedWay';
 import type { Handover } from './Home';
@@ -27,7 +30,7 @@ import { easeHover, hoverEase, hoversAt, needleFor, needleGlowFor, pointerMode, 
 import { loadVoid, type VoidLoadSteps } from './voidLoad';
 import { uploadTextures, warm } from './warm';
 import { worldPlaces } from './worldLayout';
-import { type WorldPath, worldPathFor } from './worldPath';
+import { type WorldFrame, type WorldPath, worldPathFor } from './worldPath';
 
 /** The longest step the void's clocks take in one frame, seconds: a wake from sleep jumps nothing. */
 const MAX_STEP = 0.1;
@@ -157,6 +160,46 @@ const centre = new THREE.Vector3();
 const eyeAt: [number, number, number] = [0, 0, 0];
 /** The light's centre on the screen, NDC: `frame.journey.light` while there is a light. */
 const lightPoint = { x: 0, y: 0 };
+
+/** The names' view, written each frame they show: each project's object's top on the screen, its category, its light. */
+const namesView: WorldNamesView = {
+  opacity: 0,
+  names: WORLD_PROJECTS.map((id) => ({ id, anchor: { x: 0, y: 0 }, category: projects.byId(id)!.categoryId, hot: false }))
+};
+
+/**
+ * The world's words on a frame (src/ui/WorldNames.tsx, AreaCaption.tsx, AreaDots.tsx): its names by their objects' tops
+ * with the hint, an area's words and the dots, as the path has them, all going as a project opens (`opened`, 0..1), the
+ * name of the project under the pointer (`hot`) lit. None without a world in view (`model` or `path` null).
+ */
+function showWorldWords(
+  model: WorldModel | null,
+  path: WorldFrame | null,
+  camera: THREE.Camera,
+  size: { width: number; height: number },
+  hot: ProjectId | null,
+  opened: number
+): void {
+  if (model === null || path === null) {
+    showWorldNames(null, size);
+    showAreaCaption(null);
+    showAreaDots({ opacity: 0, lit: null });
+    return;
+  }
+  const away = 1 - opened;
+  namesView.opacity = path.names * away;
+  if (namesView.opacity > 0) {
+    for (const name of namesView.names) {
+      model.top(name.id).getWorldPosition(centre).project(camera);
+      name.anchor.x = ((centre.x + 1) / 2) * size.width;
+      name.anchor.y = ((1 - centre.y) / 2) * size.height;
+      name.hot = name.id === hot;
+    }
+  }
+  showWorldNames(namesView.opacity > 0 ? namesView : null, size);
+  showAreaCaption(path.caption && { index: path.caption.index, opacity: path.caption.opacity * away });
+  showAreaDots({ opacity: path.dots * away, lit: path.index >= 0 ? path.index : null });
+}
 
 /** Each project's object on the screen for the proof harness: its click's sphere's middle (CSS px) and radius there. */
 function objectsOnScreen(model: WorldModel, camera: THREE.Camera, size: { width: number; height: number }, visible: boolean): ObjectOnScreen[] {
@@ -457,6 +500,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       run.reading = run.hovering = false;
       motion.beads = false;
       showTouchPoints(null, size.width);
+      showWorldWords(null, null, camera, size, null, 0);
       return;
     }
     // The home has landed: the void loads now, once.
@@ -492,6 +536,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
     showTouchPoints(null, size.width);
     if (!space) {
       motion.beads = false;
+      showWorldWords(null, null, camera, size, null, 0);
       return;
     }
 
@@ -566,6 +611,8 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       moving = (easing && home) || ticking;
       if (proof) frame.journey.objects = on ? objectsOnScreen(world.model, camera, size, true) : null;
     }
+    // The world's words, on the home page only (a project's page over it has its own).
+    showWorldWords(home && world?.shown ? world.model : null, path, camera, size, run.pointed === null ? null : WORLD_PROJECTS[run.pointed]!, opened);
     // The canvas draws on only while the hover eases or the world's clock runs; the first frame of it asks for the next.
     if (moving && !motion.beads) invalidate();
     motion.beads = moving;
