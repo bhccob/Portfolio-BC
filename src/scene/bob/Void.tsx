@@ -16,6 +16,8 @@ import { useScene, type VoidState } from '~/state/store';
 import { showAreaCaption } from '~/ui/AreaCaption';
 import { showAreaDots } from '~/ui/AreaDots';
 import { showLightFacts } from '~/ui/LightFacts';
+import { nameScale } from '~/ui/nameLine';
+import { panelKeepOut, panelLevels, showProjectPanels } from '~/ui/ProjectPanel';
 import { showsSkip, writeSkip } from '~/ui/SkipButton';
 import { showTouchPoints } from '~/ui/TouchPoints';
 import { showWorldNames, type WorldNamesView } from '~/ui/WorldNames';
@@ -25,7 +27,7 @@ import type { Handover } from './Home';
 import { type LightPose, WORLD_PROJECTS } from './journey';
 import { LOOK } from './look';
 import { cloudLayout, nebulaLevels } from './nebulaWay';
-import { OPEN_LOOK, openLevels, openWorld, worldClockRuns } from './inside';
+import { insidePoints, OPEN_LOOK, openLevels, openWorld, worldClockRuns } from './inside';
 import { easeHover, hoverEase, hoversAt, needleFor, needleGlowFor, pointerMode, voidShownAt } from './voidPose';
 import { loadVoid, type VoidLoadSteps } from './voidLoad';
 import { uploadTextures, warm } from './warm';
@@ -201,21 +203,58 @@ function showWorldWords(
   showAreaDots({ opacity: path.dots * away, lit: path.index >= 0 ? path.index : null });
 }
 
+/**
+ * A project's click's sphere on the screen: its middle (CSS px) and its radius there, or the size of `across` m there
+ * instead.
+ */
+function hitOnScreen(hit: THREE.Object3D, camera: THREE.Camera, size: { width: number; height: number }, across?: number): { x: number; y: number; r: number } {
+  hit.getWorldPosition(centre);
+  const distance = centre.distanceTo(camera.position);
+  centre.project(camera);
+  const fov = (camera as THREE.PerspectiveCamera).fov;
+  const radius = across ?? (hit as THREE.Mesh<THREE.SphereGeometry>).geometry.parameters.radius;
+  return {
+    x: ((centre.x + 1) / 2) * size.width,
+    y: ((1 - centre.y) / 2) * size.height,
+    r: (radius / (distance * Math.tan((fov * DEG) / 2))) * (size.height / 2)
+  };
+}
+
+/** The half width an open object's touch point columns stand out past, m (the mock-up's). */
+const TOUCH_REACH = 0.5;
+
+/** No panel shown. */
+const NO_PANELS: Readonly<Partial<Record<ProjectId, number>>> = {};
+
+/**
+ * The open project's words on a frame (src/ui/TouchPoints.tsx, src/ui/ProjectPanel.tsx): its touch points in two columns
+ * beside its object once it is open, and its panel (on the way to the next, the panel of the one left going first). None
+ * without a world in view or with no project open.
+ */
+function showOpenWords(model: WorldModel | null, close: Handover['close'], camera: THREE.Camera, size: { width: number; height: number }): void {
+  const id = close.id;
+  const hit = id === null || model === null ? undefined : model.hits.find((h) => h.userData.id === id);
+  if (model === null || id === null || hit === undefined) {
+    showTouchPoints(null, size, 1);
+    showProjectPanels(NO_PANELS);
+    return;
+  }
+  const object = hitOnScreen(hit, camera, size, TOUCH_REACH);
+  const at = model.anchors(id).map((anchor) => {
+    anchor.getWorldPosition(centre).project(camera);
+    return { x: ((centre.x + 1) / 2) * size.width, y: ((1 - centre.y) / 2) * size.height };
+  });
+  const opacity = insidePoints(close.open);
+  const keep = opacity > 0 ? panelKeepOut(id, size) : undefined;
+  showTouchPoints({ id, opacity, at, centreX: object.x, reach: object.r, keep }, size, nameScale(size.width));
+  showProjectPanels(panelLevels(id, close));
+}
+
 /** Each project's object on the screen for the proof harness: its click's sphere's middle (CSS px) and radius there. */
 function objectsOnScreen(model: WorldModel, camera: THREE.Camera, size: { width: number; height: number }, visible: boolean): ObjectOnScreen[] {
   return model.hits.map((hit) => {
-    hit.getWorldPosition(centre);
-    const distance = centre.distanceTo(camera.position);
-    centre.project(camera);
-    const fov = (camera as THREE.PerspectiveCamera).fov;
-    const radius = (hit as THREE.Mesh<THREE.SphereGeometry>).geometry.parameters.radius;
-    return {
-      id: hit.userData.id as string,
-      x: ((centre.x + 1) / 2) * size.width,
-      y: ((1 - centre.y) / 2) * size.height,
-      r: (radius / (distance * Math.tan((fov * DEG) / 2))) * (size.height / 2),
-      visible
-    };
+    const { x, y, r } = hitOnScreen(hit, camera, size);
+    return { id: hit.userData.id as string, x, y, r, visible };
   });
 }
 
@@ -393,7 +432,8 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       run.reading = run.hovering = false;
       useScene.getState().setHover(null);
       motion.beads = false;
-      showTouchPoints(null, 0);
+      showTouchPoints(null, NO_SIZE, 1);
+      showProjectPanels(NO_PANELS);
       showLightFacts(null, NO_SIZE);
       frame.journey.light = null;
       frame.journey.objects = null;
@@ -499,7 +539,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       frame.journey.world = null;
       run.reading = run.hovering = false;
       motion.beads = false;
-      showTouchPoints(null, size.width);
+      showOpenWords(null, handover.close, camera, size);
       showWorldWords(null, null, camera, size, null, 0);
       return;
     }
@@ -533,9 +573,9 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
     // The skip button, from the world's stop through the look back on the home page, and not while a project is close or
     // the camera flies to one.
     writeSkip(document.documentElement, useScene.getState().scene === 'home' && !handover.focus && showsSkip(pose), run.skip);
-    showTouchPoints(null, size.width);
     if (!space) {
       motion.beads = false;
+      showOpenWords(null, handover.close, camera, size);
       showWorldWords(null, null, camera, size, null, 0);
       return;
     }
@@ -597,12 +637,18 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
         const levels = { ...path.levels };
         const hovered = run.hover.id === null ? null : WORLD_PROJECTS[run.hover.id];
         if (hovered && levels[hovered] !== undefined) levels[hovered] *= 1 + HOVER_LIFT * run.hover.amount;
-        const open = close.id !== null ? ({ [close.id]: opened } as Record<ProjectId, number>) : NONE_OPEN;
+        // Each object as open as the move has it: the open one, and on the way to the next the one it leaves.
+        let open = NONE_OPEN;
+        if (close.id !== null) {
+          const opening = { [close.id]: close.open } as Record<ProjectId, number>;
+          if (close.leaving !== null) opening[close.leaving.id] = close.leaving.amount;
+          open = opening;
+        }
         world.model.pose({
           power: path.power,
           flash: path.flash,
           clock: clock.time,
-          levels: openLevels(levels, close.id, opened),
+          levels: openLevels(levels, open, opened),
           open,
           float: reducedMotion ? 0 : 1,
           world: openWorld(opened)
@@ -611,8 +657,10 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       moving = (easing && home) || ticking;
       if (proof) frame.journey.objects = on ? objectsOnScreen(world.model, camera, size, true) : null;
     }
-    // The world's words, on the home page only (a project's page over it has its own).
-    showWorldWords(home && world?.shown ? world.model : null, path, camera, size, run.pointed === null ? null : WORLD_PROJECTS[run.pointed]!, opened);
+    // The world's words, and an open project's, on the home page only (a project's page over it has its own).
+    const inView = home && world?.shown ? world.model : null;
+    showWorldWords(inView, path, camera, size, run.pointed === null ? null : WORLD_PROJECTS[run.pointed]!, opened);
+    showOpenWords(inView, close, camera, size);
     // The canvas draws on only while the hover eases or the world's clock runs; the first frame of it asks for the next.
     if (moving && !motion.beads) invalidate();
     motion.beads = moving;

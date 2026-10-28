@@ -5,10 +5,16 @@
  * length, so the tests run it without R3F, three or a browser; the Opening (./Opening.tsx), the shot's one writer,
  * applies exactly these, and the label (src/ui/projectOpen.tsx) begins the flight in.
  *
- * - **Into a bead**: the label's link, or a click on the bead, at its stop, flies the camera into the porthole over
- *   FLIGHT_MS; then the router goes to the page, which stands over the bead seen close.
- * - **Out again**: Back or Escape puts the story at the bead's stop (src/state/routeSync.ts), and the camera flies out
- *   to it.
+ * - **Into a project**: a click on it, its name or its area's words, at a stop, flies the camera to its open view over
+ *   FLIGHT_MS; "Bekijk project" goes on to its page, which stands over it.
+ * - **From one to the next**: the arrows fly from one open project's view to the next's (spec
+ *   2026-10-27-bob-hologram-world-design.md, goal 5), the world kept in its open look, the one left closing as the next
+ *   opens.
+ * - **Out again**: Back or Escape puts the story where it was opened from (src/state/routeSync.ts), and the camera flies
+ *   out to it.
+ * - **Every flight** starts where the camera stands as it begins (the move's `shot`) and goes round the board's centre
+ *   to its goal (./around.ts `aroundShot`), so a flight turned or retargeted half way goes on from there, and none cuts
+ *   across the CPU.
  * - **A fade** stands in for the flight wherever a flight cannot be one: with reduced motion (spec §2.3: a step is a
  *   short fade), into a page reached any other way (a link of the home's nav, Lite, a direct arrival once its loader has
  *   landed), and out to a story the scroll's hold keeps short of the bead's stop (the void is not loaded yet). It is
@@ -17,7 +23,9 @@
  */
 import type { SceneKind } from '~/app/handle';
 import type { ProjectId } from '~/data/projects';
+import type { CameraShot } from '~/engine/bob/shots';
 import type { Phase } from '~/state/machine';
+import { aroundShot } from './around';
 import { opensOnClick } from './inside';
 import { journeyAt, WORLD_PROJECTS } from './journey';
 import { STEP_FADE_MS } from './stepFade';
@@ -32,26 +40,31 @@ export const FOCUS_FADE_MS = STEP_FADE_MS;
 export type FocusMode = 'fly' | 'fade';
 
 /**
- * A move of the camera between the journey's shot and a bead's close view. At rest it stands where it went.
- * - `from`: where it stood when it began: a bead's close view and how far in (0 is the journey's shot, 1 the close
- *   view), or `{ id: null, amount: 0 }` for the journey's shot;
- * - `to`: the bead whose close view it goes to, or null back to the journey's shot;
+ * A move of the camera between the journey's shot and a project's open view, or between two open views. At rest it
+ * stands where it went.
+ * - `from`: where it stood when it began: a project's open view, how far in (0 is the journey's shot, 1 the open view)
+ *   and how open its object was, or `{ id: null, amount: 0, open: 0 }` for the journey's shot;
+ * - `to`: the project whose open view it goes to, or null back to the journey's shot;
  * - `at`: when it began (`performance.now()` ms);
- * - `mode`: a flight or a fade.
+ * - `mode`: a flight or a fade;
+ * - `shot`: the camera's shot as it began (`frame.shot`), which a flight leaves from; none (the first move, or one begun
+ *   where the camera's shot is not known) stands on its goal.
  */
 export interface FocusMove {
-  from: { id: ProjectId | null; amount: number };
+  from: { id: ProjectId | null; amount: number; open: number };
   to: ProjectId | null;
   at: number;
   mode: FocusMode;
+  shot: CameraShot | null;
 }
 
 /** No move yet: the journey's shot, at rest. */
 export const FOCUS_AT_REST: Readonly<FocusMove> = Object.freeze({
-  from: Object.freeze({ id: null, amount: 0 }),
+  from: Object.freeze({ id: null, amount: 0, open: 0 }),
   to: null,
   at: Number.NEGATIVE_INFINITY,
-  mode: 'fade'
+  mode: 'fade',
+  shot: null
 });
 
 /**
@@ -99,15 +112,49 @@ export function focusPoseAt(move: FocusMove, now: number): FocusPose {
   return { id, amount: id === null ? 0 : amount, dark: false, moving, engaged: moving || move.to !== null };
 }
 
+/** How far a move has gone at `now`: a flight eased over FLIGHT_MS; a fade 0 while dark, then 1. */
+function doneAt(move: FocusMove, now: number): number {
+  const elapsed = now - move.at;
+  if (move.mode === 'fade') return elapsed >= FOCUS_FADE_MS ? 1 : 0;
+  return elapsed >= FLIGHT_MS ? 1 : elapsed > 0 ? flightEase(elapsed / FLIGHT_MS) : 0;
+}
+
 /**
- * A new move to `to` (a bead's close view, or null for the journey's shot) begun at `now`, from wherever `move` stands
- * then, so a move turned back half way goes on from there. A flight goes between the journey and one bead; from one
- * bead's close view to another's there is no flight, and it fades.
+ * How open the objects are on `move` at `now`: `open`, the object of the project in the shot (`focusPoseAt`'s `id`),
+ * and `leaving`, the one a move from one open project to another closes as the next opens (none otherwise). Into a
+ * project its object opens with the camera; out of one it closes with it; from one to the next the first closes as the
+ * second opens, never both whole at once. A fade turns them at once, once dark.
  */
-export function moveFocus(move: FocusMove, to: ProjectId | null, now: number, mode: FocusMode): FocusMove {
+export function focusOpensAt(move: FocusMove, now: number): { open: number; leaving: { id: ProjectId; amount: number } | null } {
   const shown = focusPoseAt(move, now);
-  const across = shown.id !== null && to !== null && shown.id !== to;
-  return { from: { id: shown.id, amount: shown.amount }, to, at: now, mode: across ? 'fade' : mode };
+  const from = move.from.amount > 0 ? move.from.id : null;
+  if (from !== null && move.to !== null && from !== move.to) {
+    const e = doneAt(move, now);
+    return { open: e, leaving: e < 1 ? { id: from, amount: move.from.open * (1 - e) } : null };
+  }
+  return { open: shown.amount, leaving: null };
+}
+
+/**
+ * The camera's shot on `move` at `now`, its goal `goal` (the open view it goes to, or the journey's shot it goes back
+ * to): a flight from the shot it began on round the board's `centre` (./around.ts), the goal itself once it is over; a
+ * fade on the shot it began on while dark, then the goal. A move with no shot to begin from stands on its goal.
+ */
+export function focusShotAt(move: FocusMove, now: number, goal: CameraShot, centre: readonly [number, number, number]): CameraShot {
+  const e = doneAt(move, now);
+  if (move.shot === null || e >= 1) return goal;
+  return move.mode === 'fade' ? move.shot : aroundShot(move.shot, goal, centre, e);
+}
+
+/**
+ * A new move to `to` (a project's open view, or null for the journey's shot) begun at `now`, from wherever `move` stands
+ * then, so a move turned back or retargeted half way goes on from there: the camera from `shot`, where it stands now
+ * (`frame.shot`), the objects from how open they are.
+ */
+export function moveFocus(move: FocusMove, to: ProjectId | null, now: number, mode: FocusMode, shot: CameraShot | null = null): FocusMove {
+  const shown = focusPoseAt(move, now);
+  const { open } = focusOpensAt(move, now);
+  return { from: { id: shown.id, amount: shown.amount, open: shown.id === null ? 0 : open }, to, at: now, mode, shot };
 }
 
 /** The project of an id, if it is on the world. */
@@ -150,6 +197,8 @@ export interface FocusInput {
   inside?: ProjectId | null;
   progress: number;
   target: number;
+  /** Where the camera stands (`frame.shot`, last frame's): a move begun here flies from it. */
+  shot?: CameraShot | null;
 }
 
 /**
@@ -165,7 +214,7 @@ export function stepFocus(focus: { move: FocusMove; opening: ProjectId | null },
   const goal = focusGoalFor(input.phase, input.scene, focus.opening, leaving, input.inside ?? null);
   if (goal !== leaving) {
     const fly = goal === null && !input.reducedMotion && restsAt(leaving, input.progress, input.target);
-    focus.move = moveFocus(focus.move, goal, now, fly ? 'fly' : 'fade');
+    focus.move = moveFocus(focus.move, goal, now, fly ? 'fly' : 'fade', input.shot ?? null);
   }
   return focusPoseAt(focus.move, now);
 }

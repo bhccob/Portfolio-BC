@@ -72,8 +72,9 @@ export interface HomeModels {
  * `focus` is true while the camera is at a bead's close view or on its way to or from one (src/scene/bob/focus.ts
  * `FocusPose.engaged`): a project page, a flight into a porthole or out, a fade to or from a close view. The Void then
  * shows no label and reads no pointer. The Opening sets it on each frame it poses the home, before Home and the Void.
- * `close` is that close view's bead and how far the camera is in (`FocusPose.id` and `amount`), none and 0 without one:
- * the Void builds the bead's objects and runs their clock by it, and shows its touch points inside.
+ * `close` is that open view's project and how far the camera is in (`FocusPose.id` and `amount`), none and 0 without one,
+ * with how open its object is and the one a turn to the next closes (`focusOpensAt`): the Void opens the objects, dims
+ * the world and shows the touch points and the panel by them.
  */
 export interface Handover {
   live: boolean;
@@ -82,7 +83,7 @@ export interface Handover {
   shown: number;
   pose: JourneyPose | null;
   focus: boolean;
-  close: { id: ProjectId | null; amount: number };
+  close: { id: ProjectId | null; amount: number; open: number; leaving: { id: ProjectId; amount: number } | null };
 }
 
 export interface HomeProps {

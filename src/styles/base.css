@@ -1054,10 +1054,11 @@ html:not([data-3d='on']) .area-dots {
   }
 }
 
-/* ---------- the void: the touch points inside a bead ---------- */
-/* Each project's test points on the parts they name as the camera goes into its bead (src/ui/TouchPoints.tsx), in the
-   light path mock-up's look: a small gold dot and its word in the label face, tracked capitals over a soft shadow. The
-   scene shows one bead's at a time ([data-shown]), their opacity written on the layer, each word stood by a transform. */
+/* ---------- an open project: its touch points ---------- */
+/* Each project's test points beside it once it is open (src/ui/TouchPoints.tsx), in the approved mock-up's look: two
+   columns, each point on a thin gold line from a small dot on the object out to the column and level under its words,
+   the words in the label face standing on the rule. The scene shows one project's at a time ([data-shown]), their
+   opacity written on the layer, each line's points and each word's place (a transform) on them. */
 .touch-points {
   position: fixed;
   inset: 0;
@@ -1069,13 +1070,26 @@ html:not([data-3d='on']) .area-dots {
   display: block;
 }
 
+.touch-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.touch-lines polyline {
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 1;
+  marker-start: url(#world-dot);
+}
+
 .touch-point {
   position: absolute;
   top: 0;
   left: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  padding-bottom: 7px;
   font-family: var(--font-label);
   font-size: var(--label-size);
   letter-spacing: 0.2em;
@@ -1086,14 +1100,11 @@ html:not([data-3d='on']) .area-dots {
   will-change: transform;
 }
 
-.touch-point::before {
-  content: '';
-  flex: none;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--gold);
-  box-shadow: 0 0 8px rgb(239 181 61 / 0.9);
+@media (max-width: 720px) {
+  .touch-point {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+  }
 }
 
 /* ---------- Bob's five facts in the light dive ---------- */
@@ -2246,54 +2257,137 @@ html[data-route='home'][data-3d='on'][data-skip] .skip-button {
   }
 }
 
-/* ---------- inside a bead ---------- */
-/* "Terug" and "Bekijk project" (src/ui/InsideControls.tsx): two big pills at the foot of the screen, centred, for one
-   thumb, in the skip button's look: the label face in the title gold on a dark glass with a thin gold rim; the page's
-   way on has the stronger rim. Shown while the visitor is inside a bead (<html data-inside>), and with the skip button
-   gone then (no bead is close while it shows). They fade in and out, and take no Tab or click while hidden. */
+/* ---------- an open project ---------- */
+/* Its words beside it (src/ui/ProjectPanel.tsx), in the approved mock-up's look: on a laptop at the left, in the middle
+   of the height; on a phone below the object. Its category in the gold label face, its name in the title face, the line
+   about it, its role and year in the quiet label face, and "Bekijk project". One per project, its opacity written by the
+   scene as it opens; inert under half. Without a scene none shows. */
+.project-panel {
+  position: fixed;
+  top: 50%;
+  left: calc(var(--gutter) + 16px);
+  width: min(430px, 34vw);
+  opacity: 0;
+  transform: translateY(-50%);
+}
+
+.project-panel-category {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.24em;
+  color: var(--gold);
+}
+
+.project-panel-title {
+  margin: 18px 0 22px;
+  font-family: var(--font-title);
+  font-feature-settings: var(--font-title-features);
+  font-size: 58px;
+  font-weight: 600;
+  line-height: 1.05;
+  color: var(--ink);
+}
+
+.project-panel-summary {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--lilac);
+}
+
+.project-panel-meta {
+  margin: 16px 0 0;
+  font-family: var(--font-label);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+}
+
+.project-panel-view {
+  margin-top: 30px;
+}
+
+html:not([data-3d='on']) .project-panel {
+  display: none;
+}
+
+/* "Terug" at the foot on the left, the arrows and "n / N" at the right: shown while a project is open
+   (<html data-inside>), and with the skip button gone then (no project is open while it shows). They fade in and out,
+   and take no Tab or click while hidden; the bar between them lets a click through to the scene. */
 .inside-controls {
   position: fixed;
-  left: 50%;
-  bottom: calc(max(24px, 3.2vw) + env(safe-area-inset-bottom, 0px));
+  right: var(--gutter);
+  bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+  left: var(--gutter);
   display: flex;
-  gap: 12px;
-  transform: translateX(-50%);
+  align-items: center;
+  justify-content: space-between;
   opacity: 0;
   visibility: hidden;
+  pointer-events: none;
   transition:
     opacity 0.5s var(--ease-reveal),
     visibility 0s linear 0.5s;
 }
 
+.inside-controls > * {
+  pointer-events: auto;
+}
+
 .inside-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
   min-height: 52px;
   margin: 0;
-  padding: 0 clamp(22px, 2.2vw, 32px);
-  border: 1px solid rgb(228 190 127 / 0.45);
+  padding: 0 26px;
+  border: 1px solid var(--gold);
   border-radius: 999px;
-  background: rgb(5 3 8 / 0.62);
+  background: rgb(4 2 9 / 0.35);
   color: var(--gold-title);
-  font: 400 clamp(12px, 0.95vw, 14px) / 1 var(--font-label);
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
+  font: 400 13px / 1 var(--font-label);
+  letter-spacing: 0.08em;
+  text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
   appearance: none;
   touch-action: manipulation;
-  transition: border-color 0.3s;
 }
 
-.inside-view {
-  border-color: rgb(243 210 140 / 0.85);
+.inside-arrows {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font: 400 13px / 1 var(--font-label);
+  letter-spacing: 0.12em;
+  color: var(--gold-title);
 }
 
-.inside-button:hover {
-  border-color: rgb(249 220 135 / 1);
+.inside-round {
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: 1px solid var(--gold);
+  border-radius: 50%;
+  background: rgb(4 2 9 / 0.35);
+  color: var(--gold-title);
+  font-size: 18px;
+  cursor: pointer;
+  appearance: none;
+  touch-action: manipulation;
 }
 
-.inside-button:focus-visible {
+@media (hover: hover) {
+  .inside-button:hover,
+  .inside-round:hover {
+    background: rgb(226 165 74 / 0.12);
+  }
+}
+
+.inside-button:focus-visible,
+.inside-round:focus-visible {
   outline: 1px solid var(--gold-title);
-  outline-offset: 3px;
+  outline-offset: 4px;
 }
 
 html[data-route='home'][data-3d='on'][data-inside] .inside-controls {
@@ -2304,17 +2398,36 @@ html[data-route='home'][data-3d='on'][data-inside] .inside-controls {
     visibility 0s;
 }
 
-/* On a phone the two share the screen's width, each half of it. */
+/* On a phone: the words below the object, Terug and the arrows lower. */
 @media (max-width: 720px) {
-  .inside-controls {
-    left: 16px;
-    right: 16px;
+  .project-panel {
+    top: auto;
+    right: var(--gutter);
+    bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+    left: var(--gutter);
+    width: auto;
     transform: none;
   }
 
-  .inside-button {
-    flex: 1 1 0;
-    padding: 0 12px;
+  .project-panel-title {
+    margin: 10px 0 12px;
+    font-size: 36px;
+  }
+
+  .project-panel-summary {
+    font-size: 15px;
+  }
+
+  .project-panel-view {
+    margin-top: 18px;
+  }
+
+  .inside-controls {
+    bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .inside-arrows {
+    gap: 12px;
   }
 }
 

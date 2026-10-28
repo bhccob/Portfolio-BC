@@ -97,7 +97,7 @@ export interface HomeScrollPage {
  * the wheel or the swipe that skipped neither moves the story nor scrolls the page. It is the input that does this, not
  * `enabled`, because an event `enabled` turns away is left to the browser, and the browser would scroll with it. The
  * same goes inside a bead (the store's `inside`, src/scene/bob/inside.ts): the input drops all it hears while the
- * visitor is inside, where a wheel, a swipe or a key takes them back out (src/ui/InsideControls.tsx), and from the
+ * visitor is inside, where a wheel, a swipe or a key takes them back out (src/ui/ProjectPanel.tsx), and from the
  * moment the inside closes it drops the tail of that input as it drops a skip's (`skipSwallower`), so the gesture
  * that took the visitor out does not also carry the story on to the next project.
  *

@@ -24,9 +24,9 @@ import { openAt } from '~/ui/projectOpen';
 import { motion } from '../motion';
 import { settleLoad } from '../settleLoad';
 import { visibleTimeout } from '../timeouts';
-import { FOCUS_AT_REST, type FocusPose, stepFocus } from './focus';
+import { FOCUS_AT_REST, focusOpensAt, type FocusPose, focusShotAt, stepFocus } from './focus';
 import { type Handover, Home, type HomeModels } from './Home';
-import { focusShotFor, journeyPoseAt, shotToward } from './journey';
+import { focusShotFor, journeyPoseAt } from './journey';
 import { cameraShotAt, loadShare, type OpeningPose, openingPoseAt } from './openingPose';
 import { SHOT_PRIORITY, shotSourceFor, shownProgressFor } from './shotSource';
 import {
@@ -41,6 +41,7 @@ import {
   skipsLoader,
 } from './openingStart';
 import { Void } from './Void';
+import { worldPathFor } from './worldPath';
 import { writeJourney } from './voidPose';
 import { uploadTextures, warm } from './warm';
 
@@ -140,7 +141,7 @@ function showFocusFade(on: boolean): void {
 /** The close view on this frame: `stepFocus` (src/scene/bob/focus.ts) of `frame.focus`, from the store and the story. */
 function focusNow(now: number): FocusPose {
   const { phase, scene, reducedMotion, inside } = useScene.getState();
-  return stepFocus(frame.focus, { phase, scene, reducedMotion, inside, progress: frame.progress, target: frame.target }, now);
+  return stepFocus(frame.focus, { phase, scene, reducedMotion, inside, progress: frame.progress, target: frame.target, shot: frame.shot }, now);
 }
 
 /** Frees strips' GPU side and empties their canvases (4096 x 96 each). Freeing one twice is harmless. */
@@ -322,7 +323,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
   const buffer = useRef({ seen: new THREE.Vector2(-1, -1), now: new THREE.Vector2() });
   /** The home's parts once built, which mount Home; and what the Opening hands over to it, set on each frame drawn. */
   const [models, setModels] = useState<Mounted | null>(null);
-  const [handover] = useState<Handover>(() => ({ live: false, time: 0, needle: settleAngle(1), shown: 0, pose: null, focus: false, close: { id: null, amount: 0 } }));
+  const [handover] = useState<Handover>(() => ({ live: false, time: 0, needle: settleAngle(1), shown: 0, pose: null, focus: false, close: { id: null, amount: 0, open: 0, leaving: null } }));
   /** The full show is playing, so any input skips it (`useLoaderSkip`) while a scene is shown. */
   const [skippable, setSkippable] = useState(false);
   /** The page shows a scene: on a page of text (Lite, contact) the canvas draws nothing, and the skip must not listen. */
@@ -603,20 +604,24 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
     // is still last frame's here: the Opening sets it below.) A bead's close view (src/scene/bob/focus.ts) is in the
     // shot only once the clock is at the home: a direct arrival at a project page plays its loader, then comes to the
     // close view by a fade once it has landed.
-    const focus = atHome && held === null ? focusNow(performance.now()) : NO_FOCUS;
+    const now = performance.now();
+    const focus = atHome && held === null ? focusNow(now) : NO_FOCUS;
     const source = shotSourceFor(clock.stage, held, handover.live, focus.amount > 0);
     if (source === 'loader' || source === 'held') {
       frame.shot = cameraShotAt(clock, state.path, aspect);
       handover.pose = null;
     } else {
-      // The one journey pose of this frame: the camera's shot, and what Home and the Void pose the scene from. A close
-      // view poses the journey where its bead was opened from, else at its stop (the bead in view and lit), and moves the
-      // shot toward the close view by the move's eased amount: the flight, or the page standing over it.
+      // The one journey pose of this frame: the camera's shot, and what Home and the Void pose the scene from. An open
+      // view poses the journey where its project was opened from, else at its stop, and the shot is the move's
+      // (`focusShotAt`): a flight from where the camera stood round the board to the open view it goes to, or back to the
+      // journey's shot; the page standing over it once it is there.
       const close = source === 'flight' ? focus.id : null;
       const reduced = useScene.getState().reducedMotion;
       const at = close === null ? shownProgressFor(source === 'home' ? 'home' : 'journey', reduced, frame.progress, frame.target, handover.shown) : placeForProject(close);
       const journey = journeyPoseAt(at, aspect);
-      const pose = close === null ? journey : { ...journey, shot: shotToward(journey.shot, focusShotFor(close, aspect), focus.amount) };
+      const move = frame.focus.move;
+      const goal = move.to !== null ? focusShotFor(move.to, aspect) : journey.shot;
+      const pose = close === null ? journey : { ...journey, shot: focusShotAt(move, now, goal, worldPathFor(aspect).centre) };
       frame.shot = pose.shot;
       handover.pose = pose;
       writeJourney(frame.journey, pose);
@@ -627,6 +632,9 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
     handover.focus = focus.engaged;
     handover.close.id = focus.id;
     handover.close.amount = focus.amount;
+    const opens = focus.id === null ? null : focusOpensAt(frame.focus.move, now);
+    handover.close.open = opens?.open ?? 0;
+    handover.close.leaving = opens?.leaving ?? null;
     showFocusFade(focus.dark || (focus.amount > 0 && useScene.getState().voidState !== 'ready'));
     motion.focus = focus.moving;
     // A held clock poses every frame; the live one poses the home once, when it gets there.

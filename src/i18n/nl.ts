@@ -403,8 +403,8 @@ export const nl: Dictionary = {
       open: { click: 'Klik om te openen', tap: 'Tik om te openen' },
       areas: 'Gebieden'
     },
-    // Inside a bead (src/ui/InsideControls.tsx): the 3D world's spec, "Bekijk project" and "Terug".
-    inside: { view: 'Bekijk project', back: 'Terug' }
+    // An open project (src/ui/ProjectPanel.tsx): "Bekijk project", "Terug" and the arrows' names, the mock-up's words.
+    inside: { view: 'Bekijk project', back: 'Terug', previous: 'Vorig project', next: 'Volgend project' }
   },
   // Verbatim from the NL column of the light dive's spec (docs/superpowers/specs/2026-10-25-bob-light-dive-design.md).
   lightDive: {

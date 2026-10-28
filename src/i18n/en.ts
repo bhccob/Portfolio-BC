@@ -433,8 +433,8 @@ export const en = {
       open: { click: 'Click to open', tap: 'Tap to open' },
       areas: 'Areas'
     },
-    /** Inside a bead (src/ui/InsideControls.tsx): the way on to its page and the way back out (the 3D world's spec). */
-    inside: { view: 'View project', back: 'Back' }
+    /** An open project (src/ui/ProjectPanel.tsx): the way on to its page, the way back out and the arrows' names. */
+    inside: { view: 'View project', back: 'Back', previous: 'Previous project', next: 'Next project' }
   },
   /**
    * The light dive (docs/superpowers/specs/2026-10-25-bob-light-dive-design.md, Bob approved it on 2026-10-26): his

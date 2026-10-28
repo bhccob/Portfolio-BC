@@ -26,9 +26,14 @@ const GAP = 6;
 const PHONE = 700;
 const PHONE_REACH = 1.45;
 
-/** A category's reach on a screen `width` px wide: the 1440 px numbers scaled down with it, never up, more on a phone. */
+/** How the mock-up's px (at 1440 wide) scale on a screen `width` px wide: down with it, never up, more on a phone. */
+export function nameScale(width: number): number {
+  return Math.min(1, width / 1440) * (width < PHONE ? PHONE_REACH : 1);
+}
+
+/** A category's reach on a screen `width` px wide (`nameScale`). */
 export function nameOffset(category: CategoryId, width: number): Point {
-  const s = Math.min(1, width / 1440) * (width < PHONE ? PHONE_REACH : 1);
+  const s = nameScale(width);
   const [x, y] = NAME_OFFSET[category];
   return [x * s, y * s];
 }

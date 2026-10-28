@@ -65,11 +65,19 @@ export function worldClockRuns(stirred: number, now: number, reduced: boolean): 
  */
 export const OPEN_LOOK = { world: 0.25, focus: 1.25, others: 0.3, light: 0.34, clouds: 0.5 } as const;
 
-/** Each project's light with `id` open `amount` of the way (0..1): it toward `OPEN_LOOK.focus`, the rest toward `others`. */
-export function openLevels<K extends string>(levels: Readonly<Record<K, number>>, id: NoInfer<K> | null, amount: number): Record<K, number> {
-  const a = id === null ? 0 : Math.min(1, Math.max(0, amount));
+/**
+ * Each project's light with the world `amount` of the way into its open look (0..1) and each project as open as `open`
+ * says (0..1, none for a closed one): an open one toward `OPEN_LOOK.focus` by how open it is, the rest of the way toward
+ * `others`, so from one open project to the next the one left goes quiet as the next lights.
+ */
+export function openLevels<K extends string>(levels: Readonly<Record<K, number>>, open: Readonly<Partial<Record<NoInfer<K>, number>>>, amount: number): Record<K, number> {
+  const unit = (x: number | undefined): number => Math.min(1, Math.max(0, x ?? 0));
+  const a = unit(amount);
   return Object.fromEntries(
-    (Object.entries(levels) as [K, number][]).map(([k, v]) => [k, v + ((k === id ? OPEN_LOOK.focus : OPEN_LOOK.others) - v) * a])
+    (Object.entries(levels) as [K, number][]).map(([k, v]) => {
+      const own = Math.min(a, unit(open[k]));
+      return [k, v + (OPEN_LOOK.others - v) * (a - own) + (OPEN_LOOK.focus - v) * own];
+    })
   ) as Record<K, number>;
 }
 

@@ -4,10 +4,10 @@ import { type ProjectId, projects } from '~/data/projects';
 import { useTranslator } from '~/i18n/useTranslator';
 import { FLIGHT_MS, FOCUS_FADE_MS, focusPoseAt, moveFocus, restsAt } from '~/scene/bob/focus';
 import { INSIDE_STATE, opensOnClick } from '~/scene/bob/inside';
-import { journeyAt } from '~/scene/bob/journey';
+import { journeyAt, WORLD_PROJECTS } from '~/scene/bob/journey';
 import { wakeScene } from '~/scene/motion';
 import { frame } from '~/state/frame';
-import { insideInHistory, noteOpenedFrom } from '~/state/routeSync';
+import { insideInHistory, noteOpenedFrom, stopForProject } from '~/state/routeSync';
 import { useScene } from '~/state/store';
 
 // The ways a project on the hologram world opens (spec 2026-10-27-bob-hologram-world-design.md, goals 5 and 6): a click
@@ -60,7 +60,7 @@ export function openBead(id: ProjectId): boolean {
   const there = inside === id && shown.id === id && shown.amount === 1 && !shown.moving;
   const fly = !there && !reducedMotion && restsAt(id, frame.progress, frame.target);
   frame.focus.opening = id;
-  if (!there) frame.focus.move = moveFocus(frame.focus.move, id, now, fly ? 'fly' : 'fade');
+  if (!there) frame.focus.move = moveFocus(frame.focus.move, id, now, fly ? 'fly' : 'fade', frame.shot);
   const root = document.documentElement;
   if (openingClear !== null) clearTimeout(openingClear);
   openingClear = null;
@@ -95,18 +95,45 @@ export function openInside(id: ProjectId): boolean {
   const { reducedMotion, inside, setInside } = useScene.getState();
   if (frame.focus.opening !== null || inside !== null) return false;
   const fly = !reducedMotion && restsAt(id, frame.progress, frame.target);
-  frame.focus.move = moveFocus(frame.focus.move, id, performance.now(), fly ? 'fly' : 'fade');
+  frame.focus.move = moveFocus(frame.focus.move, id, performance.now(), fly ? 'fly' : 'fade', frame.shot);
   noteOpenedFrom(id, frame.progress);
   setInside(id);
   const ways = opener;
-  const here = typeof window === 'undefined' ? '/' : `${window.location.pathname}${window.location.search}`;
-  if (ways !== null) void ways.navigate(here, { state: { [INSIDE_STATE]: id }, preventScrollReset: true });
+  if (ways !== null) void ways.navigate(hereNow(), { state: { [INSIDE_STATE]: id }, preventScrollReset: true });
+  wakeScene();
+  return true;
+}
+
+/** The home page's own address, as the history entry of an open project stands on it. */
+function hereNow(): string {
+  return typeof window === 'undefined' ? '/' : `${window.location.pathname}${window.location.search}`;
+}
+
+/**
+ * The arrows of an open project (spec goal 5): the next (`dir` 1) or the previous (−1) project on the world, round the
+ * end, without going back first. The camera flies on from where it stands, round the board (src/scene/bob/focus.ts), or
+ * fades with reduced motion; the store's `inside` turns at once; and the open project's history entry is replaced, so
+ * Back still comes out to where the first was opened from: from an area, the new project's area (the mock-up's way, so
+ * the camera comes out beside it), from the world or the look back, there (`noteOpenedFrom`). Answers whether it turned:
+ * not with none open, nor while a project's page is opening.
+ */
+export function turnInside(dir: 1 | -1): boolean {
+  const { reducedMotion, inside, setInside } = useScene.getState();
+  if (inside === null || frame.focus.opening !== null) return false;
+  const at = WORLD_PROJECTS.indexOf(inside);
+  const next = WORLD_PROJECTS[(at + dir + WORLD_PROJECTS.length) % WORLD_PROJECTS.length]!;
+  if (next === inside) return false;
+  frame.focus.move = moveFocus(frame.focus.move, next, performance.now(), reducedMotion ? 'fade' : 'fly', frame.shot);
+  noteOpenedFrom(next, journeyAt(frame.progress).stretch === 'area' ? stopForProject(next) : frame.progress);
+  setInside(next);
+  const ways = opener;
+  if (ways !== null && insideInHistory()) void ways.navigate(hereNow(), { state: { [INSIDE_STATE]: next }, preventScrollReset: true, replace: true });
   wakeScene();
   return true;
 }
 
 /**
- * Closes the open project: "Terug", Escape, a wheel and a swipe (src/ui/InsideControls.tsx). The store lets it go at
+ * Closes the open project: "Terug", Escape, a wheel and a swipe (src/ui/ProjectPanel.tsx). The store lets it go at
  * once, so the camera starts flying back now (src/scene/bob/focus.ts); where the entry shown is its own
  * (`insideInHistory`) the router goes Back too, to the entry before it, so Forward can open it again. A second call before
  * the router has popped finds none open and goes nowhere further back.

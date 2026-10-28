@@ -1,54 +1,70 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { projects } from '~/data/projects';
-import { TOUCH_POINTS, touchBox } from '~/scene/bob/touchPoints';
-import { TouchPoints } from '~/ui/TouchPoints';
+import { WORLD_PROJECTS } from '~/scene/bob/journey';
+import { touchColumns } from '~/scene/bob/touchColumns';
+import { registerTouchPoints, showTouchPoints, TouchPoints } from '~/ui/TouchPoints';
 
-describe("the touch points: a bead's own test points, on the parts they name", () => {
-  it('names a touch point for every test point of each project', () => {
-    for (const p of projects.all()) expect(TOUCH_POINTS[p.id], p.id).toHaveLength(p.testPoints.length);
+/** A stand-in element: its style and attributes as plain maps, its width given. */
+function fake(width = 0) {
+  const attributes = new Map<string, string>();
+  const style: Record<string, string> = {};
+  return {
+    style,
+    attributes,
+    offsetWidth: width,
+    setAttribute: (k: string, v: string) => attributes.set(k, v),
+    removeAttribute: (k: string) => attributes.delete(k),
+    toggleAttribute: (k: string, on: boolean) => (on ? attributes.set(k, '') : attributes.delete(k))
+  };
+}
+
+const DESK = { width: 1440, height: 900 };
+const done: (() => void)[] = [];
+afterEach(() => {
+  for (const undo of done.splice(0)) undo();
+});
+
+describe("the touch points: an open project's own test points, in two columns beside it", () => {
+  it("follow the open project's anchors in two columns", () => {
+    const count = projects.byId('funcial')!.testPointLabels('nl').length;
+    const el = fake();
+    const words = Array.from({ length: count }, (_, k) => fake(70 + 10 * k));
+    const lines = Array.from({ length: count }, () => fake());
+    done.push(registerTouchPoints('funcial', { el: el as never, words: words as never, lines: lines as never }));
+    const at = Array.from({ length: count }, (_, k) => ({ x: 640 + 30 * k, y: 380 + 25 * (k % 3) }));
+    showTouchPoints({ id: 'funcial', opacity: 0.8, at, centreX: 700, reach: 110 }, DESK, 1);
+    const placed = touchColumns(
+      at.map((p, k) => ({ ...p, w: words[k]!.offsetWidth })),
+      700,
+      110,
+      DESK,
+      1
+    );
+    expect(el.attributes.has('data-shown')).toBe(true);
+    expect(el.style.opacity).toBe('0.8');
+    words.forEach((word, k) => expect(word.style.transform).toBe(`translate3d(${placed[k]!.left}px, ${placed[k]!.top}px, 0) translateY(-100%)`));
+    lines.forEach((line, k) => expect(line.attributes.get('points')).toBe(placed[k]!.points.map((p) => p.join(',')).join(' ')));
+    // As the object moves, they follow it.
+    const moved = at.map((p) => ({ x: p.x + 50, y: p.y }));
+    showTouchPoints({ id: 'funcial', opacity: 1, at: moved, centreX: 750, reach: 110 }, DESK, 1);
+    expect(lines[0]!.attributes.get('points')!.startsWith(`${moved[0]!.x},${moved[0]!.y} `)).toBe(true);
+    // None open: hidden.
+    showTouchPoints(null, DESK, 1);
+    expect(el.attributes.has('data-shown')).toBe(false);
   });
 
-  it("pins Funcial's to its four pins and the abacus's fifth bead, Jontai Energy's to its tablet's corners, Cookies Clicker's to its loop, train and screen", () => {
-    expect(TOUCH_POINTS.funcial.map((p) => [p.anchor, p.place])).toEqual([
-      [{ node: 'funcial_pin_1' }, 'below'],
-      [{ node: 'funcial_pin_2' }, 'below2'],
-      [{ node: 'funcial_pin_3' }, 'below'],
-      [{ node: 'funcial_pin_4' }, 'below2'],
-      [{ node: 'funcial_bead_5' }, 'above']
-    ]);
-    expect(TOUCH_POINTS['jontai-energy'].map((p) => [p.anchor, p.place])).toEqual([
-      [{ corner: 'tl' }, 'left'],
-      [{ corner: 'bl' }, 'left'],
-      [{ corner: 'tr' }, 'right'],
-      [{ corner: 'br' }, 'right']
-    ]);
-    expect(TOUCH_POINTS['cookies-clicker'].map((p) => [p.anchor, p.place])).toEqual([
-      [{ node: 'cookies_balance' }, 'above'],
-      [{ node: 'cookies_wheel_4' }, 'below'],
-      [{ node: 'cookies_wheel_8' }, 'below2'],
-      [{ corner: 'bl' }, 'below'],
-      [{ corner: 'tr' }, 'right']
-    ]);
-  });
-
-  it('places a touch point by its side, inside the screen', () => {
-    expect(touchBox({ x: 500, y: 300 }, 'below2', { w: 80, h: 16 }, 1440)).toEqual({ x: 460, y: 340 });
-    expect(touchBox({ x: 500, y: 300 }, 'left', { w: 80, h: 16 }, 1440)).toEqual({ x: 408, y: 292 });
-    expect(touchBox({ x: 500, y: 300 }, 'right', { w: 80, h: 16 }, 1440)).toEqual({ x: 512, y: 292 });
-    expect(touchBox({ x: 500, y: 300 }, 'above', { w: 80, h: 16 }, 1440)).toEqual({ x: 460, y: 268 });
-    expect(touchBox({ x: 500, y: 300 }, 'below', { w: 80, h: 16 }, 1440)).toEqual({ x: 460, y: 316 });
-    expect(touchBox({ x: 5, y: 300 }, 'below', { w: 80, h: 16 }, 1440).x).toBe(10);
-    expect(touchBox({ x: 1430, y: 300 }, 'right', { w: 80, h: 16 }, 1440).x).toBe(1350);
-  });
-
-  it("renders each project's test points in its page's words, hidden from a screen reader, which reads them on the project's page", () => {
+  it("renders each world project's test points in its page's words, each with its line, hidden from a screen reader, which reads them on the project's page", () => {
     const html = renderToStaticMarkup(createElement(MemoryRouter, null, createElement(TouchPoints)));
-    expect(html.match(/class="touch-points"/g)).toHaveLength(projects.all().length);
-    expect(html.match(/aria-hidden="true"/g)).toHaveLength(projects.all().length);
+    expect(html.match(/class="touch-points"/g)).toHaveLength(WORLD_PROJECTS.length);
+    expect(html.match(/class="touch-points"[^>]*aria-hidden="true"/g)).toHaveLength(WORLD_PROJECTS.length);
     const escaped = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    for (const p of projects.all()) for (const label of p.testPointLabels('nl')) expect(html).toContain(`>${escaped(label)}<`);
+    for (const id of WORLD_PROJECTS) {
+      const labels = projects.byId(id)!.testPointLabels('nl');
+      for (const label of labels) expect(html).toContain(`>${escaped(label)}<`);
+    }
+    expect(html.match(/<polyline/g)).toHaveLength(WORLD_PROJECTS.reduce((n, id) => n + projects.byId(id)!.testPointLabels('nl').length, 0));
   });
 });

@@ -147,12 +147,17 @@ describe("the world's clock and its look with a project open", () => {
   it('dims the world, lights the open project and quiets the others as it opens', () => {
     expect(OPEN_LOOK).toEqual({ world: 0.25, focus: 1.25, others: 0.3, light: 0.34, clouds: 0.5 });
     const levels = { funcial: 1, 'jontai-energy': 1.1, 'cookies-clicker': 0.5 } as const;
-    expect(openLevels(levels, null, 1)).toEqual(levels);
-    expect(openLevels(levels, 'funcial', 0)).toEqual(levels);
-    expect(openLevels(levels, 'funcial', 1)).toEqual({ funcial: expect.closeTo(1.25, 12), 'jontai-energy': expect.closeTo(0.3, 12), 'cookies-clicker': expect.closeTo(0.3, 12) });
-    const half = openLevels(levels, 'jontai-energy', 0.5);
+    expect(openLevels(levels, {}, 0)).toEqual(levels);
+    expect(openLevels(levels, { funcial: 0 }, 0)).toEqual(levels);
+    expect(openLevels(levels, { funcial: 1 }, 1)).toEqual({ funcial: expect.closeTo(1.25, 12), 'jontai-energy': expect.closeTo(0.3, 12), 'cookies-clicker': expect.closeTo(0.3, 12) });
+    const half = openLevels(levels, { 'jontai-energy': 0.5 }, 0.5);
     expect(half['jontai-energy']).toBeCloseTo(1.175, 12);
     expect(half.funcial).toBeCloseTo(0.65, 12);
+    // From one open project to the next, the world held open: the one left goes quiet as the next lights.
+    const turning = openLevels(levels, { funcial: 0.75, 'cookies-clicker': 0.25 }, 1);
+    expect(turning.funcial).toBeCloseTo(0.3 + (1.25 - 0.3) * 0.75, 12);
+    expect(turning['cookies-clicker']).toBeCloseTo(0.3 + (1.25 - 0.3) * 0.25, 12);
+    expect(turning['jontai-energy']).toBeCloseTo(0.3, 12);
     expect(openWorld(0)).toBe(1);
     expect(openWorld(1)).toBe(0.25);
     expect(openWorld(0.5)).toBeCloseTo(0.625, 12);

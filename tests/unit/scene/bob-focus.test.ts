@@ -9,7 +9,9 @@ import {
   FOCUS_FADE_MS,
   type FocusMove,
   focusGoalFor,
+  focusOpensAt,
   focusPoseAt,
+  focusShotAt,
   moveFocus,
   restsAt,
   stepFocus
@@ -115,11 +117,13 @@ describe("shotToward: the flight's straight move between two shots", () => {
 
   it('never takes the camera through an object: from its own stop to its open view, on every screen', () => {
     for (const a of SCREENS) {
+      const C = worldPathFor(a).centre;
       for (const id of IDS) {
         const from = journeyPoseAt(stopForProject(id), a).shot;
         const to = focusShotFor(id, a);
+        const flight = moveFocus(FOCUS_AT_REST, id, 0, 'fly', from);
         for (let k = 0; k <= 100; k++) {
-          const at = shotToward(from, to, k / 100).position;
+          const at = focusShotAt(flight, (FLIGHT_MS * k) / 100, to, C).position;
           for (const other of IDS) {
             const centre = atStop(other);
             expect(Math.hypot(at[0] - centre[0], at[1] - centre[1], at[2] - centre[2]), `${id} past ${other}`).toBeGreaterThan(1);
@@ -127,6 +131,54 @@ describe("shotToward: the flight's straight move between two shots", () => {
         }
       }
     }
+  });
+});
+
+// ---------------------------------------------------------------- the flights
+
+describe('focusShotAt: the camera on a flight, from where it was round the board', () => {
+  it('flies round the board between two open projects, never across the CPU', () => {
+    for (const a of SCREENS) {
+      const C = worldPathFor(a).centre;
+      for (const from of IDS) {
+        for (const to of IDS) {
+          if (from === to) continue;
+          const start = focusShotFor(from, a);
+          const goal = focusShotFor(to, a);
+          const turn = moveFocus(moveFocus(FOCUS_AT_REST, from, 0, 'fade'), to, 10_000, 'fly', start);
+          near(focusShotAt(turn, 10_000, goal, C).position, start.position);
+          near(focusShotAt(turn, 10_000 + FLIGHT_MS, goal, C).position, goal.position);
+          near(focusShotAt(turn, 10_000 + FLIGHT_MS, goal, C).target, goal.target);
+          for (let k = 0; k <= 100; k++) {
+            const at = focusShotAt(turn, 10_000 + (FLIGHT_MS * k) / 100, goal, C).position;
+            expect(Math.hypot(at[0] - C[0], at[2] - C[2]), `${from} to ${to} at ${k}`).toBeGreaterThanOrEqual(3);
+            for (const other of IDS) {
+              const middle = atStop(other);
+              expect(Math.hypot(at[0] - middle[0], at[1] - middle[1], at[2] - middle[2]), `${from} to ${to} past ${other}`).toBeGreaterThan(1);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it('retargets a flight in progress from where it is', () => {
+    const C = worldPathFor(LAPTOP).centre;
+    const stop = journeyPoseAt(stopForProject('funcial'), LAPTOP).shot;
+    const going = moveFocus(FOCUS_AT_REST, 'funcial', 0, 'fly', stop);
+    const mid = focusShotAt(going, FLIGHT_MS / 2, focusShotFor('funcial', LAPTOP), C);
+    const turned = moveFocus(going, 'cookies-clicker', FLIGHT_MS / 2, 'fly', mid);
+    const goal = focusShotFor('cookies-clicker', LAPTOP);
+    // No jump: the new flight starts where the camera stands, and ends on the new project's view.
+    near(focusShotAt(turned, FLIGHT_MS / 2, goal, C).position, mid.position);
+    near(focusShotAt(turned, FLIGHT_MS / 2, goal, C).target, mid.target);
+    expect(focusShotAt(turned, FLIGHT_MS / 2, goal, C).fov).toBeCloseTo(mid.fov, 9);
+    near(focusShotAt(turned, FLIGHT_MS / 2 + FLIGHT_MS, goal, C).position, goal.position);
+    // A move with no shot to start from (the first, or a fade) stands on its goal; a fade holds the start while dark.
+    expect(focusShotAt(moveFocus(FOCUS_AT_REST, 'funcial', 0, 'fly'), 100, goal, C)).toEqual(goal);
+    const fade = moveFocus(FOCUS_AT_REST, 'funcial', 0, 'fade', stop);
+    expect(focusShotAt(fade, FOCUS_FADE_MS - 1, goal, C)).toEqual(stop);
+    expect(focusShotAt(fade, FOCUS_FADE_MS, goal, C)).toEqual(goal);
   });
 });
 
@@ -176,12 +228,35 @@ describe('focusPoseAt: where the camera is between the journey and a close view'
     expect(focusPoseAt(back, 9000 + FOCUS_FADE_MS)).toEqual({ id: null, amount: 0, dark: false, moving: false, engaged: false });
   });
 
-  it("never flies from one bead's close view to another's: that is a fade", () => {
+  it("flies from one open project's view to another's, the world kept in its open look on the way", () => {
     const funcial = moveFocus(FOCUS_AT_REST, 'funcial', 0, 'fly');
-    expect(moveFocus(funcial, 'cookies-clicker', 5000, 'fly').mode).toBe('fade');
-    // From the journey's shot any bead may be flown to, and from a bead back out.
+    const turn = moveFocus(funcial, 'cookies-clicker', 5000, 'fly');
+    expect(turn.mode).toBe('fly');
+    for (const t of [5000, 5000 + FLIGHT_MS / 3, 5000 + FLIGHT_MS]) expect(focusPoseAt(turn, t)).toMatchObject({ id: 'cookies-clicker', amount: 1, engaged: true });
+    expect(focusPoseAt(turn, 5000 + FLIGHT_MS / 3).moving).toBe(true);
+    // From the journey's shot any project may be flown to, and from one back out.
     expect(moveFocus(FOCUS_AT_REST, 'cookies-clicker', 5000, 'fly').mode).toBe('fly');
     expect(moveFocus(funcial, null, 5000, 'fly').mode).toBe('fly');
+  });
+
+  it('closes the project it leaves as the next one opens, never both open at once', () => {
+    const funcial = moveFocus(FOCUS_AT_REST, 'funcial', 0, 'fly');
+    expect(focusOpensAt(funcial, FLIGHT_MS / 2)).toEqual({ open: expect.closeTo(0.5, 9), leaving: null });
+    expect(focusOpensAt(funcial, FLIGHT_MS)).toEqual({ open: 1, leaving: null });
+    const turn = moveFocus(funcial, 'jontai-energy', 5000, 'fly');
+    expect(focusOpensAt(turn, 5000)).toEqual({ open: 0, leaving: { id: 'funcial', amount: 1 } });
+    const half = focusOpensAt(turn, 5000 + FLIGHT_MS / 2);
+    expect(half.open).toBeCloseTo(0.5, 9);
+    expect(half.leaving).toEqual({ id: 'funcial', amount: expect.closeTo(0.5, 9) });
+    expect(focusOpensAt(turn, 5000 + FLIGHT_MS)).toEqual({ open: 1, leaving: null });
+    // Back out: the one open closes with the flight.
+    const out = moveFocus(turn, null, 9000, 'fly');
+    expect(focusOpensAt(out, 9000)).toEqual({ open: 1, leaving: null });
+    expect(focusOpensAt(out, 9000 + FLIGHT_MS / 2).open).toBeCloseTo(0.5, 9);
+    // A fade: all at once once dark.
+    const fade = moveFocus(funcial, 'cookies-clicker', 20_000, 'fade');
+    expect(focusOpensAt(fade, 20_000)).toEqual({ open: 0, leaving: { id: 'funcial', amount: 1 } });
+    expect(focusOpensAt(fade, 20_000 + FOCUS_FADE_MS)).toEqual({ open: 1, leaving: null });
   });
 
   it('starts a move from wherever the last one stands: a flight turned back half way goes on from there, with no jump', () => {
@@ -342,7 +417,7 @@ describe('a project opened: a click flies to it, and every way back flies to its
   /** The frame's input as the Opening reads it: the real store and the real story, the inside with them. */
   const input = () => {
     const { phase, scene, reducedMotion, inside } = useScene.getState();
-    return { phase, scene, reducedMotion, inside, progress: frame.progress, target: frame.target };
+    return { phase, scene, reducedMotion, inside, progress: frame.progress, target: frame.target, shot: frame.shot };
   };
   const reset = (): void => {
     resetRouteSync();
@@ -350,6 +425,7 @@ describe('a project opened: a click flies to it, and every way back flies to its
     frame.progress = frame.target = frame.velocity = frame.chapterIndex = 0;
     frame.focus.move = { ...FOCUS_AT_REST, from: { ...FOCUS_AT_REST.from } };
     frame.focus.opening = null;
+    frame.shot = null;
   };
   beforeEach(() => {
     reset();
@@ -371,8 +447,10 @@ describe('a project opened: a click flies to it, and every way back flies to its
     expect(stepFocus(frame.focus, input(), 0)).toMatchObject({ dark: true, engaged: true });
     expect(stepFocus(frame.focus, input(), 1000)).toMatchObject({ id: 'funcial', amount: 1, moving: false });
     useScene.getState().setInside(null);
+    frame.shot = focusShotFor('funcial', LAPTOP); // where the camera stands as the way out begins
     expect(stepFocus(frame.focus, input(), 2000)).toMatchObject({ id: 'funcial', amount: 1, dark: false, moving: true });
     expect(frame.focus.move).toMatchObject({ to: null, mode: 'fly' });
+    expect(frame.focus.move.shot).toEqual(frame.shot); // the flight out starts from there
     expect(focusPoseAt(frame.focus.move, 2000 + FLIGHT_MS / 2).amount).toBeCloseTo(0.5, 9);
     expect(focusPoseAt(frame.focus.move, 2000 + FLIGHT_MS)).toEqual({ id: null, amount: 0, dark: false, moving: false, engaged: false });
   });
@@ -407,11 +485,11 @@ describe('a project opened: a click flies to it, and every way back flies to its
 describe('the flight from the world', () => {
   it("ends at the project's open view: the shot at the move's end is focusShotFor(id), from its stop", () => {
     for (const id of IDS) {
-      const flight = moveFocus(FOCUS_AT_REST, id, 1000, 'fly');
-      const end = focusPoseAt(flight, 1000 + FLIGHT_MS);
       const stop = journeyPoseAt(stopForProject(id), LAPTOP).shot;
+      const flight = moveFocus(FOCUS_AT_REST, id, 1000, 'fly', stop);
+      const end = focusPoseAt(flight, 1000 + FLIGHT_MS);
       expect(end).toMatchObject({ id, amount: 1, moving: false });
-      expect(shotToward(stop, focusShotFor(id, LAPTOP), end.amount)).toEqual(focusShotFor(id, LAPTOP));
+      expect(focusShotAt(flight, 1000 + FLIGHT_MS, focusShotFor(id, LAPTOP), worldPathFor(LAPTOP).centre)).toEqual(focusShotFor(id, LAPTOP));
       expect(restsAt(id, stopForProject(id), stopForProject(id))).toBe(true);
     }
   });

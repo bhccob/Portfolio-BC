@@ -10,10 +10,10 @@ import { personLd, websiteLd } from '~/seo/structured';
 import { AreaCaptions } from '~/ui/AreaCaption';
 import { AreaDots } from '~/ui/AreaDots';
 import { ProjectOpener } from '~/ui/projectOpen';
+import { ProjectPanel } from '~/ui/ProjectPanel';
 import { TouchPoints } from '~/ui/TouchPoints';
 import { focusEndOnArrival } from '~/ui/endArrival';
 import { EndPage } from '~/ui/EndPage';
-import { InsideControls } from '~/ui/InsideControls';
 import { LightFactLabels, LightFactList } from '~/ui/LightFacts';
 import { SkipButton } from '~/ui/SkipButton';
 import { WorldNames } from '~/ui/WorldNames';
@@ -67,8 +67,9 @@ export default function Home() {
       {/* Each project's touch points, shown beside it once it is open (src/ui/TouchPoints.tsx); aria-hidden. */}
       <TouchPoints />
 
-      {/* A project opened on the world: "Terug" and "Bekijk project", hidden until then (src/ui/InsideControls.tsx). */}
-      <InsideControls />
+      {/* A project opened on the world: its words and "Bekijk project", "Terug" and the arrows, hidden until then
+          (src/ui/ProjectPanel.tsx). */}
+      <ProjectPanel />
 
       {/* Bob's five facts: drawn beside the light in the light dive for the eye (src/ui/LightFacts.tsx), and as a list for
           readers and for 3D off, visually hidden while 3D is on, as the nav is. */}
