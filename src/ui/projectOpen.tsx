@@ -161,6 +161,15 @@ export function openAt(id: ProjectId): boolean {
   return opensOnClick(journeyAt(frame.progress), frame.progress === frame.target) ? openInside(id) : openBead(id);
 }
 
+/**
+ * A click (a tap) on project `id`'s object on the world (src/scene/bob/Void.tsx): it opens there where a click opens it, at
+ * rest (./inside.ts `opensOnClick`), and does nothing while the camera glides between two stops (spec: "while the camera
+ * is moving between stops, a click does nothing"). Answers whether it opened.
+ */
+export function clickOnWorld(id: ProjectId): boolean {
+  return opensOnClick(journeyAt(frame.progress), frame.progress === frame.target) && openInside(id);
+}
+
 /** The home page's opener: while it is up it lends `openBead` the page's router and language. */
 export function ProjectOpener(): null {
   const navigate = useNavigate();

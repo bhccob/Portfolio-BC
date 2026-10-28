@@ -13,6 +13,7 @@ import { type ProjectId, projects } from '~/data/projects';
 import type { JourneyAt } from './journey';
 import { LAND_STOP } from '~/state/chapters';
 import { IDLE_SECONDS } from './look';
+import type { WorldPart } from './worldPath';
 
 /** The key of a history entry's state that marks an inside: `{ [INSIDE_STATE]: ProjectId }`. */
 export const INSIDE_STATE = 'bob-inside';
@@ -51,11 +52,12 @@ export function insideClockRuns(stirred: number, now: number, reduced: boolean):
 /**
  * Whether the world's clock runs at `now` (ms): the pulse along the buses, the pads' turning rings, the objects' float and
  * the gears' tick (spec 2026-10-27-bob-hologram-world-design.md, "the canvas sleeps"): for IDLE_SECONDS after `stirred`
- * (the last input, the story's last move, a project opening), never with reduced motion. Then the world stands still
- * and the canvas sleeps.
+ * (the last input, the story's last move, a project opening), never with reduced motion, and never once the credits'
+ * sheet comes up over it (`part`, the world path's; the path holds its sheet frame on to the end): then the world stands
+ * still and the canvas sleeps.
  */
-export function worldClockRuns(stirred: number, now: number, reduced: boolean): boolean {
-  return !reduced && now - stirred < IDLE_SECONDS * 1000;
+export function worldClockRuns(stirred: number, now: number, reduced: boolean, part?: WorldPart): boolean {
+  return !reduced && part !== 'sheet' && now - stirred < IDLE_SECONDS * 1000;
 }
 
 /**

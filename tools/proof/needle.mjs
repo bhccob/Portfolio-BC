@@ -52,7 +52,7 @@
  *              history entry), then history.back() to / and history.forward(): the Stage mounted once and
  *              the same <canvas> node throughout, with no document load after the first; the scene's phase
  *              is PROJECT_FOCUS funcial on the project page, the language switch keeps that very phase (no new
- *              transition), going back to / puts it at Funcial's arrival stop, and going forward restores it
+ *              transition), going back to / puts it at Funcial's area stop, and going forward restores it
  *   lang-keeps-phase  on /projects/funcial/ the phase is PROJECT_FOCUS funcial; after a client-side switch to
  *              /en/projects/funcial/ (and back) it is still PROJECT_FOCUS funcial, the very same state, with locale and
  *              route right, canvasMounts 1 and the same <canvas>; the same on /projects/cookies-clicker/
@@ -150,18 +150,18 @@
  *              its words 13 px or more on a laptop, 11 on the phone; on a laptop level with the light on the side away
  *              from its move; on the phone below it, the line stepped aside away from the move, the picture under the line
  *              dark (mean luma 0.05 or less)
- *   path       the light's path by real input at 1440x900 and 390x844 (touch), and at 1440 on /en/: from the fall's end
- *              notches (slow swipes) run on into Funcial's travel with no stop at the hand-over; at most one bead shown
- *              with a fade of 0.5 or more all the way; a step (the arrow; a flick) to each arrival rests there with no
- *              circling (the light sweeps under 150 degrees round the bead), the whole bead framed, its veins awake, its
- *              label whole within 1 s, right of the light on a laptop and under the bead on a phone, in the page's
- *              language; the next step goes on to the next arrival (no inside on the scroll); stopped anywhere it rests
- *              there and the canvas sleeps within a second
- *   look-back  at 1440x900, 390x844 (touch) and 1440 on /en/: a step from the last arrival's end rests on the look
- *              back's own stop, all three beads shown inside the screen and the way's line whole; on a laptop the
- *              pointer over each bead shows its label, Tab goes Funcial, Jontai Energy, Cookies Clicker, the skip button,
- *              each label shown on focus, Enter takes the visitor inside Jontai Energy, "Bekijk project" opens its page,
- *              Back returns inside and Back again to the look back; on a phone a tap goes inside one, then its page
+ *   world      the hologram world by real input at 1440x900 and 390x844 (touch), and at 1440 on /en/: from the last
+ *              fact the arrow (slow swipes, then the bridge) brings the light down into the CPU and rests on the world's
+ *              stop: the board dark as the light comes down, powering up to 1 and never falling back; every object framed
+ *              inside the screen; each project's name on its line (the title in capitals, in Tab's reach, inside the
+ *              screen under the header, a link to its page) and the hint in the page's words for a pointer or a touch
+ *              screen; no area's words, no dots; a still through the home's luma gate; each name opens its project and
+ *              the way out comes back to the world
+ *   areas      at 1440x900 and 390x844 (touch): from the world a step (the arrow; the bridge) to each area's stop, the
+ *              camera never nearer the board's centre than 3 m on the way (never across the CPU), the object framed, its
+ *              words at the bottom left (category, name, open hint) and no other's, the dots shown with its own lit, the
+ *              names gone; a still of each through the home's luma gate; the first dot glides back to the first area
+ *              round the board
  *   credits    at 1440x900, 1366x657, 390x844 (touch) and 1440 on /en/: from the look back's stop one input fades to
  *              black, then raises the credits, at rest within 3 s with "Q&A" at 55 % of the screen (2 px) on the pixel
  *              the rise brings it to; the wheel (a swipe) then scrolls the document natively; at its end the message part
@@ -170,38 +170,30 @@
  *              edge fades there, and none with reduced motion; at the document's top an input up goes back to the look
  *              back; on /en/ the English dictionary's words
  *   resize     at 1440x900 turned to 390x844: at fact 02's peak the way frame stays and the fact rides below the light;
- *              late in Funcial's arrival the place stays and its label goes from right of the light to under the bead
- *   bead-open  opening a bead, at 1440x900 and 390x844 (touch): at each project's arrival the label shows whole inside
- *              the screen with the Dutch dictionary's text (the category line, the title, the hint for the pointer), Tab
- *              reaches it with a focus ring and Enter takes the visitor inside the bead (the page still `/` with the
- *              inside's history entry, the camera in within FLIGHT_MS and a little, its touch points whole, "Terug" and
- *              "Bekijk project" shown, the focus on "Terug") and Esc comes back out to that arrival; a click or a tap on
- *              a label and on a bead go inside too; from inside "Bekijk project" opens the page, Back returns inside and
- *              Back again out, in Jontai Energy's arrival and in the look back; all by client navigation; a direct load
- *              of `/projects/cookies-clicker/` then Esc lands at its arrival
- *   inside     getting out of a bead, at 1440x900, 390x844 (touch) and 1440 on /en/, at Funcial's arrival: a click (a
- *              tap) on the bead goes inside; "Terug", Escape, three wheel notches (a swipe on the phone) and the browser's
- *              Back each come back out to the arrival at rest, the story not moved on; then a step goes on to Jontai
- *              Energy's arrival; a still inside gated as an inside still
- *   float      the bead at its arrival, at 1440x900, 390x844 (touch) and 1440 with reduced motion, at Jontai Energy's
- *              arrival: it floats (two pictures of it 1.3 s apart differ); the pointer over its right edge and its left
- *              turn it two ways; the canvas sleeps within 13 s of the last input and a pointer move wakes it; with reduced
- *              motion it holds still and the canvas sleeps within 1.5 s
+ *              at Funcial's area the place stays, its words shown whole and its object framed above them; between two
+ *              areas the place stays and the camera stays off the CPU
+ *   open       a project opened, at 1440x900, 390x844 (touch) and 390x844 on /en/, at the first area: a click (a tap)
+ *              on its object opens it within FLIGHT_MS and a little (the page still `/` with the open project's history
+ *              entry, its panel's words the dictionary's, its touch points shown, Terug and the arrows shown, the focus
+ *              on Terug); a still through the inside's luma gate (0.15); the next arrow twice quickly opens the third
+ *              project, "3 / 3", replacing the entry; Terug, Escape, three wheel notches (a swipe) and Back each come
+ *              back out at rest; "Bekijk project" opens the page, Back returns to the open project and Back again out;
+ *              at 1440 a resize to 390x844 while open keeps it open, the panel below the object; on /en/ the panel's
+ *              bottom above Terug's top; with reduced motion in and out by the step fade
  *   nebula     the 3D nebula, at 1440x900 and 390x844 (touch): the bridge's levels (`journey.nebula`) are the rules' at
- *              the fall's frames 30, 72 and 121 (the fall's at its quieter level), each trip's middle and arrival, the
- *              look back and under the sheet; stills
- *              of the fall, the second trip, Jontai Energy's arrival and the look back through the home's luma gate
- *   void-hold  `bob-beads.glb` held back: a long wheel (flicks on the phone) plays the light dive and rests at
+ *              the fall's frames 30, 72 and 121 (the fall's at its quieter level), on the land, at the world, on the way
+ *              to each area and at it, the look back and under the sheet; stills of the fall, the world, Jontai Energy's
+ *              area and the look back through the home's luma gate
+ *   void-hold  the world's build held back (src/debug/worldGate.ts): a long wheel (flicks on the phone) plays the light dive and rests at
  *              LANDING_HOLD, the hand-over (way frame 256), with `voidState` `loading`, the light still, a still of it gated as a home
  *              still; up from the hold moves at once (three notches exactly their distance) and rests where it stopped;
- *              let through, the void is `ready` and the story goes on along the path; a direct arrival's Esc while the file
+ *              let through, the void is `ready` and the story goes on to the world; a direct arrival's Esc while the world
  *              is held waits at the hold, then reaches its stop
- *   void-fail  `bob-beads.glb` answering 404: `voidState` `failed`; the light dive plays and the scroll holds at
+ *   void-fail  the world's build failed (src/debug/worldGate.ts): `voidState` `failed`; the light dive plays and the scroll holds at
  *              LANDING_HOLD, where (`<html data-held>`) `.home-nav` shows (fixed over the foot of the screen, its links
  *              on screen and reachable, its link to the questions with them) and no skip button does; a still of it gated as
- *              a home still; a link opens its page and Esc comes back to the hold, not to the bead's stop; back at the home
- *              the nav is hidden again; exactly one console error (the browser's report of the 404, per size) and the
- *              Void's own line a warning
+ *              a home still; a link opens its page and Esc comes back to the hold, not to the project's stop; back at the
+ *              home the nav is hidden again; no console error, and the Void's own line a warning
  *   (Every still of the two void steps is gated with the page's text masked, so the luma floor is the scene's, and the
  *   failure has a negative control: a still with the canvas hidden, whose masked floor must fail.)
  *   end-page   the credits, the last stop, by real input at 1440x900, 1366x657 and 390x844 (touch), from the look
@@ -367,7 +359,7 @@ const { Translator, locales } = await tsImport('../../src/i18n/Translator.ts', i
 const { HANDLES, PAGE_KINDS } = await tsImport('../../src/app/handle.ts', import.meta.url);
 const { MIN_FILL_MS, SEND_TIMEOUT_MS } = await tsImport('../../src/ui/contactSubmit.ts', import.meta.url);
 const { LOAD_TIMEOUT_MS, RESTORE_TIMEOUT_MS } = await tsImport('../../src/scene/timeouts.ts', import.meta.url);
-const { ARRIVE_STOP, HOME_CHAPTERS, arrivalStop, chapterAt, keyStops, lookStart, pathStart, placeOfFrame, scrollEnd, sheetStart, stops } = await tsImport('../../src/state/chapters.ts', import.meta.url);
+const { AREA_STOP, HOME_CHAPTERS, LAND_STOP, areaStop, areasOnPath, chapterAt, keyStops, lookStart, pathStart, placeOfFrame, scrollEnd, sheetStart, stops, worldStop } = await tsImport('../../src/state/chapters.ts', import.meta.url);
 const { SETTLE_SLOP_PX } = await tsImport('../../src/input/target.ts', import.meta.url);
 const { SHEET_FINISH_MS } = await tsImport('../../src/input/scrollLoop.ts', import.meta.url);
 const { GESTURE_GAP_MS } = await tsImport('../../src/input/gesture.ts', import.meta.url);
@@ -377,11 +369,13 @@ const { nextDriftRest } = await tsImport('../../src/engine/bob/needleAim.ts', im
 const { scrollPoseAt } = await tsImport('../../src/scene/bob/scrollPose.ts', import.meta.url);
 const { FLIGHT_MS } = await tsImport('../../src/scene/bob/focus.ts', import.meta.url);
 const { topShotFor } = await tsImport('../../src/engine/bob/shots.ts', import.meta.url);
-const { BEADS, journeyAt, journeyPoseAt } = await tsImport('../../src/scene/bob/journey.ts', import.meta.url);
+const { WORLD_PROJECTS, journeyAt, journeyPoseAt } = await tsImport('../../src/scene/bob/journey.ts', import.meta.url);
 const { RISE_TOP, LANDING_HOLD, landingHoldFor } = await tsImport('../../src/scene/bob/landingHold.ts', import.meta.url);
 const { categories } = await tsImport('../../src/data/categories.ts', import.meta.url);
 const { engravedLevels } = await tsImport('../../src/scene/bob/engravedWay.ts', import.meta.url);
 const { NEBULA, nebulaLevels } = await tsImport('../../src/scene/bob/nebulaWay.ts', import.meta.url);
+const { worldPathFor } = await tsImport('../../src/scene/bob/worldPath.ts', import.meta.url);
+const { projects: PROJECTS } = await tsImport('../../src/data/projects.ts', import.meta.url);
 /**
  * How long the canvas may keep drawing after the last thing that stirred it, ms: the home's idle motion
  * (src/scene/bob/look.ts, IDLE_SECONDS: 12 s) and the needle's spring settling, with room to spare. Counted from the
@@ -592,8 +586,8 @@ const waitForStop = async (page, category, timeout = 15_000) => {
     .waitForFunction(
       (category) => {
         const s = window.__needleDebug?.();
-        // The arrival stop, inside the bead's ARRIVE. The hold at the path's start reads PROJECTS too, in its travel.
-        return s?.phase.kind === 'PROJECTS' && s.phase.category === category && s.progress === s.target && s.chapter.id === 'ARRIVE' && s.chapter.local > 0;
+        // The area's stop, inside its AREA. The hold at the path's start reads PROJECTS too, on the land.
+        return s?.phase.kind === 'PROJECTS' && s.phase.category === category && s.progress === s.target && s.chapter.id === 'AREA' && s.chapter.local > 0;
       },
       category,
       { timeout },
@@ -707,8 +701,8 @@ async function persist(browser, step) {
   // Back from a project page lands at its bead's stop (spec §2.4), here Funcial's, 3, once the void is in.
   const afterBack = await waitForStop(page, 'secure-element');
   step.check(
-    afterBack.kind === 'PROJECTS' && afterBack.category === 'secure-element' && afterBack.progress === BEAD_LIST[0].stop,
-    `going back to / puts the scene at Funcial's stop, PROJECTS secure-element at ${BEAD_LIST[0].stop} (got ${JSON.stringify(afterBack)})`,
+    afterBack.kind === 'PROJECTS' && afterBack.category === 'secure-element' && afterBack.progress === PROJECT_LIST[0].stop,
+    `going back to / puts the scene at Funcial's stop, PROJECTS secure-element at ${PROJECT_LIST[0].stop} (got ${JSON.stringify(afterBack)})`,
   );
   await page.evaluate(() => history.forward());
   await page.waitForURL(`${BASE}/en/projects/funcial/`);
@@ -830,17 +824,17 @@ async function esc(browser, step) {
   step.check(documents.length === 0, `by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
   const afterDirect = await waitForStop(page, 'secure-element');
   step.check(
-    afterDirect.kind === 'PROJECTS' && afterDirect.category === 'secure-element' && afterDirect.progress === BEAD_LIST[0].stop,
-    `leaving the page for the home page puts the scene at the bead's stop, Funcial's ${BEAD_LIST[0].stop} (got ${JSON.stringify(afterDirect)})`,
+    afterDirect.kind === 'PROJECTS' && afterDirect.category === 'secure-element' && afterDirect.progress === PROJECT_LIST[0].stop,
+    `leaving the page for the home page puts the scene at the project's stop, Funcial's ${PROJECT_LIST[0].stop} (got ${JSON.stringify(afterDirect)})`,
   );
   await takeCsp(page, step);
 
   // The header's name is a link to the home, not Back, a deliberate "to the top": it lands at the home, the top of the story, even
-  // with the story at the bead's stop, as after a flight in from it.
+  // with the story at the project's stop, as after a flight in from it.
   await page.goto(`${BASE}/projects/funcial/?proof`, { waitUntil: 'load' });
   await stageReady(page);
   await waitForProject(page, 'funcial');
-  await page.evaluate((progress) => window.__needleDebug.set({ progress }), BEAD_LIST[0].stop);
+  await page.evaluate((progress) => window.__needleDebug.set({ progress }), PROJECT_LIST[0].stop);
   documents.length = 0;
   await page.click('.site-name');
   await page.waitForURL(`${BASE}/`, { timeout: 5_000 });
@@ -848,7 +842,7 @@ async function esc(browser, step) {
   const named = await debugOf(page);
   step.check(
     named.phase.kind === 'HOME_IDLE' && named.progress === 0 && named.target === 0,
-    `the header's name on a project page lands at the home, 0, not at the bead's stop (got ${JSON.stringify([named.phase, named.progress, named.target])})`,
+    `the header's name on a project page lands at the home, 0, not at the project's stop (got ${JSON.stringify([named.phase, named.progress, named.target])})`,
   );
   step.check(documents.length === 0, `by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
   await takeCsp(page, step);
@@ -866,8 +860,8 @@ async function esc(browser, step) {
   step.check(documents.length === 0, `by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
   const steppedBack = await waitForStop(page, 'secure-element');
   step.check(
-    steppedBack.kind === 'PROJECTS' && steppedBack.category === 'secure-element' && steppedBack.progress === BEAD_LIST[0].stop,
-    `Escape back to the home page from a page reached from it puts the scene at the bead's stop, Funcial's ${BEAD_LIST[0].stop} (got ${JSON.stringify(steppedBack)})`,
+    steppedBack.kind === 'PROJECTS' && steppedBack.category === 'secure-element' && steppedBack.progress === PROJECT_LIST[0].stop,
+    `Escape back to the home page from a page reached from it puts the scene at the project's stop, Funcial's ${PROJECT_LIST[0].stop} (got ${JSON.stringify(steppedBack)})`,
   );
   await page.evaluate(() => history.forward());
   const forwarded = await page.waitForURL(`${BASE}/projects/funcial/`, { timeout: 5_000 }).then(() => true, () => false);
@@ -1727,7 +1721,7 @@ async function scrollDesktop(browser, step) {
   await reachHomeIdle(page);
   // The beads load once the home has landed, and until they are ready the landing holds the scroll at LANDING_HOLD: the
   // keys and the End below go past it, so the step starts with them in.
-  await expectVoid(page, step, 'ready', 'the beads under the glass are ready, so nothing holds the landing');
+  await expectVoid(page, step, 'ready', 'the world under the glass is ready, so nothing holds the landing');
   await watchFrames(page);
   const vh = await page.evaluate(() => window.innerHeight);
 
@@ -1820,14 +1814,14 @@ async function scrollDesktop(browser, step) {
   step.check((await frameOf(page)).target === onPage.target, 'on a project page the keys do not move the story');
   await page.click('a.back');
   await page.waitForURL((url) => url.pathname === '/', { timeout: 5_000 });
-  await expectPhase(page, step, 'PROJECTS', "coming back to / puts the scene on the scroll's phase, PROJECTS (Back lands at the bead's stop), and not on HOME_IDLE");
+  await expectPhase(page, step, 'PROJECTS', "coming back to / puts the scene on the scroll's phase, PROJECTS (Back lands at the project's stop), and not on HOME_IDLE");
   // Task 12: Back from a project page lands at its bead's stop (spec §2.4), not where the scroll was before the page.
   const back = await frameOf(page);
-  const arrivalUnit = chapterAt(HOME_CHAPTERS, BEAD_LIST[0].stop).index;
-  step.check(near(back.progress, BEAD_LIST[0].stop) && back.chapterIndex === arrivalUnit, `the story is at Funcial's arrival stop, ${BEAD_LIST[0].stop}, in its arrival (unit ${arrivalUnit}), where Back from its page lands (got ${JSON.stringify(back)})`);
+  const arrivalUnit = chapterAt(HOME_CHAPTERS, PROJECT_LIST[0].stop).index;
+  step.check(near(back.progress, PROJECT_LIST[0].stop) && back.chapterIndex === arrivalUnit, `the story is at Funcial's area stop, ${PROJECT_LIST[0].stop}, in its area (unit ${arrivalUnit}), where Back from its page lands (got ${JSON.stringify(back)})`);
   await page.keyboard.press('PageDown');
   const resumed = await restAt(page);
-  step.check(near(resumed.target, BEAD_LIST[1].stop, 1e-9) && near(resumed.progress, BEAD_LIST[1].stop, 1e-6), `and the scroll goes on from there, a step to Jontai Energy's arrival, ${BEAD_LIST[1].stop} (got target ${resumed.target}, progress ${resumed.progress})`);
+  step.check(near(resumed.target, PROJECT_LIST[1].stop, 1e-9) && near(resumed.progress, PROJECT_LIST[1].stop, 1e-6), `and the scroll goes on from there, a step to Jontai Energy's area, ${PROJECT_LIST[1].stop} (got target ${resumed.target}, progress ${resumed.progress})`);
   await page.keyboard.press('Home');
   await restAt(page);
 
@@ -1895,7 +1889,7 @@ async function scrollReduced(browser, step) {
   await stageReady(page);
   step.check(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches), 'the page asks for reduced motion');
   await reachHomeIdle(page);
-  await expectVoid(page, step, 'ready', 'the beads under the glass are ready, so nothing holds the landing');
+  await expectVoid(page, step, 'ready', 'the world under the glass is ready, so nothing holds the landing');
   await page.mouse.move(720, 450);
 
   // A gesture: ten events 16 ms apart. Then 300 ms of quiet, then another.
@@ -1943,7 +1937,7 @@ async function scrollTouch(browser, step) {
   await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
   await stageReady(page);
   await reachHomeIdle(page);
-  await expectVoid(page, step, 'ready', 'the beads under the glass are ready, so nothing holds the landing');
+  await expectVoid(page, step, 'ready', 'the world under the glass is ready, so nothing holds the landing');
   await watchFrames(page);
   const cdp = await context.newCDPSession(page);
   const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
@@ -2784,7 +2778,7 @@ async function stills(browser, step) {
     const { context, page } = await readyHome(browser, step, size);
     const places = [
       ...[32, 60, 121, 241].map((frame) => ({ name: `light-${frame}`, progress: placeOfFrame(frame) })),
-      ...BEAD_LIST.map((bead) => ({ name: `arrival-${bead.id}`, progress: bead.stop })),
+      ...PROJECT_LIST.map((bead) => ({ name: `area-${bead.id}`, progress: bead.stop })),
       { name: 'look-back', progress: LOOK_STOP },
       { name: 'credits', progress: STORY_END, whole: true },
     ];
@@ -3098,9 +3092,10 @@ const HOME_SAMPLES = 4;
  * pixels, as `getBoundingClientRect` gives them, the viewport the still was taken at), the pixels under the boxes are the
  * page's own text, not the scene: `peak` and `sceneMean` leave them out, so the floor (LUMA_GATE.floor) is the scene's. `mean`
  * and `clipped` still count the whole picture, as the visitor sees it, which is what the ceiling judges. `masked` is the
- * share of the picture under the boxes. Without a mask `sceneMean` is `mean` and `masked` is 0.
+ * share of the picture under the boxes. Without a mask `sceneMean` is `mean` and `masked` is 0. A still whose scene stands
+ * elsewhere (a phone's open project, its object above its words) names its own `region` for `peak`.
  */
-async function lumaOf(page, file, mask = null) {
+async function lumaOf(page, file, mask = null, region = LUMA_GATE.floor.region) {
   const url = `data:image/png;base64,${readFileSync(file).toString('base64')}`;
   return page.evaluate(
     async ([url, clip, region, mask]) => {
@@ -3149,7 +3144,7 @@ async function lumaOf(page, file, mask = null) {
       const pixels = data.length / 4;
       return { mean: sum / pixels, sceneMean: sceneCount > 0 ? sceneSum / sceneCount : 0, masked: 1 - sceneCount / pixels, clipped: clipped / pixels, peak, peakAll, width: canvas.width, height: canvas.height };
     },
-    [url, LUMA_GATE.clip, LUMA_GATE.floor.region, mask],
+    [url, LUMA_GATE.clip, region, mask],
   );
 }
 
@@ -3168,7 +3163,13 @@ const textMask = (page) =>
       // A hairline (the fact's line, a pixel tall) counts: its glow is around it.
       if (box.width > 0 && box.height > 0 && (box.width > 1 || box.height > 1)) boxes.push({ left: box.left - by, top: box.top - by, right: box.right + by, bottom: box.bottom + by });
     };
-    for (const el of document.querySelectorAll('.bead-label[data-shown], .home-nav, .site-header')) add(el);
+    for (const el of document.querySelectorAll('.home-nav, .site-header')) add(el);
+    // The world's words where they show: its names, the hint, an area's words, the dots, an open project's panel, Terug
+    // and the arrows, and its touch points.
+    const showing = (el) => el.checkVisibility({ opacityProperty: true, visibilityProperty: true }) && Number(getComputedStyle(el).opacity) > 0.01;
+    for (const el of document.querySelectorAll('.world-name, .world-hint, .area-caption, .area-dots, .project-panel, .inside-controls > *, .touch-points[data-shown] .touch-point')) {
+      if (showing(el)) add(el);
+    }
     // The light dive's shown fact (its words and its line, with their glow: fact 05 still fades out at the hand-over,
     // where the hold stands) and the skip button, where they show.
     for (const fact of document.querySelectorAll('.light-fact')) {
@@ -3237,7 +3238,7 @@ async function gateLuma(browser, step, shots) {
   const rows = [];
   for (const shot of shots) {
     const name = shot.file.split(/[\\/]/).pop();
-    const luma = await lumaOf(page, shot.file, shot.mask ?? null);
+    const luma = await lumaOf(page, shot.file, shot.mask ?? null, shot.region);
     const limit = LUMA_GATE[shot.kind];
     const dark = shot.dark === true;
     const masked = shot.mask !== undefined;
@@ -4550,25 +4551,25 @@ async function bridge(browser, step) {
   );
   step.check(
     at.journey.stretch === 'rise' && at.journey.local === 0 && at.journey.project === null && VOID_STATES.includes(at.journey.voidState),
-    `and the journey is on the rise at its start, no bead, the void in a state it can be in (got ${JSON.stringify(at.journey)})`,
+    `and the journey is on the rise at its start, no project, the void in a state it can be in (got ${JSON.stringify(at.journey)})`,
   );
 
   // .set puts the story somewhere at once: progress and target there, nothing moving, the chapter and the phase with it.
   // Half way through Funcial's travel (the path's first unit, the third of the story) the journey, which the scene poses
   // on the next frame it draws, says the same: the travel, half way, Funcial the bead it goes to, and the beads on screen.
-  const travel = PATH_START + 0.625;
+  const land = PATH_START + 0.9;
   await waitForVoid(page, 'ready');
-  await page.evaluate((progress) => window.__needleDebug.set({ progress }), travel);
+  await page.evaluate((progress) => window.__needleDebug.set({ progress }), land);
   const mid = await debugOf(page);
   step.check(
-    mid.progress === travel && mid.target === travel && mid.velocity === 0 && mid.chapter.index === 2 && mid.chapter.id === 'TRAVEL' && mid.phase.kind === 'PROJECTS' && mid.phase.category === BEAD_LIST[0].category,
-    `.set({ progress: ${travel.toFixed(4)} }) puts the story in Funcial's travel, PROJECTS ${BEAD_LIST[0].category} (got ${JSON.stringify([mid.progress, mid.target, mid.chapter, mid.phase])})`,
+    mid.progress === land && mid.target === land && mid.velocity === 0 && mid.chapter.index === 2 && mid.chapter.id === 'LAND' && mid.phase.kind === 'PROJECTS' && mid.phase.category === null,
+    `.set({ progress: ${land.toFixed(4)} }) puts the story on the land, PROJECTS with no area yet (got ${JSON.stringify([mid.progress, mid.target, mid.chapter, mid.phase])})`,
   );
   step.check(near(mid.chapter.local, 0.5, 1e-9), `and the chapter's local is how far through it, half way (got ${mid.chapter.local})`);
-  const travelling = await journeyAfter(page, 'travel');
+  const landing = await journeyAfter(page, 'land');
   step.check(
-    travelling.stretch === 'travel' && near(travelling.local, 0.5, 1e-9) && travelling.project === 0 && travelling.frame === null && travelling.sheet === 0 && Array.isArray(travelling.beads) && travelling.beads.length === BEAD_LIST.length && Array.isArray(travelling.wake) && !('angle' in travelling) && !('ring' in travelling),
-    `and the journey says so: the travel half way to Funcial, its beads on the screen and their wakes, no ring (got ${JSON.stringify(travelling)})`,
+    landing.stretch === 'land' && near(landing.local, 0.5, 1e-9) && landing.project === null && landing.frame === null && landing.sheet === 0 && Array.isArray(landing.objects) && landing.objects.length === PROJECT_LIST.length && landing.world !== null && landing.world.power > 0 && landing.world.power < 1 && !('beads' in landing) && !('ring' in landing),
+    `and the journey says so: the land half way, the world's objects on the screen and the board powering up, no beads and no ring (got ${JSON.stringify({ ...landing, objects: landing.objects?.length })})`,
   );
   await page.evaluate((place) => window.__needleDebug.set({ progress: place }), placeOfFrame(121));
   const falling = await journeyAfter(page, 'light');
@@ -4580,14 +4581,14 @@ async function bridge(browser, step) {
     `.set past the end stops at the end, ${STORY_END}, the end page's stop, in the last chapter, ${LAST_CHAPTER}, and the phase END (got ${JSON.stringify([end.target, end.chapter.index, end.chapter.id, end.phase])})`,
   );
   const last = await journeyAfter(page, 'end');
-  step.check(last.stretch === 'end' && last.project === null && last.local === 0, `and the journey is on the end page, past the last bead, no bead (got ${JSON.stringify(last)})`);
+  step.check(last.stretch === 'end' && last.project === null && last.local === 0, `and the journey is on the end page, past the last area, no project (got ${JSON.stringify(last)})`);
   await page.evaluate(() => window.__needleDebug.set({ progress: 0 }));
   const start = await debugOf(page);
   step.check(start.target === 0 && start.chapter.index === 0 && start.phase.kind === 'HOME_IDLE', `.set({ progress: 0 }) is the start again (got ${JSON.stringify([start.target, start.chapter.index, start.phase])})`);
 
   // .dispatch sends a scene event, as the app's own parts do; the phase is the store's own object. A project opens from
   // the projects chapter: the last bead's stop, the story's last stop before the end page.
-  await page.evaluate((progress) => window.__needleDebug.set({ progress }), BEAD_LIST.at(-1).stop);
+  await page.evaluate((progress) => window.__needleDebug.set({ progress }), PROJECT_LIST.at(-1).stop);
   await page.evaluate(() => window.__needleDebug.dispatch({ type: 'OPEN_PROJECT', id: 'funcial' }));
   const focus = await debugOf(page);
   step.check(focus.phase.kind === 'PROJECT_FOCUS' && focus.phase.id === 'funcial', `.dispatch({ type: 'OPEN_PROJECT', id: 'funcial' }) from the projects focuses Funcial (got ${JSON.stringify(focus.phase)})`);
@@ -4633,7 +4634,7 @@ async function keyboard(browser, step) {
   await stageReady(page);
   await reachHomeIdle(page);
   // The End below goes past the landing's hold (LANDING_HOLD) once the beads are in; the Tab presses take longer than it does.
-  await expectVoid(page, step, 'ready', 'the beads under the glass are ready, so nothing holds the landing');
+  await expectVoid(page, step, 'ready', 'the world under the glass is ready, so nothing holds the landing');
   /** Whether <html data-step-fade> is set at any moment from now until `fadeSeen()` is read. */
   const watchFade = () =>
     page.evaluate(() => {
@@ -4715,7 +4716,7 @@ async function keyboard(browser, step) {
   const atStart = await debugOf(page);
   step.check(atStart.chapter.id === 'HOME' && atStart.phase.kind === 'HOME_IDLE', `and to HOME, HOME_IDLE (got ${JSON.stringify([atStart.chapter, atStart.phase])})`);
 
-  // The arrows from BOB from above: each fact at its peak, each project's arrival, the look back, the credits.
+  // The arrows from BOB from above: each fact at its peak, the world, each area, the look back, the credits.
   await poseAt(page, RISE_TOP);
   const walk = keyStops(HOME_CHAPTERS).filter((stop) => stop > RISE_TOP);
   const reachedStops = [];
@@ -4727,16 +4728,34 @@ async function keyboard(browser, step) {
     await page.waitForTimeout(150);
   }
 
-  // At Jontai Energy's arrival: Tab from the 3D toggle reaches its label, then the skip button; Enter on it.
-  await poseAt(page, BEAD_LIST[1].stop);
-  const jontai = await waitForLabel(page, 'jontai-energy');
-  step.check(jontai !== null, "at Jontai Energy's arrival its label shows whole");
+  // At Jontai Energy's area: Tab from the 3D toggle reaches its name in the area's words, then the areas' dots, then the
+  // skip button; Enter on it.
+  await poseAt(page, PROJECT_LIST[1].stop);
+  await restAt(page);
+  const shownWords = await page
+    .waitForFunction(() => {
+      const el = document.querySelector('.area-caption[data-area="1"]');
+      return el !== null && Number(el.style.opacity) === 1 && !el.hasAttribute('inert');
+    }, null, { timeout: 5_000 })
+    .then(() => true, () => false);
+  step.check(shownWords, "at Jontai Energy's area its words show whole");
   await page.getByRole('switch', { name: '3D', exact: true }).focus();
-  await page.keyboard.press('Tab');
-  const onLabel = await page.evaluate(() => document.activeElement?.closest('.bead-label')?.getAttribute('data-bead') ?? null);
-  await page.keyboard.press('Tab');
-  const onSkip = await page.evaluate(() => document.activeElement?.classList.contains('skip-button') ?? false);
-  step.check(onLabel === 'jontai-energy' && onSkip, `Tab from the 3D toggle reaches the arrived bead's label (${onLabel}), then the skip button (${onSkip})`);
+  const tabbed = [];
+  for (let i = 0; i < 5; i++) {
+    await page.keyboard.press('Tab');
+    tabbed.push(
+      await page.evaluate(() => {
+        const el = document.activeElement;
+        if (el?.classList.contains('skip-button')) return 'skip';
+        if (el?.classList.contains('area-dot')) return 'dot';
+        return el?.closest('.area-caption') ? `words:${el.textContent}` : (el?.className ?? null);
+      }),
+    );
+  }
+  step.check(
+    JSON.stringify(tabbed) === JSON.stringify([`words:${PROJECT_LIST[1].title}`, 'dot', 'dot', 'dot', 'skip']),
+    `Tab from the 3D toggle reaches Jontai Energy's name in its area's words, then the three dots, then the skip button (${tabbed.join(', ')})`,
+  );
   await watchFade();
   await page.keyboard.press('Enter');
   const endState = await endViewAt(page, 'rest');
@@ -4745,7 +4764,7 @@ async function keyboard(browser, step) {
   step.check(endState === 'rest' && focusedTitle === 'end-title' && (await fadeSeen()), `Enter on the skip button fades the story to the credits (data-end ${endState}) and the focus goes to "Q&A" (${focusedTitle})`);
   await takeCsp(page, step);
   await context.close();
-  return `Tab: skip link, language switch (press ${langAt + 1}), 3D toggle (press ${toggleAt + 1}), each ringed and on screen; End goes to ${STORY_END} (the end page, ${LAST_CHAPTER}), Home back to 0, both by the fade; the arrows walk ${reachedStops.length} key stops; Tab to Jontai Energy's label at its arrival, then the skip button, Enter to "Q&A"`;
+  return `Tab: skip link, language switch (press ${langAt + 1}), 3D toggle (press ${toggleAt + 1}), each ringed and on screen; End goes to ${STORY_END} (the end page, ${LAST_CHAPTER}), Home back to 0, both by the fade; the arrows walk ${reachedStops.length} key stops; Tab to Jontai Energy's name at its area, the dots, then the skip button, Enter to "Q&A"`;
 }
 
 /**
@@ -4812,17 +4831,17 @@ async function reducedMotion(browser, step) {
   await stageReady(page);
   step.check(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches), 'the page asks for reduced motion');
   await reachHomeIdle(page);
-  // Under reduced motion the landing's hold is the last key stop under LANDING_HOLD (fact 05) while the beads load, and
-  // every stop after it needs them: the step starts with them in.
-  await expectVoid(page, step, 'ready', 'the beads under the glass are ready, so nothing holds the story at the landing');
+  // Under reduced motion the landing's hold is the last key stop under LANDING_HOLD (fact 05) while the world builds, and
+  // every stop after it needs it: the step starts with it in.
+  await expectVoid(page, step, 'ready', 'the world under the glass is ready, so nothing holds the story at the landing');
   await page.mouse.move(720, 450);
 
-  // 0 home, 1 BOB from above, the five facts at their peaks, each project's arrival, the look back's own stop, the
-  // credits: no inside on the scroll.
+  // 0 home, 1 BOB from above, the five facts at their peaks, the world's stop, each area's, the look back's own stop,
+  // the credits: no open project on the scroll.
   const places = keyStops(HOME_CHAPTERS);
   step.check(
-    places.length === 12 && places[0] === 0 && places[1] === 1 && places.at(-2) === LOOK_STOP && places.at(-1) === STORY_END && BEAD_LIST.every((bead) => places.includes(bead.stop)),
-    `the story's twelve key stops: the home, BOB from above, five facts, three arrivals, the look back's and the credits' (got ${places.map((p) => p.toFixed(3)).join(', ')})`,
+    places.length === 13 && places[0] === 0 && places[1] === 1 && places[7] === WORLD_STOP && places.at(-2) === LOOK_STOP && places.at(-1) === STORY_END && PROJECT_LIST.every((bead) => places.includes(bead.stop)),
+    `the story's thirteen key stops: the home, BOB from above, five facts, the world, three areas, the look back's and the credits' (got ${places.map((p) => p.toFixed(3)).join(', ')})`,
   );
   const sameAt = (a, b) => a.stretch === b.stretch && a.project === b.project && Math.abs(a.local - b.local) < 1e-6 && (a.frame === null ? b.frame === null : b.frame !== null && Math.abs(a.frame - b.frame) < 1e-6);
   /** Watches every pose the bridge reports (5 ms apart) and every step fade from now until `stopWatch()`. */
@@ -4937,28 +4956,33 @@ const PROJECTS_SOURCE = readFileSync(fileURLToPath(new URL('../../src/data/proje
 const projectTitle = (id) => PROJECTS_SOURCE.match(new RegExp(`id: '${id}',\\s+title: '([^']+)'`))?.[1] ?? null;
 
 /**
- * The three beads in the way's order (BEADS, src/scene/bob/journey.ts) with the arrival stop of each (`arrivalStop`: the
- * light at rest beside it, its label whole, where Back from its page lands; there is no inside on the scroll, a click
- * takes the visitor inside), the page of the project (src/data/pages.ts) and its title.
+ * The projects on the hologram world in the areas' order (WORLD_PROJECTS, src/scene/bob/journey.ts; one area per
+ * category, src/state/chapters.ts `areasOnPath`), each with its area's place among the areas (`index`), its category,
+ * its area's stop (`areaStop`: the camera at rest on the area, its words shown, where Back from its page lands), the page
+ * of the project (src/data/pages.ts) and its title.
  */
-const BEAD_LIST = BEADS.map((bead, index) => ({
-  id: bead.id,
-  index,
-  category: bead.category,
-  stop: arrivalStop(HOME_CHAPTERS, bead.category),
-  path: SITE_PAGES[`project-${bead.id}`],
-  title: projectTitle(bead.id),
-}));
+const PROJECT_LIST = areasOnPath().flatMap((area, index) =>
+  area.projects.map((id) => ({
+    id,
+    index,
+    category: area.category,
+    stop: areaStop(HOME_CHAPTERS, area.category),
+    path: SITE_PAGES[`project-${id}`],
+    title: projectTitle(id),
+  })),
+);
+/** The world's own stop: the whole board, its names and the hint shown. */
+const WORLD_STOP = worldStop(HOME_CHAPTERS);
 
-/** Where bead `bead`'s ARRIVE ends: the next travel's start (or the look back's), past the pause after its stop. */
-const arrivalEnd = (bead) => {
-  const unit = HOME_CHAPTERS.units.find((u) => u.id === 'ARRIVE' && u.category === bead.category);
+/** Where project `bead`'s AREA ends: the next area's start (or the look back's), past the pause after its stop. */
+const areaEnd = (bead) => {
+  const unit = HOME_CHAPTERS.units.find((u) => u.id === 'AREA' && u.category === bead.category);
   return unit.start + unit.length;
 };
 
 /** The path's start, the hand-over from the fall (way frame 256): the light path's places are counted from it. */
 const PATH_START = pathStart(HOME_CHAPTERS);
-/** The look back's start (the last arrival's end) and its own stop (the sheet's start, where the credits begin to come). */
+/** The look back's start (the last area's end) and its own stop (the sheet's start, where the credits begin to come). */
 const LOOK_START = lookStart(HOME_CHAPTERS);
 const LOOK_STOP = sheetStart(HOME_CHAPTERS);
 
@@ -4973,15 +4997,50 @@ const JOURNEY_STOPS = keyStops(HOME_CHAPTERS).map((stop) => {
   return { stop, stretch: at.stretch, project: at.project };
 });
 
-/** Where `poseOnTheFrame` puts the story: the rise (0.6), the fall (fact 03's peak), Funcial's travel and its arrival. */
+/** Where `poseOnTheFrame` puts the story: the rise (0.6), the fall (fact 03's peak), the land and Funcial's area. */
 const SAME_FRAME_AT = [0.6, placeOfFrame(161), PATH_START + 0.6, PATH_START + 1.9];
 
-/** The pixels from the screen's edges the label keeps, and the header it stays under (src/ui/BeadLabel.tsx, `labelMargin`, `HEADER`). */
-const labelMarginOf = (width) => (width < 720 ? 24 : 16);
+/** The site header's height, px: the world's words and objects stay under it. */
 const HEADER_PX = 64;
 
-/** The file the void's beads come from (public/models/bob-beads.glb, under the site's base). */
-const BEADS_GLB = /\/models\/bob-beads\.glb$/;
+/** The page's gate on the hologram world's build (src/debug/worldGate.ts, read under ?proof): 'hold', 'fail' or 'open'. */
+const WORLD_GATE = '__needleWorldGate';
+/** The pages whose loads read the gate. */
+const gatedPages = new WeakSet();
+
+/**
+ * Sets the hologram world's build gate (src/debug/worldGate.ts) for the page's next loads: 'hold' keeps the void
+ * `loading` until `openWorld(page)`, as a slow world would; 'fail' makes the world fail, as a broken one would. The world
+ * is built in code from nothing fetched, so there is no file to hold or to answer 404. Call it before the page navigates;
+ * on a page already on the site it takes effect from its next load. The gate lives in the page's session storage, so it
+ * holds through the page's own navigations until it is opened.
+ */
+async function gateWorld(page, value) {
+  if (!gatedPages.has(page)) {
+    gatedPages.add(page);
+    await page.addInitScript(
+      ({ gate, first }) => {
+        if (sessionStorage.getItem(`${gate}:set`) === null) {
+          sessionStorage.setItem(`${gate}:set`, '1');
+          sessionStorage.setItem(gate, first);
+        }
+        const now = sessionStorage.getItem(gate);
+        if (now === 'hold' || now === 'fail') window[gate] = now;
+      },
+      { gate: WORLD_GATE, first: value },
+    );
+  } else {
+    await page.evaluate(({ gate, value }) => sessionStorage.setItem(gate, value), { gate: WORLD_GATE, value });
+  }
+}
+
+/** Opens the gate: a held build goes on now, and the page's later loads build the world at once. */
+async function openWorld(page) {
+  await page.evaluate((gate) => {
+    sessionStorage.setItem(gate, 'open');
+    delete window[gate];
+  }, WORLD_GATE);
+}
 
 /** A context at one of the still sizes with the seen flag set (the quick path to the home, as `scroll-bob` takes it) and its page. */
 async function openSeen(browser, step, size, expected = () => false) {
@@ -4999,29 +5058,6 @@ async function landHome(page, path = '/') {
   const hero = await page.waitForFunction(() => getComputedStyle(document.querySelector('.hero')).opacity === '1', null, { timeout: 5_000 }).then(() => true, () => false);
   await page.waitForTimeout(500);
   return hero;
-}
-
-/**
- * Holds `bob-beads.glb` back: every request for it waits until `release()`, so the void stays `loading`. `asked()` says how
- * many requests the page made. Call it before the page navigates.
- */
-async function holdBeads(page) {
-  let open = () => {};
-  const gate = new Promise((resolve) => (open = resolve));
-  let asked = 0;
-  const handler = async (route) => {
-    asked++;
-    await gate;
-    await route.continue().catch(() => {}); // the page may have gone by now
-  };
-  await page.route(BEADS_GLB, handler);
-  return {
-    asked: () => asked,
-    release: async () => {
-      open();
-      await page.unroute(BEADS_GLB, handler);
-    },
-  };
 }
 
 /**
@@ -5094,442 +5130,6 @@ async function poseOnTheFrame(page, progress, aspect) {
 }
 
 /**
- * Bead `id`'s label as the page shows it now (src/ui/BeadLabel.tsx): whether it is `shown` (in the page) and `rest` (whole,
- * at the bead's stop), its opacity, its tabindex, its link, its box and the viewport, its four lines' text, and which of the
- * two hints the stylesheet shows. Null where the page has no such label.
- */
-const labelOf = (page, id) =>
-  page.evaluate((id) => {
-    const el = document.querySelector(`.bead-label[data-bead="${id}"]`);
-    if (el === null) return null;
-    const box = el.getBoundingClientRect();
-    const text = (selector) => el.querySelector(selector)?.textContent ?? null;
-    const displayed = (selector) => {
-      const part = el.querySelector(selector);
-      return part !== null && getComputedStyle(part).display !== 'none';
-    };
-    return {
-      shown: el.hasAttribute('data-shown'),
-      rest: el.hasAttribute('data-rest'),
-      opacity: Number(getComputedStyle(el).opacity),
-      tabindex: el.getAttribute('tabindex'),
-      href: el.getAttribute('href'),
-      box: { left: box.left, top: box.top, right: box.right, bottom: box.bottom },
-      viewport: { width: window.innerWidth, height: window.innerHeight },
-      category: text('.bead-label-category'),
-      title: text('.bead-label-title'),
-      hintFine: text('.bead-label-hint-fine'),
-      hintTouch: text('.bead-label-hint-touch'),
-      fineShown: displayed('.bead-label-hint-fine'),
-      touchShown: displayed('.bead-label-hint-touch'),
-    };
-  }, id);
-
-/** Bead `id`'s label once it is shown whole (`data-shown`, `data-rest`, opacity 1: its 0.4 s fade is over); null if it never is within `timeout` ms. */
-async function waitForLabel(page, id, timeout = 5_000) {
-  const shown = await page
-    .waitForFunction(
-      (id) => {
-        const el = document.querySelector(`.bead-label[data-bead="${id}"]`);
-        return el !== null && el.hasAttribute('data-shown') && el.hasAttribute('data-rest') && Number(getComputedStyle(el).opacity) === 1;
-      },
-      id,
-      { timeout },
-    )
-    .then(() => true, () => false);
-  return shown ? labelOf(page, id) : null;
-}
-
-/** True when the label's box is inside the screen with the margin the site keeps (src/ui/BeadLabel.tsx), and under the header; a pixel of rounding is allowed. */
-const labelInside = (label) => {
-  const margin = labelMarginOf(label.viewport.width);
-  const { left, top, right, bottom } = label.box;
-  return left >= margin - 1 && right <= label.viewport.width - margin + 1 && top >= HEADER_PX + margin - 1 && bottom <= label.viewport.height - margin + 1;
-};
-
-/**
- * The inside of a bead as the page shows it now (the 3D world's spec, goal 6; src/ui/InsideControls.tsx): whether
- * `<html data-inside>` is set, the inside the history's entry carries (React Router keeps a navigation's state in
- * `history.state.usr`), the page's path, the two buttons (their text, box, and whether they show), the focus, the
- * story's place and the scene's phase.
- */
-const insideOf = (page) =>
-  page.evaluate(() => {
-    const d = window.__needleDebug();
-    const controls = document.querySelector('.inside-controls');
-    const buttons = [...document.querySelectorAll('.inside-controls .inside-button')].map((b) => {
-      const box = b.getBoundingClientRect();
-      return { text: b.textContent, height: box.height, top: box.top, bottom: box.bottom, left: box.left, right: box.right };
-    });
-    return {
-      open: document.documentElement.hasAttribute('data-inside'),
-      state: history.state?.usr?.['bob-inside'] ?? null,
-      path: location.pathname,
-      shown: controls !== null && getComputedStyle(controls).visibility === 'visible',
-      buttons,
-      focus: document.activeElement?.className ?? null,
-      progress: d.progress,
-      target: d.target,
-      phase: d.phase.kind,
-    };
-  });
-
-/**
- * Does `act` (a click, a tap or a key that opens bead `bead`) and checks the inside that follows: within FLIGHT_MS and a
- * little the camera is in (the bead's touch points whole), the page still `home` with the inside's own history entry,
- * on the scroll's phase, "Terug" and "Bekijk project" shown at the foot of the screen in that order, 48 px or taller,
- * the focus on "Terug". Answers the time it took (ms), or null.
- */
-async function goesInside(page, step, at, size, bead, how, act, home = '/') {
-  const began = Date.now();
-  await act();
-  const took = await page
-    .waitForFunction(
-      (id) => {
-        const el = document.querySelector(`.touch-points[data-bead="${id}"]`);
-        return document.documentElement.hasAttribute('data-inside') && el !== null && el.hasAttribute('data-shown') && Number(getComputedStyle(el).opacity) === 1;
-      },
-      bead.id,
-      { timeout: 6_000 },
-    )
-    .then(() => Date.now() - began, () => null);
-  const s = await insideOf(page);
-  const words = new Translator(home === '/en/' ? 'en' : 'nl').t.needle.inside;
-  step.check(took !== null && took <= FLIGHT_MS + 600, `${at}: ${how}: inside ${bead.id} within ${FLIGHT_MS + 600} ms, its touch points whole (${took === null ? 'never' : `${took} ms`})`);
-  step.check(s.path === home && s.state === bead.id && s.phase === 'PROJECTS', `${at}: ${how}: the page still ${home}, its history entry the inside's (${s.state}), on the scroll's phase (${s.phase})`);
-  step.check(
-    s.shown && s.buttons.length === 2 && s.buttons[0].text === words.back && s.buttons[1].text === words.view && s.buttons.every((b) => b.height >= 48 && b.top >= size.height * 0.75 && b.bottom <= size.height),
-    `${at}: ${how}: "${words.back}" and "${words.view}" shown at the foot of the screen, in that order, 48 px or taller (${JSON.stringify(s.buttons.map((b) => [b.text, Math.round(b.height), Math.round(b.top)]))})`,
-  );
-  step.check(s.focus?.includes('inside-back') === true, `${at}: ${how}: the focus on "${words.back}" (${s.focus})`);
-  return took;
-}
-
-/**
- * Does `act` (a way out of the inside) and checks that the visitor is back out at `place`, at rest, the story not moved
- * on and the inside's mark gone; then waits out the flight back (FLIGHT_MS). With `label`, that bead's label whole again.
- */
-async function comesOut(page, step, at, place, how, act, label = null) {
-  await act();
-  const out = await page
-    .waitForFunction(
-      (place) => {
-        const d = window.__needleDebug();
-        return !document.documentElement.hasAttribute('data-inside') && d.phase.kind === 'PROJECTS' && Math.abs(d.progress - place) < 1e-9 && Math.abs(d.target - place) < 1e-9;
-      },
-      place,
-      { timeout: 5_000 },
-    )
-    .then(() => true, () => false);
-  await page.waitForTimeout(FLIGHT_MS + 300);
-  const after = await insideOf(page);
-  step.check(out && !after.open && Math.abs(after.progress - place) < 1e-9 && Math.abs(after.target - place) < 1e-9, `${at}: ${how}: back out at ${place.toFixed(4)}, at rest and not moved on (progress ${after.progress}, target ${after.target}, inside ${after.open})`);
-  if (label !== null) {
-    const again = await waitForLabel(page, label.id);
-    step.check(again !== null && labelInside(again), `${at}: ${how}: and ${label.id}'s label shows again, whole and inside the screen`);
-  }
-}
-
-/**
- * Opening a bead (the 3D world's spec, goal 6), at 1440x900 and 390x844 (touch): at each project's arrival the label
- * shows whole inside the screen with the Dutch dictionary's text (the category line, the title, the hint for the
- * pointer), Tab reaches it with a focus ring and Enter takes the visitor inside the bead (`goesInside`), and Esc comes
- * back out to that arrival; a click or a tap on a label, and on a bead, goes inside too; from inside "Bekijk project"
- * opens the page (its heading the title, the scene on it), Back returns inside at that very place and Back again out;
- * Jontai Energy's bead opened in the look back the same way, back to the very place; all by client navigation; a direct
- * load of `/projects/cookies-clicker/` then Esc lands at its arrival.
- */
-async function beadOpen(browser, step) {
-  const dutch = new Translator('nl').t.needle;
-  const summary = [];
-  step.check(
-    BEAD_LIST.every((bead) => bead.title !== null && bead.path === `/projects/${bead.id}/`),
-    `the beads' titles are read from src/data/projects.ts and their pages from src/data/pages.ts: ${BEAD_LIST.map((bead) => `${bead.id} "${bead.title}" ${bead.path}`).join(', ')}`,
-  );
-  for (const size of STILL_SIZES) {
-    const at = sizeName(size);
-    const touch = size.options.hasTouch === true;
-    const { context, page } = await openSeen(browser, step, size);
-    const documents = [];
-    page.on('request', (request) => {
-      if (request.isNavigationRequest() && request.frame() === page.mainFrame()) documents.push(request.url());
-    });
-    step.check(await landHome(page), `${at}: landed on the home, the hero shown whole`);
-    await expectVoid(page, step, 'ready', `${at}: the void under the glass is ready`);
-    documents.length = 0;
-    const pathNow = () => new URL(page.url()).pathname;
-
-    /** The story at a bead's stop, and its label once it shows whole. */
-    const arriveAt = async (bead) => {
-      await page.evaluate((progress) => window.__needleDebug.set({ progress }), bead.stop);
-      await settledState(page);
-      return waitForLabel(page, bead.id);
-    };
-    /** From inside a bead: "Bekijk project" opens its page; Back returns inside at `place`; Back again comes out there. */
-    const viewsAndBack = async (bead, place, how) => {
-      const view = page.locator('.inside-view');
-      if (touch) await view.tap();
-      else await view.click();
-      const arrived = await page.waitForURL(`${BASE}${bead.path}`, { timeout: 5_000 }).then(() => true, () => false);
-      const project = await waitForProject(page, bead.id);
-      const heading = await page.textContent('h1');
-      step.check(arrived && project.kind === 'PROJECT_FOCUS' && project.id === bead.id && heading === bead.title, `${at}: ${how}: "${dutch.inside.view}" opens ${bead.path}: the scene on PROJECT_FOCUS ${bead.id} and the heading "${heading}"`);
-      await page.goBack();
-      const inAgain = await page
-        .waitForFunction((place) => document.documentElement.hasAttribute('data-inside') && Math.abs(window.__needleDebug().progress - place) < 1e-9, place, { timeout: 10_000 })
-        .then(() => true, () => false);
-      const s = await insideOf(page);
-      step.check(inAgain && s.path === '/' && s.state === bead.id, `${at}: ${how}: Back from the page returns inside ${bead.id} at ${place.toFixed(4)} (path ${s.path}, inside ${s.open}, its entry's ${s.state})`);
-      await comesOut(page, step, at, place, `${how}, then Back again`, () => page.goBack());
-    };
-
-    // 1 + 2. Each bead's stop: the label, Tab and Enter into its inside, Esc out.
-    for (const bead of BEAD_LIST) {
-      const label = await arriveAt(bead);
-      step.check(label !== null && label.shown && label.rest && label.opacity === 1 && labelInside(label), `${at}: at ${bead.id}'s stop, ${bead.stop}, the label shows whole inside the screen: ${label === null ? 'never shown' : `[${Object.values(label.box).map((v) => Math.round(v)).join(', ')}] in ${label.viewport.width}x${label.viewport.height}, margin ${labelMarginOf(label.viewport.width)} and the header ${HEADER_PX}`}`);
-      const want = { category: categories.byId(bead.category).heading('nl'), title: bead.title, hintFine: dutch.bead.hint, hintTouch: dutch.bead.hintTouch };
-      step.check(
-        label !== null && label.category === want.category && label.title === want.title && label.hintFine === want.hintFine && label.hintTouch === want.hintTouch && label.href === bead.path,
-        `${at}: and it says what the Dutch dictionary says, "${want.category}", "${want.title}", "${want.hintFine}" / "${want.hintTouch}", and links to ${bead.path} (got ${JSON.stringify(label && [label.category, label.title, label.hintFine, label.hintTouch, label.href])})`,
-      );
-      step.check(label !== null && label.fineShown === !touch && label.touchShown === touch, `${at}: and the hint for ${touch ? 'a finger' : 'a pointer'} is the one shown (pointer's ${label?.fineShown}, finger's ${label?.touchShown})`);
-
-      await page.focus('a[href="#main"]');
-      let reached = 0;
-      for (let press = 1; press <= 14 && reached === 0; press++) {
-        await page.keyboard.press('Tab');
-        if (await page.evaluate((id) => document.activeElement?.getAttribute('data-bead') === id, bead.id)) reached = press;
-      }
-      const ringed = await page.evaluate(() => {
-        const style = getComputedStyle(document.activeElement);
-        return style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) >= 2;
-      });
-      step.check(reached > 0 && ringed, `${at}: Tab from the skip link reaches ${bead.id}'s label after ${reached} presses, with a focus ring (outline 2 px or more)`);
-      await goesInside(page, step, at, size, bead, 'Tab and Enter', () => page.keyboard.press('Enter'));
-      await comesOut(page, step, at, bead.stop, 'Tab and Enter, then Esc', () => page.keyboard.press('Escape'), bead);
-    }
-
-    // 3. A click or a tap: on a label, and on a bead; from inside, the page and Back.
-    const onLabel = BEAD_LIST[1];
-    await arriveAt(onLabel);
-    const labelAt = page.locator(`.bead-label[data-bead="${onLabel.id}"]`);
-    const byLabel = touch ? 'a tap on the label' : 'a click on the label';
-    await goesInside(page, step, at, size, onLabel, byLabel, () => (touch ? labelAt.tap() : labelAt.click()));
-    await viewsAndBack(onLabel, onLabel.stop, byLabel);
-    const onBead = BEAD_LIST[2];
-    await arriveAt(onBead);
-    const onScreen = (await debugOf(page)).journey.beads?.[onBead.index];
-    const [beadX, beadY] = onScreen === undefined ? [size.width / 2, size.height / 2] : [onScreen.x, onScreen.y];
-    const byBead = touch ? 'a tap on the bead' : 'a click on the bead';
-    await goesInside(page, step, at, size, onBead, byBead, () => (touch ? page.touchscreen.tap(beadX, beadY) : page.mouse.click(beadX, beadY)));
-    await comesOut(page, step, at, onBead.stop, `${byBead}, then "${dutch.inside.back}"`, () => (touch ? page.locator('.inside-back').tap() : page.locator('.inside-back').click()), onBead);
-
-    // Jontai Energy opened in the look back: inside, its page, Back inside, Back out, at the very place.
-    const jontai = BEAD_LIST[1];
-    await page.evaluate((progress) => window.__needleDebug.set({ progress }), LOOK_STOP);
-    await settledState(page);
-    const b = (await debugOf(page)).journey.beads?.[jontai.index];
-    if (!touch && b !== undefined) {
-      await page.mouse.move(b.x, b.y);
-      await page.waitForTimeout(300);
-    }
-    const inLook = `${touch ? 'a tap' : 'a click'} on its bead in the look back`;
-    await goesInside(page, step, at, size, jontai, inLook, () => (b === undefined ? Promise.resolve() : touch ? page.touchscreen.tap(b.x, b.y) : page.mouse.click(b.x, b.y)));
-    await viewsAndBack(jontai, LOOK_STOP, inLook);
-
-    // 4. All of it by client navigation.
-    step.check(documents.length === 0, `${at}: all of it by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
-
-    // 5. A direct load of a project's page, then Esc.
-    const direct = BEAD_LIST[2];
-    await page.goto(`${BASE}${direct.path}?proof`, { waitUntil: 'load' });
-    await stageReady(page);
-    const onPage = await waitForProject(page, direct.id);
-    const arrived = await landed(page).then(() => true, () => false);
-    const voidAtEsc = await page.evaluate(() => window.__needleDebug().journey.voidState);
-    documents.length = 0;
-    const pressed = Date.now();
-    await page.keyboard.press('Escape');
-    const stopped = await waitForStop(page, direct.category, 25_000);
-    const took = Date.now() - pressed;
-    step.check(onPage.id === direct.id && arrived, `${at}: a direct load of ${direct.path} puts the scene on PROJECT_FOCUS ${direct.id} and the opening lands (got ${JSON.stringify(onPage)}, landed ${arrived})`);
-    step.check(
-      pathNow() === '/' && stopped.kind === 'PROJECTS' && stopped.category === direct.category && stopped.progress === direct.stop && stopped.target === direct.stop,
-      `${at}: and Esc (the void ${voidAtEsc} when it was pressed) lands at stop ${direct.stop}, ${direct.id}'s, ${took} ms later (path ${pathNow()}, got ${JSON.stringify(stopped)})`,
-    );
-    const landedLabel = await waitForLabel(page, direct.id);
-    step.check(landedLabel !== null && labelInside(landedLabel), `${at}: with its label shown whole inside the screen`);
-    step.check(documents.length === 0, `${at}: by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
-    await takeCsp(page, step);
-    await context.close();
-    summary.push(`${at}: each bead's label (NL text, inside the screen), Tab and Enter inside and Esc out, a ${touch ? 'tap' : 'click'} on a label and on a bead inside, its page and Back inside and out, in the look back too, and a direct load then Esc to stop ${direct.stop} (${took} ms, void ${voidAtEsc})`);
-  }
-  return summary.join('; ');
-}
-
-/**
- * Getting out of a bead (the 3D world's spec, goal 6: "Getting out must never be hard"), at 1440x900, 390x844 (touch)
- * and 1440 on /en/, at Funcial's arrival: a click (a tap) on the bead takes the visitor inside (`goesInside`), and every
- * way out comes back to the arrival at rest, the story not moved on: "Terug", Escape, a wheel of three notches (on the
- * phone a swipe up the glass) and the browser's Back; then the scroll goes on as ever (a step to Jontai Energy's
- * arrival). A still inside is gated as an inside still (LUMA_GATE.inside), the page's text masked.
- */
-async function inside(browser, step) {
-  const summary = [];
-  const gated = [];
-  const runs = [...TWO_SIZES.map((size) => ({ size, path: '/' })), { size: TWO_SIZES[0], path: '/en/' }];
-  for (const { size, path } of runs) {
-    const english = path === '/en/';
-    const at = `${sizeName(size)}${english ? ' /en/' : ''}`;
-    const { context, page, cdp, touch } = await readyHome(browser, step, size, path);
-    const words = new Translator(english ? 'en' : 'nl').t.needle.inside;
-    const funcial = BEAD_LIST[0];
-    await poseAt(page, funcial.stop);
-    await restAt(page);
-    await waitForLabel(page, funcial.id);
-    const b = (await debugOf(page)).journey.beads?.[funcial.index];
-    const open = (how) => goesInside(page, step, at, size, funcial, how, () => (b === undefined ? Promise.resolve() : touch ? page.touchscreen.tap(b.x, b.y) : page.mouse.click(b.x, b.y)), path);
-    const by = touch ? 'a tap on the bead' : 'a click on the bead';
-
-    const took = await open(by);
-    if (!english) {
-      mkdirSync(STILLS, { recursive: true });
-      const file = join(STILLS, `inside-${funcial.id}-${sizeName(size)}.png`);
-      await page.screenshot({ path: file });
-      gated.push({ file, kind: 'inside', mask: await textMask(page) });
-    }
-    const ways = [
-      [`"${words.back}"`, () => (touch ? page.locator('.inside-back').tap() : page.locator('.inside-back').click())],
-      ...(touch ? [] : [['Escape', () => page.keyboard.press('Escape')]]),
-      [
-        touch ? 'a swipe up the glass' : 'three wheel notches',
-        async () => {
-          if (touch) {
-            await slowTouch(page, cdp, [195, 620], [195, 420], 40);
-            return;
-          }
-          for (let i = 0; i < 3; i++) {
-            await page.mouse.wheel(0, RISE.notchPx);
-            await page.waitForTimeout(RISE.notchGapMs);
-          }
-        },
-      ],
-      ["the browser's Back", () => page.goBack()],
-    ];
-    for (const [k, [how, act]] of ways.entries()) {
-      if (k > 0) await open(by);
-      await comesOut(page, step, at, funcial.stop, how, act, funcial);
-    }
-    // Out again, the scroll goes on as ever.
-    if (!touch) await page.mouse.move(4, size.height - 4);
-    const next = await stepStop(page, cdp, BEAD_LIST[1].stop);
-    step.check(near(next.target, BEAD_LIST[1].stop, 1e-9), `${at}: once out, a step goes on to Jontai Energy's arrival as ever (${next.target.toFixed(4)})`);
-    await takeCsp(page, step);
-    summary.push(`${at}: in by ${by} in ${took} ms, out by ${ways.map(([how]) => how).join(', ')}`);
-    await context.close();
-  }
-  step.luma = await gateLuma(browser, step, gated);
-  return `${summary.join('; ')}; ${lumaSummary(step.luma, 'inside')}`;
-}
-
-/** The mean difference of two stills' pixels, 0..1 (luma, Rec. 709), measured in a page as `lumaOf` measures one. */
-async function stillsDiffer(browser, a, b) {
-  const meter = await browser.newContext();
-  const page = await meter.newPage();
-  const url = (file) => `data:image/png;base64,${readFileSync(file).toString('base64')}`;
-  const diff = await page.evaluate(
-    async ([a, b]) => {
-      const pixels = async (src) => {
-        const image = new Image();
-        image.src = src;
-        await image.decode();
-        const canvas = document.createElement('canvas');
-        canvas.width = image.naturalWidth;
-        canvas.height = image.naturalHeight;
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        ctx.drawImage(image, 0, 0);
-        return ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-      };
-      const [p, q] = [await pixels(a), await pixels(b)];
-      let sum = 0;
-      const luma = (d, i) => (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255;
-      for (let i = 0; i < p.length; i += 4) sum += Math.abs(luma(p, i) - luma(q, i));
-      return sum / (p.length / 4);
-    },
-    [url(a), url(b)],
-  );
-  await meter.close();
-  return diff;
-}
-
-/**
- * The bead at its arrival floats and turns (the 3D world's spec, goal 5), at 1440x900 and 390x844 (touch), at Jontai
- * Energy's arrival, the camera at rest there: the bead floats (two pictures of it 1.3 s apart differ); on a laptop the
- * pointer over its right edge and over its left turn it two ways (the two pictures differ); the canvas sleeps within 13 s
- * of the last input and wakes on the next; and with reduced motion nothing floats (two pictures 1.3 s apart the same)
- * and the canvas sleeps within 1.5 s.
- */
-async function float(browser, step) {
-  const summary = [];
-  mkdirSync(STILLS, { recursive: true });
-  const runs = [...TWO_SIZES.map((size) => ({ size, reduced: false })), { size: TWO_SIZES[0], reduced: true }];
-  for (const { size, reduced } of runs) {
-    const at = `${sizeName(size)}${reduced ? ' reduced' : ''}`;
-    const { context, page, touch } = await readyHome(browser, step, reduced ? { ...size, options: { ...size.options, reducedMotion: 'reduce' } } : size);
-    const jontai = BEAD_LIST[1];
-    if (!touch) await page.mouse.move(4, size.height - 4);
-    await poseAt(page, jontai.stop);
-    await restAt(page);
-    await waitForLabel(page, jontai.id);
-    const b = (await debugOf(page)).journey.beads?.[jontai.index];
-    const clip = b === undefined ? undefined : { x: Math.max(0, b.x - b.r), y: Math.max(0, b.y - b.r), width: Math.min(size.width, 2 * b.r), height: Math.min(size.height, 2 * b.r) };
-    const shot = async (name) => {
-      const file = join(STILLS, `float-${name}-${sizeName(size)}${reduced ? '-reduced' : ''}.png`);
-      await page.screenshot({ path: file, clip });
-      return file;
-    };
-    // The scene settled (the nebula built and in, the label whole), a stir, then two pictures of the bead 1.3 s apart.
-    await page.waitForTimeout(2_000);
-    if (touch) await page.touchscreen.tap(8, size.height - 8);
-    else await page.mouse.move(6, size.height - 6);
-    const first = await shot('a');
-    await page.waitForTimeout(1_300);
-    const second = await shot('b');
-    const drift = await stillsDiffer(browser, first, second);
-    if (reduced) step.check(drift < 0.002, `${at}: with reduced motion the bead holds still (the two pictures 1.3 s apart differ by ${drift.toFixed(4)})`);
-    else step.check(drift > 0.002, `${at}: the bead floats: two pictures of it 1.3 s apart differ by ${drift.toFixed(4)}`);
-
-    if (!touch && !reduced && b !== undefined) {
-      await page.mouse.move(b.x + 0.8 * b.r, b.y, { steps: 6 });
-      await page.waitForTimeout(700);
-      const right = await shot('right');
-      await page.mouse.move(b.x - 0.8 * b.r, b.y, { steps: 6 });
-      await page.waitForTimeout(700);
-      const left = await shot('left');
-      const turned = await stillsDiffer(browser, right, left);
-      step.check(turned > 0.01, `${at}: the pointer over its right edge and over its left turn it two ways (the two pictures differ by ${turned.toFixed(4)})`);
-      await page.mouse.move(4, size.height - 4);
-    }
-
-    // The canvas sleeps once nothing has stirred it for the idle while, and wakes on the next input.
-    const slept = await sleepWithin(page, reduced ? 4_000 : 16_000);
-    const limit = reduced ? 1_500 : 13_000;
-    step.check(slept !== null && slept <= limit, `${at}: the canvas sleeps within ${limit / 1000} s of the last input (asked for no frame from ${slept} ms on)`);
-    if (!touch) {
-      const before = await page.evaluate(() => window.__allRaf);
-      await page.mouse.move(size.width / 2, size.height / 2, { steps: 4 });
-      await page.waitForTimeout(300);
-      const after = await page.evaluate(() => window.__allRaf);
-      step.check(after > before, `${at}: and a pointer move wakes it (${after - before} frames asked for)`);
-    }
-    await takeCsp(page, step);
-    summary.push(`${at}: drift ${drift.toFixed(4)}, asleep ${slept} ms after the last input`);
-    await context.close();
-  }
-  return summary.join('; ');
-}
-
-/**
  * The nebula (the 3D world's spec, goals 1, 2 and 8), at 1440x900 and 390x844 (touch): the bridge's levels
  * (`journey.nebula`: its clouds, its far bands, the look back's rings) are the rules' (`nebulaLevels`) at the fall's way
  * frames 30, 72 and 121, at each trip's middle and arrival, in the look back and under the sheet; the clouds come in as
@@ -5545,9 +5145,11 @@ async function nebula(browser, step) {
     const { context, page } = await readyHome(browser, step, size);
     const places = [
       ...[30, 72, 121].map((frame) => ({ name: `fall-${frame}`, progress: placeOfFrame(frame) })),
-      ...BEAD_LIST.flatMap((bead) => [
-        { name: `trip-${bead.index + 1}`, progress: tripMiddle(bead.index) },
-        { name: `arrival-${bead.id}`, progress: bead.stop },
+      { name: 'land', progress: PATH_START + 0.4 },
+      { name: 'world', progress: WORLD_STOP },
+      ...PROJECT_LIST.flatMap((bead) => [
+        { name: `to-area-${bead.index + 1}`, progress: bead.stop - 0.4 },
+        { name: `area-${bead.id}`, progress: bead.stop },
       ]),
       { name: 'look-back', progress: LOOK_STOP - 0.3 },
       { name: 'look-stop', progress: LOOK_STOP },
@@ -5564,7 +5166,7 @@ async function nebula(browser, step) {
         got !== null && near(got.clouds, want.clouds, 1e-9) && near(got.bands, want.bands, 1e-9) && near(got.rings, want.rings, 1e-9),
         `${at}: at ${place.name} the bridge's levels are the rules': ${JSON.stringify(got)} (${JSON.stringify(want)})`,
       );
-      if (['fall-121', 'trip-2', 'arrival-jontai-energy', 'look-stop'].includes(place.name)) {
+      if (['fall-121', 'world', 'area-jontai-energy', 'look-stop'].includes(place.name)) {
         await page.waitForTimeout(500);
         const file = join(STILLS, `nebula-${place.name}-${at}.png`);
         await page.screenshot({ path: file });
@@ -5572,10 +5174,10 @@ async function nebula(browser, step) {
       }
     }
     step.check(
-      read['fall-30']?.clouds === 0 && near(read['fall-121']?.clouds ?? 0, NEBULA.FALL_LEVEL, 1e-9) && read['arrival-funcial']?.clouds === 1,
-      `${at}: no clouds before the camera turns (frame 30: ${read['fall-30']?.clouds}), at the fall's ${NEBULA.FALL_LEVEL} behind the facts by fact 02's peak (${read['fall-121']?.clouds}), whole on the path (${read['arrival-funcial']?.clouds})`,
+      read['fall-30']?.clouds === 0 && near(read['fall-121']?.clouds ?? 0, NEBULA.FALL_LEVEL, 1e-9) && near(read.world?.clouds ?? 0, NEBULA.WORLD_LEVEL.world, 1e-9) && near(read['area-funcial']?.clouds ?? 0, NEBULA.WORLD_LEVEL.area, 1e-9),
+      `${at}: no clouds before the camera turns (frame 30: ${read['fall-30']?.clouds}), at the fall's ${NEBULA.FALL_LEVEL} behind the facts by fact 02's peak (${read['fall-121']?.clouds}), ${NEBULA.WORLD_LEVEL.world} round the whole world (${read.world?.clouds}) and ${NEBULA.WORLD_LEVEL.area} at an area (${read['area-funcial']?.clouds})`,
     );
-    step.check(read['look-stop']?.rings > 0.5 && read['arrival-funcial']?.rings === 0, `${at}: the look back's rings in the look back alone (${read['look-stop']?.rings}, at an arrival ${read['arrival-funcial']?.rings})`);
+    step.check(Object.values(read).every((levels) => levels?.rings === 0), `${at}: no rings anywhere, which were the beads' (${Object.entries(read).filter(([, levels]) => levels?.rings !== 0).map(([name]) => name).join(', ') || 'none'} with any)`);
     await takeCsp(page, step);
     summary.push(`${at}: ${places.length} places`);
     await context.close();
@@ -5585,7 +5187,7 @@ async function nebula(browser, step) {
 }
 
 /**
- * The hold (spec: the landing waits for the beads), at 1440x900 and 390x844 (touch): with `bob-beads.glb` held back, so
+ * The hold (spec: the landing waits for the world), at 1440x900 and 390x844 (touch): with the world's build held back, so
  * that the void stays `loading`, a long wheel (PUSH_NOTCHES; flicks on the phone) plays the light dive and rests at
  * LANDING_HOLD, the hand-over (way frame 256, where the path begins, on the journey's shot), the journey at its travel's start with
  * `voidState` `loading`, the light still and nothing creeping past it; a still of it (`m2/void-hold-<size>.png`) is gated
@@ -5608,18 +5210,18 @@ async function voidHold(browser, step) {
     const aspect = size.width / size.height;
     const { context, page } = await openSeen(browser, step, size);
     const cdp = touch ? await context.newCDPSession(page) : null;
-    const held = await holdBeads(page);
-    step.check(await landHome(page), `${at}: landed on the home with bob-beads.glb held back, the hero shown whole`);
+    await gateWorld(page, 'hold');
+    step.check(await landHome(page), `${at}: landed on the home with the world's build held back, the hero shown whole`);
     const loading = await waitForVoid(page, 'loading', 5_000);
-    step.check(loading === 'loading' && held.asked() >= 1, `${at}: the page asked for the file (${held.asked()} requests) and the void is ${loading}`);
+    step.check(loading === 'loading', `${at}: the void is built and the world held: the void is ${loading}`);
     if (!touch) await page.mouse.move(size.width / 2, size.height / 2);
     const vh = size.height;
 
     const pushed = await pushStory(page, cdp, 1, { notches: PUSH_NOTCHES, flicks: 16 });
     const rest = await settledState(page);
     step.check(
-      near(rest.target, LANDING_HOLD, 1e-9) && rest.progress === rest.target && rest.journey.stretch === 'travel' && rest.journey.local === 0 && rest.journey.project === 0 && rest.journey.voidState === 'loading' && rest.phase.kind === 'PROJECTS',
-      `${at}: a long push (${pushed}) plays the light dive and rests at LANDING_HOLD, ${LANDING_HOLD}: progress ${rest.progress}, target ${rest.target}, the journey ${rest.journey.stretch} ${rest.journey.local} toward bead ${rest.journey.project}, voidState ${rest.journey.voidState}, the phase ${rest.phase.kind}`,
+      near(rest.target, LANDING_HOLD, 1e-9) && rest.progress === rest.target && rest.journey.stretch === 'land' && rest.journey.local === 0 && rest.journey.project === null && rest.journey.voidState === 'loading' && rest.phase.kind === 'PROJECTS',
+      `${at}: a long push (${pushed}) plays the light dive and rests at LANDING_HOLD, ${LANDING_HOLD}: progress ${rest.progress}, target ${rest.target}, the journey ${rest.journey.stretch} ${rest.journey.local}, voidState ${rest.journey.voidState}, the phase ${rest.phase.kind}`,
     );
     step.check(onJourneyShot(rest, LANDING_HOLD, aspect), `${at}: and the camera is on the journey's shot for it: [${rest.camera.position.map((v) => v.toFixed(3)).join(', ')}] fov ${rest.camera.fov.toFixed(3)}`);
     await page.waitForTimeout(1_000);
@@ -5650,19 +5252,19 @@ async function voidHold(browser, step) {
     const again = await settledState(page);
     step.check(near(again.target, LANDING_HOLD, 1e-9) && again.progress === again.target && again.journey.voidState === 'loading', `${at}: and pushed down again it rests on the hold again (progress ${again.progress}, target ${again.target}, ${again.journey.voidState})`);
 
-    // The file is let through: the void becomes ready and the story goes on along the path.
-    await held.release();
+    // The world is let through: the void becomes ready and the story goes on to the world.
+    await openWorld(page);
     const ready = await waitForVoid(page, 'ready');
     const through = await settledState(page);
     step.check(
-      ready === 'ready' && through.target > LANDING_HOLD + 0.1 && through.progress === through.target && through.journey.voidState === 'ready' && ['travel', 'arrive', 'look', 'sheet', 'end'].includes(through.journey.stretch),
-      `${at}: let through, the void is ${ready} and the story goes on along the path: progress ${through.progress}, target ${through.target}, the journey ${through.journey.stretch} ${through.journey.local.toFixed(3)}`,
+      ready === 'ready' && through.target > LANDING_HOLD + 0.1 && through.progress === through.target && through.journey.voidState === 'ready' && ['land', 'area', 'look', 'sheet', 'end'].includes(through.journey.stretch),
+      `${at}: let through, the void is ${ready} and the story goes on to the world: progress ${through.progress}, target ${through.target}, the journey ${through.journey.stretch} ${through.journey.local.toFixed(3)}`,
     );
     step.check(onJourneyShot(through, through.progress, aspect), `${at}: with the camera on the journey's shot there`);
 
-    // A direct arrival at a project's page, Esc while the file is still held: it waits at the hold, then reaches the stop.
-    const target = BEAD_LIST[2];
-    const heldAgain = await holdBeads(page);
+    // A direct arrival at a project's page, Esc while the world is still held: it waits at the hold, then reaches the stop.
+    const target = PROJECT_LIST[2];
+    await gateWorld(page, 'hold');
     await page.goto(`${BASE}${target.path}?proof`, { waitUntil: 'load' });
     await stageReady(page);
     const direct = await waitForProject(page, target.id);
@@ -5670,17 +5272,17 @@ async function voidHold(browser, step) {
     const stillLoading = await waitForVoid(page, 'loading', 10_000);
     step.check(
       direct.kind === 'PROJECT_FOCUS' && direct.id === target.id && settled && stillLoading === 'loading',
-      `${at}: a direct load of ${target.path} with the file held puts the scene on PROJECT_FOCUS ${target.id}, the opening lands and the void is ${stillLoading} (got ${JSON.stringify(direct)}, landed ${settled})`,
+      `${at}: a direct load of ${target.path} with the world held puts the scene on PROJECT_FOCUS ${target.id}, the opening lands and the void is ${stillLoading} (got ${JSON.stringify(direct)}, landed ${settled})`,
     );
     await page.keyboard.press('Escape');
     await page.waitForURL(`${BASE}/`, { timeout: 5_000 }).catch(() => {});
     await page.waitForTimeout(1_500);
     const waiting = await debugOf(page);
     step.check(
-      heldAgain.asked() >= 1 && new URL(page.url()).pathname === '/' && near(waiting.target, LANDING_HOLD, 1e-9) && waiting.progress === waiting.target && waiting.journey.voidState === 'loading',
-      `${at}: a direct load of ${target.path} (the file held again, ${heldAgain.asked()} requests), then Esc: the story waits at the hold (progress ${waiting.progress}, target ${waiting.target}, voidState ${waiting.journey.voidState}, ${waiting.phase.kind})`,
+      new URL(page.url()).pathname === '/' && near(waiting.target, LANDING_HOLD, 1e-9) && waiting.progress === waiting.target && waiting.journey.voidState === 'loading',
+      `${at}: a direct load of ${target.path} (the world held again), then Esc: the story waits at the hold (progress ${waiting.progress}, target ${waiting.target}, voidState ${waiting.journey.voidState}, ${waiting.phase.kind})`,
     );
-    await heldAgain.release();
+    await openWorld(page);
     const stopped = await waitForStop(page, target.category, 20_000);
     step.check(
       stopped.kind === 'PROJECTS' && stopped.category === target.category && stopped.progress === target.stop && stopped.target === target.stop,
@@ -5688,7 +5290,7 @@ async function voidHold(browser, step) {
     );
     await takeCsp(page, step);
     await context.close();
-    summary.push(`${at}: held, a long push (${pushed}) rests at ${LANDING_HOLD.toFixed(4)} loading, up and down again, let through it goes on along the path (${through.target.toFixed(3)}), and a direct arrival's Esc waits at the hold then reaches stop ${target.stop}`);
+    summary.push(`${at}: held, a long push (${pushed}) rests at ${LANDING_HOLD.toFixed(4)} loading, up and down again, let through it goes on to the world (${through.target.toFixed(3)}), and a direct arrival's Esc waits at the hold then reaches stop ${target.stop}`);
   }
   const rows = await gateLuma(browser, step, shots);
   step.luma = rows;
@@ -5696,38 +5298,33 @@ async function voidHold(browser, step) {
 }
 
 /**
- * The failure (spec §2.1), at 1440x900 and 390x844 (touch): with `bob-beads.glb` answering 404 the
+ * The failure (spec §2.1), at 1440x900 and 390x844 (touch): with the world's build failed (src/debug/worldGate.ts) the
  * void fails (`voidState` `failed`, `<html data-void>`), and the home goes on without it. At the home the nav stays hidden
  * as it is with 3D on; a long push plays the light dive and rests the scroll at LANDING_HOLD (the hand-over), and there
  * (`<html data-held>`) `.home-nav` shows, fixed over the foot of the screen, unclipped and opaque, its three links on
  * screen and each the element at its own middle, its end link with them; the skip button never shows; a still of it
  * (`m2/void-fail-<size>.png`) is gated as a home still. A link opens its project, and Esc brings the story back to the
- * hold, not to the bead's stop; scrolled back to the home the nav is hidden again and the SCROLL cue is back. The console has exactly one error for it, the browser's own report of the 404 (the
- * Void's own line is a warning, `[needle] the beads could not be loaded`, and there is one), per size.
+ * hold, not to the project's stop; scrolled back to the home the nav is hidden again and the SCROLL cue is back. The console has no error for
+ * it: the Void's own line is a warning, `[needle] the world could not be built`, and there is one, per size.
  */
 async function voidFail(browser, step) {
   mkdirSync(STILLS, { recursive: true });
   const shots = [];
   const summary = [];
-  const report = (message) => /^Failed to load resource: the server responded with a status of 404/.test(message.text()) && BEADS_GLB.test(message.location().url ?? '');
   for (const size of STILL_SIZES) {
     const at = sizeName(size);
     const touch = size.options.hasTouch === true;
-    const { context, page } = await openSeen(browser, step, size, report);
+    const { context, page } = await openSeen(browser, step, size);
     const cdp = touch ? await context.newCDPSession(page) : null;
     const warnings = [];
     page.on('console', (message) => {
-      if (message.type() === 'warning' && /^\[needle\] the beads could not be loaded/.test(message.text())) warnings.push(message.text());
+      if (message.type() === 'warning' && /^\[needle\] the world could not be built/.test(message.text())) warnings.push(message.text());
     });
-    let answered = 0;
-    await page.route(BEADS_GLB, (route) => {
-      answered++;
-      return route.fulfill({ status: 404, contentType: 'text/plain', body: 'not found' });
-    });
+    await gateWorld(page, 'fail');
     const reportedBefore = step.expected.length;
-    step.check(await landHome(page), `${at}: landed on the home with bob-beads.glb answering 404, the hero shown whole`);
+    step.check(await landHome(page), `${at}: landed on the home with the world's build failing, the hero shown whole`);
     const failedState = await waitForVoid(page, 'failed', 10_000);
-    step.check(failedState === 'failed' && answered >= 1, `${at}: the page asked for the file (${answered} requests) and the void failed (voidState ${failedState})`);
+    step.check(failedState === 'failed', `${at}: the world could not be built and the void failed (voidState ${failedState})`);
     const flags = () => page.evaluate(() => ({ void: document.documentElement.dataset.void ?? null, held: document.documentElement.hasAttribute('data-held') }));
     const atHome = await flags();
     step.check(
@@ -5739,7 +5336,7 @@ async function voidFail(browser, step) {
     const pushed = await pushStory(page, cdp, 1, { notches: PUSH_NOTCHES, flicks: 16 });
     const rest = await settledState(page);
     step.check(
-      near(rest.target, LANDING_HOLD, 1e-9) && rest.progress === rest.target && rest.phase.kind === 'PROJECTS' && rest.journey.stretch === 'travel' && rest.journey.local === 0 && rest.journey.voidState === 'failed',
+      near(rest.target, LANDING_HOLD, 1e-9) && rest.progress === rest.target && rest.phase.kind === 'PROJECTS' && rest.journey.stretch === 'land' && rest.journey.local === 0 && rest.journey.voidState === 'failed',
       `${at}: a long push (${pushed}) plays the light dive and holds the scroll at LANDING_HOLD, ${LANDING_HOLD.toFixed(4)}: progress ${rest.progress}, target ${rest.target}, the phase ${rest.phase.kind}, the journey ${rest.journey.stretch} at way frame ${rest.journey.frame}`,
     );
     const navAt = () =>
@@ -5786,7 +5383,7 @@ async function voidFail(browser, step) {
     await withoutCanvas(page, () => page.screenshot({ path: control }));
     shots.push({ file: control, kind: 'control', mask });
 
-    // The home stays usable: a link opens its project, and Esc comes back to the hold, not to a bead the void never showed.
+    // The home stays usable: a link opens its project, and Esc comes back to the hold, not to a world the void never showed.
     await page.click('.home-nav a[href="/projects/funcial/"]');
     await page.waitForURL(`${BASE}/projects/funcial/`, { timeout: 5_000 });
     const opened = await waitForProject(page, 'funcial');
@@ -5809,14 +5406,14 @@ async function voidFail(browser, step) {
       `${at}: scrolled back to the home the nav is hidden again, the SCROLL cue is back (${cueText(cue)}) and the phase is HOME_IDLE (target ${home.target})`,
     );
 
-    // The one reported error, and the Void's own line as a warning.
+    // No reported error, and the Void's own line as a warning.
     step.check(
-      step.expected.length - reportedBefore === 1 && warnings.length === 1,
-      `${at}: the console has exactly one error for it, the browser's report of the 404 (${step.expected.length - reportedBefore}), and the Void's own line is a warning (${warnings.length}): ${step.expected.slice(reportedBefore).join(' | ')}`,
+      step.expected.length - reportedBefore === 0 && warnings.length === 1,
+      `${at}: the console has no error for it (${step.expected.length - reportedBefore}), and the Void's own line is a warning (${warnings.length}): ${warnings.join(' | ')}`,
     );
     await takeCsp(page, step);
     await context.close();
-    summary.push(`${at}: 404, the scroll holds at ${LANDING_HOLD.toFixed(4)} (${pushed}) with .home-nav shown and usable, no skip button, back at the home it is hidden again; one reported error, one warning`);
+    summary.push(`${at}: failed, the scroll holds at ${LANDING_HOLD.toFixed(4)} (${pushed}) with .home-nav shown and usable, no skip button, back at the home it is hidden again; no error, one warning`);
   }
   const rows = await gateLuma(browser, step, shots);
   step.luma = rows;
@@ -6247,7 +5844,7 @@ async function pressThroughTheNight(page, step, { at, touch, size, cdp, toLook, 
  *
  * And at 1440x900, once each: /en/ (the title and the first question in English); the nav's link (`navLinkToTheEnd`);
  * End from the home just after a pointer move there, asleep at rest (`endFromTheHome`, Ruling 19); 3D off (`#end` in the home's flow after
- * `.home-nav`, reached by native wheel scroll); the void failed (bob-beads.glb answering 404: the scroll held at BOB from
+ * `.home-nav`, reached by native wheel scroll); the void failed (the world's build failing, src/debug/worldGate.ts: the scroll held at BOB from
  * above, the nav's `.end-link` button shows and goes to the end page by the step fade, no progress between, the focus on
  * its title, and ArrowUp at the page's top comes back to BOB from above by a fade); reduced motion (5 to 6 and back to 5,
  * each by a fade).
@@ -6646,11 +6243,10 @@ async function endPage(browser, step) {
   // The void failed: the nav's link to the end page, by the step fade, and back up by a fade.
   {
     const size = STILL_SIZES[0];
-    const report = (message) => /^Failed to load resource: the server responded with a status of 404/.test(message.text()) && BEADS_GLB.test(message.location().url ?? '');
-    const { context, page } = await openSeen(browser, step, size, report);
-    await page.route(BEADS_GLB, (route) => route.fulfill({ status: 404, contentType: 'text/plain', body: 'not found' }));
+    const { context, page } = await openSeen(browser, step, size);
+    await gateWorld(page, 'fail');
     const reportedBefore = step.expected.length;
-    step.check(await landHome(page), 'void failed: landed on the home with bob-beads.glb answering 404');
+    step.check(await landHome(page), "void failed: landed on the home with the world's build failing");
     const failed = await waitForVoid(page, 'failed', 10_000);
     await page.mouse.move(size.width / 2, size.height / 2);
     await pushStory(page, null, 1, { notches: PUSH_NOTCHES });
@@ -6696,7 +6292,7 @@ async function endPage(browser, step) {
       `void failed: ArrowUp at the page's top comes back to the landing hold, ${LANDING_HOLD.toFixed(4)}, by a fade (data-step-fade set ${out.fades} time(s), ${travelOut.length} of ${out.progress.length} progress samples between), data-end ${gone} (progress ${upFrom.progress}, target ${upFrom.target})`,
     );
     step.check(out.fading > 0, `void failed: the end page fades out with the scene, not cut out: ${out.fading} of ${out.opacities} opacities seen strictly between 0 and 1`);
-    step.check(step.expected.length - reportedBefore === 1, `void failed: the console has one error for it, the browser's report of the 404 (${step.expected.slice(reportedBefore).join(' | ')})`);
+    step.check(step.expected.length - reportedBefore === 0, `void failed: the console has no error for it (${step.expected.slice(reportedBefore).join(' | ')})`);
     await takeCsp(page, step);
     await context.close();
   }
@@ -6868,8 +6464,8 @@ async function lightDive(browser, step) {
       else await page.mouse.wheel(0, RISE.notchPx);
       await page.waitForTimeout(touch ? 150 : 70);
       const s = await debugOf(page);
-      down.push(s.journey.stretch === 'light' ? s.journey.frame : s.journey.stretch === 'travel' ? 257 : s.journey.stretch === 'rise' ? 0 : 999);
-      if (s.journey.stretch === 'travel') break;
+      down.push(s.journey.stretch === 'light' ? s.journey.frame : s.journey.stretch === 'land' ? 257 : s.journey.stretch === 'rise' ? 0 : 999);
+      if (s.journey.stretch === 'land') break;
     }
     const monotone = (list, sign) => list.every((v, i) => i === 0 || sign * (v - list[i - 1]) >= -1e-6);
     step.check(monotone(down, 1) && down.at(-1) === 257 && down.length > 4, `${at}: ${touch ? 'swipes' : 'wheel notches'} from BOB from above run the way frames forward to the path, never back (${down.length} inputs: ${down.map((f) => Math.round(f)).join(' ')})`);
@@ -7002,12 +6598,6 @@ async function lightFacts(browser, step) {
   return summary.join('; ');
 }
 
-/** Each project's travel on the home's chapters, in the way's order: where it starts and how long it is. */
-const TRAVELS = HOME_CHAPTERS.units.filter((unit) => unit.id === 'TRAVEL');
-
-/** The middle of the travel to bead `index` (0 Funcial). */
-const tripMiddle = (index) => TRAVELS[index].start + TRAVELS[index].length / 2;
-
 /**
  * The engraved way (spec 2026-10-27-bob-engraved-way-design.md), at 1440x900 and 390x844 (touch), each in a fresh
  * context landed with the void ready:
@@ -7018,17 +6608,13 @@ const tripMiddle = (index) => TRAVELS[index].start + TRAVELS[index].length / 2;
  *   40, the hall in as the camera turns (72) and given way to the nebula's clouds by fact 02's peak (the 3D world);
  * - from fact 01's peak to fact 05's by input: the way frame runs 299/6 frames a viewport height of input, half the
  *   first fall's pace, so the 160 frames take 3.21 viewport heights where they took 1.61;
- * - each trip's line whole at its travel's middle, the others out; none at a bead's arrival stop, in the pause after
- *   it, nor where the next trip begins (a phone sees past the bead there); in the look back every line faint, 0.32 at
- *   most;
- * - stills at way frames 32 and 121 through the home's luma gate, and at the second trip's middle under its ceiling
- *   (0.11): there the light is small and dim on a phone, as the approved light path has it, so the floor's bright pixel
- *   in the scene's middle is not asked of it.
+ * - on the hologram world none of it shows: not on the land, at the world's stop, at any area's stop or between two,
+ *   nor in the look back (the shaft gives way to the world, and the trips' lines went with the beads);
+ * - stills at way frames 32 and 121 through the home's luma gate.
  */
 async function engraved(browser, step) {
   const summary = [];
   const gated = [];
-  const ceilingOnly = [];
   const span = placeOfFrame(241) - placeOfFrame(81);
   for (const size of TWO_SIZES) {
     const at = sizeName(size);
@@ -7048,14 +6634,14 @@ async function engraved(browser, step) {
         return { stretch: d.journey.stretch, frame: d.journey.frame, throat: d.journey.engraved?.throat ?? null, fact };
       });
       samples.push(sample);
-      if (sample.stretch === 'travel') break;
+      if (sample.stretch === 'land') break;
     }
     const fall = samples.filter((sample) => sample.stretch === 'light');
     const withFact = fall.filter((sample) => sample.fact);
     const crossed = withFact.filter((sample) => sample.throat !== 0);
     const most = Math.max(0, ...fall.map((sample) => sample.throat ?? 0));
     step.check(
-      samples.at(-1)?.stretch === 'travel' && withFact.length >= 5 && crossed.length === 0,
+      samples.at(-1)?.stretch === 'land' && withFact.length >= 5 && crossed.length === 0,
       `${at}: ${samples.length} ${input} from BOB from above run down the fall to the path; the throat is 0 at every one of the ${withFact.length} samples where a fact shows (not at ${crossed.map((sample) => `frame ${sample.frame?.toFixed(0)}: ${sample.throat}`).join(', ') || 'any'})`
     );
     step.check(most > 0.5, `${at}: and the throat shows as the light drops into the compass (at most ${most.toFixed(3)} on the way down)`);
@@ -7065,10 +6651,10 @@ async function engraved(browser, step) {
     for (const f of [32, 40, 72, 121]) {
       const state = await poseAt(page, placeOfFrame(f));
       const got = state.journey.engraved;
-      const want = engravedLevels({ stretch: 'light', frame: state.journey.frame }, null, BEAD_LIST.length);
+      const want = engravedLevels({ stretch: 'light', frame: state.journey.frame });
       posed[f] = got;
       step.check(
-        got !== null && near(got.throat, want.throat, 1e-9) && near(got.hall, want.hall, 1e-9) && got.trips.length === BEAD_LIST.length && got.trips.every((level) => level === 0),
+        got !== null && near(got.throat, want.throat, 1e-9) && near(got.hall, want.hall, 1e-9) && got.trips.length === 0,
         `${at}: at way frame ${f} the bridge's levels are the rules': throat ${got?.throat.toFixed(4)} (${want.throat.toFixed(4)}), hall ${got?.hall.toFixed(4)} (${want.hall.toFixed(4)}), trips ${JSON.stringify(got?.trips)}`
       );
     }
@@ -7096,92 +6682,41 @@ async function engraved(browser, step) {
       `${at}: from fact 01's peak, ${inputs} ${input} of ${RISE.notchPx} px reach fact 05's (frame ${restState.journey.frame?.toFixed(1)}) over ${moved.toFixed(3)} viewport heights: ${perHeight.toFixed(2)} frames a height, 299/6 = ${(299 / 6).toFixed(2)}, half the first fall's ${(299 / 3).toFixed(2)}; fact 01 to 05 is ${span.toFixed(3)} heights, twice ${(span / 2).toFixed(3)}`
     );
 
-    // The trips' lines.
-    for (const bead of BEAD_LIST) {
-      const mid = await poseAt(page, tripMiddle(bead.index));
-      const trips = mid.journey.engraved?.trips ?? [];
+    // On the world none of it shows.
+    const worldPlaces = [
+      ['on the land', PATH_START + 0.4],
+      ["at the world's stop", WORLD_STOP],
+      ...PROJECT_LIST.flatMap((bead) => [
+        [`at ${bead.id}'s area`, bead.stop],
+        [`in the pause after ${bead.id}'s area`, (bead.stop + areaEnd(bead)) / 2],
+      ]),
+      ['in the look back', LOOK_STOP],
+    ];
+    for (const [where, place] of worldPlaces) {
+      const there = await poseAt(page, place);
+      const lv = there.journey.engraved;
       step.check(
-        mid.journey.stretch === 'travel' && mid.journey.project === bead.index && trips.length === BEAD_LIST.length && trips.every((level, k) => level === (k === bead.index ? 1 : 0)),
-        `${at}: half way to ${bead.id} its own line is whole and the others out (${JSON.stringify(trips)})`
+        lv !== null && lv.throat === 0 && lv.hall === 0 && lv.trips.length === 0,
+        `${at}: ${where} none of it shows (${there.journey.stretch} ${there.journey.local.toFixed(2)}, ${JSON.stringify(lv)})`
       );
-      const end = arrivalEnd(bead);
-      for (const [where, place] of [['at the arrival stop of', bead.stop], ['in the pause after', (bead.stop + end) / 2], ['where the trip on from', end]]) {
-        const there = await poseAt(page, place);
-        const lv = there.journey.engraved;
-        step.check(
-          lv !== null && lv.throat === 0 && lv.hall === 0 && lv.trips.every((level) => level === 0),
-          `${at}: ${where} ${bead.id} none of it shows (${there.journey.stretch} ${there.journey.local.toFixed(2)}, ${JSON.stringify(lv)})`
-        );
-      }
     }
-    const look = await poseAt(page, LOOK_STOP);
-    const faint = look.journey.engraved?.trips ?? [];
-    step.check(faint.length === BEAD_LIST.length && faint.every((level) => level > 0 && level <= 0.32 + 1e-9), `${at}: in the look back every line shows, faint: ${faint.map((level) => level.toFixed(3)).join(', ')}, 0.32 at most`);
 
-    // Stills: the fall's through the home's luma gate, the trip's under its ceiling.
+    // Stills: the fall's through the home's luma gate.
     mkdirSync(STILLS, { recursive: true });
-    for (const [name, progress] of [['fall-32', placeOfFrame(32)], ['fall-121', placeOfFrame(121)], ['trip-2', tripMiddle(1)]]) {
+    for (const [name, progress] of [['fall-32', placeOfFrame(32)], ['fall-121', placeOfFrame(121)]]) {
       await poseAt(page, progress);
       await page.waitForTimeout(500);
       const file = join(STILLS, `engraved-${name}-${at}.png`);
       await page.screenshot({ path: file });
-      if (name === 'trip-2') ceilingOnly.push(file);
-      else gated.push({ file, kind: 'home', mask: await textMask(page) });
+      gated.push({ file, kind: 'home', mask: await textMask(page) });
     }
     await takeCsp(page, step);
     summary.push(`${at}: ${samples.length} inputs down the fall, ${inputs} from fact 01 to 05`);
     await context.close();
   }
   step.luma = await gateLuma(browser, step, gated);
-  const meter = await browser.newContext();
-  const meterPage = await meter.newPage();
-  for (const file of ceilingOnly) {
-    const luma = await lumaOf(meterPage, file);
-    const name = file.split(/[\\/]/).pop();
-    step.luma.push({ still: name, kind: 'home', mean: Number(luma.mean.toFixed(4)), peak: Number(luma.peak.toFixed(3)), clipped: Number(luma.clipped.toFixed(6)), ceilingOnly: true });
-    step.check(luma.mean <= LUMA_GATE.home && luma.clipped <= LUMA_GATE.clipped, `${name}: mean luma ${luma.mean.toFixed(4)}, at most ${LUMA_GATE.home}, and ${(luma.clipped * 100).toFixed(3)} % of it clipped, at most ${(LUMA_GATE.clipped * 100).toFixed(3)} %`);
-  }
-  await meter.close();
-  return summary.join('; ');
+  return `${summary.join('; ')}; ${lumaSummary(step.luma, 'home')}`;
 }
-
-/** The touch points each bead shows inside it, in the way's order (src/scene/bob/touchPoints.ts): Funcial, Jontai Energy, Cookies Clicker. */
-const POINT_COUNTS = [5, 4, 5];
-
-/** How much of each bead the pure pose shows at `progress` on a screen of `aspect` (its fade, 0 where it is not drawn). */
-const fadesAt = (progress, aspect) => journeyPoseAt(progress, aspect).path?.beads.map((bead) => (bead.visible ? bead.fade : 0)) ?? [];
-
-/** The touch points of bead `id` as the page shows them now: shown or not, their opacity, and each point's box. */
-const touchPointsOf = (page, id) =>
-  page.evaluate((id) => {
-    const el = document.querySelector(`.touch-points[data-bead="${id}"]`);
-    if (el === null) return null;
-    const points = [...el.querySelectorAll('.touch-point')].map((point) => {
-      const box = point.getBoundingClientRect();
-      return { left: box.left, top: box.top, right: box.right, bottom: box.bottom };
-    });
-    return { shown: el.hasAttribute('data-shown'), opacity: Number(getComputedStyle(el).opacity), points, width: window.innerWidth, height: window.innerHeight };
-  }, id);
-
-/** Bead `id`'s label's side (`data-side`: `right` of the light on a laptop, `below` the bead on a phone) and whether it is quiet (the look back's). */
-const labelSideOf = (page, id) =>
-  page.evaluate((id) => {
-    const el = document.querySelector(`.bead-label[data-bead="${id}"]`);
-    return el === null ? null : { side: el.getAttribute('data-side'), quiet: el.hasAttribute('data-quiet'), hover: el.hasAttribute('data-hover') };
-  }, id);
-
-/** Bead `id`'s label once its computed opacity is 1 and it is shown (`data-shown`), waited for up to `timeout` ms; null if it never is. */
-const labelWhole = (page, id, timeout) =>
-  page
-    .waitForFunction(
-      (id) => {
-        const el = document.querySelector(`.bead-label[data-bead="${id}"]`);
-        return el !== null && el.hasAttribute('data-shown') && Number(getComputedStyle(el).opacity) === 1;
-      },
-      id,
-      { timeout },
-    )
-    .then(() => labelOf(page, id), () => null);
 
 /**
  * The story to `place`, the next key stop down the story: on a laptop by the arrow key (past the rise each arrow is a
@@ -7194,237 +6729,517 @@ async function stepStop(page, cdp, place) {
   return restAt(page);
 }
 
+// ---------------------------------------------------------------- the hologram world
+
+/** The board's centre on a screen of `aspect` (src/scene/bob/worldPath.ts): the CPU, which no camera crosses. */
+const boardCentre = (aspect) => worldPathFor(aspect).centre;
+
+/** The least level distance (m) from the board's centre among camera positions `seen`. */
+const nearestToCentre = (seen, centre) => Math.min(...seen.map((p) => Math.hypot(p[0] - centre[0], p[2] - centre[2])));
+
+/** The words a project's panel should say in `locale` (src/ui/ProjectPanel.tsx): its category, name, summary, role and year. */
+const panelWords = (id, locale) => {
+  const project = PROJECTS.byId(id);
+  const copy = project.copy(locale);
+  return { category: project.category.heading(locale), title: project.title, summary: copy.summary, meta: `${copy.role} · ${project.year}` };
+};
+
+/** Starts recording the camera's position and the world's state every 16 ms (`window.__worldSeen`). */
+const watchWorld = (page) =>
+  page.evaluate(() => {
+    window.__worldSeen = [];
+    window.__worldTimer = setInterval(() => {
+      const d = window.__needleDebug();
+      window.__worldSeen.push({ p: d.progress, camera: d.camera.position, stretch: d.journey.stretch, power: d.journey.world?.power ?? null, light: d.journey.light });
+    }, 16);
+  });
+
+/** Stops the recording and answers it. */
+const worldSeen = (page) =>
+  page.evaluate(() => {
+    clearInterval(window.__worldTimer);
+    return window.__worldSeen;
+  });
+
 /**
- * The light's path (spec 2026-10-27-bob-light-path-design.md), by real input at 1440x900 and 390x844 (touch), each in a
- * fresh context landed with the void ready; at 1440 once more on /en/:
- * - from the fall's end, wheel notches (slow swipes) run the story on into Funcial's travel with no stop at the
- *   hand-over: it rests past it, where the input stopped;
- * - through the whole way (the travels and arrivals, every 0.02 of a unit, and every place a real run passed), at most
- *   one bead is shown with a fade of 0.5 or more;
- * - a step to each project's arrival stop in turn (the arrow; a flick), from Funcial's travel, rests there with no
- *   circling (the 3D world's spec: the light's place on the screen sweeps less than 150 degrees round the bead's centre
- *   on the way in, where an orbit swept a whole turn), the whole bead framed inside the screen, its veins all awake, and
- *   its label whole within 1 s, right of the light on a laptop, under the bead on a phone; no inside on the scroll: the
- *   next step goes on to the next project's arrival, its label gone with its bead's;
- * - stopped anywhere on the way, it rests where the input stopped, and the canvas sleeps within a second.
+ * The world's words as the page shows them now (src/ui/WorldNames.tsx, AreaCaption.tsx, AreaDots.tsx): each name (its
+ * text, whether it shows, its opacity, its place in Tab's order, its box and link), the hint, each area's words and the
+ * dots. The hint's and an area's words are those a visitor sees (the pointer's or the touch screen's).
  */
-async function lightPath(browser, step) {
-  const summary = [];
-  const runs = [...TWO_SIZES.map((size) => ({ size, path: '/' })), { size: TWO_SIZES[0], path: '/en/' }];
-  for (const { size, path } of runs) {
-    const english = path === '/en/';
-    const at = `${sizeName(size)}${english ? ' /en/' : ''}`;
-    const { context, page, cdp, touch } = await readyHome(browser, step, size, path);
-    const aspect = size.width / size.height;
-    const t = new Translator(english ? 'en' : 'nl').t.needle.bead;
+const worldWordsOf = (page) =>
+  page.evaluate(() => {
+    const box = (el) => {
+      const r = el.getBoundingClientRect();
+      return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+    };
+    const seen = (el) => [...el.querySelectorAll('span')].filter((s) => getComputedStyle(s).display !== 'none').map((s) => s.textContent).join('');
+    const hint = document.querySelector('.world-hint');
+    const nav = document.querySelector('.area-dots');
+    return {
+      names: [...document.querySelectorAll('.world-name')].map((el) => ({
+        id: el.dataset.project,
+        text: el.textContent,
+        shown: el.hasAttribute('data-shown') && getComputedStyle(el).visibility === 'visible',
+        opacity: Number(el.style.opacity),
+        tab: el.tabIndex,
+        href: el.getAttribute('href'),
+        box: box(el),
+      })),
+      hint: { opacity: Number(hint.style.opacity), text: seen(hint) },
+      captions: [...document.querySelectorAll('.area-caption')].map((el) => ({
+        area: Number(el.dataset.area),
+        opacity: Number(el.style.opacity),
+        inert: el.hasAttribute('inert'),
+        category: el.querySelector('.area-caption-category')?.textContent ?? null,
+        titles: [...el.querySelectorAll('.area-caption-title')].map((a) => a.textContent),
+        hint: seen(el.querySelector('.area-caption-hint')),
+        box: box(el),
+      })),
+      dots: { opacity: Number(nav.style.opacity), inert: nav.hasAttribute('inert'), current: [...nav.querySelectorAll('button')].map((b) => b.getAttribute('aria-current') === 'true') },
+    };
+  });
 
-    if (!english) {
-      // Into the path from the fall's end, with no stop at the hand-over.
-      await poseAt(page, PATH_START - 0.4);
-      await page.evaluate(() => {
-        window.__seen = new Set();
-        window.__seenTimer = setInterval(() => window.__seen.add(window.__needleDebug().progress), 5);
-      });
-      const inputs = touch ? 3 : 6;
-      for (let i = 0; i < inputs; i++) {
-        if (touch) await slowTouch(page, cdp, [195, 560], [195, 360], 60);
-        else await page.mouse.wheel(0, RISE.notchPx);
-        await page.waitForTimeout(touch ? 60 : RISE.notchGapMs * 4);
-      }
-      const into = await restAt(page);
-      const intoState = await debugOf(page);
-      step.check(
-        intoState.journey.stretch === 'travel' && intoState.journey.project === 0 && into.target > PATH_START + 0.2 && !keyStops(HOME_CHAPTERS).some((stop) => near(stop, into.target, 1e-3)),
-        `${at}: ${touch ? 'three slow swipes' : 'six wheel notches'} from the fall's end run on into Funcial's travel with no stop at the hand-over (${PATH_START.toFixed(3)}): at rest at ${into.target.toFixed(3)}, ${intoState.journey.stretch} ${intoState.journey.project}`,
-      );
+/** True when `b` (a box) lies inside a screen of `size`, under the header, with a pixel of rounding. */
+const boxInside = (b, size) => b.left >= -1 && b.right <= size.width + 1 && b.top >= HEADER_PX - 1 && b.bottom <= size.height + 1;
 
-      // At most one bead shown at a time, all the way.
-      const dense = [];
-      for (let p = PATH_START; p < LOOK_START; p += 0.02) dense.push(p);
-      const seen = await page.evaluate(() => {
-        clearInterval(window.__seenTimer);
-        return [...window.__seen];
-      });
-      const crowded = [...dense, ...seen.filter((p) => p >= PATH_START && p < LOOK_START)].filter((p) => fadesAt(p, aspect).filter((fade) => fade >= 0.5).length > 1);
-      step.check(crowded.length === 0, `${at}: on the way (${dense.length} places every 0.02 and ${seen.length} the run passed) at most one bead is shown with a fade of 0.5 or more (more than one at ${crowded.slice(0, 5).map((p) => p.toFixed(3)).join(', ') || 'none'})`);
+/**
+ * An open project as the page shows it now (src/ui/ProjectPanel.tsx, TouchPoints.tsx): whether `<html data-inside>` is
+ * set, the open project the history's entry carries (React Router keeps a navigation's state in `history.state.usr`),
+ * the history's length, the page's path, the panel shown whole (its words and box), Terug and the arrows (whether they
+ * show, Terug's box, the count), the touch points shown, the focus, the story's place and the scene's phase.
+ */
+const openOf = (page) =>
+  page.evaluate(() => {
+    const d = window.__needleDebug();
+    const box = (el) => {
+      const r = el.getBoundingClientRect();
+      return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+    };
+    const panel = [...document.querySelectorAll('.project-panel')].find((el) => Number(el.style.opacity) > 0.99 && !el.hasAttribute('inert')) ?? null;
+    const controls = document.querySelector('.inside-controls');
+    const back = document.querySelector('.inside-back');
+    const points = document.querySelector('.touch-points[data-shown]');
+    const text = (sel) => panel?.querySelector(sel)?.textContent ?? null;
+    return {
+      open: document.documentElement.hasAttribute('data-inside'),
+      state: history.state?.usr?.['bob-inside'] ?? null,
+      entries: history.length,
+      path: location.pathname,
+      panel:
+        panel === null
+          ? null
+          : {
+              id: panel.dataset.project,
+              category: text('.project-panel-category'),
+              title: text('.project-panel-title'),
+              summary: text('.project-panel-summary'),
+              meta: text('.project-panel-meta'),
+              view: text('.project-panel-view'),
+              href: panel.querySelector('.project-panel-view')?.getAttribute('href') ?? null,
+              box: box(panel),
+            },
+      shown: controls !== null && getComputedStyle(controls).visibility === 'visible',
+      back: back === null ? null : { text: back.textContent, box: box(back) },
+      count: document.querySelector('.inside-count')?.lastChild?.textContent ?? null,
+      said: document.querySelector('.inside-count')?.textContent ?? null,
+      live: document.querySelector('.inside-count')?.getAttribute('aria-live') ?? null,
+      points: points?.dataset.project ?? null,
+      pointsOpacity: points === null ? 0 : Number(points.style.opacity),
+      focus: document.activeElement?.className ?? null,
+      progress: d.progress,
+      target: d.target,
+      phase: d.phase.kind,
+    };
+  });
 
-    }
+/** Waits until project `id` is open and its panel whole (or `ms` passes); answers the time it took, or null. */
+const openWithin = (page, id, ms = 6_000) => {
+  const began = Date.now();
+  return page
+    .waitForFunction(
+      (id) => {
+        const panel = document.querySelector(`.project-panel[data-project="${id}"]`);
+        return document.documentElement.hasAttribute('data-inside') && history.state?.usr?.['bob-inside'] === id && panel !== null && Number(panel.style.opacity) > 0.99;
+      },
+      id,
+      { timeout: ms },
+    )
+    .then(() => Date.now() - began, () => null);
+};
 
-    // Each project's arrival, in order, a step at a time from Funcial's travel, the pointer off the beads; the light's
-    // place on the screen watched all the way in.
-    if (!touch) await page.mouse.move(4, size.height - 4);
-    await poseAt(page, PATH_START + 0.6);
-    await restAt(page);
-    for (const bead of BEAD_LIST) {
-      await page.evaluate(() => {
-        window.__lightSeen = [];
-        window.__lightTimer = setInterval(() => {
-          const d = window.__needleDebug();
-          if (d.journey.light !== null) window.__lightSeen.push(d.journey.light);
-        }, 16);
-      });
-      const arrival = await stepStop(page, cdp, bead.stop);
-      const seenLight = await page.evaluate(() => {
-        clearInterval(window.__lightTimer);
-        return window.__lightSeen;
-      });
-      const restedAt = Date.now();
-      const label = await labelWhole(page, bead.id, 1_000);
-      const shownIn = Date.now() - restedAt;
-      const side = await labelSideOf(page, bead.id);
-      const state = await debugOf(page);
-      const light = state.journey.light === null ? null : ndcToPx(state.journey.light, size);
-      const onScreen = state.journey.beads?.[bead.index];
-      const placed = label !== null && (touch ? side?.side === 'below' && onScreen !== undefined && label.box.top >= onScreen.y + onScreen.r - 1 : side?.side === 'right' && light !== null && label.box.left > light.x);
-      step.check(
-        near(arrival.target, bead.stop, 1e-9) && label !== null && shownIn <= 1_000,
-        `${at}: ${touch ? 'put' : 'a press of the arrow'} rests on ${bead.id}'s arrival, ${bead.stop.toFixed(3)} (got ${arrival.target.toFixed(3)}), its label whole within 1 s of the rest (${label === null ? 'never' : `${shownIn} ms`})`,
-      );
-      step.check(placed, `${at}: and the label stands ${touch ? 'under the bead' : 'right of the light'} (data-side ${side?.side}, its box [${label === null ? '-' : Object.values(label.box).map((v) => Math.round(v)).join(', ')}], the light ${light === null ? 'none' : Math.round(light.x)}, the bead ${onScreen === undefined ? 'none' : `${Math.round(onScreen.y)} r ${Math.round(onScreen.r)}`})`);
-      // No circling: round the bead's centre the light sweeps less than 150 degrees on its way in.
-      const sweep = (() => {
-        if (onScreen === undefined || seenLight.length < 2) return null;
-        let last = null;
-        let turned = 0;
-        let lo = 0;
-        let hi = 0;
-        for (const ndc of seenLight) {
-          const p = ndcToPx(ndc, size);
-          const a = Math.atan2(p.y - onScreen.y, p.x - onScreen.x);
-          if (last !== null) {
-            let d = a - last;
-            while (d > Math.PI) d -= 2 * Math.PI;
-            while (d < -Math.PI) d += 2 * Math.PI;
-            turned += d;
-            lo = Math.min(lo, turned);
-            hi = Math.max(hi, turned);
-          }
-          last = a;
-        }
-        return ((hi - lo) * 180) / Math.PI;
-      })();
-      step.check(sweep !== null && sweep < 150, `${at}: on the way in the light does not circle ${bead.id}: it sweeps ${sweep === null ? '-' : sweep.toFixed(0)} degrees round the bead's centre over ${seenLight.length} samples, under 150`);
-      const framed = onScreen !== undefined && onScreen.visible && onScreen.x - onScreen.r >= 0 && onScreen.x + onScreen.r <= size.width && onScreen.y - onScreen.r >= 0 && onScreen.y + onScreen.r <= size.height;
-      step.check(framed, `${at}: at rest the whole bead is framed inside the screen (${onScreen === undefined ? 'none' : `${Math.round(onScreen.x)}, ${Math.round(onScreen.y)} r ${Math.round(onScreen.r)}`} in ${size.width} x ${size.height})`);
-      step.check(state.journey.wake[bead.index] >= 10 - 1e-9, `${at}: and its veins all awake as the light rests beside it (wake ${state.journey.wake[bead.index]})`);
-      if (bead.index === 0) {
-        const want = { category: categories.byId(bead.category).heading(english ? 'en' : 'nl'), hint: touch ? t.hintTouch : t.hint };
-        step.check(
-          label !== null && label.category === want.category && label.title === bead.title && (touch ? label.hintTouch : label.hintFine) === want.hint,
-          `${at}: and it says what the ${english ? 'English' : 'Dutch'} dictionary says, "${want.category}", "${bead.title}", "${want.hint}" (got ${JSON.stringify(label && [label.category, label.title, touch ? label.hintTouch : label.hintFine])})`,
-        );
-      }
-      if (bead.index > 0) {
-        const left = await labelOf(page, BEAD_LIST[bead.index - 1].id);
-        step.check(left === null || !left.shown || left.opacity === 0, `${at}: and ${BEAD_LIST[bead.index - 1].id}'s label is gone with its bead, no inside between (${left === null ? 'none' : `shown ${left.shown}, opacity ${left.opacity}`})`);
-      }
-    }
-
-    if (!english) {
-      // Stopped anywhere on a trip, it rests there and the canvas sleeps (at an arrival the bead floats for the idle
-      // while instead: the float step's).
-      const trip = TRAVELS[1];
-      await poseAt(page, tripMiddle(1) - 0.35);
-      await restAt(page);
-      await nudge(page, cdp, 1);
-      await nudge(page, cdp, 1);
-      const rest = await restAt(page);
-      const sleptIn = await sleepWithin(page, 4_000);
-      const onStop = keyStops(HOME_CHAPTERS).some((stop) => near(stop, rest.target, 1e-3));
-      step.check(!onStop && rest.target > tripMiddle(1) - 0.35 && rest.target < trip.start + trip.length, `${at}: two inputs in Jontai Energy's travel rest where they stopped, ${rest.target.toFixed(4)}, not on a stop and still on the trip (${trip.start.toFixed(3)} to ${(trip.start + trip.length).toFixed(3)})`);
-      step.check(sleptIn !== null && sleptIn <= 1_000, `${at}: at rest on the way the canvas sleeps within a second (asked for no frame from ${sleptIn} ms on)`);
-    }
-    summary.push(`${at}: three arrivals by ${touch ? 'the bridge' : 'the arrow'}, no circling`);
-    await context.close();
-  }
-  return summary.join('; ');
+/**
+ * Does `act` (a click, a tap or a key that opens project `id`) and checks the open project that follows: within
+ * FLIGHT_MS and a little its panel whole, the page still `home` with the open project's own history entry, on the
+ * scroll's phase, its words the dictionary's (`locale`), its touch points shown, Terug and the arrows shown, the focus on
+ * Terug. Answers the time it took (ms), or null.
+ */
+async function opensProject(page, step, at, id, how, act, home = '/') {
+  const locale = home === '/en/' ? 'en' : 'nl';
+  const words = new Translator(locale).t.needle.inside;
+  await act();
+  const took = await openWithin(page, id);
+  await page.waitForTimeout(300);
+  const s = await openOf(page);
+  const want = panelWords(id, locale);
+  step.check(took !== null && took <= FLIGHT_MS + 800, `${at}: ${how}: ${id} open within ${FLIGHT_MS + 800} ms, its panel whole (${took === null ? 'never' : `${took} ms`})`);
+  step.check(s.path === home && s.state === id && s.phase === 'PROJECTS', `${at}: ${how}: the page still ${home}, its history entry the open project's (${s.state}), on the scroll's phase (${s.phase})`);
+  step.check(
+    s.panel !== null && s.panel.id === id && s.panel.category === want.category && s.panel.title === want.title && s.panel.summary === want.summary && s.panel.meta === want.meta && s.panel.view.startsWith(words.view),
+    `${at}: ${how}: the panel says "${want.category}", "${want.title}", its summary and "${want.meta}", and "${words.view}" (got ${JSON.stringify(s.panel && [s.panel.category, s.panel.title, s.panel.meta, s.panel.view])})`,
+  );
+  step.check(s.points === id && s.pointsOpacity > 0.99, `${at}: ${how}: its touch points shown beside it (${s.points}, opacity ${s.pointsOpacity})`);
+  step.check(s.shown && s.back !== null && s.back.text.includes(words.back) && s.focus?.includes('inside-back') === true, `${at}: ${how}: "${words.back}" and the arrows shown, the focus on "${words.back}" (${s.focus})`);
+  return took;
 }
 
 /**
- * The look back (spec 2026-10-27-bob-light-path-design.md), at 1440x900 and 390x844 (touch), and at 1440 on /en/: from
- * the last arrival's end a step (the arrow; a flick) rests on the look back's own stop, where all three beads stand
- * shown inside the screen and the way's line is drawn whole. On a laptop the pointer over each bead shows its label, Tab
- * goes Funcial, Jontai Energy, Cookies Clicker and then the skip button, each label shown as it takes the focus, and
- * Enter on Jontai Energy's takes the visitor inside it, where "Bekijk project" opens its page; Back returns inside, and
- * Back again to the look back. On the phone a tap on Cookies Clicker's bead goes inside it, and a tap on "Bekijk
- * project" opens its page.
+ * Does `act` (a way out of an open project) and checks that the visitor is back out at `place`, at rest, the story not
+ * moved on and the open mark gone; then waits out the flight back (FLIGHT_MS).
  */
-async function lookBack(browser, step) {
+async function leavesProject(page, step, at, place, how, act) {
+  await act();
+  const out = await page
+    .waitForFunction(
+      (place) => {
+        const d = window.__needleDebug();
+        return !document.documentElement.hasAttribute('data-inside') && d.phase.kind === 'PROJECTS' && Math.abs(d.progress - place) < 1e-9 && Math.abs(d.target - place) < 1e-9;
+      },
+      place,
+      { timeout: 5_000 },
+    )
+    .then(() => true, () => false);
+  await page.waitForTimeout(FLIGHT_MS + 300);
+  const after = await openOf(page);
+  step.check(out && !after.open && after.panel === null && Math.abs(after.progress - place) < 1e-9, `${at}: ${how}: back out at ${place.toFixed(4)}, at rest and not moved on (progress ${after.progress}, target ${after.target}, open ${after.open}, panel ${after.panel?.id ?? 'none'})`);
+}
+
+/** A click (a tap on a touch screen) at the middle of project `id`'s object, as the bridge places it on the screen. */
+async function pressObject(page, touch, id) {
+  const object = (await debugOf(page)).journey.objects?.find((o) => o.id === id);
+  if (object === undefined) return false;
+  if (touch) await page.touchscreen.tap(object.x, object.y);
+  else await page.mouse.click(object.x, object.y);
+  return true;
+}
+
+/**
+ * The world (spec 2026-10-27-bob-hologram-world-design.md, goals 1 and 2), at 1440x900 and 390x844 (touch), and at 1440
+ * on /en/: from the last fact a step (the arrow; on the phone slow swipes, then the bridge to the stop) brings the light
+ * down into the CPU and rests on the world's stop: on the way the board's power comes up from dark once the light is down
+ * and never falls back; at rest every object framed inside the screen, each project's name shown on its line (the title
+ * in capitals, in Tab's reach, inside the screen and under the header, a link to its page) and the hint below in the
+ * page's words for a pointer or a touch screen; a still through the home's luma gate; each name opens its project
+ * (a click, a tap) and the way out comes back to the world's stop.
+ */
+async function worldStep(browser, step) {
   const summary = [];
+  const shots = [];
+  mkdirSync(STILLS, { recursive: true });
   const runs = [...TWO_SIZES.map((size) => ({ size, path: '/' })), { size: TWO_SIZES[0], path: '/en/' }];
   for (const { size, path } of runs) {
     const english = path === '/en/';
+    const locale = english ? 'en' : 'nl';
     const at = `${sizeName(size)}${english ? ' /en/' : ''}`;
     const { context, page, cdp, touch } = await readyHome(browser, step, size, path);
-    const home = english ? '/en/' : '/';
-    await poseAt(page, LOOK_START);
+    const t = new Translator(locale).t.needle.world;
+    const lastFact = keyStops(HOME_CHAPTERS).filter((p) => p < WORLD_STOP).at(-1);
+    await poseAt(page, lastFact);
     await restAt(page);
-    const rest = await stepStop(page, cdp, LOOK_STOP);
-    await page.waitForTimeout(600);
-    const state = await debugOf(page);
-    const beads = state.journey.beads ?? [];
-    const inside = beads.length === 3 && beads.every((b) => b.visible && b.x - b.r >= 0 && b.x + b.r <= size.width && b.y - b.r >= 0 && b.y + b.r <= size.height);
-    step.check(near(rest.target, LOOK_STOP, 1e-9) && state.journey.stretch === 'sheet' && state.journey.sheet === 0, `${at}: ${touch ? 'put' : 'a press of the arrow'} from the last arrival's end rests on the look back's own stop, ${LOOK_STOP.toFixed(3)} (got ${rest.target.toFixed(3)}, ${state.journey.stretch})`);
-    step.check(inside, `${at}: all three beads stand shown inside the screen: ${beads.map((b) => `(${Math.round(b.x)}, ${Math.round(b.y)}) r ${Math.round(b.r)} ${b.visible ? 'shown' : 'hidden'}`).join(', ')}`);
-    const way = journeyPoseAt(LOOK_STOP, size.width / size.height).path?.way ?? 0;
-    step.check(way === 1, `${at}: and the way's line is drawn whole (its share ${way})`);
-
-    if (!touch) {
-      for (const bead of BEAD_LIST) {
-        const b = beads[bead.index];
-        await page.mouse.move(b.x, b.y);
-        const label = await labelWhole(page, bead.id, 1_500);
-        const side = await labelSideOf(page, bead.id);
-        step.check(label !== null && side?.hover === true && side.quiet, `${at}: the pointer over ${bead.id}'s bead shows its label (${label === null ? 'not shown' : `opacity ${label.opacity}`}, data-hover ${side?.hover})`);
-        if (english && bead.index === 0) {
-          const want = categories.byId(bead.category).heading('en');
-          step.check(label !== null && label.category === want && label.title === bead.title, `${at}: in English: "${want}", "${bead.title}" (got ${JSON.stringify(label && [label.category, label.title])})`);
-        }
-      }
-      await page.mouse.move(4, size.height - 4);
-      await page.waitForTimeout(500);
-      await page.focus('a[href="#main"]');
-      const order = [];
-      const shownOnFocus = [];
-      for (let press = 0; press < 30 && order.length < 4; press++) {
-        await page.keyboard.press('Tab');
-        const now = await page.evaluate(() => {
-          const el = document.activeElement;
-          return el?.classList.contains('skip-button') ? 'skip' : (el?.getAttribute('data-bead') ?? null);
-        });
-        if (now !== null && !order.includes(now)) {
-          order.push(now);
-          if (now !== 'skip') shownOnFocus.push((await labelWhole(page, now, 1_500)) !== null);
-        }
-      }
-      const want = [...BEAD_LIST.map((bead) => bead.id), 'skip'];
-      step.check(JSON.stringify(order) === JSON.stringify(want), `${at}: Tab goes ${want.join(', ')} (got ${order.join(', ')})`);
-      step.check(shownOnFocus.length === 3 && shownOnFocus.every(Boolean), `${at}: each label shows as it takes the focus (${shownOnFocus.join(', ')})`);
-      if (!english) {
-        const jontai = BEAD_LIST[1];
-        await page.focus(`.bead-label[data-bead="${jontai.id}"]`);
-        await goesInside(page, step, at, size, jontai, `Enter on ${jontai.id}'s label`, () => page.keyboard.press('Enter'), home);
-        await page.keyboard.press('Tab');
-        await page.keyboard.press('Enter');
-        const opened = await page.waitForURL(`${BASE}${jontai.path}`, { timeout: 5_000 }).then(() => true, () => false);
-        step.check(opened, `${at}: Tab to "Bekijk project" and Enter open ${jontai.path}`);
-        await page.goBack();
-        const inAgain = await page.waitForFunction(() => document.documentElement.hasAttribute('data-inside'), null, { timeout: 10_000 }).then(() => true, () => false);
-        step.check(inAgain && new URL(page.url()).pathname === home, `${at}: Back returns inside ${jontai.id}`);
-        await comesOut(page, step, at, LOOK_STOP, 'Back again', () => page.goBack());
-      }
-    } else {
-      const cookies = BEAD_LIST[2];
-      const b = beads[cookies.index];
-      await goesInside(page, step, at, size, cookies, `a tap on ${cookies.id}'s bead`, () => page.touchscreen.tap(b.x, b.y), home);
-      await page.locator('.inside-view').tap();
-      const opened = await page.waitForURL(`${BASE}${cookies.path}`, { timeout: 5_000 }).then(() => true, () => false);
-      step.check(opened, `${at}: a tap on "Bekijk project" opens ${cookies.path}`);
+    if (!touch) await page.mouse.move(4, size.height - 4);
+    await watchWorld(page);
+    if (touch) {
+      for (let i = 0; i < 12 && (await restAt(page)).target < WORLD_STOP - 0.35; i++) await slowTouch(page, cdp, [195, 600], [195, 400], 250);
+      await restAt(page);
     }
-    summary.push(`${at}: three beads in view, ${touch ? 'a tap goes inside, then the page' : 'hover, Tab and Enter inside, then the page and Back'}`);
+    const rest = await stepStop(page, cdp, WORLD_STOP);
+    await page.waitForTimeout(400);
+    const seen = await worldSeen(page);
+    const state = await debugOf(page);
+    step.check(
+      near(rest.target, WORLD_STOP, 1e-9) && state.journey.stretch === 'land' && state.journey.world?.power === 1 && state.journey.world?.names === 1,
+      `${at}: ${touch ? 'slow swipes, then the bridge,' : 'a press of the arrow'} from the last fact (${lastFact.toFixed(3)}) rests on the world's stop, ${WORLD_STOP.toFixed(4)} (got ${rest.target.toFixed(4)}, ${state.journey.stretch}), the board powered (${state.journey.world?.power}) and the names in (${state.journey.world?.names})`,
+    );
+    const powers = seen.filter((s) => s.stretch === 'land' && s.power !== null).map((s) => s.power);
+    const dark = powers.findIndex((p) => p <= 0.05);
+    const fell = powers.some((p, k) => k > 0 && p < powers[k - 1] - 1e-6);
+    step.check(dark >= 0 && !fell && powers.at(-1) === 1, `${at}: on the way the board is dark as the light comes down (${dark >= 0 ? `power ${powers[dark].toFixed(3)} at sample ${dark}` : 'never dark'}) and powers up to 1 without falling back (${powers.length} samples on the land)`);
+    const objects = state.journey.objects ?? [];
+    step.check(
+      objects.length === PROJECT_LIST.length && objects.every((o) => o.visible && o.x - o.r >= 0 && o.x + o.r <= size.width && o.y - o.r >= HEADER_PX && o.y + o.r <= size.height),
+      `${at}: every object framed inside the screen (${objects.map((o) => `${o.id} ${Math.round(o.x)},${Math.round(o.y)} r ${Math.round(o.r)}`).join('; ')})`,
+    );
+    const words = await worldWordsOf(page);
+    for (const project of PROJECT_LIST) {
+      const name = words.names.find((n) => n.id === project.id);
+      step.check(
+        name !== undefined && name.shown && name.opacity === 1 && name.tab === 0 && name.text === project.title.toUpperCase() && boxInside(name.box, size) && name.href === `${english ? '/en' : ''}${project.path}`,
+        `${at}: ${project.id}'s name shows on its line, "${project.title.toUpperCase()}", in Tab's reach, inside the screen under the header, a link to ${project.path} (got ${JSON.stringify(name && [name.text, name.shown, name.opacity, name.tab, name.href, Object.values(name.box).map(Math.round)])})`,
+      );
+    }
+    const hint = touch ? t.hint.tap : t.hint.click;
+    step.check(words.hint.opacity === 1 && words.hint.text === hint, `${at}: and the hint below says "${hint}" (got "${words.hint.text}", opacity ${words.hint.opacity})`);
+    step.check(words.captions.every((c) => c.opacity === 0 && c.inert) && words.dots.opacity === 0 && words.dots.inert, `${at}: no area's words and no dots at the world (${words.captions.map((c) => c.opacity).join(', ')}; dots ${words.dots.opacity})`);
+    if (!english) {
+      const file = join(STILLS, `world-${sizeName(size)}.png`);
+      await page.screenshot({ path: file });
+      shots.push({ file, kind: 'home', mask: await textMask(page) });
+    }
+    // Each name opens its project; the way out comes back to the world.
+    const opening = english ? PROJECT_LIST.slice(0, 1) : PROJECT_LIST;
+    for (const project of opening) {
+      const name = page.locator(`.world-name[data-project="${project.id}"]`);
+      await opensProject(page, step, at, project.id, `${touch ? 'a tap' : 'a click'} on ${project.id}'s name`, () => (touch ? name.tap() : name.click()), path);
+      await leavesProject(page, step, at, WORLD_STOP, touch ? `"${new Translator(locale).t.needle.inside.back}"` : 'Escape', () => (touch ? page.locator('.inside-back').tap() : page.keyboard.press('Escape')));
+    }
+    const again = await worldWordsOf(page);
+    step.check(again.names.every((n) => n.shown && n.opacity === 1), `${at}: back at the world the names show again (${again.names.map((n) => `${n.id} ${n.opacity}`).join(', ')})`);
+    await takeCsp(page, step);
+    summary.push(`${at}: the land by ${touch ? 'swipes' : 'the arrow'} to the world, ${opening.length} name${opening.length > 1 ? 's' : ''} opened and left`);
     await context.close();
   }
-  return summary.join('; ');
+  step.luma = await gateLuma(browser, step, shots);
+  return `${summary.join('; ')}; ${lumaSummary(step.luma, 'home')}`;
+}
+
+/**
+ * The areas (spec goal 3), at 1440x900 and 390x844 (touch): from the world a step (the arrow; on the phone the bridge)
+ * rests on each area's stop in turn, the camera on the way never nearer the board's centre than 3 m (never across the
+ * CPU), its object framed inside the screen, its words at the bottom left (the category, the name, the open hint for a
+ * pointer or a touch screen) and only its, the dots shown with its own lit, the names gone; a still of each through the
+ * home's luma gate; left alone at the last area the canvas sleeps within IDLE_SECONDS and a second; then the first dot
+ * (a click, a tap) glides back to the first area round the board, never across the CPU, and its words show again.
+ */
+async function areasStep(browser, step) {
+  const summary = [];
+  const shots = [];
+  mkdirSync(STILLS, { recursive: true });
+  const areaStops = [...new Map(PROJECT_LIST.map((p) => [p.index, p])).values()];
+  for (const size of TWO_SIZES) {
+    const at = sizeName(size);
+    const { context, page, cdp, touch } = await readyHome(browser, step, size);
+    const centre = boardCentre(size.width / size.height);
+    const t = new Translator('nl').t.needle.world;
+    await poseAt(page, WORLD_STOP);
+    await restAt(page);
+    if (!touch) await page.mouse.move(4, size.height - 4);
+    for (const area of areaStops) {
+      await watchWorld(page);
+      const rest = await stepStop(page, cdp, area.stop);
+      await page.waitForTimeout(500);
+      const seen = await worldSeen(page);
+      const nearest = nearestToCentre(seen.map((s) => s.camera), centre);
+      const state = await debugOf(page);
+      step.check(near(rest.target, area.stop, 1e-9) && state.journey.stretch === 'area' && state.journey.project === area.index, `${at}: ${touch ? 'put' : 'a press of the arrow'} rests on area ${area.index + 1}'s stop, ${area.stop.toFixed(4)} (got ${rest.target.toFixed(4)}, ${state.journey.stretch} ${state.journey.project})`);
+      step.check(nearest >= 3, `${at}: on the way the camera stays ${nearest.toFixed(2)} m or more from the board's centre, never across the CPU (3 m or more, ${seen.length} samples)`);
+      const object = state.journey.objects?.find((o) => o.id === area.id);
+      step.check(object !== undefined && object.visible && object.x - object.r >= 0 && object.x + object.r <= size.width && object.y - object.r >= HEADER_PX && object.y + object.r <= size.height, `${at}: ${area.id}'s object framed inside the screen (${object === undefined ? 'none' : `${Math.round(object.x)},${Math.round(object.y)} r ${Math.round(object.r)}`})`);
+      const words = await worldWordsOf(page);
+      const own = words.captions.find((c) => c.area === area.index);
+      const want = { category: categories.byId(area.category).heading('nl'), title: area.title, hint: touch ? t.open.tap : t.open.click };
+      step.check(
+        own !== undefined && own.opacity === 1 && !own.inert && own.category === want.category && own.titles.length === 1 && own.titles[0] === want.title && own.hint === want.hint && boxInside(own.box, size) && own.box.left < size.width / 2,
+        `${at}: its words at the bottom left say "${want.category}", "${want.title}", "${want.hint}" (got ${JSON.stringify(own && [own.category, own.titles, own.hint, own.opacity, Object.values(own.box).map(Math.round)])})`,
+      );
+      step.check(words.captions.filter((c) => c.area !== area.index).every((c) => c.opacity === 0 && c.inert), `${at}: and no other area's words (${words.captions.map((c) => c.opacity).join(', ')})`);
+      step.check(words.dots.opacity === 1 && !words.dots.inert && words.dots.current.every((on, k) => on === (k === area.index)), `${at}: the dots shown, area ${area.index + 1}'s lit (${JSON.stringify(words.dots.current)})`);
+      step.check(words.names.every((n) => !n.shown && n.tab === -1), `${at}: the names gone and out of Tab's reach`);
+      const file = join(STILLS, `area-${area.index + 1}-${at}.png`);
+      await page.screenshot({ path: file });
+      shots.push({ file, kind: 'home', mask: await textMask(page) });
+    }
+    // Left alone at an area the world stands still and the canvas sleeps: its clock runs IDLE_SECONDS after the last stir.
+    const slept = await sleepWithin(page, (IDLE_SECONDS + 4) * 1000);
+    step.check(slept !== null && slept <= (IDLE_SECONDS + 1) * 1000, `${at}: left alone at the last area the canvas sleeps within ${IDLE_SECONDS + 1} s (asked for no frame from ${slept === null ? 'never' : `${(slept / 1000).toFixed(1)} s`} on)`);
+    // A dot back to the first area: a glide round the board.
+    const first = areaStops[0];
+    await watchWorld(page);
+    const dot = page.locator('.area-dot').first();
+    if (touch) await dot.tap();
+    else await dot.click();
+    const back = await restAt(page);
+    await page.waitForTimeout(500);
+    const seen = await worldSeen(page);
+    const nearest = nearestToCentre(seen.map((s) => s.camera), centre);
+    const words = await worldWordsOf(page);
+    step.check(near(back.target, first.stop, 1e-9) && words.captions[0].opacity === 1, `${at}: ${touch ? 'a tap' : 'a click'} on the first dot goes back to area 1, ${first.stop.toFixed(4)} (got ${back.target.toFixed(4)}), its words shown again`);
+    step.check(seen.length > 10 && nearest >= 3, `${at}: by a glide (${seen.length} samples) that stays ${nearest.toFixed(2)} m or more from the board's centre, never across the CPU`);
+    await takeCsp(page, step);
+    summary.push(`${at}: ${areaStops.length} areas by ${touch ? 'the bridge' : 'the arrow'}, back by a dot round the board (${nearest.toFixed(2)} m from the centre at the nearest)`);
+    await context.close();
+  }
+  step.luma = await gateLuma(browser, step, shots);
+  return `${summary.join('; ')}; ${lumaSummary(step.luma, 'home')}`;
+}
+
+/**
+ * A project opened (spec goals 5 and 6), at 1440x900, 390x844 (touch) and 390x844 on /en/, at the first area: a click
+ * (a tap) on its object opens it (`opensProject`: the panel's words, the touch points, Terug, the focus); a still of it
+ * through the inside's luma gate (0.15); the next arrow pressed twice quickly opens the third project, "3 / 3", with no
+ * history entry more; every way out comes back to where it was opened from at rest: Terug, Escape (a laptop), three
+ * wheel notches (a swipe up the glass on the phone) and the browser's Back; "Bekijk project" opens the project's page
+ * (its heading the name), Back returns to the open project and Back again out to its area; at 1440 a resize to a phone's
+ * 390x844 while open keeps it open with its panel below it, inside the screen; on /en/ at 390x844 the panel's words are
+ * English and its bottom above Terug's top. With reduced motion it opens and closes by the step fade.
+ */
+async function openStep(browser, step) {
+  const summary = [];
+  const shots = [];
+  mkdirSync(STILLS, { recursive: true });
+  const runs = [...TWO_SIZES.map((size) => ({ size, path: '/' })), { size: TWO_SIZES[1], path: '/en/' }];
+  for (const { size, path } of runs) {
+    const english = path === '/en/';
+    const locale = english ? 'en' : 'nl';
+    const at = `${sizeName(size)}${english ? ' /en/' : ''}`;
+    const { context, page, cdp, touch } = await readyHome(browser, step, size, path);
+    const words = new Translator(locale).t.needle.inside;
+    const first = PROJECT_LIST[0];
+    await poseAt(page, first.stop);
+    await restAt(page);
+    await page.waitForTimeout(600);
+    const by = touch ? 'a tap on its object' : 'a click on its object';
+    const openFirst = () => opensProject(page, step, at, first.id, by, () => pressObject(page, touch, first.id), path);
+    const took = await openFirst();
+    if (english) {
+      // Every project's English words, Jontai Energy's the longest, above Terug and the arrows: on through them by the arrow.
+      for (const [k, project] of PROJECT_LIST.entries()) {
+        if (k > 0) {
+          await page.locator('.inside-round').nth(1).tap();
+          await openWithin(page, project.id);
+          await page.waitForTimeout(FLIGHT_MS);
+        }
+        const s = await openOf(page);
+        const want = panelWords(project.id, 'en');
+        step.check(
+          s.panel?.id === project.id && s.panel.summary === want.summary && s.back !== null && s.panel.box.bottom <= s.back.box.top,
+          `${at}: ${project.id}'s panel, its English summary whole, ends (${Math.round(s.panel?.box.bottom ?? -1)}) above "${words.back}"'s top (${Math.round(s.back?.box.top ?? -1)})`,
+        );
+      }
+      await takeCsp(page, step);
+      summary.push(`${at}: opened in ${took} ms, each panel above "${words.back}"`);
+      await context.close();
+      continue;
+    }
+    const file = join(STILLS, `open-${first.id}-${at}.png`);
+    await page.screenshot({ path: file });
+    // On a phone the object stands above its words, which fill the lower half: its floor is read where the object is.
+    shots.push({ file, kind: 'inside', mask: await textMask(page), ...(touch ? { region: { x: [0.15, 0.85], y: [0.12, 0.48] } } : {}) });
+
+    // The next arrow twice quickly: on to the third project, its entry replacing the open one's.
+    const before = await openOf(page);
+    const next = page.locator('.inside-round').nth(1);
+    if (touch) {
+      await next.tap();
+      await page.waitForTimeout(150);
+      await next.tap();
+    } else {
+      await next.click();
+      await page.waitForTimeout(150);
+      await next.click();
+    }
+    const third = PROJECT_LIST[2];
+    const turned = await openWithin(page, third.id);
+    const s = await openOf(page);
+    step.check(turned !== null && s.panel?.id === third.id && s.count === `3 / ${PROJECT_LIST.length}` && s.state === third.id && s.entries === before.entries, `${at}: the next arrow twice quickly opens ${third.id}, "${s.count}", its entry replacing the open one's (history ${before.entries} then ${s.entries})`);
+    step.check(s.live === 'polite' && s.said === `${third.title}, 3 / ${PROJECT_LIST.length}`, `${at}: and a screen reader is told, politely: "${s.said}" (aria-live ${s.live})`);
+    await page.waitForTimeout(FLIGHT_MS);
+    // Back out from there comes out at its area (it was opened from an area).
+    await leavesProject(page, step, at, third.stop, `"${words.back}" after the turns`, () => (touch ? page.locator('.inside-back').tap() : page.locator('.inside-back').click()));
+    await poseAt(page, first.stop);
+    await restAt(page);
+    await page.waitForTimeout(600);
+
+    // Every way out, each from the first project opened again.
+    const ways = [
+      [`"${words.back}"`, () => (touch ? page.locator('.inside-back').tap() : page.locator('.inside-back').click())],
+      ...(touch ? [] : [['Escape', () => page.keyboard.press('Escape')]]),
+      [
+        touch ? 'a swipe up the glass' : 'three wheel notches',
+        async () => {
+          if (touch) {
+            await slowTouch(page, cdp, [195, 620], [195, 420], 40);
+            return;
+          }
+          for (let i = 0; i < 3; i++) {
+            await page.mouse.wheel(0, RISE.notchPx);
+            await page.waitForTimeout(RISE.notchGapMs);
+          }
+        },
+      ],
+      ["the browser's Back", () => page.goBack()],
+    ];
+    for (const [how, act] of ways) {
+      await openFirst();
+      await leavesProject(page, step, at, first.stop, how, act);
+    }
+
+    // "Bekijk project": its page; Back into the open project; Back again out.
+    await openFirst();
+    const view = page.locator(`.project-panel[data-project="${first.id}"] .project-panel-view`);
+    if (touch) await view.tap();
+    else await view.click();
+    await page.waitForURL(`${BASE}${first.path}`, { timeout: FLIGHT_MS + 3_000 });
+    const onPage = await waitForProject(page, first.id);
+    const heading = await page.locator('main h1').first().textContent();
+    step.check(onPage.kind === 'PROJECT_FOCUS' && heading?.trim() === first.title, `${at}: "${words.view}" opens ${first.path}, its heading "${heading?.trim()}"`);
+    await page.goBack();
+    const backIn = await openWithin(page, first.id);
+    step.check(backIn !== null, `${at}: Back from the page returns to the open project (${backIn === null ? 'never' : `${backIn} ms`})`);
+    await page.waitForTimeout(FLIGHT_MS);
+    await leavesProject(page, step, at, first.stop, "and the browser's Back again", () => page.goBack());
+
+    // A laptop turned into a phone while open: still open, the panel below the object, inside the screen.
+    if (!touch) {
+      await openFirst();
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.waitForTimeout(800);
+      const small = await openOf(page);
+      step.check(
+        small.open && small.panel?.id === first.id && small.panel.box.left >= 0 && small.panel.box.right <= 390 && small.panel.box.bottom <= 844 && small.panel.box.top > 844 / 3 && small.back !== null && small.panel.box.bottom <= small.back.box.top,
+        `${at}: resized to 390x844 while open, it stays open with its panel below the object, inside the screen and above "${words.back}" (${small.panel === null ? 'none' : Object.values(small.panel.box).map(Math.round).join(', ')})`,
+      );
+      await page.setViewportSize({ width: size.width, height: size.height });
+      await page.waitForTimeout(500);
+      await leavesProject(page, step, at, first.stop, 'Escape after the resize back', () => page.keyboard.press('Escape'));
+    }
+    await takeCsp(page, step);
+    summary.push(`${at}: opened by ${by} in ${took} ms, turned twice, out by ${ways.map(([how]) => how).join(', ')}, its page and back`);
+    await context.close();
+  }
+
+  // Reduced motion: in and out by the step fade, no flight.
+  {
+    const size = TWO_SIZES[0];
+    const { context, page } = await openSeen(browser, step, size);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await landHome(page);
+    await page.waitForFunction(() => window.__needleDebug().journey.voidState === 'ready', null, { timeout: 30_000 });
+    const first = PROJECT_LIST[0];
+    await poseAt(page, first.stop);
+    await restAt(page);
+    await page.waitForTimeout(400);
+    const watchFade = () =>
+      page.evaluate(() => {
+        window.__fadeSeen = false;
+        new MutationObserver(() => {
+          if (document.documentElement.hasAttribute('data-focus-fade')) window.__fadeSeen = true;
+        }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-focus-fade'] });
+      });
+    await watchFade();
+    await pressObject(page, false, first.id);
+    const took = await openWithin(page, first.id);
+    const fadeIn = await page.evaluate(() => window.__fadeSeen);
+    step.check(took !== null && fadeIn, `reduced motion: a click opens ${first.id} by the step fade (<html data-focus-fade> seen ${fadeIn}, ${took} ms)`);
+    await page.waitForTimeout(400);
+    await watchFade();
+    await leavesProject(page, step, 'reduced motion', first.stop, 'Escape', () => page.keyboard.press('Escape'));
+    const fadeOut = await page.evaluate(() => window.__fadeSeen);
+    step.check(fadeOut, `reduced motion: and Escape closes it by the step fade (<html data-focus-fade> seen ${fadeOut})`);
+    await takeCsp(page, step);
+    summary.push('reduced motion: in and out by the step fade');
+    await context.close();
+  }
+  step.luma = await gateLuma(browser, step, shots);
+  return `${summary.join('; ')}; ${lumaSummary(step.luma, 'inside')}`;
 }
 
 /**
@@ -7591,11 +7406,11 @@ async function credits(browser, step) {
 }
 
 /**
- * A portrait resize mid-fall and late in an arrival (spec: the labels readable at every size), at 1440x900 turned to 390x844:
+ * A portrait resize mid-fall and on the world (spec: the words readable at every size), at 1440x900 turned to 390x844:
  * - at fact 02's peak the way frame stays, and the fact still rides by the light, now below it;
- * - late in Funcial's arrival, its label whole right of the light, the place stays and the label stays with the bead,
- *   now under it;
- * - half way to Jontai Energy, its engraved line stays whole through the turn (the engraved way built for the new aspect).
+ * - at Funcial's area the place stays, its words stay shown whole inside the screen and its object framed;
+ * - half way between the first two areas the place stays, and the camera stays off the CPU, 3 m or more from the board's
+ *   centre for the new shape.
  */
 async function resize(browser, step) {
   const { context, page } = await readyHome(browser, step, DIVE_SIZES[0]);
@@ -7617,39 +7432,37 @@ async function resize(browser, step) {
     `the fact stays on the light, below it now: ${JSON.stringify(label)}, the light at ${light === null ? 'none' : `(${light.x.toFixed(0)}, ${light.y.toFixed(0)})`}`,
   );
 
-  // Late in Funcial's arrival: its label whole beside the light, then the turn.
-  const funcial = BEAD_LIST[0];
-  const late = funcial.stop - 0.015;
-  await page.setViewportSize({ width: DIVE_SIZES[0].width, height: DIVE_SIZES[0].height });
+  // At Funcial's area: its words shown, then the turn.
+  const funcial = PROJECT_LIST[0];
+  const wideSize = { width: DIVE_SIZES[0].width, height: DIVE_SIZES[0].height };
+  await page.setViewportSize(wideSize);
   await page.waitForTimeout(400);
-  await poseAt(page, late);
-  const wide = await labelWhole(page, funcial.id, 2_000);
-  const wideSide = await labelSideOf(page, funcial.id);
+  await poseAt(page, funcial.stop);
+  await page.waitForTimeout(500);
+  const wide = (await worldWordsOf(page)).captions[funcial.index];
   await page.setViewportSize(phone);
   await page.waitForTimeout(700);
   const turned = await debugOf(page);
-  const tall = await labelWhole(page, funcial.id, 2_000);
-  const tallSide = await labelSideOf(page, funcial.id);
-  const bead = turned.journey.beads?.[funcial.index];
-  step.check(turned.progress === late && turned.target === late && turned.journey.stretch === 'arrive', `late in Funcial's arrival the place stays through the resize: ${late.toFixed(4)}, then ${turned.progress} (${turned.journey.stretch})`);
+  const tall = (await worldWordsOf(page)).captions[funcial.index];
+  const object = turned.journey.objects?.find((o) => o.id === funcial.id);
+  step.check(turned.progress === funcial.stop && turned.target === funcial.stop && turned.journey.stretch === 'area', `at Funcial's area the place stays through the resize: ${funcial.stop.toFixed(4)}, then ${turned.progress} (${turned.journey.stretch})`);
   step.check(
-    wide !== null && wideSide?.side === 'right' && tall !== null && tallSide?.side === 'below' && bead !== undefined && tall.box.top >= bead.y + bead.r - 1 && tall.box.left < bead.x && tall.box.right > bead.x,
-    `and Funcial's label stays with it: right of the light at 1440 (${wideSide?.side}), under the bead at 390 (${tallSide?.side}, its box [${tall === null ? '-' : Object.values(tall.box).map((v) => Math.round(v)).join(', ')}], the bead at ${bead === undefined ? 'none' : `(${Math.round(bead.x)}, ${Math.round(bead.y)}) r ${Math.round(bead.r)}`})`,
+    wide.opacity === 1 && boxInside(wide.box, wideSize) && tall.opacity === 1 && boxInside(tall.box, phone) && object !== undefined && object.visible && object.x - object.r >= 0 && object.x + object.r <= phone.width && object.y + object.r <= tall.box.top,
+    `and its words stay shown whole inside the screen (${Object.values(wide.box).map(Math.round).join(', ')} at 1440, ${Object.values(tall.box).map(Math.round).join(', ')} at 390), its object framed above them (${object === undefined ? 'none' : `${Math.round(object.x)}, ${Math.round(object.y)} r ${Math.round(object.r)}`})`,
   );
 
-  // Mid-trip: the line of the trip in view stays whole through the turn.
-  await page.setViewportSize({ width: DIVE_SIZES[0].width, height: DIVE_SIZES[0].height });
+  // Between two areas: the place stays and the camera off the CPU through the turn.
+  await page.setViewportSize(wideSize);
   await page.waitForTimeout(400);
-  const wideTrip = await poseAt(page, tripMiddle(1));
+  const between = (PROJECT_LIST[0].stop + PROJECT_LIST[1].stop) / 2;
+  await poseAt(page, between);
   await page.setViewportSize(phone);
   await page.waitForTimeout(700);
-  const tallTrip = await debugOf(page);
-  step.check(
-    wideTrip.journey.engraved?.trips[1] === 1 && tallTrip.journey.engraved?.trips[1] === 1 && tallTrip.journey.stretch === 'travel' && tallTrip.progress === tripMiddle(1),
-    `half way to Jontai Energy its engraved line stays whole through the turn: ${JSON.stringify(wideTrip.journey.engraved?.trips)} at 1440, ${JSON.stringify(tallTrip.journey.engraved?.trips)} at 390 (${tallTrip.journey.stretch})`
-  );
+  const mid = await debugOf(page);
+  const off = nearestToCentre([mid.camera.position], boardCentre(phone.width / phone.height));
+  step.check(mid.progress === between && mid.journey.stretch === 'area' && off >= 3, `half way between the first two areas the place stays through the turn (${mid.progress.toFixed(4)}, ${mid.journey.stretch}) and the camera stays ${off.toFixed(2)} m from the board's centre, off the CPU`);
   await context.close();
-  return `fact 02 at frame ${after.journey.frame?.toFixed(1)}, below the light after the turn; Funcial's label right of the light, then under its bead; the trip's line whole through the turn`;
+  return `fact 02 at frame ${after.journey.frame?.toFixed(1)}, below the light after the turn; Funcial's words and object kept through the turn; between two areas the camera ${off.toFixed(2)} m off the centre`;
 }
 
 const STEPS = {
@@ -7671,13 +7484,11 @@ const STEPS = {
   'light-dive': lightDive,
   'light-facts': lightFacts,
   engraved,
-  path: lightPath,
-  'look-back': lookBack,
+  world: worldStep,
+  areas: areasStep,
   credits,
   resize,
-  'bead-open': beadOpen,
-  inside,
-  float,
+  open: openStep,
   nebula,
   'void-hold': voidHold,
   'void-fail': voidFail,

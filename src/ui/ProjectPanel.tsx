@@ -210,6 +210,7 @@ export function ProjectPanel(): JSX.Element {
   const bar = useCallback((el: HTMLDivElement | null) => (el ? registerInsideControls(el) : undefined), []);
   const count = WORLD_PROJECTS.length;
   const n = inside === null ? 1 : WORLD_PROJECTS.indexOf(inside) + 1;
+  const shown = projects.byId(WORLD_PROJECTS[n - 1]!)!;
   return (
     <>
       {WORLD_PROJECTS.map((id) => (
@@ -224,7 +225,11 @@ export function ProjectPanel(): JSX.Element {
             <button type="button" className="inside-round" aria-label={t.needle.inside.previous} onClick={() => turnInside(-1)}>
               <span aria-hidden="true">←</span>
             </button>
-            <span className="inside-count">{`${n} / ${count}`}</span>
+            {/* A turn is said to a screen reader: the open project's name and its place, politely. */}
+            <span className="inside-count" aria-live="polite">
+              <span className="visually-hidden">{`${shown.title}, `}</span>
+              {`${n} / ${count}`}
+            </span>
             <button type="button" className="inside-round" aria-label={t.needle.inside.next} onClick={() => turnInside(1)}>
               <span aria-hidden="true">→</span>
             </button>

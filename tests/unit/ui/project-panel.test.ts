@@ -14,7 +14,7 @@ import { WORLD_PROJECTS } from '~/scene/bob/journey';
 import { frame } from '~/state/frame';
 import { insideInHistory, noteOpenedFrom, placeForProject, resetRouteSync, stopForProject, syncRoute } from '~/state/routeSync';
 import { useScene } from '~/state/store';
-import { closeInside, lendOpener, openInside, turnInside, viewInside } from '~/ui/projectOpen';
+import { clickOnWorld, closeInside, lendOpener, openInside, turnInside, viewInside } from '~/ui/projectOpen';
 import {
   INSIDE_ATTRIBUTE,
   leaveInsideOn,
@@ -71,6 +71,8 @@ describe('ProjectPanel: an open project, Overworld\'s way', () => {
       expect(controls).toContain(`aria-label="${t.needle.inside.previous}"`);
       expect(controls).toContain(`aria-label="${t.needle.inside.next}"`);
       expect(controls).toContain(`1 / ${WORLD_PROJECTS.length}`);
+      // A turn is said to a screen reader: the count is a polite live region with the open project's name in it.
+      expect(controls).toMatch(new RegExp(`<span class="inside-count" aria-live="polite"><span class="visually-hidden">${escaped(projects.byId(WORLD_PROJECTS[0]!)!.title)}, </span>1 / ${WORLD_PROJECTS.length}</span>`));
     }
     expect(Number.parseFloat(/min-height:\s*([\d.]+)px/.exec(rule('.inside-button'))![1]!)).toBeGreaterThanOrEqual(48);
     expect(Number.parseFloat(/height:\s*([\d.]+)px/.exec(rule('.inside-round'))![1]!)).toBeGreaterThanOrEqual(48);
@@ -234,6 +236,18 @@ describe('openInside, turnInside, closeInside and viewInside: an open project th
     // The push lands as a navigation of its own: no focus is taken to <main>, the controls keep it.
     expect(focusesMain(NavigationType.Push, '', { [INSIDE_STATE]: 'funcial' })).toBe(false);
     expect(focusesMain(NavigationType.Push, '', null)).toBe(true);
+  });
+
+  it('opens a project clicked on the world only at rest; while the camera glides between two stops a click does nothing', () => {
+    frame.target = stopForProject('jontai-energy'); // on its way to the next area
+    expect(clickOnWorld('funcial')).toBe(false);
+    expect(useScene.getState().inside).toBeNull();
+    expect(frame.focus.opening).toBeNull();
+    vi.advanceTimersByTime(FLIGHT_MS * 2);
+    expect(went).toEqual([]);
+    frame.target = frame.progress; // at rest
+    expect(clickOnWorld('funcial')).toBe(true);
+    expect(useScene.getState().inside).toBe('funcial');
   });
 
   it('goes to the next and the previous project, round the end', () => {

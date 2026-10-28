@@ -63,8 +63,8 @@ export interface NeedleDebugState {
   scroll: { u: number; letters: number; iris: number; needleDip: number };
   /**
    * Where the home's journey stands as the scene last posed it (`frame.journey`, a copy): the stretch (`rise`, `light`,
-   * `travel`, `orbit`, `inside`, `look`, `sheet`, `end`), how far through it (0 at its stop), the project's place on the
-   * way in a travel, an orbit or an inside (0 Funcial, 1 Jontai Energy, 2 Cookies Clicker; null elsewhere), the void's
+   * `land`, `area`, `look`, `sheet`, `end`), how far through it (0 at its stop), the area's place among the
+   * areas in an area (0 the first: Funcial's; null elsewhere), the void's
    * load (`idle`, `loading`, `ready`, `failed`), which holds the scroll at the hand-over until it is ready, the light
    * dive's way frame (1-256, null elsewhere), how far the sheet over the look back is up (0..1), the light's centre on the
    * screen (NDC, +y up; null where there is no light), each project's object on the screen (CSS px, `WORLD_PROJECTS`

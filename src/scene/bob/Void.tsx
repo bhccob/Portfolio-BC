@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { type ProjectId, projects } from '~/data/projects';
 import { debugBridge } from '~/debug/needleDebug';
+import { proofWorldGate } from '~/debug/worldGate';
 import type { CompassModel } from '~/engine/bob/build/compass';
 import { buildEngraved, type EngravedModel } from '~/engine/bob/build/engraved';
 import type { LightModel } from '~/engine/bob/build/light';
@@ -268,8 +269,8 @@ export interface VoidProps {
   /** The ladder's tier now: the void and the world are built at it, the void stepping down with it after, never up. */
   tier: QualityTier;
   /**
-   * A click (or tap) on a project on the world: the Opening hands it `openAt` (src/ui/projectOpen.tsx), which opens the
-   * project on the world or its page. Without it, a click does nothing.
+   * A click (or tap) on a project on the world: the Opening hands it `clickOnWorld` (src/ui/projectOpen.tsx), which opens
+   * the project there at rest and does nothing while the camera glides. Without it, a click does nothing.
    */
   onOpen?(id: ProjectId): void;
 }
@@ -387,8 +388,10 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
         // A camera already under the glass sees the void now; nothing draws on a page without a scene.
         if (useScene.getState().scene !== null) invalidate();
       },
-      // The world: built, and warmed powered and shown as the scene will draw it, beside the scene.
+      // The world: built, and warmed powered and shown as the scene will draw it, beside the scene. Under `?proof` the
+      // harness may hold it back or fail it first (src/debug/worldGate.ts), as a slow or a broken world would.
       buildWorld: async () => {
+        if (proof) await proofWorldGate();
         const model = buildWorld(worldPlaces(areasOnPath()), latest.current.tier);
         const holder = new THREE.Group();
         holder.add(model.group);
@@ -489,7 +492,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
     };
   }, [invalidate, run]);
 
-  // A click opens the project under the pointer (`onOpen`, src/ui/projectOpen.tsx `openAt`), wherever the pointer may
+  // A click opens the project under the pointer (`onOpen`, src/ui/projectOpen.tsx `clickOnWorld`), wherever the pointer may
   // take one (`pointerMode`) and is read (`hovering`: not once the sheet has begun, where the click went through the
   // rising page). A click on a control of the page (a link, a button, a field) is the control's.
   useEffect(() => {
@@ -631,7 +634,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
         clock.open = inside;
         clock.stirred = now;
       }
-      const ticking = on && worldClockRuns(clock.stirred, now, reducedMotion);
+      const ticking = on && worldClockRuns(clock.stirred, now, reducedMotion, path?.part);
       if (ticking) clock.time += dt0;
       if (on && path) {
         const levels = { ...path.levels };

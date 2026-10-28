@@ -142,6 +142,9 @@ describe("the world's clock and its look with a project open", () => {
     expect(worldClockRuns(1000, 1000 + 12_000, false)).toBe(false); // the canvas sleeps
     expect(worldClockRuns(1000, 1000, true)).toBe(false);
     expect(worldClockRuns(Number.NEGATIVE_INFINITY, 1000, false)).toBe(false);
+    // Under the credits' sheet the world stands still, so the scene sleeps behind the page.
+    expect(worldClockRuns(1000, 1000, false, 'sheet')).toBe(false);
+    for (const part of ['land', 'area', 'look'] as const) expect(worldClockRuns(1000, 1000, false, part)).toBe(true);
   });
 
   it('dims the world, lights the open project and quiets the others as it opens', () => {

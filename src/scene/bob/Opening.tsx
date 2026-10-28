@@ -20,7 +20,7 @@ import { useLoaderSkip } from '~/input/loaderSkip';
 import { frame } from '~/state/frame';
 import { placeForProject } from '~/state/routeSync';
 import { useScene } from '~/state/store';
-import { openAt } from '~/ui/projectOpen';
+import { clickOnWorld } from '~/ui/projectOpen';
 import { motion } from '../motion';
 import { settleLoad } from '../settleLoad';
 import { visibleTimeout } from '../timeouts';
@@ -679,7 +679,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
   return models ? (
     <>
       <Home models={models.home} handover={handover} />
-      <Void compass={models.home.compass} light={models.light} handover={handover} tier={tier} onOpen={openAt} />
+      <Void compass={models.home.compass} light={models.light} handover={handover} tier={tier} onOpen={clickOnWorld} />
     </>
   ) : null;
 }
