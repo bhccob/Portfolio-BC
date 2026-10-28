@@ -1,25 +1,23 @@
 /**
- * A bead seen close (spec §2.4, "Click or Enter flies through the porthole into the project page") as plain
- * rules: the camera's moves between the journey's shot and a bead's close view (`focusShotFor`, ./journey), what the
- * page asks for, and when a move may fly. Pure, and apart from types it imports only the journey and the step fade's
- * length, so the tests run it without R3F, three or a browser; the Opening (./Opening.tsx), the shot's one writer,
- * applies exactly these, and the label (src/ui/projectOpen.tsx) begins the flight in.
+ * A project opened in place (spec 2026-10-28-bob-quantum-stack-design.md, goal 5) as plain rules: the project lifting off
+ * its socket to the spot in front of the camera and sinking back (the lift, which the world eases and poses,
+ * src/engine/bob/build/world.ts), the camera's shot meanwhile, what the page asks for, and when a move may go smoothly.
+ * Pure, and apart from types it imports only the journey and the step fade's length, so the tests run it without R3F,
+ * three or a browser; the Opening (./Opening.tsx), the shot's one writer, applies exactly these, and the label
+ * (src/ui/projectOpen.tsx) begins the lift.
  *
- * - **Into a project**: a click on it, its name or its area's words, at a stop, flies the camera to its open view over
- *   FLIGHT_MS; "Bekijk project" goes on to its page, which stands over it.
- * - **From one to the next**: the arrows fly from one open project's view to the next's (spec
- *   2026-10-27-bob-hologram-world-design.md, goal 5), the world kept in its open look, the one left closing as the next
- *   opens.
- * - **Out again**: Back or Escape puts the story where it was opened from (src/state/routeSync.ts), and the camera flies
- *   out to it.
- * - **Every flight** starts where the camera stands as it begins (the move's `shot`) and goes round the board's centre
- *   to its goal (./around.ts `aroundShot`), so a flight turned or retargeted half way goes on from there, and none cuts
- *   across the CPU.
- * - **A fade** stands in for the flight wherever a flight cannot be one: with reduced motion (spec §2.3: a step is a
- *   short fade), into a page reached any other way (a link of the home's nav, Lite, a direct arrival once its loader has
- *   landed), and out to a story the scroll's hold keeps short of the bead's stop (the void is not loaded yet). It is
- *   M2a's step fade (./stepFade.ts): the scene host fades down over FOCUS_FADE_MS, the shot jumps while it is dark, and
- *   it fades back.
+ * - **Into a project**: a click on it, its name or its board's words, at a stop, lifts it to the spot over FLIGHT_MS; the
+ *   camera stays where it stands. "Bekijk project" goes on to its page, which stands over it.
+ * - **From one to the next**: the arrows sink the project in the spot back to its socket as the next one rises into the
+ *   same spot, from whichever board it is on; the camera stays. Pressed again quickly, the ones on their way down go on
+ *   down from where they are.
+ * - **Out again**: Back or Escape puts the story at the shown project's board (src/state/routeSync.ts); the project sinks
+ *   over SINK_MS and the camera turns round the stack's axis (./around.ts `aroundShot`) to that board's stop.
+ * - **A fade** stands in for a lift wherever one cannot be: with reduced motion (spec §2.3: a step is a short fade), into
+ *   a page reached any other way (a link of the home's nav, Lite, a direct arrival once its loader has landed), and out
+ *   to a story the scroll's hold keeps short of the project's stop (the void is not loaded yet). It is M2a's step fade
+ *   (./stepFade.ts): the scene host fades down over FOCUS_FADE_MS, the shot and the lift jump while it is dark (to the
+ *   project's board stop, the project in the spot), and it fades back.
  */
 import type { SceneKind } from '~/app/handle';
 import type { ProjectId } from '~/data/projects';
@@ -30,37 +28,46 @@ import { opensOnClick } from './inside';
 import { journeyAt, WORLD_PROJECTS } from './journey';
 import { STEP_FADE_MS } from './stepFade';
 
-/** How long the flight into a porthole (and back out) takes, ms: spec §2.4's "about 1.4 s" (Bob, 2026-10-24: 0.8 s was too fast). */
-export const FLIGHT_MS = 1400;
+/** How long a project takes to rise to the spot, ms (the mock-up's 1.5 s). */
+export const FLIGHT_MS = 1500;
+
+/** How long it takes to sink back to its socket, ms (the mock-up's 1.3 s); the camera turns to its board meanwhile. */
+export const SINK_MS = 1300;
 
 /** How long a fade's dark half takes, ms: the step fade's (the scene host's opacity moves over it, src/styles/base.css). */
 export const FOCUS_FADE_MS = STEP_FADE_MS;
 
-/** How a move goes: the camera flies, or the host fades down, the shot jumps and it fades back. */
+/** How a move goes: the project lifts or sinks (the camera turning back to a board on the way out), or a fade. */
 export type FocusMode = 'fly' | 'fade';
 
+/** A project and how far it has risen off its socket toward the spot, 0..1. */
+export interface Lift {
+  id: ProjectId;
+  amount: number;
+}
+
 /**
- * A move of the camera between the journey's shot and a project's open view, or between two open views. At rest it
- * stands where it went.
- * - `from`: where it stood when it began: a project's open view, how far in (0 is the journey's shot, 1 the open view)
- *   and how open its object was, or `{ id: null, amount: 0, open: 0 }` for the journey's shot;
- * - `to`: the project whose open view it goes to, or null back to the journey's shot;
+ * A move of the projects between their sockets and the spot, and of the camera on the way out. At rest it stands where
+ * it went.
+ * - `from`: what was up as it began: the project in the spot or rising to it (`id`, `amount`; none and 0 for no
+ *   project), and the one on its way down (`leaving`), which go on from there;
+ * - `to`: the project it lifts to the spot, or null to sink them all;
  * - `at`: when it began (`performance.now()` ms);
- * - `mode`: a flight or a fade;
- * - `shot`: the camera's shot as it began (`frame.shot`), which a flight leaves from; none (the first move, or one begun
- *   where the camera's shot is not known) stands on its goal.
+ * - `mode`: a lift or a fade;
+ * - `shot`: the camera's shot as it began (`frame.shot`), where it stays, and which the way out leaves from; none (the
+ *   first move, or one begun where the camera's shot is not known) stands on its goal.
  */
 export interface FocusMove {
-  from: { id: ProjectId | null; amount: number; open: number };
+  from: { id: ProjectId | null; amount: number; leaving: Lift | null };
   to: ProjectId | null;
   at: number;
   mode: FocusMode;
   shot: CameraShot | null;
 }
 
-/** No move yet: the journey's shot, at rest. */
+/** No move yet: nothing lifted, the journey's shot. */
 export const FOCUS_AT_REST: Readonly<FocusMove> = Object.freeze({
-  from: Object.freeze({ id: null, amount: 0, open: 0 }),
+  from: Object.freeze({ id: null, amount: 0, leaving: null }),
   to: null,
   at: Number.NEGATIVE_INFINITY,
   mode: 'fade',
@@ -69,12 +76,11 @@ export const FOCUS_AT_REST: Readonly<FocusMove> = Object.freeze({
 
 /**
  * Where a move stands at a moment:
- * - `id`, `amount`: the bead whose close view is in the shot and how far (eased: the shot is `shotToward` the close
- *   view by it), or null and 0 for the journey's shot alone;
+ * - `id`: the project shown (the one rising, or on the way out the one sinking), null with none up;
+ * - `amount`: how far the open look is in, the highest lift of any project (0 with none);
  * - `dark`: a fade's first half, while the scene host is faded down;
  * - `moving`: the move is not over, so the canvas draws on;
- * - `engaged`: the camera is at a close view or on its way to or from one: the bead's label is away and the pointer
- *   hovers nothing.
+ * - `engaged`: a project is open or on its way up or down: its label is away and the pointer hovers nothing.
  */
 export interface FocusPose {
   id: ProjectId | null;
@@ -84,77 +90,102 @@ export interface FocusPose {
   engaged: boolean;
 }
 
-/** Perlin's smootherstep: it leaves and arrives with no speed, so the flight is heavy and damped (spec §4). */
+/** Perlin's smootherstep: the camera's turn back leaves and arrives with no speed, heavy and damped (spec §4). */
 function flightEase(t: number): number {
   return t * t * t * (t * (t * 6 - 15) + 10);
 }
 
 /**
- * Where `move` stands at `now` (ms).
- * - A flight eases from where it began to its end over FLIGHT_MS; its bead is the one it goes to (or, going out, the
- *   one it left), and once it is out the bead is let go.
- * - A fade holds the view it left while the host goes dark, FOCUS_FADE_MS, then stands at once on the view it went to.
- * A moment that is not a number reads as the move's start.
+ * Each project's lift on `move` at `now`: the one rising to the spot (none on the way out), and those sinking, the highest
+ * first. A lift rises at a steady pace over FLIGHT_MS and sinks over SINK_MS from where it was (the world eases it); a
+ * fade holds all as they were while dark, then has the one it goes to in the spot and the rest down. A moment that is
+ * not a number reads as the move's start.
  */
-export function focusPoseAt(move: FocusMove, now: number): FocusPose {
-  const goal = move.to === null ? 0 : 1;
+function liftsOf(move: FocusMove, now: number): { rising: Lift | null; sinking: Lift[] } {
   const elapsed = now - move.at;
-  const fromId = move.from.amount > 0 ? move.from.id : null;
-  const fromAmount = fromId === null ? 0 : move.from.amount;
+  const start: Lift[] = [];
+  if (move.from.id !== null && move.from.amount > 0) start.push({ id: move.from.id, amount: move.from.amount });
+  const leaving = move.from.leaving;
+  if (leaving !== null && leaving.amount > 0 && leaving.id !== move.from.id) start.push({ ...leaving });
   if (move.mode === 'fade') {
-    if (!(elapsed >= FOCUS_FADE_MS)) return { id: fromId, amount: fromAmount, dark: true, moving: true, engaged: true };
-    return { id: move.to, amount: goal, dark: false, moving: false, engaged: move.to !== null };
+    if (!(elapsed >= FOCUS_FADE_MS)) {
+      const [main, ...rest] = start;
+      return { rising: main ?? null, sinking: rest };
+    }
+    return { rising: move.to === null ? null : { id: move.to, amount: 1 }, sinking: [] };
   }
-  const t = elapsed >= FLIGHT_MS ? 1 : elapsed > 0 ? elapsed / FLIGHT_MS : 0;
-  const amount = fromAmount + (goal - fromAmount) * flightEase(t);
-  const id = amount > 0 ? (move.to ?? fromId) : null;
-  const moving = t < 1;
+  const t = elapsed > 0 ? elapsed : 0;
+  const rising = move.to === null ? null : { id: move.to, amount: Math.min(1, (start.find((l) => l.id === move.to)?.amount ?? 0) + t / FLIGHT_MS) };
+  const sinking = start
+    .filter((l) => l.id !== move.to)
+    .map((l) => ({ id: l.id, amount: Math.max(0, l.amount - t / SINK_MS) }))
+    .filter((l) => l.amount > 0)
+    .sort((a, b) => b.amount - a.amount);
+  return { rising, sinking };
+}
+
+/** Where `move` stands at `now` (ms). */
+export function focusPoseAt(move: FocusMove, now: number): FocusPose {
+  const elapsed = now - move.at;
+  if (move.mode === 'fade') {
+    const fromId = move.from.amount > 0 ? move.from.id : null;
+    if (!(elapsed >= FOCUS_FADE_MS)) return { id: fromId, amount: fromId === null ? 0 : move.from.amount, dark: true, moving: true, engaged: true };
+    return { id: move.to, amount: move.to === null ? 0 : 1, dark: false, moving: false, engaged: move.to !== null };
+  }
+  const { rising, sinking } = liftsOf(move, now);
+  const amount = Math.max(rising?.amount ?? 0, sinking[0]?.amount ?? 0);
+  const id = amount > 0 ? (rising?.id ?? sinking[0]?.id ?? null) : null;
+  const moving = (rising !== null && rising.amount < 1) || sinking.length > 0;
   return { id, amount: id === null ? 0 : amount, dark: false, moving, engaged: moving || move.to !== null };
 }
 
-/** How far a move has gone at `now`: a flight eased over FLIGHT_MS; a fade 0 while dark, then 1. */
-function doneAt(move: FocusMove, now: number): number {
-  const elapsed = now - move.at;
-  if (move.mode === 'fade') return elapsed >= FOCUS_FADE_MS ? 1 : 0;
-  return elapsed >= FLIGHT_MS ? 1 : elapsed > 0 ? flightEase(elapsed / FLIGHT_MS) : 0;
+/** Every project's lift on `move` at `now`, the one rising included even at 0: what the world poses (`WorldPose.lift`). */
+export function focusLiftsAt(move: FocusMove, now: number): Partial<Record<ProjectId, number>> {
+  const { rising, sinking } = liftsOf(move, now);
+  const lifts: Partial<Record<ProjectId, number>> = {};
+  for (const l of sinking) lifts[l.id] = l.amount;
+  if (rising !== null) lifts[rising.id] = rising.amount;
+  return lifts;
 }
 
 /**
- * How open the objects are on `move` at `now`: `open`, the object of the project in the shot (`focusPoseAt`'s `id`),
- * and `leaving`, the one a move from one open project to another closes as the next opens (none otherwise). Into a
- * project its object opens with the camera; out of one it closes with it; from one to the next the first closes as the
- * second opens, never both whole at once. A fade turns them at once, once dark.
+ * The open project's and the one leaving's lifts on `move` at `now`, which their panels and touch points follow: `open`,
+ * the shown project's (`focusPoseAt`'s `id`), and `leaving`, the highest of the others on their way down (none
+ * otherwise).
  */
-export function focusOpensAt(move: FocusMove, now: number): { open: number; leaving: { id: ProjectId; amount: number } | null } {
-  const shown = focusPoseAt(move, now);
-  const from = move.from.amount > 0 ? move.from.id : null;
-  if (from !== null && move.to !== null && from !== move.to) {
-    const e = doneAt(move, now);
-    return { open: e, leaving: e < 1 ? { id: from, amount: move.from.open * (1 - e) } : null };
-  }
-  return { open: shown.amount, leaving: null };
+export function focusOpensAt(move: FocusMove, now: number): { open: number; leaving: Lift | null } {
+  const { rising, sinking } = liftsOf(move, now);
+  if (rising !== null) return { open: rising.amount, leaving: sinking[0] ?? null };
+  return { open: sinking[0]?.amount ?? 0, leaving: sinking[1] ?? null };
 }
 
 /**
- * The camera's shot on `move` at `now`, its goal `goal` (the open view it goes to, or the journey's shot it goes back
- * to): a flight from the shot it began on round the board's `centre` (./around.ts), the goal itself once it is over; a
- * fade on the shot it began on while dark, then the goal. A move with no shot to begin from stands on its goal.
+ * The camera's shot on `move` at `now`, its goal `goal` (the shown project's board stop, or the journey's shot it goes
+ * back to). Lifting a project, or swapping one for the next, the camera stays on the shot it began on; on the way out it
+ * turns round the stack's `centre` (./around.ts) to its goal over SINK_MS. A fade holds the shot it began on while dark,
+ * then the goal. A move with no shot to begin from stands on its goal.
  */
 export function focusShotAt(move: FocusMove, now: number, goal: CameraShot, centre: readonly [number, number, number]): CameraShot {
-  const e = doneAt(move, now);
-  if (move.shot === null || e >= 1) return goal;
-  return move.mode === 'fade' ? move.shot : aroundShot(move.shot, goal, centre, e);
+  if (move.shot === null) return goal;
+  const elapsed = now - move.at;
+  if (move.mode === 'fade') return elapsed >= FOCUS_FADE_MS ? goal : move.shot;
+  if (move.to !== null) return move.shot;
+  const t = elapsed >= SINK_MS ? 1 : elapsed > 0 ? elapsed / SINK_MS : 0;
+  if (t <= 0) return move.shot;
+  return t >= 1 ? goal : aroundShot(move.shot, goal, centre, flightEase(t));
 }
 
 /**
- * A new move to `to` (a project's open view, or null for the journey's shot) begun at `now`, from wherever `move` stands
- * then, so a move turned back or retargeted half way goes on from there: the camera from `shot`, where it stands now
- * (`frame.shot`), the objects from how open they are.
+ * A new move to `to` (a project to lift, or null to sink them all) begun at `now`, from wherever `move` stands then, so
+ * a move turned back or swapped half way goes on from there: the camera from `shot`, where it stands now (`frame.shot`),
+ * the shown project and the highest of those on their way down from their lifts. (A third on its way down, the lowest,
+ * is let go.)
  */
 export function moveFocus(move: FocusMove, to: ProjectId | null, now: number, mode: FocusMode, shot: CameraShot | null = null): FocusMove {
-  const shown = focusPoseAt(move, now);
-  const { open } = focusOpensAt(move, now);
-  return { from: { id: shown.id, amount: shown.amount, open: shown.id === null ? 0 : open }, to, at: now, mode, shot };
+  const { rising, sinking } = liftsOf(move, now);
+  const up = [...(rising !== null && rising.amount > 0 ? [rising] : []), ...sinking];
+  const main = up[0] ?? null;
+  return { from: { id: main?.id ?? null, amount: main?.amount ?? 0, leaving: up[1] ?? null }, to, at: now, mode, shot };
 }
 
 /** The project of an id, if it is on the world. */

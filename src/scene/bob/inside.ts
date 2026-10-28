@@ -40,6 +40,14 @@ export function insidePoints(amount: number): number {
   return eased(amount, INSIDE_POINTS);
 }
 
+/** Where on a project's lift to the spot (0 on its socket, 1 in the spot) its object opens, eased: as it nears the spot. */
+export const OPEN_AT = [0.75, 1] as const;
+
+/** How open a project's object is at this lift: shut on the way up until it nears the spot, whole in it. */
+export function openOf(lift: number): number {
+  return eased(lift, OPEN_AT);
+}
+
 /**
  * Whether the objects' clock runs inside the bead at `now` (ms): for IDLE_SECONDS after `stirred` (when the inside
  * opened, or the pointer last moved over it), as the home's idle motion runs, and never with reduced motion. Then the

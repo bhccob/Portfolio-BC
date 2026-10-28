@@ -28,7 +28,8 @@ import type { Handover } from './Home';
 import { type LightPose, WORLD_PROJECTS } from './journey';
 import { LOOK } from './look';
 import { cloudLayout, nebulaLevels } from './nebulaWay';
-import { insidePoints, OPEN_LOOK, openLevels, openWorld, worldClockRuns } from './inside';
+import { insidePoints, OPEN_LOOK, openLevels, openOf, openWorld, worldClockRuns } from './inside';
+import { type SpotPose, spotFor } from './spot';
 import { easeHover, hoverEase, hoversAt, needleFor, needleGlowFor, pointerMode, voidShownAt } from './voidPose';
 import { loadVoid, type VoidLoadSteps } from './voidLoad';
 import { uploadTextures, warm } from './warm';
@@ -661,26 +662,28 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
         const levels = { ...path.levels };
         const hovered = run.hover.id === null ? null : WORLD_PROJECTS[run.hover.id];
         if (hovered && levels[hovered] !== undefined) levels[hovered] *= 1 + HOVER_LIFT * run.hover.amount;
-        // Each object as open as the move has it: the open one, and on the way to the next the one it leaves.
+        // Each project as far up to the spot as the move has it (the shown one, and those on their way down), lit as it
+        // rises and opening as it nears the spot; the spot in front of the camera, which stays, while any is up.
+        const lift = close.id !== null ? close.lifts : NONE_LIFTED;
         let open = NONE_OPEN;
+        let spot: SpotPose | null = null;
         if (close.id !== null) {
-          const opening = { [close.id]: close.open } as Record<ProjectId, number>;
-          if (close.leaving !== null) opening[close.leaving.id] = close.leaving.amount;
-          open = opening;
+          open = Object.fromEntries(Object.entries(lift).map(([id, up]) => [id, openOf(up ?? 0)])) as Record<ProjectId, number>;
+          if (frame.shot) spot = spotFor(frame.shot, size.width / Math.max(size.height, 1), 1, clock.time);
         }
         world.model.pose({
           power: path.power,
           flash: path.flash,
           clock: clock.time,
-          levels: openLevels(levels, open, opened),
+          levels: openLevels(levels, lift, opened),
           open,
           float: reducedMotion ? 0 : 1,
           world: openWorld(opened),
           tops: boardTops(STACK_PLACES, path.explode),
           boardPower: path.boardPower,
           boardLight: path.boardLight,
-          lift: NONE_LIFTED,
-          spot: null
+          lift,
+          spot
         });
         // What the boards, the spine and the CPU reflect turns with the camera round the stack, so they look the same from every side.
         world.model.turn(Math.atan2(camera.position.x - STACK_CENTRE[0], camera.position.z - STACK_CENTRE[2]));

@@ -118,7 +118,8 @@ describe('the clouds: where they hang, each at its own depth', () => {
   it("keeps every cloud off the board and out of every world view's line of sight", () => {
     for (const world of [desk, phone]) {
       const c0 = world.centre;
-      expect(world.sights.length).toBeGreaterThanOrEqual(2 + world.places.length + world.projects.length);
+      // The land's, the whole machine's, a stop per category board and the look back's (a project opens where the camera is).
+      expect(world.sights.length).toBe(3 + world.places.length - 1);
       for (const c of cloudLayout(world, 'high')) {
         const over = Math.hypot(c.at[0] - c0[0], c.at[2] - c0[2]) < NEBULA.WORLD.board + c.size / 2 && Math.abs(c.at[1] - c0[1]) < NEBULA.WORLD.height + c.size / 2;
         expect(over, `a cloud over the board at ${c.at.map((v) => v.toFixed(2))}`).toBe(false);

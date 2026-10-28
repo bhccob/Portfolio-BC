@@ -163,22 +163,19 @@ describe("the world's projects", () => {
 });
 
 describe('a project opened', () => {
-  it('flies a project\'s focus to its open view, per screen shape: the object in the frame, aside of the middle', () => {
+  it("stands open at its board's stop, per screen shape, its socket in the frame", () => {
     for (const a of [LAPTOP, PHONE]) {
       const path = worldPathFor(a);
-      for (const board of path.places) {
+      path.places.slice(1).forEach((board, i) => {
         for (const { id, at } of board.sockets) {
-          const pad = [path.centre[0] + at[0], board.top, path.centre[2] + at[1]];
+          const socket = [path.centre[0] + at[0], board.top + 0.6, path.centre[2] + at[1]] as const;
           const shot = focusShotFor(id, a);
-          expect(shot).toEqual(path.openShot(id));
-          const [x, y] = project(shot, a, [pad[0], pad[1] + 0.6, pad[2]]);
-          expect(Math.abs(x), `${id} at ${a}`).toBeLessThan(0.92);
-          expect(Math.abs(y), `${id} at ${a}`).toBeLessThan(0.92);
-          // On a laptop the object stands right of the middle (the panel is at the left); on a phone above it.
-          if (a === LAPTOP) expect(x, id).toBeGreaterThan(0.1);
-          else expect(y, id).toBeGreaterThan(0.1);
+          expect(shot).toEqual(path.areaShot(i));
+          const [x, y] = project(shot, a, [...socket]);
+          expect(Math.abs(x), `${id} at ${a}`).toBeLessThan(1);
+          expect(Math.abs(y), `${id} at ${a}`).toBeLessThan(1);
         }
-      }
+      });
     }
   });
 });

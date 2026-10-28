@@ -2,6 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { type JSX, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { type GLTF, GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import type { ProjectId } from '~/data/projects';
 import { bandStrip, COMPASS_PARTS, type CompassModel, loadCompass } from '~/engine/bob/build/compass';
 import { buildEngraving, type EngravingModel } from '~/engine/bob/build/engraving';
 import { buildGlass, type GlassModel } from '~/engine/bob/build/glassFloor';
@@ -24,7 +25,7 @@ import { clickOnWorld } from '~/ui/projectOpen';
 import { motion } from '../motion';
 import { settleLoad } from '../settleLoad';
 import { visibleTimeout } from '../timeouts';
-import { FOCUS_AT_REST, focusOpensAt, type FocusPose, focusShotAt, stepFocus } from './focus';
+import { FOCUS_AT_REST, focusLiftsAt, focusOpensAt, type FocusPose, focusShotAt, stepFocus } from './focus';
 import { type Handover, Home, type HomeModels } from './Home';
 import { focusShotFor, journeyPoseAt } from './journey';
 import { cameraShotAt, loadShare, type OpeningPose, openingPoseAt } from './openingPose';
@@ -124,6 +125,9 @@ const breathe = (): Promise<void> => new Promise((resolve) => setTimeout(resolve
 
 /** No close view: the frame of the loader, of a held seek, or of a home with no bead close. */
 const NO_FOCUS: Readonly<FocusPose> = Object.freeze({ id: null, amount: 0, dark: false, moving: false, engaged: false });
+
+/** No project lifted off its socket. */
+const NO_LIFTS: Readonly<Partial<Record<ProjectId, number>>> = Object.freeze({});
 
 /** The attribute on <html> that fades the scene host down for a fade to or from a bead's close view (src/styles/base.css). */
 const FOCUS_FADE_ATTRIBUTE = 'data-focus-fade';
@@ -323,7 +327,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
   const buffer = useRef({ seen: new THREE.Vector2(-1, -1), now: new THREE.Vector2() });
   /** The home's parts once built, which mount Home; and what the Opening hands over to it, set on each frame drawn. */
   const [models, setModels] = useState<Mounted | null>(null);
-  const [handover] = useState<Handover>(() => ({ live: false, time: 0, needle: settleAngle(1), shown: 0, pose: null, focus: false, close: { id: null, amount: 0, open: 0, leaving: null } }));
+  const [handover] = useState<Handover>(() => ({ live: false, time: 0, needle: settleAngle(1), shown: 0, pose: null, focus: false, close: { id: null, amount: 0, open: 0, leaving: null, lifts: {} } }));
   /** The full show is playing, so any input skips it (`useLoaderSkip`) while a scene is shown. */
   const [skippable, setSkippable] = useState(false);
   /** The page shows a scene: on a page of text (Lite, contact) the canvas draws nothing, and the skip must not listen. */
@@ -533,6 +537,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       handover.focus = false;
       handover.close.id = null;
       handover.close.amount = 0;
+      handover.close.lifts = {};
       setModels(null);
       setSkippable(false);
       motion.loader = false;
@@ -635,6 +640,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
     const opens = focus.id === null ? null : focusOpensAt(frame.focus.move, now);
     handover.close.open = opens?.open ?? 0;
     handover.close.leaving = opens?.leaving ?? null;
+    handover.close.lifts = focus.id === null ? NO_LIFTS : focusLiftsAt(frame.focus.move, now);
     showFocusFade(focus.dark || (focus.amount > 0 && useScene.getState().voidState !== 'ready'));
     motion.focus = focus.moving;
     // A held clock poses every frame; the live one poses the home once, when it gets there.

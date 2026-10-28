@@ -105,13 +105,15 @@ export function fieldFor(hfov: number, aspect: number): { fov: number; back: num
 }
 
 /**
- * Project `id` opened, on a screen of this aspect (spec 2026-10-27-bob-hologram-world-design.md, goal 5): beside the
- * journey, not a stretch of it, it is the view a click on the project flies to (./focus.ts, ./inside.ts) and the view
- * its project page stands over: the world path's open view (`openShot`), the object at the picture's right on a laptop
- * and in its upper part on a phone. A project not on the world has the look back's shot.
+ * The view project `id` stands open in, on a screen of this aspect (spec 2026-10-28-bob-quantum-stack-design.md, goal
+ * 5): its board's stop, where the camera turns back to when it closes, and where its project page reached directly
+ * stands, the project in the spot (./focus.ts). A click opens it where the camera stands, which stays. A project not on
+ * the stack has the look back's shot.
  */
 export function focusShotFor(id: ProjectId, aspect: number): CameraShot {
-  return worldPathFor(aspect).openShot(id);
+  const path = worldPathFor(aspect);
+  const board = path.places.slice(1).findIndex((b) => b.sockets.some((s) => s.id === id));
+  return board < 0 ? path.lookShot : path.areaShot(board);
 }
 
 const PATH_AT = pathStart(HOME_CHAPTERS);

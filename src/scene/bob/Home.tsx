@@ -69,12 +69,13 @@ export interface HomeModels {
  * whose shot is the journey's: whenever `live` is, and also on the hand-over frame (and any frame at the home before the
  * compass exists), where the Opening sets it while `live` is still false; a pose alone does not say Home drives.
  *
- * `focus` is true while the camera is at a bead's close view or on its way to or from one (src/scene/bob/focus.ts
- * `FocusPose.engaged`): a project page, a flight into a porthole or out, a fade to or from a close view. The Void then
- * shows no label and reads no pointer. The Opening sets it on each frame it poses the home, before Home and the Void.
- * `close` is that open view's project and how far the camera is in (`FocusPose.id` and `amount`), none and 0 without one,
- * with how open its object is and the one a turn to the next closes (`focusOpensAt`): the Void opens the objects, dims
- * the world and shows the touch points and the panel by them.
+ * `focus` is true while a project is open or on its way up to the spot or down (src/scene/bob/focus.ts
+ * `FocusPose.engaged`): a project page, a lift or a sink, a fade to or from an open project. The Void then shows no
+ * label and reads no pointer. The Opening sets it on each frame it poses the home, before Home and the Void.
+ * `close` is the shown project and how far the open look is in (`FocusPose.id` and `amount`), none and 0 without one;
+ * its lift and the highest of those on their way down, which its panel and touch points follow (`focusOpensAt`); and
+ * every project's lift (`focusLiftsAt`): the Void lifts the objects to the spot, opens them as they near it, dims the
+ * world and shows the touch points and the panel by them.
  */
 export interface Handover {
   live: boolean;
@@ -83,7 +84,7 @@ export interface Handover {
   shown: number;
   pose: JourneyPose | null;
   focus: boolean;
-  close: { id: ProjectId | null; amount: number; open: number; leaving: { id: ProjectId; amount: number } | null };
+  close: { id: ProjectId | null; amount: number; open: number; leaving: { id: ProjectId; amount: number } | null; lifts: Partial<Record<ProjectId, number>> };
 }
 
 export interface HomeProps {

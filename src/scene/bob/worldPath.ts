@@ -28,7 +28,7 @@ import { aroundShot } from './around';
 import { fitDistance } from './fit';
 import { filamentsAt, lightAt, sizeFor, sparksAt, streamAt, trailAt, trailLevel, voidAt, wayShot } from './lightDive';
 import type { LightPose, VoidPose } from './poseTypes';
-import { type BoardPlace, boardCentre, LID_TOP, OBJECT_MIDDLE, objectKind, STACK, stackPlaces } from './worldLayout';
+import { type BoardPlace, boardCentre, LID_TOP, STACK, stackPlaces } from './worldLayout';
 
 export type Vec3 = [number, number, number];
 type R3 = readonly [number, number, number];
@@ -155,11 +155,9 @@ export interface WorldPath {
   worldShot: CameraShot;
   areaShot(index: number): CameraShot;
   lookShot: CameraShot;
-  /** Project `id` flown to, the old open view: kept for the focus until the project opens in place. */
-  openShot(id: ProjectId): CameraShot;
   /** Every point the whole machine's view must hold: each board's rim, what floats over it, the CPU and the spine's tip. */
   machine: Vec3[];
-  /** Every view's camera and what it looks at (the land's, the stops', the open views'): the clouds stay out of them. */
+  /** Every view's camera and what it looks at (the land's and the stops'): the clouds stay out of them. */
   sights: [Vec3, Vec3][];
   /** The stack's path at `q` units past its start. */
   frameAt(q: number): WorldFrame;
@@ -281,17 +279,6 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS): Worl
     }
     return framed(rim, target, b.facing, elevation, F.board.box);
   });
-  const objectMiddle = (id: ProjectId, board: BoardPlace, at: readonly [number, number]): Vec3 => [C[0] + at[0], board.top + STACK.hover + OBJECT_MIDDLE[objectKind(id)], C[2] + at[1]];
-  const openShot = (id: ProjectId): CameraShot => {
-    const board = boards.find((b) => b.sockets.some((s) => s.id === id));
-    const socket = board?.sockets.find((s) => s.id === id);
-    if (!board || !socket) return { ...lookShot, sway: 1 };
-    const centre = objectMiddle(id, board, socket.at);
-    const right: Vec3 = [socket.out[2], 0, -socket.out[0]];
-    const position = add(centre, add(mul(socket.out, phone ? 2.1 : 1.5), add(mul(right, phone ? 1.3 : 1.5), mul(UP, phone ? 3.75 : 1.8))));
-    // The pointer's parallax in, as the home under a page has it.
-    return { ...aside(position, centre, phone ? 50 : 36, phone ? [0, 0.23] : [0.16, 0], aspect), sway: 1 };
-  };
   const stopShot = (i: number): CameraShot => (i < 0 ? worldShot : boardShots[i]!);
 
   // The light: from the hand-over straight down onto the lid, carrying the fall's speed in and quickening to the hit.
@@ -430,9 +417,9 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS): Worl
     };
   }
 
-  const sights: [Vec3, Vec3][] = [landShot, worldShot, ...boardShots, lookShot, ...projectIds.map(openShot)].map((shot) => [[...shot.position] as Vec3, [...shot.target] as Vec3]);
+  const sights: [Vec3, Vec3][] = [landShot, worldShot, ...boardShots, lookShot].map((shot) => [[...shot.position] as Vec3, [...shot.target] as Vec3]);
 
-  return { places, projects: projectIds, centre: C, worldShot, areaShot: (i) => stopShot(i), lookShot, openShot, machine, sights, frameAt };
+  return { places, projects: projectIds, centre: C, worldShot, areaShot: (i) => stopShot(i), lookShot, machine, sights, frameAt };
 }
 
 /** The last path made by `worldPathFor`, and the aspect it was made for. */

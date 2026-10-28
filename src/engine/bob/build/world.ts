@@ -66,7 +66,7 @@ export interface WorldPose {
   boardPower: readonly number[];
   boardLight: readonly number[];
   /** How far each project has risen off its socket toward the spot, 0..1 (eased here). */
-  lift: Readonly<Record<ProjectId, number>>;
+  lift: Readonly<Partial<Record<ProjectId, number>>>;
   /**
    * The spot in front of the camera for an object one metre in radius (`spotFor(shot, aspect, 1, clock)`): each object
    * stands there at its own size, `scale` over its radius. Null while nothing rises.
