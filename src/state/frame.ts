@@ -136,7 +136,7 @@ export const frame = {
    *   page once the flight is in; null otherwise.
    */
   focus: {
-    move: { from: { id: null, amount: 0 }, to: null, at: Number.NEGATIVE_INFINITY, mode: 'fade' } as FocusMove,
+    move: { from: { id: null, amount: 0, leaving: null }, to: null, at: Number.NEGATIVE_INFINITY, mode: 'fade', shot: null } satisfies FocusMove as FocusMove,
     opening: null as ProjectId | null,
   },
 };
