@@ -124,7 +124,7 @@ export function holdLimit(hold: number, c: Chapters, reducedMotion: boolean, pla
 
 /**
  * Where a target that rests on a hold goes once the hold rises to `limit` (the beads are ready), when the input had
- * asked for `asked`, past the old hold: on to the next key stop at least (from the landing hold, Funcial's arrival), or as far
+ * asked for `asked`, past the old hold: on to the next key stop at least (from the landing hold, Steady's arrival), or as far
  * as it asked if that is further (End, a long wheel), and never past the new limit.
  */
 export function releaseTarget(target: number, asked: number, limit: number, c: Chapters): number {

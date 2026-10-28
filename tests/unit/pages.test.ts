@@ -6,14 +6,14 @@ describe('pagePaths', () => {
 
   it('lists every page in both locales', () => {
     expect(paths).toHaveLength(Object.keys(PAGES).length * 2);
-    expect(paths).toHaveLength(12);
+    expect(paths).toHaveLength(14);
   });
 
   it('has no country pages', () => {
     expect(Object.keys(PAGES)).not.toContain('about-china');
     expect(Object.keys(PAGES).filter((id) => id.startsWith('about-'))).toEqual([]);
     expect(paths.filter((path) => path.includes('/about/'))).toEqual([]);
-    expect(pagePaths()).toHaveLength(2 * 6);
+    expect(pagePaths()).toHaveLength(2 * 7);
   });
 
   it('has no duplicates', () => {
@@ -31,8 +31,9 @@ describe('pagePaths', () => {
   it('keeps Dutch at the root and English under /en/', () => {
     expect(paths).toContain('/');
     expect(paths).toContain('/en/');
-    expect(paths).toContain('/projects/funcial/');
-    expect(paths).toContain('/en/projects/funcial/');
+    expect(paths).toContain('/projects/steady/');
+    expect(paths).toContain('/en/projects/porfael/');
+    expect(paths.some((path) => path.includes('funcial'))).toBe(false);
     expect(paths).toContain('/en/lite/');
   });
 });

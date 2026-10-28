@@ -31,14 +31,14 @@ describe('goBack', () => {
   afterEach(resetRouteSync);
 
   it('goes home when the visit began on this page', () => {
-    syncRoute({ pathname: '/projects/funcial/', key: 'default' });
+    syncRoute({ pathname: '/projects/steady/', key: 'default' });
     goBack(navigate, '/');
     expect(calls).toEqual(['/']);
   });
 
   it.each([
-    ['/projects/funcial/', '/'],
-    ['/en/projects/funcial/', '/en/'],
+    ['/projects/steady/', '/'],
+    ['/en/projects/steady/', '/en/'],
   ])('goes home in the language of the page at %s, as the link does (%s)', (pathname, home) => {
     syncRoute({ pathname, key: 'default' });
     goBack(navigate, homeTarget(translatorFor(localeFromPath(pathname))));
@@ -46,10 +46,10 @@ describe('goBack', () => {
   });
 
   it('goes home in the current language after a language switch on the page the visit began on', () => {
-    syncRoute({ pathname: '/projects/funcial/', key: 'default' }, NavigationType.Pop);
+    syncRoute({ pathname: '/projects/steady/', key: 'default' }, NavigationType.Pop);
     // The switch replaces the entry (LangSwitch): the page in the other language, still the first page of the visit.
-    syncRoute({ pathname: '/en/projects/funcial/', key: 'r1' }, NavigationType.Replace);
-    goBack(navigate, homeTarget(translatorFor(localeFromPath('/en/projects/funcial/'))));
+    syncRoute({ pathname: '/en/projects/steady/', key: 'r1' }, NavigationType.Replace);
+    goBack(navigate, homeTarget(translatorFor(localeFromPath('/en/projects/steady/'))));
     expect(calls).toEqual(['/en/']);
   });
 
@@ -70,15 +70,15 @@ describe('goBack', () => {
 
   it('goes back through the history when the visitor came from another page', () => {
     syncRoute({ pathname: '/', key: 'default' });
-    syncRoute({ pathname: '/projects/funcial/', key: 'k1' });
+    syncRoute({ pathname: '/projects/steady/', key: 'k1' });
     goBack(navigate, '/');
     expect(calls).toEqual([-1]);
   });
 
   it('goes home again on the page the document loaded on, after a round trip', () => {
-    syncRoute({ pathname: '/projects/funcial/', key: 'default' });
+    syncRoute({ pathname: '/projects/steady/', key: 'default' });
     syncRoute({ pathname: '/', key: 'k1' });
-    syncRoute({ pathname: '/projects/funcial/', key: 'default' });
+    syncRoute({ pathname: '/projects/steady/', key: 'default' });
     goBack(navigate, '/');
     expect(calls).toEqual(['/']);
   });
@@ -147,14 +147,14 @@ describe('popoverIsOpen', () => {
 
 describe('BackLink', () => {
   it('links to the Dutch home page, names the shortcut and keeps the hint out of the name', () => {
-    const html = render('/projects/funcial/');
+    const html = render('/projects/steady/');
     expect(html).toContain('href="/"');
     expect(html).toContain('aria-keyshortcuts="Escape"');
     expect(html).toContain('<span class="back-hint" aria-hidden="true">Esc ·</span>terug');
   });
 
   it('links to the English home page on an English page', () => {
-    const html = render('/en/projects/funcial/');
+    const html = render('/en/projects/steady/');
     expect(html).toContain('href="/en/"');
     expect(html).toContain('<span class="back-hint" aria-hidden="true">Esc ·</span>back');
   });

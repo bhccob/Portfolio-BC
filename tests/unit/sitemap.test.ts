@@ -12,8 +12,8 @@ describe('sitemap', () => {
     expect(urls.map(([, loc]) => loc)).toEqual(pagePaths().map((path) => ORIGIN + path));
   });
 
-  it('lists the six pages in both languages, and no country page', () => {
-    expect(urls).toHaveLength(2 * 6);
+  it('lists the seven pages in both languages, and no country page', () => {
+    expect(urls).toHaveLength(2 * 7);
     expect(urls.filter(([, loc]) => loc.includes('/about/'))).toEqual([]);
   });
 

@@ -5,10 +5,10 @@ import { nl } from '../../src/i18n/nl';
 
 type Descriptor = Record<string, unknown>;
 
-const funcial: HeadInput = {
+const steady: HeadInput = {
   locale: 'en',
-  route: '/projects/funcial/',
-  title: 'Funcial · Project',
+  route: '/projects/steady/',
+  title: 'Steady · Project',
   description: 'A page description, as the head gives it to search and to social cards.',
 };
 
@@ -20,10 +20,10 @@ const alternate = (list: readonly object[], hreflang: string) =>
   (list as Descriptor[]).find((entry) => entry.tagName === 'link' && entry.rel === 'alternate' && entry.hrefLang === hreflang)?.href;
 
 describe('head', () => {
-  const tags = head(funcial);
+  const tags = head(steady);
 
   it('puts "| Bob Chung" after the page title', () => {
-    expect(find(tags, 'title', 'Funcial · Project | Bob Chung')).toBeDefined();
+    expect(find(tags, 'title', 'Steady · Project | Bob Chung')).toBeDefined();
     expect((tags as Descriptor[]).filter((entry) => 'title' in entry)).toHaveLength(1);
     expect(((tags[0] as Descriptor).title as string).endsWith('| Bob Chung')).toBe(true);
   });
@@ -37,24 +37,24 @@ describe('head', () => {
   });
 
   it('describes the page', () => {
-    expect(content(tags, 'name', 'description')).toBe(funcial.description);
-    expect(content(tags, 'property', 'og:description')).toBe(funcial.description);
+    expect(content(tags, 'name', 'description')).toBe(steady.description);
+    expect(content(tags, 'property', 'og:description')).toBe(steady.description);
   });
 
   it('names the English page as canonical, on bhccob.me', () => {
-    expect(link(tags, 'canonical')?.href).toBe('https://bhccob.me/en/projects/funcial/');
-    expect(content(tags, 'property', 'og:url')).toBe('https://bhccob.me/en/projects/funcial/');
+    expect(link(tags, 'canonical')?.href).toBe('https://bhccob.me/en/projects/steady/');
+    expect(content(tags, 'property', 'og:url')).toBe('https://bhccob.me/en/projects/steady/');
   });
 
   it('names the Dutch page as canonical for a Dutch page', () => {
-    expect(link(head({ ...funcial, locale: 'nl' }), 'canonical')?.href).toBe('https://bhccob.me/projects/funcial/');
+    expect(link(head({ ...steady, locale: 'nl' }), 'canonical')?.href).toBe('https://bhccob.me/projects/steady/');
   });
 
   it('links the same page in both languages, and x-default is the Dutch one', () => {
-    expect(alternate(tags, 'nl')).toBe('https://bhccob.me/projects/funcial/');
-    expect(alternate(tags, 'en')).toBe('https://bhccob.me/en/projects/funcial/');
+    expect(alternate(tags, 'nl')).toBe('https://bhccob.me/projects/steady/');
+    expect(alternate(tags, 'en')).toBe('https://bhccob.me/en/projects/steady/');
     expect(alternate(tags, 'x-default')).toBe(alternate(tags, 'nl'));
-    expect(alternate(head({ ...funcial, locale: 'nl' }), 'x-default')).toBe('https://bhccob.me/projects/funcial/');
+    expect(alternate(head({ ...steady, locale: 'nl' }), 'x-default')).toBe('https://bhccob.me/projects/steady/');
   });
 
   it('links the English home page at /en/ and the Dutch one at the root', () => {
@@ -67,13 +67,13 @@ describe('head', () => {
     expect(content(tags, 'property', 'og:image')).toBe('https://bhccob.me/og.jpg');
     expect(content(tags, 'property', 'og:type')).toBe('website');
     expect(content(tags, 'property', 'og:locale')).toBe('en_GB');
-    expect(content(head({ ...funcial, locale: 'nl' }), 'property', 'og:locale')).toBe('nl_NL');
+    expect(content(head({ ...steady, locale: 'nl' }), 'property', 'og:locale')).toBe('nl_NL');
     expect(content(tags, 'name', 'twitter:card')).toBe('summary_large_image');
   });
 
   it('accepts another share image, as a path or as a full URL', () => {
-    expect(content(head({ ...funcial, image: '/x.jpg' }), 'property', 'og:image')).toBe('https://bhccob.me/x.jpg');
-    expect(content(head({ ...funcial, image: 'https://example.org/y.jpg' }), 'property', 'og:image')).toBe('https://example.org/y.jpg');
+    expect(content(head({ ...steady, image: '/x.jpg' }), 'property', 'og:image')).toBe('https://bhccob.me/x.jpg');
+    expect(content(head({ ...steady, image: 'https://example.org/y.jpg' }), 'property', 'og:image')).toBe('https://example.org/y.jpg');
   });
 
   it('is indexable unless asked otherwise', () => {
@@ -81,13 +81,13 @@ describe('head', () => {
   });
 
   it('adds "noindex, follow" for a noindex page', () => {
-    expect(content(head({ ...funcial, noindex: true }), 'name', 'robots')).toBe('noindex, follow');
+    expect(content(head({ ...steady, noindex: true }), 'name', 'robots')).toBe('noindex, follow');
   });
 
   it('writes one JSON-LD script for each item', () => {
     const person = { '@context': 'https://schema.org', '@type': 'Person' };
     const crumbs = { '@context': 'https://schema.org', '@type': 'BreadcrumbList' };
-    const scripts = (head({ ...funcial, jsonLd: [person, crumbs] }) as Descriptor[]).filter((entry) => 'script:ld+json' in entry);
+    const scripts = (head({ ...steady, jsonLd: [person, crumbs] }) as Descriptor[]).filter((entry) => 'script:ld+json' in entry);
     expect(scripts).toEqual([{ 'script:ld+json': person }, { 'script:ld+json': crumbs }]);
     expect((tags as Descriptor[]).filter((entry) => 'script:ld+json' in entry)).toHaveLength(0);
   });

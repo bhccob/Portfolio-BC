@@ -12,7 +12,7 @@ describe('leavesForHome: a project page fades out only when it is left for the h
   });
 
   it('is false for any other page: the language switch, Lite, contact, another project', () => {
-    for (const path of ['/en/projects/funcial/', '/projects/funcial/', '/lite/', '/en/contact/', '/projects/cookies-clicker/']) expect(leavesForHome(path), path).toBe(false);
+    for (const path of ['/en/projects/steady/', '/projects/steady/', '/lite/', '/en/contact/', '/projects/cookies-clicker/']) expect(leavesForHome(path), path).toBe(false);
   });
 });
 
@@ -134,12 +134,12 @@ describe("pageFadeEffect: usePageFadeOut's effect, as a project page comes and g
     const dom = withGhosts();
     fadeOutPage(dom.page); // the page left a moment ago, still fading
     expect(ghostsOf(dom).map((ghost) => ghost.removed)).toEqual([false]);
-    pageFadeEffect(dom.page, () => '/projects/funcial/');
+    pageFadeEffect(dom.page, () => '/projects/steady/');
     expect(ghostsOf(dom).map((ghost) => ghost.removed)).toEqual([true]);
   });
 
   it('fades the page out when it goes for the home page, in either language, and not for another page', () => {
-    for (const [to, fades] of [['/', 1], ['/en/', 1], ['/lite/', 0], ['/en/projects/funcial/', 0], ['/contact/', 0]] as const) {
+    for (const [to, fades] of [['/', 1], ['/en/', 1], ['/lite/', 0], ['/en/projects/steady/', 0], ['/contact/', 0]] as const) {
       const dom = withGhosts();
       const leave = pageFadeEffect(dom.page, () => to);
       expect(dom.appended, to).toHaveLength(0);
@@ -150,7 +150,7 @@ describe("pageFadeEffect: usePageFadeOut's effect, as a project page comes and g
 
   it('reads where the visit goes when the page goes, not when it came', () => {
     const dom = withGhosts();
-    let path = '/projects/funcial/';
+    let path = '/projects/steady/';
     const leave = pageFadeEffect(dom.page, () => path);
     path = '/';
     leave();

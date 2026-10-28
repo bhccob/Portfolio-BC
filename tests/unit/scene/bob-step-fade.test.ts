@@ -39,9 +39,10 @@ describe('stepStopFor: reduced motion stands on keyStops with no frame between',
   });
 
   it("poses each area with its words whole, from the pose alone", () => {
-    for (const [k, project] of projects.onPath().entries()) {
-      const area = journeyPoseAt(areaStop(HOME_CHAPTERS, project.categoryId), 16 / 9);
-      expect(area.path?.caption, project.id).toEqual({ index: k, opacity: 1 });
+    const areas = [...new Set(projects.onPath().map((project) => project.categoryId))];
+    for (const [k, category] of areas.entries()) {
+      const area = journeyPoseAt(areaStop(HOME_CHAPTERS, category), 16 / 9);
+      expect(area.path?.caption, category).toEqual({ index: k, opacity: 1 });
     }
   });
 

@@ -44,7 +44,7 @@ export function placeForProject(id: ProjectId): number {
 /**
  * The phase a URL stands for: a project page. The home page, and every page without a scene (Lite, contact,
  * not found), have none of their own, so it gives null and the scroll decides.
- * It reads the page the way the router does, so a real page under another spelling (`/Projects/Funcial/`) is not one.
+ * It reads the page the way the router does, so a real page under another spelling (`/Projects/Steady/`) is not one.
  */
 export function phaseForPath(pathname: string): Phase | null {
   const route = routeFromPath(pathname);

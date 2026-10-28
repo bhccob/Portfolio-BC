@@ -23,13 +23,13 @@ export const AREA_RING = 2.65;
 
 /**
  * Each category's place on the ring, as the angle from the board's +x toward its +z (seen from above): the mock-up's
- * Funcial at (-2.55, 0.75), Jontai Energy at (2.55, 0.75) and Cookies Clicker at (0, -2.6). Seen from the front (+z),
- * the secure element's area is at the left, the front panel's at the right and the oscillator's behind the CPU.
+ * first area at (-2.55, 0.75), the second at (2.55, 0.75) and the third at (0, -2.6). Seen from the front (+z), the
+ * apps' area is at the left, the websites' at the right and game development's behind the CPU.
  */
 export const AREA_ANGLE: Readonly<Record<CategoryId, number>> = {
-  'secure-element': Math.atan2(0.75, -2.55),
-  'front-panel': Math.atan2(0.75, 2.55),
-  oscillator: -Math.PI / 2
+  app: Math.atan2(0.75, -2.55),
+  website: Math.atan2(0.75, 2.55),
+  game: -Math.PI / 2
 };
 
 /**
@@ -81,9 +81,9 @@ export type ObjectKind = 'lock-chip' | 'solar' | 'crystal' | 'chip';
 /** How high each kind of object's middle stands above its float, m: where its views look, and its click's sphere. */
 export const OBJECT_MIDDLE: Readonly<Record<ObjectKind, number>> = { 'lock-chip': 0.26, chip: 0.26, solar: 0.16, crystal: 0.38 };
 
-const KINDS: Readonly<Partial<Record<string, ObjectKind>>> = { funcial: 'lock-chip', 'jontai-energy': 'solar', 'cookies-clicker': 'crystal' };
+const KINDS: Readonly<Partial<Record<string, ObjectKind>>> = { 'jontai-energy': 'solar', 'cookies-clicker': 'crystal' };
 
-/** Each project's object on its pad: Funcial's chip with a lock, Jontai Energy's solar module, Cookies Clicker's crystal; any other a plain chip. */
+/** Each project's object on its pad: Jontai Energy's solar module, Cookies Clicker's crystal; any other a plain chip. */
 export function objectKind(id: ProjectId): ObjectKind {
   return KINDS[id] ?? 'chip';
 }

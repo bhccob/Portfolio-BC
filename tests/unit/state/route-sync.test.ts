@@ -32,7 +32,7 @@ describe('phaseForPath', () => {
   });
 
   it('reads a project page', () => {
-    expect(phaseForPath('/projects/funcial/')).toEqual({ kind: 'PROJECT_FOCUS', id: 'funcial' });
+    expect(phaseForPath('/projects/steady/')).toEqual({ kind: 'PROJECT_FOCUS', id: 'steady' });
     expect(phaseForPath('/en/projects/jontai-energy/')).toEqual({ kind: 'PROJECT_FOCUS', id: 'jontai-energy' });
   });
 
@@ -48,20 +48,20 @@ describe('phaseForPath', () => {
   });
 
   it('does not take a page under another spelling for the page, and does not throw', () => {
-    expect(phaseForPath('/Projects/Funcial/')).toBeNull();
+    expect(phaseForPath('/Projects/Steady/')).toBeNull();
     expect(phaseForPath('/en/projects/FUNCIAL/')).toBeNull();
     expect(phaseForPath('/about/')).toBeNull();
     expect(phaseForPath('/projects/')).toBeNull();
   });
 
   it('reads a path without its trailing slash', () => {
-    expect(phaseForPath('/projects/funcial')).toEqual({ kind: 'PROJECT_FOCUS', id: 'funcial' });
+    expect(phaseForPath('/projects/steady')).toEqual({ kind: 'PROJECT_FOCUS', id: 'steady' });
   });
 });
 
 describe('pathForPhase', () => {
   it('gives the page of a project', () => {
-    expect(pathForPhase({ kind: 'PROJECT_FOCUS', id: 'funcial' }, 'nl')).toBe('/projects/funcial/');
+    expect(pathForPhase({ kind: 'PROJECT_FOCUS', id: 'steady' }, 'nl')).toBe('/projects/steady/');
     expect(pathForPhase({ kind: 'PROJECT_FOCUS', id: 'cookies-clicker' }, 'en')).toBe('/en/projects/cookies-clicker/');
   });
 
@@ -78,7 +78,7 @@ describe('pathForPhase', () => {
 
   it('is the inverse of phaseForPath for the pages', () => {
     for (const locale of ['nl', 'en'] as const) {
-      for (const phase of [phaseForPath('/projects/funcial/'), phaseForPath('/projects/jontai-energy/')]) {
+      for (const phase of [phaseForPath('/projects/steady/'), phaseForPath('/projects/jontai-energy/')]) {
         const path = pathForPhase(phase!, locale);
         expect(path).not.toBeNull();
         expect(phaseForPath(path!)).toEqual(phase);
@@ -105,8 +105,8 @@ describe('syncRoute', () => {
   afterEach(resetRouteSync);
 
   it('dispatches the page phase of a project page', () => {
-    syncRoute({ pathname: '/en/projects/funcial/', key: 'default' });
-    expect(useScene.getState().phase).toEqual({ kind: 'PROJECT_FOCUS', id: 'funcial' });
+    syncRoute({ pathname: '/en/projects/steady/', key: 'default' });
+    expect(useScene.getState().phase).toEqual({ kind: 'PROJECT_FOCUS', id: 'steady' });
     expect(useScene.getState().transitionId).toBe(1);
   });
 
@@ -117,10 +117,10 @@ describe('syncRoute', () => {
   });
 
   it('keeps the phase, and the transition, when only the language changes', () => {
-    syncRoute({ pathname: '/projects/funcial/', key: 'a' });
+    syncRoute({ pathname: '/projects/steady/', key: 'a' });
     const phase = useScene.getState().phase;
     const id = useScene.getState().transitionId;
-    syncRoute({ pathname: '/en/projects/funcial/', key: 'b' });
+    syncRoute({ pathname: '/en/projects/steady/', key: 'b' });
     expect(useScene.getState().phase).toBe(phase);
     expect(useScene.getState().transitionId).toBe(id);
   });
@@ -139,30 +139,30 @@ describe('syncRoute', () => {
   });
 
   it("puts the scene at the project's own stop when its page is left for the home page by Back (a history pop)", () => {
-    syncRoute({ pathname: '/projects/funcial/', key: 'a' });
+    syncRoute({ pathname: '/projects/steady/', key: 'a' });
     syncRoute({ pathname: '/', key: 'b' }, NavigationType.Pop);
-    expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'secure-element' });
+    expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'app' });
     expect(frame.target).toBeCloseTo(F, 9);
   });
 
   it('lets the scroll start at the home when a page is left for the home page by a link', () => {
-    syncRoute({ pathname: '/projects/funcial/', key: 'a' });
+    syncRoute({ pathname: '/projects/steady/', key: 'a' });
     syncRoute({ pathname: '/', key: 'b' });
     expect(useScene.getState().phase).toEqual({ kind: 'HOME_IDLE' });
     expect(frame.target).toBe(0);
   });
 
   it('puts the scene back on the chapter the scroll is in when a page is left for a page without a scene', () => {
-    syncRoute({ pathname: '/projects/funcial/', key: 'a' });
+    syncRoute({ pathname: '/projects/steady/', key: 'a' });
     frame.progress = L + 4.0; // Jontai Energy's arrival
     frame.chapterIndex = 5;
     syncRoute({ pathname: '/en/lite/', key: 'b' });
-    expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'front-panel' });
+    expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'website' });
     expect(frame.progress).toBe(L + 4.0);
   });
 
   it('puts the scene in the light dive when the scroll is part way through it (progress 2.5) and a page is left for Lite', () => {
-    syncRoute({ pathname: '/projects/funcial/', key: 'a' });
+    syncRoute({ pathname: '/projects/steady/', key: 'a' });
     frame.progress = 2.5;
     frame.chapterIndex = 1;
     syncRoute({ pathname: '/lite/', key: 'b' });
@@ -184,7 +184,7 @@ describe('syncRoute', () => {
   });
 
   it('moves from one page to another', () => {
-    syncRoute({ pathname: '/projects/funcial/', key: 'a' });
+    syncRoute({ pathname: '/projects/steady/', key: 'a' });
     syncRoute({ pathname: '/projects/cookies-clicker/', key: 'b' });
     expect(useScene.getState().phase).toEqual({ kind: 'PROJECT_FOCUS', id: 'cookies-clicker' });
   });
@@ -192,7 +192,7 @@ describe('syncRoute', () => {
 
 describe('stopForProject', () => {
   it("gives each project on the way its area's stop: in its area, the camera at rest on it", () => {
-    expect(stopForProject('funcial')).toBeCloseTo(F, 9);
+    expect(stopForProject('steady')).toBeCloseTo(F, 9);
     expect(stopForProject('jontai-energy')).toBeCloseTo(J, 9);
     expect(stopForProject('cookies-clicker')).toBeCloseTo(C, 9);
   });
@@ -213,8 +213,8 @@ describe('placeForProject', () => {
     expect(placeForProject('jontai-energy')).toBeCloseTo(J, 9);
     noteOpenedFrom('jontai-energy', L + 4.3);
     expect(placeForProject('jontai-energy')).toBeCloseTo(L + 4.3, 9);
-    expect(placeForProject('funcial')).toBeCloseTo(F, 9);
-    noteOpenedFrom('funcial', L + 7.6);
+    expect(placeForProject('steady')).toBeCloseTo(F, 9);
+    noteOpenedFrom('steady', L + 7.6);
     expect(placeForProject('jontai-energy')).toBeCloseTo(J, 9);
   });
 
@@ -250,7 +250,7 @@ describe('syncRoute: Back from a project page', () => {
     expect(frame.progress).toBeCloseTo(J, 9);
     expect(frame.velocity).toBe(0);
     expect(frame.chapterIndex).toBe(chapterAt(HOME_CHAPTERS, J).index);
-    expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'front-panel' });
+    expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'website' });
   });
 
   it("does the same for the page's own Escape after a direct arrival, which pushes the home page with BACK_STATE", () => {
@@ -258,14 +258,14 @@ describe('syncRoute: Back from a project page', () => {
     syncRoute({ pathname: '/en/', key: 'k1', state: BACK_STATE }, NavigationType.Push);
     expect(frame.target).toBeCloseTo(C, 9);
     expect(frame.progress).toBeCloseTo(C, 9);
-    expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'oscillator' });
+    expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'game' });
   });
 
   it("lands on the stop of the page's own project, wherever the scroll was before it", () => {
     frame.progress = frame.target = 1.2;
     frame.chapterIndex = 1;
     syncRoute({ pathname: '/', key: 'default' });
-    syncRoute({ pathname: '/projects/funcial/', key: 'k1' });
+    syncRoute({ pathname: '/projects/steady/', key: 'k1' });
     syncRoute({ pathname: '/', key: 'default' }, NavigationType.Pop);
     expect(frame.target).toBeCloseTo(F, 9);
     expect(frame.progress).toBe(frame.target);
@@ -282,7 +282,7 @@ describe('syncRoute: Back from a project page', () => {
     expect([frame.target, frame.progress, frame.chapterIndex]).toEqual([0, 0, 0]);
     expect(useScene.getState().phase).toEqual({ kind: 'HOME_IDLE' });
     // A replace, or a state that is not the page's own Back, is a link too.
-    syncRoute({ pathname: '/projects/funcial/', key: 'k3' }, NavigationType.Push);
+    syncRoute({ pathname: '/projects/steady/', key: 'k3' }, NavigationType.Push);
     syncRoute({ pathname: '/en/', key: 'k4', state: { back: 'yes' } }, NavigationType.Push);
     expect(frame.target).toBe(0);
   });
@@ -295,7 +295,7 @@ describe('syncRoute: Back from a project page', () => {
 
   it('leaves the story where it is when a project page is left for a page without a scene', () => {
     frame.progress = frame.target = 0.5;
-    syncRoute({ pathname: '/projects/funcial/', key: 'a' });
+    syncRoute({ pathname: '/projects/steady/', key: 'a' });
     syncRoute({ pathname: '/lite/', key: 'b' });
     expect([frame.target, frame.progress]).toEqual([0.5, 0.5]);
   });
@@ -310,8 +310,8 @@ describe('syncRoute: Back from a project page', () => {
   });
 
   it("lets go of a bead being opened at any navigation: its flight has landed on the page, or the visit went elsewhere", () => {
-    frame.focus.opening = 'funcial';
-    syncRoute({ pathname: '/projects/funcial/', key: 'a' });
+    frame.focus.opening = 'steady';
+    syncRoute({ pathname: '/projects/steady/', key: 'a' });
     expect(frame.focus.opening).toBeNull();
   });
 });
@@ -322,32 +322,32 @@ describe('arrivedDirectly', () => {
 
   it('is true before anything has been shown, and on the page the document loaded on', () => {
     expect(arrivedDirectly()).toBe(true);
-    syncRoute({ pathname: '/projects/funcial/', key: 'default' });
+    syncRoute({ pathname: '/projects/steady/', key: 'default' });
     expect(arrivedDirectly()).toBe(true);
   });
 
   it('is false on a page reached by client navigation', () => {
     syncRoute({ pathname: '/', key: 'default' });
-    syncRoute({ pathname: '/projects/funcial/', key: 'k1' });
+    syncRoute({ pathname: '/projects/steady/', key: 'k1' });
     expect(arrivedDirectly()).toBe(false);
   });
 
   it('is true again on the entry the document loaded on, after going back to it', () => {
-    syncRoute({ pathname: '/projects/funcial/', key: 'default' });
+    syncRoute({ pathname: '/projects/steady/', key: 'default' });
     syncRoute({ pathname: '/', key: 'k1' });
     expect(arrivedDirectly()).toBe(false);
-    syncRoute({ pathname: '/projects/funcial/', key: 'default' });
+    syncRoute({ pathname: '/projects/steady/', key: 'default' });
     expect(arrivedDirectly()).toBe(true);
   });
 
   it('counts a reload on a later history entry as a direct arrival', () => {
-    syncRoute({ pathname: '/projects/funcial/', key: 'k7' });
+    syncRoute({ pathname: '/projects/steady/', key: 'k7' });
     expect(arrivedDirectly()).toBe(true);
   });
 
   it('does not change when the same location is synced again', () => {
-    syncRoute({ pathname: '/projects/funcial/', key: 'default' });
-    syncRoute({ pathname: '/projects/funcial/', key: 'default' });
+    syncRoute({ pathname: '/projects/steady/', key: 'default' });
+    syncRoute({ pathname: '/projects/steady/', key: 'default' });
     expect(arrivedDirectly()).toBe(true);
   });
 
@@ -360,9 +360,9 @@ describe('arrivedDirectly', () => {
     });
 
     it('follows the loaded entry through several replaces', () => {
-      syncRoute({ pathname: '/projects/funcial/', key: 'default' }, NavigationType.Pop);
-      syncRoute({ pathname: '/en/projects/funcial/', key: 'r1' }, NavigationType.Replace);
-      syncRoute({ pathname: '/projects/funcial/', key: 'r2' }, NavigationType.Replace);
+      syncRoute({ pathname: '/projects/steady/', key: 'default' }, NavigationType.Pop);
+      syncRoute({ pathname: '/en/projects/steady/', key: 'r1' }, NavigationType.Replace);
+      syncRoute({ pathname: '/projects/steady/', key: 'r2' }, NavigationType.Replace);
       expect(arrivedDirectly()).toBe(true);
     });
 
@@ -377,8 +377,8 @@ describe('arrivedDirectly', () => {
 
     it('does not move the loaded entry when some other entry is replaced', () => {
       syncRoute({ pathname: '/', key: 'default' }, NavigationType.Pop);
-      syncRoute({ pathname: '/projects/funcial/', key: 'k1' }, NavigationType.Push);
-      syncRoute({ pathname: '/en/projects/funcial/', key: 'r1' }, NavigationType.Replace);
+      syncRoute({ pathname: '/projects/steady/', key: 'k1' }, NavigationType.Push);
+      syncRoute({ pathname: '/en/projects/steady/', key: 'r1' }, NavigationType.Replace);
       expect(arrivedDirectly()).toBe(false);
       syncRoute({ pathname: '/', key: 'default' }, NavigationType.Pop);
       expect(arrivedDirectly()).toBe(true);
@@ -391,7 +391,7 @@ describe('arrivedDirectly', () => {
 
     it('is not told apart from a push when the type is not given', () => {
       syncRoute({ pathname: '/', key: 'default' });
-      syncRoute({ pathname: '/projects/funcial/', key: 'k1' });
+      syncRoute({ pathname: '/projects/steady/', key: 'k1' });
       expect(arrivedDirectly()).toBe(false);
     });
   });
@@ -411,7 +411,7 @@ describe('React Router and the entry key', () => {
   it('gives a pushed entry a new key and reports PUSH', async () => {
     const router = createMemoryRouter([{ path: '*', element: null }], { initialEntries: ['/'] });
     const first = router.state.location.key;
-    await router.navigate('/projects/funcial/');
+    await router.navigate('/projects/steady/');
     expect(router.state.historyAction).toBe('PUSH');
     expect(router.state.location.key).not.toBe(first);
     router.dispose();

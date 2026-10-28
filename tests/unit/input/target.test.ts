@@ -263,6 +263,6 @@ describe('scrollEnabled', () => {
   it('is off while 3D is off, and for every other phase', () => {
     expect(scrollEnabled({ threeD: false, phase: phase('HOME_IDLE') })).toBe(false);
     expect(scrollEnabled({ threeD: true, phase: phase('LOADING') })).toBe(false);
-    expect(scrollEnabled({ threeD: true, phase: { kind: 'PROJECT_FOCUS', id: 'funcial' } })).toBe(false);
+    expect(scrollEnabled({ threeD: true, phase: { kind: 'PROJECT_FOCUS', id: 'steady' } })).toBe(false);
   });
 });

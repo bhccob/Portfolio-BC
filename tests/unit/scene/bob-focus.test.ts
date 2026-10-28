@@ -96,8 +96,8 @@ describe("focusShotFor: a project opened on the world, a click's and its project
 });
 
 describe("shotToward: the flight's straight move between two shots", () => {
-  const stop = journeyPoseAt(stopForProject('funcial'), LAPTOP).shot;
-  const close = focusShotFor('funcial', LAPTOP);
+  const stop = journeyPoseAt(stopForProject('steady'), LAPTOP).shot;
+  const close = focusShotFor('steady', LAPTOP);
 
   it('is the first shot at 0 and the second at 1, exactly', () => {
     expect(shotToward(stop, close, 0)).toEqual(stop);
@@ -164,9 +164,9 @@ describe('focusShotAt: the camera on a flight, from where it was round the board
 
   it('retargets a flight in progress from where it is', () => {
     const C = worldPathFor(LAPTOP).centre;
-    const stop = journeyPoseAt(stopForProject('funcial'), LAPTOP).shot;
-    const going = moveFocus(FOCUS_AT_REST, 'funcial', 0, 'fly', stop);
-    const mid = focusShotAt(going, FLIGHT_MS / 2, focusShotFor('funcial', LAPTOP), C);
+    const stop = journeyPoseAt(stopForProject('steady'), LAPTOP).shot;
+    const going = moveFocus(FOCUS_AT_REST, 'steady', 0, 'fly', stop);
+    const mid = focusShotAt(going, FLIGHT_MS / 2, focusShotFor('steady', LAPTOP), C);
     const turned = moveFocus(going, 'cookies-clicker', FLIGHT_MS / 2, 'fly', mid);
     const goal = focusShotFor('cookies-clicker', LAPTOP);
     // No jump: the new flight starts where the camera stands, and ends on the new project's view.
@@ -175,8 +175,8 @@ describe('focusShotAt: the camera on a flight, from where it was round the board
     expect(focusShotAt(turned, FLIGHT_MS / 2, goal, C).fov).toBeCloseTo(mid.fov, 9);
     near(focusShotAt(turned, FLIGHT_MS / 2 + FLIGHT_MS, goal, C).position, goal.position);
     // A move with no shot to start from (the first, or a fade) stands on its goal; a fade holds the start while dark.
-    expect(focusShotAt(moveFocus(FOCUS_AT_REST, 'funcial', 0, 'fly'), 100, goal, C)).toEqual(goal);
-    const fade = moveFocus(FOCUS_AT_REST, 'funcial', 0, 'fade', stop);
+    expect(focusShotAt(moveFocus(FOCUS_AT_REST, 'steady', 0, 'fly'), 100, goal, C)).toEqual(goal);
+    const fade = moveFocus(FOCUS_AT_REST, 'steady', 0, 'fade', stop);
     expect(focusShotAt(fade, FOCUS_FADE_MS - 1, goal, C)).toEqual(stop);
     expect(focusShotAt(fade, FOCUS_FADE_MS, goal, C)).toEqual(goal);
   });
@@ -192,14 +192,14 @@ describe('focusPoseAt: where the camera is between the journey and a close view'
 
   it('flies into a bead over FLIGHT_MS (1.4 s), eased: it leaves the stop and reaches the porthole with no speed', () => {
     expect(FLIGHT_MS).toBe(1400);
-    const move = moveFocus(FOCUS_AT_REST, 'funcial', 1000, 'fly');
+    const move = moveFocus(FOCUS_AT_REST, 'steady', 1000, 'fly');
     expect(focusPoseAt(move, 1000).amount).toBe(0);
     expect(focusPoseAt(move, 1000 + FLIGHT_MS / 2).amount).toBeCloseTo(0.5, 9);
-    expect(focusPoseAt(move, 1000 + FLIGHT_MS)).toEqual({ id: 'funcial', amount: 1, dark: false, moving: false, engaged: true });
+    expect(focusPoseAt(move, 1000 + FLIGHT_MS)).toEqual({ id: 'steady', amount: 1, dark: false, moving: false, engaged: true });
     expect(focusPoseAt(move, 1000 + 10).amount).toBeLessThan(0.001);
     expect(1 - focusPoseAt(move, 1000 + FLIGHT_MS - 10).amount).toBeLessThan(0.001);
     // On its way it is moving, not dark, and its bead is the one it flies to.
-    expect(focusPoseAt(move, 1300)).toMatchObject({ id: 'funcial', dark: false, moving: true, engaged: true });
+    expect(focusPoseAt(move, 1300)).toMatchObject({ id: 'steady', dark: false, moving: true, engaged: true });
     // It never goes back on itself.
     let last = 0;
     for (let t = 1000; t <= 1000 + FLIGHT_MS; t += 8) {
@@ -229,38 +229,38 @@ describe('focusPoseAt: where the camera is between the journey and a close view'
   });
 
   it("flies from one open project's view to another's, the world kept in its open look on the way", () => {
-    const funcial = moveFocus(FOCUS_AT_REST, 'funcial', 0, 'fly');
-    const turn = moveFocus(funcial, 'cookies-clicker', 5000, 'fly');
+    const steady = moveFocus(FOCUS_AT_REST, 'steady', 0, 'fly');
+    const turn = moveFocus(steady, 'cookies-clicker', 5000, 'fly');
     expect(turn.mode).toBe('fly');
     for (const t of [5000, 5000 + FLIGHT_MS / 3, 5000 + FLIGHT_MS]) expect(focusPoseAt(turn, t)).toMatchObject({ id: 'cookies-clicker', amount: 1, engaged: true });
     expect(focusPoseAt(turn, 5000 + FLIGHT_MS / 3).moving).toBe(true);
     // From the journey's shot any project may be flown to, and from one back out.
     expect(moveFocus(FOCUS_AT_REST, 'cookies-clicker', 5000, 'fly').mode).toBe('fly');
-    expect(moveFocus(funcial, null, 5000, 'fly').mode).toBe('fly');
+    expect(moveFocus(steady, null, 5000, 'fly').mode).toBe('fly');
   });
 
   it('closes the project it leaves as the next one opens, never both open at once', () => {
-    const funcial = moveFocus(FOCUS_AT_REST, 'funcial', 0, 'fly');
-    expect(focusOpensAt(funcial, FLIGHT_MS / 2)).toEqual({ open: expect.closeTo(0.5, 9), leaving: null });
-    expect(focusOpensAt(funcial, FLIGHT_MS)).toEqual({ open: 1, leaving: null });
-    const turn = moveFocus(funcial, 'jontai-energy', 5000, 'fly');
-    expect(focusOpensAt(turn, 5000)).toEqual({ open: 0, leaving: { id: 'funcial', amount: 1 } });
+    const steady = moveFocus(FOCUS_AT_REST, 'steady', 0, 'fly');
+    expect(focusOpensAt(steady, FLIGHT_MS / 2)).toEqual({ open: expect.closeTo(0.5, 9), leaving: null });
+    expect(focusOpensAt(steady, FLIGHT_MS)).toEqual({ open: 1, leaving: null });
+    const turn = moveFocus(steady, 'jontai-energy', 5000, 'fly');
+    expect(focusOpensAt(turn, 5000)).toEqual({ open: 0, leaving: { id: 'steady', amount: 1 } });
     const half = focusOpensAt(turn, 5000 + FLIGHT_MS / 2);
     expect(half.open).toBeCloseTo(0.5, 9);
-    expect(half.leaving).toEqual({ id: 'funcial', amount: expect.closeTo(0.5, 9) });
+    expect(half.leaving).toEqual({ id: 'steady', amount: expect.closeTo(0.5, 9) });
     expect(focusOpensAt(turn, 5000 + FLIGHT_MS)).toEqual({ open: 1, leaving: null });
     // Back out: the one open closes with the flight.
     const out = moveFocus(turn, null, 9000, 'fly');
     expect(focusOpensAt(out, 9000)).toEqual({ open: 1, leaving: null });
     expect(focusOpensAt(out, 9000 + FLIGHT_MS / 2).open).toBeCloseTo(0.5, 9);
     // A fade: all at once once dark.
-    const fade = moveFocus(funcial, 'cookies-clicker', 20_000, 'fade');
-    expect(focusOpensAt(fade, 20_000)).toEqual({ open: 0, leaving: { id: 'funcial', amount: 1 } });
+    const fade = moveFocus(steady, 'cookies-clicker', 20_000, 'fade');
+    expect(focusOpensAt(fade, 20_000)).toEqual({ open: 0, leaving: { id: 'steady', amount: 1 } });
     expect(focusOpensAt(fade, 20_000 + FOCUS_FADE_MS)).toEqual({ open: 1, leaving: null });
   });
 
   it('starts a move from wherever the last one stands: a flight turned back half way goes on from there, with no jump', () => {
-    const going: FocusMove = moveFocus(FOCUS_AT_REST, 'funcial', 0, 'fly');
+    const going: FocusMove = moveFocus(FOCUS_AT_REST, 'steady', 0, 'fly');
     const half = focusPoseAt(going, FLIGHT_MS / 2).amount;
     const turned = moveFocus(going, null, FLIGHT_MS / 2, 'fly');
     expect(focusPoseAt(turned, FLIGHT_MS / 2).amount).toBeCloseTo(half, 12);
@@ -270,25 +270,25 @@ describe('focusPoseAt: where the camera is between the journey and a close view'
 
 describe('focusGoalFor: the close view the page asks for', () => {
   it('is the project of a project page', () => {
-    expect(focusGoalFor({ kind: 'PROJECT_FOCUS', id: 'funcial' }, 'project', null)).toBe('funcial');
+    expect(focusGoalFor({ kind: 'PROJECT_FOCUS', id: 'steady' }, 'project', null)).toBe('steady');
     expect(focusGoalFor({ kind: 'PROJECT_FOCUS', id: 'cookies-clicker' }, 'project', null)).toBe('cookies-clicker');
   });
 
   it('is the bead being opened while its flight runs on the home page, before the router has gone to the page', () => {
-    expect(focusGoalFor({ kind: 'PROJECTS', category: 'oscillator' }, 'home', 'cookies-clicker')).toBe('cookies-clicker');
+    expect(focusGoalFor({ kind: 'PROJECTS', category: 'game' }, 'home', 'cookies-clicker')).toBe('cookies-clicker');
     expect(focusGoalFor({ kind: 'PROJECT_FOCUS', id: 'jontai-energy' }, 'home', 'jontai-energy')).toBe('jontai-energy');
   });
 
   it('holds the close view it stands at while a page left for the home is not yet synced (PROJECT_FOCUS, scene home)', () => {
-    expect(focusGoalFor({ kind: 'PROJECT_FOCUS', id: 'funcial' }, 'home', null, 'funcial')).toBe('funcial');
-    expect(focusGoalFor({ kind: 'PROJECT_FOCUS', id: 'funcial' }, 'home', null, null)).toBeNull();
+    expect(focusGoalFor({ kind: 'PROJECT_FOCUS', id: 'steady' }, 'home', null, 'steady')).toBe('steady');
+    expect(focusGoalFor({ kind: 'PROJECT_FOCUS', id: 'steady' }, 'home', null, null)).toBeNull();
     // Once synced the phase is the scroll's, and the close view is let go.
-    expect(focusGoalFor({ kind: 'PROJECTS', category: 'secure-element' }, 'home', null, 'funcial')).toBeNull();
+    expect(focusGoalFor({ kind: 'PROJECTS', category: 'app' }, 'home', null, 'steady')).toBeNull();
   });
 
   it('is none on the home page otherwise, even in PROJECT_FOCUS (the proof bridge\'s OPEN_PROJECT on the home)', () => {
-    expect(focusGoalFor({ kind: 'PROJECT_FOCUS', id: 'funcial' }, 'home', null)).toBeNull();
-    expect(focusGoalFor({ kind: 'PROJECTS', category: 'secure-element' }, 'home', null)).toBeNull();
+    expect(focusGoalFor({ kind: 'PROJECT_FOCUS', id: 'steady' }, 'home', null)).toBeNull();
+    expect(focusGoalFor({ kind: 'PROJECTS', category: 'app' }, 'home', null)).toBeNull();
     expect(focusGoalFor({ kind: 'HOME_IDLE' }, 'home', null)).toBeNull();
     expect(focusGoalFor({ kind: 'LOADING' }, null, null)).toBeNull();
   });
@@ -300,7 +300,7 @@ describe('focusGoalFor: the close view the page asks for', () => {
 
 describe('restsAt: a flight leaves only from a rest where the project is in view', () => {
   it('is true at the world, at every area and in the areas between, with the story resting there', () => {
-    expect(restsAt('funcial', stopForProject('funcial'), stopForProject('funcial'))).toBe(true);
+    expect(restsAt('steady', stopForProject('steady'), stopForProject('steady'))).toBe(true);
     expect(restsAt('jontai-energy', L + 1.53, L + 1.53)).toBe(true);
     expect(restsAt('cookies-clicker', L + 4.0, L + 4.0)).toBe(true);
   });
@@ -313,11 +313,11 @@ describe('restsAt: a flight leaves only from a rest where the project is in view
   });
 
   it("is false while the story moves, while the light comes down, in the light dive, or for no project", () => {
-    expect(restsAt('funcial', L + 1.53, L + 2.0)).toBe(false);
+    expect(restsAt('steady', L + 1.53, L + 2.0)).toBe(false);
     expect(restsAt('jontai-energy', L + 1.0, L + 1.0)).toBe(false);
-    expect(restsAt('funcial', L + 0.5, L + 0.5)).toBe(false);
-    expect(restsAt('funcial', 2.5, 2.5)).toBe(false);
-    expect(restsAt('funcial', 1, 1)).toBe(false);
+    expect(restsAt('steady', L + 0.5, L + 0.5)).toBe(false);
+    expect(restsAt('steady', 2.5, 2.5)).toBe(false);
+    expect(restsAt('steady', 1, 1)).toBe(false);
     expect(restsAt(null, L + 2.7, L + 2.7)).toBe(false);
   });
 });
@@ -357,29 +357,29 @@ describe('stepFocus: Back flies out of a page reached any way, whatever frame fa
     return { mid, midTo, after: stepFocus(frame.focus, input(), now + 16) };
   };
 
-  /** The visit begins at the home at 0 and reaches Funcial's page by the home's nav, a link: the page fades in. */
-  const toFuncialByTheNav = (): void => {
+  /** The visit begins at the home at 0 and reaches Steady's page by the home's nav, a link: the page fades in. */
+  const toSteadyByTheNav = (): void => {
     useScene.getState().setScene('home');
     syncRoute({ pathname: '/', key: 'default' }, NavigationType.Pop);
     useScene.getState().dispatch({ type: 'LOADED' });
-    navigate('project', { pathname: '/projects/funcial/', key: 'k1' }, NavigationType.Push, 0, true);
-    expect(stepFocus(frame.focus, input(), 1000)).toMatchObject({ id: 'funcial', amount: 1, moving: false });
+    navigate('project', { pathname: '/projects/steady/', key: 'k1' }, NavigationType.Push, 0, true);
+    expect(stepFocus(frame.focus, input(), 1000)).toMatchObject({ id: 'steady', amount: 1, moving: false });
   };
 
   for (const between of [true, false]) {
     it(`flies out on Back ${between ? 'with' : 'without'} a canvas frame between the scene's change and the route sync`, () => {
-      toFuncialByTheNav();
+      toSteadyByTheNav();
       const { mid, midTo, after } = navigate('home', { pathname: '/', key: 'default' }, NavigationType.Pop, 2000, between);
       if (mid) {
         // The frame between holds the close view: nothing is decided before the story is at the bead's stop.
-        expect(mid).toMatchObject({ id: 'funcial', amount: 1, dark: false });
-        expect(midTo).toBe('funcial');
+        expect(mid).toMatchObject({ id: 'steady', amount: 1, dark: false });
+        expect(midTo).toBe('steady');
       }
-      expect(frame.target).toBeCloseTo(stopForProject('funcial'), 9);
+      expect(frame.target).toBeCloseTo(stopForProject('steady'), 9);
       expect(frame.progress).toBe(frame.target);
       expect(frame.focus.move.mode).toBe('fly');
       expect(frame.focus.move.to).toBeNull();
-      expect(after).toMatchObject({ id: 'funcial', dark: false, moving: true });
+      expect(after).toMatchObject({ id: 'steady', dark: false, moving: true });
       expect(focusPoseAt(frame.focus.move, 2016 + FLIGHT_MS / 2)).toMatchObject({ dark: false, moving: true });
     });
   }
@@ -398,14 +398,14 @@ describe('stepFocus: Back flies out of a page reached any way, whatever frame fa
   });
 
   it("fades out for the header's name, which lands at the home, 0, far from the bead's stop", () => {
-    toFuncialByTheNav();
+    toSteadyByTheNav();
     navigate('home', { pathname: '/', key: 'k2' }, NavigationType.Push, 2000, true);
     expect([frame.target, frame.focus.move.mode, frame.focus.move.to]).toEqual([0, 'fade', null]);
   });
 
   it("still asks for no close view for the proof bridge's OPEN_PROJECT on the home, with no page behind it", () => {
     useScene.getState().setScene('home');
-    useScene.setState({ phase: { kind: 'PROJECT_FOCUS', id: 'funcial' } });
+    useScene.setState({ phase: { kind: 'PROJECT_FOCUS', id: 'steady' } });
     expect(stepFocus(frame.focus, input(), 0)).toMatchObject({ id: null, amount: 0, engaged: false });
     expect(frame.focus.move.to).toBeNull();
   });
@@ -429,26 +429,26 @@ describe('a project opened: a click flies to it, and every way back flies to its
   };
   beforeEach(() => {
     reset();
-    useScene.setState({ phase: { kind: 'PROJECTS', category: 'secure-element' }, scene: 'home' });
-    frame.progress = frame.target = stopForProject('funcial');
+    useScene.setState({ phase: { kind: 'PROJECTS', category: 'app' }, scene: 'home' });
+    frame.progress = frame.target = stopForProject('steady');
   });
   afterEach(reset);
 
   it("flies to the open project, and back to its stop when it closes", () => {
-    const projectsAt = { kind: 'PROJECTS', category: 'secure-element' } as const;
-    expect(focusGoalFor(projectsAt, 'home', null, null, 'funcial')).toBe('funcial');
-    expect(focusGoalFor(projectsAt, 'home', null, 'funcial', null)).toBeNull();
+    const projectsAt = { kind: 'PROJECTS', category: 'app' } as const;
+    expect(focusGoalFor(projectsAt, 'home', null, null, 'steady')).toBe('steady');
+    expect(focusGoalFor(projectsAt, 'home', null, 'steady', null)).toBeNull();
     expect(focusGoalFor(projectsAt, 'home', null, null, 'nope' as ProjectId)).toBeNull();
     // A project page asks for its own bead, and the bead being opened comes first.
-    expect(focusGoalFor({ kind: 'PROJECT_FOCUS', id: 'jontai-energy' }, 'project', null, null, 'funcial')).toBe('jontai-energy');
-    expect(focusGoalFor(projectsAt, 'home', 'cookies-clicker', null, 'funcial')).toBe('cookies-clicker');
+    expect(focusGoalFor({ kind: 'PROJECT_FOCUS', id: 'jontai-energy' }, 'project', null, null, 'steady')).toBe('jontai-energy');
+    expect(focusGoalFor(projectsAt, 'home', 'cookies-clicker', null, 'steady')).toBe('cookies-clicker');
     // An inside the history brings back (Forward) fades in; out again, the story at rest at the arrival, it flies.
-    useScene.getState().setInside('funcial');
+    useScene.getState().setInside('steady');
     expect(stepFocus(frame.focus, input(), 0)).toMatchObject({ dark: true, engaged: true });
-    expect(stepFocus(frame.focus, input(), 1000)).toMatchObject({ id: 'funcial', amount: 1, moving: false });
+    expect(stepFocus(frame.focus, input(), 1000)).toMatchObject({ id: 'steady', amount: 1, moving: false });
     useScene.getState().setInside(null);
-    frame.shot = focusShotFor('funcial', LAPTOP); // where the camera stands as the way out begins
-    expect(stepFocus(frame.focus, input(), 2000)).toMatchObject({ id: 'funcial', amount: 1, dark: false, moving: true });
+    frame.shot = focusShotFor('steady', LAPTOP); // where the camera stands as the way out begins
+    expect(stepFocus(frame.focus, input(), 2000)).toMatchObject({ id: 'steady', amount: 1, dark: false, moving: true });
     expect(frame.focus.move).toMatchObject({ to: null, mode: 'fly' });
     expect(frame.focus.move.shot).toEqual(frame.shot); // the flight out starts from there
     expect(focusPoseAt(frame.focus.move, 2000 + FLIGHT_MS / 2).amount).toBeCloseTo(0.5, 9);
@@ -457,8 +457,8 @@ describe('a project opened: a click flies to it, and every way back flies to its
 
   it('turns a flight in back out from where it is', () => {
     // The click's flight (openInside) and the inside with it.
-    frame.focus.move = moveFocus(frame.focus.move, 'funcial', 0, 'fly');
-    useScene.getState().setInside('funcial');
+    frame.focus.move = moveFocus(frame.focus.move, 'steady', 0, 'fly');
+    useScene.getState().setInside('steady');
     const mid = stepFocus(frame.focus, input(), FLIGHT_MS * 0.3);
     expect(frame.focus.move.at).toBe(0); // the click's own flight goes on: no new move
     expect(mid.amount).toBeGreaterThan(0);
@@ -473,7 +473,7 @@ describe('a project opened: a click flies to it, and every way back flies to its
 
   it('fades in and out with reduced motion', () => {
     useScene.setState({ reducedMotion: true });
-    useScene.getState().setInside('funcial');
+    useScene.getState().setInside('steady');
     expect(stepFocus(frame.focus, input(), 0)).toMatchObject({ dark: true });
     stepFocus(frame.focus, input(), 1000);
     useScene.getState().setInside(null);

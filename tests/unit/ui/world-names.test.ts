@@ -49,8 +49,8 @@ describe("the projects' names on the world", () => {
     const name = fake();
     const line = fake();
     const hint = fake();
-    done.push(registerWorldName('funcial', { root: name as never, line: line as never }), registerWorldHint(hint as never));
-    showWorldNames({ opacity: 1, names: [{ id: 'funcial', anchor: { x: 500, y: 400 }, category: 'secure-element', hot: false }] }, SIZE);
+    done.push(registerWorldName('steady', { root: name as never, line: line as never }), registerWorldHint(hint as never));
+    showWorldNames({ opacity: 1, names: [{ id: 'steady', anchor: { x: 500, y: 400 }, category: 'app', hot: false }] }, SIZE);
     expect(name.style.opacity).toBe('1');
     expect(line.style.opacity).toBe('1');
     expect(hint.style.opacity).toBe('1');
@@ -67,9 +67,9 @@ describe("the projects' names on the world", () => {
     const name = fake();
     const line = fake();
     done.push(registerWorldName('jontai-energy', { root: name as never, line: line as never }));
-    showWorldNames({ opacity: 1, names: [{ id: 'jontai-energy', anchor: { x: 900, y: 400 }, category: 'front-panel', hot: true }] }, SIZE);
+    showWorldNames({ opacity: 1, names: [{ id: 'jontai-energy', anchor: { x: 900, y: 400 }, category: 'website', hot: true }] }, SIZE);
     expect(name.attributes.has('data-hot')).toBe(true);
-    showWorldNames({ opacity: 1, names: [{ id: 'jontai-energy', anchor: { x: 900, y: 400 }, category: 'front-panel', hot: false }] }, SIZE);
+    showWorldNames({ opacity: 1, names: [{ id: 'jontai-energy', anchor: { x: 900, y: 400 }, category: 'website', hot: false }] }, SIZE);
     expect(name.attributes.has('data-hot')).toBe(false);
   });
 });

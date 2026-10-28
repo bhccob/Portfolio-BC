@@ -147,15 +147,15 @@ describe('the light, the facts and the void', () => {
 
 describe("the world's projects", () => {
   it('are the projects on the way, in the areas\' order', () => {
-    expect(WORLD_PROJECTS).toEqual(['funcial', 'jontai-energy', 'cookies-clicker']);
+    expect(WORLD_PROJECTS).toEqual(['steady', 'porfael', 'jontai-energy', 'cookies-clicker']);
   });
 
   it('flies back only from a rest where the project is in view: the world, an area or the look back', () => {
     const world = worldStop(HOME_CHAPTERS);
-    const jontai = areaStop(HOME_CHAPTERS, 'front-panel');
+    const jontai = areaStop(HOME_CHAPTERS, 'website');
     expect(restsAt('jontai-energy', world, world)).toBe(true);
     expect(restsAt('jontai-energy', jontai, jontai)).toBe(true);
-    expect(restsAt('funcial', jontai, jontai)).toBe(true); // every project is on the board, in view
+    expect(restsAt('steady', jontai, jontai)).toBe(true); // every project is on the board, in view
     expect(restsAt('jontai-energy', L + 7.6, L + 7.6)).toBe(true); // the look back's own stop (SHEET at local 0)
     expect(restsAt('jontai-energy', L + 0.5, L + 0.5)).toBe(false); // the light still coming down
     expect(restsAt('jontai-energy', jontai, jontai + 0.1)).toBe(false); // moving

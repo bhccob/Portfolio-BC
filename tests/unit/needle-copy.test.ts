@@ -91,19 +91,6 @@ describe('the needle copy equals the copy budget', () => {
     const [download, code] = links.en.split(' · ');
     expect([en.needle.project.download, en.needle.project.code]).toEqual([download, code]);
   });
-
-  it('Funcial’s one line, its category and its test points', () => {
-    const line = pair('Projects', 'Focus: one line (Funcial)');
-    const points = pair('Projects', 'Focus: test points (Funcial)');
-    const heading = pair('Projects', 'In space (Funcial)');
-    const funcial = projects.byId('funcial');
-    expect(funcial).toBeDefined();
-    for (const locale of locales) {
-      expect(funcial?.copy(locale).summary).toBe(line[locale]);
-      expect(funcial?.testPointLabels(locale).join(' · ')).toBe(points[locale]);
-      expect(heading[locale]).toContain(`\`${categories.byId('secure-element').heading(locale)}\``);
-    }
-  });
 });
 
 describe('the needle dictionary', () => {

@@ -33,7 +33,8 @@ export const HANDLES = {
 /** The kind of every page of the site. `src/app/routes.ts` gives each page the module of its kind, `routes/<kind>.tsx`. */
 export const PAGE_KINDS: Readonly<Record<PageId, Exclude<RouteName, 'not-found'>>> = {
   home: 'home',
-  'project-funcial': 'project',
+  'project-steady': 'project',
+  'project-porfael': 'project',
   'project-jontai-energy': 'project',
   'project-cookies-clicker': 'project',
   lite: 'lite',
@@ -50,9 +51,9 @@ const PAGE_ROUTES: ReadonlySet<string> = new Set(Object.values(PAGES));
  * The handle of the deepest matched route. The root alone (the 404 file, before the router has matched the URL) and a
  * route without a handle of the table are not found: no page, and no scene.
  *
- * So is a page's route matched under another spelling. The host is case-sensitive (GitHub Pages has no /Projects/Funcial/),
+ * So is a page's route matched under another spelling. The host is case-sensitive (GitHub Pages has no /Projects/Steady/),
  * and so are the routes, but React Router builds its client routes without `caseSensitive`: in the browser
- * /Projects/Funcial/ matches the Funcial page's route, whose module then shows the not-found page. Only a page's own
+ * /Projects/Steady/ matches the Steady page's route, whose module then shows the not-found page. Only a page's own
  * address is that page here, so such a URL gets the not-found handle and loads no scene.
  */
 export function handleOf(matches: readonly { handle?: unknown; pathname?: string }[]): RouteHandle {

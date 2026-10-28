@@ -76,7 +76,7 @@ describe('the header', () => {
     ['/en/', en, 'en' as const],
     ['/lite/', nl, 'nl' as const],
     ['/en/contact/', en, 'en' as const],
-    ['/projects/funcial/', nl, 'nl' as const],
+    ['/projects/steady/', nl, 'nl' as const],
   ])('on %s it lists the name, Work, About, Contact, the language switch, Lite and the 3D switch, in that order', (path, t, locale) => {
     initial.threeD = true;
     const controls = controlsOf(render(path, SiteHeader));
@@ -154,7 +154,7 @@ describe("the header's name on the home: the story to its start, as the Home key
     expect(unconnected.defaultPrevented).toBe(false);
   });
 
-  it.each(['/lite/', '/en/contact/', '/projects/funcial/', '/en/projects/cookies-clicker/'])('on %s, not the home, the link navigates as ever', (path) => {
+  it.each(['/lite/', '/en/contact/', '/projects/steady/', '/en/projects/cookies-clicker/'])('on %s, not the home, the link navigates as ever', (path) => {
     let asked = 0;
     const event = click();
     nameToTop(event, path, () => {
@@ -186,7 +186,7 @@ describe("the header's name on the home: the story to its start, as the Home key
 describe('the phone menu (option A, 2026-10-22)', () => {
   it.each([
     ['/', nl],
-    ['/en/projects/funcial/', en],
+    ['/en/projects/steady/', en],
   ])('on %s the Menu button opens the nav as a popover, by the browser alone (no script needed)', (path, t) => {
     const html = render(path, SiteHeader);
     const toggle = /<button[^>]*class="menu-toggle"[^>]*>/.exec(html)?.[0] ?? '';

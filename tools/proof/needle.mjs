@@ -37,24 +37,24 @@
  *              (in its HTML and after hydration) and the right <html lang>, and a page without a scene
  *              (its route's handle.scene is null: Lite, contact) has no <canvas>; a page the build did
  *              not produce is listed and skipped
- *   slash      GET /projects/funcial answers 301 to /projects/funcial/; a browser opening /projects/funcial loads
- *              /projects/funcial/ once, with no reload
+ *   slash      GET /projects/steady answers 301 to /projects/steady/; a browser opening /projects/steady loads
+ *              /projects/steady/ once, with no reload
  *   bridge     the debug bridge: absent without ?proof, and with no proof hook of the site read or written through
  *              a load, the opening's landing and a wheel gesture's frames (every hook name is trapped on the window);
  *              with ?proof the old hooks are gone, the state has exactly its fields and sensible values (landed: the
  *              circle cut whole and no B mark cut, a needle angle, the scroll at 0, the journey on the rise), `.set` puts the story in a chapter
- *              (half way through Funcial's travel, the path's first unit, and the journey says the travel, its beads and
+ *              (half way through Steady's travel, the path's first unit, and the journey says the travel, its beads and
  *              their wakes, and no ring; at fact 02's peak it reports way frame 121 and the light's place) and stops at the
  *              end (the credits' stop, where the scroll ends: chapter END, the phase END, the journey's `end` stretch), `.dispatch` sends an
  *              event (a project opens from the last bead's stop), a wheel's frames go through `.scrollRequest`, and the language
  *              switch shows in the state
- *   persist    client navigation / → /projects/funcial/ → /en/projects/funcial/ (the language switch replaces the
+ *   persist    client navigation / → /projects/steady/ → /en/projects/steady/ (the language switch replaces the
  *              history entry), then history.back() to / and history.forward(): the Stage mounted once and
  *              the same <canvas> node throughout, with no document load after the first; the scene's phase
- *              is PROJECT_FOCUS funcial on the project page, the language switch keeps that very phase (no new
- *              transition), going back to / puts it at Funcial's area stop, and going forward restores it
- *   lang-keeps-phase  on /projects/funcial/ the phase is PROJECT_FOCUS funcial; after a client-side switch to
- *              /en/projects/funcial/ (and back) it is still PROJECT_FOCUS funcial, the very same state, with locale and
+ *              is PROJECT_FOCUS steady on the project page, the language switch keeps that very phase (no new
+ *              transition), going back to / puts it at Steady's area stop, and going forward restores it
+ *   lang-keeps-phase  on /projects/steady/ the phase is PROJECT_FOCUS steady; after a client-side switch to
+ *              /en/projects/steady/ (and back) it is still PROJECT_FOCUS steady, the very same state, with locale and
  *              route right, canvasMounts 1 and the same <canvas>; the same on /projects/cookies-clicker/
  *   not-found  an unknown URL (/does-not-exist/, /en/does-not-exist/) answers 404 with the build's
  *              404.html; after hydration it shows the not-found route's <h1> and the right <html lang>,
@@ -69,7 +69,7 @@
  *   phone-menu  on a touch phone the header is one row (the name, Menu); Menu opens the nav as a sheet under the header,
  *              its links 44 px high or more; the 3D switch keeps it open, a link closes it, Escape closes it before
  *              going back; it opens with script off; a laptop has no Menu button and its nav is one row
- *   case-variant  a real page under another spelling (/Projects/Funcial/, /en/projects/FUNCIAL/) is a 404 on
+ *   case-variant  a real page under another spelling (/Projects/Steady/, /en/projects/FUNCIAL/) is a 404 on
  *              GitHub Pages and shows the not-found page, not an error screen (the server here is
  *              case-sensitive too, so the fallback is what answers), with no scene, like any not-found page
  *              (the client router matches it to the page's route, ignoring case; the handle does not)
@@ -81,7 +81,7 @@
  *              /contact/, Escape still goes home (in the current language). Clicking the link does what Escape
  *              does, in both cases, but a ctrl-, meta- or shift-click is left to the browser (its default is
  *              not prevented). The scene's phase follows: the page's on the page, and on the home page the stop
- *              of the page's bead after Escape or Back (Funcial's arrival, PROJECTS secure-element), but the
+ *              of the page's bead after Escape or Back (Steady's arrival, PROJECTS app), but the
  *              home itself (HOME_IDLE at 0) after the header's name, a link, a deliberate "to the top". The "Esc" hint is aria-hidden
  *              and hidden on a touch screen
  *   nav-focus  a link (a push) opens the new page at its top with the focus moved to <main>: on /lite/ scrolled down to
@@ -170,7 +170,7 @@
  *              edge fades there, and none with reduced motion; at the document's top an input up goes back to the look
  *              back; on /en/ the English dictionary's words
  *   resize     at 1440x900 turned to 390x844: at fact 02's peak the way frame stays and the fact rides below the light;
- *              at Funcial's area the place stays, its words shown whole and its object framed above them; between two
+ *              at Steady's area the place stays, its words shown whole and its object framed above them; between two
  *              areas the place stays and the camera stays off the CPU
  *   open       a project opened, at 1440x900, 390x844 (touch) and 390x844 on /en/, at the first area: a click (a tap)
  *              on its object opens it within FLIGHT_MS and a little (the page still `/` with the open project's history
@@ -257,7 +257,7 @@
  *   title-ij   every Dutch text set in Unbounded with an IJ is shaped with the font's Dutch locl off (no IJ digraph
  *              reading as a U); a crop of the NL card title into PROOF_DIR/m2/
  *   stills     every page of pagePaths() that the build produced, with 3D on, at 1440x900 and 390x844, once the
- *              opening has landed, and the fallback at both, into PROOF_DIR/m2/ (`nl-projects-funcial-1440x900.png`,
+ *              opening has landed, and the fallback at both, into PROOF_DIR/m2/ (`nl-projects-steady-1440x900.png`,
  *              `en-home-390x844.png`, `fallback-390x844.png`); on a project page the poster's scrim is
  *              over the scene once it shows, and before then only the poster's own (the Stage chunk is held while
  *              that is measured, so it cannot race); on Lite and contact no scene loads and the poster carries the
@@ -275,7 +275,7 @@
  *              length checked, 0.9 to 1.4 s) land on the home too, and after the burst the story's progress and target
  *              stay 0 for 1.5 s (six samples), the page unscrolled: the input that skips never scrolls; and once more,
  *              Space (a real key press) 1.5 s in lands within 1.6 s and moves neither the story nor the page
- *   loader-lite  the skip listens only while a scene is shown: a first visit to /projects/funcial/ with the compass's file held back (the load still out),
+ *   loader-lite  the skip listens only while a scene is shown: a first visit to /projects/steady/ with the compass's file held back (the load still out),
  *              its Lite link clicked 1.5 s into the loader: on Lite five wheel turns, Space and PageDown each scroll the
  *              page (scrollY above 0, nothing prevented); the file let through and back on the project page, the skip
  *              asked for at the link lands the show
@@ -411,7 +411,7 @@ const PAGES = pagePaths()
   .map((path) => ({ path, lang: langOf(path), scene: hasScene(path) }));
 /** The h1 of the home page (visually hidden: the engraving is the name), and of the project page used to move between pages and languages. */
 const HOME_H1 = 'BOB CHUNG';
-const FUNCIAL_H1 = 'Funcial';
+const FUNCIAL_H1 = 'Steady';
 /** The h1 of the not-found route (src/app/routes/not-found.tsx, in each language), as opposed to the root's HydrateFallback. */
 const NOT_FOUND_H1 = { nl: 'Pagina niet gevonden', en: 'Page not found' };
 /** Two URLs no page answers, one per language. */
@@ -420,9 +420,9 @@ const UNKNOWN = ['/does-not-exist/', '/en/does-not-exist/'];
  * Real pages under another spelling. GitHub Pages is case-sensitive, so each is a 404 served the
  * fallback, but the router used to match them case-insensitively and a route module threw on them.
  */
-const CASE_VARIANTS = ['/Projects/Funcial/', '/en/projects/FUNCIAL/', '/Projects/Jontai-Energy/', '/en/Projects/cookies-clicker/'];
+const CASE_VARIANTS = ['/Projects/Steady/', '/en/projects/FUNCIAL/', '/Projects/Jontai-Energy/', '/en/Projects/cookies-clicker/'];
 /** The links the home page lists: the three projects (the way to About is the header's). */
-const HOME_LINKS = ['/projects/funcial/', '/projects/jontai-energy/', '/projects/cookies-clicker/'];
+const HOME_LINKS = ['/projects/steady/', '/projects/jontai-energy/', '/projects/cookies-clicker/'];
 
 // ---------------------------------------------------------------- the step runner
 
@@ -536,10 +536,10 @@ async function routes(browser, step) {
 }
 
 async function slash(browser, step) {
-  const bare = await fetch(`${BASE}/projects/funcial`, { redirect: 'manual' });
+  const bare = await fetch(`${BASE}/projects/steady`, { redirect: 'manual' });
   const location = bare.headers.get('location');
   const target = location ? new URL(location, BASE).href : null;
-  step.check(bare.status === 301 && target === `${BASE}/projects/funcial/`, `GET /projects/funcial answers 301 to /projects/funcial/ (got ${bare.status} ${location})`);
+  step.check(bare.status === 301 && target === `${BASE}/projects/steady/`, `GET /projects/steady answers 301 to /projects/steady/ (got ${bare.status} ${location})`);
 
   const { context, page } = await openPage(browser, step);
   const documents = [];
@@ -550,21 +550,21 @@ async function slash(browser, step) {
   page.on('load', () => loads++);
 
   // `?proof` rides along: the server keeps the query through its 301, and the page can then answer for its Stage's mounts.
-  await page.goto(`${BASE}/projects/funcial?proof`, { waitUntil: 'load' });
+  await page.goto(`${BASE}/projects/steady?proof`, { waitUntil: 'load' });
   await stageReady(page);
   await page.waitForTimeout(1_500); // a reload loop would show by now
-  const landed = documents.filter((url) => url === `${BASE}/projects/funcial/?proof`).length;
+  const landed = documents.filter((url) => url === `${BASE}/projects/steady/?proof`).length;
   const { type, mounts } = await page.evaluate(() => ({
     type: performance.getEntriesByType('navigation')[0]?.type,
     mounts: window.__needleDebug?.().canvasMounts,
   }));
-  step.check(page.url() === `${BASE}/projects/funcial/?proof`, `the browser ends at /projects/funcial/ (got ${page.url()})`);
-  step.check(landed === 1 && documents.length === 2, `one document load of /projects/funcial/, after the 301 (got ${documents.join(' → ')})`);
+  step.check(page.url() === `${BASE}/projects/steady/?proof`, `the browser ends at /projects/steady/ (got ${page.url()})`);
+  step.check(landed === 1 && documents.length === 2, `one document load of /projects/steady/, after the 301 (got ${documents.join(' → ')})`);
   step.check(loads === 1 && type === 'navigate', `one load event, not a reload (got ${loads}, ${type})`);
   step.check(mounts === 1, `the Stage mounted once (got ${mounts})`);
   await takeCsp(page, step);
   await context.close();
-  return `/projects/funcial → 301 /projects/funcial/, loaded once (${documents.join(' → ')})`;
+  return `/projects/steady → 301 /projects/steady/, loaded once (${documents.join(' → ')})`;
 }
 
 /** The scene's phase as `{ kind, dir }`, once it is `kind` (window.__needleDebug().phase: `?proof` in the page's first URL). */
@@ -675,12 +675,12 @@ async function persist(browser, step) {
   await expectSame('/', 'nl', HOME_H1);
   // The home page lists its pages in a nav that is visually hidden while 3D is on, so the way
   // to the project page is the keyboard's: focus its link and press Enter.
-  await page.focus('.home-nav a[href="/projects/funcial/"]');
+  await page.focus('.home-nav a[href="/projects/steady/"]');
   await page.keyboard.press('Enter');
-  await page.waitForURL(`${BASE}/projects/funcial/`);
-  await expectSame('link to /projects/funcial/', 'nl', FUNCIAL_H1);
-  const phase = await waitForProject(page, 'funcial');
-  step.check(phase.id === 'funcial', `on /projects/funcial/ the scene's phase is PROJECT_FOCUS funcial (got ${JSON.stringify(phase)})`);
+  await page.waitForURL(`${BASE}/projects/steady/`);
+  await expectSame('link to /projects/steady/', 'nl', FUNCIAL_H1);
+  const phase = await waitForProject(page, 'steady');
+  step.check(phase.id === 'steady', `on /projects/steady/ the scene's phase is PROJECT_FOCUS steady (got ${JSON.stringify(phase)})`);
   await page.evaluate(() => {
     window.__keptPhase = window.__needleDebug().phase;
   });
@@ -689,26 +689,26 @@ async function persist(browser, step) {
     await page.waitForTimeout(250); // a sync that wrongly moved the phase would have by now
     step.check(await page.evaluate(() => window.__needleDebug().phase === window.__keptPhase), `${where}: the scene keeps its phase, with no new transition`);
   };
-  await page.click('.header-nav a[href="/en/projects/funcial/"]'); // the header's language switch
-  await page.waitForURL(`${BASE}/en/projects/funcial/`);
-  await expectSame('link to /en/projects/funcial/', 'en', FUNCIAL_H1);
+  await page.click('.header-nav a[href="/en/projects/steady/"]'); // the header's language switch
+  await page.waitForURL(`${BASE}/en/projects/steady/`);
+  await expectSame('link to /en/projects/steady/', 'en', FUNCIAL_H1);
   await keptPhase('switching to English');
   // The switch replaces the history entry (it is not a step in the story), so Back from the English
   // page is the home page, not the Dutch page; Forward is the English page again.
   await page.evaluate(() => history.back());
   await page.waitForURL((url) => url.pathname === '/'); // the first URL was /?proof
   await expectSame('history.back() past the replaced entry to /', 'nl', HOME_H1);
-  // Back from a project page lands at its bead's stop (spec §2.4), here Funcial's, 3, once the void is in.
-  const afterBack = await waitForStop(page, 'secure-element');
+  // Back from a project page lands at its bead's stop (spec §2.4), here Steady's, 3, once the void is in.
+  const afterBack = await waitForStop(page, 'app');
   step.check(
-    afterBack.kind === 'PROJECTS' && afterBack.category === 'secure-element' && afterBack.progress === PROJECT_LIST[0].stop,
-    `going back to / puts the scene at Funcial's stop, PROJECTS secure-element at ${PROJECT_LIST[0].stop} (got ${JSON.stringify(afterBack)})`,
+    afterBack.kind === 'PROJECTS' && afterBack.category === 'app' && afterBack.progress === PROJECT_LIST[0].stop,
+    `going back to / puts the scene at Steady's stop, PROJECTS app at ${PROJECT_LIST[0].stop} (got ${JSON.stringify(afterBack)})`,
   );
   await page.evaluate(() => history.forward());
-  await page.waitForURL(`${BASE}/en/projects/funcial/`);
-  await expectSame('history.forward() to /en/projects/funcial/', 'en', FUNCIAL_H1);
-  const afterForward = await waitForProject(page, 'funcial');
-  step.check(afterForward.id === 'funcial', `going forward puts the scene back on PROJECT_FOCUS funcial (got ${JSON.stringify(afterForward)})`);
+  await page.waitForURL(`${BASE}/en/projects/steady/`);
+  await expectSame('history.forward() to /en/projects/steady/', 'en', FUNCIAL_H1);
+  const afterForward = await waitForProject(page, 'steady');
+  step.check(afterForward.id === 'steady', `going forward puts the scene back on PROJECT_FOCUS steady (got ${JSON.stringify(afterForward)})`);
 
   step.check(documents.length === 0, `client navigation only, no document load (got ${documents.join(', ') || 'none'})`);
   await takeCsp(page, step);
@@ -788,11 +788,11 @@ async function esc(browser, step) {
   };
 
   // On a project page the back link says what Escape does, and Escape does it through the router.
-  await page.goto(`${BASE}/projects/funcial/?proof`, { waitUntil: 'load' });
+  await page.goto(`${BASE}/projects/steady/?proof`, { waitUntil: 'load' });
   await stageReady(page);
   documents.length = 0;
-  const onProject = await waitForProject(page, 'funcial');
-  step.check(onProject.id === 'funcial', `a direct load of /projects/funcial/ puts the scene on PROJECT_FOCUS funcial (got ${JSON.stringify(onProject)})`);
+  const onProject = await waitForProject(page, 'steady');
+  step.check(onProject.id === 'steady', `a direct load of /projects/steady/ puts the scene on PROJECT_FOCUS steady (got ${JSON.stringify(onProject)})`);
   step.check((await page.getByRole('link', { name: 'terug', exact: true }).count()) === 1, 'the back link is named "terug": the "Esc" hint is not part of its name');
   step.check((await page.getAttribute('a.back', 'aria-keyshortcuts')) === 'Escape', 'the back link names its shortcut, aria-keyshortcuts="Escape"');
   step.check((await page.getAttribute('a.back .back-hint', 'aria-hidden')) === 'true', 'the visible "Esc" hint is aria-hidden');
@@ -805,7 +805,7 @@ async function esc(browser, step) {
     input.focus();
   });
   await pressEscape();
-  step.check(pathname() === '/projects/funcial/', `Escape in a text field stays on the page (got ${pathname()})`);
+  step.check(pathname() === '/projects/steady/', `Escape in a text field stays on the page (got ${pathname()})`);
   await page.evaluate(() => document.getElementById('esc-probe')?.remove());
 
   // ... nor when something else has already handled the key.
@@ -814,26 +814,26 @@ async function esc(browser, step) {
     window.addEventListener('keydown', window.__eatEscape, true);
   });
   await pressEscape();
-  step.check(pathname() === '/projects/funcial/', `Escape that was already handled stays on the page (got ${pathname()})`);
+  step.check(pathname() === '/projects/steady/', `Escape that was already handled stays on the page (got ${pathname()})`);
   await page.evaluate(() => window.removeEventListener('keydown', window.__eatEscape, true));
 
   // A direct load has no page before it in the visit, so Escape goes to the home page.
   await page.keyboard.press('Escape');
   await page.waitForURL(`${BASE}/`, { timeout: 5_000 });
-  step.check((await page.textContent('h1')) === HOME_H1, 'a direct load of /projects/funcial/ + Escape lands on the home page');
+  step.check((await page.textContent('h1')) === HOME_H1, 'a direct load of /projects/steady/ + Escape lands on the home page');
   step.check(documents.length === 0, `by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
-  const afterDirect = await waitForStop(page, 'secure-element');
+  const afterDirect = await waitForStop(page, 'app');
   step.check(
-    afterDirect.kind === 'PROJECTS' && afterDirect.category === 'secure-element' && afterDirect.progress === PROJECT_LIST[0].stop,
-    `leaving the page for the home page puts the scene at the project's stop, Funcial's ${PROJECT_LIST[0].stop} (got ${JSON.stringify(afterDirect)})`,
+    afterDirect.kind === 'PROJECTS' && afterDirect.category === 'app' && afterDirect.progress === PROJECT_LIST[0].stop,
+    `leaving the page for the home page puts the scene at the project's stop, Steady's ${PROJECT_LIST[0].stop} (got ${JSON.stringify(afterDirect)})`,
   );
   await takeCsp(page, step);
 
   // The header's name is a link to the home, not Back, a deliberate "to the top": it lands at the home, the top of the story, even
   // with the story at the project's stop, as after a flight in from it.
-  await page.goto(`${BASE}/projects/funcial/?proof`, { waitUntil: 'load' });
+  await page.goto(`${BASE}/projects/steady/?proof`, { waitUntil: 'load' });
   await stageReady(page);
-  await waitForProject(page, 'funcial');
+  await waitForProject(page, 'steady');
   await page.evaluate((progress) => window.__needleDebug.set({ progress }), PROJECT_LIST[0].stop);
   documents.length = 0;
   await page.click('.site-name');
@@ -851,36 +851,36 @@ async function esc(browser, step) {
   await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
   await stageReady(page);
   documents.length = 0;
-  await page.focus('.home-nav a[href="/projects/funcial/"]'); // the home page's links are hidden while 3D is on, but take focus
+  await page.focus('.home-nav a[href="/projects/steady/"]'); // the home page's links are hidden while 3D is on, but take focus
   await page.keyboard.press('Enter');
-  await page.waitForURL(`${BASE}/projects/funcial/`, { timeout: 5_000 });
-  await waitForProject(page, 'funcial');
+  await page.waitForURL(`${BASE}/projects/steady/`, { timeout: 5_000 });
+  await waitForProject(page, 'steady');
   await pressEscape();
   step.check(pathname() === '/', `a project page reached from the home page + Escape steps back to the home page (got ${pathname()})`);
   step.check(documents.length === 0, `by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
-  const steppedBack = await waitForStop(page, 'secure-element');
+  const steppedBack = await waitForStop(page, 'app');
   step.check(
-    steppedBack.kind === 'PROJECTS' && steppedBack.category === 'secure-element' && steppedBack.progress === PROJECT_LIST[0].stop,
-    `Escape back to the home page from a page reached from it puts the scene at the project's stop, Funcial's ${PROJECT_LIST[0].stop} (got ${JSON.stringify(steppedBack)})`,
+    steppedBack.kind === 'PROJECTS' && steppedBack.category === 'app' && steppedBack.progress === PROJECT_LIST[0].stop,
+    `Escape back to the home page from a page reached from it puts the scene at the project's stop, Steady's ${PROJECT_LIST[0].stop} (got ${JSON.stringify(steppedBack)})`,
   );
   await page.evaluate(() => history.forward());
-  const forwarded = await page.waitForURL(`${BASE}/projects/funcial/`, { timeout: 5_000 }).then(() => true, () => false);
+  const forwarded = await page.waitForURL(`${BASE}/projects/steady/`, { timeout: 5_000 }).then(() => true, () => false);
   step.check(forwarded, 'the page forward is still in the history, so Escape went back and did not add the home page');
   if (forwarded) {
-    const forward = await waitForProject(page, 'funcial');
-    step.check(forward.id === 'funcial', `going forward again puts the scene back on PROJECT_FOCUS funcial (got ${JSON.stringify(forward)})`);
+    const forward = await waitForProject(page, 'steady');
+    step.check(forward.id === 'steady', `going forward again puts the scene back on PROJECT_FOCUS steady (got ${JSON.stringify(forward)})`);
   }
   await takeCsp(page, step);
 
   // A replace navigation keeps a page the visit began on "the first page of the visit". The language switch
   // is one (it is not a step in the story), so Escape after it goes home in the current language and does
   // not undo the switch.
-  await page.goto(`${BASE}/projects/funcial/?proof`, { waitUntil: 'load' });
+  await page.goto(`${BASE}/projects/steady/?proof`, { waitUntil: 'load' });
   await stageReady(page);
   documents.length = 0;
-  await waitForProject(page, 'funcial');
-  await page.click('a[href="/en/projects/funcial/"]');
-  await page.waitForFunction(() => location.pathname === '/en/projects/funcial/' && document.documentElement.lang === 'en', null, { timeout: 5_000 });
+  await waitForProject(page, 'steady');
+  await page.click('a[href="/en/projects/steady/"]');
+  await page.waitForFunction(() => location.pathname === '/en/projects/steady/' && document.documentElement.lang === 'en', null, { timeout: 5_000 });
   await pressEscape();
   step.check(pathname() === '/en/', `a direct load + the language switch + Escape lands on /en/, not back on the Dutch page (got ${pathname()})`);
   step.check(documents.length === 0, `by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
@@ -908,7 +908,7 @@ async function esc(browser, step) {
         event.preventDefault();
       });
     });
-  await page.goto(`${BASE}/projects/funcial/?proof`, { waitUntil: 'load' });
+  await page.goto(`${BASE}/projects/steady/?proof`, { waitUntil: 'load' });
   await stageReady(page);
   await watchClicks();
   for (const modifier of ['Control', 'Meta', 'Shift']) await page.click('a.back', { modifiers: [modifier] });
@@ -916,39 +916,39 @@ async function esc(browser, step) {
     JSON.stringify(await page.evaluate(() => window.__clicks)) === JSON.stringify([false, false, false]),
     'a ctrl-, meta- or shift-click on the back link is not prevented: the page does not intercept it',
   );
-  step.check(pathname() === '/projects/funcial/', `and the click does not navigate in the page (got ${pathname()})`);
+  step.check(pathname() === '/projects/steady/', `and the click does not navigate in the page (got ${pathname()})`);
   documents.length = 0;
   await page.evaluate(() => (window.__clicks.length = 0));
   await page.click('a.back');
   await page.waitForURL(`${BASE}/`, { timeout: 5_000 });
   step.check((await page.evaluate(() => window.__clicks)).join() === 'true', 'a plain click on the back link is handled by the page (default prevented)');
-  step.check((await page.textContent('h1')) === HOME_H1, 'a direct load of /projects/funcial/ + a click on the back link lands on the home page');
+  step.check((await page.textContent('h1')) === HOME_H1, 'a direct load of /projects/steady/ + a click on the back link lands on the home page');
   step.check(documents.length === 0, `by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
   await takeCsp(page, step);
 
   await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
   await stageReady(page);
   documents.length = 0;
-  await page.focus('.home-nav a[href="/projects/funcial/"]');
+  await page.focus('.home-nav a[href="/projects/steady/"]');
   await page.keyboard.press('Enter');
-  await page.waitForURL(`${BASE}/projects/funcial/`, { timeout: 5_000 });
+  await page.waitForURL(`${BASE}/projects/steady/`, { timeout: 5_000 });
   await page.click('a.back');
   await page.waitForURL((url) => url.pathname === '/', { timeout: 5_000 }); // back to /?proof
   step.check(documents.length === 0, `by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
   await page.evaluate(() => history.forward());
   step.check(
-    await page.waitForURL(`${BASE}/projects/funcial/`, { timeout: 5_000 }).then(() => true, () => false),
+    await page.waitForURL(`${BASE}/projects/steady/`, { timeout: 5_000 }).then(() => true, () => false),
     'a click on the back link of a page reached from the home page steps back, like Escape (the page forward is still there)',
   );
   await takeCsp(page, step);
 
   // The English pages go to the English home page.
-  await page.goto(`${BASE}/en/projects/funcial/`, { waitUntil: 'load' });
+  await page.goto(`${BASE}/en/projects/steady/`, { waitUntil: 'load' });
   await stageReady(page);
   step.check((await page.getByRole('link', { name: 'back', exact: true }).count()) === 1, 'the English back link is named "back"');
   await page.keyboard.press('Escape');
   await page.waitForURL(`${BASE}/en/`, { timeout: 5_000 });
-  step.check((await page.textContent('h1')) === HOME_H1 && (await page.getAttribute('html', 'lang')) === 'en', 'Escape on /en/projects/funcial/ lands on /en/');
+  step.check((await page.textContent('h1')) === HOME_H1 && (await page.getAttribute('html', 'lang')) === 'en', 'Escape on /en/projects/steady/ lands on /en/');
   await takeCsp(page, step);
   await context.close();
 
@@ -957,7 +957,7 @@ async function esc(browser, step) {
   const phone = await touch.newPage();
   phone.on('console', (message) => message.type() === 'error' && step.errors.push(message.text()));
   phone.on('pageerror', (error) => step.errors.push(error.message));
-  await phone.goto(`${BASE}/projects/funcial/`, { waitUntil: 'load' });
+  await phone.goto(`${BASE}/projects/steady/`, { waitUntil: 'load' });
   await stageReady(phone);
   const hint = await phone.evaluate(() => getComputedStyle(document.querySelector('.back-hint')).display);
   step.check(hint === 'none', `on a coarse pointer the Esc hint is hidden (display ${hint})`);
@@ -1038,8 +1038,8 @@ async function navFocus(browser, step) {
   );
 
   // A push to a place in a page goes to that place, not to the top.
-  await page.click('#work a[href="/en/projects/funcial/"]');
-  await page.waitForFunction(() => location.pathname === '/en/projects/funcial/', null, { timeout: 5_000 });
+  await page.click('#work a[href="/en/projects/steady/"]');
+  await page.waitForFunction(() => location.pathname === '/en/projects/steady/', null, { timeout: 5_000 });
   const routed = await page.evaluate(() => typeof window.__reactRouterDataRouter?.navigate === 'function');
   step.check(routed, "the router is there to push a place in a page (React Router's window.__reactRouterDataRouter)");
   if (routed) {
@@ -1211,16 +1211,16 @@ async function phoneMenu(browser, step) {
   await takeCsp(page, step);
 
   // A project page: Escape is the open menu's first, then the page's way back.
-  await page.goto(`${BASE}/projects/funcial/`, { waitUntil: 'load' });
-  await pageReady(page, '/projects/funcial/');
+  await page.goto(`${BASE}/projects/steady/`, { waitUntil: 'load' });
+  await pageReady(page, '/projects/steady/');
   await page.locator('.menu-toggle').tap();
   await page.waitForTimeout(150);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
   s = await menuState(page);
-  step.check(!s.open && s.path === '/projects/funcial/', `on a project page Escape closes the menu and stays (at ${s.path}, open ${s.open})`);
+  step.check(!s.open && s.path === '/projects/steady/', `on a project page Escape closes the menu and stays (at ${s.path}, open ${s.open})`);
   await page.keyboard.press('Escape');
-  await page.waitForFunction(() => location.pathname !== '/projects/funcial/', null, { timeout: 5_000 }).catch(() => {});
+  await page.waitForFunction(() => location.pathname !== '/projects/steady/', null, { timeout: 5_000 }).catch(() => {});
   s = await menuState(page);
   step.check(s.path === '/', `the next Escape goes back, home (at ${s.path})`);
   await takeCsp(page, step);
@@ -1326,7 +1326,7 @@ async function liteOne(browser, step, lang) {
   // career) and what is held back, with the three projects between them.
   // textContent, not innerText: the titles and labels are set in capitals by CSS, which innerText would apply.
   const work = await page.$eval('#work', (el) => el.textContent);
-  const workOrder = [t.work.intro, ...['Funcial', 'Jontai Energy', 'Cookies Clicker'], plain(t.work.nextTitle), t.work.nextText, t.work.nextLink, t.work.heldTitle, t.work.heldText].map((string) => work.indexOf(string));
+  const workOrder = [t.work.intro, ...['Steady', 'Jontai Energy', 'Cookies Clicker'], plain(t.work.nextTitle), t.work.nextText, t.work.nextLink, t.work.heldTitle, t.work.heldText].map((string) => work.indexOf(string));
   step.check(workOrder.every((place) => place >= 0) && workOrder.every((place, index) => index === 0 || place > workOrder[index - 1]), `${path}: #work has the intro, the projects, the next slot and the held-back note, in that order (${workOrder.join(' ')})`);
   step.check((await page.getAttribute('#work a.lite-more', 'href')) === '#career', `${path}: the next slot's link goes to #career`);
   await page.click('#work a.lite-more');
@@ -1343,7 +1343,7 @@ async function liteOne(browser, step, lang) {
   // Every link in the page's own lists goes to a page of the site.
   const internal = await page.$$eval('main a[href^="/"]', (links) => links.map((link) => link.getAttribute('href')));
   const prefix = lang === 'en' ? '/en' : '';
-  for (const href of [`${prefix}/projects/funcial/`, `${prefix}/projects/jontai-energy/`, `${prefix}/projects/cookies-clicker/`, `${prefix}/contact/`]) {
+  for (const href of [`${prefix}/projects/steady/`, `${prefix}/projects/jontai-energy/`, `${prefix}/projects/cookies-clicker/`, `${prefix}/contact/`]) {
     step.check(internal.includes(href), `${path} links to ${href}`);
   }
   await takeCsp(page, step);
@@ -1805,10 +1805,10 @@ async function scrollDesktop(browser, step) {
   for (const key of ['PageDown', 'PageDown', 'ArrowDown']) await page.keyboard.press(key);
   const mid = await restAt(page);
   step.check(mid.progress === placeOfFrame(81) && mid.chapterIndex === 1, `the story rests on fact 01's peak, in LIGHT, ${placeOfFrame(81).toFixed(4)} (got ${JSON.stringify(mid)})`);
-  await page.focus('.home-nav a[href="/projects/funcial/"]');
+  await page.focus('.home-nav a[href="/projects/steady/"]');
   await page.keyboard.press('Enter');
-  await page.waitForURL((url) => url.pathname === '/projects/funcial/', { timeout: 5_000 });
-  await waitForProject(page, 'funcial');
+  await page.waitForURL((url) => url.pathname === '/projects/steady/', { timeout: 5_000 });
+  await waitForProject(page, 'steady');
   const onPage = await frameOf(page);
   await page.keyboard.press('PageDown'); // on the project page the keys are the page's
   step.check((await frameOf(page)).target === onPage.target, 'on a project page the keys do not move the story');
@@ -1818,7 +1818,7 @@ async function scrollDesktop(browser, step) {
   // Task 12: Back from a project page lands at its bead's stop (spec §2.4), not where the scroll was before the page.
   const back = await frameOf(page);
   const arrivalUnit = chapterAt(HOME_CHAPTERS, PROJECT_LIST[0].stop).index;
-  step.check(near(back.progress, PROJECT_LIST[0].stop) && back.chapterIndex === arrivalUnit, `the story is at Funcial's area stop, ${PROJECT_LIST[0].stop}, in its area (unit ${arrivalUnit}), where Back from its page lands (got ${JSON.stringify(back)})`);
+  step.check(near(back.progress, PROJECT_LIST[0].stop) && back.chapterIndex === arrivalUnit, `the story is at Steady's area stop, ${PROJECT_LIST[0].stop}, in its area (unit ${arrivalUnit}), where Back from its page lands (got ${JSON.stringify(back)})`);
   await page.keyboard.press('PageDown');
   const resumed = await restAt(page);
   step.check(near(resumed.target, PROJECT_LIST[1].stop, 1e-9) && near(resumed.progress, PROJECT_LIST[1].stop, 1e-6), `and the scroll goes on from there, a step to Jontai Energy's area, ${PROJECT_LIST[1].stop} (got target ${resumed.target}, progress ${resumed.progress})`);
@@ -2112,9 +2112,9 @@ async function loaded(browser, step) {
   step.check(after > before, `a pointer move wakes the canvas (${after - before} frames asked for in 300 ms)`);
 
   // Over a page of text a mouse idling about wakes only the parallax, about a second, never the home's 12 s idle.
-  await page.focus('.home-nav a[href="/projects/funcial/"]');
+  await page.focus('.home-nav a[href="/projects/steady/"]');
   await page.keyboard.press('Enter');
-  await page.waitForURL((url) => url.pathname === '/projects/funcial/', { timeout: 5_000 });
+  await page.waitForURL((url) => url.pathname === '/projects/steady/', { timeout: 5_000 });
   const settled = await sleepWithin(page, SLEEP_WITHIN_MS); // the phase change's own while first
   const wiggleFrom = await page.evaluate(() => window.__allRaf);
   for (const [x, y] of [[400, 300], [460, 340], [520, 300], [480, 360]]) await page.mouse.move(x, y, { steps: 3 });
@@ -2124,7 +2124,7 @@ async function loaded(browser, step) {
   const resettled = await sleepWithin(page, RESETTLE_MS + 1_000);
   step.check(
     settled !== null && woke && resettled !== null,
-    `on /projects/funcial/ a mouse wiggle wakes the parallax only: the canvas falls quiet ${resettled} ms after it and stays so for 1 s (it must fall quiet within ${RESETTLE_MS} ms; the home's idle is ${IDLE_SECONDS} s)`,
+    `on /projects/steady/ a mouse wiggle wakes the parallax only: the canvas falls quiet ${resettled} ms after it and stays so for 1 s (it must fall quiet within ${RESETTLE_MS} ms; the home's idle is ${IDLE_SECONDS} s)`,
   );
   await takeCsp(page, step);
   await context.close();
@@ -2668,7 +2668,7 @@ async function holdStage(page) {
   };
 }
 
-/** A page's file name stem from its path: its language, then the path with dashes: `nl-projects-funcial`, `en-home`. */
+/** A page's file name stem from its path: its language, then the path with dashes: `nl-projects-steady`, `en-home`. */
 const stillName = (path) => `${langOf(path)}-${path.replace(/^\/en(?=\/|$)/, '').split('/').filter(Boolean).join('-') || 'home'}`;
 
 /** The home page, in either language; every other page is a page of text. */
@@ -2685,7 +2685,7 @@ const landed = (page) =>
 /**
  * Stills of every page of pagePaths() that the build produced, with the live scene, at 1440x900 and 390x844 (a phone:
  * touch, coarse pointer, two device pixels), and of the fallback, into PROOF_DIR/m2/, named after the page: `nl-home-1440x900.png`,
- * `en-projects-funcial-390x844.png`, `fallback-1440x900.png`. A page with a scene is taken once its opening has landed and the
+ * `en-projects-steady-390x844.png`, `fallback-1440x900.png`. A page with a scene is taken once its opening has landed and the
  * hero (on the home page) has faded in; the fallback once its hero has.
  *
  * On a page of text the scene is under the same scrim as the poster: the scene host's ::after carries the poster's page
@@ -3062,7 +3062,7 @@ async function loaderStills(browser, step) {
  * sizes), which a canvas that drew nothing cannot reach. The middle's floor does not apply: the probe is not there.
  *
  * A bead seen from inside is lit on purpose: its objects stand in the warm light under the glass. The approved light path
- * mock-up's insides measure up to 0.138 on a laptop (Funcial's, the brightest), so they keep a ceiling of their own,
+ * mock-up's insides measure up to 0.138 on a laptop (Steady's, the brightest), so they keep a ceiling of their own,
  * `inside`, a little above it; the clipped share and the floor are the home's.
  */
 const LUMA_GATE = {
@@ -4034,7 +4034,7 @@ async function loaderLite(browser, step) {
     await held;
     await route.continue().catch(() => {});
   });
-  await page.goto(`${BASE}/projects/funcial/?proof`, { waitUntil: 'load' });
+  await page.goto(`${BASE}/projects/steady/?proof`, { waitUntil: 'load' });
   await page.bringToFront();
   const flag = await page.evaluate((key) => localStorage.getItem(key), LOADER_SEEN_KEY);
   await loaderAtLeast(page, CUT_AT);
@@ -4048,7 +4048,7 @@ async function loaderLite(browser, step) {
   const there = await debugOf(page);
   step.check(
     flag === null && at.stage === 'engrave' && at.elapsed >= CUT_AT && at.elapsed < CUT_AT + 2 * CUT_WITHIN && asked >= 1,
-    `a first visit to /projects/funcial/ plays the full show, its compass file held (${asked} asked): ${CUT_AT} s in it engraves (stage ${at.stage} at ${at.elapsed.toFixed(2)} s, ${LOADER_SEEN_KEY} ${flag})`,
+    `a first visit to /projects/steady/ plays the full show, its compass file held (${asked} asked): ${CUT_AT} s in it engraves (stage ${at.stage} at ${at.elapsed.toFixed(2)} s, ${LOADER_SEEN_KEY} ${flag})`,
   );
   step.check(
     opened && there.route === 'lite',
@@ -4097,7 +4097,7 @@ async function loaderLite(browser, step) {
   release();
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   await page.goBack();
-  const back = await page.waitForURL(`${BASE}/projects/funcial/?proof`, { timeout: 5_000 }).then(
+  const back = await page.waitForURL(`${BASE}/projects/steady/?proof`, { timeout: 5_000 }).then(
     () => true,
     () => false,
   );
@@ -4170,7 +4170,7 @@ async function loaderSkipTouch(browser, step) {
 
   // A project page's full show: a tap on the menu's Contact link CUT_AT s in still navigates.
   await page.evaluate((key) => localStorage.removeItem(key), LOADER_SEEN_KEY);
-  await page.goto(`${BASE}/projects/funcial/?proof`, { waitUntil: 'load' });
+  await page.goto(`${BASE}/projects/steady/?proof`, { waitUntil: 'load' });
   await loaderAtLeast(page, CUT_AT);
   const project = (await debugOf(page)).loader;
   // On a phone the links are in the menu (option A, 2026-10-22): the tap on Menu is the one that skips, then Contact.
@@ -4555,8 +4555,8 @@ async function bridge(browser, step) {
   );
 
   // .set puts the story somewhere at once: progress and target there, nothing moving, the chapter and the phase with it.
-  // Half way through Funcial's travel (the path's first unit, the third of the story) the journey, which the scene poses
-  // on the next frame it draws, says the same: the travel, half way, Funcial the bead it goes to, and the beads on screen.
+  // Half way through Steady's travel (the path's first unit, the third of the story) the journey, which the scene poses
+  // on the next frame it draws, says the same: the travel, half way, Steady the bead it goes to, and the beads on screen.
   const land = PATH_START + 0.9;
   await waitForVoid(page, 'ready');
   await page.evaluate((progress) => window.__needleDebug.set({ progress }), land);
@@ -4589,9 +4589,9 @@ async function bridge(browser, step) {
   // .dispatch sends a scene event, as the app's own parts do; the phase is the store's own object. A project opens from
   // the projects chapter: the last bead's stop, the story's last stop before the end page.
   await page.evaluate((progress) => window.__needleDebug.set({ progress }), PROJECT_LIST.at(-1).stop);
-  await page.evaluate(() => window.__needleDebug.dispatch({ type: 'OPEN_PROJECT', id: 'funcial' }));
+  await page.evaluate(() => window.__needleDebug.dispatch({ type: 'OPEN_PROJECT', id: 'steady' }));
   const focus = await debugOf(page);
-  step.check(focus.phase.kind === 'PROJECT_FOCUS' && focus.phase.id === 'funcial', `.dispatch({ type: 'OPEN_PROJECT', id: 'funcial' }) from the projects focuses Funcial (got ${JSON.stringify(focus.phase)})`);
+  step.check(focus.phase.kind === 'PROJECT_FOCUS' && focus.phase.id === 'steady', `.dispatch({ type: 'OPEN_PROJECT', id: 'steady' }) from the projects focuses Steady (got ${JSON.stringify(focus.phase)})`);
   step.check(await page.evaluate(() => window.__needleDebug().phase === window.__needleDebug().phase), 'two reads of the phase are the same object while nothing changed');
   await page.evaluate(() => window.__needleDebug.dispatch({ type: 'BACK' }));
   const back = (await debugOf(page)).phase;
@@ -4768,8 +4768,8 @@ async function keyboard(browser, step) {
 }
 
 /**
- * A language switch is not a step in the story: on /projects/funcial/ the phase is PROJECT_FOCUS funcial, and after a
- * client-side switch to /en/projects/funcial/ (and back) it is still PROJECT_FOCUS funcial, the very same state with no new
+ * A language switch is not a step in the story: on /projects/steady/ the phase is PROJECT_FOCUS steady, and after a
+ * client-side switch to /en/projects/steady/ (and back) it is still PROJECT_FOCUS steady, the very same state with no new
  * transition, in the other language, with the one canvas still the one Stage. The same on another project page.
  */
 async function langKeepsPhase(browser, step) {
@@ -4781,7 +4781,7 @@ async function langKeepsPhase(browser, step) {
   const summary = [];
 
   for (const { path, other, route, phase, label } of [
-    { path: '/projects/funcial/', other: '/en/projects/funcial/', route: 'project', phase: { kind: 'PROJECT_FOCUS', id: 'funcial' }, label: 'PROJECT_FOCUS funcial' },
+    { path: '/projects/steady/', other: '/en/projects/steady/', route: 'project', phase: { kind: 'PROJECT_FOCUS', id: 'steady' }, label: 'PROJECT_FOCUS steady' },
     { path: '/projects/cookies-clicker/', other: '/en/projects/cookies-clicker/', route: 'project', phase: { kind: 'PROJECT_FOCUS', id: 'cookies-clicker' }, label: 'PROJECT_FOCUS cookies-clicker' },
   ]) {
     await page.goto(`${BASE}${path}?proof`, { waitUntil: 'load' });
@@ -4997,7 +4997,7 @@ const JOURNEY_STOPS = keyStops(HOME_CHAPTERS).map((stop) => {
   return { stop, stretch: at.stretch, project: at.project };
 });
 
-/** Where `poseOnTheFrame` puts the story: the rise (0.6), the fall (fact 03's peak), the land and Funcial's area. */
+/** Where `poseOnTheFrame` puts the story: the rise (0.6), the fall (fact 03's peak), the land and Steady's area. */
 const SAME_FRAME_AT = [0.6, placeOfFrame(161), PATH_START + 0.6, PATH_START + 1.9];
 
 /** The site header's height, px: the world's words and objects stay under it. */
@@ -5174,8 +5174,8 @@ async function nebula(browser, step) {
       }
     }
     step.check(
-      read['fall-30']?.clouds === 0 && near(read['fall-121']?.clouds ?? 0, NEBULA.FALL_LEVEL, 1e-9) && near(read.world?.clouds ?? 0, NEBULA.WORLD_LEVEL.world, 1e-9) && near(read['area-funcial']?.clouds ?? 0, NEBULA.WORLD_LEVEL.area, 1e-9),
-      `${at}: no clouds before the camera turns (frame 30: ${read['fall-30']?.clouds}), at the fall's ${NEBULA.FALL_LEVEL} behind the facts by fact 02's peak (${read['fall-121']?.clouds}), ${NEBULA.WORLD_LEVEL.world} round the whole world (${read.world?.clouds}) and ${NEBULA.WORLD_LEVEL.area} at an area (${read['area-funcial']?.clouds})`,
+      read['fall-30']?.clouds === 0 && near(read['fall-121']?.clouds ?? 0, NEBULA.FALL_LEVEL, 1e-9) && near(read.world?.clouds ?? 0, NEBULA.WORLD_LEVEL.world, 1e-9) && near(read['area-steady']?.clouds ?? 0, NEBULA.WORLD_LEVEL.area, 1e-9),
+      `${at}: no clouds before the camera turns (frame 30: ${read['fall-30']?.clouds}), at the fall's ${NEBULA.FALL_LEVEL} behind the facts by fact 02's peak (${read['fall-121']?.clouds}), ${NEBULA.WORLD_LEVEL.world} round the whole world (${read.world?.clouds}) and ${NEBULA.WORLD_LEVEL.area} at an area (${read['area-steady']?.clouds})`,
     );
     step.check(Object.values(read).every((levels) => levels?.rings === 0), `${at}: no rings anywhere, which were the beads' (${Object.entries(read).filter(([, levels]) => levels?.rings !== 0).map(([name]) => name).join(', ') || 'none'} with any)`);
     await takeCsp(page, step);
@@ -5384,16 +5384,16 @@ async function voidFail(browser, step) {
     shots.push({ file: control, kind: 'control', mask });
 
     // The home stays usable: a link opens its project, and Esc comes back to the hold, not to a world the void never showed.
-    await page.click('.home-nav a[href="/projects/funcial/"]');
-    await page.waitForURL(`${BASE}/projects/funcial/`, { timeout: 5_000 });
-    const opened = await waitForProject(page, 'funcial');
-    step.check(opened.kind === 'PROJECT_FOCUS' && opened.id === 'funcial', `${at}: a link of the nav opens Funcial's page (got ${JSON.stringify(opened)})`);
+    await page.click('.home-nav a[href="/projects/steady/"]');
+    await page.waitForURL(`${BASE}/projects/steady/`, { timeout: 5_000 });
+    const opened = await waitForProject(page, 'steady');
+    step.check(opened.kind === 'PROJECT_FOCUS' && opened.id === 'steady', `${at}: a link of the nav opens Steady's page (got ${JSON.stringify(opened)})`);
     await page.keyboard.press('Escape');
     await page.waitForURL((url) => url.pathname === '/', { timeout: 5_000 }); // a page reached from the home steps back to /?proof
     const back = await settledState(page);
     step.check(
       near(back.target, LANDING_HOLD, 1e-9) && back.progress === back.target && back.journey.voidState === 'failed',
-      `${at}: Esc brings the story back to the hold at ${LANDING_HOLD.toFixed(4)}, not to Funcial's stop (progress ${back.progress}, target ${back.target}, voidState ${back.journey.voidState})`,
+      `${at}: Esc brings the story back to the hold at ${LANDING_HOLD.toFixed(4)}, not to Steady's stop (progress ${back.progress}, target ${back.target}, voidState ${back.journey.voidState})`,
     );
     if (!touch) await page.mouse.move(size.width / 2, size.height / 2);
     await pushStory(page, cdp, -1, { notches: PUSH_NOTCHES, flicks: 8, toEnd: true });
@@ -7408,7 +7408,7 @@ async function credits(browser, step) {
 /**
  * A portrait resize mid-fall and on the world (spec: the words readable at every size), at 1440x900 turned to 390x844:
  * - at fact 02's peak the way frame stays, and the fact still rides by the light, now below it;
- * - at Funcial's area the place stays, its words stay shown whole inside the screen and its object framed;
+ * - at Steady's area the place stays, its words stay shown whole inside the screen and its object framed;
  * - half way between the first two areas the place stays, and the camera stays off the CPU, 3 m or more from the board's
  *   centre for the new shape.
  */
@@ -7432,20 +7432,20 @@ async function resize(browser, step) {
     `the fact stays on the light, below it now: ${JSON.stringify(label)}, the light at ${light === null ? 'none' : `(${light.x.toFixed(0)}, ${light.y.toFixed(0)})`}`,
   );
 
-  // At Funcial's area: its words shown, then the turn.
-  const funcial = PROJECT_LIST[0];
+  // At Steady's area: its words shown, then the turn.
+  const steady = PROJECT_LIST[0];
   const wideSize = { width: DIVE_SIZES[0].width, height: DIVE_SIZES[0].height };
   await page.setViewportSize(wideSize);
   await page.waitForTimeout(400);
-  await poseAt(page, funcial.stop);
+  await poseAt(page, steady.stop);
   await page.waitForTimeout(500);
-  const wide = (await worldWordsOf(page)).captions[funcial.index];
+  const wide = (await worldWordsOf(page)).captions[steady.index];
   await page.setViewportSize(phone);
   await page.waitForTimeout(700);
   const turned = await debugOf(page);
-  const tall = (await worldWordsOf(page)).captions[funcial.index];
-  const object = turned.journey.objects?.find((o) => o.id === funcial.id);
-  step.check(turned.progress === funcial.stop && turned.target === funcial.stop && turned.journey.stretch === 'area', `at Funcial's area the place stays through the resize: ${funcial.stop.toFixed(4)}, then ${turned.progress} (${turned.journey.stretch})`);
+  const tall = (await worldWordsOf(page)).captions[steady.index];
+  const object = turned.journey.objects?.find((o) => o.id === steady.id);
+  step.check(turned.progress === steady.stop && turned.target === steady.stop && turned.journey.stretch === 'area', `at Steady's area the place stays through the resize: ${steady.stop.toFixed(4)}, then ${turned.progress} (${turned.journey.stretch})`);
   step.check(
     wide.opacity === 1 && boxInside(wide.box, wideSize) && tall.opacity === 1 && boxInside(tall.box, phone) && object !== undefined && object.visible && object.x - object.r >= 0 && object.x + object.r <= phone.width && object.y + object.r <= tall.box.top,
     `and its words stay shown whole inside the screen (${Object.values(wide.box).map(Math.round).join(', ')} at 1440, ${Object.values(tall.box).map(Math.round).join(', ')} at 390), its object framed above them (${object === undefined ? 'none' : `${Math.round(object.x)}, ${Math.round(object.y)} r ${Math.round(object.r)}`})`,
@@ -7462,7 +7462,7 @@ async function resize(browser, step) {
   const off = nearestToCentre([mid.camera.position], boardCentre(phone.width / phone.height));
   step.check(mid.progress === between && mid.journey.stretch === 'area' && off >= 3, `half way between the first two areas the place stays through the turn (${mid.progress.toFixed(4)}, ${mid.journey.stretch}) and the camera stays ${off.toFixed(2)} m from the board's centre, off the CPU`);
   await context.close();
-  return `fact 02 at frame ${after.journey.frame?.toFixed(1)}, below the light after the turn; Funcial's words and object kept through the turn; between two areas the camera ${off.toFixed(2)} m off the centre`;
+  return `fact 02 at frame ${after.journey.frame?.toFixed(1)}, below the light after the turn; Steady's words and object kept through the turn; between two areas the camera ${off.toFixed(2)} m off the centre`;
 }
 
 const STEPS = {

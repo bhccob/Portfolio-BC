@@ -93,7 +93,7 @@ describe('readNeedleDebugState', () => {
     const before = { ...frame.journey };
     try {
       const light = { x: 0.2, y: -0.1 };
-      const objects = [{ id: 'funcial', x: 720, y: 600, r: 120, visible: true }];
+      const objects = [{ id: 'steady', x: 720, y: 600, r: 120, visible: true }];
       const world = { power: 1, names: 1, caption: { index: 0, opacity: 1 }, dots: 0 };
       Object.assign(frame.journey, { stretch: 'light', local: 0.4, project: null, voidState: 'ready', frame: 121, sheet: 0, light, objects, world });
       const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
@@ -185,7 +185,7 @@ describe('setStoryProgress', () => {
     expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: null });
     const inArea = pathStart(HOME_CHAPTERS) + 2.5; // in the first area
     setStoryProgress(inArea);
-    expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'secure-element' });
+    expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'app' });
   });
 
   it('stays inside the scroll, 0 to its last stop, the end page (the scroll ends there)', () => {
@@ -201,9 +201,9 @@ describe('setStoryProgress', () => {
   });
 
   it("leaves a page's phase alone: the scroll phases are the only ones a chapter moves", () => {
-    useScene.getState().dispatch({ type: 'ROUTE', phase: { kind: 'PROJECT_FOCUS', id: 'funcial' } });
+    useScene.getState().dispatch({ type: 'ROUTE', phase: { kind: 'PROJECT_FOCUS', id: 'steady' } });
     setStoryProgress(1.5);
-    expect(useScene.getState().phase).toEqual({ kind: 'PROJECT_FOCUS', id: 'funcial' });
+    expect(useScene.getState().phase).toEqual({ kind: 'PROJECT_FOCUS', id: 'steady' });
     expect(frame.chapterIndex).toBe(1); // but the frame is where the story is, for the way back
   });
 });

@@ -10,7 +10,7 @@ const screenshots: Record<string, string> = import.meta.env
   ? import.meta.glob<string>('../assets/*.{png,jpg,jpeg,webp}', { query: '?url', import: 'default', eager: true })
   : {};
 
-export type ProjectId = 'funcial' | 'jontai-energy' | 'cookies-clicker';
+export type ProjectId = 'steady' | 'porfael' | 'jontai-energy' | 'cookies-clicker';
 
 /** A pin on the project's object: the layer of the build it marks. The position is a placeholder in the object's local frame (units of about the object's radius), tuned in M5. */
 export interface TestPoint {
@@ -134,8 +134,8 @@ export class ProjectCatalog {
   }
 
   /**
-   * The project whose page a route is (`/projects/funcial/`), or undefined for any other route,
-   * which includes a real page under another spelling (`/Projects/Funcial/`): the page lives at one URL.
+   * The project whose page a route is (`/projects/steady/`), or undefined for any other route,
+   * which includes a real page under another spelling (`/Projects/Steady/`): the page lives at one URL.
    */
   byRoute(route: string): Project | undefined {
     return this.items.find((project) => this.route(project) === route);
@@ -150,47 +150,86 @@ export class ProjectCatalog {
 }
 
 /**
- * The three projects, in the order of the void. The object, test points, palette,
- * motion and links are the ones Bob approved on 2026-10-20 (docs/projects-discovery.md);
- * the words are in each project's `copy`.
+ * The four projects, in the order of the stack: Steady and Porfael (apps), Jontai Energy (a website), Cookies Clicker
+ * (game development). Jontai Energy's and Cookies Clicker's objects, test points, palettes, motion and links are the
+ * ones Bob approved on 2026-10-20 (docs/projects-discovery.md); Steady's and Porfael's come from their own README and
+ * product spec (Bob, 2026-10-28, who took Funcial off the site); the words are in each project's `copy`.
  */
 export const projects = new ProjectCatalog([
   {
-    id: 'funcial',
-    title: 'Funcial',
+    id: 'steady',
+    title: 'Steady',
     year: 2026,
-    categoryId: 'secure-element',
+    categoryId: 'app',
     order: 1,
-    object: { fallbackGeometry: 'platter-track+abacus+phone' },
+    object: { fallbackGeometry: 'streak-path-7-blocks+trophy' },
+    // Its README's own list (github.com/bhccob/steady), in that order.
     testPoints: [
-      { id: 'tp1', label: { en: 'LOG', nl: 'LOG' }, position: [-0.62, 0.02, 0.48] },
-      { id: 'tp2', label: { en: 'GAME LAYER', nl: 'SPELLAAG' }, position: [-0.31, 0.02, 0.71] },
-      { id: 'tp3', label: { en: 'MONEY RULES', nl: 'GELDREGELS' }, position: [0.05, 0.02, 0.78] },
-      { id: 'tp4', label: { en: 'VAULT', nl: 'KLUIS' }, position: [0.4, 0.02, 0.66] },
-      // The buy-meter verdict (Bob, 2026-10-20).
-      { id: 'result', label: { en: 'RESULT', nl: 'UITKOMST' }, position: [0.7, 0.02, 0.38] }
+      { id: 'reminders', label: { en: 'REMINDERS', nl: 'HERINNERINGEN' }, position: [-0.4, 0.1, 0] },
+      { id: 'streak', label: { en: 'STREAK PATH', nl: 'STREAKPAD' }, position: [-0.16, 0.16, -0.14] },
+      { id: 'insights', label: { en: 'INSIGHTS', nl: 'INZICHTEN' }, position: [0.08, 0.21, -0.28] },
+      { id: 'support', label: { en: 'SUPPORT LEVELS', nl: 'STEUNNIVEAUS' }, position: [0.32, 0.27, -0.42] },
+      { id: 'privacy', label: { en: 'PRIVACY', nl: 'PRIVACY' }, position: [0.46, 0.3, -0.49] }
     ],
-    // The glow is the art direction's track gold (--gold-glow).
-    palette: { accent: '#7c5cff', glow: '#efb53d' },
-    motion: 'slow platter spin + track pulse TP1→TP4; abacus beads slide up one by one on focus',
-    stack: ['React 19', 'TypeScript', 'Tailwind CSS v4', 'Zustand', 'Capacitor', 'SQLCipher', 'Web Crypto', 'Vercel Functions'],
-    links: { live: 'https://funcial.vercel.app/get', repo: 'https://github.com/bhccob/Funcial' },
+    // Its logo kit's Mark Bronze and Steady Beige.
+    palette: { accent: '#7f6440', glow: '#e8d5b5' },
+    motion: "the streak path's blocks mark one after another, as days do; the trophy at the week's end lights",
+    stack: ['Expo (SDK 58)', 'React Native', 'TypeScript', 'SQLite'],
+    links: { repo: 'https://github.com/bhccob/steady' },
     copy: {
       en: {
         type: 'Android app · Personal project',
         role: 'Sole developer',
-        // docs/art-direction.md § Projects, "Focus: one line (Funcial)".
-        summary: 'A finance tracker with game elements, local-first and encrypted on your phone.',
-        // The line of the first drafts of the drive's tracks (src/data/tracks.ts, merged into this file).
+        // Its README's first line.
+        summary: 'A calm, private medication reminder for people working through hard things.',
         metaDescription:
-          'A gamified personal-finance app for Android: log a spend in seconds, level up, and keep your money data encrypted on your phone.'
+          'Steady: a calm, private medication reminder for Android, with gentle reminders, a streak path, and everything kept on your phone.'
       },
       nl: {
         type: 'Android-app · Eigen project',
         role: 'Enige ontwikkelaar',
-        summary: 'Een financiële tracker met spelelementen, lokaal en versleuteld op je telefoon.',
+        summary: 'Een rustige, privé medicatieherinnering voor mensen die door moeilijke dingen gaan.',
         metaDescription:
-          'Een gamified app voor persoonlijke financiën op Android: leg een uitgave in seconden vast, stijg in level en houd je financiële gegevens versleuteld op je telefoon.'
+          'Steady: een rustige, privé medicatieherinnering voor Android, met zachte herinneringen, een streakpad en alles op je telefoon.'
+      }
+    }
+  },
+  {
+    id: 'porfael',
+    title: 'Porfael',
+    year: 2026,
+    categoryId: 'app',
+    order: 2,
+    object: { fallbackGeometry: 'allocation-ring-5+relic' },
+    // Its product spec's features (Porfael.md), in development (Bob, 2026-10-28).
+    testPoints: [
+      { id: 'portfolio', label: { en: 'PORTFOLIO', nl: 'PORTEFEUILLE' }, position: [0.32, 0.3, 0] },
+      { id: 'paper', label: { en: 'PAPER TRADES', nl: 'OEFENTRADES' }, position: [-0.1, 0.3, 0.3] },
+      { id: 'theses', label: { en: 'THESES', nl: 'THESES' }, position: [-0.3, 0.3, -0.1] },
+      { id: 'guilds', label: { en: 'GUILDS', nl: 'GILDES' }, position: [0.1, 0.3, -0.3] },
+      { id: 'relics', label: { en: 'RELICS', nl: 'RELICS' }, position: [0, 0.3, 0] }
+    ],
+    palette: { accent: '#7c5cff', glow: '#efb53d' },
+    motion: 'the ring of shares parts a little; the relic at its middle turns and lights',
+    // Not given yet: shown once Bob gives it.
+    stack: [],
+    links: {},
+    copy: {
+      en: {
+        type: 'Investing app · Personal project, in development',
+        role: 'Sole developer',
+        summary:
+          'A private investing app for a group of friends: one portfolio across your brokers, ideas tested with paper trades, and relics to earn. In development.',
+        metaDescription:
+          'Porfael, in development: a private, friends-only investing app with one portfolio across your brokers, paper trades and relics.'
+      },
+      nl: {
+        type: 'Beleggingsapp · Eigen project, in ontwikkeling',
+        role: 'Enige ontwikkelaar',
+        summary:
+          'Een privé beleggingsapp voor een vriendengroep: je portefeuille over je brokers heen, ideeën testen met oefentrades en relics verdienen. In ontwikkeling.',
+        metaDescription:
+          'Porfael, in ontwikkeling: een privé beleggingsapp voor vrienden, met je portefeuille over je brokers heen, oefentrades en relics.'
       }
     }
   },
@@ -198,8 +237,8 @@ export const projects = new ProjectCatalog([
     id: 'jontai-energy',
     title: 'Jontai Energy',
     year: 2026,
-    categoryId: 'front-panel',
-    order: 2,
+    categoryId: 'website',
+    order: 3,
     object: { fallbackGeometry: 'pv-module-4x4+junction-box' },
     testPoints: [
       { id: 'tp1', label: { en: '16 PAGES', nl: '16 PAGINA’S' }, position: [-0.45, 0.03, -0.2] },
@@ -250,8 +289,8 @@ export const projects = new ProjectCatalog([
     id: 'cookies-clicker',
     title: 'Cookies Clicker',
     year: 2025,
-    categoryId: 'oscillator',
-    order: 3,
+    categoryId: 'game',
+    order: 4,
     object: { fallbackGeometry: 'clockwork-movement-8-wheels' },
     testPoints: [
       { id: 'tp1', label: { en: 'CLICK LOOP', nl: 'KLIKLUS' }, position: [0.92, 0.0, 0.0] },

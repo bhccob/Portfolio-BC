@@ -63,14 +63,14 @@ describe('the hologram world, built in code: the board, the CPU with the compass
     }
   });
 
-  it("lifts Funcial's lid as it opens and sets it back as it closes", () => {
+  it("lifts Steady's lid as it opens and sets it back as it closes", () => {
     const model = build();
-    const lid = named(model, 'world:object:funcial:lid');
+    const lid = named(model, 'world:object:steady:lid');
     model.pose(pose());
     const shut = lid.position.y;
-    model.pose(pose({ open: { ...each(0), funcial: 1 } }));
+    model.pose(pose({ open: { ...each(0), steady: 1 } }));
     expect(lid.position.y).toBeGreaterThan(shut + 0.25);
-    model.pose(pose({ open: { ...each(0), funcial: 0.5 } }));
+    model.pose(pose({ open: { ...each(0), steady: 0.5 } }));
     expect(lid.position.y).toBeGreaterThan(shut);
     model.pose(pose());
     expect(lid.position.y).toBeCloseTo(shut, 9);

@@ -9,12 +9,12 @@ type Point = [number, number];
 
 /**
  * How far out and up each category's names stand from their objects, CSS px on a screen 1440 wide (the mock-up's): the
- * secure element's out to the left, the front panel's to the right, the oscillator's, behind the CPU, to the right.
+ * apps' out to the left, the websites' to the right, game development's, behind the CPU, to the right.
  */
 export const NAME_OFFSET: Readonly<Record<CategoryId, Point>> = {
-  'secure-element': [-190, -78],
-  'front-panel': [190, -78],
-  oscillator: [170, -70]
+  app: [-190, -78],
+  website: [190, -78],
+  game: [170, -70]
 };
 
 /** The share of the reach out to the elbow; the rest is the level run under the words. */

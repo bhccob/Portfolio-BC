@@ -2,7 +2,8 @@ import { defaultLocale, locales, Translator } from '../i18n/Translator';
 
 export type PageId =
   | 'home'
-  | 'project-funcial'
+  | 'project-steady'
+  | 'project-porfael'
   | 'project-jontai-energy'
   | 'project-cookies-clicker'
   | 'lite'
@@ -14,7 +15,8 @@ export type PageId =
  */
 export const PAGES: Record<PageId, string> = {
   home: '/',
-  'project-funcial': '/projects/funcial/',
+  'project-steady': '/projects/steady/',
+  'project-porfael': '/projects/porfael/',
   'project-jontai-energy': '/projects/jontai-energy/',
   'project-cookies-clicker': '/projects/cookies-clicker/',
   lite: '/lite/',

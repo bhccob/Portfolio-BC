@@ -16,7 +16,7 @@ import { HANDLES, type RouteHandle } from '../handle';
 export const meta: MetaFunction = ({ location }) => {
   const locale = localeFromPath(location.pathname);
   const { t } = translatorFor(locale);
-  // The three projects share this module, so the path says which. A path that names none of them
+  // The projects share this module, so the path says which. A path that names none of them
   // (a real page under another spelling) gets the not-found page, never an error.
   const project = projects.byRoute(routeFromPath(location.pathname));
   if (!project) return notFoundMeta(locale);
@@ -24,7 +24,7 @@ export const meta: MetaFunction = ({ location }) => {
   return head({
     locale,
     route,
-    // "Funcial · Work": the same project page in both languages needs a title of its own in each.
+    // "Steady · Work": the same project page in both languages needs a title of its own in each.
     title: `${project.title} · ${t.nav.work}`,
     description: project.copy(locale).metaDescription,
     jsonLd: [
@@ -75,16 +75,19 @@ export default function ProjectPage() {
           <dt className="label">{t.work.role}</dt>
           <dd>{copy.role}</dd>
         </div>
-        <div>
-          <dt className="label">{t.work.stack}</dt>
-          <dd>
-            <ul className="tags">
-              {project.stack.map((tool) => (
-                <li key={tool}>{tool}</li>
-              ))}
-            </ul>
-          </dd>
-        </div>
+        {/* A project still in development may have no stack given yet (Porfael): no empty row for it. */}
+        {project.stack.length > 0 && (
+          <div>
+            <dt className="label">{t.work.stack}</dt>
+            <dd>
+              <ul className="tags">
+                {project.stack.map((tool) => (
+                  <li key={tool}>{tool}</li>
+                ))}
+              </ul>
+            </dd>
+          </div>
+        )}
       </dl>
 
       <ol className="test-points">
@@ -95,18 +98,20 @@ export default function ProjectPage() {
         })}
       </ol>
 
-      <ul className="links">
-        {project.links.live && (
-          <li>
-            <a href={project.links.live}>{t.needle.project.download}</a>
-          </li>
-        )}
-        {project.links.repo && (
-          <li>
-            <a href={project.links.repo}>{t.needle.project.code}</a>
-          </li>
-        )}
-      </ul>
+      {(project.links.live || project.links.repo) && (
+        <ul className="links">
+          {project.links.live && (
+            <li>
+              <a href={project.links.live}>{t.needle.project.download}</a>
+            </li>
+          )}
+          {project.links.repo && (
+            <li>
+              <a href={project.links.repo}>{t.needle.project.code}</a>
+            </li>
+          )}
+        </ul>
+      )}
 
       {sections.map(
         ({ title, text }) =>

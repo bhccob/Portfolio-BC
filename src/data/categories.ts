@@ -1,6 +1,6 @@
 import type { Locale } from '../i18n/Translator';
 
-export type CategoryId = 'secure-element' | 'front-panel' | 'oscillator';
+export type CategoryId = 'app' | 'website' | 'game';
 
 export interface CategoryData {
   id: CategoryId;
@@ -10,9 +10,10 @@ export interface CategoryData {
 }
 
 /**
- * A kind of device part that a project is filed under in the void: the secure
- * element keeps keys, the front panel is what the public touches, the
- * oscillator makes a device tick (docs/projects-discovery.md).
+ * The kind of work a project is, which it is filed under: an app, a website, game development (Bob, 2026-10-28: "can
+ * you sort it by category tho like Game Developement, Website, App, etc put projects by category in each board"). Each
+ * has its own board in the stack (docs/superpowers/specs/2026-10-28-bob-quantum-stack-design.md). The device-part names
+ * of the void before it (secure element, front panel, oscillator) are in docs/projects-discovery.md, as its history.
  */
 export class Category {
   constructor(private readonly data: CategoryData) {}
@@ -24,7 +25,7 @@ export class Category {
     return this.data.label[locale];
   }
 
-  /** "01 — SECURE ELEMENT": the number and the label, as the focus screen shows them. */
+  /** "01 — APP": the number and the label, as the focus screen shows them. */
   heading(locale: Locale): string {
     return `${String(this.data.number).padStart(2, '0')} — ${this.label(locale)}`;
   }
@@ -48,10 +49,9 @@ export class CategoryCatalog {
   }
 }
 
-// The English labels are the approved ones (docs/projects-discovery.md); the Dutch ones follow the
-// copy budget (docs/art-direction.md: BEVEILIGD ELEMENT) and the discovery's suggested Dutch labels.
+// Bob's own words for the kinds (2026-10-28); "Game-ontwikkeling" is my Dutch for his "Game Development".
 export const categories = new CategoryCatalog([
-  { id: 'secure-element', number: 1, label: { en: 'SECURE ELEMENT', nl: 'BEVEILIGD ELEMENT' } },
-  { id: 'front-panel', number: 2, label: { en: 'FRONT PANEL', nl: 'FRONTPANEEL' } },
-  { id: 'oscillator', number: 3, label: { en: 'OSCILLATOR', nl: 'OSCILLATOR' } }
+  { id: 'app', number: 1, label: { en: 'APP', nl: 'APP' } },
+  { id: 'website', number: 2, label: { en: 'WEBSITE', nl: 'WEBSITE' } },
+  { id: 'game', number: 3, label: { en: 'GAME DEVELOPMENT', nl: 'GAME-ONTWIKKELING' } }
 ]);

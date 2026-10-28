@@ -29,13 +29,13 @@ afterEach(() => {
 
 describe("the touch points: an open project's own test points, in two columns beside it", () => {
   it("follow the open project's anchors in two columns", () => {
-    const count = projects.byId('funcial')!.testPointLabels('nl').length;
+    const count = projects.byId('steady')!.testPointLabels('nl').length;
     const el = fake();
     const words = Array.from({ length: count }, (_, k) => fake(70 + 10 * k));
     const lines = Array.from({ length: count }, () => fake());
-    done.push(registerTouchPoints('funcial', { el: el as never, words: words as never, lines: lines as never }));
+    done.push(registerTouchPoints('steady', { el: el as never, words: words as never, lines: lines as never }));
     const at = Array.from({ length: count }, (_, k) => ({ x: 640 + 30 * k, y: 380 + 25 * (k % 3) }));
-    showTouchPoints({ id: 'funcial', opacity: 0.8, at, centreX: 700, reach: 110 }, DESK, 1);
+    showTouchPoints({ id: 'steady', opacity: 0.8, at, centreX: 700, reach: 110 }, DESK, 1);
     const placed = touchColumns(
       at.map((p, k) => ({ ...p, w: words[k]!.offsetWidth })),
       700,
@@ -49,7 +49,7 @@ describe("the touch points: an open project's own test points, in two columns be
     lines.forEach((line, k) => expect(line.attributes.get('points')).toBe(placed[k]!.points.map((p) => p.join(',')).join(' ')));
     // As the object moves, they follow it.
     const moved = at.map((p) => ({ x: p.x + 50, y: p.y }));
-    showTouchPoints({ id: 'funcial', opacity: 1, at: moved, centreX: 750, reach: 110 }, DESK, 1);
+    showTouchPoints({ id: 'steady', opacity: 1, at: moved, centreX: 750, reach: 110 }, DESK, 1);
     expect(lines[0]!.attributes.get('points')!.startsWith(`${moved[0]!.x},${moved[0]!.y} `)).toBe(true);
     // None open: hidden.
     showTouchPoints(null, DESK, 1);

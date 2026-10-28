@@ -52,9 +52,9 @@ export const BEADS_IN = 262;
  * rises so it never stands on the needle's back tip.
  */
 export const RING = { centre: [0, -11, 0] as Vec3, radius: 5.5, rise: 6, needleScale: 2, lift: 0.35 } as const;
-/** The projects round the ring, in order, at 0, 120 and 240 degrees: Funcial in front where the light lands. */
+/** The projects round the ring, in order, at 0, 120 and 240 degrees: the first in front where the light lands. */
 export const RING_BEADS = [
-  { id: 'funcial', angle: 0 },
+  { id: 'steady', angle: 0 },
   { id: 'jontai-energy', angle: 120 },
   { id: 'cookies-clicker', angle: 240 }
 ] as const;
@@ -317,7 +317,7 @@ export function wayShot(f: number, aspect: number): CameraShot {
   return shotOf(wayPose(f, aspect), aspect);
 }
 
-/** The camera `angle` degrees round the ring on a screen of this aspect: 0 is Funcial in front (the way's frame 300). */
+/** The camera `angle` degrees round the ring on a screen of this aspect: 0 is the first bead in front (the way's frame 300). */
 export function ringShot(angle: number, aspect: number): CameraShot {
   return shotOf(ringPose(angle, aspect), aspect);
 }
@@ -729,7 +729,7 @@ export function ringBeads(angle: number, aspect: number): BeadAt[] {
   });
 }
 
-/** The beads at way frame f on a screen of this aspect: rising into view from BEADS_IN, Funcial answering on arrival. */
+/** The beads at way frame f on a screen of this aspect: rising into view from BEADS_IN, the first answering on arrival. */
 export function beadsAt(f: number, aspect: number): BeadAt[] {
   if (f >= F.END) return ringBeads(0, aspect);
   const pose = wayPose(f, aspect);

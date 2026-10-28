@@ -12,40 +12,47 @@ const project = (id: string) => {
 };
 
 describe('categories', () => {
-  it('are the three approved void categories, in order', () => {
+  it('are the kinds of work, in order (Bob, 2026-10-28: "Game Developement, Website, App")', () => {
     expect(categories.all().map((category) => [category.id, category.number, category.label('en')])).toEqual([
-      ['secure-element', 1, 'SECURE ELEMENT'],
-      ['front-panel', 2, 'FRONT PANEL'],
-      ['oscillator', 3, 'OSCILLATOR'],
+      ['app', 1, 'APP'],
+      ['website', 2, 'WEBSITE'],
+      ['game', 3, 'GAME DEVELOPMENT'],
     ]);
   });
 
-  it('are translated in Dutch, in the style of the copy budget', () => {
-    expect(categories.all().map((category) => category.label('nl'))).toEqual(['BEVEILIGD ELEMENT', 'FRONTPANEEL', 'OSCILLATOR']);
+  it('are translated in Dutch', () => {
+    expect(categories.all().map((category) => category.label('nl'))).toEqual(['APP', 'WEBSITE', 'GAME-ONTWIKKELING']);
   });
 
-  it('write a heading as "01 — LABEL"', () => {
-    expect(categories.byId('secure-element').heading('en')).toBe('01 — SECURE ELEMENT');
-    expect(categories.byId('secure-element').heading('nl')).toBe('01 — BEVEILIGD ELEMENT');
-    expect(categories.byId('oscillator').heading('en')).toBe('03 — OSCILLATOR');
+  it('heads the categories by number and kind, in both languages', () => {
+    expect(categories.byId('app').heading('en')).toBe('01 — APP');
+    expect(categories.byId('website').heading('nl')).toBe('02 — WEBSITE');
+    expect(categories.byId('game').heading('en')).toBe('03 — GAME DEVELOPMENT');
+    expect(categories.byId('game').heading('nl')).toBe('03 — GAME-ONTWIKKELING');
   });
 });
 
 describe('projects', () => {
-  it('are three, in the order funcial, jontai-energy, cookies-clicker', () => {
-    expect(all).toHaveLength(3);
-    expect(all.map((entry) => entry.id)).toEqual(['funcial', 'jontai-energy', 'cookies-clicker']);
-    expect(all.map((entry) => entry.order)).toEqual([1, 2, 3]);
+  it('are four, in the order steady, porfael, jontai-energy, cookies-clicker', () => {
+    expect(all.map((entry) => entry.id)).toEqual(['steady', 'porfael', 'jontai-energy', 'cookies-clicker']);
+    expect(all.map((entry) => entry.order)).toEqual([1, 2, 3, 4]);
+  });
+
+  it('has no Funcial anywhere: no project, page or route by that id (Bob, 2026-10-28)', () => {
+    expect(projects.byId('funcial')).toBeUndefined();
+    expect(Object.keys(PAGES).some((page) => page.includes('funcial'))).toBe(false);
+    expect(Object.values(PAGES).some((route) => route.includes('funcial'))).toBe(false);
+    expect(projects.byRoute('/projects/funcial/')).toBeUndefined();
   });
 
   it('have unique ids', () => {
     expect(new Set(all.map((entry) => entry.id)).size).toBe(all.length);
   });
 
-  it('each name a category that exists', () => {
+  it('files each project under the kind of work it is', () => {
     const known = categories.all().map((category) => category.id);
     for (const entry of all) expect(known, entry.id).toContain(entry.categoryId);
-    expect(all.map((entry) => entry.categoryId)).toEqual(['secure-element', 'front-panel', 'oscillator']);
+    expect(all.map((entry) => entry.categoryId)).toEqual(['app', 'app', 'website', 'game']);
   });
 
   it('each have a page of their own', () => {
@@ -64,13 +71,11 @@ describe('projects', () => {
     }
   });
 
-  it('label Funcial’s test points LOG, GAME LAYER, MONEY RULES, VAULT, RESULT', () => {
-    expect(project('funcial').testPoints.map((point) => point.label.en)).toEqual(['LOG', 'GAME LAYER', 'MONEY RULES', 'VAULT', 'RESULT']);
-    expect(project('funcial').testPointLabels('en').join(', ')).toBe('LOG, GAME LAYER, MONEY RULES, VAULT, RESULT');
-  });
-
   it('translate the test point labels', () => {
-    expect(project('funcial').testPointLabels('nl')).toEqual(['LOG', 'SPELLAAG', 'GELDREGELS', 'KLUIS', 'UITKOMST']);
+    expect(project('steady').testPointLabels('en')).toEqual(['REMINDERS', 'STREAK PATH', 'INSIGHTS', 'SUPPORT LEVELS', 'PRIVACY']);
+    expect(project('steady').testPointLabels('nl')).toEqual(['HERINNERINGEN', 'STREAKPAD', 'INZICHTEN', 'STEUNNIVEAUS', 'PRIVACY']);
+    expect(project('porfael').testPointLabels('en')).toEqual(['PORTFOLIO', 'PAPER TRADES', 'THESES', 'GUILDS', 'RELICS']);
+    expect(project('porfael').testPointLabels('nl')).toEqual(['PORTEFEUILLE', 'OEFENTRADES', 'THESES', 'GILDES', 'RELICS']);
     expect(project('jontai-energy').testPointLabels('en')).toEqual(['16 PAGES', 'DESIGN SYSTEM', 'THREE LANGUAGES', 'QUOTE PATH']);
     expect(project('jontai-energy').testPointLabels('nl')).toEqual(['16 PAGINA’S', 'DESIGNSYSTEEM', 'DRIE TALEN', 'OFFERTEPAD']);
     expect(project('cookies-clicker').testPointLabels('en')).toEqual(['CLICK LOOP', '8 PRODUCERS', 'BOOSTS & EVENTS', 'SAVE', 'STATS']);
@@ -78,13 +83,6 @@ describe('projects', () => {
   });
 
   it('keep the approved placeholder positions', () => {
-    expect(project('funcial').testPoints.map((point) => point.position)).toEqual([
-      [-0.62, 0.02, 0.48],
-      [-0.31, 0.02, 0.71],
-      [0.05, 0.02, 0.78],
-      [0.4, 0.02, 0.66],
-      [0.7, 0.02, 0.38],
-    ]);
     expect(project('jontai-energy').testPoints.map((point) => point.position)).toEqual([
       [-0.45, 0.03, -0.2],
       [0.0, 0.03, 0.05],
@@ -101,45 +99,56 @@ describe('projects', () => {
   });
 
   it('keep the approved objects, palettes and links', () => {
-    expect(project('funcial').object.fallbackGeometry).toBe('platter-track+abacus+phone');
+    expect(project('steady').object.fallbackGeometry).toBe('streak-path-7-blocks+trophy');
+    expect(project('porfael').object.fallbackGeometry).toBe('allocation-ring-5+relic');
     expect(project('jontai-energy').object.fallbackGeometry).toBe('pv-module-4x4+junction-box');
     expect(project('cookies-clicker').object.fallbackGeometry).toBe('clockwork-movement-8-wheels');
-    expect(project('funcial').palette).toEqual({ accent: '#7c5cff', glow: '#efb53d' });
+    // Steady's own brand colours (its logo kit): Mark Bronze and Steady Beige.
+    expect(project('steady').palette).toEqual({ accent: '#7f6440', glow: '#e8d5b5' });
     expect(project('jontai-energy').palette).toEqual({ accent: '#00a650', glow: '#00d16a' });
     expect(project('cookies-clicker').palette).toEqual({ accent: '#c69255', glow: '#ff8a3d' });
-    expect(project('funcial').links).toEqual({ live: 'https://funcial.vercel.app/get', repo: 'https://github.com/bhccob/Funcial' });
+    expect(project('steady').links).toEqual({ repo: 'https://github.com/bhccob/steady' });
+    // In development: no link until Bob gives one.
+    expect(project('porfael').links).toEqual({});
     expect(project('jontai-energy').links).toEqual({ repo: 'https://github.com/bhccob/JE' });
     expect(project('cookies-clicker').links).toEqual({ repo: 'https://github.com/bhccob/Cookies-Clicker' });
     for (const entry of all) expect(entry.motion.length, entry.id).toBeGreaterThan(0);
   });
 
-  it('spell Funcial exactly so, in every language', () => {
-    expect(project('funcial').title).toBe('Funcial');
+  it('gives Steady and Porfael their own words, in both languages', () => {
+    // Steady's README: "A calm, private medication reminder for people working through hard things."
+    expect(project('steady').copy('en').summary).toBe('A calm, private medication reminder for people working through hard things.');
+    expect(project('steady').copy('nl').summary).toBe('Een rustige, privé medicatieherinnering voor mensen die door moeilijke dingen gaan.');
+    // Porfael is being built (Bob, 2026-10-28): it says so.
+    expect(project('porfael').copy('en').summary).toMatch(/In development\.$/);
+    expect(project('porfael').copy('nl').summary).toMatch(/In ontwikkeling\.$/);
+    for (const id of ['steady', 'porfael']) {
+      expect(project(id).copy('en').role, id).toBe('Sole developer');
+      expect(project(id).copy('nl').role, id).toBe('Enige ontwikkelaar');
+      expect(project(id).year, id).toBe(2026);
+    }
+  });
+
+  it('never list AI or Claude in a stack, nor describe a project with AI', () => {
     for (const entry of all) {
+      for (const tool of entry.stack) expect(tool, entry.id).not.toMatch(/\b(AI|Claude)\b/i);
       for (const locale of locales) {
         const copy = entry.copy(locale);
-        expect(JSON.stringify(copy), `${entry.id} ${locale}`).not.toMatch(/funancial/i);
+        expect([copy.summary, copy.type, copy.metaDescription].join(' '), `${entry.id} ${locale}`).not.toMatch(/\bAI\b|artificial|kunstmatig|Claude/i);
       }
     }
   });
 
-  it('never list AI or Claude in a stack, and never describe Funcial with AI', () => {
-    for (const entry of all) for (const tool of entry.stack) expect(tool, entry.id).not.toMatch(/\b(AI|Claude)\b/i);
-    for (const locale of locales) {
-      const funcial = project('funcial');
-      const words = [funcial.copy(locale).summary, funcial.copy(locale).type, funcial.copy(locale).metaDescription, ...funcial.stack].join(' ');
-      expect(words).not.toMatch(/\bAI\b|artificial|kunstmatig|Claude/i);
-    }
-  });
-
-  it('list the stacks the discovery approved', () => {
-    expect(project('funcial').stack).toEqual(['React 19', 'TypeScript', 'Tailwind CSS v4', 'Zustand', 'Capacitor', 'SQLCipher', 'Web Crypto', 'Vercel Functions']);
+  it('list the stacks their own sources give, and none for Porfael until Bob gives it', () => {
+    expect(project('steady').stack).toEqual(['Expo (SDK 58)', 'React Native', 'TypeScript', 'SQLite']);
+    expect(project('porfael').stack).toEqual([]);
     expect(project('jontai-energy').stack).toEqual(['HTML', 'Tailwind CSS v4', 'JavaScript', 'PowerShell']);
     expect(project('cookies-clicker').stack).toEqual(['HTML', 'CSS', 'JavaScript', 'Bootstrap 5', 'localStorage']);
   });
 
-  it('give Funcial no screenshot', () => {
-    expect(project('funcial').image).toBeUndefined();
+  it('give Steady and Porfael no screenshot', () => {
+    expect(project('steady').image).toBeUndefined();
+    expect(project('porfael').image).toBeUndefined();
     expect(project('jontai-energy').image).toBeTypeOf('string');
     expect(project('cookies-clicker').image).toBeTypeOf('string');
   });
@@ -166,11 +175,12 @@ describe('projects', () => {
   });
 
   it('find a project by the route of its page, and none by a route that only differs in case', () => {
-    expect(projects.byRoute('/projects/funcial/')?.id).toBe('funcial');
+    expect(projects.byRoute('/projects/steady/')?.id).toBe('steady');
+    expect(projects.byRoute('/projects/porfael/')?.id).toBe('porfael');
     expect(projects.byRoute('/projects/jontai-energy/')?.id).toBe('jontai-energy');
     expect(projects.byRoute('/projects/cookies-clicker/')?.id).toBe('cookies-clicker');
-    expect(projects.byRoute('/Projects/Funcial/')).toBeUndefined();
-    expect(projects.byRoute('/projects/FUNCIAL/')).toBeUndefined();
+    expect(projects.byRoute('/Projects/Steady/')).toBeUndefined();
+    expect(projects.byRoute('/projects/STEADY/')).toBeUndefined();
     expect(projects.byRoute('/projects/')).toBeUndefined();
   });
 
@@ -188,14 +198,14 @@ describe('projects', () => {
 });
 
 describe('the projects on the way (spec 2026-10-27-bob-light-path-design.md, goal 6: Way 2)', () => {
-  /** Seven copies of Funcial's data, ordered 1 to 7, flagged on the way where listed. */
+  /** Seven copies of the first project's data, ordered 1 to 7, flagged on the way where listed. */
   const sevenStubs = ({ flagged }: { flagged: number[] }): ProjectData[] => {
-    const funcial = (projects as unknown as { items: { data: ProjectData }[] }).items[0]!.data;
-    return Array.from({ length: 7 }, (_, k) => ({ ...funcial, order: k + 1, onPath: flagged.includes(k + 1) }));
+    const first = (projects as unknown as { items: { data: ProjectData }[] }).items[0]!.data;
+    return Array.from({ length: 7 }, (_, k) => ({ ...first, order: k + 1, onPath: flagged.includes(k + 1) }));
   };
 
   it('puts every project on the way while there are five or fewer', () => {
-    expect(projects.onPath().map((p) => p.id)).toEqual(['funcial', 'jontai-energy', 'cookies-clicker']);
+    expect(projects.onPath().map((p) => p.id)).toEqual(['steady', 'porfael', 'jontai-energy', 'cookies-clicker']);
     expect(projects.offPath()).toEqual([]);
   });
 

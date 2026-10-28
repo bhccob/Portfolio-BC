@@ -89,7 +89,7 @@ describe('installNeedleDebug', () => {
   });
 
   it('returns the very object read() made, so a harness can compare phases by identity', () => {
-    const phase = { kind: 'PROJECT_FOCUS', id: 'funcial' } as const;
+    const phase = { kind: 'PROJECT_FOCUS', id: 'steady' } as const;
     const made = state({ phase });
     installNeedleDebug('?proof', () => made, act);
     const debug = win.__needleDebug as () => NeedleDebugState;
@@ -102,8 +102,8 @@ describe('installNeedleDebug', () => {
     const debug = win.__needleDebug as { set(p: { progress: number }): void; dispatch(e: unknown): void };
     debug.set({ progress: 3.5 });
     expect(act.set).toHaveBeenCalledExactlyOnceWith({ progress: 3.5 });
-    debug.dispatch({ type: 'OPEN_PROJECT', id: 'funcial' });
-    expect(act.dispatch).toHaveBeenCalledExactlyOnceWith({ type: 'OPEN_PROJECT', id: 'funcial' });
+    debug.dispatch({ type: 'OPEN_PROJECT', id: 'steady' });
+    expect(act.dispatch).toHaveBeenCalledExactlyOnceWith({ type: 'OPEN_PROJECT', id: 'steady' });
   });
 
   it('forwards .seekLoader to the act it was given, the seconds as they came: a time to hold, or -1 to let go', () => {

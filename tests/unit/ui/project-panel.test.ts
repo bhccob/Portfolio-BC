@@ -83,16 +83,16 @@ describe('ProjectPanel: an open project, Overworld\'s way', () => {
   });
 
   it("fades its words out before they change to the next project's", () => {
-    const funcial = moveFocus(FOCUS_AT_REST, 'funcial', 0, 'fly');
+    const steady = moveFocus(FOCUS_AT_REST, 'steady', 0, 'fly');
     // Opened: its words come once the camera is all but there.
-    expect(panelLevels('funcial', focusOpensAt(funcial, FLIGHT_MS * 0.3))).toEqual({ funcial: 0 });
-    expect(panelLevels('funcial', focusOpensAt(funcial, FLIGHT_MS))).toEqual({ funcial: 1 });
+    expect(panelLevels('steady', focusOpensAt(steady, FLIGHT_MS * 0.3))).toEqual({ steady: 0 });
+    expect(panelLevels('steady', focusOpensAt(steady, FLIGHT_MS))).toEqual({ steady: 1 });
     // On to the next: the words of the one left are gone before the next one's come, at every moment of the flight.
-    const turn = moveFocus(funcial, 'jontai-energy', 5000, 'fly');
+    const turn = moveFocus(steady, 'jontai-energy', 5000, 'fly');
     let gone = false;
     for (let k = 0; k <= 200; k++) {
       const levels = panelLevels('jontai-energy', focusOpensAt(turn, 5000 + (FLIGHT_MS * k) / 200));
-      const left = levels.funcial ?? 0;
+      const left = levels.steady ?? 0;
       const next = levels['jontai-energy'] ?? 0;
       expect(left > 0 && next > 0, `both at ${k}`).toBe(false);
       if (left === 0) gone = true;
@@ -109,15 +109,15 @@ describe('ProjectPanel: an open project, Overworld\'s way', () => {
       getBoundingClientRect: () => ({ ...r, width: r.right - r.left, height: r.bottom - r.top })
     });
     const undo = [
-      registerProjectPanel('funcial', box({ left: 80, top: 300, right: 510, bottom: 600 }) as never),
+      registerProjectPanel('steady', box({ left: 80, top: 300, right: 510, bottom: 600 }) as never),
       registerProjectPanel('jontai-energy', box({ left: 20, top: 430, right: 370, bottom: 740 }) as never),
       registerInsideControls(box({ left: 64, top: 800, right: 1376, bottom: 852 }) as never)
     ];
-    expect(panelKeepOut('funcial', { width: 1440, height: 900 })).toEqual({ left: 510, bottom: 800 });
+    expect(panelKeepOut('steady', { width: 1440, height: 900 })).toEqual({ left: 510, bottom: 800 });
     expect(panelKeepOut('jontai-energy', { width: 390, height: 844 })).toEqual({ left: 0, bottom: 430 });
     expect(panelKeepOut('cookies-clicker', { width: 1440, height: 900 })).toEqual({ left: 0, bottom: 800 });
     for (const done of undo) done();
-    expect(panelKeepOut('funcial', { width: 1440, height: 900 })).toEqual({ left: 0, bottom: 900 });
+    expect(panelKeepOut('steady', { width: 1440, height: 900 })).toEqual({ left: 0, bottom: 900 });
   });
 });
 
@@ -198,7 +198,7 @@ describe('openInside, turnInside, closeInside and viewInside: an open project th
     removeAttribute: (name: string) => void attributes.delete(name),
     toggleAttribute: (name: string, on: boolean) => (on ? attributes.add(name) : attributes.delete(name), on)
   };
-  const A0 = stopForProject('funcial');
+  const A0 = stopForProject('steady');
   let went: unknown[];
   let release: () => void;
   const reset = (): void => {
@@ -213,7 +213,7 @@ describe('openInside, turnInside, closeInside and viewInside: an open project th
     vi.useFakeTimers();
     (globalThis as { document?: unknown }).document = { documentElement: root };
     reset();
-    useScene.setState({ phase: { kind: 'PROJECTS', category: 'secure-element' }, scene: 'home' });
+    useScene.setState({ phase: { kind: 'PROJECTS', category: 'app' }, scene: 'home' });
     frame.progress = frame.target = A0;
     syncRoute({ pathname: '/', key: 'default' }, NavigationType.Pop);
     went = [];
@@ -227,27 +227,27 @@ describe('openInside, turnInside, closeInside and viewInside: an open project th
   });
 
   it('flies to the project on a click and pushes it on the home, where Back comes back out', () => {
-    expect(openInside('funcial')).toBe(true);
-    expect(useScene.getState().inside).toBe('funcial');
-    expect(frame.focus.move).toMatchObject({ to: 'funcial', mode: 'fly' });
-    expect(went).toEqual([['/', { state: { [INSIDE_STATE]: 'funcial' }, preventScrollReset: true }]]);
+    expect(openInside('steady')).toBe(true);
+    expect(useScene.getState().inside).toBe('steady');
+    expect(frame.focus.move).toMatchObject({ to: 'steady', mode: 'fly' });
+    expect(went).toEqual([['/', { state: { [INSIDE_STATE]: 'steady' }, preventScrollReset: true }]]);
     // A second click while open opens nothing more.
-    expect(openInside('funcial')).toBe(false);
+    expect(openInside('steady')).toBe(false);
     // The push lands as a navigation of its own: no focus is taken to <main>, the controls keep it.
-    expect(focusesMain(NavigationType.Push, '', { [INSIDE_STATE]: 'funcial' })).toBe(false);
+    expect(focusesMain(NavigationType.Push, '', { [INSIDE_STATE]: 'steady' })).toBe(false);
     expect(focusesMain(NavigationType.Push, '', null)).toBe(true);
   });
 
   it('opens a project clicked on the world only at rest; while the camera glides between two stops a click does nothing', () => {
     frame.target = stopForProject('jontai-energy'); // on its way to the next area
-    expect(clickOnWorld('funcial')).toBe(false);
+    expect(clickOnWorld('steady')).toBe(false);
     expect(useScene.getState().inside).toBeNull();
     expect(frame.focus.opening).toBeNull();
     vi.advanceTimersByTime(FLIGHT_MS * 2);
     expect(went).toEqual([]);
     frame.target = frame.progress; // at rest
-    expect(clickOnWorld('funcial')).toBe(true);
-    expect(useScene.getState().inside).toBe('funcial');
+    expect(clickOnWorld('steady')).toBe(true);
+    expect(useScene.getState().inside).toBe('steady');
   });
 
   it('goes to the next and the previous project, round the end', () => {
@@ -282,8 +282,8 @@ describe('openInside, turnInside, closeInside and viewInside: an open project th
   });
 
   it('goes back out on Terug through the history when the project has its own entry, and at once otherwise', () => {
-    openInside('funcial');
-    syncRoute({ pathname: '/', key: 'k1', state: { [INSIDE_STATE]: 'funcial' } }, NavigationType.Push);
+    openInside('steady');
+    syncRoute({ pathname: '/', key: 'k1', state: { [INSIDE_STATE]: 'steady' } }, NavigationType.Push);
     went.length = 0;
     closeInside();
     expect(went).toEqual([-1]); // Back: the entry before is where it was opened from
@@ -294,19 +294,19 @@ describe('openInside, turnInside, closeInside and viewInside: an open project th
     expect(useScene.getState().inside).toBeNull();
     // An open project with no entry of its own (no router lent): let go at once.
     release();
-    useScene.getState().setInside('funcial');
+    useScene.getState().setInside('steady');
     closeInside();
     expect(useScene.getState().inside).toBeNull();
     expect(went).toEqual([-1]);
   });
 
   it('opens the project\'s page from "Bekijk project"', () => {
-    noteOpenedFrom('funcial', A0);
-    frame.focus.move = moveFocus(frame.focus.move, 'funcial', performance.now() - 2 * FLIGHT_MS, 'fly'); // flown in
-    useScene.getState().setInside('funcial');
+    noteOpenedFrom('steady', A0);
+    frame.focus.move = moveFocus(frame.focus.move, 'steady', performance.now() - 2 * FLIGHT_MS, 'fly'); // flown in
+    useScene.getState().setInside('steady');
     expect(viewInside()).toBe(true);
     vi.advanceTimersByTime(0); // the camera is already there: the page comes at once
-    expect(went).toEqual(['/projects/funcial/']);
+    expect(went).toEqual(['/projects/steady/']);
     expect(attributes.has('data-bead-open')).toBe(true); // its text fades in with its scrim
     // With no project open there is nothing to view.
     useScene.getState().setInside(null);

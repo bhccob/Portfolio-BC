@@ -55,7 +55,7 @@ describe("the world's path: the light lands in the CPU, the world, an area per c
       last = y;
     }
     for (const t of [LAND_HIT, 0.5, 0.8, 1]) landAt(t).light.position.forEach((v, k) => expect(v).toBeCloseTo(lid[k]!, 6));
-    for (const place of [worldStop(HOME_CHAPTERS), areaStop(HOME_CHAPTERS, 'oscillator'), sheetStart(HOME_CHAPTERS)]) {
+    for (const place of [worldStop(HOME_CHAPTERS), areaStop(HOME_CHAPTERS, 'game'), sheetStart(HOME_CHAPTERS)]) {
       home(DESK, place).light.position.forEach((v, k) => expect(v).toBeCloseTo(lid[k]!, 6));
     }
     // At rest the light's trail stands straight up above it, still.
@@ -86,8 +86,8 @@ describe("the world's path: the light lands in the CPU, the world, an area per c
     expect(landAt(LAND_HIT + 1e-6).flash).toBeCloseTo(1, 4); // a hair past it: the place sums round the hit itself
     expect(landAt(0.5).flash).toBe(0);
     // Each project comes in over the power's last third.
-    expect(landAt(0.6).levels.funcial).toBe(0);
-    expect(landAt(0.75).levels.funcial).toBe(1);
+    expect(landAt(0.6).levels.steady).toBe(0);
+    expect(landAt(0.75).levels.steady).toBe(1);
   });
 
   it('frames the whole world at its stop', () => {
@@ -144,9 +144,9 @@ describe("the world's path: the light lands in the CPU, the world, an area per c
     expect(home(DESK, sheetStart(HOME_CHAPTERS)).caption).toBeNull();
     expect(home(DESK, sheetStart(HOME_CHAPTERS)).dots).toBe(0);
     // An area's projects in focus, the others quieter.
-    const front = home(DESK, areaStop(HOME_CHAPTERS, 'front-panel'));
+    const front = home(DESK, areaStop(HOME_CHAPTERS, 'website'));
     expect(front.levels['jontai-energy']).toBeCloseTo(1.1, 12);
-    expect(front.levels.funcial).toBeCloseTo(0.5, 12);
+    expect(front.levels.steady).toBeCloseTo(0.5, 12);
     expect(AREA_STOP).toBe(0.7);
   });
 
@@ -174,9 +174,9 @@ describe("the world's path: the light lands in the CPU, the world, an area per c
   it('five projects: each area frames every project in it', () => {
     const five = buildChapters({
       areas: [
-        { category: 'secure-element', projects: ['funcial', 'jontai-energy'] },
-        { category: 'front-panel', projects: ['cookies-clicker'] },
-        { category: 'oscillator', projects: ['funcial', 'jontai-energy'] }
+        { category: 'app', projects: ['steady', 'jontai-energy'] },
+        { category: 'website', projects: ['cookies-clicker'] },
+        { category: 'game', projects: ['steady', 'jontai-energy'] }
       ] as never
     });
     const places = worldPlaces(five.units.filter((u) => u.id === 'AREA').map((u) => ({ category: u.category as never, projects: [...(u.projects ?? [])] })));

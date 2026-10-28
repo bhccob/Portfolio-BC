@@ -27,11 +27,11 @@ describe("nameLine: a project's name on the world, on a thin line from its objec
   });
 
   it("scales its reach by the screen's width, and a little more on a phone", () => {
-    expect(NAME_OFFSET).toEqual({ 'secure-element': [-190, -78], 'front-panel': [190, -78], oscillator: [170, -70] });
-    expect(nameOffset('secure-element', 1440)).toEqual([-190, -78]);
-    expect(nameOffset('front-panel', 2000)).toEqual([190, -78]); // never more than at 1440
-    expect(nameOffset('secure-element', 720)).toEqual([-95, -39]);
-    const phone = nameOffset('oscillator', 390);
+    expect(NAME_OFFSET).toEqual({ 'app': [-190, -78], 'website': [190, -78], game: [170, -70] });
+    expect(nameOffset('app', 1440)).toEqual([-190, -78]);
+    expect(nameOffset('website', 2000)).toEqual([190, -78]); // never more than at 1440
+    expect(nameOffset('app', 720)).toEqual([-95, -39]);
+    const phone = nameOffset('game', 390);
     expect(phone[0]).toBeCloseTo((170 * 390 * 1.45) / 1440, 9);
   });
 });

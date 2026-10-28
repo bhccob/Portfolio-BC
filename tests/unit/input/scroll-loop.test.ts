@@ -29,7 +29,7 @@ const S = sheetStart(chapters);
 const INDEX = { land: 2, sheet: 7, end: 8 } as const;
 /** The first fact's place, the light dive's frame 81: the first key stop past BOB from above. */
 const F81 = placeOfFrame(81);
-/** The last fact's place, frame 241: the key stop before Funcial's. */
+/** The last fact's place, frame 241: the key stop before Steady's. */
 const F241 = placeOfFrame(241);
 /** The landing hold: the most the scroll reaches while the beads load, or if they failed. */
 const H = LANDING_HOLD;
@@ -735,7 +735,7 @@ describe('the keys: the facts in the light dive, then the projects, gliding past
     expect(s.frame.target).toBe(placeOfFrame(121));
   });
 
-  it("glides a key past the light dive: from Funcial's arrival to Jontai Energy's in 1.2 s × √d, eased from rest, its peak 1.25 √d a second", async () => {
+  it("glides a key past the light dive: from Steady's arrival to Jontai Energy's in 1.2 s × √d, eased from rest, its peak 1.25 √d a second", async () => {
     expect([GLIDE_S, GLIDE_MIN_S]).toEqual([1.2, 0.6]);
     const s = setup();
     restAt(s, A0);
@@ -762,7 +762,7 @@ describe('the keys: the facts in the light dive, then the projects, gliding past
     expect([s.frame.target, s.frame.progress]).toEqual([A2, A2]);
   });
 
-  it("glides onto the path from the last fact, to Funcial's arrival, and back off it to the last fact", async () => {
+  it("glides onto the path from the last fact, to Steady's arrival, and back off it to the last fact", async () => {
     const s = setup();
     restAt(s, F241);
     s.key('ArrowDown');
@@ -1392,7 +1392,7 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
   describe("inside a bead: the scroll takes no step, and the tail of the input that took the visitor out is dropped", () => {
     it('drops every wheel, key and swipe while a bead is open inside, preventing them, so neither the story nor the page moves', async () => {
       const s = wiredHome(A0, { voidState: 'ready' });
-      useScene.getState().setInside('funcial');
+      useScene.getState().setInside('steady');
       const wheeled = await s.wheel(5, 100);
       expect(wheeled.prevented.every(Boolean)).toBe(true);
       expect(s.key('ArrowDown').defaultPrevented).toBe(true);
@@ -1408,7 +1408,7 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
       const clock = vi.spyOn(performance, 'now').mockImplementation(() => now);
       try {
         const s = wiredHome(A0, { voidState: 'ready' });
-        useScene.getState().setInside('funcial');
+        useScene.getState().setInside('steady');
         await s.wheel(3, 100);
         useScene.getState().setInside(null); // the wheel took the visitor out
         now += 50;
@@ -1432,7 +1432,7 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
       const clock = vi.spyOn(performance, 'now').mockImplementation(() => now);
       try {
         const s = wiredHome(A0, { voidState: 'ready' });
-        useScene.getState().setInside('funcial');
+        useScene.getState().setInside('steady');
         useScene.getState().setInside(null); // Terug
         now += 2000;
         await s.wheel(3, 100);
@@ -1447,7 +1447,7 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
     it("holds a wheel past it at LANDING_HOLD while loading, and the beads' ready takes it on to where the wheel went", async () => {
       expect(H).toBe(placeOfFrame(256)); // the hand-over
       const s = wiredHome(1, { voidState: 'loading' });
-      await s.wheel(86, 100); // to 9.6, inside Funcial: past its arrival, the next stop past the hold
+      await s.wheel(86, 100); // to 9.6, inside Steady: past its arrival, the next stop past the hold
       const held = s.run();
       expect([storyFrame.target, storyFrame.progress]).toEqual([H, H]);
       expect(Math.max(...held.map((f) => f.progress))).toBeLessThanOrEqual(H);
@@ -1458,7 +1458,7 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
       expect(useScene.getState().phase.kind).toBe('PROJECTS');
     });
 
-    it("holds a key there too, and lets it on to Funcial's arrival once ready", async () => {
+    it("holds a key there too, and lets it on to Steady's arrival once ready", async () => {
       const s = wiredHome(placeOfFrame(241), { voidState: 'loading' });
       s.key('ArrowDown');
       expect(storyFrame.target).toBe(H);
@@ -1707,7 +1707,7 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
       expect(t.frames.size).toBe(0);
     });
 
-    it("failed with reduced motion: a wheel step at the hold is held there, asking for Funcial, never the end page; when the void is back after 3D off and on, it goes on to Funcial's arrival", async () => {
+    it("failed with reduced motion: a wheel step at the hold is held there, asking for Steady, never the end page; when the void is back after 3D off and on, it goes on to Steady's arrival", async () => {
       const s = wiredHome(H, { reduced: true });
       const held = await s.wheel(1, 120);
       expect(held.prevented).toEqual([true]);
@@ -1813,7 +1813,7 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
       useScene.setState({ threeD: false });
       expect(goToTop(), '3D off').toBe(false);
       expect([storyFrame.target, s.win.scrollY]).toEqual([STORY_END, 300]);
-      useScene.setState({ threeD: true, phase: { kind: 'PROJECT_FOCUS', id: 'funcial' } });
+      useScene.setState({ threeD: true, phase: { kind: 'PROJECT_FOCUS', id: 'steady' } });
       expect(goToTop(), 'a bead opening').toBe(false);
       expect([storyFrame.target, s.win.scrollY]).toEqual([STORY_END, 300]);
       s.disconnect();
@@ -1901,7 +1901,7 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
       useScene.setState({ threeD: false });
       expect(goToEnd(), '3D off').toBe(false);
       expect(headedToEnd(), '3D off').toBe(false);
-      useScene.setState({ threeD: true, phase: { kind: 'PROJECT_FOCUS', id: 'funcial' } });
+      useScene.setState({ threeD: true, phase: { kind: 'PROJECT_FOCUS', id: 'steady' } });
       expect(goToEnd(), 'a bead opening').toBe(false);
       useScene.setState({ phase: { kind: 'LIGHT' } });
       storyFrame.loaderSkipEndsMs = performance.now();

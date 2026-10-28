@@ -58,7 +58,7 @@ describe('useScene', () => {
     const id = useScene.getState().transitionId;
     const listener = vi.fn();
     const unsubscribe = useScene.subscribe(listener);
-    dispatch({ type: 'OPEN_PROJECT', id: 'funcial' });
+    dispatch({ type: 'OPEN_PROJECT', id: 'steady' });
     dispatch({ type: 'LOADED' });
     dispatch({ type: 'BACK' });
     unsubscribe();

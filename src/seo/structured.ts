@@ -57,7 +57,7 @@ export function projectLd(project: Project, locale: Locale): Record<string, unkn
   };
 }
 
-/** A breadcrumb trail; each crumb is a route (`/`, `/projects/funcial/`) in this locale. */
+/** A breadcrumb trail; each crumb is a route (`/`, `/projects/steady/`) in this locale. */
 export function breadcrumbLd(locale: Locale, crumbs: { name: string; route: string }[]): Record<string, unknown> {
   return {
     '@context': 'https://schema.org',

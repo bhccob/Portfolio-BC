@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { projects } from '../../src/data/projects';
 import { breadcrumbLd, personLd, projectLd, websiteLd } from '../../src/seo/structured';
 
-const funcial = projects.byId('funcial');
-if (!funcial) throw new Error('no Funcial');
+const steady = projects.byId('steady');
+if (!steady) throw new Error('no Steady');
 
 describe('structured data', () => {
   it('describes Bob as a Person, with his real profiles and no email address', () => {
@@ -24,11 +24,11 @@ describe('structured data', () => {
   });
 
   it('describes a project as source code, with its repository and no AI in its keywords', () => {
-    const ld = projectLd(funcial, 'en');
+    const ld = projectLd(steady, 'en');
     expect(ld['@type']).toBe('SoftwareSourceCode');
-    expect(ld.name).toBe('Funcial');
-    expect(ld.url).toBe('https://bhccob.me/en/projects/funcial/');
-    expect(ld.codeRepository).toBe('https://github.com/bhccob/Funcial');
+    expect(ld.name).toBe('Steady');
+    expect(ld.url).toBe('https://bhccob.me/en/projects/steady/');
+    expect(ld.codeRepository).toBe('https://github.com/bhccob/steady');
     expect(ld.dateCreated).toBe('2026');
     expect(ld.inLanguage).toBe('en');
     expect(JSON.stringify(ld.keywords)).not.toMatch(/\bAI\b|Claude/);
@@ -45,12 +45,12 @@ describe('structured data', () => {
   it('writes a breadcrumb trail of absolute URLs', () => {
     const trail = breadcrumbLd('nl', [
       { name: 'Bob Chung', route: '/' },
-      { name: 'Funcial', route: '/projects/funcial/' },
+      { name: 'Steady', route: '/projects/steady/' },
     ]);
     expect(trail['@type']).toBe('BreadcrumbList');
     expect(trail.itemListElement).toEqual([
       { '@type': 'ListItem', position: 1, name: 'Bob Chung', item: 'https://bhccob.me/' },
-      { '@type': 'ListItem', position: 2, name: 'Funcial', item: 'https://bhccob.me/projects/funcial/' },
+      { '@type': 'ListItem', position: 2, name: 'Steady', item: 'https://bhccob.me/projects/steady/' },
     ]);
   });
 });

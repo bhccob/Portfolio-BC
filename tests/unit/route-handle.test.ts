@@ -61,7 +61,7 @@ describe('handleOf', () => {
 
   it("reads the deepest matched route's handle", () => {
     expect(handleOf([root, { handle: HANDLES.lite, pathname: '/lite/' }])).toBe(HANDLES.lite);
-    expect(handleOf([root, { handle: HANDLES.project, pathname: '/en/projects/funcial/' }])).toBe(HANDLES.project);
+    expect(handleOf([root, { handle: HANDLES.project, pathname: '/en/projects/steady/' }])).toBe(HANDLES.project);
     expect(handleOf([root, { handle: HANDLES.home, pathname: '/' }])).toBe(HANDLES.home);
     expect(handleOf([root, { handle: HANDLES['not-found'], pathname: '/does-not-exist/' }])).toBe(HANDLES['not-found']);
   });
@@ -74,7 +74,7 @@ describe('handleOf', () => {
   });
 
   it("gives not found, with no scene, for a page's route matched under another spelling (the client router ignores case)", () => {
-    for (const pathname of ['/en/Projects/Funcial/', '/EN/projects/funcial/', '/Projects/Funcial/', '/en/projects/FUNCIAL/', '/Lite/']) {
+    for (const pathname of ['/en/Projects/Steady/', '/EN/projects/steady/', '/Projects/Steady/', '/en/projects/FUNCIAL/', '/Lite/']) {
       const handle = /lite/i.test(pathname) ? HANDLES.lite : HANDLES.project;
       expect(handleOf([root, { handle, pathname }]), pathname).toBe(HANDLES['not-found']);
     }

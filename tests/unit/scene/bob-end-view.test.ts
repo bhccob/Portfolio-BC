@@ -400,7 +400,7 @@ describe('the scene sleeps as soon as the story rests at the end', () => {
       { kind: 'LOADING' },
       { kind: 'HOME_IDLE' },
       { kind: 'LIGHT' },
-      { kind: 'PROJECTS', category: 'oscillator' },
+      { kind: 'PROJECTS', category: 'game' },
       { kind: 'PROJECT_FOCUS', id: 'cookies-clicker' },
     ];
     for (const phase of others) expect(phaseChangeDraws(phase), phase.kind).toBe(true);

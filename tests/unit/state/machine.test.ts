@@ -5,9 +5,9 @@ import { SCROLL_PHASES, samePhase, transition, type Phase, type SceneEvent } fro
 const LOADING: Phase = { kind: 'LOADING' };
 const HOME: Phase = { kind: 'HOME_IDLE' };
 const LIGHT: Phase = { kind: 'LIGHT' };
-const PROJECTS: Phase = { kind: 'PROJECTS', category: 'front-panel' };
+const PROJECTS: Phase = { kind: 'PROJECTS', category: 'website' };
 const END: Phase = { kind: 'END' };
-const PROJECT: Phase = { kind: 'PROJECT_FOCUS', id: 'funcial' };
+const PROJECT: Phase = { kind: 'PROJECT_FOCUS', id: 'steady' };
 
 const ALL: Phase[] = [LOADING, HOME, LIGHT, PROJECTS, END, PROJECT];
 const chapter = (id: ChapterId, category: string | null = null): SceneEvent => ({ type: 'CHAPTER', chapter: id, category });
@@ -29,14 +29,14 @@ describe('CHAPTER', () => {
   });
 
   it("takes an area to PROJECTS with its category, and follows it from one to the next", () => {
-    expect(transition(LIGHT, chapter('AREA', 'secure-element'))).toEqual({ kind: 'PROJECTS', category: 'secure-element' });
-    expect(transition(PROJECTS, chapter('AREA', 'oscillator'))).toEqual({ kind: 'PROJECTS', category: 'oscillator' });
+    expect(transition(LIGHT, chapter('AREA', 'app'))).toEqual({ kind: 'PROJECTS', category: 'app' });
+    expect(transition(PROJECTS, chapter('AREA', 'game'))).toEqual({ kind: 'PROJECTS', category: 'game' });
   });
 
   it("maps the world's chapters to the projects phase: the land, the look back and the sheet with no project", () => {
     expect(transition({ kind: 'LIGHT' }, chapter('LAND'))).toEqual({ kind: 'PROJECTS', category: null });
-    expect(transition({ kind: 'LIGHT' }, chapter('AREA', 'front-panel'))).toEqual({ kind: 'PROJECTS', category: 'front-panel' });
-    expect(transition({ kind: 'PROJECTS', category: 'oscillator' }, chapter('LOOK'))).toEqual({ kind: 'PROJECTS', category: null });
+    expect(transition({ kind: 'LIGHT' }, chapter('AREA', 'website'))).toEqual({ kind: 'PROJECTS', category: 'website' });
+    expect(transition({ kind: 'PROJECTS', category: 'game' }, chapter('LOOK'))).toEqual({ kind: 'PROJECTS', category: null });
     expect(transition({ kind: 'PROJECTS', category: null }, chapter('SHEET'))).toEqual({ kind: 'PROJECTS', category: null });
   });
 
@@ -50,7 +50,7 @@ describe('CHAPTER', () => {
   it('applies from HOME_IDLE, LIGHT, PROJECTS and END', () => {
     for (const phase of [HOME, PROJECTS, END]) expect(transition(phase, chapter('LIGHT')), phase.kind).toEqual({ kind: 'LIGHT' });
     for (const phase of [HOME, LIGHT, PROJECTS, END]) {
-      expect(transition(phase, chapter('AREA', 'oscillator')), phase.kind).toEqual({ kind: 'PROJECTS', category: 'oscillator' });
+      expect(transition(phase, chapter('AREA', 'game')), phase.kind).toEqual({ kind: 'PROJECTS', category: 'game' });
     }
   });
 
@@ -61,7 +61,7 @@ describe('CHAPTER', () => {
   it('returns the same object when the chapter is the one already shown', () => {
     expect(transition(HOME, chapter('HOME'))).toBe(HOME);
     expect(transition(LIGHT, chapter('LIGHT'))).toBe(LIGHT);
-    expect(transition(PROJECTS, chapter('AREA', 'front-panel'))).toBe(PROJECTS);
+    expect(transition(PROJECTS, chapter('AREA', 'website'))).toBe(PROJECTS);
     expect(transition(END, chapter('END'))).toBe(END);
   });
 });
@@ -75,8 +75,8 @@ describe('SCROLL_PHASES', () => {
   it('are the phases a CHAPTER event applies from, and no others', () => {
     // A CHAPTER event for the last project takes every scroll phase there and leaves the others (LOADING, a project page) where they are.
     for (const phase of ALL) {
-      const next = transition(phase, chapter('AREA', 'oscillator'));
-      expect(samePhase(next, { kind: 'PROJECTS', category: 'oscillator' }), phase.kind).toBe(SCROLL_PHASES.has(phase.kind));
+      const next = transition(phase, chapter('AREA', 'game'));
+      expect(samePhase(next, { kind: 'PROJECTS', category: 'game' }), phase.kind).toBe(SCROLL_PHASES.has(phase.kind));
     }
   });
 });
@@ -87,7 +87,7 @@ describe('OPEN_PROJECT', () => {
   });
 
   it('is ignored from every other phase (a URL arrives as ROUTE)', () => {
-    for (const phase of ALL.filter((p) => p.kind !== 'PROJECTS')) expect(transition(phase, { type: 'OPEN_PROJECT', id: 'funcial' }), phase.kind).toBe(phase);
+    for (const phase of ALL.filter((p) => p.kind !== 'PROJECTS')) expect(transition(phase, { type: 'OPEN_PROJECT', id: 'steady' }), phase.kind).toBe(phase);
   });
 });
 
@@ -111,13 +111,13 @@ describe('ROUTE', () => {
 describe('ignored events', () => {
   it('return the identical object', () => {
     expect(transition(PROJECT, { type: 'LOADED' })).toBe(PROJECT);
-    expect(transition(HOME, { type: 'OPEN_PROJECT', id: 'funcial' })).toBe(HOME);
+    expect(transition(HOME, { type: 'OPEN_PROJECT', id: 'steady' })).toBe(HOME);
     expect(transition(LIGHT, { type: 'BACK' })).toBe(LIGHT);
   });
 
   it('leave the phase it was given untouched', () => {
     const phase: Phase = { kind: 'LIGHT' };
-    transition(phase, { type: 'OPEN_PROJECT', id: 'funcial' });
+    transition(phase, { type: 'OPEN_PROJECT', id: 'steady' });
     transition(phase, { type: 'BACK' });
     expect(phase).toEqual({ kind: 'LIGHT' });
   });
@@ -129,10 +129,10 @@ describe('samePhase', () => {
     expect(samePhase({ kind: 'HOME_IDLE' }, { kind: 'LIGHT' })).toBe(false);
     expect(samePhase({ kind: 'LIGHT' }, { kind: 'LIGHT' })).toBe(true);
     expect(samePhase({ kind: 'END' }, { kind: 'END' })).toBe(true);
-    expect(samePhase({ kind: 'END' }, { kind: 'PROJECTS', category: 'oscillator' })).toBe(false);
-    expect(samePhase({ kind: 'PROJECTS', category: null }, { kind: 'PROJECTS', category: 'oscillator' })).toBe(false);
-    expect(samePhase({ kind: 'PROJECT_FOCUS', id: 'funcial' }, { kind: 'PROJECT_FOCUS', id: 'funcial' })).toBe(true);
-    expect(samePhase({ kind: 'PROJECT_FOCUS', id: 'funcial' }, { kind: 'PROJECT_FOCUS', id: 'jontai-energy' })).toBe(false);
+    expect(samePhase({ kind: 'END' }, { kind: 'PROJECTS', category: 'game' })).toBe(false);
+    expect(samePhase({ kind: 'PROJECTS', category: null }, { kind: 'PROJECTS', category: 'game' })).toBe(false);
+    expect(samePhase({ kind: 'PROJECT_FOCUS', id: 'steady' }, { kind: 'PROJECT_FOCUS', id: 'steady' })).toBe(true);
+    expect(samePhase({ kind: 'PROJECT_FOCUS', id: 'steady' }, { kind: 'PROJECT_FOCUS', id: 'jontai-energy' })).toBe(false);
   });
 });
 

@@ -138,9 +138,9 @@ describe('the clouds: where they hang, each at its own depth', () => {
       16 / 9,
       buildChapters({
         areas: [
-          { category: 'secure-element', projects: ['funcial', 'jontai-energy'] },
-          { category: 'front-panel', projects: ['cookies-clicker'] },
-          { category: 'oscillator', projects: ['funcial', 'jontai-energy'] }
+          { category: 'app', projects: ['steady', 'jontai-energy'] },
+          { category: 'website', projects: ['cookies-clicker'] },
+          { category: 'game', projects: ['steady', 'jontai-energy'] }
         ]
       })
     );

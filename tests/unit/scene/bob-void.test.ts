@@ -41,8 +41,8 @@ const END = scrollEnd(HOME_CHAPTERS);
 const L = pathStart(HOME_CHAPTERS);
 /** The first stop past the hold, the world's; and two areas' stops (Jontai Energy's, Cookies Clicker's). */
 const A0 = worldStop(HOME_CHAPTERS);
-const A1 = areaStop(HOME_CHAPTERS, 'front-panel');
-const A2 = areaStop(HOME_CHAPTERS, 'oscillator');
+const A1 = areaStop(HOME_CHAPTERS, 'website');
+const A2 = areaStop(HOME_CHAPTERS, 'game');
 
 // ---------------------------------------------------------------- the hold
 
@@ -90,13 +90,13 @@ describe('holdLimit and releaseTarget: the hold as the scroll input applies it',
   });
 
   it('goes on to the next key stop once the hold rises, or further where the input asked further, never past the new hold', () => {
-    // A wheel that pressed a notch past the hold: on to Funcial's arrival.
+    // A wheel that pressed a notch past the hold: on to Steady's arrival.
     expect(releaseTarget(H, H + 0.1, END, HOME_CHAPTERS)).toBe(A0);
     // End, pressed while held: the end.
     expect(releaseTarget(H, END, END, HOME_CHAPTERS)).toBe(END);
-    // A long wheel that asked for a place past Funcial's arrival: there.
+    // A long wheel that asked for a place past Steady's arrival: there.
     expect(releaseTarget(H, A0 + 0.4, END, HOME_CHAPTERS)).toBe(A0 + 0.4);
-    // Reduced motion, held on the last fact and asked for Funcial: Funcial.
+    // Reduced motion, held on the last fact and asked for Steady: Steady.
     expect(releaseTarget(F241, A0, END, HOME_CHAPTERS)).toBe(A0);
     // Never past the hold it is released to.
     expect(releaseTarget(H, END, L + 2, HOME_CHAPTERS)).toBe(L + 2);
@@ -252,7 +252,7 @@ describe("3D off and on keeps the visitor's place", () => {
   });
 
   it('keeps the place when the hold comes down with 3D on for a void that loads again, idle, then ready', async () => {
-    const s = held('ready', { at: L + 4.6 }); // on the way from Funcial to Jontai Energy
+    const s = held('ready', { at: L + 4.6 }); // on the way from Steady to Jontai Energy
     s.become('idle');
     expect([s.story.target, s.story.progress]).toEqual([H, H]);
     s.become('loading');
@@ -362,7 +362,7 @@ describe('the scroll input holds at the landing while the beads load', () => {
 
   it('goes on once ready: a wheel that pressed against the hold goes on as far as it went', async () => {
     const s = held('loading');
-    await s.wheel(80); // 9.6 units asked for: inside Funcial, past its arrival, the next stop past the hold
+    await s.wheel(80); // 9.6 units asked for: inside Steady, past its arrival, the next stop past the hold
     s.drain();
     s.become('ready');
     s.drain();
@@ -436,7 +436,7 @@ describe('the scroll input holds at the landing while the beads load', () => {
     // Back (or Escape) from Jontai Energy's page while the beads still load: the route sync put the story at its arrival.
     const s = held('loading', { at: A1 });
     expect([s.story.target, s.story.progress]).toEqual([H, H]);
-    // The chapter follows the story to the hold: the path's start, Funcial's travel.
+    // The chapter follows the story to the hold: the path's start, Steady's travel.
     expect(s.story.chapterIndex).toBe(2);
     expect(s.chapters).toEqual(['LAND']);
     s.drain();
@@ -535,7 +535,7 @@ describe('the scroll input holds at the landing while the beads load', () => {
     for (let i = 0; i < 5; i++) s.key('PageDown'); // the five facts
     s.drain();
     expect(s.story.target).toBe(F241);
-    s.key('PageDown'); // Funcial's arrival, past the hold: held
+    s.key('PageDown'); // Steady's arrival, past the hold: held
     s.drain();
     expect(s.story.target).toBe(F241);
     s.become('ready');
@@ -572,7 +572,7 @@ describe('frame.journey: where the journey stands, for the debug bridge', () => 
   it('is on the debug state as a copy, voidState included', () => {
     const before = { ...frame.journey };
     try {
-      const objects = [{ id: 'funcial', x: 10, y: 20, r: 30, visible: true }];
+      const objects = [{ id: 'steady', x: 10, y: 20, r: 30, visible: true }];
       const world = { power: 1, names: 0, caption: { index: 1, opacity: 1 }, dots: 1 };
       Object.assign(frame.journey, { stretch: 'area', local: 0.5, project: 1, voidState: 'ready', frame: null, sheet: 0, light: null, objects, world });
       const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
@@ -820,7 +820,7 @@ describe("the home scroll as the page wires it to the store (connectHomeScroll, 
       await flush();
       s.drain();
       expect([frame.target, frame.progress]).toEqual([A1, A1]);
-      expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'front-panel' });
+      expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'website' });
     } finally {
       s.disconnect();
     }

@@ -29,9 +29,9 @@ import {
 const L = 1 + (6 * 255) / 299;
 const c = buildChapters({
   areas: [
-    { category: 'secure-element', projects: ['funcial'] },
-    { category: 'front-panel', projects: ['jontai-energy'] },
-    { category: 'oscillator', projects: ['cookies-clicker'] }
+    { category: 'app', projects: ['steady'] },
+    { category: 'website', projects: ['jontai-energy'] },
+    { category: 'game', projects: ['cookies-clicker'] }
   ]
 });
 
@@ -54,9 +54,9 @@ describe('buildChapters', () => {
       ['HOME', null, null],
       ['LIGHT', null, null],
       ['LAND', null, null],
-      ['AREA', 0, 'secure-element'],
-      ['AREA', 1, 'front-panel'],
-      ['AREA', 2, 'oscillator'],
+      ['AREA', 0, 'app'],
+      ['AREA', 1, 'website'],
+      ['AREA', 2, 'game'],
       ['LOOK', null, null],
       ['SHEET', null, null],
       ['END', null, null],
@@ -69,13 +69,13 @@ describe('buildChapters', () => {
   it('gives a category with two projects one area', () => {
     const four = buildChapters({
       areas: [
-        { category: 'secure-element', projects: ['funcial'] },
-        { category: 'oscillator', projects: ['cookies-clicker', 'jontai-energy'] }
+        { category: 'app', projects: ['steady'] },
+        { category: 'game', projects: ['cookies-clicker', 'jontai-energy'] }
       ]
     });
     expect(four.units.filter((u) => u.id === 'AREA').map((u) => [u.category, u.project])).toEqual([
-      ['secure-element', 0],
-      ['oscillator', 1],
+      ['app', 0],
+      ['game', 1],
     ]);
   });
 
@@ -97,7 +97,7 @@ describe('chapterAt', () => {
   });
 
   it("names an area's category and place, and none in the land or the look back", () => {
-    expect(chapterAt(c, L + 4.0)).toMatchObject({ id: 'AREA', category: 'front-panel', project: 1 });
+    expect(chapterAt(c, L + 4.0)).toMatchObject({ id: 'AREA', category: 'website', project: 1 });
     expect(chapterAt(c, L + 1.0)).toMatchObject({ id: 'LAND', category: null, project: null });
     expect(chapterAt(c, L + 7.0)).toMatchObject({ id: 'LOOK', category: null, project: null });
   });
@@ -166,21 +166,21 @@ describe('the places of the scroll', () => {
   });
 
   it("puts each area's stop inside its area, at AREA_STOP of it", () => {
-    expect(areaStop(HOME_CHAPTERS, 'front-panel')).toBeCloseTo(L + 4.18, 9);
-    expect(chapterAt(HOME_CHAPTERS, areaStop(HOME_CHAPTERS, 'front-panel'))).toMatchObject({ id: 'AREA', category: 'front-panel' });
-    expect(() => areaStop(buildChapters({ areas: [] }), 'oscillator')).toThrow(TypeError);
+    expect(areaStop(HOME_CHAPTERS, 'website')).toBeCloseTo(L + 4.18, 9);
+    expect(chapterAt(HOME_CHAPTERS, areaStop(HOME_CHAPTERS, 'website'))).toMatchObject({ id: 'AREA', category: 'website' });
+    expect(() => areaStop(buildChapters({ areas: [] }), 'game')).toThrow(TypeError);
   });
 });
 
 describe('HOME_CHAPTERS', () => {
   it("is the home's: an area per category of the projects on the way, in the categories' order", () => {
-    expect(HOME_CHAPTERS.units.filter((u) => u.id === 'AREA').map((u) => u.category)).toEqual(['secure-element', 'front-panel', 'oscillator']);
+    expect(HOME_CHAPTERS.units.filter((u) => u.id === 'AREA').map((u) => u.category)).toEqual(['app', 'website', 'game']);
   });
 
   it("puts a project's place at its area's stop", async () => {
     const { placeForProject } = await import('../../../src/state/routeSync');
-    expect(placeForProject('jontai-energy')).toBeCloseTo(areaStop(HOME_CHAPTERS, 'front-panel'), 12);
-    expect(placeForProject('cookies-clicker')).toBeCloseTo(areaStop(HOME_CHAPTERS, 'oscillator'), 12);
+    expect(placeForProject('jontai-energy')).toBeCloseTo(areaStop(HOME_CHAPTERS, 'website'), 12);
+    expect(placeForProject('cookies-clicker')).toBeCloseTo(areaStop(HOME_CHAPTERS, 'game'), 12);
   });
 });
 

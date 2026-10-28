@@ -15,7 +15,7 @@ const L = pathStart(HOME_CHAPTERS);
 describe('opensOnClick: where a click opens a project on the world', () => {
   it('opens at rest at the world, at every area and in the look back; nowhere while moving, nor before the world', () => {
     expect(LAND_STOP).toBe(0.85);
-    const rests = [worldStop(HOME_CHAPTERS), areaStop(HOME_CHAPTERS, 'secure-element'), areaStop(HOME_CHAPTERS, 'oscillator'), L + 6.5, sheetStart(HOME_CHAPTERS)];
+    const rests = [worldStop(HOME_CHAPTERS), areaStop(HOME_CHAPTERS, 'app'), areaStop(HOME_CHAPTERS, 'game'), L + 6.5, sheetStart(HOME_CHAPTERS)];
     for (const p of rests) {
       expect(opensOnClick(journeyAt(p), true), `at rest at ${p}`).toBe(true);
       expect(opensOnClick(journeyAt(p), false), `moving at ${p}`).toBe(false);
@@ -60,18 +60,18 @@ describe('inside the bead: its objects build, its touch points show and its cloc
 describe("insideFromHistory: the inside a history entry carries", () => {
   it('reads the inside only from a state this session pushed', () => {
     expect(INSIDE_STATE).toBe('bob-inside');
-    expect(insideFromHistory({ 'bob-inside': 'funcial' })).toBe('funcial');
+    expect(insideFromHistory({ 'bob-inside': 'steady' })).toBe('steady');
     for (const id of WORLD_PROJECTS) expect(insideFromHistory({ [INSIDE_STATE]: id })).toBe(id);
     const offPath = projects.offPath()[0]?.id ?? 'nope';
-    for (const state of [null, undefined, 'funcial', 3, {}, { 'bob-inside': 'nope' }, { 'bob-inside': 7 }, { 'bob-inside': offPath }, { back: true }]) {
+    for (const state of [null, undefined, 'steady', 3, {}, { 'bob-inside': 'nope' }, { 'bob-inside': 7 }, { 'bob-inside': offPath }, { back: true }]) {
       expect(insideFromHistory(state), JSON.stringify(state)).toBeNull();
     }
   });
 });
 
 describe('the inside in the history (syncRoute)', () => {
-  const A0 = stopForProject('funcial');
-  const inside = { [INSIDE_STATE]: 'funcial' };
+  const A0 = stopForProject('steady');
+  const inside = { [INSIDE_STATE]: 'steady' };
   const reset = (): void => {
     resetRouteSync();
     useScene.setState(useScene.getInitialState(), true);
@@ -79,7 +79,7 @@ describe('the inside in the history (syncRoute)', () => {
   };
   beforeEach(() => {
     reset();
-    useScene.setState({ phase: { kind: 'PROJECTS', category: 'secure-element' } });
+    useScene.setState({ phase: { kind: 'PROJECTS', category: 'app' } });
     frame.progress = frame.target = A0;
   });
   afterEach(reset);
@@ -88,9 +88,9 @@ describe('the inside in the history (syncRoute)', () => {
     syncRoute({ pathname: '/', key: 'default', state: inside }, NavigationType.Pop); // a reload while inside
     expect(useScene.getState().inside).toBeNull();
     expect(insideInHistory()).toBe(false);
-    noteOpenedFrom('funcial', A0);
+    noteOpenedFrom('steady', A0);
     syncRoute({ pathname: '/', key: 'k1', state: inside }, NavigationType.Push); // a click on the bead
-    expect(useScene.getState().inside).toBe('funcial');
+    expect(useScene.getState().inside).toBe('steady');
     expect(insideInHistory()).toBe(true);
     syncRoute({ pathname: '/', key: 'default' }, NavigationType.Pop); // Back
     expect(useScene.getState().inside).toBeNull();
@@ -100,38 +100,38 @@ describe('the inside in the history (syncRoute)', () => {
 
   it("puts the story at the bead's arrival when the history brings back an inside the story is not at", () => {
     syncRoute({ pathname: '/', key: 'default' }, NavigationType.Pop);
-    noteOpenedFrom('funcial', A0);
+    noteOpenedFrom('steady', A0);
     syncRoute({ pathname: '/', key: 'k1', state: inside }, NavigationType.Push);
     syncRoute({ pathname: '/', key: 'default' }, NavigationType.Pop);
     // Scrolled on to Jontai Energy's arrival, then Forward.
     const A1 = stopForProject('jontai-energy');
     frame.progress = frame.target = A1;
-    useScene.setState({ phase: { kind: 'PROJECTS', category: 'front-panel' } });
+    useScene.setState({ phase: { kind: 'PROJECTS', category: 'website' } });
     syncRoute({ pathname: '/', key: 'k1', state: inside }, NavigationType.Pop);
-    expect(useScene.getState().inside).toBe('funcial');
+    expect(useScene.getState().inside).toBe('steady');
     expect([frame.progress, frame.target]).toEqual([A0, A0]);
-    expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'secure-element' });
+    expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'app' });
   });
 
   it('lets the inside go on any other page, and has it again on Back from its project page', () => {
     syncRoute({ pathname: '/', key: 'default' }, NavigationType.Pop);
-    noteOpenedFrom('funcial', A0);
+    noteOpenedFrom('steady', A0);
     syncRoute({ pathname: '/', key: 'k1', state: inside }, NavigationType.Push);
-    useScene.getState().dispatch({ type: 'OPEN_PROJECT', id: 'funcial' }); // Bekijk project
-    syncRoute({ pathname: '/projects/funcial/', key: 'k2' }, NavigationType.Push);
+    useScene.getState().dispatch({ type: 'OPEN_PROJECT', id: 'steady' }); // Bekijk project
+    syncRoute({ pathname: '/projects/steady/', key: 'k2' }, NavigationType.Push);
     expect(useScene.getState().inside).toBeNull();
-    expect(useScene.getState().phase).toEqual({ kind: 'PROJECT_FOCUS', id: 'funcial' });
+    expect(useScene.getState().phase).toEqual({ kind: 'PROJECT_FOCUS', id: 'steady' });
     syncRoute({ pathname: '/', key: 'k1', state: inside }, NavigationType.Pop); // Back
-    expect(useScene.getState().inside).toBe('funcial');
-    expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'secure-element' });
+    expect(useScene.getState().inside).toBe('steady');
+    expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'app' });
     expect([frame.progress, frame.target]).toEqual([A0, A0]);
   });
 
   it("reads the English home's entries the same way", () => {
     syncRoute({ pathname: '/en/', key: 'default' }, NavigationType.Pop);
-    noteOpenedFrom('funcial', A0);
+    noteOpenedFrom('steady', A0);
     syncRoute({ pathname: '/en/', key: 'k1', state: inside }, NavigationType.Push);
-    expect(useScene.getState().inside).toBe('funcial');
+    expect(useScene.getState().inside).toBe('steady');
   });
 });
 
@@ -149,16 +149,16 @@ describe("the world's clock and its look with a project open", () => {
 
   it('dims the world, lights the open project and quiets the others as it opens', () => {
     expect(OPEN_LOOK).toEqual({ world: 0.25, focus: 1.25, others: 0.3, light: 0.34, clouds: 0.5 });
-    const levels = { funcial: 1, 'jontai-energy': 1.1, 'cookies-clicker': 0.5 } as const;
+    const levels = { steady: 1, 'jontai-energy': 1.1, 'cookies-clicker': 0.5 } as const;
     expect(openLevels(levels, {}, 0)).toEqual(levels);
-    expect(openLevels(levels, { funcial: 0 }, 0)).toEqual(levels);
-    expect(openLevels(levels, { funcial: 1 }, 1)).toEqual({ funcial: expect.closeTo(1.25, 12), 'jontai-energy': expect.closeTo(0.3, 12), 'cookies-clicker': expect.closeTo(0.3, 12) });
+    expect(openLevels(levels, { steady: 0 }, 0)).toEqual(levels);
+    expect(openLevels(levels, { steady: 1 }, 1)).toEqual({ steady: expect.closeTo(1.25, 12), 'jontai-energy': expect.closeTo(0.3, 12), 'cookies-clicker': expect.closeTo(0.3, 12) });
     const half = openLevels(levels, { 'jontai-energy': 0.5 }, 0.5);
     expect(half['jontai-energy']).toBeCloseTo(1.175, 12);
-    expect(half.funcial).toBeCloseTo(0.65, 12);
+    expect(half.steady).toBeCloseTo(0.65, 12);
     // From one open project to the next, the world held open: the one left goes quiet as the next lights.
-    const turning = openLevels(levels, { funcial: 0.75, 'cookies-clicker': 0.25 }, 1);
-    expect(turning.funcial).toBeCloseTo(0.3 + (1.25 - 0.3) * 0.75, 12);
+    const turning = openLevels(levels, { steady: 0.75, 'cookies-clicker': 0.25 }, 1);
+    expect(turning.steady).toBeCloseTo(0.3 + (1.25 - 0.3) * 0.75, 12);
     expect(turning['cookies-clicker']).toBeCloseTo(0.3 + (1.25 - 0.3) * 0.25, 12);
     expect(turning['jontai-energy']).toBeCloseTo(0.3, 12);
     expect(openWorld(0)).toBe(1);

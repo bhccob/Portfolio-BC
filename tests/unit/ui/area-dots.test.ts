@@ -33,7 +33,7 @@ describe("the areas' dots on the right", () => {
     const html = renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: ['/'] }, createElement(AreaDots)));
     expect(html).toContain(`aria-label="${nl.needle.world.areas}"`);
     expect(html.match(/<button/g)).toHaveLength(areasOnPath().length);
-    expect(html).toContain('aria-label="01 — BEVEILIGD ELEMENT: Funcial"');
+    expect(html).toContain('aria-label="01 — APP: Steady, Porfael"');
   });
 
   it('light the area in view', () => {
@@ -50,7 +50,7 @@ describe("the areas' dots on the right", () => {
   });
 
   it("go to an area's stop when pressed", () => {
-    expect(goToArea('front-panel')).toBe(true);
-    expect(goToPlace).toHaveBeenCalledWith(areaStop(HOME_CHAPTERS, 'front-panel'));
+    expect(goToArea('website')).toBe(true);
+    expect(goToPlace).toHaveBeenCalledWith(areaStop(HOME_CHAPTERS, 'website'));
   });
 });
