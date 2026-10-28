@@ -21,7 +21,7 @@ import { nameScale } from '~/ui/nameLine';
 import { panelKeepOut, panelLevels, showProjectPanels } from '~/ui/ProjectPanel';
 import { showsSkip, writeSkip } from '~/ui/SkipButton';
 import { showTouchPoints } from '~/ui/TouchPoints';
-import { showWorldNames, type WorldNamesView } from '~/ui/WorldNames';
+import { captionHover, nameLevel, showWorldNames, type WorldNamesView } from '~/ui/WorldNames';
 import { motion } from '../motion';
 import { engravedLevels, shaftRings } from './engravedWay';
 import type { Handover } from './Home';
@@ -173,15 +173,27 @@ const eyeAt: [number, number, number] = [0, 0, 0];
 const lightPoint = { x: 0, y: 0 };
 
 /** The names' view, written each frame they show: each project's object's top on the screen, its category, its light. */
+/** No project under the pointer. */
+const NO_HOVER: Readonly<{ id: ProjectId | null; amount: number }> = Object.freeze({ id: null, amount: 0 });
+/** The project under the pointer and how far its hover has eased in, this frame (reused). */
+const hovered: { id: ProjectId | null; amount: number } = { id: null, amount: 0 };
+
+/** Whether the screen has no hover (a touch screen): a board's names then show at its stop. */
+function touchScreen(): boolean {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(hover: none)').matches;
+}
+
 const namesView: WorldNamesView = {
   opacity: 0,
-  names: WORLD_PROJECTS.map((id) => ({ id, anchor: { x: 0, y: 0 }, category: projects.byId(id)!.categoryId, hot: false }))
+  names: WORLD_PROJECTS.map((id) => ({ id, anchor: { x: 0, y: 0 }, category: projects.byId(id)!.categoryId, hot: false, level: 0 }))
 };
 
 /**
  * The world's words on a frame (src/ui/WorldNames.tsx, AreaCaption.tsx, AreaDots.tsx): its names by their objects' tops
- * with the hint, an area's words and the dots, as the path has them, all going as a project opens (`opened`, 0..1), the
- * name of the project under the pointer (`hot`) lit. None without a world in view (`model` or `path` null).
+ * with the hint, a board's words and the dots, as the path has them, all going as a project opens (`opened`, 0..1). A
+ * name shows only under the mouse, as far as the hover on its project has eased in (`hover`) or while the mouse is on it
+ * in a board's words; a touch screen shows the board in view's names at its stop (`nameLevel`). The name of the project
+ * under the pointer (`hot`) lit. None without a world in view (`model` or `path` null).
  */
 function showWorldWords(
   model: WorldModel | null,
@@ -189,7 +201,8 @@ function showWorldWords(
   camera: THREE.Camera,
   size: { width: number; height: number },
   hot: ProjectId | null,
-  opened: number
+  opened: number,
+  hover: { id: ProjectId | null; amount: number } = NO_HOVER
 ): void {
   if (model === null || path === null) {
     showWorldNames(null, size);
@@ -200,11 +213,15 @@ function showWorldWords(
   const away = 1 - opened;
   namesView.opacity = path.names * away;
   if (namesView.opacity > 0) {
+    const touch = touchScreen();
+    const board = path.index >= 0 ? (STACK_PLACES[path.index + 1]?.sockets.map((s) => s.id) ?? null) : null;
+    const caption = captionHover();
     for (const name of namesView.names) {
       model.top(name.id).getWorldPosition(centre).project(camera);
       name.anchor.x = ((centre.x + 1) / 2) * size.width;
       name.anchor.y = ((1 - centre.y) / 2) * size.height;
       name.hot = name.id === hot;
+      name.level = nameLevel(name.id, { touch, hover, caption, board });
     }
   }
   showWorldNames(namesView.opacity > 0 ? namesView : null, size);
@@ -693,7 +710,9 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
     }
     // The world's words, and an open project's, on the home page only (a project's page over it has its own).
     const inView = home && world?.shown ? world.model : null;
-    showWorldWords(inView, path, camera, size, run.pointed === null ? null : WORLD_PROJECTS[run.pointed]!, opened);
+    hovered.id = run.hover.id === null ? null : WORLD_PROJECTS[run.hover.id]!;
+    hovered.amount = run.hover.amount;
+    showWorldWords(inView, path, camera, size, run.pointed === null ? null : WORLD_PROJECTS[run.pointed]!, opened, hovered);
     showOpenWords(inView, close, camera, size);
     // The canvas draws on only while the hover eases or the world's clock runs; the first frame of it asks for the next.
     if (moving && !motion.beads) invalidate();
