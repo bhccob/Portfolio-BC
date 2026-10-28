@@ -43,7 +43,7 @@
   - high: half the screen's size, 84 steps;
   - medium: a third, 56 steps;
   - low: none.
-- **Projects and categories:** up to `PATH_LIMIT` (5) projects on the way; the categories are `src/data/categories.ts`'s, in number order.
+- **Projects and categories:** up to `PATH_LIMIT` (5) projects on the way; the categories are `src/data/categories.ts`'s, by kind of work (01 App, 02 Website, 03 Game development), in number order, one board each.
 - **Words and facts:** NL first, EN at /en/; only the site's own data about Bob; the Cookies Clicker classmate is never named.
 - **Shaders:** every shader `pow` takes a base held to 0 or more.
 - **No new 3D files:** canvases are drawn off the frame and warmed before the landing hold lets go.
@@ -51,15 +51,41 @@
 
 ## Review Focus
 
-1. **A resize while a project is open** (laptop to phone width): the spot and the panel re-place for the new shape. Pinned in Task 3 (`spotFor` per aspect) and Task 10 (`open`, resize).
-2. **The arrows pressed twice quickly:** the project in the spot sinks from where it is and the newest one rises; never two whole in the spot; the camera never moves. Pinned in Task 7.
-3. **A project page reached directly with reduced motion:** it stands at its board's stop with the project in the spot, by the step fade. Pinned in Task 7.
-4. **The low tier:** no gas, the stars and dust only, nothing else lost. Pinned in Task 9.
-5. **Five projects, three in one category:** that board's stop frames all three, and a touch screen's names there never overlap. Pinned in Task 2 and Task 8.
+1. **A resize while a project is open** (laptop to phone width): the spot and the panel re-place for the new shape. Pinned in Task 4 (`spotFor` per aspect) and Task 11 (`open`, resize).
+2. **The arrows pressed twice quickly:** the project in the spot sinks from where it is and the newest one rises; never two whole in the spot; the camera never moves. Pinned in Task 8.
+3. **A project page reached directly with reduced motion:** it stands at its board's stop with the project in the spot, by the step fade. Pinned in Task 8.
+4. **The low tier:** no gas, the stars and dust only, nothing else lost. Pinned in Task 10.
+5. **Five projects, three in one category:** that board's stop frames all three, and a touch screen's names there never overlap. Pinned in Task 3 and Task 9.
 
 ---
 
-### Task 1: The stack's places
+### Task 1: The categories by kind of work
+
+**Files:**
+- Modify:
+  - `src/data/categories.ts`: the ids, labels and doc comment;
+  - `src/data/projects.ts`: each project's `categoryId`;
+  - `src/ui/nameLine.ts`: its offsets' keys;
+  - `src/scene/bob/worldLayout.ts` and `src/scene/bob/journey.ts`: their keys only, until Task 2 replaces them.
+- Test: `tests/unit/projects.test.ts`; every test and `tools/proof/needle.mjs` where the old ids appear (find them with `grep -rln "secure-element\|front-panel\|'oscillator'" tests tools`).
+
+**Interfaces:**
+- Produces: `CategoryId = 'app' | 'website' | 'game'`:
+  - `app`: number 1, `{ nl: 'APP', en: 'APP' }`;
+  - `website`: number 2, `{ nl: 'WEBSITE', en: 'WEBSITE' }`;
+  - `game`: number 3, `{ nl: 'GAME-ONTWIKKELING', en: 'GAME DEVELOPMENT' }`.
+- Funcial is `app`, Jontai Energy `website`, Cookies Clicker `game`.
+- `heading()` stays as it is: "01 — APP", "03 — GAME-ONTWIKKELING".
+
+- [ ] **Step 1: Write the failing tests** in `tests/unit/projects.test.ts`:
+  - `'files each project under the kind of work it is'`: Funcial `app`, Jontai Energy `website`, Cookies Clicker `game`.
+  - `"heads the categories by number and kind, in both languages"`: "01 — APP", "02 — WEBSITE", "03 — GAME DEVELOPMENT" and "03 — GAME-ONTWIKKELING".
+- [ ] **Step 2:** Run `npx vitest run tests/unit/projects.test.ts`. Expected: FAIL, on the old ids.
+- [ ] **Step 3:** Implement as above. Update the tests and the harness that name the old ids or labels to the new ones; they check the same things. The old device-part names stay only in `docs/projects-discovery.md`, as its history.
+- [ ] **Step 4:** Run `npm test` and `npx tsc --noEmit`. Expected: PASS, with no type errors.
+- [ ] **Step 5:** Commit: `data: the projects filed by kind of work: app, website, game development`.
+
+### Task 2: The stack's places
 
 **Files:**
 - Modify: `src/scene/bob/worldLayout.ts`. `worldPlaces`, `AREA_RING`, `AREA_ANGLE` and `BOARD` give way to the stack's.
@@ -84,10 +110,10 @@
   - `'stacks the boards 0.32 apart closed and at their places open'`: `boardTops(b, 0)[k] = top0 − k·0.52`, `boardTops(b, 1)[k] = b[k].top`, and 0.5 lies between.
 - [ ] **Step 2:** Run `npx vitest run tests/unit/scene/bob-world-layout.test.ts`. Expected: FAIL, `stackPlaces` is not exported.
 - [ ] **Step 3:** Implement as above. The angle convention is the mock-up's: (x, z) = (sin a, cos a) · r.
-- [ ] **Step 4:** Run the same command. Expected: PASS. Then run `npx tsc --noEmit`. It is expected to fail only in the modules Tasks 2 and 6 rewrite (`worldPath.ts`, `world.ts`, `Void.tsx`). List them in the ledger.
+- [ ] **Step 4:** Run the same command. Expected: PASS. Then run `npx tsc --noEmit`. It is expected to fail only in the modules Tasks 3 and 7 rewrite (`worldPath.ts`, `world.ts`, `Void.tsx`). List them in the ledger.
 - [ ] **Step 5:** Commit: `scene: the stack's places: the power board, a board per category below, sockets on each board's ring`.
 
-### Task 2: Framing and the path down the stack
+### Task 3: Framing and the path down the stack
 
 **Files:**
 - Create: `src/scene/bob/fit.ts`.
@@ -95,7 +121,7 @@
 - Test: `tests/unit/scene/bob-fit.test.ts` (new), `tests/unit/scene/bob-world-path.test.ts` (rewritten).
 
 **Interfaces:**
-- Consumes: Task 1's `stackPlaces`, `boardTops`, `STACK`.
+- Consumes: Task 2's `stackPlaces`, `boardTops`, `STACK`.
 - Produces:
   - In `fit.ts`:
     - `project(point: Vec3, shot: CameraShot, aspect: number): { x: number; y: number; front: boolean }`, in NDC.
@@ -136,14 +162,14 @@
 - [ ] **Step 5:** Run the same command. Expected: PASS.
 - [ ] **Step 6:** Commit: `scene: the path down the stack: the explode, the power board by board, a stop per board, framed by fit`.
 
-### Task 3: The open spot
+### Task 4: The open spot
 
 **Files:**
 - Create: `src/scene/bob/spot.ts`.
 - Test: `tests/unit/scene/bob-spot.test.ts`.
 
 **Interfaces:**
-- Consumes: `project` from Task 2's `fit.ts`.
+- Consumes: `project` from Task 3's `fit.ts`.
 - Produces:
   - `SPOT` (the Global Constraints' values, plus `lift: 1.6`, the curve's rise over its middle, and `sway: 0.12` rad);
   - `interface SpotPose { centre: Vec3; yaw: number; tilt: number; scale: number }`;
@@ -167,7 +193,7 @@
 - [ ] **Step 4:** Run the same command. Expected: PASS.
 - [ ] **Step 5:** Commit: `scene: the open spot in front of the camera, and the curve up to it`.
 
-### Task 4: The boards in code
+### Task 5: The boards in code
 
 **Files:**
 - Create: `src/engine/bob/build/plate.ts`, after the mock-up's `plate.ts`.
@@ -192,12 +218,12 @@
 - [ ] **Step 2:** Run `npx vitest run tests/unit/bob/build-plate.test.ts`. Expected: FAIL.
 - [ ] **Step 3: Implement.** Port the mock-up's `plate.ts`:
   - Its layout goes into `plateLayout`, scaled by tier.
-  - Canvases come from `canvas()`; the font is `"Martian Mono Variable"`, which the Void loads before building (Task 6).
+  - Canvases come from `canvas()`; the font is `"Martian Mono Variable"`, which the Void loads before building (Task 7).
   - The dimmed materials carry `room` as their `envMap`.
 - [ ] **Step 4:** Run the same command. Expected: PASS.
 - [ ] **Step 5:** Commit: `engine: the stack's boards in code: mask, copper, gold, print, parts and their buses`.
 
-### Task 5: The spine in code
+### Task 6: The spine in code
 
 **Files:**
 - Create: `src/engine/bob/build/spine.ts`, after the mock-up's.
@@ -221,7 +247,7 @@
 - [ ] **Step 4:** Run the same command. Expected: PASS.
 - [ ] **Step 5:** Commit: `engine: the quantum spine in code: flanges, cable bundles, the glass core, the guide lines`.
 
-### Task 6: The world: the stack, its CPU, sockets and objects
+### Task 7: The world: the stack, its CPU, sockets and objects
 
 **Files:**
 - Modify:
@@ -230,7 +256,7 @@
 - Test: `tests/unit/bob/build-world.test.ts` (updated).
 
 **Interfaces:**
-- Consumes: Tasks 1, 2, 4 and 5; Task 3's `liftAt` and `SpotPose`.
+- Consumes: Tasks 1, 2, 4 and 5; Task 4's `liftAt` and `SpotPose`.
 - Produces:
   - `WorldPose` gains `tops: number[]`, `boardPower: number[]`, `boardLight: number[]`, `lift: Record<ProjectId, number>` and `spot: SpotPose | null`.
   - `buildWorld(boards: readonly BoardPlace[], tier, room: THREE.Texture | null, canvas)` builds the parts:
@@ -252,10 +278,10 @@
   - `"dims the boards, the spine, the CPU and the sockets with the world's level"`.
 - [ ] **Step 2:** Run `npx vitest run tests/unit/bob/build-world.test.ts`. Expected: FAIL.
 - [ ] **Step 3: Implement.** The objects are posed by `liftAt(socketPose, spot, ease(lift))`. The socket pose is: board top + `STACK.hover` + float, facing out, at `STACK.scale`. The Void hands `room` (its PMREM'd room) and `turn(azimuth)` each frame, the camera's azimuth round the axis.
-- [ ] **Step 4:** Run `npx vitest run tests/unit/bob/build-world.test.ts tests/unit/scene/bob-void.test.ts`, then `npx tsc --noEmit`. Expected: PASS, with no type errors left from Task 1.
+- [ ] **Step 4:** Run `npx vitest run tests/unit/bob/build-world.test.ts tests/unit/scene/bob-void.test.ts`, then `npx tsc --noEmit`. Expected: PASS, with no type errors left from Task 2.
 - [ ] **Step 5:** Commit: `engine: the world becomes the stack: boards, spine, the socketed CPU, sockets and the objects`.
 
-### Task 7: A click opens a project in place
+### Task 8: A click opens a project in place
 
 **Files:**
 - Modify:
@@ -267,7 +293,7 @@
 - Test: `tests/unit/scene/bob-focus.test.ts` (flight cases rewritten), `tests/unit/scene/bob-inside.test.ts`.
 
 **Interfaces:**
-- Consumes: Task 3's `spotFor`; Task 6's `WorldPose.lift`/`spot`.
+- Consumes: Task 4's `spotFor`; Task 7's `WorldPose.lift`/`spot`.
 - Produces:
   - `focusShotAt(move, now, goal, centre)`:
     - with a project to open and a shot to start from, it returns that shot at every moment;
@@ -292,7 +318,7 @@
 - [ ] **Step 4:** Run the same command, then `npm test`. Expected: PASS, with the whole suite green.
 - [ ] **Step 5:** Commit: `open: a project lifts to the spot in front of the camera, which stays; the arrows swap them in place`.
 
-### Task 8: Names only under the mouse; a board's words
+### Task 9: Names only under the mouse; a board's words
 
 **Files:**
 - Modify:
@@ -317,7 +343,7 @@
 - [ ] **Step 4:** Run the same command. Expected: PASS.
 - [ ] **Step 5:** Commit: `ui: a project's name shows only under the mouse; a touch screen's at its board`.
 
-### Task 9: The 3D nebula
+### Task 10: The 3D nebula
 
 **Files:**
 - Create: `src/engine/bob/build/volume.ts`, after the mock-up's `volume.ts`.
@@ -345,7 +371,7 @@
 - [ ] **Step 4:** Run the same command, then `npm test` and `npx tsc --noEmit`. Expected: PASS.
 - [ ] **Step 5:** Commit: `engine: the nebula in 3D: a volume of gas in place of the cloud cards, stepping down with the tier`.
 
-### Task 10: The proof harness
+### Task 11: The proof harness
 
 **Files:**
 - Modify:
@@ -374,7 +400,7 @@
 - [ ] **Step 2:** Build, serve on 4421, and run `STEPS=world,areas,open node tools/proof/needle.mjs`. Then run all steps. Expected: every step passes, with luma within the limits.
 - [ ] **Step 3:** Commit: `proof: the stack by real input: the explode, the boards, a project opened in place, names under the mouse`.
 
-### Task 11: The review
+### Task 12: The review
 
 **Files:**
 - Create: `.superpowers/quantum-stack-site-review/index.html`, with `stills/` and `video/` (untracked).

@@ -8,6 +8,7 @@
 - **Three rounds of concept pictures:** "none of them really they dont have the techy look"; "im stuck between G and E and also the quantum core can be good just not the current design"; then "K does look the best for me".
 - **Concept K's mock-up:** Funcial need not sit by the CPU ("thats the chip to power it"), "cant the board generally be bigger", "maybe also with an exploding", and a look at the city.
 - **The choice:** the stack and the city side by side, then "The stack (K)".
+- **The categories:** "can you sort it by category tho like Game Developement, Website, App, etc put projects by category in each board".
 
 Nothing is built until he has read the plan.
 
@@ -30,7 +31,12 @@ Nothing is built until he has read the plan.
    - The camera comes down out of the fall and settles on the whole stack, seen from the front and a little above, with dark nebula round it.
    - This is a stop on the scroll (the world). A hint below says how to go on.
 3. **A scroll goes board by board.**
-   - Each category on the way (`src/data/categories.ts`, in number order) has its own board below the power board.
+   - The categories become kinds of work (`src/data/categories.ts`, in number order):
+     - 01 — App: Funcial;
+     - 02 — Website: Jontai Energy;
+     - 03 — Game development ("Game-ontwikkeling" in Dutch): Cookies Clicker.
+   - Each category on the way has its own board below the power board. A new kind of work later is a new category, so a new board.
+   - The category heading on the project pages and in the home's list of projects changes with it.
    - Each scroll takes the camera down to the next board. It is seen from just under the board above it, so no board covers another. The whole board is in view on a laptop; a phone shows the board's middle with its sides running off the screen.
    - At the bottom left: the category, its projects' names (each one opens its project), and "Klik om te openen".
    - The dots on the right show which board is in view and go to a board when pressed.
@@ -116,6 +122,10 @@ Nothing is built until he has read the plan.
 
 ## Decided for the builder (my calls, in the mock-up Bob chose)
 
+- **The categories' order and words:**
+  - App, Website, Game development, in that order, so Funcial stays first.
+  - Labels follow the site's headings ("01 — APP"); "GAME-ONTWIKKELING" in Dutch.
+  - Each project's category follows from what it is in the site's own data: Funcial an app on your phone, Jontai Energy a website, Cookies Clicker a browser game.
 - **The stack's sizes, m.**
   - The power board: radius 3.8, the CPU at its middle.
   - Each category board: radius 6.2, a hole of 1.4 for the spine, 0.2 thick.
