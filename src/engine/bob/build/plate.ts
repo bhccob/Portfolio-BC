@@ -52,7 +52,8 @@ const THICK = PLATE_LOOK.thick;
 const GOLD = new THREE.Color(0xe2a54a);
 const HAZE = new THREE.Color(0x8a6cf2);
 
-function seeded(seed: number): () => number {
+/** A seeded random, 0..1: the same seed, the same board. */
+export function seeded(seed: number): () => number {
   let s = seed >>> 0;
   return () => {
     s = (s + 0x6d2b79f5) >>> 0;
