@@ -9,6 +9,10 @@
 - **Concept K's mock-up:** Funcial need not sit by the CPU ("thats the chip to power it"), "cant the board generally be bigger", "maybe also with an exploding", and a look at the city.
 - **The choice:** the stack and the city side by side, then "The stack (K)".
 - **The categories:** "can you sort it by category tho like Game Developement, Website, App, etc put projects by category in each board".
+- **The projects and the turn:** "can you make it rotate a bit more when going to other projects and add the project Steady and remove funcial and add the porfael one". His answers to my questions:
+  - Funcial leaves the whole site, not only the stack.
+  - Porfael is being built now.
+  - Both new projects are his alone (sole developer), 2026.
 
 Nothing is built until he has read the plan.
 
@@ -32,7 +36,7 @@ Nothing is built until he has read the plan.
    - This is a stop on the scroll (the world). A hint below says how to go on.
 3. **A scroll goes board by board.**
    - The categories become kinds of work (`src/data/categories.ts`, in number order):
-     - 01 — App: Funcial;
+     - 01 — App: Steady and Porfael;
      - 02 — Website: Jontai Energy;
      - 03 — Game development ("Game-ontwikkeling" in Dutch): Cookies Clicker.
    - Each category on the way has its own board below the power board. A new kind of work later is a new category, so a new board.
@@ -45,7 +49,11 @@ Nothing is built until he has read the plan.
 5. **A click opens a project in place.**
    - What opens it: a click or a tap on a project, or on its name in a caption, at rest.
    - The camera stays where it is. The project lifts off its socket and rises to one spot in front of the camera, tipped toward it. A faint beam rises from the spine at its own board, as if the machine projects it. The rest of the machine dims, and the empty socket glows, waiting.
-   - It opens as it does now: Funcial's lid lifts, Jontai Energy's cells light, Cookies Clicker's crystal and gears.
+   - It opens as each object does:
+     - Steady's streak path marks its days one after another, and its trophy lights;
+     - Porfael's ring of shares parts a little, and its relic lights;
+     - Jontai Energy's cells light;
+     - Cookies Clicker's crystal brightens and its gears tick.
    - Beside it: its touch points in two columns and its panel (on a phone, below it), with Terug and the arrows with "1 / 3".
    - The arrows send the open project back to its socket as the next one rises into the same spot, from whichever board it is on. The camera stays.
 6. **Names only under the mouse.**
@@ -113,7 +121,8 @@ Nothing is built until he has read the plan.
   - the round board and its circuit, and its ring of areas round the CPU;
   - the camera's flight into a project's close view;
   - the names shown at the world's stop without the pointer on them;
-  - the cloud cards (`cloudLayout` and the clouds' atlas in `nebula.ts`).
+  - the cloud cards (`cloudLayout` and the clouds' atlas in `nebula.ts`);
+  - Funcial, from the whole site: its data, its project page and route, its object, and its place in every list and in the search engines' data.
 - **Stays:**
   - the fall, the facts, the light with its tail and sparks, the CPU with the compass, the projects' objects;
   - the click-to-open machinery and every way out (the history state, Escape, scroll, swipe, Back);
@@ -123,9 +132,24 @@ Nothing is built until he has read the plan.
 ## Decided for the builder (my calls, in the mock-up Bob chose)
 
 - **The categories' order and words:**
-  - App, Website, Game development, in that order, so Funcial stays first.
+  - App, Website, Game development, in that order. On the App board Steady comes first (it is out, as an Android preview), then Porfael (in development).
   - Labels follow the site's headings ("01 — APP"); "GAME-ONTWIKKELING" in Dutch.
-  - Each project's category follows from what it is in the site's own data: Funcial an app on your phone, Jontai Energy a website, Cookies Clicker a browser game.
+  - Each project's category follows from what it is: Steady and Porfael apps, Jontai Energy a website, Cookies Clicker a browser game.
+- **The new projects' words:** only what their own sources say.
+  - Steady, from its README (github.com/bhccob/steady):
+    - "a calm, private medication reminder for people working through hard things";
+    - an Android app (preview release), built with Expo (SDK 58), React Native and TypeScript, its data in SQLite on the phone;
+    - touch points: reminders, streak path, insights, support levels, privacy;
+    - its link: the repository.
+  - Porfael, from its product spec (`Porfael.md`):
+    - "a private, friends-only investing app and website" with portfolio tracking across brokers, paper trading, theses, guilds and relics (achievements);
+    - shown as in development, with no link and no stack until Bob gives them;
+    - touch points: portfolio, paper trades, theses, guilds, relics.
+  - Both: "Enige ontwikkelaar" / "Sole developer", 2026.
+- **The new projects' objects:**
+  - Steady: its streak path, seven blocks stepping away, three marked at rest, with a small gold trophy at the week's end.
+  - Porfael: its portfolio as a ring of five arcs (shares only, never amounts, as the app shows them), with a gold hexagonal relic turning at the middle.
+  - Funcial's lock chip goes with it.
 - **The stack's sizes, m.**
   - The power board: radius 3.8, the CPU at its middle.
   - Each category board: radius 6.2, a hole of 1.4 for the spine, 0.2 thick.
@@ -133,7 +157,7 @@ Nothing is built until he has read the plan.
   - Each project floats 0.62 above its socket at 1.9 times its object's own size.
 - **Where the stack is:** the power board's centre is where the round board's was (`boardCentre()`, straight below the light's place at the fall's hand-over), so the light falls on along the same line.
 - **Which way each board faces:**
-  - The category boards face the camera alternately 32° to the left and to the right, so the way down zig-zags a little.
+  - Each category board is turned 75° further round the stack than the one above it, always the same way: the first at −40°, then 35°, then 110°. The way down circles the stack (Bob: "rotate a bit more").
   - A board's projects stand on the side it faces.
   - One project stands in the middle of that side; more stand 3.4 m apart along the ring.
 - **The explode:**
