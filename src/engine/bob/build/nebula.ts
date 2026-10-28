@@ -2,12 +2,9 @@
  * The nebula round the way (spec 2026-10-27-bob-nebula-space-design.md, goals 1 and 2; the first mock-up's, branch
  * nebula-mock, made 3D): what the light falls through and the camera flies through, from the fall on.
  *
- * - **The clouds**: one camera-facing quad a cloud (../../../scene/bob/nebulaWay.ts `cloudLayout`: its place, width,
- *   tint, alpha and texture), all in one instanced draw, each at its own place and depth, so they pass at their own
- *   speeds as the camera moves; each turned its own way on the screen. Their textures are four soft clouds made on a
- *   canvas (patches with dark gaps, fine ridged filaments through them, soft edges to nothing), in one atlas. A cloud
- *   fades out as the camera comes within a few metres of it, so none ever cuts the screen, and into the far dark.
- * - **The far shell**: the mock-up's cloud shell, kept faint behind them all.
+ * - **The clouds** are the gas now (./volume.ts, spec 2026-10-28-bob-quantum-stack-design.md, goal 9), marched in 3D
+ *   and laid over all of this at the far plane, so its dark lanes hide the stars behind them.
+ * - **The far shell**: the mock-up's cloud shell, kept faint behind it all.
  * - **Stars** in two depths and **dust** along the shell's filaments, as in the mock-up.
  * - **The far bands**: a few engraved gold orbit bands far behind (the engraved way's engraving), turning slowly with
  *   the place on the scroll, not with the clock, so the canvas still sleeps at rest; each fades out as the camera comes
@@ -18,59 +15,21 @@
 import * as THREE from 'three';
 import { engravedMaterial, engravingTexture, ringGeometry } from '~/engine/bob/build/engraved';
 import type { QualityTier } from '~/engine/quality';
-import type { CloudSpec, NebulaLevels } from '~/scene/bob/nebulaWay';
+import type { NebulaLevels } from '~/scene/bob/nebulaWay';
 
 type Vec3 = readonly [number, number, number];
 
 /**
  * How the nebula looks (my calls, tuned by the proof harness's luminance gate and against the first mock-up's stills):
- * the clouds' two colours and level, the far shell's, the stars' and the dust's counts by tier and their level, the
- * bands' count by tier and level, and the clouds' atlas size by tier (px).
+ * the far shell's size, two colours and level, the stars' and the dust's counts by tier and their level, and the
+ * bands' count by tier and level.
  */
 export const NEBULA_LOOK = {
-  clouds: { deep: 0x3c1b72, wisp: 0xa874f2, level: 0.3, atlas: { high: 512, medium: 256, low: 256 } },
-  shell: { radius: 62, scale: 1.6, level: 0.12 },
+  shell: { radius: 62, scale: 1.6, level: 0.12, deep: 0x3c1b72, wisp: 0xa874f2 },
   stars: { far: { high: 2600, medium: 1400, low: 700 }, near: { high: 700, medium: 350, low: 180 }, level: 1 },
   dust: { far: { high: 14000, medium: 7000, low: 2500 }, near: { high: 4500, medium: 2200, low: 800 }, level: 0.8 },
   bands: { count: { high: 4, medium: 2, low: 1 }, level: 0.5 }
 } as const;
-
-// ---------------------------------------------------------------- the clouds
-
-const CLOUD_VERTEX = /* glsl */ `
-  attribute vec3 aCentre;
-  attribute vec4 aLook;
-  varying vec2 vUv;
-  varying float vAlpha;
-  varying float vTint;
-  void main() {
-    vec4 mv = modelViewMatrix * vec4(aCentre, 1.0);
-    float turn = fract(sin(dot(aCentre, vec3(12.9898, 78.233, 37.719))) * 43758.5453) * 6.2831853;
-    vec2 p = mat2(cos(turn), sin(turn), -sin(turn), cos(turn)) * position.xy;
-    mv.xy += p * aLook.x;
-    float depth = -mv.z;
-    vAlpha = aLook.z * smoothstep(1.5, 5.0, depth) * (1.0 - smoothstep(45.0, 75.0, depth));
-    float v = aLook.w;
-    vUv = vec2(mod(v, 2.0), floor(v / 2.0)) * 0.5 + uv * 0.5;
-    vTint = aLook.y;
-    gl_Position = projectionMatrix * mv;
-  }
-`;
-
-const CLOUD_FRAGMENT = /* glsl */ `
-  uniform sampler2D uMap;
-  uniform vec3 uDeep;
-  uniform vec3 uWisp;
-  uniform float uLevel;
-  varying vec2 vUv;
-  varying float vAlpha;
-  varying float vTint;
-  void main() {
-    vec4 t = texture2D(uMap, vUv);
-    vec3 col = mix(uDeep, uWisp, vTint * 0.6) * t.r + uWisp * t.g * 0.9;
-    gl_FragColor = vec4(col * vAlpha * uLevel, 1.0);
-  }
-`;
 
 /** The lattice the clouds' noise reads: LATTICE × LATTICE values, seeded, wrapping round. */
 const LATTICE = 64;
@@ -119,74 +78,6 @@ function fbm2(x: number, y: number, seed: number): number {
     a *= 0.5;
   }
   return s;
-}
-
-const smooth = (a: number, b: number, x: number): number => {
-  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
-  return t * t * (3 - 2 * t);
-};
-
-/**
- * The clouds' atlas: four soft clouds in a 2 × 2 grid, `size` px across, made on `canvas`. Red is the cloud (patches
- * with dark gaps, nothing at its edge), green its fine ridged filaments.
- *
- * @throws TypeError when the canvas gives no 2D context.
- */
-function cloudAtlas(canvas: HTMLCanvasElement, size: number): THREE.CanvasTexture {
-  canvas.width = size;
-  canvas.height = size;
-  const g = canvas.getContext('2d');
-  if (!g) throw new TypeError('the nebula needs a 2D canvas context, and the canvas gave none');
-  const image = g.createImageData(size, size);
-  const cell = size / 2;
-  for (let py = 0; py < size; py++) {
-    for (let px = 0; px < size; px++) {
-      const variant = (px >= cell ? 1 : 0) + (py >= cell ? 2 : 0);
-      const u = ((px % cell) + 0.5) / cell - 0.5;
-      const v = ((py % cell) + 0.5) / cell - 0.5;
-      const seed = 3 + variant * 11;
-      // A soft round edge, pushed about by the noise, so no cloud is a disc.
-      const warp = fbm2(u * 2.2 + seed, v * 2.2 - seed, seed) - 0.5;
-      const edge = 1 - smooth(0.18, 0.5, Math.hypot(u, v) + warp * 0.22);
-      const n = fbm2(u * 3.1 + seed, v * 3.1 + seed * 0.7, seed + 1);
-      const m = fbm2(u * 6.4 + n * 1.6, v * 6.4 - n * 1.6, seed + 2);
-      const cloud = smooth(0.32, 0.78, n) * edge;
-      const ridge = 1 - Math.abs(2 * m - 1);
-      const filament = ridge ** 6 * cloud;
-      const k = (py * size + px) * 4;
-      image.data[k] = Math.round(255 * cloud);
-      image.data[k + 1] = Math.round(255 * Math.min(1, filament * 1.6));
-      image.data[k + 2] = 0;
-      image.data[k + 3] = 255;
-    }
-  }
-  g.putImageData(image, 0, 0);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.NoColorSpace;
-  return texture;
-}
-
-function cloudsMesh(clouds: readonly CloudSpec[], map: THREE.Texture): THREE.InstancedMesh<THREE.InstancedBufferGeometry, THREE.ShaderMaterial> {
-  const plane = new THREE.PlaneGeometry(1, 1);
-  const geometry = new THREE.InstancedBufferGeometry();
-  geometry.index = plane.index;
-  geometry.setAttribute('position', plane.getAttribute('position'));
-  geometry.setAttribute('uv', plane.getAttribute('uv'));
-  geometry.setAttribute('aCentre', new THREE.InstancedBufferAttribute(new Float32Array(clouds.flatMap((c) => [...c.at])), 3));
-  geometry.setAttribute('aLook', new THREE.InstancedBufferAttribute(new Float32Array(clouds.flatMap((c) => [c.size, c.tint, c.alpha, c.variant])), 4));
-  const look = NEBULA_LOOK.clouds;
-  const material = new THREE.ShaderMaterial({
-    vertexShader: CLOUD_VERTEX,
-    fragmentShader: CLOUD_FRAGMENT,
-    uniforms: { uMap: { value: map }, uDeep: { value: new THREE.Color(look.deep) }, uWisp: { value: new THREE.Color(look.wisp) }, uLevel: { value: 0 } },
-    transparent: true,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false
-  });
-  const mesh = new THREE.InstancedMesh(geometry, material, clouds.length);
-  mesh.name = 'nebula:clouds';
-  mesh.frustumCulled = false;
-  return mesh;
 }
 
 // ---------------------------------------------------------------- the far shell, the stars and the dust
@@ -242,7 +133,7 @@ function shellMesh(): THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial> {
   const material = new THREE.ShaderMaterial({
     vertexShader: SHELL_VERTEX,
     fragmentShader: SHELL_FRAGMENT,
-    uniforms: { uLevel: { value: 0 }, uScale: { value: look.shell.scale }, uDeep: { value: new THREE.Color(look.clouds.deep) }, uWisp: { value: new THREE.Color(look.clouds.wisp) } },
+    uniforms: { uLevel: { value: 0 }, uScale: { value: look.shell.scale }, uDeep: { value: new THREE.Color(look.shell.deep) }, uWisp: { value: new THREE.Color(look.shell.wisp) } },
     side: THREE.BackSide,
     transparent: true,
     blending: THREE.AdditiveBlending,
@@ -305,6 +196,8 @@ function points(name: string, pos: number[], size: number[], colour: number[]): 
   const p = new THREE.Points(geometry, material);
   p.name = name;
   p.frustumCulled = false;
+  // Under the gas's layer (renderOrder -5): its dark lanes hide them.
+  p.renderOrder = -10;
   return p;
 }
 
@@ -378,13 +271,12 @@ export interface NebulaModel {
 }
 
 /**
- * The nebula (its clouds laid by `cloudLayout`, the rest round `middle`, the world's centre) at the ladder's `tier`,
+ * The nebula round `middle` (the world's centre) at the ladder's `tier`,
  * hidden until a level is above 0. `canvas` makes the canvases its textures are drawn on.
  *
  * @throws TypeError when a canvas gives no 2D context.
  */
 export function buildNebula(
-  clouds: readonly CloudSpec[],
   middle: readonly [number, number, number],
   tier: QualityTier,
   canvas: () => HTMLCanvasElement = () => document.createElement('canvas')
@@ -393,10 +285,6 @@ export function buildNebula(
   const group = new THREE.Group();
   group.name = 'nebula';
   group.visible = false;
-
-  const atlas = cloudAtlas(canvas(), look.clouds.atlas[tier]);
-  const cloudParts = cloudsMesh(clouds, atlas);
-  group.add(cloudParts);
 
   // Round the world's middle: the far shell, the stars, the dust and the bands.
   const around = new THREE.Group();
@@ -447,7 +335,6 @@ export function buildNebula(
       const cl = Number.isFinite(c) ? Math.max(0, Math.min(1, c)) : 0;
       const bl = Number.isFinite(b) ? Math.max(0, Math.min(1, b)) : 0;
       group.visible = cl > 0 || bl > 0;
-      cloudParts.material.uniforms.uLevel!.value = cl * look.clouds.level;
       shell.material.uniforms.uLevel!.value = cl * look.shell.level;
       starsFar.material.uniforms.uLevel!.value = cl * look.stars.level;
       starsNear.material.uniforms.uLevel!.value = cl * look.stars.level;
@@ -459,9 +346,6 @@ export function buildNebula(
       for (const band of bands) band.ring.material.uniforms.uLevel!.value = bl * look.bands.level * (eye === undefined || bl <= 0 ? 1 : facing(band.ring, eye));
     },
     dispose() {
-      cloudParts.geometry.dispose();
-      cloudParts.material.dispose();
-      atlas.dispose();
       shell.geometry.dispose();
       shell.material.dispose();
       for (const p of pointsParts) {

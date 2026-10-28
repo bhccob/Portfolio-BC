@@ -9,6 +9,7 @@ import { buildEngraved, type EngravedModel } from '~/engine/bob/build/engraved';
 import type { LightModel } from '~/engine/bob/build/light';
 import { buildNebula, type NebulaModel } from '~/engine/bob/build/nebula';
 import { buildVoid, VOID_LOOK, type VoidModel } from '~/engine/bob/build/void';
+import { buildVolume, type VolumeModel } from '~/engine/bob/build/volume';
 import { buildWorld, type WorldModel } from '~/engine/bob/build/world';
 import { lowerTier, type QualityTier } from '~/engine/quality';
 import { areasOnPath } from '~/state/chapters';
@@ -27,7 +28,7 @@ import { engravedLevels, shaftRings } from './engravedWay';
 import type { Handover } from './Home';
 import { type LightPose, WORLD_PROJECTS } from './journey';
 import { LOOK } from './look';
-import { cloudLayout, nebulaLevels } from './nebulaWay';
+import { nebulaLevels } from './nebulaWay';
 import { insidePoints, OPEN_LOOK, openLevels, openOf, openWorld, worldClockRuns } from './inside';
 import { type SpotPose, spotFor } from './spot';
 import { easeHover, hoverEase, hoversAt, needleFor, needleGlowFor, pointerMode, voidShownAt } from './voidPose';
@@ -89,7 +90,7 @@ interface VoidRun {
    * before; and the build asked for and not yet made (`asked`), which a later ask for another path or tier, or the
    * unmount, replaces.
    */
-  nebula: { world: WorldPath; tier: QualityTier; model: NebulaModel } | null;
+  nebula: { world: WorldPath; tier: QualityTier; model: NebulaModel; gas: VolumeModel | null; drawn: { width: number; height: number } } | null;
   nebulaAsked: { world: WorldPath; tier: QualityTier } | null;
   /** The void's drift clock (its mist and dust), seconds of frames drawn while it showed. */
   time: number;
@@ -169,6 +170,12 @@ const lightAt = new THREE.Vector3();
 const centre = new THREE.Vector3();
 /** The camera's place, for the nebula's bands (scratch, written each frame). */
 const eyeAt: [number, number, number] = [0, 0, 0];
+/** The canvas's drawing size, px (scratch, read each frame for the gas's target). */
+const drawing = new THREE.Vector2();
+/** The machine's middle, top to the spine's tip: the height the gas's clear space stands round on the stack. */
+const MACHINE_MIDDLE = STACK_CENTRE[1] + (STACK_PLACES[STACK_PLACES.length - 1]!.top - STACK_CENTRE[1] - 3.4) / 2;
+/** Where the CPU's light is, over its lid: what lights the gas's near edges gold on the stack. */
+const CPU_LIGHT: [number, number, number] = [STACK_CENTRE[0], STACK_CENTRE[1] + 1.5, STACK_CENTRE[2]];
 /** The light's centre on the screen, NDC: `frame.journey.light` while there is a light. */
 const lightPoint = { x: 0, y: 0 };
 
@@ -502,6 +509,10 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       if (nebula) {
         scene.remove(nebula.model.group);
         nebula.model.dispose();
+        if (nebula.gas) {
+          scene.remove(nebula.gas.layer);
+          nebula.gas.dispose();
+        }
       }
       frame.journey.engraved = null;
       frame.journey.nebula = null;
@@ -575,6 +586,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       if (world) showWorld(world, false);
       if (run.engraved) run.engraved.model.group.visible = false;
       if (run.nebula) run.nebula.model.group.visible = false;
+      if (run.nebula?.gas) run.nebula.gas.layer.visible = false;
       frame.journey.engraved = null;
       frame.journey.nebula = null;
       frame.journey.objects = null;
@@ -643,6 +655,28 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
     camera.position.toArray(eyeAt);
     nebulaFor(worldPathFor(size.width / Math.max(size.height, 1)))?.update(clouds, handover.shown, eyeAt);
     if (proof) frame.journey.nebula = clouds;
+    // The gas (../../engine/bob/build/volume.ts), marched into its own target before the scene is drawn: its clear space
+    // round the stack once the world is in, along the fall's line before; its drift on the world's clock, so it stands
+    // still while the canvas sleeps; its near edges lit by the CPU, or by the falling light.
+    const kept = run.nebula;
+    if (kept?.gas) {
+      gl.getDrawingBufferSize(drawing);
+      if (drawing.x !== kept.drawn.width || drawing.y !== kept.drawn.height) {
+        kept.gas.resize(drawing.x, drawing.y);
+        kept.drawn = { width: drawing.x, height: drawing.y };
+      }
+      const onStack = path !== null;
+      const light = pose.light?.position ?? CPU_LIGHT;
+      kept.gas.render(gl, camera as THREE.PerspectiveCamera, {
+        clock: run.clock.time,
+        level: clouds.clouds,
+        power: path?.power ?? 0,
+        aim: frame.shot?.target ?? [STACK_CENTRE[0], MACHINE_MIDDLE, STACK_CENTRE[2]],
+        middle: onStack ? MACHINE_MIDDLE : light[1],
+        clear: onStack ? 'stack' : 'fall',
+        core: onStack ? CPU_LIGHT : light
+      });
+    }
 
     // The world, with the path: its power, its flash and each project's light; the project under the pointer a little
     // brighter, an open one the bright thing and the rest stepped back; its clock running a while after each stir.
@@ -750,13 +784,18 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       setTimeout(() => {
         if (run.nebulaAsked !== ask) return;
         run.nebulaAsked = null;
-        const made = { world, tier: ask.tier, model: buildNebula(cloudLayout(world, ask.tier), world.centre, ask.tier) };
+        const made = { world, tier: ask.tier, model: buildNebula(world.centre, ask.tier), gas: buildVolume(ask.tier), drawn: { width: 0, height: 0 } };
         const old = run.nebula;
         if (old) {
           scene.remove(old.model.group);
           old.model.dispose();
+          if (old.gas) {
+            scene.remove(old.gas.layer);
+            old.gas.dispose();
+          }
         }
         scene.add(made.model.group);
+        if (made.gas) scene.add(made.gas.layer);
         void warm(gl, made.model.group, camera, 'the nebula', scene);
         run.nebula = made;
         invalidate();

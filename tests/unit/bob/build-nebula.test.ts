@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { buildNebula, NEBULA_LOOK, type NebulaModel } from '~/engine/bob/build/nebula';
 import { makeWorldPath } from '~/scene/bob/worldPath';
-import { cloudLayout } from '~/scene/bob/nebulaWay';
 
 /** A canvas as a test hands it over: a 2D context that draws nothing, and pixels to write. */
 function canvas(): HTMLCanvasElement {
@@ -22,11 +21,10 @@ function canvas(): HTMLCanvasElement {
 }
 
 const PATH = makeWorldPath(16 / 9);
-const CLOUDS = cloudLayout(PATH, 'high');
 const LEVELS = { clouds: 1, bands: 1, rings: 0 };
 
 function build(tier: 'high' | 'medium' | 'low' = 'high'): NebulaModel {
-  return buildNebula(CLOUDS, PATH.centre, tier, canvas);
+  return buildNebula(PATH.centre, tier, canvas);
 }
 
 function drawn(model: NebulaModel): (THREE.Mesh | THREE.Points)[] {
@@ -39,12 +37,12 @@ function drawn(model: NebulaModel): (THREE.Mesh | THREE.Points)[] {
 
 const level = (o: THREE.Mesh | THREE.Points): number => ((o.material as THREE.ShaderMaterial).uniforms.uLevel!.value as number);
 
-describe('the nebula: clouds you fly through, a faint far shell, stars, dust and far gold bands', () => {
-  it('draws the clouds, stars, dust and bands additively and writes no depth', () => {
+describe('the nebula round the gas: a faint far shell, stars, dust and far gold bands', () => {
+  it('builds no cloud cards; the stars, dust and shell stay, additive, writing no depth, under the gas', () => {
     const model = build();
     const parts = drawn(model);
     const named = (prefix: string) => parts.filter((o) => o.name.startsWith(prefix));
-    expect(named('nebula:clouds')).toHaveLength(1);
+    expect(named('nebula:clouds')).toHaveLength(0);
     expect(named('nebula:shell')).toHaveLength(1);
     expect(named('nebula:stars')).toHaveLength(2);
     expect(named('nebula:dust')).toHaveLength(2);
@@ -55,16 +53,9 @@ describe('the nebula: clouds you fly through, a faint far shell, stars, dust and
       expect(m.depthWrite, o.name).toBe(false);
       expect(m.transparent, o.name).toBe(true);
     }
-    // The clouds in one draw: an instance each, at the layout's place, size and alpha.
-    const clouds = named('nebula:clouds')[0] as THREE.InstancedMesh;
-    expect(clouds.isInstancedMesh).toBe(true);
-    expect(clouds.count).toBe(CLOUDS.length);
-    const centre = clouds.geometry.getAttribute('aCentre') as THREE.InstancedBufferAttribute;
-    const look = clouds.geometry.getAttribute('aLook') as THREE.InstancedBufferAttribute;
-    for (const [k, c] of CLOUDS.entries()) {
-      expect([centre.getX(k), centre.getY(k), centre.getZ(k)]).toEqual(c.at.map((v) => Math.fround(v)));
-      expect([look.getX(k), look.getY(k), look.getZ(k), look.getW(k)]).toEqual([c.size, c.tint, c.alpha, c.variant].map((v) => Math.fround(v)));
-    }
+    // Drawn before the gas's layer (renderOrder -5), so the gas's dark lanes hide the stars behind them.
+    for (const o of [...named('nebula:shell'), ...named('nebula:stars'), ...named('nebula:dust')]) expect(o.renderOrder, o.name).toBeLessThan(-5);
+    expect(NEBULA_LOOK).not.toHaveProperty('clouds');
     model.dispose();
   });
 
@@ -144,7 +135,7 @@ describe('the nebula: clouds you fly through, a faint far shell, stars, dust and
       materials.add(m);
       for (const u of Object.values(m.uniforms)) if ((u.value as THREE.Texture)?.isTexture) textures.add(u.value as THREE.Texture);
     }
-    expect(textures.size).toBeGreaterThanOrEqual(2); // the clouds' atlas and the bands' engraving
+    expect(textures.size).toBeGreaterThanOrEqual(1); // the bands' engraving
     const spies = [...geometries, ...materials, ...textures].map((d) => vi.spyOn(d, 'dispose'));
     model.dispose();
     for (const spy of spies) expect(spy).toHaveBeenCalledTimes(1);
@@ -152,6 +143,6 @@ describe('the nebula: clouds you fly through, a faint far shell, stars, dust and
 
   it('names a canvas that gives no 2D context', () => {
     const none = () => ({ width: 0, height: 0, getContext: () => null }) as unknown as HTMLCanvasElement;
-    expect(() => buildNebula(CLOUDS, PATH.centre, 'high', none)).toThrow(/2D canvas context/);
+    expect(() => buildNebula(PATH.centre, 'high', none)).toThrow(/2D canvas context/);
   });
 });
