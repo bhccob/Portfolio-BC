@@ -2,7 +2,7 @@
   "ci": {
     "collect": {
       "staticDistDir": "./dist/client",
-      "url": ["/", "/en/", "/projects/funcial/", "/lite/", "/contact/"],
+      "url": ["/", "/en/", "/projects/steady/", "/lite/", "/contact/"],
       "numberOfRuns": 1,
       "settings": { "preset": "desktop" }
     },
