@@ -7355,8 +7355,9 @@ const edgesOf = (page) =>
 /**
  * The credits (spec 2026-10-27-bob-light-path-design.md, goal 8), by real input at 1440x900, 1366x657 and 390x844
  * (touch), and at 1440 on /en/:
- * - from the look back's own stop one notch (a short swipe) fades the look back to black and then raises the credits:
- *   the black whole before the rise begins, both only growing, at rest within REST_WITHIN_S;
+ * - from the look back's own stop one notch (a short swipe) raises the credits as one move (Bob, 2026-10-29: "it doesnt
+ *   flow naturally"): the rise begins while the dark under them is still coming up (under half), the dark never ahead
+ *   of the rise, both only growing, at rest within REST_WITHIN_S;
  * - at rest "Q&A" stands at 55 % of the screen's height (2 px either way), on the pixel the rise brings it to;
  * - the wheel (a swipe) then scrolls the document natively, the story still at the end;
  * - at the document's end the message part rests in the middle of the space under the header (within 5 % of it) where it
@@ -7390,8 +7391,8 @@ async function credits(browser, step) {
     const rises = moving.map((row) => row.rise);
     const only = (list) => list.every((v, i) => i === 0 || v >= list[i - 1] - 1e-9);
     step.check(
-      moving.length > 3 && firstRise !== undefined && firstRise.black === 1 && only(blacks) && only(rises),
-      `${at}: the look back fades to black first and the credits rise after it, both only growing (${moving.length} frames moving; the black at the rise's first frame ${firstRise?.black})`,
+      moving.length > 3 && firstRise !== undefined && firstRise.black < 0.5 && moving.every((row) => row.black <= row.rise + 1e-9) && only(blacks) && only(rises),
+      `${at}: the credits rise as one move with the dark coming up under them, never ahead of them, both only growing (${moving.length} frames moving; the dark at the rise's first frame ${firstRise?.black})`,
     );
     const height = size.height;
     const restTop = await page.evaluate(() => document.getElementById('end-title').getBoundingClientRect().top);
