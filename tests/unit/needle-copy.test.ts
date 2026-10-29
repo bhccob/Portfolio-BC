@@ -75,9 +75,7 @@ describe('the needle copy equals the copy budget', () => {
 
   it('the always-on words', () => {
     for (const locale of locales) {
-      const { toggle, liteLink, project } = dictionaries[locale].needle;
-      const [on, off] = pair('Always-on UI', '3D toggle')[locale].split(' · ');
-      expect([toggle.on, toggle.off]).toEqual([on, off]);
+      const { liteLink, project } = dictionaries[locale].needle;
       expect(liteLink).toBe(pair('Always-on UI', 'Lite link')[locale]);
       expect(project.back).toBe(pair('Always-on UI', 'Back hint')[locale]);
       expect(project.open).toBe(/touch: (.+)$/.exec(pair('Country focus card', 'Action')[locale])?.[1]);

@@ -10,7 +10,6 @@ import { Translator } from '../../src/i18n/Translator';
 import { useScene } from '../../src/state/store';
 import { LangSwitch } from '../../src/ui/LangSwitch';
 import { closeMenuOnLink, MENU_ID, nameToTop, SiteHeader } from '../../src/ui/SiteHeader';
-import { ThreeDToggle } from '../../src/ui/ThreeDToggle';
 
 const render = (path: string, component: FunctionComponent): string =>
   renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: [path] }, createElement(component)));
@@ -41,31 +40,10 @@ describe('the language switch', () => {
   });
 });
 
-describe('the 3D switch', () => {
-  // A server render reads the store's initial state (the snapshot React hydrates with), so the state rendered is set there.
-  const initial = useScene.getInitialState();
-  afterEach(() => {
-    initial.threeD = true;
-  });
-
-  it.each([true, false])('with 3D %s it is named "3D" whatever its state; the state is role=switch and aria-checked', (on) => {
-    initial.threeD = on;
-    for (const [path, t] of [['/', nl], ['/en/', en]] as const) {
-      const html = render(path, ThreeDToggle);
-      const attrs = attributes(html);
-      expect(attrs['aria-label'], path).toBe(t.needle.toggle.label);
-      expect(attrs.role).toBe('switch');
-      expect(attrs['aria-checked']).toBe(String(on));
-      expect(visibleText(html), path).toBe(on ? t.needle.toggle.on : t.needle.toggle.off);
-      expect(visibleText(html).startsWith(t.needle.toggle.label), 'the visible words begin with the name').toBe(true);
-    }
-  });
-});
-
 describe('the header', () => {
   // The same bar on every page, the home page included, since the home's hero says the name only to a screen reader:
-  // the name, Work and About (both point at Lite until the projects void exists), Contact, the language switch, the Lite
-  // link and the 3D switch (sound is milestone 6).
+  // the name, Work and About (both point at Lite's sections), Contact and the language switch. No link to the light
+  // version and no 3D switch (Bob, 2026-10-29; spec 2026-10-29-bob-stack-3-design.md, goal 2).
   const initial = useScene.getInitialState();
   afterEach(() => {
     initial.threeD = true;
@@ -77,7 +55,7 @@ describe('the header', () => {
     ['/lite/', nl, 'nl' as const],
     ['/en/contact/', en, 'en' as const],
     ['/projects/steady/', nl, 'nl' as const],
-  ])('on %s it lists the name, Work, About, Contact, the language switch, Lite and the 3D switch, in that order', (path, t, locale) => {
+  ])('on %s it lists the name, Work, About, Contact and the language switch, in that order: no light-version link and no 3D switch', (path, t, locale) => {
     initial.threeD = true;
     const controls = controlsOf(render(path, SiteHeader));
     const other = locale === 'en' ? 'nl' : 'en';
@@ -92,8 +70,6 @@ describe('the header', () => {
       at(`${PAGES.lite}#about`),
       at(PAGES.contact),
       Translator.pathFor(other, routeFromPath(path)),
-      at(PAGES.lite),
-      'switch',
     ]);
     // ... and by the labels the components render.
     expect(controls.map((control) => control.text)).toEqual([
@@ -104,16 +80,16 @@ describe('the header', () => {
       t.nav.about,
       t.nav.contact,
       other.toUpperCase(),
-      t.needle.liteLink,
-      t.needle.toggle.on,
     ]);
 
-    // The name is a link home that says so, on the home page as on any other; the nav holds five links and the switch.
+    // The name is a link home that says so, on the home page as on any other; the nav holds four links.
     expect(controls[1].attrs.class).toBe('site-name');
     expect(controls[1].attrs['aria-label']).toBe(t.nav.home);
-    expect(controls.filter((control) => control.attrs.class === 'header-control')).toHaveLength(6);
+    expect(controls.filter((control) => control.attrs.class === 'header-control')).toHaveLength(4);
     expect(controls[6].attrs['aria-label']?.startsWith(`${other.toUpperCase()} `)).toBe(true);
-    expect(controls[8].attrs['aria-label']).toBe(t.needle.toggle.label);
+    // Nothing of the light version's link or the switch, on a laptop's row or in the phone's menu (the same markup).
+    expect(controls.some((control) => control.attrs.href === at(PAGES.lite))).toBe(false);
+    expect(controls.some((control) => control.attrs.role === 'switch')).toBe(false);
   });
 });
 
@@ -205,7 +181,7 @@ describe('the phone menu (option A, 2026-10-22)', () => {
     expect(html).toContain('<span class="menu-bars" aria-hidden="true"></span>');
   });
 
-  it('closes the open menu when a link in it is followed, and stays open for the 3D switch', () => {
+  it('closes the open menu when a link in it is followed, and stays open for a press that is no link', () => {
     const calls: string[] = [];
     const menu = { hidePopover: () => calls.push('hide'), matches: (selector: string) => selector === ':popover-open' };
     const link = { closest: (selector: string) => (selector === 'a' ? {} : null) };

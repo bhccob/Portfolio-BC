@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { readClientPrefs, THREE_D_KEY, useScene } from '../../../src/state/store';
+import { readClientPrefs, useScene } from '../../../src/state/store';
 
 type Prefs = Parameters<typeof readClientPrefs>[0];
 
@@ -13,7 +13,8 @@ interface FakeOptions {
 /** A window with just the storage and the media query the store reads. */
 function fakeWindow(options: FakeOptions = {}): { win: NonNullable<Prefs>; data: Map<string, string> } {
   const data = new Map<string, string>();
-  if (options.stored != null) data.set(THREE_D_KEY, options.stored);
+  // The key the switch kept its choice under, before this round.
+  if (options.stored != null) data.set('needle-3d', options.stored);
   const storage = {
     getItem: (key: string) => data.get(key) ?? null,
     setItem: (key: string, value: string) => void data.set(key, value),
@@ -91,27 +92,16 @@ describe('setThreeD', () => {
     useScene.setState(useScene.getInitialState(), true);
   });
 
-  it('sets the state and stores the choice', () => {
+  // Bob (2026-10-29): the header's 3D switch is gone (spec 2026-10-29-bob-stack-3-design.md, goal 2); 3D goes off only
+  // for the scene's own reasons (no WebGL, a context lost for good), for the visit.
+  it('never stores the choice', () => {
     const { win, data } = fakeWindow();
     vi.stubGlobal('window', win);
     useScene.getState().setThreeD(false);
     expect(useScene.getState().threeD).toBe(false);
-    expect(data.get(THREE_D_KEY)).toBe('off');
     useScene.getState().setThreeD(true);
     expect(useScene.getState().threeD).toBe(true);
-    expect(data.get(THREE_D_KEY)).toBe('on');
-  });
-
-  it("switches 3D off for the scene's own reasons without touching the visitor's stored choice", () => {
-    const { win, data } = fakeWindow({ stored: 'on' });
-    vi.stubGlobal('window', win);
-    useScene.getState().setThreeD(false, { persist: false });
-    expect(useScene.getState().threeD).toBe(false);
-    expect(data.get(THREE_D_KEY)).toBe('on');
-    const empty = fakeWindow();
-    vi.stubGlobal('window', empty.win);
-    useScene.getState().setThreeD(false, { persist: false });
-    expect(empty.data.has(THREE_D_KEY)).toBe(false);
+    expect(data.size).toBe(0);
   });
 
   it('works where storage is unavailable', () => {
@@ -131,11 +121,8 @@ describe('readClientPrefs', () => {
     expect(readClientPrefs(undefined)).toEqual({ threeD: true, reducedMotion: false });
   });
 
-  it('reads the stored 3D choice', () => {
-    expect(readClientPrefs(fakeWindow({ stored: 'off' }).win).threeD).toBe(false);
-    expect(readClientPrefs(fakeWindow({ stored: 'on' }).win).threeD).toBe(true);
-    expect(readClientPrefs(fakeWindow().win).threeD).toBe(true);
-    expect(readClientPrefs(fakeWindow({ stored: 'banana' }).win).threeD).toBe(true);
+  it('ignores a stored choice from before: 3D is on', () => {
+    for (const stored of ['off', 'on', 'banana', null]) expect(readClientPrefs(fakeWindow({ stored }).win).threeD, String(stored)).toBe(true);
   });
 
   it('reads the reduced-motion preference', () => {

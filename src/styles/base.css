@@ -428,20 +428,6 @@ main {
   color: var(--gold-title);
 }
 
-/* The 3D switch shows its state as a lit or an empty bead. */
-.header-control[role='switch']::before {
-  content: '';
-  width: 7px;
-  height: 7px;
-  margin-right: 8px;
-  border: 1px solid var(--gold-glow);
-  border-radius: 50%;
-}
-
-.header-control[role='switch'][aria-checked='true']::before {
-  background: var(--gold-glow);
-}
-
 /* ---------- the home page ---------- */
 /* The hero is the home's first screen. Its only visible line is the scroll cue, low in the middle: the name is the
    engraving in the scene, so the h1 is visually hidden (it stays for crawlers and screen readers) and there is no

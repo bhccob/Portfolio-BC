@@ -6,7 +6,6 @@ import { useTranslator } from '~/i18n/useTranslator';
 import { goToTop } from '~/input/useHomeScroll';
 import { isPlainClick } from './BackLink';
 import { LangSwitch } from './LangSwitch';
-import { ThreeDToggle } from './ThreeDToggle';
 
 /** The id of the header's nav, which on a phone is the menu the Menu button opens (a popover). */
 export const MENU_ID = 'site-menu';
@@ -86,10 +85,6 @@ export function SiteHeader(): JSX.Element {
           </div>
           <div className="menu-extras">
             <LangSwitch />
-            <Link className="header-control" to={i18n.path(PAGES.lite)}>
-              {t.needle.liteLink}
-            </Link>
-            <ThreeDToggle />
           </div>
         </nav>
       </header>

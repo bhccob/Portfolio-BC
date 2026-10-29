@@ -401,7 +401,6 @@ export const nl: Dictionary = {
       enterSound: 'Binnenkomen met geluid'
     },
     fallback: { title: 'DE NAALD IS HET NOORDEN KWIJT', lite: 'Open de lichte versie' },
-    toggle: { label: '3D', on: '3D aan', off: '3D uit' },
     liteLink: 'Lichte versie',
     morph: 'Dezelfde kracht die schepen stuurde, bewaart nu onze data.',
     project: { open: 'Openen', download: 'Downloaden', code: 'Code', back: 'Esc · terug' },

@@ -428,9 +428,7 @@ export const en = {
       enterSound: 'Enter with sound'
     },
     fallback: { title: 'THE NEEDLE LOST NORTH', lite: 'Open the Lite version' },
-    /** The 3D switch: `label` is its accessible name, the same in both states (the switch's checked state says which); `on` and `off` are what it shows. */
-    toggle: { label: '3D', on: '3D on', off: '3D off' },
-    /** The link to the Lite page that every page shows. */
+    /** The Lite page's name (its title; the card where 3D cannot run links to it). */
     liteLink: 'Lite version',
     morph: 'The same force that guided ships now stores our data.',
     project: { open: 'Open', download: 'Download', code: 'Code', back: 'Esc · back' },

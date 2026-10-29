@@ -2,11 +2,7 @@ import { useEffect } from 'react';
 import { create } from 'zustand';
 import type { SceneKind } from '~/app/handle';
 import type { ProjectId } from '~/data/projects';
-import { SafeStorage } from '~/engine/core/SafeStorage';
 import { type Phase, type SceneEvent, transition } from './machine';
-
-/** The storage key of the visitor's 3D choice: "on" or "off". */
-export const THREE_D_KEY = 'needle-3d';
 
 export type Tier = 'high' | 'medium' | 'low';
 
@@ -49,20 +45,20 @@ export interface SceneState {
   setInside(id: ProjectId | null): void;
   setHover(id: ProjectId | null): void;
   /**
-   * Switches 3D on or off. The visitor's switch stores the choice (`needle-3d`); the scene's own reasons (no WebGL,
-   * a scene that failed or never got ready) pass `{ persist: false }`, so the page falls back for this visit and the
-   * visitor's stored choice stays as it was.
+   * Switches 3D on or off for this visit: only the scene's own reasons turn it off (no WebGL, a scene that failed or
+   * never got ready), and nothing is stored (the header's switch went, Bob 2026-10-29; spec
+   * 2026-10-29-bob-stack-3-design.md, goal 2).
    */
-  setThreeD(on: boolean, options?: { persist?: boolean }): void;
+  setThreeD(on: boolean): void;
 }
 
 /** What the store reads from the browser; a `Window` has all of it. */
-export type PrefsSource = Pick<Window, 'localStorage'> & { matchMedia?: Window['matchMedia'] };
+export type PrefsSource = { matchMedia?: Window['matchMedia'] };
 
 /**
- * The visitor's settings as the browser holds them: the stored 3D choice (anything but "off" is on)
- * and the reduced-motion preference. Without a window, as in the prerender, it gives the defaults.
- * Neither a storage that throws nor a missing `matchMedia` fails it.
+ * The visitor's settings as the browser holds them: 3D on, wherever the device can run it (a choice the header's switch
+ * stored before Bob took it away, 2026-10-29, is not read), and the reduced-motion preference. Without a window, as in
+ * the prerender, it gives the defaults. A missing `matchMedia` does not fail it.
  */
 export function readClientPrefs(win: PrefsSource | undefined): { threeD: boolean; reducedMotion: boolean } {
   if (!win) return { threeD: true, reducedMotion: false };
@@ -72,7 +68,7 @@ export function readClientPrefs(win: PrefsSource | undefined): { threeD: boolean
   } catch {
     /* no media queries here: motion stays on */
   }
-  return { threeD: new SafeStorage(() => win.localStorage).get(THREE_D_KEY) !== 'off', reducedMotion };
+  return { threeD: true, reducedMotion };
 }
 
 /**
@@ -119,10 +115,7 @@ export const useScene = create<SceneState>()((set) => ({
   setInside: (inside) => set((state) => (state.inside === inside ? state : { inside })),
   setHover: (hover) => set((state) => (state.hover === hover ? state : { hover })),
 
-  setThreeD: (on, { persist = true } = {}) => {
-    if (persist) SafeStorage.local().set(THREE_D_KEY, on ? 'on' : 'off');
-    set({ threeD: on });
-  },
+  setThreeD: (on) => set({ threeD: on }),
 }));
 
 if (typeof window !== 'undefined') useScene.setState(readClientPrefs(window));

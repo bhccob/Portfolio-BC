@@ -51,7 +51,7 @@ class StageBoundary extends Component<{ onFail: Fail; children: ReactNode }, { f
 }
 
 /** "The needle lost north": the scene is not there, the poster is, and Lite is one link away. */
-function FallbackCard(): JSX.Element {
+export function FallbackCard(): JSX.Element {
   const i18n = useTranslator();
   const { t } = i18n;
   return (
@@ -128,7 +128,7 @@ function SceneHostView({ scene }: SceneHostProps): JSX.Element {
   }, [wanted, support]);
 
   useEffect(() => {
-    if (wanted && unsupported) useScene.getState().setThreeD(false, { persist: false });
+    if (wanted && unsupported) useScene.getState().setThreeD(false);
   }, [wanted, unsupported]);
 
   useEffect(() => {
@@ -153,7 +153,7 @@ function SceneHostView({ scene }: SceneHostProps): JSX.Element {
     else console.error(`[needle] ${reason}; showing the poster`, error);
     setFailed(true);
     setReady(false);
-    useScene.getState().setThreeD(false, { persist: false });
+    useScene.getState().setThreeD(false);
   }, []);
 
   // The opening's loader is built and compiled: the load timeout stops, and the canvas stays hidden. A skipped opening
