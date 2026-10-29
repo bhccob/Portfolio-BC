@@ -184,4 +184,17 @@ describe('the way back, pinned at the foot', () => {
     expect(foot).toMatch(/z-index:\s*24/);
     expect(rule('.pv-back')).toMatch(/backdrop-filter:\s*blur\(6px\)/);
   });
+
+  // The review: the site's header lay faintly under the open page, its links ghosted under the page's words. Bob left the
+  // call to me ("do whatever", 2026-10-29): the page is the one thing shown, with its own way back.
+  // By opacity alone, as the site hides it for the loader (tests/unit/header-loading.test.ts): Tab still reaches it, and
+  // with the keyboard in it, it shows over the page.
+  it("fades the site's header away while a project's page is open, and shows it over the page with the keyboard in it", () => {
+    const header = rule('html[data-inside] .site-header:not(:focus-within)');
+    expect(header).toMatch(/opacity:\s*0/);
+    expect(header).toMatch(/pointer-events:\s*none/);
+    expect(header).not.toMatch(/visibility|display/);
+    // <main>, which holds the page, stands at 2 after it: above it.
+    expect(rule('html[data-inside] .site-header:focus-within')).toMatch(/z-index:\s*3/);
+  });
 });

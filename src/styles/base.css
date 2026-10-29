@@ -2707,6 +2707,19 @@ html[data-inside] .pv-controls {
   display: block;
 }
 
+/* The site's header fades away while a project's page is open: the page is the one thing shown, with its own way back,
+   and no link of the header lies faintly under its words or takes a click behind it. By opacity alone, as for the loader:
+   Tab still reaches it, and with the keyboard in it, it shows over the page (<main>, which holds the page, is at 2). */
+html[data-inside] .site-header:not(:focus-within) {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+html[data-inside] .site-header:focus-within {
+  z-index: 3;
+}
+
 /* A dark foot under the way back and the line, so the page's words fade into it before they reach the button, never
    read through it. */
 html[data-inside] .pv-controls::before {
