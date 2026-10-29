@@ -61,14 +61,12 @@
  *              404.html; after hydration it shows the not-found route's <h1> and the right <html lang>,
  *              and the browser loads one document, with no reload loop; the page has no scene, so it
  *              asks for none of the scene's files, mounts no Stage and still leaves LOADING
- *   home-nav   the home page's links to the four projects: visually hidden but
- *              reachable by keyboard while 3D is on (and shown while one has focus), visible once the
- *              3D switch is turned off, and the choice persists in localStorage across a reload, where
- *              the page with 3D off mounts no WebGL at all and still leaves LOADING; the 3D switch is named
- *              "3D" on and off (role=switch and aria-checked carry the state, WCAG 2.5.3)
+ *   home-nav   the home page's links to the four projects: visually hidden but reachable by keyboard while 3D is on
+ *              (and shown while one has focus); the header has no 3D switch and no link to the light version (Bob took
+ *              them away, 2026-10-29), and a choice the switch stored before is not read: 3D on, the Stage mounts
  *   mobile     every page at 390 px wide has no horizontal scroll
  *   phone-menu  on a touch phone the header is one row (the name, Menu); Menu opens the nav as a sheet under the header,
- *              its links 44 px high or more; the 3D switch keeps it open, a link closes it, Escape closes it before
+ *              its links 44 px high or more, the language switch its one other control; a link closes it, Escape closes it before
  *              going back; it opens with script off; a laptop has no Menu button and its nav is one row
  *   case-variant  a real page under another spelling (/Projects/Steady/, /en/projects/FUNCIAL/) is a 404 on
  *              GitHub Pages and shows the not-found page, not an error screen (the server here is
@@ -117,13 +115,12 @@
  *              window.__needleDebug.scrollRequest, apart from the canvas's, which renders on demand through R3F's own
  *              requestAnimationFrame); on the rise the arrows and Page Down move it by their distance up to its top,
  *              and past it each key is a stop (the arrows, Page Up and Down, Space); Home and End; a text
- *              field keeps its keys, a pinch (ctrl+wheel) is the browser's, and with 3D off nothing is
- *              prevented and the page scrolls natively; `chapter.index` stays in step, and Back from a
+ *              field keeps its keys, a pinch (ctrl+wheel) is the browser's, and where 3D cannot run (Edge without
+ *              WebGL) nothing is prevented and the page scrolls natively; `chapter.index` stays in step, and Back from a
  *              project page lands at that bead's stop, in PROJECTS, not on HOME_IDLE. With reduced motion a
  *              whole wheel gesture is one stop (1, 2, 3, ...) and so is a key press. On a touch screen
  *              (CDP touch events) a drag moves it, a slow flick glides on after the finger lifts on the rise,
- *              flicks past the rise rest on stops, a tap and a sideways swipe do not move it, and the 3D switch
- *              still takes a tap
+ *              flicks past the rise rest on stops, and a tap and a sideways swipe do not move it
  *   scroll-bob the home's first unit of scroll, the rise from the compass to BOB seen from above (the bridge's `scroll`:
  *              `u`, `letters`, `iris`, `needleDip`), at 1440x900 (the wheel) and 390x844 (touch, coarse pointer), landed
  *              with the seen flag set: at rest `u` and `letters` are 0 and no B mark is cut; moved the whole unit (ten
@@ -176,10 +173,12 @@
  *              up from question 1 opens the stack back to the look back; a still of each mark through the home's luma
  *              gate (with reduced motion the reduced-motion step walks the ring)
  *   qa-end     the ring's end mark at 1440x900 and 390x844 (touch): the whole ring lit, "Einde van de site", "Stuur een
- *              bericht.", the line word for word and both buttons; "Naar contact" opens /contact/ with its form;
- *              "Terug naar het begin" takes the story to the home at 0; at 1440 the nav's .end-link goes to the end
- *              with the focus on #qa-end-title, and with 3D off #end is in the flow with its form, nothing of the ring
- *              left
+ *              bericht.", the line word for word and both buttons; the end unmistakable (<html data-qa-end>: the dark
+ *              over the scene, 0.85 or more, the gold circle drawn whole within 3 s, the words in the screen's middle,
+ *              the marks' numbers gone) and one input up leaves it with nothing of it left; "Naar contact" opens
+ *              /contact/ with its form; "Terug naar het begin" takes the story to the home at 0; at 1440 the nav's
+ *              .end-link goes to the end with the focus on #qa-end-title; where 3D cannot run (Edge without WebGL)
+ *              #end is in the flow with its form, nothing of the ring left
  *   resize     at 1440x900 turned to 390x844: at fact 02's peak the way frame stays and the fact rides below the light;
  *              at Steady's area the place stays, its words shown whole and its object framed above them; between two
  *              areas the place stays and the camera stays off the CPU
@@ -189,7 +188,7 @@
  *              the object in the torn top at the page's spot, its three phones (a row with dots on the phone); a still
  *              through the inside's luma gate (0.15); the wheel (a swipe) scrolls the page and never leaves it; "Lees
  *              meer" opens Steady's page and Back returns to it; → twice (the next project's button) opens the third
- *              project, replacing the entry, Porfael with no picture block; Escape, the way back and Back each close it
+ *              project, replacing the entry, Portle with its one card; Escape, the way back and Back each close it
  *              at rest; with reduced motion in and out by the step fade
  *   nebula     the 3D nebula, at 1440x900 and 390x844 (touch): the bridge's levels (`journey.nebula`) are the rules' at
  *              the fall's frames 30, 72 and 121 (the fall's at its quieter level), on the land, at the world, on the way
@@ -207,14 +206,15 @@
  *              home the nav is hidden again; no console error, and the Void's own line a warning
  *   (Every still of the two void steps is gated with the page's text masked, so the luma floor is the scene's, and the
  *   failure has a negative control: a still with the canvas hidden, whose masked floor must fail.)
- *   keyboard   Tab from the top of the home page reaches the skip link, then the language switch and the 3D toggle in
- *              that order, each with a focus ring (outline 2 px or more) and on screen, and Shift+Tab goes back; the
- *              language switch shows "EN" and its name begins with it (WCAG 2.5.3, label in name); End
+ *   keyboard   Tab from the top of the home page reaches the skip link, then the header in its order (the name, Work,
+ *              About, Contact, the language switch; no link to the light version, no 3D switch) and leaves it after
+ *              the language switch, which has a focus ring (outline 2 px or more) and is on screen, and Shift+Tab goes
+ *              back; the language switch shows "EN" and its name begins with it (WCAG 2.5.3, label in name); End
  *              jumps to the last chapter (the end of the story, the ring's end mark, END) and Home returns to the
- *              start, both by the step fade with the focus on the toggle; from BOB from above the arrows step every key
- *              stop (the facts, the world, each area, the look back, each mark on the ring); at Jontai Energy's board
- *              Tab from the toggle reaches its name, the dots, then the skip button, and Enter on it fades to the Q&A's
- *              first question with the focus on its mark
+ *              start, both by the step fade with the focus on the language switch; from BOB from above the arrows step
+ *              every key stop (the facts, the world, each area, the look back, each mark on the ring); at Jontai
+ *              Energy's board Tab from the language switch reaches its name, the dots, then the skip button, and Enter
+ *              on it fades to the Q&A's first question with the focus on its mark
  *   reduced-motion  with prefers-reduced-motion: reduce (page.emulateMedia, before the load) one wheel event moves
  *              `target` to exactly the next key stop, through all nineteen (the home, BOB from above, the five facts
  *              at their peaks, the world, each area, the look back's own stop, each mark on the ring) and back, the
@@ -224,7 +224,7 @@
  *              timeout and with no navigation on the way; the canvas is shown then, and the wheel moves
  *              `frame.progress` straight away. The canvas renders on demand: after the home's idle motion it
  *              asks for no frame at all, and the pointer wakes it; over a project page a mouse wiggle wakes only the
- *              parallax. With 3D stored off, a direct load mounts no WebGL and leaves LOADING all the same
+ *              parallax. A choice the header's 3D switch stored before it went is not read: 3D on, the Stage mounts
  *   no-scene   Lite is the light version: a direct load of a page without a scene (/lite/, /contact/, /en/lite/,
  *              /en/contact/) asks for none of the scene's files (the Stage chunk, three.js, maath, the textures),
  *              mounts no <canvas>, probes no WebGL, shows no fallback card and leaves LOADING with 3D still on; from
@@ -235,11 +235,11 @@
  *   no-webgl   Edge with WebGL switched off (--disable-webgl --disable-3d-apis): / and /en/ show the poster (the
  *              CSS panel of the night, no image, over the whole viewport) and
  *              the fallback card (THE NEEDLE LOST NORTH, in the page's language) with its link to Lite, no
- *              <canvas>, 3D off for the visit without touching the stored choice, the home page's links shown
+ *              <canvas>, 3D off for the visit and nothing stored, the home page's links shown
  *              and the page scrolling natively, the phase out of LOADING; and with only a software rasteriser
  *              (SwiftShader) the same card. On the GPU the scene's own failures fall back to the same card: a
  *              context lost for good (after the restore timeout) and a scene never ready (its chunk never
- *              answers, after the load timeout); switching 3D back on tries again, and a context that comes
+ *              answers, after the load timeout); a reload tries again, and a context that comes
  *              back draws again with no card. Zero console errors throughout
  *   load-throw the real Stage chunk served with one call inside the opening's load (the band strips uploaded to the
  *              GPU, once the compass is built) made to throw: the fallback card well inside the load timeout, 3D off
@@ -268,7 +268,7 @@
  *              stay 0 for 1.5 s (six samples), the page unscrolled: the input that skips never scrolls; and once more,
  *              Space (a real key press) 1.5 s in lands within 1.6 s and moves neither the story nor the page
  *   loader-lite  the skip listens only while a scene is shown: a first visit to /projects/steady/ with the compass's file held back (the load still out),
- *              its Lite link clicked 1.5 s into the loader: on Lite five wheel turns, Space and PageDown each scroll the
+ *              its header's Work clicked 1.5 s into the loader: on Lite five wheel turns, Space and PageDown each scroll the
  *              page (scrollY above 0, nothing prevented); the file let through and back on the project page, the skip
  *              asked for at the link lands the show
  *   loader-skip-touch  on a touch phone (390x844): the loader never draws at the high tier (a coarse pointer starts on medium); a tap 1.5 s in
@@ -351,7 +351,7 @@ const { Translator, locales } = await tsImport('../../src/i18n/Translator.ts', i
 const { HANDLES, PAGE_KINDS } = await tsImport('../../src/app/handle.ts', import.meta.url);
 const { MIN_FILL_MS, SEND_TIMEOUT_MS } = await tsImport('../../src/ui/contactSubmit.ts', import.meta.url);
 const { LOAD_TIMEOUT_MS, RESTORE_TIMEOUT_MS } = await tsImport('../../src/scene/timeouts.ts', import.meta.url);
-const { HOME_CHAPTERS, areaStop, areasOnPath, chapterAt, keyStops, pathStart, placeOfFrame, qaStop, scrollEnd, lookStop, stops, worldStop } = await tsImport('../../src/state/chapters.ts', import.meta.url);
+const { HOME_CHAPTERS, WORLD_LAYOUT, areaStop, areasOnPath, chapterAt, keyStops, pathStart, placeOfFrame, qaStop, scrollEnd, lookStop, stops, worldStop } = await tsImport('../../src/state/chapters.ts', import.meta.url);
 const { SETTLE_SLOP_PX } = await tsImport('../../src/input/target.ts', import.meta.url);
 const { RING_MARKS } = await tsImport('../../src/data/qa.ts', import.meta.url);
 const { QA_LOCK_MS } = await tsImport('../../src/input/scrollLoop.ts', import.meta.url);
@@ -419,7 +419,7 @@ const UNKNOWN = ['/does-not-exist/', '/en/does-not-exist/'];
 const CASE_VARIANTS = ['/Projects/Steady/', '/en/projects/FUNCIAL/', '/Projects/Jontai-Energy/', '/en/Projects/cookies-clicker/'];
 /** The links the home page lists: the four projects (the way to About is the header's). */
 /** The home nav's projects, in the stack's order (src/data/projects.ts). */
-const HOME_LINKS = ['/projects/steady/', '/projects/porfael/', '/projects/jontai-energy/', '/projects/cookies-clicker/'];
+const HOME_LINKS = ['/projects/steady/', '/projects/portle/', '/projects/jontai-energy/', '/projects/cookies-clicker/'];
 
 // ---------------------------------------------------------------- the step runner
 
@@ -1079,40 +1079,33 @@ async function homeNav(browser, step) {
   step.check(shown !== null && shown.height > 100, `the nav is shown while a link has focus (got ${JSON.stringify(shown)})`);
   await page.evaluate(() => document.activeElement?.blur());
 
-  // The switch is named "3D" whatever its state (WCAG 2.5.3): role=switch and aria-checked say whether it is on.
-  const named = async (state) => {
-    const control = page.getByRole('switch', { name: '3D', exact: true });
-    return (await control.count()) === 1 && (await control.getAttribute('aria-checked')) === state;
-  };
-  step.check(await named('true'), 'the 3D switch is named "3D", aria-checked="true" (its visible words are not its name)');
-
-  // 3D off: the nav is shown, and the choice survives a reload.
-  await page.click('button[role="switch"]');
-  step.check((await page.getAttribute('html', 'data-3d')) === 'off', 'the switch sets data-3d="off"');
-  step.check(await named('false'), 'switched off it is still named "3D", now aria-checked="false"');
-  step.check((await page.evaluate(() => localStorage.getItem('needle-3d'))) === 'off', 'the switch stores needle-3d = off');
-  const open = await boxOf(page, '.home-nav');
-  step.check(open !== null && open.height > 100, `with 3D off, the home nav is shown (got ${JSON.stringify(open)})`);
+  // The header's 3D switch and its link to the light version went (Bob, 2026-10-29; spec
+  // 2026-10-29-bob-stack-3-design.md, goal 2): neither is anywhere in the header.
+  const { t } = new Translator('nl');
+  const header = await page.evaluate(
+    (lite) => ({
+      switches: document.querySelectorAll('.site-header [role="switch"]').length,
+      lite: [...document.querySelectorAll('.site-header a')].filter((a) => a.textContent.trim() === lite || a.getAttribute('href') === '/lite/').length,
+    }),
+    t.needle.liteLink,
+  );
+  step.check(header.switches === 0 && header.lite === 0, `the header has no 3D switch and no link to the light version (got ${JSON.stringify(header)})`);
   await takeCsp(page, step);
-  await page.reload({ waitUntil: 'load' });
-  await page.waitForFunction(() => document.documentElement.getAttribute('data-3d') === 'off', null, { timeout: 5_000 });
-  step.check((await page.textContent('button[role="switch"]')) === '3D uit', 'after a reload, the switch still says "3D uit"');
-  // A visitor who switched 3D off never mounts WebGL, not even during hydration, and the page still leaves LOADING.
-  await page.waitForTimeout(1_000); // a Stage mounted by mistake would have its canvas by now
-  const off = await page.evaluate(() => ({ mounts: window.__needleDebug?.().canvasMounts ?? 0, canvases: document.querySelectorAll('canvas').length }));
-  step.check(off.mounts === 0 && off.canvases === 0, `with 3D stored off, no Stage and no <canvas> (got ${off.mounts} mounts, ${off.canvases} canvas)`);
-  const offPhase = await waitForPhase(page, 'HOME_IDLE').then((phase) => phase.kind, () => null);
-  step.check(offPhase === 'HOME_IDLE', `with 3D stored off, the phase still leaves LOADING for HOME_IDLE (got ${JSON.stringify(await page.evaluate(() => window.__needleDebug?.().phase))})`);
 
-  // And back on: the Stage mounts now.
-  await page.click('button[role="switch"]');
-  step.check((await page.evaluate(() => localStorage.getItem('needle-3d'))) === 'on', 'switching back stores needle-3d = on');
-  step.check(visuallyHidden(await boxOf(page, '.home-nav')), 'with 3D on again, the home nav is hidden again');
-  await stageReady(page);
-  step.check((await page.evaluate(() => window.__needleDebug?.().canvasMounts)) === 1, 'switched on, the Stage mounts');
+  // A choice the switch stored before it went is not read: 3D is on, the Stage mounts.
+  await page.evaluate(() => localStorage.setItem('needle-3d', 'off'));
+  await page.reload({ waitUntil: 'load' });
+  await stageReady(page).catch(() => {});
+  const stored = await page.evaluate(() => ({
+    threeD: document.documentElement.dataset['3d'],
+    mounts: window.__needleDebug?.().canvasMounts ?? 0,
+    canvases: document.querySelectorAll('canvas').length,
+  }));
+  step.check(stored.threeD === 'on' && stored.mounts === 1 && stored.canvases === 1, `with needle-3d = off stored from before, 3D is on and the Stage mounts (got ${JSON.stringify(stored)})`);
+  step.check(visuallyHidden(await boxOf(page, '.home-nav')), 'and the home nav is hidden, as with 3D on');
   await takeCsp(page, step);
   await context.close();
-  return 'four links; hidden but focusable with 3D on, shown with 3D off, the choice stored';
+  return 'four links, hidden but focusable with 3D on; no 3D switch and no link to the light version; a stored "off" from before not read';
 }
 
 async function mobile(browser, step) {
@@ -1173,9 +1166,9 @@ const menuState = (page) =>
 /**
  * The phone header (option A of Bob's mock-up, 2026-10-22): on a touch phone (390x844) the header is one row, the
  * name and Menu, the nav hidden; a tap on Menu opens it as a dark sheet from under the header to the bottom of the
- * screen with Work, About and Contact at least 44 px high, and the button says close; the 3D switch leaves it open, a
- * link follows and closes it; on a project page Escape closes the open menu and stays on the page (the next Escape goes
- * back); it opens with script off too (the browser's own popover); and on a laptop there is no Menu button, the nav
+ * screen with Work, About and Contact at least 44 px high, and the button says close; the language switch is its one
+ * other control (no 3D switch, no link to the light version: 2026-10-29); a link follows and closes it; on a project
+ * page Escape closes the open menu and stays on the page (the next Escape goes back); it opens with script off too (the browser's own popover); and on a laptop there is no Menu button, the nav
  * is its row.
  */
 async function phoneMenu(browser, step) {
@@ -1201,11 +1194,9 @@ async function phoneMenu(browser, step) {
   step.check(s.controls.every((c) => c.shown && c.bottom <= s.viewport), 'every control of the nav shows inside the sheet');
   step.check(s.toggleText === t.nav.close.toLowerCase(), `open, the button says "${t.nav.close}" (got "${s.toggleText}")`);
 
-  await page.locator('#site-menu [role="switch"]').tap();
-  await page.waitForTimeout(150);
-  s = await menuState(page);
-  step.check(s.open, 'the 3D switch leaves the menu open');
-  await page.locator('#site-menu [role="switch"]').tap();
+  // Its one control besides the links is the language switch: no 3D switch, no link to the light version (2026-10-29).
+  const extras = await page.$$eval('#site-menu .menu-extras > *', (els) => els.map((el) => ({ role: el.getAttribute('role'), hreflang: el.getAttribute('hreflang') })));
+  step.check(extras.length === 1 && extras[0].hreflang === 'en' && extras[0].role === null, `the sheet's one control besides the links is the language switch (got ${JSON.stringify(extras)})`);
 
   await page.locator('#site-menu .menu-links a').first().tap();
   await page.waitForFunction(() => location.hash === '#work', null, { timeout: 5_000 }).catch(() => {});
@@ -1250,7 +1241,7 @@ async function phoneMenu(browser, step) {
   step.check(Math.max(...tops) - Math.min(...tops) <= 4 && s.header.height <= 72, `the laptop nav is one row (tops ${tops.join(', ')}, header ${s.header.height} px)`);
   await takeCsp(laptop.page, step);
   await laptop.context.close();
-  return 'one row on a phone; Menu opens the sheet (links 44 px+, says close), 3D keeps it open, a link closes it, Escape closes it before going back, works without script; a laptop keeps its row';
+  return 'one row on a phone; Menu opens the sheet (links 44 px+, says close, the language switch its one other control), a link closes it, Escape closes it before going back, works without script; a laptop keeps its row';
 }
 
 /** The copy of a heading as text: the dictionaries' only markup is <em>. */
@@ -1853,36 +1844,6 @@ async function scrollDesktop(browser, step) {
   step.check(JSON.stringify(await page.evaluate(() => window.__wheels)) === '[false]', 'a wheel with ctrl held (a pinch) is not prevented');
   step.check((await frameOf(page)).target === 0, 'and it does not move the story');
 
-  // The 3D switch takes Space (a button press), and with 3D off nothing is prevented: the page scrolls natively.
-  await page.focus('button[role="switch"]');
-  await page.keyboard.press('Space');
-  await page.waitForFunction(() => document.documentElement.dataset['3d'] === 'off', null, { timeout: 5_000 });
-  step.check((await frameOf(page)).target === 0, 'Space on the 3D switch presses it and does not move the story');
-  await page.evaluate(() => {
-    window.__wheels.length = 0;
-    document.activeElement?.blur();
-  });
-  await page.mouse.wheel(0, 300);
-  await page.waitForTimeout(300);
-  step.check(JSON.stringify(await page.evaluate(() => window.__wheels)) === '[false]', 'with 3D off a wheel is not prevented');
-  const natural = await page.evaluate(() => ({ y: window.scrollY, overflow: getComputedStyle(document.documentElement).overflow }));
-  step.check(natural.y > 0 && natural.overflow === 'visible', `with 3D off the home page scrolls natively (scrollY ${natural.y}, overflow ${natural.overflow})`);
-  await page.keyboard.press('PageDown');
-  step.check((await frameOf(page)).target === 0, 'and the keys do not move the story');
-
-  // Switched back on, the root is locked again and the wheel is the scene's.
-  await page.focus('button[role="switch"]');
-  await page.keyboard.press('Space');
-  await page.waitForFunction(() => document.documentElement.dataset['3d'] === 'on', null, { timeout: 5_000 });
-  await page.evaluate(() => {
-    window.__wheels.length = 0;
-    document.activeElement?.blur();
-  });
-  // Read once the page's scroll has stopped: the Page Down pressed with 3D off may still be scrolling it smoothly.
-  const onAgainAt = await scrollSettled(page);
-  step.check(onAgainAt === 0, `with 3D on again the page is back at the top, and stays there once its scroll has stopped (scrollY ${onAgainAt})`);
-  await page.mouse.wheel(0, 120);
-  step.check((await frameOf(page)).target > 0 && JSON.stringify(await page.evaluate(() => window.__wheels)) === '[true]', 'and the wheel moves the story again');
   await takeCsp(page, step);
   await context.close();
 }
@@ -2014,23 +1975,45 @@ async function scrollTouch(browser, step) {
   await touch('touchEnd');
   await page.waitForTimeout(600); // a tap straight after a swipe is taken by the browser for the one that stops a fling
   step.check((await frameOf(page)).target === before.target, 'a swipe sideways does not move the story');
-  // On a phone the 3D switch is in the menu (option A, 2026-10-22): a tap opens it, another presses the switch.
-  await page.tap('.menu-toggle');
-  await page.tap('#site-menu button[role="switch"]');
-  await page.waitForFunction(() => document.documentElement.dataset['3d'] === 'off', null, { timeout: 5_000 });
-  step.check((await page.getAttribute('html', 'data-3d')) === 'off', 'a tap on Menu, then on the 3D switch, still presses it');
-  await page.tap('#site-menu button[role="switch"]');
-  await page.waitForFunction(() => document.documentElement.dataset['3d'] === 'on', null, { timeout: 5_000 });
-  await page.tap('.menu-toggle');
   await takeCsp(page, step);
   await context.close();
+}
+
+/**
+ * Where 3D cannot run (Edge with WebGL off; the header's 3D switch went, 2026-10-29), nothing is prevented: the home page
+ * scrolls natively under the wheel, and the keys do not move the story.
+ */
+async function scrollNoWebgl(step) {
+  const own = await chromium.launch({ channel: 'msedge', headless: true, args: NO_WEBGL });
+  try {
+    const { context, page } = await openPage(own, step);
+    await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+    await page.waitForSelector('.scene-fallback', { timeout: 10_000 });
+    await page.evaluate(() => {
+      window.__wheels = [];
+      window.addEventListener('wheel', (event) => window.__wheels.push(event.defaultPrevented), { passive: true });
+    });
+    await page.mouse.move(720, 450);
+    await page.mouse.wheel(0, 300);
+    await page.waitForTimeout(300);
+    step.check(JSON.stringify(await page.evaluate(() => window.__wheels)) === '[false]', 'without WebGL a wheel is not prevented');
+    const natural = await page.evaluate(() => ({ y: window.scrollY, overflow: getComputedStyle(document.documentElement).overflow }));
+    step.check(natural.y > 0 && natural.overflow === 'visible', `without WebGL the home page scrolls natively (scrollY ${natural.y}, overflow ${natural.overflow})`);
+    await page.keyboard.press('PageDown');
+    step.check((await frameOf(page)).target === 0, 'and the keys do not move the story');
+    await takeCsp(page, step);
+    await context.close();
+  } finally {
+    await own.close();
+  }
 }
 
 async function scroll(browser, step) {
   await scrollDesktop(browser, step);
   await scrollReduced(browser, step);
   await scrollTouch(browser, step);
-  return 'locked root; 10 wheel events of 120 px settle on BOB from above; the loop sleeps at rest; keys by distance on the rise and by key stops past it, Home and End; text fields, pinch and 3D off left to the browser; reduced motion steps by key stops; touch drag, glide on the rise and on into the light dive, tap';
+  await scrollNoWebgl(step);
+  return 'locked root; 10 wheel events of 120 px settle on BOB from above; the loop sleeps at rest; keys by distance on the rise and by key stops past it, Home and End; text fields and pinch left to the browser, and everything where 3D cannot run; reduced motion steps by key stops; touch drag, glide on the rise and on into the light dive, tap';
 }
 
 // ---------------------------------------------------------------- the scene: loaded, no-webgl, fps
@@ -2134,17 +2117,22 @@ async function loaded(browser, step) {
   await takeCsp(page, step);
   await context.close();
 
-  // 3D stored off: no WebGL, and the phase still leaves LOADING.
-  const off = await openPage(browser, step);
-  await off.context.addInitScript(() => localStorage.setItem('needle-3d', 'off'));
-  await off.page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
-  const offAt = await reachHomeIdle(off.page);
-  await off.page.waitForTimeout(500);
-  const none = await off.page.evaluate(() => ({ mounts: window.__needleDebug?.().canvasMounts ?? 0, canvases: document.querySelectorAll('canvas').length, card: document.querySelector('.scene-fallback') !== null }));
-  step.check(none.mounts === 0 && none.canvases === 0 && !none.card, `with 3D stored off: HOME_IDLE after ${offAt} ms, no Stage, no <canvas>, no card (got ${JSON.stringify(none)})`);
-  await takeCsp(off.page, step);
-  await off.context.close();
-  return `LOADING → HOME_IDLE in ${at} ms on a direct load, the wheel moves the story, the canvas sleeps ${slept} ms after the last input and wakes on the pointer; 3D off: HOME_IDLE in ${offAt} ms, no WebGL`;
+  // A choice the header's 3D switch stored before it went (2026-10-29) is not read: 3D on, the Stage mounts, no card.
+  const old = await openPage(browser, step);
+  await old.context.addInitScript(() => localStorage.setItem('needle-3d', 'off'));
+  await old.page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+  const oldAt = await reachHomeIdle(old.page);
+  await old.page.waitForTimeout(500);
+  const on = await old.page.evaluate(() => ({
+    threeD: document.documentElement.dataset['3d'],
+    mounts: window.__needleDebug?.().canvasMounts ?? 0,
+    canvases: document.querySelectorAll('canvas').length,
+    card: document.querySelector('.scene-fallback') !== null,
+  }));
+  step.check(on.threeD === 'on' && on.mounts === 1 && on.canvases === 1 && !on.card, `with needle-3d = off stored from before: HOME_IDLE after ${oldAt} ms with 3D on, one Stage, one <canvas>, no card (got ${JSON.stringify(on)})`);
+  await takeCsp(old.page, step);
+  await old.context.close();
+  return `LOADING → HOME_IDLE in ${at} ms on a direct load, the wheel moves the story, the canvas sleeps ${slept} ms after the last input and wakes on the pointer; a stored "off" from before: 3D on, HOME_IDLE in ${oldAt} ms`;
 }
 
 /**
@@ -2232,8 +2220,9 @@ async function noScene(browser, step) {
     document.querySelector('.scene-host canvas').dataset.id = 'home-canvas';
   });
   await page.mouse.move(700, 400, { steps: 4 }); // the parallax and the needle are moving as the visitor leaves
-  await page.click('.site-header a[href="/lite/"]');
-  await page.waitForURL(`${BASE}/lite/`, { timeout: 5_000 });
+  // The header's Work (its link to the light version went, 2026-10-29).
+  await page.click('.site-header a[href="/lite/#work"]');
+  await page.waitForURL((url) => url.pathname === '/lite/', { timeout: 5_000 });
   await page.waitForTimeout(300); // the frame already asked for when the page changed runs
   const from = await page.evaluate(() => window.__allRaf);
   for (let i = 0; i < 15; i++) {
@@ -2359,7 +2348,7 @@ async function noWebglOne(browser, step, label, expected) {
     step.check(state.link === lite && state.linkText === t.needle.fallback.lite && state.role === 'status', `${label}, ${path}: with a link to ${lite}, "${t.needle.fallback.lite}", as a status (got ${state.link}, ${state.linkText}, role ${state.role})`);
     step.check(state.canvases === 0 && state.mounts === 0, `${label}, ${path}: no <canvas> and no Stage (got ${state.canvases} canvas, ${state.mounts} mounts)`);
     step.check(state.webgl === expected, `${label}, ${path}: the probe found '${expected}' (got ${state.webgl})`);
-    step.check(state.threeD === 'off' && state.stored === null, `${label}, ${path}: 3D off for the visit, the stored choice untouched (data-3d ${state.threeD}, needle-3d ${state.stored})`);
+    step.check(state.threeD === 'off' && state.stored === null, `${label}, ${path}: 3D off for the visit and nothing stored (data-3d ${state.threeD}, needle-3d ${state.stored})`);
     step.check(state.overflow === 'visible' && state.nav > 100, `${label}, ${path}: the page scrolls natively and the home page's links show (overflow ${state.overflow}, nav ${Math.round(state.nav)} px)`);
     const poster = state.poster;
     step.check(
@@ -2453,17 +2442,18 @@ async function sceneFailures(browser, step) {
     );
   };
 
-  // A context lost for good: the card after RESTORE_TIMEOUT_MS. Switching 3D back on tries again, with a new Stage.
+  // A context lost for good: the card after RESTORE_TIMEOUT_MS. A reload tries again, with a new Stage (the header's
+  // 3D switch, which tried again in place, went: 2026-10-29).
   {
     const { context, page } = await openPage(browser, step);
     await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
     await reachHomeIdle(page);
     await loseContext(page, false);
     await fellBack(page, 'a context lost for good', RESTORE_TIMEOUT_MS + 3_000);
-    await page.click('button[role="switch"]');
-    await page.waitForFunction(() => document.querySelector('.scene-host')?.hasAttribute('data-ready'), null, { timeout: LOAD_TIMEOUT_MS });
-    const again = await page.evaluate(() => ({ mounts: window.__needleDebug?.().canvasMounts, card: document.querySelector('.scene-fallback') !== null, stored: localStorage.getItem('needle-3d') }));
-    step.check(again.mounts === 2 && !again.card && again.stored === 'on', `switched back on, a new Stage draws and the card goes (got ${JSON.stringify(again)})`);
+    await page.reload({ waitUntil: 'load' });
+    await page.waitForFunction(() => document.querySelector('.scene-host')?.hasAttribute('data-ready'), null, { timeout: LOAD_TIMEOUT_MS + 3_000 });
+    const again = await page.evaluate(() => ({ mounts: window.__needleDebug?.().canvasMounts, card: document.querySelector('.scene-fallback') !== null, threeD: document.documentElement.dataset['3d'] }));
+    step.check(again.mounts === 1 && !again.card && again.threeD === 'on', `a reload tries again: a new Stage draws and the card is gone (got ${JSON.stringify(again)})`);
     await takeCsp(page, step);
     await context.close();
   }
@@ -2493,7 +2483,7 @@ async function sceneFailures(browser, step) {
     await takeCsp(page, step);
     await context.close();
   }
-  return `a context lost for good, and a scene not ready in ${LOAD_TIMEOUT_MS / 1000} s, fall back to the card; a restored context draws again; 3D back on retries`;
+  return `a context lost for good, and a scene not ready in ${LOAD_TIMEOUT_MS / 1000} s, fall back to the card; a restored context draws again; a reload retries`;
 }
 
 async function noWebgl(browser, step) {
@@ -2780,19 +2770,22 @@ async function stills(browser, step) {
   const gated = [];
   for (const size of sizes) {
     const at = sizeName(size);
-    const { context, page } = await readyHome(browser, step, size);
+    const { context, page, touch } = await readyHome(browser, step, size);
     const places = [
       ...[32, 60, 121, 241].map((frame) => ({ name: `light-${frame}`, progress: placeOfFrame(frame) })),
       ...PROJECT_LIST.map((bead) => ({ name: `area-${bead.id}`, progress: bead.stop })),
       { name: 'look-back', progress: LOOK_STOP },
-      { name: 'qa-end', progress: STORY_END },
+      // The end once its dark is up and its circle drawn (3 s; spec 2026-10-29-bob-stack-3-design.md, goal 4): the scene
+      // lies under the dark on purpose, so its floor is met by the circle, read on a phone where it stands, above the words;
+      // that the scene draws is the other stills' to show.
+      { name: 'qa-end', progress: STORY_END, wait: 3_400, ...(touch ? { region: { x: [0.1, 0.9], y: [0.12, 0.5] } } : {}) },
     ];
     for (const place of places) {
       await poseAt(page, place.progress);
-      await page.waitForTimeout(place.whole ? 900 : 500);
+      await page.waitForTimeout(place.wait ?? (place.whole ? 900 : 500));
       const file = join(dir, `${place.name}-${at}.png`);
       await page.screenshot({ path: file });
-      gated.push({ file, kind: place.kind ?? 'home', mask: place.whole ? null : await textMask(page) });
+      gated.push({ file, kind: place.kind ?? 'home', mask: place.whole ? null : await textMask(page), ...(place.region ? { region: place.region } : {}) });
     }
     await takeCsp(page, step);
     await context.close();
@@ -4015,7 +4008,8 @@ async function loaderSkip(browser, step) {
 /**
  * The skip listens only while a scene is shown, so a page of text reached mid-show scrolls. A first visit to a project page (nothing stored, so the full
  * show plays under the page's scrim), with the compass's file held back, so its load is still out when the visitor
- * leaves, as on a slow connection: CUT_AT (1.5) s into the loader a click on the header's Lite link (which also asks for the skip)
+ * leaves, as on a slow connection: CUT_AT (1.5) s into the loader a click on the header's Work (/lite/#work, its link to
+ * the light version went in stack round 3; it also asks for the skip)
  * opens Lite by client navigation, a page with no scene, where the show cannot land. (A load that is in by then lands
  * the show as the visitor leaves, as Lite's phase skips the rest of it, and the listener goes with it: that case passes
  * either way.) There the page is the visitor's: five wheel turns scroll it, and from the top again Space and then
@@ -4048,8 +4042,8 @@ async function loaderLite(browser, step) {
   const flag = await page.evaluate((key) => localStorage.getItem(key), LOADER_SEEN_KEY);
   await loaderAtLeast(page, CUT_AT);
   const at = (await debugOf(page)).loader;
-  await page.click('.site-header a[href="/lite/"]');
-  const opened = await page.waitForURL(`${BASE}/lite/`, { timeout: 5_000 }).then(
+  await page.click('.site-header a[href="/lite/#work"]');
+  const opened = await page.waitForURL((url) => url.pathname === '/lite/', { timeout: 5_000 }).then(
     () => true,
     () => false,
   );
@@ -4064,7 +4058,7 @@ async function loaderLite(browser, step) {
     `a click on the header's Lite link ${CUT_AT} s in opens Lite (${page.url()}, route ${there.route}; the opening stands at ${there.loader.stage}, ${there.loader.elapsed.toFixed(2)} s)`,
   );
 
-  // The wheel, from the top of Lite.
+  // The wheel, from where Work left Lite (at #work).
   await page.mouse.move(720, 450);
   const wheelFrom = await page.evaluate(() => window.scrollY);
   await page.evaluate(() => window.__prevented.splice(0));
@@ -4076,7 +4070,7 @@ async function loaderLite(browser, step) {
   const wheelY = await page.evaluate(() => window.scrollY);
   const wheels = await page.evaluate(() => window.__prevented.splice(0));
   step.check(
-    wheelFrom === 0 && wheelY > 0 && wheels.length === 5 && wheels.every((e) => !e.prevented),
+    wheelY > wheelFrom && wheels.length === 5 && wheels.every((e) => !e.prevented),
     `on Lite five wheel turns scroll the page: scrollY ${wheelFrom} → ${wheelY}, ${wheels.filter((e) => e.prevented).length} of ${wheels.length} prevented`,
   );
 
@@ -4643,9 +4637,12 @@ async function bridge(browser, step) {
   );
 
   // .set puts the story somewhere at once: progress and target there, nothing moving, the chapter and the phase with it.
-  // Half way through Steady's travel (the path's first unit, the third of the story) the journey, which the scene poses
-  // on the next frame it draws, says the same: the travel, half way, Steady the bead it goes to, and the beads on screen.
-  const land = PATH_START + 0.9;
+  // Six tenths of the way through the land, just after the light has met the lid (the drop is the land's first 1.26 of
+  // its 2.43 units since stack round 3, spec 2026-10-29-bob-stack-3-design.md, goal 1), the journey, which the scene poses
+  // on the next frame it draws, says the same: the land, that far through, the world's objects on screen and its power
+  // coming on.
+  const LAND_AT = 0.6;
+  const land = PATH_START + LAND_AT * WORLD_LAYOUT.land;
   await waitForVoid(page, 'ready');
   await page.evaluate((progress) => window.__needleDebug.set({ progress }), land);
   const mid = await debugOf(page);
@@ -4653,10 +4650,10 @@ async function bridge(browser, step) {
     mid.progress === land && mid.target === land && mid.velocity === 0 && mid.chapter.index === 2 && mid.chapter.id === 'LAND' && mid.phase.kind === 'PROJECTS' && mid.phase.category === null,
     `.set({ progress: ${land.toFixed(4)} }) puts the story on the land, PROJECTS with no area yet (got ${JSON.stringify([mid.progress, mid.target, mid.chapter, mid.phase])})`,
   );
-  step.check(near(mid.chapter.local, 0.5, 1e-9), `and the chapter's local is how far through it, half way (got ${mid.chapter.local})`);
+  step.check(near(mid.chapter.local, LAND_AT, 1e-9), `and the chapter's local is how far through it, ${LAND_AT} (got ${mid.chapter.local})`);
   const landing = await journeyAfter(page, 'land');
   step.check(
-    landing.stretch === 'land' && near(landing.local, 0.5, 1e-9) && landing.project === null && landing.frame === null && landing.sheet === 0 && Array.isArray(landing.objects) && landing.objects.length === PROJECT_LIST.length && landing.world !== null && landing.world.power > 0 && landing.world.power < 1 && !('beads' in landing) && !('ring' in landing),
+    landing.stretch === 'land' && near(landing.local, LAND_AT, 1e-9) && landing.project === null && landing.frame === null && landing.sheet === 0 && Array.isArray(landing.objects) && landing.objects.length === PROJECT_LIST.length && landing.world !== null && landing.world.power > 0 && landing.world.power < 1 && !('beads' in landing) && !('ring' in landing),
     `and the journey says so: the land half way, the world's objects on the screen and the board powering up, no beads and no ring (got ${JSON.stringify({ ...landing, objects: landing.objects?.length })})`,
   );
   await page.evaluate((place) => window.__needleDebug.set({ progress: place }), placeOfFrame(121));
@@ -4709,12 +4706,13 @@ async function bridge(browser, step) {
 
 /**
  * The keyboard on the home page with 3D on: Tab from the top reaches the skip link, then the header in its order (the
- * name, Work, About, Contact, the language switch, Lite and the 3D toggle), the language switch and the toggle each with a
- * visible focus ring on screen, and Shift+Tab goes back; End goes to the last
+ * name, Work, About, Contact and the language switch; its link to the light version and its 3D switch went,
+ * 2026-10-29), the next Tab out of it, the language switch with a visible focus ring on screen, and Shift+Tab goes back; End goes to the last
  * chapter (the end of the story, the end page) and Home returns to the start, both from a focused control, each by the
  * step fade. From BOB from above the arrows step the facts (each at its peak), then the projects, then the end page.
- * At Jontai Energy's stop, Tab from the 3D toggle reaches the front bead's label, then the skip button, and Enter on the
- * skip button takes the story to the end page and the focus to its title.
+ * At Jontai Energy's stop, Tab from the language switch (the header's last control since its 3D switch went,
+ * 2026-10-29) reaches the front bead's label, then the skip button, and Enter on the skip button takes the story to the
+ * end page and the focus to its title.
  */
 async function keyboard(browser, step) {
   const { context, page } = await openPage(browser, step);
@@ -4751,25 +4749,30 @@ async function keyboard(browser, step) {
       };
     });
   const isLang = (control) => control.tag === 'A' && control.hreflang === 'en';
-  const isToggle = (control) => control.role === 'switch';
 
   const reached = [];
   for (let press = 0; press < 12; press++) {
     await page.keyboard.press('Tab');
     reached.push(await focused());
-    if (isToggle(reached.at(-1))) break;
+    if (isLang(reached.at(-1))) break;
   }
   const langAt = reached.findIndex(isLang);
-  const toggleAt = reached.findIndex(isToggle);
   step.check(reached[0]?.href === '#main', `the first Tab lands on the skip link (got ${JSON.stringify(reached[0])})`);
-  step.check(langAt > 0 && toggleAt > langAt, `Tab reaches the language switch and then the 3D toggle (language switch at press ${langAt + 1}, toggle at press ${toggleAt + 1} of ${reached.length})`);
-  // The header's order (spec §2.2): the name, then Work, About and Contact, the language switch, Lite, the 3D switch.
-  const order = reached.map((control) => (isToggle(control) ? '3D' : isLang(control) ? 'EN' : control.href));
-  const HEADER_ORDER = ['#main', '/', '/lite/#work', '/lite/#about', '/contact/', 'EN', '/lite/', '3D'];
+  // The header's order (spec §2.2; its link to the light version and its 3D switch went, Bob 2026-10-29): the name, then
+  // Work, About and Contact, and the language switch last.
+  const order = reached.map((control) => (control.role === 'switch' ? '3D' : isLang(control) ? 'EN' : control.href));
+  const HEADER_ORDER = ['#main', '/', '/lite/#work', '/lite/#about', '/contact/', 'EN'];
   step.check(JSON.stringify(order) === JSON.stringify(HEADER_ORDER), `Tab goes through the header in its order: ${HEADER_ORDER.join(', ')} (got ${order.join(', ')})`);
-  for (const [name, control] of [['the language switch', reached[langAt]], ['the 3D toggle', reached[toggleAt]]]) {
-    step.check(control?.ring && control.onScreen, `${name} shows a focus ring (outline 2px or more) and is on screen when focused (got ${JSON.stringify(control)})`);
-  }
+  step.check(reached[langAt]?.ring && reached[langAt].onScreen, `the language switch shows a focus ring (outline 2px or more) and is on screen when focused (got ${JSON.stringify(reached[langAt])})`);
+  // Past the language switch the header ends: the next Tab leaves it.
+  await page.keyboard.press('Tab');
+  const past = await page.evaluate(() => ({
+    inHeader: document.activeElement?.closest('.site-header') != null,
+    role: document.activeElement?.getAttribute('role') ?? null,
+    href: document.activeElement?.getAttribute('href') ?? null,
+  }));
+  step.check(!past.inHeader, `past the language switch Tab leaves the header (got ${JSON.stringify(past)})`);
+  await page.keyboard.press('Shift+Tab');
   // The language switch shows "EN" and its name begins with it (WCAG 2.5.3, label in name).
   const lang = page.locator('.header-nav a[hreflang="en"]');
   const langName = await lang.getAttribute('aria-label');
@@ -4778,12 +4781,9 @@ async function keyboard(browser, step) {
     `the language switch shows "EN" and is named "${langName}", which begins with it`,
   );
   await page.keyboard.press('Shift+Tab');
-  step.check((await focused()).href === '/lite/', 'Shift+Tab from the 3D toggle goes back to the Lite link before it');
-  await page.keyboard.press('Shift+Tab');
-  step.check(isLang(await focused()), 'and once more to the language switch');
+  step.check((await focused()).href === '/contact/', 'Shift+Tab from the language switch goes back to Contact before it');
   await page.keyboard.press('Tab');
-  await page.keyboard.press('Tab');
-  step.check(isToggle(await focused()), 'and Tab to the toggle again');
+  step.check(isLang(await focused()), 'and Tab to the language switch again');
 
   // End and Home work from a focused control: a button keeps Space and Enter, not these.
   await watchFade();
@@ -4794,7 +4794,7 @@ async function keyboard(browser, step) {
   const reachedEnd = await waitForPhase(page, 'END').then(() => true, () => false);
   const atEnd = await debugOf(page);
   step.check(reachedEnd && atEnd.chapter.id === LAST_CHAPTER && LAST_CHAPTER === 'END' && atEnd.phase.kind === 'END', `and it is the end page, ${LAST_CHAPTER} (got ${JSON.stringify([atEnd.chapter, atEnd.phase])})`);
-  step.check(isToggle(await focused()), 'with the focus still on the 3D toggle');
+  step.check(isLang(await focused()), 'with the focus still on the language switch');
   await watchFade();
   await page.keyboard.press('Home');
   const first = await restAt(page);
@@ -4816,8 +4816,8 @@ async function keyboard(browser, step) {
     await page.waitForTimeout(150);
   }
 
-  // At the Website board, Jontai Energy's: Tab from the 3D toggle reaches its name in the board's words, then the boards'
-  // dots, then the skip button; Enter on it.
+  // At the Website board, Jontai Energy's: Tab from the language switch reaches its name in the board's words, then the
+  // boards' dots, then the skip button; Enter on it.
   const jontai = PROJECT_LIST.find((p) => p.id === 'jontai-energy');
   await poseAt(page, jontai.stop);
   await restAt(page);
@@ -4828,7 +4828,7 @@ async function keyboard(browser, step) {
     }, jontai.index, { timeout: 5_000 })
     .then(() => true, () => false);
   step.check(shownWords, "at Jontai Energy's board its words show whole");
-  await page.getByRole('switch', { name: '3D', exact: true }).focus();
+  await page.locator('.header-nav a[hreflang="en"]').focus();
   const tabbed = [];
   for (let i = 0; i < 5; i++) {
     await page.keyboard.press('Tab');
@@ -4843,7 +4843,7 @@ async function keyboard(browser, step) {
   }
   step.check(
     JSON.stringify(tabbed) === JSON.stringify([`words:${jontai.title}`, 'dot', 'dot', 'dot', 'skip']),
-    `Tab from the 3D toggle reaches Jontai Energy's name in its board's words, then the three dots, then the skip button (${tabbed.join(', ')})`,
+    `Tab from the language switch reaches Jontai Energy's name in its board's words, then the three dots, then the skip button (${tabbed.join(', ')})`,
   );
   await watchFade();
   await page.keyboard.press('Enter');
@@ -4853,7 +4853,7 @@ async function keyboard(browser, step) {
   step.check(skipped !== null && focusedMark === 'qa-mark-0' && (await fadeSeen()), `Enter on the skip button fades the story to the Q&A's first question (${skipped === null ? 'never' : `${skipped} ms`}) and the focus goes to its mark (${focusedMark})`);
   await takeCsp(page, step);
   await context.close();
-  return `Tab: skip link, language switch (press ${langAt + 1}), 3D toggle (press ${toggleAt + 1}), each ringed and on screen; End goes to ${STORY_END} (the end page, ${LAST_CHAPTER}), Home back to 0, both by the fade; the arrows walk ${reachedStops.length} key stops; Tab to Jontai Energy's name at its area, the dots, then the skip button, Enter to "Q&A"`;
+  return `Tab: skip link, the header in its order to the language switch (press ${langAt + 1}), ringed and on screen, then out of it; End goes to ${STORY_END} (the end page, ${LAST_CHAPTER}), Home back to 0, both by the fade; the arrows walk ${reachedStops.length} key stops; Tab to Jontai Energy's name at its area, the dots, then the skip button, Enter to "Q&A"`;
 }
 
 /**
@@ -5611,6 +5611,8 @@ async function nudge(page, cdp, direction, px = RISE.notchPx) {
  *    fall, notches up run them back, never forward.
  * 4. Stopped mid-fall (two notches from fact 03's frame), the story rests where the input stopped, not on a stop, and
  *    the canvas sleeps within a second.
+ * 5. At 1440x900, the drop into the stack (spec 2026-10-29-bob-stack-3-design.md, goal 1: "a bit slower"): from the
+ *    hand-over to the light on the lid (the world's power begins) takes nine wheel notches or more, rested after each.
  */
 async function lightDive(browser, step) {
   const summary = [];
@@ -5631,14 +5633,15 @@ async function lightDive(browser, step) {
       );
     }
     // The circuit light (spec 2026-10-29-bob-stack-2-design.md, goal 4): its frame, its dial and its five traces drawn,
-    // the traces standing above it on the screen (the bridge's `journey.circuit`).
+    // the traces standing above it on the screen (the bridge's `journey.circuit`); and its wide aura, breathing round it
+    // (spec 2026-10-29-bob-stack-3-design.md, goal 3: "B · Glow").
     for (const f of [72, 121, 201]) {
       const state = await poseAt(page, placeOfFrame(f));
       const c = state.journey.circuit ?? null;
       const light = state.journey.light;
       step.check(
-        c !== null && ['light:frame', 'light:dial'].every((part) => c.parts.includes(part)) && c.traces === 5 && c.top !== null && light !== null && c.top.y > light.y + 0.05,
-        `${at}: at way frame ${f} the circuit light's frame, dial and five traces are drawn (${c?.parts.join(', ')}; ${c?.traces} traces), the traces standing above it (their top at ${c?.top?.y.toFixed(3)}, the light at ${light?.y.toFixed(3)} NDC)`,
+        c !== null && ['light:aura', 'light:frame', 'light:dial'].every((part) => c.parts.includes(part)) && c.traces === 5 && c.top !== null && light !== null && c.top.y > light.y + 0.05,
+        `${at}: at way frame ${f} the circuit light's aura, frame, dial and five traces are drawn (${c?.parts.join(', ')}; ${c?.traces} traces), the traces standing above it (their top at ${c?.top?.y.toFixed(3)}, the light at ${light?.y.toFixed(3)} NDC)`,
       );
     }
     // The camera of the first frame that poses the journey stands on that frame's shot (the same-frame check): on the
@@ -5682,7 +5685,23 @@ async function lightDive(browser, step) {
     const onStop = keyStops(HOME_CHAPTERS).some((stop) => near(stop, rest.target, 1e-3));
     step.check(!onStop && rest.target > placeOfFrame(140) && rest.target < PATH_START, `${at}: two inputs from way frame 140 rest where they stopped, ${rest.target.toFixed(4)}, not on a stop`);
     step.check(sleptIn !== null && sleptIn <= 1_000, `${at}: at rest mid-fall the canvas sleeps within a second (asked for no frame from ${sleptIn} ms on)`);
-    summary.push(`${at}: the light within ${worst.toFixed(1)} px of the data, ${down.length} inputs to the path`);
+    // 5. The drop into the stack, notch by notch from the hand-over until the light is on the lid.
+    let dropNotches = null;
+    if (!touch) {
+      await poseAt(page, PATH_START);
+      await restAt(page);
+      for (let n = 1; n <= 30; n++) {
+        await page.mouse.wheel(0, RISE.notchPx);
+        await restAt(page);
+        const s = await debugOf(page);
+        if ((s.journey.world?.power ?? 0) > 0) {
+          dropNotches = n;
+          break;
+        }
+      }
+      step.check(dropNotches !== null && dropNotches >= 9, `${at}: from the hand-over to the light on the lid takes ${dropNotches ?? 'more than 30'} wheel notches, nine or more`);
+    }
+    summary.push(`${at}: the light within ${worst.toFixed(1)} px of the data, ${down.length} inputs to the path${dropNotches === null ? '' : `, ${dropNotches} notches from the hand-over to the lid`}`);
     await context.close();
   }
   return summary.join('; ');
@@ -5697,6 +5716,14 @@ async function lightDive(browser, step) {
  * - on the phone it hangs below the light, its line stepped aside away from the move, and the picture under the line
  *   (the label hidden) is dark: mean luma at most 0.05, so the line never lies on the tail.
  */
+/**
+ * The most the picture under a fact's line on the phone may measure (mean luma): dark, never on the tail. It was 0.05
+ * until stack round 3 gave the light its wide breathing aura (Bob's "B · Glow", spec 2026-10-29-bob-stack-3-design.md,
+ * goal 3), which the line's top now passes through as it leaves the light (0.091 at fact 01, 0.051 at fact 05). A line on
+ * the tail's traces would still fail it.
+ */
+const FACT_LINE_DARK = 0.1;
+
 async function lightFacts(browser, step) {
   const meter = await browser.newContext();
   const meterPage = await meter.newPage();
@@ -5759,7 +5786,7 @@ async function lightFacts(browser, step) {
             await page.screenshot({ path: file, clip: { x: label.line.left - 3, y: label.line.top, width: label.line.right - label.line.left + 6, height: label.line.bottom - label.line.top } });
             await page.evaluate(() => document.querySelector('.light-fact-layer').style.removeProperty('visibility'));
             const luma = await lumaOf(meterPage, file);
-            step.check(luma.mean <= 0.05, `${at}: the picture under fact 0${i + 1}'s line is dark, mean luma ${luma.mean.toFixed(4)}, at most 0.05`);
+            step.check(luma.mean <= FACT_LINE_DARK, `${at}: the picture under fact 0${i + 1}'s line is dark, mean luma ${luma.mean.toFixed(4)}, at most ${FACT_LINE_DARK}`);
           }
         }
       }
@@ -6031,6 +6058,7 @@ const openOf = (page) =>
               phones: view.querySelectorAll('.pv-phone').length,
               dots: view.querySelector('.pv-dots') !== null && getComputedStyle(view.querySelector('.pv-dots')).display !== 'none',
               media: view.querySelectorAll('.pv-media').length,
+              cards: view.querySelectorAll('.pv-card.pv-wide').length,
               top: box(view.querySelector('.pv-top')),
               scrollTop: view.scrollTop,
             },
@@ -6308,7 +6336,7 @@ async function areasStep(browser, step) {
  * page's spot, its three phones there (on the phone a row with its dots); a still through the inside's luma gate (0.15);
  * the wheel (a swipe) scrolls the page and never leaves it; "Lees meer" opens Steady's own page and Back returns to the
  * open page; → twice quickly (on the phone the next project's button twice) opens the third project, replacing the
- * history entry, and Porfael on the way shows no picture block; Escape (a laptop), the way back and Back each close it at
+ * history entry, and Portle on the way shows its one card; Escape (a laptop), the way back and Back each close it at
  * rest; with reduced motion in and out by the step fade.
  */
 async function projectView(browser, step) {
@@ -6376,14 +6404,14 @@ async function projectView(browser, step) {
       await page.waitForTimeout(FLIGHT_MS);
     }
 
-    // On twice quickly: the third project, its entry replacing the open one's; Porfael on the way, with no picture block.
+    // On twice quickly: the third project, its entry replacing the open one's; Portle on the way, with its one card.
     {
       const before = await openOf(page);
-      let porfael = null;
+      let portle = null;
       if (touch) {
         await page.locator(`.project-view[data-project="${first.id}"] .pv-onward`).tap();
         await openWithin(page, second.id);
-        porfael = await openOf(page);
+        portle = await openOf(page);
         await page.locator(`.project-view[data-project="${second.id}"] .pv-onward`).tap();
       } else {
         await page.keyboard.press('ArrowRight');
@@ -6398,9 +6426,12 @@ async function projectView(browser, step) {
         await page.keyboard.press('ArrowLeft');
         await openWithin(page, second.id);
         await page.waitForTimeout(FLIGHT_MS);
-        porfael = await openOf(page);
+        portle = await openOf(page);
       }
-      step.check(porfael?.view?.id === second.id && porfael.view.media === 0, `${at}: ${second.id}'s page has no picture block (${porfael?.view?.media} on ${porfael?.view?.id})`);
+      step.check(
+        portle?.view?.id === second.id && second.id === 'portle' && portle.view.media === 1 && portle.view.cards === 1,
+        `${at}: ${second.id}'s page shows its one card (${portle?.view?.media} picture blocks, ${portle?.view?.cards} cards, on ${portle?.view?.id})`,
+      );
       // On a phone the turns ended on the third project; on a laptop ← went back to the second.
       await leavesProject(page, step, at, touch ? third.stop : second.stop, `"${words.back}" after the turns`, () => (touch ? page.locator('.pv-back').tap() : page.locator('.pv-back').click()));
       await poseAt(page, first.stop);
@@ -6690,9 +6721,14 @@ async function qaRing(browser, step) {
  * The end's mark on the ring (spec 2026-10-29-bob-stack-2-design.md, goal 1), at 1440x900 and 390x844 (touch): from
  * question 6 one input (a notch, a swipe) turns the ring to it, the whole ring lit (`journey.qa.lit` 0.99 or more), its
  * words "Einde van de site", "Stuur een bericht.", the line word for word and both buttons; "Naar contact" opens
- * /contact/ with its form; "Terug naar het begin" takes the story back to the home, at 0. At 1440 once: the nav's
- * `.end-link`, reached by Tab, goes to the end's mark with the focus on `#qa-end-title`; with 3D off `#end` is in the
- * home's flow with its form, and nothing of the ring is left (`data-qa`, `data-qa-at`, `#qa`).
+ * /contact/ with its form; "Terug naar het begin" takes the story back to the home, at 0. The end is unmistakable (spec
+ * 2026-10-29-bob-stack-3-design.md, goal 4; Bob picked "2 · Circle"): `<html data-qa-end>`, the dark over the scene
+ * (its opacity times its colour's alpha 0.85 or more), the gold circle drawn whole (`--qa-draw` 360deg) within 3 s, the
+ * words' middle within 2 % of the screen's (on a phone across, the circle above them), the marks' numbers gone; one
+ * input up and nothing of it is left. At 1440 once: the nav's `.end-link`, reached by Tab, goes to the end's mark with
+ * the focus on `#qa-end-title`. Where 3D cannot run (Edge without WebGL; the header's 3D switch went, 2026-10-29)
+ * `#end` is in the home's flow with its form, and nothing of the ring is left (`data-qa`, `data-qa-at`,
+ * `data-qa-end`, `#qa`).
  */
 async function qaEnd(browser, step) {
   const summary = [];
@@ -6731,6 +6767,45 @@ async function qaEnd(browser, step) {
       `${at}: the end says "${ring.endKicker}", "Stuur een bericht.", the line word for word, and "${ring.toContact}" and "${ring.toStart}" (got ${JSON.stringify(words)})`,
     );
 
+    // The end unmistakable: the dark, the circle drawn whole, the words in the middle, the marks' numbers gone.
+    const sealed = await page
+      .waitForFunction(() => getComputedStyle(document.querySelector('.qa-seal')).getPropertyValue('--qa-draw').trim() === '360deg', null, { timeout: 3_000 })
+      .then(() => true, () => false);
+    await page.waitForTimeout(1_500); // the dark's fade (1.4 s) and the marks' are over
+    const theEnd = () =>
+      page.evaluate(() => {
+        const css = (sel) => (document.querySelector(sel) ? getComputedStyle(document.querySelector(sel)) : null);
+        const box = (sel) => document.querySelector(sel)?.getBoundingClientRect() ?? null;
+        const veil = css('.qa-veil');
+        const alpha = Number(/,\s*([\d.]+)\)$/.exec(veil?.backgroundColor ?? '')?.[1] ?? 1);
+        const frame = box('.qa-frame');
+        const seal = box('.qa-seal');
+        return {
+          end: document.documentElement.hasAttribute('data-qa-end'),
+          dark: veil === null ? 0 : Number(veil.opacity) * alpha,
+          seal: css('.qa-seal') === null ? 0 : Number(css('.qa-seal').opacity),
+          marks: css('.qa-marks') === null ? null : Number(css('.qa-marks').opacity),
+          frame: frame && { x: frame.left + frame.width / 2, y: frame.top + frame.height / 2, top: frame.top },
+          sealBottom: seal?.bottom ?? null,
+          vw: innerWidth,
+          vh: innerHeight,
+        };
+      });
+    const e = await theEnd();
+    const across = e.frame !== null && Math.abs(e.frame.x - e.vw / 2) <= 0.02 * e.vw;
+    const middle = touch ? e.sealBottom !== null && e.frame !== null && e.sealBottom <= e.frame.top : e.frame !== null && Math.abs(e.frame.y - e.vh / 2) <= 0.02 * e.vh;
+    step.check(
+      e.end && e.dark >= 0.85 && sealed && e.seal === 1 && e.marks === 0 && across && middle,
+      `${at}: the end is unmistakable: data-qa-end, the dark at ${e.dark.toFixed(2)} (0.85 or more), the circle drawn whole within 3 s (${sealed}), the words' middle at (${e.frame?.x.toFixed(0)}, ${e.frame?.y.toFixed(0)}) ${touch ? `across the middle, under the circle (its foot at ${e.sealBottom?.toFixed(0)}, the words from ${e.frame?.top.toFixed(0)})` : 'in the middle'} of ${e.vw}x${e.vh}, the marks' numbers at ${e.marks}`,
+    );
+    // One input up: back on question 6, and nothing of the end left.
+    await nudge(page, cdp, -1);
+    const up = await ringRestsAt(page, QA_END - 1, 5_000);
+    await page.waitForTimeout(1_600);
+    const left = await theEnd();
+    step.check(up !== null && !left.end && left.dark === 0 && left.seal === 0 && left.marks !== 0, `${at}: one ${touch ? 'swipe' : 'notch'} up rests on question 6 (${up === null ? 'never' : `${up} ms`}) and leaves nothing of the end: data-qa-end ${left.end}, the dark ${left.dark}, the circle ${left.seal}, the marks' numbers ${left.marks}`);
+    await toEnd();
+
     // "Naar contact": /contact/ with its form.
     const contact = page.locator('.qa-end .qa-buttons a.button');
     if (touch) await contact.tap();
@@ -6758,7 +6833,7 @@ async function qaEnd(browser, step) {
     await context.close();
   }
 
-  // At 1440 once: the nav's link, then 3D off.
+  // At 1440 once: the nav's link.
   {
     const size = TWO_SIZES[0];
     const { context, page } = await readyHome(browser, step, size);
@@ -6776,23 +6851,46 @@ async function qaEnd(browser, step) {
     await page.waitForTimeout(300);
     const focus = await page.evaluate(() => document.activeElement?.id ?? null);
     step.check(arrived !== null && focus === 'qa-end-title', `1440x900: the nav's link goes to the end's mark (${arrived === null ? 'never' : `${arrived} ms`}) with the focus on #qa-end-title (${focus})`);
+    // With the keyboard in the header, the header stands over the end's dark (the Q&A is at z-index 3), its link not hidden.
+    await page.focus('.site-header a[href="/lite/#work"]');
+    const over = await page.evaluate(() => ({
+      end: document.documentElement.hasAttribute('data-qa-end'),
+      header: Number(getComputedStyle(document.querySelector('.site-header')).zIndex),
+      qa: Number(getComputedStyle(document.querySelector('.qa')).zIndex),
+    }));
+    step.check(over.end && over.header > over.qa, `1440x900: at the end, with the keyboard in the header, it stands over the dark (z-index ${over.header} over the Q&A's ${over.qa}, data-qa-end ${over.end})`);
 
-    await page.click('button[role="switch"]');
-    await page.waitForTimeout(800);
-    const off = await page.evaluate(() => {
-      const end = document.getElementById('end');
-      const nav = document.querySelector('.home-nav');
-      return {
-        threeD: document.documentElement.getAttribute('data-3d'),
-        inFlow: end !== null && nav !== null && (nav.compareDocumentPosition(end) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0 && end.checkVisibility({ visibilityProperty: true }) && getComputedStyle(end).position !== 'fixed',
-        form: end?.querySelector('form') !== null && end?.querySelector('form') !== undefined,
-        qa: document.documentElement.hasAttribute('data-qa') || document.documentElement.hasAttribute('data-qa-at') || document.getElementById('qa') !== null,
-      };
-    });
-    step.check(off.threeD === 'off' && off.inFlow && off.form && !off.qa, `1440x900: with 3D off #end is in the home's flow after the nav with its form, and nothing of the ring is left (${JSON.stringify(off)})`);
     await takeCsp(page, step);
     await context.close();
-    summary.push(`the nav's link to the end with the focus on its title (${presses} Tabs); 3D off in the flow`);
+    summary.push(`the nav's link to the end with the focus on its title (${presses} Tabs)`);
+  }
+
+  // Where 3D cannot run (Edge without WebGL): #end in the home's flow with its form, nothing of the ring.
+  {
+    const own = await chromium.launch({ channel: 'msedge', headless: true, args: NO_WEBGL });
+    try {
+      const { context, page } = await openPage(own, step);
+      await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+      await page.waitForSelector('.scene-fallback', { timeout: 10_000 });
+      await page.waitForTimeout(800);
+      const off = await page.evaluate(() => {
+        const end = document.getElementById('end');
+        const nav = document.querySelector('.home-nav');
+        const html = document.documentElement;
+        return {
+          threeD: html.getAttribute('data-3d'),
+          inFlow: end !== null && nav !== null && (nav.compareDocumentPosition(end) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0 && end.checkVisibility({ visibilityProperty: true }) && getComputedStyle(end).position !== 'fixed',
+          form: end?.querySelector('form') != null,
+          qa: html.hasAttribute('data-qa') || html.hasAttribute('data-qa-at') || html.hasAttribute('data-qa-end') || document.getElementById('qa') !== null,
+        };
+      });
+      step.check(off.threeD === 'off' && off.inFlow && off.form && !off.qa, `1440x900 without WebGL: #end is in the home's flow after the nav with its form, and nothing of the ring is left (${JSON.stringify(off)})`);
+      await takeCsp(page, step);
+      await context.close();
+      summary.push('without WebGL #end in the flow');
+    } finally {
+      await own.close();
+    }
   }
   return summary.join('; ');
 }
