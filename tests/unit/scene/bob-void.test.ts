@@ -760,6 +760,18 @@ describe('the wiring: one journey pose a frame', () => {
     expect(source).toContain('space.stars.dispose();');
   });
 
+  it("shows the open project's own page, its object in the page's hole, and no side panel or touch points", () => {
+    const source = readFileSync(fileURLToPath(new URL('../../../src/scene/bob/Void.tsx', import.meta.url)), 'utf8');
+    expect(source).toContain('spot = pageSpotFor(frame.shot, size.width / Math.max(size.height, 1), 1, clock.time);');
+    expect(source).toContain('showProjectViews(viewLevels(id, close));');
+    expect(source).not.toContain('showTouchPoints');
+    expect(source).not.toContain('ProjectPanel');
+    const home = readFileSync(fileURLToPath(new URL('../../../src/app/routes/home.tsx', import.meta.url)), 'utf8');
+    expect(home).toContain('<ProjectViews />');
+    expect(home).not.toContain('<ProjectPanel />');
+    expect(home).not.toContain('<TouchPoints />');
+  });
+
   it('poses the gyroscope and the stars with the world', () => {
     const source = readFileSync(fileURLToPath(new URL('../../../src/scene/bob/Void.tsx', import.meta.url)), 'utf8');
     expect(source).toContain('buildGyro([STACK_CENTRE[0], MACHINE_MIDDLE, STACK_CENTRE[2]])');

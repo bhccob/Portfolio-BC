@@ -1031,45 +1031,22 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
     expect([storyFrame.target, storyFrame.progress, storyFrame.velocity]).toEqual([to, to, 0]);
   }
 
-  describe("inside a bead: the scroll takes no step, and the tail of the input that took the visitor out is dropped", () => {
-    it('drops every wheel, key and swipe while a bead is open inside, preventing them, so neither the story nor the page moves', async () => {
+  // A project's own page over the stack (spec 2026-10-29-bob-stack-2-design.md, goal 2): it scrolls on its own, and the
+  // wheel, the keys and a swipe never take the visitor out (Escape, its way back and Back do).
+  describe("a project's own page open: its scroll is the page's, and the story's comes back when it closes", () => {
+    it('leaves every wheel, key and swipe to the open page, preventing none, and the story stays', async () => {
       const s = wiredHome(A0, { voidState: 'ready' });
       useScene.getState().setInside('steady');
       const wheeled = await s.wheel(5, 100);
-      expect(wheeled.prevented.every(Boolean)).toBe(true);
-      expect(s.key('ArrowDown').defaultPrevented).toBe(true);
+      expect(wheeled.prevented.some(Boolean)).toBe(false);
+      expect(s.key('ArrowDown').defaultPrevented).toBe(false);
       const swiped = await s.swipe(-200);
-      expect(swiped.prevented.every(Boolean)).toBe(true);
+      expect(swiped.prevented.some(Boolean)).toBe(false);
       s.run();
       expect([storyFrame.target, storyFrame.progress]).toEqual([A0, A0]);
-      expect(s.win.scrolls).toBe(0);
     });
 
-    it('drops the tail of a wheel still turning as the inside closes, and takes a scroll after a quiet moment', async () => {
-      let now = 10_000;
-      const clock = vi.spyOn(performance, 'now').mockImplementation(() => now);
-      try {
-        const s = wiredHome(A0, { voidState: 'ready' });
-        useScene.getState().setInside('steady');
-        await s.wheel(3, 100);
-        useScene.getState().setInside(null); // the wheel took the visitor out
-        now += 50;
-        await s.wheel(4, 100); // the trackpad's momentum, still coming
-        now += 120;
-        await s.wheel(4, 60);
-        s.run();
-        expect([storyFrame.target, storyFrame.progress]).toEqual([A0, A0]);
-        // A quiet moment, then a scroll of the visitor's own: the story goes on.
-        now += 1000;
-        for (let ms = 0; ms <= GESTURE_GAP_MS; ms += FRAME_MS) s.frames.frame();
-        await s.wheel(3, 100);
-        expect(storyFrame.target).toBeGreaterThan(A0);
-      } finally {
-        clock.mockRestore();
-      }
-    });
-
-    it("drops nothing after an inside closed by its button, once the flight's first moments are past", async () => {
+    it("takes the story's scroll again once the page closes, by its way back", async () => {
       let now = 10_000;
       const clock = vi.spyOn(performance, 'now').mockImplementation(() => now);
       try {

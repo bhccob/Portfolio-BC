@@ -1,7 +1,8 @@
 /**
  * The torn masks of a project's own page (spec 2026-10-29-bob-stack-2-design.md, goal 2; the mock-up Bob chose, its
  * `raggedMask`): a ragged hole in the dark the project's object is seen through, and ragged blots the next project's
- * picture dissolves into the dark through, like torn, dry-brushed paint. Drawn once at load, on a canvas, as a CSS mask.
+ * picture dissolves into the dark through, like torn, dry-brushed paint. Drawn once, ahead of time, into src/assets/masks
+ * by tools/masks.ts, as the PNGs the page's CSS masks with.
  */
 
 /** Smooth 2D noise, 0..1, five octaves (the mock-up's `noise2`). */
@@ -69,25 +70,3 @@ export const MASKS = {
   blot: [640, 420, 320, 200, 230, 160, true, 5.7],
   tall: [320, 600, 160, 290, 150, 290, true, 8.3]
 } as const;
-
-/** `raggedAlpha` drawn on a canvas, softened a little, as a data URL for a CSS mask; null where there is no canvas. */
-export function raggedMask(...[w, h, cx, cy, rx, ry, inside, seed]: readonly [number, number, number, number, number, number, boolean, number]): string | null {
-  if (typeof document === 'undefined') return null;
-  const pad = 8;
-  const c = document.createElement('canvas');
-  c.width = w + pad * 2;
-  c.height = h + pad * 2;
-  const g = c.getContext('2d');
-  if (!g) return null;
-  // Drawn with a margin, so its own border never softens into a seam.
-  const alpha = raggedAlpha(c.width, c.height, cx + pad, cy + pad, rx, ry, inside, seed);
-  g.putImageData(new ImageData(alpha, c.width, c.height), 0, 0);
-  const out = document.createElement('canvas');
-  out.width = w;
-  out.height = h;
-  const og = out.getContext('2d');
-  if (!og) return null;
-  og.filter = 'blur(0.8px)';
-  og.drawImage(c, -pad, -pad);
-  return out.toDataURL('image/png');
-}

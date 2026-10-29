@@ -38,7 +38,7 @@ describe('the home page', () => {
         expect(html).toMatch(new RegExp(`<p class="hero-cue"><span class="hero-cue-word">${t.needle.hero.scrollCue}</span></p>`));
       });
 
-      it("links no country page, and the four projects from the world's names, the areas' words, the open project's panel and the nav; no bead label is left", () => {
+      it("links no country page, and the four projects from the world's names, the areas' words, the open project's page and the nav; no bead label is left", () => {
         expect(html).not.toContain('/about/');
         const links = html.match(/href="[^"]*\/projects\/[a-z-]+\/"/g) ?? [];
         expect(links).toHaveLength(16);
@@ -46,7 +46,7 @@ describe('the home page', () => {
         expect(html).not.toContain('bead-label');
         // The areas' words and dots come out of the server inert, until the scene shows them.
         expect(html.match(/class="area-caption"[^>]*inert=""/g)).toHaveLength(3);
-        expect(html.match(/class="project-panel"[^>]*inert=""/g)).toHaveLength(4);
+        expect(html.match(/class="project-view"[^>]*inert=""/g)).toHaveLength(4);
         expect(html).toMatch(/class="area-dots"[^>]*inert=""/);
       });
 

@@ -6,7 +6,8 @@ import { type ProjectId, projects } from '~/data/projects';
 import { en } from '~/i18n/en';
 import { nl } from '~/i18n/nl';
 import { WORLD_PROJECTS } from '~/scene/bob/journey';
-import { leaveViewOn, ProjectViews } from '~/ui/ProjectView';
+import { useScene } from '~/state/store';
+import { leaveViewOn, ProjectViews, watchProjectViews } from '~/ui/ProjectView';
 
 const LOCALES = [
   ['/', nl, ''],
@@ -58,6 +59,11 @@ describe("a project's own page", () => {
       // The way back, pinned, once.
       expect(textOf(html)).toContain(t.needle.page.back);
     }
+  });
+
+  it('tears its hole and its blots with masks drawn ahead of time, nothing drawn as the page loads', () => {
+    const view = viewOf(render('/'), 'steady');
+    for (const mask of ['hole', 'blot', 'tall']) expect(view).toMatch(new RegExp(`--${mask}:url\\([^)]*${mask}[^)]*\\.png\\)`));
   });
 
   it('links to GitHub and to the longer page', () => {
@@ -129,5 +135,28 @@ describe("a project's own page", () => {
     stop();
     key('Escape');
     expect(leave).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('the open page as the store has it', () => {
+  it('marks the page open, puts the focus on the way back, and closes when 3D is switched off', () => {
+    const attributes = new Set<string>();
+    const root = {
+      toggleAttribute: (name: string, on: boolean) => (on ? attributes.add(name) : attributes.delete(name), on),
+      removeAttribute: (name: string) => void attributes.delete(name),
+      style: { removeProperty: () => '' }
+    };
+    const back = { focus: vi.fn(), contains: () => false };
+    useScene.setState({ inside: null, threeD: true });
+    const stop = watchProjectViews(root, () => back, { activeElement: null, getElementById: () => null }, new EventTarget());
+    useScene.setState({ inside: 'steady' });
+    expect(attributes.has('data-inside')).toBe(true);
+    expect(back.focus).toHaveBeenCalledWith({ preventScroll: true });
+    // 3D off with the page open: it closes, and nothing of it is left on <html>.
+    useScene.setState({ threeD: false });
+    expect(useScene.getState().inside).toBeNull();
+    expect(attributes.has('data-inside')).toBe(false);
+    stop();
+    useScene.setState({ threeD: true });
   });
 });

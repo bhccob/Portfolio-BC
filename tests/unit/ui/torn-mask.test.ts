@@ -1,11 +1,12 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { raggedAlpha } from '~/ui/tornMask';
+import { MASKS, raggedAlpha } from '~/ui/tornMask';
 
 /** The alpha at (x, y) of a mask `w` across. */
 const at = (alpha: Uint8ClampedArray, w: number, x: number, y: number): number => alpha[(y * w + x) * 4 + 3]!;
 
 // The project page's torn hole (spec 2026-10-29-bob-stack-2-design.md, goal 2: "a torn, ragged hole ... edges
-// dry-brushed"; the mock-up's raggedMask), drawn once at load.
+// dry-brushed"; the mock-up's raggedMask), drawn once ahead of time by tools/masks.ts.
 describe('the torn mask', () => {
   it("tears the hole's edges, the same for a seed", () => {
     const w = 180;
@@ -27,5 +28,15 @@ describe('the torn mask', () => {
     const blot = raggedAlpha(w, 100, 50, 50, 40, 40, true, 8.3);
     expect(at(blot, w, 50, 50)).toBe(255);
     expect(at(blot, w, 1, 1)).toBe(0);
+  });
+});
+
+describe('the masks drawn ahead of time', () => {
+  it('are in src/assets/masks, each the size the page masks with', () => {
+    for (const [name, [w, h]] of Object.entries(MASKS)) {
+      const png = readFileSync(`src/assets/masks/${name}.png`);
+      // A PNG's width and height, in its header.
+      expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([w, h]);
+    }
   });
 });

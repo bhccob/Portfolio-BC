@@ -600,7 +600,7 @@ describe('the credits over the scene in the stylesheet (src/styles/base.css)', (
   it("lets the document scroll at rest, and hides the world's names, an area's words and the dots", () => {
     expect(valueOf(REST, 'overflow-y')).toBe('auto');
     expect(valueOf(REST, 'touch-action')).toBe('auto');
-    for (const part of ['.world-lines', '.world-name', '.world-hint', '.area-caption', '.area-dots', '.touch-points']) {
+    for (const part of ['.world-lines', '.world-name', '.world-hint', '.area-caption', '.area-dots']) {
       expect(valueOf(`html[data-end='rest'] ${part}`, 'display'), part).toBe('none');
     }
     // The home's lock stays as it was everywhere else.

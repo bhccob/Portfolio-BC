@@ -10,8 +10,7 @@ import { personLd, websiteLd } from '~/seo/structured';
 import { AreaCaptions } from '~/ui/AreaCaption';
 import { AreaDots } from '~/ui/AreaDots';
 import { ProjectOpener } from '~/ui/projectOpen';
-import { ProjectPanel } from '~/ui/ProjectPanel';
-import { TouchPoints } from '~/ui/TouchPoints';
+import { ProjectViews } from '~/ui/ProjectView';
 import { focusEndOnArrival } from '~/ui/endArrival';
 import { EndPage } from '~/ui/EndPage';
 import { LightFactLabels, LightFactList } from '~/ui/LightFacts';
@@ -65,12 +64,9 @@ export default function Home() {
       <AreaCaptions />
       <AreaDots />
 
-      {/* Each project's touch points, shown beside it once it is open (src/ui/TouchPoints.tsx); aria-hidden. */}
-      <TouchPoints />
-
-      {/* A project opened on the world: its words and "Bekijk project", "Terug" and the arrows, hidden until then
-          (src/ui/ProjectPanel.tsx). */}
-      <ProjectPanel />
+      {/* A project opened on the world: its own page over the stack, full screen, and the way back, hidden until then
+          (src/ui/ProjectView.tsx). */}
+      <ProjectViews />
 
       {/* Bob's five facts: drawn beside the light in the light dive for the eye (src/ui/LightFacts.tsx), and as a list for
           readers and for 3D off, visually hidden while 3D is on, as the nav is. */}

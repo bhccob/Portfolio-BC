@@ -133,7 +133,7 @@ export function turnInside(dir: 1 | -1): boolean {
 }
 
 /**
- * Closes the open project: "Terug", Escape, a wheel and a swipe (src/ui/ProjectPanel.tsx). The store lets it go at
+ * Closes the open project: its page's way back and Escape (src/ui/ProjectView.tsx). The store lets it go at
  * once, so the camera starts flying back now (src/scene/bob/focus.ts); where the entry shown is its own
  * (`insideInHistory`) the router goes Back too, to the entry before it, so Forward can open it again. A second call before
  * the router has popped finds none open and goes nowhere further back.

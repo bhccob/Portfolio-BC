@@ -25,10 +25,8 @@ import { useScene, type VoidState } from '~/state/store';
 import { showAreaCaption } from '~/ui/AreaCaption';
 import { showAreaDots } from '~/ui/AreaDots';
 import { showLightFacts } from '~/ui/LightFacts';
-import { nameScale } from '~/ui/nameLine';
-import { panelKeepOut, panelLevels, showProjectPanels } from '~/ui/ProjectPanel';
+import { showProjectViews, viewLevels } from '~/ui/ProjectView';
 import { showsSkip, writeSkip } from '~/ui/SkipButton';
-import { showTouchPoints } from '~/ui/TouchPoints';
 import { captionHover, nameLevel, showWorldNames, type WorldNamesView } from '~/ui/WorldNames';
 import { motion } from '../motion';
 import { engravedLevels, shaftRings } from './engravedWay';
@@ -38,8 +36,8 @@ import { LOOK } from './look';
 import { setGasPass } from '../gasPass';
 import { fallStarsLevel, nebulaLevels } from './nebulaWay';
 import { makeQaScene, type QaScene } from './qaScene';
-import { insidePoints, OPEN_LOOK, openLevels, openOf, openWorld, worldClockRuns } from './inside';
-import { type SpotPose, spotFor } from './spot';
+import { OPEN_LOOK, openLevels, openOf, openWorld, worldClockRuns } from './inside';
+import { pageSpotFor, type SpotPose } from './spot';
 import { easeHover, hoverEase, hoversAt, nearestSphere, needleFor, needleGlowFor, pointerMode, voidShownAt } from './voidPose';
 import { loadVoid, type VoidLoadSteps } from './voidLoad';
 import { uploadTextures, warm } from './warm';
@@ -293,34 +291,21 @@ function hitOnScreen(hit: THREE.Object3D, camera: THREE.Camera, size: { width: n
   };
 }
 
-/** The half width an open object's touch point columns stand out past, m (the mock-up's). */
-const TOUCH_REACH = 0.5;
-
-/** No panel shown. */
-const NO_PANELS: Readonly<Partial<Record<ProjectId, number>>> = {};
+/** No project's page shown. */
+const NO_VIEWS: Readonly<Partial<Record<ProjectId, number>>> = {};
 
 /**
- * The open project's words on a frame (src/ui/TouchPoints.tsx, src/ui/ProjectPanel.tsx): its touch points in two columns
- * beside its object once it is open, and its panel (on the way to the next, the panel of the one left going first). None
+ * The open project's own page on a frame (src/ui/ProjectView.tsx; spec 2026-10-29-bob-stack-2-design.md, goal 2): it
+ * comes in as its object lifts into the page's hole (on the way to the next, the page of the one left going first). None
  * without a world in view or with no project open.
  */
-function showOpenWords(model: WorldModel | null, close: Handover['close'], camera: THREE.Camera, size: { width: number; height: number }): void {
+function showOpenWords(model: WorldModel | null, close: Handover['close']): void {
   const id = close.id;
-  const hit = id === null || model === null ? undefined : model.hits.find((h) => h.userData.id === id);
-  if (model === null || id === null || hit === undefined) {
-    showTouchPoints(null, size, 1);
-    showProjectPanels(NO_PANELS);
+  if (model === null || id === null) {
+    showProjectViews(NO_VIEWS);
     return;
   }
-  const object = hitOnScreen(hit, camera, size, TOUCH_REACH);
-  const at = model.anchors(id).map((anchor) => {
-    anchor.getWorldPosition(centre).project(camera);
-    return { x: ((centre.x + 1) / 2) * size.width, y: ((1 - centre.y) / 2) * size.height };
-  });
-  const opacity = insidePoints(close.open);
-  const keep = opacity > 0 ? panelKeepOut(id, size) : undefined;
-  showTouchPoints({ id, opacity, at, centreX: object.x, reach: object.r, keep }, size, nameScale(size.width));
-  showProjectPanels(panelLevels(id, close));
+  showProjectViews(viewLevels(id, close));
 }
 
 /** Each project's object on the screen for the proof harness: its click's sphere's middle (CSS px) and radius there. */
@@ -544,8 +529,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       run.reading = run.hovering = false;
       useScene.getState().setHover(null);
       motion.beads = false;
-      showTouchPoints(null, NO_SIZE, 1);
-      showProjectPanels(NO_PANELS);
+      showProjectViews(NO_VIEWS);
       showLightFacts(null, NO_SIZE);
       frame.journey.light = null;
       frame.journey.objects = null;
@@ -669,7 +653,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       frame.journey.world = null;
       run.reading = run.hovering = false;
       motion.beads = false;
-      showOpenWords(null, handover.close, camera, size);
+      showOpenWords(null, handover.close);
       showWorldWords(null, null, camera, size, null, 0);
       return;
     }
@@ -705,7 +689,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
     writeSkip(document.documentElement, useScene.getState().scene === 'home' && !handover.focus && showsSkip(pose), run.skip);
     if (!space) {
       motion.beads = false;
-      showOpenWords(null, handover.close, camera, size);
+      showOpenWords(null, handover.close);
       showWorldWords(null, null, camera, size, null, 0);
       return;
     }
@@ -792,7 +776,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
         let spot: SpotPose | null = null;
         if (close.id !== null) {
           open = Object.fromEntries(Object.entries(lift).map(([id, up]) => [id, openOf(up ?? 0)])) as Record<ProjectId, number>;
-          if (frame.shot) spot = spotFor(frame.shot, size.width / Math.max(size.height, 1), 1, clock.time);
+          if (frame.shot) spot = pageSpotFor(frame.shot, size.width / Math.max(size.height, 1), 1, clock.time);
         }
         world.model.pose({
           power: path.power,
@@ -838,7 +822,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
     hovered.id = run.hover.id === null ? null : WORLD_PROJECTS[run.hover.id]!;
     hovered.amount = run.hover.amount;
     showWorldWords(inView, path, camera, size, run.pointed === null ? null : WORLD_PROJECTS[run.pointed]!, opened, hovered);
-    showOpenWords(inView, close, camera, size);
+    showOpenWords(inView, close);
     // The canvas draws on only while the hover eases or the world's clock runs; the first frame of it asks for the next.
     if (moving && !motion.beads) invalidate();
     motion.beads = moving;

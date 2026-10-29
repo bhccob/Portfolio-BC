@@ -411,7 +411,7 @@ export const nl: Dictionary = {
       open: { click: 'Klik om te openen', tap: 'Tik om te openen' },
       areas: 'Gebieden'
     },
-    // An open project (src/ui/ProjectPanel.tsx): "Bekijk project", "Terug" and the arrows' names, the mock-up's words.
+    // An open project (src/ui/ProjectView.tsx): the next one's name, and its own page's way back and "Lees meer".
     inside: { view: 'Bekijk project', back: 'Terug', previous: 'Vorig project', next: 'Volgend project' },
     page: { back: 'Terug naar de stack', readMore: 'Lees meer' }
   },

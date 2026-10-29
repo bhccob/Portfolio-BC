@@ -35,7 +35,7 @@ export interface SceneState {
   /**
    * The bead the visitor is inside, on the home page (src/scene/bob/inside.ts): a click on it opened it and the home's
    * history entry carries it (src/state/routeSync.ts), or null. While it is set the camera stands inside the bead, its
-   * panel and its controls show (src/ui/ProjectPanel.tsx) and the scroll takes no step (src/input/useHomeScroll.ts).
+   * own page shows (src/ui/ProjectView.tsx) and the story's scroll takes nothing (src/input/useHomeScroll.ts).
    */
   inside: ProjectId | null;
   /** The project on the hologram world under the pointer, lit a little, its name with it (src/scene/bob/Void.tsx), or null. */

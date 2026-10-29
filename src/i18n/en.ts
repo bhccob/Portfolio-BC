@@ -444,7 +444,7 @@ export const en = {
       open: { click: 'Click to open', tap: 'Tap to open' },
       areas: 'Areas'
     },
-    /** An open project (src/ui/ProjectPanel.tsx): the way on to its page, the way back out and the arrows' names. */
+    /** An open project: the way on to its page and the next one's name (src/ui/ProjectView.tsx). */
     inside: { view: 'View project', back: 'Back', previous: 'Previous project', next: 'Next project' },
     // A project's own page over the stack (spec 2026-10-29-bob-stack-2-design.md, goal 2): its way back, and its link to
     // the longer project page (Bob, 2026-10-29: "Add a 'Lees meer' link").

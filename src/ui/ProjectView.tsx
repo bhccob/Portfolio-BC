@@ -1,4 +1,4 @@
-import { type JSX, useCallback, useEffect, useRef } from 'react';
+import { type CSSProperties, type JSX, useCallback, useEffect, useRef } from 'react';
 import { Link } from 'react-router';
 import { type ProjectId, projects } from '~/data/projects';
 import { useTranslator } from '~/i18n/useTranslator';
@@ -6,7 +6,6 @@ import { WORLD_PROJECTS } from '~/scene/bob/journey';
 import { useScene } from '~/state/store';
 import { isPlainClick } from './BackLink';
 import { closeInside, turnInside, viewInside } from './projectOpen';
-import { MASKS, raggedMask } from './tornMask';
 
 // A project's own page over the stack (spec 2026-10-29-bob-stack-2-design.md, goal 2; the mock-up Bob chose, version 4,
 // after overworldaudio.com/work/star-wars-survivor): full screen, the top a torn hole in the dark the project's object
@@ -81,15 +80,18 @@ export function showProjectViews(levels: Partial<Record<ProjectId, number>>): vo
   }
 }
 
-/** The masks, drawn once on the client: the hole, the blot and the tall blot as CSS urls. */
-let masks: { hole: string; blot: string; tall: string } | null = null;
-function masksNow(): typeof masks {
-  if (masks === null && typeof document !== 'undefined') {
-    const [hole, blot, tall] = [raggedMask(...MASKS.hole), raggedMask(...MASKS.blot), raggedMask(...MASKS.tall)];
-    if (hole && blot && tall) masks = { hole: `url(${hole})`, blot: `url(${blot})`, tall: `url(${tall})` };
-  }
-  return masks;
-}
+// The torn masks, drawn once ahead of time by tools/masks.ts from src/ui/tornMask.ts into src/assets/masks, so nothing
+// is drawn as the page loads. Under Vite alone, as the pictures (src/data/projects.ts).
+const maskFiles: Record<string, string> = import.meta.env
+  ? import.meta.glob<string>('../assets/masks/*.png', { query: '?url', import: 'default', eager: true })
+  : {};
+/** The hole, the blot and the tall blot as the CSS the page masks with; none under plain Node. */
+const MASK_STYLE = Object.fromEntries(
+  (['hole', 'blot', 'tall'] as const).flatMap((name) => {
+    const url = maskFiles[`../assets/masks/${name}.png`];
+    return url ? [[`--${name}`, `url(${url})`]] : [];
+  })
+) as CSSProperties;
 
 /** One project's own page: in the HTML from the start, inert until the scene shows it. */
 function View({ id }: { id: ProjectId }): JSX.Element {
@@ -107,13 +109,7 @@ function View({ id }: { id: ProjectId }): JSX.Element {
     (el: HTMLElement | null) => {
       if (!el) return undefined;
       const stop = registerProjectView(id, el);
-      // The torn masks, and each part fading up as it is reached.
-      const m = masksNow();
-      if (m) {
-        el.style.setProperty('--hole', m.hole);
-        el.style.setProperty('--blot', m.blot);
-        el.style.setProperty('--tall', m.tall);
-      }
+      // Each part fading up as it is reached.
       const seen = typeof IntersectionObserver === 'undefined' ? null : new IntersectionObserver((entries) => {
         for (const entry of entries) if (entry.isIntersecting) entry.target.classList.add('pv-in');
       }, { root: el, threshold: 0.12 });
@@ -137,7 +133,7 @@ function View({ id }: { id: ProjectId }): JSX.Element {
   };
 
   return (
-    <section className="project-view" data-project={id} role="dialog" aria-modal="true" aria-labelledby={`pv-title-${id}`} ref={ref} onScroll={scrolled} inert>
+    <section className="project-view" data-project={id} role="dialog" aria-modal="true" aria-labelledby={`pv-title-${id}`} style={MASK_STYLE} ref={ref} onScroll={scrolled} inert>
       <div className="pv-top">
         <div className="pv-veil" />
       </div>
@@ -236,36 +232,49 @@ function View({ id }: { id: ProjectId }): JSX.Element {
  * `<html data-inside>` shows the way back, it takes the focus, and Escape and the arrows leave or turn (`leaveViewOn`);
  * when the page closes with the focus in it, the focus goes to <main>, so the keyboard goes on from the page.
  */
+/**
+ * Keeps the page in step with the store's `inside`: `<html data-inside>` while a project is open, the way back (`back`)
+ * taking the focus as it opens, Escape and the arrows heard on `keys` (`leaveViewOn`), and the focus to <main> when it
+ * closes with the focus in it. 3D switched off with a page open closes it, so nothing of it is left over the 3D-off home.
+ * Answers its taking down.
+ */
+export function watchProjectViews(
+  root: { toggleAttribute(name: string, on: boolean): boolean; removeAttribute(name: string): void; style: { removeProperty(name: string): string } },
+  back: () => { focus(options?: FocusOptions): void; contains(other: Node | null): boolean } | null,
+  doc: { activeElement: Element | null; getElementById(id: string): HTMLElement | null },
+  keys: EventTarget
+): () => void {
+  let stopLeaving: (() => void) | null = null;
+  const apply = (open: ProjectId | null, was: ProjectId | null): void => {
+    root.toggleAttribute(INSIDE_ATTRIBUTE, open !== null);
+    if (open !== null && stopLeaving === null) stopLeaving = leaveViewOn(keys, closeInside, (dir) => void turnInside(dir));
+    if (open === null && stopLeaving !== null) {
+      stopLeaving();
+      stopLeaving = null;
+    }
+    if (open !== null && was === null) back()?.focus({ preventScroll: true });
+    if (open === null && (back()?.contains(doc.activeElement) || doc.activeElement?.closest('.project-view'))) {
+      doc.getElementById('main')?.focus({ preventScroll: true });
+    }
+    if (open === null) root.style.removeProperty('--pv-progress');
+  };
+  apply(useScene.getState().inside, null);
+  const unsubscribe = useScene.subscribe((state, previous) => {
+    if (!state.threeD && previous.threeD && state.inside !== null) closeInside();
+    else if (state.inside !== previous.inside) apply(state.inside, previous.inside);
+  });
+  return () => {
+    unsubscribe();
+    stopLeaving?.();
+    root.removeAttribute(INSIDE_ATTRIBUTE);
+    root.style.removeProperty('--pv-progress');
+  };
+}
+
 export function ProjectViews(): JSX.Element {
   const { t } = useTranslator();
   const back = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    const root = document.documentElement;
-    let stopLeaving: (() => void) | null = null;
-    const apply = (open: ProjectId | null, was: ProjectId | null): void => {
-      root.toggleAttribute(INSIDE_ATTRIBUTE, open !== null);
-      if (open !== null && stopLeaving === null) stopLeaving = leaveViewOn(window, closeInside, (dir) => void turnInside(dir));
-      if (open === null && stopLeaving !== null) {
-        stopLeaving();
-        stopLeaving = null;
-      }
-      if (open !== null && was === null) back.current?.focus({ preventScroll: true });
-      if (open === null && (back.current?.contains(document.activeElement) || document.activeElement?.closest('.project-view'))) {
-        document.getElementById('main')?.focus({ preventScroll: true });
-      }
-      if (open === null) root.style.removeProperty('--pv-progress');
-    };
-    apply(useScene.getState().inside, null);
-    const unsubscribe = useScene.subscribe((state, previous) => {
-      if (state.inside !== previous.inside) apply(state.inside, previous.inside);
-    });
-    return () => {
-      unsubscribe();
-      stopLeaving?.();
-      root.removeAttribute(INSIDE_ATTRIBUTE);
-      root.style.removeProperty('--pv-progress');
-    };
-  }, []);
+  useEffect(() => watchProjectViews(document.documentElement, () => back.current, document, window), []);
   return (
     <>
       {WORLD_PROJECTS.map((id) => (

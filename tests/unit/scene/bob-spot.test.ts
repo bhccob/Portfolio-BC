@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CameraShot } from '~/engine/bob/shots';
 import { project } from '~/scene/bob/fit';
-import { liftAt, riseStep, SPOT, spotFor, type SpotPose } from '~/scene/bob/spot';
+import { liftAt, PAGE_SPOT, pageSpotFor, riseStep, SPOT, spotFor, type SpotPose } from '~/scene/bob/spot';
 
 type Vec3 = [number, number, number];
 const DESK = 16 / 10;
@@ -129,5 +129,47 @@ describe('the open spot: where an opened project stands in front of the camera, 
     expect(b.x).toBeCloseTo(0, 3);
     expect(b.y).toBeCloseTo(0.42, 3);
     expect(narrow.scale).not.toBeCloseTo(wide.scale, 3);
+  });
+});
+
+// A project's own page over the stack (spec 2026-10-29-bob-stack-2-design.md, goal 2; the mock-up Bob chose, its
+// `spotFor`): the open project stands in the middle of the page's torn hole at the top.
+describe("the page's spot: an open project in the middle of its page's hole", () => {
+  it('stands an open project in the middle of the hole', () => {
+    expect(PAGE_SPOT).toEqual({
+      desk: { ndc: [0, 0.49], across: 0.34, distance: 0.34 },
+      phone: { ndc: [0, 0.57], width: 0.62, height: 0.24, distance: 0.3 },
+      near: 5
+    });
+    for (const [aspect, shot, ndc] of [
+      [DESK, SHOT, [0, 0.49]],
+      [PHONE, PHONE_SHOT, [0, 0.57]]
+    ] as const) {
+      const spot = pageSpotFor(shot, aspect, RADIUS, 0);
+      const seen = project(spot.centre, shot, aspect);
+      expect(seen.front).toBe(true);
+      expect(seen.x).toBeCloseTo(ndc[0], 6);
+      expect(seen.y).toBeCloseTo(ndc[1], 6);
+      expect(spot.tilt).toBe(0.42);
+    }
+  });
+
+  it('sizes it per screen shape', () => {
+    const reach = Math.hypot(...([0, 1, 2].map((k) => SHOT.target[k]! - SHOT.position[k]!) as Vec3));
+    for (const [aspect, shot, share] of [
+      [DESK, SHOT, (h: number) => h * 0.34],
+      [PHONE, PHONE_SHOT, (h: number) => Math.min(h * PHONE * 0.62, h * 0.24)]
+    ] as const) {
+      const spot = pageSpotFor(shot, aspect, RADIUS, 0);
+      // Its diameter on the screen a share of the screen's height there.
+      const top = project(along(spot.centre, cameraUp(shot), RADIUS * spot.scale), shot, aspect);
+      const bottom = project(along(spot.centre, cameraUp(shot), -RADIUS * spot.scale), shot, aspect);
+      expect((top.y - bottom.y) / 2).toBeCloseTo(share(1), 2);
+      // Out along the camera's way, a share of its reach, never nearer than 5 m.
+      const out = Math.hypot(...([0, 1, 2].map((k) => spot.centre[k]! - shot.position[k]!) as Vec3));
+      expect(out).toBeGreaterThanOrEqual(Math.max(5, reach * (aspect === DESK ? 0.34 : 0.3)) - 1e-9);
+    }
+    const near: CameraShot = { ...SHOT, position: [0, 0, 6], target: [0, 0, 0] };
+    expect(Math.hypot(...pageSpotFor(near, DESK, RADIUS, 0).centre.map((v, k) => v - near.position[k]!))).toBeGreaterThanOrEqual(5);
   });
 });

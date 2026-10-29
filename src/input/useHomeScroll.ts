@@ -129,11 +129,9 @@ export interface HomeScrollPage {
  * and `SKIP_SWALLOW_MS` after the landing, then on while the input keeps coming without SKIP_QUIET_MS of quiet, for
  * SKIP_SWALLOW_CAP_MS after the landing at most) the input drops what it hears but still prevents it, so the tail of
  * the wheel or the swipe that skipped neither moves the story nor scrolls the page. It is the input that does this, not
- * `enabled`, because an event `enabled` turns away is left to the browser, and the browser would scroll with it. The
- * same goes inside a bead (the store's `inside`, src/scene/bob/inside.ts): the input drops all it hears while the
- * visitor is inside, where a wheel, a swipe or a key takes them back out (src/ui/ProjectPanel.tsx), and from the
- * moment the inside closes it drops the tail of that input as it drops a skip's (`skipSwallower`), so the gesture
- * that took the visitor out does not also carry the story on to the next project.
+ * `enabled`, because an event `enabled` turns away is left to the browser, and the browser would scroll with it. That is
+ * just what a project's own page wants (the store's `inside`, src/ui/ProjectView.tsx): while one is open the input takes
+ * nothing, and the page, which scrolls on its own, has the wheel, the keys and a swipe.
  *
  * A requestAnimationFrame loop (not R3F's `useFrame`: the canvas renders on demand) moves `frame.progress`
  * toward `frame.target` (on the rise by M2a's damp, past it by the follow, the sheet's finish and the keys' glides) and
@@ -151,15 +149,9 @@ export interface HomeScrollPage {
  * page's link (`goToEnd`) and left by the step fade (`startHomeScroll`, "A failed void").
  */
 export function connectHomeScroll(page: HomeScrollPage): () => void {
-  // When the last inside closed, in the clock of `performance.now()`, or null: the tail of its input is dropped.
-  let insideLeftMs: number | null = null;
   const skipTail = skipSwallower(
     () => performance.now(),
     () => frame.loaderSkipEndsMs,
-  );
-  const insideTail = skipSwallower(
-    () => performance.now(),
-    () => insideLeftMs,
   );
   const home = startHomeScroll({
     el: page.el,
@@ -167,8 +159,9 @@ export function connectHomeScroll(page: HomeScrollPage): () => void {
     chapters: HOME_CHAPTERS,
     unitPx: page.unitPx,
     // Live from the store, never a value captured at render: during hydration the hook's `threeD` is the default.
-    enabled: () => scrollEnabled(useScene.getState()),
-    swallow: () => useScene.getState().inside !== null || skipTail() || insideTail(),
+    // A project's own page open: its scroll is the page's (src/ui/ProjectView.tsx).
+    enabled: () => scrollEnabled(useScene.getState()) && useScene.getState().inside === null,
+    swallow: () => skipTail(),
     reducedMotion: () => useScene.getState().reducedMotion,
     threeD: () => useScene.getState().threeD,
     hold: () => landingHoldFor(useScene.getState().voidState),
@@ -189,7 +182,6 @@ export function connectHomeScroll(page: HomeScrollPage): () => void {
     if (!state.threeD && previous.threeD) home.suspend();
     if (state.threeD && !previous.threeD) home.resume();
     if (state.voidState !== previous.voidState) home.holdChanged();
-    if (state.inside === null && previous.inside !== null) insideLeftMs = performance.now();
   });
   connected = home;
 
