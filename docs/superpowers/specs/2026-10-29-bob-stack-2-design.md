@@ -234,3 +234,23 @@ light-dive step checks the new light; a check that the B letters light on the sc
    not among them, or would you like to ask something else? Send me a message."
 
 Still open from before, not blocking: Porfael's tools and link; the boards' print in Dutch only or per language.
+
+## Build notes (2026-10-29)
+
+Calls made while building that change what the spec says or adds to it (each is in the build's ledger with what it costs
+if wrong):
+
+- **The torn masks** are drawn once ahead of time into image files (`tools/masks.ts`, `src/assets/masks/`), not on a
+  canvas as the page loads: the same noise, but drawing it at load blocked the page for about half a second.
+- **The B's light:** the bands' glass at the mock-up's emissive (0.08), the rims at the compass's own gold (0.22, so the B
+  reads as the O), the ticks at the mock-up's 0.75 of the gold light. "BOB from above" measures 0.064 on a laptop and
+  0.020 on a phone, under the 0.11 limit. The ticks reach 0.8 of a band's width, as the mock-up's do.
+- **The light's core** burns at 1.6 times the gold light, a hot point as the mock-up's was: on a phone the plain gold point
+  read under the harness's floor for a scene that drew.
+- **The ring's marks:** only the marks near the ring's front and on the screen are buttons, so Tab never reaches one no
+  one sees; on a phone that is the mark the ring stands at (a swipe turns it). A drag of the ring selects none of the
+  words it passes over.
+- **The way back on a project's page** stands on a dark foot the page's words fade into (150 px, 120 on a phone), with
+  the mock-up's blur, so no word is read through it.
+- **Open for Bob:** the site's header sits under a project's page, dimmed by its dark; the mock-up had it on top (on top,
+  its links would act behind the open page).
