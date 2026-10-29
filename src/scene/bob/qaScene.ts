@@ -184,6 +184,8 @@ export function makeQaScene(ring: RingModel, decor: DecorModel): QaScene {
             ? f.buttons.map((_, k) => {
                 ring.markAt(k, at);
                 const s = screen(at, camera, size);
+                // Off the screen it is no button: Tab would reach one no one sees.
+                if (!(s.x >= 0 && s.x <= size.width && s.y >= 0 && s.y <= size.height)) return null;
                 return { ...s, front: s.front && at.clone().sub(middle).dot(toCamera) > 0 };
               })
             : []

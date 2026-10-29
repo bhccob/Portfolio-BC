@@ -51,6 +51,32 @@ describe('ringDragOn', () => {
     expect(dragBy(-RING_DRAG_PX, 'touch')).toEqual({ units: 0, drags: 0, releases: 0 });
   });
 
+  // The harness (tools/proof/needle.mjs, qa-ring) found a drag begun on the scene selecting the answer's words it
+  // passed over, the selection's gold left on them.
+  it('selects no text while the ring is held, and leaves selecting alone otherwise', () => {
+    const target = new EventTarget();
+    let active = true;
+    const stop = ringDragOn(target, { drag: () => {}, release: () => {} }, () => active);
+    const selectStart = (): boolean => {
+      const event = new Event('selectstart', { cancelable: true, bubbles: true });
+      target.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    expect(selectStart()).toBe(false);
+    fire(target, 'pointerdown', { pointerType: 'mouse', clientX: 500, clientY: 400, button: 0 });
+    expect(selectStart()).toBe(true);
+    fire(target, 'pointerup', { pointerType: 'mouse', clientX: 300, clientY: 400 });
+    expect(selectStart()).toBe(false);
+    // A press that is no drag of the ring (on the answer's words, a control): its selecting is the page's.
+    active = false;
+    fire(target, 'pointerdown', { pointerType: 'mouse', clientX: 500, clientY: 400, button: 0 });
+    expect(selectStart()).toBe(false);
+    stop();
+    active = true;
+    fire(target, 'pointerdown', { pointerType: 'mouse', clientX: 500, clientY: 400, button: 0 });
+    expect(selectStart()).toBe(false);
+  });
+
   it('does nothing outside the Q&A', () => {
     expect(dragBy(-RING_DRAG_PX, 'mouse', false)).toEqual({ units: 0, drags: 0, releases: 0 });
   });

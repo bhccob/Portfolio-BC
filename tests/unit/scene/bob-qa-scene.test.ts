@@ -67,6 +67,27 @@ describe("the Q&A's scene", () => {
     q.dispose();
   });
 
+  // The harness (tools/proof/needle.mjs, qa-ring) found question 5's button at x -98 at question 6 on a laptop: on the
+  // ring's near half, off the screen, and still in Tab's reach.
+  it('hides a mark on the near half that stands off the screen, so Tab never reaches a button no one sees', () => {
+    for (const size of [DESK, PHONE]) {
+      for (let k = 0; k < RING_MARKS; k++) {
+        const page = fakePage();
+        const q = make();
+        poseAt(q, qaStop(HOME_CHAPTERS, k), size, page);
+        page.marks.forEach((m, j) => {
+          if (m.hidden) return;
+          const x = Number.parseFloat(m.vars.get('--x')!);
+          const y = Number.parseFloat(m.vars.get('--y')!);
+          expect(x >= 0 && x <= size.width && y >= 0 && y <= size.height, `${size.width}: at mark ${k}, mark ${j}'s button at ${x}, ${y}`).toBe(true);
+        });
+        // The mark the ring stands at is always named.
+        expect(page.marks[k]!.hidden).toBe(false);
+        q.dispose();
+      }
+    }
+  });
+
   it('measures the answer once it shows, so a long one stays on the screen', () => {
     const page = fakePage();
     const q = make();
