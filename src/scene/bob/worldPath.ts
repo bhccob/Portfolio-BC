@@ -14,7 +14,9 @@
  * - AREA, one per board of the stack: the camera goes round the stack's axis (./around.ts) and down to the board, seen
  *   from just under the board above it, by `AREA_STOP`; the board in view lit, the others stepped back, its caption in;
  * - LOOK: round and back and up, the whole machine small in the nebula;
- * - SHEET: the look back fading to black over its first 0.55, the credits rising (the end page, src/ui/EndPage.tsx).
+ * - SHEET: one move from the look back into the credits (Bob, 2026-10-29: "it doesnt flow naturally"): the credits
+ *   rise from its first scroll, the dark comes up under them (`sheetBlack`), and the camera drifts on up, so the stack
+ *   sinks away beneath them (the end page, src/ui/EndPage.tsx).
  *
  * The camera's places are the mock-up's (its `poseFor`), each framed by fit (./fit.ts) round what its view must hold;
  * where the mock-up moved the picture with a view offset, the shot looks a little aside instead (`aside`), as the site's
@@ -77,8 +79,19 @@ const OUT = 0.2;
 const LOOK_AT = 1;
 /** The light's trail at rest: a column this tall, m, in this many points. */
 const COLUMN = { height: 26, points: 40 } as const;
-/** The sheet's fade to black takes its first this much. */
-const BLACK = 0.55;
+/**
+ * How dark the sheet has come at `share` (0..1) of its way: eased out from its first scroll, 1 - (1 - x)², a little behind
+ * the credits' own rise (1 - (1 - x)³, src/scene/bob/endView.ts), so their words come up over the stack fading under them.
+ */
+export function sheetBlack(share: number): number {
+  return 1 - (1 - clamp01(share)) ** 2;
+}
+
+/** How far the camera drifts up over the sheet, m: the stack sinks away under the rising credits. */
+export const SHEET_DRIFT = 6;
+
+/** How much of the screen the whole machine fills at the look back, each way from the middle, NDC, by the screen's shape. */
+export const LOOK_BOX = { desk: 0.95, phone: 0.95 } as const;
 /** The filaments' crawl: way frames of their shapes a unit of scroll. */
 const FIL_RATE = 16;
 /** The way's frames a unit of scroll in the fall (its 299 frames over 6 units). */
@@ -95,8 +108,8 @@ const BOARD_LIGHT = { view: 1, power: 0.7, aside: 0.45 } as const;
  * elevation, distance and azimuth (rad). A box is [left, right, bottom, top] of the screen, NDC.
  */
 const FRAME = {
-  desk: { fov: 38, world: { elevation: 30, box: [-0.66, 0.66, -0.86, 0.82] as Box }, board: { elevation: 17, lift: 0.2, box: [-0.64, 0.64, -0.56, 0.72] as Box }, look: 42 },
-  phone: { fov: 58, world: { elevation: 26, box: [-0.9, 0.9, -0.62, 0.7] as Box }, board: { elevation: 14, lift: 0.6, box: [-1.25, 1.25, -0.14, 0.66] as Box }, look: 66 }
+  desk: { fov: 38, world: { elevation: 30, box: [-0.66, 0.66, -0.86, 0.82] as Box }, board: { elevation: 17, lift: 0.2, box: [-0.64, 0.64, -0.56, 0.72] as Box } },
+  phone: { fov: 58, world: { elevation: 26, box: [-0.9, 0.9, -0.62, 0.7] as Box }, board: { elevation: 14, lift: 0.6, box: [-1.25, 1.25, -0.14, 0.66] as Box } }
 } as const;
 const TOWARD = 0.6;
 /** How far below the underside of the board above a board's camera stands at the most, m. */
@@ -255,7 +268,10 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS): Worl
   const landShot: CameraShot = phone
     ? { position: add(C, [0, 3.2, 14]), target: add(C, [0, 4.6, 0]), fov: 64, up: UP, sway: 0 }
     : { position: add(C, [0, 2.6, 11.5]), target: add(C, [0, 3.4, 0]), fov: 46, up: UP, sway: 0 };
-  const lookShot: CameraShot = { position: add(middle, mul(outward(LOOK.azimuth, LOOK.elevation * DEG), F.look)), target: middle, fov: F.fov, up: UP, sway: 0 };
+  // The look back: back and up, the whole machine framed by fit (Bob, 2026-10-29: "it zooms out too much").
+  const lookBox = phone ? LOOK_BOX.phone : LOOK_BOX.desk;
+  const lookDistance = fitDistance(machine, middle, LOOK.azimuth, LOOK.elevation * DEG, F.fov, aspect, [-lookBox, lookBox, -lookBox, lookBox]);
+  const lookShot: CameraShot = { position: add(middle, mul(outward(LOOK.azimuth, LOOK.elevation * DEG), lookDistance)), target: middle, fov: F.fov, up: UP, sway: 0 };
   // A board from the side its projects face, from just under the board above it: at the mock-up's elevation, unless the
   // fit would stand the camera higher than `UNDER` below that board's underside (a squarer screen stands it further
   // out); then at the highest elevation that keeps it there, so the board above never covers the one in view.
@@ -328,7 +344,9 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS): Worl
     if (s.kind === 'land') return t < LAND_HIT ? shotToward(handShot, landShot, ease(t / LAND_HIT)) : shotToward(landShot, worldShot, ease(seg(t, LAND_HIT, LAND_STOP)));
     if (s.kind === 'area') return aroundShot(stopShot(s.i - 1), stopShot(s.i), C, ease(seg(t, 0, AREA_STOP)));
     if (s.kind === 'look') return aroundShot(stopShot(count - 1), lookShot, C, ease(seg(t, 0, LOOK_AT)));
-    return lookShot;
+    // The sheet: the camera drifts on up as the credits rise, the stack sinking away beneath them.
+    const rise = SHEET_DRIFT * ease(t);
+    return { ...lookShot, position: add(lookShot.position, [0, rise, 0]), target: add(lookShot.target, [0, rise, 0]) };
   }
 
   function frameAt(q: number): WorldFrame {
@@ -336,7 +354,7 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS): Worl
     const { s, t } = segmentAt(qq);
     const shot = shotAt(s, t);
     const forward = norm(sub(shot.target, shot.position));
-    const black = s.kind === 'sheet' ? ease(seg(t * s.length, 0, BLACK)) : 0;
+    const black = s.kind === 'sheet' ? sheetBlack(t) : 0;
     const landing = s.kind === 'land' && t < LAND_HIT;
     const position = lightPos(s.kind, t);
     // The trail: straight up from the light, growing from the fall's own length to the column as it comes down.

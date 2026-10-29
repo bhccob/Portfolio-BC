@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CameraShot } from '~/engine/bob/shots';
 import { project } from '~/scene/bob/fit';
 import { lightAt } from '~/scene/bob/lightDive';
-import { LAND_HIT, makeWorldPath, POWER, type WorldFrame } from '~/scene/bob/worldPath';
+import { LAND_HIT, LOOK_BOX, makeWorldPath, POWER, SHEET_DRIFT, type WorldFrame } from '~/scene/bob/worldPath';
 import { boardCentre, boardTops, LID_TOP, STACK, stackPlaces } from '~/scene/bob/worldLayout';
 import { AREA_STOP, areaStop, areasOnPath, buildChapters, type Chapters, HAND_F, HOME_CHAPTERS, LAND_STOP, pathStart, sheetStart, worldStop } from '~/state/chapters';
 
@@ -211,10 +211,11 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
     expect(home(DESK, sheetStart(HOME_CHAPTERS) + 0.1).skip).toBe(false);
   });
 
-  it("keeps the sheet's black and the fog", () => {
+  it("brings the sheet's dark up from its start, and keeps the fog", () => {
     const sheet = sheetStart(HOME_CHAPTERS);
     expect(home(DESK, sheet).black).toBe(0);
-    expect(home(DESK, sheet + 0.55).black).toBe(1);
+    expect(home(DESK, sheet + 0.5).black).toBeCloseTo(0.75, 9);
+    expect(home(DESK, sheet + 0.999).black).toBeGreaterThan(0.99);
     expect(home(DESK, sheet).part).toBe('sheet');
     for (const place of [worldStop(HOME_CHAPTERS), sheet]) {
       const { near, far } = home(DESK, place).fog;
@@ -224,15 +225,44 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
     expect(LAND_STOP).toBe(0.85);
   });
 
-  it('looks back from far and up at the middle of the machine', () => {
+  it('looks back up at the whole machine framed, not far out (Bob, 2026-10-29: "it zooms out too much")', () => {
     for (const aspect of [DESK, PHONE]) {
       const path = pathFor(aspect);
       const f = home(aspect, sheetStart(HOME_CHAPTERS));
       expect(f.part).toBe('sheet');
       const d = Math.hypot(...([0, 1, 2].map((k) => f.shot.position[k]! - f.shot.target[k]!) as [number, number, number]));
-      expect(d).toBeCloseTo(aspect === DESK ? 42 : 66, 6);
       expect((f.shot.position[1] - f.shot.target[1]) / d).toBeCloseTo(Math.sin((16 * Math.PI) / 180), 6);
-      for (const p of path.machine) expect(project([...p], f.shot, aspect).front).toBe(true);
+      // The whole machine inside the look back's box, and filling it: the camera no further out than it needs.
+      const box = LOOK_BOX[aspect === DESK ? 'desk' : 'phone'];
+      const seen = path.machine.map((p) => project([...p], f.shot, aspect));
+      for (const p of seen) {
+        expect(p.front).toBe(true);
+        expect(Math.abs(p.x)).toBeLessThanOrEqual(box + 1e-6);
+        expect(Math.abs(p.y)).toBeLessThanOrEqual(box + 1e-6);
+      }
+      expect(Math.max(...seen.map((p) => Math.max(Math.abs(p.x), Math.abs(p.y))))).toBeGreaterThan(box - 0.02);
+      // Nearer than the old 42 m (66 m on a phone).
+      expect(d).toBeLessThan(aspect === DESK ? 42 : 66);
+    }
+  });
+
+  it('drifts on through the sheet as the credits rise: the stack sinks away under them, never further off', () => {
+    for (const aspect of [DESK, PHONE]) {
+      const sheet = sheetStart(HOME_CHAPTERS);
+      const at = (t: number) => home(aspect, sheet + t).shot;
+      const start = at(0);
+      const distance = (shot: CameraShot) => Math.hypot(...([0, 1, 2].map((k) => shot.position[k]! - shot.target[k]!) as [number, number, number]));
+      let last = start.position[1];
+      for (let k = 1; k <= 20; k++) {
+        const shot = at((0.999 * k) / 20);
+        // Up, a little more each step, the same distance from what it looks at, the same way round.
+        expect(shot.position[1], `at ${k}`).toBeGreaterThan(last);
+        expect(distance(shot)).toBeCloseTo(distance(start), 9);
+        expect(shot.position[0]).toBeCloseTo(start.position[0], 9);
+        expect(shot.position[2]).toBeCloseTo(start.position[2], 9);
+        last = shot.position[1];
+      }
+      expect(at(0.999).position[1] - start.position[1]).toBeGreaterThan(SHEET_DRIFT * 0.99);
     }
   });
 

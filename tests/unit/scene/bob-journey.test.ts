@@ -136,11 +136,11 @@ describe('the light, the facts and the void', () => {
     for (let p = L - 0.02; p < L + 0.06; p += 0.001) expect(Math.abs(at(p + 0.001) - at(p)), `at ${p}`).toBeLessThan(0.1);
   });
 
-  it('fades to black and raises the sheet over SHEET, and holds it up at the end', () => {
+  it('raises the sheet over SHEET with the dark coming up under it, and holds it up at the end', () => {
     const s = sheetStart(HOME_CHAPTERS);
     expect(journeyPoseAt(s, LAPTOP).sheet).toBe(0);
     expect(journeyPoseAt(s + 0.5, LAPTOP).sheet).toBeCloseTo(0.5, 9);
-    expect(journeyPoseAt(s + 0.5, LAPTOP).path!.black).toBeCloseTo(ease(0.5 / 0.55), 9);
+    expect(journeyPoseAt(s + 0.5, LAPTOP).path!.black).toBeCloseTo(0.75, 9);
     expect(journeyPoseAt(END, LAPTOP).sheet).toBe(1);
   });
 });

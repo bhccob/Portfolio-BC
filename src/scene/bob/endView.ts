@@ -1,8 +1,8 @@
 /**
  * The end page on the screen: the credits (spec 2026-10-27-bob-light-path-design.md, goal 8). As the story moves over
- * the sheet, from the look back's own stop to the credits' stop, the look back fades to black over the sheet's first
- * `BLACK` of its way, and over the rest the credits rise from below to where they stand at rest; at the end the page
- * stands in the normal flow and the document scrolls, which rolls them.
+ * the sheet, from the look back's own stop to the credits' stop, the credits rise from below to where they stand at rest
+ * from its first scroll, and the dark comes up under them a little behind (Bob, 2026-10-29: one move, no wait on black);
+ * at the end the page stands in the normal flow and the document scrolls, which rolls them.
  *
  * Home works out the view of each frame from the frame's one journey pose (`JourneyPose.sheet`) and where the story is
  * (`endViewFor`), and writes it to the DOM (`applyEndView`), only what has changed. The stylesheet draws the move from
@@ -11,7 +11,7 @@
  * - `<html data-end>`: `moving` during the move, `rest` once the story rests at the end, unset otherwise;
  * - `#end`'s `inert`: true unless the view is at rest, so Tab never lands in a page that is not shown.
  */
-import { ease } from './worldPath';
+import { sheetBlack } from './worldPath';
 
 /** Where the end page stands: not shown, on its way (in or out), or at rest at the end. */
 export type EndState = 'none' | 'moving' | 'rest';
@@ -24,8 +24,6 @@ export interface EndView {
   state: EndState;
 }
 
-/** The sheet's first this much of its way is the fade to black; the rest, the credits rising (the light path mock-up's). */
-export const BLACK = 0.55;
 
 /** What the view writes to <html>: its style's `--end` and its `data-end` (the document element). */
 export interface EndRoot {
@@ -71,9 +69,9 @@ export const END_RISE = '--end-rise';
 export const END_ATTRIBUTE = 'data-end';
 
 /**
- * The end view of a frame. `share` is the pose's `sheet` held to 0..1, with NaN read as 0; the black is eased over its
- * first `BLACK`, as the path's black is (src/scene/bob/worldPath.ts), and the rise eased out over the rest, 1 - (1 - x)³:
- * the credits come up as soon as the black is whole and settle into place. The scroll lets the move rest at its 99 %
+ * The end view of a frame. `share` is the pose's `sheet` held to 0..1, with NaN read as 0; the rise eased out over the
+ * whole of it, 1 - (1 - x)³, and the dark as the path's (`sheetBlack`, src/scene/bob/worldPath.ts), a little behind it:
+ * the credits come up from the first scroll into the sheet and settle into place. The scroll lets the move rest at its 99 %
  * (src/input/scrollLoop.ts `END_SETTLED`, Ruling 18), where the page then stands in the flow, so the rise must look
  * arrived there: eased out, what is left of it is a hundredth of a pixel, where a linear rise would leave "Q&A" 9 px
  * short on a laptop and jump. The state is `rest` when the
@@ -83,8 +81,8 @@ export const END_ATTRIBUTE = 'data-end';
 export function endViewFor(sheet: number, progress: number, target: number, end: number): EndView {
   const share = sheet > 0 ? Math.min(sheet, 1) : 0; // NaN fails the test, so it reads as 0
   const state: EndState = progress === end && target === end ? 'rest' : share > 0 ? 'moving' : 'none';
-  const black = ease(share / BLACK);
-  const rise = share > BLACK ? 1 - (1 - (share - BLACK) / (1 - BLACK)) ** 3 : 0;
+  const black = sheetBlack(share);
+  const rise = 1 - (1 - share) ** 3;
   return { share, black, rise, state };
 }
 

@@ -5,10 +5,10 @@ import { AngleSpring, wrapAngle } from '~/engine/AngleSpring';
 import { NEEDLE_SPRING } from '~/engine/bob/needleAim';
 import { AT_REST, asleep } from '~/engine/stillness';
 import { END_SETTLED, follow } from '~/input/scrollLoop';
-import { applyEndView, BLACK, clearEndView, type EndPageNode, type EndRoot, endViewFor, endWritten } from '~/scene/bob/endView';
+import { applyEndView, clearEndView, type EndPageNode, type EndRoot, endViewFor, endWritten } from '~/scene/bob/endView';
 import { idleRuns, needleRests } from '~/scene/bob/idle';
 import { journeyAt, journeyPoseAt, WORLD_PROJECTS } from '~/scene/bob/journey';
-import { ease } from '~/scene/bob/worldPath';
+import { ease, sheetBlack } from '~/scene/bob/worldPath';
 import { easeHover, hoversAt, pointerMode } from '~/scene/bob/voidPose';
 import { phaseChangeDraws } from '~/scene/motion';
 import { HOME_CHAPTERS, scrollEnd, sheetStart } from '~/state/chapters';
@@ -20,7 +20,7 @@ const END = scrollEnd(HOME_CHAPTERS);
 /** The look back's own stop, where the sheet begins: one unit short of the end. */
 const S = sheetStart(HOME_CHAPTERS);
 
-/** Half way over the sheet: the black nearly whole, the credits not yet rising. */
+/** Half way over the sheet: the credits most of the way up, the dark coming up under them. */
 const MID = S + 0.5;
 
 /** Cookies Clicker's place on the world: the last project. */
@@ -32,7 +32,7 @@ describe('endViewFor: the end view of a frame, from its sheet and where the stor
   });
 
   it('is moving as the sheet comes up', () => {
-    expect(endViewFor(0.5, 5.5, 6, 6)).toEqual({ share: 0.5, black: ease(0.5 / BLACK), rise: 0, state: 'moving' });
+    expect(endViewFor(0.5, 5.5, 6, 6)).toEqual({ share: 0.5, black: 0.75, rise: 0.875, state: 'moving' });
   });
 
   it('rests at the end once the story and its target are both on it', () => {
@@ -53,15 +53,23 @@ describe('endViewFor: the end view of a frame, from its sheet and where the stor
     expect(endViewFor(1, 6, 5, 6).state).toBe('moving');
   });
 
-  it('fades to black over the sheet’s first 0.55, then raises the credits', () => {
-    expect(BLACK).toBe(0.55);
-    expect(endViewFor(0.3, 1, 1, 2)).toMatchObject({ black: expect.closeTo(ease(0.3 / 0.55), 12), rise: 0, state: 'moving' });
-    expect(endViewFor(0.55, 1, 1, 2)).toMatchObject({ black: 1, rise: 0 });
-    // Half way through the rise it has come seven eighths of the way: it eases out, 1 - (1 - x)³.
-    expect(endViewFor(0.775, 1, 1, 2)).toMatchObject({ black: 1, rise: expect.closeTo(0.875, 12) });
+  it('raises the credits from the sheet’s start, the dark coming up with them, one move with no wait on black (Bob, 2026-10-29)', () => {
+    // Both eased out from the first scroll into the sheet: the rise 1 - (1 - x)³, the dark 1 - (1 - x)², which stays a
+    // little behind the words, so they come up over the stack fading under them, never over a black that waits.
+    expect(sheetBlack(0)).toBe(0);
+    expect(sheetBlack(0.5)).toBeCloseTo(0.75, 12);
+    expect(sheetBlack(1)).toBe(1);
+    expect(endViewFor(0.1, 1, 1, 2)).toMatchObject({ black: expect.closeTo(0.19, 12), rise: expect.closeTo(0.271, 12), state: 'moving' });
     expect(endViewFor(1, 2, 2, 2)).toMatchObject({ black: 1, rise: 1, state: 'rest' });
-    const rises = [0.56, 0.6, 0.7, 0.8, 0.9, 0.99].map((share) => endViewFor(share, 1, 1, 2).rise);
-    for (let k = 1; k < rises.length; k++) expect(rises[k]).toBeGreaterThan(rises[k - 1]);
+    let last = { black: 0, rise: 0 };
+    for (let share = 0.02; share <= 1; share += 0.02) {
+      const view = endViewFor(share, 1, 1, 2);
+      // From the first step both move, every step: no stretch where one waits on the other.
+      expect(view.rise, `rise at ${share}`).toBeGreaterThan(last.rise);
+      expect(view.black, `dark at ${share}`).toBeGreaterThan(last.black);
+      expect(view.black, `the dark behind the words at ${share}`).toBeLessThanOrEqual(view.rise + 1e-12);
+      last = view;
+    }
   });
 
   it('looks arrived at the move’s 99 %, where the scroll lets it rest: "Q&A" within half a pixel of its place at rest', () => {
@@ -150,10 +158,11 @@ describe('applyEndView: Home writes the end view each frame, only on change', ()
     frameAt(dom, page, written, S, S);
     expect([dom.end(), dom.black(), dom.rise(), page.inert]).toEqual([null, '', '', true]);
 
-    // Half way over the sheet: nearly black, nothing risen yet.
+    // Half way over the sheet: the credits most of the way up, the dark coming up under them.
     frameAt(dom, page, written, MID, END);
-    expect([dom.end(), dom.rise(), page.inert]).toEqual(['moving', '', true]);
-    expect(Number(dom.black())).toBeCloseTo(ease(0.5 / BLACK), 9);
+    expect([dom.end(), page.inert]).toEqual(['moving', true]);
+    expect(Number(dom.rise())).toBeCloseTo(0.875, 9);
+    expect(Number(dom.black())).toBeCloseTo(0.75, 9);
 
     frameAt(dom, page, written, END, END);
     expect([dom.end(), dom.black(), dom.rise(), page.inert]).toEqual(['rest', '1', '1', false]);
@@ -162,12 +171,12 @@ describe('applyEndView: Home writes the end view each frame, only on change', ()
     expect([dom.end(), dom.black(), dom.rise(), page.inert]).toEqual([null, '', '', true]);
   });
 
-  it('writes the rise once the black is whole: three quarters over the sheet, the credits seven eighths risen', () => {
+  it('writes the rise and the dark together: three quarters over the sheet, both nearly whole, the dark a little behind', () => {
     const dom = fakeRoot();
     const { page } = fakePage();
-    frameAt(dom, page, endWritten(), S + 0.775, END);
-    expect(dom.black()).toBe('1');
-    expect(Number(dom.rise())).toBeCloseTo(0.875, 9);
+    frameAt(dom, page, endWritten(), S + 0.75, END);
+    expect(Number(dom.black())).toBeCloseTo(0.9375, 9);
+    expect(Number(dom.rise())).toBeCloseTo(0.984375, 9);
   });
 
   it('writes nothing again while the view stays the same', () => {
