@@ -17,8 +17,9 @@ const two = (n: number): string => String(n).padStart(2, '0');
  * The Q&A's words beside the gold ring round the stack (spec 2026-10-29-bob-stack-2-design.md, goal 1; the mock-up Bob
  * chose, "mix"): each question's answer with its count over it ("Q&A · 02 / 06"), its question in gold capitals and its
  * answer in reading text (or the end page's placeholder with its tag for one Bob has not sent); the end's mark's words,
- * "Einde van de site", "Stuur een bericht.", Bob's line and two buttons, to the contact page and back to the start; and a
- * button for each mark, named by its question, which turns the ring to it.
+ * "Einde van de site", "Stuur een bericht.", Bob's line and two buttons, to the contact page and back to the start; a
+ * button for each mark, named by its question, which turns the ring to it; and, for the end, the dark that comes up over
+ * the scene and the gold circle that draws itself round (spec 2026-10-29-bob-stack-3-design.md, goal 4).
  *
  * All of it is hidden and out of reach until the scene shows it (src/ui/qaWriters.ts): each answer `hidden` but the one
  * the ring stands at, the section `inert` while the Q&A does not show. The marks' buttons stand where the scene puts them,
@@ -34,6 +35,8 @@ export function QaRingParts({ questions }: { questions?: EndQuestions }): JSX.El
 
   return (
     <section id="qa" className="qa" aria-labelledby="qa-title" inert>
+      <span className="qa-veil" aria-hidden="true" />
+      <span className="qa-seal" aria-hidden="true" />
       <h2 id="qa-title" className="visually-hidden">
         {t.end.head}
       </h2>

@@ -2340,6 +2340,103 @@ html[data-qa-at] .qa-frame {
   }
 }
 
+/* The end, unmistakable (spec 2026-10-29-bob-stack-3-design.md, goal 4; Bob picked "2 · Circle"): at the end's mark
+   (<html data-qa-end>, src/ui/qaWriters.ts) the dark comes up over the scene and one gold circle draws itself round,
+   clockwise from the top, as the site began with the loader's circle; the words stand in the middle, inside it on a
+   laptop, under it on a phone; the marks' numbers go. One scroll up and it all goes. */
+@property --qa-draw {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.qa-veil {
+  position: fixed;
+  inset: 0;
+  background: rgb(4 2 9 / 0.9);
+  opacity: 0;
+  transition: opacity 1.4s ease;
+  pointer-events: none;
+}
+
+html[data-qa-end] .qa-veil {
+  opacity: 1;
+}
+
+.qa-seal {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width: min(88vmin, 720px);
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border: 2px solid rgb(226 165 74 / 0.95);
+  border-radius: 50%;
+  box-shadow:
+    0 0 34px rgb(226 165 74 / 0.35),
+    inset 0 0 34px rgb(226 165 74 / 0.18);
+  -webkit-mask: conic-gradient(#000 var(--qa-draw), transparent 0);
+  mask: conic-gradient(#000 var(--qa-draw), transparent 0);
+  opacity: 0;
+  pointer-events: none;
+}
+
+html[data-qa-end] .qa-seal {
+  opacity: 1;
+  animation: qa-draw 2.2s cubic-bezier(0.65, 0, 0.35, 1) 0.4s both;
+}
+
+@keyframes qa-draw {
+  from {
+    --qa-draw: 0deg;
+  }
+  to {
+    --qa-draw: 360deg;
+  }
+}
+
+html[data-qa-end] .qa-marks {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+}
+
+html[data-qa-end] .qa-frame {
+  width: min(440px, calc(100vw - 40px));
+  transform: translate(calc(50vw - 50%), calc(50vh - 50%));
+  text-align: center;
+}
+
+html[data-qa-end] .qa-frame::before {
+  display: none;
+}
+
+html[data-qa-end] .qa-buttons {
+  justify-content: center;
+}
+
+@media (max-width: 700px) {
+  html[data-qa-end] .qa-seal {
+    top: 31%;
+    width: 64vw;
+  }
+
+  html[data-qa-end] .qa-frame {
+    transform: translate(calc(50vw - 50%), calc(100vh - 100% - 8vh));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qa-veil {
+    transition: none;
+  }
+
+  html[data-qa-end] .qa-seal {
+    animation: none;
+    --qa-draw: 360deg;
+  }
+}
+
 /* ---------- a project's own page ---------- */
 /* A project's own page over the stack (spec 2026-10-29-bob-stack-2-design.md, goal 2; the mock-up Bob chose, version 4,
    after overworldaudio.com/work/star-wars-survivor): src/ui/ProjectView.tsx. Each page is full screen and scrolls on

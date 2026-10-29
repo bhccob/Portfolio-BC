@@ -2,7 +2,8 @@
  * What the scene writes on the page for the Q&A's ring each frame (spec 2026-10-29-bob-stack-2-design.md, goal 1): only
  * what has changed, as the names and the captions are written (src/ui/WorldNames.tsx). The words themselves are
  * src/ui/QaRing.tsx's; the stylesheet draws them from what is written here (src/styles/base.css, "the Q&A's ring"):
- * - `<html data-qa>` while the Q&A shows, and `data-qa-at="<k>"` while the ring stands at mark `k`;
+ * - `<html data-qa>` while the Q&A shows, `data-qa-at="<k>"` while the ring stands at mark `k`, and `data-qa-end` while
+ *   it stands at the end's (spec 2026-10-29-bob-stack-3-design.md, goal 4: the dark and the circle);
  * - the answers' frame's `--qa-x`, `--qa-y` (its place, CSS px) and `--qa-show` (how much it shows, 0..1);
  * - each answer's `hidden`, all but the one at the mark; the section's `inert` while the Q&A does not show;
  * - each mark's button's `--x`, `--y` and `hidden` (`placeMarks`).
@@ -10,6 +11,7 @@
 
 export const QA_ATTRIBUTE = 'data-qa';
 export const QA_AT_ATTRIBUTE = 'data-qa-at';
+export const QA_END_ATTRIBUTE = 'data-qa-end';
 
 /** The page's parts the writer touches: <html>, the section, the answers' frame and each answer (the end's last). */
 export interface QaParts {
@@ -55,6 +57,9 @@ export function writeQa(parts: QaParts, view: QaView, written: QaWritten): void 
   if (at !== written.at) {
     if (at === null) parts.root.removeAttribute(QA_AT_ATTRIBUTE);
     else parts.root.setAttribute(QA_AT_ATTRIBUTE, String(at));
+    // The end's mark is the last answer's.
+    if (at !== null && at === parts.answers.length - 1) parts.root.setAttribute(QA_END_ATTRIBUTE, '');
+    else parts.root.removeAttribute(QA_END_ATTRIBUTE);
     parts.answers.forEach((answer, k) => {
       answer.hidden = k !== at;
     });
@@ -81,6 +86,7 @@ export function writeQa(parts: QaParts, view: QaView, written: QaWritten): void 
 export function clearQa(parts: QaParts, written: QaWritten): void {
   parts.root.removeAttribute(QA_ATTRIBUTE);
   parts.root.removeAttribute(QA_AT_ATTRIBUTE);
+  parts.root.removeAttribute(QA_END_ATTRIBUTE);
   if (parts.section) parts.section.inert = true;
   for (const answer of parts.answers) answer.hidden = true;
   if (parts.frame) for (const name of ['--qa-show', '--qa-x', '--qa-y']) parts.frame.style.removeProperty(name);

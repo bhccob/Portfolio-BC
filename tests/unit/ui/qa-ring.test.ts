@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
@@ -7,7 +9,7 @@ import { en, type Dictionary, type EndQuestions } from '~/i18n/en';
 import { nl } from '~/i18n/nl';
 import { useScene } from '~/state/store';
 import { QaRing, QaRingParts } from '~/ui/QaRing';
-import { answerPlace, clearQa, placeMarks, type QaParts, qaWritten, writeQa } from '~/ui/qaWriters';
+import { answerPlace, clearQa, placeMarks, QA_END_ATTRIBUTE, type QaParts, qaWritten, writeQa } from '~/ui/qaWriters';
 
 const LOCALES = [
   ['/', nl],
@@ -149,5 +151,109 @@ describe("the ring's words", () => {
     expect(buttons[0]!.style.props.get('--y')).toBe('200px');
     expect(buttons[1]!.hidden).toBe(true);
     expect(buttons[2]!.hidden).toBe(true);
+  });
+});
+
+// The end, unmistakable (Bob, 2026-10-29: "more obvious that it ends"; he picked "2 · Circle"; spec
+// 2026-10-29-bob-stack-3-design.md, goal 4): the dark comes up and one gold circle draws itself round, the words inside it.
+describe("the ring's end", () => {
+  it('marks the end', () => {
+    expect(QA_END_ATTRIBUTE).toBe('data-qa-end');
+    const p = fakeParts();
+    const written = qaWritten();
+    writeQa(p, { on: true, at: RING_QUESTIONS, answer: 1, place: { x: 10, y: 20 } }, written);
+    expect(p.attributes.get('data-qa-end')).toBe('');
+    writeQa(p, { on: true, at: RING_QUESTIONS - 1, answer: 1, place: { x: 10, y: 20 } }, written);
+    expect(p.attributes.has('data-qa-end')).toBe(false);
+    writeQa(p, { on: true, at: RING_QUESTIONS, answer: 1, place: { x: 10, y: 20 } }, written);
+    clearQa(p, written);
+    expect(p.attributes.has('data-qa-end')).toBe(false);
+  });
+
+  it('leaves the end with nothing of it left', () => {
+    const p = fakeParts();
+    const written = qaWritten();
+    writeQa(p, { on: true, at: RING_QUESTIONS, answer: 1, place: { x: 10, y: 20 } }, written);
+    // Between the marks, on the way back to question 6: the end is gone in the same write.
+    writeQa(p, { on: true, at: null, answer: 0, place: null }, written);
+    expect(p.attributes.has('data-qa-end')).toBe(false);
+    writeQa(p, { on: true, at: RING_QUESTIONS - 1, answer: 1, place: { x: 10, y: 20 } }, written);
+    expect([p.attributes.has('data-qa-end'), p.attributes.get('data-qa-at')]).toEqual([false, String(RING_QUESTIONS - 1)]);
+    // The Q&A gone (up past question 1 to the look back): nothing either.
+    writeQa(p, { on: false, at: null, answer: 0, place: null }, written);
+    expect(p.attributes.has('data-qa-end')).toBe(false);
+  });
+
+  it('holds the dark and the circle in its markup, unread by screen readers', () => {
+    for (const [path, t] of LOCALES) {
+      const html = parts(path, t);
+      expect(html).toContain('<span class="qa-veil" aria-hidden="true"></span>');
+      expect(html).toContain('<span class="qa-seal" aria-hidden="true"></span>');
+    }
+  });
+
+  /** base.css's rules: the at-rules each sits in, its selectors and its declarations (no nesting in the file). */
+  const base = readFileSync(fileURLToPath(new URL('../../../src/styles/base.css', import.meta.url)), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const rules: { groups: string[]; selectors: string[]; body: string }[] = [];
+  {
+    const groups: string[] = [];
+    let mark = 0;
+    for (let i = 0; i < base.length; i++) {
+      const ch = base[i];
+      if (ch === '{') {
+        const prelude = base.slice(mark, i).trim().replace(/\s+/g, ' ');
+        if (prelude.startsWith('@media') || prelude.startsWith('@supports')) {
+          groups.push(prelude);
+          mark = i + 1;
+          continue;
+        }
+        const end = base.indexOf('}', i);
+        if (!prelude.startsWith('@')) rules.push({ groups: [...groups], selectors: prelude.split(',').map((s) => s.trim()), body: base.slice(i + 1, end) });
+        // An at-rule with a body of declarations (@property, @keyframes' steps) is skipped whole.
+        let depth = 1;
+        let j = i + 1;
+        if (prelude.startsWith('@keyframes')) {
+          for (; j < base.length && depth > 0; j++) depth += base[j] === '{' ? 1 : base[j] === '}' ? -1 : 0;
+          i = j - 1;
+        } else i = end;
+        mark = i + 1;
+      } else if (ch === '}') {
+        groups.pop();
+        mark = i + 1;
+      }
+    }
+  }
+  const body = (selector: string, groups: string[] = []): string =>
+    rules.filter((r) => r.selectors.includes(selector) && JSON.stringify(r.groups) === JSON.stringify(groups)).map((r) => r.body).join(';');
+  const PHONE = ['@media (max-width: 700px)'];
+  const REDUCED = ['@media (prefers-reduced-motion: reduce)'];
+
+  it('draws the circle at the end', () => {
+    expect(body('.qa-veil')).toMatch(/background:\s*rgb\(4 2 9 \/ 0\.9\)/);
+    expect(body('.qa-veil')).toMatch(/opacity:\s*0\b/);
+    expect(body('.qa-veil')).toMatch(/transition:\s*opacity 1\.4s/);
+    expect(body('html[data-qa-end] .qa-veil')).toMatch(/opacity:\s*1\b/);
+    expect(body('.qa-seal')).toMatch(/width:\s*min\(88vmin, 720px\)/);
+    expect(body('.qa-seal')).toMatch(/border:\s*2px solid/);
+    expect(body('.qa-seal')).toMatch(/border-radius:\s*50%/);
+    expect(body('.qa-seal')).toMatch(/mask:\s*conic-gradient\(#000 var\(--qa-draw\), transparent 0\)/);
+    expect(body('html[data-qa-end] .qa-seal')).toMatch(/animation:\s*qa-draw 2\.2s [^;]* 0\.4s both/);
+    expect(base).toMatch(/@property --qa-draw\s*\{[^}]*syntax:\s*'<angle>'/);
+    expect(base).toMatch(/@keyframes qa-draw\s*\{\s*from\s*\{\s*--qa-draw:\s*0deg;?\s*\}\s*to\s*\{\s*--qa-draw:\s*360deg;?\s*\}/);
+    // The words in the middle, inside the circle; the marks' numbers gone; the buttons centred.
+    expect(body('html[data-qa-end] .qa-frame')).toMatch(/width:\s*min\(440px, calc\(100vw - 40px\)\)/);
+    expect(body('html[data-qa-end] .qa-frame')).toMatch(/transform:\s*translate\(calc\(50vw - 50%\), calc\(50vh - 50%\)\)/);
+    expect(body('html[data-qa-end] .qa-marks')).toMatch(/opacity:\s*0\b/);
+    expect(body('html[data-qa-end] .qa-buttons')).toMatch(/justify-content:\s*center/);
+    // On a phone the circle above the words, the words at the foot.
+    expect(body('html[data-qa-end] .qa-seal', PHONE)).toMatch(/top:\s*31%/);
+    expect(body('html[data-qa-end] .qa-seal', PHONE)).toMatch(/width:\s*64vw/);
+    expect(body('html[data-qa-end] .qa-frame', PHONE)).toMatch(/transform:\s*translate\(calc\(50vw - 50%\), calc\(100vh - 100% - 8vh\)\)/);
+  });
+
+  it('draws nothing with reduced motion', () => {
+    expect(body('html[data-qa-end] .qa-seal', REDUCED)).toMatch(/animation:\s*none/);
+    expect(body('html[data-qa-end] .qa-seal', REDUCED)).toMatch(/--qa-draw:\s*360deg/);
+    expect(body('.qa-veil', REDUCED)).toMatch(/transition:\s*none/);
   });
 });
