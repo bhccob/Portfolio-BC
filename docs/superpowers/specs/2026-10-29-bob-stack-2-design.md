@@ -20,8 +20,8 @@ How each was settled is under its goal. Nothing is built until he has read the p
 
 **Builds on:** `2026-10-28-bob-quantum-stack-design.md`, built on `bob-stack` (through 32f4f72, with his two earlier asks
 of that day in: the nearer look back with the credits rising as one move, and the gas drawn into the stack by depth).
-`bob-stack` is not merged; this round is built on a new branch, `bob-stack-2`, from it, so `bob-stack` can still be
-merged alone.
+`bob-stack` was merged into `redesign-bench` on 2026-10-29 (Bob: "Merge it now"); this round is built on a new branch,
+`bob-stack-2`, from it.
 
 ## The references
 
@@ -82,8 +82,9 @@ should be bigger and spaced a little further from each other".
   1. **The top:** the dark with a torn, ragged hole (a canvas-made noise mask, edges dry-brushed), through which the
      project's own 3D object turns in the stack, in the middle.
   2. **The words to the side:** the kind of work and the name on the left (up to 88 px); on the right the summary (up to
-     31 px, line height 1.6) and the facts: year, role, tools, type (19 px), and one link ("Bekijk op GitHub →"). Nothing
-     else: no longer text, no list of touch points.
+     31 px, line height 1.6) and the facts: year, role, tools, type (19 px), the link "Bekijk op GitHub →", and under it,
+     quieter, "Lees meer" to the project's own page with its longer text (Bob: "Add a 'Lees meer' link"). Nothing else:
+     no longer text, no list of touch points.
   3. **One picture:** a website or a game in one rounded 16:9 card with a small line under it. A mobile app instead: three
      of its screens standing as phones, nearly the screen's height, the middle one forward and lit, the two beside it a
      step back and dimmer; on a phone, one screen nearly the screen's width, swiped to the others, a dot for each.
@@ -145,7 +146,7 @@ How it was settled: two ways (one band; three nested bands); he: "2 · Ringen".
 
 - No new words about Bob: every answer, fact, summary and role is the site's own data.
 - No change to the fall's five facts, the stack's boards, the projects' 3D objects or the categories.
-- No change to the Lite page, the contact page or the project pages beyond the GitHub link (open question 3).
+- No change to the Lite page, the contact page or the project pages beyond Jontai Energy's GitHub link (Bob's answer 3).
 - The quality ladder, the governor and the darkness gate stay as they are.
 
 ## Anti-goals (a failure even if it works)
@@ -181,8 +182,9 @@ How it was settled: two ways (one band; three nested bands); he: "2 · Ringen".
 
 - **The new words**, Dutch with English:
   - Q&A: "Q&A · 02 / 06"; "Einde van de site" / "End of the site"; "Stuur een bericht." / "Send a message."; the line
-    under it (open question 4); "Naar contact" / "To contact"; "Terug naar het begin" / "Back to the start".
+    under it (Bob's answer 4); "Naar contact" / "To contact"; "Terug naar het begin" / "Back to the start".
   - Project page: "Terug naar de stack" / "Back to the stack"; "Volgend project" / "Next project"; "Scroll" / "Scroll";
+    "Lees meer" / "Read more";
     the picture lines as in the mock-up, in English beside them (for example "De homepagina van Jontai Energy" / "Jontai
     Energy's homepage").
 - **The pictures** go into `src/assets/projects/` at the sizes the page uses (WebP, a phone screen 1170 × 2532 and a
@@ -195,7 +197,8 @@ How it was settled: two ways (one band; three nested bands); he: "2 · Ringen".
   - **Cookies Clicker:** the game from Bob's public repo, played a while.
 - **The Q&A's place on the scroll:** the look back's stop stays; each question is a stop after it, and the end's mark is
   the last stop (the scroll's end). The credits' sheet and its stop go.
-- **The message form** is on the contact page, reached by "Naar contact" (open question 5).
+- **The message form:** at the ring's end it is one click away, on the contact page, by "Naar contact", as in the
+  mock-up he chose; with 3D off the end page keeps its form where it is.
 - **The ring's view:** the mock-up's `ringPose` (from in front of the closed stack, a little up), per screen shape.
 - **The light's sizes:** the mock-up's (the frame 1.24 m across, the dial 1.05 m from its middle, the traces 0.02–0.042 m
   wide). It replaces the orb in `src/engine/bob/build/light.ts`.
@@ -218,16 +221,16 @@ The modules, names and tests; how the new pieces sit in `Void.tsx`, `Home.tsx` a
 changed steps (the credits and end-page steps become the Q&A ring's; the open step becomes the project page's; the
 light-dive step checks the new light; a check that the B letters light on the scroll).
 
-## Open questions (Bob's)
+## Bob's answers (2026-10-29)
 
-1. **The merge:** merge `bob-stack` into `redesign-bench` now, on its own, or wait and merge this round with it?
-2. **The project pages** (`/projects/steady/` and the others) keep their longer text for people without 3D and for
-   search. Should the new full-screen view link to them ("Lees meer"), or should they stay unlinked from it?
-3. **Jontai Energy's GitHub link:** the site links `github.com/bhccob/JE`; the code the pictures came from is
-   `github.com/bhccob/Jontai-Energy`. Which one?
-4. **The end's line under "Stuur een bericht."**: the mock-up has a stand-in I wrote, "Dit is het einde van de site.
-   Staat je vraag er niet tussen, of wil je iets anders vragen? Stuur me een bericht." Keep it, or his own words?
-5. **The message form:** today it sits at the bottom of the home; in the new end it is one click away, on the contact
-   page. Is that right, or should it open in place?
+1. **The merge:** "Merge it now". `bob-stack` was fast-forwarded into `redesign-bench` (to 32f4f72) the same day, the
+   unit suite green on the merged result (1728 of 1728); this round builds on it.
+2. **The project pages** keep their longer text for people without 3D and for search, and the new view links to them:
+   "Add a 'Lees meer' link" (goal 2).
+3. **Jontai Energy's GitHub link** is `github.com/bhccob/Jontai-Energy` (today the site links `github.com/bhccob/JE`):
+   changed in the site's project data (`src/data/projects.ts`), so the view, the project page and the Lite page all carry it.
+4. **The end's line** under "Stuur een bericht.": "Keep that line": "Dit is het einde van de site. Staat je vraag er niet
+   tussen, of wil je iets anders vragen? Stuur me een bericht." In English: "This is the end of the site. Is your question
+   not among them, or would you like to ask something else? Send me a message."
 
 Still open from before, not blocking: Porfael's tools and link; the boards' print in Dutch only or per language.
