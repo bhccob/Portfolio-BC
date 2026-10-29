@@ -227,12 +227,6 @@ function View({ id }: { id: ProjectId }): JSX.Element {
 }
 
 /**
- * Every project's own page, one per project on the world, each shown by the scene as its project opens
- * (`showProjectViews`), and the way back pinned at the foot with how far down. While the store's `inside` is set,
- * `<html data-inside>` shows the way back, it takes the focus, and Escape and the arrows leave or turn (`leaveViewOn`);
- * when the page closes with the focus in it, the focus goes to <main>, so the keyboard goes on from the page.
- */
-/**
  * Keeps the page in step with the store's `inside`: `<html data-inside>` while a project is open, the way back (`back`)
  * taking the focus as it opens, Escape and the arrows heard on `keys` (`leaveViewOn`), and the focus to <main> when it
  * closes with the focus in it. 3D switched off with a page open closes it, so nothing of it is left over the 3D-off home.
@@ -271,6 +265,12 @@ export function watchProjectViews(
   };
 }
 
+/**
+ * Every project's own page, one per project on the world, each shown by the scene as its project opens
+ * (`showProjectViews`), and the way back pinned at the foot with how far down. While the store's `inside` is set,
+ * `<html data-inside>` shows the way back, it takes the focus, and Escape and the arrows leave or turn (`leaveViewOn`);
+ * when the page closes with the focus in it, the focus goes to <main>, so the keyboard goes on from the page.
+ */
 export function ProjectViews(): JSX.Element {
   const { t } = useTranslator();
   const back = useRef<HTMLButtonElement>(null);

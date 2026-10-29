@@ -74,7 +74,7 @@ export default function Home() {
       <LightFactList />
 
       {/* "Snel naar vragen ↓": shown from the first project through the look back, it fades the story straight to the
-          credits (src/ui/SkipButton.tsx). After the names and an area's words, so Tab reaches the shown words first. */}
+          Q&A's first question (src/ui/SkipButton.tsx). After the names and an area's words, so Tab reaches the shown words first. */}
       <SkipButton />
 
       {/* The Q&A's words beside the gold ring round the stack, with 3D on (src/ui/QaRing.tsx): the answers, the end and a

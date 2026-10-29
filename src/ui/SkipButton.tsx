@@ -123,7 +123,8 @@ export function skipToQuestions(doc: Document): void {
 /**
  * "Snel naar vragen ↓" / "Skip to questions ↓": a pill at the bottom right that shows from the first project through
  * the look back (`<html data-skip>`), never over a bead's label (src/ui/BeadLabel.tsx places the label clear of it, and
- * where no side is, stands the button in its alternate place), and fades the story straight to the credits.
+ * where no side is, stands the button in its alternate place), and fades the story straight to the Q&A's first
+ * question, its mark's button taking the focus (`skipToQuestions`).
  */
 export function SkipButton(): JSX.Element {
   const { t } = useTranslator();
