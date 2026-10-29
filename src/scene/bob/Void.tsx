@@ -7,10 +7,12 @@ import { debugBridge } from '~/debug/needleDebug';
 import { proofWorldGate } from '~/debug/worldGate';
 import type { CompassModel } from '~/engine/bob/build/compass';
 import { buildDecorStars } from '~/engine/bob/build/decorStars';
+import { buildGyro, type GyroModel } from '~/engine/bob/build/gyro';
 import { buildEngraved, type EngravedModel } from '~/engine/bob/build/engraved';
 import type { LightModel } from '~/engine/bob/build/light';
 import { buildNebula, type NebulaModel } from '~/engine/bob/build/nebula';
 import { buildRing } from '~/engine/bob/build/ring';
+import { buildStars, type StarsModel, starsRound } from '~/engine/bob/build/stars';
 import { buildVoid, VOID_LOOK, type VoidModel } from '~/engine/bob/build/void';
 import { buildVolume, type VolumeModel } from '~/engine/bob/build/volume';
 import { buildWorld, type WorldModel } from '~/engine/bob/build/world';
@@ -82,6 +84,9 @@ interface WorldParts {
   model: WorldModel;
   /** The Q&A's ring and stars, built with the world (./qaScene.ts). */
   qa: QaScene;
+  /** The gyroscope rings and the realistic stars round the stack (spec 2026-10-29-bob-stack-2-design.md, goal 3). */
+  gyro: GyroModel;
+  stars: StarsModel;
   shown: boolean | null;
 }
 
@@ -183,7 +188,11 @@ function showWorld(world: WorldParts, shown: boolean): void {
   if (world.shown === shown) return;
   world.shown = shown;
   world.model.group.visible = shown;
-  if (!shown) world.qa.hide();
+  if (!shown) {
+    world.qa.hide();
+    world.gyro.group.visible = false;
+    world.stars.group.visible = false;
+  }
 }
 
 // Scratch for the frame: nothing is made per frame.
@@ -451,8 +460,12 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
         // The Q&A's gold ring and its stars (spec 2026-10-29-bob-stack-2-design.md, goal 1), built and warmed with it.
         const qa = makeQaScene(buildRing(RING_MARKS, scene.environment), buildDecorStars(latest.current.tier, STACK_CENTRE, MACHINE_MIDDLE));
         qa.ring.group.visible = qa.decor.group.visible = true;
+        // The gyroscope rings and the stars round the stack, with it too.
+        const gyro = buildGyro([STACK_CENTRE[0], MACHINE_MIDDLE, STACK_CENTRE[2]]);
+        const stars = buildStars(starsRound(STACK_CENTRE, MACHINE_MIDDLE), latest.current.tier);
+        gyro.group.visible = stars.group.visible = true;
         const holder = new THREE.Group();
-        holder.add(model.group, qa.ring.group, qa.decor.group);
+        holder.add(model.group, qa.ring.group, qa.decor.group, gyro.group, stars.group);
         model.pose({
           power: 1,
           flash: 0,
@@ -474,20 +487,24 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
         } catch (error) {
           model.dispose();
           qa.dispose();
+          gyro.dispose();
+          stars.dispose();
           throw error;
         }
-        holder.remove(model.group, qa.ring.group, qa.decor.group);
-        qa.ring.group.visible = qa.decor.group.visible = false;
+        holder.remove(model.group, qa.ring.group, qa.decor.group, gyro.group, stars.group);
+        qa.ring.group.visible = qa.decor.group.visible = gyro.group.visible = stars.group.visible = false;
         if (disposed) {
           model.dispose();
           qa.dispose();
+          gyro.dispose();
+          stars.dispose();
           return null;
         }
-        return { model, qa, shown: null };
+        return { model, qa, gyro, stars, shown: null };
       },
       onWorld: (world) => {
         showWorld(world, false);
-        scene.add(world.model.group, world.qa.ring.group, world.qa.decor.group);
+        scene.add(world.model.group, world.qa.ring.group, world.qa.decor.group, world.gyro.group, world.stars.group);
         run.world = world;
         if (useScene.getState().scene !== null) invalidate();
       },
@@ -523,9 +540,11 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
         space.model.dispose();
       }
       if (world) {
-        scene.remove(world.model.group, world.qa.ring.group, world.qa.decor.group);
+        scene.remove(world.model.group, world.qa.ring.group, world.qa.decor.group, world.gyro.group, world.stars.group);
         world.model.dispose();
         world.qa.dispose();
+        world.gyro.dispose();
+        world.stars.dispose();
       }
       run.qaDrag = false;
       frame.journey.qa = null;
@@ -774,6 +793,10 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
         });
         // What the boards, the spine and the CPU reflect turns with the camera round the stack, so they look the same from every side.
         world.model.turn(Math.atan2(camera.position.x - STACK_CENTRE[0], camera.position.z - STACK_CENTRE[2]));
+        // The gyroscope rings, lit with the power and stepped back at a board and in the Q&A, quieter with a project open;
+        // the stars round the stack in with them.
+        world.gyro.pose({ level: path.rings.level * openWorld(opened), focus: path.rings.focus, clock: clock.time });
+        world.stars.pose({ level: path.rings.level, clock: clock.time });
       }
       // The Q&A: the gold ring and its stars, the answer at its mark and the marks' buttons (./qaScene.ts); on the home
       // page alone, and not while a project is close.

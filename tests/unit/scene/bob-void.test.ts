@@ -745,12 +745,23 @@ describe('the wiring: one journey pose a frame', () => {
   it("builds the Q&A's ring and stars with the world, poses them each frame, and hides and frees them with it", () => {
     const source = readFileSync(fileURLToPath(new URL('../../../src/scene/bob/Void.tsx', import.meta.url)), 'utf8');
     expect(source).toMatch(/makeQaScene\(buildRing\(RING_MARKS, scene\.environment\), buildDecorStars\(/);
-    expect(source).toMatch(/holder\.add\(model\.group, qa\.ring\.group, qa\.decor\.group\)/);
+    expect(source).toMatch(/holder\.add\(model\.group, qa\.ring\.group, qa\.decor\.group[,)]/);
     expect(source).toMatch(/world\.qa\.pose\(\{/);
     // Hidden with the world (and so its page cleared), freed with it.
-    expect(source).toMatch(/if \(!shown\) world\.qa\.hide\(\);/);
+    expect(source).toMatch(/if \(!shown\) \{\s*world\.qa\.hide\(\);/);
     expect(source).toMatch(/world\.qa\.dispose\(\);/);
     expect(source).toMatch(/ringDragOn\(window, \{ drag: dragRing, release: releaseRing \}/);
+  });
+
+  it('poses the gyroscope and the stars with the world', () => {
+    const source = readFileSync(fileURLToPath(new URL('../../../src/scene/bob/Void.tsx', import.meta.url)), 'utf8');
+    expect(source).toContain('buildGyro([STACK_CENTRE[0], MACHINE_MIDDLE, STACK_CENTRE[2]])');
+    expect(source).toContain('buildStars(starsRound(STACK_CENTRE, MACHINE_MIDDLE), latest.current.tier)');
+    expect(source).toContain('world.gyro.pose({ level: path.rings.level * openWorld(opened), focus: path.rings.focus, clock: clock.time })');
+    expect(source).toContain('world.stars.pose({ level: path.rings.level, clock: clock.time })');
+    // Hidden with the world, freed with it.
+    expect(source).toContain('world.gyro.group.visible = false;');
+    expect(source).toContain('world.gyro.dispose();');
   });
 
   it("warms the engraved way's shaders as it builds it, so the first frame it shows (the light's ignition) does not stall", () => {
