@@ -431,7 +431,8 @@ export const en = {
     /** The Lite page's name (its title; the card where 3D cannot run links to it). */
     liteLink: 'Lite version',
     morph: 'The same force that guided ships now stores our data.',
-    project: { open: 'Open', download: 'Download', code: 'Code', back: 'Esc · back' },
+    // `site`: a project's live site (Portle's, 2026-10-29), a site to visit, not a download.
+    project: { open: 'Open', download: 'Download', site: 'Visit the site', code: 'Code', back: 'Esc · back' },
     /**
      * The hologram world (spec 2026-10-27-bob-hologram-world-design.md): the hint under the whole world, an area's words'
      * hint, each for a pointer and for a touch screen, and the name of the areas' dots (src/ui/WorldNames.tsx,

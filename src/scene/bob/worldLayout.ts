@@ -116,13 +116,13 @@ export const OBJECT_MIDDLE: Readonly<Record<ObjectKind, number>> = { streak: 0.2
 
 const KINDS: Readonly<Partial<Record<string, ObjectKind>>> = {
   steady: 'streak',
-  porfael: 'portfolio',
+  portle: 'portfolio',
   'jontai-energy': 'solar',
   'cookies-clicker': 'crystal'
 };
 
 /**
- * Each project's object on its socket: Steady's streak path, Porfael's ring and relic, Jontai Energy's solar module,
+ * Each project's object on its socket: Steady's streak path, Portle's ring and relic, Jontai Energy's solar module,
  * Cookies Clicker's crystal; any other a plain chip.
  */
 export function objectKind(id: ProjectId): ObjectKind {

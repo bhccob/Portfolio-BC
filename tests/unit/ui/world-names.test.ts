@@ -84,20 +84,20 @@ describe("the projects' names on the world", () => {
 describe('names only under the mouse; a touch screen has a board\'s at its stop', () => {
   it('show only the name whose project the pointer is on', () => {
     const steady = { root: fake(), line: fake() };
-    const porfael = { root: fake(), line: fake() };
+    const portle = { root: fake(), line: fake() };
     done.push(registerWorldName('steady', { root: steady.root as never, line: steady.line as never }));
-    done.push(registerWorldName('porfael', { root: porfael.root as never, line: porfael.line as never }));
+    done.push(registerWorldName('portle', { root: portle.root as never, line: portle.line as never }));
     const names = [
       { id: 'steady' as const, anchor: { x: 500, y: 400 }, category: 'app' as const, hot: true, level: nameLevel('steady', { touch: false, hover: { id: 'steady', amount: 1 }, caption: null, board: null }) },
-      { id: 'porfael' as const, anchor: { x: 700, y: 400 }, category: 'app' as const, hot: false, level: nameLevel('porfael', { touch: false, hover: { id: 'steady', amount: 1 }, caption: null, board: null }) }
+      { id: 'portle' as const, anchor: { x: 700, y: 400 }, category: 'app' as const, hot: false, level: nameLevel('portle', { touch: false, hover: { id: 'steady', amount: 1 }, caption: null, board: null }) }
     ];
     showWorldNames({ opacity: 1, names }, SIZE);
     expect(steady.root.style.opacity).toBe('1');
     expect(steady.root.tabIndex).toBe(0);
-    expect(porfael.root.style.opacity).toBe('0');
-    expect(porfael.line.style.opacity).toBe('0');
-    expect(porfael.root.tabIndex).toBe(-1);
-    expect(porfael.root.style.pointerEvents).toBe('none');
+    expect(portle.root.style.opacity).toBe('0');
+    expect(portle.line.style.opacity).toBe('0');
+    expect(portle.root.tabIndex).toBe(-1);
+    expect(portle.root.style.pointerEvents).toBe('none');
     // Half way in as the hover eases, at half the view's opacity.
     expect(nameLevel('steady', { touch: false, hover: { id: 'steady', amount: 0.5 }, caption: null, board: null })).toBe(0.5);
     showWorldNames({ opacity: 0.8, names: [{ ...names[0]!, level: 0.5 }, names[1]!] }, SIZE);
@@ -107,7 +107,7 @@ describe('names only under the mouse; a touch screen has a board\'s at its stop'
   });
 
   it("show a board's names at its stop on a touch screen, and none at the world's stop", () => {
-    const board = ['steady', 'porfael'] as const;
+    const board = ['steady', 'portle'] as const;
     for (const id of board) expect(nameLevel(id, { touch: true, hover: { id: null, amount: 0 }, caption: null, board })).toBe(1);
     expect(nameLevel('jontai-energy', { touch: true, hover: { id: null, amount: 0 }, caption: null, board })).toBe(0);
     for (const id of WORLD_PROJECTS) expect(nameLevel(id, { touch: true, hover: { id: null, amount: 0 }, caption: null, board: null })).toBe(0);
@@ -117,9 +117,9 @@ describe('names only under the mouse; a touch screen has a board\'s at its stop'
 
   it('light a name from its caption as from its object', () => {
     expect(captionHover()).toBeNull();
-    setCaptionHover('porfael');
-    expect(captionHover()).toBe('porfael');
-    expect(nameLevel('porfael', { touch: false, hover: { id: null, amount: 0 }, caption: captionHover(), board: null })).toBe(1);
+    setCaptionHover('portle');
+    expect(captionHover()).toBe('portle');
+    expect(nameLevel('portle', { touch: false, hover: { id: null, amount: 0 }, caption: captionHover(), board: null })).toBe(1);
     expect(nameLevel('steady', { touch: false, hover: { id: null, amount: 0 }, caption: captionHover(), board: null })).toBe(0);
     setCaptionHover(null);
     expect(captionHover()).toBeNull();
@@ -132,7 +132,7 @@ describe('names only under the mouse; a touch screen has a board\'s at its stop'
   it("a touch screen's names at a board with three projects stand apart", () => {
     const phone = { width: 390, height: 844 };
     const areas = [
-      { category: 'app', projects: ['steady', 'porfael', 'jontai-energy'] },
+      { category: 'app', projects: ['steady', 'portle', 'jontai-energy'] },
       { category: 'website', projects: ['cookies-clicker'] }
     ] as never;
     const c = buildChapters({ areas });

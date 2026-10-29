@@ -219,7 +219,7 @@ describe('focusPoseAt: a project rising to the spot and sinking back', () => {
 
   it('pressing the arrows twice quickly sinks the first from where it is and lifts the newest; never two whole in the spot', () => {
     const steady = moveFocus(FOCUS_AT_REST, 'steady', 0, 'fly');
-    const once = moveFocus(steady, 'porfael', 5000, 'fly');
+    const once = moveFocus(steady, 'portle', 5000, 'fly');
     const twice = moveFocus(once, 'jontai-energy', 5300, 'fly');
     // Steady goes on sinking from where it was when the second press came, at its own pace: no jump.
     const before = focusLiftsAt(once, 5300);

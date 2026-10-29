@@ -169,6 +169,11 @@ function View({ id }: { id: ProjectId }): JSX.Element {
             </div>
           </dl>
           <p className="pv-links">
+            {project.links.live && (
+              <a className="pv-link" href={project.links.live} target="_blank" rel="noopener noreferrer">
+                {t.needle.project.site} <span aria-hidden="true">→</span>
+              </a>
+            )}
             {project.links.repo && (
               <a className="pv-link" href={project.links.repo} target="_blank" rel="noopener noreferrer">
                 {t.work.github} <span aria-hidden="true">→</span>

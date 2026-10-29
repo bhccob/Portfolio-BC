@@ -53,7 +53,7 @@ describe("the stack's places: the power board, a board per category below, socke
       expect(b.top).toBeCloseTo(top - k * 5.6, 9);
       if (k > 0) expect([b.radius, b.hole]).toEqual([6.2, 1.4]);
     }
-    expect(boards[1]!.sockets.map((s) => s.id)).toEqual(['steady', 'porfael']);
+    expect(boards[1]!.sockets.map((s) => s.id)).toEqual(['steady', 'portle']);
     expect(boards[2]!.sockets.map((s) => s.id)).toEqual(['jontai-energy']);
     expect(boards[3]!.sockets.map((s) => s.id)).toEqual(['cookies-clicker']);
     // A path with a category left out gets no board for it.
@@ -78,7 +78,7 @@ describe("the stack's places: the power board, a board per category below, socke
     expect(socket!.out[0]).toBeCloseTo(Math.sin(one!.facing), 12);
     expect(socket!.out[2]).toBeCloseTo(Math.cos(one!.facing), 12);
 
-    const [, three] = stackPlaces([{ category: 'game', projects: ['steady', 'porfael', 'cookies-clicker'] }]);
+    const [, three] = stackPlaces([{ category: 'game', projects: ['steady', 'portle', 'cookies-clicker'] }]);
     const angles = three!.sockets.map((s) => angleOf(s.at));
     for (let k = 1; k < angles.length; k++) expect((angles[k]! - angles[k - 1]!) * 4.4).toBeCloseTo(3.4, 6);
     // The middle one stands on the side the board faces; the three either side of it.
@@ -87,7 +87,7 @@ describe("the stack's places: the power board, a board per category below, socke
 
   it("keeps every socket clear of the spine's hole and inside its board", () => {
     const busy = stackPlaces([
-      { category: 'app', projects: ['steady', 'porfael', 'jontai-energy'] },
+      { category: 'app', projects: ['steady', 'portle', 'jontai-energy'] },
       { category: 'website', projects: ['jontai-energy'] },
       { category: 'game', projects: ['cookies-clicker', 'steady'] }
     ]);
@@ -118,9 +118,9 @@ describe("the stack's places: the power board, a board per category below, socke
     expect(half[3]).toBeGreaterThan(open[3]!);
   });
 
-  it('gives Steady, Porfael, Jontai Energy and Cookies Clicker their objects, any other a plain chip', () => {
+  it('gives Steady, Portle, Jontai Energy and Cookies Clicker their objects, any other a plain chip', () => {
     expect(objectKind('steady')).toBe('streak');
-    expect(objectKind('porfael')).toBe('portfolio');
+    expect(objectKind('portle')).toBe('portfolio');
     expect(objectKind('jontai-energy')).toBe('solar');
     expect(objectKind('cookies-clicker')).toBe('crystal');
     expect(objectKind('some-later-project' as never)).toBe('chip');

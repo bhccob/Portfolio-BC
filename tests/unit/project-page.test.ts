@@ -15,11 +15,7 @@ describe('a project page', () => {
     expect(html).toContain('href="https://github.com/bhccob/steady"');
   });
 
-  it('leaves out the stack row and the links while a project has none given (Porfael, in development)', () => {
-    const html = render('/projects/porfael/');
-    expect(html).toContain('<h1 class="page-title">Porfael</h1>');
-    expect(html).not.toContain(`<dt class="label">${nl.work.stack}</dt>`);
-    expect(html).not.toContain('class="tags"');
-    expect(html).not.toContain('class="links"');
+  it('gives a project with no live site no link to one', () => {
+    expect(render('/projects/steady/')).not.toContain(nl.needle.project.site);
   });
 });

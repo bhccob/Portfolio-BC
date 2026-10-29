@@ -113,18 +113,18 @@ describe('the world as the stack: its boards, the spine, the socketed CPU, the s
     expect(trophy.emissiveIntensity).toBeGreaterThan(dim * 4);
   });
 
-  it("parts Porfael's arcs and lights its relic as it opens", () => {
+  it("parts Portle's arcs and lights its relic as it opens", () => {
     const model = build();
-    const arc = named(model, 'world:object:porfael:arc:0');
-    const relic = (named(model, 'world:object:porfael:relic') as THREE.Mesh).material as THREE.MeshStandardMaterial;
+    const arc = named(model, 'world:object:portle:arc:0');
+    const relic = (named(model, 'world:object:portle:relic') as THREE.Mesh).material as THREE.MeshStandardMaterial;
     model.pose(pose());
     expect(arc.position.length()).toBe(0);
     const dim = relic.emissiveIntensity;
-    model.pose(pose({ open: { ...each(0), porfael: 1 } }));
+    model.pose(pose({ open: { ...each(0), portle: 1 } }));
     expect(arc.position.length()).toBeCloseTo(0.05, 9);
     expect(relic.emissiveIntensity).toBeGreaterThan(dim * 4);
     // Five arcs, the shares of a portfolio; never an amount.
-    for (let k = 0; k < 5; k++) expect(named(model, `world:object:porfael:arc:${k}`)).toBeTruthy();
+    for (let k = 0; k < 5; k++) expect(named(model, `world:object:portle:arc:${k}`)).toBeTruthy();
   });
 
   it("lights Jontai Energy's cells in turn as it opens", () => {

@@ -150,7 +150,7 @@ describe('the light, the facts and the void', () => {
 
 describe("the world's projects", () => {
   it('are the projects on the way, in the areas\' order', () => {
-    expect(WORLD_PROJECTS).toEqual(['steady', 'porfael', 'jontai-energy', 'cookies-clicker']);
+    expect(WORLD_PROJECTS).toEqual(['steady', 'portle', 'jontai-energy', 'cookies-clicker']);
   });
 
   it('flies back only from a rest where the project is in view: the world, an area or the look back', () => {

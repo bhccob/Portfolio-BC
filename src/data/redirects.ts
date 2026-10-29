@@ -30,6 +30,10 @@ export const redirects: readonly Redirect[] = [
   ...OLD_PROJECT_ROUTES.map(([from, to]): Redirect => ({ from, to, locale: 'nl' })),
   ...OLD_PROJECT_ROUTES.map(([from, to]): Redirect => ({ from: `/en${from}`, to: `/en${to}`, locale: 'en' })),
 
+  // Porfael was renamed Portle (2026-10-29).
+  { from: '/projects/porfael/', to: '/projects/portle/', locale: 'nl' },
+  { from: '/en/projects/porfael/', to: '/en/projects/portle/', locale: 'en' },
+
   { from: '/lab/compass/', to: '/', locale: 'nl' },
   { from: '/en/lab/compass/', to: '/en/', locale: 'en' },
 

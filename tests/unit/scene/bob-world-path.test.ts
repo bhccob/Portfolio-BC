@@ -373,7 +373,7 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
 
   it('five projects: the board with three frames all three', () => {
     const areas = [
-      { category: 'app', projects: ['steady', 'porfael', 'jontai-energy'] },
+      { category: 'app', projects: ['steady', 'portle', 'jontai-energy'] },
       { category: 'website', projects: ['cookies-clicker'] },
       { category: 'game', projects: ['steady'] }
     ] as never;

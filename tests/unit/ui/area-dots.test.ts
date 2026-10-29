@@ -33,7 +33,7 @@ describe("the areas' dots on the right", () => {
     const html = renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: ['/'] }, createElement(AreaDots)));
     expect(html).toContain(`aria-label="${nl.needle.world.areas}"`);
     expect(html.match(/<button/g)).toHaveLength(areasOnPath().length);
-    expect(html).toContain('aria-label="01 — APP: Steady, Porfael"');
+    expect(html).toContain('aria-label="01 — APP: Steady, Portle"');
   });
 
   it('light the area in view', () => {

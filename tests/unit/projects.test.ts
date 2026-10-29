@@ -33,8 +33,8 @@ describe('categories', () => {
 });
 
 describe('projects', () => {
-  it('are four, in the order steady, porfael, jontai-energy, cookies-clicker', () => {
-    expect(all.map((entry) => entry.id)).toEqual(['steady', 'porfael', 'jontai-energy', 'cookies-clicker']);
+  it('are four, in the order steady, portle, jontai-energy, cookies-clicker', () => {
+    expect(all.map((entry) => entry.id)).toEqual(['steady', 'portle', 'jontai-energy', 'cookies-clicker']);
     expect(all.map((entry) => entry.order)).toEqual([1, 2, 3, 4]);
   });
 
@@ -74,8 +74,8 @@ describe('projects', () => {
   it('translate the test point labels', () => {
     expect(project('steady').testPointLabels('en')).toEqual(['REMINDERS', 'STREAK PATH', 'INSIGHTS', 'SUPPORT LEVELS', 'PRIVACY']);
     expect(project('steady').testPointLabels('nl')).toEqual(['HERINNERINGEN', 'STREAKPAD', 'INZICHTEN', 'STEUNNIVEAUS', 'PRIVACY']);
-    expect(project('porfael').testPointLabels('en')).toEqual(['PORTFOLIO', 'PAPER TRADES', 'THESES', 'GUILDS', 'RELICS']);
-    expect(project('porfael').testPointLabels('nl')).toEqual(['PORTEFEUILLE', 'OEFENTRADES', 'THESES', 'GILDES', 'RELICS']);
+    expect(project('portle').testPointLabels('en')).toEqual(['PORTFOLIO', 'PAPER TRADES', 'THESES', 'GUILDS', 'RELICS']);
+    expect(project('portle').testPointLabels('nl')).toEqual(['PORTEFEUILLE', 'OEFENTRADES', 'THESES', 'GILDES', 'RELICS']);
     expect(project('jontai-energy').testPointLabels('en')).toEqual(['16 PAGES', 'DESIGN SYSTEM', 'THREE LANGUAGES', 'QUOTE PATH']);
     expect(project('jontai-energy').testPointLabels('nl')).toEqual(['16 PAGINA’S', 'DESIGNSYSTEEM', 'DRIE TALEN', 'OFFERTEPAD']);
     expect(project('cookies-clicker').testPointLabels('en')).toEqual(['CLICK LOOP', '8 PRODUCERS', 'BOOSTS & EVENTS', 'SAVE', 'STATS']);
@@ -100,7 +100,7 @@ describe('projects', () => {
 
   it('keep the approved objects, palettes and links', () => {
     expect(project('steady').object.fallbackGeometry).toBe('streak-path-7-blocks+trophy');
-    expect(project('porfael').object.fallbackGeometry).toBe('allocation-ring-5+relic');
+    expect(project('portle').object.fallbackGeometry).toBe('allocation-ring-5+relic');
     expect(project('jontai-energy').object.fallbackGeometry).toBe('pv-module-4x4+junction-box');
     expect(project('cookies-clicker').object.fallbackGeometry).toBe('clockwork-movement-8-wheels');
     // Steady's own brand colours (its logo kit): Mark Bronze and Steady Beige.
@@ -108,22 +108,22 @@ describe('projects', () => {
     expect(project('jontai-energy').palette).toEqual({ accent: '#00a650', glow: '#00d16a' });
     expect(project('cookies-clicker').palette).toEqual({ accent: '#c69255', glow: '#ff8a3d' });
     expect(project('steady').links).toEqual({ repo: 'https://github.com/bhccob/steady' });
-    // In development: no link until Bob gives one.
-    expect(project('porfael').links).toEqual({});
+    // Its repository and its early-access site (its README).
+    expect(project('portle').links).toEqual({ repo: 'https://github.com/bhccob/Portle', live: 'https://portle-azure.vercel.app' });
     // Bob, 2026-10-29: the repository the site's pictures came from.
     expect(project('jontai-energy').links).toEqual({ repo: 'https://github.com/bhccob/Jontai-Energy' });
     expect(project('cookies-clicker').links).toEqual({ repo: 'https://github.com/bhccob/Cookies-Clicker' });
     for (const entry of all) expect(entry.motion.length, entry.id).toBeGreaterThan(0);
   });
 
-  it('gives Steady and Porfael their own words, in both languages', () => {
+  it('gives Steady and Portle their own words, in both languages', () => {
     // Steady's README: "A calm, private medication reminder for people working through hard things."
     expect(project('steady').copy('en').summary).toBe('A calm, private medication reminder for people working through hard things.');
     expect(project('steady').copy('nl').summary).toBe('Een rustige, privé medicatieherinnering voor mensen die door moeilijke dingen gaan.');
-    // Porfael is being built (Bob, 2026-10-28): it says so.
-    expect(project('porfael').copy('en').summary).toMatch(/In development\.$/);
-    expect(project('porfael').copy('nl').summary).toMatch(/In ontwikkeling\.$/);
-    for (const id of ['steady', 'porfael']) {
+    // Portle is in early access (its README): it says so.
+    expect(project('portle').copy('en').summary).toMatch(/In early access\.$/);
+    expect(project('portle').copy('nl').summary).toMatch(/In early access\.$/);
+    for (const id of ['steady', 'portle']) {
       expect(project(id).copy('en').role, id).toBe('Sole developer');
       expect(project(id).copy('nl').role, id).toBe('Enige ontwikkelaar');
       expect(project(id).year, id).toBe(2026);
@@ -140,16 +140,16 @@ describe('projects', () => {
     }
   });
 
-  it('list the stacks their own sources give, and none for Porfael until Bob gives it', () => {
+  it('list the stacks their own sources give', () => {
     expect(project('steady').stack).toEqual(['Expo (SDK 58)', 'React Native', 'TypeScript', 'SQLite']);
-    expect(project('porfael').stack).toEqual([]);
+    expect(project('portle').stack).toEqual(['Next.js', 'React', 'TypeScript', 'Tailwind CSS', 'Drizzle', 'PostgreSQL', 'Better Auth']);
     expect(project('jontai-energy').stack).toEqual(['HTML', 'Tailwind CSS v4', 'JavaScript', 'PowerShell']);
     expect(project('cookies-clicker').stack).toEqual(['HTML', 'CSS', 'JavaScript', 'Bootstrap 5', 'localStorage']);
   });
 
-  it('give Steady and Porfael no screenshot', () => {
+  it('give Steady and Portle no screenshot', () => {
     expect(project('steady').image).toBeUndefined();
-    expect(project('porfael').image).toBeUndefined();
+    expect(project('portle').image).toBeUndefined();
     expect(project('jontai-energy').image).toBeTypeOf('string');
     expect(project('cookies-clicker').image).toBeTypeOf('string');
   });
@@ -177,7 +177,7 @@ describe('projects', () => {
 
   it('find a project by the route of its page, and none by a route that only differs in case', () => {
     expect(projects.byRoute('/projects/steady/')?.id).toBe('steady');
-    expect(projects.byRoute('/projects/porfael/')?.id).toBe('porfael');
+    expect(projects.byRoute('/projects/portle/')?.id).toBe('portle');
     expect(projects.byRoute('/projects/jontai-energy/')?.id).toBe('jontai-energy');
     expect(projects.byRoute('/projects/cookies-clicker/')?.id).toBe('cookies-clicker');
     expect(projects.byRoute('/Projects/Steady/')).toBeUndefined();
@@ -206,7 +206,7 @@ describe('the projects on the way (spec 2026-10-27-bob-light-path-design.md, goa
   };
 
   it('puts every project on the way while there are five or fewer', () => {
-    expect(projects.onPath().map((p) => p.id)).toEqual(['steady', 'porfael', 'jontai-energy', 'cookies-clicker']);
+    expect(projects.onPath().map((p) => p.id)).toEqual(['steady', 'portle', 'jontai-energy', 'cookies-clicker']);
     expect(projects.offPath()).toEqual([]);
   });
 
@@ -236,13 +236,13 @@ describe('pictures', () => {
     }
   });
 
-  it('gives Jontai Energy and Cookies Clicker one wide picture each, and Porfael none', () => {
+  it('gives Jontai Energy, Cookies Clicker and Portle one wide picture each', () => {
     expect(project('jontai-energy').pictureKind).toBe('wide');
     expect(project('jontai-energy').pictures.map((picture) => picture.file)).toEqual(['jontai-home.webp']);
     expect(project('cookies-clicker').pictureKind).toBe('wide');
     expect(project('cookies-clicker').pictures.map((picture) => picture.file)).toEqual(['cookies-playing.webp']);
-    expect(project('porfael').pictures).toEqual([]);
-    expect(project('porfael').pictureKind).toBeNull();
+    expect(project('portle').pictureKind).toBe('wide');
+    expect(project('portle').pictures.map((picture) => picture.file)).toEqual(['portle-portfolio.webp']);
   });
 
   it('links Jontai Energy to its own repository', () => {

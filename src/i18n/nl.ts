@@ -403,7 +403,7 @@ export const nl: Dictionary = {
     fallback: { title: 'DE NAALD IS HET NOORDEN KWIJT', lite: 'Open de lichte versie' },
     liteLink: 'Lichte versie',
     morph: 'Dezelfde kracht die schepen stuurde, bewaart nu onze data.',
-    project: { open: 'Openen', download: 'Downloaden', code: 'Code', back: 'Esc · terug' },
+    project: { open: 'Openen', download: 'Downloaden', site: 'Naar de site', code: 'Code', back: 'Esc · terug' },
     // The hologram world (src/ui/WorldNames.tsx, AreaCaption.tsx, AreaDots.tsx): the mock-up's words Bob approved.
     world: {
       hint: { click: 'Scroll of klik op een project', tap: 'Scroll of tik op een project' },

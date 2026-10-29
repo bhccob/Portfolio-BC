@@ -75,7 +75,7 @@ export default function ProjectPage() {
           <dt className="label">{t.work.role}</dt>
           <dd>{copy.role}</dd>
         </div>
-        {/* A project still in development may have no stack given yet (Porfael): no empty row for it. */}
+        {/* A project may have no stack given yet: no empty row for it. */}
         {project.stack.length > 0 && (
           <div>
             <dt className="label">{t.work.stack}</dt>
@@ -102,7 +102,7 @@ export default function ProjectPage() {
         <ul className="links">
           {project.links.live && (
             <li>
-              <a href={project.links.live}>{t.needle.project.download}</a>
+              <a href={project.links.live}>{t.needle.project.site}</a>
             </li>
           )}
           {project.links.repo && (

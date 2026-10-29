@@ -22,7 +22,7 @@ export interface Picture {
   alt: Record<Locale, string>;
 }
 
-export type ProjectId = 'steady' | 'porfael' | 'jontai-energy' | 'cookies-clicker';
+export type ProjectId = 'steady' | 'portle' | 'jontai-energy' | 'cookies-clicker';
 
 /** A pin on the project's object: the layer of the build it marks. The position is a placeholder in the object's local frame (units of about the object's radius), tuned in M5. */
 export interface TestPoint {
@@ -185,10 +185,11 @@ export class ProjectCatalog {
 }
 
 /**
- * The four projects, in the order of the stack: Steady and Porfael (apps), Jontai Energy (a website), Cookies Clicker
+ * The four projects, in the order of the stack: Steady and Portle (apps), Jontai Energy (a website), Cookies Clicker
  * (game development). Jontai Energy's and Cookies Clicker's objects, test points, palettes, motion and links are the
- * ones Bob approved on 2026-10-20 (docs/projects-discovery.md); Steady's and Porfael's come from their own README and
- * product spec (Bob, 2026-10-28, who took Funcial off the site); the words are in each project's `copy`.
+ * ones Bob approved on 2026-10-20 (docs/projects-discovery.md); Steady's and Portle's come from their own README and
+ * product spec (Bob, 2026-10-28, who took Funcial off the site; Porfael renamed Portle, 2026-10-29); the words are in
+ * each project's `copy`.
  */
 export const projects = new ProjectCatalog([
   {
@@ -241,13 +242,13 @@ export const projects = new ProjectCatalog([
     }
   },
   {
-    id: 'porfael',
-    title: 'Porfael',
+    id: 'portle',
+    title: 'Portle',
     year: 2026,
     categoryId: 'app',
     order: 2,
     object: { fallbackGeometry: 'allocation-ring-5+relic' },
-    // Its product spec's features (Porfael.md), in development (Bob, 2026-10-28).
+    // Its product spec's features (Porfael.md, before it was renamed Portle; Bob, 2026-10-28).
     testPoints: [
       { id: 'portfolio', label: { en: 'PORTFOLIO', nl: 'PORTEFEUILLE' }, position: [0.32, 0.3, 0] },
       { id: 'paper', label: { en: 'PAPER TRADES', nl: 'OEFENTRADES' }, position: [-0.1, 0.3, 0.3] },
@@ -257,25 +258,33 @@ export const projects = new ProjectCatalog([
     ],
     palette: { accent: '#7c5cff', glow: '#efb53d' },
     motion: 'the ring of shares parts a little; the relic at its middle turns and lights',
-    // Not given yet: shown once Bob gives it.
-    stack: [],
-    links: {},
+    // Its README and package.json (github.com/bhccob/Portle, 2026-10-29).
+    stack: ['Next.js', 'React', 'TypeScript', 'Tailwind CSS', 'Drizzle', 'PostgreSQL', 'Better Auth'],
+    links: { repo: 'https://github.com/bhccob/Portle', live: 'https://portle-azure.vercel.app' },
+    // Run from a copy of its last commit with its own example members and settings, signed in as one of them.
+    pictures: [
+      {
+        file: 'portle-portfolio.webp',
+        alt: { nl: 'Portle: het portfolio-overzicht van een voorbeeldlid', en: "Portle: an example member's portfolio overview" }
+      }
+    ],
+    pictureKind: 'wide',
+    pictureCaption: { nl: 'Portle in early access, met voorbeeldgegevens', en: 'Portle in early access, with example data' },
     copy: {
       en: {
-        type: 'Investing app · Personal project, in development',
+        type: 'Web app · Personal project, in early access',
         role: 'Sole developer',
+        // Its README's own words, nothing added.
         summary:
-          'A private investing app for a group of friends: one portfolio across your brokers, ideas tested with paper trades, and relics to earn. In development.',
-        metaDescription:
-          'Porfael, in development: a private, friends-only investing app with one portfolio across your brokers, paper trades and relics.'
+          'A private archive for your portfolio, your investment theses and the friends you trust with them: one portfolio across your accounts, theses with their revisions, a paper-trading lab, a journal, and Guilds and Relics. In early access.',
+        metaDescription: 'Portle: a private archive for your portfolio, your investment theses and the friends you trust with them.'
       },
       nl: {
-        type: 'Beleggingsapp · Eigen project, in ontwikkeling',
+        type: 'Webapp · Eigen project, in early access',
         role: 'Enige ontwikkelaar',
         summary:
-          'Een privé beleggingsapp voor een vriendengroep: je portefeuille over je brokers heen, ideeën testen met oefentrades en relics verdienen. In ontwikkeling.',
-        metaDescription:
-          'Porfael, in ontwikkeling: een privé beleggingsapp voor vrienden, met je portefeuille over je brokers heen, oefentrades en relics.'
+          'Een privé archief voor je portefeuille, je beleggingstheses en de vrienden die je ermee vertrouwt: één portefeuille over je rekeningen heen, theses met hun revisies, een oefenlab voor trades, een dagboek, en Gildes en Relics. In early access.',
+        metaDescription: 'Portle: een privé archief voor je portefeuille, je beleggingstheses en de vrienden die je ermee vertrouwt.'
       }
     }
   },

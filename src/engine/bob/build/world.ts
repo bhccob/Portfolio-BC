@@ -10,7 +10,7 @@
  *   engraved, glowing as the power comes on, and a warm glow under it.
  * - **The sockets:** a gold collar, a soft glow, a turning dashed ring and a faint column of light up to the object; a
  *   socket stays when its project rises off it, glowing a little more, waiting for it.
- * - **The objects:** Steady's streak path of seven blocks and its trophy; Porfael's ring of five arcs (shares, never
+ * - **The objects:** Steady's streak path of seven blocks and its trophy; Portle's ring of five arcs (shares, never
  *   amounts) and its relic; Jontai Energy's solar module of 16 hologram cells; Cookies Clicker's quartz crystal and two
  *   gold gears ticking once a second; any other project a plain chip. Each floats over its socket facing out from the
  *   spine, and lifted (`lift`) rises along a curve to the spot in front of the camera (../../../scene/bob/spot.ts).
@@ -404,7 +404,7 @@ const BLOCK_FRAGMENT = /* glsl */ `
   }
 `;
 
-/** One of Porfael's arcs: a share of the ring, in fine bands. */
+/** One of Portle's arcs: a share of the ring, in fine bands. */
 const ARC_FRAGMENT = /* glsl */ `
   uniform float uLevel;
   uniform vec3 uTint;
@@ -696,7 +696,7 @@ export function buildWorld(boards: readonly BoardPlace[], tier: QualityTier, roo
     };
   };
 
-  /** Porfael: a portfolio's allocation as a ring of five arcs (shares only, never amounts), a gold relic turning at its middle. */
+  /** Portle: a portfolio's allocation as a ring of five arcs (shares only, never amounts), a gold relic turning at its middle. */
   const portfolio = (id: ProjectId): Made => {
     const made = new THREE.Group();
     const ring = new THREE.Group();

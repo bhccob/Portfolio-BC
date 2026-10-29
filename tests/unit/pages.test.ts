@@ -32,7 +32,7 @@ describe('pagePaths', () => {
     expect(paths).toContain('/');
     expect(paths).toContain('/en/');
     expect(paths).toContain('/projects/steady/');
-    expect(paths).toContain('/en/projects/porfael/');
+    expect(paths).toContain('/en/projects/portle/');
     expect(paths.some((path) => path.includes('funcial'))).toBe(false);
     expect(paths).toContain('/en/lite/');
   });

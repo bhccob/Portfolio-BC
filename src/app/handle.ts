@@ -34,7 +34,7 @@ export const HANDLES = {
 export const PAGE_KINDS: Readonly<Record<PageId, Exclude<RouteName, 'not-found'>>> = {
   home: 'home',
   'project-steady': 'project',
-  'project-porfael': 'project',
+  'project-portle': 'project',
   'project-jontai-energy': 'project',
   'project-cookies-clicker': 'project',
   lite: 'lite',

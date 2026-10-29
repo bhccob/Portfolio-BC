@@ -76,10 +76,8 @@ describe("a project's own page", () => {
       expect(view).toContain(`href="${prefix}/projects/jontai-energy/"`);
       expect(textOf(view)).toContain(t.needle.page.readMore);
     }
-    // Porfael has no repository yet: no GitHub link, but its longer page.
-    const porfael = viewOf(render('/'), 'porfael');
-    expect(porfael).not.toContain('github.com');
-    expect(porfael).toContain('href="/projects/porfael/"');
+    // Steady has no live site: no link to one.
+    expect(viewOf(render('/'), 'steady')).not.toContain(nl.needle.project.site);
   });
 
   it('shows Steady as three phones and Jontai Energy as one card', () => {
@@ -93,12 +91,6 @@ describe("a project's own page", () => {
     const jontai = viewOf(html, 'jontai-energy');
     expect((jontai.match(/class="pv-card pv-wide"/g) ?? []).length).toBe(1);
     expect(jontai).toContain(`alt="${projects.byId('jontai-energy')!.pictures[0]!.alt.nl}"`);
-  });
-
-  it("goes from Porfael's words to the next project", () => {
-    const porfael = viewOf(render('/'), 'porfael');
-    expect(porfael).not.toContain('pv-media');
-    expect(porfael).toContain('pv-next');
   });
 
   it('names the next project, and the first after the last', () => {
