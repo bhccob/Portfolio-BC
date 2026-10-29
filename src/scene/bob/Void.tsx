@@ -228,6 +228,8 @@ function showWorldWords(
   }
   const away = 1 - opened;
   namesView.opacity = path.names * away;
+  // The hint says how to go on at the whole machine's stop alone; a board's own words say how to open its projects.
+  namesView.hint = path.index < 0 ? namesView.opacity : 0;
   if (namesView.opacity > 0) {
     const touch = touchScreen();
     const board = path.index >= 0 ? (STACK_PLACES[path.index + 1]?.sockets.map((s) => s.id) ?? null) : null;

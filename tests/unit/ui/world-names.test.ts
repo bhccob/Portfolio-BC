@@ -163,3 +163,15 @@ describe('names only under the mouse; a touch screen has a board\'s at its stop'
     }
   });
 });
+
+describe("the hint under the whole machine", () => {
+  it("shows at the whole machine's stop only, not at a board's, where the board's own words say how to open", () => {
+    const hint = fake();
+    done.push(registerWorldHint(hint as never));
+    showWorldNames({ opacity: 1, hint: 1, names: [] }, SIZE);
+    expect(hint.style.opacity).toBe('1');
+    // At a board's stop the names may show (under the mouse, or a touch screen's), the hint not.
+    showWorldNames({ opacity: 1, hint: 0, names: [] }, SIZE);
+    expect(hint.style.opacity).toBe('0');
+  });
+});

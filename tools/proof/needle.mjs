@@ -7086,6 +7086,7 @@ async function areasStep(browser, step) {
         caption !== undefined && caption.opacity === 1 && !caption.inert && caption.category === want.category && JSON.stringify(caption.titles) === JSON.stringify(want.titles) && caption.hint === want.hint && boxInside(caption.box, size) && caption.box.left < size.width / 2,
         `${at}: its words at the bottom left say "${want.category}", ${want.titles.map((n) => `"${n}"`).join(', ')}, "${want.hint}" (got ${JSON.stringify(caption && [caption.category, caption.titles, caption.hint, caption.opacity, Object.values(caption.box).map(Math.round)])})`,
       );
+      step.check(words.hint.opacity === 0, `${at}: the whole machine's hint is gone at a board, whose own words say how to open (opacity ${words.hint.opacity})`);
       step.check(words.captions.filter((c) => c.area !== area.index).every((c) => c.opacity === 0 && c.inert), `${at}: and no other area's words (${words.captions.map((c) => c.opacity).join(', ')})`);
       step.check(words.dots.opacity === 1 && !words.dots.inert && words.dots.current.every((on, k) => on === (k === area.index)), `${at}: the dots shown, area ${area.index + 1}'s lit (${JSON.stringify(words.dots.current)})`);
       const ownIds = PROJECT_LIST.filter((p) => p.index === area.index).map((p) => p.id);

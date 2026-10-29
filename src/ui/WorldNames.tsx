@@ -21,11 +21,13 @@ export interface WorldNameParts {
 }
 
 /**
- * What the scene says of the names on a frame: how much of them may show (`opacity`, the stops'), and for each its
- * object's top on the screen, whether the pointer is on it (`hot`) and its own share of that opacity (`level`, `nameLevel`).
+ * What the scene says of the names on a frame: how much of them may show (`opacity`, the stops'), how much of the hint
+ * below (`hint`, the whole machine's stop's alone; as much as the names without it), and for each name its object's top
+ * on the screen, whether the pointer is on it (`hot`) and its own share of that opacity (`level`, `nameLevel`).
  */
 export interface WorldNamesView {
   opacity: number;
+  hint?: number;
   names: { id: ProjectId; anchor: { x: number; y: number }; category: CategoryId; hot: boolean; level: number }[];
 }
 
@@ -136,7 +138,8 @@ const NAME_HEIGHT = 18;
  */
 export function showWorldNames(view: WorldNamesView | null, size: { width: number; height: number }): void {
   const opacity = view === null ? 0 : Math.min(Math.max(view.opacity, 0), 1);
-  if (hint) hint.style.opacity = String(Math.round(opacity * 1000) / 1000);
+  const hinted = view === null ? 0 : Math.min(Math.max(view.hint ?? opacity, 0), 1);
+  if (hint) hint.style.opacity = String(Math.round(hinted * 1000) / 1000);
   const shown = new Map<ProjectId, { view: WorldNamesView['names'][number]; parts: WorldNameParts; opacity: number }>();
   for (const [id, parts] of names) {
     const name = view?.names.find((n) => n.id === id);
