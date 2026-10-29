@@ -329,7 +329,15 @@ export const nl: Dictionary = {
     placeholder: 'Antwoord volgt.',
     placeholderTag: 'placeholder',
     messageTitle: 'Stuur een <em>bericht.</em>',
-    failLink: 'Vragen & contact'
+    failLink: 'Vragen & contact',
+    ring: {
+      count: 'Q&A · {n} / {total}',
+      endKicker: 'Einde van de site',
+      endLine: 'Dit is het einde van de site. Staat je vraag er niet tussen, of wil je iets anders vragen? Stuur me een bericht.',
+      toContact: 'Naar contact',
+      toStart: 'Terug naar het begin',
+      marks: 'De vragen op de ring'
+    }
   },
   project: {
     back: 'Alle categorieën',

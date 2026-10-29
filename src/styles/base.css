@@ -2441,3 +2441,145 @@ html[data-route='home'][data-3d='on'][data-inside] .inside-controls {
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------- the Q&A's ring ---------- */
+/* The Q&A as a gold ring round the closing stack (spec 2026-10-29-bob-stack-2-design.md, goal 1; the mock-up Bob chose,
+   "mix"): the answer beside the ring, over a soft dark, and a button over each mark. src/ui/QaRing.tsx renders the words
+   with 3D on; the scene writes where they stand and how much they show (src/ui/qaWriters.ts): `<html data-qa>` while
+   the Q&A shows, `--qa-x`, `--qa-y` and `--qa-show` on the answers' frame, each answer's `hidden` but the one the ring
+   stands at, and each mark's button's `--x`, `--y` and `hidden`. */
+.qa {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+html[data-qa] .qa {
+  visibility: visible;
+}
+
+.qa-frame {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: min(540px, calc(100vw - 40px));
+  transform: translate(var(--qa-x, 0px), calc(var(--qa-y, 0px) + (1 - var(--qa-show, 0)) * 12px));
+  opacity: var(--qa-show, 0);
+  isolation: isolate;
+}
+
+html[data-qa-at] .qa-frame {
+  pointer-events: auto;
+}
+
+/* A soft dark under the words, so they read over the stack and the ring without a box round them. */
+.qa-frame::before {
+  content: '';
+  position: absolute;
+  inset: -70px -90px;
+  z-index: -1;
+  background: radial-gradient(closest-side, rgb(4 2 9 / 0.78), rgb(4 2 9 / 0.5) 55%, rgb(4 2 9 / 0));
+  pointer-events: none;
+}
+
+.qa-count {
+  margin: 0;
+  font-family: var(--font-label);
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  color: var(--ink-dim);
+}
+
+.qa-question {
+  margin: 12px 0 14px;
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1.6;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold-glow);
+}
+
+.qa-text {
+  margin: 0;
+  font-size: 23px;
+  line-height: 1.65;
+  color: var(--ink);
+  text-shadow: 0 1px 14px rgb(4 2 9 / 0.9);
+}
+
+.qa-end .qa-question {
+  font-size: 22px;
+  letter-spacing: 0.18em;
+}
+
+.qa-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.qa-buttons .button {
+  gap: 10px;
+  border-radius: 999px;
+  background: rgb(4 2 9 / 0.5);
+}
+
+.qa-marks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A mark's button over its mark on the ring: its number in small gold mono, its question its name. */
+.qa-mark {
+  position: absolute;
+  left: 0;
+  top: 0;
+  min-width: 44px;
+  min-height: 44px;
+  transform: translate(calc(var(--x, 0px) - 50%), calc(var(--y, 0px) - 100%));
+  padding: 0 0 12px;
+  border: 0;
+  background: none;
+  font-family: var(--font-label);
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  color: var(--gold-ink);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.qa-mark:hover,
+.qa-mark:focus-visible {
+  color: var(--gold-glow);
+}
+
+@media (max-width: 700px) {
+  .qa-frame {
+    width: calc(100vw - 40px);
+  }
+
+  .qa-text {
+    font-size: 18px;
+    line-height: 1.6;
+  }
+
+  .qa-question {
+    font-size: 14px;
+  }
+
+  .qa-end .qa-question {
+    font-size: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qa-frame {
+    transform: translate(var(--qa-x, 0px), var(--qa-y, 0px));
+  }
+}

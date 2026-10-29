@@ -346,7 +346,18 @@ export const en = {
     placeholder: 'Answer to follow.',
     placeholderTag: 'placeholder',
     messageTitle: 'Send a <em>message.</em>',
-    failLink: 'Questions & contact'
+    failLink: 'Questions & contact',
+    // The Q&A on the gold ring round the stack (spec 2026-10-29-bob-stack-2-design.md, goal 1), with 3D on: the count
+    // over each answer, the end's mark and its words (Bob, 2026-10-29: "Keep that line"), its two buttons, and the name
+    // of the marks' list for a screen reader.
+    ring: {
+      count: 'Q&A · {n} / {total}',
+      endKicker: 'End of the site',
+      endLine: 'This is the end of the site. Is your question not among them, or would you like to ask something else? Send me a message.',
+      toContact: 'To contact',
+      toStart: 'Back to the start',
+      marks: 'The questions on the ring'
+    }
   },
   project: {
     back: 'All categories',
