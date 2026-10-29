@@ -24,28 +24,31 @@ import type { LightPose } from '~/scene/bob/journey';
 const M = 1 / MOCK_HALF;
 
 /**
- * How the light looks, in its own units (the frame's half-width 1), the mock-up's sizes over its 0.62 m:
- * - `core`: the hot point, a sprite `size` across in gold light times `gain` (hotter than it, as the mock-up's was, so
- *   it reads as a point on a phone's lower tier too, still gold), `level` its strength;
+ * How the light looks, in its own units (the frame's half-width 1), the mock-up's sizes over its 0.62 m, in the glow
+ * Bob picked (spec 2026-10-29-bob-stack-3-design.md, goal 3, "B · Glow": the site's deep gold, not the pale gold light):
+ * - `core`: the hot point, a sprite `size` across in gold times `gain`, `level` its strength;
  * - `halo`: a soft sprite `size` across in gold, breathing a little;
+ * - `aura`: a wide soft glow round it all, `size` across in gold at `level`, breathing slowly at `breathe` rad/s;
  * - `frame`: corner brackets `corner` long at the half-width 1, five pins a side `pin` apart from `pinFrom` to `pinTo`
- *   out, a faint square `inner` across inside; turning `turn` rad/s about its face;
- * - `dial`: 72 ticks at `radius`, every `long`th longer, and a dashed ring at `dash`, 9 of every 12 of 96; turning `turn`;
- * - `traces`: the lanes' gold, their pulses' gold light, each lane's light (the middle brighter), at most `capacity`
- *   points a lane;
+ *   out, a faint square `inner` across inside; its lines gold times `gain`, so they glow; turning `turn` rad/s;
+ * - `dial`: 72 ticks at `radius`, every `long`th longer, and a dashed ring at `dash`, 9 of every 12 of 96; gold times
+ *   `gain`; turning `turn`;
+ * - `traces`: the lanes' gold, their pulses gold light times `hotGain`, each lane's light (the middle full), at most
+ *   `capacity` points a lane;
  * - `vias`: a small ring with a dot, `size` (and four times a lane's width more) across in the mock-up's metres, at most
  *   `most` a lane;
- * - `lamp`: a point light in gold light, `distance` its reach;
+ * - `lamp`: a point light in gold, `distance` its reach;
  * - `stretch`: drawn out along its axis as it becomes the needle (`along` times its stretch), thinned `across` times it.
  */
 export const LIGHT_LOOK = {
-  core: { size: 2.6 * M, colour: palette.goldLight, gain: 1.6, level: 1 },
-  halo: { size: 4.2 * M, colour: palette.gold, level: 0.42 },
-  frame: { corner: 0.22 * M, pin: 0.16 * M, pinFrom: 1 + 0.06 * M, pinTo: 1 + 0.2 * M, inner: 1.2, colour: palette.goldLight, level: 0.85, innerLevel: 0.1, turn: 0.35 },
-  dial: { radius: 1.05 * M, long: 6, longLength: 0.14 * M, shortLength: 0.06 * M, dash: 0.94 * M, colour: palette.gold, level: 0.6, turn: -0.12 },
-  traces: { colour: palette.gold, hot: palette.goldLight, levels: [0.9, 0.55, 0.55, 0.55, 0.55] as const, capacity: 400 },
+  core: { size: 2.6 * M, colour: palette.gold, gain: 3.8, level: 1 },
+  halo: { size: 4.2 * M * 1.5, colour: palette.gold, level: 0.95 },
+  aura: { size: 4.2 * M * 3.4, colour: palette.gold, level: 0.34, breathe: 1.6 },
+  frame: { corner: 0.22 * M, pin: 0.16 * M, pinFrom: 1 + 0.06 * M, pinTo: 1 + 0.2 * M, inner: 1.2, colour: palette.gold, gain: 2.2, level: 1, innerLevel: 0.1, turn: 0.35 },
+  dial: { radius: 1.05 * M, long: 6, longLength: 0.14 * M, shortLength: 0.06 * M, dash: 0.94 * M, colour: palette.gold, gain: 1.8, level: 1, turn: -0.12 },
+  traces: { colour: palette.gold, hot: palette.goldLight, hotGain: 2.4, levels: [1, 0.8, 0.8, 0.8, 0.8] as const, capacity: 400 },
   vias: { size: 0.12, colour: palette.goldLight, level: 0.75, most: 24 },
-  lamp: { colour: palette.goldLight, level: 2, distance: 8 },
+  lamp: { colour: palette.gold, level: 5, distance: 8 },
   stretch: { along: 3, across: 0.65 }
 } as const;
 
@@ -165,6 +168,10 @@ export function buildLight(tier: QualityTier): LightModel {
   core.name = 'light:core';
   core.scale.setScalar(look.core.size);
   const haloMaterial = new THREE.SpriteMaterial({ name: 'light:halo', map: textures.glow, color: look.halo.colour, ...ADDED });
+  const auraMaterial = new THREE.SpriteMaterial({ name: 'light:aura', map: textures.glow, color: look.aura.colour, ...ADDED });
+  const aura = new THREE.Sprite(auraMaterial);
+  aura.name = 'light:aura';
+  aura.scale.setScalar(look.aura.size);
   const halo = new THREE.Sprite(haloMaterial);
   halo.name = 'light:halo';
   halo.scale.setScalar(look.halo.size);
@@ -188,7 +195,7 @@ export function buildLight(tier: QualityTier): LightModel {
     strokes.push(t, a, 0, t, b, 0, t, -a, 0, t, -b, 0, a, t, 0, b, t, 0, -a, t, 0, -b, t, 0);
   }
   const frameGeometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(strokes, 3));
-  const frameMaterial = new THREE.LineBasicMaterial({ name: 'light:frame', color: look.frame.colour, ...ADDED });
+  const frameMaterial = new THREE.LineBasicMaterial({ name: 'light:frame', color: new THREE.Color(look.frame.colour).multiplyScalar(look.frame.gain), ...ADDED });
   const frameLines = new THREE.LineSegments(frameGeometry, frameMaterial);
   frameLines.name = 'light:frame:lines';
   const innerGeometry = new THREE.PlaneGeometry(look.frame.inner, look.frame.inner);
@@ -215,9 +222,9 @@ export function buildLight(tier: QualityTier): LightModel {
     marks.push(Math.cos(a) * r, Math.sin(a) * r, 0, Math.cos(b) * r, Math.sin(b) * r, 0);
   }
   const dialGeometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(marks, 3));
-  const dialMaterial = new THREE.LineBasicMaterial({ name: 'light:dial', color: look.dial.colour, ...ADDED });
+  const dialMaterial = new THREE.LineBasicMaterial({ name: 'light:dial', color: new THREE.Color(look.dial.colour).multiplyScalar(look.dial.gain), ...ADDED });
   dial.add(new THREE.LineSegments(dialGeometry, dialMaterial));
-  body.add(halo, dial, frame, core);
+  body.add(aura, halo, dial, frame, core);
 
   // The traces: a ribbon per lane, laid in place each frame; and the vias on them.
   const traces = new THREE.Group();
@@ -243,7 +250,7 @@ export function buildLight(tier: QualityTier): LightModel {
       fragmentShader: TRACE_FRAGMENT,
       uniforms: {
         uColor: { value: new THREE.Color(look.traces.colour) },
-        uHot: { value: new THREE.Color(look.traces.hot) },
+        uHot: { value: new THREE.Color(look.traces.hot).multiplyScalar(look.traces.hotGain) },
         uLen: { value: 1 },
         uScale: { value: 1 },
         uTime: { value: 0 },
@@ -302,6 +309,7 @@ export function buildLight(tier: QualityTier): LightModel {
       dial.rotation.z = clock * look.dial.turn;
       coreMaterial.opacity = look.core.level * glow;
       haloMaterial.opacity = look.halo.level * glow * (0.9 + 0.1 * Math.sin(clock * 4));
+      auraMaterial.opacity = look.aura.level * glow * (0.92 + 0.08 * Math.sin(clock * look.aura.breathe));
       frameMaterial.opacity = look.frame.level * glow;
       innerMaterial.opacity = look.frame.innerLevel * glow;
       dialMaterial.opacity = look.dial.level * glow;
@@ -377,7 +385,7 @@ export function buildLight(tier: QualityTier): LightModel {
     },
     dispose() {
       for (const geometry of [frameGeometry, innerGeometry, dialGeometry, ...lanes.map((l) => l.geometry)]) geometry.dispose();
-      for (const material of [coreMaterial, haloMaterial, frameMaterial, innerMaterial, dialMaterial, ...lanes.map((l) => l.material)]) material.dispose();
+      for (const material of [coreMaterial, haloMaterial, auraMaterial, frameMaterial, innerMaterial, dialMaterial, ...lanes.map((l) => l.material)]) material.dispose();
       for (const sprite of viaSprites.flat()) (sprite.material as THREE.SpriteMaterial).dispose();
       core.geometry.dispose();
       halo.geometry.dispose();

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { buildLight, circuitOnScreen, LIGHT_LOOK, type LightModel } from '~/engine/bob/build/light';
 import { applyCameraShot } from '~/engine/bob/shots';
 import { palette } from '~/engine/palette';
-import { LANES } from '~/scene/bob/circuit';
+import { LANES, MOCK_HALF } from '~/scene/bob/circuit';
 import type { LightPose } from '~/scene/bob/journey';
 import { lightAt, trailAt, trailLevel, wayShot } from '~/scene/bob/lightDive';
 
@@ -24,6 +24,13 @@ function named<T extends THREE.Object3D>(light: LightModel, name: string): T {
   const found = light.group.getObjectByName(name);
   expect(found, name).toBeDefined();
   return found as T;
+}
+
+/** Two colours alike, channel by channel. */
+function expectColour(actual: THREE.Color, expected: THREE.Color): void {
+  expect(actual.r).toBeCloseTo(expected.r, 6);
+  expect(actual.g).toBeCloseTo(expected.g, 6);
+  expect(actual.b).toBeCloseTo(expected.b, 6);
 }
 
 /** A colour's hue and whiteness as its channels over its brightest one: the same for a colour at any strength. */
@@ -49,7 +56,7 @@ function materials(light: LightModel): THREE.Material[] {
 describe('the light', () => {
   it('builds a hot point in a square frame with pins, and a dial', () => {
     const light = buildLight('high');
-    expect(named(light, 'light:body').children.map((o) => o.name)).toEqual(['light:halo', 'light:dial', 'light:frame', 'light:core']);
+    expect(named(light, 'light:body').children.map((o) => o.name)).toEqual(['light:aura', 'light:halo', 'light:dial', 'light:frame', 'light:core']);
     // The frame: four corner brackets (two strokes each) and five pins a side.
     const frame = named<THREE.Group>(light, 'light:frame');
     const strokes = frame.children.find((o) => o.name === 'light:frame:lines') as THREE.LineSegments;
@@ -78,15 +85,55 @@ describe('the light', () => {
     light.dispose();
   });
 
-  // The harness's floor (tools/proof/needle.mjs, LUMA_GATE): on a phone's lower tier the core read 0.27-0.29 at its
-  // brightest, under the 0.3 every still of the fall must reach; the mock-up's was a hot point.
-  it('burns its core hotter than gold light, a hot point, still gold', () => {
+  // Bob (2026-10-29): "the light is a bit too light and not bright"; he picked B · Glow from the mock-ups
+  // (spec 2026-10-29-bob-stack-3-design.md, goal 3): the site's deep gold, not the pale gold light, glowing.
+  it('glows in the deep gold, B · Glow', () => {
     const light = buildLight('high');
-    light.setPose(poseAt(121), cameraAt(121), 0);
-    const core = named<THREE.Sprite>(light, 'light:core').material as THREE.SpriteMaterial;
-    expect(LIGHT_LOOK.core.gain).toBe(1.6);
-    expect(core.color.r).toBeCloseTo(new THREE.Color(palette.goldLight).r * 1.6, 6);
-    expect(isGold(core.color)).toBe(true);
+    const pose = poseAt(121);
+    light.setPose(pose, cameraAt(121), 0);
+    const gold = (k: number) => new THREE.Color(palette.gold).multiplyScalar(k);
+    const colourOf = (name: string) => (named<THREE.Object3D>(light, name) as THREE.Sprite).material as THREE.SpriteMaterial;
+    expectColour(colourOf('light:core').color, gold(3.8));
+    expectColour(colourOf('light:halo').color, gold(1));
+    expect(named<THREE.Sprite>(light, 'light:halo').scale.x).toBeCloseTo(4.2 * (1 / MOCK_HALF) * 1.5, 9);
+    const lines = (name: string) => (named<THREE.Group>(light, name).children[0] as THREE.LineSegments).material as THREE.LineBasicMaterial;
+    expectColour(lines('light:frame').color, gold(2.2));
+    expectColour(lines('light:dial').color, gold(1.8));
+    expect(lines('light:frame').opacity).toBeCloseTo(1 * pose.glow, 9);
+    expect(lines('light:dial').opacity).toBeCloseTo(1 * pose.glow, 9);
+    const trace = named<THREE.Mesh>(light, 'light:trace:0').material as THREE.ShaderMaterial;
+    expectColour(trace.uniforms.uColor!.value as THREE.Color, gold(1));
+    expectColour(trace.uniforms.uHot!.value as THREE.Color, new THREE.Color(palette.goldLight).multiplyScalar(2.4));
+    expect(LIGHT_LOOK.traces.levels).toEqual([1, 0.8, 0.8, 0.8, 0.8]);
+    const lamp = named<THREE.PointLight>(light, 'light:lamp');
+    expectColour(lamp.color, gold(1));
+    expect(lamp.intensity).toBeCloseTo(5 * pose.glow, 9);
+    for (const m of materials(light)) {
+      const colour = (m as THREE.MeshBasicMaterial).color;
+      if (colour) expect(isGold(colour), m.name).toBe(true);
+    }
+    light.dispose();
+  });
+
+  it('breathes a wide aura round it, slowly', () => {
+    const light = buildLight('high');
+    const pose = poseAt(121);
+    expect(named(light, 'light:body').children[0]!.name).toBe('light:aura');
+    const aura = named<THREE.Sprite>(light, 'light:aura');
+    expect(aura.scale.x).toBeCloseTo(4.2 * (1 / MOCK_HALF) * 3.4, 9);
+    expectColour((aura.material as THREE.SpriteMaterial).color, new THREE.Color(palette.gold));
+    // About 4 s a breath (1.6 rad/s), within 8 % of 0.34 times the glow.
+    const seen: number[] = [];
+    for (let k = 0; k < 40; k++) {
+      light.setPose(pose, cameraAt(121), k * 0.1);
+      seen.push((aura.material as THREE.SpriteMaterial).opacity / pose.glow);
+    }
+    expect(Math.max(...seen)).toBeLessThanOrEqual(0.34 * 1.0 + 1e-9);
+    expect(Math.min(...seen)).toBeGreaterThanOrEqual(0.34 * 0.84 - 1e-9);
+    expect(Math.max(...seen) - Math.min(...seen)).toBeGreaterThan(0.34 * 0.12);
+    // At glow 0 it goes with the body: not drawn at all.
+    light.setPose({ ...pose, glow: 0 }, cameraAt(121), 1);
+    expect(named(light, 'light:body').visible).toBe(false);
     light.dispose();
   });
 
