@@ -17,7 +17,7 @@
 import type { ProjectId } from '~/data/projects';
 import { type CameraShot, shotFor } from '~/engine/bob/shots';
 import { areasOnPath, chapterAt, frameOfPlace, HOME_CHAPTERS, pathStart, lookStop, riseTop, scrollEnd, stops } from '~/state/chapters';
-import { type FactAt, factAt, filamentsAt, lightAt, sparksAt, streamAt, trailAt, trailLevel, voidAt, wayNeedle, wayShot } from './lightDive';
+import { type FactAt, factAt, lightAt, streamAt, trailAt, trailLevel, voidAt, wayNeedle, wayShot } from './lightDive';
 import { type WorldFrame, worldPathFor } from './worldPath';
 import type { LightPose, VoidPose } from './poseTypes';
 import { riseAt, type ScrollPose, scrollPoseAt, smoothstep } from './scrollPose';
@@ -175,7 +175,7 @@ export function journeyPoseAt(progress: number, aspect: number): JourneyPose {
       rise,
       shot: wayShot(f, aspect),
       ignite: smoothstep(Math.min(Math.max((f - 2) / 6, 0), 1)),
-      light: { ...light, trail: trailAt(f, aspect), trailLevel: trailLevel(f), filaments: filamentsAt(f), sparks: sparksAt(f) },
+      light: { ...light, trail: trailAt(f, aspect), trailLevel: trailLevel(f) },
       fact: factAt(f),
       needle: wayNeedle(f),
       void: { ...voidAt(f, aspect), stream: streamAt(f) },

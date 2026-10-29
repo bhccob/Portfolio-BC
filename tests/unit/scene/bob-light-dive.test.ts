@@ -16,7 +16,6 @@ import {
   ringNeedle,
   ringShot,
   sizeFor,
-  sparksAt,
   trailAt,
   voidAt,
   wayNeedle,
@@ -149,41 +148,5 @@ describe('the tail (Bob, 2026-10-27): above the light as it falls, bigger and lo
         expect(top - light.y, `${aspect.toFixed(2)} frame ${f}`).toBeGreaterThan(0.4);
       }
     }
-  });
-});
-
-describe('the sparks off the tail (Bob, 2026-10-27)', () => {
-  it('are three small jagged sparks near the light, the same for the same frame, never a burst and never none', () => {
-    for (let f = 61; f <= 256; f += 0.5) {
-      const sparks = sparksAt(f);
-      expect(sparks).toHaveLength(3);
-      expect(sparksAt(f)).toEqual(sparks);
-      for (const s of sparks) {
-        expect(s.u).toBeGreaterThanOrEqual(0.04);
-        expect(s.u).toBeLessThanOrEqual(0.4);
-        expect(s.points[0]).toEqual([0, 0, 0]);
-        const reach = Math.hypot(...s.points.at(-1)!);
-        expect(reach, `frame ${f}`).toBeGreaterThan(1);
-        expect(reach, `frame ${f}`).toBeLessThan(3.5);
-        expect(s.brightness).toBeGreaterThanOrEqual(0);
-        expect(s.brightness).toBeLessThanOrEqual(1);
-      }
-      expect(sparks.filter((s) => s.brightness > 0.5).length, `frame ${f}`).toBeLessThanOrEqual(2);
-      expect(sparks.some((s) => s.brightness > 0.1), `frame ${f}`).toBe(true);
-    }
-  });
-
-  it('flashes each up and out over five frames, then jumps from another place on the tail', () => {
-    expect(sparksAt(100)[0]!.brightness).toBe(0);
-    expect(sparksAt(102.5)[0]!.brightness).toBeCloseTo(1, 9);
-    expect(sparksAt(105)[0]!.u).not.toBe(sparksAt(104.9)[0]!.u);
-  });
-
-  it('ride with the light in the fall and on its way down into the CPU, and stop once it is in', () => {
-    const aspect = 1440 / 900;
-    const pose = journeyPoseAt(placeOfFrame(121), aspect);
-    expect(pose.light?.sparks).toEqual(sparksAt(pose.at.frame!));
-    expect(makeWorldPath(aspect).frameAt(0.2).light.sparks).toHaveLength(3);
-    expect(makeWorldPath(aspect).frameAt(1.8 * LAND_HIT + 0.1).light.sparks).toEqual([]);
   });
 });

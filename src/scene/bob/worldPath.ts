@@ -30,7 +30,7 @@ import { type CameraShot, shotToward } from '~/engine/bob/shots';
 import { AREA_STOP, type Chapters, HAND_F, HOME_CHAPTERS, LAND_STOP, lookStop, pathStart, worldStop } from '~/state/chapters';
 import { aroundShot } from './around';
 import { fitDistance } from './fit';
-import { filamentsAt, lightAt, sizeFor, sparksAt, streamAt, trailAt, trailLevel, voidAt, wayShot } from './lightDive';
+import { lightAt, sizeFor, streamAt, trailAt, trailLevel, voidAt, wayShot } from './lightDive';
 import type { LightPose, VoidPose } from './poseTypes';
 import { answerShown, RING, ringLit, ringTurnFor } from './qaRing';
 import { type BoardPlace, boardCentre, boardTops, LID_TOP, STACK, stackPlaces } from './worldLayout';
@@ -95,8 +95,6 @@ export const RINGS_FOCUS = 0.42;
 
 /** How much of the screen the whole machine fills at the look back, each way from the middle, NDC, by the screen's shape. */
 export const LOOK_BOX = { desk: 0.95, phone: 0.95 } as const;
-/** The filaments' crawl: way frames of their shapes a unit of scroll. */
-const FIL_RATE = 16;
 /** The way's frames a unit of scroll in the fall (its 299 frames over 6 units). */
 const FRAMES_PER_UNIT = 299 / 6;
 
@@ -403,7 +401,6 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS): Worl
       const u = k / (COLUMN.points - 1);
       return { point: [position[0], position[1] + u * height, position[2]] as Vec3, u };
     });
-    const fil = 70 + Math.abs(((qq * FIL_RATE) % 360) - 180);
     const light: LightPose = {
       position,
       radius: hand.radius,
@@ -411,9 +408,7 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS): Worl
       stretch: 0,
       yaw: Math.atan2(-forward[0], -forward[2]),
       trail,
-      trailLevel: handTrail,
-      filaments: filamentsAt(fil),
-      sparks: landing ? sparksAt(fil) : []
+      trailLevel: handTrail
     };
     const look = s.kind === 'look' ? ease(seg(t, 0.2, 0.9)) : s.kind === 'qa' ? 1 : 0;
     // The Q&A: its place on the ring, and the stack closing over the way in.

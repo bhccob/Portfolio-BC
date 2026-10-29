@@ -1,15 +1,16 @@
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
-import { buildLight, LIGHT_LOOK, TRAIL_SIDES, type LightModel } from '~/engine/bob/build/light';
+import { buildLight, LIGHT_LOOK, type LightModel } from '~/engine/bob/build/light';
 import { applyCameraShot } from '~/engine/bob/shots';
 import { palette } from '~/engine/palette';
+import { LANES } from '~/scene/bob/circuit';
 import type { LightPose } from '~/scene/bob/journey';
-import { F, filamentsAt, lightAt, sparksAt, trailAt, trailLevel, wayShot } from '~/scene/bob/lightDive';
+import { lightAt, trailAt, trailLevel, wayShot } from '~/scene/bob/lightDive';
 
 const DESK = 1440 / 900;
 
 /** The light's pose at way frame f, as the journey gives it. */
-const poseAt = (f: number, aspect = DESK): LightPose => ({ ...lightAt(f, aspect), trail: trailAt(f, aspect), trailLevel: trailLevel(f), filaments: filamentsAt(f), sparks: sparksAt(f) });
+const poseAt = (f: number, aspect = DESK): LightPose => ({ ...lightAt(f, aspect), trail: trailAt(f, aspect), trailLevel: trailLevel(f) });
 
 /** The camera at way frame f. */
 function cameraAt(f: number, aspect = DESK): THREE.PerspectiveCamera {
@@ -42,212 +43,167 @@ function materials(light: LightModel): THREE.Material[] {
   return [...out];
 }
 
+// The falling light as a signal on a chip (spec 2026-10-29-bob-stack-2-design.md, goal 4; the fall mock-up Bob chose,
+// `circuit`): a hot point in a square frame with pins, turning slowly, a fine dial round it; its trail five circuit
+// traces with vias, pulses running down them into the light.
 describe('the light', () => {
-  it('holds its parts: the body (core, shell, halo, filaments), the trail, its sparks and the lamp', () => {
+  it('builds a hot point in a square frame with pins, and a dial', () => {
     const light = buildLight('high');
-    expect(light.group.name).toBe('light');
-    expect(light.group.children.map((o) => o.name)).toEqual(['light:body', 'light:trail', 'light:sparks', 'light:lamp']);
-    expect(named(light, 'light:body').children.map((o) => o.name)).toEqual(['light:core', 'light:shell', 'light:halo', 'light:filaments']);
-    expect(TRAIL_SIDES).toBe(10);
+    expect(named(light, 'light:body').children.map((o) => o.name)).toEqual(['light:halo', 'light:dial', 'light:frame', 'light:core']);
+    // The frame: four corner brackets (two strokes each) and five pins a side.
+    const frame = named<THREE.Group>(light, 'light:frame');
+    const strokes = frame.children.find((o) => o.name === 'light:frame:lines') as THREE.LineSegments;
+    expect(strokes.geometry.getAttribute('position').count / 2).toBe(4 * 2 + 5 * 4);
+    // The dial: 72 ticks and 72 dashes (9 of every 12 of 96).
+    const dial = named<THREE.Group>(light, 'light:dial').children[0] as THREE.LineSegments;
+    expect(dial.geometry.getAttribute('position').count / 2).toBe(72 + 72);
+    // Its sizes in its own units, the frame's half-width 1: the mock-up's metres over its 0.62.
+    expect(LIGHT_LOOK.dial.radius).toBeCloseTo(1.05 / 0.62, 12);
+    expect(LIGHT_LOOK.core.size).toBeCloseTo(2.6 / 0.62, 12);
+    for (let k = 0; k < 5; k++) named(light, `light:trace:${k}`);
+    named(light, 'light:lamp');
     light.dispose();
   });
 
   it('is gold only: every colour it draws or lights with is a gold of the palette, none violet nor whiter than gold light', () => {
     const light = buildLight('high');
-    light.setPose(poseAt(121), cameraAt(121));
+    light.setPose(poseAt(121), cameraAt(121), 1);
     for (const m of materials(light)) {
       const colour = (m as THREE.MeshBasicMaterial).color;
-      expect(isGold(colour), `${m.name}: ${colour.getHexString()}`).toBe(true);
-      for (const uniform of Object.values((m.userData.uniforms ?? {}) as Record<string, THREE.IUniform>)) {
+      if (colour) expect(isGold(colour), `${m.name}: ${colour.getHexString()}`).toBe(true);
+      for (const uniform of Object.values(((m as THREE.ShaderMaterial).uniforms ?? {}) as Record<string, THREE.IUniform>)) {
         if ((uniform.value as THREE.Color)?.isColor) expect(isGold(uniform.value as THREE.Color), `${m.name}'s uniform`).toBe(true);
       }
     }
-    expect(isGold(named<THREE.PointLight>(light, 'light:lamp').color)).toBe(true);
-    // The filaments' per-vertex colours are grey, a strength on the material's gold.
-    const fil = named<THREE.LineSegments>(light, 'light:filaments').geometry.getAttribute('color');
-    for (let i = 0; i < fil.count; i++) expect(fil.getX(i)).toBe(fil.getY(i));
     light.dispose();
   });
 
-  it('places it, sizes it, turns it with the camera and dims it with its glow (setPose)', () => {
+  it('places it, sizes it, faces the camera and dims it with its glow (setPose)', () => {
     const light = buildLight('high');
     const pose = poseAt(121);
-    light.setPose(pose, cameraAt(121));
+    const camera = cameraAt(121);
+    light.setPose(pose, camera, 0);
     const body = named(light, 'light:body');
     expect(body.position.toArray()).toEqual([...pose.position]);
-    expect(body.scale.toArray()).toEqual([pose.radius, pose.radius, pose.radius]);
-    expect(body.rotation.y).toBeCloseTo(pose.yaw, 12);
+    expect(body.scale.x).toBeCloseTo(pose.radius, 12);
+    expect(body.quaternion.angleTo(camera.quaternion)).toBeLessThan(1e-6);
     expect(body.visible).toBe(true);
-    const core = named<THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>>(light, 'light:core');
-    const coreColour = new THREE.Color(LIGHT_LOOK.core.colour).multiplyScalar(LIGHT_LOOK.core.level * pose.glow);
-    expect(core.material.color.r).toBeCloseTo(coreColour.r, 9);
-    const lamp = named<THREE.PointLight>(light, 'light:lamp');
-    expect(lamp.intensity).toBeCloseTo(LIGHT_LOOK.lamp.level * pose.glow, 9);
-    expect(lamp.position.toArray()).toEqual([...pose.position]);
+    const core = (named<THREE.Sprite>(light, 'light:core').material as THREE.SpriteMaterial).opacity;
+    light.setPose({ ...pose, glow: pose.glow * 0.5 }, camera, 0);
+    expect((named<THREE.Sprite>(light, 'light:core').material as THREE.SpriteMaterial).opacity).toBeCloseTo(core * 0.5, 9);
     light.dispose();
   });
 
-  it('stretches it along the needle as it becomes the needle: 1 + 3 s along, 1 - 0.65 s across', () => {
-    const light = buildLight('high');
-    const f = F.NEEDLE + 5;
-    const pose = poseAt(f);
-    expect(pose.stretch).toBeGreaterThan(0);
-    light.setPose(pose, cameraAt(f));
-    const body = named(light, 'light:body');
-    expect(body.scale.z).toBeCloseTo(pose.radius * (1 + 3 * pose.stretch), 12);
-    expect(body.scale.x).toBeCloseTo(pose.radius * (1 - 0.65 * pose.stretch), 12);
-    expect(body.scale.y).toBeCloseTo(pose.radius * (1 - 0.65 * pose.stretch), 12);
-    light.dispose();
-  });
-
-  it('hides the body and the trail at glow 0, and keeps the lamp in the scene at intensity 0, so the light count stays', () => {
-    const light = buildLight('high');
-    light.setPose(poseAt(1), cameraAt(1));
-    expect(poseAt(1).glow).toBe(0);
-    expect(named(light, 'light:body').visible).toBe(false);
-    expect(named(light, 'light:trail').visible).toBe(false);
-    const lamp = named<THREE.PointLight>(light, 'light:lamp');
-    expect([lamp.visible, lamp.intensity]).toEqual([true, 0]);
-    light.dispose();
-  });
-
-  it('rebuilds the trail in place each frame: the same geometry and attributes, a tapering tube of 10 sides', () => {
-    const light = buildLight('high');
-    const trail = named<THREE.Mesh>(light, 'light:trail');
-    const geometry = trail.geometry;
-    const position = geometry.getAttribute('position');
-    const points = Array.from({ length: 110 }, (_, i) => ({ point: [0, -i * 0.05, -i * 0.01] as const, u: i / 109 }));
-    const base = poseAt(150);
-    light.setPose({ ...base, trail: points, trailLevel: 1 }, cameraAt(150));
-    expect(geometry.drawRange.count).toBe(109 * TRAIL_SIDES * 6);
-    light.setPose({ ...base, trail: points.map((p) => ({ ...p, point: [p.point[0] + 0.1, p.point[1], p.point[2]] as const })), trailLevel: 1 }, cameraAt(150));
-    expect(trail.geometry).toBe(geometry);
-    expect(geometry.getAttribute('position')).toBe(position);
-    // The first ring is the trail's width at the head, the last a hair at the tail.
-    const ring = (i: number) => {
-      const c = new THREE.Vector3(points[i]!.point[0] + 0.1, points[i]!.point[1], points[i]!.point[2]);
-      return new THREE.Vector3().fromBufferAttribute(position, i * TRAIL_SIDES).distanceTo(c);
-    };
-    expect(ring(0)).toBeCloseTo(base.radius * LIGHT_LOOK.trail.width, 4);
-    expect(ring(108)).toBeLessThan(ring(0) / 50);
-    // Too short a trail draws nothing.
-    light.setPose({ ...base, trail: points.slice(0, 1), trailLevel: 1 }, cameraAt(150));
-    expect(geometry.drawRange.count).toBe(0);
-    light.dispose();
-  });
-
-  it("lays the filaments from the pose, in the light's own units, their strength the filament's brightness", () => {
+  it('lays the traces from the pose\'s trail', () => {
     const light = buildLight('high');
     const pose = poseAt(121);
-    light.setPose(pose, cameraAt(121));
-    const geometry = named<THREE.LineSegments>(light, 'light:filaments').geometry;
-    const position = geometry.getAttribute('position');
-    const colour = geometry.getAttribute('color');
-    const first = pose.filaments[0]!;
-    expect([position.getX(0), position.getY(0), position.getZ(0)]).toEqual(first.points[0]!.map((v) => Math.fround(v)));
-    expect([position.getX(1), position.getY(1), position.getZ(1)]).toEqual(first.points[1]!.map((v) => Math.fround(v)));
-    expect(colour.getX(0)).toBeCloseTo(first.brightness, 6);
+    light.setPose(pose, cameraAt(121), 0);
+    for (let k = 0; k < LANES.length; k++) {
+      const trace = named<THREE.Mesh>(light, `light:trace:${k}`);
+      expect(trace.visible, `trace ${k}`).toBe(true);
+      // Laid up the light's upright line, 24 points and a point at each turn of its routing: two triangles a step.
+      expect(trace.geometry.drawRange.count, `trace ${k}`).toBeGreaterThanOrEqual(23 * 6);
+      expect(trace.geometry.drawRange.count % 6).toBe(0);
+    }
+    // The middle trace starts at the light: by its frame, within its routing's room across (0.9 of the mock-up's metres).
+    const first = named<THREE.Mesh>(light, 'light:trace:0').geometry.getAttribute('position');
+    const at = new THREE.Vector3((first.getX(0) + first.getX(1)) / 2, (first.getY(0) + first.getY(1)) / 2, (first.getZ(0) + first.getZ(1)) / 2);
+    expect(at.distanceTo(new THREE.Vector3(...pose.position))).toBeLessThan(pose.radius + (0.9 * pose.radius) / 0.62);
+    // None with no trail.
+    light.setPose({ ...pose, trail: [] }, cameraAt(121), 0);
+    expect(named(light, 'light:trace:0').visible).toBe(false);
+    light.dispose();
+  });
+
+  it('stands its traces straight up from the light, however its tail leans', () => {
+    const light = buildLight('high');
+    const pose = poseAt(121);
+    // A tail leaning far to one side as it rises.
+    const leaning = { ...pose, trail: pose.trail.map((p, k) => ({ ...p, point: [p.point[0] + k * 0.05, p.point[1], p.point[2]] as [number, number, number] })) };
+    const camera = new THREE.PerspectiveCamera(50, DESK, 0.1, 400);
+    camera.position.set(pose.position[0], pose.position[1], pose.position[2] + 5);
+    camera.lookAt(pose.position[0], pose.position[1], pose.position[2]);
+    camera.updateMatrixWorld(true);
+    light.setPose(leaning, camera, 0);
+    const trace = named<THREE.Mesh>(light, 'light:trace:0');
+    const at = trace.geometry.getAttribute('position');
+    const room = pose.radius + (0.9 * pose.radius) / 0.62;
+    for (let v = 0; v < trace.geometry.drawRange.count / 3; v++) expect(Math.abs(at.getX(v) - pose.position[0]), `vertex ${v}`).toBeLessThan(room);
+    // As tall as the tail.
+    const top = Math.max(...pose.trail.map((p) => p.point[1]));
+    let highest = -Infinity;
+    for (let v = 0; v < at.count; v++) if (v < (trace.geometry.drawRange.count / 6 + 1) * 2) highest = Math.max(highest, at.getY(v));
+    expect(highest).toBeCloseTo(top, 1);
+    light.dispose();
+  });
+
+  it('turns the frame and the dial on the clock', () => {
+    const light = buildLight('high');
+    light.setPose(poseAt(121), cameraAt(121), 0);
+    expect(named(light, 'light:frame').rotation.z).toBe(0);
+    light.setPose(poseAt(121), cameraAt(121), 2);
+    expect(named(light, 'light:frame').rotation.z).toBeCloseTo(2 * LIGHT_LOOK.frame.turn, 12);
+    expect(named(light, 'light:dial').rotation.z).toBeCloseTo(2 * LIGHT_LOOK.dial.turn, 12);
+    expect([LIGHT_LOOK.frame.turn, LIGHT_LOOK.dial.turn]).toEqual([0.35, -0.12]);
+    light.dispose();
+  });
+
+  it('hides at glow 0, and keeps the lamp in the scene at intensity 0, so the light count stays', () => {
+    const light = buildLight('high');
+    light.setPose({ ...poseAt(121), glow: 0 }, cameraAt(121), 0);
+    expect(named(light, 'light:body').visible).toBe(false);
+    for (let k = 0; k < LANES.length; k++) expect(named(light, `light:trace:${k}`).visible).toBe(false);
+    const lamp = named<THREE.PointLight>(light, 'light:lamp');
+    expect(lamp.parent).toBe(light.group);
+    expect(lamp.intensity).toBe(0);
     light.dispose();
   });
 
   it('writes no depth anywhere, and takes no ray', () => {
     const light = buildLight('high');
-    light.setPose(poseAt(121), cameraAt(121));
-    for (const m of materials(light)) {
-      expect(m.depthWrite, m.name).toBe(false);
-      expect(m.blending, m.name).toBe(THREE.AdditiveBlending);
-    }
-    light.group.updateMatrixWorld(true);
-    const camera = cameraAt(121);
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-    raycaster.camera = camera;
-    expect(raycaster.intersectObject(light.group, true)).toHaveLength(0);
+    for (const m of materials(light)) expect(m.depthWrite, m.name).toBe(false);
+    const hits: THREE.Intersection[] = [];
+    const ray = new THREE.Raycaster(new THREE.Vector3(0, 0, 10), new THREE.Vector3(0, 0, -1));
+    light.setPose(poseAt(121), cameraAt(121), 0);
+    light.group.traverse((o) => o.raycast(ray, hits));
+    expect(hits).toEqual([]);
     light.dispose();
   });
 
-  it('draws the sparks off the tail in the world, each where it jumps from, and none with no tail or on the low tier', () => {
+  it('drops the vias on the low tier, and never takes them back', () => {
     const light = buildLight('high');
-    const pose = poseAt(150);
-    light.setPose(pose, cameraAt(150));
-    const sparks = named<THREE.LineSegments>(light, 'light:sparks');
-    expect(sparks.visible).toBe(true);
-    const position = sparks.geometry.getAttribute('position');
-    const colour = sparks.geometry.getAttribute('color');
-    // The first spark's first segment: from the tail's point where it jumps, out along its own shape in the light's radius.
-    const first = pose.sparks[0]!;
-    const from = pose.trail.find((t) => t.u >= first.u)!.point;
-    for (let i = 0; i < 3; i++) {
-      expect(position.getComponent(0, i)).toBeCloseTo(from[i]!, 5);
-      expect(position.getComponent(1, i)).toBeCloseTo(from[i]! + first.points[1]![i]! * pose.radius, 5);
-    }
-    expect(colour.getX(0)).toBeCloseTo(first.brightness, 5);
-    expect(colour.getX(0)).toBe(colour.getY(0));
-    // No tail, no sparks; and none on the low tier, for good.
-    light.setPose({ ...pose, trailLevel: 0 }, cameraAt(150));
-    expect(sparks.visible).toBe(false);
-    light.setPose(pose, cameraAt(150));
+    light.setPose(poseAt(121), cameraAt(121), 0);
+    const vias = named(light, 'light:vias');
     light.setTier('low');
-    light.setPose(pose, cameraAt(150));
-    expect(sparks.visible).toBe(false);
-    light.dispose();
-  });
-
-  it('drops its filaments on the low tier, and never takes them back', () => {
-    const light = buildLight('high');
-    light.setTier('low');
-    light.setPose(poseAt(121), cameraAt(121));
-    expect(named(light, 'light:filaments').visible).toBe(false);
+    light.setPose(poseAt(121), cameraAt(121), 0);
+    expect(vias.visible).toBe(false);
     light.setTier('high');
-    light.setPose(poseAt(121), cameraAt(121));
-    expect(named(light, 'light:filaments').visible).toBe(false);
+    light.setPose(poseAt(121), cameraAt(121), 0);
+    expect(vias.visible).toBe(false);
     light.dispose();
   });
 
   it('frees every geometry, material and texture it made', () => {
     const light = buildLight('high');
-    const parts = new Set<{ dispose(): void }>();
+    const spies: ReturnType<typeof vi.fn>[] = [];
     light.group.traverse((o) => {
-      const drawn = o as THREE.Mesh;
-      if (drawn.geometry && !(o as THREE.Sprite).isSprite) parts.add(drawn.geometry);
-      for (const m of [drawn.material].flat() as (THREE.Material & { map?: THREE.Texture | null })[]) {
-        if (!m) continue;
-        parts.add(m);
-        if (m.map) parts.add(m.map);
-      }
+      const mesh = o as THREE.Mesh;
+      if (mesh.geometry) spies.push(vi.spyOn(mesh.geometry, 'dispose') as unknown as ReturnType<typeof vi.fn>);
     });
-    // Core, shell, trail, filaments and sparks: a geometry and a material each; the halo's material and texture.
-    expect(parts.size).toBe(5 * 2 + 2);
-    const spies = [...parts].map((part) => vi.spyOn(part, 'dispose'));
+    for (const m of materials(light)) spies.push(vi.spyOn(m, 'dispose') as unknown as ReturnType<typeof vi.fn>);
     light.dispose();
+    expect(spies.length).toBeGreaterThan(10);
     for (const spy of spies) expect(spy).toHaveBeenCalled();
   });
 });
 
 describe("the light's shaders", () => {
-  /** Runs a material's patch on three's basic shader, as three's renderer would. */
-  const patched = (m: THREE.Material) => {
-    const shader = { uniforms: {} as Record<string, THREE.IUniform>, vertexShader: THREE.ShaderLib.basic.vertexShader, fragmentShader: THREE.ShaderLib.basic.fragmentShader };
-    m.onBeforeCompile(shader as never, {} as never);
-    return shader;
-  };
-
-  it("patch the shell's rim and the trail's fade into three's own shader, every power's base held to 0..1, each a program of its own", () => {
+  it("fade the traces up from the light and run their pulses with no power that could be NaN", () => {
     const light = buildLight('high');
-    const shell = patched(named<THREE.Mesh<THREE.BufferGeometry, THREE.Material>>(light, 'light:shell').material);
-    const trailMaterial = named<THREE.Mesh<THREE.BufferGeometry, THREE.Material>>(light, 'light:trail').material;
-    const trail = patched(trailMaterial);
-    for (const shader of [shell, trail]) {
-      expect(shader.fragmentShader).toContain('diffuseColor.a *=');
-      for (const chunk of ['#include <tonemapping_fragment>', '#include <colorspace_fragment>']) expect(shader.fragmentShader).toContain(chunk);
-      const patch = shader.fragmentShader.slice(shader.fragmentShader.indexOf('#include <color_fragment>'));
-      for (const base of patch.matchAll(/pow\(\s*(\w+)/g)) expect(['clamp', 'trailFacing'], base[0]).toContain(base[1]);
-    }
-    expect(trail.vertexShader).toContain('attribute float aAge;');
-    expect(trail.fragmentShader).toContain('uniform vec3 uHead;');
-    expect(trail.uniforms.uHead).toBe((trailMaterial.userData.uniforms as Record<string, THREE.IUniform>).uHead);
-    expect(named<THREE.Mesh<THREE.BufferGeometry, THREE.Material>>(light, 'light:shell').material.customProgramCacheKey()).toBe('bob-light-shell');
-    expect(trailMaterial.customProgramCacheKey()).toBe('bob-light-trail');
+    const trace = named<THREE.Mesh>(light, 'light:trace:0').material as THREE.ShaderMaterial;
+    expect(trace.fragmentShader).toMatch(/exp\(-vAbove \/ uLen\)/);
+    expect(trace.fragmentShader).toMatch(/fract\(/);
+    expect(trace.fragmentShader).not.toMatch(/pow\(/);
     light.dispose();
   });
 });

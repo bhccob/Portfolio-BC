@@ -1,57 +1,49 @@
 /**
- * The falling light as one three.js object (spec 2026-10-25-bob-light-dive-design.md: the compass's needle becomes a
- * light that falls through the glass into the void, the facts riding beside it, and at the ring it becomes the needle
- * again). Its parts are the previs's (tools/blender/light_dive.py, "the light: core, shell, halo, filaments, glow"):
- * a hot core; a glassy shell, its rim bright and its face faint; a halo facing the camera; thin filaments crawling round
- * it; a tapered trail of where it passed; and a warm lamp. Gold only: the palette's gold and gold light, strong enough
- * that the tone mapping and the bloom whiten the core as the previs's AgX did. No React: the Opening (Task 8) mounts it
- * with the void and poses it from the journey each frame.
+ * The falling light as one three.js object, a signal on a chip (spec 2026-10-29-bob-stack-2-design.md, goal 4: "give the
+ * light a better design in general and also the trail like it belongs to the tech domain"; the fall mock-up Bob chose,
+ * `circuit`): a hot point inside a small square frame with corner brackets and pins on each side, turning slowly, and a
+ * fine dial of ticks round it; its trail five circuit traces routed beside its way (src/scene/bob/circuit.ts), straight
+ * runs that jog at 45°, a via at each jog's end, bright pulses running down them into the light. Gold only: the palette's
+ * gold and gold light, strong enough that the tone mapping and the bloom whiten the hot point. No React: the Void poses it
+ * from the journey each frame.
  *
- * Nothing in it writes depth or takes a ray: it is light added to what is behind (additive), so it never hides a bead
- * and the pointer picks through it. Its body (core, shell, halo, filaments) is in the light's own units, a radius of
- * 1, posed by `setPose` to the light's place, size, turn and stretch; the trail is in the world, rebuilt in place each
- * frame from the journey's points. The lamp stands apart from the body and is never hidden, only dimmed, so the
- * scene's light count stays the same from the first frame to the last (three compiles every lit material for it).
+ * Nothing in it writes depth or takes a ray: it is light added to what is behind (additive), so it never hides a project
+ * and the pointer picks through it. Its body is in the light's own units, the frame's half-width 1, posed by `setPose` to
+ * the light's place and size, facing the camera; the traces are in the world, laid in place each frame from the
+ * journey's trail. The lamp stands apart from the body and is never hidden, only dimmed, so the scene's light count stays
+ * the same from the first frame to the last (three compiles every lit material for it).
  */
 import * as THREE from 'three';
 import { clamp01 } from '~/engine/bob/build/haze';
 import { palette } from '~/engine/palette';
 import { lowerTier, type QualityTier } from '~/engine/quality';
-
+import { circuitLanes, LANES, MOCK_HALF } from '~/scene/bob/circuit';
 import type { LightPose } from '~/scene/bob/journey';
-import { filamentsAt, SPARK_N, SPARK_PTS } from '~/scene/bob/lightDive';
 
-/** The trail tube's sides, the previs's. */
-export const TRAIL_SIDES = 10;
-
-/** The most points a trail holds: the previs's 110 frames of memory, and the light's own place. */
-const TRAIL_RINGS = 111;
+/** The mock-up's metres in the light's own units (its frame's half-width, 0.62 m there). */
+const M = 1 / MOCK_HALF;
 
 /**
- * How the light looks, in its own units (a radius of 1) and the palette's golds; each `level` is its strength at a glow
- * of 1, the previs's own weights taken to the site's tone mapping. Starting values, matched by eye to the mock-up's
- * frames (Task 8) and held by the harness's luminance gate (Task 13).
- * - `core`: a sphere of `radius`, flat gold light, the white-hot middle once the bloom has it.
- * - `shell`: the sphere of radius 1, its rim `rim.weight` times the face's angle to the power `rim.power`, and `rim.face`
- *   over its whole face.
- * - `halo`: a sprite `radius` across each way from the middle, its light falling as (1 - r) to the power `fall`.
- * - `filaments`: the journey's threads round the light, each at its brightness.
- * - `trail`: a tube `width` wide at the light, narrowing as `(1 - u)` to the power `taper` toward its tail; its light
- *   falls with its age as `(1 - u)` to the power `age` and toward its edges as the face's angle to the power `core`; gold
- *   light at its head, gold from `head` of the way on.
- * - `sparks`: the journey's sparks off the trail, thin lines like the filaments in gold light, each from the trail's
- *   point where it jumps, `level` times its brightness and the trail's level.
- * - `lamp`: a point light in gold light, `distance` its reach.
- * - `stretch`: as it becomes the needle the body is drawn out `along` times its stretch along the needle's axis (three's
- *   z: the previs's y), and thinned `across` times it across.
+ * How the light looks, in its own units (the frame's half-width 1), the mock-up's sizes over its 0.62 m:
+ * - `core`: the hot point, a sprite `size` across in gold light, `level` its strength;
+ * - `halo`: a soft sprite `size` across in gold, breathing a little;
+ * - `frame`: corner brackets `corner` long at the half-width 1, five pins a side `pin` apart from `pinFrom` to `pinTo`
+ *   out, a faint square `inner` across inside; turning `turn` rad/s about its face;
+ * - `dial`: 72 ticks at `radius`, every `long`th longer, and a dashed ring at `dash`, 9 of every 12 of 96; turning `turn`;
+ * - `traces`: the lanes' gold, their pulses' gold light, each lane's light (the middle brighter), at most `capacity`
+ *   points a lane;
+ * - `vias`: a small ring with a dot, `size` (and four times a lane's width more) across in the mock-up's metres, at most
+ *   `most` a lane;
+ * - `lamp`: a point light in gold light, `distance` its reach;
+ * - `stretch`: drawn out along its axis as it becomes the needle (`along` times its stretch), thinned `across` times it.
  */
 export const LIGHT_LOOK = {
-  core: { radius: 0.32, colour: palette.goldLight, level: 14, segments: [32, 16] as const },
-  shell: { colour: palette.gold, level: 1.4, rim: { power: 2.2, weight: 0.85, face: 0.12 }, segments: [48, 24] as const },
-  halo: { radius: 4, colour: palette.gold, level: 0.35, fall: 3.2 },
-  filaments: { colour: palette.goldLight, level: 2.2 },
-  trail: { width: 1.5, taper: 1, colour: palette.gold, headColour: palette.goldLight, head: 0.3, level: 0.55, age: 2.2, core: 6 },
-  sparks: { colour: palette.goldLight, level: 2.4 },
+  core: { size: 2.6 * M, colour: palette.goldLight, level: 1 },
+  halo: { size: 4.2 * M, colour: palette.gold, level: 0.42 },
+  frame: { corner: 0.22 * M, pin: 0.16 * M, pinFrom: 1 + 0.06 * M, pinTo: 1 + 0.2 * M, inner: 1.2, colour: palette.goldLight, level: 0.85, innerLevel: 0.1, turn: 0.35 },
+  dial: { radius: 1.05 * M, long: 6, longLength: 0.14 * M, shortLength: 0.06 * M, dash: 0.94 * M, colour: palette.gold, level: 0.6, turn: -0.12 },
+  traces: { colour: palette.gold, hot: palette.goldLight, levels: [0.9, 0.55, 0.55, 0.55, 0.55] as const, capacity: 400 },
+  vias: { size: 0.12, colour: palette.goldLight, level: 0.75, most: 24 },
   lamp: { colour: palette.goldLight, level: 2, distance: 8 },
   stretch: { along: 3, across: 0.65 }
 } as const;
@@ -59,19 +51,18 @@ export const LIGHT_LOOK = {
 /** The light as the scene holds it. */
 export interface LightModel {
   /**
-   * `light`: `light:body` (`light:core`, `light:shell`, `light:halo`, `light:filaments`), `light:trail` and
-   * `light:lamp`, in that order. It builds dark: the body and the trail hidden, the lamp at 0.
+   * `light`: `light:body` (`light:halo`, `light:dial`, `light:frame`, `light:core`), `light:traces` (`light:trace:<k>`),
+   * `light:vias` and `light:lamp`. It builds dark: the body and the traces hidden, the lamp at 0.
    */
   group: THREE.Group;
   /**
    * Poses the light at the journey's `pose` (src/scene/bob/journey.ts `LightPose`): the body at its place, `radius` in
-   * size, turned by the camera's `yaw`, drawn out along the needle by its `stretch`, every part's strength times its
-   * `glow` (at 0 the body and the trail are hidden, the lamp at 0); the filaments laid from its `filaments`; the trail
-   * rebuilt in place from its `trail`, at its `trailLevel`. The camera is the one the frame is drawn from: the halo, a
-   * sprite, faces it of itself, and the shaders read the view from it.
+   * size, facing the camera, drawn out along its axis by its `stretch`, every part's strength times its `glow` (at 0 the
+   * body and the traces are hidden, the lamp at 0); the traces laid from its `trail` at its `trailLevel`, beside it as the
+   * camera sees it. `clock` (s) turns the frame and the dial and runs the pulses.
    */
-  setPose(pose: LightPose, camera: THREE.Camera): void;
-  /** Steps the light down to `tier`'s: the low tier drops the filaments, and nothing climbs back. */
+  setPose(pose: LightPose, camera: THREE.Camera, clock?: number): void;
+  /** Steps the light down to `tier`'s: the low tier drops the vias, and nothing climbs back. */
   setTier(tier: QualityTier): void;
   /** Frees every geometry, material and texture the light made. */
   dispose(): void;
@@ -82,21 +73,13 @@ function ignoreRays(object: THREE.Object3D): void {
   object.raycast = () => {};
 }
 
-/** A number as a GLSL float literal, to three places. */
-function glsl(n: number): string {
-  return n.toFixed(3);
-}
-
-/**
- * The halo's texture: white, its alpha falling from the middle to the edge as (1 - r) to the power `LIGHT_LOOK.halo.fall`
- * (the previs's halo), made on the CPU with no canvas, so the node tests build it.
- */
-function haloTexture(size: number): THREE.DataTexture {
+/** A white texture `size` across whose alpha at each pixel is `alpha(x, y)`, x and y -1..1 from the middle. */
+function made(size: number, alpha: (x: number, y: number) => number): THREE.DataTexture {
   const data = new Uint8Array(size * size * 4);
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const r = Math.min(1, Math.hypot(x / (size - 1) - 0.5, y / (size - 1) - 0.5) * 2);
-      data.set([255, 255, 255, Math.round(255 * Math.pow(1 - r, LIGHT_LOOK.halo.fall))], (y * size + x) * 4);
+  for (let j = 0; j < size; j++) {
+    for (let i = 0; i < size; i++) {
+      const a = Math.min(1, Math.max(0, alpha((i / (size - 1)) * 2 - 1, (j / (size - 1)) * 2 - 1)));
+      data.set([255, 255, 255, Math.round(255 * a)], (j * size + i) * 4);
     }
   }
   const texture = new THREE.DataTexture(data, size, size);
@@ -110,55 +93,49 @@ function haloTexture(size: number): THREE.DataTexture {
 /** Additive light that writes no depth: what every part of the light is drawn with. */
 const ADDED = { transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: true, fog: false } as const;
 
-/**
- * The shell's rim: a face looking squarely at the camera is faint and one at the silhouette bright, so it reads as a
- * glassy sphere with no hard edge. The base of the power is held to 0..1, so no fragment is ever NaN.
- */
-function patchShell(shader: { vertexShader: string; fragmentShader: string }): void {
-  const { power, weight, face } = LIGHT_LOOK.shell.rim;
-  const varyings = 'varying vec3 vRimNormal;\nvarying vec3 vRimView;';
-  shader.vertexShader = shader.vertexShader
-    .replace('#include <common>', `#include <common>\n${varyings}`)
-    .replace('#include <project_vertex>', '#include <project_vertex>\n\tvRimNormal = normalize( normalMatrix * normal );\n\tvRimView = - mvPosition.xyz;');
-  shader.fragmentShader = shader.fragmentShader
-    .replace('#include <common>', `#include <common>\n${varyings}`)
-    .replace(
-      '#include <color_fragment>',
-      `#include <color_fragment>\n\tfloat rimFacing = clamp( abs( dot( normalize( vRimNormal ), normalize( vRimView ) ) ), 0.0, 1.0 );\n\tdiffuseColor.a *= ${glsl(weight)} * pow( clamp( 1.0 - rimFacing, 0.0, 1.0 ), ${glsl(power)} ) + ${glsl(face)};`
-    );
-}
+const TRACE_VERTEX = /* glsl */ `
+  attribute float aAbove;
+  attribute float aSide;
+  varying float vAbove;
+  varying float vSide;
+  void main() {
+    vAbove = aAbove;
+    vSide = aSide;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
 
 /**
- * The trail's light: gold light at its head turning gold `head` of the way back, falling with its age (`aAge`, 0 at the
- * light, 1 at its tail) and toward the tube's edges, so it is a soft streak with no outline.
+ * A trace's light: gold, a little brighter down its middle, fading up the way from the light (\`uLen\`), packets of gold
+ * light running down it into the light (spaced in the mock-up's metres, \`uScale\` site metres each).
  */
-function patchTrail(uniforms: { uHead: THREE.IUniform<THREE.Color> }) {
-  return (shader: { uniforms: Record<string, THREE.IUniform>; vertexShader: string; fragmentShader: string }): void => {
-    const { age, core, head } = LIGHT_LOOK.trail;
-    shader.uniforms.uHead = uniforms.uHead;
-    const varyings = 'varying vec3 vTrailNormal;\nvarying vec3 vTrailView;\nvarying float vTrailAge;';
-    shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', `#include <common>\nattribute float aAge;\n${varyings}`)
-      .replace(
-        '#include <project_vertex>',
-        '#include <project_vertex>\n\tvTrailNormal = normalize( normalMatrix * normal );\n\tvTrailView = - mvPosition.xyz;\n\tvTrailAge = aAge;'
-      );
-    shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', `#include <common>\nuniform vec3 uHead;\n${varyings}`)
-      .replace(
-        '#include <color_fragment>',
-        `#include <color_fragment>\n\tfloat trailAge = clamp( vTrailAge, 0.0, 1.0 );\n\tdiffuseColor.rgb = mix( uHead, diffuseColor.rgb, smoothstep( 0.0, ${glsl(head)}, trailAge ) );\n\tfloat trailFacing = clamp( abs( dot( normalize( vTrailNormal ), normalize( vTrailView ) ) ), 0.0, 1.0 );\n\tdiffuseColor.a *= pow( clamp( 1.0 - trailAge, 0.0, 1.0 ), ${glsl(age)} ) * pow( trailFacing, ${glsl(core)} );`
-      );
-  };
-}
+const TRACE_FRAGMENT = /* glsl */ `
+  uniform vec3 uColor;
+  uniform vec3 uHot;
+  uniform float uLen;
+  uniform float uScale;
+  uniform float uTime;
+  uniform float uLevel;
+  uniform float uPhase;
+  varying float vAbove;
+  varying float vSide;
+  void main() {
+    float fade = exp(-vAbove / uLen);
+    float packet = smoothstep(0.9, 1.0, fract(vAbove / uScale * 0.07 + uTime * 0.55 + uPhase));
+    float edge = 1.0 - abs(vSide) * 0.5;
+    vec3 c = uColor * (0.32 + 0.22 * edge) + uHot * packet * 1.8;
+    gl_FragColor = vec4(c * fade * uLevel, 1.0);
+  }
+`;
 
-// Scratch for the trail's frames: nothing is made per frame.
-const tangent = new THREE.Vector3();
-const normal = new THREE.Vector3();
-const binormal = new THREE.Vector3();
-const aside = new THREE.Vector3();
-const a = new THREE.Vector3();
-const b = new THREE.Vector3();
+// Scratch for the traces: nothing is made per frame.
+/** The upright line the traces are laid beside: this many points from the light up. */
+const UPRIGHT = 24;
+const upright: { point: [number, number, number]; u: number }[] = Array.from({ length: UPRIGHT }, () => ({ point: [0, 0, 0], u: 0 }));
+const toCamera = new THREE.Vector3();
+const along = new THREE.Vector3();
+const across = new THREE.Vector3();
+const rightOf = new THREE.Vector3();
 
 /** Builds the light for `tier`, dark. */
 export function buildLight(tier: QualityTier): LightModel {
@@ -169,230 +146,244 @@ export function buildLight(tier: QualityTier): LightModel {
   const body = new THREE.Group();
   body.name = 'light:body';
   body.visible = false;
+  const textures = {
+    core: made(128, (x, y) => {
+      const r = Math.hypot(x, y);
+      return r < 0.035 ? 1 : r < 0.09 ? 1 - ((r - 0.035) / 0.055) * 0.5 : r < 0.22 ? 0.5 - ((r - 0.09) / 0.13) * 0.39 : Math.max(0, 0.11 * (1 - (r - 0.22) / 0.78));
+    }),
+    glow: made(64, (x, y) => Math.pow(Math.max(0, 1 - Math.hypot(x, y)), 2.4)),
+    // A via: a small ring with a dot.
+    via: made(64, (x, y) => {
+      const r = Math.hypot(x, y);
+      return Math.abs(r - 0.62) < 0.08 ? 1 : r < 0.19 ? 0.8 : 0;
+    })
+  };
 
-  const coreGeometry = new THREE.SphereGeometry(look.core.radius, look.core.segments[0], look.core.segments[1]);
-  const coreMaterial = new THREE.MeshBasicMaterial({ name: 'light:core', color: look.core.colour, ...ADDED });
-  const core = new THREE.Mesh(coreGeometry, coreMaterial);
+  const coreMaterial = new THREE.SpriteMaterial({ name: 'light:core', map: textures.core, color: look.core.colour, ...ADDED });
+  const core = new THREE.Sprite(coreMaterial);
   core.name = 'light:core';
-
-  const shellGeometry = new THREE.SphereGeometry(1, look.shell.segments[0], look.shell.segments[1]);
-  const shellMaterial = new THREE.MeshBasicMaterial({ name: 'light:shell', color: look.shell.colour, ...ADDED });
-  shellMaterial.onBeforeCompile = patchShell;
-  shellMaterial.customProgramCacheKey = () => 'bob-light-shell';
-  const shell = new THREE.Mesh(shellGeometry, shellMaterial);
-  shell.name = 'light:shell';
-
-  const haloMap = haloTexture(64);
-  const haloMaterial = new THREE.SpriteMaterial({ name: 'light:halo', map: haloMap, color: look.halo.colour, ...ADDED });
+  core.scale.setScalar(look.core.size);
+  const haloMaterial = new THREE.SpriteMaterial({ name: 'light:halo', map: textures.glow, color: look.halo.colour, ...ADDED });
   const halo = new THREE.Sprite(haloMaterial);
   halo.name = 'light:halo';
-  halo.scale.set(2 * look.halo.radius, 2 * look.halo.radius, 1);
+  halo.scale.setScalar(look.halo.size);
 
-  // The filaments: one draw of every thread's segments, each vertex's strength a grey on the material's gold.
-  const filamentCount = filamentsAt(1).length;
-  const filamentPoints = filamentsAt(1)[0]!.points.length;
-  const segments = filamentCount * (filamentPoints - 1);
-  const filamentPositions = new THREE.BufferAttribute(new Float32Array(segments * 2 * 3), 3);
-  filamentPositions.setUsage(THREE.DynamicDrawUsage);
-  const filamentColours = new THREE.BufferAttribute(new Float32Array(segments * 2 * 3), 3);
-  filamentColours.setUsage(THREE.DynamicDrawUsage);
-  const filamentGeometry = new THREE.BufferGeometry();
-  filamentGeometry.setAttribute('position', filamentPositions);
-  filamentGeometry.setAttribute('color', filamentColours);
-  const filamentMaterial = new THREE.LineBasicMaterial({ name: 'light:filaments', color: look.filaments.colour, vertexColors: true, ...ADDED });
-  const filaments = new THREE.LineSegments(filamentGeometry, filamentMaterial);
-  filaments.name = 'light:filaments';
-  filaments.frustumCulled = false;
-
-  // The trail: a tube of TRAIL_RINGS rings at most, its places, normals and ages written in place each frame.
-  const trailPositions = new THREE.BufferAttribute(new Float32Array(TRAIL_RINGS * TRAIL_SIDES * 3), 3);
-  trailPositions.setUsage(THREE.DynamicDrawUsage);
-  const trailNormals = new THREE.BufferAttribute(new Float32Array(TRAIL_RINGS * TRAIL_SIDES * 3), 3);
-  trailNormals.setUsage(THREE.DynamicDrawUsage);
-  const trailAges = new THREE.BufferAttribute(new Float32Array(TRAIL_RINGS * TRAIL_SIDES), 1);
-  trailAges.setUsage(THREE.DynamicDrawUsage);
-  const index: number[] = [];
-  for (let i = 0; i < TRAIL_RINGS - 1; i++) {
-    for (let s = 0; s < TRAIL_SIDES; s++) {
-      const s1 = (s + 1) % TRAIL_SIDES;
-      const p = i * TRAIL_SIDES;
-      const q = (i + 1) * TRAIL_SIDES;
-      index.push(p + s, p + s1, q + s1, p + s, q + s1, q + s);
-    }
+  // The frame: corner brackets, five pins a side, a faint square inside; it turns about its face.
+  const frame = new THREE.Group();
+  frame.name = 'light:frame';
+  const strokes: number[] = [];
+  const c = look.frame.corner;
+  for (const [sx, sy] of [
+    [-1, -1],
+    [1, -1],
+    [1, 1],
+    [-1, 1]
+  ] as const) {
+    strokes.push(sx, sy, 0, sx * (1 - c), sy, 0, sx, sy, 0, sx, sy * (1 - c), 0);
   }
-  const trailGeometry = new THREE.BufferGeometry();
-  trailGeometry.setAttribute('position', trailPositions);
-  trailGeometry.setAttribute('normal', trailNormals);
-  trailGeometry.setAttribute('aAge', trailAges);
-  trailGeometry.setIndex(index);
-  trailGeometry.setDrawRange(0, 0);
-  const trailUniforms = { uHead: { value: new THREE.Color(look.trail.headColour) } };
-  const trailMaterial = new THREE.MeshBasicMaterial({ name: 'light:trail', color: look.trail.colour, side: THREE.DoubleSide, ...ADDED });
-  trailMaterial.userData.uniforms = trailUniforms;
-  trailMaterial.onBeforeCompile = patchTrail(trailUniforms);
-  trailMaterial.customProgramCacheKey = () => 'bob-light-trail';
-  const trail = new THREE.Mesh(trailGeometry, trailMaterial);
-  trail.name = 'light:trail';
-  trail.frustumCulled = false;
-  trail.visible = false;
+  for (let i = -2; i <= 2; i++) {
+    const t = i * look.frame.pin;
+    const [a, b] = [look.frame.pinFrom, look.frame.pinTo];
+    strokes.push(t, a, 0, t, b, 0, t, -a, 0, t, -b, 0, a, t, 0, b, t, 0, -a, t, 0, -b, t, 0);
+  }
+  const frameGeometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(strokes, 3));
+  const frameMaterial = new THREE.LineBasicMaterial({ name: 'light:frame', color: look.frame.colour, ...ADDED });
+  const frameLines = new THREE.LineSegments(frameGeometry, frameMaterial);
+  frameLines.name = 'light:frame:lines';
+  const innerGeometry = new THREE.PlaneGeometry(look.frame.inner, look.frame.inner);
+  const innerMaterial = new THREE.MeshBasicMaterial({ name: 'light:frame:inner', color: palette.gold, ...ADDED, side: THREE.DoubleSide });
+  const inner = new THREE.Mesh(innerGeometry, innerMaterial);
+  inner.name = 'light:frame:inner';
+  frame.add(frameLines, inner);
+
+  // The dial: 72 ticks, every sixth longer, and a dashed ring inside them.
+  const dial = new THREE.Group();
+  dial.name = 'light:dial';
+  const marks: number[] = [];
+  const R = look.dial.radius;
+  for (let i = 0; i < 72; i++) {
+    const a = (i / 72) * Math.PI * 2;
+    const l = i % look.dial.long === 0 ? look.dial.longLength : look.dial.shortLength;
+    marks.push(Math.cos(a) * R, Math.sin(a) * R, 0, Math.cos(a) * (R + l), Math.sin(a) * (R + l), 0);
+  }
+  for (let i = 0; i < 96; i++) {
+    if (i % 12 >= 9) continue;
+    const a = (i / 96) * Math.PI * 2;
+    const b = ((i + 0.5) / 96) * Math.PI * 2;
+    const r = look.dial.dash;
+    marks.push(Math.cos(a) * r, Math.sin(a) * r, 0, Math.cos(b) * r, Math.sin(b) * r, 0);
+  }
+  const dialGeometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(marks, 3));
+  const dialMaterial = new THREE.LineBasicMaterial({ name: 'light:dial', color: look.dial.colour, ...ADDED });
+  dial.add(new THREE.LineSegments(dialGeometry, dialMaterial));
+  body.add(halo, dial, frame, core);
+
+  // The traces: a ribbon per lane, laid in place each frame; and the vias on them.
+  const traces = new THREE.Group();
+  traces.name = 'light:traces';
+  const cap = look.traces.capacity;
+  const lanes = LANES.map((_, k) => {
+    const positions = new THREE.BufferAttribute(new Float32Array(cap * 2 * 3), 3);
+    positions.setUsage(THREE.DynamicDrawUsage);
+    const aboves = new THREE.BufferAttribute(new Float32Array(cap * 2), 1);
+    aboves.setUsage(THREE.DynamicDrawUsage);
+    const sides = new THREE.BufferAttribute(new Float32Array(Array.from({ length: cap * 2 }, (_, v) => (v % 2 === 0 ? -1 : 1))), 1);
+    const index: number[] = [];
+    for (let i = 0; i < cap - 1; i++) index.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2);
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', positions);
+    geometry.setAttribute('aAbove', aboves);
+    geometry.setAttribute('aSide', sides);
+    geometry.setIndex(index);
+    geometry.setDrawRange(0, 0);
+    const material = new THREE.ShaderMaterial({
+      name: `light:trace:${k}`,
+      vertexShader: TRACE_VERTEX,
+      fragmentShader: TRACE_FRAGMENT,
+      uniforms: {
+        uColor: { value: new THREE.Color(look.traces.colour) },
+        uHot: { value: new THREE.Color(look.traces.hot) },
+        uLen: { value: 1 },
+        uScale: { value: 1 },
+        uTime: { value: 0 },
+        uLevel: { value: 0 },
+        uPhase: { value: k * 0.37 }
+      },
+      ...ADDED,
+      side: THREE.DoubleSide
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = `light:trace:${k}`;
+    mesh.frustumCulled = false;
+    mesh.visible = false;
+    traces.add(mesh);
+    return { mesh, geometry, positions, aboves, material };
+  });
+  const vias = new THREE.Group();
+  vias.name = 'light:vias';
+  const viaSprites = LANES.map(() =>
+    Array.from({ length: look.vias.most }, () => {
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ name: 'light:via', map: textures.via, color: look.vias.colour, opacity: 0, ...ADDED }));
+      sprite.visible = false;
+      vias.add(sprite);
+      return sprite;
+    })
+  );
 
   const lamp = new THREE.PointLight(look.lamp.colour, 0, look.lamp.distance, 2);
   lamp.name = 'light:lamp';
+  group.add(body, traces, vias, lamp);
+  group.traverse(ignoreRays);
 
-  for (const part of [core, shell, halo, filaments, trail]) ignoreRays(part);
-  body.add(core, shell, halo, filaments);
-  // The sparks: one draw of every spark's segments, in the world, each vertex's strength a grey on the material's gold.
-  const sparkSegments = SPARK_N * (SPARK_PTS - 1);
-  const sparkPositions = new THREE.BufferAttribute(new Float32Array(sparkSegments * 2 * 3), 3);
-  sparkPositions.setUsage(THREE.DynamicDrawUsage);
-  const sparkColours = new THREE.BufferAttribute(new Float32Array(sparkSegments * 2 * 3), 3);
-  sparkColours.setUsage(THREE.DynamicDrawUsage);
-  const sparkGeometry = new THREE.BufferGeometry();
-  sparkGeometry.setAttribute('position', sparkPositions);
-  sparkGeometry.setAttribute('color', sparkColours);
-  const sparkMaterial = new THREE.LineBasicMaterial({ name: 'light:sparks', color: look.sparks.colour, vertexColors: true, ...ADDED });
-  const sparks = new THREE.LineSegments(sparkGeometry, sparkMaterial);
-  sparks.name = 'light:sparks';
-  sparks.frustumCulled = false;
-  sparks.visible = false;
-  ignoreRays(sparks);
-
-  group.add(body, trail, sparks, lamp);
-
-  /** Rebuilds the trail from the journey's points at a light of `radius`: answers how many rings it laid. */
-  const layTrail = (points: LightPose['trail'], radius: number): number => {
-    const n = Math.min(points.length, TRAIL_RINGS);
-    if (n < 2) return 0;
-    const out = trailPositions.array as Float32Array;
-    const normals = trailNormals.array as Float32Array;
-    const ages = trailAges.array as Float32Array;
-    // The first ring's frame, then each carried along the tube (parallel transport), so the tube never twists.
-    for (let i = 0; i < n; i++) {
-      const before = points[Math.max(i - 1, 0)]!.point;
-      const after = points[Math.min(i + 1, n - 1)]!.point;
-      tangent.set(after[0] - before[0], after[1] - before[1], after[2] - before[2]).normalize();
-      if (i === 0) {
-        normal.crossVectors(tangent, aside.set(1, 0, 0));
-        if (normal.lengthSq() < 1e-6) normal.crossVectors(tangent, aside.set(0, 1, 0));
-      }
-      normal.addScaledVector(tangent, -normal.dot(tangent)).normalize();
-      binormal.crossVectors(tangent, normal).normalize();
-      const { point, u } = points[i]!;
-      const ring = radius * look.trail.width * Math.pow(Math.max(1 - u, 0), look.trail.taper) + 1e-5;
-      for (let s = 0; s < TRAIL_SIDES; s++) {
-        const turn = (2 * Math.PI * s) / TRAIL_SIDES;
-        a.copy(normal).multiplyScalar(Math.cos(turn)).addScaledVector(binormal, Math.sin(turn));
-        const k = (i * TRAIL_SIDES + s) * 3;
-        b.set(point[0], point[1], point[2]).addScaledVector(a, ring);
-        out[k] = b.x;
-        out[k + 1] = b.y;
-        out[k + 2] = b.z;
-        normals[k] = a.x;
-        normals[k + 1] = a.y;
-        normals[k + 2] = a.z;
-        ages[i * TRAIL_SIDES + s] = u;
-      }
-    }
-    trailPositions.needsUpdate = true;
-    trailNormals.needsUpdate = true;
-    trailAges.needsUpdate = true;
-    return n;
-  };
-
-  /** Lays the filaments from the journey's threads, each segment's two ends at the thread's brightness. */
-  const layFilaments = (threads: LightPose['filaments']): void => {
-    const out = filamentPositions.array as Float32Array;
-    const grey = filamentColours.array as Float32Array;
-    let v = 0;
-    for (let k = 0; k < filamentCount; k++) {
-      const thread = threads[k];
-      for (let i = 0; i < filamentPoints - 1; i++) {
-        for (const j of [i, i + 1]) {
-          const p = thread?.points[j];
-          const strength = thread ? Math.max(thread.brightness, 0) : 0;
-          out[v * 3] = p?.[0] ?? 0;
-          out[v * 3 + 1] = p?.[1] ?? 0;
-          out[v * 3 + 2] = p?.[2] ?? 0;
-          grey[v * 3] = grey[v * 3 + 1] = grey[v * 3 + 2] = strength;
-          v++;
-        }
-      }
-    }
-    filamentPositions.needsUpdate = true;
-    filamentColours.needsUpdate = true;
-  };
-
-  /** Lays the sparks off the trail: each from the trail's point where it jumps, out along its shape in the light's radius. */
-  const laySparks = (list: LightPose['sparks'], points: LightPose['trail'], radius: number): void => {
-    const out = sparkPositions.array as Float32Array;
-    const grey = sparkColours.array as Float32Array;
-    let v = 0;
-    for (let k = 0; k < SPARK_N; k++) {
-      const spark = list[k];
-      const from = spark === undefined ? undefined : (points.find((p) => p.u >= spark.u) ?? points.at(-1))?.point;
-      for (let i = 0; i < SPARK_PTS - 1; i++) {
-        for (const j of [i, i + 1]) {
-          const p = spark?.points[j];
-          // Brightest at the tail, thinning out toward its tip.
-          const strength = spark && from ? Math.max(spark.brightness, 0) * (1 - j / (SPARK_PTS - 1)) ** 0.6 : 0;
-          out[v * 3] = (from?.[0] ?? 0) + (p?.[0] ?? 0) * radius;
-          out[v * 3 + 1] = (from?.[1] ?? 0) + (p?.[1] ?? 0) * radius;
-          out[v * 3 + 2] = (from?.[2] ?? 0) + (p?.[2] ?? 0) * radius;
-          grey[v * 3] = grey[v * 3 + 1] = grey[v * 3 + 2] = strength;
-          v++;
-        }
-      }
-    }
-    sparkPositions.needsUpdate = true;
-    sparkColours.needsUpdate = true;
+  const hideTrail = (): void => {
+    for (const lane of lanes) lane.mesh.visible = false;
+    vias.visible = false;
   };
 
   return {
     group,
-    setPose(pose, _camera) {
+    setPose(pose, camera, clock = 0) {
       const glow = clamp01(pose.glow);
       const lit = glow > 0;
       body.visible = lit;
       lamp.position.set(pose.position[0], pose.position[1], pose.position[2]);
       lamp.intensity = look.lamp.level * glow;
       if (!lit) {
-        trail.visible = false;
-        sparks.visible = false;
+        hideTrail();
         return;
       }
       const r = Math.max(pose.radius, 1e-6);
       const s = clamp01(pose.stretch);
       body.position.set(pose.position[0], pose.position[1], pose.position[2]);
-      body.rotation.set(0, pose.yaw, 0);
-      body.scale.set(r * (1 - look.stretch.across * s), r * (1 - look.stretch.across * s), r * (1 + look.stretch.along * s));
-      coreMaterial.color.set(look.core.colour).multiplyScalar(look.core.level * glow);
-      shellMaterial.color.set(look.shell.colour).multiplyScalar(look.shell.level * glow);
-      haloMaterial.color.set(look.halo.colour).multiplyScalar(look.halo.level * glow);
-      filaments.visible = standing !== 'low';
-      if (filaments.visible) {
-        filamentMaterial.color.set(look.filaments.colour).multiplyScalar(look.filaments.level * glow);
-        layFilaments(pose.filaments);
+      body.quaternion.copy(camera.quaternion);
+      body.scale.set(r * (1 - look.stretch.across * s), r * (1 + look.stretch.along * s), r * (1 - look.stretch.across * s));
+      frame.rotation.z = clock * look.frame.turn;
+      dial.rotation.z = clock * look.dial.turn;
+      coreMaterial.opacity = look.core.level * glow;
+      haloMaterial.opacity = look.halo.level * glow * (0.9 + 0.1 * Math.sin(clock * 4));
+      frameMaterial.opacity = look.frame.level * glow;
+      innerMaterial.opacity = look.frame.innerLevel * glow;
+      dialMaterial.opacity = look.dial.level * glow;
+
+      // The traces beside the light's way as the camera sees it.
+      const level = clamp01(pose.trailLevel) * glow;
+      if (level <= 0 || pose.trail.length < 2) {
+        hideTrail();
+        return;
       }
-      const level = clamp01(pose.trailLevel) * glow * look.trail.level;
-      const rings = level > 0 ? layTrail(pose.trail, r) : 0;
-      trailGeometry.setDrawRange(0, Math.max(rings - 1, 0) * TRAIL_SIDES * 6);
-      trail.visible = rings >= 2;
-      trailMaterial.color.set(look.trail.colour).multiplyScalar(level);
-      trailUniforms.uHead.value.set(look.trail.headColour).multiplyScalar(level);
-      sparks.visible = trail.visible && standing !== 'low';
-      if (sparks.visible) {
-        sparkMaterial.color.set(look.sparks.colour).multiplyScalar(look.sparks.level * clamp01(pose.trailLevel) * glow);
-        laySparks(pose.sparks, pose.trail, r);
+      rightOf.setFromMatrixColumn(camera.matrixWorld, 0).normalize();
+      // Straight up from the light, as tall as its tail stands above it: the traces are routed on the world's height,
+      // runs and 45° jogs (the mock-up's), not along a tail that leans.
+      let height = 0;
+      for (const p of pose.trail) height = Math.max(height, p.point[1] - pose.position[1]);
+      for (let i = 0; i < UPRIGHT; i++) {
+        const u = i / (UPRIGHT - 1);
+        upright[i]!.point = [pose.position[0], pose.position[1] + u * height, pose.position[2]];
+        upright[i]!.u = u;
       }
+      const laid = circuitLanes(upright, r, [rightOf.x, rightOf.y, rightOf.z]);
+      const scale = r / MOCK_HALF;
+      const showVias = standing !== 'low';
+      vias.visible = showVias;
+      laid.forEach((lane, k) => {
+        const target = lanes[k]!;
+        const n = Math.min(lane.points.length, cap);
+        const out = target.positions.array as Float32Array;
+        const ups = target.aboves.array as Float32Array;
+        const half = lane.width / 2;
+        for (let i = 0; i < n; i++) {
+          const p = lane.points[i]!;
+          const q = lane.points[Math.min(i + 1, n - 1)]!;
+          const o = lane.points[Math.max(i - 1, 0)]!;
+          along.set(q[0] - o[0], q[1] - o[1], q[2] - o[2]).normalize();
+          toCamera.set(camera.position.x - p[0], camera.position.y - p[1], camera.position.z - p[2]).normalize();
+          across.crossVectors(along, toCamera).normalize().multiplyScalar(half);
+          for (const [v, sign] of [
+            [i * 2, -1],
+            [i * 2 + 1, 1]
+          ] as const) {
+            out[v * 3] = p[0] + across.x * sign;
+            out[v * 3 + 1] = p[1] + across.y * sign;
+            out[v * 3 + 2] = p[2] + across.z * sign;
+            ups[v] = lane.above[i]!;
+          }
+        }
+        target.positions.needsUpdate = true;
+        target.aboves.needsUpdate = true;
+        target.geometry.setDrawRange(0, Math.max(n - 1, 0) * 6);
+        target.mesh.visible = n >= 2;
+        const u = target.material.uniforms;
+        u.uLen!.value = lane.fade;
+        u.uScale!.value = scale;
+        u.uTime!.value = clock;
+        u.uLevel!.value = look.traces.levels[k]! * level;
+        // Its vias, each fading up the way as its trace does.
+        const sprites = viaSprites[k]!;
+        sprites.forEach((sprite, j) => {
+          const via = showVias ? lane.vias[j] : undefined;
+          sprite.visible = via !== undefined;
+          if (!via) return;
+          sprite.position.set(via[0], via[1], via[2]);
+          sprite.scale.setScalar((look.vias.size + LANES[k]![2] * 4) * scale);
+          const up = Math.max(0, via[1] - pose.position[1]);
+          (sprite.material as THREE.SpriteMaterial).opacity = look.vias.level * Math.exp(-up / Math.max(lane.fade, 1e-6)) * level;
+        });
+      });
     },
     setTier(next) {
       standing = lowerTier(standing, next);
-      if (standing === 'low') filaments.visible = sparks.visible = false;
+      if (standing === 'low') vias.visible = false;
     },
     dispose() {
-      for (const geometry of [coreGeometry, shellGeometry, filamentGeometry, trailGeometry, sparkGeometry]) geometry.dispose();
-      for (const material of [coreMaterial, shellMaterial, haloMaterial, filamentMaterial, trailMaterial, sparkMaterial]) material.dispose();
-      haloMap.dispose();
+      for (const geometry of [frameGeometry, innerGeometry, dialGeometry, ...lanes.map((l) => l.geometry)]) geometry.dispose();
+      for (const material of [coreMaterial, haloMaterial, frameMaterial, innerMaterial, dialMaterial, ...lanes.map((l) => l.material)]) material.dispose();
+      for (const sprite of viaSprites.flat()) (sprite.material as THREE.SpriteMaterial).dispose();
+      core.geometry.dispose();
+      halo.geometry.dispose();
+      for (const sprite of viaSprites.flat()) sprite.geometry.dispose();
+      textures.core.dispose();
+      textures.glow.dispose();
+      textures.via.dispose();
     }
   };
 }

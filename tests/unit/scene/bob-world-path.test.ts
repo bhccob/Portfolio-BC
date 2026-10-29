@@ -77,7 +77,6 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
       expect(point.point[2]).toBeCloseTo(lid[2], 6);
     }
     expect(trail.at(-1)!.point[1] - lid[1]).toBeGreaterThan(20);
-    expect(home(DESK, worldStop(HOME_CHAPTERS)).light.sparks).toEqual([]);
   });
 
   it("keeps the stack closed until 0.4 of the land and opens it by the world's stop", () => {

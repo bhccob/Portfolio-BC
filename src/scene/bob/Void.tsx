@@ -132,7 +132,7 @@ interface VoidRun {
 const NO_SIZE = { width: 0, height: 0 };
 
 /** The light out: no glow, so its body and its trail are hidden and its lamp is at 0. */
-const DARK: LightPose = { position: [0, 0, 0], radius: 0, glow: 0, stretch: 0, yaw: 0, trail: [], trailLevel: 0, filaments: [], sparks: [] };
+const DARK: LightPose = { position: [0, 0, 0], radius: 0, glow: 0, stretch: 0, yaw: 0, trail: [], trailLevel: 0 };
 
 /** Below this the camera is under the void's glass sky (the previs's SKY_Z, a hair under the ceiling), which shows from there. */
 const UNDER_SKY = VOID_LOOK.ceiling.y - 0.1;
@@ -684,7 +684,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
     const close = handover.close;
     const opened = close.id !== null ? Math.min(1, Math.max(0, close.amount)) : 0;
     const dim = 1 + (OPEN_LOOK.light - 1) * opened;
-    light.setPose(pose.light === null ? DARK : opened > 0 ? { ...pose.light, glow: pose.light.glow * dim, trailLevel: pose.light.trailLevel * dim } : pose.light, camera);
+    light.setPose(pose.light === null ? DARK : opened > 0 ? { ...pose.light, glow: pose.light.glow * dim, trailLevel: pose.light.trailLevel * dim } : pose.light, camera, run.time);
     // The light's centre on the screen (for the debug bridge too), and the fact riding with it.
     if (pose.light !== null) {
       lightAt.set(...pose.light.position).project(camera);
