@@ -2699,11 +2699,26 @@ html[data-qa-at] .qa-frame {
 
 /* Pinned: the way back at the foot on the left; how far down, a thin line on the right. Only with a project open. */
 .pv-controls {
+  --pv-veil: rgb(4 2 9 / 0.97);
   display: none;
 }
 
 html[data-inside] .pv-controls {
   display: block;
+}
+
+/* A dark foot under the way back and the line, so the page's words fade into it before they reach the button, never
+   read through it. */
+html[data-inside] .pv-controls::before {
+  content: '';
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 24;
+  height: 150px;
+  background: linear-gradient(to top, var(--pv-veil) 0%, var(--pv-veil) 38%, transparent 100%);
+  pointer-events: none;
 }
 
 .pv-back {
@@ -2725,6 +2740,8 @@ html[data-inside] .pv-controls {
   text-transform: uppercase;
   color: var(--gold-glow);
   cursor: pointer;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
 }
 
 .pv-back span {
@@ -2876,6 +2893,10 @@ html[data-inside] .pv-controls {
     min-height: 48px;
     padding: 0 18px;
     font-size: 11px;
+  }
+
+  html[data-inside] .pv-controls::before {
+    height: 120px;
   }
 
   .pv-back kbd {

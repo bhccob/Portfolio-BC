@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
@@ -158,5 +160,28 @@ describe('the open page as the store has it', () => {
     expect(attributes.has('data-inside')).toBe(false);
     stop();
     useScene.setState({ threeD: true });
+  });
+});
+
+/** base.css with its comments removed. */
+const base = readFileSync(fileURLToPath(new URL('../../../src/styles/base.css', import.meta.url)), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+/** The declarations of the first rule of base.css whose selector is exactly `selector` (white space collapsed). */
+function rule(selector: string): string {
+  for (const match of base.matchAll(/([^{}]+)\{([^{}]*)\}/g)) if (match[1]!.trim().replace(/\s+/g, ' ') === selector) return match[2]!;
+  throw new Error(`no rule for ${selector}`);
+}
+
+// The review (tools/proof/needle.mjs stills, Task 17) found a phone's page words running under the pinned way back, seen
+// through it: words over words (spec 2026-10-29-bob-stack-2-design.md, anti-goals).
+describe('the way back, pinned at the foot', () => {
+  it('stands on a dark foot the words fade into, and blurs what passes under it', () => {
+    const foot = rule('html[data-inside] .pv-controls::before');
+    expect(foot).toMatch(/position:\s*fixed/);
+    expect(foot).toMatch(/bottom:\s*0/);
+    expect(foot).toMatch(/pointer-events:\s*none/);
+    expect(foot).toMatch(/linear-gradient\(\s*to top,\s*var\(--pv-veil\)/);
+    // Over the page (z-index 20), under the way back and the line (25).
+    expect(foot).toMatch(/z-index:\s*24/);
+    expect(rule('.pv-back')).toMatch(/backdrop-filter:\s*blur\(6px\)/);
   });
 });
