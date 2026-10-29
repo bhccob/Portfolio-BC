@@ -25,7 +25,8 @@ const M = 1 / MOCK_HALF;
 
 /**
  * How the light looks, in its own units (the frame's half-width 1), the mock-up's sizes over its 0.62 m:
- * - `core`: the hot point, a sprite `size` across in gold light, `level` its strength;
+ * - `core`: the hot point, a sprite `size` across in gold light times `gain` (hotter than it, as the mock-up's was, so
+ *   it reads as a point on a phone's lower tier too, still gold), `level` its strength;
  * - `halo`: a soft sprite `size` across in gold, breathing a little;
  * - `frame`: corner brackets `corner` long at the half-width 1, five pins a side `pin` apart from `pinFrom` to `pinTo`
  *   out, a faint square `inner` across inside; turning `turn` rad/s about its face;
@@ -38,7 +39,7 @@ const M = 1 / MOCK_HALF;
  * - `stretch`: drawn out along its axis as it becomes the needle (`along` times its stretch), thinned `across` times it.
  */
 export const LIGHT_LOOK = {
-  core: { size: 2.6 * M, colour: palette.goldLight, level: 1 },
+  core: { size: 2.6 * M, colour: palette.goldLight, gain: 1.6, level: 1 },
   halo: { size: 4.2 * M, colour: palette.gold, level: 0.42 },
   frame: { corner: 0.22 * M, pin: 0.16 * M, pinFrom: 1 + 0.06 * M, pinTo: 1 + 0.2 * M, inner: 1.2, colour: palette.goldLight, level: 0.85, innerLevel: 0.1, turn: 0.35 },
   dial: { radius: 1.05 * M, long: 6, longLength: 0.14 * M, shortLength: 0.06 * M, dash: 0.94 * M, colour: palette.gold, level: 0.6, turn: -0.12 },
@@ -159,7 +160,7 @@ export function buildLight(tier: QualityTier): LightModel {
     })
   };
 
-  const coreMaterial = new THREE.SpriteMaterial({ name: 'light:core', map: textures.core, color: look.core.colour, ...ADDED });
+  const coreMaterial = new THREE.SpriteMaterial({ name: 'light:core', map: textures.core, color: new THREE.Color(look.core.colour).multiplyScalar(look.core.gain), ...ADDED });
   const core = new THREE.Sprite(coreMaterial);
   core.name = 'light:core';
   core.scale.setScalar(look.core.size);
@@ -386,4 +387,57 @@ export function buildLight(tier: QualityTier): LightModel {
       textures.via.dispose();
     }
   };
+}
+
+/** The light as the proof bridge reads it (src/state/frame.ts `journey.circuit`): its shown parts, its traces and their top. */
+export interface CircuitOnScreen {
+  /** The names of the parts that draw something now (a part, or a part in it, shown and with something to draw), in the group's order. */
+  parts: string[];
+  /** How many traces are drawn. */
+  traces: number;
+  /** The highest point of the drawn traces on the screen (NDC, +y up); null with none drawn. */
+  top: { x: number; y: number } | null;
+}
+
+const topAt = new THREE.Vector3();
+
+/** Whether `o`, shown, or a shown part in it draws anything: a mesh, a sprite, a line or points with something in range. */
+function draws(o: THREE.Object3D): boolean {
+  let found = false;
+  o.traverseVisible((p) => {
+    const drawn = p as THREE.Mesh;
+    if (found || !(drawn.isMesh || (p as THREE.Sprite).isSprite || (p as THREE.Line).isLine || (p as THREE.Points).isPoints)) return;
+    found = (p as THREE.Sprite).isSprite || drawn.geometry.drawRange.count !== 0;
+  });
+  return found;
+}
+
+/**
+ * What `light` shows now through `camera` (for the proof bridge alone: it walks the parts and the traces' points): the
+ * shown parts' names, the traces drawn and the highest of their points, projected.
+ */
+export function circuitOnScreen(light: LightModel, camera: THREE.Camera): CircuitOnScreen {
+  const parts: string[] = [];
+  let traces = 0;
+  let top: { x: number; y: number } | null = null;
+  let highest = Number.NEGATIVE_INFINITY;
+  light.group.traverseVisible((o) => {
+    if (o === light.group || o.name === '' || !draws(o)) return;
+    parts.push(o.name);
+    const mesh = o as THREE.Mesh;
+    if (!/^light:trace:\d+$/.test(o.name) || mesh.geometry === undefined) return;
+    traces++;
+    // A drawn step is two triangles over a pair of points, so n points draw (n - 1) × 6 indices: its first 2n vertices.
+    const at = mesh.geometry.getAttribute('position');
+    const drawn = Math.min(at.count, (mesh.geometry.drawRange.count / 6 + 1) * 2);
+    o.updateWorldMatrix(true, false);
+    for (let v = 0; v < drawn; v++) {
+      topAt.fromBufferAttribute(at, v).applyMatrix4(o.matrixWorld);
+      if (topAt.y <= highest) continue;
+      highest = topAt.y;
+      topAt.project(camera);
+      top = { x: topAt.x, y: topAt.y };
+    }
+  });
+  return { parts, traces, top };
 }

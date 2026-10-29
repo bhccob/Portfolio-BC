@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
-import { buildLight, LIGHT_LOOK, type LightModel } from '~/engine/bob/build/light';
+import { buildLight, circuitOnScreen, LIGHT_LOOK, type LightModel } from '~/engine/bob/build/light';
 import { applyCameraShot } from '~/engine/bob/shots';
 import { palette } from '~/engine/palette';
 import { LANES } from '~/scene/bob/circuit';
@@ -78,6 +78,18 @@ describe('the light', () => {
     light.dispose();
   });
 
+  // The harness's floor (tools/proof/needle.mjs, LUMA_GATE): on a phone's lower tier the core read 0.27-0.29 at its
+  // brightest, under the 0.3 every still of the fall must reach; the mock-up's was a hot point.
+  it('burns its core hotter than gold light, a hot point, still gold', () => {
+    const light = buildLight('high');
+    light.setPose(poseAt(121), cameraAt(121), 0);
+    const core = named<THREE.Sprite>(light, 'light:core').material as THREE.SpriteMaterial;
+    expect(LIGHT_LOOK.core.gain).toBe(1.6);
+    expect(core.color.r).toBeCloseTo(new THREE.Color(palette.goldLight).r * 1.6, 6);
+    expect(isGold(core.color)).toBe(true);
+    light.dispose();
+  });
+
   it('places it, sizes it, faces the camera and dims it with its glow (setPose)', () => {
     const light = buildLight('high');
     const pose = poseAt(121);
@@ -134,6 +146,24 @@ describe('the light', () => {
     let highest = -Infinity;
     for (let v = 0; v < at.count; v++) if (v < (trace.geometry.drawRange.count / 6 + 1) * 2) highest = Math.max(highest, at.getY(v));
     expect(highest).toBeCloseTo(top, 1);
+    light.dispose();
+  });
+
+  it("reports its shown parts and its traces' top on the screen, above the light, for the proof bridge", () => {
+    const light = buildLight('high');
+    const camera = cameraAt(121);
+    expect(circuitOnScreen(light, camera)).toEqual({ parts: [], traces: 0, top: null });
+    const pose = poseAt(121);
+    light.setPose(pose, camera, 0);
+    const seen = circuitOnScreen(light, camera);
+    for (const part of ['light:body', 'light:frame', 'light:dial', 'light:core', 'light:traces']) expect(seen.parts).toContain(part);
+    expect(seen.traces).toBe(LANES.length);
+    const centre = new THREE.Vector3(...pose.position).project(camera);
+    expect(seen.top).not.toBeNull();
+    expect(seen.top!.y).toBeGreaterThan(centre.y + 0.1);
+    // No traces with no trail: no top.
+    light.setPose({ ...pose, trail: [] }, camera, 0);
+    expect(circuitOnScreen(light, camera)).toMatchObject({ traces: 0, top: null });
     light.dispose();
   });
 

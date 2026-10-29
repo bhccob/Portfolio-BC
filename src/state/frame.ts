@@ -1,5 +1,6 @@
 // Types only: this module is in the entry bundle, which must not pull in three.js.
 import type { ProjectId } from '~/data/projects';
+import type { CircuitOnScreen } from '~/engine/bob/build/light';
 import type { LoaderStage } from '~/engine/bob/loaderTimeline';
 import type { CameraShot } from '~/engine/bob/shots';
 import type { EngravedLevels } from '~/scene/bob/engravedWay';
@@ -68,9 +69,9 @@ export const frame = {
   scroll: { u: 0, letters: 0, iris: 0, needleDip: 0 },
   /**
    * Where the home's journey stands (src/scene/bob/journey.ts `journeyAt`), as the scene last posed it: the stretch
-   * (`rise`, `light`, `land`, `area`, `look`, `sheet`, `end`), how far through it, the area's place among
+   * (`rise`, `light`, `land`, `area`, `look`, `qa`, `end`), how far through it, the area's place among
    * the areas in an area (0 for the first) or null, the light dive's way frame (1-256, null
-   * elsewhere) and how far the sheet over the look back has come (0..1). The Opening writes these on every frame it poses
+   * elsewhere) and how far into the Q&A the story has gone (`sheet`, 0..1). The Opening writes these on every frame it poses
    * the journey, from the one pose it publishes for that frame (`writeJourney`, src/scene/bob/voidPose.ts); a frame of the
    * loader or of a held seek leaves them as they were. `voidState` is the void's load (the store's `voidState`), which the
    * Void writes as it changes, and `light` the light's centre on the screen (NDC, null where there is no light), which the
@@ -91,7 +92,9 @@ export const frame = {
     engraved: null as EngravedLevels | null,
     nebula: null as NebulaLevels | null,
     /** Under `?proof`: where the Q&A's ring stands (src/scene/bob/qaScene.ts), null where it does not show. */
-    qa: null as QaJourney | null
+    qa: null as QaJourney | null,
+    /** Under `?proof`: the falling light's parts drawn and its traces' top (src/engine/bob/build/light.ts), null with no light. */
+    circuit: null as CircuitOnScreen | null
   },
   /** The index of the chapter `progress` is in (`chapterAt(...).index`). */
   chapterIndex: 0,

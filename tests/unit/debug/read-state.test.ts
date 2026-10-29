@@ -97,7 +97,7 @@ describe('readNeedleDebugState', () => {
       const world = { power: 1, names: 1, caption: { index: 0, opacity: 1 }, dots: 0 };
       Object.assign(frame.journey, { stretch: 'light', local: 0.4, project: null, voidState: 'ready', frame: 121, sheet: 0, light, objects, world });
       const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
-      expect(state.journey).toEqual({ stretch: 'light', local: 0.4, project: null, voidState: 'ready', frame: 121, sheet: 0, light: { x: 0.2, y: -0.1 }, objects, world, engraved: null, nebula: null, qa: null });
+      expect(state.journey).toEqual({ stretch: 'light', local: 0.4, project: null, voidState: 'ready', frame: 121, sheet: 0, light: { x: 0.2, y: -0.1 }, objects, world, engraved: null, nebula: null, qa: null, circuit: null });
       expect(state.journey.objects).not.toBe(objects);
       expect(state.journey.world).not.toBe(world);
       expect(state.journey.world?.caption).not.toBe(world.caption);
@@ -106,6 +106,23 @@ describe('readNeedleDebugState', () => {
       expect(state.journey.light?.x).toBe(0.2);
     } finally {
       Object.assign(frame.journey, before);
+    }
+  });
+
+  it("reports the falling light's parts on the journey: a copy, its parts and its top fresh, null when unset", () => {
+    const before = frame.journey.circuit;
+    try {
+      const circuit = { parts: ['light:body', 'light:frame'], traces: 5, top: { x: 0.1, y: 0.6 } };
+      frame.journey.circuit = circuit;
+      const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
+      expect(state.journey.circuit).toEqual(circuit);
+      expect(state.journey.circuit).not.toBe(circuit);
+      expect(state.journey.circuit?.parts).not.toBe(circuit.parts);
+      expect(state.journey.circuit?.top).not.toBe(circuit.top);
+      frame.journey.circuit = null;
+      expect(readNeedleDebugState({ route: 'home', locale: 'nl' }).journey.circuit).toBeNull();
+    } finally {
+      frame.journey.circuit = before;
     }
   });
 

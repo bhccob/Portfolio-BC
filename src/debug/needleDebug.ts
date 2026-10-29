@@ -1,8 +1,10 @@
 // Types only: the bridge is in the entry bundle and needs only these modules' shapes, none of their code. (The loader's
 // timeline is in that bundle anyway, through src/scene/timeouts.ts; three.js must stay out of it.)
+import type { CircuitOnScreen } from '~/engine/bob/build/light';
 import type { LoaderStage } from '~/engine/bob/loaderTimeline';
 import type { Locale } from '~/i18n/Translator';
 import type { Stretch } from '~/scene/bob/journey';
+import type { QaJourney } from '~/scene/bob/qaScene';
 import type { ChapterId } from '~/state/chapters';
 import type { Phase, SceneEvent } from '~/state/machine';
 import type { ObjectOnScreen, WorldOnScreen } from '~/state/frame';
@@ -63,14 +65,15 @@ export interface NeedleDebugState {
   scroll: { u: number; letters: number; iris: number; needleDip: number };
   /**
    * Where the home's journey stands as the scene last posed it (`frame.journey`, a copy): the stretch (`rise`, `light`,
-   * `land`, `area`, `look`, `sheet`, `end`), how far through it (0 at its stop), the area's place among the
+   * `land`, `area`, `look`, `qa`, `end`), how far through it (0 at its stop), the area's place among the
    * areas in an area (0 the first: Steady's; null elsewhere), the void's
    * load (`idle`, `loading`, `ready`, `failed`), which holds the scroll at the hand-over until it is ready, the light
-   * dive's way frame (1-256, null elsewhere), how far the sheet over the look back is up (0..1), the light's centre on the
+   * dive's way frame (1-256, null elsewhere), how far into the Q&A the story has gone (`sheet`, 0..1), the light's centre on the
    * screen (NDC, +y up; null where there is no light), each project's object on the screen (CSS px, `WORLD_PROJECTS`
    * order; null before the world), the world's power and words (null off it), the engraved way's levels (0..1: the
-   * shaft's throat and hall; null where the void is not posed), and the nebula's (0..1: its clouds and its far bands;
-   * null where the void is not posed).
+   * shaft's throat and hall; null where the void is not posed), the nebula's (0..1: its clouds and its far bands;
+   * null where the void is not posed), where the Q&A's ring stands (null where it does not show), and the falling
+   * light's parts drawn and its traces' top on the screen (null with no light).
    */
   journey: {
     stretch: Stretch;
@@ -84,6 +87,8 @@ export interface NeedleDebugState {
     world: WorldOnScreen | null;
     engraved: { throat: number; hall: number; trips: number[] } | null;
     nebula: { clouds: number; bands: number; rings: number } | null;
+    qa: QaJourney | null;
+    circuit: CircuitOnScreen | null;
   };
 }
 

@@ -9,7 +9,7 @@ import type { CompassModel } from '~/engine/bob/build/compass';
 import { buildDecorStars } from '~/engine/bob/build/decorStars';
 import { buildGyro, type GyroModel } from '~/engine/bob/build/gyro';
 import { buildEngraved, type EngravedModel } from '~/engine/bob/build/engraved';
-import type { LightModel } from '~/engine/bob/build/light';
+import { circuitOnScreen, type LightModel } from '~/engine/bob/build/light';
 import { buildNebula, type NebulaModel } from '~/engine/bob/build/nebula';
 import { buildRing } from '~/engine/bob/build/ring';
 import { buildStars, type StarsModel, starsFall, starsRound } from '~/engine/bob/build/stars';
@@ -532,6 +532,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       showProjectViews(NO_VIEWS);
       showLightFacts(null, NO_SIZE);
       frame.journey.light = null;
+      frame.journey.circuit = null;
       frame.journey.objects = null;
       frame.journey.world = null;
       writeSkip(document.documentElement, false, run.skip);
@@ -640,6 +641,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       compass.setNeedleWorld(null);
       light.setPose(DARK, camera);
       frame.journey.light = null;
+      frame.journey.circuit = null;
       showLightFacts(null, size);
       writeSkip(document.documentElement, false, run.skip);
       if (space) showSpace(space, false);
@@ -678,6 +680,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
     } else {
       frame.journey.light = null;
     }
+    if (proof) frame.journey.circuit = pose.light === null ? null : circuitOnScreen(light, camera);
     const fact = pose.fact;
     if (pose.light !== null && fact !== null && fact.index !== null && fact.side !== null) {
       showLightFacts({ index: fact.index, side: fact.side, opacity: fact.opacity, glow: pose.light.glow, light: lightPoint }, size);
