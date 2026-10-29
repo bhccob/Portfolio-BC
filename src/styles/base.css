@@ -2395,15 +2395,18 @@ html[data-qa-end] .qa-seal {
   }
 }
 
+/* Out of sight and, once faded, out of reach: a mark's button takes the pointer whatever its list does, so no invisible
+   button is left for Tab or a click. */
 html[data-qa-end] .qa-marks {
   opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.6s ease;
+  visibility: hidden;
+  transition: opacity 0.6s ease, visibility 0s linear 0.6s;
 }
 
+/* Placed on the screen the visitor sees (dvh: a phone's browser toolbar left out, as the site's other fixed layers). */
 html[data-qa-end] .qa-frame {
   width: min(440px, calc(100vw - 40px));
-  transform: translate(calc(50vw - 50%), calc(50vh - 50%));
+  transform: translate(calc(50vw - 50%), calc(50dvh - 50%));
   text-align: center;
 }
 
@@ -2428,7 +2431,7 @@ html[data-qa-end] .site-header:focus-within {
   }
 
   html[data-qa-end] .qa-frame {
-    transform: translate(calc(50vw - 50%), calc(100vh - 100% - 8vh));
+    transform: translate(calc(50vw - 50%), calc(100dvh - 100% - 8dvh));
   }
 }
 

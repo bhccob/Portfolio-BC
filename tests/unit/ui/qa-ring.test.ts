@@ -242,13 +242,21 @@ describe("the ring's end", () => {
     expect(base).toMatch(/@keyframes qa-draw\s*\{\s*from\s*\{\s*--qa-draw:\s*0deg;?\s*\}\s*to\s*\{\s*--qa-draw:\s*360deg;?\s*\}/);
     // The words in the middle, inside the circle; the marks' numbers gone; the buttons centred.
     expect(body('html[data-qa-end] .qa-frame')).toMatch(/width:\s*min\(440px, calc\(100vw - 40px\)\)/);
-    expect(body('html[data-qa-end] .qa-frame')).toMatch(/transform:\s*translate\(calc\(50vw - 50%\), calc\(50vh - 50%\)\)/);
+    expect(body('html[data-qa-end] .qa-frame')).toMatch(/transform:\s*translate\(calc\(50vw - 50%\), calc\(50dvh - 50%\)\)/);
     expect(body('html[data-qa-end] .qa-marks')).toMatch(/opacity:\s*0\b/);
     expect(body('html[data-qa-end] .qa-buttons')).toMatch(/justify-content:\s*center/);
     // On a phone the circle above the words, the words at the foot.
     expect(body('html[data-qa-end] .qa-seal', PHONE)).toMatch(/top:\s*31%/);
     expect(body('html[data-qa-end] .qa-seal', PHONE)).toMatch(/width:\s*64vw/);
-    expect(body('html[data-qa-end] .qa-frame', PHONE)).toMatch(/transform:\s*translate\(calc\(50vw - 50%\), calc\(100vh - 100% - 8vh\)\)/);
+    // On the screen a phone shows, never under its browser's toolbar (100vh is the screen with the toolbar gone).
+    expect(body('html[data-qa-end] .qa-frame', PHONE)).toMatch(/transform:\s*translate\(calc\(50vw - 50%\), calc\(100dvh - 100% - 8dvh\)\)/);
+  });
+
+  // A mark's button takes the pointer whatever its list does (pointer-events: auto), so at the end the numbers go out of
+  // reach as well as out of sight: no invisible button for Tab or a click (visibility, after their fade).
+  it("takes the marks' numbers out of reach at the end, not only out of sight", () => {
+    expect(body('html[data-qa-end] .qa-marks')).toMatch(/visibility:\s*hidden/);
+    expect(body('html[data-qa-end] .qa-marks')).toMatch(/transition:\s*opacity 0\.6s ease,\s*visibility 0s linear 0\.6s/);
   });
 
   it('draws nothing with reduced motion', () => {

@@ -6785,6 +6785,8 @@ async function qaEnd(browser, step) {
           dark: veil === null ? 0 : Number(veil.opacity) * alpha,
           seal: css('.qa-seal') === null ? 0 : Number(css('.qa-seal').opacity),
           marks: css('.qa-marks') === null ? null : Number(css('.qa-marks').opacity),
+          // The marks' buttons a visitor can still reach (shown, not hidden by visibility).
+          reach: [...document.querySelectorAll('.qa-mark')].filter((b) => !b.hidden && b.checkVisibility({ visibilityProperty: true })).length,
           frame: frame && { x: frame.left + frame.width / 2, y: frame.top + frame.height / 2, top: frame.top },
           sealBottom: seal?.bottom ?? null,
           vw: innerWidth,
@@ -6795,15 +6797,15 @@ async function qaEnd(browser, step) {
     const across = e.frame !== null && Math.abs(e.frame.x - e.vw / 2) <= 0.02 * e.vw;
     const middle = touch ? e.sealBottom !== null && e.frame !== null && e.sealBottom <= e.frame.top : e.frame !== null && Math.abs(e.frame.y - e.vh / 2) <= 0.02 * e.vh;
     step.check(
-      e.end && e.dark >= 0.85 && sealed && e.seal === 1 && e.marks === 0 && across && middle,
-      `${at}: the end is unmistakable: data-qa-end, the dark at ${e.dark.toFixed(2)} (0.85 or more), the circle drawn whole within 3 s (${sealed}), the words' middle at (${e.frame?.x.toFixed(0)}, ${e.frame?.y.toFixed(0)}) ${touch ? `across the middle, under the circle (its foot at ${e.sealBottom?.toFixed(0)}, the words from ${e.frame?.top.toFixed(0)})` : 'in the middle'} of ${e.vw}x${e.vh}, the marks' numbers at ${e.marks}`,
+      e.end && e.dark >= 0.85 && sealed && e.seal === 1 && e.marks === 0 && e.reach === 0 && across && middle,
+      `${at}: the end is unmistakable: data-qa-end, the dark at ${e.dark.toFixed(2)} (0.85 or more), the circle drawn whole within 3 s (${sealed}), the words' middle at (${e.frame?.x.toFixed(0)}, ${e.frame?.y.toFixed(0)}) ${touch ? `across the middle, under the circle (its foot at ${e.sealBottom?.toFixed(0)}, the words from ${e.frame?.top.toFixed(0)})` : 'in the middle'} of ${e.vw}x${e.vh}, the marks' numbers at ${e.marks} and ${e.reach} of them in reach`,
     );
     // One input up: back on question 6, and nothing of the end left.
     await nudge(page, cdp, -1);
     const up = await ringRestsAt(page, QA_END - 1, 5_000);
     await page.waitForTimeout(1_600);
     const left = await theEnd();
-    step.check(up !== null && !left.end && left.dark === 0 && left.seal === 0 && left.marks !== 0, `${at}: one ${touch ? 'swipe' : 'notch'} up rests on question 6 (${up === null ? 'never' : `${up} ms`}) and leaves nothing of the end: data-qa-end ${left.end}, the dark ${left.dark}, the circle ${left.seal}, the marks' numbers ${left.marks}`);
+    step.check(up !== null && !left.end && left.dark === 0 && left.seal === 0 && left.marks !== 0 && left.reach > 0, `${at}: one ${touch ? 'swipe' : 'notch'} up rests on question 6 (${up === null ? 'never' : `${up} ms`}) and leaves nothing of the end: data-qa-end ${left.end}, the dark ${left.dark}, the circle ${left.seal}, the marks' numbers ${left.marks}`);
     await toEnd();
 
     // "Naar contact": /contact/ with its form.
