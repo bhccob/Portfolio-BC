@@ -5,7 +5,8 @@ import { INSIDE_BUILD, INSIDE_POINTS, INSIDE_STATE, insideBuild, insideClockRuns
 import { journeyAt, WORLD_PROJECTS } from '~/scene/bob/journey';
 import { IDLE_SECONDS } from '~/scene/bob/look';
 import { frame } from '~/state/frame';
-import { areaStop, HOME_CHAPTERS, LAND_STOP, pathStart, lookStop, worldStop } from '~/state/chapters';
+import { RING_MARKS } from '~/data/qa';
+import { areaStop, HOME_CHAPTERS, LAND_STOP, pathStart, lookStop, qaStop, worldStop } from '~/state/chapters';
 import { insideInHistory, noteOpenedFrom, resetRouteSync, stopForProject, syncRoute } from '~/state/routeSync';
 import { useScene } from '~/state/store';
 
@@ -13,20 +14,23 @@ import { useScene } from '~/state/store';
 const L = pathStart(HOME_CHAPTERS);
 
 describe('opensOnClick: where a click opens a project on the world', () => {
-  // Task 4: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
-  it.skip('opens at rest at the world, at every area and in the look back; nowhere while moving, nor before the world', () => {
+  it('opens at rest at the world, at every area and in the look back; nowhere while moving, nor before the world', () => {
     expect(LAND_STOP).toBe(0.85);
     const rests = [worldStop(HOME_CHAPTERS), areaStop(HOME_CHAPTERS, 'app'), areaStop(HOME_CHAPTERS, 'game'), L + 6.5, lookStop(HOME_CHAPTERS)];
     for (const p of rests) {
       expect(opensOnClick(journeyAt(p), true), `at rest at ${p}`).toBe(true);
       expect(opensOnClick(journeyAt(p), false), `moving at ${p}`).toBe(false);
     }
-    // The rise, the light dive, the light still coming down, the sheet on its way up and the end page: none.
+    // The rise, the light dive, the light still coming down, the stack closing into the Q&A and the questions: none.
     for (const p of [0, 0.5, 1, 3, L + 0.5, lookStop(HOME_CHAPTERS) + 0.3, lookStop(HOME_CHAPTERS) + 1]) {
       expect(opensOnClick(journeyAt(p), true), `at ${p}`).toBe(false);
     }
     // A project's own place is a stop where it opens.
     for (const id of WORLD_PROJECTS) expect(opensOnClick(journeyAt(stopForProject(id)), true), id).toBe(true);
+  });
+
+  it('opens nothing in the Q&A', () => {
+    for (let k = 0; k < RING_MARKS; k++) expect(opensOnClick(journeyAt(qaStop(HOME_CHAPTERS, k)), true), `mark ${k}`).toBe(false);
   });
 });
 
@@ -143,9 +147,6 @@ describe("the world's clock and its look with a project open", () => {
     expect(worldClockRuns(1000, 1000 + 12_000, false)).toBe(false); // the canvas sleeps
     expect(worldClockRuns(1000, 1000, true)).toBe(false);
     expect(worldClockRuns(Number.NEGATIVE_INFINITY, 1000, false)).toBe(false);
-    // Under the credits' sheet the world stands still, so the scene sleeps behind the page.
-    expect(worldClockRuns(1000, 1000, false, 'sheet')).toBe(false);
-    for (const part of ['land', 'area', 'look'] as const) expect(worldClockRuns(1000, 1000, false, part)).toBe(true);
   });
 
   it('dims the world, lights the open project and quiets the others as it opens', () => {

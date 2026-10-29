@@ -47,6 +47,7 @@ const pose = (over: Partial<WorldPose> = {}): WorldPose => ({
   boardLight: BOARDS.map(() => 1),
   lift: each(0),
   spot: null,
+  sink: 0,
   ...over
 });
 const named = (model: WorldModel, name: string): THREE.Object3D => {
@@ -166,6 +167,23 @@ describe('the world as the stack: its boards, the spine, the socketed CPU, the s
       // A socket rides on its board.
       expect(worldOf(named(model, 'world:socket:jontai-energy')).y).toBeCloseTo(tops[2]!, 9);
     }
+  });
+
+  it('sinks the objects into their sockets', () => {
+    const model = build();
+    model.pose(pose({ sink: 0.5 }));
+    BOARDS.forEach((board, k) => {
+      for (const s of board.sockets) {
+        const object = named(model, `world:object:${s.id}`);
+        expect(object.visible, s.id).toBe(true);
+        expect(worldOf(object).y, s.id).toBeLessThan(OPEN[k]! + STACK.hover);
+        expect(object.scale.x, s.id).toBeCloseTo(STACK.scale * 0.5, 9);
+      }
+    });
+    model.pose(pose({ sink: 1 }));
+    for (const board of BOARDS) for (const s of board.sockets) expect(named(model, `world:object:${s.id}`).visible, s.id).toBe(false);
+    model.pose(pose({ sink: 0 }));
+    for (const board of BOARDS) for (const s of board.sockets) expect(named(model, `world:object:${s.id}`).visible, s.id).toBe(true);
   });
 
   it('stands each object on its socket on its board, and in the spot when lifted', () => {

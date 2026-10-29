@@ -72,6 +72,11 @@ export interface WorldPose {
    * stands there at its own size, `scale` over its radius. Null while nothing rises.
    */
   spot: SpotPose | null;
+  /**
+   * How far the objects have sunk into their sockets, 0..1 (the Q&A's closing stack, spec 2026-10-29-bob-stack-2-design.md,
+   * goal 1): each lowers onto its socket and shrinks to nothing, hidden by 0.995, as the mock-up's do.
+   */
+  sink: number;
 }
 
 export interface WorldModel {
@@ -1026,7 +1031,7 @@ export function buildWorld(boards: readonly BoardPlace[], tier: QualityTier, roo
     hits,
     anchors: (id) => find(id).made.anchors,
     top: (id) => find(id).made.top,
-    pose({ power, flash, clock, levels, open, float, world, tops, boardPower, boardLight, lift, spot }) {
+    pose({ power, flash, clock, levels, open, float, world, tops, boardPower, boardLight, lift, spot, sink }) {
       holders.forEach((holder, k) => {
         holder.position.y = tops[k] ?? boards[k]!.top;
         plates[k]!.set(clock, boardPower[k] ?? power, (boardLight[k] ?? 1) * world);
@@ -1049,13 +1054,17 @@ export function buildWorld(boards: readonly BoardPlace[], tier: QualityTier, roo
         // On its socket: floating over it, facing out from the spine, at the stack's size.
         const bob = Math.sin((clock * Math.PI * 2) / FLOAT.period + p.phase) * FLOAT.reach * float;
         const yaw = Math.atan2(p.at[0], p.at[1]);
-        offset.copy(p.middle).multiplyScalar(STACK.scale).applyAxisAngle(upright, yaw);
+        // Sunk into its socket as the stack closes: down onto it and smaller, gone before the boards meet.
+        const shrink = Math.max(0.001, 1 - sink);
+        const size = STACK.scale * shrink;
+        offset.copy(p.middle).multiplyScalar(size).applyAxisAngle(upright, yaw);
         const onSocket: SpotPose = {
-          centre: [centre[0] + p.at[0] + offset.x, top + STACK.hover + bob + offset.y, centre[2] + p.at[1] + offset.z],
+          centre: [centre[0] + p.at[0] + offset.x, top + (STACK.hover + bob) * shrink + offset.y, centre[2] + p.at[1] + offset.z],
           yaw,
           tilt: 0,
-          scale: STACK.scale
+          scale: size
         };
+        p.root.visible = sink < 0.995;
         const now = spot && risen > 0 ? liftAt(onSocket, { ...spot, scale: spot.scale / p.radius }, risen) : onSocket;
         qYaw.setFromAxisAngle(upright, now.yaw);
         qTilt.setFromAxisAngle(across, now.tilt);

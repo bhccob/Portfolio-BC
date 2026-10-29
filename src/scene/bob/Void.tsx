@@ -450,7 +450,8 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
           boardPower: STACK_PLACES.map(() => 1),
           boardLight: STACK_PLACES.map(() => 1),
           lift: NONE_LIFTED,
-          spot: null
+          spot: null,
+          sink: 0
         });
         try {
           uploadTextures(gl, texturesUnder(holder));
@@ -710,7 +711,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
         clock.open = inside;
         clock.stirred = now;
       }
-      const ticking = on && worldClockRuns(clock.stirred, now, reducedMotion, path?.part);
+      const ticking = on && worldClockRuns(clock.stirred, now, reducedMotion);
       if (ticking) clock.time += dt0;
       if (on && path) {
         const levels = { ...path.levels };
@@ -737,7 +738,8 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
           boardPower: path.boardPower,
           boardLight: path.boardLight,
           lift,
-          spot
+          spot,
+          sink: path.qa?.close ?? 0
         });
         // What the boards, the spine and the CPU reflect turns with the camera round the stack, so they look the same from every side.
         world.model.turn(Math.atan2(camera.position.x - STACK_CENTRE[0], camera.position.z - STACK_CENTRE[2]));

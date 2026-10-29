@@ -45,9 +45,9 @@ describe('the levels: the nebula, its far bands and the look back rings, at a po
     expect(on('land', 0.7)).toEqual({ clouds: expect.closeTo(0.8, 12), bands: 1, rings: 0 });
     expect(on('area', 0.1)).toEqual({ clouds: expect.closeTo(0.55, 12), bands: 1, rings: 0 });
     expect(on('look', 1)).toEqual({ clouds: expect.closeTo(0.8, 12), bands: 1, rings: 0 });
-    // Under the sheet everything goes out with its black; the rise and the end page have none.
-    expect(on('sheet', 0.5, 0.5)).toEqual({ clouds: expect.closeTo(0.4, 12), bands: 0.5, rings: 0 });
-    expect(on('sheet', 1, 1)).toEqual({ clouds: 0, bands: 0, rings: 0 });
+    // Through the Q&A the space stays as the look back left it, round the ring; the rise has none.
+    expect(on('qa', 0.5)).toEqual({ clouds: expect.closeTo(0.8, 12), bands: 1, rings: 0 });
+    expect(on('qa', 1)).toEqual({ clouds: expect.closeTo(0.8, 12), bands: 1, rings: 0 });
     expect(nebulaLevels({ stretch: 'rise', frame: null }, null)).toEqual({ clouds: 0, bands: 0, rings: 0 });
     expect(nebulaLevels({ stretch: 'end', frame: null }, null)).toEqual({ clouds: 0, bands: 0, rings: 0 });
   });

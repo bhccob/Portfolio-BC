@@ -43,7 +43,7 @@ describe('the levels: each part of the engraved way, at a pose', () => {
   });
 
   it("keeps the fall's shaft and has no trips' lines: nothing past the fall, on the world", () => {
-    for (const stretch of ['rise', 'land', 'area', 'look', 'sheet', 'end'] as const) {
+    for (const stretch of ['rise', 'land', 'area', 'look', 'qa', 'end'] as const) {
       expect(engravedLevels({ stretch, frame: null }), stretch).toEqual({ throat: 0, hall: 0, trips: [] });
     }
     expect(engravedLevels({ stretch: 'light', frame: 72 }).trips).toEqual([]);

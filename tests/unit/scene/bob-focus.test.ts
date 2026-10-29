@@ -275,12 +275,12 @@ describe('restsAt: a flight leaves only from a rest where the project is in view
     expect(restsAt('cookies-clicker', L + 4.0, L + 4.0)).toBe(true);
   });
 
-  // Task 4: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
-  it.skip("is true for every project in the look back, its own stop (the sheet's start) included, and false once the sheet is up", () => {
+  it("is true for every project in the look back, its own stop included, and false in the Q&A", () => {
     for (const id of IDS) expect(restsAt(id, L + 6.5, L + 6.5)).toBe(true);
     for (const id of IDS) expect(restsAt(id, L + 7.6, L + 7.6)).toBe(true);
     expect(restsAt('cookies-clicker', L + 8.0, L + 8.0)).toBe(false);
     expect(restsAt('cookies-clicker', L + 8.6, L + 8.6)).toBe(false);
+    expect(restsAt('cookies-clicker', L + 14.6, L + 14.6)).toBe(false);
   });
 
   it("is false while the story moves, while the light comes down, in the light dive, or for no project", () => {

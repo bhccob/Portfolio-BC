@@ -123,11 +123,10 @@ export function writeJourney(
 
 /**
  * Whether the pointer is read for the beads with the journey at `pose`: whether it may hover a bead, and whether a click
- * (a tap) may open the selected one (src/scene/bob/Void.tsx). Not once the sheet over the look back has begun to come up
- * (`sheet` above 0), either way, nor at the credits: the page covers the scene there, inert while it moves, so a click
- * on it would go through to a bead under it; there a pointer neither turns a bead nor wakes the canvas, and a click or a
- * tap opens nothing. Everywhere else on the path, as before: `sheet` is 0 there (a sheet that is not a number reads
- * as none, as the end view reads it).
+ * (a tap) may open the selected one (src/scene/bob/Void.tsx). Not once the story has gone into the Q&A (`sheet` above 0),
+ * where the stack closes and its projects sink: there a pointer neither turns a project nor wakes the canvas, and a
+ * click or a tap opens nothing. Everywhere else on the path, as before: `sheet` is 0 there (one that is not a number
+ * reads as none).
  */
 export function hoversAt(pose: Pick<JourneyPose, 'sheet'>): boolean {
   return !(pose.sheet > 0);
@@ -136,13 +135,13 @@ export function hoversAt(pose: Pick<JourneyPose, 'sheet'>): boolean {
 /**
  * Which projects the pointer may hover and a click may open at `pose` (spec 2026-10-27-bob-hologram-world-design.md):
  * any project on the world once the world is in (its stop, and on), every area, the look back (its own stop included);
- * none in the light dive, while the light is still coming down, and under the sheet. A click opens only at rest
+ * none in the light dive, while the light is still coming down, and in the Q&A. A click opens only at rest
  * (./inside.ts `opensOnClick`); the hover lights a project wherever the pointer may take it.
  */
 export function pointerMode(pose: Pick<JourneyPose, 'at' | 'path'>): 'any' | null {
   const { at } = pose;
   if (at.stretch === 'land') return at.local >= LAND_STOP - 1e-6 ? 'any' : null;
-  return at.stretch === 'area' || at.stretch === 'look' || (at.stretch === 'sheet' && at.local === 0) ? 'any' : null;
+  return at.stretch === 'area' || at.stretch === 'look' || (at.stretch === 'qa' && at.project === 0 && at.local === 0) ? 'any' : null;
 }
 
 /**

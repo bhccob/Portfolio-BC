@@ -60,12 +60,11 @@ export function insideClockRuns(stirred: number, now: number, reduced: boolean):
 /**
  * Whether the world's clock runs at `now` (ms): the pulse along the buses, the pads' turning rings, the objects' float and
  * the gears' tick (spec 2026-10-27-bob-hologram-world-design.md, "the canvas sleeps"): for IDLE_SECONDS after `stirred`
- * (the last input, the story's last move, a project opening), never with reduced motion, and never once the credits'
- * sheet comes up over it (`part`, the world path's; the path holds its sheet frame on to the end): then the world stands
- * still and the canvas sleeps.
+ * (the last input, the story's last move, a project opening), never with reduced motion; in the Q&A too, where the
+ * ring's click, the gyroscope rings and the stars run on it. Then the world stands still and the canvas sleeps.
  */
-export function worldClockRuns(stirred: number, now: number, reduced: boolean, part?: WorldPart): boolean {
-  return !reduced && part !== 'sheet' && now - stirred < IDLE_SECONDS * 1000;
+export function worldClockRuns(stirred: number, now: number, reduced: boolean): boolean {
+  return !reduced && now - stirred < IDLE_SECONDS * 1000;
 }
 
 /**
@@ -99,14 +98,15 @@ export function openWorld(amount: number): number {
 /**
  * Whether a click on a project opens it on the world (spec 2026-10-27-bob-hologram-world-design.md), with the journey at
  * `at` and the story at rest (`rest`: the scroll's target where the story stands): at the world's stop, at an area's,
- * or in the look back (its own stop, the sheet's start, included), any project on the world. Nowhere else: in the light
- * dive, while the land is still coming in, while the camera glides between two stops, and once the sheet is rising,
- * nothing opens there (a click elsewhere goes to the project's page instead, src/ui/projectOpen.tsx).
+ * or in the look back (its own stop, the first QA unit's start, included), any project on the world. Nowhere else: in
+ * the light dive, while the land is still coming in, while the camera glides between two stops, and in the Q&A, where
+ * the stack closes and its projects sink into their sockets, nothing opens (a click elsewhere goes to the project's page
+ * instead, src/ui/projectOpen.tsx).
  */
 export function opensOnClick(at: JourneyAt, rest: boolean): boolean {
   if (!rest) return false;
   if (at.stretch === 'land') return at.local >= LAND_STOP - 1e-6;
-  return at.stretch === 'area' || at.stretch === 'look' || (at.stretch === 'sheet' && at.local === 0);
+  return at.stretch === 'area' || at.stretch === 'look' || (at.stretch === 'qa' && at.project === 0 && at.local === 0);
 }
 
 /**

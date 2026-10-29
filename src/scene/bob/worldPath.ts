@@ -13,10 +13,11 @@
  *   then settles on the whole machine by `LAND_STOP`;
  * - AREA, one per board of the stack: the camera goes round the stack's axis (./around.ts) and down to the board, seen
  *   from just under the board above it, by `AREA_STOP`; the board in view lit, the others stepped back, its caption in;
- * - LOOK: round and back and up, the whole machine small in the nebula;
- * - SHEET: one move from the look back into the credits (Bob, 2026-10-29: "it doesnt flow naturally"): the credits
- *   rise from its first scroll, the dark comes up under them (`sheetBlack`), and the camera drifts on up, so the stack
- *   sinks away beneath them (the end page, src/ui/EndPage.tsx).
+ * - LOOK: round and back and up, the whole machine framed in the nebula, the Q&A's gold ring coming in round it;
+ * - QA, one for each mark on the ring (spec 2026-10-29-bob-stack-2-design.md, goal 1): over the first, from the look
+ *   back's stop to the first question, the stack closes (`explode` back to 0), its projects sinking into their sockets,
+ *   the ring draws in and up round it and the camera moves to the ring's own view (`ringShot`); over each after it the
+ *   ring turns a question (./qaRing.ts), the camera still; at the end's mark the whole ring lights.
  *
  * The camera's places are the mock-up's (its `poseFor`), each framed by fit (./fit.ts) round what its view must hold;
  * where the mock-up moved the picture with a view offset, the shot looks a little aside instead (`aside`), as the site's
@@ -24,13 +25,15 @@
  */
 import type { CategoryId } from '~/data/categories';
 import type { ProjectId } from '~/data/projects';
+import { RING_MARKS } from '~/data/qa';
 import { type CameraShot, shotToward } from '~/engine/bob/shots';
 import { AREA_STOP, type Chapters, HAND_F, HOME_CHAPTERS, LAND_STOP, lookStop, pathStart, worldStop } from '~/state/chapters';
 import { aroundShot } from './around';
 import { fitDistance } from './fit';
 import { filamentsAt, lightAt, sizeFor, sparksAt, streamAt, trailAt, trailLevel, voidAt, wayShot } from './lightDive';
 import type { LightPose, VoidPose } from './poseTypes';
-import { type BoardPlace, boardCentre, LID_TOP, STACK, stackPlaces } from './worldLayout';
+import { answerShown, RING, ringLit, ringTurnFor } from './qaRing';
+import { type BoardPlace, boardCentre, boardTops, LID_TOP, STACK, stackPlaces } from './worldLayout';
 
 export type Vec3 = [number, number, number];
 type R3 = readonly [number, number, number];
@@ -80,15 +83,15 @@ const LOOK_AT = 1;
 /** The light's trail at rest: a column this tall, m, in this many points. */
 const COLUMN = { height: 26, points: 40 } as const;
 /**
- * How dark the sheet has come at `share` (0..1) of its way: eased out from its first scroll, 1 - (1 - x)², a little behind
- * the credits' own rise (1 - (1 - x)³, src/scene/bob/endView.ts), so their words come up over the stack fading under them.
+ * How dark a failed void's end page has come at `share` (0..1) of its way in (src/scene/bob/endView.ts): eased out,
+ * 1 - (1 - x)². With the world there the end of the story is the ring's, and nothing darkens.
  */
 export function sheetBlack(share: number): number {
   return 1 - (1 - clamp01(share)) ** 2;
 }
 
-/** How far the camera drifts up over the sheet, m: the stack sinks away under the rising credits. */
-export const SHEET_DRIFT = 6;
+/** The gyroscope rings round the stack step back to this at a board's stop and in the Q&A, so the thing in view leads. */
+export const RINGS_FOCUS = 0.42;
 
 /** How much of the screen the whole machine fills at the look back, each way from the middle, NDC, by the screen's shape. */
 export const LOOK_BOX = { desk: 0.95, phone: 0.95 } as const;
@@ -119,7 +122,27 @@ const LOOK = { elevation: 16, azimuth: 0.5 } as const;
 const TIP = 3.8;
 const BELOW = 3.4;
 
-export type WorldPart = 'land' | 'area' | 'look' | 'sheet';
+export type WorldPart = 'land' | 'area' | 'look' | 'qa';
+
+/** Where the Q&A stands: on the ring, how far the stack has closed, the end's light round the ring and the answer's share. */
+export interface QaFrame {
+  /** The place on the ring: -1 at the look back's stop, `k` at mark `k` (./qaRing.ts). */
+  place: number;
+  /** How far the stack has closed under the ring, 0..1: the first QA unit's way, then 1. */
+  close: number;
+  /** How much the whole ring lights round, 0..1 (`ringLit`): at the end's mark. */
+  lit: number;
+  /** How much the answer beside the ring shows, 0..1 (`answerShown`). */
+  answer: number;
+}
+
+/** The Q&A's gold ring, posed: its light, its middle, its size against `RING.radius` and its turn (./qaRing.ts). */
+export interface RingFrame {
+  level: number;
+  centre: Vec3;
+  scale: number;
+  turn: number;
+}
 
 /** One moment of the stack's path. */
 export interface WorldFrame {
@@ -153,6 +176,12 @@ export interface WorldFrame {
   skip: boolean;
   /** The fade to black, 0..1. */
   black: number;
+  /** The Q&A: where it stands, null off it (before the look back's stop). */
+  qa: QaFrame | null;
+  /** The Q&A's gold ring: dark before the look back, in over it, then round the closing stack. */
+  ring: RingFrame;
+  /** The gyroscope rings round the stack: their light (the power board's power) and how far they stand back (`RINGS_FOCUS`). */
+  rings: { level: number; focus: number };
   fog: { near: number; far: number };
   /** Whether the glass sky above shows: not in the look back, which looks up toward it, nor in the black. */
   sky: boolean;
@@ -168,6 +197,8 @@ export interface WorldPath {
   worldShot: CameraShot;
   areaShot(index: number): CameraShot;
   lookShot: CameraShot;
+  /** The camera through the Q&A's questions: round the closed stack and its ring (the mock-up's `ringPose`, "mix"). */
+  ringShot: CameraShot;
   /** Every point the whole machine's view must hold: each board's rim, what floats over it, the CPU and the spine's tip. */
   machine: Vec3[];
   /** Every view's camera and what it looks at (the land's and the stops'): the clouds stay out of them. */
@@ -185,7 +216,7 @@ interface Segment {
   length: number;
 }
 
-const PARTS: Readonly<Record<string, WorldPart>> = { LAND: 'land', AREA: 'area', LOOK: 'look', QA: 'sheet' };
+const PARTS: Readonly<Record<string, WorldPart>> = { LAND: 'land', AREA: 'area', LOOK: 'look', QA: 'qa' };
 
 /** The path's segments from the chapters: each ends where the next begins, so a stop is in exactly one. */
 function segmentsOf(c: Chapters): Segment[] {
@@ -272,6 +303,15 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS): Worl
   const lookBox = phone ? LOOK_BOX.phone : LOOK_BOX.desk;
   const lookDistance = fitDistance(machine, middle, LOOK.azimuth, LOOK.elevation * DEG, F.fov, aspect, [-lookBox, lookBox, -lookBox, lookBox]);
   const lookShot: CameraShot = { position: add(middle, mul(outward(LOOK.azimuth, LOOK.elevation * DEG), lookDistance)), target: middle, fov: F.fov, up: UP, sway: 0 };
+  // The Q&A's ring: open round the machine's middle, then closed round the closed stack's, drawn in to `closedRadius`.
+  const shut = boardTops(places, 0);
+  const ringOpen: Vec3 = [C[0], middle[1] + RING.lift, C[2]];
+  const ringShut: Vec3 = [C[0], (shut[0]! + shut[shut.length - 1]!) / 2 - RING.below, C[2]];
+  // The ring's own view, the mock-up's: from in front of the closed stack, a little up, nearer than the look back, the
+  // ring a little aside so the answer has its room (on a phone, the ring high and the answer under it).
+  const ringAim: Vec3 = [C[0], ringShut[1] - (phone ? 0.6 : 1.6), C[2]];
+  const ringView = phone ? { elevation: 20, distance: 31, shift: [0, 0.34] as const } : { elevation: 15, distance: 23, shift: [-0.26, 0.02] as const };
+  const ringShot = aside(add(ringAim, mul(outward(RING.azimuth, ringView.elevation * DEG), ringView.distance)), ringAim, F.fov, ringView.shift, aspect);
   // A board from the side its projects face, from just under the board above it: at the mock-up's elevation, unless the
   // fit would stand the camera higher than `UNDER` below that board's underside (a squarer screen stands it further
   // out); then at the highest elevation that keeps it there, so the board above never covers the one in view.
@@ -338,15 +378,14 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS): Worl
   const handStream = streamAt(HAND_F);
   const handTrail = trailLevel(HAND_F);
   const WORLD_Q = worldStop(c) - START;
-  const SHEET_Q = lookStop(c) - START;
+  const LOOK_Q = lookStop(c) - START;
 
   function shotAt(s: Segment, t: number): CameraShot {
     if (s.kind === 'land') return t < LAND_HIT ? shotToward(handShot, landShot, ease(t / LAND_HIT)) : shotToward(landShot, worldShot, ease(seg(t, LAND_HIT, LAND_STOP)));
     if (s.kind === 'area') return aroundShot(stopShot(s.i - 1), stopShot(s.i), C, ease(seg(t, 0, AREA_STOP)));
     if (s.kind === 'look') return aroundShot(stopShot(count - 1), lookShot, C, ease(seg(t, 0, LOOK_AT)));
-    // The sheet: the camera drifts on up as the credits rise, the stack sinking away beneath them.
-    const rise = SHEET_DRIFT * ease(t);
-    return { ...lookShot, position: add(lookShot.position, [0, rise, 0]), target: add(lookShot.target, [0, rise, 0]) };
+    // The Q&A: from the look back to the ring's view over the way in, then still while the ring turns.
+    return s.i === 0 ? shotToward(lookShot, ringShot, ease(t)) : ringShot;
   }
 
   function frameAt(q: number): WorldFrame {
@@ -354,7 +393,7 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS): Worl
     const { s, t } = segmentAt(qq);
     const shot = shotAt(s, t);
     const forward = norm(sub(shot.target, shot.position));
-    const black = s.kind === 'sheet' ? sheetBlack(t) : 0;
+    const black = 0;
     const landing = s.kind === 'land' && t < LAND_HIT;
     const position = lightPos(s.kind, t);
     // The trail: straight up from the light, growing from the fall's own length to the column as it comes down.
@@ -375,7 +414,11 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS): Worl
       filaments: filamentsAt(fil),
       sparks: landing ? sparksAt(fil) : []
     };
-    const look = s.kind === 'look' ? ease(seg(t, 0.2, 0.9)) : s.kind === 'sheet' ? 1 : 0;
+    const look = s.kind === 'look' ? ease(seg(t, 0.2, 0.9)) : s.kind === 'qa' ? 1 : 0;
+    // The Q&A: its place on the ring, and the stack closing over the way in.
+    const qa: QaFrame | null =
+      s.kind === 'qa' ? { place: s.i - 1 + t, close: s.i === 0 ? ease(t) : 1, lit: ringLit(s.i - 1 + t, RING_MARKS), answer: answerShown(s.i - 1 + t) } : null;
+    const close = qa?.close ?? 0;
 
     let power = 1;
     let flash = 0;
@@ -409,7 +452,24 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS): Worl
       names = t < OUT ? 1 - ease(seg(t, 0, OUT)) : 0;
       if (count > 0 && t < OUT) caption = { index: count - 1, opacity: 1 - ease(seg(t, 0, OUT)) };
       dots = count > 0 ? 1 - ease(seg(t, 0, OUT)) : 0;
+    } else if (s.kind === 'qa') {
+      // The stack closes under the ring, its projects sinking into their sockets and going out with it.
+      explode = 1 - close;
+      levels = Object.fromEntries(projectIds.map((id) => [id, LEVEL.shown * (1 - close)])) as Record<ProjectId, number>;
     }
+    // The gyroscope rings: lit with the power board's power, stepped back at a board's stop and in the Q&A.
+    let focus = 1;
+    if (s.kind === 'area') focus = lerp(s.i === 0 ? 1 : RINGS_FOCUS, RINGS_FOCUS, ease(seg(t, 0, AREA_STOP)));
+    else if (s.kind === 'look') focus = lerp(count > 0 ? RINGS_FOCUS : 1, 1, ease(seg(t, 0, LOOK_AT)));
+    else if (s.kind === 'qa') focus = lerp(1, RINGS_FOCUS, close);
+    // The Q&A's ring: in over the look back, open round the machine; then drawn in and up round the closing stack.
+    const ringLevel = s.kind === 'look' ? ease(seg(t, 0.3, 0.9)) : s.kind === 'qa' ? 1 : 0;
+    const ring: RingFrame = {
+      level: ringLevel,
+      centre: [ringOpen[0], lerp(ringOpen[1], ringShut[1], close), ringOpen[2]],
+      scale: lerp(1, RING.closedRadius / RING.radius, close),
+      turn: ringTurnFor(qa?.place ?? -1, RING_MARKS)
+    };
     if (caption !== null && caption.opacity <= 0) caption = null;
 
     return {
@@ -428,16 +488,19 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS): Worl
       names,
       caption,
       dots,
-      skip: qq >= WORLD_Q - 1e-9 && qq <= SHEET_Q + 1e-9,
+      skip: qq >= WORLD_Q - 1e-9 && qq <= LOOK_Q + 1e-9,
       black,
+      qa,
+      ring,
+      rings: { level: boardPowerAt(power)[0] ?? power, focus },
       fog: fogFor(shot, look),
-      sky: !(s.kind === 'look' && t > 0.3) && s.kind !== 'sheet'
+      sky: !(s.kind === 'look' && t > 0.3) && s.kind !== 'qa'
     };
   }
 
-  const sights: [Vec3, Vec3][] = [landShot, worldShot, ...boardShots, lookShot].map((shot) => [[...shot.position] as Vec3, [...shot.target] as Vec3]);
+  const sights: [Vec3, Vec3][] = [landShot, worldShot, ...boardShots, lookShot, ringShot].map((shot) => [[...shot.position] as Vec3, [...shot.target] as Vec3]);
 
-  return { places, projects: projectIds, centre: C, worldShot, areaShot: (i) => stopShot(i), lookShot, machine, sights, frameAt };
+  return { places, projects: projectIds, centre: C, worldShot, areaShot: (i) => stopShot(i), lookShot, ringShot, machine, sights, frameAt };
 }
 
 /** The last path made by `worldPathFor`, and the aspect it was made for. */

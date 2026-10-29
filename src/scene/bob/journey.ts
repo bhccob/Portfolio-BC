@@ -28,11 +28,11 @@ export type { LightPose, VoidPose } from './poseTypes';
 type Vec3 = readonly [number, number, number];
 
 /** A stretch of the journey: one of the home's chapters, seen as the camera's move. */
-export type Stretch = 'rise' | 'light' | 'land' | 'area' | 'look' | 'sheet' | 'end';
+export type Stretch = 'rise' | 'light' | 'land' | 'area' | 'look' | 'qa' | 'end';
 
 /**
  * Where the journey is: the stretch and how far through it (`local`, 0 at its start); in the light dive the way's frame
- * (1 to `HAND_F`); and in an area its place among the areas (0 for the first), else null.
+ * (1 to `HAND_F`); and in an area its place among the areas (0 for the first), in the Q&A its QA unit's mark, else null.
  */
 export interface JourneyAt {
   stretch: Stretch;
@@ -63,7 +63,8 @@ export interface NeedleOverride {
  * - `needle`: null while the compass holds it and from then on: the light stays the light to the end;
  * - `void`: the void's state, null on the rise;
  * - `path`: the world's path at this place (./worldPath.ts), null before the hand-over;
- * - `sheet`: how far the sheet over the look back has come, 0..1 (its first 0.55 the black, the rest the credits rising).
+ * - `sheet`: how far the story has gone into the Q&A, 0..1: the first QA unit's way (the stack closing under the ring),
+ *   then 1 to the end; 0 before it. A failed void's end page reads it at the end (src/scene/bob/endView.ts).
  */
 export interface JourneyPose {
   at: JourneyAt;
@@ -133,7 +134,7 @@ function settled(progress: number): number {
   return p;
 }
 
-const STRETCHES = { LAND: 'land', AREA: 'area', LOOK: 'look', QA: 'sheet', END: 'end' } as const;
+const STRETCHES = { LAND: 'land', AREA: 'area', LOOK: 'look', QA: 'qa', END: 'end' } as const;
 
 /**
  * Where the journey is at this progress (the module's doc lists the stretches). NaN reads as 0, the progress is held to
@@ -196,7 +197,7 @@ export function journeyPoseAt(progress: number, aspect: number): JourneyPose {
     needle: null,
     void: path.void,
     path,
-    sheet: at.stretch === 'sheet' ? p - SHEET_AT : at.stretch === 'end' ? 1 : 0
+    sheet: at.stretch === 'qa' ? Math.min(1, p - SHEET_AT) : at.stretch === 'end' ? 1 : 0
   };
 }
 

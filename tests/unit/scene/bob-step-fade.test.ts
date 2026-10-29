@@ -21,16 +21,15 @@ describe('stepStopFor: reduced motion stands on keyStops with no frame between',
     expect(stepStopFor(placeOfFrame(201) - 0.1, 'loading')).toBe(placeOfFrame(201));
   });
 
-  // Task 4: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
-  it.skip('steps reduced motion through the world, each area and the look back', () => {
-    // The world's stop, each area's, then the look back's own stop and the end.
+  it('steps reduced motion through the world, each area, the look back and each mark on the ring', () => {
+    // The world's stop, each area's, then the look back's own stop, each question and the end's mark.
     expect(KEY.filter((stop) => stop > L)).toEqual([
       expect.closeTo(L + 1.53, 9),
       expect.closeTo(L + 2.78, 9),
       expect.closeTo(L + 4.18, 9),
       expect.closeTo(L + 5.58, 9),
       expect.closeTo(L + 7.6, 9),
-      expect.closeTo(L + 8.6, 9),
+      ...[0, 1, 2, 3, 4, 5, 6].map((k) => expect.closeTo(L + 8.6 + k, 9)),
     ]);
     expect(stepStopFor(L + 2.0, 'ready')).toBeCloseTo(L + 1.53, 9);
     expect(stepStopFor(L + 6.5, 'ready')).toBeCloseTo(L + 5.58, 9);

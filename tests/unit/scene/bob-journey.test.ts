@@ -41,16 +41,17 @@ function project(shot: CameraShot, aspect: number, p: Vec3): [number, number] {
 }
 
 describe("the journey's stretches", () => {
-  // Task 4: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
-  it.skip('reads the stretches off the chapters', () => {
+  it('reads the stretches off the chapters', () => {
     expect(journeyAt(0.5)).toMatchObject({ stretch: 'rise', project: null });
     expect(journeyAt(L - 1e-3)).toMatchObject({ stretch: 'light', project: null });
     expect(journeyAt(L)).toMatchObject({ stretch: 'land', local: 0, project: null, frame: null });
     expect(journeyAt(L + 1.8)).toMatchObject({ stretch: 'area', local: 0, project: 0 });
     expect(journeyAt(L + 4.0)).toMatchObject({ stretch: 'area', project: 1 });
     expect(journeyAt(L + 6.0)).toMatchObject({ stretch: 'look', project: null });
-    expect(journeyAt(L + 7.6)).toMatchObject({ stretch: 'sheet', local: 0, project: null });
-    expect(journeyAt(L + 8.6)).toMatchObject({ stretch: 'end' });
+    expect(journeyAt(L + 7.6)).toMatchObject({ stretch: 'qa', local: 0, project: 0 });
+    expect(journeyAt(L + 8.6)).toMatchObject({ stretch: 'qa', local: 0, project: 1 });
+    expect(journeyAt(L + 9.1)).toMatchObject({ stretch: 'qa', local: 0.5, project: 1 });
+    expect(journeyAt(L + 14.6)).toMatchObject({ stretch: 'end' });
   });
 
   it('runs the light dive frame by frame: BOB from above is frame 1, the hand-over frame 256', () => {
@@ -86,8 +87,7 @@ describe("the journey's camera", () => {
     }
   });
 
-  // Task 4: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
-  it.skip('has no seam anywhere: no 1/1000 step moves the camera more than 0.15 m or turns it more than 2 degrees', () => {
+  it('has no seam anywhere: no 1/1000 step moves the camera more than 0.15 m or turns it more than 2 degrees', () => {
     for (const a of SCREENS) {
       let worst = { p: 0, move: 0, turn: 0 };
       for (let i = 1; i < STEPS.length; i++) {
@@ -138,11 +138,12 @@ describe('the light, the facts and the void', () => {
     for (let p = L - 0.02; p < L + 0.06; p += 0.001) expect(Math.abs(at(p + 0.001) - at(p)), `at ${p}`).toBeLessThan(0.1);
   });
 
-  it('raises the sheet over SHEET with the dark coming up under it, and holds it up at the end', () => {
+  it('goes into the Q&A over its first unit with no dark, and holds it at 1 to the end', () => {
     const s = lookStop(HOME_CHAPTERS);
     expect(journeyPoseAt(s, LAPTOP).sheet).toBe(0);
     expect(journeyPoseAt(s + 0.5, LAPTOP).sheet).toBeCloseTo(0.5, 9);
-    expect(journeyPoseAt(s + 0.5, LAPTOP).path!.black).toBeCloseTo(0.75, 9);
+    expect(journeyPoseAt(s + 0.5, LAPTOP).path!.black).toBe(0);
+    expect(journeyPoseAt(s + 3, LAPTOP).sheet).toBe(1);
     expect(journeyPoseAt(END, LAPTOP).sheet).toBe(1);
   });
 });
