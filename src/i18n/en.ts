@@ -445,7 +445,10 @@ export const en = {
       areas: 'Areas'
     },
     /** An open project (src/ui/ProjectPanel.tsx): the way on to its page, the way back out and the arrows' names. */
-    inside: { view: 'View project', back: 'Back', previous: 'Previous project', next: 'Next project' }
+    inside: { view: 'View project', back: 'Back', previous: 'Previous project', next: 'Next project' },
+    // A project's own page over the stack (spec 2026-10-29-bob-stack-2-design.md, goal 2): its way back, and its link to
+    // the longer project page (Bob, 2026-10-29: "Add a 'Lees meer' link").
+    page: { back: 'Back to the stack', readMore: 'Read more' }
   },
   /**
    * The light dive (docs/superpowers/specs/2026-10-25-bob-light-dive-design.md, Bob approved it on 2026-10-26): his

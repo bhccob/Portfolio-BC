@@ -2583,3 +2583,536 @@ html[data-qa-at] .qa-frame {
     transform: translate(var(--qa-x, 0px), var(--qa-y, 0px));
   }
 }
+
+/* ---------- a project's own page ---------- */
+/* A project's own page over the stack (spec 2026-10-29-bob-stack-2-design.md, goal 2; the mock-up Bob chose, version 4,
+   after overworldaudio.com/work/star-wars-survivor): src/ui/ProjectView.tsx. Each page is full screen and scrolls on
+   its own; the scene writes how much shows (opacity, inert, data-shown) as its project lifts. The top is the dark with
+   a torn hole (--hole, drawn once by src/ui/tornMask.ts) the object turns in; each part below fades up as it is reached
+   (.pv-in). The way back is pinned at the foot while a project is open (html[data-inside]). */
+.project-view {
+  --pv-veil: rgb(4 2 9 / 0.97);
+  --pv-side: max(24px, 4vw);
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  opacity: 0;
+  pointer-events: none;
+  scrollbar-width: none;
+  visibility: hidden;
+}
+
+.project-view::-webkit-scrollbar {
+  display: none;
+}
+
+.project-view[data-shown] {
+  visibility: visible;
+}
+
+.project-view:not([inert]) {
+  pointer-events: auto;
+}
+
+.pv-top {
+  position: relative;
+  height: 60vh;
+}
+
+.pv-veil {
+  position: absolute;
+  inset: 0;
+  background: var(--pv-veil);
+  -webkit-mask-image: var(--hole);
+  mask-image: var(--hole);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+
+.pv-part {
+  background: var(--pv-veil);
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity 1.2s ease,
+    transform 1.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pv-intro {
+  transition-delay: 0.25s;
+}
+
+.pv-part.pv-in {
+  opacity: 1;
+  transform: none;
+}
+
+/* The words to the side: the name on the left, the rest on the right. */
+.pv-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 88px;
+  padding: 40px max(var(--pv-side), calc((100% - 1160px) / 2)) 170px;
+}
+
+.pv-kind {
+  margin: 0;
+  font-family: var(--font-label);
+  font-size: 13px;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.pv-title {
+  margin: 22px 0 0;
+  font-family: var(--font-title);
+  font-feature-settings: var(--font-title-features);
+  font-weight: 600;
+  font-size: clamp(52px, 5.6vw, 88px);
+  line-height: 1.02;
+  color: var(--ink);
+}
+
+.pv-lead {
+  margin: 6px 0 0;
+  font-size: clamp(23px, 2.05vw, 31px);
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.pv-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 44px 56px;
+  margin: 64px 0 0;
+}
+
+.pv-facts dt {
+  margin-bottom: 14px;
+  font-family: var(--font-label);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.pv-facts dd {
+  margin: 0 0 6px;
+  font-family: var(--font-name);
+  font-size: 19px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.pv-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 36px;
+  margin: 60px 0 0;
+}
+
+.pv-link,
+.pv-more {
+  display: inline-block;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgb(226 165 74 / 0.5);
+  font-family: var(--font-label);
+  font-size: 13px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold-glow);
+  text-decoration: none;
+}
+
+/* "Lees meer": quieter than the link to the code. */
+.pv-more {
+  border-bottom-color: rgb(239 230 214 / 0.18);
+  color: var(--ink-dim);
+}
+
+.pv-link:hover,
+.pv-more:hover {
+  border-color: var(--gold-glow);
+  color: var(--gold-glow);
+}
+
+/* One card, the reference's film; an app's screens stand as phones instead. */
+.pv-media {
+  padding: 0 var(--pv-side) 150px;
+}
+
+.pv-card {
+  width: min(1040px, 100%);
+  aspect-ratio: 16 / 9;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #0c0915;
+}
+
+.pv-card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+
+.pv-apps {
+  padding-top: 20px;
+}
+
+.pv-phones {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.pv-phone {
+  flex: none;
+  margin: 0;
+  height: min(78vh, 760px);
+  aspect-ratio: 1170 / 2532;
+  padding: 9px;
+  border-radius: 46px;
+  background: #0d0a14;
+  border: 1px solid rgb(226 165 74 / 0.32);
+  box-shadow: 0 30px 80px rgb(0 0 0 / 0.6);
+}
+
+.pv-phone img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 37px;
+}
+
+.pv-phone:not(.pv-front) {
+  transform: scale(0.86);
+  opacity: 0.55;
+  filter: saturate(0.85);
+}
+
+.pv-phone:first-child:not(.pv-front) {
+  margin-right: -40px;
+}
+
+.pv-phone:last-child:not(.pv-front) {
+  margin-left: -40px;
+}
+
+.pv-phone.pv-front {
+  position: relative;
+  z-index: 1;
+  box-shadow:
+    0 30px 90px rgb(0 0 0 / 0.7),
+    0 0 120px rgb(226 165 74 / 0.14);
+}
+
+.pv-dots {
+  display: none;
+}
+
+.pv-caption {
+  margin: 22px 0 0;
+  text-align: center;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  color: var(--ink-dim);
+}
+
+/* The next project, quiet: far below under a hairline, its picture dim until the pointer is on it. */
+.pv-next {
+  position: relative;
+  padding: 150px var(--pv-side) 170px;
+}
+
+.pv-next::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: min(1160px, calc(100% - 2 * var(--pv-side)));
+  transform: translateX(-50%);
+  border-top: 1px solid rgb(239 230 214 / 0.1);
+}
+
+.pv-onward {
+  position: relative;
+  display: block;
+  width: min(380px, 100%);
+  margin: 0 auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.pv-onward img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  object-position: top;
+  opacity: 0.2;
+  filter: brightness(0.5) saturate(0.5);
+  -webkit-mask-image: var(--blot);
+  mask-image: var(--blot);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  transition:
+    opacity 0.6s ease,
+    filter 0.6s ease,
+    transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pv-onward img.pv-tall {
+  width: auto;
+  height: min(30vh, 260px);
+  aspect-ratio: 320 / 600;
+  margin: 0 auto;
+  -webkit-mask-image: var(--tall);
+  mask-image: var(--tall);
+}
+
+.pv-onward:hover img,
+.pv-onward:focus-visible img {
+  opacity: 0.6;
+  filter: brightness(0.7) saturate(0.85);
+  transform: scale(1.03);
+}
+
+.pv-words {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  text-shadow: 0 2px 24px rgb(4 2 9 / 0.9);
+}
+
+.pv-onward .pv-words:only-child {
+  position: static;
+  transform: none;
+  padding: 60px 0;
+}
+
+.pv-eyebrow {
+  font-family: var(--font-label);
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.pv-name {
+  font-family: var(--font-title);
+  font-feature-settings: var(--font-title-features);
+  font-weight: 500;
+  font-size: 22px;
+  color: var(--ink-dim);
+  transition: color 0.4s ease;
+}
+
+.pv-onward:hover .pv-name,
+.pv-onward:focus-visible .pv-name {
+  color: var(--gold-glow);
+}
+
+/* Pinned: the way back at the foot on the left; how far down, a thin line on the right. Only with a project open. */
+.pv-controls {
+  display: none;
+}
+
+html[data-inside] .pv-controls {
+  display: block;
+}
+
+.pv-back {
+  position: fixed;
+  left: max(24px, 4vw);
+  bottom: 34px;
+  z-index: 25;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 22px;
+  border: 1px solid rgb(226 165 74 / 0.6);
+  border-radius: 999px;
+  background: rgb(4 2 9 / 0.72);
+  font-family: var(--font-label);
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold-glow);
+  cursor: pointer;
+}
+
+.pv-back span {
+  font-size: 16px;
+}
+
+.pv-back kbd {
+  padding: 3px 6px;
+  border: 1px solid rgb(226 165 74 / 0.4);
+  border-radius: 5px;
+  font: 500 9px/1 var(--font-label);
+  color: var(--ink-dim);
+}
+
+.pv-back:hover {
+  background: rgb(226 165 74 / 0.16);
+}
+
+.pv-progress {
+  position: fixed;
+  right: calc(max(24px, 4vw) - 6px);
+  bottom: 34px;
+  z-index: 25;
+  width: 1px;
+  height: 72px;
+  background: rgb(239 230 214 / 0.16);
+}
+
+.pv-progress span {
+  display: block;
+  height: 100%;
+  background: var(--gold);
+  transform: scaleY(var(--pv-progress, 0));
+  transform-origin: top;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pv-part {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .pv-top {
+    height: 50vh;
+  }
+
+  .pv-intro {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    padding: 14px var(--pv-side) 110px;
+  }
+
+  .pv-title {
+    font-size: 48px;
+  }
+
+  .pv-lead {
+    margin-top: 30px;
+    font-size: 20px;
+  }
+
+  .pv-facts {
+    gap: 30px 28px;
+    margin-top: 44px;
+  }
+
+  .pv-facts dd {
+    font-size: 17px;
+  }
+
+  .pv-media {
+    padding-bottom: 100px;
+  }
+
+  .pv-card {
+    aspect-ratio: 16 / 11;
+  }
+
+  /* On a phone an app's screens are a row, swiped one at a time, each nearly the screen's width, a dot for each. */
+  .pv-apps {
+    padding: 0 0 100px;
+  }
+
+  .pv-phones {
+    justify-content: flex-start;
+    gap: 14px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding: 0 9vw 6px;
+    scrollbar-width: none;
+  }
+
+  .pv-phones::-webkit-scrollbar {
+    display: none;
+  }
+
+  .pv-phone,
+  .pv-phone:not(.pv-front) {
+    height: auto;
+    width: 82vw;
+    transform: none;
+    opacity: 1;
+    filter: none;
+    margin: 0;
+    scroll-snap-align: center;
+    border-radius: 40px;
+    padding: 7px;
+  }
+
+  .pv-phone img {
+    border-radius: 33px;
+  }
+
+  .pv-dots {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .pv-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgb(239 230 214 / 0.25);
+  }
+
+  .pv-dot.pv-on {
+    background: var(--gold);
+  }
+
+  .pv-apps .pv-caption {
+    padding: 0 var(--pv-side);
+  }
+
+  .pv-next {
+    padding: 100px var(--pv-side) 140px;
+  }
+
+  .pv-name {
+    font-size: 20px;
+  }
+
+  .pv-back {
+    bottom: 20px;
+    min-height: 48px;
+    padding: 0 18px;
+    font-size: 11px;
+  }
+
+  .pv-back kbd {
+    display: none;
+  }
+
+  .pv-progress {
+    bottom: 20px;
+  }
+}

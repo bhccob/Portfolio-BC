@@ -412,7 +412,8 @@ export const nl: Dictionary = {
       areas: 'Gebieden'
     },
     // An open project (src/ui/ProjectPanel.tsx): "Bekijk project", "Terug" and the arrows' names, the mock-up's words.
-    inside: { view: 'Bekijk project', back: 'Terug', previous: 'Vorig project', next: 'Volgend project' }
+    inside: { view: 'Bekijk project', back: 'Terug', previous: 'Vorig project', next: 'Volgend project' },
+    page: { back: 'Terug naar de stack', readMore: 'Lees meer' }
   },
   // Verbatim from the NL column of the light dive's spec (docs/superpowers/specs/2026-10-25-bob-light-dive-design.md).
   lightDive: {
