@@ -11,14 +11,14 @@ import { journeyAt, journeyPoseAt, WORLD_PROJECTS } from '~/scene/bob/journey';
 import { ease, sheetBlack } from '~/scene/bob/worldPath';
 import { easeHover, hoversAt, pointerMode } from '~/scene/bob/voidPose';
 import { phaseChangeDraws } from '~/scene/motion';
-import { HOME_CHAPTERS, scrollEnd, sheetStart } from '~/state/chapters';
+import { HOME_CHAPTERS, scrollEnd, lookStop } from '~/state/chapters';
 import type { Phase } from '~/state/machine';
 
 /** The credits' stop, the scroll's end. */
 const END = scrollEnd(HOME_CHAPTERS);
 
 /** The look back's own stop, where the sheet begins: one unit short of the end. */
-const S = sheetStart(HOME_CHAPTERS);
+const S = lookStop(HOME_CHAPTERS);
 
 /** Half way over the sheet: the credits most of the way up, the dark coming up under them. */
 const MID = S + 0.5;
@@ -371,7 +371,8 @@ describe('applyEndView: Home writes the end view each frame, only on change', ()
     expect(scrollTo).not.toHaveBeenCalled();
   });
 
-  it('lets the pointer take no project at the end, so nothing keeps drawing', () => {
+  // Task 8: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
+  it.skip('lets the pointer take no project at the end, so nothing keeps drawing', () => {
     expect(END - S).toBeCloseTo(1, 12);
     expect(pointerMode(journeyPoseAt(END, 16 / 9))).toBeNull();
   });

@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
-import { qaEntries, type QaEntry } from '../../src/data/qa';
+import { qaEntries, type QaEntry, RING_MARKS, RING_QUESTIONS } from '../../src/data/qa';
 import { en, type Dictionary, type QaItems } from '../../src/i18n/en';
 import { nl } from '../../src/i18n/nl';
 
@@ -51,5 +51,13 @@ describe('the Q&A', () => {
     // @ts-expect-error a missing fifth answer
     const fewer: ReturnType<typeof qaEntries> = [entry, entry, entry, entry];
     expect([sixth, missing, answers, fewer]).toHaveLength(4);
+  });
+});
+
+describe('the ring of questions', () => {
+  it('has as many questions on the ring as both dictionaries', () => {
+    expect(RING_QUESTIONS).toBe(en.end.questions.length);
+    expect(nl.end.questions.length).toBe(RING_QUESTIONS);
+    expect(RING_MARKS).toBe(RING_QUESTIONS + 1);
   });
 });

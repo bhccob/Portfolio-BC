@@ -48,8 +48,8 @@ function phaseOfChapter(chapter: ChapterId, category: string | null): Phase {
       // an area is the projects' phase, with its category
       return { kind: 'PROJECTS', category };
     case 'LOOK':
-    case 'SHEET':
-      // the look back and the sheet over it: the projects' phase with no one project, so a bead still opens
+    case 'QA':
+      // the look back and the ring's questions round the stack: the projects' phase with no one project
       return { kind: 'PROJECTS', category: null };
     case 'END':
       return { kind: 'END' };

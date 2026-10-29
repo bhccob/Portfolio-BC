@@ -1,5 +1,5 @@
 import { LANDING_HOLD } from '~/scene/bob/landingHold';
-import { type ChapterAt, type Chapters, chapterAt, keyStops, riseTop, scrollEnd, sheetStart } from '~/state/chapters';
+import { type ChapterAt, type Chapters, chapterAt, keyStops, lookStop, riseTop, scrollEnd } from '~/state/chapters';
 import { type Phase, SCROLL_PHASES } from '~/state/machine';
 import type { VoidState } from '~/state/store';
 
@@ -82,7 +82,7 @@ export const SHEET_BACK = 0.03;
  * its two ends, where there is nothing to finish: the path never moves by itself.
  */
 export function finishTarget(place: number, direction: number, c: Chapters): number | null {
-  const start = sheetStart(c);
+  const start = lookStop(c);
   const end = scrollEnd(c);
   if (!(place > start && place < end)) return null;
   return direction > 0 && place - start >= SHEET_BACK * (end - start) ? end : start;

@@ -5,7 +5,7 @@ import { type ProjectId, projects } from '~/data/projects';
 import { routeFromPath } from '~/i18n/locale';
 import { type Locale, Translator } from '~/i18n/Translator';
 import { insideFromHistory } from '~/scene/bob/inside';
-import { areaStop, chapterAt, HOME_CHAPTERS, sheetStart } from './chapters';
+import { areaStop, chapterAt, HOME_CHAPTERS, lookStop } from './chapters';
 import { frame } from './frame';
 import { type Phase, samePhase, transition } from './machine';
 import { useScene } from './store';
@@ -13,12 +13,12 @@ import { useScene } from './store';
 /**
  * The stop of a project on the home's scroll: its area's (~/state/chapters `areaStop`; spec
  * 2026-10-27-bob-hologram-world-design.md), the camera at rest on it with its words shown. A project that is not on the
- * way has no place on the world: its stop is the look back's own (`sheetStart`).
+ * way has no place on the world: its stop is the look back's own (`lookStop`).
  */
 export function stopForProject(id: ProjectId): number {
   const project = projects.byId(id);
   if (project === undefined) throw new TypeError(`no stop on the home's scroll for the project "${id}"`);
-  return projects.onPath().includes(project) ? areaStop(HOME_CHAPTERS, project.categoryId) : sheetStart(HOME_CHAPTERS);
+  return projects.onPath().includes(project) ? areaStop(HOME_CHAPTERS, project.categoryId) : lookStop(HOME_CHAPTERS);
 }
 
 /** The bead last opened from the home, and the place of the story it was opened at (`noteOpenedFrom`). */

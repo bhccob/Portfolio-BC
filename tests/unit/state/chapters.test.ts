@@ -15,15 +15,18 @@ import {
   lightStart,
   LAND_STOP,
   lookStart,
+  lookStop,
   pathStart,
   placeOfFrame,
   riseTop,
+  qaPlaceAt,
+  qaStop,
   scrollEnd,
-  sheetStart,
   stops,
   WORLD_LAYOUT,
   worldStop,
 } from '../../../src/state/chapters';
+import { RING_QUESTIONS } from '../../../src/data/qa';
 
 /** Where the light dive hands the light over to the path: way frame 256 (1 + 6 · 255 / 299, the fall at its doubled pace). */
 const L = 1 + (6 * 255) / 299;
@@ -42,14 +45,15 @@ describe('the fall’s pace', () => {
     for (const f of [1, 81, 121, 161, 201, 241, 256]) expect(frameOfPlace(placeOfFrame(f))).toBeCloseTo(f, 9);
     // Each fact (40 frames apart) is twice the scroll apart: 0.803 units, 0.401 before.
     expect(placeOfFrame(121) - placeOfFrame(81)).toBeCloseTo((6 * 40) / 299, 12);
-    expect(keyStops(HOME_CHAPTERS)).toHaveLength(13); // the top, BOB from above, five facts, the world, three areas, the look back, the end
+    // the top, BOB from above, five facts, the world, three areas, the look back, six questions and the end
+    expect(keyStops(HOME_CHAPTERS)).toHaveLength(19);
   });
 });
 
 describe('buildChapters', () => {
   it("lays the world out: the land, an area per category on the way in the categories' order, the look back", () => {
     expect(HAND_F).toBe(256);
-    expect(WORLD_LAYOUT).toEqual({ land: 1.8, area: 1.4, look: 1.6 });
+    expect(WORLD_LAYOUT).toEqual({ land: 1.8, area: 1.4, look: 1.6, qa: 1 });
     expect(c.units.map((u) => [u.id, u.project, u.category])).toEqual([
       ['HOME', null, null],
       ['LIGHT', null, null],
@@ -58,12 +62,12 @@ describe('buildChapters', () => {
       ['AREA', 1, 'website'],
       ['AREA', 2, 'game'],
       ['LOOK', null, null],
-      ['SHEET', null, null],
+      ...[0, 1, 2, 3, 4, 5, 6].map((k) => ['QA', k, null]),
       ['END', null, null],
     ]);
-    const starts = [0, 1, L, L + 1.8, L + 3.2, L + 4.6, L + 6.0, L + 7.6, L + 8.6];
+    const starts = [0, 1, L, L + 1.8, L + 3.2, L + 4.6, L + 6.0, ...[0, 1, 2, 3, 4, 5, 6].map((k) => L + 7.6 + k), L + 14.6];
     c.units.forEach((u, k) => expect(u.start).toBeCloseTo(starts[k]!, 9));
-    expect(c.total).toBeCloseTo(L + 9.6, 9);
+    expect(c.total).toBeCloseTo(L + 15.6, 9);
   });
 
   it('gives a category with two projects one area', () => {
@@ -80,7 +84,7 @@ describe('buildChapters', () => {
   });
 
   it('has no area for a category with no project on the way, and still looks back and ends on END', () => {
-    expect(buildChapters({ areas: [] }).units.map((u) => u.id)).toEqual(['HOME', 'LIGHT', 'LAND', 'LOOK', 'SHEET', 'END']);
+    expect(buildChapters({ areas: [] }).units.map((u) => u.id)).toEqual(['HOME', 'LIGHT', 'LAND', 'LOOK', ...Array(7).fill('QA'), 'END']);
   });
 });
 
@@ -105,7 +109,7 @@ describe('chapterAt', () => {
   it('starts a unit exactly on its start', () => {
     expect(chapterAt(c, 1).id).toBe('LIGHT');
     expect(chapterAt(c, L).id).toBe('LAND');
-    expect(chapterAt(c, sheetStart(c)).id).toBe('SHEET');
+    expect(chapterAt(c, lookStop(c))).toMatchObject({ id: 'QA', project: 0 });
     expect(chapterAt(c, scrollEnd(c)).id).toBe('END');
   });
 
@@ -136,15 +140,15 @@ describe('chapterAt', () => {
 describe('the places of the scroll', () => {
   it('lists each unit start as a stop; the last, END, is the end of the scroll', () => {
     expect(stops(c)).toHaveLength(c.units.length);
-    expect(scrollEnd(c)).toBeCloseTo(L + 8.6, 9);
+    expect(scrollEnd(c)).toBeCloseTo(L + 14.6, 9);
     expect(scrollEnd(c)).toBeLessThan(c.total);
   });
 
-  it('names the rise, the fall, the path, the look back and the sheet', () => {
+  it("names the rise, the fall, the path and the look back's stop", () => {
     expect([riseTop(c), lightStart(c)]).toEqual([1, 1]);
     expect(pathStart(c)).toBeCloseTo(L, 9);
     expect(lookStart(c)).toBeCloseTo(L + 6.0, 9);
-    expect(sheetStart(c)).toBeCloseTo(L + 7.6, 9);
+    expect(lookStop(c)).toBeCloseTo(L + 7.6, 9);
   });
 
   it("maps the way's frames onto the fall, linearly, and back", () => {
@@ -155,10 +159,10 @@ describe('the places of the scroll', () => {
     expect(frameOfPlace(placeOfFrame(121))).toBeCloseTo(121, 9);
   });
 
-  it("keeps the key stops: the facts, the world, each area, the look back's own stop and the end", () => {
+  it("keeps the key stops: the facts, the world, each area, the look back's own stop, each question and the end", () => {
     expect(FACT_PEAKS).toEqual([81, 121, 161, 201, 241]);
     expect([LAND_STOP, AREA_STOP]).toEqual([0.85, 0.7]);
-    const expected = [0, 1, ...FACT_PEAKS.map(placeOfFrame), L + 1.53, L + 2.78, L + 4.18, L + 5.58, L + 7.6, L + 8.6];
+    const expected = [0, 1, ...FACT_PEAKS.map(placeOfFrame), L + 1.53, L + 2.78, L + 4.18, L + 5.58, L + 7.6, ...[0, 1, 2, 3, 4, 5, 6].map((k) => L + 8.6 + k)];
     const got = keyStops(HOME_CHAPTERS);
     expect(got).toHaveLength(expected.length);
     got.forEach((s, k) => expect(s).toBeCloseTo(expected[k]!, 9));
@@ -190,5 +194,35 @@ describe('the landing hold', () => {
     expect(LANDING_HOLD).toBe(pathStart(HOME_CHAPTERS));
     expect(landingHoldFor('loading')).toBe(LANDING_HOLD);
     expect(landingHoldFor('ready')).toBe(scrollEnd(HOME_CHAPTERS));
+  });
+});
+
+// The Q&A as a gold ring round the closing stack (spec 2026-10-29-bob-stack-2-design.md, goal 1): a stop for each
+// question, and the end, after the look back.
+describe('the Q&A on the ring', () => {
+  it('lays a QA unit for each mark after the look back', () => {
+    const qa = c.units.filter((u) => u.id === 'QA');
+    expect(qa).toHaveLength(RING_QUESTIONS + 1);
+    expect(qa.map((u) => u.length)).toEqual(Array(RING_QUESTIONS + 1).fill(1));
+    expect(qa.map((u) => u.project)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    expect(c.units.at(-1)!.id).toBe('END');
+    expect(c.units.map((u) => u.id)).not.toContain('SHEET');
+  });
+
+  it('stops at the look back, at each question and at the end', () => {
+    const qaStops = [0, 1, 2, 3, 4, 5, 6].map((k) => qaStop(c, k));
+    const key = keyStops(c);
+    for (const stop of [lookStop(c), ...qaStops]) expect(key.some((s) => Math.abs(s - stop) < 1e-9)).toBe(true);
+    for (let k = 1; k < qaStops.length; k++) expect(qaStops[k]!).toBeGreaterThan(qaStops[k - 1]!);
+    expect(qaStop(c, RING_QUESTIONS)).toBe(scrollEnd(c));
+    expect(key.at(-1)).toBe(scrollEnd(c));
+  });
+
+  it('reads the place on the ring', () => {
+    expect(qaPlaceAt(c, lookStop(c))).toBeCloseTo(-1, 12);
+    expect(qaPlaceAt(c, qaStop(c, 0))).toBeCloseTo(0, 12);
+    expect(qaPlaceAt(c, (qaStop(c, 2) + qaStop(c, 3)) / 2)).toBeCloseTo(2.5, 12);
+    expect(qaPlaceAt(c, scrollEnd(c))).toBeCloseTo(6, 12);
+    expect(qaPlaceAt(c, lookStop(c) - 1)).toBeNull();
   });
 });

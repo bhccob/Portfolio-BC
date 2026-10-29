@@ -25,7 +25,7 @@
 import type { CategoryId } from '~/data/categories';
 import type { ProjectId } from '~/data/projects';
 import { type CameraShot, shotToward } from '~/engine/bob/shots';
-import { AREA_STOP, type Chapters, HAND_F, HOME_CHAPTERS, LAND_STOP, pathStart, sheetStart, worldStop } from '~/state/chapters';
+import { AREA_STOP, type Chapters, HAND_F, HOME_CHAPTERS, LAND_STOP, lookStop, pathStart, worldStop } from '~/state/chapters';
 import { aroundShot } from './around';
 import { fitDistance } from './fit';
 import { filamentsAt, lightAt, sizeFor, sparksAt, streamAt, trailAt, trailLevel, voidAt, wayShot } from './lightDive';
@@ -185,7 +185,7 @@ interface Segment {
   length: number;
 }
 
-const PARTS: Readonly<Record<string, WorldPart>> = { LAND: 'land', AREA: 'area', LOOK: 'look', SHEET: 'sheet' };
+const PARTS: Readonly<Record<string, WorldPart>> = { LAND: 'land', AREA: 'area', LOOK: 'look', QA: 'sheet' };
 
 /** The path's segments from the chapters: each ends where the next begins, so a stop is in exactly one. */
 function segmentsOf(c: Chapters): Segment[] {
@@ -338,7 +338,7 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS): Worl
   const handStream = streamAt(HAND_F);
   const handTrail = trailLevel(HAND_F);
   const WORLD_Q = worldStop(c) - START;
-  const SHEET_Q = sheetStart(c) - START;
+  const SHEET_Q = lookStop(c) - START;
 
   function shotAt(s: Segment, t: number): CameraShot {
     if (s.kind === 'land') return t < LAND_HIT ? shotToward(handShot, landShot, ease(t / LAND_HIT)) : shotToward(landShot, worldShot, ease(seg(t, LAND_HIT, LAND_STOP)));

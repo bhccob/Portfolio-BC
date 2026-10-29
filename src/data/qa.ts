@@ -1,4 +1,4 @@
-import type { Dictionary } from '../i18n/en';
+import { type Dictionary, en } from '../i18n/en';
 
 /** An answer on the compass page: an optional label, paragraphs, then terms with their text (`sector`: the one the financial-sector note is). */
 export interface QaAnswer {
@@ -44,3 +44,13 @@ export function qaEntries(t: Dictionary): EntriesFor<Dictionary['compass']['qa']
     { question: goal, answer: { paragraphs: [career.goalText] } }
   ];
 }
+
+/**
+ * How many questions stand on the Q&A's gold ring round the stack (spec 2026-10-29-bob-stack-2-design.md, goal 1): the
+ * end page's (`end.questions`), the same in both languages (the Q&A test holds Dutch to it). The ring has one mark more,
+ * the end's (`RING_MARKS`), and the home's scroll a stop for each (src/state/chapters.ts).
+ */
+export const RING_QUESTIONS: number = en.end.questions.length;
+
+/** The ring's marks: one per question and the end's. */
+export const RING_MARKS: number = RING_QUESTIONS + 1;

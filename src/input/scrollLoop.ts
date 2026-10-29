@@ -1,6 +1,6 @@
 import { END_ATTRIBUTE, pageToTop } from '~/scene/bob/endView';
 import { STEP_FADE_ATTRIBUTE, STEP_FADE_MS } from '~/scene/bob/stepFade';
-import { type ChapterAt, type Chapters, chapterAt, pathStart, placeOfFrame, riseTop, scrollEnd, sheetStart } from '~/state/chapters';
+import { type ChapterAt, type Chapters, chapterAt, pathStart, placeOfFrame, lookStop, riseTop, scrollEnd } from '~/state/chapters';
 import type { VoidState } from '~/state/store';
 import { changedChapter, finishTarget, holdLimit, jumpTarget, keyTarget, moveTarget, onRise, pinnedAtEnd, releaseTarget, restsAtTop, SETTLE_SLOP_PX, stopsFor } from './target';
 import { VirtualScroll } from './VirtualScroll';
@@ -633,7 +633,7 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
   const { frame, chapters } = o;
   const top = riseTop(chapters);
   const path = pathStart(chapters);
-  const sheet = sheetStart(chapters);
+  const sheet = lookStop(chapters);
   const end = scrollEnd(chapters);
   /** The void failed: the end page stands alone past the hold, reached and left by the step fade. */
   const failed = (): boolean => o.voidState?.() === 'failed';

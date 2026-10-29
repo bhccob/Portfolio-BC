@@ -1,7 +1,7 @@
 import { createMemoryRouter, NavigationType } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { projects } from '../../../src/data/projects';
-import { areaStop, chapterAt, HOME_CHAPTERS, keyStops, pathStart, sheetStart } from '../../../src/state/chapters';
+import { areaStop, chapterAt, HOME_CHAPTERS, keyStops, pathStart, lookStop } from '../../../src/state/chapters';
 import { frame } from '../../../src/state/frame';
 import {
   arrivedDirectly,
@@ -171,7 +171,7 @@ describe('syncRoute', () => {
 
   it('puts the scene on the sheet when the scroll is part way up it (the fade to black) and a page is left for contact', () => {
     syncRoute({ pathname: '/projects/cookies-clicker/', key: 'a' });
-    frame.progress = sheetStart(HOME_CHAPTERS) + 0.5;
+    frame.progress = lookStop(HOME_CHAPTERS) + 0.5;
     frame.chapterIndex = 9;
     syncRoute({ pathname: '/contact/', key: 'b' });
     expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: null });

@@ -359,7 +359,7 @@ const { Translator, locales } = await tsImport('../../src/i18n/Translator.ts', i
 const { HANDLES, PAGE_KINDS } = await tsImport('../../src/app/handle.ts', import.meta.url);
 const { MIN_FILL_MS, SEND_TIMEOUT_MS } = await tsImport('../../src/ui/contactSubmit.ts', import.meta.url);
 const { LOAD_TIMEOUT_MS, RESTORE_TIMEOUT_MS } = await tsImport('../../src/scene/timeouts.ts', import.meta.url);
-const { AREA_STOP, HOME_CHAPTERS, LAND_STOP, areaStop, areasOnPath, chapterAt, keyStops, lookStart, pathStart, placeOfFrame, scrollEnd, sheetStart, stops, worldStop } = await tsImport('../../src/state/chapters.ts', import.meta.url);
+const { AREA_STOP, HOME_CHAPTERS, LAND_STOP, areaStop, areasOnPath, chapterAt, keyStops, lookStart, pathStart, placeOfFrame, scrollEnd, lookStop, stops, worldStop } = await tsImport('../../src/state/chapters.ts', import.meta.url);
 const { SETTLE_SLOP_PX } = await tsImport('../../src/input/target.ts', import.meta.url);
 const { SHEET_FINISH_MS } = await tsImport('../../src/input/scrollLoop.ts', import.meta.url);
 const { GESTURE_GAP_MS } = await tsImport('../../src/input/gesture.ts', import.meta.url);
@@ -4987,7 +4987,7 @@ const areaEnd = (bead) => {
 const PATH_START = pathStart(HOME_CHAPTERS);
 /** The look back's start (the last area's end) and its own stop (the sheet's start, where the credits begin to come). */
 const LOOK_START = lookStart(HOME_CHAPTERS);
-const LOOK_STOP = sheetStart(HOME_CHAPTERS);
+const LOOK_STOP = lookStop(HOME_CHAPTERS);
 
 /**
  * What the journey says at each of the story's key stops, 0 to the end (`journey.stretch` and `journey.project`; `local`

@@ -37,13 +37,13 @@ describe('CHAPTER', () => {
     expect(transition({ kind: 'LIGHT' }, chapter('LAND'))).toEqual({ kind: 'PROJECTS', category: null });
     expect(transition({ kind: 'LIGHT' }, chapter('AREA', 'website'))).toEqual({ kind: 'PROJECTS', category: 'website' });
     expect(transition({ kind: 'PROJECTS', category: 'game' }, chapter('LOOK'))).toEqual({ kind: 'PROJECTS', category: null });
-    expect(transition({ kind: 'PROJECTS', category: null }, chapter('SHEET'))).toEqual({ kind: 'PROJECTS', category: null });
+    expect(transition({ kind: 'PROJECTS', category: null }, chapter('QA'))).toEqual({ kind: 'PROJECTS', category: null });
   });
 
   it('takes the sheet to the end page and back', () => {
     const sheet: Phase = { kind: 'PROJECTS', category: null };
     expect(transition(sheet, chapter('END'))).toEqual({ kind: 'END' });
-    expect(transition(END, chapter('SHEET'))).toEqual({ kind: 'PROJECTS', category: null });
+    expect(transition(END, chapter('QA'))).toEqual({ kind: 'PROJECTS', category: null });
     expect(transition(END, chapter('HOME'))).toEqual({ kind: 'HOME_IDLE' });
   });
 

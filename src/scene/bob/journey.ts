@@ -16,7 +16,7 @@
  */
 import type { ProjectId } from '~/data/projects';
 import { type CameraShot, shotFor } from '~/engine/bob/shots';
-import { areasOnPath, chapterAt, frameOfPlace, HOME_CHAPTERS, pathStart, riseTop, scrollEnd, sheetStart, stops } from '~/state/chapters';
+import { areasOnPath, chapterAt, frameOfPlace, HOME_CHAPTERS, pathStart, lookStop, riseTop, scrollEnd, stops } from '~/state/chapters';
 import { type FactAt, factAt, filamentsAt, lightAt, sparksAt, streamAt, trailAt, trailLevel, voidAt, wayNeedle, wayShot } from './lightDive';
 import { type WorldFrame, worldPathFor } from './worldPath';
 import type { LightPose, VoidPose } from './poseTypes';
@@ -117,7 +117,7 @@ export function focusShotFor(id: ProjectId, aspect: number): CameraShot {
 }
 
 const PATH_AT = pathStart(HOME_CHAPTERS);
-const SHEET_AT = sheetStart(HOME_CHAPTERS);
+const SHEET_AT = lookStop(HOME_CHAPTERS);
 const RISE_TOP = riseTop(HOME_CHAPTERS);
 const END_AT = scrollEnd(HOME_CHAPTERS);
 /** Within this much of a stop, the progress is on it, as `riseAt` has it: a sum's float residue is the stop. */
@@ -133,7 +133,7 @@ function settled(progress: number): number {
   return p;
 }
 
-const STRETCHES = { LAND: 'land', AREA: 'area', LOOK: 'look', SHEET: 'sheet', END: 'end' } as const;
+const STRETCHES = { LAND: 'land', AREA: 'area', LOOK: 'look', QA: 'sheet', END: 'end' } as const;
 
 /**
  * Where the journey is at this progress (the module's doc lists the stretches). NaN reads as 0, the progress is held to

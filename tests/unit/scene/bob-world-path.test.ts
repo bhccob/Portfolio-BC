@@ -4,7 +4,7 @@ import { project } from '~/scene/bob/fit';
 import { lightAt } from '~/scene/bob/lightDive';
 import { LAND_HIT, LOOK_BOX, makeWorldPath, POWER, SHEET_DRIFT, type WorldFrame } from '~/scene/bob/worldPath';
 import { boardCentre, boardTops, LID_TOP, STACK, stackPlaces } from '~/scene/bob/worldLayout';
-import { AREA_STOP, areaStop, areasOnPath, buildChapters, type Chapters, HAND_F, HOME_CHAPTERS, LAND_STOP, pathStart, sheetStart, worldStop } from '~/state/chapters';
+import { AREA_STOP, areaStop, areasOnPath, buildChapters, type Chapters, HAND_F, HOME_CHAPTERS, LAND_STOP, pathStart, lookStop, worldStop } from '~/state/chapters';
 
 type Vec3 = readonly [number, number, number];
 type Box = readonly [number, number, number, number];
@@ -64,7 +64,7 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
       last = y;
     }
     for (const t of [LAND_HIT, 0.5, 0.8, 1]) landAt(t).light.position.forEach((v, k) => expect(v).toBeCloseTo(lid[k]!, 6));
-    for (const place of [worldStop(HOME_CHAPTERS), areaStop(HOME_CHAPTERS, 'game'), sheetStart(HOME_CHAPTERS)]) {
+    for (const place of [worldStop(HOME_CHAPTERS), areaStop(HOME_CHAPTERS, 'game'), lookStop(HOME_CHAPTERS)]) {
       home(DESK, place).light.position.forEach((v, k) => expect(v).toBeCloseTo(lid[k]!, 6));
     }
     // At rest the light's trail stands straight up above it, still.
@@ -90,7 +90,7 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
       last = e;
     }
     expect(landAt(0.7).explode).toBe(1);
-    for (const place of [worldStop(HOME_CHAPTERS), areaStop(HOME_CHAPTERS, 'app'), areaStop(HOME_CHAPTERS, 'game'), sheetStart(HOME_CHAPTERS)]) {
+    for (const place of [worldStop(HOME_CHAPTERS), areaStop(HOME_CHAPTERS, 'app'), areaStop(HOME_CHAPTERS, 'game'), lookStop(HOME_CHAPTERS)]) {
       expect(home(DESK, place).explode).toBe(1);
     }
   });
@@ -158,7 +158,7 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
   it('never takes the camera through a board or the spine', () => {
     for (const aspect of [DESK, PHONE]) {
       const from = worldStop(HOME_CHAPTERS);
-      const to = sheetStart(HOME_CHAPTERS);
+      const to = lookStop(HOME_CHAPTERS);
       for (let k = 0; k <= 200; k++) {
         const [x, y, z] = home(aspect, from + ((to - from) * k) / 200).shot.position;
         const r = Math.hypot(x - C[0], z - C[2]);
@@ -181,7 +181,7 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
         for (const s of board.sockets) expect(levels[s.id], s.id).toBeCloseTo(b === i + 1 ? 1.1 : 0.45, 12);
       });
     });
-    expect(home(DESK, sheetStart(HOME_CHAPTERS)).boardLight).toEqual([1, 1, 1, 1]);
+    expect(home(DESK, lookStop(HOME_CHAPTERS)).boardLight).toEqual([1, 1, 1, 1]);
   });
 
   it("lets the names show at the world's stop and at each board's, and a board's caption only at its own", () => {
@@ -197,9 +197,9 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
       const unit = HOME_CHAPTERS.units.find((u) => u.id === 'AREA' && u.category === area.category)!;
       expect(home(DESK, unit.start + 0.35 * unit.length).names).toBe(0);
     });
-    expect(home(DESK, sheetStart(HOME_CHAPTERS)).names).toBe(0);
-    expect(home(DESK, sheetStart(HOME_CHAPTERS)).caption).toBeNull();
-    expect(home(DESK, sheetStart(HOME_CHAPTERS)).dots).toBe(0);
+    expect(home(DESK, lookStop(HOME_CHAPTERS)).names).toBe(0);
+    expect(home(DESK, lookStop(HOME_CHAPTERS)).caption).toBeNull();
+    expect(home(DESK, lookStop(HOME_CHAPTERS)).dots).toBe(0);
     expect(AREA_STOP).toBe(0.7);
   });
 
@@ -207,12 +207,12 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
     const world = worldStop(HOME_CHAPTERS);
     expect(home(DESK, world - 0.05).skip).toBe(false);
     expect(home(DESK, world).skip).toBe(true);
-    expect(home(DESK, sheetStart(HOME_CHAPTERS)).skip).toBe(true);
-    expect(home(DESK, sheetStart(HOME_CHAPTERS) + 0.1).skip).toBe(false);
+    expect(home(DESK, lookStop(HOME_CHAPTERS)).skip).toBe(true);
+    expect(home(DESK, lookStop(HOME_CHAPTERS) + 0.1).skip).toBe(false);
   });
 
   it("brings the sheet's dark up from its start, and keeps the fog", () => {
-    const sheet = sheetStart(HOME_CHAPTERS);
+    const sheet = lookStop(HOME_CHAPTERS);
     expect(home(DESK, sheet).black).toBe(0);
     expect(home(DESK, sheet + 0.5).black).toBeCloseTo(0.75, 9);
     expect(home(DESK, sheet + 0.999).black).toBeGreaterThan(0.99);
@@ -228,7 +228,7 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
   it('looks back up at the whole machine framed, not far out (Bob, 2026-10-29: "it zooms out too much")', () => {
     for (const aspect of [DESK, PHONE]) {
       const path = pathFor(aspect);
-      const f = home(aspect, sheetStart(HOME_CHAPTERS));
+      const f = home(aspect, lookStop(HOME_CHAPTERS));
       expect(f.part).toBe('sheet');
       const d = Math.hypot(...([0, 1, 2].map((k) => f.shot.position[k]! - f.shot.target[k]!) as [number, number, number]));
       expect((f.shot.position[1] - f.shot.target[1]) / d).toBeCloseTo(Math.sin((16 * Math.PI) / 180), 6);
@@ -248,7 +248,7 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
 
   it('drifts on through the sheet as the credits rise: the stack sinks away under them, never further off', () => {
     for (const aspect of [DESK, PHONE]) {
-      const sheet = sheetStart(HOME_CHAPTERS);
+      const sheet = lookStop(HOME_CHAPTERS);
       const at = (t: number) => home(aspect, sheet + t).shot;
       const start = at(0);
       const distance = (shot: CameraShot) => Math.hypot(...([0, 1, 2].map((k) => shot.position[k]! - shot.target[k]!) as [number, number, number]));
