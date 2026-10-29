@@ -109,3 +109,23 @@ vault stay off the site.
 - The drop's curve and the land's new length, within "about twice the scroll, eased in and out".
 - How the stored 3D choice is retired (ignored or cleared) and how the tests that switched 3D off reach that state now.
 - Which of Portle's screens is the card, among the example members' (the portfolio overview first).
+
+## Build notes (2026-10-29)
+
+Calls made while building that change what the spec says or add to it:
+
+- **The drop** is 1.26 units long (it was 0.63), from the hand-over to the light on the lid: ten wheel notches on a
+  laptop where it was five. Its curve carries the fall's speed in and settles onto the lid instead of quickening into it.
+  Every moment after the hit (the flash, the power, the stack opening, the names, the world's stop) stands as far after
+  the hit as it did before.
+- **The stored 3D choice** is retired by never reading or writing it: a visitor who switched 3D off before is shown 3D.
+  The key stays in that visitor's browser, unread. The card where 3D cannot run is the one way to Lite now, and it stays.
+- **The aura** of the light reaches under the top of a fact's line on a phone: the patch under that line measures up to
+  0.09 (it was under 0.05), the line and its words still clear. The harness's limit there is 0.10 now; the aura was kept
+  as Bob picked it.
+- **The end** places its words on the screen the visitor sees (dvh, a phone's browser toolbar left out). Its marks'
+  numbers go out of reach as well as out of sight, and with the keyboard in the header, the header stands over the dark.
+- **A live site's link** reads "Naar de site" / "Visit the site" (Portle's is its web app, not a download), on its own
+  page and on its page over the stack.
+- **Portle's picture** is the dark colour scheme of its portfolio overview, from a scratch copy of its last commit run on
+  its own example members (Ada), on other ports than Bob's own Portle, which was running.
