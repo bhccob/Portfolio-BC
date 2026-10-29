@@ -97,7 +97,7 @@ describe('keyTarget: an arrow, Page Up or Down, or Space, without reduced motion
     expect(keyTarget(qaStop(c, 5), 0.15, c)).toBe(E);
     // A target between stops (a wheel under way, or one left on a travel) steps to the next one.
     expect(keyTarget(F241 + 0.1, 0.15, c)).toBe(W);
-    expect(keyTarget(L + 3.0, 0.15, c)).toBe(A1);
+    expect(keyTarget(L + 3.63, 0.15, c)).toBe(A1);
   });
 
   it('steps up to the previous key stop past the top of the rise, and back on the rise moves by its distance again', () => {
@@ -176,9 +176,9 @@ describe('holdLimit and releaseTarget: the landing hold', () => {
   });
 
   it('lets a held target go on once the hold rises: to the next key stop at least, as far as it asked at most', () => {
-    expect(releaseTarget(LANDING_HOLD, L + 5, E, c)).toBe(L + 5);
+    expect(releaseTarget(LANDING_HOLD, L + 5.63, E, c)).toBe(L + 5.63);
     expect(releaseTarget(LANDING_HOLD, LANDING_HOLD + 0.1, E, c)).toBe(W);
-    expect(releaseTarget(LANDING_HOLD, E, L + 2, c)).toBe(L + 2);
+    expect(releaseTarget(LANDING_HOLD, E, L + 2.63, c)).toBe(L + 2.63);
   });
 });
 
@@ -191,7 +191,7 @@ describe('changedChapter', () => {
   it('gives the new chapter, with its category, when progress has crossed into one', () => {
     expect(changedChapter(c, 1.5, 0, false)).toMatchObject({ index: 1, id: 'LIGHT', category: null });
     expect(changedChapter(c, L + 0.4, 1, false)).toMatchObject({ index: 2, id: 'LAND', category: null });
-    expect(changedChapter(c, L + 2.0, 2, false)).toMatchObject({ index: 3, id: 'AREA', category: 'a' });
+    expect(changedChapter(c, L + 2.63, 2, false)).toMatchObject({ index: 3, id: 'AREA', category: 'a' });
     expect(changedChapter(c, S + 0.4, 6, false)).toMatchObject({ index: 7, id: 'QA', category: null, project: 0 });
   });
 

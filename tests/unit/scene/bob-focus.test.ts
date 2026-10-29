@@ -271,25 +271,25 @@ describe('focusGoalFor: the close view the page asks for', () => {
 describe('restsAt: a flight leaves only from a rest where the project is in view', () => {
   it('is true at the world, at every area and in the areas between, with the story resting there', () => {
     expect(restsAt('steady', stopForProject('steady'), stopForProject('steady'))).toBe(true);
-    expect(restsAt('jontai-energy', L + 1.53, L + 1.53)).toBe(true);
-    expect(restsAt('cookies-clicker', L + 4.0, L + 4.0)).toBe(true);
+    expect(restsAt('jontai-energy', L + 2.16, L + 2.16)).toBe(true);
+    expect(restsAt('cookies-clicker', L + 4.63, L + 4.63)).toBe(true);
   });
 
   it("is true for every project in the look back, its own stop included, and false in the Q&A", () => {
-    for (const id of IDS) expect(restsAt(id, L + 6.5, L + 6.5)).toBe(true);
-    for (const id of IDS) expect(restsAt(id, L + 7.6, L + 7.6)).toBe(true);
-    expect(restsAt('cookies-clicker', L + 8.0, L + 8.0)).toBe(false);
-    expect(restsAt('cookies-clicker', L + 8.6, L + 8.6)).toBe(false);
-    expect(restsAt('cookies-clicker', L + 14.6, L + 14.6)).toBe(false);
+    for (const id of IDS) expect(restsAt(id, L + 7.13, L + 7.13)).toBe(true);
+    for (const id of IDS) expect(restsAt(id, L + 8.23, L + 8.23)).toBe(true);
+    expect(restsAt('cookies-clicker', L + 8.63, L + 8.63)).toBe(false);
+    expect(restsAt('cookies-clicker', L + 9.23, L + 9.23)).toBe(false);
+    expect(restsAt('cookies-clicker', L + 15.23, L + 15.23)).toBe(false);
   });
 
   it("is false while the story moves, while the light comes down, in the light dive, or for no project", () => {
-    expect(restsAt('steady', L + 1.53, L + 2.0)).toBe(false);
-    expect(restsAt('jontai-energy', L + 1.0, L + 1.0)).toBe(false);
+    expect(restsAt('steady', L + 2.16, L + 2.63)).toBe(false);
+    expect(restsAt('jontai-energy', L + 1.63, L + 1.63)).toBe(false);
     expect(restsAt('steady', L + 0.5, L + 0.5)).toBe(false);
     expect(restsAt('steady', 2.5, 2.5)).toBe(false);
     expect(restsAt('steady', 1, 1)).toBe(false);
-    expect(restsAt(null, L + 2.7, L + 2.7)).toBe(false);
+    expect(restsAt(null, L + 3.33, L + 3.33)).toBe(false);
   });
 });
 

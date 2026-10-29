@@ -27,7 +27,7 @@ import type { CategoryId } from '~/data/categories';
 import type { ProjectId } from '~/data/projects';
 import { RING_MARKS } from '~/data/qa';
 import { type CameraShot, shotToward } from '~/engine/bob/shots';
-import { AREA_STOP, type Chapters, HAND_F, HOME_CHAPTERS, LAND_STOP, lookStop, pathStart, worldStop } from '~/state/chapters';
+import { AREA_STOP, type Chapters, HAND_F, HOME_CHAPTERS, LAND_DROP, LAND_STOP, lookStop, pathStart, WORLD_LAYOUT, worldStop } from '~/state/chapters';
 import { aroundShot } from './around';
 import { fitDistance } from './fit';
 import { lightAt, sizeFor, streamAt, trailAt, trailLevel, voidAt, wayShot } from './lightDive';
@@ -58,20 +58,22 @@ export function ease(x: number): number {
 const hermite = (p0: number, m0: number, p1: number, m1: number, t: number): number =>
   (2 * t ** 3 - 3 * t ** 2 + 1) * p0 + (t ** 3 - 2 * t ** 2 + t) * m0 + (3 * t ** 2 - 2 * t ** 3) * p1 + (t ** 3 - t ** 2) * m1;
 
-/** Where in the land the light hits the CPU's lid. */
-export const LAND_HIT = 0.35;
+/** Where in the land the light hits the CPU's lid: `LAND_DROP` units in (src/state/chapters.ts). */
+export const LAND_HIT = LAND_DROP / WORLD_LAYOUT.land;
+/** The share of the land `units` after the hit: the moments after it stand as far after it as they always did. */
+const afterHit = (units: number): number => LAND_HIT + units / WORLD_LAYOUT.land;
 /** The power runs down the stack over this stretch of the land, board by board. */
-export const POWER = [0.35, 0.75] as const;
+export const POWER = [afterHit(0), afterHit(0.72)] as const;
 /** The stack opens over this stretch of the land, after the hit and before the world's stop. */
-const EXPLODE = [0.4, 0.7] as const;
+export const EXPLODE = [afterHit(0.09), afterHit(0.63)] as const;
 /** How much later than the board above it each board's power starts, against the power's whole stretch (the mock-up's). */
 const POWER_LAG = 0.32;
 /** The flash on the lid is gone by here. */
-const FLASH_GONE = 0.5;
+export const FLASH_GONE = afterHit(0.27);
 /** Each project comes in over the power's last third. */
 const PROJECTS_IN = POWER[0] + ((POWER[1] - POWER[0]) * 2) / 3;
 /** The names may show from here to the world's stop. */
-const NAMES_IN = 0.75;
+export const NAMES_IN = afterHit(0.72);
 /** A board's caption comes in from here to its stop; the last stop's words go over a unit's first `OUT`. */
 const CAPTION_IN = 0.55;
 const OUT = 0.2;
@@ -336,7 +338,8 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS): Worl
   });
   const stopShot = (i: number): CameraShot => (i < 0 ? worldShot : boardShots[i]!);
 
-  // The light: from the hand-over straight down onto the lid, carrying the fall's speed in and quickening to the hit.
+  // The light: from the hand-over straight down onto the lid, carrying the fall's speed in and easing into the hit (Bob:
+  // the drop was too fast; it quickened into the lid at twice the mean, now it settles at half).
   const hand = lightAt(HAND_F, aspect);
   const handBefore = lightAt(HAND_F - 1, aspect).position;
   const landUnit = SEGMENTS.find((s) => s.kind === 'land')!;
@@ -347,7 +350,7 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS): Worl
   const lightPos = (part: WorldPart, t: number): Vec3 => {
     if (part !== 'land' || t >= LAND_HIT) return lid;
     const k = t / LAND_HIT;
-    const y = hermite(hand.position[1], fallSpeed, lid[1], (lid[1] - hand.position[1]) * 2, k);
+    const y = hermite(hand.position[1], fallSpeed, lid[1], (lid[1] - hand.position[1]) * 0.5, k);
     const side = 1 - ease(k);
     return [lerp(lid[0], hand.position[0], side), y, lerp(lid[2], hand.position[2], side)];
   };

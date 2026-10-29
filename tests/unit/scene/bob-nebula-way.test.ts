@@ -3,7 +3,7 @@ import { engravedLevels } from '~/scene/bob/engravedWay';
 import { journeyPoseAt } from '~/scene/bob/journey';
 import { fallStarsLevel, NEBULA, nebulaLevels } from '~/scene/bob/nebulaWay';
 import { makeWorldPath, type WorldPart } from '~/scene/bob/worldPath';
-import { buildChapters, HOME_CHAPTERS, pathStart } from '~/state/chapters';
+import { buildChapters, HOME_CHAPTERS, pathStart, LAND_STOP } from '~/state/chapters';
 
 const L = pathStart(HOME_CHAPTERS);
 const fall = (frame: number) => nebulaLevels({ stretch: 'light', frame }, null);
@@ -56,7 +56,7 @@ describe('the levels: the nebula, its far bands and the look back rings, at a po
     expect(fallStarsLevel({ stretch: 'light', frame: 30 }, null)).toBe(0);
     expect(fallStarsLevel({ stretch: 'light', frame: 121 }, null)).toBe(1);
     expect(fallStarsLevel({ stretch: 'land', frame: null }, { part: 'land', t: 0 })).toBe(1);
-    expect(fallStarsLevel({ stretch: 'land', frame: null }, { part: 'land', t: 0.85 })).toBe(0);
+    expect(fallStarsLevel({ stretch: 'land', frame: null }, { part: 'land', t: LAND_STOP })).toBe(0);
     expect(fallStarsLevel({ stretch: 'area', frame: null }, { part: 'area', t: 0.5 })).toBe(0);
   });
 

@@ -53,7 +53,8 @@ describe('the fall’s pace', () => {
 describe('buildChapters', () => {
   it("lays the world out: the land, an area per category on the way in the categories' order, the look back", () => {
     expect(HAND_F).toBe(256);
-    expect(WORLD_LAYOUT).toEqual({ land: 1.8, area: 1.4, look: 1.6, qa: 1 });
+    // The land 2.43: the drop to the lid twice its old 0.63 (spec 2026-10-29-bob-stack-3-design.md, goal 1), 1.17 after it.
+    expect(WORLD_LAYOUT).toEqual({ land: expect.closeTo(2.43, 12), area: 1.4, look: 1.6, qa: 1 });
     expect(c.units.map((u) => [u.id, u.project, u.category])).toEqual([
       ['HOME', null, null],
       ['LIGHT', null, null],
@@ -65,9 +66,9 @@ describe('buildChapters', () => {
       ...[0, 1, 2, 3, 4, 5, 6].map((k) => ['QA', k, null]),
       ['END', null, null],
     ]);
-    const starts = [0, 1, L, L + 1.8, L + 3.2, L + 4.6, L + 6.0, ...[0, 1, 2, 3, 4, 5, 6].map((k) => L + 7.6 + k), L + 14.6];
+    const starts = [0, 1, L, L + 2.43, L + 3.83, L + 5.23, L + 6.63, ...[0, 1, 2, 3, 4, 5, 6].map((k) => L + 8.23 + k), L + 15.23];
     c.units.forEach((u, k) => expect(u.start).toBeCloseTo(starts[k]!, 9));
-    expect(c.total).toBeCloseTo(L + 15.6, 9);
+    expect(c.total).toBeCloseTo(L + 16.23, 9);
   });
 
   it('gives a category with two projects one area', () => {
@@ -101,9 +102,9 @@ describe('chapterAt', () => {
   });
 
   it("names an area's category and place, and none in the land or the look back", () => {
-    expect(chapterAt(c, L + 4.0)).toMatchObject({ id: 'AREA', category: 'website', project: 1 });
-    expect(chapterAt(c, L + 1.0)).toMatchObject({ id: 'LAND', category: null, project: null });
-    expect(chapterAt(c, L + 7.0)).toMatchObject({ id: 'LOOK', category: null, project: null });
+    expect(chapterAt(c, L + 4.63)).toMatchObject({ id: 'AREA', category: 'website', project: 1 });
+    expect(chapterAt(c, L + 1.63)).toMatchObject({ id: 'LAND', category: null, project: null });
+    expect(chapterAt(c, L + 7.63)).toMatchObject({ id: 'LOOK', category: null, project: null });
   });
 
   it('starts a unit exactly on its start', () => {
@@ -133,22 +134,22 @@ describe('chapterAt', () => {
 
   it('ignores a previous index that is not a unit, and holds none that is not next to the position', () => {
     expect(chapterAt(c, 2.5, { index: 40 }).index).toBe(1);
-    expect(chapterAt(c, L + 2.15, { index: 0 }).id).toBe('AREA');
+    expect(chapterAt(c, L + 2.78, { index: 0 }).id).toBe('AREA');
   });
 });
 
 describe('the places of the scroll', () => {
   it('lists each unit start as a stop; the last, END, is the end of the scroll', () => {
     expect(stops(c)).toHaveLength(c.units.length);
-    expect(scrollEnd(c)).toBeCloseTo(L + 14.6, 9);
+    expect(scrollEnd(c)).toBeCloseTo(L + 15.23, 9);
     expect(scrollEnd(c)).toBeLessThan(c.total);
   });
 
   it("names the rise, the fall, the path and the look back's stop", () => {
     expect([riseTop(c), lightStart(c)]).toEqual([1, 1]);
     expect(pathStart(c)).toBeCloseTo(L, 9);
-    expect(lookStart(c)).toBeCloseTo(L + 6.0, 9);
-    expect(lookStop(c)).toBeCloseTo(L + 7.6, 9);
+    expect(lookStart(c)).toBeCloseTo(L + 6.63, 9);
+    expect(lookStop(c)).toBeCloseTo(L + 8.23, 9);
   });
 
   it("maps the way's frames onto the fall, linearly, and back", () => {
@@ -161,16 +162,16 @@ describe('the places of the scroll', () => {
 
   it("keeps the key stops: the facts, the world, each area, the look back's own stop, each question and the end", () => {
     expect(FACT_PEAKS).toEqual([81, 121, 161, 201, 241]);
-    expect([LAND_STOP, AREA_STOP]).toEqual([0.85, 0.7]);
-    const expected = [0, 1, ...FACT_PEAKS.map(placeOfFrame), L + 1.53, L + 2.78, L + 4.18, L + 5.58, L + 7.6, ...[0, 1, 2, 3, 4, 5, 6].map((k) => L + 8.6 + k)];
+    expect([LAND_STOP, AREA_STOP]).toEqual([expect.closeTo((1.26 + 0.9) / 2.43, 12), 0.7]);
+    const expected = [0, 1, ...FACT_PEAKS.map(placeOfFrame), L + 2.16, L + 3.41, L + 4.81, L + 6.21, L + 8.23, ...[0, 1, 2, 3, 4, 5, 6].map((k) => L + 9.23 + k)];
     const got = keyStops(HOME_CHAPTERS);
     expect(got).toHaveLength(expected.length);
     got.forEach((s, k) => expect(s).toBeCloseTo(expected[k]!, 9));
-    expect(worldStop(HOME_CHAPTERS)).toBeCloseTo(L + 1.53, 9);
+    expect(worldStop(HOME_CHAPTERS)).toBeCloseTo(L + 2.16, 9);
   });
 
   it("puts each area's stop inside its area, at AREA_STOP of it", () => {
-    expect(areaStop(HOME_CHAPTERS, 'website')).toBeCloseTo(L + 4.18, 9);
+    expect(areaStop(HOME_CHAPTERS, 'website')).toBeCloseTo(L + 4.81, 9);
     expect(chapterAt(HOME_CHAPTERS, areaStop(HOME_CHAPTERS, 'website'))).toMatchObject({ id: 'AREA', category: 'website' });
     expect(() => areaStop(buildChapters({ areas: [] }), 'game')).toThrow(TypeError);
   });

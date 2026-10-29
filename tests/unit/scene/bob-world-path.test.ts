@@ -4,9 +4,9 @@ import { project } from '~/scene/bob/fit';
 import { lightAt } from '~/scene/bob/lightDive';
 import { RING_MARKS } from '~/data/qa';
 import { RING, ringTurnFor } from '~/scene/bob/qaRing';
-import { LAND_HIT, LOOK_BOX, makeWorldPath, POWER, type WorldFrame } from '~/scene/bob/worldPath';
+import { EXPLODE, FLASH_GONE, LAND_HIT, LOOK_BOX, makeWorldPath, NAMES_IN, POWER, type WorldFrame } from '~/scene/bob/worldPath';
 import { boardCentre, boardTops, LID_TOP, STACK, stackPlaces } from '~/scene/bob/worldLayout';
-import { AREA_STOP, areaStop, areasOnPath, buildChapters, type Chapters, HAND_F, HOME_CHAPTERS, LAND_STOP, pathStart, lookStop, qaStop, scrollEnd, worldStop } from '~/state/chapters';
+import { AREA_STOP, areaStop, areasOnPath, buildChapters, type Chapters, HAND_F, HOME_CHAPTERS, LAND_STOP, pathStart, placeOfFrame, lookStop, qaStop, scrollEnd, WORLD_LAYOUT, worldStop } from '~/state/chapters';
 
 type Vec3 = readonly [number, number, number];
 type Box = readonly [number, number, number, number];
@@ -50,10 +50,53 @@ const at = (c: Chapters, aspect: number, place: number): WorldFrame => pathFor(a
 const home = (aspect: number, place: number): WorldFrame => at(HOME_CHAPTERS, aspect, place);
 const LAND = HOME_CHAPTERS.units.find((u) => u.id === 'LAND')!;
 const landAt = (t: number, aspect = DESK): WorldFrame => home(aspect, LAND.start + t * LAND.length);
+/**
+ * A moment of the land before this round (its share of the old 1.8-unit land, the hit at 0.35) where it stands now: as
+ * far after the hit in units as it was (spec 2026-10-29-bob-stack-3-design.md, goal 1).
+ */
+const after = (m: number): number => (LAND_HIT * WORLD_LAYOUT.land + (m - 0.35) * 1.8) / WORLD_LAYOUT.land;
+
+// Bob (2026-10-29): "the light drops down too fast to the project make it a bit slower", the drop into the stack (not
+// the fall past the facts): twice the scroll, eased into the lid, every moment after the hit kept.
+describe('the drop into the stack', () => {
+  it('drops into the stack over twice the scroll', () => {
+    expect(LAND_HIT * WORLD_LAYOUT.land).toBeCloseTo(1.26, 9);
+    expect(WORLD_LAYOUT.land).toBeCloseTo(2.43, 9);
+    expect(LAND.length).toBeCloseTo(2.43, 9);
+  });
+
+  it('keeps every moment after the hit as far after it', () => {
+    const was: [number, number][] = [
+      [POWER[0], 0.35],
+      [POWER[1], 0.75],
+      [EXPLODE[0], 0.4],
+      [EXPLODE[1], 0.7],
+      [FLASH_GONE, 0.5],
+      [NAMES_IN, 0.75],
+      [LAND_STOP, 0.85]
+    ];
+    for (const [now, before] of was) expect((now - LAND_HIT) * WORLD_LAYOUT.land, `${before}`).toBeCloseTo((before - 0.35) * 1.8, 9);
+  });
+
+  it('falls steadily and settles into the lid', () => {
+    const n = 60;
+    const ys = Array.from({ length: n + 1 }, (_, k) => landAt((LAND_HIT * k) / n).light.position[1]);
+    for (let k = 1; k <= n; k++) expect(ys[k]!, `step ${k}`).toBeLessThanOrEqual(ys[k - 1]! + 1e-9);
+    const speeds = ys.slice(1).map((y, k) => ys[k]! - y);
+    const most = Math.max(...speeds);
+    // Its last tenth slow: at most 0.6 of its greatest.
+    for (const v of speeds.slice(-n / 10)) expect(v).toBeLessThanOrEqual(0.6 * most + 1e-12);
+    // At the hand-over it goes on at the fall's own speed (per unit of scroll), so nothing jolts there.
+    const fall = (lightAt(HAND_F - 1, DESK).position[1] - lightAt(HAND_F, DESK).position[1]) / (placeOfFrame(HAND_F) - placeOfFrame(HAND_F - 1));
+    const tiny = 1e-5;
+    const first = (ys[0]! - landAt(tiny).light.position[1]) / (tiny * LAND.length);
+    expect(Math.abs(first - fall) / fall).toBeLessThan(0.05);
+  });
+});
 
 describe("the path down the stack: the light lands in the CPU, the stack opens, a stop per board, the look back", () => {
   it("brings the light down into the CPU by the land's hit and keeps it there", () => {
-    expect(LAND_HIT).toBe(0.35);
+    expect(LAND_HIT).toBeCloseTo(1.26 / 2.43, 12);
     expect(LID_TOP).toBe(0.2);
     const lid: Vec3 = [C[0], C[1] + 0.2, C[2]];
     const start = landAt(0).light.position;
@@ -65,7 +108,7 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
       expect(y).toBeLessThanOrEqual(last + 1e-9);
       last = y;
     }
-    for (const t of [LAND_HIT, 0.5, 0.8, 1]) landAt(t).light.position.forEach((v, k) => expect(v).toBeCloseTo(lid[k]!, 6));
+    for (const t of [LAND_HIT, after(0.5), after(0.8), 1]) landAt(t).light.position.forEach((v, k) => expect(v).toBeCloseTo(lid[k]!, 6));
     for (const place of [worldStop(HOME_CHAPTERS), areaStop(HOME_CHAPTERS, 'game'), lookStop(HOME_CHAPTERS)]) {
       home(DESK, place).light.position.forEach((v, k) => expect(v).toBeCloseTo(lid[k]!, 6));
     }
@@ -79,25 +122,26 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
     expect(trail.at(-1)!.point[1] - lid[1]).toBeGreaterThan(20);
   });
 
-  it("keeps the stack closed until 0.4 of the land and opens it by the world's stop", () => {
-    for (const t of [0, 0.2, LAND_HIT, 0.4]) expect(landAt(t).explode, `at ${t}`).toBe(0);
-    const middle = landAt(0.55).explode;
+  it("keeps the stack closed until 0.09 units after the hit and opens it by the world's stop", () => {
+    // The stack starts opening on after(0.4) itself: a float a hair over it there.
+    for (const t of [0, 0.2, LAND_HIT, after(0.4)]) expect(landAt(t).explode, `at ${t}`).toBeCloseTo(0, 12);
+    const middle = landAt(after(0.55)).explode;
     expect(middle).toBeGreaterThan(0);
     expect(middle).toBeLessThan(1);
     let last = 0;
     for (let k = 0; k <= 30; k++) {
-      const e = landAt(0.4 + (0.3 * k) / 30).explode;
+      const e = landAt(after(0.4 + (0.3 * k) / 30)).explode;
       expect(e).toBeGreaterThanOrEqual(last);
       last = e;
     }
-    expect(landAt(0.7).explode).toBe(1);
+    expect(landAt(after(0.7)).explode).toBe(1);
     for (const place of [worldStop(HOME_CHAPTERS), areaStop(HOME_CHAPTERS, 'app'), areaStop(HOME_CHAPTERS, 'game'), lookStop(HOME_CHAPTERS)]) {
       expect(home(DESK, place).explode).toBe(1);
     }
   });
 
   it('powers the boards from the top down', () => {
-    expect(POWER).toEqual([0.35, 0.75]);
+    expect(POWER).toEqual([expect.closeTo(after(0.35), 12), expect.closeTo(after(0.75), 12)]);
     expect(landAt(0.2).power).toBe(0);
     expect(landAt(LAND_HIT).boardPower).toEqual([0, 0, 0, 0]);
     for (let k = 0; k <= 50; k++) {
@@ -106,15 +150,15 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
       for (let b = 0; b + 1 < boardPower.length; b++) expect(boardPower[b], `board ${b} at ${k / 50}`).toBeGreaterThanOrEqual(boardPower[b + 1]!);
     }
     // The power board comes on before the last board does.
-    const partway = landAt(0.5).boardPower;
+    const partway = landAt(after(0.5)).boardPower;
     expect(partway[0]).toBeGreaterThan(partway[3]!);
-    expect(landAt(0.75).boardPower).toEqual([1, 1, 1, 1]);
+    expect(landAt(after(0.75)).boardPower).toEqual([1, 1, 1, 1]);
     expect(home(DESK, worldStop(HOME_CHAPTERS)).boardPower).toEqual([1, 1, 1, 1]);
     expect(home(DESK, worldStop(HOME_CHAPTERS)).power).toBe(1);
     // The flash: none before the hit, at its peak on it, gone by 0.5.
-    expect(landAt(0.3).flash).toBe(0);
+    expect(landAt(after(0.3)).flash).toBe(0);
     expect(landAt(LAND_HIT + 1e-6).flash).toBeCloseTo(1, 4); // a hair past it: the place sums round the hit itself
-    expect(landAt(0.5).flash).toBe(0);
+    expect(landAt(after(0.5)).flash).toBe(0);
   });
 
   it("frames the whole machine at the world's stop", () => {
@@ -236,7 +280,7 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
       expect(near).toBeGreaterThan(10);
       expect(far).toBeGreaterThan(near);
     }
-    expect(LAND_STOP).toBe(0.85);
+    expect(LAND_STOP).toBeCloseTo((1.26 + 0.9) / 2.43, 12);
   });
 
   it('looks back up at the whole machine framed, not far out (Bob, 2026-10-29: "it zooms out too much")', () => {

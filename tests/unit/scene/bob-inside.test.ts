@@ -15,8 +15,8 @@ const L = pathStart(HOME_CHAPTERS);
 
 describe('opensOnClick: where a click opens a project on the world', () => {
   it('opens at rest at the world, at every area and in the look back; nowhere while moving, nor before the world', () => {
-    expect(LAND_STOP).toBe(0.85);
-    const rests = [worldStop(HOME_CHAPTERS), areaStop(HOME_CHAPTERS, 'app'), areaStop(HOME_CHAPTERS, 'game'), L + 6.5, lookStop(HOME_CHAPTERS)];
+    expect(LAND_STOP).toBeCloseTo((1.26 + 0.9) / 2.43, 12);
+    const rests = [worldStop(HOME_CHAPTERS), areaStop(HOME_CHAPTERS, 'app'), areaStop(HOME_CHAPTERS, 'game'), L + 7.13, lookStop(HOME_CHAPTERS)];
     for (const p of rests) {
       expect(opensOnClick(journeyAt(p), true), `at rest at ${p}`).toBe(true);
       expect(opensOnClick(journeyAt(p), false), `moving at ${p}`).toBe(false);

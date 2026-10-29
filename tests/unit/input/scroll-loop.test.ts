@@ -348,11 +348,11 @@ describe('the scroll loop: a glide', () => {
   it("glides on past the rise as a page would, resting where it ends, and ends one that reaches the look back's stop", async () => {
     const alone = glideAlone();
     const s = setup();
-    restAt(s, L + 3.6);
-    await s.swipe(-1); // 0.4 dragged, to L + 4.0, then the glide
+    restAt(s, L + 4.23);
+    await s.swipe(-1); // 0.4 dragged, to L + 4.63, then the glide
     expect(s.home.scroll.busy).toBe(true);
     s.drain();
-    expect(s.frame.target).toBeCloseTo(L + 4.0 + alone.px / VH, 6); // on the world, between two stops: no stop
+    expect(s.frame.target).toBeCloseTo(L + 4.63 + alone.px / VH, 6); // on the world, between two stops: no stop
     expect(s.frame.progress).toBe(s.frame.target);
     // Caught at the look back's stop: past it the Q&A goes a question a step.
     restAt(s, S - 0.8);
@@ -679,7 +679,7 @@ describe('the keys: the facts in the light dive, then the projects, gliding past
 
   it("steps a key from a wheel stopped past an area's stop to the next area's", async () => {
     const s = setup();
-    restAt(s, L + 3.0); // past the first area's stop, short of the second
+    restAt(s, L + 3.63); // past the first area's stop, short of the second
     s.key('ArrowDown');
     expect(s.frame.target).toBe(A2);
     s.key('ArrowUp');
@@ -720,7 +720,7 @@ describe('Home and End keep their meaning: the start and the end page', () => {
   });
 
   it('fades End to the end page from anywhere short of it: the rise, the light dive, the ring', async () => {
-    for (const from of [0, 2.5, L + 0.94]) {
+    for (const from of [0, 2.5, L + 1.57]) {
       const s = setup();
       restAt(s, from);
       s.key('End');
@@ -732,7 +732,7 @@ describe('Home and End keep their meaning: the start and the end page', () => {
   });
 
   it('fades Home to the start from the ring, the sheet and the end page, and follows back up from the light dive', async () => {
-    for (const from of [L + 0.44, L + 2.94, END]) {
+    for (const from of [L + 0.44, L + 3.57, END]) {
       const s = setup();
       restAt(s, from);
       s.key('Home');
