@@ -110,7 +110,8 @@ describe('projects', () => {
     expect(project('steady').links).toEqual({ repo: 'https://github.com/bhccob/steady' });
     // In development: no link until Bob gives one.
     expect(project('porfael').links).toEqual({});
-    expect(project('jontai-energy').links).toEqual({ repo: 'https://github.com/bhccob/JE' });
+    // Bob, 2026-10-29: the repository the site's pictures came from.
+    expect(project('jontai-energy').links).toEqual({ repo: 'https://github.com/bhccob/Jontai-Energy' });
     expect(project('cookies-clicker').links).toEqual({ repo: 'https://github.com/bhccob/Cookies-Clicker' });
     for (const entry of all) expect(entry.motion.length, entry.id).toBeGreaterThan(0);
   });
@@ -218,5 +219,39 @@ describe('the projects on the way (spec 2026-10-27-bob-light-path-design.md, goa
   it('refuses more than five flagged, or none, past five projects', () => {
     expect(() => new ProjectCatalog(sevenStubs({ flagged: [1, 2, 3, 4, 5, 6] })).onPath()).toThrow(/at most 5/);
     expect(() => new ProjectCatalog(sevenStubs({ flagged: [] })).onPath()).toThrow(/at most 5/);
+  });
+});
+
+// The pictures on each project's own page over the stack (spec 2026-10-29-bob-stack-2-design.md, goal 2): made from
+// each project's own code, stand-in details only.
+describe('pictures', () => {
+  it("gives Steady three phone screens, in order", () => {
+    const steady = project('steady');
+    expect(steady.pictureKind).toBe('phones');
+    expect(steady.pictures.map((picture) => picture.file)).toEqual(['steady-welcome.webp', 'steady-home.webp', 'steady-reminders.webp']);
+    for (const locale of locales) {
+      for (const picture of steady.pictures) expect(picture.alt[locale].length, `${picture.file} ${locale}`).toBeGreaterThan(0);
+      // One line under the pictures, as the mock-up's.
+      expect(steady.pictureCaption(locale).length, locale).toBeGreaterThan(0);
+    }
+  });
+
+  it('gives Jontai Energy and Cookies Clicker one wide picture each, and Porfael none', () => {
+    expect(project('jontai-energy').pictureKind).toBe('wide');
+    expect(project('jontai-energy').pictures.map((picture) => picture.file)).toEqual(['jontai-home.webp']);
+    expect(project('cookies-clicker').pictureKind).toBe('wide');
+    expect(project('cookies-clicker').pictures.map((picture) => picture.file)).toEqual(['cookies-playing.webp']);
+    expect(project('porfael').pictures).toEqual([]);
+    expect(project('porfael').pictureKind).toBeNull();
+  });
+
+  it('links Jontai Energy to its own repository', () => {
+    expect(project('jontai-energy').links.repo).toBe('https://github.com/bhccob/Jontai-Energy');
+  });
+
+  it('resolves every picture to a built URL', () => {
+    for (const entry of all) {
+      for (const picture of entry.pictures) expect(typeof entry.pictureUrl(picture.file), `${entry.id} ${picture.file}`).toBe('string');
+    }
   });
 });

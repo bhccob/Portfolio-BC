@@ -10,6 +10,18 @@ const screenshots: Record<string, string> = import.meta.env
   ? import.meta.glob<string>('../assets/*.{png,jpg,jpeg,webp}', { query: '?url', import: 'default', eager: true })
   : {};
 
+// The pictures on a project's own page over the stack (spec 2026-10-29-bob-stack-2-design.md, goal 2), in
+// src/assets/projects, made by tools/pictures.mjs from each project's own code. Under Vite alone, as the screenshots.
+const pictureFiles: Record<string, string> = import.meta.env
+  ? import.meta.glob<string>('../assets/projects/*.webp', { query: '?url', import: 'default', eager: true })
+  : {};
+
+/** A picture on a project's own page: its file in src/assets/projects, and what it shows in words. */
+export interface Picture {
+  file: string;
+  alt: Record<Locale, string>;
+}
+
 export type ProjectId = 'steady' | 'porfael' | 'jontai-energy' | 'cookies-clicker';
 
 /** A pin on the project's object: the layer of the build it marks. The position is a placeholder in the object's local frame (units of about the object's radius), tuned in M5. */
@@ -52,6 +64,14 @@ export interface ProjectData {
   /** Screenshot file name in src/assets, e.g. "cookies.png"; a project without one has none. */
   image?: string;
   /**
+   * The pictures on its own page over the stack, in the order they stand (an app's screens left to right, the middle
+   * one forward), with how they stand (`phones`, or one `wide` card) and the one line under them. None for a project
+   * with no pictures yet: its page goes from its words to the next project.
+   */
+  pictures?: Picture[];
+  pictureKind?: 'phones' | 'wide';
+  pictureCaption?: Record<Locale, string>;
+  /**
    * On the light's way through the projects (`ProjectCatalog.onPath`): read only once there are more than `PATH_LIMIT`
    * projects, where the way takes the flagged ones. Up to the limit every project is on it.
    */
@@ -77,6 +97,21 @@ export class Project {
   get stack() { return this.data.stack; }
   get links() { return this.data.links; }
   get onPath() { return this.data.onPath === true; }
+  get pictures(): readonly Picture[] { return this.data.pictures ?? []; }
+  get pictureKind(): 'phones' | 'wide' | null { return this.data.pictures?.length ? (this.data.pictureKind ?? 'wide') : null; }
+
+  /** The one line under its pictures, or '' with none. */
+  pictureCaption(locale: Locale): string {
+    return this.data.pictureCaption?.[locale] ?? '';
+  }
+
+  /** The built URL of one of its pictures; null under plain Node, which has no glob (as the screenshots). */
+  pictureUrl(file: string): string | null {
+    if (!import.meta.env) return null;
+    const url = pictureFiles[`../assets/projects/${file}`];
+    if (!url) throw new Error(`Missing picture src/assets/projects/${file} for ${this.data.id}`);
+    return url;
+  }
 
   /** The built URL of the screenshot, if the project has one. */
   get image(): string | undefined {
@@ -176,6 +211,17 @@ export const projects = new ProjectCatalog([
     motion: "the streak path's blocks mark one after another, as days do; the trophy at the week's end lights",
     stack: ['Expo (SDK 58)', 'React Native', 'TypeScript', 'SQLite'],
     links: { repo: 'https://github.com/bhccob/steady' },
+    // Run from a copy of its last commit on the web, with stand-in details only (the app's own example name, one reminder).
+    pictures: [
+      { file: 'steady-welcome.webp', alt: { nl: 'Steady: het welkomstscherm', en: 'Steady: the welcome screen' } },
+      { file: 'steady-home.webp', alt: { nl: 'Steady: het beginscherm met de streak', en: 'Steady: the home screen with the streak' } },
+      { file: 'steady-reminders.webp', alt: { nl: 'Steady: zachte herinneringen', en: 'Steady: gentle reminders' } }
+    ],
+    pictureKind: 'phones',
+    pictureCaption: {
+      nl: 'Steady op Android: het welkomstscherm, het beginscherm en de zachte herinneringen',
+      en: 'Steady on Android: the welcome screen, the home screen and the gentle reminders'
+    },
     copy: {
       en: {
         type: 'Android app · Personal project',
@@ -250,8 +296,13 @@ export const projects = new ProjectCatalog([
     motion: 'sun sweep: a light arc crosses the module, cells charge in page order; single-axis tracker tilt',
     stack: ['HTML', 'Tailwind CSS v4', 'JavaScript', 'PowerShell'],
     // No live link: jontaienergy.com is not Bob's build.
-    links: { repo: 'https://github.com/bhccob/JE' },
+    // Bob, 2026-10-29: the repository the pictures came from.
+    links: { repo: 'https://github.com/bhccob/Jontai-Energy' },
     image: 'jontai-energy.png',
+    // Its last committed static site, the cookie banner answered "Essential Only".
+    pictures: [{ file: 'jontai-home.webp', alt: { nl: 'Jontai Energy: de homepagina', en: "Jontai Energy: the homepage" } }],
+    pictureKind: 'wide',
+    pictureCaption: { nl: 'De homepagina van Jontai Energy', en: "Jontai Energy's homepage" },
     copy: {
       en: {
         type: 'Company website · Personal project',
@@ -305,6 +356,10 @@ export const projects = new ProjectCatalog([
     stack: ['HTML', 'CSS', 'JavaScript', 'Bootstrap 5', 'localStorage'],
     links: { repo: 'https://github.com/bhccob/Cookies-Clicker' },
     image: 'cookies.png',
+    // The game from its public repository, played a while.
+    pictures: [{ file: 'cookies-playing.webp', alt: { nl: 'Cookies Clicker tijdens het spelen', en: 'Cookies Clicker being played' } }],
+    pictureKind: 'wide',
+    pictureCaption: { nl: 'Cookies Clicker tijdens het spelen', en: 'Cookies Clicker being played' },
     copy: {
       en: {
         // Made for the school subject Web Game Development, together with a classmate (never named).
