@@ -256,4 +256,11 @@ describe("the ring's end", () => {
     expect(body('html[data-qa-end] .qa-seal', REDUCED)).toMatch(/--qa-draw:\s*360deg/);
     expect(body('.qa-veil', REDUCED)).toMatch(/transition:\s*none/);
   });
+
+  // The Q&A stands over the header (z-index 3 against its 2), so the dark lies over it too; a link of the header that has
+  // the keyboard must not be hidden under it (WCAG 2.4.11), as on a project's page (html[data-inside]).
+  it('lifts the header over the dark while the keyboard is in it', () => {
+    expect(body('.qa')).toMatch(/z-index:\s*3\b/);
+    expect(body('html[data-qa-end] .site-header:focus-within')).toMatch(/z-index:\s*4\b/);
+  });
 });

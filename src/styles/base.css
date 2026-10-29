@@ -2415,6 +2415,12 @@ html[data-qa-end] .qa-buttons {
   justify-content: center;
 }
 
+/* The Q&A stands over the header (3 against 2), so the dark lies over the header too; with the keyboard in it, the
+   header stands over the dark, never a focused link hidden under it (as on a project's page, html[data-inside]). */
+html[data-qa-end] .site-header:focus-within {
+  z-index: 4;
+}
+
 @media (max-width: 700px) {
   html[data-qa-end] .qa-seal {
     top: 31%;
