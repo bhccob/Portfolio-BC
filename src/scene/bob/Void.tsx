@@ -28,6 +28,7 @@ import { engravedLevels, shaftRings } from './engravedWay';
 import type { Handover } from './Home';
 import { type LightPose, WORLD_PROJECTS } from './journey';
 import { LOOK } from './look';
+import { setGasPass } from '../gasPass';
 import { nebulaLevels } from './nebulaWay';
 import { insidePoints, OPEN_LOOK, openLevels, openOf, openWorld, worldClockRuns } from './inside';
 import { type SpotPose, spotFor } from './spot';
@@ -90,7 +91,7 @@ interface VoidRun {
    * before; and the build asked for and not yet made (`asked`), which a later ask for another path or tier, or the
    * unmount, replaces.
    */
-  nebula: { world: WorldPath; tier: QualityTier; model: NebulaModel; gas: VolumeModel | null; drawn: { width: number; height: number } } | null;
+  nebula: { world: WorldPath; tier: QualityTier; model: NebulaModel; gas: VolumeModel | null } | null;
   nebulaAsked: { world: WorldPath; tier: QualityTier } | null;
   /** The void's drift clock (its mist and dust), seconds of frames drawn while it showed. */
   time: number;
@@ -179,8 +180,6 @@ const lightAt = new THREE.Vector3();
 const centre = new THREE.Vector3();
 /** The camera's place, for the nebula's bands (scratch, written each frame). */
 const eyeAt: [number, number, number] = [0, 0, 0];
-/** The canvas's drawing size, px (scratch, read each frame for the gas's target). */
-const drawing = new THREE.Vector2();
 /** The machine's middle, top to the spine's tip: the height the gas's clear space stands round on the stack. */
 const MACHINE_MIDDLE = STACK_CENTRE[1] + (STACK_PLACES[STACK_PLACES.length - 1]!.top - STACK_CENTRE[1] - 3.4) / 2;
 /** Where the CPU's light is, over its lid: what lights the gas's near edges gold on the stack. */
@@ -520,10 +519,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       if (nebula) {
         scene.remove(nebula.model.group);
         nebula.model.dispose();
-        if (nebula.gas) {
-          scene.remove(nebula.gas.layer);
-          nebula.gas.dispose();
-        }
+        if (nebula.gas) freeGas(nebula.gas);
       }
       frame.journey.engraved = null;
       frame.journey.nebula = null;
@@ -597,7 +593,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       if (world) showWorld(world, false);
       if (run.engraved) run.engraved.model.group.visible = false;
       if (run.nebula) run.nebula.model.group.visible = false;
-      if (run.nebula?.gas) run.nebula.gas.layer.visible = false;
+      if (run.nebula?.gas) run.nebula.gas.pass.enabled = false;
       frame.journey.engraved = null;
       frame.journey.nebula = null;
       frame.journey.objects = null;
@@ -666,19 +662,15 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
     camera.position.toArray(eyeAt);
     nebulaFor(worldPathFor(size.width / Math.max(size.height, 1)))?.update(clouds, handover.shown, eyeAt);
     if (proof) frame.journey.nebula = clouds;
-    // The gas (../../engine/bob/build/volume.ts), marched into its own target before the scene is drawn: its clear space
-    // round the stack once the world is in, along the fall's line before; its drift on the world's clock, so it stands
-    // still while the canvas sleeps; its near edges lit by the CPU, or by the falling light.
+    // The gas (../../engine/bob/build/volume.ts), a pass in the post chain that marches it after the scene is drawn and
+    // stops each ray at the scene's depth: its clear space round the stack's spine once the world is in, along the fall's
+    // line before; its drift on the world's clock, so it stands still while the canvas sleeps; its near edges lit by the
+    // CPU, or by the falling light.
     const kept = run.nebula;
     if (kept?.gas) {
-      gl.getDrawingBufferSize(drawing);
-      if (drawing.x !== kept.drawn.width || drawing.y !== kept.drawn.height) {
-        kept.gas.resize(drawing.x, drawing.y);
-        kept.drawn = { width: drawing.x, height: drawing.y };
-      }
       const onStack = path !== null;
       const light = pose.light?.position ?? CPU_LIGHT;
-      kept.gas.render(gl, camera as THREE.PerspectiveCamera, {
+      kept.gas.update(camera as THREE.PerspectiveCamera, {
         clock: run.clock.time,
         level: clouds.clouds,
         power: path?.power ?? 0,
@@ -799,24 +791,29 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       setTimeout(() => {
         if (run.nebulaAsked !== ask) return;
         run.nebulaAsked = null;
-        const made = { world, tier: ask.tier, model: buildNebula(world.centre, ask.tier), gas: buildVolume(ask.tier), drawn: { width: 0, height: 0 } };
+        const made = { world, tier: ask.tier, model: buildNebula(world.centre, ask.tier), gas: buildVolume(ask.tier) };
         const old = run.nebula;
         if (old) {
           scene.remove(old.model.group);
           old.model.dispose();
-          if (old.gas) {
-            scene.remove(old.gas.layer);
-            old.gas.dispose();
-          }
+          if (old.gas) freeGas(old.gas);
         }
         scene.add(made.model.group);
-        if (made.gas) scene.add(made.gas.layer);
+        // The post chain (../Effects.tsx) lays the gas's pass in after the scene, before the bloom.
+        if (made.gas) setGasPass(made.gas.pass);
         void warm(gl, made.model.group, camera, 'the nebula', scene);
         run.nebula = made;
         invalidate();
       }, 0);
     }
     return kept?.model ?? null;
+  }
+
+  /** Takes the gas's pass back from the post chain, off at once so no frame runs it while the chain lets it go, and frees it. */
+  function freeGas(gas: VolumeModel): void {
+    gas.pass.enabled = false;
+    setGasPass(null, gas.pass);
+    gas.dispose();
   }
 
   /** The engraved shaft at the ladder's tier, built afresh for a lower tier. */

@@ -4,6 +4,7 @@ import { type JSX, useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { shoulder } from '~/engine/studio/shoulder';
 import { useScene } from '~/state/store';
+import { useGasPass } from './gasPass';
 import { ShoulderToneMappingEffect } from './ShoulderToneMapping';
 import { LOOK } from './bob/look';
 
@@ -20,9 +21,11 @@ const BLOOM = {
 /**
  * The post chain, by tier (QualityGovernor sets it), milestone 1's chain with the numbers of LOOK
  * (src/scene/bob/look.ts):
- *   - high and medium: pmndrs `EffectComposer` (half-float buffers) with Bloom (BLOOM), Vignette, Noise (premultiplied,
- *     so it never lifts the blacks), then the shoulder tone mapping last, on the linear buffer, at LOOK.exposure. The
- *     renderer's own tone mapping is off meanwhile, so the shoulder is applied once.
+ *   - high and medium: pmndrs `EffectComposer` (half-float buffers) with the nebula's gas first once the Void has built
+ *     it (src/engine/bob/build/volume.ts, ./gasPass.ts: marched after the scene, each ray stopped at the scene's depth,
+ *     so it blends into the stack; Bob, 2026-10-29), Bloom (BLOOM), Vignette, Noise (premultiplied, so it never lifts the
+ *     blacks), then the shoulder tone mapping last, on the linear buffer, at LOOK.exposure. The renderer's own tone
+ *     mapping is off meanwhile, so the shoulder is applied once.
  *   - low: no composer at all; the renderer tone-maps in every material with the shoulder as its CustomToneMapping at
  *     LOOK.exposure (revision 4's path).
  */
@@ -32,6 +35,7 @@ export function Effects(): JSX.Element | null {
   const tier = useScene((state) => state.tier);
   const composer = tier !== 'low';
   const shoulderEffect = useMemo(() => new ShoulderToneMappingEffect({ exposure: LOOK.exposure }), []);
+  const gas = useGasPass();
 
   // A primitive is not R3F's to dispose.
   useEffect(() => () => shoulderEffect.dispose(), [shoulderEffect]);
@@ -51,6 +55,7 @@ export function Effects(): JSX.Element | null {
   const bloom = BLOOM[tier];
   return (
     <EffectComposer frameBufferType={THREE.HalfFloatType} multisampling={tier === 'high' ? 4 : 2}>
+      {gas && <primitive object={gas} />}
       <Bloom
         mipmapBlur
         luminanceThreshold={LOOK.bloom.threshold}

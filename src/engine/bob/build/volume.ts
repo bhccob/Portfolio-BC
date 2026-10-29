@@ -5,12 +5,17 @@
  * marches through. Every step takes up light, so dark dust lanes hide what lies behind them, stars included, and gives
  * off its own glow: violet in the body, its edges lit gold on the side facing the CPU's light (the falling light's in
  * the fall) and pale on the side facing a far star. Its shapes come from a tiling 3D noise, warped, drifting very
- * slowly on the world's clock; more gas below, banks round it, and a clear space kept round the stack (or along the
- * fall's line) and along the camera's line to what it looks at.
+ * slowly on the world's clock; more gas below, banks round it, and a clear space kept round the stack's spine (or along
+ * the fall's line) and along the camera's line to what it looks at.
  *
- * It is drawn at half the screen's size on the high tier and a third on medium into its own target, then laid at the far
- * plane over the stars, behind the world. The low tier has none: its stars and dust stay (./nebula.ts).
+ * Part of the stack, not a backdrop behind it (Bob, 2026-10-29: "i want the cloud to be more 3 and less blurry to be part
+ * of the main object model so they blend"): it is a pass in the post chain (src/scene/Effects.tsx), after the scene is
+ * drawn and before the bloom. Each ray stops where it meets what the scene drew, read off the composer's depth, so the
+ * gas drifts in front of the boards, between their rims and behind them, and thins into what it meets. It is marched at
+ * two thirds of the screen's size on the high tier and half on medium into its own target, then laid over the scene by
+ * its own cover with a light five-tap. The low tier has none: its stars and dust stay (./nebula.ts).
  */
+import { Pass } from 'postprocessing';
 import * as THREE from 'three';
 import type { QualityTier } from '~/engine/quality';
 import { seeded } from './plate';
@@ -26,9 +31,9 @@ export const VOLUME_LOOK = {
 } as const;
 
 /** How much smaller than the screen the gas is drawn, and how many steps its rays take, by tier: none on low. */
-export function volumeTier(tier: QualityTier): { scale: 2 | 3; steps: 84 | 56 } | null {
-  if (tier === 'high') return { scale: 2, steps: VOLUME_LOOK.steps.high };
-  if (tier === 'medium') return { scale: 3, steps: VOLUME_LOOK.steps.medium };
+export function volumeTier(tier: QualityTier): { scale: 1.5 | 2; steps: 84 | 56 } | null {
+  if (tier === 'high') return { scale: 1.5, steps: VOLUME_LOOK.steps.high };
+  if (tier === 'medium') return { scale: 2, steps: VOLUME_LOOK.steps.medium };
   return null;
 }
 
@@ -150,7 +155,11 @@ const MARCH_VERTEX = /* glsl */ `
 
 const MARCH_FRAGMENT = /* glsl */ `
   precision highp sampler3D;
+  #include <packing>
   uniform sampler3D uNoise;
+  uniform sampler2D uDepth;
+  uniform float uNear;
+  uniform float uFar;
   uniform mat4 uInvProj;
   uniform mat4 uCamWorld;
   uniform vec3 uCam;
@@ -170,22 +179,24 @@ const MARCH_FRAGMENT = /* glsl */ `
   uniform vec2 uSize;
   varying vec2 vUv;
 
-  // Where the gas may be at all: never in the clear space (round the stack's middle, a tall egg; or along the fall's
-  // line), never on the camera's line to what it looks at, never right at the camera; more of it below, fading out far
-  // away, with big empty reaches between the clouds, so the dark stays the most of it.
+  // Where the gas may be at all: never in the clear space, never on the camera's line close to what it looks at, never
+  // right at the camera; more of it below, fading out far away, with big empty reaches between the clouds, so the dark
+  // stays the most of it.
   float shape(vec3 p) {
     vec3 q = p - vec3(0.0, uMiddle, 0.0);
-    float egg = smoothstep(8.0, 14.0, length(q * vec3(1.0, 0.62, 1.0)));
-    float column = smoothstep(5.0, 11.0, length(p.xz)) * smoothstep(4.0, 9.0, length(q));
-    float world = mix(egg, column, uClear);
+    // On the stack the space kept clear is a column round the spine, so the gas drifts between the boards' rims.
+    float column = smoothstep(4.0, 9.0, length(p.xz));
+    // In the fall, the fall's line and a ball round the light.
+    float line = smoothstep(5.0, 11.0, length(p.xz)) * smoothstep(4.0, 9.0, length(q));
+    float world = mix(column, line, uClear);
     vec3 toCam = uCam - uAim;
     float t = clamp(dot(p - uAim, toCam) / dot(toCam, toCam), 0.0, 1.0);
     float off = length(p - uAim - toCam * t);
-    float sight = smoothstep(mix(10.0, 0.6, t), mix(15.0, 4.5, t), off);
+    float sight = smoothstep(mix(5.0, 0.6, t), mix(10.0, 4.5, t), off);
     float near = smoothstep(1.5, 6.0, length(p - uCam));
     float layer = 0.3 + 0.7 * smoothstep(16.0, -16.0, q.y);
     float far = 1.0 - smoothstep(70.0, 110.0, length(q));
-    float big = smoothstep(0.42, 0.68, texture(uNoise, p * 0.0065 + vec3(0.31, 0.07, 0.53)).r);
+    float big = smoothstep(0.53, 0.67, texture(uNoise, p * 0.0065 + vec3(0.31, 0.07, 0.53)).r);
     return world * sight * near * layer * far * big;
   }
 
@@ -195,13 +206,13 @@ const MARCH_FRAGMENT = /* glsl */ `
     w = texture(uNoise, q * 0.43 + 0.17);
     vec3 warp = (w.gba - 0.5) * 0.6;
     vec4 n = texture(uNoise, q + warp);
-    float detail = texture(uNoise, q * 3.4 + warp * 1.8).r;
-    float fine = texture(uNoise, q * 9.0 - warp * 2.5).g;
+    float detail = texture(uNoise, q * 4.6 + warp * 1.8).r;
+    float fine = texture(uNoise, q * 12.5 - warp * 2.5).g;
     tint = n.b;
     float body = n.r * 0.6 + n.g * 0.4;
-    // The edges eaten away by finer noise: wisps and filaments rather than soft blobs.
-    float edge = clamp((body - 0.46) * 4.0, 0.0, 1.0);
-    return max(0.0, (body - 0.5) * 3.2 - (1.0 - edge) * (detail * 0.5 + fine * 0.25) + edge * 0.08);
+    // The edges eaten away by finer noise and cut steep: wisps and filaments with an edge to them, not soft blobs.
+    float edge = clamp((body - 0.46) * 6.0, 0.0, 1.0);
+    return max(0.0, (body - 0.5) * 5.5 - (1.0 - edge) * (detail * 0.8 + fine * 0.4) + edge * 0.12);
   }
 
   float densityAt(vec3 p) {
@@ -211,9 +222,14 @@ const MARCH_FRAGMENT = /* glsl */ `
 
   void main() {
     vec4 v = uInvProj * vec4(vUv * 2.0 - 1.0, 1.0, 1.0);
-    vec3 dir = normalize((uCamWorld * vec4(v.xyz / v.w, 0.0)).xyz);
+    vec3 view = normalize(v.xyz / v.w);
+    vec3 dir = normalize((uCamWorld * vec4(view, 0.0)).xyz);
+    // How far the ray goes before it meets what the scene drew (the composer's depth; where nothing was drawn it reads 1,
+    // the far plane): the gas stops there, so it stands in front of the boards and between them, never over them.
+    float depth = texture2D(uDepth, vUv).r;
+    float surface = depth < 1.0 ? perspectiveDepthToViewZ(depth, uNear, uFar) / view.z : 1e6;
     // A fixed, even scatter of where in each step a ray samples (the R2 sequence), so the steps never band and the
-    // scatter melts away under the soft blur.
+    // scatter melts away under the light five-tap.
     vec2 px = floor(vUv * uSize);
     float jitter = fract(px.x * 0.7548776662 + px.y * 0.5698402910);
     // Fewer steps reach as far, each a little longer.
@@ -223,8 +239,11 @@ const MARCH_FRAGMENT = /* glsl */ `
     float through = 1.0;
     for (int i = 0; i < 84; i++) {
       if (i >= uSteps) break;
+      if (t > surface) break;
       float dt = max(0.9, t * 0.045) * stride;
-      vec3 p = uCam + dir * (t + jitter * dt);
+      // The last step only as far as the surface: the gas thins into what it meets instead of ending a step behind it.
+      float open = min(dt, surface - t);
+      vec3 p = uCam + dir * (t + jitter * open);
       float s = shape(p);
       if (s > 0.002) {
         float tint;
@@ -239,11 +258,13 @@ const MARCH_FRAGMENT = /* glsl */ `
           // Glowing gas where the tint is high, dark dust where it is low: the dust only takes light away.
           float gas = smoothstep(0.35, 0.8, tint);
           vec3 hue = mix(mix(uDeep, uWisp, gas), uRose, smoothstep(0.55, 0.9, w.a) * 0.35);
-          vec3 glow = hue * (0.025 + 0.26 * gas * gas)
+          // Its own shade: the side away from the far star darker, as a cloud is in its own shadow, so it has a form.
+          float shade = exp(-densityAt(p + uKey * 3.5) * 3.0);
+          vec3 glow = hue * (0.025 + 0.26 * gas * gas) * (0.3 + 0.7 * shade)
                     + uGold * core * reach * gas * (0.08 + 0.7 * uPower)
                     + uPale * star * star * (0.04 + 0.32 * gas);
-          float a = 1.0 - exp(-d * dt * 0.5);
-          colour += through * a * glow * 0.6;
+          float a = 1.0 - exp(-d * open);
+          colour += through * a * glow * 0.45;
           through *= 1.0 - a;
           if (through < 0.03) break;
         }
@@ -255,30 +276,31 @@ const MARCH_FRAGMENT = /* glsl */ `
   }
 `;
 
-const LAY_VERTEX = /* glsl */ `
+const COMPOSITE_VERTEX = /* glsl */ `
   varying vec2 vUv;
   void main() {
     vUv = uv;
-    // At the far plane: it lands only where nothing solid stands in front of it.
-    gl_Position = vec4(position.xy, 0.99999, 1.0);
+    gl_Position = vec4(position.xy, 1.0, 1.0);
   }
 `;
 
-const LAY_FRAGMENT = /* glsl */ `
-  uniform sampler2D uVolume;
+const COMPOSITE_FRAGMENT = /* glsl */ `
+  uniform sampler2D inputBuffer;
+  uniform sampler2D uGas;
   uniform vec2 uTexel;
   uniform float uLevel;
   varying vec2 vUv;
   void main() {
-    // A soft 3 × 3 tent over the smaller picture: the scatter of the steps melts into the gas.
-    vec4 c = vec4(0.0);
-    for (int y = -1; y <= 1; y++) {
-      for (int x = -1; x <= 1; x++) {
-        float k = (x == 0 ? 2.0 : 1.0) * (y == 0 ? 2.0 : 1.0) / 16.0;
-        c += texture2D(uVolume, vUv + vec2(float(x), float(y)) * uTexel * 1.25) * k;
-      }
-    }
-    gl_FragColor = c * uLevel;
+    vec4 scene = texture2D(inputBuffer, vUv);
+    // A light five-tap over the smaller picture, a little over half a texel out: the scatter of the steps melts away and
+    // the wisps keep their edges (the old 3 × 3 tent smeared them).
+    vec2 o = uTexel * 0.6;
+    vec4 gas = texture2D(uGas, vUv) * 0.5
+             + (texture2D(uGas, vUv + o) + texture2D(uGas, vUv - o)
+              + texture2D(uGas, vUv + vec2(o.x, -o.y)) + texture2D(uGas, vUv + vec2(-o.x, o.y))) * 0.125;
+    gas *= uLevel;
+    // The gas is premultiplied: it covers the scene by its own cover and adds its glow.
+    gl_FragColor = vec4(scene.rgb * (1.0 - gas.a) + gas.rgb, scene.a);
   }
 `;
 
@@ -286,7 +308,7 @@ const LAY_FRAGMENT = /* glsl */ `
 export interface VolumeInput {
   /** The world's clock, s: the gas drifts on it, so it stands still while the canvas sleeps. */
   clock: number;
-  /** The gas's whole strength, 0..1 (`nebulaLevels`' clouds); at 0 nothing is marched. */
+  /** The gas's whole strength, 0..1 (`nebulaLevels`' clouds); at 0 the pass is off. */
   level: number;
   /** The CPU's power, 0..1: how gold the gas's near edges are lit. */
   power: number;
@@ -294,21 +316,24 @@ export interface VolumeInput {
   aim: Vec3;
   /** The height the clear space stands round: the machine's middle, or the light's place in the fall. */
   middle: number;
-  /** The clear space: round the stack, or along the fall's line. */
+  /** The clear space: round the stack's spine, or along the fall's line. */
   clear: 'stack' | 'fall';
   /** Where the gold light is that lights the gas's near edges: the CPU, or the falling light. */
   core: Vec3;
 }
 
 export interface VolumeModel {
-  /** The layer in the scene that lays the gas over the stars, behind the world. */
-  layer: THREE.Mesh;
+  /**
+   * The pass in the post chain (src/scene/Effects.tsx): it needs the composer's depth, marches the gas into its own
+   * target at the composer's size over the tier's scale, and lays the scene with the gas over it into the chain's output.
+   */
+  pass: Pass;
   /** The march's material (its uniforms say what it marches). */
   march: THREE.ShaderMaterial;
-  /** Marches the gas for `camera` into its target with `gl`; the layer is away at level 0. */
-  render(gl: THREE.WebGLRenderer, camera: THREE.PerspectiveCamera, input: VolumeInput): void;
-  /** The screen's drawing size, px: the target is that over the tier's scale. */
-  resize(width: number, height: number): void;
+  /** The composite's material: the scene, and the gas over it. */
+  composite: THREE.ShaderMaterial;
+  /** Sets what the gas is marched by, for `camera`, this frame; the pass is off at level 0. */
+  update(camera: THREE.PerspectiveCamera, input: VolumeInput): void;
   dispose(): void;
 }
 
@@ -323,6 +348,9 @@ export function buildVolume(tier: QualityTier): VolumeModel | null {
     fragmentShader: MARCH_FRAGMENT,
     uniforms: {
       uNoise: { value: noiseTexture() },
+      uDepth: { value: null },
+      uNear: { value: 0.1 },
+      uFar: { value: 1000 },
       uInvProj: { value: new THREE.Matrix4() },
       uCamWorld: { value: new THREE.Matrix4() },
       uCam: { value: new THREE.Vector3() },
@@ -350,32 +378,57 @@ export function buildVolume(tier: QualityTier): VolumeModel | null {
   marchScene.add(quad);
   const flat = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
-  const lay = new THREE.ShaderMaterial({
-    vertexShader: LAY_VERTEX,
-    fragmentShader: LAY_FRAGMENT,
-    uniforms: { uVolume: { value: target.texture }, uTexel: { value: new THREE.Vector2(1, 1) }, uLevel: { value: 0 } },
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.CustomBlending,
-    blendSrc: THREE.OneFactor,
-    blendDst: THREE.OneMinusSrcAlphaFactor,
-    blendSrcAlpha: THREE.ZeroFactor,
-    blendDstAlpha: THREE.OneFactor
+  const composite = new THREE.ShaderMaterial({
+    vertexShader: COMPOSITE_VERTEX,
+    fragmentShader: COMPOSITE_FRAGMENT,
+    uniforms: { inputBuffer: { value: null }, uGas: { value: target.texture }, uTexel: { value: new THREE.Vector2(1, 1) }, uLevel: { value: 0 } },
+    blending: THREE.NoBlending,
+    depthTest: false,
+    depthWrite: false
   });
-  const layer = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), lay);
-  layer.frustumCulled = false;
-  layer.renderOrder = -5;
-  layer.name = 'nebula:volume';
-  layer.visible = false;
 
   const u = march.uniforms;
+  const pass = new (class GasPass extends Pass {
+    constructor() {
+      super('GasPass');
+      this.needsDepthTexture = true;
+      this.fullscreenMaterial = composite;
+    }
+
+    override getDepthTexture(): THREE.Texture {
+      return u.uDepth!.value as THREE.Texture;
+    }
+
+    override setDepthTexture(depth: THREE.Texture | null): void {
+      u.uDepth!.value = depth;
+    }
+
+    override setSize(width: number, height: number): void {
+      const w = Math.max(1, Math.ceil(width / look.scale));
+      const h = Math.max(1, Math.ceil(height / look.scale));
+      target.setSize(w, h);
+      u.uSize!.value.set(w, h);
+      composite.uniforms.uTexel!.value.set(1 / w, 1 / h);
+    }
+
+    override render(gl: THREE.WebGLRenderer, input: THREE.WebGLRenderTarget | null, output: THREE.WebGLRenderTarget | null): void {
+      gl.setRenderTarget(target);
+      gl.render(marchScene, flat);
+      composite.uniforms.inputBuffer!.value = input?.texture ?? null;
+      gl.setRenderTarget(this.renderToScreen ? null : output);
+      gl.render(this.scene, this.camera);
+    }
+  })();
+  pass.name = 'nebula:volume';
+
   return {
-    layer,
+    pass,
     march,
-    render(gl, camera, input) {
+    composite,
+    update(camera, input) {
       const level = Number.isFinite(input.level) ? Math.min(1, Math.max(0, input.level)) : 0;
-      lay.uniforms.uLevel!.value = level;
-      layer.visible = level > 0;
+      composite.uniforms.uLevel!.value = level;
+      pass.enabled = level > 0;
       u.uAim!.value.set(...input.aim);
       u.uCore!.value.set(...input.core);
       u.uMiddle!.value = input.middle;
@@ -387,26 +440,16 @@ export function buildVolume(tier: QualityTier): VolumeModel | null {
       u.uInvProj!.value.copy(camera.projectionMatrixInverse);
       u.uCamWorld!.value.copy(camera.matrixWorld);
       u.uCam!.value.copy(camera.position);
-      const before = gl.getRenderTarget();
-      gl.setRenderTarget(target);
-      gl.render(marchScene, flat);
-      gl.setRenderTarget(before);
-    },
-    resize(width, height) {
-      const w = Math.max(1, Math.ceil(width / look.scale));
-      const h = Math.max(1, Math.ceil(height / look.scale));
-      target.setSize(w, h);
-      u.uSize!.value.set(w, h);
-      lay.uniforms.uTexel!.value.set(1 / w, 1 / h);
+      u.uNear!.value = camera.near;
+      u.uFar!.value = camera.far;
     },
     dispose() {
       (u.uNoise!.value as THREE.Texture).dispose();
       target.dispose();
       target.texture.dispose();
       march.dispose();
-      lay.dispose();
+      composite.dispose();
       quad.geometry.dispose();
-      layer.geometry.dispose();
     }
   };
 }
