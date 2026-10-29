@@ -22,14 +22,20 @@ export function stopsFor(c: Chapters, voidState: VoidState): number[] {
 
 /**
  * Where the scroll target goes for a delta of `units` (one unit is a viewport height of scroll).
- * Normally it moves by the delta and stays inside the story, 0 to the end page (`scrollEnd`). With reduced motion it
+ * Normally it moves by the delta and stays inside the story, 0 to the end (`scrollEnd`), and a move down from above the
+ * look back's stop rests on it (the Q&A past it is `qaStepTarget`'s). With reduced motion it
  * does not move by a distance but to a place: the next stop down the story for a delta down, the previous one up for
  * a delta up, whatever the size of the delta; none past the last. The stops are `places`, in order: the key stops
  * (`keyStops`) unless given (`stopsFor` the void's state).
  */
 export function moveTarget(target: number, units: number, c: Chapters, reducedMotion: boolean, places: readonly number[] = keyStops(c)): number {
   const end = scrollEnd(c);
-  if (!reducedMotion) return Math.min(Math.max(target + units, 0), end);
+  if (!reducedMotion) {
+    // A continuous move down from above is caught by the look back's stop: past it the Q&A goes a question a step.
+    const look = lookStop(c);
+    const next = Math.min(Math.max(target + units, 0), end);
+    return target < look - ON_STOP && next > look ? look : next;
+  }
   if (units === 0) return target;
   if (units > 0) return places.find((stop) => stop > target + ON_STOP) ?? end;
   return places.findLast((stop) => stop < target - ON_STOP) ?? 0;
@@ -72,20 +78,26 @@ export function restsAtTop(from: number, to: number, c: Chapters, direction = Ma
   return onRise(from, c) && direction > 0 && !onRise(to, c) && to <= top + 1 + ON_STOP;
 }
 
-/** A sheet stopped under this share of its way up goes back down onto the look back, whichever way the scroll went. */
-export const SHEET_BACK = 0.03;
+/**
+ * Whether `place` is in the Q&A on the gold ring (spec 2026-10-29-bob-stack-2-design.md, goal 1): at the look back's own
+ * stop or past it, where every input is a step of one question (`qaStepTarget`).
+ */
+export function inQa(place: number, c: Chapters): boolean {
+  return place >= lookStop(c) - ON_STOP;
+}
 
 /**
- * Where the sheet finishes once the scroll has stopped part-way up it, at `place` ("Follow, then finish", spec
- * 2026-10-25-bob-light-dive-design.md): on up to the end page if the last move went down (`direction` above 0) and the
- * sheet is at least SHEET_BACK up, else back down onto the look back, the sheet's start. Null off the sheet, and at
- * its two ends, where there is nothing to finish: the path never moves by itself.
+ * Where a step of the Q&A takes the target from `target`, `dir` its way (1 down, -1 up): the next of `places` (the key
+ * stops unless given: the look back's own, each question and the end's mark), or the one before, whatever the input's
+ * size ("rotating snaps"); none past the end. Null where it is no step of the Q&A: off it, and up from the look back's
+ * stop, where the scroll is continuous again.
  */
-export function finishTarget(place: number, direction: number, c: Chapters): number | null {
-  const start = lookStop(c);
-  const end = scrollEnd(c);
-  if (!(place > start && place < end)) return null;
-  return direction > 0 && place - start >= SHEET_BACK * (end - start) ? end : start;
+export function qaStepTarget(target: number, dir: 1 | -1, c: Chapters, places: readonly number[] = keyStops(c)): number | null {
+  if (!inQa(target, c)) return null;
+  const look = lookStop(c);
+  if (dir < 0 && target <= look + ON_STOP) return null;
+  if (dir > 0) return places.find((stop) => stop > target + ON_STOP) ?? scrollEnd(c);
+  return places.findLast((stop) => stop < target - ON_STOP && stop >= look - ON_STOP) ?? look;
 }
 
 /**

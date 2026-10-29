@@ -3,11 +3,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GESTURE_GAP_MS } from '../../../src/input/gesture';
 import { Inertia } from '../../../src/input/Inertia';
 import { SKIP_QUIET_MS, skipSwallower } from '../../../src/input/loaderSkip';
-import { FINISH_S, FOLLOW, follow, GLIDE_MIN_S, GLIDE_S, RISE_SMOOTH, SHEET_FINISH_MS, type Smooth, smoothTimeAt, startHomeScroll } from '../../../src/input/scrollLoop';
+import { easeInOutQuart, FOLLOW, follow, GLIDE_MIN_S, GLIDE_S, QA_GLIDE_S, QA_LOCK_MS, RISE_SMOOTH, type Smooth, smoothTimeAt, startHomeScroll, type TweenKind, turnTime } from '../../../src/input/scrollLoop';
 import { connectHomeScroll, goToEnd, goToTop, headedToEnd } from '../../../src/input/useHomeScroll';
 import { LANDING_HOLD } from '../../../src/scene/bob/landingHold';
 import { nearestStop, STEP_FADE_MS, stepFadeAt, stepFadeFrom } from '../../../src/scene/bob/stepFade';
-import { areaStop, buildChapters, type ChapterAt, chapterAt, FALL_PACE, HOME_CHAPTERS, pathStart, placeOfFrame, scrollEnd, lookStop, stops, worldStop } from '../../../src/state/chapters';
+import { areaStop, buildChapters, type ChapterAt, chapterAt, FALL_PACE, HOME_CHAPTERS, pathStart, placeOfFrame, qaStop, scrollEnd, lookStop, stops, worldStop } from '../../../src/state/chapters';
 import { frame as storyFrame } from '../../../src/state/frame';
 import { useScene, type VoidState } from '../../../src/state/store';
 
@@ -25,8 +25,10 @@ const A1 = areaStop(chapters, 'a');
 const A2 = areaStop(chapters, 'b');
 /** The look back's own stop: the sheet's start, where the credits begin to rise. */
 const S = lookStop(chapters);
-/** The chapters' indices of the land (the world's stop is inside it), the sheet's and the end's. */
-const INDEX = { land: 2, sheet: 7, end: 8 } as const;
+/** The chapters' indices of the land (the world's stop is inside it), the first QA unit's and the end's. */
+const INDEX = { land: 2, qa: 7, end: 14 } as const;
+/** The first question's stop on the ring, the end of the first QA unit. */
+const Q0 = qaStop(chapters, 0);
 /** The first fact's place, the light dive's frame 81: the first key stop past BOB from above. */
 const F81 = placeOfFrame(81);
 /** The last fact's place, frame 241: the key stop before Steady's. */
@@ -114,6 +116,7 @@ function setup(options: SetupOptions = {}) {
     loadSmooth: options.loadSmooth ?? (() => Promise.resolve(damp)),
     request: frames.request,
     cancel: frames.cancel,
+    now: () => frames.now,
   });
   const key = (k: string) =>
     fire(win, 'keydown', { key: k, shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, repeat: false, isComposing: false, target: { tagName: 'BODY' } });
@@ -202,7 +205,7 @@ async function drag(s: Setup, px: number, holdMs = 0): Promise<void> {
 interface Step {
   progress: number;
   velocity: number;
-  tween: 'finish' | 'glide' | null;
+  tween: TweenKind | null;
   heading: number | null;
 }
 
@@ -342,7 +345,7 @@ describe('the scroll loop: a glide', () => {
     expect(s.home.scroll.busy).toBe(false);
   });
 
-  it('glides on past the rise as a page would, resting where it ends, and ends one that reaches the end page', async () => {
+  it("glides on past the rise as a page would, resting where it ends, and ends one that reaches the look back's stop", async () => {
     const alone = glideAlone();
     const s = setup();
     restAt(s, L + 3.6);
@@ -351,10 +354,11 @@ describe('the scroll loop: a glide', () => {
     s.drain();
     expect(s.frame.target).toBeCloseTo(L + 4.0 + alone.px / VH, 6); // on the world, between two stops: no stop
     expect(s.frame.progress).toBe(s.frame.target);
-    restAt(s, S + 0.8);
+    // Caught at the look back's stop: past it the Q&A goes a question a step.
+    restAt(s, S - 0.8);
     await s.swipe(-1);
     s.drain();
-    expect([s.frame.target, s.frame.progress]).toEqual([END, END]);
+    expect([s.frame.target, s.frame.progress]).toEqual([S, S]);
     expect(s.home.scroll.busy).toBe(false);
   });
 });
@@ -487,8 +491,7 @@ describe('the scroll loop: the input that skipped the loader', () => {
 });
 
 describe('the scroll loop: damp does not load', () => {
-  // Task 3: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
-  it.skip('still arrives: End fades to the end page, the chapter in step, and says nothing', async () => {
+  it("still arrives: End fades to the end's mark, the chapter in step, and says nothing", async () => {
     const quiet = [vi.spyOn(console, 'error'), vi.spyOn(console, 'warn'), vi.spyOn(console, 'log')];
     const s = setup({ loadSmooth: () => Promise.reject(new Error('chunk failed')) });
     s.key('End');
@@ -598,129 +601,6 @@ describe('the follow: past the rise the story follows the scroll, with no stops 
 });
 
 // ---------------------------------------------------------------- the sheet's finish
-
-describe("the sheet's finish: follow, then finish", () => {
-  /** Wheel events into the sheet from the look back, 16 ms apart, the frames between them run; each frame noted. */
-  async function wheelInto(s: Setup, to: number, ms: number): Promise<Step[]> {
-    const count = Math.round(ms / 16);
-    const px = ((to - s.frame.target) * VH) / count;
-    const seen: Step[] = [];
-    for (let i = 0; i < count; i++) {
-      fire(s.el, 'wheel', { deltaY: px, deltaMode: 0, ctrlKey: false, timeStamp: s.frames.now });
-      if (i === 0) await flush();
-      seen.push(...frames(s, 1));
-    }
-    return seen;
-  }
-
-  // Task 3: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
-  it.skip('waits for 80 ms of quiet: none while the wheel turns, then on to the end page in under 1.3 s, never slowing below half its speed short of 0.9', async () => {
-    expect([SHEET_FINISH_MS, FINISH_S]).toEqual([80, [0.35, 1.2]]);
-    const s = setup();
-    restAt(s, S);
-    const turning = await wheelInto(s, S + 0.2, 300);
-    expect(s.frame.target).toBeCloseTo(S + 0.2, 9);
-    expect(turning.every((f) => f.tween === null)).toBe(true);
-    const after = frames(s);
-    const start = after.findIndex((f) => f.tween === 'finish');
-    expect(start).toBeGreaterThan(0);
-    // The first frame at least SHEET_FINISH_MS after the last input (one frame ran in `wheelInto` after it).
-    expect((start + 2) * FRAME_MS).toBeGreaterThanOrEqual(SHEET_FINISH_MS);
-    expect((start + 1) * FRAME_MS).toBeLessThan(SHEET_FINISH_MS);
-    expect(after[start]!.heading).toBe(END);
-    const landed = after.findIndex((f) => f.progress === END);
-    expect((landed - start) * FRAME_MS).toBeLessThan(1300);
-    expect([s.frame.target, s.frame.progress, s.frame.velocity]).toEqual([END, END, 0]);
-    const speed = after[start]!.velocity;
-    expect(speed).toBeGreaterThan(0);
-    for (const f of after.slice(start + 1, landed)) if (f.progress < S + 0.9) expect(f.velocity).toBeGreaterThanOrEqual(speed / 2);
-    expect(s.changes.at(-1)).toMatchObject({ id: 'END' });
-  });
-
-  it('finishes back down onto the look back under 3 % of the sheet, or when the last move went up', async () => {
-    const s = setup();
-    restAt(s, S);
-    await wheelInto(s, S + 0.02, 16);
-    s.drain();
-    expect([s.frame.target, s.frame.progress]).toEqual([S, S]);
-    await wheelInto(s, S + 0.8, 160);
-    await wheelInto(s, S + 0.5, 48); // and up again, before the quiet
-    const after = frames(s);
-    expect(after.find((f) => f.tween === 'finish')?.heading).toBe(S);
-    expect([s.frame.target, s.frame.progress]).toEqual([S, S]);
-  });
-
-  it('rides along with input in its own way, and stops for input against it, where the scroll put it', async () => {
-    const s = setup();
-    restAt(s, S);
-    await wheelInto(s, S + 0.3, 160);
-    const before = frames(s, 20);
-    expect(before.at(-1)!.tween).toBe('finish');
-    fire(s.el, 'wheel', { deltaY: 30, deltaMode: 0, ctrlKey: false, timeStamp: s.frames.now });
-    expect([s.home.loop.tweening, s.home.loop.heading, s.frame.target]).toEqual(['finish', END, END]);
-    s.drain();
-    expect([s.frame.target, s.frame.progress]).toEqual([END, END]);
-
-    restAt(s, S);
-    for (let ms = 0; ms <= GESTURE_GAP_MS; ms += FRAME_MS) s.frames.frame();
-    await wheelInto(s, S + 0.3, 160);
-    frames(s, 20);
-    expect(s.home.loop.tweening).toBe('finish');
-    const at = s.frame.progress;
-    fire(s.el, 'wheel', { deltaY: -30, deltaMode: 0, ctrlKey: false, timeStamp: s.frames.now });
-    expect(s.home.loop.tweening).toBeNull();
-    expect(s.frame.target).toBeCloseTo(at - 0.03, 12);
-    s.drain(); // the quiet again, then the finish down: the last move went up
-    expect([s.frame.target, s.frame.progress]).toEqual([S, S]);
-  });
-
-  it('waits while a finger is down, and finishes from its lift', async () => {
-    const s = setup();
-    restAt(s, S);
-    let t = s.frames.now;
-    fire(s.el, 'touchstart', { touches: [{ clientX: 100, clientY: 600 }], timeStamp: t });
-    for (let i = 1; i <= 10; i++) {
-      t += 16;
-      fire(s.el, 'touchmove', { touches: [{ clientX: 100, clientY: 600 - 40 * i }], timeStamp: t });
-      if (i === 1) await flush();
-      s.frames.frame();
-    }
-    const held = frames(s, 30); // the finger still down, 0.5 s
-    expect(held.every((f) => f.tween === null)).toBe(true);
-    fire(s.el, 'touchend', { touches: [], timeStamp: t + 500 });
-    s.drain();
-    expect([s.frame.target, s.frame.progress]).toEqual([END, END]);
-  });
-
-  // Task 3: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
-  it.skip("hands a finger's flick into the sheet straight to the finish: no glide crawling it up, the end page within 1.3 s of the lift", async () => {
-    const s = setup();
-    restAt(s, S);
-    await drag(s, 120); // a quick short swipe up the screen, lifted while moving: down the story, into the sheet
-    const lift = s.frames.now;
-    const after = frames(s);
-    const start = after.findIndex((f) => f.tween === 'finish');
-    const landed = after.findIndex((f) => f.progress === END);
-    expect(start).toBeGreaterThanOrEqual(0);
-    // The finish begins once the quiet after the lift is over, not after a glide has run its course.
-    expect(start * FRAME_MS).toBeLessThanOrEqual(SHEET_FINISH_MS + 2 * FRAME_MS);
-    expect(after[start]!.heading).toBe(END);
-    expect(landed * FRAME_MS).toBeLessThan(1300);
-    expect(s.frames.now - lift).toBeGreaterThan(0);
-    const speed = Math.max(...after.slice(0, start + 1).map((f) => f.velocity));
-    for (const f of after.slice(start + 1, landed)) if (f.progress < S + 0.9) expect(f.velocity).toBeGreaterThanOrEqual(speed / 2);
-    expect([s.frame.target, s.frame.progress]).toEqual([END, END]);
-  });
-
-  it('never moves the path by itself: a wheel stopped between two stops stays there', async () => {
-    const s = setup();
-    restAt(s, A0);
-    await wheelInto(s, A0 + 0.5, 160);
-    const after = frames(s);
-    expect(after.every((f) => f.tween === null)).toBe(true);
-    expect(s.frame.progress).toBeCloseTo(A0 + 0.5, 9);
-  });
-});
 
 // ---------------------------------------------------------------- the keys
 
@@ -985,8 +865,7 @@ describe("the rise: M2a's own, resting at its top", () => {
 // ---------------------------------------------------------------- reduced motion
 
 describe('reduced motion steps among the key stops', () => {
-  // Task 3: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
-  it.skip('steps a wheel notch, a swipe and a key one key stop, with no travel of the target between', async () => {
+  it('steps a wheel notch, a swipe and a key one key stop, with no travel of the target between', async () => {
     const s = setup({ reduced: true });
     restAt(s, 1);
     await wheelNotches(s, 1);
@@ -1000,255 +879,10 @@ describe('reduced motion steps among the key stops', () => {
     expect(s.frame.target).toBe(S);
     expect(s.home.loop.tweening).toBeNull(); // no glide with reduced motion
     s.key('ArrowDown');
-    expect(s.frame.target).toBe(END);
+    expect(s.frame.target).toBe(Q0);
+    restAt(s, END);
     s.key('ArrowDown'); // a step down from the end is none
     expect(s.frame.target).toBe(END);
-  });
-
-  // Task 3: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
-  it.skip('never finishes the sheet by itself: its steps rest on the look back and the end page', async () => {
-    const s = setup({ reduced: true });
-    restAt(s, S);
-    await wheelNotches(s, 1);
-    expect(s.frame.target).toBe(END);
-    s.drain();
-    expect(s.home.loop.tweening).toBeNull();
-  });
-});
-
-// ---------------------------------------------------------------- the seam at the end page
-
-describe("the seam: at the end page the page's own scroll is the browser's, and its top hands back to the look back", () => {
-  /**
-   * The story at rest at the end page, as Home's end view leaves the document there (`<html data-end="rest">`,
-   * src/scene/bob/endView.ts), with the window's own scroll `scrollY` down the page. `scrollTo` notes where the story's
-   * target stood when it was called.
-   */
-  function atEndPage(s: Setup, scrollY: number) {
-    const attributes = new Map<string, string>([['data-end', 'rest']]);
-    const scrolls: { to: [number, number]; target: number }[] = [];
-    const win = {
-      scrollY,
-      scrollTo: (x: number, y: number) => {
-        scrolls.push({ to: [x, y], target: s.frame.target });
-        win.scrollY = y;
-      },
-    };
-    vi.stubGlobal('document', {
-      documentElement: {
-        getAttribute: (name: string) => attributes.get(name) ?? null,
-        toggleAttribute: (name: string, force?: boolean) => {
-          if (force ?? !attributes.has(name)) attributes.set(name, '');
-          else attributes.delete(name);
-        },
-      },
-    });
-    vi.stubGlobal('window', win);
-    restAt(s, END);
-    return { attributes, win, scrolls };
-  }
-  type Page = ReturnType<typeof atEndPage>;
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  /** One wheel event of `px`, then `gapMs` of frames; the browser scrolls the page by it when it is left to it. Answers whether it was prevented. */
-  async function notch(s: Setup, page: Page, px: number, gapMs = 16): Promise<boolean> {
-    const event = fire(s.el, 'wheel', { deltaY: px, deltaMode: 0, ctrlKey: false, timeStamp: s.frames.now });
-    if (!event.defaultPrevented) page.win.scrollY = Math.max(page.win.scrollY + px, 0);
-    await flush();
-    for (let ms = 0; ms < gapMs; ms += FRAME_MS) s.frames.frame();
-    return event.defaultPrevented;
-  }
-
-  /** A quiet of more than GESTURE_GAP_MS: the frames run, and the wheel's next event starts a gesture of its own. */
-  function pause(s: Setup): void {
-    for (let ms = 0; ms <= GESTURE_GAP_MS; ms += FRAME_MS) s.frames.frame();
-  }
-
-  /**
-   * A finger from y 300 that moves `dy` px (down the glass for a positive one: up the page and the story) in ten moves
-   * 16 ms apart, a frame after each, then lifts; the browser scrolls the page by each move it is left. Answers each move's
-   * prevention.
-   */
-  async function swipe(s: Setup, page: Page, dy: number): Promise<boolean[]> {
-    const from = 300;
-    let t = s.frames.now;
-    let lastY = from;
-    const prevented: boolean[] = [];
-    fire(s.el, 'touchstart', { touches: [{ clientX: 100, clientY: from }], timeStamp: t });
-    for (let i = 1; i <= 10; i++) {
-      t += 16;
-      const y = from + (dy * i) / 10;
-      const move = fire(s.el, 'touchmove', { touches: [{ clientX: 100, clientY: y }], timeStamp: t });
-      if (!move.defaultPrevented) page.win.scrollY = Math.max(page.win.scrollY - (y - lastY), 0);
-      lastY = y;
-      prevented.push(move.defaultPrevented);
-      if (i === 1) await flush();
-      s.frames.frame();
-    }
-    fire(s.el, 'touchend', { touches: [], timeStamp: t + 4 });
-    await flush();
-    return prevented;
-  }
-
-  const shiftSpace = (s: Setup) =>
-    fire(s.win, 'keydown', { key: ' ', shiftKey: true, ctrlKey: false, metaKey: false, altKey: false, repeat: false, isComposing: false, target: { tagName: 'BODY' } });
-
-  // Task 3: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
-  it.skip('a story at the end with the page at its top slides the sheet back onto the look back for one wheel notch up', async () => {
-    const s = setup();
-    const page = atEndPage(s, 0);
-    expect(await notch(s, page, -120)).toBe(true);
-    expect(s.frame.target).toBeCloseTo(S + 0.88, 9);
-    s.drain();
-    expect([s.frame.target, s.frame.progress]).toEqual([S, S]);
-    expect(s.changes.at(-1)).toMatchObject({ index: INDEX.sheet, id: 'SHEET', category: null });
-    expect(page.win.scrollY).toBe(0);
-  });
-
-  it('leaves the wheel down at the end page to the browser: the page scrolls, and the story stays at the end and runs no frame', async () => {
-    const s = setup();
-    const page = atEndPage(s, 0);
-    for (let i = 0; i < 3; i++) expect(await notch(s, page, 120)).toBe(false);
-    pause(s);
-    expect(await notch(s, page, 120)).toBe(false); // a gesture of its own: down is the page's at every place
-    expect(page.win.scrollY).toBe(480);
-    expect([s.frame.target, s.frame.progress]).toEqual([END, END]);
-    expect(s.frames.size).toBe(0);
-  });
-
-  it('keeps a fast burst up the page with the page past its top, the story at the end, and takes the next notch after a pause back to the look back', async () => {
-    const s = setup();
-    const page = atEndPage(s, 300);
-    const prevented: boolean[] = [];
-    for (let i = 0; i < 10; i++) prevented.push(await notch(s, page, -120)); // 16 ms apart: one gesture
-    expect(prevented).toEqual(Array(10).fill(false)); // the page reached its top at the third; the rest are its too
-    expect(page.win.scrollY).toBe(0);
-    expect([s.frame.target, s.frame.progress]).toEqual([END, END]);
-    expect(s.frames.size).toBe(0);
-    pause(s);
-    expect(await notch(s, page, -120)).toBe(true);
-    s.drain();
-    expect([s.frame.target, s.frame.progress]).toEqual([S, S]);
-  });
-
-  it('leaves ArrowDown, PageDown, Space and End to the page, and ArrowUp, PageUp and Shift+Space while it is scrolled', () => {
-    const s = setup();
-    const page = atEndPage(s, 300);
-    for (const k of ['ArrowDown', 'PageDown', ' ', 'End', 'ArrowUp', 'PageUp']) expect(s.key(k).defaultPrevented, k).toBe(false);
-    expect(shiftSpace(s).defaultPrevented).toBe(false);
-    page.win.scrollY = 0;
-    for (const k of ['ArrowDown', 'PageDown', ' ', 'End']) expect(s.key(k).defaultPrevented, `${k} at the top`).toBe(false);
-    expect([s.frame.target, s.frame.progress]).toEqual([END, END]);
-    expect(s.frames.size).toBe(0);
-  });
-
-  // Task 3: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
-  it.skip("glides the story back to the look back for ArrowUp, PageUp and Shift+Space at the page's top", async () => {
-    type Press = (s: Setup) => Event;
-    const presses: Press[] = [(s) => s.key('ArrowUp'), (s) => s.key('PageUp'), shiftSpace];
-    for (const press of presses) {
-      const s = setup();
-      atEndPage(s, 0);
-      expect(press(s).defaultPrevented).toBe(true);
-      expect([s.frame.target, s.home.loop.tweening]).toEqual([S, 'glide']);
-      await flush();
-      s.drain();
-      expect(s.frame.progress).toBe(S);
-      vi.unstubAllGlobals();
-    }
-  });
-
-  it("takes Home from the end page to the story's start by the fade, the page back at its top first", async () => {
-    const s = setup();
-    const page = atEndPage(s, 300);
-    expect(s.key('Home').defaultPrevented).toBe(true);
-    expect(page.scrolls).toEqual([{ to: [0, 0], target: END }]); // before the story moved
-    expect(s.frame.target).toBe(0);
-    await flush();
-    s.drain();
-    expect(s.frame.progress).toBe(0);
-    expect(page.scrolls).toHaveLength(1);
-  });
-
-  it('scrolls nothing for Home when the page is at its top already', () => {
-    const s = setup();
-    const page = atEndPage(s, 0);
-    expect(s.key('Home').defaultPrevented).toBe(true);
-    expect(page.scrolls).toEqual([]);
-    expect(s.frame.target).toBe(0);
-  });
-
-  it('leaves a swipe on the page to the browser, with no glide, and at its top a new swipe down the glass slides the sheet back to the look back', async () => {
-    const s = setup();
-    const page = atEndPage(s, 300);
-    // Down the glass from part way down: up the page, to its top and on, the page's to the lift.
-    expect(await swipe(s, page, 500)).toEqual(Array(10).fill(false));
-    expect(page.win.scrollY).toBe(0);
-    expect(s.home.scroll.busy).toBe(false);
-    expect([s.frame.target, s.frame.progress]).toEqual([END, END]);
-    expect(s.frames.size).toBe(0);
-    // Up the glass at the top: down the page, the page's.
-    expect(await swipe(s, page, -200)).toEqual(Array(10).fill(false));
-    expect(page.win.scrollY).toBe(200);
-    expect(s.frame.target).toBe(END);
-    // Back at the top, a new swipe down the glass: the story's, back to the look back.
-    page.win.scrollY = 0;
-    expect(await swipe(s, page, 300)).toEqual(Array(10).fill(true));
-    s.drain();
-    expect([s.frame.target, s.frame.progress]).toEqual([S, S]);
-    expect(page.win.scrollY).toBe(0);
-  });
-
-  it("keeps a wheel gesture from the look back the story's to its end, though the story comes to rest at the end page under it", async () => {
-    const s = setup();
-    const page = atEndPage(s, 0);
-    page.attributes.delete('data-end'); // at the look back there is no end view
-    restAt(s, S);
-    // A long trackpad push, an event every 100 ms: the sheet finishes between them, each riding along with it.
-    for (let i = 0; i < 100 && s.frame.progress !== END; i++) expect(await notch(s, page, 120, 100)).toBe(true);
-    expect([s.frame.target, s.frame.progress]).toEqual([END, END]);
-    expect(s.home.scroll.waiting).toBe(true); // the wheel's gesture still under way
-    page.attributes.set('data-end', 'rest'); // as Home's end view writes it, the story at rest at the end
-    for (let i = 0; i < 10; i++) expect(await notch(s, page, 120, 100)).toBe(true);
-    expect(page.win.scrollY).toBe(0); // none of it scrolled the page
-    s.drain();
-    expect([s.frame.target, s.frame.progress]).toEqual([END, END]);
-    // The next gesture, after the quiet that ended that one, is the page's.
-    expect(await notch(s, page, 120)).toBe(false);
-    expect(page.win.scrollY).toBe(120);
-  });
-
-  it('leaves nothing to the page away from the end page, nor while the story is on its way', async () => {
-    const s = setup();
-    const page = atEndPage(s, 0);
-    page.attributes.set('data-end', 'moving');
-    expect(s.key('End').defaultPrevented).toBe(true);
-    expect(await notch(s, page, 120)).toBe(true);
-    s.drain();
-    page.attributes.delete('data-end');
-    restAt(s, A0);
-    expect(await notch(s, page, 120)).toBe(true);
-    expect(s.key('ArrowDown').defaultPrevented).toBe(true);
-    expect(page.win.scrollY).toBe(0);
-  });
-
-  // Task 3: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
-  it.skip("with reduced motion keeps the same seam: the wheel down and a burst up the page are the page's, and at its top a notch up steps to the look back", async () => {
-    const s = setup({ reduced: true });
-    const page = atEndPage(s, 300);
-    expect(await notch(s, page, 120)).toBe(false);
-    pause(s);
-    for (let i = 0; i < 6; i++) expect(await notch(s, page, -120)).toBe(false);
-    expect(page.win.scrollY).toBe(0);
-    expect(s.frame.target).toBe(END);
-    pause(s);
-    expect(await notch(s, page, -120)).toBe(true);
-    expect(s.frame.target).toBe(S);
-    s.drain();
-    expect(s.frame.progress).toBe(S);
   });
 });
 
@@ -1311,7 +945,7 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
     const el = new EventTarget();
     const keys = new EventTarget();
     Object.defineProperty(el, 'ownerDocument', { value: { defaultView: keys } });
-    const disconnect = connectHomeScroll({ el: el as unknown as HTMLElement, unitPx: () => VH, request: frames.request, cancel: frames.cancel, loadSmooth: () => Promise.resolve(damp) });
+    const disconnect = connectHomeScroll({ el: el as unknown as HTMLElement, unitPx: () => VH, request: frames.request, cancel: frames.cancel, loadSmooth: () => Promise.resolve(damp), now: () => frames.now });
     left.push(disconnect);
 
     const dark = (): boolean => html.has('data-step-fade');
@@ -1924,50 +1558,38 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
     });
   });
 
-  describe('the arrival at the end page: on it exactly, and at rest', () => {
-    // Task 3: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
-    it.skip('from the look back, ArrowDown glides to the end and rests on it: progress exactly on it, no velocity, END, no frame asked for after', async () => {
+  describe('the arrival at the first question: on it exactly, and at rest', () => {
+    it('from the look back, ArrowDown turns into the first question and rests on it: progress exactly on it, no velocity, no frame asked for after', async () => {
+      const first = qaStop(HOME_CHAPTERS, 0);
       const s = wiredHome(S, { voidState: 'ready' });
       expect(s.key('ArrowDown').defaultPrevented).toBe(true);
-      expect(storyFrame.target).toBe(STORY_END);
+      expect(storyFrame.target).toBe(first);
       await flush();
       const seen = s.run();
       expect(s.frames.size, 'the loop sleeps').toBe(0);
-      expect([storyFrame.target, storyFrame.progress, storyFrame.velocity]).toEqual([STORY_END, STORY_END, 0]);
-      expect(useScene.getState().phase.kind).toBe('END');
-      expect(seen.length / 60).toBeLessThan(1.3);
+      expect([storyFrame.target, storyFrame.progress, storyFrame.velocity]).toEqual([first, first, 0]);
+      expect(seen.length / 60).toBeLessThan(2.9);
     });
 
-    // Task 3: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
-    it.skip('lands a story left within 0.01 of the end, still headed there, on its first frame: a home that comes back to it does not leave it short', async () => {
-      const s = wiredHome(S + 0.995, { voidState: 'ready', target: STORY_END });
-      await flush();
-      expect(s.frames.size, 'the loop has asked for a frame').toBe(1);
-      const seen = s.run();
-      expect(seen.map((f) => f.progress)).toEqual([STORY_END]);
-      expect([storyFrame.target, storyFrame.progress, storyFrame.velocity]).toEqual([STORY_END, STORY_END, 0]);
-      expect(useScene.getState().phase.kind).toBe('END');
-    });
-
-    it('does not snap a turn back short of the end: ArrowUp at 0.98 of the way in glides back to the look back, never at the end', async () => {
+    it('does not snap a turn back short of the first question: ArrowUp at 0.98 of the way in turns back to the look back, never there', async () => {
+      const first = qaStop(HOME_CHAPTERS, 0);
       const s = wiredHome(S, { voidState: 'ready' });
       s.key('ArrowDown');
       await flush();
       for (let i = 0; i < 600 && storyFrame.progress < S + 0.98; i++) s.frames.frame();
       expect(storyFrame.progress).toBeGreaterThanOrEqual(S + 0.98);
-      expect(storyFrame.progress).toBeLessThan(STORY_END);
+      expect(storyFrame.progress).toBeLessThan(first);
       s.key('ArrowUp');
       expect(storyFrame.target).toBe(S);
       const seen = s.run();
-      expect(seen.some((f) => f.progress === STORY_END), 'a frame on the end page').toBe(false);
+      expect(seen.some((f) => f.progress === first), 'a frame on the first question').toBe(false);
       expect([storyFrame.target, storyFrame.progress, storyFrame.velocity]).toEqual([S, S, 0]);
     });
   });
 });
 
-describe('reduced motion and the end page', () => {
-  // Task 3: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
-  it.skip('reduced motion: one wheel step from the look back goes to the end by a fade, and one up goes back', async () => {
+describe('reduced motion and the Q&A', () => {
+  it('reduced motion: one wheel step from the look back goes to the first question by a fade, and one up goes back', async () => {
     const s = setup({ reduced: true });
     restAt(s, S);
     // Home's step fade, as it runs it on each frame it poses (src/scene/bob/Home.tsx): the stop the target is nearest.
@@ -1975,19 +1597,19 @@ describe('reduced motion and the end page', () => {
     const shown = (now: number): number => stepFadeAt(fade, nearestStop(stops(chapters), s.frame.target), true, now).shown;
 
     await wheelNotches(s, 10, 120, 16); // one gesture: one step
-    expect(s.frame.target).toBe(END);
+    expect(s.frame.target).toBe(Q0);
     expect(shown(0)).toBe(S); // the host fades down, the scene still at the look back
     expect(fade.darkAt).toBe(STEP_FADE_MS);
     expect(shown(STEP_FADE_MS - 1)).toBe(S);
-    expect(shown(STEP_FADE_MS)).toBe(END); // dark: the scene is at the end page, and the host fades back
+    expect(shown(STEP_FADE_MS)).toBe(Q0); // dark: the scene is at the first question, and the host fades back
     expect(fade.darkAt).toBeNull();
     s.drain();
-    expect([s.frame.target, s.frame.progress]).toEqual([END, END]);
+    expect([s.frame.target, s.frame.progress]).toEqual([Q0, Q0]);
 
     await wheelNotches(s, 10, -120, 16);
     expect(s.frame.target).toBe(S);
     const at = 10_000;
-    expect(shown(at)).toBe(END);
+    expect(shown(at)).toBe(Q0);
     expect(fade.darkAt).toBe(at + STEP_FADE_MS);
     expect(shown(at + STEP_FADE_MS)).toBe(S);
     s.drain();
@@ -1995,4 +1617,93 @@ describe('reduced motion and the end page', () => {
   });
 });
 
-// ---------------------------------------------------------------- the ring's drag
+// ---------------------------------------------------------------- the Q&A on the ring
+
+// The Q&A on the gold ring (spec 2026-10-29-bob-stack-2-design.md, goal 1): "rotating snaps and is slower". From the look
+// back's stop every input is one step, a question, turned slowly; input while a turn's lock holds is dropped.
+describe('the Q&A, a question a step', () => {
+  const q = (k: number) => qaStop(chapters, k);
+
+  it('eases a turn in and out', () => {
+    expect(easeInOutQuart(0)).toBe(0);
+    expect(easeInOutQuart(0.25)).toBeCloseTo(0.03125, 12);
+    expect(easeInOutQuart(0.5)).toBeCloseTo(0.5, 12);
+    expect(easeInOutQuart(1)).toBe(1);
+  });
+
+  it('turns a question in about 1.9 s, eased in and out', async () => {
+    expect(turnTime(q(0), q(1), chapters)).toBeCloseTo(1.1 + (0.9 * 2 * Math.PI) / 7, 9);
+    expect(Math.abs(turnTime(q(0), q(1), chapters) - 1.906)).toBeLessThan(0.05);
+    const s = setup();
+    restAt(s, q(0));
+    await wheelNotches(s, 1);
+    expect(s.frame.target).toBe(q(1));
+    expect(s.home.loop.tweening).toBe('turn');
+    const start = s.frames.now;
+    const T = turnTime(q(0), q(1), chapters) * 1000;
+    while (s.frames.now - start < T / 2) s.frames.frame();
+    expect(s.frame.progress).toBeGreaterThan(q(0) + 0.35);
+    expect(s.frame.progress).toBeLessThan(q(0) + 0.65);
+    s.drain();
+    expect(s.frame.progress).toBe(q(1));
+  });
+
+  it('glides into the Q&A in 2.8 s', () => {
+    expect(QA_GLIDE_S).toBe(2.8);
+    expect(turnTime(S, q(0), chapters)).toBe(2.8);
+    expect(turnTime(q(0), S, chapters)).toBe(2.8);
+  });
+
+  it('takes one step for a burst of notches', async () => {
+    const s = setup();
+    restAt(s, S);
+    await wheelNotches(s, 10, 120, 20);
+    expect(s.frame.target).toBe(q(0));
+  });
+
+  it('drops input inside the lock', async () => {
+    expect(QA_LOCK_MS).toBe(1500);
+    const s = setup();
+    restAt(s, q(0));
+    await wheelNotches(s, 1);
+    const start = s.frames.now;
+    expect(s.frame.target).toBe(q(1));
+    while (s.frames.now - start < 1000) s.frames.frame();
+    await wheelNotches(s, 1);
+    expect(s.frame.target).toBe(q(1));
+    while (s.frames.now - start < 1600) s.frames.frame();
+    await wheelNotches(s, 1);
+    expect(s.frame.target).toBe(q(2));
+  });
+
+  it('steps a key one question too', async () => {
+    const s = setup();
+    restAt(s, q(2));
+    s.key('ArrowDown');
+    await flush();
+    expect(s.frame.target).toBe(q(3));
+    expect(s.home.loop.tweening).toBe('turn');
+  });
+
+  it('jumps with reduced motion', async () => {
+    const s = setup({ reduced: true });
+    restAt(s, q(0));
+    await wheelNotches(s, 1);
+    expect(s.frame.target).toBe(q(1));
+    expect(s.home.loop.tweening).toBeNull();
+  });
+
+  it('turns by a drag and lets go onto the nearest question', async () => {
+    const s = setup();
+    restAt(s, q(1));
+    s.home.dragRing(0.7);
+    expect(s.frame.target).toBeCloseTo(q(1) + 0.7, 12);
+    expect(s.frame.progress).toBeCloseTo(q(1) + 0.7, 12);
+    s.home.dragRing(-5);
+    expect(s.frame.target).toBe(q(0)); // a drag never takes the ring off its questions, back into the look back
+    s.home.dragRing(1.4);
+    s.home.releaseRing();
+    expect(s.frame.target).toBe(q(1));
+    expect(s.home.loop.tweening).toBe('turn');
+  });
+});

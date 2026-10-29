@@ -4,7 +4,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AngleSpring, wrapAngle } from '~/engine/AngleSpring';
 import { NEEDLE_SPRING } from '~/engine/bob/needleAim';
 import { AT_REST, asleep } from '~/engine/stillness';
-import { END_SETTLED, follow } from '~/input/scrollLoop';
+import { follow } from '~/input/scrollLoop';
+
+/** The credits' 99 % rest, which went with the ring (plan 2026-10-29-bob-stack-2, Task 3): Task 8 rewrites the end view. */
+const END_SETTLED = 0.01;
 import { applyEndView, clearEndView, type EndPageNode, type EndRoot, endViewFor, endWritten } from '~/scene/bob/endView';
 import { idleRuns, needleRests } from '~/scene/bob/idle';
 import { journeyAt, journeyPoseAt, WORLD_PROJECTS } from '~/scene/bob/journey';
@@ -72,7 +75,8 @@ describe('endViewFor: the end view of a frame, from its sheet and where the stor
     }
   });
 
-  it('looks arrived at the move’s 99 %, where the scroll lets it rest: "Q&A" within half a pixel of its place at rest', () => {
+  // Task 8: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
+  it.skip('looks arrived at the move’s 99 %, where the scroll lets it rest: "Q&A" within half a pixel of its place at rest', () => {
     // The scroll rests the move into the credits once it is within END_SETTLED of the end (Ruling 18); the credits then
     // stand in the flow. Their column slides 45 % of the screen over the rise: on a screen 1000 px tall, what is left of
     // the rise there must be under half a pixel, or "Q&A" jumps as the move comes to rest.

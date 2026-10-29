@@ -361,7 +361,8 @@ const { MIN_FILL_MS, SEND_TIMEOUT_MS } = await tsImport('../../src/ui/contactSub
 const { LOAD_TIMEOUT_MS, RESTORE_TIMEOUT_MS } = await tsImport('../../src/scene/timeouts.ts', import.meta.url);
 const { AREA_STOP, HOME_CHAPTERS, LAND_STOP, areaStop, areasOnPath, chapterAt, keyStops, lookStart, pathStart, placeOfFrame, scrollEnd, lookStop, stops, worldStop } = await tsImport('../../src/state/chapters.ts', import.meta.url);
 const { SETTLE_SLOP_PX } = await tsImport('../../src/input/target.ts', import.meta.url);
-const { SHEET_FINISH_MS } = await tsImport('../../src/input/scrollLoop.ts', import.meta.url);
+// The sheet's finish went with the Q&A's ring (plan 2026-10-29-bob-stack-2, Task 3); Task 16 rewrites the steps that read it.
+const SHEET_FINISH_MS = 80;
 const { GESTURE_GAP_MS } = await tsImport('../../src/input/gesture.ts', import.meta.url);
 const { LOADER, LOADER_SEEN_KEY, QUICK, SCRIPT } = await tsImport('../../src/engine/bob/loaderTimeline.ts', import.meta.url);
 const { IDLE_SECONDS, BREATHE } = await tsImport('../../src/scene/bob/look.ts', import.meta.url);

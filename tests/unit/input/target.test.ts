@@ -1,20 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import {
   changedChapter,
-  finishTarget,
   holdLimit,
+  inQa,
   jumpTarget,
   keyTarget,
   moveTarget,
   pinnedAtEnd,
+  qaStepTarget,
   releaseTarget,
   restsAtTop,
   scrollEnabled,
-  SHEET_BACK,
   stopsFor
 } from '../../../src/input/target';
 import { LANDING_HOLD } from '../../../src/scene/bob/landingHold';
-import { areaStop, buildChapters, HOME_CHAPTERS, keyStops, pathStart, placeOfFrame, riseTop, scrollEnd, lookStop, worldStop } from '../../../src/state/chapters';
+import { areaStop, buildChapters, HOME_CHAPTERS, keyStops, pathStart, placeOfFrame, qaStop, riseTop, scrollEnd, lookStop, worldStop } from '../../../src/state/chapters';
 import type { Phase } from '../../../src/state/machine';
 
 // The home's layout: HOME 0-1, LIGHT to the hand-over (frame 256), the land, an area per category, LOOK, SHEET, END.
@@ -28,8 +28,9 @@ const L = pathStart(c);
 const W = worldStop(c);
 const A0 = areaStop(c, 'a');
 const A1 = areaStop(c, 'b');
-/** The look back's own stop, the sheet's start; and the end, the credits' stop. */
+/** The look back's own stop; the first question's; and the end, the end's mark on the ring. */
 const S = lookStop(c);
+const Q0 = qaStop(c, 0);
 const E = scrollEnd(c);
 
 describe('moveTarget', () => {
@@ -48,20 +49,20 @@ describe('moveTarget', () => {
   });
 
   describe('with reduced motion: a step among the key stops', () => {
-    // Task 3: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
-    it.skip('steps to the next key stop for a delta down, whatever its size: the facts in the light dive, then the projects', () => {
+    it('steps to the next key stop for a delta down, whatever its size: the facts in the light dive, then the projects', () => {
       expect(moveTarget(0, 0.01, c, true)).toBe(1);
       expect(moveTarget(0, 7, c, true)).toBe(1);
       expect(moveTarget(1, 0.5, c, true)).toBe(F81);
       expect(moveTarget(F81, 0.01, c, true)).toBe(F121);
       expect(moveTarget(F241 + 0.1, 0.01, c, true)).toBe(W);
       expect(moveTarget(A0, 1, c, true)).toBe(A1);
-      expect(moveTarget(S, 0.01, c, true)).toBe(E);
+      expect(moveTarget(S, 0.01, c, true)).toBe(Q0);
+      expect(moveTarget(qaStop(c, 5), 0.01, c, true)).toBe(E);
     });
 
-    // Task 3: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
-    it.skip('steps to the previous key stop for a delta up', () => {
-      expect(moveTarget(E, -0.01, c, true)).toBe(S);
+    it('steps to the previous key stop for a delta up', () => {
+      expect(moveTarget(E, -0.01, c, true)).toBe(qaStop(c, 5));
+      expect(moveTarget(Q0, -0.01, c, true)).toBe(S);
       expect(moveTarget(A0, -0.01, c, true)).toBe(W);
       expect(moveTarget((F81 + F121) / 2, -0.01, c, true)).toBe(F81);
       expect(moveTarget(F81, -3, c, true)).toBe(1);
@@ -86,22 +87,22 @@ describe('keyTarget: an arrow, Page Up or Down, or Space, without reduced motion
     expect(keyTarget(0.2, 0.9, c)).toBe(1);
   });
 
-  // Task 3: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
-  it.skip('steps from the top of the rise through the facts and the projects to the end, whatever its distance', () => {
+  it('steps from the top of the rise through the facts and the projects to the end, whatever its distance', () => {
     expect(keyTarget(1, 0.15, c)).toBe(F81);
     expect(keyTarget(F81, 0.9, c)).toBe(F121);
     expect(keyTarget(F241, 0.15, c)).toBe(W);
     expect(keyTarget(W, 0.15, c)).toBe(A0);
     expect(keyTarget(A0, 0.15, c)).toBe(A1);
-    expect(keyTarget(S, 0.15, c)).toBe(E);
+    expect(keyTarget(S, 0.15, c)).toBe(Q0);
+    expect(keyTarget(qaStop(c, 5), 0.15, c)).toBe(E);
     // A target between stops (a wheel under way, or one left on a travel) steps to the next one.
     expect(keyTarget(F241 + 0.1, 0.15, c)).toBe(W);
     expect(keyTarget(L + 3.0, 0.15, c)).toBe(A1);
   });
 
-  // Task 3: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
-  it.skip('steps up to the previous key stop past the top of the rise, and back on the rise moves by its distance again', () => {
-    expect(keyTarget(E, -0.15, c)).toBe(S);
+  it('steps up to the previous key stop past the top of the rise, and back on the rise moves by its distance again', () => {
+    expect(keyTarget(E, -0.15, c)).toBe(qaStop(c, 5));
+    expect(keyTarget(Q0, -0.15, c)).toBe(S);
     expect(keyTarget(W, -0.15, c)).toBe(F241);
     expect(keyTarget(F81, -0.9, c)).toBe(1);
     expect(keyTarget(1, -0.15, c)).toBeCloseTo(0.85, 12);
@@ -129,30 +130,6 @@ describe("restsAtTop: the rise's rest at its top, BOB from above", () => {
     expect(restsAtTop(1, 1.3, c)).toBe(false);
     expect(restsAtTop(2, 1.5, c)).toBe(false);
     expect(restsAtTop(0.5, 1.3, c, -1)).toBe(false);
-  });
-});
-
-describe("finishTarget: where the sheet finishes once the scroll stops part-way up it ('Follow, then finish')", () => {
-  // Task 3: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
-  it.skip('goes on up to the end page if the last move went down, and the sheet is at least SHEET_BACK up', () => {
-    expect(SHEET_BACK).toBe(0.03);
-    expect(finishTarget(S + 0.2, 1, c)).toBe(E);
-    expect(finishTarget(S + 0.031, 1, c)).toBe(E);
-    expect(finishTarget(S + 0.99, 1, c)).toBe(E);
-  });
-
-  it('goes back down onto the look back if the last move went up, or the sheet is barely up', () => {
-    expect(finishTarget(S + 0.2, -1, c)).toBe(S);
-    expect(finishTarget(S + 0.99, -1, c)).toBe(S);
-    expect(finishTarget(S + 0.02, 1, c)).toBe(S);
-    expect(finishTarget(S + 0.5, 0, c)).toBe(S);
-  });
-
-  it('has nothing to finish off the sheet: at its two ends, on the path or in the light dive', () => {
-    expect(finishTarget(lookStop(c), 1, c)).toBeNull();
-    expect(finishTarget(scrollEnd(c), -1, c)).toBeNull();
-    expect(finishTarget(L + 6, 1, c)).toBeNull();
-    expect(finishTarget(2, 1, c)).toBeNull();
   });
 });
 
@@ -211,12 +188,11 @@ describe('changedChapter', () => {
     expect(changedChapter(c, 2.5, 1, true)).toBeNull();
   });
 
-  // Task 3: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
-  it.skip('gives the new chapter, with its category, when progress has crossed into one', () => {
+  it('gives the new chapter, with its category, when progress has crossed into one', () => {
     expect(changedChapter(c, 1.5, 0, false)).toMatchObject({ index: 1, id: 'LIGHT', category: null });
     expect(changedChapter(c, L + 0.4, 1, false)).toMatchObject({ index: 2, id: 'LAND', category: null });
     expect(changedChapter(c, L + 2.0, 2, false)).toMatchObject({ index: 3, id: 'AREA', category: 'a' });
-    expect(changedChapter(c, S + 0.4, 6, false)).toMatchObject({ index: 7, id: 'SHEET', category: null });
+    expect(changedChapter(c, S + 0.4, 6, false)).toMatchObject({ index: 7, id: 'QA', category: null, project: 0 });
   });
 
   it('holds the chapter within the hysteresis of its edge while the story moves', () => {
@@ -226,12 +202,11 @@ describe('changedChapter', () => {
     expect(changedChapter(c, L - 0.01, 2, false)).toBeNull();
   });
 
-  // Task 3: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
-  it.skip('reads a story at rest without the hysteresis: a stop on a boundary belongs to the chapter that starts there', () => {
+  it('reads a story at rest without the hysteresis: a stop on a boundary belongs to the chapter that starts there', () => {
     expect(changedChapter(c, L, 1, true)).toMatchObject({ index: 2, id: 'LAND', category: null });
     expect(changedChapter(c, 1, 0, true)).toMatchObject({ index: 1, id: 'LIGHT' });
-    expect(changedChapter(c, S, 6, true)).toMatchObject({ index: 7, id: 'SHEET', category: null });
-    expect(changedChapter(c, E, 7, true)).toMatchObject({ index: 8, id: 'END', category: null });
+    expect(changedChapter(c, S, 6, true)).toMatchObject({ index: 7, id: 'QA', category: null, project: 0 });
+    expect(changedChapter(c, E, 13, true)).toMatchObject({ index: 14, id: 'END', category: null });
     expect(changedChapter(c, L - 0.005, 2, true)).toMatchObject({ index: 1, id: 'LIGHT' });
   });
 });
@@ -271,5 +246,33 @@ describe('scrollEnabled', () => {
     expect(scrollEnabled({ threeD: false, phase: phase('HOME_IDLE') })).toBe(false);
     expect(scrollEnabled({ threeD: true, phase: phase('LOADING') })).toBe(false);
     expect(scrollEnabled({ threeD: true, phase: { kind: 'PROJECT_FOCUS', id: 'steady' } })).toBe(false);
+  });
+});
+
+// The Q&A on the gold ring (spec 2026-10-29-bob-stack-2-design.md, goal 1): from the look back's stop on, every input is
+// a step of one question, whatever its size; up from the look back the scroll is continuous again.
+describe('the Q&A, a question a step', () => {
+  const look = lookStop(c);
+  const q = (k: number) => qaStop(c, k);
+
+  it('steps one stop per input in the Q&A, whatever its size', () => {
+    expect(qaStepTarget(look, 1, c)).toBe(q(0));
+    expect(qaStepTarget(q(0), 1, c)).toBe(q(1));
+    expect(qaStepTarget(q(3), -1, c)).toBe(q(2));
+    expect(qaStepTarget(q(0), -1, c)).toBe(look);
+    expect(qaStepTarget(scrollEnd(c), 1, c)).toBe(scrollEnd(c));
+    expect(inQa(look, c)).toBe(true);
+    expect(inQa(q(4), c)).toBe(true);
+  });
+
+  it('goes back to the continuous scroll up from the look back', () => {
+    expect(qaStepTarget(look, -1, c)).toBeNull();
+    expect(inQa(look - 0.1, c)).toBe(false);
+    expect(moveTarget(look, -0.3, c, false)).toBeCloseTo(look - 0.3, 12);
+  });
+
+  it('catches a continuous scroll at the look back', () => {
+    expect(moveTarget(look - 2, 5, c, false)).toBe(look);
+    expect(moveTarget(look - 2, 1, c, false)).toBeCloseTo(look - 1, 12);
   });
 });

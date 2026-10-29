@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { debugBridge } from '~/debug/needleDebug';
 import { landingHoldFor } from '~/scene/bob/landingHold';
 import { wakeScene } from '~/scene/motion';
-import { HOME_CHAPTERS } from '~/state/chapters';
+import { HOME_CHAPTERS, qaStop } from '~/state/chapters';
 import { frame } from '~/state/frame';
 import { useScene } from '~/state/store';
 import { skipSwallower } from './loaderSkip';
@@ -53,6 +53,25 @@ export function goToPlace(place: number): boolean {
 }
 
 /**
+ * A mark on the Q&A's gold ring asked for (its button, src/ui/QaRing.tsx; spec 2026-10-29-bob-stack-2-design.md, goal 1):
+ * the ring turns to mark `k` (0 the first question, the last the end's), from elsewhere on the ring by a turn, else by a
+ * key's glide (`HomeScroll.toPlace`). Answers whether the home's scroll took it.
+ */
+export function goToQa(k: number): boolean {
+  return goToPlace(qaStop(HOME_CHAPTERS, k));
+}
+
+/** The Q&A's ring turned by hand, `units` of the scroll (src/input/ringDrag.ts; `HomeScroll.dragRing`). */
+export function dragRing(units: number): void {
+  connected?.dragRing(units);
+}
+
+/** The hand has let go of the ring: it turns on to the nearest question (`HomeScroll.releaseRing`). */
+export function releaseRing(): void {
+  connected?.releaseRing();
+}
+
+/**
  * maath's `damp`, loaded on the first input rather than with the page. `maath/easing` imports three.js, which
  * the scene keeps out of the page's first load (it is its own chunk, fetched after hydration): a static import
  * here would put all of three.core in front of hydration on every page. Loaded this way it shares that chunk
@@ -79,6 +98,8 @@ export interface HomeScrollPage {
   cancel: (id: number) => void;
   /** Fetches maath's `damp`; `loadDamp` by default. */
   loadSmooth?: () => Promise<Smooth>;
+  /** The clock of the Q&A's lock, ms; `performance.now` by default. */
+  now?: () => number;
 }
 
 /**
@@ -86,10 +107,10 @@ export interface HomeScrollPage {
  * while the home page is shown, apart from React so a test runs the very wiring. Answers its taking down.
  *
  * It takes events only while `scrollEnabled` (3D on, the scroll's phases), read live from the store at each event:
- * with 3D off the page scrolls natively and nothing here prevents anything. At the end page at rest (`<html
- * data-end="rest">`, which Home writes) the page scrolls natively too: there `startHomeScroll` leaves the browser every
- * gesture down and every gesture up while the page is scrolled, each gesture to its end, and takes an input up at the
- * page's top back to the look back; Home goes to the story's start, the page back at its top first.
+ * with 3D off the page scrolls natively and nothing here prevents anything. A failed void's end page at rest (`<html
+ * data-end="rest">`, which Home writes) scrolls natively too: there `startHomeScroll` leaves the browser every gesture
+ * down and every gesture up while the page is scrolled, each gesture to its end; Home goes to the story's start, the page
+ * back at its top first. With the world there the end of the story is the ring's, which never scrolls the page.
  *
  * While a skipped loader's input is still arriving (`skipSwallower`, from `frame.loaderSkipEndsMs`: the fast-forward
  * and `SKIP_SWALLOW_MS` after the landing, then on while the input keeps coming without SKIP_QUIET_MS of quiet, for
@@ -142,6 +163,7 @@ export function connectHomeScroll(page: HomeScrollPage): () => void {
     voidState: () => useScene.getState().voidState,
     onChapter: (at) => useScene.getState().dispatch({ type: 'CHAPTER', chapter: at.id, category: at.category }),
     loadSmooth: page.loadSmooth ?? loadDamp,
+    ...(page.now ? { now: page.now } : {}),
     request: (callback) => {
       wakeScene();
       return page.request(callback);

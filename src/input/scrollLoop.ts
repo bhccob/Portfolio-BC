@@ -1,8 +1,23 @@
+import { RING_MARKS } from '~/data/qa';
 import { END_ATTRIBUTE, pageToTop } from '~/scene/bob/endView';
 import { STEP_FADE_ATTRIBUTE, STEP_FADE_MS } from '~/scene/bob/stepFade';
-import { type ChapterAt, type Chapters, chapterAt, pathStart, placeOfFrame, lookStop, riseTop, scrollEnd } from '~/state/chapters';
+import { type ChapterAt, type Chapters, chapterAt, lookStop, pathStart, placeOfFrame, qaPlaceAt, qaStop, riseTop, scrollEnd } from '~/state/chapters';
 import type { VoidState } from '~/state/store';
-import { changedChapter, finishTarget, holdLimit, jumpTarget, keyTarget, moveTarget, onRise, pinnedAtEnd, releaseTarget, restsAtTop, SETTLE_SLOP_PX, stopsFor } from './target';
+import {
+  changedChapter,
+  holdLimit,
+  inQa,
+  jumpTarget,
+  keyTarget,
+  moveTarget,
+  onRise,
+  pinnedAtEnd,
+  qaStepTarget,
+  releaseTarget,
+  restsAtTop,
+  SETTLE_SLOP_PX,
+  stopsFor
+} from './target';
 import { VirtualScroll } from './VirtualScroll';
 
 /** maath's `damp`: moves `current[prop]` toward `target` and says whether it is still moving. */
@@ -64,21 +79,43 @@ export function follow(current: number, goal: number, dt: number): number {
   return Math.abs(goal - next) < FOLLOW_ON ? goal : next;
 }
 
-/** The sheet finishes this long after the last input, ms: the scroll has stopped part-way up it. */
-export const SHEET_FINISH_MS = 80;
+/**
+ * The Q&A on the gold ring (spec 2026-10-29-bob-stack-2-design.md, goal 1: "rotating snaps and is slower"): the move
+ * from the look back's stop into the first question, the stack closing under the ring, and back, seconds (the mock-up's
+ * glide into its questions).
+ */
+export const QA_GLIDE_S = 2.8;
 
-/** The sheet's finish takes this long at the least and at the most, seconds. */
-export const FINISH_S = [0.35, 1.2] as const;
+/** After a step of the Q&A begins, input is dropped for this long, ms (the mock-up's wheel lock): one turn at a time. */
+export const QA_LOCK_MS = 1500;
+
+/** The turn's ease, in and out (the mock-up's): `x` 0..1 of its time to 0..1 of its way. */
+export function easeInOutQuart(x: number): number {
+  return x < 0.5 ? 8 * x ** 4 : 1 - (-2 * x + 2) ** 4 / 2;
+}
+
+/**
+ * How long the Q&A's move from `from` to `to` takes, seconds: QA_GLIDE_S into or out of the questions (either end before
+ * the first, where the stack closes or opens); round the ring, the mock-up's 1.1 + 0.9 s a radian of the ring's turn, held
+ * to 1..2.6 s, about 1.9 s a question.
+ */
+export function turnTime(from: number, to: number, c: Chapters): number {
+  const a = qaPlaceAt(c, from) ?? -1;
+  const b = qaPlaceAt(c, to) ?? -1;
+  if (Math.min(a, b) < 0) return QA_GLIDE_S;
+  const radians = (Math.abs(b - a) * 2 * Math.PI) / RING_MARKS;
+  return Math.min(Math.max(1.1 + 0.9 * radians, 1), 2.6);
+}
 
 /** A key's glide of one unit (one project), seconds, sqrt-scaled for longer ones; and the shortest glide. */
 export const GLIDE_S = 1.2;
 export const GLIDE_MIN_S = 0.6;
 
-/** The furthest a glide or the finish may first run the wrong way before it turns, units: a hair, 1/300 of a unit. */
+/** The furthest a glide may first run the wrong way before it turns, units: a hair, 1/300 of a unit. */
 const SLACK = 1 / 300;
 
-/** The two moves the loop makes by a curve of its own: the sheet's finish, and a key's glide past the light dive. */
-export type TweenKind = 'finish' | 'glide';
+/** The two moves the loop makes by a curve of its own: a key's glide past the light dive, and a turn of the Q&A's ring. */
+export type TweenKind = 'glide' | 'turn';
 
 /** A move on a cubic Hermite from `from`, at speed `v0`, to `to`, at rest, over `T` seconds, `elapsed` of them gone. */
 interface Tween {
@@ -90,22 +127,17 @@ interface Tween {
   elapsed: number;
 }
 
-/** Where a tween stands at `s`, 0..1 of its time. */
+/** Where a tween stands at `s`, 0..1 of its time: a turn eased in and out from rest to rest, a glide on its Hermite. */
 function tweenAt(tw: Tween, s: number): number {
+  if (tw.kind === 'turn') return tw.from + (tw.to - tw.from) * easeInOutQuart(s);
   const s2 = s * s;
   const s3 = s2 * s;
   return (2 * s3 - 3 * s2 + 1) * tw.from + (s3 - 2 * s2 + s) * tw.T * tw.v0 + (-2 * s3 + 3 * s2) * tw.to;
 }
 
-/**
- * How long a tween over `d` units takes, starting at speed `v`: a key's glide max(GLIDE_MIN_S, GLIDE_S x sqrt(d)); the
- * sheet's finish carries on at the speed it had and eases only at its end, over 1.5 d / v (its speed then falls as
- * v (1 - s^2), never rising first), held to FINISH_S, and FINISH_S's longest from a standstill or a speed away from it.
- */
-export function tweenTime(kind: TweenKind, d: number, v: number): number {
-  if (kind === 'glide') return Math.max(GLIDE_MIN_S, GLIDE_S * Math.sqrt(Math.abs(d)));
-  if (!(v * d > 0)) return FINISH_S[1];
-  return Math.min(Math.max((1.5 * Math.abs(d)) / Math.abs(v), FINISH_S[0]), FINISH_S[1]);
+/** How long a key's glide over `d` units takes: max(GLIDE_MIN_S, GLIDE_S x sqrt(d)). */
+export function tweenTime(d: number): number {
+  return Math.max(GLIDE_MIN_S, GLIDE_S * Math.sqrt(Math.abs(d)));
 }
 
 /**
@@ -151,7 +183,8 @@ function atEnd(): boolean {
 /**
  * Whether an input that goes `direction` (1 down the story, -1 up) is the page's own (VirtualScroll's `yields`): at the
  * end page at rest, every input down, and every input up while the page is scrolled down. At the page's top an input up
- * is the story's: the sheet slides back down over the look back.
+ * is the story's. Only a failed void has the end page at the end of the story: with the world there, its end is the
+ * ring's (`startHomeScroll`).
  */
 function endPageYields(direction: 1 | -1): boolean {
   return atEnd() && (direction > 0 || window.scrollY > 0);
@@ -159,11 +192,6 @@ function endPageYields(direction: 1 | -1): boolean {
 
 /** Within this many units of the target, progress is on it and the loop sleeps. */
 const SETTLED = 1e-4;
-/**
- * Within this many units of the end page's stop (the target on `scrollEnd`), progress is on it: the move's 99 % (Ruling
- * 18), so the end page comes to rest when it looks arrived. Every other stop keeps SETTLED.
- */
-export const END_SETTLED = 0.01;
 /** A frame is never longer than this, in seconds: a tab that was in the background must not lurch the scene. */
 const MAX_DT = 0.1;
 
@@ -197,29 +225,21 @@ export interface ScrollLoopOptions {
    * in is drawn, or the fade is let go): `<html data-step-fade>` (src/styles/base.css). Without it nothing is shown.
    */
   onFade?: (dark: boolean) => void;
-  /**
-   * Whether the sheet may finish by itself now (not with reduced motion, nor while a finger is on the glass), asked at
-   * every frame. Without it the sheet never finishes.
-   */
-  finishes?: () => boolean;
 }
 
 /**
  * The frame loop of the home page's story: it moves `frame.progress` toward `frame.target`, steps the input's
  * glide, keeps `frame.chapterIndex` in step with the chapters and reports a chapter change. It runs a frame
  * at a time and sleeps when progress is on the target and nothing glides; `wake()` starts it again. Progress is on the
- * target within SETTLED of it, or within END_SETTLED (the move's 99 %) when the target is the end page's stop, and the
- * frame it arrives in lands it there exactly.
+ * target within SETTLED of it, and the frame it arrives in lands it there exactly.
  *
  * **The pace.** On the rise the story moves by M2a's damp (RISE_SMOOTH). Past it, it follows the scroll (`follow`): the
  * light dive and the light's path move exactly with the scroll, eased by FOLLOW's 0.45 s, with no stop of their own. A move
  * across BOB from above hands the speed over, so nothing stops there.
  *
- * **The sheet's finish** ("Follow, then finish"). With the target part-way up the sheet, the story past the light dive,
- * SHEET_FINISH_MS of frames since the last input (`input`) and the sheet free to finish (`finishes`), the loop takes the
- * story on by a curve of its own (`finishTarget`): to the end page if the last input went down, else back onto the look
- * back. **A key's glide** (`glideTo`) is the same curve from where the story stands. While one runs the target is where
- * it goes (`heading`); a target moved from outside lets it go, and the follow takes the story on from where it is.
+ * **A key's glide** (`glideTo`) takes the story by a curve of its own from where it stands, with its speed, eased to rest.
+ * **A turn of the Q&A** (`turnTo`) goes from rest to rest, eased in and out over `turnTime`. While either runs the target
+ * is where it goes (`heading`); a target moved from outside lets it go, and the follow takes the story on from where it is.
  *
  * Exactly one frame is ever pending. `wake()` is called by the input at every delta, and a glide's `step`
  * makes deltas from inside a tick, so a `wake()` during a tick does nothing: the tick decides at its end
@@ -241,18 +261,14 @@ export class ScrollLoop {
   private smooth: Smooth | null = null;
   /** The step fade under way, or null: when its host is dark (the frames' clock, ms), and whether the progress has jumped. */
   private fade: { darkAt: number; jumped: boolean } | null = null;
-  /** The sheet's finish or a key's glide under way, or null. */
+  /** A key's glide or a turn of the Q&A under way, or null. */
   private tween: Tween | null = null;
-  /** Ms of frames since the last input: the sheet finishes once there are SHEET_FINISH_MS of them. */
-  private quiet = Number.POSITIVE_INFINITY;
-  /** The way the last input went: 1 down the story, -1 up, 0 none yet. */
-  private lastDirection = 0;
   /** The last frame moved the story by the rise's damp: a move onto the rise hands it the follow's speed first. */
   private damping = false;
 
   constructor(private readonly o: ScrollLoopOptions) {}
 
-  /** The tween under way: the sheet's finish, a key's glide, or null. */
+  /** The tween under way: a key's glide, a turn of the Q&A, or null. */
   get tweening(): TweenKind | null {
     return this.tween?.kind ?? null;
   }
@@ -286,21 +302,24 @@ export class ScrollLoop {
   };
 
   /**
-   * An input has moved the story, `direction` its way (1 down, -1 up, 0 for none, which leaves the last one's): the
-   * sheet's finish counts its quiet from here.
-   */
-  input(direction: number): void {
-    this.quiet = 0;
-    if (direction !== 0) this.lastDirection = Math.sign(direction);
-  }
-
-  /**
    * A key's glide to `to`: the target goes there and the story glides from where it stands, with the speed it has, eased
    * to rest there over `tweenTime`. Nothing to glide when it is there already.
    */
   glideTo(to: number): void {
     this.o.frame.target = to;
     this.startTween(to, 'glide');
+  }
+
+  /**
+   * A turn of the Q&A's ring to `to` (a question, the end's mark or the look back's stop): the target goes there and the
+   * story turns from where it stands, from rest to rest, eased in and out over `turnTime`. Nothing when it is there.
+   */
+  turnTo(to: number): void {
+    const { frame, chapters } = this.o;
+    frame.target = to;
+    const from = frame.progress;
+    this.tween = from === to ? null : { kind: 'turn', from, to, v0: 0, T: turnTime(from, to, chapters), elapsed: 0 };
+    this.letGo();
   }
 
   /** Lets the tween under way go: the follow takes the story on from where it stands. */
@@ -344,24 +363,10 @@ export class ScrollLoop {
     this.wake();
   }
 
-  /**
-   * Whether the loop has something to do: progress more than `settled` off its target, a glide going, a step fade or a
-   * tween under way, or the sheet waiting out its quiet to finish. `wake` asks with SETTLED, so a story left within
-   * END_SETTLED of the end page (3D switched off, or the home left, mid-move) still gets the frame that lands it there.
-   */
-  private needsFrames(settled = SETTLED): boolean {
+  /** Whether the loop has something to do: progress more than SETTLED off its target, a glide going, a step fade or a tween under way. */
+  private needsFrames(): boolean {
     const { frame } = this.o;
-    return Math.abs(frame.target - frame.progress) > settled || this.o.glide.busy || this.fade !== null || this.tween !== null || this.finishWaits();
-  }
-
-  /** The target is part-way up the sheet and the sheet may finish: the loop counts the quiet until it does. */
-  private finishWaits(): boolean {
-    return this.tween === null && this.o.finishes?.() === true && finishTarget(this.o.frame.target, this.lastDirection, this.o.chapters) !== null;
-  }
-
-  /** How near its target progress is on it: END_SETTLED with the target on the end page's stop, else SETTLED. */
-  private settledFor(target: number): number {
-    return target === scrollEnd(this.o.chapters) ? END_SETTLED : SETTLED;
+    return Math.abs(frame.target - frame.progress) > SETTLED || this.o.glide.busy || this.fade !== null || this.tween !== null;
   }
 
   /** The step fade under way is over: its host fades back. */
@@ -408,7 +413,7 @@ export class ScrollLoop {
       return;
     }
     const v = Number.isFinite(frame.velocity) ? frame.velocity : 0;
-    const T = tweenTime(kind, d, v);
+    const T = tweenTime(d);
     this.tween = { kind, from, to, v0: startSpeed(v, d, T, SLACK), T, elapsed: 0 };
   }
 
@@ -432,7 +437,7 @@ export class ScrollLoop {
   }
 
   /** One frame of the plain move to the target: the rise's damp, or past it the follow. */
-  private ease(dt: number, settled: number): void {
+  private ease(dt: number): void {
     const { frame, chapters } = this.o;
     const smoothTime = smoothTimeAt(chapters, frame.progress, frame.target);
     if (smoothTime === null) {
@@ -446,18 +451,7 @@ export class ScrollLoop {
       (damped.__damp ??= {})[DAMP_SPEED] = Number.isFinite(frame.velocity) ? frame.velocity : 0;
       this.damping = true;
     }
-    this.smooth!(frame, 'progress', frame.target, smoothTime, dt, Infinity, undefined, settled);
-  }
-
-  /** The sheet's finish begins, once it waits and its quiet is over, and the story is past the light dive. */
-  private finishIfDue(): void {
-    const { frame, chapters } = this.o;
-    if (this.tween !== null || this.fade !== null || this.quiet < SHEET_FINISH_MS || this.o.finishes?.() !== true) return;
-    if (frame.progress < pathStart(chapters)) return; // in the light dive the story runs on into the path first
-    const to = finishTarget(frame.target, this.lastDirection, chapters);
-    if (to === null) return;
-    frame.target = to;
-    this.startTween(to, 'finish');
+    this.smooth!(frame, 'progress', frame.target, smoothTime, dt, Infinity, undefined, SETTLED);
   }
 
   private readonly tick = (now: number): void => {
@@ -477,19 +471,11 @@ export class ScrollLoop {
     this.ticking = true;
     try {
       glide.step(dt);
-      this.quiet += dt * 1000;
       const before = frame.progress;
       const faded = this.stepFade(now);
-      const settled = this.settledFor(frame.target);
-      if (!faded && !this.stepTween(dt)) this.ease(dt, settled);
-      if (!faded) this.finishIfDue();
-      const arrived = !this.needsFrames(settled);
-      if (arrived) {
-        frame.progress = frame.target; // on it, exactly: the next frame would snap it, but the loop sleeps first
-        // At the end page the damping may still have some speed at 99 %: it is let go with the rest, so a move off the end
-        // page leaves from a standstill.
-        if (settled === END_SETTLED) this.letGo();
-      }
+      if (!faded && !this.stepTween(dt)) this.ease(dt);
+      const arrived = !this.needsFrames();
+      if (arrived) frame.progress = frame.target; // on it, exactly: the next frame would snap it, but the loop sleeps first
       frame.velocity = faded || arrived || dt <= 0 ? 0 : (frame.progress - before) / dt;
 
       const at = changedChapter(chapters, frame.progress, frame.chapterIndex, arrived || faded);
@@ -504,7 +490,9 @@ export class ScrollLoop {
   };
 }
 
-export interface HomeScrollOptions extends Omit<ScrollLoopOptions, 'glide' | 'fades' | 'onFade' | 'finishes'> {
+export interface HomeScrollOptions extends Omit<ScrollLoopOptions, 'glide' | 'fades' | 'onFade'> {
+  /** The clock the Q&A's lock is read on, ms (`performance.now` unless given). */
+  now?: () => number;
   el: HTMLElement;
   /** Pixels in one unit of scroll: the viewport's height. */
   unitPx: () => number;
@@ -580,6 +568,13 @@ export interface HomeScroll {
    * input took it: not while it takes no input (3D off, a phase off the scroll) nor while a skipped loader's tail is dropped.
    */
   toPlace(place: number): boolean;
+  /**
+   * The Q&A's ring turned by hand (src/input/ringDrag.ts), `units` of the scroll: the story follows the hand at once, the
+   * target and the progress with it, held to the questions (the first to the end's mark). Nothing off the Q&A.
+   */
+  dragRing(units: number): void;
+  /** The hand has let go of the ring: it turns on to the nearest question, as a step of the Q&A. */
+  releaseRing(): void;
   dispose(): void;
 }
 
@@ -596,14 +591,21 @@ export interface HomeScroll {
  * **Past the rise** (spec 2026-10-25-bob-light-dive-design.md, "Exactly with my scroll"). A wheel and a finger move the
  * target by their distance and the story follows (`follow`): the light dive's frames and the light's path go exactly with
  * the scroll, and stay wherever it stops, between two projects too. A finger's glide carries on as a page's would, ended
- * at the end page or the hold. The sheet finishes by itself once the scroll stops part-way up it ("Follow, then finish",
- * the loop's `finishTarget`); input during the finish, or a key's glide, rides along when it goes the tween's own way
- * short of its end, and otherwise stops it, the target where the input put it. A key steps among the key stops
- * (`keyTarget`: each fact, each project, the end page), counted from where a glide is going: within the light dive the
- * target moves and the follow eases after it, and a move that starts or ends past it glides (`glideTo`). Home and End
- * keep their meaning: End goes to the end page by the step fade from anywhere; Home goes to the start by the step fade
- * from the path, the sheet and the end page, and by the follow back up from the light dive. With reduced motion every
- * input is a step to a key stop (`moveTarget`), and nothing glides or finishes by itself.
+ * at the look back's stop or the hold. Input during a key's glide rides along when it goes the glide's own way short of
+ * its end, and otherwise stops it, the target where the input put it. A key steps among the key stops (`keyTarget`: each
+ * fact, each project, the look back), counted from where a glide is going: within the light dive the target moves and the
+ * follow eases after it, and a move that starts or ends past it glides (`glideTo`). Home and End keep their meaning: End
+ * goes to the end's mark on the ring by the step fade from anywhere; Home goes to the start by the step fade from the
+ * path and the Q&A, and by the follow back up from the light dive. With reduced motion every input is a step to a key
+ * stop (`moveTarget`), and nothing glides by itself.
+ *
+ * **The Q&A** (spec 2026-10-29-bob-stack-2-design.md, goal 1: "rotating snaps and is slower"). A continuous scroll down
+ * rests on the look back's own stop, and the gesture that brought it there ends there. From it on every input is one step
+ * (`qaStepTarget`), whatever its size: the wheel's gesture, a swipe and a key each turn the ring a question (`turnTo`, about
+ * 1.9 s), the first from the look back closing the stack under the ring (QA_GLIDE_S); a lift's glide carries nothing on,
+ * and every input for QA_LOCK_MS after a step begins is dropped. Up from the first question goes back to the look back,
+ * and up from there the scroll is continuous again. The ring turned by hand (`dragRing`) follows the hand, and let go
+ * (`releaseRing`) turns on to the nearest question. A mark's button (`toPlace`) turns the ring to it.
  *
  * **The hold.** Every move of the target, a delta, a step or a jump, is clamped to `hold` (`holdLimit` of it): a wheel,
  * a swipe or a key past it rests on it, and a glide that presses into it is ended there, as at the end. The place the
@@ -613,13 +615,10 @@ export interface HomeScroll {
  * A story that is already past the hold when this starts (the route sync's Back to a bead's stop) is held the same way,
  * its progress with it.
  *
- * **The end page.** Once the story rests at the end (`<html data-end="rest">`) the page stands in the flow and its own
- * scroll is the browser's (VirtualScroll's `yields`, `endPageYields`): every input down is the page's, and every input
- * up while the page is scrolled down. Each wheel gesture or swipe keeps the answer its start had to its end, so a fling up
- * the page that reaches the top stops there, and a gesture that brought the story to the end never scrolls the page
- * either. At the top a new input up is the story's again: the sheet slides back down, and finishes onto the look back.
- *
- * **A failed void** (`voidState` `failed`). The hold stands at the landing hold, and the keys step among `stopsFor`'s
+ * **A failed void** (`voidState` `failed`) has no ring: the end of its story is the end page, as it was before the ring.
+ * Once the story rests there (`<html data-end="rest">`) the page stands in the flow and its own scroll is the browser's
+ * (VirtualScroll's `yields`, `endPageYields`): every input down is the page's, and every input up while the page is
+ * scrolled down; each wheel gesture or swipe keeps the answer its start had to its end. The hold stands at the landing hold, and the keys step among `stopsFor`'s
  * stops, the home, BOB from above, the hold and the end page. The end page stands past the hold: a wheel or a swipe still
  * rests at the hold, but a key's step or End from there, or the page's link (`toEnd`), goes to the end page, and a story
  * at the end page stays there. Every move between the end page and the places short of it, either way, is the step fade
@@ -633,8 +632,11 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
   const { frame, chapters } = o;
   const top = riseTop(chapters);
   const path = pathStart(chapters);
-  const sheet = lookStop(chapters);
+  const look = lookStop(chapters);
   const end = scrollEnd(chapters);
+  const now = o.now ?? (() => performance.now());
+  /** Until when the Q&A drops input, on `now`'s clock: a step has begun (QA_LOCK_MS). */
+  let lockedUntil = Number.NEGATIVE_INFINITY;
   /** The void failed: the end page stands alone past the hold, reached and left by the step fade. */
   const failed = (): boolean => o.voidState?.() === 'failed';
   /** The stops a key, and reduced motion's every input, steps among now (`stopsFor` the void's state). */
@@ -675,6 +677,8 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
     by: 'wheel' | 'finger';
     /** It has taken its one step off the end page of a failed void: the rest of it moves nothing. */
     spent: boolean;
+    /** It has taken its one step of the Q&A, or was caught at the look back's stop: the rest of it moves nothing. */
+    stepped: boolean;
   } | null = null;
   /** A lift's glide began on the rise: it runs on the rise alone, and ends at its top. */
   let glideOnRise = false;
@@ -712,8 +716,24 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
     },
     fades,
     onFade: showFade,
-    finishes: () => !o.reducedMotion() && !scroll.touching,
   });
+
+  /**
+   * A step of the Q&A (spec 2026-10-29-bob-stack-2-design.md, goal 1), for an input `dir` its way from `base`: one
+   * question whatever its size, turned slowly (`turnTo`), and every input for QA_LOCK_MS after it dropped. Answers
+   * whether the input was the Q&A's (taken or dropped), so nothing else moves the story for it.
+   */
+  const qaStep = (base: number, dir: 1 | -1): boolean => {
+    const to = qaStepTarget(base, dir, chapters, stopsNow());
+    if (to === null) return false;
+    if (now() < lockedUntil) return true;
+    if (to === base) return true;
+    askFor(to);
+    if (frame.target !== to) return true; // the hold keeps it (a failed void's): no step
+    loop.turnTo(to);
+    lockedUntil = now() + QA_LOCK_MS;
+    return true;
+  };
 
   const scroll: VirtualScroll = new VirtualScroll(o.el, {
     unitPx: o.unitPx,
@@ -721,17 +741,13 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
       // A step fade on its way: an input in its own way leaves it to jump; one against it lets it go, from where the story
       // still stands, and a key's press against it is that and no more: the story stays.
       const fading = loop.fading ? Math.sign(frame.target - frame.progress) : 0;
-      if (fading !== 0 && Math.sign(units) === fading) {
-        loop.input(units);
-        return;
-      }
+      if (fading !== 0 && Math.sign(units) === fading) return;
       if (fading !== 0) {
         gesture = null;
         fadeTo = null;
         frame.target = frame.progress;
         asked = null;
         if (by === 'key' || by === 'held') {
-          loop.input(units);
           loop.wake();
           return;
         }
@@ -753,17 +769,36 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
         gesture = null; // a key puts the target on its stop: a wheel it cut short has nothing left
         glideOnRise = false;
         const base = loop.heading ?? startPlace(); // counted from where a glide is going, or where the story stands
+        if (units !== 0 && !failed() && inQa(base, chapters) && (by === 'held' || qaStep(base, Math.sign(units) as 1 | -1))) {
+          loop.wake();
+          return;
+        }
         if (by === 'held' && !onRise(base, chapters)) return;
         settling = false;
         place = keyTarget(base, units, chapters, stopsNow());
         stepped = true;
       } else {
+        const qaBase = loop.heading ?? frame.target;
+        // A failed void has no ring: its end is the end page, reached and left as before (the class's doc).
+        if (units !== 0 && !failed() && inQa(qaBase, chapters) && qaStepTarget(qaBase, Math.sign(units) as 1 | -1, chapters, stopsNow()) !== null) {
+          // In the Q&A a lift's glide carries nothing on, and a gesture takes one step (or none, if it came down from
+          // above and was caught at the look back's stop): the rest of it moves nothing.
+          if (by === 'glide') {
+            scroll.stopGlide();
+            return;
+          }
+          if (gesture === null) gesture = { from: frame.target, reach: frame.target, anchor: frame.target, direction: 0, by, spent: false, stepped: false };
+          if (!gesture.stepped && gesture.from >= look - 1e-6) qaStep(qaBase, Math.sign(units) as 1 | -1);
+          gesture.stepped = true;
+          loop.wake();
+          return;
+        }
         if (by !== 'glide') {
           if (gesture === null) {
             // A gesture begun while the rest at the top eases starts from where the story stands, and takes the target over
             // at once; so does one that goes against a moving story, so it turns back from there.
             if (settling || (units !== 0 && loop.tweening === null && Math.sign(units) === -Math.sign(frame.velocity))) frame.target = frame.progress;
-            gesture = { from: frame.target, reach: frame.target, anchor: frame.target, direction: 0, by, spent: false };
+            gesture = { from: frame.target, reach: frame.target, anchor: frame.target, direction: 0, by, spent: false, stepped: false };
             glideOnRise = false;
           }
           if (gesture.spent) return; // its one step off a failed void's end page is taken
@@ -775,7 +810,7 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
             gesture.anchor = gesture.reach;
           }
         }
-        // During the sheet's finish or a key's glide the input lands beside where the story stands.
+        // During a key's glide the input lands beside where the story stands.
         const heading = loop.heading;
         place = moveTarget(heading === null ? frame.target : frame.progress, units, chapters, false);
         if (heading !== null) {
@@ -783,7 +818,6 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
           const past = way !== 0 && (place - heading) * way > 1e-9;
           if (way !== 0 && !past && Math.sign(place - frame.progress) === way) {
             // In the tween's own way and short of its end: it rides along, and takes the story there anyway.
-            loop.input(units);
             loop.wake();
             return;
           }
@@ -817,7 +851,6 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
         if ((frame.target >= path || frame.progress >= path) && !fades(frame.progress, frame.target)) loop.glideTo(frame.target);
         else loop.stopTween();
       }
-      loop.input(units);
       if (pinnedAtEnd(frame.target, units, chapters, limit)) scroll.stopGlide();
       loop.wake();
     },
@@ -828,22 +861,23 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
       loop.stopTween();
       // A place the page asked for: there by a key's glide, as a key's step goes (with reduced motion, by its step).
       if (typeof to === 'number') {
+        const from = frame.target;
         askFor(Math.min(Math.max(to, 0), end));
+        // A place on the ring (a mark's button) from the ring: a turn of the Q&A; else a key's glide.
         if (o.reducedMotion()) fadeTo = frame.target;
+        else if (inQa(from, chapters) && inQa(frame.target, chapters)) loop.turnTo(frame.target);
         else loop.glideTo(frame.target);
-        loop.input(0);
         loop.wake();
         return;
       }
-      // Home goes to the story's start from the end page too, the page back at its top first: the end's rest is then
-      // left from the top, where Home's end view finds the page and scrolls nothing again.
+      // Home goes to the story's start from a failed void's end page too, the page back at its top first: the end's rest
+      // is then left from the top, where Home's end view finds the page and scrolls nothing again.
       if (to === 'home') pageToTop();
       const place = jumpTarget(to, chapters);
       askFor(place, true);
-      // End fades to the end page from anywhere; Home fades to the start from the path, the sheet and the end page, and
-      // from the light dive and the rise the story goes back up by the follow and the rise's damp.
+      // End fades to the end's mark from anywhere; Home fades to the start from the path and the Q&A, and from the light
+      // dive and the rise the story goes back up by the follow and the rise's damp.
       fadeTo = to === 'end' || frame.progress >= path ? place : null;
-      loop.input(0);
       loop.wake();
     },
     onTouchDown: () => {
@@ -851,7 +885,7 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
       if (!settling || frame.progress === frame.target) return false;
       loop.halt();
       settling = false;
-      gesture = { from: frame.progress, reach: frame.progress, anchor: frame.progress, direction: 0, by: 'finger', spent: false };
+      gesture = { from: frame.progress, reach: frame.progress, anchor: frame.progress, direction: 0, by: 'finger', spent: false, stepped: false };
       return true;
     },
     onGestureEnd: (glide) => {
@@ -862,20 +896,15 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
         scroll.stopGlide(); // it took its one step off the end page: no glide carries on
         return;
       }
-      if (g.by === 'finger') loop.input(0); // the sheet's quiet counts from the lift
+      if (g.stepped) {
+        scroll.stopGlide(); // a step of the Q&A, or caught at the look back's stop: no glide carries on
+        return;
+      }
       // Where it carried: its reach (held to the story's ends, not to the hold) and the glide its lift would leave.
       const reach = Math.min(Math.max(g.reach + glide, 0), end);
       glideOnRise = onRise(reach, chapters);
       // Its direction as it ended: a lift's glide goes the way the finger last went.
       const direction = glide !== 0 ? Math.sign(glide) : g.direction;
-      // Lifted part-way up the sheet, a finger hands over to the finish at once, the way it last went: no glide crawls
-      // it on, and the finish carries on at the speed the story has ("Follow, then finish").
-      if (g.by === 'finger' && frame.target > sheet && frame.target < end) {
-        scroll.stopGlide();
-        loop.input(direction);
-        loop.wake();
-        return;
-      }
       if (!glideOnRise && restsAtTop(g.from, reach, chapters, direction || undefined)) {
         scroll.stopGlide();
         if (o.threeD()) {
@@ -891,7 +920,7 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
     },
     enabled: o.enabled,
     reducedMotion: o.reducedMotion,
-    yields: endPageYields,
+    yields: (direction) => failed() && endPageYields(direction),
     swallow: o.swallow,
     wake: loop.wake,
   });
@@ -963,6 +992,27 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
     headedToEnd: () => o.threeD() && (frame.target === end || asked === end),
     toTop: () => scroll.jump('home'),
     toPlace: (place) => scroll.jump(place),
+    dragRing: (units) => {
+      if (!inQa(frame.target, chapters) || !o.threeD()) return;
+      const first = qaStop(chapters, 0);
+      loop.stopTween();
+      frame.target = frame.progress = Math.min(Math.max(frame.target + units, first), end);
+      frame.velocity = 0;
+      const at = changedChapter(chapters, frame.progress, frame.chapterIndex, true);
+      if (at) {
+        frame.chapterIndex = at.index;
+        o.onChapter(at);
+      }
+    },
+    releaseRing: () => {
+      if (!inQa(frame.target, chapters) || !o.threeD()) return;
+      const first = qaStop(chapters, 0) - 1e-6;
+      const marks = stopsNow().filter((stop) => stop >= first);
+      const nearest = marks.reduce((best, stop) => (Math.abs(stop - frame.target) < Math.abs(best - frame.target) ? stop : best), marks[0] ?? end);
+      loop.turnTo(nearest);
+      lockedUntil = now() + QA_LOCK_MS;
+      loop.wake();
+    },
     dispose: () => {
       loop.dispose();
       scroll.dispose();
