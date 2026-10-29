@@ -1,8 +1,8 @@
 import { type JSX, useCallback, useEffect } from 'react';
 import { useTranslator } from '~/i18n/useTranslator';
-import { goToEnd, headedToEnd } from '~/input/useHomeScroll';
+import { goToQuestions, headedToQuestions } from '~/input/useHomeScroll';
 import type { JourneyPose } from '~/scene/bob/journey';
-import { focusEndOnArrival } from './endArrival';
+import { focusQuestionsOnArrival } from './endArrival';
 
 // ---------------------------------------------------------------- when it shows
 
@@ -111,13 +111,13 @@ export function setSkipAlt(alt: boolean): void {
 let stopFocus: (() => void) | null = null;
 
 /**
- * The button pressed: the story goes to the credits by End's own path (`goToEnd`, the step fade from the path), and
- * once it rests there their "Q&A" heading takes the focus (`focusEndOnArrival`), as the nav's end link does. Nothing is
- * watched when the scroll takes no input (a bead opening).
+ * The button pressed: the story goes to the Q&A's first question by the step fade (`goToQuestions`; spec
+ * 2026-10-29-bob-stack-2-design.md, goal 1), and once it rests there that question's mark takes the focus
+ * (`focusQuestionsOnArrival`). Nothing is watched when the scroll takes no input (a project opening).
  */
-export function skipToEnd(doc: Document): void {
+export function skipToQuestions(doc: Document): void {
   stopFocus?.();
-  stopFocus = goToEnd() ? focusEndOnArrival(doc, headedToEnd) : null;
+  stopFocus = goToQuestions() ? focusQuestionsOnArrival(doc, headedToQuestions) : null;
 }
 
 /**
@@ -130,7 +130,7 @@ export function SkipButton(): JSX.Element {
   const ref = useCallback((el: HTMLButtonElement | null) => (el ? registerSkip(el) : undefined), []);
   useEffect(() => () => stopFocus?.(), []);
   return (
-    <button type="button" className="skip-button" ref={ref} onClick={() => skipToEnd(document)}>
+    <button type="button" className="skip-button" ref={ref} onClick={() => skipToQuestions(document)}>
       {t.lightDive.skip}
     </button>
   );

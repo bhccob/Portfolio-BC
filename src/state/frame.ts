@@ -6,6 +6,7 @@ import type { EngravedLevels } from '~/scene/bob/engravedWay';
 import type { NebulaLevels } from '~/scene/bob/nebulaWay';
 import type { FocusMove } from '~/scene/bob/focus';
 import type { Stretch } from '~/scene/bob/journey';
+import type { QaJourney } from '~/scene/bob/qaScene';
 import type { VoidState } from './store';
 
 /** A bead on the screen, CSS px: its centre and radius, and whether it is drawn. */
@@ -88,7 +89,9 @@ export const frame = {
     objects: null as ObjectOnScreen[] | null,
     world: null as WorldOnScreen | null,
     engraved: null as EngravedLevels | null,
-    nebula: null as NebulaLevels | null
+    nebula: null as NebulaLevels | null,
+    /** Under `?proof`: where the Q&A's ring stands (src/scene/bob/qaScene.ts), null where it does not show. */
+    qa: null as QaJourney | null
   },
   /** The index of the chapter `progress` is in (`chapterAt(...).index`). */
   chapterIndex: 0,

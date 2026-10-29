@@ -5,16 +5,16 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('~/input/useHomeScroll', () => ({ goToEnd: vi.fn(() => true), headedToEnd: vi.fn(() => true) }));
-vi.mock('~/ui/endArrival', () => ({ focusEndOnArrival: vi.fn(() => () => {}) }));
+vi.mock('~/input/useHomeScroll', () => ({ goToQuestions: vi.fn(() => true), headedToQuestions: vi.fn(() => true) }));
+vi.mock('~/ui/endArrival', () => ({ focusQuestionsOnArrival: vi.fn(() => () => {}) }));
 
 import { en } from '~/i18n/en';
 import { nl } from '~/i18n/nl';
-import { goToEnd, headedToEnd } from '~/input/useHomeScroll';
+import { goToQuestions, headedToQuestions } from '~/input/useHomeScroll';
 import { journeyPoseAt } from '~/scene/bob/journey';
 import { HOME_CHAPTERS, pathStart } from '~/state/chapters';
-import { focusEndOnArrival } from '~/ui/endArrival';
-import { SKIP_ATTRIBUTE, SkipButton, showsSkip, skipAlt, skipHome, skipPlace, skipToEnd, writeSkip } from '~/ui/SkipButton';
+import { focusQuestionsOnArrival } from '~/ui/endArrival';
+import { SKIP_ATTRIBUTE, SkipButton, showsSkip, skipAlt, skipHome, skipPlace, skipToQuestions, writeSkip } from '~/ui/SkipButton';
 
 const base = readFileSync(fileURLToPath(new URL('../../../src/styles/base.css', import.meta.url)), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
 function rule(selector: string): string {
@@ -65,17 +65,17 @@ describe('the skip button', () => {
     }
   });
 
-  it("fades to the end by End's own path and gives the end page's title the focus once it rests there", () => {
+  it("skips to the first question, by the step fade, and gives its mark the focus once it rests there", () => {
     const doc = {} as Document;
-    skipToEnd(doc);
-    expect(goToEnd).toHaveBeenCalledTimes(1);
-    expect(focusEndOnArrival).toHaveBeenCalledWith(doc, headedToEnd);
+    skipToQuestions(doc);
+    expect(goToQuestions).toHaveBeenCalledTimes(1);
+    expect(focusQuestionsOnArrival).toHaveBeenCalledWith(doc, headedToQuestions);
   });
 
-  it('watches for no arrival when the scroll takes no input (a bead opening)', () => {
-    vi.mocked(goToEnd).mockReturnValueOnce(false);
-    skipToEnd({} as Document);
-    expect(focusEndOnArrival).not.toHaveBeenCalled();
+  it('watches for no arrival when the scroll takes no input (a project opening)', () => {
+    vi.mocked(goToQuestions).mockReturnValueOnce(false);
+    skipToQuestions({} as Document);
+    expect(focusQuestionsOnArrival).not.toHaveBeenCalled();
   });
 });
 

@@ -15,6 +15,7 @@ import { TouchPoints } from '~/ui/TouchPoints';
 import { focusEndOnArrival } from '~/ui/endArrival';
 import { EndPage } from '~/ui/EndPage';
 import { LightFactLabels, LightFactList } from '~/ui/LightFacts';
+import { QaRing } from '~/ui/QaRing';
 import { SkipButton } from '~/ui/SkipButton';
 import { WorldNames } from '~/ui/WorldNames';
 import { HANDLES, type RouteHandle } from '../handle';
@@ -79,6 +80,11 @@ export default function Home() {
       {/* "Snel naar vragen ↓": shown from the first project through the look back, it fades the story straight to the
           credits (src/ui/SkipButton.tsx). After the names and an area's words, so Tab reaches the shown words first. */}
       <SkipButton />
+
+      {/* The Q&A's words beside the gold ring round the stack, with 3D on (src/ui/QaRing.tsx): the answers, the end and a
+          button for each mark, out of reach until the scene shows them. Client-only: the HTML's questions are the end
+          page's, below. */}
+      <QaRing />
 
       {/* Visible while 3D is off; while it is on the scene is the way in, and this stays for
           crawlers and keyboards: visually hidden, shown again while a link has focus. The way to About is the header's. */}

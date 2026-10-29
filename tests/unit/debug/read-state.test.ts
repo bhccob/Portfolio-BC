@@ -97,7 +97,7 @@ describe('readNeedleDebugState', () => {
       const world = { power: 1, names: 1, caption: { index: 0, opacity: 1 }, dots: 0 };
       Object.assign(frame.journey, { stretch: 'light', local: 0.4, project: null, voidState: 'ready', frame: 121, sheet: 0, light, objects, world });
       const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
-      expect(state.journey).toEqual({ stretch: 'light', local: 0.4, project: null, voidState: 'ready', frame: 121, sheet: 0, light: { x: 0.2, y: -0.1 }, objects, world, engraved: null, nebula: null });
+      expect(state.journey).toEqual({ stretch: 'light', local: 0.4, project: null, voidState: 'ready', frame: 121, sheet: 0, light: { x: 0.2, y: -0.1 }, objects, world, engraved: null, nebula: null, qa: null });
       expect(state.journey.objects).not.toBe(objects);
       expect(state.journey.world).not.toBe(world);
       expect(state.journey.world?.caption).not.toBe(world.caption);

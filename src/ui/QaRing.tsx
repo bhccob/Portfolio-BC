@@ -71,7 +71,7 @@ export function QaRingParts({ questions }: { questions?: EndQuestions }): JSX.El
       <ol className="qa-marks" aria-label={ring.marks}>
         {names.map((name, k) => (
           <li key={name}>
-            <button type="button" className="qa-mark" aria-label={name} hidden onClick={() => goToQa(k)}>
+            <button type="button" className="qa-mark" id={`qa-mark-${k}`} aria-label={name} hidden onClick={() => goToQa(k)}>
               <span aria-hidden="true">{k < list.length ? two(k + 1) : ''}</span>
             </button>
           </li>

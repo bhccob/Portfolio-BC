@@ -14,7 +14,7 @@ import { HOME_CHAPTERS, scrollEnd } from '~/state/chapters';
 import { frame } from '~/state/frame';
 import { useScene } from '~/state/store';
 import { motion } from '../motion';
-import { applyEndView, clearEndView, type EndWritten, endViewFor, endWritten } from './endView';
+import { applyEndView, clearEndView, type EndWritten, endViewFor, endWritten, NO_END_VIEW } from './endView';
 import { idleRuns, needleRests, stirIdle } from './idle';
 import type { JourneyPose } from './journey';
 import { needleGlowAt } from './look';
@@ -404,9 +404,11 @@ export function Home({ models, handover }: HomeProps): null {
     showRising(state, risingFor(pose.u));
     // A failed void holds the story at the landing: the home's nav shows over the scene there.
     showHeld(state, heldAtLanding(shown, voidState));
-    // The end page (endView.ts): how far it has slid up in this frame's pose, and where the story stands, the progress
-    // Home poses (with reduced motion the stop the step fade shows) and the target; written only where it changes.
-    applyEndView(endViewFor(journey.sheet, shown, frame.target, END), document.documentElement, endPage(), state.end);
+    // The end page (endView.ts), a failed void's alone: with the world there the end of the story is the Q&A's ring
+    // (./qaScene.ts), and the end page stays hidden for crawlers and 3D off. Where the story stands, the progress Home
+    // poses (with reduced motion the stop the step fade shows) and the target; written only where it changes.
+    const end = voidState === 'failed' ? endViewFor(journey.sheet, shown, frame.target, END) : NO_END_VIEW;
+    applyEndView(end, document.documentElement, endPage(), state.end);
 
     const time = state.base + state.idleTime;
     models.compass.setSpin(time);

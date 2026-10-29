@@ -86,6 +86,12 @@ export function endViewFor(sheet: number, progress: number, target: number, end:
   return { share, black, rise, state };
 }
 
+/**
+ * No end page: what Home writes with the world there, at the end too, where the end of the story is the Q&A's ring
+ * (src/scene/bob/qaScene.ts); only a failed void, which has no ring, shows the end page (spec 2026-10-29-bob-stack-2-design.md).
+ */
+export const NO_END_VIEW: Readonly<EndView> = Object.freeze({ share: 0, black: 0, rise: 0, state: 'none' as const });
+
 /** Nothing written yet: what Home starts from, and what a clear leaves. */
 export function endWritten(): EndWritten {
   return { black: 0, rise: 0, state: 'none', page: null, inert: false };

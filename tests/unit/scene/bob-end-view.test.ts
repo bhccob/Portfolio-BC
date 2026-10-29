@@ -8,7 +8,7 @@ import { follow } from '~/input/scrollLoop';
 
 /** The credits' 99 % rest, which went with the ring (plan 2026-10-29-bob-stack-2, Task 3): Task 8 rewrites the end view. */
 const END_SETTLED = 0.01;
-import { applyEndView, clearEndView, type EndPageNode, type EndRoot, endViewFor, endWritten } from '~/scene/bob/endView';
+import { applyEndView, clearEndView, type EndPageNode, type EndRoot, endViewFor, endWritten, NO_END_VIEW } from '~/scene/bob/endView';
 import { idleRuns, needleRests } from '~/scene/bob/idle';
 import { journeyAt, journeyPoseAt, WORLD_PROJECTS } from '~/scene/bob/journey';
 import { ease, sheetBlack } from '~/scene/bob/worldPath';
@@ -30,6 +30,12 @@ const MID = S + 0.5;
 const COOKIES = WORLD_PROJECTS.indexOf('cookies-clicker');
 
 describe('endViewFor: the end view of a frame, from its sheet and where the story is', () => {
+  it("is nothing with the world there, at the end too: the end of the story is the ring's (only a failed void shows the end page)", () => {
+    expect(NO_END_VIEW).toEqual({ share: 0, black: 0, rise: 0, state: 'none' });
+    const home = readFileSync(fileURLToPath(new URL('../../../src/scene/bob/Home.tsx', import.meta.url)), 'utf8');
+    expect(home).toMatch(/voidState === 'failed' \? endViewFor\(journey\.sheet, shown, frame\.target, END\) : NO_END_VIEW/);
+  });
+
   it('is nothing before the sheet', () => {
     expect(endViewFor(0, 5, 5, 6)).toEqual({ share: 0, black: 0, rise: 0, state: 'none' });
   });
@@ -75,8 +81,7 @@ describe('endViewFor: the end view of a frame, from its sheet and where the stor
     }
   });
 
-  // Task 8: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
-  it.skip('looks arrived at the move’s 99 %, where the scroll lets it rest: "Q&A" within half a pixel of its place at rest', () => {
+  it('looks arrived at the move’s 99 %, where the scroll lets it rest: "Q&A" within half a pixel of its place at rest', () => {
     // The scroll rests the move into the credits once it is within END_SETTLED of the end (Ruling 18); the credits then
     // stand in the flow. Their column slides 45 % of the screen over the rise: on a screen 1000 px tall, what is left of
     // the rise there must be under half a pixel, or "Q&A" jumps as the move comes to rest.
@@ -375,9 +380,8 @@ describe('applyEndView: Home writes the end view each frame, only on change', ()
     expect(scrollTo).not.toHaveBeenCalled();
   });
 
-  // Task 8: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
-  it.skip('lets the pointer take no project at the end, so nothing keeps drawing', () => {
-    expect(END - S).toBeCloseTo(1, 12);
+  it('lets the pointer take no project at the end, so nothing keeps drawing', () => {
+    expect(END - S).toBeCloseTo(7, 12);
     expect(pointerMode(journeyPoseAt(END, 16 / 9))).toBeNull();
   });
 });

@@ -61,6 +61,19 @@ export function goToQa(k: number): boolean {
   return goToPlace(qaStop(HOME_CHAPTERS, k));
 }
 
+/**
+ * The path's skip button ("Snel naar vragen ↓", src/ui/SkipButton.tsx): the story goes to the Q&A's first question by the
+ * step fade (`HomeScroll.fadeToPlace`). Answers whether the home's scroll took it.
+ */
+export function goToQuestions(): boolean {
+  return connected?.fadeToPlace(qaStop(HOME_CHAPTERS, 0)) ?? false;
+}
+
+/** Whether the story is headed for the Q&A's first question now (`HomeScroll.headedTo`): the skip's watch asks it. */
+export function headedToQuestions(): boolean {
+  return connected?.headedTo(qaStop(HOME_CHAPTERS, 0)) ?? false;
+}
+
 /** The Q&A's ring turned by hand, `units` of the scroll (src/input/ringDrag.ts; `HomeScroll.dragRing`). */
 export function dragRing(units: number): void {
   connected?.dragRing(units);

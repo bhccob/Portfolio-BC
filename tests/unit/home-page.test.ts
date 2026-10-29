@@ -108,3 +108,17 @@ describe('the home page', () => {
     expect(css).not.toMatch(/display:\s*none|visibility:\s*hidden/);
   });
 });
+
+// The Q&A's ring (spec 2026-10-29-bob-stack-2-design.md, goal 1): its words are client-only, with 3D on; the end page
+// stays in the HTML for crawlers and 3D off.
+describe("the home's Q&A", () => {
+  const source = readFileSync(fileURLToPath(new URL('../../src/app/routes/home.tsx', import.meta.url)), 'utf8');
+
+  it("mounts the ring's words", () => {
+    expect(source).toMatch(/<QaRing \/>/);
+  });
+
+  it('keeps the end page in the HTML for 3D off and crawlers', () => {
+    expect(source).toMatch(/<EndPage \/>/);
+  });
+});

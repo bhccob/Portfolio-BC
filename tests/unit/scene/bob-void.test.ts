@@ -60,10 +60,9 @@ describe('landingHoldFor: the most the scroll may reach before the beads are rea
     for (const a of SCREENS) expect(journeyPoseAt(H, a).path!.power, 'the world not yet powered').toBe(0);
   });
 
-  // Task 8: the ring's Q&A replaces the sheet this test is about (ledger, Task 2).
-  it.skip("is the end of the scroll once the void is ready, the credits' stop: nothing holds", () => {
+  it("is the end of the scroll once the void is ready, the end's mark on the ring: nothing holds", () => {
     expect(landingHoldFor('ready')).toBe(END);
-    expect(END).toBeCloseTo(L + 8.6, 9);
+    expect(END).toBeCloseTo(L + 14.6, 9);
   });
 
   it('answers a hold for every state, never above the end nor below the top of the rise', () => {
@@ -567,7 +566,7 @@ describe('frame.journey: where the journey stands, for the debug bridge', () => 
   });
 
   it('starts at the home, with an idle void', () => {
-    expect(frame.journey).toEqual({ stretch: 'rise', local: 0, project: null, voidState: 'idle', frame: null, sheet: 0, light: null, objects: null, world: null, engraved: null, nebula: null });
+    expect(frame.journey).toEqual({ stretch: 'rise', local: 0, project: null, voidState: 'idle', frame: null, sheet: 0, light: null, objects: null, world: null, engraved: null, nebula: null, qa: null });
   });
 
   it('is on the debug state as a copy, voidState included', () => {
@@ -577,7 +576,7 @@ describe('frame.journey: where the journey stands, for the debug bridge', () => 
       const world = { power: 1, names: 0, caption: { index: 1, opacity: 1 }, dots: 1 };
       Object.assign(frame.journey, { stretch: 'area', local: 0.5, project: 1, voidState: 'ready', frame: null, sheet: 0, light: null, objects, world });
       const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
-      expect(state.journey).toEqual({ stretch: 'area', local: 0.5, project: 1, voidState: 'ready', frame: null, sheet: 0, light: null, objects, world, engraved: null, nebula: null });
+      expect(state.journey).toEqual({ stretch: 'area', local: 0.5, project: 1, voidState: 'ready', frame: null, sheet: 0, light: null, objects, world, engraved: null, nebula: null, qa: null });
       expect(state.journey).not.toBe(frame.journey);
       expect(state.journey.objects).not.toBe(objects);
       expect(state.journey.world).not.toBe(world);
@@ -741,6 +740,17 @@ describe('the wiring: one journey pose a frame', () => {
     // Unposed and unmounted: nothing shows, and the bridge says null.
     expect(source.match(/frame\.journey\.engraved = null/g)?.length).toBeGreaterThanOrEqual(2);
     expect(source).toMatch(/run\.engraved = null/);
+  });
+
+  it("builds the Q&A's ring and stars with the world, poses them each frame, and hides and frees them with it", () => {
+    const source = readFileSync(fileURLToPath(new URL('../../../src/scene/bob/Void.tsx', import.meta.url)), 'utf8');
+    expect(source).toMatch(/makeQaScene\(buildRing\(RING_MARKS, scene\.environment\), buildDecorStars\(/);
+    expect(source).toMatch(/holder\.add\(model\.group, qa\.ring\.group, qa\.decor\.group\)/);
+    expect(source).toMatch(/world\.qa\.pose\(\{/);
+    // Hidden with the world (and so its page cleared), freed with it.
+    expect(source).toMatch(/if \(!shown\) world\.qa\.hide\(\);/);
+    expect(source).toMatch(/world\.qa\.dispose\(\);/);
+    expect(source).toMatch(/ringDragOn\(window, \{ drag: dragRing, release: releaseRing \}/);
   });
 
   it("warms the engraved way's shaders as it builds it, so the first frame it shows (the light's ignition) does not stall", () => {

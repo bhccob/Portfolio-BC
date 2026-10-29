@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { END_FOCUS_CAP_MS, END_FOCUS_CHECK_MS, focusEndOnArrival } from '../../../src/ui/endArrival';
+import { END_FOCUS_CAP_MS, END_FOCUS_CHECK_MS, focusEndOnArrival, focusQuestionsOnArrival } from '../../../src/ui/endArrival';
 
 /** A MutationObserver the test triggers by hand, noting what it observes and whether it is still connected. */
 class FakeObserver {
@@ -33,10 +33,12 @@ class FakeObserver {
 function page() {
   const attributes = new Map<string, string>();
   const title = { focus: vi.fn() };
+  const ringEnd = { focus: vi.fn() };
+  const firstMark = { focus: vi.fn() };
   const root = { getAttribute: (name: string) => attributes.get(name) ?? null };
   const doc = {
     documentElement: root,
-    getElementById: (id: string) => (id === 'end-title' ? title : null),
+    getElementById: (id: string) => ({ 'end-title': title, 'qa-end-title': ringEnd, 'qa-mark-0': firstMark })[id] ?? null,
     defaultView: {
       MutationObserver: FakeObserver,
       setTimeout: (callback: () => void, ms: number) => setTimeout(callback, ms),
@@ -51,9 +53,15 @@ function page() {
     else attributes.set('data-end', state);
     for (const observer of FakeObserver.made) observer.trigger();
   };
+  /** The scene writes the mark the ring stands at, `data-qa-at` (src/ui/qaWriters.ts). */
+  const ringAt = (mark: number | null): void => {
+    if (mark === null) attributes.delete('data-qa-at');
+    else attributes.set('data-qa-at', String(mark));
+    for (const observer of FakeObserver.made) observer.trigger();
+  };
   const story = { heading: true };
   const heading = vi.fn(() => story.heading);
-  return { doc: doc as unknown as Document, root, title, endView, story, heading };
+  return { doc: doc as unknown as Document, root, title, ringEnd, firstMark, endView, ringAt, story, heading };
 }
 
 describe("focusEndOnArrival: the end page's title takes the focus once the link's move rests there", () => {
@@ -66,11 +74,11 @@ describe("focusEndOnArrival: the end page's title takes the focus once the link'
     vi.useRealTimers();
   });
 
-  it('watches <html data-end> alone, and focuses #end-title without scrolling once it says rest, then stops watching', () => {
+  it('watches <html data-end> and the ring\'s mark, and focuses #end-title without scrolling once the end page says rest, then stops watching', () => {
     const p = page();
     focusEndOnArrival(p.doc, p.heading);
     expect(FakeObserver.made).toHaveLength(1);
-    expect(FakeObserver.made[0]!.observed).toEqual({ target: p.root, options: { attributes: true, attributeFilter: ['data-end'] } });
+    expect(FakeObserver.made[0]!.observed).toEqual({ target: p.root, options: { attributes: true, attributeFilter: ['data-end', 'data-qa-at'] } });
     p.endView('moving');
     expect(p.title.focus).not.toHaveBeenCalled();
     p.endView('rest');
@@ -140,5 +148,37 @@ describe("focusEndOnArrival: the end page's title takes the focus once the link'
     focusEndOnArrival(p.doc, p.heading);
     p.endView('rest');
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+// With the world there the end of the story is the ring's end mark (spec 2026-10-29-bob-stack-2-design.md, goal 1).
+describe("the ring's arrivals", () => {
+  beforeEach(() => {
+    FakeObserver.made = [];
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("focuses the ring's end with 3D on", () => {
+    const p = page();
+    focusEndOnArrival(p.doc, p.heading);
+    p.ringAt(3);
+    expect(p.ringEnd.focus).not.toHaveBeenCalled();
+    p.ringAt(6);
+    expect(p.ringEnd.focus).toHaveBeenCalledWith({ preventScroll: true });
+    expect(p.title.focus).not.toHaveBeenCalled();
+    expect(FakeObserver.made[0]!.connected).toBe(false);
+  });
+
+  it("focuses the first question's mark once the skip's move rests there", () => {
+    const p = page();
+    focusQuestionsOnArrival(p.doc, p.heading);
+    expect(FakeObserver.made[0]!.observed).toEqual({ target: p.root, options: { attributes: true, attributeFilter: ['data-qa-at'] } });
+    p.ringAt(0);
+    expect(p.firstMark.focus).toHaveBeenCalledWith({ preventScroll: true });
+    expect(FakeObserver.made[0]!.connected).toBe(false);
   });
 });

@@ -310,7 +310,8 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS): Worl
   // The ring's own view, the mock-up's: from in front of the closed stack, a little up, nearer than the look back, the
   // ring a little aside so the answer has its room (on a phone, the ring high and the answer under it).
   const ringAim: Vec3 = [C[0], ringShut[1] - (phone ? 0.6 : 1.6), C[2]];
-  const ringView = phone ? { elevation: 20, distance: 31, shift: [0, 0.34] as const } : { elevation: 15, distance: 23, shift: [-0.26, 0.02] as const };
+  // The mock-up's view offset is NDC; `aside` takes shares of the screen, half of it.
+  const ringView = phone ? { elevation: 20, distance: 31, shift: [0, 0.17] as const } : { elevation: 15, distance: 23, shift: [-0.13, 0.01] as const };
   const ringShot = aside(add(ringAim, mul(outward(RING.azimuth, ringView.elevation * DEG), ringView.distance)), ringAim, F.fov, ringView.shift, aspect);
   // A board from the side its projects face, from just under the board above it: at the mock-up's elevation, unless the
   // fit would stand the camera higher than `UNDER` below that board's underside (a squarer screen stands it further

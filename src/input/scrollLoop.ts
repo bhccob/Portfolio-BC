@@ -568,6 +568,10 @@ export interface HomeScroll {
    * input took it: not while it takes no input (3D off, a phase off the scroll) nor while a skipped loader's tail is dropped.
    */
   toPlace(place: number): boolean;
+  /** A place on the story by the step fade, as End goes to the end (the skip button's way to the first question). */
+  fadeToPlace(place: number): boolean;
+  /** Whether the story is headed for `place` now: 3D on, and its target there, or there asked for past a hold. */
+  headedTo(place: number): boolean;
   /**
    * The Q&A's ring turned by hand (src/input/ringDrag.ts), `units` of the scroll: the story follows the hand at once, the
    * target and the progress with it, held to the questions (the first to the end's mark). Nothing off the Q&A.
@@ -649,6 +653,8 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
   let asked: number | null = null;
   /** Where Home or End asked to go by the step fade, until the fade is over or another input moves the target; else null. */
   let fadeTo: number | null = null;
+  /** The next jump to a place goes by the step fade (`fadeToPlace`), not by a key's glide. */
+  let fadeNext = false;
   /**
    * Puts the target where an input asked, held to the limit, and notes what the hold kept from it. With `past` a place the
    * hold lets stand past it (`pastHold`, the end page with the void failed) is not held: a key's step or a jump to it, or
@@ -863,6 +869,12 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
       if (typeof to === 'number') {
         const from = frame.target;
         askFor(Math.min(Math.max(to, 0), end));
+        if (fadeNext) {
+          fadeNext = false;
+          fadeTo = frame.target;
+          loop.wake();
+          return;
+        }
         // A place on the ring (a mark's button) from the ring: a turn of the Q&A; else a key's glide.
         if (o.reducedMotion()) fadeTo = frame.target;
         else if (inQa(from, chapters) && inQa(frame.target, chapters)) loop.turnTo(frame.target);
@@ -992,6 +1004,13 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
     headedToEnd: () => o.threeD() && (frame.target === end || asked === end),
     toTop: () => scroll.jump('home'),
     toPlace: (place) => scroll.jump(place),
+    fadeToPlace: (place) => {
+      fadeNext = true;
+      const taken = scroll.jump(place);
+      fadeNext = false;
+      return taken;
+    },
+    headedTo: (place) => o.threeD() && (frame.target === place || asked === place),
     dragRing: (units) => {
       if (!inQa(frame.target, chapters) || !o.threeD()) return;
       const first = qaStop(chapters, 0);

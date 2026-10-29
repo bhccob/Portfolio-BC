@@ -4,7 +4,7 @@
  * `RING_DRAG_PX` (to the left brings the next one round to the front, as the mock-up's ring turned under the hand); let
  * go, it `release`s, and the scroll turns it on to the nearest question (src/input/scrollLoop.ts `releaseRing`). A press
  * that moves less than `SLOP` is no drag, so a click on a mark stays a click. The mouse only: on a touch screen a swipe
- * is the scroll's step. Only while `active` (the Q&A shown) when the press begins.
+ * is the scroll's step. Only while `active` says so of the press (the Q&A shown, and not a press on a control).
  */
 
 /** A drag of this many pixels turns the ring one question. */
@@ -21,11 +21,11 @@ export interface RingDragWays {
 }
 
 /** Listens on `target` for a mouse's drags of the ring; answers its taking down. */
-export function ringDragOn(target: EventTarget, ways: RingDragWays, active: () => boolean): () => void {
+export function ringDragOn(target: EventTarget, ways: RingDragWays, active: (event: PointerEvent) => boolean): () => void {
   let held: { from: number; last: number; moved: boolean } | null = null;
   const down = (event: Event): void => {
     const e = event as PointerEvent;
-    if (e.pointerType !== 'mouse' || e.button !== 0 || !active()) return;
+    if (e.pointerType !== 'mouse' || e.button !== 0 || !active(e)) return;
     held = { from: e.clientX, last: e.clientX, moved: false };
   };
   const move = (event: Event): void => {
