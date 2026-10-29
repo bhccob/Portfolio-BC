@@ -1,7 +1,8 @@
 /**
- * The engraved gold lines as three.js objects: the two B outlines and their
- * bars and the circle (one tube each), the 144 ticks round the circle and the
- * thin outer ring. The measurements and the paths are Task 1's
+ * The engraved gold lines as three.js objects: the circle (a tube), the 144
+ * ticks round it and the thin outer ring, and the two B letters made like the
+ * compass's bands (spec 2026-10-29-bob-stack-2-design.md, goal 5, "Ringen":
+ * ~/engine/bob/letterBands). The measurements and the paths are Task 1's
  * (~/engine/bob/wordmark), so what the scene draws is what the wordmark tests
  * check. No React: the Opening (Task 10) mounts the group and poses it from the
  * loader's clock through the setters.
@@ -13,8 +14,10 @@
  * rings are equal steps of arc length, so a stroke is cut at constant speed.
  */
 import * as THREE from 'three';
+import { COMPASS_LOOK } from '~/engine/bob/build/compass';
+import { letterStrip, RINGEN, tickPlaces } from '~/engine/bob/letterBands';
+import { circlePath, type Point2, type StrokeId, strokePath, tickSegments, WORDMARK } from '~/engine/bob/wordmark';
 import { palette } from '~/engine/palette';
-import { circlePath, type Point2, STROKE_ORDER, type StrokeId, strokePath, tickSegments, WORDMARK } from '~/engine/bob/wordmark';
 
 /**
  * How the engraving looks. Task 12 tuned the numbers against the Blender
@@ -45,6 +48,15 @@ import { circlePath, type Point2, STROKE_ORDER, type StrokeId, strokePath, tickS
  *   cannot z-fight the floor. Task 12: 0.009 read under a pixel at the home
  *   framing (2.3 px across the front of the ring at 1440x900, half a pixel on
  *   its sides, under a pixel everywhere on a phone) and broke up; 0.013 holds.
+ * - `ringen`: the B letters' bands (~/engine/bob/letterBands), lit by the
+ *   compass's own room (the scene's environment): the glass the compass's band
+ *   glass times `glass.shade`, the rims the compass's gold at its own emissive
+ *   (so the B reads as the O), the ticks the gold light times `ticks`, the
+ *   mock-up's; the emissives and the ticks scale with the glow. The mock-up's
+ *   "BOB from above" measured 0.16 over the darkness gate's 0.11 under its own
+ *   room and bloom; in the site's scene these measure 0.064 (1440x900) and
+ *   0.020 (390x844). Task 15 started at 0.05, 0.12 and 0.5 (0.058), where the
+ *   rims read brown beside the O.
  */
 export const ENGRAVING_LOOK = {
   colour: palette.goldLight,
@@ -53,7 +65,12 @@ export const ENGRAVING_LOOK = {
   tube: { radial: 6, perMetre: 120 },
   outer: { radius: 0.0055 },
   letters: { inner: 1.9, from: -0.6, to: 2.9, ramp: 0.45, edge: 3.3 },
-  ticks: { width: 0.013, lift: 0.0006 }
+  ticks: { width: 0.013, lift: 0.0006 },
+  ringen: {
+    glass: { shade: 0.32, opacity: 0.78, roughness: 0.32, metalness: 0.15, emissive: 0.08 },
+    rims: { emissive: 0.22 },
+    ticks: 0.75
+  }
 } as const;
 
 /** `x` held to [0, 1]; NaN reads as 0. */
@@ -177,17 +194,83 @@ function tickGeometry(): THREE.BufferGeometry {
 }
 
 /** The strokes of the two B letters: all but the circle. */
-const LETTER_IDS = STROKE_ORDER.filter((id) => id !== 'circle');
+const LETTER_IDS: readonly StrokeId[] = ['leftB', 'leftBar', 'rightB', 'rightBar'];
+
+/** One geometry from flat parts on the glass, all facing up. */
+function mergedFlat(parts: readonly { position: Float32Array; uv: Float32Array; index: Uint32Array }[]): THREE.BufferGeometry {
+  const vertices = parts.reduce((n, p) => n + p.position.length / 3, 0);
+  const position = new Float32Array(vertices * 3);
+  const uv = new Float32Array(vertices * 2);
+  const index = new Uint32Array(parts.reduce((n, p) => n + p.index.length, 0));
+  let v = 0;
+  let i = 0;
+  for (const part of parts) {
+    position.set(part.position, v * 3);
+    uv.set(part.uv, v * 2);
+    for (let k = 0; k < part.index.length; k++) index[i + k] = part.index[k]! + v;
+    v += part.position.length / 3;
+    i += part.index.length;
+  }
+  const normal = new Float32Array(vertices * 3);
+  for (let k = 0; k < vertices; k++) normal[k * 3 + 1] = 1;
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(position, 3));
+  geometry.setAttribute('normal', new THREE.BufferAttribute(normal, 3));
+  geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  geometry.setIndex(new THREE.BufferAttribute(index, 1));
+  return geometry;
+}
+
+/** A band's ticks as flat quads `y` over the glass, laid out as a strip's steps: the near side first, facing up. */
+function tickQuads(places: ReturnType<typeof tickPlaces>, y: number): { position: Float32Array; uv: Float32Array; index: Uint32Array } {
+  const position = new Float32Array(places.length * 12);
+  const uv = new Float32Array(places.length * 8);
+  const index = new Uint32Array(places.length * 6);
+  places.forEach(({ at, angle, length, width }, k) => {
+    // Along the path (x turned by the angle) and across it toward the bands' middle (the path's normal).
+    const [tx, tz] = [Math.cos(angle), -Math.sin(angle)];
+    const [nx, nz] = [-tz, tx];
+    const [ax, az] = [(tx * width) / 2, (tz * width) / 2];
+    const [cx, cz] = [(nx * length) / 2, (nz * length) / 2];
+    position.set(
+      [at[0] - ax - cx, y, at[1] - az - cz, at[0] - ax + cx, y, at[1] - az + cz, at[0] + ax - cx, y, at[1] + az - cz, at[0] + ax + cx, y, at[1] + az + cz],
+      k * 12
+    );
+    uv.set([0, 0, 0, 1, 1, 0, 1, 1], k * 8);
+    const v = k * 4;
+    index.set([v, v + 1, v + 2, v + 1, v + 3, v + 2], k * 6);
+  });
+  return { position, uv, index };
+}
+
+/** The B letters' glass, rims and ticks: three bands to a stroke, two rims to a band, the ticks on the outer edges of the outer bands. */
+function letterGeometries(): { glass: THREE.BufferGeometry; rims: THREE.BufferGeometry; ticks: THREE.BufferGeometry } {
+  const { bands, width, rim, lift, ticks } = RINGEN;
+  const half = width / 2;
+  const glass: ReturnType<typeof letterStrip>[] = [];
+  const rims: ReturnType<typeof letterStrip>[] = [];
+  const marks: ReturnType<typeof tickQuads>[] = [];
+  for (const id of LETTER_IDS) {
+    const path = strokePath(id);
+    for (const d of bands) {
+      glass.push(letterStrip(path, d - half, d + half, lift.glass));
+      for (const edge of [d - half, d + half]) rims.push(letterStrip(path, edge - rim / 2, edge + rim / 2, lift.rim));
+    }
+    for (const edge of [bands[0] - half, bands[bands.length - 1]! + half]) marks.push(tickQuads(tickPlaces(path, edge, ticks.reach * width), lift.ticks));
+  }
+  return { glass: mergedFlat(glass), rims: mergedFlat(rims), ticks: mergedFlat(marks) };
+}
 
 /**
- * The letters' light front, added to three's own basic shader. The vertex
+ * The letters' light front, added to three's own shaders (the bands' glass, their rims and their ticks). The vertex
  * shader hands over the world x (worked out from the model matrix, since
  * `worldpos_vertex` defines a world position only under some defines); the
  * fragment shader works out `k` from it: 0 ahead of the front, 1 `ramp` behind
- * it. Where `k` is 0 nothing is drawn; the rest is the material's colour times
+ * it. Where `k` is 0 nothing is drawn; the rest is the material's light times
  * `k * (k + edge * k * (1 - k))` (the preview's emission, mixed with a
- * transparent shader by the same mask), before it is tone-mapped and fogged as
- * a basic material is. The front and the look are uniforms the setter and the
+ * transparent shader by the same mask) and its alpha times `k` (so the glass
+ * fades with the light, not darkening what is under it), before it is
+ * tone-mapped and fogged as the material's own shader does. The front and the look are uniforms the setter and the
  * build hold, so a frame of the front compiles nothing.
  */
 function patchLetters(front: THREE.IUniform<number>, look: THREE.IUniform<THREE.Vector3>) {
@@ -205,7 +288,8 @@ function patchLetters(front: THREE.IUniform<number>, look: THREE.IUniform<THREE.
           'float k = clamp( ( uFront - ( abs( vLetterX ) - uLook.x ) ) / uLook.y, 0.0, 1.0 );',
           'if ( k <= 0.0 ) discard;',
           '#include <opaque_fragment>',
-          'gl_FragColor.rgb *= k * ( k + uLook.z * k * ( 1.0 - k ) );'
+          'gl_FragColor.rgb *= k * ( k + uLook.z * k * ( 1.0 - k ) );',
+          'gl_FragColor.a *= k;'
         ].join('\n')
       );
   };
@@ -241,16 +325,15 @@ export interface EngravingModel {
   /** `engraving`: the strokes (`stroke:<id>`), the ticks (`ticks`) and the outer ring (`outer`), in world units on the glass plane. */
   group: THREE.Group;
   /**
-   * Shows the first `drawn` (0..1, held to that; NaN reads as 0) of a stroke, by whole tube segments. The four B
-   * strokes show only through `setLetters`: their light front starts behind them, so a B drawn by this alone is
-   * not seen.
+   * Shows the first `drawn` (0..1, held to that; NaN reads as 0) of the circle, by whole tube segments. The four B
+   * strokes are bands, not tubes, and show only through `setLetters`: for them this does nothing.
    */
   setStroke(id: StrokeId, drawn: number): void;
   /**
    * Runs the light out of the O into the two B letters, `share` (0..1, held to that; NaN reads as 0) of the way:
-   * nothing of the four B strokes is drawn at 0; above it they are drawn whole, lit up to a front `mix(from, to,
-   * share)` metres past `|x| = inner` (`ENGRAVING_LOOK.letters`), from each letter's inner edge to its outer. It
-   * moves a uniform, so a frame of it compiles nothing. It takes the B strokes' draw range over from `setStroke`.
+   * nothing of the B letters' bands is drawn at 0; above it they are drawn whole, their glass, rims and ticks lit up to
+   * a front `mix(from, to, share)` metres past `|x| = inner` (`ENGRAVING_LOOK.letters`), from each letter's inner
+   * edge to its outer, and nothing past it. It moves a uniform, so a frame of it compiles nothing.
    */
   setLetters(share: number): void;
   /** Grows the ticks outward to `grown` (0..1) of their length; none are drawn at 0. */
@@ -264,11 +347,13 @@ export interface EngravingModel {
 }
 
 /**
- * Builds the engraving with nothing drawn yet (every stroke at 0, no ticks, no
- * outer ring) at a glow of 1. The circle has a basic material (the letters and
- * the circle are the same strength); the four B strokes have one of their own,
- * the same plus the light front (`setLetters`); the outer ring and the ticks
- * have theirs, for their shares. All four are opaque, tone-mapped and fogged.
+ * Builds the engraving with nothing drawn yet (the circle at 0, no ticks, no
+ * outer ring, no B letter) at a glow of 1. The circle has a basic material; the
+ * outer ring and the ticks have theirs, for their shares; all three are opaque,
+ * tone-mapped and fogged. The B letters (`letters`) are three parts, each with
+ * the light front (`setLetters`): the bands' glass (`letters:glass`, the
+ * compass's band glass, see-through), their gold rims (`letters:rims`) and
+ * their ticks (`letters:ticks`, flat gold light).
  */
 export function buildEngraving(): EngravingModel {
   const look = ENGRAVING_LOOK;
@@ -277,11 +362,41 @@ export function buildEngraving(): EngravingModel {
 
   const base = new THREE.Color(look.colour);
   const strokeMaterial = new THREE.MeshBasicMaterial({ name: 'engraving:stroke', color: base.clone() });
-  const lettersMaterial = new THREE.MeshBasicMaterial({ name: 'engraving:letters', color: base.clone() });
   const front: THREE.IUniform<number> = { value: look.letters.from };
   const lettersLook: THREE.IUniform<THREE.Vector3> = { value: new THREE.Vector3(look.letters.inner, look.letters.ramp, look.letters.edge) };
-  lettersMaterial.onBeforeCompile = patchLetters(front, lettersLook);
-  lettersMaterial.customProgramCacheKey = () => 'bob-letters';
+  const { glass: glassLook, rims: rimsLook } = look.ringen;
+  const bandGlass = COMPASS_LOOK.bandGlass;
+  const glassMaterial = new THREE.MeshPhysicalMaterial({
+    name: 'engraving:letters:glass',
+    color: new THREE.Color(bandGlass.colour).multiplyScalar(glassLook.shade),
+    transmission: 0,
+    roughness: glassLook.roughness,
+    metalness: glassLook.metalness,
+    ior: bandGlass.ior,
+    thickness: bandGlass.thickness,
+    iridescence: bandGlass.iridescence,
+    emissive: bandGlass.emissive,
+    emissiveIntensity: glassLook.emissive,
+    transparent: true,
+    opacity: glassLook.opacity,
+    side: THREE.DoubleSide
+  });
+  const gold = COMPASS_LOOK.gold;
+  const rimsMaterial = new THREE.MeshStandardMaterial({
+    name: 'engraving:letters:rims',
+    color: gold.colour,
+    metalness: gold.metalness,
+    roughness: gold.roughness,
+    emissive: gold.emissive,
+    emissiveIntensity: rimsLook.emissive,
+    side: THREE.DoubleSide
+  });
+  const marksMaterial = new THREE.MeshBasicMaterial({ name: 'engraving:letters:ticks', color: base.clone(), side: THREE.DoubleSide });
+  const letterMaterials = [glassMaterial, rimsMaterial, marksMaterial];
+  for (const material of letterMaterials) {
+    material.onBeforeCompile = patchLetters(front, lettersLook);
+    material.customProgramCacheKey = () => 'bob-letters';
+  }
   const outerMaterial = new THREE.MeshBasicMaterial({ name: 'engraving:outer', color: base.clone() });
   const tickMaterial = new THREE.ShaderMaterial({
     name: 'engraving:ticks',
@@ -292,13 +407,24 @@ export function buildEngraving(): EngravingModel {
     side: THREE.DoubleSide
   });
 
-  const strokes = new Map<StrokeId, THREE.Mesh<THREE.TubeGeometry, THREE.MeshBasicMaterial>>();
-  for (const id of STROKE_ORDER) {
-    const mesh = new THREE.Mesh(tubeAlong(strokePath(id), WORDMARK.engrave), id === 'circle' ? strokeMaterial : lettersMaterial);
-    mesh.name = `stroke:${id}`;
-    strokes.set(id, mesh);
-    group.add(mesh);
-  }
+  const circle = new THREE.Mesh(tubeAlong(strokePath('circle'), WORDMARK.engrave), strokeMaterial);
+  circle.name = 'stroke:circle';
+  group.add(circle);
+
+  const letters = new THREE.Group();
+  letters.name = 'letters';
+  letters.visible = false;
+  const shapes = letterGeometries();
+  const letterParts = [
+    new THREE.Mesh(shapes.glass, glassMaterial),
+    new THREE.Mesh(shapes.rims, rimsMaterial),
+    new THREE.Mesh(shapes.ticks, marksMaterial)
+  ];
+  letterParts.forEach((mesh, k) => {
+    mesh.name = `letters:${['glass', 'rims', 'ticks'][k]}`;
+    letters.add(mesh);
+  });
+  group.add(letters);
 
   const ticks = new THREE.Mesh(tickGeometry(), tickMaterial);
   ticks.name = 'ticks';
@@ -316,13 +442,13 @@ export function buildEngraving(): EngravingModel {
   const model: EngravingModel = {
     group,
     setStroke(id, drawn) {
-      reveal(strokes.get(id)!, drawn);
+      if (id === 'circle') reveal(circle, drawn);
     },
     setLetters(share) {
       const s = clamp01(share);
       front.value = look.letters.from + (look.letters.to - look.letters.from) * s;
       // Drawn whole above 0: the front hides what it has not reached.
-      for (const id of LETTER_IDS) reveal(strokes.get(id)!, s > 0 ? 1 : 0);
+      letters.visible = s > 0;
     },
     setTicks(grown) {
       const g = clamp01(grown);
@@ -335,14 +461,16 @@ export function buildEngraving(): EngravingModel {
     setGlow(level) {
       const k = Number.isFinite(level) && level > 0 ? level : 0;
       strokeMaterial.color.copy(base).multiplyScalar(look.gain * look.share.stroke * k);
-      lettersMaterial.color.copy(strokeMaterial.color);
+      glassMaterial.emissiveIntensity = glassLook.emissive * k;
+      rimsMaterial.emissiveIntensity = rimsLook.emissive * k;
+      marksMaterial.color.copy(base).multiplyScalar(look.ringen.ticks * k);
       outerMaterial.color.copy(base).multiplyScalar(look.gain * look.share.outer * k);
       (tickMaterial.uniforms.uColour.value as THREE.Color).copy(base).multiplyScalar(look.gain * look.share.ticks * k);
     },
     dispose() {
-      for (const mesh of [...strokes.values(), outer, ticks]) mesh.geometry.dispose();
+      for (const mesh of [circle, outer, ticks, ...letterParts]) mesh.geometry.dispose();
       strokeMaterial.dispose();
-      lettersMaterial.dispose();
+      for (const material of letterMaterials) material.dispose();
       outerMaterial.dispose();
       tickMaterial.dispose();
     }

@@ -6,7 +6,7 @@ import { buildGlass, GLASS_LOOK, GLASS_RENDER_ORDER, streakDirection, streakTaps
 import { applyCameraShot, type CameraShot, homeShotFor, topShotFor } from '~/engine/bob/shots';
 import { buildTraces, TRACES_LOOK } from '~/engine/bob/build/traces';
 import { traceLayout, TRACE } from '~/engine/bob/traces';
-import { circlePath, STROKE_ORDER, strokeLength, strokePath, tickSegments, WORDMARK } from '~/engine/bob/wordmark';
+import { circlePath, strokeLength, strokePath, tickSegments, WORDMARK } from '~/engine/bob/wordmark';
 import { palette } from '~/engine/palette';
 
 /** The object called `name` under `root`, which must exist. */
@@ -89,17 +89,19 @@ describe('revealCount', () => {
 });
 
 describe('the engraving', () => {
-  it('builds one tube per stroke and draws none at first', () => {
+  // The B letters are bands now (spec 2026-10-29-bob-stack-2-design.md, goal 5; tests/unit/bob/build-engraving-letters.test.ts):
+  // the circle is the one engraved stroke the loader cuts.
+  it('builds the circle as a tube and draws none of it at first', () => {
     const e = buildEngraving();
     expect(e.group.name).toBe('engraving');
-    for (const id of STROKE_ORDER) expect(meshNamed(e.group, `stroke:${id}`).geometry.drawRange.count).toBe(0);
+    expect(meshNamed(e.group, 'stroke:circle').geometry.drawRange.count).toBe(0);
     expect(meshNamed(e.group, 'outer').geometry.drawRange.count).toBe(0);
     e.dispose();
   });
 
-  it('makes each stroke a 6-sided tube of the engraving width with about 120 segments a metre', () => {
+  it('makes the circle a 6-sided tube of the engraving width with about 120 segments a metre', () => {
     const e = buildEngraving();
-    for (const id of STROKE_ORDER) {
+    for (const id of ['circle'] as const) {
       const geometry = meshNamed(e.group, `stroke:${id}`).geometry as THREE.TubeGeometry;
       expect(geometry).toBeInstanceOf(THREE.TubeGeometry);
       expect(geometry.parameters.radius).toBe(WORDMARK.engrave);
@@ -109,9 +111,9 @@ describe('the engraving', () => {
     e.dispose();
   });
 
-  it('lays each tube along its stroke, centred on the glass so that half of it is sunk', () => {
+  it('lays the tube along the circle, centred on the glass so that half of it is sunk', () => {
     const e = buildEngraving();
-    for (const id of STROKE_ORDER) {
+    for (const id of ['circle'] as const) {
       const geometry = meshNamed(e.group, `stroke:${id}`).geometry as THREE.TubeGeometry;
       const path = strokePath(id);
       const first = ringCentre(geometry, 0);
@@ -128,32 +130,32 @@ describe('the engraving', () => {
     e.dispose();
   });
 
-  it('draws a tube at constant speed along its stroke: the segments are equal in length', () => {
+  it('draws the tube at constant speed along the circle: the segments are equal in length', () => {
     const e = buildEngraving();
-    const geometry = meshNamed(e.group, 'stroke:rightB').geometry as THREE.TubeGeometry;
-    const step = strokeLength('rightB') / geometry.parameters.tubularSegments;
+    const geometry = meshNamed(e.group, 'stroke:circle').geometry as THREE.TubeGeometry;
+    const step = strokeLength('circle') / geometry.parameters.tubularSegments;
     for (let k = 1; k <= geometry.parameters.tubularSegments; k += 53) {
-      // Along the path's straight runs and round its arcs alike, a ring is one step (or a little less across a corner) from the last.
+      // Round the circle, a ring is one step (or a hair less, across a sample of it) from the last.
       expect(ringCentre(geometry, k).distanceTo(ringCentre(geometry, k - 1))).toBeLessThanOrEqual(step + 1e-6);
       expect(ringCentre(geometry, k).distanceTo(ringCentre(geometry, k - 1))).toBeGreaterThan(step * 0.7);
     }
     e.dispose();
   });
 
-  it('sets a stroke to its drawn share by whole segments and leaves the others alone', () => {
+  it('sets the circle to its drawn share by whole segments', () => {
     const e = buildEngraving();
     const tube = (id: string) => meshNamed(e.group, `stroke:${id}`).geometry as THREE.TubeGeometry;
-    const tubular = tube('leftB').parameters.tubularSegments;
-    e.setStroke('leftB', 0.5);
-    expect(tube('leftB').drawRange.count).toBe(revealCount(0.5, tubular, 6));
-    expect(tube('leftB').drawRange.start).toBe(0);
-    expect(tube('leftBar').drawRange.count).toBe(0);
-    e.setStroke('leftB', 1);
-    expect(tube('leftB').drawRange.count).toBe(tube('leftB').index!.count);
-    e.setStroke('leftB', 7);
-    expect(tube('leftB').drawRange.count).toBe(tube('leftB').index!.count);
-    e.setStroke('leftB', -1);
-    expect(tube('leftB').drawRange.count).toBe(0);
+    const tubular = tube('circle').parameters.tubularSegments;
+    e.setStroke('circle', 0.5);
+    expect(tube('circle').drawRange.count).toBe(revealCount(0.5, tubular, 6));
+    expect(tube('circle').drawRange.start).toBe(0);
+    e.setStroke('circle', 1);
+    expect(tube('circle').drawRange.count).toBe(tube('circle').index!.count);
+    e.setStroke('circle', 7);
+    expect(tube('circle').drawRange.count).toBe(tube('circle').index!.count);
+    e.setStroke('circle', -1);
+    expect(tube('circle').drawRange.count).toBe(0);
+    e.setStroke('circle', 0.5);
     e.setStroke('circle', Number.NaN);
     expect(tube('circle').drawRange.count).toBe(0);
     e.dispose();
@@ -242,7 +244,7 @@ describe('the engraving', () => {
 
   it('is basic, tone-mapped and fogged, in the amber times its glow', () => {
     const e = buildEngraving();
-    const stroke = meshNamed(e.group, 'stroke:leftB').material as THREE.MeshBasicMaterial;
+    const stroke = meshNamed(e.group, 'stroke:circle').material as THREE.MeshBasicMaterial;
     expect(stroke).toBeInstanceOf(THREE.MeshBasicMaterial);
     expect(stroke.toneMapped).toBe(true);
     expect(stroke.fog).toBe(true);
@@ -260,7 +262,7 @@ describe('the engraving', () => {
   it('sets every part to the gold light times the glow, the ticks and the outer ring a share of it', () => {
     const e = buildEngraving();
     const colours = () => ({
-      stroke: (meshNamed(e.group, 'stroke:rightB').material as THREE.MeshBasicMaterial).color.clone(),
+      stroke: (meshNamed(e.group, 'stroke:circle').material as THREE.MeshBasicMaterial).color.clone(),
       circle: (meshNamed(e.group, 'stroke:circle').material as THREE.MeshBasicMaterial).color.clone(),
       outer: (meshNamed(e.group, 'outer').material as THREE.MeshBasicMaterial).color.clone(),
       ticks: ((meshNamed(e.group, 'ticks').material as THREE.ShaderMaterial).uniforms.uColour.value as THREE.Color).clone()
@@ -287,9 +289,10 @@ describe('the engraving', () => {
   it('frees every geometry and material it made', () => {
     const e = buildEngraving();
     const parts = resources(e.group);
-    // Five strokes, the outer ring and the ticks; the circle's material, the B letters' (their light front), the outer ring's and the ticks'.
-    expect([...parts].filter((p) => p instanceof THREE.BufferGeometry)).toHaveLength(7);
-    expect([...parts].filter((p) => p instanceof THREE.Material)).toHaveLength(4);
+    // The circle, the outer ring and the ticks, and the B letters' glass, rims and ticks; the circle's material, the outer
+    // ring's and the ticks', and the letters' glass, rims and ticks (their light front).
+    expect([...parts].filter((p) => p instanceof THREE.BufferGeometry)).toHaveLength(6);
+    expect([...parts].filter((p) => p instanceof THREE.Material)).toHaveLength(6);
     const spies = [...parts].map((part) => vi.spyOn(part, 'dispose'));
     e.dispose();
     for (const spy of spies) expect(spy).toHaveBeenCalled();
