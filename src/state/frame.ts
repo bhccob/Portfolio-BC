@@ -24,6 +24,11 @@ export interface WorldOnScreen {
   names: number;
   caption: { index: number; opacity: number } | null;
   dots: number;
+  /** The stack's opening, 0 closed to 1 open, and each board's top (world y), the power board's first. */
+  explode: number;
+  tops: number[];
+  /** Each project's lift off its socket toward the spot, 0..1 (none listed: on its socket). */
+  lift: Partial<Record<ProjectId, number>>;
 }
 
 /**

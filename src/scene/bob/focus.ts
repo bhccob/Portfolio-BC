@@ -261,3 +261,11 @@ export function restsAt(id: ProjectId | null, progress: number, target: number):
   return opensOnClick(journeyAt(progress), true);
 }
 
+
+/**
+ * The shot under a page: on a project page (`scene` 'project') the pointer's parallax comes in, as the home under a page
+ * has it; on the home the shot is as it is, so the camera stays where it stood while a project is open there.
+ */
+export function underPage(shot: CameraShot, scene: SceneKind | null): CameraShot {
+  return scene === 'project' ? { ...shot, sway: 1 } : shot;
+}

@@ -16,7 +16,8 @@ import {
   moveFocus,
   restsAt,
   SINK_MS,
-  stepFocus
+  stepFocus,
+  underPage
 } from '~/scene/bob/focus';
 import { focusShotFor, journeyPoseAt, shotToward, WORLD_PROJECTS } from '~/scene/bob/journey';
 import { openOf } from '~/scene/bob/inside';
@@ -482,5 +483,15 @@ describe('opening as the object nears the spot', () => {
       expect(openOf(x)).toBeGreaterThanOrEqual(last);
       last = openOf(x);
     }
+  });
+});
+
+describe('the pointer under a project page', () => {
+  it("lets the pointer's parallax in under a project page, as the home under a page has it, and none while open on the home", () => {
+    const shot = focusShotFor('steady', LAPTOP);
+    expect(shot.sway).toBe(0);
+    expect(underPage(shot, 'project')).toEqual({ ...shot, sway: 1 });
+    expect(underPage(shot, 'home')).toBe(shot);
+    expect(underPage(shot, null)).toBe(shot);
   });
 });

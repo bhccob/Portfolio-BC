@@ -961,7 +961,9 @@ describe('loadVoid: the void is built at the hand-over, the world after it', () 
 
   it('lights the project under the pointer and opens it on a click, through the world\'s hits', () => {
     const source = read('scene/bob/Void.tsx');
-    expect(source).toMatch(/intersectObjects\(\s*[a-z.]*model\.hits/);
+    // Of the click spheres the pointer's ray goes through, the one whose middle it passes nearest.
+    expect(source).toMatch(/model\.hits\.map\(/);
+    expect(source).toMatch(/nearestSphere\(/);
     expect(source).toMatch(/latest\.current\.onOpen\?\.\(/);
     expect(source).toMatch(/setHover\(/);
     expect(source).toMatch(/worldClockRuns\(/);

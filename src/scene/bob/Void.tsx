@@ -31,7 +31,7 @@ import { LOOK } from './look';
 import { nebulaLevels } from './nebulaWay';
 import { insidePoints, OPEN_LOOK, openLevels, openOf, openWorld, worldClockRuns } from './inside';
 import { type SpotPose, spotFor } from './spot';
-import { easeHover, hoverEase, hoversAt, needleFor, needleGlowFor, pointerMode, voidShownAt } from './voidPose';
+import { easeHover, hoverEase, hoversAt, nearestSphere, needleFor, needleGlowFor, pointerMode, voidShownAt } from './voidPose';
 import { loadVoid, type VoidLoadSteps } from './voidLoad';
 import { uploadTextures, warm } from './warm';
 import { boardCentre, boardTops, stackPlaces } from './worldLayout';
@@ -137,16 +137,25 @@ const HOVER_LIFT = 0.3;
 // The pointer's ray against the world's projects.
 const raycaster = new THREE.Raycaster();
 const ndc = new THREE.Vector2();
-const hits: THREE.Intersection[] = [];
+const sphereAt = new THREE.Vector3();
+const sphereScale = new THREE.Vector3();
 
-/** The project (its place in `WORLD_PROJECTS`) whose click sphere the pointer (`pointer`, NDC) is over, nearest first; or none. */
+/**
+ * The project (its place in `WORLD_PROJECTS`) whose click sphere the pointer (`pointer`, NDC) is on, or none: of the
+ * spheres its ray goes through, the one whose middle it passes nearest (`nearestSphere`), so a project seen behind
+ * another's edge is still the one under the pointer on its own middle.
+ */
 function pick(model: WorldModel, pointer: { x: number; y: number }, camera: THREE.Camera): number | null {
   ndc.set(pointer.x, pointer.y);
   raycaster.setFromCamera(ndc, camera);
-  hits.length = 0;
-  raycaster.intersectObjects(model.hits, false, hits);
-  const id = hits[0]?.object.userData.id as ProjectId | undefined;
-  hits.length = 0;
+  const { origin, direction } = raycaster.ray;
+  const spheres = model.hits.map((hit) => {
+    hit.getWorldPosition(sphereAt);
+    hit.getWorldScale(sphereScale);
+    return { centre: sphereAt.toArray() as [number, number, number], radius: (hit as THREE.Mesh<THREE.SphereGeometry>).geometry.parameters.radius * sphereScale.x };
+  });
+  const k = nearestSphere(origin.toArray() as [number, number, number], direction.toArray() as [number, number, number], spheres);
+  const id = k === null ? undefined : (model.hits[k]!.userData.id as ProjectId | undefined);
   const index = id === undefined ? -1 : WORLD_PROJECTS.indexOf(id);
   return index === -1 ? null : index;
 }
@@ -751,7 +760,11 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
     // The canvas draws on only while the hover eases or the world's clock runs; the first frame of it asks for the next.
     if (moving && !motion.beads) invalidate();
     motion.beads = moving;
-    if (proof) frame.journey.world = path ? { power: path.power, names: path.names, caption: path.caption ? { ...path.caption } : null, dots: path.dots } : null;
+    if (proof) {
+      frame.journey.world = path
+        ? { power: path.power, names: path.names, caption: path.caption ? { ...path.caption } : null, dots: path.dots, explode: path.explode, tops: boardTops(STACK_PLACES, path.explode), lift: { ...(close.id !== null ? close.lifts : NONE_LIFTED) } }
+        : null;
+    }
     if (!shown) return;
     const dt = Math.min(Math.max(delta, 0), MAX_STEP);
 

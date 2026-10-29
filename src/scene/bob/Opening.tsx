@@ -25,7 +25,7 @@ import { clickOnWorld } from '~/ui/projectOpen';
 import { motion } from '../motion';
 import { settleLoad } from '../settleLoad';
 import { visibleTimeout } from '../timeouts';
-import { FOCUS_AT_REST, focusLiftsAt, focusOpensAt, type FocusPose, focusShotAt, stepFocus } from './focus';
+import { FOCUS_AT_REST, focusLiftsAt, focusOpensAt, type FocusPose, focusShotAt, stepFocus, underPage } from './focus';
 import { type Handover, Home, type HomeModels } from './Home';
 import { focusShotFor, journeyPoseAt } from './journey';
 import { cameraShotAt, loadShare, type OpeningPose, openingPoseAt } from './openingPose';
@@ -626,7 +626,8 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       const journey = journeyPoseAt(at, aspect);
       const move = frame.focus.move;
       const goal = move.to !== null ? focusShotFor(move.to, aspect) : journey.shot;
-      const pose = close === null ? journey : { ...journey, shot: focusShotAt(move, now, goal, worldPathFor(aspect).centre) };
+      // A project page lets the pointer's parallax in over its project; on the home the open project's camera stays.
+      const pose = close === null ? journey : { ...journey, shot: underPage(focusShotAt(move, now, goal, worldPathFor(aspect).centre), useScene.getState().scene) };
       frame.shot = pose.shot;
       handover.pose = pose;
       writeJourney(frame.journey, pose);

@@ -60,7 +60,7 @@
  *              404.html; after hydration it shows the not-found route's <h1> and the right <html lang>,
  *              and the browser loads one document, with no reload loop; the page has no scene, so it
  *              asks for none of the scene's files, mounts no Stage and still leaves LOADING
- *   home-nav   the home page's links to the three projects: visually hidden but
+ *   home-nav   the home page's links to the four projects: visually hidden but
  *              reachable by keyboard while 3D is on (and shown while one has focus), visible once the
  *              3D switch is turned off, and the choice persists in localStorage across a reload, where
  *              the page with 3D off mounts no WebGL at all and still leaves LOADING; the 3D switch is named
@@ -421,8 +421,9 @@ const UNKNOWN = ['/does-not-exist/', '/en/does-not-exist/'];
  * fallback, but the router used to match them case-insensitively and a route module threw on them.
  */
 const CASE_VARIANTS = ['/Projects/Steady/', '/en/projects/FUNCIAL/', '/Projects/Jontai-Energy/', '/en/Projects/cookies-clicker/'];
-/** The links the home page lists: the three projects (the way to About is the header's). */
-const HOME_LINKS = ['/projects/steady/', '/projects/jontai-energy/', '/projects/cookies-clicker/'];
+/** The links the home page lists: the four projects (the way to About is the header's). */
+/** The home nav's projects, in the stack's order (src/data/projects.ts). */
+const HOME_LINKS = ['/projects/steady/', '/projects/porfael/', '/projects/jontai-energy/', '/projects/cookies-clicker/'];
 
 // ---------------------------------------------------------------- the step runner
 
@@ -1070,9 +1071,9 @@ async function homeNav(browser, step) {
   await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
   await stageReady(page);
 
-  // 3D on (the default): the three links are in the HTML and reachable by keyboard, but not shown.
+  // 3D on (the default): the four links are in the HTML and reachable by keyboard, but not shown.
   const hrefs = await page.$$eval('.home-nav a', (links) => links.map((link) => link.getAttribute('href')));
-  step.check(JSON.stringify(hrefs) === JSON.stringify(HOME_LINKS), `the home nav links the three projects (got ${hrefs.join(' ')})`);
+  step.check(JSON.stringify(hrefs) === JSON.stringify(HOME_LINKS), `the home nav links the four projects (got ${hrefs.join(' ')})`);
   step.check((await page.getAttribute('html', 'data-3d')) === 'on', 'the page says data-3d="on" after hydration');
   step.check(visuallyHidden(await boxOf(page, '.home-nav')), 'with 3D on, the home nav is visually hidden');
   await page.focus('.home-nav a');
@@ -1115,7 +1116,7 @@ async function homeNav(browser, step) {
   step.check((await page.evaluate(() => window.__needleDebug?.().canvasMounts)) === 1, 'switched on, the Stage mounts');
   await takeCsp(page, step);
   await context.close();
-  return 'three links; hidden but focusable with 3D on, shown with 3D off, the choice stored';
+  return 'four links; hidden but focusable with 3D on, shown with 3D off, the choice stored';
 }
 
 async function mobile(browser, step) {
@@ -1821,7 +1822,8 @@ async function scrollDesktop(browser, step) {
   step.check(near(back.progress, PROJECT_LIST[0].stop) && back.chapterIndex === arrivalUnit, `the story is at Steady's area stop, ${PROJECT_LIST[0].stop}, in its area (unit ${arrivalUnit}), where Back from its page lands (got ${JSON.stringify(back)})`);
   await page.keyboard.press('PageDown');
   const resumed = await restAt(page);
-  step.check(near(resumed.target, PROJECT_LIST[1].stop, 1e-9) && near(resumed.progress, PROJECT_LIST[1].stop, 1e-6), `and the scroll goes on from there, a step to Jontai Energy's area, ${PROJECT_LIST[1].stop} (got target ${resumed.target}, progress ${resumed.progress})`);
+  const nextBoard = PROJECT_LIST.find((p) => p.index === PROJECT_LIST[0].index + 1);
+  step.check(near(resumed.target, nextBoard.stop, 1e-9) && near(resumed.progress, nextBoard.stop, 1e-6), `and the scroll goes on from there, a step to the next board, ${nextBoard.id}'s, ${nextBoard.stop} (got target ${resumed.target}, progress ${resumed.progress})`);
   await page.keyboard.press('Home');
   await restAt(page);
 
@@ -4728,17 +4730,18 @@ async function keyboard(browser, step) {
     await page.waitForTimeout(150);
   }
 
-  // At Jontai Energy's area: Tab from the 3D toggle reaches its name in the area's words, then the areas' dots, then the
-  // skip button; Enter on it.
-  await poseAt(page, PROJECT_LIST[1].stop);
+  // At the Website board, Jontai Energy's: Tab from the 3D toggle reaches its name in the board's words, then the boards'
+  // dots, then the skip button; Enter on it.
+  const jontai = PROJECT_LIST.find((p) => p.id === 'jontai-energy');
+  await poseAt(page, jontai.stop);
   await restAt(page);
   const shownWords = await page
-    .waitForFunction(() => {
-      const el = document.querySelector('.area-caption[data-area="1"]');
+    .waitForFunction((index) => {
+      const el = document.querySelector(`.area-caption[data-area="${index}"]`);
       return el !== null && Number(el.style.opacity) === 1 && !el.hasAttribute('inert');
-    }, null, { timeout: 5_000 })
+    }, jontai.index, { timeout: 5_000 })
     .then(() => true, () => false);
-  step.check(shownWords, "at Jontai Energy's area its words show whole");
+  step.check(shownWords, "at Jontai Energy's board its words show whole");
   await page.getByRole('switch', { name: '3D', exact: true }).focus();
   const tabbed = [];
   for (let i = 0; i < 5; i++) {
@@ -4753,8 +4756,8 @@ async function keyboard(browser, step) {
     );
   }
   step.check(
-    JSON.stringify(tabbed) === JSON.stringify([`words:${PROJECT_LIST[1].title}`, 'dot', 'dot', 'dot', 'skip']),
-    `Tab from the 3D toggle reaches Jontai Energy's name in its area's words, then the three dots, then the skip button (${tabbed.join(', ')})`,
+    JSON.stringify(tabbed) === JSON.stringify([`words:${jontai.title}`, 'dot', 'dot', 'dot', 'skip']),
+    `Tab from the 3D toggle reaches Jontai Energy's name in its board's words, then the three dots, then the skip button (${tabbed.join(', ')})`,
   );
   await watchFade();
   await page.keyboard.press('Enter');
@@ -5372,7 +5375,7 @@ async function voidFail(browser, step) {
     step.check(nav.skip === 'none', `${at}: and no skip button (display ${nav.skip})`);
     step.check(
       JSON.stringify(nav.links.map((link) => link.href)) === JSON.stringify(HOME_LINKS) && nav.links.every((link) => link.onScreen && link.hit),
-      `${at}: with its three links on screen, each the element at its own middle (got ${JSON.stringify(nav.links)})`,
+      `${at}: with its four links on screen, each the element at its own middle (got ${JSON.stringify(nav.links)})`,
     );
     await page.waitForTimeout(500);
     const still = join(STILLS, `void-fail-${at}.png`);
@@ -6731,7 +6734,7 @@ async function stepStop(page, cdp, place) {
 
 // ---------------------------------------------------------------- the hologram world
 
-/** The board's centre on a screen of `aspect` (src/scene/bob/worldPath.ts): the CPU, which no camera crosses. */
+/** The stack's axis on a screen of `aspect` (src/scene/bob/worldPath.ts): the CPU and the spine, which no camera crosses. */
 const boardCentre = (aspect) => worldPathFor(aspect).centre;
 
 /** The least level distance (m) from the board's centre among camera positions `seen`. */
@@ -6750,7 +6753,7 @@ const watchWorld = (page) =>
     window.__worldSeen = [];
     window.__worldTimer = setInterval(() => {
       const d = window.__needleDebug();
-      window.__worldSeen.push({ p: d.progress, camera: d.camera.position, stretch: d.journey.stretch, power: d.journey.world?.power ?? null, light: d.journey.light });
+      window.__worldSeen.push({ p: d.progress, camera: d.camera.position, stretch: d.journey.stretch, power: d.journey.world?.power ?? null, explode: d.journey.world?.explode ?? null, light: d.journey.light });
     }, 16);
   });
 
@@ -6913,6 +6916,24 @@ async function leavesProject(page, step, at, place, how, act) {
   step.check(out && !after.open && after.panel === null && Math.abs(after.progress - place) < 1e-9, `${at}: ${how}: back out at ${place.toFixed(4)}, at rest and not moved on (progress ${after.progress}, target ${after.target}, open ${after.open}, panel ${after.panel?.id ?? 'none'})`);
 }
 
+/** Where an open project's middle stands on a screen of this size (src/scene/bob/spot.ts `SPOT`), NDC. */
+const spotNdc = (size) => (size.width / size.height < 0.8 ? [0, 0.42] : [0.3, 0.16]);
+
+/** Project `id`'s object's middle on the screen now (its click's sphere, as the bridge places it), NDC; null if none. */
+const objectNdc = async (page, size, id) => {
+  const object = (await debugOf(page)).journey.objects?.find((o) => o.id === id);
+  return object === undefined ? null : [(object.x / size.width) * 2 - 1, 1 - (object.y / size.height) * 2];
+};
+
+/** The camera's place now (the bridge's), world m. */
+const cameraAt = async (page) => (await debugOf(page)).camera.position;
+
+/** How far apart two places are, m. */
+const apart = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+
+/** The ids of the names shown now. */
+const namesShown = (words) => words.names.filter((n) => n.shown && n.opacity > 0).map((n) => n.id);
+
 /** A click (a tap on a touch screen) at the middle of project `id`'s object, as the bridge places it on the screen. */
 async function pressObject(page, touch, id) {
   const object = (await debugOf(page)).journey.objects?.find((o) => o.id === id);
@@ -6923,13 +6944,14 @@ async function pressObject(page, touch, id) {
 }
 
 /**
- * The world (spec 2026-10-27-bob-hologram-world-design.md, goals 1 and 2), at 1440x900 and 390x844 (touch), and at 1440
- * on /en/: from the last fact a step (the arrow; on the phone slow swipes, then the bridge to the stop) brings the light
- * down into the CPU and rests on the world's stop: on the way the board's power comes up from dark once the light is down
- * and never falls back; at rest every object framed inside the screen, each project's name shown on its line (the title
- * in capitals, in Tab's reach, inside the screen and under the header, a link to its page) and the hint below in the
- * page's words for a pointer or a touch screen; a still through the home's luma gate; each name opens its project
- * (a click, a tap) and the way out comes back to the world's stop.
+ * The world (spec 2026-10-28-bob-quantum-stack-design.md, goals 1, 2 and 6), at 1440x900 and 390x844 (touch), and at
+ * 1440 on /en/: from the last fact a step (the arrow; on the phone slow swipes, then the bridge to the stop) brings the
+ * light down into the CPU and rests on the world's stop: on the way the power comes up from dark once the light is down
+ * and never falls back, and the stack opens from closed to open and never closes again; at rest every object framed
+ * inside the screen (the whole machine); no name shows until the mouse is on a project, then its alone (the title in
+ * capitals, in Tab's reach, inside the screen and under the header, a link to its page), and none on a touch screen;
+ * the hint below in the page's words for a pointer or a touch screen; a still through the home's luma gate; each
+ * project's object opens it (a click, a tap) and the way out comes back to the world's stop.
  */
 async function worldStep(browser, step) {
   const summary = [];
@@ -6956,25 +6978,40 @@ async function worldStep(browser, step) {
     const seen = await worldSeen(page);
     const state = await debugOf(page);
     step.check(
-      near(rest.target, WORLD_STOP, 1e-9) && state.journey.stretch === 'land' && state.journey.world?.power === 1 && state.journey.world?.names === 1,
-      `${at}: ${touch ? 'slow swipes, then the bridge,' : 'a press of the arrow'} from the last fact (${lastFact.toFixed(3)}) rests on the world's stop, ${WORLD_STOP.toFixed(4)} (got ${rest.target.toFixed(4)}, ${state.journey.stretch}), the board powered (${state.journey.world?.power}) and the names in (${state.journey.world?.names})`,
+      near(rest.target, WORLD_STOP, 1e-9) && state.journey.stretch === 'land' && state.journey.world?.power === 1 && state.journey.world?.names === 1 && state.journey.world?.explode === 1,
+      `${at}: ${touch ? 'slow swipes, then the bridge,' : 'a press of the arrow'} from the last fact (${lastFact.toFixed(3)}) rests on the world's stop, ${WORLD_STOP.toFixed(4)} (got ${rest.target.toFixed(4)}, ${state.journey.stretch}), the stack open (${state.journey.world?.explode}), powered (${state.journey.world?.power}) and the names free to show (${state.journey.world?.names})`,
     );
     const powers = seen.filter((s) => s.stretch === 'land' && s.power !== null).map((s) => s.power);
     const dark = powers.findIndex((p) => p <= 0.05);
     const fell = powers.some((p, k) => k > 0 && p < powers[k - 1] - 1e-6);
-    step.check(dark >= 0 && !fell && powers.at(-1) === 1, `${at}: on the way the board is dark as the light comes down (${dark >= 0 ? `power ${powers[dark].toFixed(3)} at sample ${dark}` : 'never dark'}) and powers up to 1 without falling back (${powers.length} samples on the land)`);
+    step.check(dark >= 0 && !fell && powers.at(-1) === 1, `${at}: on the way the stack is dark as the light comes down (${dark >= 0 ? `power ${powers[dark].toFixed(3)} at sample ${dark}` : 'never dark'}) and powers up to 1 without falling back (${powers.length} samples on the land)`);
+    const opens = seen.filter((s) => s.stretch === 'land' && s.explode !== null).map((s) => s.explode);
+    const shut = opens.findIndex((e) => e <= 0.01);
+    const closing = opens.some((e, k) => k > 0 && e < opens[k - 1] - 1e-6);
+    step.check(shut >= 0 && !closing && opens.at(-1) === 1, `${at}: the stack closed as the light comes in (${shut >= 0 ? `at sample ${shut}` : 'never closed'}), then exploding open to 1 and never closing again (${opens.length} samples)`);
     const objects = state.journey.objects ?? [];
     step.check(
       objects.length === PROJECT_LIST.length && objects.every((o) => o.visible && o.x - o.r >= 0 && o.x + o.r <= size.width && o.y - o.r >= HEADER_PX && o.y + o.r <= size.height),
       `${at}: every object framed inside the screen (${objects.map((o) => `${o.id} ${Math.round(o.x)},${Math.round(o.y)} r ${Math.round(o.r)}`).join('; ')})`,
     );
     const words = await worldWordsOf(page);
-    for (const project of PROJECT_LIST) {
-      const name = words.names.find((n) => n.id === project.id);
-      step.check(
-        name !== undefined && name.shown && name.opacity === 1 && name.tab === 0 && name.text === project.title.toUpperCase() && boxInside(name.box, size) && name.href === `${english ? '/en' : ''}${project.path}`,
-        `${at}: ${project.id}'s name shows on its line, "${project.title.toUpperCase()}", in Tab's reach, inside the screen under the header, a link to ${project.path} (got ${JSON.stringify(name && [name.text, name.shown, name.opacity, name.tab, name.href, Object.values(name.box).map(Math.round)])})`,
-      );
+    step.check(namesShown(words).length === 0 && words.names.every((n) => n.tab === -1), `${at}: no name shows with no pointer on a project${touch ? ' (a touch screen, at the world)' : ''} (shown: ${namesShown(words).join(', ') || 'none'})`);
+    if (!touch) {
+      // The mouse on each project's object: its name alone, on its line, in Tab's reach, a link to its page.
+      for (const project of PROJECT_LIST) {
+        const object = state.journey.objects?.find((o) => o.id === project.id);
+        if (object === undefined) continue;
+        await page.mouse.move(object.x, object.y, { steps: 4 });
+        await page.waitForTimeout(1400);
+        const under = await worldWordsOf(page);
+        const name = under.names.find((n) => n.id === project.id);
+        step.check(
+          name !== undefined && name.shown && name.opacity > 0.95 && name.tab === 0 && name.text === project.title.toUpperCase() && boxInside(name.box, size) && name.href === `${english ? '/en' : ''}${project.path}` && namesShown(under).length === 1,
+          `${at}: the mouse on ${project.id}: its name alone shows on its line, "${project.title.toUpperCase()}", in Tab's reach, inside the screen under the header, a link to ${project.path} (got ${JSON.stringify(name && [name.text, name.shown, name.opacity, name.tab, name.href, Object.values(name.box).map(Math.round)])}; shown ${namesShown(under).join(', ')})`,
+        );
+      }
+      await page.mouse.move(4, size.height - 4, { steps: 4 });
+      await page.waitForTimeout(700);
     }
     const hint = touch ? t.hint.tap : t.hint.click;
     step.check(words.hint.opacity === 1 && words.hint.text === hint, `${at}: and the hint below says "${hint}" (got "${words.hint.text}", opacity ${words.hint.opacity})`);
@@ -6984,17 +7021,18 @@ async function worldStep(browser, step) {
       await page.screenshot({ path: file });
       shots.push({ file, kind: 'home', mask: await textMask(page) });
     }
-    // Each name opens its project; the way out comes back to the world.
+    // Each project's object opens it where the camera stands; the way out comes back to the world.
     const opening = english ? PROJECT_LIST.slice(0, 1) : PROJECT_LIST;
     for (const project of opening) {
-      const name = page.locator(`.world-name[data-project="${project.id}"]`);
-      await opensProject(page, step, at, project.id, `${touch ? 'a tap' : 'a click'} on ${project.id}'s name`, () => (touch ? name.tap() : name.click()), path);
+      await opensProject(page, step, at, project.id, `${touch ? 'a tap' : 'a click'} on ${project.id}'s object`, () => pressObject(page, touch, project.id), path);
       await leavesProject(page, step, at, WORLD_STOP, touch ? `"${new Translator(locale).t.needle.inside.back}"` : 'Escape', () => (touch ? page.locator('.inside-back').tap() : page.keyboard.press('Escape')));
+      if (!touch) await page.mouse.move(4, size.height - 4, { steps: 2 });
     }
+    await page.waitForTimeout(700);
     const again = await worldWordsOf(page);
-    step.check(again.names.every((n) => n.shown && n.opacity === 1), `${at}: back at the world the names show again (${again.names.map((n) => `${n.id} ${n.opacity}`).join(', ')})`);
+    step.check(namesShown(again).length === 0, `${at}: back at the world no name shows with no pointer on a project (shown: ${namesShown(again).join(', ') || 'none'})`);
     await takeCsp(page, step);
-    summary.push(`${at}: the land by ${touch ? 'swipes' : 'the arrow'} to the world, ${opening.length} name${opening.length > 1 ? 's' : ''} opened and left`);
+    summary.push(`${at}: the land by ${touch ? 'swipes' : 'the arrow'} to the world, the stack open, ${opening.length} project${opening.length > 1 ? 's' : ''} opened and left`);
     await context.close();
   }
   step.luma = await gateLuma(browser, step, shots);
@@ -7002,12 +7040,14 @@ async function worldStep(browser, step) {
 }
 
 /**
- * The areas (spec goal 3), at 1440x900 and 390x844 (touch): from the world a step (the arrow; on the phone the bridge)
- * rests on each area's stop in turn, the camera on the way never nearer the board's centre than 3 m (never across the
- * CPU), its object framed inside the screen, its words at the bottom left (the category, the name, the open hint for a
- * pointer or a touch screen) and only its, the dots shown with its own lit, the names gone; a still of each through the
- * home's luma gate; left alone at the last area the canvas sleeps within IDLE_SECONDS and a second; then the first dot
- * (a click, a tap) glides back to the first area round the board, never across the CPU, and its words show again.
+ * The boards (spec 2026-10-28-bob-quantum-stack-design.md, goals 3 and 6), at 1440x900 and 390x844 (touch): from the
+ * world a step (the arrow; on the phone the bridge) rests on each board's stop in turn, the camera on the way never
+ * within 2.2 m of the stack's axis (never through the spine), standing under the board above (which so covers nothing
+ * of the board in view), each of its projects framed inside the screen, its words at the bottom left (the category,
+ * its projects' names, the open hint for a pointer or a touch screen) and only its, the dots shown with its own lit; the
+ * names gone under a mouse away from them, and on a touch screen its own projects' names shown and no other; a still of
+ * each through the home's luma gate; left alone at the last board the canvas sleeps within IDLE_SECONDS and a second;
+ * then the first dot (a click, a tap) glides back to the first board round the stack, and its words show again.
  */
 async function areasStep(browser, step) {
   const summary = [];
@@ -7030,19 +7070,27 @@ async function areasStep(browser, step) {
       const nearest = nearestToCentre(seen.map((s) => s.camera), centre);
       const state = await debugOf(page);
       step.check(near(rest.target, area.stop, 1e-9) && state.journey.stretch === 'area' && state.journey.project === area.index, `${at}: ${touch ? 'put' : 'a press of the arrow'} rests on area ${area.index + 1}'s stop, ${area.stop.toFixed(4)} (got ${rest.target.toFixed(4)}, ${state.journey.stretch} ${state.journey.project})`);
-      step.check(nearest >= 3, `${at}: on the way the camera stays ${nearest.toFixed(2)} m or more from the board's centre, never across the CPU (3 m or more, ${seen.length} samples)`);
-      const object = state.journey.objects?.find((o) => o.id === area.id);
-      step.check(object !== undefined && object.visible && object.x - object.r >= 0 && object.x + object.r <= size.width && object.y - object.r >= HEADER_PX && object.y + object.r <= size.height, `${at}: ${area.id}'s object framed inside the screen (${object === undefined ? 'none' : `${Math.round(object.x)},${Math.round(object.y)} r ${Math.round(object.r)}`})`);
+      step.check(nearest > 2.2, `${at}: on the way the camera stays ${nearest.toFixed(2)} m from the stack's axis, never through the spine (more than 2.2 m, ${seen.length} samples)`);
+      const tops = state.journey.world?.tops ?? [];
+      const eye = state.camera.position[1];
+      step.check(tops.length > area.index + 1 && eye < tops[area.index] - 0.2 && eye > tops[area.index + 1], `${at}: the camera stands under the board above (eye ${eye.toFixed(2)}, that board's underside ${(tops[area.index] - 0.2).toFixed(2)}) and over the board in view (${tops[area.index + 1]?.toFixed(2)}), so the board above covers nothing of it`);
+      const own = PROJECT_LIST.filter((p) => p.index === area.index);
+      for (const project of own) {
+        const object = state.journey.objects?.find((o) => o.id === project.id);
+        step.check(object !== undefined && object.visible && object.x - object.r >= 0 && object.x + object.r <= size.width && object.y - object.r >= HEADER_PX && object.y + object.r <= size.height, `${at}: ${project.id}'s object framed inside the screen (${object === undefined ? 'none' : `${Math.round(object.x)},${Math.round(object.y)} r ${Math.round(object.r)}`})`);
+      }
       const words = await worldWordsOf(page);
-      const own = words.captions.find((c) => c.area === area.index);
-      const want = { category: categories.byId(area.category).heading('nl'), title: area.title, hint: touch ? t.open.tap : t.open.click };
+      const caption = words.captions.find((c) => c.area === area.index);
+      const want = { category: categories.byId(area.category).heading('nl'), titles: PROJECT_LIST.filter((p) => p.index === area.index).map((p) => p.title), hint: touch ? t.open.tap : t.open.click };
       step.check(
-        own !== undefined && own.opacity === 1 && !own.inert && own.category === want.category && own.titles.length === 1 && own.titles[0] === want.title && own.hint === want.hint && boxInside(own.box, size) && own.box.left < size.width / 2,
-        `${at}: its words at the bottom left say "${want.category}", "${want.title}", "${want.hint}" (got ${JSON.stringify(own && [own.category, own.titles, own.hint, own.opacity, Object.values(own.box).map(Math.round)])})`,
+        caption !== undefined && caption.opacity === 1 && !caption.inert && caption.category === want.category && JSON.stringify(caption.titles) === JSON.stringify(want.titles) && caption.hint === want.hint && boxInside(caption.box, size) && caption.box.left < size.width / 2,
+        `${at}: its words at the bottom left say "${want.category}", ${want.titles.map((n) => `"${n}"`).join(', ')}, "${want.hint}" (got ${JSON.stringify(caption && [caption.category, caption.titles, caption.hint, caption.opacity, Object.values(caption.box).map(Math.round)])})`,
       );
       step.check(words.captions.filter((c) => c.area !== area.index).every((c) => c.opacity === 0 && c.inert), `${at}: and no other area's words (${words.captions.map((c) => c.opacity).join(', ')})`);
       step.check(words.dots.opacity === 1 && !words.dots.inert && words.dots.current.every((on, k) => on === (k === area.index)), `${at}: the dots shown, area ${area.index + 1}'s lit (${JSON.stringify(words.dots.current)})`);
-      step.check(words.names.every((n) => !n.shown && n.tab === -1), `${at}: the names gone and out of Tab's reach`);
+      const ownIds = PROJECT_LIST.filter((p) => p.index === area.index).map((p) => p.id);
+      if (touch) step.check(JSON.stringify(namesShown(words).sort()) === JSON.stringify([...ownIds].sort()), `${at}: a touch screen shows this board's names, ${ownIds.join(', ')}, and no other (shown: ${namesShown(words).join(', ') || 'none'})`);
+      else step.check(namesShown(words).length === 0 && words.names.every((n) => n.tab === -1), `${at}: with the mouse away no name shows, none in Tab's reach (shown: ${namesShown(words).join(', ') || 'none'})`);
       const file = join(STILLS, `area-${area.index + 1}-${at}.png`);
       await page.screenshot({ path: file });
       shots.push({ file, kind: 'home', mask: await textMask(page) });
@@ -7062,9 +7110,9 @@ async function areasStep(browser, step) {
     const nearest = nearestToCentre(seen.map((s) => s.camera), centre);
     const words = await worldWordsOf(page);
     step.check(near(back.target, first.stop, 1e-9) && words.captions[0].opacity === 1, `${at}: ${touch ? 'a tap' : 'a click'} on the first dot goes back to area 1, ${first.stop.toFixed(4)} (got ${back.target.toFixed(4)}), its words shown again`);
-    step.check(seen.length > 10 && nearest >= 3, `${at}: by a glide (${seen.length} samples) that stays ${nearest.toFixed(2)} m or more from the board's centre, never across the CPU`);
+    step.check(seen.length > 10 && nearest > 2.2, `${at}: by a glide (${seen.length} samples) round the stack, ${nearest.toFixed(2)} m from its axis at the nearest, never through the spine`);
     await takeCsp(page, step);
-    summary.push(`${at}: ${areaStops.length} areas by ${touch ? 'the bridge' : 'the arrow'}, back by a dot round the board (${nearest.toFixed(2)} m from the centre at the nearest)`);
+    summary.push(`${at}: ${areaStops.length} boards by ${touch ? 'the bridge' : 'the arrow'}, back by a dot round the stack (${nearest.toFixed(2)} m from its axis at the nearest)`);
     await context.close();
   }
   step.luma = await gateLuma(browser, step, shots);
@@ -7072,14 +7120,16 @@ async function areasStep(browser, step) {
 }
 
 /**
- * A project opened (spec goals 5 and 6), at 1440x900, 390x844 (touch) and 390x844 on /en/, at the first area: a click
- * (a tap) on its object opens it (`opensProject`: the panel's words, the touch points, Terug, the focus); a still of it
- * through the inside's luma gate (0.15); the next arrow pressed twice quickly opens the third project, "3 / 3", with no
- * history entry more; every way out comes back to where it was opened from at rest: Terug, Escape (a laptop), three
- * wheel notches (a swipe up the glass on the phone) and the browser's Back; "Bekijk project" opens the project's page
- * (its heading the name), Back returns to the open project and Back again out to its area; at 1440 a resize to a phone's
- * 390x844 while open keeps it open with its panel below it, inside the screen; on /en/ at 390x844 the panel's words are
- * English and its bottom above Terug's top. With reduced motion it opens and closes by the step fade.
+ * A project opened in place (spec 2026-10-28-bob-quantum-stack-design.md, goal 5), at 1440x900, 390x844 (touch) and
+ * 390x844 on /en/, at the first board: a click (a tap) on its object opens it (`opensProject`: the panel's words, the
+ * touch points, Terug, the focus), the camera unchanged within 0.05 m and the object's middle in the spot within 0.03
+ * NDC; a still of it through the inside's luma gate (0.15); the next arrow pressed twice quickly opens the third project,
+ * from another board, the camera still unchanged, with no history entry more; every way out comes back to where it was
+ * opened from at rest: Terug, Escape (a laptop), three wheel notches (a swipe up the glass on the phone) and the
+ * browser's Back; "Bekijk project" opens the project's page (its heading the name), Back returns to the open project and
+ * Back again out to its board; at 1440 a resize to a phone's 390x844 while open keeps it open, the object in the phone's
+ * spot and its panel below it, inside the screen; on /en/ at 390x844 the panel's words are English and its bottom above
+ * Terug's top. With reduced motion it opens and closes by the step fade.
  */
 async function openStep(browser, step) {
   const summary = [];
@@ -7098,7 +7148,16 @@ async function openStep(browser, step) {
     await page.waitForTimeout(600);
     const by = touch ? 'a tap on its object' : 'a click on its object';
     const openFirst = () => opensProject(page, step, at, first.id, by, () => pressObject(page, touch, first.id), path);
+    const still = await cameraAt(page);
     const took = await openFirst();
+    {
+      await page.waitForTimeout(300);
+      const moved = apart(still, await cameraAt(page));
+      const middle = await objectNdc(page, size, first.id);
+      const spot = spotNdc(size);
+      step.check(moved <= 0.05, `${at}: the camera stays where it stood as ${first.id} opens (moved ${moved.toFixed(3)} m)`);
+      step.check(middle !== null && Math.abs(middle[0] - spot[0]) <= 0.03 && Math.abs(middle[1] - spot[1]) <= 0.03, `${at}: ${first.id}'s middle stands in the spot, ${spot.join(', ')} (got ${middle?.map((v) => v.toFixed(3)).join(', ')})`);
+    }
     if (english) {
       // Every project's English words, Jontai Energy's the longest, above Terug and the arrows: on through them by the arrow.
       for (const [k, project] of PROJECT_LIST.entries()) {
@@ -7138,10 +7197,16 @@ async function openStep(browser, step) {
     }
     const third = PROJECT_LIST[2];
     const turned = await openWithin(page, third.id);
+    await page.waitForTimeout(FLIGHT_MS);
     const s = await openOf(page);
+    const after = await cameraAt(page);
+    const middle = await objectNdc(page, size, third.id);
+    step.check(apart(still, after) <= 0.05, `${at}: the arrows pressed twice never move the camera (moved ${apart(still, after).toFixed(3)} m)`);
+    step.check(middle !== null && Math.abs(middle[0] - spotNdc(size)[0]) <= 0.03 && Math.abs(middle[1] - spotNdc(size)[1]) <= 0.03, `${at}: ${third.id}, from another board, stands in the same spot (got ${middle?.map((v) => v.toFixed(3)).join(', ')})`);
+    const lifted = Object.entries((await debugOf(page)).journey.world?.lift ?? {}).filter(([, v]) => v > 0.6);
+    step.check(lifted.length === 1 && lifted[0][0] === third.id, `${at}: one project in the spot, never two (${JSON.stringify(lifted)})`);
     step.check(turned !== null && s.panel?.id === third.id && s.count === `3 / ${PROJECT_LIST.length}` && s.state === third.id && s.entries === before.entries, `${at}: the next arrow twice quickly opens ${third.id}, "${s.count}", its entry replacing the open one's (history ${before.entries} then ${s.entries})`);
     step.check(s.live === 'polite' && s.said === `${third.title}, 3 / ${PROJECT_LIST.length}`, `${at}: and a screen reader is told, politely: "${s.said}" (aria-live ${s.live})`);
-    await page.waitForTimeout(FLIGHT_MS);
     // Back out from there comes out at its area (it was opened from an area).
     await leavesProject(page, step, at, third.stop, `"${words.back}" after the turns`, () => (touch ? page.locator('.inside-back').tap() : page.locator('.inside-back').click()));
     await poseAt(page, first.stop);
@@ -7193,6 +7258,8 @@ async function openStep(browser, step) {
       await page.setViewportSize({ width: 390, height: 844 });
       await page.waitForTimeout(800);
       const small = await openOf(page);
+      const phoneMiddle = await objectNdc(page, { width: 390, height: 844 }, first.id);
+      step.check(phoneMiddle !== null && Math.abs(phoneMiddle[0]) <= 0.05 && Math.abs(phoneMiddle[1] - 0.42) <= 0.05, `${at}: resized to 390x844 while open, the object moves to the phone's spot, 0, 0.42 (got ${phoneMiddle?.map((v) => v.toFixed(3)).join(', ')})`);
       step.check(
         small.open && small.panel?.id === first.id && small.panel.box.left >= 0 && small.panel.box.right <= 390 && small.panel.box.bottom <= 844 && small.panel.box.top > 844 / 3 && small.back !== null && small.panel.box.bottom <= small.back.box.top,
         `${at}: resized to 390x844 while open, it stays open with its panel below the object, inside the screen and above "${words.back}" (${small.panel === null ? 'none' : Object.values(small.panel.box).map(Math.round).join(', ')})`,

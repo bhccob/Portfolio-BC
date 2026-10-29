@@ -144,3 +144,25 @@ export function pointerMode(pose: Pick<JourneyPose, 'at' | 'path'>): 'any' | nul
   if (at.stretch === 'land') return at.local >= LAND_STOP - 1e-6 ? 'any' : null;
   return at.stretch === 'area' || at.stretch === 'look' || (at.stretch === 'sheet' && at.local === 0) ? 'any' : null;
 }
+
+/**
+ * Which of `spheres` the pointer is on, by its ray from `origin` along `dir` (a unit long): of those the ray passes
+ * through in front of it, the one whose middle it passes nearest, as a share of that sphere's radius; or none. So a
+ * small project seen behind a big one's edge is the one the pointer is on when it is on the small one's middle.
+ */
+export function nearestSphere(origin: Vec3, dir: Vec3, spheres: readonly { centre: Vec3; radius: number }[]): number | null {
+  let best: number | null = null;
+  let bestShare = Infinity;
+  spheres.forEach(({ centre, radius }, k) => {
+    const v = [centre[0] - origin[0], centre[1] - origin[1], centre[2] - origin[2]] as const;
+    const along = v[0] * dir[0] + v[1] * dir[1] + v[2] * dir[2];
+    if (along <= 0 || !(radius > 0)) return;
+    const off = Math.hypot(v[0] - dir[0] * along, v[1] - dir[1] * along, v[2] - dir[2] * along);
+    const share = off / radius;
+    if (share <= 1 && share < bestShare) {
+      bestShare = share;
+      best = k;
+    }
+  });
+  return best;
+}
