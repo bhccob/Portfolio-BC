@@ -12,7 +12,7 @@ import { buildEngraved, type EngravedModel } from '~/engine/bob/build/engraved';
 import type { LightModel } from '~/engine/bob/build/light';
 import { buildNebula, type NebulaModel } from '~/engine/bob/build/nebula';
 import { buildRing } from '~/engine/bob/build/ring';
-import { buildStars, type StarsModel, starsRound } from '~/engine/bob/build/stars';
+import { buildStars, type StarsModel, starsFall, starsRound } from '~/engine/bob/build/stars';
 import { buildVoid, VOID_LOOK, type VoidModel } from '~/engine/bob/build/void';
 import { buildVolume, type VolumeModel } from '~/engine/bob/build/volume';
 import { buildWorld, type WorldModel } from '~/engine/bob/build/world';
@@ -36,7 +36,7 @@ import type { Handover } from './Home';
 import { type LightPose, WORLD_PROJECTS } from './journey';
 import { LOOK } from './look';
 import { setGasPass } from '../gasPass';
-import { nebulaLevels } from './nebulaWay';
+import { fallStarsLevel, nebulaLevels } from './nebulaWay';
 import { makeQaScene, type QaScene } from './qaScene';
 import { insidePoints, OPEN_LOOK, openLevels, openOf, openWorld, worldClockRuns } from './inside';
 import { type SpotPose, spotFor } from './spot';
@@ -75,6 +75,8 @@ function texturesUnder(root: THREE.Object3D): Set<THREE.Texture> {
 /** The void once built: its model, the tier it stands at, and whether it is shown now (null before the first frame). */
 interface SpaceParts {
   model: VoidModel;
+  /** The realistic stars along the fall (spec 2026-10-29-bob-stack-2-design.md, goal 4: the richer space). */
+  stars: StarsModel;
   standing: QualityTier;
   shown: boolean | null;
 }
@@ -181,7 +183,15 @@ function showSpace(space: SpaceParts, shown: boolean): void {
   if (space.shown === shown) return;
   space.shown = shown;
   space.model.group.visible = shown;
+  if (!shown) space.stars.group.visible = false;
 }
+
+/**
+ * The fall's stars stand round the light's line (x = z = 0: the light falls straight down through the void) from this
+ * high above the glass down to this far under the stack's top, m, 42 m out and more, so none crosses the light.
+ */
+const FALL_TOP = 30;
+const FALL_BELOW = 20;
 
 /** Shows or hides the world. */
 function showWorld(world: WorldParts, shown: boolean): void {
@@ -419,9 +429,11 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       buildVoid: async () => {
         const built = latest.current.tier;
         const model = buildVoid(built);
+        const stars = buildStars(starsFall(FALL_TOP, STACK_CENTRE[1] - FALL_BELOW, [0, 0]), built);
         const holder = new THREE.Group();
-        holder.add(model.group);
+        holder.add(model.group, stars.group);
         model.group.visible = true;
+        stars.group.visible = true;
         model.setBand({ shown: true, y: 0.4, sigma: 0.075, strength: 1 }, camera);
         model.setRingMist(0.5);
         model.setDust(1);
@@ -430,18 +442,23 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
           await warm(gl, holder, camera, 'the void', scene);
         } catch (error) {
           model.dispose();
+          stars.dispose();
           throw error;
         }
-        holder.remove(model.group);
+        holder.remove(model.group, stars.group);
+        stars.group.visible = false;
         model.setBand({ shown: false, y: 0.4, sigma: 0.075, strength: 0 }, camera);
         model.setRingMist(0);
         model.setDust(0);
-        return { model, standing: built, shown: null };
+        return { model, stars, standing: built, shown: null };
       },
-      freeVoid: (space) => space.model.dispose(),
+      freeVoid: (space) => {
+        space.model.dispose();
+        space.stars.dispose();
+      },
       onVoid: (space) => {
         showSpace(space, false);
-        scene.add(space.model.group);
+        scene.add(space.model.group, space.stars.group);
         run.space = space;
         const now = lowerTier(space.standing, latest.current.tier);
         if (now !== space.standing) {
@@ -536,8 +553,9 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       writeSkip(document.documentElement, false, run.skip);
       compass.setNeedleWorld(null);
       if (space) {
-        scene.remove(space.model.group);
+        scene.remove(space.model.group, space.stars.group);
         space.model.dispose();
+        space.stars.dispose();
       }
       if (world) {
         scene.remove(world.model.group, world.qa.ring.group, world.qa.decor.group, world.gyro.group, world.stars.group);
@@ -842,6 +860,8 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
     space.model.setStream(v?.stream ?? 0);
     if (!reducedMotion) run.time += dt;
     space.model.setTime(run.time);
+    // The fall's stars: in with the clouds, out over the land as the stack's own come in; twinkling on the void's drift.
+    space.stars.pose({ level: fallStarsLevel(pose.at, path), clock: run.time });
   });
 
   /**

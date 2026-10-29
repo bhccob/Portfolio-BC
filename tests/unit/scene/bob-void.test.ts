@@ -753,6 +753,13 @@ describe('the wiring: one journey pose a frame', () => {
     expect(source).toMatch(/ringDragOn\(window, \{ drag: dragRing, release: releaseRing \}/);
   });
 
+  it("builds the fall's stars with the void, round the light's line, and poses them with the fall", () => {
+    const source = readFileSync(fileURLToPath(new URL('../../../src/scene/bob/Void.tsx', import.meta.url)), 'utf8');
+    expect(source).toContain('buildStars(starsFall(FALL_TOP, STACK_CENTRE[1] - FALL_BELOW, [0, 0]), built)');
+    expect(source).toContain('space.stars.pose({ level: fallStarsLevel(pose.at, path), clock: run.time })');
+    expect(source).toContain('space.stars.dispose();');
+  });
+
   it('poses the gyroscope and the stars with the world', () => {
     const source = readFileSync(fileURLToPath(new URL('../../../src/scene/bob/Void.tsx', import.meta.url)), 'utf8');
     expect(source).toContain('buildGyro([STACK_CENTRE[0], MACHINE_MIDDLE, STACK_CENTRE[2]])');
