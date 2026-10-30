@@ -16,9 +16,10 @@ const C = boardCentre();
 const BOARDS = stackPlaces(areasOnPath());
 const TOPS = boardTops(BOARDS, 1);
 
-/** The boxes the mock-up framed in: the whole machine's on a laptop and a phone, a board's on a laptop. */
+/** The boxes the mock-up framed in: the whole machine's on a laptop and a phone. */
 const MACHINE_BOX: Record<'desk' | 'phone', Box> = { desk: [-0.66, 0.66, -0.86, 0.82], phone: [-0.9, 0.9, -0.62, 0.7] };
-const BOARD_BOX: Box = [-0.64, 0.64, -0.56, 0.72];
+/** A board's box on a laptop since round 11: its whole rim in the middle 60% of the screen each way (Bob picked "A"). */
+const FLOOR_BOX: Box = [-0.6, 0.6, -0.6, 0.6];
 /** The site turns the camera a little where the mock-up shifted its picture, so a box's edge may give this much. */
 const GIVE = 0.03;
 const inBox = (p: Vec3, shot: CameraShot, aspect: number, box: Box): boolean => {
@@ -293,23 +294,33 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
     }
   });
 
-  it('frames each board from below the board above it', () => {
+  it('steps a little nearer at each board, from the front as at the whole machine, not turned to a project (Bob, 2026-10-30: "just make it slightly zoom in each floor but not too close")', () => {
     areasOnPath().forEach((area, i) => {
-      // Under the board above on every screen's shape, the squarer ones too, whose fit stands the camera further out.
       for (const aspect of [DESK, PHONE, 16 / 9, 4 / 3, 1, 3 / 4]) {
         const f = home(aspect, areaStop(HOME_CHAPTERS, area.category));
+        const where = `${area.category} at ${aspect.toFixed(2)}`;
         expect(f.part).toBe('area');
         expect(f.index).toBe(i);
-        const y = f.shot.position[1];
-        expect(y, `${area.category} at ${aspect.toFixed(2)}`).toBeLessThan(TOPS[i]! - STACK.thick);
-        expect(y, `${area.category} at ${aspect.toFixed(2)}`).toBeGreaterThan(TOPS[i + 1]!);
+        // From the front, the way the whole machine is seen, whichever way the board's projects face.
+        expect(Math.abs(f.shot.position[0] - C[0]), where).toBeLessThan(1e-9);
+        expect(f.shot.position[2], where).toBeGreaterThan(C[2]);
+        // Looking at the board's middle, a little over its top.
+        expect(f.shot.target[0], where).toBeCloseTo(C[0], 9);
+        expect(f.shot.target[2], where).toBeCloseTo(C[2], 9);
+        expect(f.shot.target[1], where).toBeGreaterThan(TOPS[i + 1]!);
+        expect(f.shot.target[1], where).toBeLessThan(TOPS[i + 1]! + 1);
       }
-      const desk = home(DESK, areaStop(HOME_CHAPTERS, area.category));
-      for (const p of rimOf(BOARDS[i + 1]!, TOPS[i + 1]!)) expect(inBox(p, fitFor(DESK).areaShot(i), DESK, BOARD_BOX), `${area.category} ${p.map((v) => v.toFixed(1))}`).toBe(true);
-      // The camera looks at the board from the side its projects face.
-      const facing = BOARDS[i + 1]!.facing;
-      const angle = Math.atan2(desk.shot.position[0] - C[0], desk.shot.position[2] - C[2]);
-      expect(Math.cos(angle - facing)).toBeGreaterThan(0.99);
+      // Nearer than at the whole machine's stop, but the whole board on a laptop's screen with room round it: its rim
+      // inside the middle 70% of the width as it shows, the box as its fit has it.
+      const rim = rimOf(BOARDS[i + 1]!, TOPS[i + 1]!);
+      const width = (shot: CameraShot): number => {
+        const xs = rim.map((p) => project([...p], shot, DESK).x);
+        return Math.max(...xs) - Math.min(...xs);
+      };
+      const stop = width(home(DESK, areaStop(HOME_CHAPTERS, area.category)).shot);
+      expect(stop / width(home(DESK, worldStop(HOME_CHAPTERS)).shot), area.category).toBeGreaterThan(1.15);
+      expect(stop, area.category).toBeLessThan(1.4);
+      for (const p of rim) expect(inBox(p, fitFor(DESK).areaShot(i), DESK, FLOOR_BOX), `${area.category} ${p.map((v) => v.toFixed(1))}`).toBe(true);
     });
   });
 
@@ -497,7 +508,7 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
     const tops = boardTops(boards, 1);
     const three = boards[1]!;
     expect(three.sockets).toHaveLength(3);
-    for (const p of rimOf(three, tops[1]!)) expect(inBox(p, fitFor(DESK, five).areaShot(0), DESK, BOARD_BOX)).toBe(true);
+    for (const p of rimOf(three, tops[1]!)) expect(inBox(p, fitFor(DESK, five).areaShot(0), DESK, FLOOR_BOX)).toBe(true);
     // On a phone the board's sides run off the screen, but its three projects stand on it.
     const phone = at(five, PHONE, areaStop(five, 'app'));
     for (const s of three.sockets) {

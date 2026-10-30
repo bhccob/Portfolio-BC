@@ -121,16 +121,14 @@ const BOARD_LIGHT = { view: 1, power: 0.7, aside: 0.45 } as const;
 
 /**
  * The mock-up's framings, by the screen's shape: each view's field (deg); the whole machine's elevation (deg) and box;
- * a board's elevation, how far above its top and toward its projects the camera looks, and its box; the look back's
- * elevation, distance and azimuth (rad). A box is [left, right, bottom, top] of the screen, NDC.
+ * a board's elevation, how far above its top the camera looks, and its box (round 11, Bob picked "A · a little nearer":
+ * from the front as at the whole machine, the board in the middle, its rim in the middle 60% of a laptop's screen); the
+ * look back's elevation, distance and azimuth (rad). A box is [left, right, bottom, top] of the screen, NDC.
  */
 const FRAME = {
-  desk: { fov: 38, world: { elevation: 30, box: [-0.66, 0.66, -0.86, 0.82] as Box }, board: { elevation: 17, lift: 0.2, box: [-0.64, 0.64, -0.56, 0.72] as Box } },
-  phone: { fov: 58, world: { elevation: 26, box: [-0.9, 0.9, -0.62, 0.7] as Box }, board: { elevation: 14, lift: 0.6, box: [-1.25, 1.25, -0.14, 0.66] as Box } }
+  desk: { fov: 38, world: { elevation: 30, box: [-0.66, 0.66, -0.86, 0.82] as Box }, board: { elevation: 30, lift: 0.2, box: [-0.6, 0.6, -0.6, 0.6] as Box } },
+  phone: { fov: 58, world: { elevation: 26, box: [-0.9, 0.9, -0.62, 0.7] as Box }, board: { elevation: 26, lift: 0.6, box: [-1, 1, -0.6, 0.6] as Box } }
 } as const;
-const TOWARD = 0.6;
-/** How far below the underside of the board above a board's camera stands at the most, m. */
-const UNDER = 0.1;
 const LOOK = { elevation: 16, azimuth: 0.5 } as const;
 /** How far the spine's tip hangs below the last board, and how far the machine's middle stands below its top, m. */
 const TIP = 3.8;
@@ -331,29 +329,10 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS, { zoo
   // The mock-up's view offset is NDC; `aside` takes shares of the screen, half of it.
   const ringView = phone ? { elevation: 20, distance: 31, shift: [0, 0.17] as const } : { elevation: 15, distance: 23, shift: [-0.13, 0.01] as const };
   const ringShot = aside(add(ringAim, mul(outward(RING.azimuth, ringView.elevation * DEG), ringView.distance / zoom)), ringAim, F.fov, ringView.shift, aspect);
-  // A board from the side its projects face, from just under the board above it: at the mock-up's elevation, unless the
-  // fit would stand the camera higher than `UNDER` below that board's underside (a squarer screen stands it further
-  // out); then at the highest elevation that keeps it there, so the board above never covers the one in view.
-  const boardShots = boards.map((b, i): CameraShot => {
-    const target = add(C, [Math.sin(b.facing) * TOWARD, b.top - C[1] + F.board.lift, Math.cos(b.facing) * TOWARD]);
-    const rim = rimOf(b, C);
-    const [left, right, bottom, top] = F.board.box;
-    const half: Box = [-(right - left) / 2, (right - left) / 2, -(top - bottom) / 2, (top - bottom) / 2];
-    const ceiling = places[i]!.top - STACK.thick - UNDER;
-    const height = (elevation: number): number => target[1] + Math.sin(elevation) * fitDistance(rim, target, b.facing, elevation, F.fov, aspect, half);
-    let elevation = F.board.elevation * DEG;
-    if (height(elevation) > ceiling) {
-      let lo = 0;
-      let hi = elevation;
-      for (let n = 0; n < 24; n++) {
-        const mid = (lo + hi) / 2;
-        if (height(mid) > ceiling) hi = mid;
-        else lo = mid;
-      }
-      elevation = lo;
-    }
-    return framed(rim, target, b.facing, elevation, F.board.box);
-  });
+  // A board a little nearer than the whole machine, from the same side and height of view (Bob, 2026-10-30: "the camera
+  // still go into specific project when scroll and i dont want that just make it slightly zoom in each foor but not too
+  // close"): never turned to its projects, the board's middle in the middle of the screen.
+  const boardShots = boards.map((b): CameraShot => framed(rimOf(b, C), [C[0], b.top + F.board.lift, C[2]], 0, F.board.elevation * DEG, F.board.box));
   const stopShot = (i: number): CameraShot => (i < 0 ? worldShot : boardShots[i]!);
 
   // The light: from the hand-over straight down onto the lid, carrying the fall's speed in and easing into the hit (Bob:
