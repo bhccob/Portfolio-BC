@@ -20,9 +20,9 @@ import { useScene } from '../../../src/state/store';
 
 /** The path's start (way frame 256), and each project's area stop: the camera at rest on its area. */
 const L = pathStart(HOME_CHAPTERS);
-const F = L + 3.41;
-const J = L + 4.81;
-const C = L + 6.21;
+const F = L + 4.44;
+const J = L + 5.84;
+const C = L + 7.24;
 
 describe('phaseForPath', () => {
   it('has no phase for the old country addresses: they are no page now', () => {
@@ -154,11 +154,11 @@ describe('syncRoute', () => {
 
   it('puts the scene back on the chapter the scroll is in when a page is left for a page without a scene', () => {
     syncRoute({ pathname: '/projects/steady/', key: 'a' });
-    frame.progress = L + 4.63; // Jontai Energy's arrival
+    frame.progress = L + 5.66; // Jontai Energy's arrival
     frame.chapterIndex = 5;
     syncRoute({ pathname: '/en/lite/', key: 'b' });
     expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'website' });
-    expect(frame.progress).toBe(L + 4.63);
+    expect(frame.progress).toBe(L + 5.66);
   });
 
   it('puts the scene in the light dive when the scroll is part way through it (progress 2.5) and a page is left for Lite', () => {
@@ -211,10 +211,10 @@ describe('placeForProject', () => {
 
   it('comes back to the place a bead was opened from, else to its arrival', () => {
     expect(placeForProject('jontai-energy')).toBeCloseTo(J, 9);
-    noteOpenedFrom('jontai-energy', L + 4.93);
-    expect(placeForProject('jontai-energy')).toBeCloseTo(L + 4.93, 9);
+    noteOpenedFrom('jontai-energy', L + 5.96);
+    expect(placeForProject('jontai-energy')).toBeCloseTo(L + 5.96, 9);
     expect(placeForProject('steady')).toBeCloseTo(F, 9);
-    noteOpenedFrom('steady', L + 8.23);
+    noteOpenedFrom('steady', L + 9.26);
     expect(placeForProject('jontai-energy')).toBeCloseTo(J, 9);
   });
 
@@ -222,10 +222,10 @@ describe('placeForProject', () => {
     useScene.setState(useScene.getInitialState(), true);
     syncRoute({ pathname: '/', key: 'default' }, NavigationType.Pop);
     useScene.getState().dispatch({ type: 'LOADED' });
-    noteOpenedFrom('jontai-energy', L + 4.63); // at Jontai Energy's arrival
+    noteOpenedFrom('jontai-energy', L + 5.66); // at Jontai Energy's arrival
     syncRoute({ pathname: '/projects/jontai-energy/', key: 'k1' }, NavigationType.Push);
     syncRoute({ pathname: '/', key: 'default' }, NavigationType.Pop);
-    expect([frame.target, frame.progress]).toEqual([L + 4.63, L + 4.63]);
+    expect([frame.target, frame.progress]).toEqual([L + 5.66, L + 5.66]);
   });
 });
 

@@ -7,10 +7,11 @@
  *
  * After the light dive hands the light over at way frame `HAND_F`:
  * - LAND: the light falls on, straight down into the CPU's lid on the power board by `LAND_HIT` (carrying the fall's
- *   speed in, quickening), a flash there; the closed stack explodes open, each board sliding down to its place; the
- *   power runs down the spine over `POWER`, each board a little after the one above it; the light stays on the lid, its
- *   trail standing above it as a still column; the camera comes down out of the fall to look at the light coming in,
- *   then settles on the whole machine by `LAND_STOP`;
+ *   speed in, quickening), a flash there; the tower dark until then, the power runs down it slowly over `POWER`, board
+ *   by board from the top, each as the one above is half lit (Bob, 2026-10-30: "it slowly powers (light on) the
+ *   tower"); the closed stack explodes open over the power's middle, each board sliding down to its place; the light
+ *   stays on the lid, its trail standing above it as a still column; the camera comes down out of the fall to look at
+ *   the light coming in, then pulls slowly back over the power-on to the whole machine by `LAND_STOP`;
  * - AREA, one per board of the stack: the camera goes round the stack's axis (./around.ts) and down to the board, seen
  *   from just under the board above it, by `AREA_STOP`; the board in view lit, the others stepped back, its caption in;
  * - LOOK: round and back and up, the whole machine framed in the nebula, the Q&A's gold ring coming in round it;
@@ -62,18 +63,24 @@ const hermite = (p0: number, m0: number, p1: number, m1: number, t: number): num
 export const LAND_HIT = LAND_DROP / WORLD_LAYOUT.land;
 /** The share of the land `units` after the hit: the moments after it stand as far after it as they always did. */
 const afterHit = (units: number): number => LAND_HIT + units / WORLD_LAYOUT.land;
-/** The power runs down the stack over this stretch of the land, board by board. */
-export const POWER = [afterHit(0), afterHit(0.72)] as const;
-/** The stack opens over this stretch of the land, after the hit and before the world's stop. */
-export const EXPLODE = [afterHit(0.09), afterHit(0.63)] as const;
-/** How much later than the board above it each board's power starts, against the power's whole stretch (the mock-up's). */
-const POWER_LAG = 0.32;
+/**
+ * The power runs down the stack over this stretch of the land, board by board: slowly, 1.6 units of scroll where it had
+ * 0.72, starting a breath after the hit (Bob, 2026-10-30; the mock-up he chose, .superpowers/power-on-review).
+ */
+export const POWER = [afterHit(0.05), afterHit(1.65)] as const;
+/** The stack opens over this stretch of the land, after the power board has come on and before the world's stop. */
+export const EXPLODE = [afterHit(0.45), afterHit(1.5)] as const;
+/**
+ * How much later than the board above it each board's power starts, against the power's whole stretch: each starts as
+ * the one above it is half lit, so the light is seen going down the tower board by board.
+ */
+const POWER_LAG = 0.5;
 /** The flash on the lid is gone by here. */
-export const FLASH_GONE = afterHit(0.27);
+export const FLASH_GONE = afterHit(0.4);
 /** Each project comes in over the power's last third. */
 const PROJECTS_IN = POWER[0] + ((POWER[1] - POWER[0]) * 2) / 3;
-/** The names may show from here to the world's stop. */
-export const NAMES_IN = afterHit(0.72);
+/** The names may show from here to the world's stop: once the last board is lit. */
+export const NAMES_IN = afterHit(1.65);
 /** A board's caption comes in from here to its stop; the last stop's words go over a unit's first `OUT`. */
 const CAPTION_IN = 0.55;
 const OUT = 0.2;

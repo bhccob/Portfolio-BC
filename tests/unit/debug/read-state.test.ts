@@ -200,7 +200,7 @@ describe('setStoryProgress', () => {
     setStoryProgress(onLand);
     expect(frame).toMatchObject({ progress: onLand, target: onLand, velocity: 0, chapterIndex: 2 });
     expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: null });
-    const inArea = pathStart(HOME_CHAPTERS) + 2.5; // in the first area
+    const inArea = pathStart(HOME_CHAPTERS) + 3.53; // in the first area
     setStoryProgress(inArea);
     expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: 'app' });
   });

@@ -58,7 +58,7 @@ const CELL_GIVE = 0.05;
 
 describe("the stack's boards in code: mask, copper, gold, print, parts and their buses", () => {
   it('keeps the look of the mock-up', () => {
-    expect(PLATE_LOOK).toEqual({ size: { high: 2048, medium: 1024, low: 1024 }, parts: { high: 1, medium: 0.6, low: 0.35 }, thick: 0.2 });
+    expect(PLATE_LOOK).toEqual({ size: { high: 2048, medium: 1024, low: 1024 }, parts: { high: 1, medium: 0.6, low: 0.35 }, thick: 0.2, dark: 0.22 });
     expect(PLATE_LOOK.thick).toBe(STACK.thick);
   });
 
@@ -159,6 +159,33 @@ describe("the stack's boards in code: mask, copper, gold, print, parts and their
     expect(map('high').width).toBe(2048);
     const low = buildPlate(APP, 'low', null, canvas);
     expect(((((low.group.getObjectByName('plate:light') as THREE.Mesh).material as THREE.ShaderMaterial).uniforms.uMap!.value as THREE.Texture).image as HTMLCanvasElement).width).toBe(1024);
+  });
+
+  // Bob (2026-10-30): "when it reach the cpu chip it slowly powers (light on) the tower". A board stands dark until its
+  // power comes, its body at `PLATE_LOOK.dark` of its light, and lights with it; its level still dims it as before.
+  it('stands dark until its power comes, and lights with it', () => {
+    const room = new THREE.Texture();
+    const plate = buildPlate(APP, 'high', room, canvas);
+    const top = (plate.group.getObjectByName('plate:top') as THREE.Mesh).material as THREE.MeshPhysicalMaterial;
+    const shade = (power: number, level: number): [number, number] => {
+      plate.set(0, power, level);
+      return [top.color.r, top.envMapIntensity];
+    };
+    const [lit, litReflects] = shade(1, 1);
+    expect(lit).toBeGreaterThan(0);
+    const [off, offReflects] = shade(0, 1);
+    expect(off / lit).toBeCloseTo(0.22, 6);
+    expect(offReflects / litReflects).toBeCloseTo(0.22, 6);
+    expect(shade(0.5, 1)[0] / lit).toBeCloseTo(0.22 + 0.78 * 0.5, 6);
+    expect(shade(1, 0)[0] / lit).toBeCloseTo(0.06, 6);
+  });
+
+  // The power's front a bright ring as it reaches out, and the copper behind it surging and settling, so the light can be
+  // seen running out over the board from the CPU.
+  it('runs a bright front out from the middle with a surge behind it', () => {
+    const source = readFileSync(fileURLToPath(new URL('../../../src/engine/bob/build/plate.ts', import.meta.url)), 'utf8');
+    expect(source).toMatch(/float surge = exp\(-max\(reach - r, 0\.0\) \* 0\.7\) \* \(1\.0 - step\(0\.999, uPower\)\);/);
+    expect(source).toMatch(/c = c \* on \* \(1\.0 \+ 1\.6 \* surge\) \+ uGold \* \(t\.r \+ t\.g \* 0\.5 \+ t\.b \* 0\.5\) \* front \* 3\.0 \+ uGold \* front \* 0\.1;/);
   });
 
   it("holds every shader pow's base at zero or more", () => {

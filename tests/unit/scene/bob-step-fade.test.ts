@@ -24,18 +24,18 @@ describe('stepStopFor: reduced motion stands on keyStops with no frame between',
   it('steps reduced motion through the world, each area, the look back and each mark on the ring', () => {
     // The world's stop, each area's, then the look back's own stop, each question and the end's mark.
     expect(KEY.filter((stop) => stop > L)).toEqual([
-      expect.closeTo(L + 2.16, 9),
-      expect.closeTo(L + 3.41, 9),
-      expect.closeTo(L + 4.81, 9),
-      expect.closeTo(L + 6.21, 9),
-      expect.closeTo(L + 8.23, 9),
-      ...[0, 1, 2, 3, 4, 5, 6].map((k) => expect.closeTo(L + 9.23 + k, 9)),
+      expect.closeTo(L + 3.16, 9),
+      expect.closeTo(L + 4.44, 9),
+      expect.closeTo(L + 5.84, 9),
+      expect.closeTo(L + 7.24, 9),
+      expect.closeTo(L + 9.26, 9),
+      ...[0, 1, 2, 3, 4, 5, 6].map((k) => expect.closeTo(L + 10.26 + k, 9)),
     ]);
-    expect(stepStopFor(L + 2.63, 'ready')).toBeCloseTo(L + 2.16, 9);
-    expect(stepStopFor(L + 7.13, 'ready')).toBeCloseTo(L + 6.21, 9);
-    expect(stepStopFor(L + 8.33, 'ready')).toBeCloseTo(L + 8.23, 9);
+    expect(stepStopFor(L + 3.66, 'ready')).toBeCloseTo(L + 3.16, 9);
+    expect(stepStopFor(L + 8.16, 'ready')).toBeCloseTo(L + 7.24, 9);
+    expect(stepStopFor(L + 9.36, 'ready')).toBeCloseTo(L + 9.26, 9);
     // The land is never posed between: a target on the way down stands on the world's stop.
-    expect(stepStopFor(L + 1.63, 'ready')).toBeCloseTo(L + 2.16, 9);
+    expect(stepStopFor(L + 1.63, 'ready')).toBeCloseTo(L + 3.16, 9);
   });
 
   it("poses each area with its words whole, from the pose alone", () => {
@@ -56,7 +56,7 @@ describe('stepStopFor: reduced motion stands on keyStops with no frame between',
   it('holds a failed void at the hand-over, with no projects after it', () => {
     expect(LANDING_HOLD).toBe(L);
     expect(heldAtLanding(L, 'failed')).toBe(true);
-    expect(stepStopFor(L + 3.63, 'failed')).toBeCloseTo(L, 9);
+    expect(stepStopFor(L + 4.66, 'failed')).toBeCloseTo(L, 9);
     // The failed void's stops past the fall: the hold and the credits, nothing of the path.
     expect(stopsFor(HOME_CHAPTERS, 'failed').filter((stop) => stop >= L)).toEqual([L, END]);
   });

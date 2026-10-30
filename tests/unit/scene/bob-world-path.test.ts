@@ -50,32 +50,17 @@ const at = (c: Chapters, aspect: number, place: number): WorldFrame => pathFor(a
 const home = (aspect: number, place: number): WorldFrame => at(HOME_CHAPTERS, aspect, place);
 const LAND = HOME_CHAPTERS.units.find((u) => u.id === 'LAND')!;
 const landAt = (t: number, aspect = DESK): WorldFrame => home(aspect, LAND.start + t * LAND.length);
-/**
- * A moment of the land before this round (its share of the old 1.8-unit land, the hit at 0.35) where it stands now: as
- * far after the hit in units as it was (spec 2026-10-29-bob-stack-3-design.md, goal 1).
- */
-const after = (m: number): number => (LAND_HIT * WORLD_LAYOUT.land + (m - 0.35) * 1.8) / WORLD_LAYOUT.land;
+/** The place in the land `units` of scroll after the light's hit on the CPU's lid. */
+const hit = (units: number): number => LAND_HIT + units / WORLD_LAYOUT.land;
+const distance = (a: Vec3, b: Vec3): number => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 
 // Bob (2026-10-29): "the light drops down too fast to the project make it a bit slower", the drop into the stack (not
-// the fall past the facts): twice the scroll, eased into the lid, every moment after the hit kept.
+// the fall past the facts): twice the scroll, eased into the lid.
 describe('the drop into the stack', () => {
-  it('drops into the stack over twice the scroll', () => {
+  it('drops into the stack over twice the scroll, with 2.2 units after the hit for the power-on', () => {
     expect(LAND_HIT * WORLD_LAYOUT.land).toBeCloseTo(1.26, 9);
-    expect(WORLD_LAYOUT.land).toBeCloseTo(2.43, 9);
-    expect(LAND.length).toBeCloseTo(2.43, 9);
-  });
-
-  it('keeps every moment after the hit as far after it', () => {
-    const was: [number, number][] = [
-      [POWER[0], 0.35],
-      [POWER[1], 0.75],
-      [EXPLODE[0], 0.4],
-      [EXPLODE[1], 0.7],
-      [FLASH_GONE, 0.5],
-      [NAMES_IN, 0.75],
-      [LAND_STOP, 0.85]
-    ];
-    for (const [now, before] of was) expect((now - LAND_HIT) * WORLD_LAYOUT.land, `${before}`).toBeCloseTo((before - 0.35) * 1.8, 9);
+    expect(WORLD_LAYOUT.land).toBeCloseTo(3.46, 9);
+    expect(LAND.length).toBeCloseTo(3.46, 9);
   });
 
   it('falls steadily and settles into the lid', () => {
@@ -94,9 +79,80 @@ describe('the drop into the stack', () => {
   });
 });
 
+// Bob (2026-10-30): "when the light falls and reaches the tower make it so when it reach the cpu chip it slowqly powers
+// (light on) the tower", then "it then slowly power and lights up the tower whille slowly zooming out" (the mock-up he
+// chose, .superpowers/power-on-review): the tower dark until the light is in the CPU, then lit board by board from the
+// top down while the camera slowly pulls back to the whole machine, over about twice the scroll it had.
+describe('the slow power-on', () => {
+  it('places each moment after the hit', () => {
+    const want: [number, number][] = [
+      [POWER[0], 0.05],
+      [POWER[1], 1.65],
+      [EXPLODE[0], 0.45],
+      [EXPLODE[1], 1.5],
+      [FLASH_GONE, 0.4],
+      [NAMES_IN, 1.65],
+      [LAND_STOP, 1.9]
+    ];
+    for (const [now, units] of want) expect((now - LAND_HIT) * WORLD_LAYOUT.land, `${units}`).toBeCloseTo(units, 9);
+  });
+
+  it('runs the power over 1.6 units of scroll, about twice its 0.72', () => {
+    expect((POWER[1] - POWER[0]) * WORLD_LAYOUT.land).toBeCloseTo(1.6, 9);
+  });
+
+  it('keeps the whole tower dark until the light is in the CPU', () => {
+    for (const t of [0, 0.2, LAND_HIT * 0.9, LAND_HIT, hit(0.05)]) {
+      const f = landAt(t);
+      expect(f.power, `at ${t}`).toBe(0);
+      expect(f.boardPower, `at ${t}`).toEqual([0, 0, 0, 0]);
+      expect(f.rings.level, `at ${t}`).toBe(0);
+    }
+  });
+
+  it('lights the tower board by board from the top down, each as the one above is half lit', () => {
+    const n = 800;
+    const firstOn: number[] = [];
+    let last = [0, 0, 0, 0];
+    for (let k = 0; k <= n; k++) {
+      const { boardPower } = landAt(hit(0.05 + (1.6 * k) / n));
+      boardPower.forEach((p, b) => {
+        expect(p, `board ${b} at ${k}`).toBeGreaterThanOrEqual(last[b]!);
+        if (p > 0 && firstOn[b] === undefined) {
+          firstOn[b] = k;
+          if (b > 0) expect(boardPower[b - 1]!, `board ${b - 1} as board ${b} comes on`).toBeGreaterThan(0.48);
+        }
+      });
+      last = boardPower;
+    }
+    expect(firstOn).toHaveLength(4);
+    for (let b = 1; b < 4; b++) expect(firstOn[b]!).toBeGreaterThan(firstOn[b - 1]!);
+    expect(landAt(POWER[1]).boardPower).toEqual([1, 1, 1, 1]);
+  });
+
+  it('pulls the camera back steadily from the light in the CPU to the whole machine while the power runs', () => {
+    const lid: Vec3 = [C[0], C[1] + LID_TOP, C[2]];
+    const away = (t: number): number => distance(landAt(t).shot.position, lid);
+    let last = away(LAND_HIT);
+    for (let k = 1; k <= 60; k++) {
+      const d = away(hit((1.9 * k) / 60));
+      expect(d, `at ${k}`).toBeGreaterThan(last);
+      last = d;
+    }
+    // Still on its way out while the boards light: neither near nor at rest at the power's middle, nor yet at rest when
+    // the last board is lit.
+    const start = away(LAND_HIT);
+    const end = away(LAND_STOP);
+    const middle = away((POWER[0] + POWER[1]) / 2);
+    expect(middle).toBeGreaterThan(start + 0.25 * (end - start));
+    expect(middle).toBeLessThan(start + 0.75 * (end - start));
+    expect(away(POWER[1])).toBeLessThan(end);
+  });
+});
+
 describe("the path down the stack: the light lands in the CPU, the stack opens, a stop per board, the look back", () => {
   it("brings the light down into the CPU by the land's hit and keeps it there", () => {
-    expect(LAND_HIT).toBeCloseTo(1.26 / 2.43, 12);
+    expect(LAND_HIT).toBeCloseTo(1.26 / 3.46, 12);
     expect(LID_TOP).toBe(0.2);
     const lid: Vec3 = [C[0], C[1] + 0.2, C[2]];
     const start = landAt(0).light.position;
@@ -108,7 +164,7 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
       expect(y).toBeLessThanOrEqual(last + 1e-9);
       last = y;
     }
-    for (const t of [LAND_HIT, after(0.5), after(0.8), 1]) landAt(t).light.position.forEach((v, k) => expect(v).toBeCloseTo(lid[k]!, 6));
+    for (const t of [LAND_HIT, hit(0.5), hit(1.2), 1]) landAt(t).light.position.forEach((v, k) => expect(v).toBeCloseTo(lid[k]!, 6));
     for (const place of [worldStop(HOME_CHAPTERS), areaStop(HOME_CHAPTERS, 'game'), lookStop(HOME_CHAPTERS)]) {
       home(DESK, place).light.position.forEach((v, k) => expect(v).toBeCloseTo(lid[k]!, 6));
     }
@@ -122,26 +178,26 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
     expect(trail.at(-1)!.point[1] - lid[1]).toBeGreaterThan(20);
   });
 
-  it("keeps the stack closed until 0.09 units after the hit and opens it by the world's stop", () => {
-    // The stack starts opening on after(0.4) itself: a float a hair over it there.
-    for (const t of [0, 0.2, LAND_HIT, after(0.4)]) expect(landAt(t).explode, `at ${t}`).toBeCloseTo(0, 12);
-    const middle = landAt(after(0.55)).explode;
+  it("keeps the stack closed until 0.45 units after the hit and opens it by the world's stop", () => {
+    // The stack starts opening on hit(0.45) itself: a float a hair over it there.
+    for (const t of [0, 0.2, LAND_HIT, hit(0.45)]) expect(landAt(t).explode, `at ${t}`).toBeCloseTo(0, 12);
+    const middle = landAt(hit(0.95)).explode;
     expect(middle).toBeGreaterThan(0);
     expect(middle).toBeLessThan(1);
     let last = 0;
     for (let k = 0; k <= 30; k++) {
-      const e = landAt(after(0.4 + (0.3 * k) / 30)).explode;
+      const e = landAt(hit(0.45 + (1.05 * k) / 30)).explode;
       expect(e).toBeGreaterThanOrEqual(last);
       last = e;
     }
-    expect(landAt(after(0.7)).explode).toBe(1);
+    expect(landAt(hit(1.5)).explode).toBe(1);
     for (const place of [worldStop(HOME_CHAPTERS), areaStop(HOME_CHAPTERS, 'app'), areaStop(HOME_CHAPTERS, 'game'), lookStop(HOME_CHAPTERS)]) {
       expect(home(DESK, place).explode).toBe(1);
     }
   });
 
   it('powers the boards from the top down', () => {
-    expect(POWER).toEqual([expect.closeTo(after(0.35), 12), expect.closeTo(after(0.75), 12)]);
+    expect(POWER).toEqual([expect.closeTo(hit(0.05), 12), expect.closeTo(hit(1.65), 12)]);
     expect(landAt(0.2).power).toBe(0);
     expect(landAt(LAND_HIT).boardPower).toEqual([0, 0, 0, 0]);
     for (let k = 0; k <= 50; k++) {
@@ -150,15 +206,15 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
       for (let b = 0; b + 1 < boardPower.length; b++) expect(boardPower[b], `board ${b} at ${k / 50}`).toBeGreaterThanOrEqual(boardPower[b + 1]!);
     }
     // The power board comes on before the last board does.
-    const partway = landAt(after(0.5)).boardPower;
+    const partway = landAt(hit(0.6)).boardPower;
     expect(partway[0]).toBeGreaterThan(partway[3]!);
-    expect(landAt(after(0.75)).boardPower).toEqual([1, 1, 1, 1]);
+    expect(landAt(hit(1.65)).boardPower).toEqual([1, 1, 1, 1]);
     expect(home(DESK, worldStop(HOME_CHAPTERS)).boardPower).toEqual([1, 1, 1, 1]);
     expect(home(DESK, worldStop(HOME_CHAPTERS)).power).toBe(1);
-    // The flash: none before the hit, at its peak on it, gone by 0.5.
-    expect(landAt(after(0.3)).flash).toBe(0);
+    // The flash: none before the hit, at its peak on it, gone 0.4 units after it.
+    expect(landAt(LAND_HIT - 0.01).flash).toBe(0);
     expect(landAt(LAND_HIT + 1e-6).flash).toBeCloseTo(1, 4); // a hair past it: the place sums round the hit itself
-    expect(landAt(after(0.5)).flash).toBe(0);
+    expect(landAt(hit(0.4)).flash).toBe(0);
   });
 
   it("frames the whole machine at the world's stop", () => {
@@ -280,7 +336,7 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
       expect(near).toBeGreaterThan(10);
       expect(far).toBeGreaterThan(near);
     }
-    expect(LAND_STOP).toBeCloseTo((1.26 + 0.9) / 2.43, 12);
+    expect(LAND_STOP).toBeCloseTo((1.26 + 1.9) / 3.46, 12);
   });
 
   it('looks back up at the whole machine framed, not far out (Bob, 2026-10-29: "it zooms out too much")', () => {

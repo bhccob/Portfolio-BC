@@ -40,12 +40,14 @@ export interface PlateSpec {
 
 /**
  * How a board looks by tier: its textures' size, px; the share of its small parts (resistors, capacitors, their rows
- * and the fine traces) it lays; its thickness, m (its top at y = 0).
+ * and the fine traces) it lays; its thickness, m (its top at y = 0); and how much of its light its body keeps with no
+ * power, so it stands dark until the power comes (Bob, 2026-10-30: "it slowly powers (light on) the tower").
  */
 export const PLATE_LOOK = {
   size: { high: 2048, medium: 1024, low: 1024 },
   parts: { high: 1, medium: 0.6, low: 0.35 },
-  thick: 0.2
+  thick: 0.2,
+  dark: 0.22
 } as const;
 
 const THICK = PLATE_LOOK.thick;
@@ -940,17 +942,19 @@ const GLOW_FRAGMENT = /* glsl */ `
   void main() {
     vec4 t = texture2D(uMap, vXZ / (2.0 * uR) + 0.5);
     float r = length(vXZ);
-    // The power reaches out from the middle; its front a bright ring, gone once it has reached the rim.
+    // The power reaches out from the middle; its front a bright ring, gone once it has reached the rim, and the copper
+    // just behind it surging before it settles.
     float reach = uPower * uR * 1.2;
     float on = 1.0 - smoothstep(reach - 0.6, reach, r);
     float dr = (r - reach) * 2.4;
     float front = exp(-dr * dr) * (1.0 - step(0.999, uPower));
+    float surge = exp(-max(reach - r, 0.0) * 0.7) * (1.0 - step(0.999, uPower));
     float pulse = pow(max(0.0, 0.5 + 0.5 * sin(r * 1.7 - uTime * 1.4)), 12.0);
     vec3 c = uGold * t.r * (0.32 + 1.6 * pulse)
            + mix(uViolet, uGold, 0.3) * t.g * 0.18
            + mix(uGold, uViolet, 0.35) * t.b * 0.3;
     c += uViolet * exp(-(uR - r) * 14.0) * 0.22;
-    c = c * on + uGold * (t.r + t.g * 0.5 + t.b * 0.5) * front * 1.3;
+    c = c * on * (1.0 + 1.6 * surge) + uGold * (t.r + t.g * 0.5 + t.b * 0.5) * front * 3.0 + uGold * front * 0.1;
     gl_FragColor = vec4(c * uLevel, 1.0);
   }
 `;
@@ -1087,7 +1091,8 @@ export function buildPlate(spec: PlateSpec, tier: QualityTier, room: THREE.Textu
       u.uPower!.value = power;
       u.uLevel!.value = level;
       underMaterial.opacity = power * level;
-      const lit = 0.06 + 0.94 * level;
+      // Dimmed by its level, and dark until its power comes.
+      const lit = (0.06 + 0.94 * level) * (PLATE_LOOK.dark + (1 - PLATE_LOOK.dark) * power);
       for (const { m, colour, reflects } of dimmed) {
         m.color.copy(colour).multiplyScalar(lit);
         m.envMapIntensity = reflects * lit;

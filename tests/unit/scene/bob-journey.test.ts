@@ -45,13 +45,13 @@ describe("the journey's stretches", () => {
     expect(journeyAt(0.5)).toMatchObject({ stretch: 'rise', project: null });
     expect(journeyAt(L - 1e-3)).toMatchObject({ stretch: 'light', project: null });
     expect(journeyAt(L)).toMatchObject({ stretch: 'land', local: 0, project: null, frame: null });
-    expect(journeyAt(L + 2.43)).toMatchObject({ stretch: 'area', local: 0, project: 0 });
-    expect(journeyAt(L + 4.63)).toMatchObject({ stretch: 'area', project: 1 });
-    expect(journeyAt(L + 6.63)).toMatchObject({ stretch: 'look', project: null });
-    expect(journeyAt(L + 8.23)).toMatchObject({ stretch: 'qa', local: 0, project: 0 });
-    expect(journeyAt(L + 9.23)).toMatchObject({ stretch: 'qa', local: 0, project: 1 });
-    expect(journeyAt(L + 9.73)).toMatchObject({ stretch: 'qa', local: 0.5, project: 1 });
-    expect(journeyAt(L + 15.23)).toMatchObject({ stretch: 'end' });
+    expect(journeyAt(L + 3.46)).toMatchObject({ stretch: 'area', local: 0, project: 0 });
+    expect(journeyAt(L + 5.66)).toMatchObject({ stretch: 'area', project: 1 });
+    expect(journeyAt(L + 7.66)).toMatchObject({ stretch: 'look', project: null });
+    expect(journeyAt(L + 9.26)).toMatchObject({ stretch: 'qa', local: 0, project: 0 });
+    expect(journeyAt(L + 10.26)).toMatchObject({ stretch: 'qa', local: 0, project: 1 });
+    expect(journeyAt(L + 10.76)).toMatchObject({ stretch: 'qa', local: 0.5, project: 1 });
+    expect(journeyAt(L + 16.26)).toMatchObject({ stretch: 'end' });
   });
 
   it('runs the light dive frame by frame: BOB from above is frame 1, the hand-over frame 256', () => {
@@ -61,7 +61,7 @@ describe("the journey's stretches", () => {
   });
 
   it('snaps within 1e-6 of a stop, reads NaN as the home, and holds progress to the scroll', () => {
-    expect(journeyAt(L + 3.83 + 5e-7)).toMatchObject({ stretch: 'area', local: 0 });
+    expect(journeyAt(L + 4.86 + 5e-7)).toMatchObject({ stretch: 'area', local: 0 });
     expect(journeyAt(Number.NaN).stretch).toBe('rise');
     expect(journeyAt(99).stretch).toBe('end');
   });
@@ -100,7 +100,7 @@ describe("the journey's camera", () => {
   });
 
   it('has no parallax past the rise', () => {
-    for (const p of [1.5, L - 0.1, L + 1.63, L + 3.63, L + 13.63, L + 15.63]) expect(journeyPoseAt(p, LAPTOP).shot.sway).toBe(0);
+    for (const p of [1.5, L - 0.1, L + 1.63, L + 4.66, L + 14.66, L + 16.66]) expect(journeyPoseAt(p, LAPTOP).shot.sway).toBe(0);
   });
 });
 
@@ -159,7 +159,7 @@ describe("the world's projects", () => {
     expect(restsAt('jontai-energy', world, world)).toBe(true);
     expect(restsAt('jontai-energy', jontai, jontai)).toBe(true);
     expect(restsAt('steady', jontai, jontai)).toBe(true); // every project is on the board, in view
-    expect(restsAt('jontai-energy', L + 8.23, L + 8.23)).toBe(true); // the look back's own stop (SHEET at local 0)
+    expect(restsAt('jontai-energy', L + 9.26, L + 9.26)).toBe(true); // the look back's own stop (SHEET at local 0)
     expect(restsAt('jontai-energy', L + 0.5, L + 0.5)).toBe(false); // the light still coming down
     expect(restsAt('jontai-energy', jontai, jontai + 0.1)).toBe(false); // moving
   });

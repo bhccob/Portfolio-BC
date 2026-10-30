@@ -90,11 +90,11 @@ export const FACT_PEAKS = [81, 121, 161, 201, 241] as const;
  * The world's lengths in units (my calls, after the mock-up's pace): the land, from the hand-over to the world at rest;
  * each area, from the stop before to the area at rest; and the look back. Each QA unit is one: a step of the scroll
  * there is a turn of the ring, whatever its size (src/input/target.ts). The land is `LAND_DROP` to the light's hit on
- * the lid and 1.17 after it (Bob, 2026-10-29: the drop "too fast", now twice its 0.63; spec
- * 2026-10-29-bob-stack-3-design.md, goal 1).
+ * the lid (Bob, 2026-10-29: the drop "too fast", now twice its 0.63; spec 2026-10-29-bob-stack-3-design.md, goal 1) and
+ * 2.2 after it, where it had 1.17, for the tower's slow power-on as the camera pulls back (Bob, 2026-10-30).
  */
 export const LAND_DROP = 1.26;
-export const WORLD_LAYOUT = { land: LAND_DROP + 1.17, area: 1.4, look: 1.6, qa: 1 } as const;
+export const WORLD_LAYOUT = { land: LAND_DROP + 2.2, area: 1.4, look: 1.6, qa: 1 } as const;
 
 /**
  * HOME 1, LIGHT `LIGHT_UNITS`, LAND, then an AREA for each area of the world, then LOOK, a QA for each mark on the ring
@@ -245,9 +245,9 @@ function placeIn(c: Chapters, f: number): number {
 
 /**
  * Where in the LAND the world's stop stands: the light in the CPU, the stack open and powered, the camera at rest on the
- * whole machine; 0.9 units after the light's hit, as before the drop was lengthened.
+ * whole machine; 1.9 units after the light's hit, the camera's slow pull back over the power-on (Bob, 2026-10-30).
  */
-export const LAND_STOP = (LAND_DROP + 0.9) / WORLD_LAYOUT.land;
+export const LAND_STOP = (LAND_DROP + 1.9) / WORLD_LAYOUT.land;
 
 /** Where in its AREA a board's stop stands: the camera at rest on it, its words shown; the rest of the unit a pause. */
 export const AREA_STOP = 0.7;

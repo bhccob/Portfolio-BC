@@ -27,7 +27,7 @@ describe('the skip button shows from the first project through the look back', (
     const L = pathStart(HOME_CHAPTERS);
     const at = (p: number) => showsSkip(journeyPoseAt(p, 1440 / 900));
     // the land, the world's stop, an area, the look back's own stop, part-way up the sheet, the credits
-    expect([L + 1.63, L + 2.16, L + 4.63, L + 8.23, L + 8.28, L + 9.23].map(at)).toEqual([false, true, true, true, false, false]);
+    expect([L + 1.63, L + 3.16, L + 5.66, L + 9.26, L + 9.31, L + 10.26].map(at)).toEqual([false, true, true, true, false, false]);
     for (const p of [0, 0.5, 1, 2.5, L - 0.01]) expect(at(p), `at ${p}`).toBe(false);
   });
 

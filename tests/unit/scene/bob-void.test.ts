@@ -62,7 +62,7 @@ describe('landingHoldFor: the most the scroll may reach before the beads are rea
 
   it("is the end of the scroll once the void is ready, the end's mark on the ring: nothing holds", () => {
     expect(landingHoldFor('ready')).toBe(END);
-    expect(END).toBeCloseTo(L + 15.23, 9);
+    expect(END).toBeCloseTo(L + 16.26, 9);
   });
 
   it('answers a hold for every state, never above the end nor below the top of the rise', () => {
@@ -99,7 +99,7 @@ describe('holdLimit and releaseTarget: the hold as the scroll input applies it',
     // Reduced motion, held on the last fact and asked for Steady: Steady.
     expect(releaseTarget(F241, A0, END, HOME_CHAPTERS)).toBe(A0);
     // Never past the hold it is released to.
-    expect(releaseTarget(H, END, L + 2.63, HOME_CHAPTERS)).toBe(L + 2.63);
+    expect(releaseTarget(H, END, L + 3.66, HOME_CHAPTERS)).toBe(L + 3.66);
   });
 });
 
@@ -252,14 +252,14 @@ describe("3D off and on keeps the visitor's place", () => {
   });
 
   it('keeps the place when the hold comes down with 3D on for a void that loads again, idle, then ready', async () => {
-    const s = held('ready', { at: L + 5.23 }); // on the way from Steady to Jontai Energy
+    const s = held('ready', { at: L + 6.26 }); // on the way from Steady to Jontai Energy
     s.become('idle');
     expect([s.story.target, s.story.progress]).toEqual([H, H]);
     s.become('loading');
     s.become('ready');
     await flush();
     s.drain();
-    expect([s.story.target, s.story.progress]).toEqual([L + 5.23, L + 5.23]);
+    expect([s.story.target, s.story.progress]).toEqual([L + 6.26, L + 6.26]);
   });
 
   it('keeps the story at the hold when the void failed, and lets the place go: a later ready leaves it there', async () => {
@@ -549,7 +549,7 @@ describe('the scroll input holds at the landing while the beads load', () => {
 describe('frame.journey: where the journey stands, for the debug bridge', () => {
   it('is filled from the pose the scene is posed at: its stretch, how far through it, its project, way frame and sheet', () => {
     const into = { ...frame.journey, voidState: 'idle' as VoidState, light: null };
-    for (const p of [0, 0.5, 1, 2, 3, LANDING_HOLD, L + 1.63, L + 2.63, L + 3.63, L + 6.63, L + 13.63, L + 15.18, L + 15.63, END]) {
+    for (const p of [0, 0.5, 1, 2, 3, LANDING_HOLD, L + 1.63, L + 3.66, L + 4.66, L + 7.66, L + 14.66, L + 16.21, L + 16.66, END]) {
       const pose = journeyPoseAt(p, LAPTOP);
       writeJourney(into, pose);
       const at = journeyAt(p);
@@ -1040,7 +1040,7 @@ describe('needleFor: the needle the Void hands the compass', () => {
 
   it('keeps it in the light through the fall and the whole path: the light stays the light to the end', () => {
     for (const f of [9, 61, 121, 241, 255]) expect(needleFor(journeyPoseAt(placeOfFrame(f), LAPTOP))!.scale, `frame ${f}`).toBe(0);
-    for (const p of [L, L + 2.63, L + 7.63, L + 13.63, END]) expect(needleFor(journeyPoseAt(p, LAPTOP))!.scale, `at ${p}`).toBe(0);
+    for (const p of [L, L + 3.66, L + 8.66, L + 14.66, END]) expect(needleFor(journeyPoseAt(p, LAPTOP))!.scale, `at ${p}`).toBe(0);
   });
 });
 
@@ -1048,7 +1048,7 @@ describe('voidShownAt: the void shows from the light dive\'s frame 20, its band 
   it('hides it on the rise and in the way in before frame 20, and shows it from 20 through the path and the sheet', () => {
     expect(VOID_FROM).toBe(20);
     for (const p of [0, 0.5, 1, placeOfFrame(10), placeOfFrame(19.9)]) expect(voidShownAt(journeyPoseAt(p, LAPTOP)), `at ${p}`).toBe(false);
-    for (const p of [placeOfFrame(20), placeOfFrame(30), placeOfFrame(121), L + 1.63, L + 6.63, L + 13.63, END]) expect(voidShownAt(journeyPoseAt(p, PHONE)), `at ${p}`).toBe(true);
+    for (const p of [placeOfFrame(20), placeOfFrame(30), placeOfFrame(121), L + 1.63, L + 7.66, L + 14.66, END]) expect(voidShownAt(journeyPoseAt(p, PHONE)), `at ${p}`).toBe(true);
   });
 });
 
@@ -1056,7 +1056,7 @@ describe('needleGlowFor: the needle the light never becomes again', () => {
   it('leaves the needle to the home on the rise, and to the light through the fall and the path', () => {
     expect(needleGlowFor(journeyAt(0.5))).toBeNull();
     expect(needleGlowFor(journeyAt(placeOfFrame(200)))).toBeNull();
-    for (const p of [L, L + 4.63, L + 13.63, L + 15.63, END]) expect(needleGlowFor(journeyAt(p)), `at ${p}`).toBeNull();
+    for (const p of [L, L + 5.66, L + 14.66, L + 16.66, END]) expect(needleGlowFor(journeyAt(p)), `at ${p}`).toBeNull();
   });
 });
 
@@ -1090,8 +1090,8 @@ describe('pointerMode: which projects the pointer may hover and open', () => {
   it('is any project once the world is in: at its stop, every area and the look back; none before it or under the sheet', () => {
     const at = (p: number) => pointerMode(journeyPoseAt(p, LAPTOP));
     expect([at(0.5), at(placeOfFrame(121)), at(L + 0.5), at(L + 1.63)]).toEqual([null, null, null, null]);
-    expect([at(L + 2.16), at(L + 3.41), at(L + 4.63), at(L + 6.21)]).toEqual(['any', 'any', 'any', 'any']);
-    expect([at(L + 7.13), at(L + 8.23)]).toEqual(['any', 'any']);
-    expect([at(L + 8.63), at(END)]).toEqual([null, null]);
+    expect([at(L + 3.16), at(L + 4.44), at(L + 5.66), at(L + 7.24)]).toEqual(['any', 'any', 'any', 'any']);
+    expect([at(L + 8.16), at(L + 9.26)]).toEqual(['any', 'any']);
+    expect([at(L + 9.66), at(END)]).toEqual([null, null]);
   });
 });
