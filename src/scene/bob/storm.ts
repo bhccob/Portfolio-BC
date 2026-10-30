@@ -19,7 +19,8 @@ type Vec3 = [number, number, number];
  *   height (m), how much of the wall plate it spans (`scale`), where on it it starts (`shift`), how fast it drifts
  *   along it (a share a second), its light, and how far up the plate its foot stands (`foot`, the plate's dark base
  *   left out);
- * - `flash`: one gold flash in every `period` s, starting up to `spread` s in, rising over `rise` s and dying over
+ * - `flash`: one gold flash in every `period` s (its glow the flash plates' times `gain`, round 8: faint, as in the
+ *   moonlit storm Bob picked), starting up to `spread` s in, rising over `rise` s and dying over
  *   `fall` s; after `twiceAfter` s it may flicker again (when the clock's draw passes `twice`), at `twiceLevel`;
  * - `sky`: the sky's light at the start screen, round the fall, round the tower (`void`), and how much of that stays with
  *   a project open (`open`);
@@ -34,7 +35,7 @@ export const STORM = {
     { radius: 14, height: 11, scale: 0.75, shift: 0.37, speed: 0.0016, level: 1.3, foot: 0.32 },
     { radius: 6.5, height: 6, scale: 0.55, shift: 0.71, speed: 0.0025, level: 1.7, foot: 0.45 }
   ],
-  flash: { period: 6, spread: 2.5, rise: 0.15, fall: 1.1, twice: 0.45, twiceAfter: 0.45, twiceAt: 0.6, twiceWidth: 0.25, twiceLevel: 0.7 },
+  flash: { period: 6, spread: 2.5, rise: 0.15, fall: 1.1, twice: 0.45, twiceAfter: 0.45, twiceAt: 0.6, twiceWidth: 0.25, twiceLevel: 0.7, gain: 1 },
   sky: { home: 0.85, fall: 0.25, void: 0.45, open: 0.6 },
   sea: { fall: 0.15 },
   riseOut: 0.5,

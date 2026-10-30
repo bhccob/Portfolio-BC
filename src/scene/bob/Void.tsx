@@ -664,11 +664,10 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       loadStormPlates().then(
         (plates) => {
           if (run.storm !== storm) {
-            plates.wall.dispose();
-            plates.sea.dispose();
+            for (const plate of Object.values(plates)) plate.dispose();
             return;
           }
-          uploadTextures(gl, [plates.wall, plates.sea]);
+          uploadTextures(gl, Object.values(plates));
           storm.model = buildStorm(plates);
           scene.add(storm.model.group);
           storm.inAt = performance.now();

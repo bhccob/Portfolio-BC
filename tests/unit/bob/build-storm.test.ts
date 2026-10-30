@@ -6,9 +6,10 @@ import { buildStorm, STORM_SKY } from '~/engine/bob/build/storm';
 import { STORM } from '~/scene/bob/storm';
 
 // The storm behind everything (spec 2026-10-30-bob-storm-design.md): the painted sky round the camera, and the
-// painted flats behind the compass at the start screen.
+// painted flats behind the compass at the start screen. Round 8 (spec 2026-10-30-bob-moonlit-3d-design.md): the plates are
+// rendered from real moonlit clouds, the flats covered by the bank plate's own alpha, the flash from its own plates.
 
-const plates = () => ({ wall: new THREE.Texture(), sea: new THREE.Texture() });
+const plates = () => ({ wall: new THREE.Texture(), sea: new THREE.Texture(), bank: new THREE.Texture(), wallFlash: new THREE.Texture(), bankFlash: new THREE.Texture() });
 const camera = (y: number): THREE.PerspectiveCamera => {
   const c = new THREE.PerspectiveCamera(30, 1.6, 0.1, 100);
   c.position.set(0, y, 8.6);
@@ -88,6 +89,35 @@ describe('the storm in code: the painted sky and the flats', () => {
     expect(storm.group.visible).toBe(false);
   });
 
+  it("gives the flats the bank plate, its coverage by the bank's own alpha", () => {
+    const p = plates();
+    const storm = buildStorm(p);
+    STORM.flats.forEach((_, k) => {
+      const m = material(storm.group.getObjectByName(`storm:flat:${k}`)!);
+      expect(m.uniforms.uBank!.value).toBe(p.bank);
+      expect(m.uniforms.uWall).toBeUndefined();
+      expect(m.fragmentShader).toContain('texture2D(uBank');
+      expect(m.fragmentShader).not.toContain('smoothstep(0.004, 0.05, lum)');
+    });
+  });
+
+  it('lights the flash from the flash plates, never by brightening warm pixels', () => {
+    const p = plates();
+    const storm = buildStorm(p);
+    const sky = material(storm.group.getObjectByName('storm:sky')!);
+    expect(sky.uniforms.uWallFlash!.value).toBe(p.wallFlash);
+    expect(sky.uniforms.uFlashGain!.value).toBe(STORM.flash.gain);
+    expect(sky.fragmentShader).not.toContain('colour.r - colour.b');
+    expect(sky.fragmentShader).toContain('uFlashGain');
+    STORM.flats.forEach((_, k) => {
+      const m = material(storm.group.getObjectByName(`storm:flat:${k}`)!);
+      expect(m.uniforms.uBankFlash!.value).toBe(p.bankFlash);
+      expect(m.uniforms.uFlashGain!.value).toBe(STORM.flash.gain);
+      expect(m.fragmentShader).not.toContain('c.r - c.b');
+      expect(m.fragmentShader).toContain('uFlashGain');
+    });
+  });
+
   it("holds every shader pow's base at zero or more", () => {
     const source = readFileSync(fileURLToPath(new URL('../../../src/engine/bob/build/storm.ts', import.meta.url)), 'utf8');
     const pows = [...source.matchAll(/pow\(\s*([a-z]+)\(/g)];
@@ -99,7 +129,7 @@ describe('the storm in code: the painted sky and the flats', () => {
     const p = plates();
     const storm = buildStorm(p);
     let freed = 0;
-    for (const t of [p.wall, p.sea]) t.addEventListener('dispose', () => freed++);
+    for (const t of [p.wall, p.sea, p.bank, p.wallFlash, p.bankFlash]) t.addEventListener('dispose', () => freed++);
     storm.group.traverse((o) => {
       const mesh = o as THREE.Mesh;
       if (!mesh.geometry) return;
@@ -107,6 +137,6 @@ describe('the storm in code: the painted sky and the flats', () => {
       (mesh.material as THREE.Material).addEventListener('dispose', () => freed++);
     });
     storm.dispose();
-    expect(freed).toBe(2 + 2 * (1 + STORM.flats.length));
+    expect(freed).toBe(5 + 2 * (1 + STORM.flats.length));
   });
 });

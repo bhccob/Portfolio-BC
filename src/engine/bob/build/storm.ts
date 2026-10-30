@@ -1,16 +1,19 @@
 /**
  * The storm behind everything, built in code (spec 2026-10-30-bob-storm-design.md; Bob picked the storm nebula, painted
- * and animated): two painted plates (src/assets/storm), the storm wall and the sea of storm, made to match his pick.
+ * and animated): its plates (src/assets/storm), since round 8 (spec 2026-10-30-bob-moonlit-3d-design.md, Bob picked the
+ * moonlit storm) rendered from real volume clouds in Blender (tools/blender/storm_plates.py): the storm wall, the sea of
+ * storm, a bank of storm with its own alpha for the flats, and the lightning's glow inside the wall and the bank.
  *
  * - **The sky**: a sphere drawn at the far plane round the camera (a skybox: no translation, depth 1, no depth written),
  *   first of all, so it stands at infinity behind whatever the scene draws, the glass's mirror included: the wall above
  *   the horizon, the sea below; each plate stirred in place by the gas's noise (./volume.ts), panning very slowly, a
  *   second larger copy drifting over it for depth, the whole breathing slowly. Above the glass, what lies below the
  *   horizon is kept near black, so the glass's far edge draws no line against it.
- * - **The flats**: three painted flats curved round behind the compass (-z) and standing on the glass, far to near, each
- *   a part of the wall plate, the black between its clouds let through, each drifting at its own pace (./storm.ts's
- *   STORM.flats), so they shift against each other as the camera sways.
- * - **The flash**: the warm, bright parts of the storm round the flash's way light up gold.
+ * - **The flats**: three flats curved round behind the compass (-z) and standing on the glass, far to near, each a part
+ *   of the bank plate, the sky let through between its clouds by the plate's own alpha, each drifting at its own pace
+ *   (./storm.ts's STORM.flats), so they shift against each other as the camera sways.
+ * - **The flash**: the lightning's glow inside the clouds round the flash's way, from the flash plates, at the flash's
+ *   strength times STORM.flash.gain; the sea has none.
  *
  * It reads no clock of its own: `pose` is given the storm's clock, its levels and its flash (src/scene/bob/storm.ts).
  */
@@ -39,9 +42,11 @@ const SKY_FRAGMENT = /* glsl */ `
   precision highp sampler3D;
   uniform sampler2D uWall;
   uniform sampler2D uSea;
+  uniform sampler2D uWallFlash;
   uniform sampler3D uNoise;
   uniform float uTime;
   uniform float uFlash;
+  uniform float uFlashGain;
   uniform vec3 uFlashDir;
   uniform float uLevel;
   uniform float uAbove;
@@ -63,12 +68,15 @@ const SKY_FRAGMENT = /* glsl */ `
     float u = 0.5 + az / (PI * 1.25) + uTime * 0.0012;
     u = abs(fract(u * 0.5) * 2.0 - 1.0);
     vec3 colour;
+    float off = acos(clamp(dot(d, uFlashDir), -1.0, 1.0)) / 0.5;
     if (el >= 0.0) {
       // The wall: the middle of its storm on the horizon, mirrored past its ends up and down.
       float v = el / 0.8 + 0.4;
       vec3 near = plate(uWall, vec2(u, v), 0.0);
       vec3 far = plate(uWall, vec2(u * 0.8 + 0.1 + uTime * 0.0008, v * 0.85 + 0.08), 0.37);
       colour = max(near, far * 0.55) + far * 0.12;
+      // A flash deep in the storm: the lightning's glow inside the clouds round its way.
+      colour += texture2D(uWallFlash, vec2(u, v)).rgb * exp(-off * off) * uFlash * uFlashGain;
       // Above the glass the storm stands on a dark base at the horizon, so it rises out of the night, never from a line.
       colour *= mix(1.0, 0.15 + 0.85 * smoothstep(0.0, 0.1, el), uAbove);
     } else {
@@ -81,11 +89,6 @@ const SKY_FRAGMENT = /* glsl */ `
       colour *= uSeaLevel;
       colour *= mix(1.0, smoothstep(-0.05, 0.0, el) * 0.15, uAbove);
     }
-    // A flash deep in the storm: the warm, bright parts of the clouds round it light up gold.
-    float lum = dot(colour, vec3(0.2126, 0.7152, 0.0722));
-    float warm = smoothstep(0.02, 0.25, colour.r - colour.b) + smoothstep(0.25, 0.6, lum) * 0.5;
-    float off = acos(clamp(dot(d, uFlashDir), -1.0, 1.0)) / 0.5;
-    colour += colour * vec3(1.0, 0.72, 0.38) * warm * exp(-off * off) * uFlash * 3.0;
     // A slow breath in the whole storm.
     colour *= 0.9 + 0.1 * sin(uTime * 0.45);
     gl_FragColor = vec4(colour * uLevel, 1.0);
@@ -102,10 +105,12 @@ const FLAT_VERTEX = /* glsl */ `
 
 const FLAT_FRAGMENT = /* glsl */ `
   precision highp sampler3D;
-  uniform sampler2D uWall;
+  uniform sampler2D uBank;
+  uniform sampler2D uBankFlash;
   uniform sampler3D uNoise;
   uniform float uTime;
   uniform float uFlash;
+  uniform float uFlashGain;
   uniform float uFlashU;
   uniform float uLevel;
   uniform float uShift;
@@ -116,14 +121,14 @@ const FLAT_FRAGMENT = /* glsl */ `
   void main() {
     vec2 uv = vec2(vUv.x * uScale + uShift + uTime * uSpeed, mix(uFoot, 0.97, vUv.y));
     vec3 n = texture(uNoise, vec3(uv * vec2(2.6, 1.3), uTime * 0.014 + uShift)).gba - 0.5;
-    vec3 c = texture2D(uWall, uv + n.xy * 0.01).rgb;
-    float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
-    // The black sky round the clouds is let through; the clouds, dark bodies too, cover what is behind them; the edges fade.
-    float a = smoothstep(0.004, 0.05, lum);
+    vec4 bank = texture2D(uBank, uv + n.xy * 0.01);
+    vec3 c = bank.rgb;
+    // The sky between the clouds is let through by the plate's own alpha; the flat's edges fade.
+    float a = bank.a;
     a *= smoothstep(0.0, 0.12, vUv.x) * smoothstep(1.0, 0.88, vUv.x) * smoothstep(0.0, 0.18, vUv.y) * smoothstep(1.0, 0.8, vUv.y);
-    float warm = smoothstep(0.02, 0.25, c.r - c.b) + smoothstep(0.25, 0.6, lum) * 0.5;
+    // The lightning's glow inside the bank, round the flash's place along the arc.
     float off = (vUv.x - uFlashU) / 0.16;
-    c += c * vec3(1.0, 0.72, 0.38) * warm * exp(-off * off) * uFlash * 3.5;
+    c += texture2D(uBankFlash, uv).rgb * exp(-off * off) * uFlash * uFlashGain;
     c *= 0.9 + 0.1 * sin(uTime * 0.45 + uShift * 9.0);
     gl_FragColor = vec4(c * uLevel * a, a);
   }
@@ -152,8 +157,20 @@ export interface StormModel {
   dispose(): void;
 }
 
-/** The storm over its two plates (the wall's and the sea's textures, loaded by the caller). */
-export function buildStorm(plates: { wall: THREE.Texture; sea: THREE.Texture }): StormModel {
+/** The storm's plates, loaded by the caller (src/scene/bob/stormPlates.ts). */
+export interface StormPlates {
+  /** The sky above the horizon and the sea of storm below it, opaque. */
+  wall: THREE.Texture;
+  sea: THREE.Texture;
+  /** One bank of storm with its own alpha, for the flats. */
+  bank: THREE.Texture;
+  /** The lightning's glow alone, inside the wall and inside the bank. */
+  wallFlash: THREE.Texture;
+  bankFlash: THREE.Texture;
+}
+
+/** The storm over its plates. */
+export function buildStorm(plates: StormPlates): StormModel {
   const noise = noiseTexture();
   const skyMaterial = new THREE.ShaderMaterial({
     vertexShader: SKY_VERTEX,
@@ -161,9 +178,11 @@ export function buildStorm(plates: { wall: THREE.Texture; sea: THREE.Texture }):
     uniforms: {
       uWall: { value: plates.wall },
       uSea: { value: plates.sea },
+      uWallFlash: { value: plates.wallFlash },
       uNoise: { value: noise },
       uTime: { value: 0 },
       uFlash: { value: 0 },
+      uFlashGain: { value: STORM.flash.gain },
       uFlashDir: { value: new THREE.Vector3(0, 0, -1) },
       uLevel: { value: STORM_SKY.light },
       uAbove: { value: 1 },
@@ -186,10 +205,12 @@ export function buildStorm(plates: { wall: THREE.Texture; sea: THREE.Texture }):
       vertexShader: FLAT_VERTEX,
       fragmentShader: FLAT_FRAGMENT,
       uniforms: {
-        uWall: { value: plates.wall },
+        uBank: { value: plates.bank },
+        uBankFlash: { value: plates.bankFlash },
         uNoise: { value: noise },
         uTime: { value: 0 },
         uFlash: { value: 0 },
+        uFlashGain: { value: STORM.flash.gain },
         uFlashU: { value: 0.5 },
         uLevel: { value: flat.level },
         uShift: { value: flat.shift },
@@ -241,8 +262,7 @@ export function buildStorm(plates: { wall: THREE.Texture; sea: THREE.Texture }):
         mesh.geometry.dispose();
         (mesh.material as THREE.Material).dispose();
       }
-      plates.wall.dispose();
-      plates.sea.dispose();
+      for (const plate of Object.values(plates)) plate.dispose();
       noise.dispose();
     }
   };
