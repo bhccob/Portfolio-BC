@@ -133,7 +133,8 @@ function noiseVoxels(): Uint8Array {
   return data;
 }
 
-function noiseTexture(): THREE.Data3DTexture {
+/** The tiling 64³ noise as a texture: a new texture over the voxels made once (the storm stirs its plates with it too). */
+export function noiseTexture(): THREE.Data3DTexture {
   const t = new THREE.Data3DTexture(noiseVoxels(), NOISE, NOISE, NOISE);
   t.format = THREE.RGBAFormat;
   t.type = THREE.UnsignedByteType;
