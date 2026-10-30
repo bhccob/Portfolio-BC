@@ -4,6 +4,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
+import { categories } from '~/data/categories';
 import { projects } from '~/data/projects';
 import { en } from '~/i18n/en';
 import { nl } from '~/i18n/nl';
@@ -49,6 +50,27 @@ describe("the projects' names on the world", () => {
       expect(html.match(/<polyline/g)).toHaveLength(WORLD_PROJECTS.length);
       expect(html).toContain(t.needle.world.hint.click);
       expect(html).toContain(t.needle.world.hint.tap);
+    }
+  });
+
+  // Round 10 (Bob, 2026-10-30: the projects glow "so users know where to hover"; the spec's hover label): a name on hover
+  // shows its floor's heading over it and "Klik om te openen" (on touch "Tik om te openen") under it, the site's own
+  // words, read by screen readers as the title alone.
+  it("shows its floor's heading over it and how to open it under it, its link named by the title alone", () => {
+    for (const [path, t, locale] of [
+      ['/', nl, 'nl'],
+      ['/en/', en, 'en']
+    ] as const) {
+      const html = renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: [path] }, createElement(WorldNames)));
+      for (const id of WORLD_PROJECTS) {
+        const p = projects.byId(id)!;
+        const at = html.indexOf(`class="world-name" data-project="${id}"`);
+        expect(at, id).toBeGreaterThanOrEqual(0);
+        const link = html.slice(at, html.indexOf("</a>", at));
+        expect(link).toContain(`<span class="world-name-kicker" aria-hidden="true">${categories.byId(p.categoryId).heading(locale)}</span>`);
+        expect(link).toContain(`<span class="world-name-title">${p.title.toUpperCase()}</span>`);
+        expect(link).toContain(`<span class="world-name-open" aria-hidden="true"><span class="world-hint-fine">${t.needle.world.open.click}</span><span class="world-hint-touch">${t.needle.world.open.tap}</span></span>`);
+      }
     }
   });
 

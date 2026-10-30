@@ -32,7 +32,8 @@ import { captionHover, nameLevel, showWorldNames, type WorldNamesView } from '~/
 import { motion } from '../motion';
 import { engravedLevels, shaftRings } from './engravedWay';
 import type { Handover } from './Home';
-import { type JourneyAt, type LightPose, WORLD_PROJECTS } from './journey';
+import { journeyAt, type JourneyAt, type LightPose, WORLD_PROJECTS } from './journey';
+import { floorGlow } from './floorGlow';
 import { LOOK } from './look';
 import { setGasPass } from '../gasPass';
 import { fallStarsLevel, nebulaLevels } from './nebulaWay';
@@ -839,6 +840,12 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       if (ticking) clock.time += dt0;
       if (on && path) {
         const levels = { ...path.levels };
+        // At a floor's stop its projects breathe softly brighter, so it shows where to point (round 10, ./floorGlow.ts).
+        const at = journeyAt(frame.progress);
+        if (at.stretch === 'area' && at.project !== null) {
+          const glow = floorGlow(now / 1000, reducedMotion);
+          for (const id of areasOnPath()[at.project]?.projects ?? []) if (levels[id] !== undefined) levels[id] *= glow;
+        }
         const hovered = run.hover.id === null ? null : WORLD_PROJECTS[run.hover.id];
         if (hovered && levels[hovered] !== undefined) levels[hovered] *= 1 + HOVER_LIFT * run.hover.amount;
         // Each project as far up to the spot as the move has it (the shown one, and those on their way down), lit as it

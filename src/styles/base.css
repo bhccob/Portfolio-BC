@@ -872,6 +872,27 @@ html[data-3d='on'] .end-link:hover {
   visibility: visible;
 }
 
+/* Round 10 (Bob: the projects glow "so users know where to hover"): its floor's heading over the name and how to open
+   it under it, small, in the label's mono. */
+.world-name-kicker,
+.world-name-title,
+.world-name-open {
+  display: block;
+}
+
+.world-name-kicker {
+  margin-bottom: 4px;
+  font-size: 10px;
+  color: var(--gold-ink);
+}
+
+.world-name-open {
+  margin-top: 4px;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--ink-dim);
+}
+
 .world-name[data-hot],
 .world-name:focus-visible {
   color: var(--gold-title);

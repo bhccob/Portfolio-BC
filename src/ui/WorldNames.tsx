@@ -1,6 +1,6 @@
 import { type JSX, useCallback } from 'react';
 import { Link } from 'react-router';
-import type { CategoryId } from '~/data/categories';
+import { type CategoryId, categories } from '~/data/categories';
 import { type ProjectId, projects } from '~/data/projects';
 import { useTranslator } from '~/i18n/useTranslator';
 import { WORLD_PROJECTS } from '~/scene/bob/journey';
@@ -168,8 +168,13 @@ export function showWorldNames(view: WorldNamesView | null, size: { width: numbe
   }
 }
 
+/**
+ * A project's name on the world (round 10, Bob: the projects glow "so users know where to hover"): its floor's heading
+ * over it, its title, and how to open it under it, the site's own words; the link is named by the title alone.
+ */
 function WorldName({ id }: { id: ProjectId }): JSX.Element {
   const i18n = useTranslator();
+  const { t, locale } = i18n;
   const project = projects.byId(id)!;
   const ref = useCallback(
     (el: HTMLAnchorElement | null) => {
@@ -191,7 +196,14 @@ function WorldName({ id }: { id: ProjectId }): JSX.Element {
         openAt(id);
       }}
     >
-      {project.title.toUpperCase()}
+      <span className="world-name-kicker" aria-hidden="true">
+        {categories.byId(project.categoryId).heading(locale)}
+      </span>
+      <span className="world-name-title">{project.title.toUpperCase()}</span>
+      <span className="world-name-open" aria-hidden="true">
+        <span className="world-hint-fine">{t.needle.world.open.click}</span>
+        <span className="world-hint-touch">{t.needle.world.open.tap}</span>
+      </span>
     </Link>
   );
 }
