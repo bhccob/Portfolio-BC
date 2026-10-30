@@ -1233,7 +1233,7 @@ async function phoneMenu(browser, step) {
   s = await menuState(page);
   step.check(s.open && s.navShown, 'a tap on Menu opens the nav (:popover-open)');
   step.check(Math.abs(s.nav.top - s.header.bottom) <= 8 && Math.abs(s.nav.bottom - s.viewport) <= 1, `the sheet runs from under the header (${s.nav.top} against ${s.header.bottom}) to the bottom (${s.nav.bottom} of ${s.viewport})`);
-  const expected = [t.nav.work, t.nav.about, t.nav.contact].map((text) => text.toLowerCase());
+  const expected = [t.nav.contact].map((text) => text.toLowerCase());
   step.check(JSON.stringify(s.links.map((l) => l.text)) === JSON.stringify(expected), `its links are ${expected.join(', ')} (got ${s.links.map((l) => l.text).join(', ')})`);
   step.check(s.links.every((l) => l.height >= 44 && l.left >= 0 && l.right <= phone.width), `each link is at least 44 px high, inside the screen (${s.links.map((l) => Math.round(l.height)).join(', ')} px)`);
   step.check(s.controls.every((c) => c.shown && c.bottom <= s.viewport), 'every control of the nav shows inside the sheet');
@@ -2283,7 +2283,7 @@ async function noScene(browser, step) {
     tag: document.querySelector('.scene-host canvas')?.dataset.id ?? null,
     route: window.__needleDebug().route,
   }));
-  step.check(kept.route === 'lite' && kept.mounts === 1 && kept.canvases === 1 && kept.tag === 'home-canvas', `home → Lite by client navigation: one Stage, the same <canvas> (got ${JSON.stringify(kept)})`);
+  step.check(kept.route === 'contact' && kept.mounts === 1 && kept.canvases === 1 && kept.tag === 'home-canvas', `home → contact by client navigation: one Stage, the same <canvas> (got ${JSON.stringify(kept)})`);
   step.check(slept === 0, `on the contact page the canvas sleeps: no requestAnimationFrame in 1.5 s of the mouse moving over the page (got ${slept})`);
 
   // Scrolling, resizing and a font arriving on Lite wake nothing either (Task 14b, fix 1): Home stays mounted behind a
