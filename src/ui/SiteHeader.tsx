@@ -72,13 +72,8 @@ export function SiteHeader(): JSX.Element {
           <span className="menu-bars" aria-hidden="true" />
         </button>
         <nav id={MENU_ID} className="header-nav" aria-label={t.nav.menu} popover="auto" onClick={closeMenuOnLink}>
+          {/* Bob (2026-10-30): "remove the Over mij and Werk in the header": Contact alone, and the language. */}
           <div className="menu-links">
-            <Link className="header-control" to={i18n.path(`${PAGES.lite}#work`)}>
-              {t.nav.work}
-            </Link>
-            <Link className="header-control" to={i18n.path(`${PAGES.lite}#about`)}>
-              {t.nav.about}
-            </Link>
             <Link className="header-control" to={i18n.path(PAGES.contact)}>
               {t.nav.contact}
             </Link>

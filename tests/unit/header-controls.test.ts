@@ -55,7 +55,8 @@ describe('the header', () => {
     ['/lite/', nl, 'nl' as const],
     ['/en/contact/', en, 'en' as const],
     ['/projects/steady/', nl, 'nl' as const],
-  ])('on %s it lists the name, Work, About, Contact and the language switch, in that order: no light-version link and no 3D switch', (path, t, locale) => {
+  // Bob (2026-10-30): "remove the Over mij and Werk in the header".
+  ])('on %s it lists the name, Contact and the language switch, in that order: no Work, no About, no light-version link and no 3D switch', (path, t, locale) => {
     initial.threeD = true;
     const controls = controlsOf(render(path, SiteHeader));
     const other = locale === 'en' ? 'nl' : 'en';
@@ -66,27 +67,18 @@ describe('the header', () => {
       '#main',
       at(PAGES.home),
       'menu-toggle',
-      at(`${PAGES.lite}#work`),
-      at(`${PAGES.lite}#about`),
       at(PAGES.contact),
       Translator.pathFor(other, routeFromPath(path)),
     ]);
     // ... and by the labels the components render.
-    expect(controls.map((control) => control.text)).toEqual([
-      t.nav.skip,
-      t.needle.hero.name,
-      t.nav.menu + t.nav.close,
-      t.nav.work,
-      t.nav.about,
-      t.nav.contact,
-      other.toUpperCase(),
-    ]);
+    expect(controls.map((control) => control.text)).toEqual([t.nav.skip, t.needle.hero.name, t.nav.menu + t.nav.close, t.nav.contact, other.toUpperCase()]);
 
-    // The name is a link home that says so, on the home page as on any other; the nav holds four links.
+    // The name is a link home that says so, on the home page as on any other; the nav holds two links.
     expect(controls[1].attrs.class).toBe('site-name');
     expect(controls[1].attrs['aria-label']).toBe(t.nav.home);
-    expect(controls.filter((control) => control.attrs.class === 'header-control')).toHaveLength(4);
-    expect(controls[6].attrs['aria-label']?.startsWith(`${other.toUpperCase()} `)).toBe(true);
+    expect(controls.filter((control) => control.attrs.class === 'header-control')).toHaveLength(2);
+    expect(controls[4].attrs['aria-label']?.startsWith(`${other.toUpperCase()} `)).toBe(true);
+    expect(controls.some((control) => control.attrs.href === at(`${PAGES.lite}#work`) || control.attrs.href === at(`${PAGES.lite}#about`))).toBe(false);
     // Nothing of the light version's link or the switch, on a laptop's row or in the phone's menu (the same markup).
     expect(controls.some((control) => control.attrs.href === at(PAGES.lite))).toBe(false);
     expect(controls.some((control) => control.attrs.role === 'switch')).toBe(false);

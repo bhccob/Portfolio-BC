@@ -228,7 +228,7 @@
  *   no-scene   Lite is the light version: a direct load of a page without a scene (/lite/, /contact/, /en/lite/,
  *              /en/contact/) asks for none of the scene's files (the Stage chunk, three.js, maath, the textures),
  *              mounts no <canvas>, probes no WebGL, shows no fallback card and leaves LOADING with 3D still on; from
- *              the home page to Lite by client navigation the one canvas stays (canvasMounts 1, the same node) and
+ *              the home page to the contact page by client navigation the one canvas stays (canvasMounts 1, the same node) and
  *              sleeps: no requestAnimationFrame at all through 1.5 s of mouse moves, nor through scrolling (wheel and
  *              scrollTo) or the window's resize and the fonts' loadingdone events sent with no change of size; a real
  *              resize redraws it once at its new size and it sleeps again; back home the pointer wakes it
@@ -1243,11 +1243,12 @@ async function phoneMenu(browser, step) {
   const extras = await page.$$eval('#site-menu .menu-extras > *', (els) => els.map((el) => ({ role: el.getAttribute('role'), hreflang: el.getAttribute('hreflang') })));
   step.check(extras.length === 1 && extras[0].hreflang === 'en' && extras[0].role === null, `the sheet's one control besides the links is the language switch (got ${JSON.stringify(extras)})`);
 
+  // Its one link is Contact (Work and About went, Bob 2026-10-30).
   await page.locator('#site-menu .menu-links a').first().tap();
-  await page.waitForFunction(() => location.hash === '#work', null, { timeout: 5_000 }).catch(() => {});
+  await page.waitForFunction(() => location.pathname === '/contact/', null, { timeout: 5_000 }).catch(() => {});
   await page.waitForTimeout(300);
   s = await menuState(page);
-  step.check(s.path === '/lite/' && s.hash === '#work' && !s.open, `Werk follows to /lite/#work and closes the menu (at ${s.path}${s.hash}, open ${s.open})`);
+  step.check(s.path === '/contact/' && !s.open, `Contact follows to /contact/ and closes the menu (at ${s.path}${s.hash}, open ${s.open})`);
   await takeCsp(page, step);
 
   // A project page: Escape is the open menu's first, then the page's way back.
@@ -2255,7 +2256,7 @@ async function noScene(browser, step) {
     await context.close();
   }
 
-  // From the home page to Lite by client navigation: the canvas stays, and sleeps there.
+  // From the home page to a page without a scene by client navigation: the canvas stays, and sleeps there.
   const { context, page } = await openPage(browser, step);
   await countAllFrames(context);
   await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
@@ -2266,9 +2267,9 @@ async function noScene(browser, step) {
     document.querySelector('.scene-host canvas').dataset.id = 'home-canvas';
   });
   await page.mouse.move(700, 400, { steps: 4 }); // the parallax and the needle are moving as the visitor leaves
-  // The header's Work (its link to the light version went, 2026-10-29).
-  await page.click('.site-header a[href="/lite/#work"]');
-  await page.waitForURL((url) => url.pathname === '/lite/', { timeout: 5_000 });
+  // The header's Contact, a page without a scene (its links to the light version, Work and About went, 2026-10-29 and 30).
+  await page.click('.site-header a[href="/contact/"]');
+  await page.waitForURL((url) => url.pathname === '/contact/', { timeout: 5_000 });
   await page.waitForTimeout(300); // the frame already asked for when the page changed runs
   const from = await page.evaluate(() => window.__allRaf);
   for (let i = 0; i < 15; i++) {
@@ -2283,7 +2284,7 @@ async function noScene(browser, step) {
     route: window.__needleDebug().route,
   }));
   step.check(kept.route === 'lite' && kept.mounts === 1 && kept.canvases === 1 && kept.tag === 'home-canvas', `home → Lite by client navigation: one Stage, the same <canvas> (got ${JSON.stringify(kept)})`);
-  step.check(slept === 0, `on Lite the canvas sleeps: no requestAnimationFrame in 1.5 s of the mouse moving over the page (got ${slept})`);
+  step.check(slept === 0, `on the contact page the canvas sleeps: no requestAnimationFrame in 1.5 s of the mouse moving over the page (got ${slept})`);
 
   // Scrolling, resizing and a font arriving on Lite wake nothing either (Task 14b, fix 1): Home stays mounted behind a
   // page without a scene, and its layout listeners must not ask for frames there. The page scrolled for real, by wheel
@@ -4054,9 +4055,9 @@ async function loaderSkip(browser, step) {
 /**
  * The skip listens only while a scene is shown, so a page of text reached mid-show scrolls. A first visit to a project page (nothing stored, so the full
  * show plays under the page's scrim), with the compass's file held back, so its load is still out when the visitor
- * leaves, as on a slow connection: CUT_AT (1.5) s into the loader a click on the header's Work (/lite/#work, its link to
- * the light version went in stack round 3; it also asks for the skip)
- * opens Lite by client navigation, a page with no scene, where the show cannot land. (A load that is in by then lands
+ * leaves, as on a slow connection: CUT_AT (1.5) s into the loader a click on the header's Contact (/contact/; its links to
+ * the light version, Work and About went in rounds 3 and 7; it also asks for the skip)
+ * opens the contact page by client navigation, a page with no scene, where the show cannot land. (A load that is in by then lands
  * the show as the visitor leaves, as Lite's phase skips the rest of it, and the listener goes with it: that case passes
  * either way.) There the page is the visitor's: five wheel turns scroll it, and from the top again Space and then
  * PageDown each scroll it (scrollY above 0), with none of those events prevented. Then the file is let through and the
@@ -4088,8 +4089,8 @@ async function loaderLite(browser, step) {
   const flag = await page.evaluate((key) => localStorage.getItem(key), LOADER_SEEN_KEY);
   await loaderAtLeast(page, CUT_AT);
   const at = (await debugOf(page)).loader;
-  await page.click('.site-header a[href="/lite/#work"]');
-  const opened = await page.waitForURL((url) => url.pathname === '/lite/', { timeout: 5_000 }).then(
+  await page.click('.site-header a[href="/contact/"]');
+  const opened = await page.waitForURL((url) => url.pathname === '/contact/', { timeout: 5_000 }).then(
     () => true,
     () => false,
   );
@@ -4100,11 +4101,11 @@ async function loaderLite(browser, step) {
     `a first visit to /projects/steady/ plays the full show, its compass file held (${asked} asked): ${CUT_AT} s in it engraves (stage ${at.stage} at ${at.elapsed.toFixed(2)} s, ${LOADER_SEEN_KEY} ${flag})`,
   );
   step.check(
-    opened && there.route === 'lite',
-    `a click on the header's Lite link ${CUT_AT} s in opens Lite (${page.url()}, route ${there.route}; the opening stands at ${there.loader.stage}, ${there.loader.elapsed.toFixed(2)} s)`,
+    opened && there.route === 'contact',
+    `a click on the header's Contact ${CUT_AT} s in opens the contact page (${page.url()}, route ${there.route}; the opening stands at ${there.loader.stage}, ${there.loader.elapsed.toFixed(2)} s)`,
   );
 
-  // The wheel, from where Work left Lite (at #work).
+  // The wheel, from the top of the contact page.
   await page.mouse.move(720, 450);
   const wheelFrom = await page.evaluate(() => window.scrollY);
   await page.evaluate(() => window.__prevented.splice(0));
@@ -4117,7 +4118,7 @@ async function loaderLite(browser, step) {
   const wheels = await page.evaluate(() => window.__prevented.splice(0));
   step.check(
     wheelY > wheelFrom && wheels.length === 5 && wheels.every((e) => !e.prevented),
-    `on Lite five wheel turns scroll the page: scrollY ${wheelFrom} → ${wheelY}, ${wheels.filter((e) => e.prevented).length} of ${wheels.length} prevented`,
+    `on the contact page five wheel turns scroll it: scrollY ${wheelFrom} → ${wheelY}, ${wheels.filter((e) => e.prevented).length} of ${wheels.length} prevented`,
   );
 
   // The keys, each from the top again.
@@ -4910,10 +4911,10 @@ async function keyboard(browser, step) {
   }
   const langAt = reached.findIndex(isLang);
   step.check(reached[0]?.href === '#main', `the first Tab lands on the skip link (got ${JSON.stringify(reached[0])})`);
-  // The header's order (spec §2.2; its link to the light version and its 3D switch went, Bob 2026-10-29): the name, then
-  // Work, About and Contact, and the language switch last.
+  // The header's order (spec §2.2; its link to the light version and its 3D switch went, Bob 2026-10-29, Work and About
+  // 2026-10-30): the name, then Contact, and the language switch last.
   const order = reached.map((control) => (control.role === 'switch' ? '3D' : isLang(control) ? 'EN' : control.href));
-  const HEADER_ORDER = ['#main', '/', '/lite/#work', '/lite/#about', '/contact/', 'EN'];
+  const HEADER_ORDER = ['#main', '/', '/contact/', 'EN'];
   step.check(JSON.stringify(order) === JSON.stringify(HEADER_ORDER), `Tab goes through the header in its order: ${HEADER_ORDER.join(', ')} (got ${order.join(', ')})`);
   step.check(reached[langAt]?.ring && reached[langAt].onScreen, `the language switch shows a focus ring (outline 2px or more) and is on screen when focused (got ${JSON.stringify(reached[langAt])})`);
   // Past the language switch the header ends: the next Tab leaves it.
@@ -7009,7 +7010,7 @@ async function qaEnd(browser, step) {
     const focus = await page.evaluate(() => document.activeElement?.id ?? null);
     step.check(arrived !== null && focus === 'qa-end-title', `1440x900: the nav's link goes to the end's mark (${arrived === null ? 'never' : `${arrived} ms`}) with the focus on #qa-end-title (${focus})`);
     // With the keyboard in the header, the header stands over the end's dark (the Q&A is at z-index 3), its link not hidden.
-    await page.focus('.site-header a[href="/lite/#work"]');
+    await page.focus('.site-header a[href="/contact/"]');
     const over = await page.evaluate(() => ({
       end: document.documentElement.hasAttribute('data-qa-end'),
       header: Number(getComputedStyle(document.querySelector('.site-header')).zIndex),
