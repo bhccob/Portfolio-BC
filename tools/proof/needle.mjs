@@ -143,7 +143,7 @@
  *              201 the circuit light's frame, dial and five traces drawn, the traces above it on the screen; from BOB
  *              from above, notches (swipes) run the way frames up to the path and never back, and from the fall notches
  *              up run them back; stopped mid-fall the story rests where the input stopped, not on a stop, and the
- *              canvas sleeps within a second
+ *              canvas draws the storm alone (STORM_FPS_MAX frames a second at most)
  *   letters    at 1440x900 and 390x844 (touch): the B letters as the compass's bands light on the rise, wheel notches
  *              from the home taking their share from 0 to 1, never back; a point on the right B's back and one on its
  *              foot farther out, projected through the rise's camera, both dark at share 0, the back lit and the foot
@@ -293,9 +293,16 @@
  *              `m2/aim-right-1440x900.png`, gated as a home still); on a touch phone (390x844), with no cursor, the
  *              needle drifts on its own: `needleAngle` changes over 3 s
  *   sleep      landed and left alone (no input at all, so the needle drifts), the canvas runs its idle motion and the
- *              drift on to its next rest and then draws nothing: no requestAnimationFrame for a whole second within
- *              DRIFT_RUN + SLEEP_WITHIN_MS of the landing, and not before DRIFT_RUN - 2 s (DRIFT_RUN is the drift's
- *              first rest after the idle while, nextDriftRest(IDLE_SECONDS))
+ *              drift on to its next rest and then draws the storm alone (spec 2026-10-30-bob-storm-design.md): no more
+ *              than STORM_FPS_MAX frames a second for a whole second within DRIFT_RUN + SLEEP_WITHIN_MS of the landing,
+ *              and not before DRIFT_RUN - 2 s (DRIFT_RUN is the drift's first rest after the idle while,
+ *              nextDriftRest(IDLE_SECONDS)); with reduced motion the storm stands still and the canvas draws nothing
+ *              for a whole second within SLEEP_WITHIN_MS
+ *   storm      the storm behind everything (spec 2026-10-30-bob-storm-design.md), at 1440x900 and 390x844 (touch):
+ *              at the start screen it is in (its sky at STORM.sky.home, its flats whole) and moving, and the picture
+ *              changes over 3 s; in the fall (way frame 110) its sky at STORM.sky.fall and no flats; at the world's stop
+ *              at STORM.sky.void; left alone at the world it draws no more than STORM_FPS_MAX frames a second; on a
+ *              project's page it stands still; with reduced motion it is in but stands still (its clock does not move)
  *   hero-failsafe  with JavaScript on but the entry chunk aborted (the page never hydrates), the hero (the hidden name
  *              and the scroll cue) and the header are hidden and then shown by the CSS fail-safe about 8 s in; with
  *              the page working, both stay hidden until the phase is HOME_IDLE and then show
@@ -378,6 +385,44 @@ const { projects: PROJECTS } = await tsImport('../../src/data/projects.ts', impo
  * stir, or from the landing for a home left alone (step sleep counts it from DRIFT_RUN instead).
  */
 const SLEEP_WITHIN_MS = 20_000;
+const { STORM } = await tsImport('../../src/scene/bob/storm.ts', import.meta.url);
+/**
+ * The storm behind everything (spec 2026-10-30-bob-storm-design.md) keeps the canvas drawing on the home page while it
+ * moves, at STORM.fps when nothing else does: a home left alone draws no more than this many frames a second, where it
+ * once drew none (with reduced motion it still draws none).
+ */
+const STORM_FPS_MAX = STORM.fps + 6;
+/**
+ * The frames the canvas drew over `ms`, a second: counted by the storm, which is posed on every frame the scene draws
+ * (`journey.storm.frames`; window.__allRaf counts R3F's requests, more than one a frame as it starts and stops).
+ */
+const drawnFrames = (page) => page.evaluate(() => window.__needleDebug?.().journey.storm?.frames ?? null);
+async function framesPerSecond(page, ms) {
+  const before = await drawnFrames(page);
+  await page.waitForTimeout(ms);
+  return ((await drawnFrames(page)) - (before ?? 0)) / (ms / 1000);
+}
+/**
+ * When, ms from now, a whole second first went by with no more than STORM_FPS_MAX frames drawn (the canvas drawing
+ * the storm alone), looking for `limit` ms; null if none did. Read in 200 ms windows, a second's worth at a time.
+ */
+async function settlesToStorm(page, limit) {
+  const start = Date.now();
+  const marks = [];
+  while (Date.now() - start < limit) {
+    const n = await drawnFrames(page);
+    // Not before the storm is in: until then nothing counts the frames.
+    if (n === null) marks.length = 0;
+    else marks.push({ t: Date.now(), n });
+    const from = marks.find((m) => marks.at(-1).t - m.t <= 1_000);
+    if (marks.length > 1 && marks.at(-1).t - marks[0].t >= 1_000 && from && marks.at(-1).t - from.t >= 800) {
+      const rate = (marks.at(-1).n - from.n) / ((marks.at(-1).t - from.t) / 1000);
+      if (rate <= STORM_FPS_MAX) return from.t - start;
+    }
+    await page.waitForTimeout(200);
+  }
+  return null;
+}
 /**
  * How long a home left alone, with no pointer ever moved, keeps its idle motion going, s: the needle drifts on its own,
  * and once the idle while is over it runs on to the drift's next rest (src/engine/bob/needleAim.ts, nextDriftRest), so
@@ -2090,9 +2135,10 @@ async function loaded(browser, step) {
   await page.keyboard.press('Home');
   await restAt(page);
 
-  // The canvas renders on demand: once the home's idle motion is over, nothing asks for a frame; the pointer wakes it.
-  const slept = await sleepWithin(page, SLEEP_WITHIN_MS);
-  step.check(slept !== null, `an idle page draws nothing: no requestAnimationFrame at all for 1 s, from ${slept} ms after the last input (limit ${SLEEP_WITHIN_MS} ms)`);
+  // The canvas renders on demand: once the home's idle motion is over, only the storm asks for frames, at its own gentle
+  // pace (spec 2026-10-30-bob-storm-design.md); the pointer wakes the rest.
+  const slept = await settlesToStorm(page, SLEEP_WITHIN_MS);
+  step.check(slept !== null, `an idle page draws the storm alone: no more than ${STORM_FPS_MAX} frames a second for 1 s, from ${slept} ms after the last input (limit ${SLEEP_WITHIN_MS} ms)`);
   const before = await page.evaluate(() => window.__allRaf);
   await page.mouse.move(980, 320, { steps: 4 });
   await page.waitForTimeout(300);
@@ -2132,7 +2178,7 @@ async function loaded(browser, step) {
   step.check(on.threeD === 'on' && on.mounts === 1 && on.canvases === 1 && !on.card, `with needle-3d = off stored from before: HOME_IDLE after ${oldAt} ms with 3D on, one Stage, one <canvas>, no card (got ${JSON.stringify(on)})`);
   await takeCsp(old.page, step);
   await old.context.close();
-  return `LOADING → HOME_IDLE in ${at} ms on a direct load, the wheel moves the story, the canvas sleeps ${slept} ms after the last input and wakes on the pointer; a stored "off" from before: 3D on, HOME_IDLE in ${oldAt} ms`;
+  return `LOADING → HOME_IDLE in ${at} ms on a direct load, the wheel moves the story, the canvas draws the storm alone ${slept} ms after the last input and wakes on the pointer; a stored "off" from before: 3D on, HOME_IDLE in ${oldAt} ms`;
 }
 
 /**
@@ -4332,12 +4378,118 @@ async function sleep(browser, step) {
   await page.bringToFront();
   await reachHomeIdle(page);
   const limit = DRIFT_RUN * 1000 + SLEEP_WITHIN_MS;
-  const slept = await sleepWithin(page, limit);
-  step.check(slept !== null, `landed and left alone, the canvas draws nothing for a whole second from ${slept} ms after the landing (within DRIFT_RUN + SLEEP_WITHIN_MS = ${limit} ms)`);
-  step.check(slept !== null && slept >= (DRIFT_RUN - 2) * 1000, `and it ran the drift on to its rest first: it fell quiet ${slept} ms after the landing (the drift rests at ${DRIFT_RUN} s)`);
+  const slept = await settlesToStorm(page, limit);
+  step.check(slept !== null, `landed and left alone, the canvas draws the storm alone, no more than ${STORM_FPS_MAX} frames a second for a whole second, from ${slept} ms after the landing (within DRIFT_RUN + SLEEP_WITHIN_MS = ${limit} ms)`);
+  step.check(slept !== null && slept >= (DRIFT_RUN - 2) * 1000, `and it ran the drift on to its rest first: it settled ${slept} ms after the landing (the drift rests at ${DRIFT_RUN} s)`);
   await takeCsp(page, step);
   await context.close();
-  return `the idle motion and the drift ran to the drift's rest, then the canvas slept ${slept} ms after the landing (limit ${limit} ms)`;
+
+  // With reduced motion the storm stands still, and the canvas sleeps as it always did.
+  const reduced = await openPage(browser, step);
+  await countAllFrames(reduced.context);
+  await reduced.page.emulateMedia({ reducedMotion: 'reduce' });
+  await reduced.page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+  await reduced.page.bringToFront();
+  await reachHomeIdle(reduced.page);
+  const still = await sleepWithin(reduced.page, SLEEP_WITHIN_MS);
+  const storm = (await debugOf(reduced.page))?.journey.storm ?? null;
+  step.check(still !== null, `with reduced motion the canvas draws nothing for a whole second from ${still} ms after the landing (within ${SLEEP_WITHIN_MS} ms)`);
+  step.check(storm !== null && storm.moving === false && storm.sky > 0, `and the storm is there but stands still (${JSON.stringify(storm)})`);
+  await takeCsp(reduced.page, step);
+  await reduced.context.close();
+  return `the idle motion and the drift ran to the drift's rest, then the canvas drew the storm alone ${slept} ms after the landing (limit ${limit} ms); with reduced motion it slept ${still} ms after the landing, the storm still`;
+}
+
+/** The mean difference of two stills, 0..1 per channel, read in a page of its own (as lumaOf reads one). */
+async function stillsDiffer(browser, a, b) {
+  const meter = await browser.newContext();
+  const page = await meter.newPage();
+  const url = (file) => `data:image/png;base64,${readFileSync(file).toString('base64')}`;
+  const diff = await page.evaluate(async ([ua, ub]) => {
+    const load = (src) => new Promise((resolve, reject) => { const img = new Image(); img.onload = () => resolve(img); img.onerror = reject; img.src = src; });
+    const [ia, ib] = await Promise.all([load(ua), load(ub)]);
+    const w = 360;
+    const h = Math.round((ia.height / ia.width) * w);
+    const read = (img) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); g.drawImage(img, 0, 0, w, h); return g.getImageData(0, 0, w, h).data; };
+    const da = read(ia);
+    const db = read(ib);
+    let sum = 0;
+    for (let i = 0; i < da.length; i += 4) sum += Math.abs(da[i] - db[i]) + Math.abs(da[i + 1] - db[i + 1]) + Math.abs(da[i + 2] - db[i + 2]);
+    return sum / ((da.length / 4) * 3 * 255);
+  }, [url(a), url(b)]);
+  await meter.close();
+  return diff;
+}
+
+/** How much a still must change over 3 s for the storm to count as moving (mean, 0..1 per channel). */
+const STORM_MOVES = 0.004;
+
+/**
+ * The storm behind everything (spec 2026-10-30-bob-storm-design.md): see the step list. Read through the bridge's
+ * `journey.storm` (src/scene/bob/storm.ts's levels, faded in) and two stills 3 s apart.
+ */
+async function storm(browser, step) {
+  const summary = [];
+  for (const size of STILL_SIZES) {
+    const at = sizeName(size);
+    const { context, page, touch } = await readyHome(browser, step, size);
+    await poseAt(page, 0);
+    // In once its plates are, faded in over STORM.fadeIn.
+    const came = await page.waitForFunction((home) => { const st = window.__needleDebug().journey.storm; return st !== null && st.sky >= home - 1e-9 && st.flats >= 1 - 1e-9; }, STORM.sky.home, { timeout: 15_000 }).then(() => true, () => false);
+    let s = (await debugOf(page)).journey.storm;
+    step.check(came && near(s.sky, STORM.sky.home, 1e-3) && near(s.flats, 1, 1e-3) && s.moving === true, `${at}: at the start screen the storm is in, its sky at ${STORM.sky.home} and its flats whole, and moving (${JSON.stringify(s)})`);
+    const a = join(STILLS, `storm-home-a-${at}.png`);
+    const b = join(STILLS, `storm-home-b-${at}.png`);
+    await page.screenshot({ path: a });
+    await page.waitForTimeout(3_000);
+    await page.screenshot({ path: b });
+    const moved = await stillsDiffer(browser, a, b);
+    step.check(moved >= STORM_MOVES, `${at}: and the picture changes over 3 s (mean difference ${moved.toFixed(4)}, at least ${STORM_MOVES})`);
+    // Past the clouds coming in (way frame 95), the storm at its fall light.
+    s = (await poseAt(page, placeOfFrame(110))).journey.storm;
+    await page.waitForTimeout(300);
+    s = (await debugOf(page)).journey.storm;
+    step.check(near(s.sky, STORM.sky.fall, 1e-3) && s.flats === 0 && s.moving === true, `${at}: in the fall (way frame 110) its sky at ${STORM.sky.fall}, no flats, moving (${JSON.stringify(s)})`);
+    await poseAt(page, worldStop(HOME_CHAPTERS));
+    await page.waitForTimeout(300);
+    s = (await debugOf(page)).journey.storm;
+    step.check(near(s.sky, STORM.sky.void, 1e-3) && s.flats === 0, `${at}: at the world's stop its sky at ${STORM.sky.void} (${JSON.stringify(s)})`);
+    // Left alone there: the world's clock runs IDLE_SECONDS after the move, then the storm draws alone.
+    const settled = await settlesToStorm(page, (IDLE_SECONDS + 4) * 1000);
+    const fps = await framesPerSecond(page, 2_000);
+    step.check(settled !== null && fps <= STORM_FPS_MAX && fps >= STORM.fps / 3, `${at}: left alone there the canvas draws the storm alone, ${fps.toFixed(1)} frames a second (between ${STORM.fps / 3} and ${STORM_FPS_MAX})`);
+    summary.push(`${at}: in at ${STORM.sky.home} and moving (${moved.toFixed(4)} over 3 s), ${STORM.sky.fall} in the fall, ${STORM.sky.void} at the world, ${fps.toFixed(1)} fps alone`);
+    await takeCsp(page, step);
+    await context.close();
+  }
+
+  // A project's page, reached by the home's own link: the storm behind it stands still.
+  const { context, page } = await readyHome(browser, step, STILL_SIZES[0]);
+  await page.focus('.home-nav a[href="/projects/steady/"]');
+  await page.keyboard.press('Enter');
+  await page.waitForURL((url) => url.pathname === '/projects/steady/', { timeout: 5_000 });
+  await page.waitForTimeout(2_000);
+  const first = (await debugOf(page)).journey.storm;
+  await page.waitForTimeout(1_000);
+  const then = (await debugOf(page)).journey.storm;
+  step.check(first !== null && first.moving === false && then.clock === first.clock, `on /projects/steady/ the storm behind the page stands still (${JSON.stringify(first)} then ${JSON.stringify(then)})`);
+  await takeCsp(page, step);
+  await context.close();
+
+  // Reduced motion, asked for before the page loads: in at once, and still.
+  const reduced = await openPage(browser, step);
+  await reduced.page.emulateMedia({ reducedMotion: 'reduce' });
+  await reduced.page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+  await reachHomeIdle(reduced.page);
+  await reduced.page.waitForFunction(() => window.__needleDebug().journey.storm !== null, null, { timeout: 15_000 }).catch(() => {});
+  await reduced.page.waitForTimeout(1_500);
+  const r1 = (await debugOf(reduced.page)).journey.storm;
+  await reduced.page.waitForTimeout(1_000);
+  const r2 = (await debugOf(reduced.page)).journey.storm;
+  step.check(r1 !== null && r1.moving === false && near(r1.sky, STORM.sky.home, 1e-3) && r2.clock === r1.clock, `with reduced motion the storm is in at once and stands still (${JSON.stringify(r1)} then ${JSON.stringify(r2)})`);
+  await takeCsp(reduced.page, step);
+  await reduced.context.close();
+  return `${summary.join('; ')}; still behind a project's page and with reduced motion`;
 }
 
 /** The entry chunk of the client bundle: without it the page never hydrates. */
@@ -5681,10 +5833,10 @@ async function lightDive(browser, step) {
     await nudge(page, cdp, 1);
     await nudge(page, cdp, 1);
     const rest = await restAt(page);
-    const sleptIn = await sleepWithin(page, 4_000);
+    const settledIn = await settlesToStorm(page, 4_000);
     const onStop = keyStops(HOME_CHAPTERS).some((stop) => near(stop, rest.target, 1e-3));
     step.check(!onStop && rest.target > placeOfFrame(140) && rest.target < PATH_START, `${at}: two inputs from way frame 140 rest where they stopped, ${rest.target.toFixed(4)}, not on a stop`);
-    step.check(sleptIn !== null && sleptIn <= 1_000, `${at}: at rest mid-fall the canvas sleeps within a second (asked for no frame from ${sleptIn} ms on)`);
+    step.check(settledIn !== null && settledIn <= 1_000, `${at}: at rest mid-fall the canvas draws the storm alone within a second, no more than ${STORM_FPS_MAX} frames a second (from ${settledIn} ms on)`);
     // 5. The drop into the stack, notch by notch from the hand-over until the light is on the lid.
     let dropNotches = null;
     if (!touch) {
@@ -6305,9 +6457,10 @@ async function areasStep(browser, step) {
       await page.screenshot({ path: file });
       shots.push({ file, kind: 'home', mask: await textMask(page) });
     }
-    // Left alone at an area the world stands still and the canvas sleeps: its clock runs IDLE_SECONDS after the last stir.
-    const slept = await sleepWithin(page, (IDLE_SECONDS + 4) * 1000);
-    step.check(slept !== null && slept <= (IDLE_SECONDS + 1) * 1000, `${at}: left alone at the last area the canvas sleeps within ${IDLE_SECONDS + 1} s (asked for no frame from ${slept === null ? 'never' : `${(slept / 1000).toFixed(1)} s`} on)`);
+    // Left alone at an area the world stands still: its clock runs IDLE_SECONDS after the last stir, and then the canvas
+    // draws the storm alone (spec 2026-10-30-bob-storm-design.md).
+    const slept = await settlesToStorm(page, (IDLE_SECONDS + 4) * 1000);
+    step.check(slept !== null && slept <= (IDLE_SECONDS + 1) * 1000, `${at}: left alone at the last area the canvas draws the storm alone within ${IDLE_SECONDS + 1} s, no more than ${STORM_FPS_MAX} frames a second (from ${slept === null ? 'never' : `${(slept / 1000).toFixed(1)} s`} on)`);
     // A dot back to the first area: a glide round the board.
     const first = areaStops[0];
     await watchWorld(page);
@@ -6988,6 +7141,7 @@ const STEPS = {
   'void-hold': voidHold,
   'void-fail': voidFail,
   'qa-end': qaEnd,
+  storm,
   keyboard,
   'reduced-motion': reducedMotion,
   loaded,

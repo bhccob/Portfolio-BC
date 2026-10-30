@@ -113,7 +113,7 @@ describe('readNeedleDebugState', () => {
   it('reports the storm on the journey as a copy, null when unset', () => {
     const before = frame.journey.storm;
     try {
-      const storm = { sky: 1, flats: 0.5, flash: 0.2, moving: true, clock: 3 };
+      const storm = { sky: 1, flats: 0.5, flash: 0.2, moving: true, clock: 3, frames: 42 };
       frame.journey.storm = storm;
       const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
       expect(state.journey.storm).toEqual(storm);

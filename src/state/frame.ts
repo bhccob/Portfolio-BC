@@ -33,13 +33,17 @@ export interface WorldOnScreen {
   lift: Partial<Record<ProjectId, number>>;
 }
 
-/** The storm as the Void last posed it: its sky's and flats' levels, its flash, whether it moves and its clock (s). */
+/**
+ * The storm as the Void last posed it: its sky's and flats' levels, its flash, whether it moves, its clock (s), and the
+ * frames it has been drawn in since its plates came in (the proof harness reads how often the canvas draws from it).
+ */
 export interface StormOnScreen {
   sky: number;
   flats: number;
   flash: number;
   moving: boolean;
   clock: number;
+  frames: number;
 }
 
 /**

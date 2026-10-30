@@ -130,9 +130,10 @@ interface VoidRun {
   /**
    * The storm behind everything (./storm.ts): its model once its plates are in, null before (and for good if they did
    * not come); whether they were asked for; when it came in (performance.now() ms, for its fade in); its clock, s, which
-   * runs only while it moves; and the next frame it asked for, at STORM.fps, while that is still to come.
+   * runs only while it moves; the frames it has been drawn in (for the debug bridge); and the next frame it asked for,
+   * at STORM.fps, while that is still to come.
    */
-  storm: { model: StormModel | null; asked: boolean; inAt: number; clock: number; wake: ReturnType<typeof setTimeout> | null };
+  storm: { model: StormModel | null; asked: boolean; inAt: number; clock: number; frames: number; wake: ReturnType<typeof setTimeout> | null };
 }
 
 /** No screen: the words are taken away. */
@@ -398,7 +399,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
     reading: false,
     hovering: false,
     skip: { shown: false },
-    storm: { model: null, asked: false, inAt: 0, clock: 0, wake: null }
+    storm: { model: null, asked: false, inAt: 0, clock: 0, frames: 0, wake: null }
   }));
   /** Starts the load, once: set by the mount below, called by the first frame the home has landed. */
   const start = useRef<() => void>(() => {});
@@ -583,7 +584,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
         scene.remove(storm.model.group);
         storm.model.dispose();
       }
-      run.storm = { model: null, asked: false, inAt: 0, clock: 0, wake: null };
+      run.storm = { model: null, asked: false, inAt: 0, clock: 0, frames: 0, wake: null };
       frame.journey.storm = null;
       say('idle');
       document.documentElement.removeAttribute('data-void');
@@ -694,7 +695,8 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
         invalidate();
       }, 1000 / STORM.fps);
     }
-    if (proof) frame.journey.storm = { sky, flats, flash: strength, moving, clock: storm.clock };
+    storm.frames++;
+    if (proof) frame.journey.storm = { sky, flats, flash: strength, moving, clock: storm.clock, frames: storm.frames };
   }
 
   useFrame(({ size }, delta) => {

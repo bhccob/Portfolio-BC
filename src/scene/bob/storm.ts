@@ -28,9 +28,9 @@ type Vec3 = [number, number, number];
  */
 export const STORM = {
   flats: [
-    { radius: 34, height: 26, scale: 1, shift: 0, speed: 0.0009, level: 0.95, foot: 0.2 },
-    { radius: 14, height: 11, scale: 0.75, shift: 0.37, speed: 0.0016, level: 1.45, foot: 0.32 },
-    { radius: 6.5, height: 6, scale: 0.55, shift: 0.71, speed: 0.0025, level: 1.9, foot: 0.45 }
+    { radius: 34, height: 26, scale: 1, shift: 0, speed: 0.0009, level: 0.85, foot: 0.2 },
+    { radius: 14, height: 11, scale: 0.75, shift: 0.37, speed: 0.0016, level: 1.3, foot: 0.32 },
+    { radius: 6.5, height: 6, scale: 0.55, shift: 0.71, speed: 0.0025, level: 1.7, foot: 0.45 }
   ],
   flash: { period: 6, spread: 2.5, rise: 0.15, fall: 1.1, twice: 0.45, twiceAfter: 0.45, twiceAt: 0.6, twiceWidth: 0.25, twiceLevel: 0.7 },
   sky: { home: 0.85, fall: 0.25, void: 0.25, open: 0.6 },
