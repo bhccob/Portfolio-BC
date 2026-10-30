@@ -81,14 +81,15 @@ describe('the storm: its flats, its flash, its levels and when it moves', () => 
     expect(at(NEBULA.CLOUDS_IN[1]).sky).toBeCloseTo(STORM.sky.fall, 9);
     expect(at(200).sky).toBeCloseTo(STORM.sky.fall, 9);
     expect(STORM.sky.fall).toBe(0.25);
-    expect(STORM.sky.void).toBe(0.25);
-    // Over the drop into the stack the storm steps back to its backdrop, there by the light's hit on the lid.
+    // Round the tower a little more of it: looking down on the stack the storm stands behind the gas.
+    expect(STORM.sky.void).toBe(0.45);
+    // Over the drop into the stack the storm eases from its fall light to its tower light, there by the light's hit on the lid.
     const land = (local: number) => stormLevels({ stretch: 'land', local, frame: null }, 0).sky;
     expect(land(0)).toBeCloseTo(STORM.sky.fall, 9);
     let last = land(0);
     for (let k = 1; k <= 20; k++) {
       const s = land((LAND_HIT * k) / 20);
-      expect(s).toBeLessThanOrEqual(last);
+      expect(s).toBeGreaterThanOrEqual(last);
       last = s;
     }
     expect(land(LAND_HIT)).toBeCloseTo(STORM.sky.void, 9);

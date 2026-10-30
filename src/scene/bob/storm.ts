@@ -33,7 +33,7 @@ export const STORM = {
     { radius: 6.5, height: 6, scale: 0.55, shift: 0.71, speed: 0.0025, level: 1.7, foot: 0.45 }
   ],
   flash: { period: 6, spread: 2.5, rise: 0.15, fall: 1.1, twice: 0.45, twiceAfter: 0.45, twiceAt: 0.6, twiceWidth: 0.25, twiceLevel: 0.7 },
-  sky: { home: 0.85, fall: 0.25, void: 0.25, open: 0.6 },
+  sky: { home: 0.85, fall: 0.25, void: 0.45, open: 0.6 },
   riseOut: 0.5,
   fps: 30,
   fadeIn: 1.5
@@ -68,10 +68,11 @@ export function stormFlash(t: number): { strength: number; dir: Vec3 } {
 
 /**
  * How much of the storm shows with the journey at `at` and a project `opened` (0..1): the sky's light and the flats'.
- * The start screen has it whole; the flats go over the first `riseOut` of the rise; over the fall the sky dims a little,
- * from the glass top fading to the clouds being in, and stays round the falling light; over the drop into the stack it
- * steps back to its backdrop light, there by the light's hit on the lid, and stays there round the tower, quieter with a
- * project open; the end page is a page, and has none.
+ * The start screen has it whole; the flats go over the first `riseOut` of the rise; over the fall the sky dims, from the
+ * glass top fading to the clouds being in (looking level into the storm's middle, round the falling light, a little of
+ * it is a lot), and stays there; over the drop into the stack it eases to its light round the tower (looking down on the
+ * stack, behind the gas), there by the light's hit on the lid, and stays there, quieter with a project open; the end
+ * page is a page, and has none.
  */
 export function stormLevels(at: Pick<JourneyAt, 'stretch' | 'local' | 'frame'>, opened: number): { sky: number; flats: number } {
   if (at.stretch === 'rise') return { sky: STORM.sky.home, flats: 1 - smooth(at.local / STORM.riseOut) };
