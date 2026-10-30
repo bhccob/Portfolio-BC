@@ -6260,64 +6260,64 @@ const openOf = (page) =>
     };
   });
 
-/** How long a click on a project may take to bring its own page (round 10: no flight, the router at once), ms. */
-const OPEN_PAGE_MS = 2_500;
-/** How far the camera may move while a project's page opens over its floor (the pointer's sway alone), m. */
-const OPEN_STAYS_M = 0.05;
-
-/** Waits until project `id`'s own page is up (its address and its title), answers the time it took, or null. */
-const openWithin = (page, id, home = '/', ms = 6_000) => {
+/** Waits until project `id` is open and its own page whole (or `ms` passes); answers the time it took, or null. */
+const openWithin = (page, id, ms = 6_000) => {
   const began = Date.now();
   return page
     .waitForFunction(
-      ([id, prefix]) => location.pathname === `${prefix}/projects/${id}/` && document.querySelector('.page-title') !== null,
-      [id, home === '/en/' ? '/en' : ''],
+      (id) => {
+        const view = document.querySelector(`.project-view[data-project="${id}"]`);
+        return document.documentElement.hasAttribute('data-inside') && history.state?.usr?.['bob-inside'] === id && view !== null && Number(view.style.opacity) > 0.99;
+      },
+      id,
       { timeout: ms },
     )
     .then(() => Date.now() - began, () => null);
 };
 
 /**
- * Does `act` (a click, a tap or a key that opens project `id`) and checks what follows (round 10, spec
- * 2026-10-30-bob-qa-list-floors-design.md: Bob, "the camera doesnt go to the project", and he picked the full page): its
- * own page within OPEN_PAGE_MS, nothing flying in (the camera within OPEN_STAYS_M of where it stood), its title the
- * project's and the way back there. Answers the time it took (ms), or null.
+ * Does `act` (a click, a tap or a key that opens project `id`) and checks the open project that follows: within
+ * FLIGHT_MS and a little its own page whole, the page still `home` with the open project's own history entry, on the
+ * scroll's phase, its words the dictionary's (`locale`) with "Lees meer", the way back shown and the focus on it.
+ * Answers the time it took (ms), or null.
  */
 async function opensProject(page, step, at, id, how, act, home = '/') {
   const locale = home === '/en/' ? 'en' : 'nl';
-  const before = (await debugOf(page)).camera.position;
+  const words = new Translator(locale).t.needle.page;
   await act();
-  const took = await openWithin(page, id, home);
-  await page.waitForTimeout(600);
-  const after = (await debugOf(page)).camera.position;
-  const moved = Math.hypot(...after.map((v, i) => v - before[i]));
+  const took = await openWithin(page, id);
+  await page.waitForTimeout(300);
+  const s = await openOf(page);
   const want = viewWords(id, locale);
-  const words = await page.evaluate(() => ({ title: document.querySelector('.page-title')?.textContent ?? null, lead: (document.querySelector('.lead')?.textContent ?? '').length, back: document.querySelector('.back') !== null }));
-  step.check(took !== null && took <= OPEN_PAGE_MS, `${at}: ${how}: ${id}'s own page within ${OPEN_PAGE_MS} ms (${took === null ? 'never' : `${took} ms`})`);
-  step.check(moved <= OPEN_STAYS_M, `${at}: ${how}: nothing flies in, the camera stays at the floor (it moved ${moved.toFixed(4)} m)`);
-  step.check(words.title === want.title && words.lead > 0 && words.back, `${at}: ${how}: its page says "${want.title}" with its lead, and the way back (got ${JSON.stringify(words)})`);
+  step.check(took !== null && took <= FLIGHT_MS + 800, `${at}: ${how}: ${id} open within ${FLIGHT_MS + 800} ms, its own page whole (${took === null ? 'never' : `${took} ms`})`);
+  step.check(s.path === home && s.state === id && s.phase === 'PROJECTS', `${at}: ${how}: the page still ${home}, its history entry the open project's (${s.state}), on the scroll's phase (${s.phase})`);
+  step.check(
+    s.view !== null && s.view.id === id && s.view.kind === want.kind && s.view.title === want.title && s.view.summary === want.summary && s.view.more === words.readMore,
+    `${at}: ${how}: its page says "${want.kind}", "${want.title}", its summary and "${words.readMore}" (got ${JSON.stringify(s.view && [s.view.kind, s.view.title, s.view.more])})`,
+  );
+  step.check(s.back !== null && s.back.text.includes(words.back) && s.focus?.includes('pv-back') === true, `${at}: ${how}: "${words.back}" shown, the focus on it (${s.focus})`);
   return took;
 }
 
 /**
- * Does `act` (a way out of a project's page) and checks that the visitor is back on the home at `place`, at rest, the
- * story not moved on.
+ * Does `act` (a way out of an open project) and checks that the visitor is back out at `place`, at rest, the story not
+ * moved on and the page gone; then waits out the flight back (FLIGHT_MS).
  */
-async function leavesProject(page, step, at, place, how, act, home = '/') {
+async function leavesProject(page, step, at, place, how, act) {
   await act();
   const out = await page
     .waitForFunction(
-      ([place, home]) => {
+      (place) => {
         const d = window.__needleDebug();
-        return location.pathname === home && d.phase.kind === 'PROJECTS' && Math.abs(d.progress - place) < 1e-9 && Math.abs(d.target - place) < 1e-9;
+        return !document.documentElement.hasAttribute('data-inside') && d.phase.kind === 'PROJECTS' && Math.abs(d.progress - place) < 1e-9 && Math.abs(d.target - place) < 1e-9;
       },
-      [place, home],
-      { timeout: 6_000 },
+      place,
+      { timeout: 5_000 },
     )
     .then(() => true, () => false);
-  await page.waitForTimeout(600);
-  const after = await debugOf(page);
-  step.check(out && Math.abs(after.progress - place) < 1e-9, `${at}: ${how}: back on the home at ${place.toFixed(4)}, at rest and not moved on (progress ${after.progress}, target ${after.target})`);
+  await page.waitForTimeout(FLIGHT_MS + 300);
+  const after = await openOf(page);
+  step.check(out && !after.open && after.view === null && Math.abs(after.progress - place) < 1e-9, `${at}: ${how}: back out at ${place.toFixed(4)}, at rest and not moved on (progress ${after.progress}, target ${after.target}, open ${after.open}, page ${after.view?.id ?? 'none'})`);
 }
 
 
@@ -6424,7 +6424,7 @@ async function worldStep(browser, step) {
     const opening = english ? PROJECT_LIST.slice(0, 1) : PROJECT_LIST;
     for (const project of opening) {
       await opensProject(page, step, at, project.id, `${touch ? 'a tap' : 'a click'} on ${project.id}'s object`, () => pressObject(page, touch, project.id), path);
-      await leavesProject(page, step, at, WORLD_STOP, touch ? 'the way back' : 'Escape', () => (touch ? page.locator('.back').tap() : page.keyboard.press('Escape')), path);
+      await leavesProject(page, step, at, WORLD_STOP, touch ? `"${new Translator(locale).t.needle.page.back}"` : 'Escape', () => (touch ? page.locator('.pv-back').tap() : page.keyboard.press('Escape')));
       if (!touch) await page.mouse.move(4, size.height - 4, { steps: 2 });
     }
     await page.waitForTimeout(700);
@@ -6521,45 +6521,170 @@ async function areasStep(browser, step) {
 }
 
 /**
- * A project's page over its floor (round 10, spec 2026-10-30-bob-qa-list-floors-design.md; Bob: "the camera doesnt go to
- * the project ... project glows so users know where to hover", and he picked the full page), at 1440x900, 390x844 (touch)
- * and 390x844 on /en/, from Steady's floor: its projects breathe (the light round its object changes over half the glow's
- * period, and stands still with reduced motion); a click (a tap) on its object opens its own page with nothing flying in
- * (`opensProject`), and Escape (a laptop) or the way back returns to the same floor at rest; with reduced motion the same.
+ * A project's own page over the stack (spec 2026-10-29-bob-stack-2-design.md, goal 2), at 1440x900, 390x844 (touch)
+ * and 390x844 on /en/, from Steady's area: a click (a tap) on its object opens its page within FLIGHT_MS and a little
+ * (`opensProject`: its words, "Lees meer", the way back, the focus), its object in the torn top within 0.05 NDC of the
+ * page's spot, its three phones there (on the phone a row with its dots); a still through the inside's luma gate (0.15);
+ * the wheel (a swipe) scrolls the page and never leaves it; "Lees meer" opens Steady's own page and Back returns to the
+ * open page; → twice quickly (on the phone the next project's button twice) opens the third project, replacing the
+ * history entry, and Portle on the way shows its one card; Escape (a laptop), the way back and Back each close it at
+ * rest; with reduced motion in and out by the step fade.
  */
 async function projectView(browser, step) {
   const summary = [];
+  const shots = [];
+  mkdirSync(STILLS, { recursive: true });
   const runs = [...TWO_SIZES.map((size) => ({ size, path: '/' })), { size: TWO_SIZES[1], path: '/en/' }];
   for (const { size, path } of runs) {
     const english = path === '/en/';
+    const locale = english ? 'en' : 'nl';
     const at = `${sizeName(size)}${english ? ' /en/' : ''}`;
-    const { context, page, touch } = await readyHome(browser, step, size, path);
-    const [first] = PROJECT_LIST;
+    const { context, page, cdp, touch } = await readyHome(browser, step, size, path);
+    const words = new Translator(locale).t.needle.page;
+    const [first, second, third] = PROJECT_LIST;
     await poseAt(page, first.stop);
     await restAt(page);
     await page.waitForTimeout(600);
+    // Round 10 (Bob: the projects glow "so users know where to hover"): at its floor its projects breathe.
     const breath = await glowBreathes(page, first.id);
-    step.check(breath >= GLOW_MOVES, `${at}: at its floor ${first.id} breathes: the light round its object changes ${breath.toFixed(4)} over half a breath (at least ${GLOW_MOVES})`);
+    step.check(breath >= GLOW_MOVES, `${at}: at its floor ${first.id} breathes: the light round its object changes ${breath.toFixed(4)} over a breath (at least ${GLOW_MOVES})`);
     const by = touch ? 'a tap on its object' : 'a click on its object';
-    const took = await opensProject(page, step, at, first.id, by, () => pressObject(page, touch, first.id), path);
-    await leavesProject(page, step, at, first.stop, touch ? 'the way back' : 'Escape', () => (touch ? page.locator('.back').tap() : page.keyboard.press('Escape')), path);
-    summary.push(`${at}: its page in ${took ?? 'never'} ms, nothing flying in, back at its floor`);
+    const openFirst = () => opensProject(page, step, at, first.id, by, () => pressObject(page, touch, first.id), path);
+    const took = await openFirst();
+    {
+      await page.waitForTimeout(300);
+      const s = await openOf(page);
+      const middle = await objectNdc(page, size, first.id);
+      const spot = spotNdc(size);
+      const inTop = middle !== null && s.view !== null && ((1 - middle[1]) / 2) * size.height < s.view.top.bottom;
+      step.check(middle !== null && Math.abs(middle[0] - spot[0]) <= 0.05 && Math.abs(middle[1] - spot[1]) <= 0.05 && inTop, `${at}: ${first.id}'s object stands in the torn top, within 0.05 of the page's spot ${spot.join(', ')} (got ${middle?.map((v) => v.toFixed(3)).join(', ')}; the top's foot at ${Math.round(s.view?.top.bottom ?? -1)} px)`);
+      step.check(s.view?.phones === 3 && s.view.media === 1 && s.view.dots === touch, `${at}: its three phones are there (${s.view?.phones}), ${touch ? 'a row with its dots shown' : 'side by side, no dots'} (dots shown ${s.view?.dots})`);
+    }
+    if (!english) {
+      const file = join(STILLS, `project-view-${first.id}-${sizeName(size)}.png`);
+      await page.screenshot({ path: file });
+      // The scene is in the torn top, where the object turns: its floor is read there.
+      shots.push({ file, kind: 'inside', mask: await textMask(page), region: touch ? { x: [0.15, 0.85], y: [0.08, 0.42] } : { x: [0.3, 0.7], y: [0.06, 0.5] } });
+    }
+
+    // The wheel (a swipe) scrolls the page, and never leaves it.
+    {
+      const before = await openOf(page);
+      if (touch) await slowTouch(page, cdp, [195, 700], [195, 350], 40);
+      else {
+        await page.mouse.move(size.width / 2, size.height * 0.6);
+        for (let i = 0; i < 3; i++) {
+          await page.mouse.wheel(0, RISE.notchPx);
+          await page.waitForTimeout(RISE.notchGapMs);
+        }
+      }
+      await page.waitForTimeout(800);
+      const s = await openOf(page);
+      step.check(s.open && s.view?.id === first.id && s.view.scrollTop > 0 && s.progress === before.progress && s.target === before.target, `${at}: the ${touch ? 'swipe' : 'wheel'} scrolls the page (scrollTop ${s.view?.scrollTop}) and never leaves it (open ${s.open}, the story at ${s.progress} still)`);
+    }
+
+    // "Lees meer": Steady's own page; Back returns to the open page.
+    {
+      const more = page.locator(`.project-view[data-project="${first.id}"] .pv-more`);
+      if (touch) await more.tap();
+      else await more.click();
+      await page.waitForURL((url) => url.pathname.endsWith(`/projects/${first.id}/`), { timeout: FLIGHT_MS + 3_000 }).catch(() => {});
+      const onPage = await waitForProject(page, first.id);
+      const heading = await page.locator('main h1').first().textContent();
+      step.check(onPage.kind === 'PROJECT_FOCUS' && heading?.trim() === first.title, `${at}: "${words.readMore}" opens ${first.id}'s own page (${new URL(page.url()).pathname}), its heading "${heading?.trim()}"`);
+      await page.goBack();
+      const backIn = await openWithin(page, first.id);
+      step.check(backIn !== null, `${at}: Back from there returns to the open page (${backIn === null ? 'never' : `${backIn} ms`})`);
+      await page.waitForTimeout(FLIGHT_MS);
+    }
+
+    // On twice quickly: the third project, its entry replacing the open one's; Portle on the way, with its one card.
+    {
+      const before = await openOf(page);
+      let portle = null;
+      if (touch) {
+        await page.locator(`.project-view[data-project="${first.id}"] .pv-onward`).tap();
+        await openWithin(page, second.id);
+        portle = await openOf(page);
+        await page.locator(`.project-view[data-project="${second.id}"] .pv-onward`).tap();
+      } else {
+        await page.keyboard.press('ArrowRight');
+        await page.waitForTimeout(150);
+        await page.keyboard.press('ArrowRight');
+      }
+      const turned = await openWithin(page, third.id);
+      await page.waitForTimeout(FLIGHT_MS);
+      const s = await openOf(page);
+      step.check(turned !== null && s.view?.id === third.id && s.state === third.id && s.entries === before.entries, `${at}: ${touch ? "the next project's button twice" : '→ twice quickly'} opens ${third.id}, its entry replacing the open one's (history ${before.entries} then ${s.entries})`);
+      if (!touch) {
+        await page.keyboard.press('ArrowLeft');
+        await openWithin(page, second.id);
+        await page.waitForTimeout(FLIGHT_MS);
+        portle = await openOf(page);
+      }
+      step.check(
+        portle?.view?.id === second.id && second.id === 'portle' && portle.view.media === 1 && portle.view.cards === 1,
+        `${at}: ${second.id}'s page shows its one card (${portle?.view?.media} picture blocks, ${portle?.view?.cards} cards, on ${portle?.view?.id})`,
+      );
+      // On a phone the turns ended on the third project; on a laptop ← went back to the second.
+      await leavesProject(page, step, at, touch ? third.stop : second.stop, `"${words.back}" after the turns`, () => (touch ? page.locator('.pv-back').tap() : page.locator('.pv-back').click()));
+      await poseAt(page, first.stop);
+      await restAt(page);
+      await page.waitForTimeout(600);
+    }
+
+    // Every way out, each from the first project opened again.
+    const ways = [
+      [`"${words.back}"`, () => (touch ? page.locator('.pv-back').tap() : page.locator('.pv-back').click())],
+      ...(touch ? [] : [['Escape', () => page.keyboard.press('Escape')]]),
+      ["the browser's Back", () => page.goBack()],
+    ];
+    for (const [how, act] of ways) {
+      await openFirst();
+      await leavesProject(page, step, at, first.stop, how, act);
+    }
+    await takeCsp(page, step);
+    summary.push(`${at}: opened by ${by} in ${took} ms, scrolled, "${words.readMore}" and back, turned twice, out by ${ways.map(([how]) => how).join(', ')}`);
     await context.close();
   }
-  // With reduced motion: the glow stands still, the page comes and goes the same.
+
+  // Reduced motion: in and out by the step fade, no flight.
   {
-    const { context, page } = await readyHome(browser, step, { ...TWO_SIZES[0], options: { ...(TWO_SIZES[0].options ?? {}), reducedMotion: 'reduce' } });
-    const [first] = PROJECT_LIST;
+    const size = TWO_SIZES[0];
+    const { context, page } = await openSeen(browser, step, size);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await landHome(page);
+    await page.waitForFunction(() => window.__needleDebug().journey.voidState === 'ready', null, { timeout: 30_000 });
+    const first = PROJECT_LIST[0];
     await poseAt(page, first.stop);
     await restAt(page);
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(400);
+    // Round 10: the floor's glow stands still with reduced motion.
     const breath = await glowBreathes(page, first.id);
-    step.check(breath < GLOW_MOVES / 2, `reduced motion: the glow stands still (the light round ${first.id}'s object changes ${breath.toFixed(4)})`);
-    await opensProject(page, step, 'reduced motion', first.id, 'a click on its object', () => pressObject(page, false, first.id));
+    step.check(breath < GLOW_MOVES / 2, `reduced motion: the floor's glow stands still (the light round ${first.id}'s object changes ${breath.toFixed(4)})`);
+    const watchFade = () =>
+      page.evaluate(() => {
+        window.__fadeSeen = false;
+        new MutationObserver(() => {
+          if (document.documentElement.hasAttribute('data-focus-fade')) window.__fadeSeen = true;
+        }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-focus-fade'] });
+      });
+    await watchFade();
+    await pressObject(page, false, first.id);
+    const took = await openWithin(page, first.id);
+    const fadeIn = await page.evaluate(() => window.__fadeSeen);
+    step.check(took !== null && fadeIn, `reduced motion: a click opens ${first.id}'s page by the step fade (<html data-focus-fade> seen ${fadeIn}, ${took} ms)`);
+    await page.waitForTimeout(400);
+    await watchFade();
     await leavesProject(page, step, 'reduced motion', first.stop, 'Escape', () => page.keyboard.press('Escape'));
+    const fadeOut = await page.evaluate(() => window.__fadeSeen);
+    step.check(fadeOut, `reduced motion: and Escape closes it by the step fade (<html data-focus-fade> seen ${fadeOut})`);
+    await takeCsp(page, step);
+    summary.push('reduced motion: in and out by the step fade');
     await context.close();
   }
-  return summary.join('; ');
+  step.luma = await gateLuma(browser, step, shots);
+  return `${summary.join('; ')}; ${lumaSummary(step.luma, 'inside')}`;
 }
 
 /** How much the light round a project's object must change over half the glow's breath to count (mean luma, 0..1). */
