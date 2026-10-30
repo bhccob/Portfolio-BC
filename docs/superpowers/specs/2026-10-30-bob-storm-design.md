@@ -49,3 +49,17 @@ start screen, in the fall and at the tower (its debug levels, a still that chang
 
 The sky's level in the void (0.35), the flats' radii and plates, the flash's period, the 30 fps cadence, and the low
 tier standing still.
+
+## Build notes (2026-10-30)
+
+- The sky is a skybox (drawn at the far plane: the camera sees only 100 m), not a great sphere; the flats stand after
+  the glass in the draw order so the glass in front hides their feet.
+- The plates' middles stand on the horizon, mirrored past their ends: the fall looks level, and saw only their dark
+  foot and far edge.
+- The levels, measured against the dark gate (a still's mean luma at most 0.11): the start screen 0.85 with the flats
+  at 0.85 / 1.3 / 1.7 (its stills 0.108 at most); the fall 0.25 (way frame 60 at 0.106, looking level into the storm's
+  middle); round the tower 0.45 (at 0.25 it barely showed behind the gas; its stills 0.094 at most), eased up from the
+  fall's over the drop. The design's single 0.35 backdrop did not hold both.
+- The storm alone draws about 22 frames a second in the headless proof browser (STORM.fps 30 asked for).
+- The proof harness counts drawn frames from the storm (`journey.storm.frames`): R3F asks for more than one animation
+  frame as it starts and stops, so window.__allRaf no longer measures how often the canvas draws.
