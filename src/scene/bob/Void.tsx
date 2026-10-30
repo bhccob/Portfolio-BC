@@ -688,7 +688,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
     if (moving) storm.clock += Math.min(Math.max(delta, 0), MAX_STEP);
     const flash = stormFlash(storm.clock);
     const strength = moving ? flash.strength : 0;
-    model.pose({ clock: storm.clock, sky, flats, flash: { strength, dir: flash.dir }, camera });
+    model.pose({ clock: storm.clock, sky, flats, sea: levels.sea, flash: { strength, dir: flash.dir }, camera });
     if ((moving || (fade < 1 && page === 'home')) && storm.wake === null) {
       storm.wake = setTimeout(() => {
         storm.wake = null;

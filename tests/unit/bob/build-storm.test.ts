@@ -16,7 +16,7 @@ const camera = (y: number): THREE.PerspectiveCamera => {
   return c;
 };
 const material = (o: THREE.Object3D): THREE.ShaderMaterial => (o as THREE.Mesh).material as THREE.ShaderMaterial;
-const pose = { clock: 12, sky: 1, flats: 1, flash: { strength: 0.5, dir: [0, 0, -1] as [number, number, number] } };
+const pose = { clock: 12, sky: 1, flats: 1, sea: 1, flash: { strength: 0.5, dir: [0, 0, -1] as [number, number, number] } };
 
 describe('the storm in code: the painted sky and the flats', () => {
   it('draws the sky first and behind everything, at the far plane, writing no depth', () => {
@@ -78,7 +78,9 @@ describe('the storm in code: the painted sky and the flats', () => {
       // Straight behind: the middle of the flat.
       expect(material(flat).uniforms.uFlashU!.value).toBeCloseTo(0.5, 9);
     });
-    storm.pose({ ...pose, sky: 0.35, flats: 0, camera: camera(-80) });
+    storm.pose({ ...pose, sky: 0.35, flats: 0, sea: 0.2, camera: camera(-80) });
+    // The sea under the falling light, darker on its own.
+    expect(sky.uniforms.uSeaLevel!.value).toBe(0.2);
     expect(sky.uniforms.uLevel!.value).toBeCloseTo(STORM_SKY.light * 0.35, 9);
     expect(sky.uniforms.uAbove!.value).toBe(0);
     for (let k = 0; k < STORM.flats.length; k++) expect(storm.group.getObjectByName(`storm:flat:${k}`)!.visible).toBe(false);

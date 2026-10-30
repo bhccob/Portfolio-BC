@@ -58,7 +58,7 @@ describe('the storm: its flats, its flash, its levels and when it moves', () => 
   });
 
   it('shows the whole storm at the start screen and lets the flats go over the first half of the rise', () => {
-    expect(stormLevels({ stretch: 'rise', local: 0, frame: null }, 0)).toEqual({ sky: STORM.sky.home, flats: 1 });
+    expect(stormLevels({ stretch: 'rise', local: 0, frame: null }, 0)).toEqual({ sky: STORM.sky.home, flats: 1, sea: 1 });
     // Under the site's dark gate (a home still's mean luma at most 0.11) at the breath's peak.
     expect(STORM.sky.home).toBe(0.85);
     let last = 1;
@@ -73,8 +73,8 @@ describe('the storm: its flats, its flash, its levels and when it moves', () => 
 
   it('keeps the storm round the fall, from the glass top fading to the clouds coming in, then a backdrop as the light lands', () => {
     const at = (frame: number) => stormLevels({ stretch: 'light', local: 0, frame }, 0);
-    expect(at(2)).toEqual({ sky: STORM.sky.home, flats: 0 });
-    expect(at(TOP_FADE[0])).toEqual({ sky: STORM.sky.home, flats: 0 });
+    expect(at(2)).toEqual({ sky: STORM.sky.home, flats: 0, sea: 1 });
+    expect(at(TOP_FADE[0])).toEqual({ sky: STORM.sky.home, flats: 0, sea: 1 });
     const middle = at((TOP_FADE[0] + NEBULA.CLOUDS_IN[1]) / 2).sky;
     expect(middle).toBeLessThan(STORM.sky.home);
     expect(middle).toBeGreaterThan(STORM.sky.fall);
@@ -95,11 +95,32 @@ describe('the storm: its flats, its flash, its levels and when it moves', () => 
     expect(land(LAND_HIT)).toBeCloseTo(STORM.sky.void, 9);
     expect(land(0.9)).toBeCloseTo(STORM.sky.void, 9);
     for (const stretch of ['area', 'look', 'qa'] as const) {
-      expect(stormLevels({ stretch, local: 0.5, frame: null }, 0)).toEqual({ sky: STORM.sky.void, flats: 0 });
+      expect(stormLevels({ stretch, local: 0.5, frame: null }, 0)).toEqual({ sky: STORM.sky.void, flats: 0, sea: 1 });
       // A project open: quieter, as the rest of the world.
       expect(stormLevels({ stretch, local: 0.5, frame: null }, 1).sky).toBeCloseTo(STORM.sky.void * STORM.sky.open, 9);
     }
-    expect(stormLevels({ stretch: 'end', local: 0, frame: null }, 0)).toEqual({ sky: 0, flats: 0 });
+    expect(stormLevels({ stretch: 'end', local: 0, frame: null }, 0)).toEqual({ sky: 0, flats: 0, sea: 0 });
+  });
+
+  // Bob (2026-10-30): "when the lights fall i dont like that theres such bright clouds under": the sea of storm below
+  // the horizon goes dark as the camera comes down under the glass (the glass top fading), and comes back over the drop
+  // into the stack.
+  it('darkens the clouds under the falling light, and brings them back as the light lands', () => {
+    expect(STORM.sea.fall).toBe(0.15);
+    const at = (frame: number) => stormLevels({ stretch: 'light', local: 0, frame }, 0).sea;
+    expect(at(TOP_FADE[0])).toBe(1);
+    let last = 1;
+    for (let f = TOP_FADE[0]; f <= TOP_FADE[1]; f++) {
+      expect(at(f)).toBeLessThanOrEqual(last);
+      last = at(f);
+    }
+    expect(at(TOP_FADE[1])).toBeCloseTo(STORM.sea.fall, 9);
+    expect(at(60)).toBeCloseTo(STORM.sea.fall, 9);
+    expect(at(200)).toBeCloseTo(STORM.sea.fall, 9);
+    const land = (local: number) => stormLevels({ stretch: 'land', local, frame: null }, 0).sea;
+    expect(land(0)).toBeCloseTo(STORM.sea.fall, 9);
+    expect(land(LAND_HIT)).toBe(1);
+    for (let k = 1; k <= 20; k++) expect(land((LAND_HIT * k) / 20)).toBeGreaterThanOrEqual(land((LAND_HIT * (k - 1)) / 20));
   });
 
   it('moves only on the home page, with motion allowed, above the low tier, while it shows', () => {

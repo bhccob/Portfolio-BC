@@ -45,6 +45,7 @@ const SKY_FRAGMENT = /* glsl */ `
   uniform vec3 uFlashDir;
   uniform float uLevel;
   uniform float uAbove;
+  uniform float uSeaLevel;
   varying vec3 vDir;
   const float PI = 3.14159265;
 
@@ -76,7 +77,8 @@ const SKY_FRAGMENT = /* glsl */ `
       vec3 near = plate(uSea, vec2(u, v), 0.61);
       vec3 far = plate(uSea, vec2(u * 0.85 + 0.07 - uTime * 0.0007, v * 0.9 + 0.05), 0.83);
       colour = max(near, far * 0.55) + far * 0.12;
-      // Above the glass, below its far edge: near black.
+      // Under the falling light, darker on its own; above the glass, below its far edge, near black.
+      colour *= uSeaLevel;
       colour *= mix(1.0, smoothstep(-0.05, 0.0, el) * 0.15, uAbove);
     }
     // A flash deep in the storm: the warm, bright parts of the clouds round it light up gold.
@@ -131,9 +133,13 @@ const FLAT_FRAGMENT = /* glsl */ `
 export interface StormPose {
   /** The storm's clock, s: it drifts, rolls and flashes on it, so it stands still while the clock does. */
   clock: number;
-  /** The sky's level and the flats' (src/scene/bob/storm.ts's `stormLevels`, times its fade in), 0..1. */
+  /**
+   * The sky's level, the flats' and the sea's below the horizon (src/scene/bob/storm.ts's `stormLevels`, the first two
+   * times its fade in), 0..1.
+   */
   sky: number;
   flats: number;
+  sea: number;
   /** The flash: its strength, 0..1, and its way out from the camera (`stormFlash`). */
   flash: { strength: number; dir: Vec3 };
   /** The camera it is drawn for: above the glass or under it. */
@@ -160,7 +166,8 @@ export function buildStorm(plates: { wall: THREE.Texture; sea: THREE.Texture }):
       uFlash: { value: 0 },
       uFlashDir: { value: new THREE.Vector3(0, 0, -1) },
       uLevel: { value: STORM_SKY.light },
-      uAbove: { value: 1 }
+      uAbove: { value: 1 },
+      uSeaLevel: { value: 1 }
     },
     side: THREE.BackSide,
     depthWrite: false,
@@ -208,13 +215,14 @@ export function buildStorm(plates: { wall: THREE.Texture; sea: THREE.Texture }):
   const u = skyMaterial.uniforms;
   return {
     group,
-    pose({ clock, sky: skyLevel, flats: flatsLevel, flash, camera }) {
+    pose({ clock, sky: skyLevel, flats: flatsLevel, sea, flash, camera }) {
       group.visible = skyLevel > 0 || flatsLevel > 0;
       u.uTime!.value = clock;
       u.uLevel!.value = STORM_SKY.light * skyLevel;
       u.uFlash!.value = flash.strength;
       (u.uFlashDir!.value as THREE.Vector3).set(...flash.dir);
       u.uAbove!.value = camera.position.y > 0 ? 1 : 0;
+      u.uSeaLevel!.value = sea;
       sky.visible = skyLevel > 0;
       // Where the flash is along the flats' arc: straight behind is the middle.
       const flashU = 0.5 - Math.atan2(flash.dir[0], -flash.dir[2]) / ARC;

@@ -23,6 +23,8 @@ type Vec3 = [number, number, number];
  *   `fall` s; after `twiceAfter` s it may flicker again (when the clock's draw passes `twice`), at `twiceLevel`;
  * - `sky`: the sky's light at the start screen, round the fall, round the tower (`void`), and how much of that stays with
  *   a project open (`open`);
+ * - `sea`: how much of the sea of storm below the horizon shows under the falling light (Bob, 2026-10-30: "when the
+ *   lights fall i dont like that theres such bright clouds under"), against its whole elsewhere;
  * - `riseOut`: the flats are gone this far through the rise, as the camera comes up to look down on the name;
  * - `fps`: how often the canvas draws for the storm alone; `fadeIn`: s it takes to come in once its plates are in.
  */
@@ -34,6 +36,7 @@ export const STORM = {
   ],
   flash: { period: 6, spread: 2.5, rise: 0.15, fall: 1.1, twice: 0.45, twiceAfter: 0.45, twiceAt: 0.6, twiceWidth: 0.25, twiceLevel: 0.7 },
   sky: { home: 0.85, fall: 0.25, void: 0.45, open: 0.6 },
+  sea: { fall: 0.15 },
   riseOut: 0.5,
   fps: 30,
   fadeIn: 1.5
@@ -67,23 +70,30 @@ export function stormFlash(t: number): { strength: number; dir: Vec3 } {
 }
 
 /**
- * How much of the storm shows with the journey at `at` and a project `opened` (0..1): the sky's light and the flats'.
+ * How much of the storm shows with the journey at `at` and a project `opened` (0..1): the sky's light, the flats' and
+ * the sea's (what of the sky below the horizon shows, against the rest of it).
  * The start screen has it whole; the flats go over the first `riseOut` of the rise; over the fall the sky dims, from the
  * glass top fading to the clouds being in (looking level into the storm's middle, round the falling light, a little of
- * it is a lot), and stays there; over the drop into the stack it eases to its light round the tower (looking down on the
- * stack, behind the gas), there by the light's hit on the lid, and stays there, quieter with a project open; the end
- * page is a page, and has none.
+ * it is a lot), and the sea under the light goes dark as the camera comes under the glass, and both stay there; over
+ * the drop into the stack the sky eases to its light round the tower (looking down on the stack, behind the gas) and the
+ * sea comes back, both there by the light's hit on the lid, and stay there, quieter with a project open; the end page is
+ * a page, and has none.
  */
-export function stormLevels(at: Pick<JourneyAt, 'stretch' | 'local' | 'frame'>, opened: number): { sky: number; flats: number } {
-  if (at.stretch === 'rise') return { sky: STORM.sky.home, flats: 1 - smooth(at.local / STORM.riseOut) };
+export function stormLevels(at: Pick<JourneyAt, 'stretch' | 'local' | 'frame'>, opened: number): { sky: number; flats: number; sea: number } {
+  if (at.stretch === 'rise') return { sky: STORM.sky.home, flats: 1 - smooth(at.local / STORM.riseOut), sea: 1 };
   if (at.stretch === 'light') {
     const frame = at.frame ?? 0;
-    const into = (frame - TOP_FADE[0]) / (NEBULA.CLOUDS_IN[1] - TOP_FADE[0]);
-    return { sky: STORM.sky.home + (STORM.sky.fall - STORM.sky.home) * smooth(into), flats: 0 };
+    const into = smooth((frame - TOP_FADE[0]) / (NEBULA.CLOUDS_IN[1] - TOP_FADE[0]));
+    // The sea under the light dark by the time the camera is under the glass.
+    const under = smooth((frame - TOP_FADE[0]) / (TOP_FADE[1] - TOP_FADE[0]));
+    return { sky: STORM.sky.home + (STORM.sky.fall - STORM.sky.home) * into, flats: 0, sea: 1 + (STORM.sea.fall - 1) * under };
   }
-  if (at.stretch === 'land' && at.local < LAND_HIT) return { sky: STORM.sky.fall + (STORM.sky.void - STORM.sky.fall) * smooth(at.local / LAND_HIT), flats: 0 };
-  if (at.stretch === 'end') return { sky: 0, flats: 0 };
-  return { sky: STORM.sky.void * (1 - (1 - STORM.sky.open) * clamp01(opened)), flats: 0 };
+  if (at.stretch === 'land' && at.local < LAND_HIT) {
+    const into = smooth(at.local / LAND_HIT);
+    return { sky: STORM.sky.fall + (STORM.sky.void - STORM.sky.fall) * into, flats: 0, sea: STORM.sea.fall + (1 - STORM.sea.fall) * into };
+  }
+  if (at.stretch === 'end') return { sky: 0, flats: 0, sea: 0 };
+  return { sky: STORM.sky.void * (1 - (1 - STORM.sky.open) * clamp01(opened)), flats: 0, sea: 1 };
 }
 
 /** Whether the storm moves: on the home page, with motion allowed, above the low tier, while any of it shows. */
