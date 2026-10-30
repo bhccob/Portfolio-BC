@@ -6701,7 +6701,9 @@ async function qaRing(browser, step) {
     if (!english && size !== DIVE_SIZES[1]) {
       for (let k = 0; k < RING_MARKS; k++) {
         await poseAt(page, QA_STOPS[k]);
-        await page.waitForTimeout(500);
+        // The end's mark once its dark is up and its circle drawn (3 s), as the stills step takes it: half a second in,
+        // the dark is still coming up over the scene and the floor would read wherever the fade stood.
+        await page.waitForTimeout(k === RING_MARKS - 1 ? 3_400 : 500);
         const file = join(STILLS, `qa-${k + 1}-${sizeName(size)}.png`);
         await page.screenshot({ path: file });
         // On a phone the answer fills the screen under the ring: the scene's floor is read on the ring, above it.
