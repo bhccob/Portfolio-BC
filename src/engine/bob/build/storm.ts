@@ -68,6 +68,8 @@ const SKY_FRAGMENT = /* glsl */ `
       vec3 near = plate(uWall, vec2(u, v), 0.0);
       vec3 far = plate(uWall, vec2(u * 0.8 + 0.1 + uTime * 0.0008, v * 0.85 + 0.08), 0.37);
       colour = max(near, far * 0.55) + far * 0.12;
+      // Above the glass the storm stands on a dark base at the horizon, so it rises out of the night, never from a line.
+      colour *= mix(1.0, 0.15 + 0.85 * smoothstep(0.0, 0.1, el), uAbove);
     } else {
       // The sea below: the middle of its storm on the horizon, mirrored past its ends.
       float v = 0.6 + el / 0.8;
