@@ -28,6 +28,8 @@ describe('the storm: its flats, its flash, its levels and when it moves', () => 
   it('flashes once in every period, at a place the clock fixes, gone before the next', () => {
     const P = STORM.flash.period;
     expect(P).toBe(6);
+    // Round 8: a faint glow from the flash plates, as in the moonlit storm Bob picked.
+    expect(STORM.flash.gain).toBe(0.6);
     for (let k = 3; k < 40; k++) {
       let peak = 0;
       let peakAt = 0;
@@ -81,15 +83,17 @@ describe('the storm: its flats, its flash, its levels and when it moves', () => 
     expect(at(NEBULA.CLOUDS_IN[1]).sky).toBeCloseTo(STORM.sky.fall, 9);
     expect(at(200).sky).toBeCloseTo(STORM.sky.fall, 9);
     expect(STORM.sky.fall).toBe(0.25);
-    // Round the tower a little more of it: looking down on the stack the storm stands behind the gas.
-    expect(STORM.sky.void).toBe(0.45);
+    // Round the tower, looking down on the stack, the storm stands behind the gas: round 8, less of it than in the fall, the
+    // rendered sea of storm below being bright and the tower alone near the dark gate.
+    expect(STORM.sky.void).toBe(0.12);
     // Over the drop into the stack the storm eases from its fall light to its tower light, there by the light's hit on the lid.
     const land = (local: number) => stormLevels({ stretch: 'land', local, frame: null }, 0).sky;
     expect(land(0)).toBeCloseTo(STORM.sky.fall, 9);
     let last = land(0);
     for (let k = 1; k <= 20; k++) {
       const s = land((LAND_HIT * k) / 20);
-      expect(s).toBeGreaterThanOrEqual(last);
+      // Monotone toward the tower's light, whichever way it lies.
+      expect((s - last) * Math.sign(STORM.sky.void - STORM.sky.fall)).toBeGreaterThanOrEqual(0);
       last = s;
     }
     expect(land(LAND_HIT)).toBeCloseTo(STORM.sky.void, 9);
