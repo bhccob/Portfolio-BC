@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
@@ -50,5 +52,21 @@ describe("an area's words at the bottom left", () => {
     showAreaCaption(null);
     expect([a.style.opacity, b.style.opacity, c.style.opacity]).toEqual(['0', '0', '0']);
     expect(b.attributes.has('inert')).toBe(true);
+  });
+});
+
+/** base.css with its comments removed. */
+const base = readFileSync(fileURLToPath(new URL('../../../src/styles/base.css', import.meta.url)), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+/** The declarations of the first rule of base.css whose selector is exactly `selector` (white space collapsed). */
+function rule(selector: string): string {
+  for (const match of base.matchAll(/([^{}]+)\{([^{}]*)\}/g)) if (match[1].trim().replace(/\s+/g, ' ') === selector) return match[2];
+  throw new Error(`no rule for ${selector}`);
+}
+
+describe("an area's words since round 11 (Bob, 2026-10-30: the project's name only when the mouse is on it)", () => {
+  it("stay unseen and out of the pointer's way at a stop, and show only while Tab is in them", () => {
+    const hidden = rule('.area-caption:not(:focus-within)');
+    expect(hidden).toMatch(/opacity:\s*0\s*!important/);
+    expect(hidden).toMatch(/pointer-events:\s*none/);
   });
 });

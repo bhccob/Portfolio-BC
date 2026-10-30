@@ -11,7 +11,8 @@ import { captionHover, setCaptionHover } from './WorldNames';
 // An area's words at the bottom left (spec 2026-10-27-bob-hologram-world-design.md, goal 3; the mock-up's caption): the
 // category's heading, its project's name (each a link that opens it), and "Klik om te openen" or, on a touch screen,
 // "Tik om te openen". One for each area, all hidden until the scene shows the one in view (`showAreaCaption`), and inert
-// from the server on, so no link of one is in reach before the scene has said.
+// from the server on, so no link of one is in reach before the scene has said. Since round 11 they show only while Tab
+// is in them (base.css): to the mouse a project's name shows on its object alone (src/ui/WorldNames.tsx).
 
 const captions = new Map<number, HTMLElement>();
 

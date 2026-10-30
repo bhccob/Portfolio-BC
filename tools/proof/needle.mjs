@@ -5017,21 +5017,25 @@ async function keyboard(browser, step) {
   step.check(shownWords, "at Jontai Energy's board its words show whole");
   await page.locator('.header-nav a[hreflang="en"]').focus();
   const tabbed = [];
+  /** How much of the board's words show while Tab is in them (round 11: unseen otherwise). */
+  let tabSeen = null;
   for (let i = 0; i < 5; i++) {
     await page.keyboard.press('Tab');
-    tabbed.push(
-      await page.evaluate(() => {
-        const el = document.activeElement;
-        if (el?.classList.contains('skip-button')) return 'skip';
-        if (el?.classList.contains('area-dot')) return 'dot';
-        return el?.closest('.area-caption') ? `words:${el.textContent}` : (el?.className ?? null);
-      }),
-    );
+    const now = await page.evaluate(() => {
+      const el = document.activeElement;
+      if (el?.classList.contains('skip-button')) return { name: 'skip' };
+      if (el?.classList.contains('area-dot')) return { name: 'dot' };
+      const words = el?.closest('.area-caption');
+      return words ? { name: `words:${el.textContent}`, seen: Number(getComputedStyle(words).opacity) } : { name: el?.className ?? null };
+    });
+    tabbed.push(now.name);
+    if (now.seen !== undefined) tabSeen = now.seen;
   }
   step.check(
     JSON.stringify(tabbed) === JSON.stringify([`words:${jontai.title}`, 'dot', 'dot', 'dot', 'skip']),
     `Tab from the language switch reaches Jontai Energy's name in its board's words, then the three dots, then the skip button (${tabbed.join(', ')})`,
   );
+  step.check(tabSeen === 1, `and the board's words show whole while Tab is in them (opacity ${tabSeen})`);
   await watchFade();
   await page.keyboard.press('Enter');
   const skipped = await ringRestsAt(page, 0, 8_000);
@@ -6199,6 +6203,8 @@ const worldWordsOf = (page) =>
       captions: [...document.querySelectorAll('.area-caption')].map((el) => ({
         area: Number(el.dataset.area),
         opacity: Number(el.style.opacity),
+        seen: Number(getComputedStyle(el).opacity),
+        pointer: getComputedStyle(el).pointerEvents,
         inert: el.hasAttribute('inert'),
         category: el.querySelector('.area-caption-category')?.textContent ?? null,
         titles: [...el.querySelectorAll('.area-caption-title')].map((a) => a.textContent),
@@ -6441,9 +6447,10 @@ async function worldStep(browser, step) {
 /**
  * The boards (spec 2026-10-28-bob-quantum-stack-design.md, goals 3 and 6), at 1440x900 and 390x844 (touch): from the
  * world a step (the arrow; on the phone the bridge) rests on each board's stop in turn, the camera on the way never
- * within 2.2 m of the stack's axis (never through the spine), standing under the board above (which so covers nothing
- * of the board in view), each of its projects framed inside the screen, its words at the bottom left (the category,
- * its projects' names, the open hint for a pointer or a touch screen) and only its, the dots shown with its own lit; the
+ * within 2.2 m of the stack's axis (never through the spine), at rest in front of the stack as at the whole machine, not
+ * turned to a project (round 11), each of its projects framed inside the screen, its words at the bottom left (the
+ * category, its projects' names, the open hint for a pointer or a touch screen) and only its in Tab's reach but unseen
+ * and out of the pointer's way (round 11: a project's name only under the mouse), the dots shown with its own lit; the
  * names gone under a mouse away from them, and on a touch screen its own projects' names shown and no other; a still of
  * each through the home's luma gate; left alone at the last board the canvas sleeps within IDLE_SECONDS and a second;
  * then the first dot (a click, a tap) glides back to the first board round the stack, and its words show again.
@@ -6471,8 +6478,11 @@ async function areasStep(browser, step) {
       step.check(near(rest.target, area.stop, 1e-9) && state.journey.stretch === 'area' && state.journey.project === area.index, `${at}: ${touch ? 'put' : 'a press of the arrow'} rests on area ${area.index + 1}'s stop, ${area.stop.toFixed(4)} (got ${rest.target.toFixed(4)}, ${state.journey.stretch} ${state.journey.project})`);
       step.check(nearest > 2.2, `${at}: on the way the camera stays ${nearest.toFixed(2)} m from the stack's axis, never through the spine (more than 2.2 m, ${seen.length} samples)`);
       const tops = state.journey.world?.tops ?? [];
-      const eye = state.camera.position[1];
-      step.check(tops.length > area.index + 1 && eye < tops[area.index] - 0.2 && eye > tops[area.index + 1], `${at}: the camera stands under the board above (eye ${eye.toFixed(2)}, that board's underside ${(tops[area.index] - 0.2).toFixed(2)}) and over the board in view (${tops[area.index + 1]?.toFixed(2)}), so the board above covers nothing of it`);
+      const [ex, ey, ez] = state.camera.position;
+      step.check(
+        tops.length > area.index + 1 && Math.abs(ex - centre[0]) < 0.01 && ez > centre[2] && ey > tops[area.index + 1],
+        `${at}: the camera rests in front of the stack as at the whole machine, not turned to a project (x ${(ex - centre[0]).toFixed(3)} m off the axis, z ${(ez - centre[2]).toFixed(2)} m out), over the board in view (eye ${ey.toFixed(2)}, its top ${tops[area.index + 1]?.toFixed(2)})`,
+      );
       const own = PROJECT_LIST.filter((p) => p.index === area.index);
       for (const project of own) {
         const object = state.journey.objects?.find((o) => o.id === project.id);
@@ -6482,8 +6492,8 @@ async function areasStep(browser, step) {
       const caption = words.captions.find((c) => c.area === area.index);
       const want = { category: categories.byId(area.category).heading('nl'), titles: PROJECT_LIST.filter((p) => p.index === area.index).map((p) => p.title), hint: touch ? t.open.tap : t.open.click };
       step.check(
-        caption !== undefined && caption.opacity === 1 && !caption.inert && caption.category === want.category && JSON.stringify(caption.titles) === JSON.stringify(want.titles) && caption.hint === want.hint && boxInside(caption.box, size) && caption.box.left < size.width / 2,
-        `${at}: its words at the bottom left say "${want.category}", ${want.titles.map((n) => `"${n}"`).join(', ')}, "${want.hint}" (got ${JSON.stringify(caption && [caption.category, caption.titles, caption.hint, caption.opacity, Object.values(caption.box).map(Math.round)])})`,
+        caption !== undefined && caption.opacity === 1 && !caption.inert && caption.seen === 0 && caption.pointer === 'none' && caption.category === want.category && JSON.stringify(caption.titles) === JSON.stringify(want.titles) && caption.hint === want.hint && boxInside(caption.box, size) && caption.box.left < size.width / 2,
+        `${at}: its words at the bottom left say "${want.category}", ${want.titles.map((n) => `"${n}"`).join(', ')}, "${want.hint}", in Tab's reach but unseen and out of the pointer's way until Tab is in them (got ${JSON.stringify(caption && [caption.category, caption.titles, caption.hint, caption.opacity, caption.seen, caption.pointer, Object.values(caption.box).map(Math.round)])})`,
       );
       step.check(words.hint.opacity === 0, `${at}: the whole machine's hint is gone at a board, whose own words say how to open (opacity ${words.hint.opacity})`);
       step.check(words.captions.filter((c) => c.area !== area.index).every((c) => c.opacity === 0 && c.inert), `${at}: and no other area's words (${words.captions.map((c) => c.opacity).join(', ')})`);
@@ -7113,7 +7123,7 @@ async function resize(browser, step) {
     `the fact stays on the light, below it now: ${JSON.stringify(label)}, the light at ${light === null ? 'none' : `(${light.x.toFixed(0)}, ${light.y.toFixed(0)})`}`,
   );
 
-  // At Steady's area: its words shown, then the turn.
+  // At Steady's area: its words in Tab's reach (unseen since round 11), then the turn.
   const steady = PROJECT_LIST[0];
   const wideSize = { width: DIVE_SIZES[0].width, height: DIVE_SIZES[0].height };
   await page.setViewportSize(wideSize);
@@ -7128,8 +7138,8 @@ async function resize(browser, step) {
   const object = turned.journey.objects?.find((o) => o.id === steady.id);
   step.check(turned.progress === steady.stop && turned.target === steady.stop && turned.journey.stretch === 'area', `at Steady's area the place stays through the resize: ${steady.stop.toFixed(4)}, then ${turned.progress} (${turned.journey.stretch})`);
   step.check(
-    wide.opacity === 1 && boxInside(wide.box, wideSize) && tall.opacity === 1 && boxInside(tall.box, phone) && object !== undefined && object.visible && object.x - object.r >= 0 && object.x + object.r <= phone.width && object.y + object.r <= tall.box.top,
-    `and its words stay shown whole inside the screen (${Object.values(wide.box).map(Math.round).join(', ')} at 1440, ${Object.values(tall.box).map(Math.round).join(', ')} at 390), its object framed above them (${object === undefined ? 'none' : `${Math.round(object.x)}, ${Math.round(object.y)} r ${Math.round(object.r)}`})`,
+    wide.opacity === 1 && boxInside(wide.box, wideSize) && tall.opacity === 1 && boxInside(tall.box, phone) && object !== undefined && object.visible && object.x - object.r >= 0 && object.x + object.r <= phone.width && object.y - object.r >= HEADER_PX && object.y + object.r <= phone.height,
+    `and its words stay in Tab's reach inside the screen (${Object.values(wide.box).map(Math.round).join(', ')} at 1440, ${Object.values(tall.box).map(Math.round).join(', ')} at 390), its object framed inside it (${object === undefined ? 'none' : `${Math.round(object.x)}, ${Math.round(object.y)} r ${Math.round(object.r)}`})`,
   );
 
   // Between two areas: the place stays and the camera off the CPU through the turn.

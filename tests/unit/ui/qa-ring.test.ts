@@ -264,6 +264,34 @@ describe("the ring's end", () => {
     expect(body('.qa-frame', PHONE)).toMatch(/transform:\s*translate\(20px,\s*calc\(100dvh - 100% - [^)]+\)/);
   });
 
+  // Round 11 (Bob, 2026-10-30: "maybe Q&A text bigger and more apparent", then "Even bigger"): the questions and the open
+  // reply sizes up on every screen, the reply's count in gold, the rules between them stronger.
+  it('sets the list big and clear', () => {
+    const SHORT = ['@media (max-height: 760px) and (min-width: 701px)'];
+    const px = (selector: string, groups: string[] = []): number => Number(body(selector, groups).match(/font-size:\s*(\d+)px/)?.[1]);
+    expect(body('.qa-frame')).toMatch(/width:\s*min\(600px, calc\(100vw - 40px\)\)/);
+    expect([px('.qa-ask'), px('.qa-reply .qa-text')]).toEqual([24, 21]);
+    expect([px('.qa-ask', SHORT), px('.qa-reply .qa-text', SHORT)]).toEqual([20, 18]);
+    expect([px('.qa-ask', PHONE), px('.qa-reply .qa-text', PHONE)]).toEqual([18, 16]);
+    expect(body('.qa-reply .qa-count')).toMatch(/color:\s*var\(--gold-ink\)/);
+    expect(body('.qa-item')).toMatch(/border-top:\s*1px solid rgb\(226 165 74 \/ 0\.4\)/);
+  });
+
+  // The longest reply open runs the list 731px tall on a laptop: under 18dvh it would leave a 1536x864 screen, so up to
+  // 940px tall the list stands at 10dvh.
+  it('keeps the list on a laptop screen up to 940px tall with the longest reply open', () => {
+    const LAPTOP = ['@media (max-height: 940px) and (min-width: 701px)'];
+    expect(body('.qa-frame', LAPTOP)).toMatch(/transform:\s*translate\(calc\(100vw - 100% - max\(56px, 7vw\)\), calc\(10dvh \+/);
+    expect(body('.qa-frame', ['@media (max-height: 760px) and (min-width: 701px)'])).not.toMatch(/transform/);
+  });
+
+  // Reduced motion only stills the list's slide: it stays where its screen puts it (a phone's at the foot).
+  it('stills the slide with reduced motion and leaves the list where its screen has it', () => {
+    expect(body('.qa-frame', REDUCED)).toMatch(/--qa-slide:\s*0px/);
+    expect(body('.qa-frame', REDUCED)).not.toMatch(/transform/);
+    for (const groups of [[], PHONE, ['@media (max-height: 940px) and (min-width: 701px)']]) expect(body('.qa-frame', groups)).toMatch(/var\(--qa-slide, 12px\)/);
+  });
+
   it('draws nothing with reduced motion', () => {
     expect(body('html[data-qa-end] .qa-seal', REDUCED)).toMatch(/animation:\s*none/);
     expect(body('html[data-qa-end] .qa-seal', REDUCED)).toMatch(/--qa-draw:\s*360deg/);
