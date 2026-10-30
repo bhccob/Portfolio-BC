@@ -26,6 +26,21 @@ describe("nameLine: a project's name on the world, on a thin line from its objec
     expect(r.text.right).toBe(12);
   });
 
+  // With the tower 25% nearer (Bob, 2026-10-30) an object can stand near the edge its name runs back from: an app's name,
+  // out to the left, from an object at a phone's right edge, a website's, out to the right, from one at its left edge.
+  it('keeps the words wholly on the screen when the object stands near the edge they run back from', () => {
+    const phone = { width: 390, height: 844 };
+    const l = nameLine({ x: 380, y: 400 }, [-80, -50], 113, phone);
+    expect(l.text.left!).toBeGreaterThanOrEqual(12);
+    expect(l.text.left! + 113).toBeLessThanOrEqual(390 - 12);
+    const r = nameLine({ x: 10, y: 400 }, [80, -50], 113, phone);
+    expect(390 - r.text.right! - 113).toBeGreaterThanOrEqual(12);
+    expect(390 - r.text.right!).toBeLessThanOrEqual(390 - 12);
+    // The line still ends where the words are.
+    expect(l.points[2]![0]).toBe(l.text.left);
+    expect(r.points[2]![0]).toBe(390 - r.text.right!);
+  });
+
   it("scales its reach by the screen's width, and a little more on a phone", () => {
     expect(NAME_OFFSET).toEqual({ 'app': [-190, -78], 'website': [190, -78], game: [170, -70] });
     expect(nameOffset('app', 1440)).toEqual([-190, -78]);

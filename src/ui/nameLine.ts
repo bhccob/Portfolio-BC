@@ -41,8 +41,9 @@ export function nameOffset(category: CategoryId, width: number): Point {
 /**
  * The line from `anchor` (the object's top on the screen) out by `offset` to the words of width `textWidth`: its three
  * points, and the words' place (\`left\` for a name out to the left, \`right\` from the screen's right edge for one out to
- * the right, \`top\` at the level run, the words standing on it). Its end is held EDGE px inside the screen, and the elbow
- * pulled in so the words fit over the level run.
+ * the right, \`top\` at the level run, the words standing on it). Its end is held EDGE px inside the screen, and so are
+ * the words, should the object stand near the edge they run back from; the elbow pulled in so the words fit over the
+ * level run.
  */
 export function nameLine(
   anchor: { x: number; y: number },
@@ -55,6 +56,7 @@ export function nameLine(
   let end = anchor.x + offset[0];
   let elbow = anchor.x + offset[0] * ELBOW;
   end = left ? Math.max(EDGE, end) : Math.min(screen.width - EDGE, end);
+  end = left ? Math.min(end, screen.width - EDGE - textWidth) : Math.max(end, EDGE + textWidth);
   elbow = left ? Math.max(end + textWidth + GAP, elbow) : Math.min(end - textWidth - GAP, elbow);
   return {
     points: [

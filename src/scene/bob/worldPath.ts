@@ -99,6 +99,13 @@ export function sheetBlack(share: number): number {
   return 1 - (1 - clamp01(share)) ** 2;
 }
 
+/**
+ * How much nearer than its fit every view of the tower stands: the world's stop, each board's, the look back's and the
+ * ring's, on every screen (Bob, 2026-10-30: "can the tower be a bit zoomed in in general?", then, shown 12% and 25%
+ * nearer, "25% closer"). The camera comes in along its own line, the field unchanged.
+ */
+export const TOWER_ZOOM = 1.25;
+
 /** The gyroscope rings round the stack step back to this at a board's stop and in the Q&A, so the thing in view leads. */
 export const RINGS_FOCUS = 0.42;
 
@@ -266,8 +273,11 @@ function rimOf(board: BoardPlace, centre: R3): Vec3[] {
   return points;
 }
 
-/** The stack's path on a screen of this aspect, over the chapters `c`. */
-export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS): WorldPath {
+/**
+ * The stack's path on a screen of this aspect, over the chapters `c`; `zoom` how much nearer than its fit each view of
+ * the tower stands (`TOWER_ZOOM`; 1 the fit itself).
+ */
+export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS, { zoom = TOWER_ZOOM }: { zoom?: number } = {}): WorldPath {
   const phone = sizeFor(aspect) === 'phone';
   const SEGMENTS = segmentsOf(c);
   const segmentAt = (q: number): { s: Segment; t: number } => {
@@ -294,12 +304,13 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS): Worl
     [C[0], lastTop - STACK.thick - TIP, C[2]]
   ];
 
-  // The cameras, each framed by fit round what its view must hold, the box's middle reached by looking aside.
+  // The cameras, each framed by fit round what its view must hold and brought `zoom` nearer, the box's middle reached by
+  // looking aside.
   const F = phone ? FRAME.phone : FRAME.desk;
   const framed = (points: readonly R3[], target: Vec3, azimuth: number, elevation: number, box: Box): CameraShot => {
     const hx = (box[1] - box[0]) / 2;
     const hy = (box[3] - box[2]) / 2;
-    const d = fitDistance(points, target, azimuth, elevation, F.fov, aspect, [-hx, hx, -hy, hy]);
+    const d = fitDistance(points, target, azimuth, elevation, F.fov, aspect, [-hx, hx, -hy, hy]) / zoom;
     return aside(add(target, mul(outward(azimuth, elevation), d)), target, F.fov, [(box[0] + box[1]) / 4, (box[2] + box[3]) / 4], aspect);
   };
   const worldShot = framed(machine, middle, 0, F.world.elevation * DEG, F.world.box);
@@ -308,7 +319,7 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS): Worl
     : { position: add(C, [0, 2.6, 11.5]), target: add(C, [0, 3.4, 0]), fov: 46, up: UP, sway: 0 };
   // The look back: back and up, the whole machine framed by fit (Bob, 2026-10-29: "it zooms out too much").
   const lookBox = phone ? LOOK_BOX.phone : LOOK_BOX.desk;
-  const lookDistance = fitDistance(machine, middle, LOOK.azimuth, LOOK.elevation * DEG, F.fov, aspect, [-lookBox, lookBox, -lookBox, lookBox]);
+  const lookDistance = fitDistance(machine, middle, LOOK.azimuth, LOOK.elevation * DEG, F.fov, aspect, [-lookBox, lookBox, -lookBox, lookBox]) / zoom;
   const lookShot: CameraShot = { position: add(middle, mul(outward(LOOK.azimuth, LOOK.elevation * DEG), lookDistance)), target: middle, fov: F.fov, up: UP, sway: 0 };
   // The Q&A's ring: open round the machine's middle, then closed round the closed stack's, drawn in to `closedRadius`.
   const shut = boardTops(places, 0);
@@ -319,7 +330,7 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS): Worl
   const ringAim: Vec3 = [C[0], ringShut[1] - (phone ? 0.6 : 1.6), C[2]];
   // The mock-up's view offset is NDC; `aside` takes shares of the screen, half of it.
   const ringView = phone ? { elevation: 20, distance: 31, shift: [0, 0.17] as const } : { elevation: 15, distance: 23, shift: [-0.13, 0.01] as const };
-  const ringShot = aside(add(ringAim, mul(outward(RING.azimuth, ringView.elevation * DEG), ringView.distance)), ringAim, F.fov, ringView.shift, aspect);
+  const ringShot = aside(add(ringAim, mul(outward(RING.azimuth, ringView.elevation * DEG), ringView.distance / zoom)), ringAim, F.fov, ringView.shift, aspect);
   // A board from the side its projects face, from just under the board above it: at the mock-up's elevation, unless the
   // fit would stand the camera higher than `UNDER` below that board's underside (a squarer screen stands it further
   // out); then at the highest elevation that keeps it there, so the board above never covers the one in view.

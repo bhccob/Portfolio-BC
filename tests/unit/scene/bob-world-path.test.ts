@@ -4,7 +4,7 @@ import { project } from '~/scene/bob/fit';
 import { lightAt } from '~/scene/bob/lightDive';
 import { RING_MARKS } from '~/data/qa';
 import { RING, ringTurnFor } from '~/scene/bob/qaRing';
-import { EXPLODE, FLASH_GONE, LAND_HIT, LOOK_BOX, makeWorldPath, NAMES_IN, POWER, type WorldFrame } from '~/scene/bob/worldPath';
+import { EXPLODE, FLASH_GONE, LAND_HIT, LOOK_BOX, makeWorldPath, NAMES_IN, POWER, TOWER_ZOOM, type WorldFrame } from '~/scene/bob/worldPath';
 import { boardCentre, boardTops, LID_TOP, STACK, stackPlaces } from '~/scene/bob/worldLayout';
 import { AREA_STOP, areaStop, areasOnPath, buildChapters, type Chapters, HAND_F, HOME_CHAPTERS, LAND_STOP, pathStart, placeOfFrame, lookStop, qaStop, scrollEnd, WORLD_LAYOUT, worldStop } from '~/state/chapters';
 
@@ -47,6 +47,16 @@ function pathFor(aspect: number, c: Chapters = HOME_CHAPTERS): ReturnType<typeof
   return paths.get(key)!;
 }
 const at = (c: Chapters, aspect: number, place: number): WorldFrame => pathFor(aspect, c).frameAt(place - pathStart(c));
+/**
+ * The same path with every view of the tower where its fit puts it, before it is brought `TOWER_ZOOM` nearer: the
+ * mock-up's framings, which the boxes below hold.
+ */
+const fits = new Map<string, ReturnType<typeof makeWorldPath>>();
+function fitFor(aspect: number, c: Chapters = HOME_CHAPTERS): ReturnType<typeof makeWorldPath> {
+  const key = `${aspect}:${c === HOME_CHAPTERS ? 'home' : c.total}`;
+  if (!fits.has(key)) fits.set(key, makeWorldPath(aspect, c, { zoom: 1 }));
+  return fits.get(key)!;
+}
 const home = (aspect: number, place: number): WorldFrame => at(HOME_CHAPTERS, aspect, place);
 const LAND = HOME_CHAPTERS.units.find((u) => u.id === 'LAND')!;
 const landAt = (t: number, aspect = DESK): WorldFrame => home(aspect, LAND.start + t * LAND.length);
@@ -150,6 +160,51 @@ describe('the slow power-on', () => {
   });
 });
 
+// Bob (2026-10-30): "can the tower be a bit zoomed in in general?", and, shown 12% and 25% nearer, "25% closer": every
+// view of the tower, on every screen, a quarter nearer than its fit.
+describe('the tower 25% nearer', () => {
+  /** Every view of the tower: the world's stop, each board's, the look back's and the ring's. */
+  const shotsOf = (path: ReturnType<typeof makeWorldPath>): CameraShot[] => [path.worldShot, ...areasOnPath().map((_, i) => path.areaShot(i)), path.lookShot, path.ringShot];
+
+  it('stands every view of the tower 1/1.25 as far as its fit, looking the same way through the same field', () => {
+    expect(TOWER_ZOOM).toBe(1.25);
+    for (const aspect of [DESK, PHONE, 16 / 9, 4 / 3]) {
+      const near = shotsOf(pathFor(aspect));
+      const fit = shotsOf(fitFor(aspect));
+      near.forEach((shot, k) => {
+        const a = [0, 1, 2].map((j) => shot.position[j]! - shot.target[j]!) as [number, number, number];
+        const b = [0, 1, 2].map((j) => fit[k]!.position[j]! - fit[k]!.target[j]!) as [number, number, number];
+        const la = Math.hypot(...a);
+        const lb = Math.hypot(...b);
+        expect(la, `shot ${k} at ${aspect.toFixed(2)}`).toBeCloseTo(lb / 1.25, 6);
+        for (let j = 0; j < 3; j++) expect(a[j]! / la, `shot ${k} at ${aspect.toFixed(2)}`).toBeCloseTo(b[j]! / lb, 9);
+        expect(shot.fov).toBe(fit[k]!.fov);
+      });
+    }
+  });
+
+  it("shows the machine bigger at the world's stop and the look back", () => {
+    for (const aspect of [DESK, PHONE]) {
+      const path = pathFor(aspect);
+      const span = (shot: CameraShot): number => {
+        const ys = path.machine.map((p) => project([...p], shot, aspect).y);
+        return Math.max(...ys) - Math.min(...ys);
+      };
+      expect(span(path.worldShot)).toBeGreaterThan(1.2 * span(fitFor(aspect).worldShot));
+      expect(span(path.lookShot)).toBeGreaterThan(1.2 * span(fitFor(aspect).lookShot));
+    }
+  });
+
+  it("keeps the light in the CPU on the screen at the world's stop", () => {
+    for (const aspect of [DESK, PHONE]) {
+      const lid = project([C[0], C[1] + LID_TOP, C[2]], pathFor(aspect).worldShot, aspect);
+      expect(lid.front).toBe(true);
+      expect(Math.abs(lid.x)).toBeLessThan(1);
+      expect(Math.abs(lid.y)).toBeLessThan(1);
+    }
+  });
+});
+
 describe("the path down the stack: the light lands in the CPU, the stack opens, a stop per board, the look back", () => {
   it("brings the light down into the CPU by the land's hit and keeps it there", () => {
     expect(LAND_HIT).toBeCloseTo(1.26 / 3.46, 12);
@@ -225,8 +280,10 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
       const path = pathFor(aspect);
       const f = home(aspect, worldStop(HOME_CHAPTERS));
       expect(f.part).toBe('land');
+      expect(f.shot).toEqual(path.worldShot);
       expect(path.machine.length).toBeGreaterThan(3 * 96);
-      for (const p of path.machine) expect(inBox(p, f.shot, aspect, box), `${p.map((v) => v.toFixed(1))} at ${aspect.toFixed(2)}`).toBe(true);
+      const fit = fitFor(aspect).worldShot;
+      for (const p of path.machine) expect(inBox(p, fit, aspect, box), `${p.map((v) => v.toFixed(1))} at ${aspect.toFixed(2)}`).toBe(true);
       // From the front and above the machine's middle: 30° on a laptop, 26° on a phone.
       const middle = [C[0], C[1] + (TOPS.at(-1)! - C[1] - 3.4) / 2, C[2]];
       const [dx, dy, dz] = [0, 1, 2].map((k) => f.shot.position[k]! - middle[k]!) as [number, number, number];
@@ -248,7 +305,7 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
         expect(y, `${area.category} at ${aspect.toFixed(2)}`).toBeGreaterThan(TOPS[i + 1]!);
       }
       const desk = home(DESK, areaStop(HOME_CHAPTERS, area.category));
-      for (const p of rimOf(BOARDS[i + 1]!, TOPS[i + 1]!)) expect(inBox(p, desk.shot, DESK, BOARD_BOX), `${area.category} ${p.map((v) => v.toFixed(1))}`).toBe(true);
+      for (const p of rimOf(BOARDS[i + 1]!, TOPS[i + 1]!)) expect(inBox(p, fitFor(DESK).areaShot(i), DESK, BOARD_BOX), `${area.category} ${p.map((v) => v.toFixed(1))}`).toBe(true);
       // The camera looks at the board from the side its projects face.
       const facing = BOARDS[i + 1]!.facing;
       const angle = Math.atan2(desk.shot.position[0] - C[0], desk.shot.position[2] - C[2]);
@@ -346,9 +403,10 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
       expect(f.part).toBe('qa');
       const d = Math.hypot(...([0, 1, 2].map((k) => f.shot.position[k]! - f.shot.target[k]!) as [number, number, number]));
       expect((f.shot.position[1] - f.shot.target[1]) / d).toBeCloseTo(Math.sin((16 * Math.PI) / 180), 6);
-      // The whole machine inside the look back's box, and filling it: the camera no further out than it needs.
+      // The fit: the whole machine inside the look back's box, and filling it, the camera no further out than it needs.
+      expect(f.shot).toEqual(path.lookShot);
       const box = LOOK_BOX[aspect === DESK ? 'desk' : 'phone'];
-      const seen = path.machine.map((p) => project([...p], f.shot, aspect));
+      const seen = path.machine.map((p) => project([...p], fitFor(aspect).lookShot, aspect));
       for (const p of seen) {
         expect(p.front).toBe(true);
         expect(Math.abs(p.x)).toBeLessThanOrEqual(box + 1e-6);
@@ -376,10 +434,11 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
       const path = pathFor(aspect);
       const f = home(aspect, qaStop(HOME_CHAPTERS, 2));
       const shot = path.ringShot;
-      // The mock-up's place: out from its aim (under the closed ring) at its elevation and distance; the shot looks a
-      // little aside of that aim, so the ring stands where the mock-up has it.
+      // The mock-up's place: out from its aim (under the closed ring) at its elevation and distance (the fit's; the
+      // site's `TOWER_ZOOM` nearer); the shot looks a little aside of that aim, so the ring stands where the mock-up has it.
       const aim: Vec3 = [C[0], f.ring.centre[1] - (aspect === DESK ? 1.6 : 0.6), C[2]];
-      const off = [0, 1, 2].map((k) => shot.position[k]! - aim[k]!) as [number, number, number];
+      const fit = fitFor(aspect).ringShot;
+      const off = [0, 1, 2].map((k) => fit.position[k]! - aim[k]!) as [number, number, number];
       const d = Math.hypot(...off);
       expect(d).toBeCloseTo(aspect === DESK ? 23 : 31, 9);
       expect(off[1] / d).toBeCloseTo(Math.sin(((aspect === DESK ? 15 : 20) * Math.PI) / 180), 9);
@@ -438,8 +497,7 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
     const tops = boardTops(boards, 1);
     const three = boards[1]!;
     expect(three.sockets).toHaveLength(3);
-    const desk = at(five, DESK, areaStop(five, 'app'));
-    for (const p of rimOf(three, tops[1]!)) expect(inBox(p, desk.shot, DESK, BOARD_BOX)).toBe(true);
+    for (const p of rimOf(three, tops[1]!)) expect(inBox(p, fitFor(DESK, five).areaShot(0), DESK, BOARD_BOX)).toBe(true);
     // On a phone the board's sides run off the screen, but its three projects stand on it.
     const phone = at(five, PHONE, areaStop(five, 'app'));
     for (const s of three.sockets) {
