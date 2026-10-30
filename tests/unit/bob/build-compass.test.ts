@@ -356,6 +356,59 @@ describe('the compass', () => {
     c.dispose();
   });
 
+  // Round 8 (spec 2026-10-30-bob-moonlit-3d-design.md): Bob found the compass "doesnt look polished".
+  it('smokes the glass: violet attenuation where light passes, on the tiers that see through it', () => {
+    for (const tier of ['high', 'medium'] as const) {
+      const c = loadCompass(fakeGltf(), tier, stripStub);
+      const glass = bandMaterial(c);
+      expect(glass.transmission, tier).toBeGreaterThan(0);
+      expect(glass.attenuationDistance, tier).toBe(COMPASS_LOOK.bandGlass.attenuation.distance);
+      expect(glass.attenuationColor.getHex(), tier).toBe(new THREE.Color(COMPASS_LOOK.bandGlass.attenuation.colour).getHex());
+      c.dispose();
+    }
+    const low = loadCompass(fakeGltf(), 'low', stripStub);
+    expect(bandMaterial(low).transmission).toBe(0);
+    expect(bandMaterial(low).attenuationDistance).toBe(Infinity);
+    low.dispose();
+  });
+
+  it('inlays the marks in gold: metal and not see-through where the strip has a mark', () => {
+    const c = loadCompass(fakeGltf(), 'high', stripStub);
+    const shader = { uniforms: {} as Record<string, THREE.IUniform>, vertexShader: THREE.ShaderLib.physical.vertexShader, fragmentShader: THREE.ShaderLib.physical.fragmentShader };
+    bandMaterial(c).onBeforeCompile(shader as never, {} as never);
+    const f = shader.fragmentShader;
+    expect(f.match(/float markCover\s*=/g)?.length).toBe(1);
+    expect(f.indexOf('float markCover')).toBeLessThan(f.indexOf('roughnessFactor = mix('));
+    expect(f).toContain('roughnessFactor = mix(');
+    expect(f).toContain('metalnessFactor = mix(');
+    expect(f).toContain('diffuseColor.rgb = mix(');
+    expect(f).toContain('material.transmission = transmission * ( 1.0 - markCover );');
+    expect(f).not.toContain('#include <transmission_fragment>');
+    expect(COMPASS_LOOK.bandMarks.inlay.metalness).toBe(1);
+    c.dispose();
+  });
+
+  it('brushes the gold on high and medium, as before on low', () => {
+    for (const tier of ['high', 'medium'] as const) {
+      const c = loadCompass(fakeGltf(), tier, stripStub);
+      const gold = mesh(c, 'rim_1').material as THREE.MeshPhysicalMaterial;
+      expect(gold, tier).toBeInstanceOf(THREE.MeshPhysicalMaterial);
+      expect(gold.anisotropy, tier).toBe(COMPASS_LOOK.gold.anisotropy);
+      expect(COMPASS_LOOK.gold.anisotropy).toBeGreaterThan(0);
+      for (const name of ['rim_1', 'needle', 'pivot']) expect(mesh(c, name).geometry.getAttribute('tangent'), `${tier} ${name}`).toBeTruthy();
+      for (const name of ['rim_1', 'needle']) {
+        const shader = { uniforms: {}, vertexShader: THREE.ShaderLib.physical.vertexShader, fragmentShader: THREE.ShaderLib.physical.fragmentShader };
+        (mesh(c, name).material as THREE.Material).onBeforeCompile(shader as never, {} as never);
+        expect(shader.fragmentShader, `${tier} ${name}`).toContain('vBrushPos');
+      }
+      c.dispose();
+    }
+    const low = loadCompass(fakeGltf(), 'low', stripStub);
+    expect(mesh(low, 'rim_1').material).toBeInstanceOf(THREE.MeshStandardMaterial);
+    expect(mesh(low, 'rim_1').material).not.toBeInstanceOf(THREE.MeshPhysicalMaterial);
+    low.dispose();
+  });
+
   it('gilds the rims, the pivot and the axis with one brass, and the needle with its own copy of it, opaque so the glass shows it through', () => {
     const c = loadCompass(fakeGltf(), 'high', stripStub);
     const gold = mesh(c, 'pivot').material as THREE.MeshStandardMaterial;
@@ -365,7 +418,6 @@ describe('the compass', () => {
     for (const key of ['color', 'emissive'] as const) expect(needle[key].getHex(), key).toBe(gold[key].getHex());
     for (const key of ['metalness', 'roughness', 'emissiveIntensity', 'transparent', 'alphaHash'] as const) expect(needle[key], key).toBe(gold[key]);
     expect(gold).toBeInstanceOf(THREE.MeshStandardMaterial);
-    expect(gold).not.toBeInstanceOf(THREE.MeshPhysicalMaterial);
     expect(gold.color.getHex()).toBe(palette.brass);
     expect(gold.metalness).toBe(1);
     expect(gold.roughness).toBe(0.22);

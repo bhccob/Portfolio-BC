@@ -15,6 +15,7 @@
  * sits at +z looking toward -z, so a turn about +Z is anticlockwise on screen.
  */
 import * as THREE from 'three';
+import { patchBrushed, roundTangents } from '~/engine/bob/build/brushed';
 import { BAND_STRIP, paintBandStrip } from '~/engine/bob/paintBand';
 import { palette } from '~/engine/palette';
 import { lowerTier, type QualityTier } from '~/engine/quality';
@@ -57,6 +58,12 @@ import type { NeedleOverride } from '~/scene/bob/journey';
  * - `iris`: the scroll's opening (`setIris`), the preview's (tools/blender/bob_scroll.py): band `k` lies flat, turned
  *   `k` × `turn` radians about the up, and widens in its own plane until the middle of its wall is `radii[k]` from the
  *   axis (the preview's IRIS_R), and the armillary sinks to `flatY` above the glass (its ARM_FLAT_Z).
+ *
+ * Round 8 (spec 2026-10-30-bob-moonlit-3d-design.md; Bob: the compass "doesnt look polished", and picked the polished
+ * test render): the glass is smoked, light passing through it dimmed toward violet over `bandGlass.attenuation`'s
+ * distance (where it has transmission), so a band seen edge on goes dark; the marks are gold inlay (`bandMarks.inlay`):
+ * metal, not see-through, where the strip has a mark; the gold is brushed on high and medium (`gold.anisotropy`, its
+ * roughness ringed within `gold.brushed.roughness`, ./brushed.ts).
  */
 export const COMPASS_LOOK = {
   bandGlass: {
@@ -68,10 +75,19 @@ export const COMPASS_LOOK = {
     thickness: 0.045,
     iridescence: 0.35,
     emissive: palette.haze,
-    emissiveIntensity: 0.06
+    emissiveIntensity: 0.06,
+    attenuation: { colour: palette.violet, distance: 0.08 }
   },
-  bandMarks: { colour: palette.goldLight, intensity: 0.6, anisotropy: 4 },
-  gold: { colour: palette.brass, metalness: 1, roughness: 0.22, emissive: palette.goldLight, emissiveIntensity: 0.22 },
+  bandMarks: { colour: palette.goldLight, intensity: 0.6, anisotropy: 4, inlay: { colour: palette.brass, metalness: 1, roughness: 0.3 } },
+  gold: {
+    colour: palette.brass,
+    metalness: 1,
+    roughness: 0.22,
+    emissive: palette.goldLight,
+    emissiveIntensity: 0.22,
+    anisotropy: 0.5,
+    brushed: { roughness: [0.16, 0.3] as const }
+  },
   homeY: 0.55,
   spin: { base: 1.5, step: 0.6 },
   iris: { radii: [1.66, 1.74, 1.82, 1.9], turn: 0.4, flatY: 0.09 }
@@ -264,21 +280,33 @@ export function bandStrip(band: number, canvas: HTMLCanvasElement = document.cre
  * shows its engraving whole. On the other tiers the glass's opacity is the
  * reveal, and the raise changes nothing.
  */
-function patchMarks(marks: THREE.IUniform<THREE.Color>, reveal: THREE.IUniform<number>) {
+function patchMarks(marks: THREE.IUniform<THREE.Color>, reveal: THREE.IUniform<number>, inlay: THREE.IUniform<THREE.Color>) {
+  const look = COMPASS_LOOK.bandMarks.inlay;
   return (shader: { uniforms: Record<string, THREE.IUniform>; fragmentShader: string }): void => {
     shader.uniforms.uMarks = marks;
     shader.uniforms.uReveal = reveal;
+    shader.uniforms.uInlay = inlay;
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform vec3 uMarks;\nuniform float uReveal;')
+      .replace('#include <common>', '#include <common>\nuniform vec3 uMarks;\nuniform float uReveal;\nuniform vec3 uInlay;')
+      // Round 8: the marks are gold inlay. Their cover (every band carries its strip as the emissive map) is read once,
+      // before the roughness is first used: there the band turns metal, rougher and gold, and later lets no light through.
+      .replace(
+        '#include <roughnessmap_fragment>',
+        [
+          '\tfloat markCover = texture2D( emissiveMap, vEmissiveMapUv ).a;',
+          '#include <roughnessmap_fragment>',
+          `\troughnessFactor = mix( roughnessFactor, ${look.roughness.toFixed(3)}, markCover );`,
+          '\tdiffuseColor.rgb = mix( diffuseColor.rgb, uInlay, markCover );'
+        ].join('\n')
+      )
+      .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>\n\tmetalnessFactor = mix( metalnessFactor, ${look.metalness.toFixed(3)}, markCover );`)
       .replace(
         '#include <emissivemap_fragment>',
-        [
-          '#ifdef USE_EMISSIVEMAP',
-          '\tfloat markCover = texture2D( emissiveMap, vEmissiveMapUv ).a;',
-          '\ttotalEmissiveRadiance += uMarks * markCover;',
-          '\tdiffuseColor.a = mix( diffuseColor.a, uReveal, markCover );',
-          '#endif'
-        ].join('\n')
+        ['\ttotalEmissiveRadiance += uMarks * markCover;', '\tdiffuseColor.a = mix( diffuseColor.a, uReveal, markCover );'].join('\n')
+      )
+      .replace(
+        '#include <transmission_fragment>',
+        THREE.ShaderChunk.transmission_fragment.replace('material.transmission = transmission;', 'material.transmission = transmission * ( 1.0 - markCover );')
       );
   };
 }
@@ -360,7 +388,8 @@ export function loadCompass(
 
   const marks: THREE.IUniform<THREE.Color> = { value: new THREE.Color(look.bandMarks.colour).multiplyScalar(look.bandMarks.intensity) };
   const reveal: THREE.IUniform<number> = { value: 1 };
-  const onBeforeCompile = patchMarks(marks, reveal);
+  const inlay: THREE.IUniform<THREE.Color> = { value: new THREE.Color(look.bandMarks.inlay.colour) };
+  const onBeforeCompile = patchMarks(marks, reveal, inlay);
   let standing: QualityTier = tier;
   const transmission = look.bandGlass.transmission[tier];
   let glassOpacity: number = look.bandGlass.opacity[tier];
@@ -386,7 +415,10 @@ export function loadCompass(
       emissiveMap: map,
       transparent: true,
       opacity: glassOpacity,
-      depthWrite: transmission > 0
+      depthWrite: transmission > 0,
+      // Smoked: what passes through goes violet over this distance (only the tiers that see through it).
+      attenuationColor: look.bandGlass.attenuation.colour,
+      attenuationDistance: transmission > 0 ? look.bandGlass.attenuation.distance : Infinity
     });
     glass.onBeforeCompile = onBeforeCompile;
     glass.customProgramCacheKey = () => 'bob-band';
@@ -409,7 +441,7 @@ export function loadCompass(
     };
   });
 
-  const gold = new THREE.MeshStandardMaterial({
+  const goldLook = {
     name: 'compass:gold',
     color: look.gold.colour,
     metalness: look.gold.metalness,
@@ -417,11 +449,24 @@ export function loadCompass(
     emissive: look.gold.emissive,
     emissiveIntensity: look.gold.emissiveIntensity,
     alphaHash: true
-  });
+  };
+  // Round 8: brushed on high and medium (anisotropy along tangents round each part's own axis, ringed roughness).
+  const brushed = tier !== 'low';
+  const gold = brushed ? new THREE.MeshPhysicalMaterial({ ...goldLook, anisotropy: look.gold.anisotropy }) : new THREE.MeshStandardMaterial(goldLook);
+  const brush = patchBrushed(look.gold.brushed.roughness);
+  if (brushed) {
+    gold.onBeforeCompile = brush;
+    gold.customProgramCacheKey = () => 'bob-gold';
+    for (const name of ['rim_1', 'rim_2', 'rim_3', 'rim_4', 'pivot', 'axis', 'needle'] as const) roundTangents(part(name).geometry);
+  }
   for (const name of ['rim_1', 'rim_2', 'rim_3', 'rim_4', 'pivot', 'axis'] as const) part(name).material = gold;
   // The same brass, its own copy: the needle breathes at home (setNeedleGlow) and the rest of the gold holds still.
   const needleGold = gold.clone();
   needleGold.name = 'compass:needle';
+  if (brushed) {
+    needleGold.onBeforeCompile = brush;
+    needleGold.customProgramCacheKey = () => 'bob-gold';
+  }
 
   const needle = part('needle');
   needle.material = needleGold;

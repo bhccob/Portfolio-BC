@@ -22,6 +22,9 @@ describe('the reflection room (ported unchanged from v3)', () => {
     expect(ROOM_LOOK.radiance).toBe(0.5);
     // Milestone 1's radiances, halved.
     expect(ROOM_LOOK.cards.map((card) => card.radiance * ROOM_LOOK.radiance)).toEqual([1.2, 0.4, 0.6, 0.3]);
+    // Round 8 (spec 2026-10-30-bob-moonlit-3d-design.md): the card behind is the moon's, a pale violet, for the rims.
+    const back = ROOM_LOOK.cards.find((card) => card.azimuth === 180)!;
+    expect(back.colour).toBe(palette.lilac);
     cards.forEach((card, k) => {
       const spec = ROOM_LOOK.cards[k];
       const colour = (card.material as THREE.MeshBasicMaterial).color;
