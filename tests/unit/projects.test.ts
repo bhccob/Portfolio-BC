@@ -76,8 +76,8 @@ describe('projects', () => {
     expect(project('steady').testPointLabels('nl')).toEqual(['HERINNERINGEN', 'STREAKPAD', 'INZICHTEN', 'STEUNNIVEAUS', 'PRIVACY']);
     expect(project('portle').testPointLabels('en')).toEqual(['PORTFOLIO', 'PAPER TRADES', 'THESES', 'GUILDS', 'RELICS']);
     expect(project('portle').testPointLabels('nl')).toEqual(['PORTEFEUILLE', 'OEFENTRADES', 'THESES', 'GILDES', 'RELICS']);
-    expect(project('jontai-energy').testPointLabels('en')).toEqual(['16 PAGES', 'DESIGN SYSTEM', 'THREE LANGUAGES', 'QUOTE PATH']);
-    expect(project('jontai-energy').testPointLabels('nl')).toEqual(['16 PAGINA’S', 'DESIGNSYSTEEM', 'DRIE TALEN', 'OFFERTEPAD']);
+    expect(project('jontai-energy').testPointLabels('en')).toEqual(['DAY FILM', 'PRODUCT PANELS', 'LIGHT SLIDER', 'QUOTE PATH']);
+    expect(project('jontai-energy').testPointLabels('nl')).toEqual(['DAGFILM', 'PRODUCTPANELEN', 'LICHTSCHUIF', 'OFFERTEPAD']);
     expect(project('cookies-clicker').testPointLabels('en')).toEqual(['CLICK LOOP', '8 PRODUCERS', 'BOOSTS & EVENTS', 'SAVE', 'STATS']);
     expect(project('cookies-clicker').testPointLabels('nl')).toEqual(['KLIKLUS', '8 PRODUCENTEN', 'BOOSTS & EVENTS', 'OPSLAG', 'STATISTIEKEN']);
   });
@@ -143,7 +143,7 @@ describe('projects', () => {
   it('list the stacks their own sources give', () => {
     expect(project('steady').stack).toEqual(['Expo (SDK 58)', 'React Native', 'TypeScript', 'SQLite']);
     expect(project('portle').stack).toEqual(['Next.js', 'React', 'TypeScript', 'Tailwind CSS', 'Drizzle', 'PostgreSQL', 'Better Auth']);
-    expect(project('jontai-energy').stack).toEqual(['HTML', 'Tailwind CSS v4', 'JavaScript', 'PowerShell']);
+    expect(project('jontai-energy').stack).toEqual(['Next.js', 'React', 'TypeScript', 'GSAP', 'Lenis', 'Blender']);
     expect(project('cookies-clicker').stack).toEqual(['HTML', 'CSS', 'JavaScript', 'Bootstrap 5', 'localStorage']);
   });
 
@@ -238,7 +238,7 @@ describe('pictures', () => {
 
   it('gives Jontai Energy, Cookies Clicker and Portle one wide picture each', () => {
     expect(project('jontai-energy').pictureKind).toBe('wide');
-    expect(project('jontai-energy').pictures.map((picture) => picture.file)).toEqual(['jontai-home.webp']);
+    expect(project('jontai-energy').pictures.map((picture) => picture.file)).toEqual(['jontai-dawn.webp']);
     expect(project('cookies-clicker').pictureKind).toBe('wide');
     expect(project('cookies-clicker').pictures.map((picture) => picture.file)).toEqual(['cookies-playing.webp']);
     expect(project('portle').pictureKind).toBe('wide');

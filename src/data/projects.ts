@@ -186,10 +186,11 @@ export class ProjectCatalog {
 
 /**
  * The four projects, in the order of the stack: Steady and Portle (apps), Jontai Energy (a website), Cookies Clicker
- * (game development). Jontai Energy's and Cookies Clicker's objects, test points, palettes, motion and links are the
- * ones Bob approved on 2026-10-20 (docs/projects-discovery.md); Steady's and Portle's come from their own README and
- * product spec (Bob, 2026-10-28, who took Funcial off the site; Porfael renamed Portle, 2026-10-29); the words are in
- * each project's `copy`.
+ * (game development). Jontai Energy's and Cookies Clicker's objects, palettes, motion and links are the ones Bob
+ * approved on 2026-10-20 (docs/projects-discovery.md); Steady's and Portle's come from their own README and product spec
+ * (Bob, 2026-10-28, who took Funcial off the site; Porfael renamed Portle, 2026-10-29); Jontai Energy's words, tools,
+ * test points and picture from its concept redesign's own notes (Bob, 2026-10-30); the words are in each project's
+ * `copy`.
  */
 export const projects = new ProjectCatalog([
   {
@@ -295,53 +296,65 @@ export const projects = new ProjectCatalog([
     categoryId: 'website',
     order: 3,
     object: { fallbackGeometry: 'pv-module-4x4+junction-box' },
+    // What the redesign has (its design spec and PRODUCT.md): the day film, the product panels, the 3000 K to 6500 K bulb
+    // slider and the quote request.
     testPoints: [
-      { id: 'tp1', label: { en: '16 PAGES', nl: '16 PAGINA’S' }, position: [-0.45, 0.03, -0.2] },
-      { id: 'tp2', label: { en: 'DESIGN SYSTEM', nl: 'DESIGNSYSTEEM' }, position: [0.0, 0.03, 0.05] },
-      { id: 'tp3', label: { en: 'THREE LANGUAGES', nl: 'DRIE TALEN' }, position: [0.62, 0.06, 0.55] },
+      { id: 'tp1', label: { en: 'DAY FILM', nl: 'DAGFILM' }, position: [-0.45, 0.03, -0.2] },
+      { id: 'tp2', label: { en: 'PRODUCT PANELS', nl: 'PRODUCTPANELEN' }, position: [0.0, 0.03, 0.05] },
+      { id: 'tp3', label: { en: 'LIGHT SLIDER', nl: 'LICHTSCHUIF' }, position: [0.62, 0.06, 0.55] },
       { id: 'tp4', label: { en: 'QUOTE PATH', nl: 'OFFERTEPAD' }, position: [0.95, 0.0, 0.8] }
     ],
     palette: { accent: '#00a650', glow: '#00d16a' },
     motion: 'sun sweep: a light arc crosses the module, cells charge in page order; single-axis tracker tilt',
-    stack: ['HTML', 'Tailwind CSS v4', 'JavaScript', 'PowerShell'],
-    // No live link: jontaienergy.com is not Bob's build.
+    // Its package.json and PRODUCT.md (github.com/bhccob/Jontai-Energy, 9546f43): the film rendered in Blender Cycles.
+    stack: ['Next.js', 'React', 'TypeScript', 'GSAP', 'Lenis', 'Blender'],
+    // No live link: jontaienergy.com is not Bob's build, and the redesign is not published.
     // Bob, 2026-10-29: the repository the pictures came from.
     links: { repo: 'https://github.com/bhccob/Jontai-Energy' },
+    // The old static site's screenshot, which no page shows now; `imageAlt` is its text.
     image: 'jontai-energy.png',
-    // Its last committed static site, the cookie banner answered "Essential Only".
-    pictures: [{ file: 'jontai-home.webp', alt: { nl: 'Jontai Energy: de homepagina', en: "Jontai Energy: the homepage" } }],
+    // The redesign's last commit (9546f43), run from a scratch copy: its first screen once the sunrise has played.
+    pictures: [
+      {
+        file: 'jontai-dawn.webp',
+        alt: {
+          nl: 'Herontwerp van Jontai Energy: “Aruba sunlight, made useful.” naast een zonnepaneel op een gestucte muur bij zonsopgang',
+          en: 'Jontai Energy redesign: “Aruba sunlight, made useful.” beside a solar panel on a plaster wall at dawn'
+        }
+      }
+    ],
     pictureKind: 'wide',
-    pictureCaption: { nl: 'De homepagina van Jontai Energy', en: "Jontai Energy's homepage" },
+    pictureCaption: { nl: 'Het eerste scherm van het herontwerp, bij zonsopgang', en: "The redesign's first screen, at dawn" },
     copy: {
       en: {
-        type: 'Company website · Personal project',
+        type: 'Concept website redesign · Personal project',
         role: 'Design & front-end development',
         summary:
-          'A multi-page website for a solar-energy company, built as a personal project: it introduces the business, guides visitors through its services and makes requesting a quote effortless.',
+          'A concept redesign of the website for Jontai Energy, a store in Oranjestad, Aruba, for solar, power, lighting and furniture: its home page is one Aruban day that plays as you scroll.',
         overview:
-          'Jontai Energy presents sustainable energy in a direct, approachable way. The site spans more than fifteen pages, from services, inventory and location to a quote request, FAQ, news and the legal pages a real business needs.',
+          "One continuous film of a single day on one plaster wall: scrolling moves the sun, and each product does its work at its hour, from the solar panel catching first light to the generator taking over in a night-time outage and the furniture upstairs the morning after. Products open a panel that tells them in full, with figures only from their manufacturers' documents; a slider shows a bulb from 3000 K to 6500 K, and a quote request names the product chosen.",
         build:
-          'Built with HTML, Tailwind CSS and JavaScript, with a focus on responsive layouts, clear navigation and a clean visual identity for a modern energy brand. The site is available in English, Spanish and Chinese, with small PowerShell scripts automating the translation markup across pages.',
+          'Built with Next.js, React and TypeScript. The film is rendered in Blender Cycles from a set built in Python, published as image frames and played on one canvas as you scroll, with GSAP ScrollTrigger and Lenis. Visitors who prefer reduced motion, use Save-Data or have no JavaScript get one still per chapter with its words.',
         focus:
-          'Structure and consistency: keeping visitors oriented across a large site, holding one design system together on every page, and making the most important action, requesting a quote, easy to find.',
+          'Honesty and pace: every figure traced to a manufacturer document, no prices or stock made up, the renders never presented as the real store, and the scroll resting on each product long enough to read it.',
         imageAlt: 'Jontai Energy homepage with the headline “Power Your Future” over a field of solar panels',
         metaDescription:
-          'Jontai Energy, a multi-page solar-energy company website Bob Chung built as a personal project with HTML, Tailwind CSS and JavaScript, in three languages.'
+          'Jontai Energy: a concept redesign Bob Chung built for a solar, power and furniture store in Aruba, its home page one day of sun that plays as you scroll.'
       },
       nl: {
-        type: 'Bedrijfswebsite · Eigen project',
+        type: 'Concept-herontwerp van een website · Eigen project',
         role: 'Ontwerp & front-end-ontwikkeling',
         summary:
-          'Een website met meerdere pagina’s voor een zonne-energiebedrijf, gebouwd als eigen project: de site stelt het bedrijf voor, leidt bezoekers door de diensten en maakt een offerte aanvragen moeiteloos.',
+          'Een concept-herontwerp van de website van Jontai Energy, een winkel in Oranjestad, Aruba, voor zonne-energie, stroom, verlichting en meubels: de homepagina is één Arubaanse dag die meespeelt terwijl je scrolt.',
         overview:
-          'Jontai Energy presenteert duurzame energie op een directe, toegankelijke manier. De site telt meer dan vijftien pagina’s, van diensten, voorraad en locatie tot een offerteaanvraag, FAQ, nieuws en de juridische pagina’s die een echt bedrijf nodig heeft.',
+          'Eén doorlopende film van één dag op één gestucte muur: scrollen beweegt de zon, en elk product doet zijn werk op zijn eigen uur, van het zonnepaneel dat het eerste licht vangt tot de generator die het overneemt bij een stroomstoring in de nacht en de meubels boven, de ochtend erna. Producten openen een paneel dat ze volledig toelicht, met cijfers alleen uit de documenten van hun fabrikant; een schuif toont een lamp van 3000 K tot 6500 K, en een offerteaanvraag noemt het gekozen product.',
         build:
-          'Gebouwd met HTML, Tailwind CSS en JavaScript, met de focus op responsieve layouts, duidelijke navigatie en een strakke visuele identiteit voor een modern energiemerk. De site is beschikbaar in het Engels, Spaans en Chinees, waarbij kleine PowerShell-scripts de vertaalmarkup over alle pagina’s automatiseren.',
+          'Gebouwd met Next.js, React en TypeScript. De film is in Blender Cycles gerenderd uit een set die in Python is opgebouwd, als losse beelden gepubliceerd en op één canvas afgespeeld terwijl je scrolt, met GSAP ScrollTrigger en Lenis. Wie minder beweging wil, Save-Data gebruikt of geen JavaScript heeft, krijgt per hoofdstuk één stilstaand beeld met de tekst.',
         focus:
-          'Structuur en consistentie: bezoekers op een grote site laten weten waar ze zijn, één designsysteem op elke pagina vasthouden, en de belangrijkste actie, een offerte aanvragen, makkelijk vindbaar maken.',
+          'Eerlijkheid en tempo: elk cijfer herleid tot een document van de fabrikant, geen verzonnen prijzen of voorraad, de renders nooit gepresenteerd als de echte winkel, en de scroll die bij elk product lang genoeg stilstaat om het te lezen.',
         imageAlt: 'Homepagina van Jontai Energy met de kop “Power Your Future” boven een veld met zonnepanelen',
         metaDescription:
-          'Jontai Energy, een bedrijfswebsite voor zonne-energie met meerdere pagina’s, die Bob Chung als eigen project bouwde met HTML, Tailwind CSS en JavaScript, in drie talen.'
+          'Jontai Energy: een concept-herontwerp dat Bob Chung bouwde voor een winkel in zonne-energie, stroom en meubels op Aruba, met één dag zon die meespeelt als je scrolt.'
       }
     }
   },
