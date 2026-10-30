@@ -63,14 +63,14 @@ const SKY_FRAGMENT = /* glsl */ `
     u = abs(fract(u * 0.5) * 2.0 - 1.0);
     vec3 colour;
     if (el >= 0.0) {
-      // The wall: its foot on the horizon, its top some 40 degrees up.
-      float v = clamp(el / 0.7 + 0.06, 0.0, 1.0);
+      // The wall: the middle of its storm on the horizon, mirrored past its ends up and down.
+      float v = el / 0.8 + 0.4;
       vec3 near = plate(uWall, vec2(u, v), 0.0);
       vec3 far = plate(uWall, vec2(u * 0.8 + 0.1 + uTime * 0.0008, v * 0.85 + 0.08), 0.37);
       colour = max(near, far * 0.55) + far * 0.12;
     } else {
-      // The sea below: its far edge on the horizon, nearer and nearer looking down.
-      float v = clamp(1.0 + el / 0.75, 0.0, 1.0);
+      // The sea below: the middle of its storm on the horizon, mirrored past its ends.
+      float v = 0.6 + el / 0.8;
       vec3 near = plate(uSea, vec2(u, v), 0.61);
       vec3 far = plate(uSea, vec2(u * 0.85 + 0.07 - uTime * 0.0007, v * 0.9 + 0.05), 0.83);
       colour = max(near, far * 0.55) + far * 0.12;

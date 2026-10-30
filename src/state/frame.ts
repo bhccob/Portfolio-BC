@@ -33,6 +33,15 @@ export interface WorldOnScreen {
   lift: Partial<Record<ProjectId, number>>;
 }
 
+/** The storm as the Void last posed it: its sky's and flats' levels, its flash, whether it moves and its clock (s). */
+export interface StormOnScreen {
+  sky: number;
+  flats: number;
+  flash: number;
+  moving: boolean;
+  clock: number;
+}
+
 /**
  * The values that change every frame. This is a plain mutable object, never React state and never in
  * the zustand store: the scroll input writes it, the scene's frame loop reads it, and nothing re-renders.
@@ -94,7 +103,12 @@ export const frame = {
     /** Under `?proof`: where the Q&A's ring stands (src/scene/bob/qaScene.ts), null where it does not show. */
     qa: null as QaJourney | null,
     /** Under `?proof`: the falling light's parts drawn and its traces' top (src/engine/bob/build/light.ts), null with no light. */
-    circuit: null as CircuitOnScreen | null
+    circuit: null as CircuitOnScreen | null,
+    /**
+     * Under `?proof`: the storm behind everything as the Void last posed it (src/scene/bob/storm.ts): its sky's and flats'
+     * levels, its flash, whether it moves, its clock; null before its plates are in.
+     */
+    storm: null as StormOnScreen | null
   },
   /** The index of the chapter `progress` is in (`chapterAt(...).index`). */
   chapterIndex: 0,

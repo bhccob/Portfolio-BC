@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { TOP_FADE } from '~/scene/bob/lightDive';
 import { NEBULA } from '~/scene/bob/nebulaWay';
+import { LAND_HIT } from '~/scene/bob/worldPath';
 import { STORM, stormFade, stormFlash, stormLevels, stormMoves } from '~/scene/bob/storm';
 
 // Bob (2026-10-30): "i want the background dimension too look more 3d and intimidating and cinematic including the
@@ -57,28 +58,42 @@ describe('the storm: its flats, its flash, its levels and when it moves', () => 
   });
 
   it('shows the whole storm at the start screen and lets the flats go over the first half of the rise', () => {
-    expect(stormLevels({ stretch: 'rise', local: 0, frame: null }, 0)).toEqual({ sky: 1, flats: 1 });
+    expect(stormLevels({ stretch: 'rise', local: 0, frame: null }, 0)).toEqual({ sky: STORM.sky.home, flats: 1 });
+    // Under the site's dark gate (a home still's mean luma at most 0.11) at the breath's peak.
+    expect(STORM.sky.home).toBe(0.85);
     let last = 1;
     for (let k = 0; k <= 40; k++) {
       const { sky, flats } = stormLevels({ stretch: 'rise', local: k / 40, frame: null }, 0);
-      expect(sky).toBe(1);
+      expect(sky).toBe(STORM.sky.home);
       expect(flats).toBeLessThanOrEqual(last);
       last = flats;
     }
     expect(stormLevels({ stretch: 'rise', local: STORM.riseOut, frame: null }, 0).flats).toBe(0);
   });
 
-  it('dims the sky to a backdrop over the fall, from the glass top fading to the clouds coming in, and keeps it there', () => {
+  it('keeps the storm round the fall, from the glass top fading to the clouds coming in, then a backdrop as the light lands', () => {
     const at = (frame: number) => stormLevels({ stretch: 'light', local: 0, frame }, 0);
-    expect(at(2)).toEqual({ sky: 1, flats: 0 });
-    expect(at(TOP_FADE[0])).toEqual({ sky: 1, flats: 0 });
+    expect(at(2)).toEqual({ sky: STORM.sky.home, flats: 0 });
+    expect(at(TOP_FADE[0])).toEqual({ sky: STORM.sky.home, flats: 0 });
     const middle = at((TOP_FADE[0] + NEBULA.CLOUDS_IN[1]) / 2).sky;
-    expect(middle).toBeLessThan(1);
-    expect(middle).toBeGreaterThan(STORM.sky.void);
-    expect(at(NEBULA.CLOUDS_IN[1]).sky).toBeCloseTo(STORM.sky.void, 9);
-    expect(at(200).sky).toBeCloseTo(STORM.sky.void, 9);
-    expect(STORM.sky.void).toBe(0.35);
-    for (const stretch of ['land', 'area', 'look', 'qa'] as const) {
+    expect(middle).toBeLessThan(STORM.sky.home);
+    expect(middle).toBeGreaterThan(STORM.sky.fall);
+    expect(at(NEBULA.CLOUDS_IN[1]).sky).toBeCloseTo(STORM.sky.fall, 9);
+    expect(at(200).sky).toBeCloseTo(STORM.sky.fall, 9);
+    expect(STORM.sky.fall).toBe(0.25);
+    expect(STORM.sky.void).toBe(0.25);
+    // Over the drop into the stack the storm steps back to its backdrop, there by the light's hit on the lid.
+    const land = (local: number) => stormLevels({ stretch: 'land', local, frame: null }, 0).sky;
+    expect(land(0)).toBeCloseTo(STORM.sky.fall, 9);
+    let last = land(0);
+    for (let k = 1; k <= 20; k++) {
+      const s = land((LAND_HIT * k) / 20);
+      expect(s).toBeLessThanOrEqual(last);
+      last = s;
+    }
+    expect(land(LAND_HIT)).toBeCloseTo(STORM.sky.void, 9);
+    expect(land(0.9)).toBeCloseTo(STORM.sky.void, 9);
+    for (const stretch of ['area', 'look', 'qa'] as const) {
       expect(stormLevels({ stretch, local: 0.5, frame: null }, 0)).toEqual({ sky: STORM.sky.void, flats: 0 });
       // A project open: quieter, as the rest of the world.
       expect(stormLevels({ stretch, local: 0.5, frame: null }, 1).sky).toBeCloseTo(STORM.sky.void * STORM.sky.open, 9);

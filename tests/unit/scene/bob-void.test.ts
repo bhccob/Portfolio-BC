@@ -566,7 +566,7 @@ describe('frame.journey: where the journey stands, for the debug bridge', () => 
   });
 
   it('starts at the home, with an idle void', () => {
-    expect(frame.journey).toEqual({ stretch: 'rise', local: 0, project: null, voidState: 'idle', frame: null, sheet: 0, light: null, objects: null, world: null, engraved: null, nebula: null, qa: null, circuit: null });
+    expect(frame.journey).toEqual({ stretch: 'rise', local: 0, project: null, voidState: 'idle', frame: null, sheet: 0, light: null, objects: null, world: null, engraved: null, nebula: null, qa: null, circuit: null, storm: null });
   });
 
   it('is on the debug state as a copy, voidState included', () => {
@@ -576,7 +576,7 @@ describe('frame.journey: where the journey stands, for the debug bridge', () => 
       const world = { power: 1, names: 0, caption: { index: 1, opacity: 1 }, dots: 1 };
       Object.assign(frame.journey, { stretch: 'area', local: 0.5, project: 1, voidState: 'ready', frame: null, sheet: 0, light: null, objects, world });
       const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
-      expect(state.journey).toEqual({ stretch: 'area', local: 0.5, project: 1, voidState: 'ready', frame: null, sheet: 0, light: null, objects, world, engraved: null, nebula: null, qa: null, circuit: null });
+      expect(state.journey).toEqual({ stretch: 'area', local: 0.5, project: 1, voidState: 'ready', frame: null, sheet: 0, light: null, objects, world, engraved: null, nebula: null, qa: null, circuit: null, storm: null });
       expect(state.journey).not.toBe(frame.journey);
       expect(state.journey.objects).not.toBe(objects);
       expect(state.journey.world).not.toBe(world);

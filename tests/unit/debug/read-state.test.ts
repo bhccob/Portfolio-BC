@@ -97,7 +97,7 @@ describe('readNeedleDebugState', () => {
       const world = { power: 1, names: 1, caption: { index: 0, opacity: 1 }, dots: 0 };
       Object.assign(frame.journey, { stretch: 'light', local: 0.4, project: null, voidState: 'ready', frame: 121, sheet: 0, light, objects, world });
       const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
-      expect(state.journey).toEqual({ stretch: 'light', local: 0.4, project: null, voidState: 'ready', frame: 121, sheet: 0, light: { x: 0.2, y: -0.1 }, objects, world, engraved: null, nebula: null, qa: null, circuit: null });
+      expect(state.journey).toEqual({ stretch: 'light', local: 0.4, project: null, voidState: 'ready', frame: 121, sheet: 0, light: { x: 0.2, y: -0.1 }, objects, world, engraved: null, nebula: null, qa: null, circuit: null, storm: null });
       expect(state.journey.objects).not.toBe(objects);
       expect(state.journey.world).not.toBe(world);
       expect(state.journey.world?.caption).not.toBe(world.caption);
@@ -106,6 +106,22 @@ describe('readNeedleDebugState', () => {
       expect(state.journey.light?.x).toBe(0.2);
     } finally {
       Object.assign(frame.journey, before);
+    }
+  });
+
+  // The storm behind everything (spec 2026-10-30-bob-storm-design.md): its levels, its flash, whether it moves, its clock.
+  it('reports the storm on the journey as a copy, null when unset', () => {
+    const before = frame.journey.storm;
+    try {
+      const storm = { sky: 1, flats: 0.5, flash: 0.2, moving: true, clock: 3 };
+      frame.journey.storm = storm;
+      const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
+      expect(state.journey.storm).toEqual(storm);
+      expect(state.journey.storm).not.toBe(storm);
+      frame.journey.storm = null;
+      expect(readNeedleDebugState({ route: 'home', locale: 'nl' }).journey.storm).toBeNull();
+    } finally {
+      frame.journey.storm = before;
     }
   });
 

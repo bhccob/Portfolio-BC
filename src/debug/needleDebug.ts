@@ -7,7 +7,7 @@ import type { Stretch } from '~/scene/bob/journey';
 import type { QaJourney } from '~/scene/bob/qaScene';
 import type { ChapterId } from '~/state/chapters';
 import type { Phase, SceneEvent } from '~/state/machine';
-import type { ObjectOnScreen, WorldOnScreen } from '~/state/frame';
+import type { ObjectOnScreen, StormOnScreen, WorldOnScreen } from '~/state/frame';
 import type { Tier, VoidState } from '~/state/store';
 
 /**
@@ -89,6 +89,7 @@ export interface NeedleDebugState {
     nebula: { clouds: number; bands: number; rings: number } | null;
     qa: QaJourney | null;
     circuit: CircuitOnScreen | null;
+    storm: StormOnScreen | null;
   };
 }
 

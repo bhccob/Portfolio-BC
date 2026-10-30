@@ -13,6 +13,7 @@ import { circuitOnScreen, type LightModel } from '~/engine/bob/build/light';
 import { buildNebula, type NebulaModel } from '~/engine/bob/build/nebula';
 import { buildRing } from '~/engine/bob/build/ring';
 import { buildStars, type StarsModel, starsFall, starsRound } from '~/engine/bob/build/stars';
+import { buildStorm, type StormModel } from '~/engine/bob/build/storm';
 import { buildVoid, VOID_LOOK, type VoidModel } from '~/engine/bob/build/void';
 import { buildVolume, type VolumeModel } from '~/engine/bob/build/volume';
 import { buildWorld, type WorldModel } from '~/engine/bob/build/world';
@@ -31,13 +32,15 @@ import { captionHover, nameLevel, showWorldNames, type WorldNamesView } from '~/
 import { motion } from '../motion';
 import { engravedLevels, shaftRings } from './engravedWay';
 import type { Handover } from './Home';
-import { type LightPose, WORLD_PROJECTS } from './journey';
+import { type JourneyAt, type LightPose, WORLD_PROJECTS } from './journey';
 import { LOOK } from './look';
 import { setGasPass } from '../gasPass';
 import { fallStarsLevel, nebulaLevels } from './nebulaWay';
 import { makeQaScene, type QaScene } from './qaScene';
 import { OPEN_LOOK, openLevels, openOf, openWorld, worldClockRuns } from './inside';
 import { pageSpotFor, type SpotPose } from './spot';
+import { STORM, stormFade, stormFlash, stormLevels, stormMoves } from './storm';
+import { loadStormPlates } from './stormPlates';
 import { easeHover, hoverEase, hoversAt, nearestSphere, needleFor, needleGlowFor, pointerMode, voidShownAt } from './voidPose';
 import { loadVoid, type VoidLoadSteps } from './voidLoad';
 import { uploadTextures, warm } from './warm';
@@ -124,6 +127,12 @@ interface VoidRun {
   hovering: boolean;
   /** `<html data-skip>` as last written: the skip button shows (src/ui/SkipButton.tsx). */
   skip: { shown: boolean };
+  /**
+   * The storm behind everything (./storm.ts): its model once its plates are in, null before (and for good if they did
+   * not come); whether they were asked for; when it came in (performance.now() ms, for its fade in); its clock, s, which
+   * runs only while it moves; and the next frame it asked for, at STORM.fps, while that is still to come.
+   */
+  storm: { model: StormModel | null; asked: boolean; inAt: number; clock: number; wake: ReturnType<typeof setTimeout> | null };
 }
 
 /** No screen: the words are taken away. */
@@ -388,7 +397,8 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
     pointed: null,
     reading: false,
     hovering: false,
-    skip: { shown: false }
+    skip: { shown: false },
+    storm: { model: null, asked: false, inAt: 0, clock: 0, wake: null }
   }));
   /** Starts the load, once: set by the mount below, called by the first frame the home has landed. */
   const start = useRef<() => void>(() => {});
@@ -567,6 +577,14 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       }
       frame.journey.engraved = null;
       frame.journey.nebula = null;
+      const storm = run.storm;
+      if (storm.wake !== null) clearTimeout(storm.wake);
+      if (storm.model) {
+        scene.remove(storm.model.group);
+        storm.model.dispose();
+      }
+      run.storm = { model: null, asked: false, inAt: 0, clock: 0, wake: null };
+      frame.journey.storm = null;
       say('idle');
       document.documentElement.removeAttribute('data-void');
     };
@@ -632,6 +650,53 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
     invalidate();
   }, [tier, invalidate, run]);
 
+  /**
+   * The storm behind everything (./storm.ts, ../../engine/bob/build/storm.ts): its plates asked for on the first frame the
+   * home has landed, then posed on every frame from the journey and a project open, faded in once they are in. Its clock
+   * runs, and the canvas draws on for it at STORM.fps (one frame asked at a time), only while it moves (`stormMoves`) or
+   * comes in at the home; elsewhere it stands still and the canvas sleeps as it always did.
+   */
+  function poseStorm(at: JourneyAt, opened: number, delta: number): void {
+    const storm = run.storm;
+    if (!storm.asked) {
+      storm.asked = true;
+      loadStormPlates().then(
+        (plates) => {
+          if (run.storm !== storm) {
+            plates.wall.dispose();
+            plates.sea.dispose();
+            return;
+          }
+          uploadTextures(gl, [plates.wall, plates.sea]);
+          storm.model = buildStorm(plates);
+          scene.add(storm.model.group);
+          storm.inAt = performance.now();
+          invalidate();
+        },
+        () => {}
+      );
+    }
+    const model = storm.model;
+    if (!model) return;
+    const { reducedMotion: reduced, scene: page } = useScene.getState();
+    const fade = stormFade((performance.now() - storm.inAt) / 1000, reduced);
+    const levels = stormLevels(at, opened);
+    const sky = levels.sky * fade;
+    const flats = levels.flats * fade;
+    const moving = stormMoves({ page, reduced, tier, sky: Math.max(sky, flats) });
+    if (moving) storm.clock += Math.min(Math.max(delta, 0), MAX_STEP);
+    const flash = stormFlash(storm.clock);
+    const strength = moving ? flash.strength : 0;
+    model.pose({ clock: storm.clock, sky, flats, flash: { strength, dir: flash.dir }, camera });
+    if ((moving || (fade < 1 && page === 'home')) && storm.wake === null) {
+      storm.wake = setTimeout(() => {
+        storm.wake = null;
+        invalidate();
+      }, 1000 / STORM.fps);
+    }
+    if (proof) frame.journey.storm = { sky, flats, flash: strength, moving, clock: storm.clock };
+  }
+
   useFrame(({ size }, delta) => {
     const pose = handover.pose;
     const space = run.space;
@@ -649,8 +714,10 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       if (run.engraved) run.engraved.model.group.visible = false;
       if (run.nebula) run.nebula.model.group.visible = false;
       if (run.nebula?.gas) run.nebula.gas.pass.enabled = false;
+      if (run.storm.model) run.storm.model.group.visible = false;
       frame.journey.engraved = null;
       frame.journey.nebula = null;
+      frame.journey.storm = null;
       frame.journey.objects = null;
       frame.journey.world = null;
       run.reading = run.hovering = false;
@@ -670,6 +737,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
     const close = handover.close;
     const opened = close.id !== null ? Math.min(1, Math.max(0, close.amount)) : 0;
     const dim = 1 + (OPEN_LOOK.light - 1) * opened;
+    poseStorm(pose.at, opened, delta);
     light.setPose(pose.light === null ? DARK : opened > 0 ? { ...pose.light, glow: pose.light.glow * dim, trailLevel: pose.light.trailLevel * dim } : pose.light, camera, run.time);
     // The light's centre on the screen (for the debug bridge too), and the fact riding with it.
     if (pose.light !== null) {

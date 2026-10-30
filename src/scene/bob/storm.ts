@@ -9,6 +9,7 @@ import type { QualityTier } from '~/engine/quality';
 import type { JourneyAt } from './journey';
 import { TOP_FADE } from './lightDive';
 import { NEBULA } from './nebulaWay';
+import { LAND_HIT } from './worldPath';
 
 type Vec3 = [number, number, number];
 
@@ -20,19 +21,19 @@ type Vec3 = [number, number, number];
  *   left out);
  * - `flash`: one gold flash in every `period` s, starting up to `spread` s in, rising over `rise` s and dying over
  *   `fall` s; after `twiceAfter` s it may flicker again (when the clock's draw passes `twice`), at `twiceLevel`;
- * - `sky`: the sky's light at the start screen, round the fall and the tower (`void`), and how much of that stays with a
- *   project open (`open`);
+ * - `sky`: the sky's light at the start screen, round the fall, round the tower (`void`), and how much of that stays with
+ *   a project open (`open`);
  * - `riseOut`: the flats are gone this far through the rise, as the camera comes up to look down on the name;
  * - `fps`: how often the canvas draws for the storm alone; `fadeIn`: s it takes to come in once its plates are in.
  */
 export const STORM = {
   flats: [
-    { radius: 34, height: 26, scale: 1, shift: 0, speed: 0.0009, level: 1.3, foot: 0.2 },
-    { radius: 14, height: 11, scale: 0.75, shift: 0.37, speed: 0.0016, level: 2, foot: 0.32 },
-    { radius: 6.5, height: 6, scale: 0.55, shift: 0.71, speed: 0.0025, level: 2.6, foot: 0.45 }
+    { radius: 34, height: 26, scale: 1, shift: 0, speed: 0.0009, level: 0.95, foot: 0.2 },
+    { radius: 14, height: 11, scale: 0.75, shift: 0.37, speed: 0.0016, level: 1.45, foot: 0.32 },
+    { radius: 6.5, height: 6, scale: 0.55, shift: 0.71, speed: 0.0025, level: 1.9, foot: 0.45 }
   ],
   flash: { period: 6, spread: 2.5, rise: 0.15, fall: 1.1, twice: 0.45, twiceAfter: 0.45, twiceAt: 0.6, twiceWidth: 0.25, twiceLevel: 0.7 },
-  sky: { home: 1, void: 0.35, open: 0.6 },
+  sky: { home: 0.85, fall: 0.25, void: 0.25, open: 0.6 },
   riseOut: 0.5,
   fps: 30,
   fadeIn: 1.5
@@ -67,8 +68,9 @@ export function stormFlash(t: number): { strength: number; dir: Vec3 } {
 
 /**
  * How much of the storm shows with the journey at `at` and a project `opened` (0..1): the sky's light and the flats'.
- * The start screen has it whole; the flats go over the first `riseOut` of the rise; over the fall the sky dims to its
- * backdrop light, from the glass top fading to the clouds being in; round the tower it stays there, quieter with a
+ * The start screen has it whole; the flats go over the first `riseOut` of the rise; over the fall the sky dims a little,
+ * from the glass top fading to the clouds being in, and stays round the falling light; over the drop into the stack it
+ * steps back to its backdrop light, there by the light's hit on the lid, and stays there round the tower, quieter with a
  * project open; the end page is a page, and has none.
  */
 export function stormLevels(at: Pick<JourneyAt, 'stretch' | 'local' | 'frame'>, opened: number): { sky: number; flats: number } {
@@ -76,8 +78,9 @@ export function stormLevels(at: Pick<JourneyAt, 'stretch' | 'local' | 'frame'>, 
   if (at.stretch === 'light') {
     const frame = at.frame ?? 0;
     const into = (frame - TOP_FADE[0]) / (NEBULA.CLOUDS_IN[1] - TOP_FADE[0]);
-    return { sky: STORM.sky.home + (STORM.sky.void - STORM.sky.home) * smooth(into), flats: 0 };
+    return { sky: STORM.sky.home + (STORM.sky.fall - STORM.sky.home) * smooth(into), flats: 0 };
   }
+  if (at.stretch === 'land' && at.local < LAND_HIT) return { sky: STORM.sky.fall + (STORM.sky.void - STORM.sky.fall) * smooth(at.local / LAND_HIT), flats: 0 };
   if (at.stretch === 'end') return { sky: 0, flats: 0 };
   return { sky: STORM.sky.void * (1 - (1 - STORM.sky.open) * clamp01(opened)), flats: 0 };
 }
