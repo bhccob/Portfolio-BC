@@ -22,6 +22,8 @@ describe('the storm: its flats, its flash, its levels and when it moves', () => 
       expect(STORM.flats[k]!.level).toBeGreaterThan(STORM.flats[k - 1]!.level);
     }
     expect(STORM.fps).toBe(30);
+    // Round 8: a fifth darker than the spike's, the rendered bank being brighter than the painted wall.
+    expect(STORM.flats.map((f) => f.level)).toEqual([0.68, 1.04, 1.36]);
     expect(STORM.fadeIn).toBe(1.5);
   });
 
@@ -85,7 +87,7 @@ describe('the storm: its flats, its flash, its levels and when it moves', () => 
     expect(STORM.sky.fall).toBe(0.25);
     // Round the tower, looking down on the stack, the storm stands behind the gas: round 8, less of it than in the fall, the
     // rendered sea of storm below being bright and the tower alone near the dark gate.
-    expect(STORM.sky.void).toBe(0.12);
+    expect(STORM.sky.void).toBe(0.08);
     // Over the drop into the stack the storm eases from its fall light to its tower light, there by the light's hit on the lid.
     const land = (local: number) => stormLevels({ stretch: 'land', local, frame: null }, 0).sky;
     expect(land(0)).toBeCloseTo(STORM.sky.fall, 9);

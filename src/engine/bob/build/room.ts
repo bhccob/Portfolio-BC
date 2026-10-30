@@ -37,7 +37,7 @@ export const ROOM_LOOK = {
     // A cool card to the right and a violet one behind: the edges' rim light.
     { azimuth: 78, elevation: 12, width: 14, height: 36, colour: palette.lilac, radiance: 1.2 },
     // Round 8: the moon's, a pale violet, as behind the moonlit storm Bob picked.
-    { azimuth: 180, elevation: 20, width: 50, height: 24, colour: palette.lilac, radiance: 0.6 }
+    { azimuth: 180, elevation: 20, width: 50, height: 24, colour: palette.lilac, radiance: 0.36 }
   ]
 } as const;
 

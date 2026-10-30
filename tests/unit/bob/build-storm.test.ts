@@ -20,6 +20,10 @@ const material = (o: THREE.Object3D): THREE.ShaderMaterial => (o as THREE.Mesh).
 const pose = { clock: 12, sky: 1, flats: 1, sea: 1, flash: { strength: 0.5, dir: [0, 0, -1] as [number, number, number] } };
 
 describe('the storm in code: the painted sky and the flats', () => {
+  // Round 8: the rendered plates are brighter than the painted ones; the full proof found the start screen, its look to
+  // the right, the fall's first fact and a Q&A still over the dark gate at 2.
+  it('lights the sky at 1.5', () => expect(STORM_SKY.light).toBe(1.5));
+
   it('draws the sky first and behind everything, at the far plane, writing no depth', () => {
     const storm = buildStorm(plates());
     const sky = storm.group.getObjectByName('storm:sky') as THREE.Mesh;

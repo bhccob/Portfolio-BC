@@ -4426,6 +4426,38 @@ async function stillsDiffer(browser, a, b) {
 const STORM_MOVES = 0.004;
 
 /**
+ * Round 8's glare guard (spec 2026-10-30-bob-moonlit-3d-design.md, an anti-goal: "white blocks of reflected light on the
+ * glass bands"): in the compass's box at the start screen (the middle `box` of the still), at most `share` of its pixels
+ * may be near white (luma above `luma`).
+ */
+const GLARE = { box: [0.5, 0.6], luma: 0.95, share: 0.002 };
+
+/** The share of a still's pixels in its middle `box` (width, height shares) whose luma is above `over`, read at full size. */
+async function clippedShare(browser, file, box, over) {
+  const meter = await browser.newContext();
+  const page = await meter.newPage();
+  const share = await page.evaluate(
+    async ([src, [bw, bh], limit]) => {
+      const img = await new Promise((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = reject; i.src = src; });
+      const w = Math.round(img.width * bw);
+      const h = Math.round(img.height * bh);
+      const c = document.createElement('canvas');
+      c.width = w;
+      c.height = h;
+      const g = c.getContext('2d');
+      g.drawImage(img, Math.round((img.width - w) / 2), Math.round((img.height - h) / 2), w, h, 0, 0, w, h);
+      const d = g.getImageData(0, 0, w, h).data;
+      let hot = 0;
+      for (let i = 0; i < d.length; i += 4) if ((0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255 > limit) hot++;
+      return hot / (w * h);
+    },
+    [`data:image/png;base64,${readFileSync(file).toString('base64')}`, box, over]
+  );
+  await meter.close();
+  return share;
+}
+
+/**
  * The storm behind everything (spec 2026-10-30-bob-storm-design.md): see the step list. Read through the bridge's
  * `journey.storm` (src/scene/bob/storm.ts's levels, faded in) and two stills 3 s apart.
  */
@@ -4446,6 +4478,8 @@ async function storm(browser, step) {
     await page.screenshot({ path: b });
     const moved = await stillsDiffer(browser, a, b);
     step.check(moved >= STORM_MOVES, `${at}: and the picture changes over 3 s (mean difference ${moved.toFixed(4)}, at least ${STORM_MOVES})`);
+    const glare = Math.max(await clippedShare(browser, a, GLARE.box, GLARE.luma), await clippedShare(browser, b, GLARE.box, GLARE.luma));
+    step.check(glare <= GLARE.share, `${at}: no glare on the compass, ${(glare * 100).toFixed(3)}% of its box near white (at most ${GLARE.share * 100}%)`);
     // Past the clouds coming in (way frame 95), the storm at its fall light.
     s = (await poseAt(page, placeOfFrame(110))).journey.storm;
     await page.waitForTimeout(300);

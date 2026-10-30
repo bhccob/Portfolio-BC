@@ -24,7 +24,7 @@ import { noiseTexture } from './volume';
 type Vec3 = readonly [number, number, number];
 
 /** The sky's light at level 1 (the plates are dark paintings: lit up so the glass's mirror holds them). */
-export const STORM_SKY = { light: 2 } as const;
+export const STORM_SKY = { light: 1.5 } as const;
 /** The flats' arc round behind the compass, rad. */
 const ARC = (200 * Math.PI) / 180;
 /** How far below the glass's top the flats' feet stand, m. */

@@ -21,7 +21,9 @@ describe('the reflection room (ported unchanged from v3)', () => {
     expect(cards).toHaveLength(ROOM_LOOK.cards.length);
     expect(ROOM_LOOK.radiance).toBe(0.5);
     // Milestone 1's radiances, halved.
-    expect(ROOM_LOOK.cards.map((card) => card.radiance * ROOM_LOOK.radiance)).toEqual([1.2, 0.4, 0.6, 0.3]);
+    // Round 8: the moon's card behind a little under the violet one it replaced (its lilac is paler, and the start
+    // screen stood over the dark gate).
+    expect(ROOM_LOOK.cards.map((card) => card.radiance * ROOM_LOOK.radiance)).toEqual([1.2, 0.4, 0.6, 0.18]);
     // Round 8 (spec 2026-10-30-bob-moonlit-3d-design.md): the card behind is the moon's, a pale violet, for the rims.
     const back = ROOM_LOOK.cards.find((card) => card.azimuth === 180)!;
     expect(back.colour).toBe(palette.lilac);

@@ -115,3 +115,33 @@ The plates' resolutions and WebP quality within about 1.2 MB for all five; the n
 exact section within the budget; the attenuation's distance and colour, the anisotropy, the lacquer's roughness, the
 lips' size, the rounding radius; the new storm levels and the flats' `foot` on the bank plate; the tower's key light
 if any; all against the render and the dark gate.
+
+## Build notes (2026-10-30)
+
+- **The plates** (`tools/blender/storm_plates.py`, `tools/storm_webp.mjs`): Cycles, 128 samples, OptiX denoised, about
+  1 to 5 minutes each on the RTX 4080. Rendered at exposure +1.2 (the flash plates at -0.4): the moonlit clouds were so
+  dark that 8-bit WebP would have banded them; the site's levels bring them down. Lit from behind alone, the clouds
+  round the panorama showed their dark sides, so a soft third moon comes from behind the compass; a broad noise breaks
+  the storm into separate towers with sky between. Sizes: wall 50 kB, sea 50 kB, bank 1008 kB (its alpha is most of
+  it), wall flash 14 kB, bank flash 21 kB: 1143 kB of the 1.2 MB.
+- **The levels**: the sky's light 1.5 (was 2); the start screen 0.85 and the fall 0.25 as before; round the tower 0.08
+  (was 0.45): looking down on the stack the camera sees the rendered sea of storm, brighter than the painted one, and the
+  tower alone already reads 0.091 of the 0.11 gate; so the storm now dims over the drop rather than rising. The flats a
+  fifth darker (0.68, 1.04, 1.36), their feet as before. The flash's gain 0.6: a faint gold glow inside one cloud
+  (`.superpowers/stack-8/flash-pair.png`). The first full proof found the start screen with the pointer moved (0.116),
+  its look to the right (0.115), the fall under the first fact on a phone (0.112 of 0.10) and a Q&A still on a phone
+  (0.120) over their gates; with these levels and the moon card below they read 0.108, 0.105, within, within. The storm
+  draws about 22 frames a second alone in the proof browser.
+- **The compass file**: Blender's curve bevel gives 4 + 2 × resolution sides, so the old rims were six-sided, not
+  eight; they are 16-sided now (`RIM_RES` 6). The needle's diamond section has each corner rounded by two facets (a
+  bevel modifier cut its slim tip short). The pivot is a little coarser (40 × 20). The file is 890 kB; its budget rose
+  from 700 to 900 kB.
+- **The compass's materials**: the glass's light goes violet over 0.08 m where it sees through (high, medium); the marks
+  are gold metal, rougher (0.3) and let no light through; the gold is brushed on high and medium: anisotropy 0.5 along
+  tangents round each part's own axis, its roughness in fine rings between 0.16 and 0.3 (`src/engine/bob/build/brushed.ts`,
+  a shader patch, since the tubes carry no UVs and the file has no room for them). The room's back card is the moon's,
+  lilac, at 0.36 (the violet one it replaced was 0.6; lilac is paler). No white patch shows on the glass: the proof's
+  glare guard reads 0% of the compass's box near white.
+- **The tower**: a full clear coat at 0.05 on the boards; gold and steel lips (tube 0.022 m) round each plate's top and
+  bottom edge, brushed on high and medium; the box parts rounded (0.006 m, 2 segments) on high. No key light was needed:
+  the boards and the lips read under the room's light.
