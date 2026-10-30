@@ -13,26 +13,38 @@ const bandOf = (model: GyroModel, k: number): THREE.ShaderMaterial => (named(mod
 // Three gold gyroscope rings round the stack (spec 2026-10-29-bob-stack-2-design.md, goal 3: "just go with the gyroscope",
 // its outer ring "automatically slow rotates"; the rings mock-up's `gyro`).
 describe('the gyroscope', () => {
-  it("builds three rings round the machine's middle, each tipped its own way", () => {
-    expect(GYRO_LOOK.rings.map((r) => [r.radius, r.tube, r.speed, r.riders, r.companion])).toEqual([
-      [12.5, 0.07, 0.05, 2, 0.4],
-      [14.6, 0.06, -0.034, 3, -0.4],
-      [16.8, 0.085, 0.018, 4, 0.5]
+  // Bob (2026-10-30): "make the strings on the tower less since it looks too busy ... where the strings are thick and go
+  // past the screen"; shown two mock-ups he picked B: two thick, bright rings, no dashed lines (.superpowers/strings/).
+  // At the world's stop the frame is some 17 m across either side of the stack, so rings of 19 and 23 m run past it.
+  it("builds two thick rings round the machine's middle that run past the screen, each tipped its own way", () => {
+    expect(GYRO_LOOK.rings.map((r) => [r.radius, r.tube, r.speed, r.riders])).toEqual([
+      [19, 0.26, 0.05, 2],
+      [23, 0.34, 0.018, 4]
     ]);
     const gyro = buildGyro(CENTRE);
     gyro.group.updateMatrixWorld(true);
     const turns: THREE.Quaternion[] = [];
-    for (let k = 0; k < 3; k++) {
+    for (let k = 0; k < 2; k++) {
       const pivot = named(gyro, `gyro:ring:${k}`);
       const at = pivot.getWorldPosition(new THREE.Vector3());
       expect(at.toArray().map((v) => Number(v.toFixed(9)))).toEqual(CENTRE);
       turns.push(pivot.getWorldQuaternion(new THREE.Quaternion()));
     }
     expect(turns[0]!.angleTo(turns[1]!)).toBeGreaterThan(0.3);
-    expect(turns[1]!.angleTo(turns[2]!)).toBeGreaterThan(0.3);
+    expect(gyro.group.getObjectByName('gyro:ring:2')).toBeUndefined();
     // The outermost carries the dial.
-    named(gyro, 'gyro:dial:2');
+    named(gyro, 'gyro:dial:1');
     expect(gyro.group.getObjectByName('gyro:dial:0')).toBeUndefined();
+    gyro.dispose();
+  });
+
+  it('draws no dashed rings beside them', () => {
+    const gyro = buildGyro(CENTRE);
+    const lines: THREE.Object3D[] = [];
+    gyro.group.traverse((o) => {
+      if ((o as THREE.Line).isLine) lines.push(o);
+    });
+    expect(lines).toEqual([]);
     gyro.dispose();
   });
 
@@ -46,17 +58,19 @@ describe('the gyroscope', () => {
     expect(turner.rotation.y).toBeCloseTo(0.5, 12);
     // Each ring turns on its own axis at its own pace.
     expect(named(gyro, 'gyro:spin:0').rotation.y).toBeCloseTo(0.5, 12);
-    expect(named(gyro, 'gyro:spin:1').rotation.y).toBeCloseTo(-0.34, 12);
+    expect(named(gyro, 'gyro:spin:1').rotation.y).toBeCloseTo(0.18, 12);
     gyro.dispose();
   });
 
   it('steps back to 42 % at a board, and is a little see-through', () => {
+    // Bob's B: brighter than before (0.8, 0.62).
+    expect([GYRO_LOOK.level, GYRO_LOOK.alpha]).toEqual([1.1, 0.9]);
     const gyro = buildGyro(CENTRE);
     gyro.pose({ level: 1, focus: 1, clock: 0 });
     expect(bandOf(gyro, 0).uniforms.uLevel!.value).toBeCloseTo(GYRO_LOOK.level, 12);
     gyro.pose({ level: 1, focus: 0.42, clock: 0 });
     expect(bandOf(gyro, 0).uniforms.uLevel!.value).toBeCloseTo(GYRO_LOOK.level * 0.42, 12);
-    expect(bandOf(gyro, 1).uniforms.uAlpha!.value).toBe(0.62);
+    expect(bandOf(gyro, 1).uniforms.uAlpha!.value).toBe(0.9);
     expect(bandOf(gyro, 1).uniforms.uSpec!.value).toBe(0.6);
     gyro.dispose();
   });

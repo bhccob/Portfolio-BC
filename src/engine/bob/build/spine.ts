@@ -6,20 +6,20 @@
  *
  * Each span (from under one board to the top of the next; the last one a tip under the last board) is its own piece,
  * made at the open gap and squeezed to the gap of the moment (`pose`), so the stack can start closed and explode open,
- * the spine telescoping out between the boards and dashed gold guide lines drawn from rim to rim like an exploded
- * view's. The light runs down it from the top as the power does (`set`). It reads no clock of its own.
+ * the spine telescoping out between the boards (its dashed gold guide lines from rim to rim went with the gyroscope's
+ * dashes, Bob 2026-10-30: the tower's strings "too busy"). The light runs down it from the top as the power does (`set`).
+ * It reads no clock of its own.
  */
 import * as THREE from 'three';
 import type { QualityTier } from '~/engine/quality';
 import { seeded } from './plate';
 
 /**
- * How the spine looks: its cable bundles a span by tier (the tip half as many); the guide lines between two boards;
- * how far the tip hangs below the last board, m; a lamp's light at full power.
+ * How the spine looks: its cable bundles a span by tier (the tip half as many); how far the tip hangs below the last
+ * board, m; a lamp's light at full power.
  */
 export const SPINE_LOOK = {
   bundles: { high: 24, medium: 16, low: 10 },
-  guides: 8,
   tip: 3.4,
   lamp: 3.6
 } as const;
@@ -67,8 +67,6 @@ const CORE_FRAGMENT = /* glsl */ `
 export interface SpineSpec {
   /** The boards' tops with the stack open, world y, the power board's first: the spine hangs under it. */
   tops: number[];
-  /** Each board's radius, m, for the guide lines from rim to rim. */
-  radii: number[];
   hole: number;
   thick: number;
 }
@@ -112,7 +110,7 @@ function flange(r0: number, r1: number, h: number, metal: THREE.Material, edge: 
 
 /** The spine for the boards of `spec` at this tier, its metal reflecting `room` (none: unlit by a room). */
 export function buildSpine(spec: SpineSpec, tier: QualityTier, room: THREE.Texture | null): SpineModel {
-  const { tops, radii, hole, thick } = spec;
+  const { tops, hole, thick } = spec;
   const group = new THREE.Group();
   group.name = 'spine';
   const random = seeded(808);
@@ -129,7 +127,6 @@ export function buildSpine(spec: SpineSpec, tier: QualityTier, room: THREE.Textu
     depthWrite: false,
     blending: THREE.AdditiveBlending
   });
-  const guideMaterial = new THREE.LineDashedMaterial({ color: 0xe2a54a, dashSize: 0.16, gapSize: 0.12, transparent: true, opacity: 0, depthWrite: false });
 
   const TIP = SPINE_LOOK.tip;
   const spans: { piece: THREE.Group; height: number; lamp: THREE.PointLight }[] = [];
@@ -199,20 +196,6 @@ export function buildSpine(spec: SpineSpec, tier: QualityTier, room: THREE.Textu
       tip.name = 'spine:tip';
       tip.position.y = -height - 0.35;
       piece.add(tip);
-    } else {
-      // The exploded view's guide lines: dashed gold from this board's rim down to the next one's.
-      const r0 = radii[k]! - 0.12;
-      const r1 = radii[k + 1]! - 0.12;
-      for (let g = 0; g < SPINE_LOOK.guides; g++) {
-        const t = (g / SPINE_LOOK.guides) * Math.PI * 2 + Math.PI / SPINE_LOOK.guides;
-        const line = new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(Math.sin(t) * r0, -0.02, Math.cos(t) * r0), new THREE.Vector3(Math.sin(t) * r1, -height + 0.02, Math.cos(t) * r1)]),
-          guideMaterial
-        );
-        line.computeLineDistances();
-        line.renderOrder = 3;
-        piece.add(line);
-      }
     }
     const pinMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.035, 0.035, 0.12, 10), edge, Math.max(1, pins.length));
     const m = new THREE.Matrix4();
@@ -248,7 +231,6 @@ export function buildSpine(spec: SpineSpec, tier: QualityTier, room: THREE.Textu
       coreMaterial.uniforms.uTime!.value = clock;
       coreMaterial.uniforms.uReach!.value = reach;
       coreMaterial.uniforms.uLevel!.value = 0.4 + 0.6 * level;
-      guideMaterial.opacity = 0.45 * level * Math.min(1, power * 2);
       spans.forEach(({ piece, height, lamp }) => {
         const bottom = piece.position.y - height * piece.scale.y;
         const lit = Math.min(1, Math.max(0, (reach + bottom) / 2));

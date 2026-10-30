@@ -9,7 +9,7 @@ import { areasOnPath } from '~/state/chapters';
 const BOARDS = stackPlaces(areasOnPath());
 const OPEN = boardTops(BOARDS, 1);
 const CLOSED = boardTops(BOARDS, 0);
-const SPEC: SpineSpec = { tops: OPEN, radii: BOARDS.map((b) => b.radius), hole: STACK.hole, thick: STACK.thick };
+const SPEC: SpineSpec = { tops: OPEN, hole: STACK.hole, thick: STACK.thick };
 const span = (spine: ReturnType<typeof buildSpine>, k: number): THREE.Object3D => {
   const found = spine.group.getObjectByName(`spine:span${k}`);
   if (!found) throw new Error(`no span ${k}`);
@@ -25,7 +25,7 @@ const tubes = (o: THREE.Object3D): number => {
 
 describe('the quantum spine in code: flanges, cable bundles, the glass core, the guide lines', () => {
   it('keeps the look of the mock-up', () => {
-    expect(SPINE_LOOK).toEqual({ bundles: { high: 24, medium: 16, low: 10 }, guides: 8, tip: 3.4, lamp: 3.6 });
+    expect(SPINE_LOOK).toEqual({ bundles: { high: 24, medium: 16, low: 10 }, tip: 3.4, lamp: 3.6 });
   });
 
   it('makes a span under every board, the last one with the tip', () => {
@@ -61,11 +61,12 @@ describe('the quantum spine in code: flanges, cable bundles, the glass core, the
     }
   });
 
-  it('draws eight guide lines between each pair of boards', () => {
+  // Bob (2026-10-30): the tower's strings "too busy"; he picked B, two thick rings and no dashed lines.
+  it('draws no dashed guide lines between the boards', () => {
     const spine = buildSpine(SPEC, 'high', null);
     for (let k = 0; k < OPEN.length; k++) {
-      const lines = span(spine, k).children.filter((c) => (c as THREE.Line).isLine && (c as THREE.Line).material instanceof THREE.LineDashedMaterial);
-      expect(lines).toHaveLength(k + 1 < OPEN.length ? 8 : 0);
+      const lines = span(spine, k).children.filter((c) => (c as THREE.Line).isLine);
+      expect(lines).toHaveLength(0);
     }
   });
 

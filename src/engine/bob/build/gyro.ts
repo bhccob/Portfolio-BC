@@ -1,10 +1,12 @@
 /**
- * Three gold gyroscope rings round the stack (spec 2026-10-29-bob-stack-2-design.md, goal 3: "need more gold rings",
- * then "just go with the gyroscope", its outer ring "automatically slow rotates"; the rings mock-up's `gyro`): large rings
- * round the machine's middle, each tipped its own way and turning slowly on its own axis, as an armillary sphere's, a
- * fine dashed ring beside each and a few small lights riding on them; the outermost carries a dial of ticks and swings
- * slowly round the stack on its own. Gold metal lit by the light above, a little see-through, softer than gold at full
- * strength; it fades away where it passes near the camera, so it never stands between the visitor and what is in view.
+ * Two gold gyroscope rings round the stack (spec 2026-10-29-bob-stack-2-design.md, goal 3: "need more gold rings",
+ * then "just go with the gyroscope", its outer ring "automatically slow rotates"; the rings mock-up's `gyro`; Bob,
+ * 2026-10-30: "make the strings on the tower less since it looks too busy ... where the strings are thick and go past the
+ * screen", and of two mock-ups he picked B, .superpowers/strings/): two thick rings round the machine's middle, so large
+ * they run past the screen at the world's stop, each tipped its own way and turning slowly on its own axis, as an
+ * armillary sphere's, a few small lights riding on them; the outer one carries a dial of ticks and swings slowly round the
+ * stack on its own. Gold metal lit by the light above, a little see-through; it fades away where it passes near the
+ * camera, so it never stands between the visitor and what is in view.
  *
  * No React: the Void builds it with the world and poses it from the path (src/scene/bob/worldPath.ts `rings`: lit with
  * the power board's power, stepped back at a board's stop and in the Q&A), on the world's clock.
@@ -17,22 +19,20 @@ type Vec3 = readonly [number, number, number];
 const D = Math.PI / 180;
 
 /**
- * The gyroscope's measures, the mock-up's: each ring's radius, tube, tilt, turn on its own axis (rad/s), lights riding on
- * it, its dashed companion's offset and whether it has the dial; the outermost's `swing` round the stack (rad/s, about two
- * minutes a turn); the rings' light at full strength (`level`), how see-through (`alpha`) and how much they catch the
- * light (`spec`); their dashes' opacity.
+ * The gyroscope's measures: each ring's radius, tube, tilt, turn on its own axis (rad/s), lights riding on it and whether
+ * it has the dial; the outermost's `swing` round the stack (rad/s, about two minutes a turn); the rings' light at full
+ * strength (`level`), how see-through (`alpha`) and how much they catch the light (`spec`). Bob's B: the mock-up's
+ * near-upright ring and its near-level dial ring, some three to four times as thick and half as large again, brighter.
  */
 export const GYRO_LOOK = {
   rings: [
-    { radius: 12.5, tube: 0.07, tilt: [74 * D, 20 * D, 0] as const, speed: 0.05, riders: 2, companion: 0.4, dial: false, glow: 0.12 },
-    { radius: 14.6, tube: 0.06, tilt: [-52 * D, -35 * D, 18 * D] as const, speed: -0.034, riders: 3, companion: -0.4, dial: false, glow: 0.12 },
-    { radius: 16.8, tube: 0.085, tilt: [14 * D, 0, -8 * D] as const, speed: 0.018, riders: 4, companion: 0.5, dial: true, glow: 0.18 }
+    { radius: 19, tube: 0.26, tilt: [74 * D, 20 * D, 0] as const, speed: 0.05, riders: 2, dial: false, glow: 0.2 },
+    { radius: 23, tube: 0.34, tilt: [10 * D, 0, -6 * D] as const, speed: 0.018, riders: 4, dial: true, glow: 0.24 }
   ],
   swing: 0.05,
-  level: 0.8,
-  alpha: 0.62,
-  spec: 0.6,
-  dashes: 0.4
+  level: 1.1,
+  alpha: 0.9,
+  spec: 0.6
 } as const;
 
 const RING_VERTEX = /* glsl */ `
@@ -150,20 +150,6 @@ export function buildGyro(centre: Vec3): GyroModel {
     mesh.name = `gyro:band:${k}`;
     spin.add(mesh);
     // A fine dashed ring beside it, flat in its plane.
-    const points: THREE.Vector3[] = [];
-    const r = spec.radius + spec.companion;
-    for (let i = 0; i <= 360; i++) {
-      const t = (i / 360) * Math.PI * 2;
-      points.push(new THREE.Vector3(Math.sin(t) * r, 0, Math.cos(t) * r));
-    }
-    const dashMaterial = new THREE.LineDashedMaterial({ color: gold, dashSize: 0.35, gapSize: 0.25, transparent: true, opacity: 0, depthWrite: false });
-    materials.push(dashMaterial);
-    const dashGeometry = new THREE.BufferGeometry().setFromPoints(points);
-    geometries.push(dashGeometry);
-    const dashes = new THREE.Line(dashGeometry, dashMaterial);
-    dashes.name = `gyro:dashes:${k}`;
-    dashes.computeLineDistances();
-    spin.add(dashes);
     // The outermost's dial: a tick every 2°, longer every 10°, inside the band.
     if (spec.dial) {
       const tick = new THREE.BoxGeometry(0.03, 0.012, 1);
@@ -201,7 +187,7 @@ export function buildGyro(centre: Vec3): GyroModel {
       pivot.position.set(centre[0], centre[1], centre[2]);
       group.add(pivot);
     }
-    return { spin, band, dashMaterial, riders, speed: spec.speed };
+    return { spin, band, riders, speed: spec.speed };
   });
 
   return {
@@ -216,7 +202,6 @@ export function buildGyro(centre: Vec3): GyroModel {
       for (const ring of rings) {
         ring.spin.rotation.y = clock * ring.speed;
         ring.band.uniforms.uLevel!.value = ringLevel;
-        ring.dashMaterial.opacity = look.dashes * ringLevel;
         ring.riders.forEach((m, j) => {
           m.opacity = ringLevel * (0.55 + 0.45 * Math.sin(clock * 1.3 + j * 2.1));
         });

@@ -527,7 +527,7 @@ export function buildWorld(boards: readonly BoardPlace[], tier: QualityTier, roo
     holders.push(holder);
     plates.push(plate);
   });
-  const spine: SpineModel = buildSpine({ tops: boards.map((b) => b.top), radii: boards.map((b) => b.radius), hole: STACK.hole, thick: STACK.thick }, tier, room);
+  const spine: SpineModel = buildSpine({ tops: boards.map((b) => b.top), hole: STACK.hole, thick: STACK.thick }, tier, room);
   const spineHolder = new THREE.Group();
   spineHolder.name = 'world:spine';
   spineHolder.position.set(centre[0], 0, centre[2]);
