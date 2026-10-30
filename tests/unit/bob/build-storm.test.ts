@@ -24,6 +24,10 @@ describe('the storm in code: the painted sky and the flats', () => {
   // the right, the fall's first fact and a Q&A still over the dark gate at 2.
   it('lights the sky at 1.5', () => expect(STORM_SKY.light).toBe(1.5));
 
+  // The rendered sea of storm is the brightest plate; under the glass at the fall's first fact it held the picture over
+  // its dark gate on a phone.
+  it('draws the sea at 0.55 of the light of the wall', () => expect(STORM_SKY.sea).toBe(0.55));
+
   it('draws the sky first and behind everything, at the far plane, writing no depth', () => {
     const storm = buildStorm(plates());
     const sky = storm.group.getObjectByName('storm:sky') as THREE.Mesh;
@@ -85,7 +89,7 @@ describe('the storm in code: the painted sky and the flats', () => {
     });
     storm.pose({ ...pose, sky: 0.35, flats: 0, sea: 0.2, camera: camera(-80) });
     // The sea under the falling light, darker on its own.
-    expect(sky.uniforms.uSeaLevel!.value).toBe(0.2);
+    expect(sky.uniforms.uSeaLevel!.value).toBeCloseTo(0.2 * STORM_SKY.sea, 9);
     expect(sky.uniforms.uLevel!.value).toBeCloseTo(STORM_SKY.light * 0.35, 9);
     expect(sky.uniforms.uAbove!.value).toBe(0);
     for (let k = 0; k < STORM.flats.length; k++) expect(storm.group.getObjectByName(`storm:flat:${k}`)!.visible).toBe(false);

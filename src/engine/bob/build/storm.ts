@@ -23,8 +23,12 @@ import { noiseTexture } from './volume';
 
 type Vec3 = readonly [number, number, number];
 
-/** The sky's light at level 1 (the plates are dark paintings: lit up so the glass's mirror holds them). */
-export const STORM_SKY = { light: 1.5 } as const;
+/**
+ * The sky's light at level 1 (round 8: 1.5, the rendered plates being brighter than the painted ones were at 2), and the
+ * sea's against the wall's (`sea`: the rendered sea of storm is the brightest plate, and under the glass, as the light
+ * begins to fall, it held a phone's picture under the first fact over its dark gate).
+ */
+export const STORM_SKY = { light: 1.5, sea: 0.55 } as const;
 /** The flats' arc round behind the compass, rad. */
 const ARC = (200 * Math.PI) / 180;
 /** How far below the glass's top the flats' feet stand, m. */
@@ -243,7 +247,7 @@ export function buildStorm(plates: StormPlates): StormModel {
       u.uFlash!.value = flash.strength;
       (u.uFlashDir!.value as THREE.Vector3).set(...flash.dir);
       u.uAbove!.value = camera.position.y > 0 ? 1 : 0;
-      u.uSeaLevel!.value = sea;
+      u.uSeaLevel!.value = sea * STORM_SKY.sea;
       sky.visible = skyLevel > 0;
       // Where the flash is along the flats' arc: straight behind is the middle.
       const flashU = 0.5 - Math.atan2(flash.dir[0], -flash.dir[2]) / ARC;

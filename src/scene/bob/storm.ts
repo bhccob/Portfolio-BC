@@ -36,7 +36,7 @@ export const STORM = {
     { radius: 6.5, height: 6, scale: 0.55, shift: 0.71, speed: 0.0025, level: 1.36, foot: 0.45 }
   ],
   flash: { period: 6, spread: 2.5, rise: 0.15, fall: 1.1, twice: 0.45, twiceAfter: 0.45, twiceAt: 0.6, twiceWidth: 0.25, twiceLevel: 0.7, gain: 0.6 },
-  sky: { home: 0.85, fall: 0.25, void: 0.08, open: 0.6 },
+  sky: { home: 0.85, fall: 0.18, void: 0.08, open: 0.6 },
   sea: { fall: 0.15 },
   riseOut: 0.5,
   fps: 30,

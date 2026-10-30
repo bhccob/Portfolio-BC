@@ -124,13 +124,16 @@ if any; all against the render and the dark gate.
   round the panorama showed their dark sides, so a soft third moon comes from behind the compass; a broad noise breaks
   the storm into separate towers with sky between. Sizes: wall 50 kB, sea 50 kB, bank 1008 kB (its alpha is most of
   it), wall flash 14 kB, bank flash 21 kB: 1143 kB of the 1.2 MB.
-- **The levels**: the sky's light 1.5 (was 2); the start screen 0.85 and the fall 0.25 as before; round the tower 0.08
+- **The levels**: the sky's light 1.5 (was 2), the sea of storm at 0.55 of it (the brightest plate); the start screen
+  0.85 as before; the fall 0.18 (was 0.25); round the tower 0.08
   (was 0.45): looking down on the stack the camera sees the rendered sea of storm, brighter than the painted one, and the
   tower alone already reads 0.091 of the 0.11 gate; so the storm now dims over the drop rather than rising. The flats a
   fifth darker (0.68, 1.04, 1.36), their feet as before. The flash's gain 0.6: a faint gold glow inside one cloud
   (`.superpowers/stack-8/flash-pair.png`). The first full proof found the start screen with the pointer moved (0.116),
   its look to the right (0.115), the fall under the first fact on a phone (0.112 of 0.10) and a Q&A still on a phone
-  (0.120) over their gates; with these levels and the moon card below they read 0.108, 0.105, within, within. The storm
+  (0.120) over their gates; with these levels and the moon card below they read 0.105, 0.104, within, within. The
+  second full proof found the phone's first fact still at 0.107 (its strip under the line, as the light begins to fall,
+  looks down through the glass onto the sea at full level); the sea's own factor brought it within. The storm
   draws about 22 frames a second alone in the proof browser.
 - **The compass file**: Blender's curve bevel gives 4 + 2 × resolution sides, so the old rims were six-sided, not
   eight; they are 16-sided now (`RIM_RES` 6). The needle's diamond section has each corner rounded by two facets (a

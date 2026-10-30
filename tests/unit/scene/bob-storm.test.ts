@@ -84,7 +84,8 @@ describe('the storm: its flats, its flash, its levels and when it moves', () => 
     expect(middle).toBeGreaterThan(STORM.sky.fall);
     expect(at(NEBULA.CLOUDS_IN[1]).sky).toBeCloseTo(STORM.sky.fall, 9);
     expect(at(200).sky).toBeCloseTo(STORM.sky.fall, 9);
-    expect(STORM.sky.fall).toBe(0.25);
+    // Round 8: 0.18 (was 0.25), so the picture under the first fact's line stays dark on a phone with the rendered plates.
+    expect(STORM.sky.fall).toBe(0.18);
     // Round the tower, looking down on the stack, the storm stands behind the gas: round 8, less of it than in the fall, the
     // rendered sea of storm below being bright and the tower alone near the dark gate.
     expect(STORM.sky.void).toBe(0.08);
