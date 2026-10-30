@@ -188,6 +188,10 @@ export function moveFocus(move: FocusMove, to: ProjectId | null, now: number, mo
   return { from: { id: main?.id ?? null, amount: main?.amount ?? 0, leaving: up[1] ?? null }, to, at: now, mode, shot };
 }
 
+/** The project of an id, if it is on the world. */
+function beadOf(id: string): ProjectId | null {
+  return WORLD_PROJECTS.find((project) => project === id) ?? null;
+}
 
 /**
  * The close view the page asks for: the bead being opened (`opening`: its flight runs on the home page until the
@@ -201,19 +205,18 @@ export function moveFocus(move: FocusMove, to: ProjectId | null, now: number, mo
  * between the two. It asks for the close view it stands at (`current`, the last move's), so the move out is decided
  * only once the story is where Back puts it. With none (the proof bridge's OPEN_PROJECT on the home) it asks for none:
  * only a page, or a label's flight, brings a bead close.
- *
- * Round 10 (spec 2026-10-30-bob-qa-list-floors-design.md; Bob: "the camera doesnt go to the project", and he picked the
- * full page with the camera staying): no bead is ever brought close. A project's page opens over its floor, the
- * journey's shot behind it, however the page was reached; the rules above stand for the day a close view comes back.
  */
 export function focusGoalFor(
-  _phase: Phase,
-  _scene: SceneKind | null,
-  _opening: ProjectId | null,
-  _current: ProjectId | null = null,
-  _inside: ProjectId | null = null
+  phase: Phase,
+  scene: SceneKind | null,
+  opening: ProjectId | null,
+  current: ProjectId | null = null,
+  inside: ProjectId | null = null
 ): ProjectId | null {
-  return null;
+  if (opening !== null) return opening;
+  if (phase.kind !== 'PROJECT_FOCUS') return scene === 'home' && inside !== null ? beadOf(inside) : null;
+  if (scene === 'project') return beadOf(phase.id);
+  return scene === 'home' ? current : null;
 }
 
 /** What a frame's focus step reads of the app: the store's phase, page, reduced motion and inside, and the story's place. */
