@@ -58,7 +58,16 @@ const CELL_GIVE = 0.05;
 
 describe("the stack's boards in code: mask, copper, gold, print, parts and their buses", () => {
   it('keeps the look of the mock-up', () => {
-    expect(PLATE_LOOK).toEqual({ size: { high: 2048, medium: 1024, low: 1024 }, parts: { high: 1, medium: 0.6, low: 0.35 }, thick: 0.2, dark: 0.22 });
+    expect(PLATE_LOOK).toEqual({
+      size: { high: 2048, medium: 1024, low: 1024 },
+      parts: { high: 1, medium: 0.6, low: 0.35 },
+      thick: 0.2,
+      dark: 0.22,
+      // Round 8: the polish Bob picked.
+      lacquer: { clearcoat: 1, clearcoatRoughness: 0.05 },
+      lip: { tube: 0.022, gold: 0xe2a54a, steel: 0x8c8798, roughness: 0.24, anisotropy: 0.5, brushed: [0.14, 0.3] },
+      round: { radius: 0.006, segments: 2 }
+    });
     expect(PLATE_LOOK.thick).toBe(STACK.thick);
   });
 
@@ -159,6 +168,62 @@ describe("the stack's boards in code: mask, copper, gold, print, parts and their
     expect(map('high').width).toBe(2048);
     const low = buildPlate(APP, 'low', null, canvas);
     expect(((((low.group.getObjectByName('plate:light') as THREE.Mesh).material as THREE.ShaderMaterial).uniforms.uMap!.value as THREE.Texture).image as HTMLCanvasElement).width).toBe(1024);
+  });
+
+  // Round 8 (spec 2026-10-30-bob-moonlit-3d-design.md): Bob found the tower "doesnt look polished", and picked the
+  // polished test render: a lacquered board, a gold lip on top and a steel one below, rounded parts.
+  it('lacquers the board: a full, nearly smooth clear coat', () => {
+    const plate = buildPlate(APP, 'high', new THREE.Texture(), canvas);
+    const top = (plate.group.getObjectByName('plate:top') as THREE.Mesh).material as THREE.MeshPhysicalMaterial;
+    expect(PLATE_LOOK.lacquer.clearcoat).toBe(1);
+    expect(PLATE_LOOK.lacquer.clearcoatRoughness).toBeLessThanOrEqual(0.08);
+    expect(top.clearcoat).toBe(PLATE_LOOK.lacquer.clearcoat);
+    expect(top.clearcoatRoughness).toBe(PLATE_LOOK.lacquer.clearcoatRoughness);
+  });
+
+  it('lines each plate with a gold lip on top and a steel lip below, hugging the edge', () => {
+    const tube = PLATE_LOOK.lip.tube;
+    for (const tier of ['high', 'medium', 'low'] as const) {
+      const plate = buildPlate(APP, tier, new THREE.Texture(), canvas);
+      const top = plate.group.getObjectByName('plate:lip:top') as THREE.Mesh;
+      const bottom = plate.group.getObjectByName('plate:lip:bottom') as THREE.Mesh;
+      expect(top, tier).toBeTruthy();
+      expect(bottom, tier).toBeTruthy();
+      for (const lip of [top, bottom]) {
+        const g = (lip.geometry as THREE.TorusGeometry).parameters;
+        expect(Math.abs(g.radius - APP.radius), tier).toBeLessThanOrEqual(tube);
+        expect(g.tube).toBe(tube);
+        expect([lip.position.x, lip.position.z]).toEqual([0, 0]);
+      }
+      expect(top.position.y).toBeGreaterThanOrEqual(-tube);
+      expect(top.position.y).toBeLessThanOrEqual(0);
+      expect(bottom.position.y).toBeGreaterThanOrEqual(-PLATE_LOOK.thick);
+      expect(bottom.position.y).toBeLessThanOrEqual(-PLATE_LOOK.thick + tube);
+      const gold = top.material as THREE.MeshStandardMaterial;
+      expect(gold.metalness).toBe(1);
+      expect(gold.color.getHex()).toBe(new THREE.Color(PLATE_LOOK.lip.gold).getHex());
+      expect((bottom.material as THREE.MeshStandardMaterial).color.getHex()).toBe(new THREE.Color(PLATE_LOOK.lip.steel).getHex());
+      // They dim with the board.
+      plate.set(0, 1, 1);
+      const lit = gold.color.r;
+      plate.set(0, 0, 1);
+      expect(gold.color.r).toBeLessThan(lit);
+      if (tier === 'low') {
+        expect(gold).not.toBeInstanceOf(THREE.MeshPhysicalMaterial);
+      } else {
+        expect(gold, tier).toBeInstanceOf(THREE.MeshPhysicalMaterial);
+        expect((gold as THREE.MeshPhysicalMaterial).anisotropy).toBeGreaterThan(0);
+        expect(top.geometry.getAttribute('tangent'), tier).toBeTruthy();
+      }
+    }
+  });
+
+  it('rounds the box parts on the high tier only', () => {
+    const count = (tier: 'high' | 'medium' | 'low') =>
+      ((buildPlate(APP, tier, null, canvas).group.getObjectByName('plate:qfp') as THREE.Mesh).geometry.getAttribute('position')).count;
+    expect(count('high')).toBeGreaterThan(24);
+    expect(count('medium')).toBe(24);
+    expect(count('low')).toBe(24);
   });
 
   // Bob (2026-10-30): "when it reach the cpu chip it slowly powers (light on) the tower". A board stands dark until its

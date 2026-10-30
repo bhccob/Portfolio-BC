@@ -19,7 +19,9 @@
  * clock of its own: `set` is given the clock.
  */
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import type { QualityTier } from '~/engine/quality';
+import { patchBrushed, roundTangents } from './brushed';
 
 type P = [number, number];
 type Canvas = () => HTMLCanvasElement;
@@ -42,12 +44,20 @@ export interface PlateSpec {
  * How a board looks by tier: its textures' size, px; the share of its small parts (resistors, capacitors, their rows
  * and the fine traces) it lays; its thickness, m (its top at y = 0); and how much of its light its body keeps with no
  * power, so it stands dark until the power comes (Bob, 2026-10-30: "it slowly powers (light on) the tower").
+ *
+ * Round 8 (spec 2026-10-30-bob-moonlit-3d-design.md; Bob: the tower "doesnt look polished", and picked the polished test
+ * render): the board under a glossy `lacquer`; round its top edge a gold `lip` and round its bottom edge a steel one,
+ * tori of `tube` radius hugging the edge, brushed on high and medium (./brushed.ts, roughness within `brushed`); its
+ * box-shaped parts with edges `round`ed on the high tier.
  */
 export const PLATE_LOOK = {
   size: { high: 2048, medium: 1024, low: 1024 },
   parts: { high: 1, medium: 0.6, low: 0.35 },
   thick: 0.2,
-  dark: 0.22
+  dark: 0.22,
+  lacquer: { clearcoat: 1, clearcoatRoughness: 0.05 },
+  lip: { tube: 0.022, gold: 0xe2a54a, steel: 0x8c8798, roughness: 0.24, anisotropy: 0.5, brushed: [0.14, 0.3] as const },
+  round: { radius: 0.006, segments: 2 }
 } as const;
 
 const THICK = PLATE_LOOK.thick;
@@ -822,7 +832,7 @@ function instanced(geometry: THREE.BufferGeometry, material: THREE.Material | TH
   return mesh;
 }
 
-function buildParts(parts: PlatePart[], mats: ReturnType<typeof partMaterials>): THREE.Group {
+function buildParts(parts: PlatePart[], mats: ReturnType<typeof partMaterials>, tier: QualityTier): THREE.Group {
   const group = new THREE.Group();
   group.name = 'plate:parts';
   const lists: Record<string, [THREE.Vector3, number][]> = {};
@@ -887,7 +897,10 @@ function buildParts(parts: PlatePart[], mats: ReturnType<typeof partMaterials>):
         for (let i = 0; i < 8; i++) for (const row of [-1, 1]) put('pin', p, -hw + 0.03 + i * 0.054, 0.07, row * 0.025);
     }
   }
-  const box = (w: number, h: number, d: number): THREE.BoxGeometry => new THREE.BoxGeometry(w, h, d);
+  // Round 8: rounded edges on the high tier, so they catch the light as machined parts do.
+  const { radius, segments } = PLATE_LOOK.round;
+  const box = (w: number, h: number, d: number): THREE.BufferGeometry =>
+    tier === 'high' ? new RoundedBoxGeometry(w, h, d, segments, Math.min(radius, Math.min(w, h, d) / 2.5)) : new THREE.BoxGeometry(w, h, d);
   const shapes: Record<string, () => [THREE.BufferGeometry, THREE.Material | THREE.Material[]]> = {
     rBody: () => [box(0.058, 0.022, 0.032), mats.epoxy],
     rEnd: () => [box(0.014, 0.024, 0.034), mats.tin],
@@ -1023,8 +1036,8 @@ export function buildPlate(spec: PlateSpec, tier: QualityTier, room: THREE.Textu
     metalnessMap: maps.data,
     roughness: 1,
     metalness: 1,
-    clearcoat: 0.35,
-    clearcoatRoughness: 0.3
+    clearcoat: PLATE_LOOK.lacquer.clearcoat,
+    clearcoatRoughness: PLATE_LOOK.lacquer.clearcoatRoughness
   });
   const top = new THREE.Mesh(topDisc, plate);
   top.name = 'plate:top';
@@ -1065,6 +1078,30 @@ export function buildPlate(spec: PlateSpec, tier: QualityTier, room: THREE.Textu
     edge.add(wall);
     dimming.push(wallMaterial);
   }
+  // The lips: a gold one round the top edge, a steel one round the bottom, brushed on high and medium.
+  const lip = PLATE_LOOK.lip;
+  const brushed = tier !== 'low';
+  const lipOf = (name: string, colour: number, y: number): THREE.Mesh => {
+    const geometry = new THREE.TorusGeometry(R - lip.tube * 0.3, lip.tube, 12, 256).rotateX(Math.PI / 2);
+    const look = { color: colour, metalness: 1, roughness: lip.roughness };
+    let material: THREE.MeshStandardMaterial;
+    if (brushed) {
+      roundTangents(geometry);
+      const m = new THREE.MeshPhysicalMaterial({ ...look, anisotropy: lip.anisotropy });
+      m.onBeforeCompile = patchBrushed(lip.brushed);
+      m.customProgramCacheKey = () => 'bob-lip';
+      material = m;
+    } else {
+      material = new THREE.MeshStandardMaterial(look);
+    }
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = name;
+    mesh.position.y = y;
+    dimming.push(material);
+    return mesh;
+  };
+  const lipTop = lipOf('plate:lip:top', lip.gold, -lip.tube * 0.5);
+  const lipBottom = lipOf('plate:lip:bottom', lip.steel, -THICK + lip.tube * 0.5);
   const bottom = new THREE.Mesh(flatDisc(128).rotateX(Math.PI), new THREE.MeshStandardMaterial({ color: 0x07050c, roughness: 0.8 }));
   bottom.name = 'plate:bottom';
   bottom.position.y = -THICK;
@@ -1075,8 +1112,8 @@ export function buildPlate(spec: PlateSpec, tier: QualityTier, room: THREE.Textu
   under.renderOrder = 2;
 
   const mats = partMaterials(canvas);
-  const partsGroup = buildParts(parts, mats);
-  group.add(top, light, edge, bottom, under, partsGroup);
+  const partsGroup = buildParts(parts, mats, tier);
+  group.add(top, light, edge, lipTop, lipBottom, bottom, under, partsGroup);
 
   // What dims with the board, and what reflects the room: every lit material on it, by its light and its colour.
   const dimmed = [...dimming, ...Object.values(mats)].map((m) => {
