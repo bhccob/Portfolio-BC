@@ -39,8 +39,10 @@ import bpy
 BAND_SEG = 128          # quads around each band (preview: 256)
 BEVEL_SEGMENTS = 2      # segments of the band-edge bevel (preview: 3)
 RIM_SEG = 96            # segments around each gold rim (preview: 256)
-RIM_RES = 1             # bevel resolution of the rim and axis tubes, 4 + 4 * res sides (preview: 2 for the rims, 1 for the axis)
-PIVOT_SEGMENTS = (48, 24)
+RIM_RES = 6             # bevel resolution of the rim tubes, 4 + 2 * res sides: 16, round (round 8: at 1, six sides, Bob found them "not polished")
+AXIS_RES = 1            # the axis's, 6 sides: a hairline
+NEEDLE_ROUND = 0.006    # how far each corner of the needle's diamond section is rounded in, m (round 8)
+PIVOT_SEGMENTS = (40, 20)  # round 8: a little coarser, for the round rims within the budget (37 px across at home)
 
 BAND_T = 0.045          # band thickness
 BEVEL_WIDTH = 0.007
@@ -196,9 +198,23 @@ def build():
     bm = bmesh.new()
     tip_a = bm.verts.new((0, 0, L_N))
     tip_b = bm.verts.new((0, 0, -L_N * 0.85))
-    ring = [bm.verts.new(v) for v in ((W_N, 0, 0), (0, -T_N, 0), (-W_N, 0, 0), (0, T_N, 0))]
-    for i in range(4):
-        j = (i + 1) % 4
+    # Its section: a diamond with each corner rounded by two facets, so the light runs along its edges and its ridge;
+    # the tips stay where they were.
+    corners = [(W_N, 0.0), (0.0, -T_N), (-W_N, 0.0), (0.0, T_N)]
+    pts = []
+    for i, (cx, cy) in enumerate(corners):
+        px, py = corners[i - 1]
+        nx, ny = corners[(i + 1) % 4]
+        def toward(ax, ay, d):
+            l = math.hypot(ax - cx, ay - cy)
+            return (cx + (ax - cx) * d / l, cy + (ay - cy) * d / l)
+        a = toward(px, py, NEEDLE_ROUND)
+        b = toward(nx, ny, NEEDLE_ROUND)
+        mid = ((a[0] + b[0]) / 2 * 0.5 + cx * 0.5, (a[1] + b[1]) / 2 * 0.5 + cy * 0.5)
+        pts += [a, mid, b]
+    ring = [bm.verts.new((x, y, 0)) for x, y in pts]
+    for i in range(len(ring)):
+        j = (i + 1) % len(ring)
         bm.faces.new((tip_a, ring[i], ring[j]))
         bm.faces.new((tip_b, ring[j], ring[i]))
     bm.normal_update()
@@ -217,7 +233,7 @@ def build():
     pivot = link(bpy.data.objects.new("pivot", pm))
     pivot.parent = arm
 
-    axis = poly_curve("axis", [[(0, 0, AXIS_Z[0]), (0, 0, AXIS_Z[1])]], AXIS_BEVEL, RIM_RES)
+    axis = poly_curve("axis", [[(0, 0, AXIS_Z[0]), (0, 0, AXIS_Z[1])]], AXIS_BEVEL, AXIS_RES)
     axis.parent = arm
     curves.append(axis)
 

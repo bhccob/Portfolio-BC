@@ -15,8 +15,9 @@
  * The most bytes the compass GLB may take. The loader's page carries it
  * alongside the rest of the site, so the export script's segment counts are
  * tuned to stay under this (tests/unit/bob/compass-glb.test.ts checks it).
+ * Round 8 (spec 2026-10-30-bob-moonlit-3d-design.md) raised it from 700 kB for the round, 16-sided rims.
  */
-export const COMPASS_GLB_BUDGET = 700_000;
+export const COMPASS_GLB_BUDGET = 900_000;
 
 /**
  * The part of a glTF's JSON that the compass tests read. A node's `mesh` is an

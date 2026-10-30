@@ -60,6 +60,25 @@ describe('the compass GLB', () => {
     for (const n of ['armillary', 'band_1', 'band_2', 'band_3', 'band_4', 'rim_1', 'rim_4', 'needle', 'pivot', 'axis']) expect(names).toContain(n);
   });
 
+  // Round 8 (spec 2026-10-30-bob-moonlit-3d-design.md): Bob found the compass "doesnt look polished"; its rims were
+  // eight-sided tubes and its needle six points.
+  it('makes each rim a round tube: at least 16 sides round it', () => {
+    for (const k of [1, 2, 3, 4]) {
+      // The tube round the band's upper edge (the file's +y), a circle in the band's plane: each of its points lies off the
+      // tube's middle line in one of its sides' directions, and those directions, counted in 5 degree bins, are its sides.
+      const upper = attribute(`rim_${k}`, 'POSITION').filter(([, y]) => y! > 0);
+      const r = upper.map(([x, , z]) => Math.hypot(x!, z!));
+      const rc = r.reduce((a, b) => a + b, 0) / r.length;
+      const yc = upper.reduce((a, [, y]) => a + y!, 0) / upper.length;
+      const sides = new Set(upper.map(([, y], i) => Math.round((Math.atan2(y! - yc, r[i]! - rc) * 180) / Math.PI / 5)));
+      expect(sides.size, `rim_${k}`).toBeGreaterThanOrEqual(16);
+    }
+  });
+
+  it('bevels the needle: its edges rounded, not six points', () => {
+    expect(attribute('needle', 'POSITION').length).toBeGreaterThanOrEqual(60);
+  });
+
   it('gives every band a UV channel', () => {
     const j = readGlbJson(bytes);
     for (const k of [1, 2, 3, 4]) {
