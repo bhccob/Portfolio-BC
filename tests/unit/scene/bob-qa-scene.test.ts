@@ -7,27 +7,32 @@ import { makeQaScene, type QaScenePose } from '~/scene/bob/qaScene';
 import { worldPathFor } from '~/scene/bob/worldPath';
 import { HOME_CHAPTERS, lookStop, pathStart, qaStop } from '~/state/chapters';
 
-/** A fake of the page: <html>, the ring's section with its frame, its answers and its marks' buttons. */
+/** A fake of the page: <html>, the Q&A's section with its frame, its list's questions (each its button and reply), the end. */
 function fakePage() {
   const attributes = new Map<string, string>();
   const vars = new Map<string, string>();
   const style = { setProperty: (n: string, v: string) => vars.set(n, v), removeProperty: (n: string) => vars.delete(n) };
-  const answers = Array.from({ length: RING_QUESTIONS + 1 }, () => ({ hidden: true }));
-  // The frame has the size of the answer it shows: none while every answer is hidden.
-  const frame = { style, getBoundingClientRect: () => (answers.some((a) => !a.hidden) ? { width: 540, height: 600 } : { width: 540, height: 0 }) };
-  const marks = Array.from({ length: RING_MARKS }, () => ({ hidden: true, vars: new Map<string, string>(), style: { setProperty(n: string, v: string) { (this as unknown as { owner: Map<string, string> }).owner.set(n, v); } } as never }));
-  for (const m of marks) (m.style as unknown as { owner: Map<string, string> }).owner = m.vars;
+  const expanded = Array.from({ length: RING_QUESTIONS }, () => 'false');
+  const items = expanded.map((_, k) => ({
+    querySelector: (sel: string) =>
+      sel === '.qa-ask' ? { setAttribute: (n: string, v: string) => n === 'aria-expanded' && (expanded[k] = v) } : sel === '.qa-reply' ? replies[k] : null
+  }));
+  const replies = expanded.map(() => ({ hidden: true }));
+  const end = { hidden: true };
+  let measured = 0;
+  const frame = { style, getBoundingClientRect: () => (measured++, { left: 900, top: 160, width: 440, height: 520 }) };
   const section = {
     isConnected: true,
     inert: true,
-    querySelector: (s: string) => (s === '.qa-frame' ? frame : null),
-    querySelectorAll: (s: string) => (s === '.qa-answer' ? answers : s === '.qa-mark' ? marks : [])
+    querySelector: (sel: string) => (sel === '.qa-frame' ? frame : sel === '.qa-end' ? end : null),
+    querySelectorAll: (sel: string) => (sel === '.qa-item' ? items : [])
   };
   const doc = {
     documentElement: { setAttribute: (n: string, v: string) => attributes.set(n, v), removeAttribute: (n: string) => attributes.delete(n) },
     getElementById: (id: string) => (id === 'qa' ? section : null)
   };
-  return { doc: doc as unknown as Document, attributes, vars, answers, marks, section };
+  const open = (): number[] => expanded.flatMap((v, k) => (v === 'true' ? [k] : []));
+  return { doc: doc as unknown as Document, attributes, vars, replies, end, section, open, measures: () => measured };
 }
 
 function cameraFor(shot: { position: readonly number[]; target: readonly number[]; fov: number }, aspect: number): THREE.PerspectiveCamera {
@@ -50,64 +55,52 @@ const PHONE = { width: 390, height: 844 };
 const make = () => makeQaScene(buildRing(RING_MARKS, null), buildDecorStars('high', [0, 0, 0], -9));
 
 // The Q&A in the scene (spec 2026-10-29-bob-stack-2-design.md, goal 1): the ring and its stars posed from the path, the
-// answer and the marks' buttons written on the page where the ring has them.
+// list's open question and the end written on the page (round 10).
 describe("the Q&A's scene", () => {
-  it('shows the answer at its mark, and names the near half of the marks', () => {
+  // Round 10 (Bob picked "A · One list"): the list beside the tower, the question the ring stands at open.
+  it('opens the question the ring stands at in the list, and shows the list whole', () => {
     const page = fakePage();
     const q = make();
     const seen = poseAt(q, qaStop(HOME_CHAPTERS, 2), DESK, page);
     expect(seen).toMatchObject({ at: 2, close: 1 });
     expect(page.attributes.get('data-qa')).toBe('');
     expect(page.attributes.get('data-qa-at')).toBe('2');
-    expect(page.answers.map((a) => a.hidden)).toEqual([true, true, false, true, true, true, true]);
+    expect(page.open()).toEqual([2]);
+    expect(page.replies.map((r) => r.hidden)).toEqual([true, true, false, true, true, true]);
+    expect(page.end.hidden).toBe(true);
     expect(page.vars.get('--qa-show')).toBe('1');
-    // The mark at the front is named; at least one on the far half is not.
-    expect(page.marks[2]!.hidden).toBe(false);
-    expect(page.marks.some((m) => m.hidden)).toBe(true);
     q.dispose();
   });
 
-  // The harness (tools/proof/needle.mjs, qa-ring) found question 5's button at x -98 at question 6 on a laptop: on the
-  // ring's near half, off the screen, and still in Tab's reach.
-  it('hides a mark on the near half that stands off the screen, so Tab never reaches a button no one sees', () => {
-    for (const size of [DESK, PHONE]) {
-      for (let k = 0; k < RING_MARKS; k++) {
-        const page = fakePage();
-        const q = make();
-        poseAt(q, qaStop(HOME_CHAPTERS, k), size, page);
-        page.marks.forEach((m, j) => {
-          if (m.hidden) return;
-          const x = Number.parseFloat(m.vars.get('--x')!);
-          const y = Number.parseFloat(m.vars.get('--y')!);
-          expect(x >= 0 && x <= size.width && y >= 0 && y <= size.height, `${size.width}: at mark ${k}, mark ${j}'s button at ${x}, ${y}`).toBe(true);
-        });
-        // The mark the ring stands at is always named.
-        expect(page.marks[k]!.hidden).toBe(false);
-        q.dispose();
-      }
-    }
-  });
-
-  it('measures the answer once it shows, so a long one stays on the screen', () => {
-    const page = fakePage();
-    const q = make();
-    poseAt(q, qaStop(HOME_CHAPTERS, 5), DESK, page);
-    // Measured hidden it would be 0 px tall and hang off the bottom; measured shown it is held 70 px above it.
-    const y = Number.parseFloat(page.vars.get('--qa-y')!);
-    expect(y + 600).toBeLessThanOrEqual(DESK.height - 70 + 1);
-    q.dispose();
-  });
-
-  it('re-places the marks and the answer on a resize, the place kept', () => {
+  it('keeps the list whole while the ring turns from one question to another, the open one open until it lands', () => {
     const page = fakePage();
     const q = make();
     poseAt(q, qaStop(HOME_CHAPTERS, 1), DESK, page);
-    const desk = { x: page.vars.get('--qa-x'), y: page.vars.get('--qa-y'), mark: page.marks[1]!.vars.get('--x') };
-    const seen = poseAt(q, qaStop(HOME_CHAPTERS, 1), PHONE, page);
-    expect(seen!.at).toBe(1);
-    expect(page.vars.get('--qa-x')).toBe('20px'); // on a phone, under the ring
-    expect(page.vars.get('--qa-y')).not.toBe(desk.y);
-    expect(page.marks[1]!.vars.get('--x')).not.toBe(desk.mark);
+    poseAt(q, (qaStop(HOME_CHAPTERS, 1) + qaStop(HOME_CHAPTERS, 2)) / 2, DESK, page);
+    expect(page.vars.get('--qa-show')).toBe('1');
+    expect(page.open()).toEqual([1]);
+    q.dispose();
+  });
+
+  it('lets the list go as the ring turns on past the last question, and shows the end at its mark', () => {
+    const page = fakePage();
+    const q = make();
+    poseAt(q, (qaStop(HOME_CHAPTERS, RING_QUESTIONS - 1) + qaStop(HOME_CHAPTERS, RING_QUESTIONS)) / 2, DESK, page);
+    expect(Number(page.vars.get('--qa-show'))).toBeCloseTo(0.5, 2);
+    poseAt(q, qaStop(HOME_CHAPTERS, RING_QUESTIONS), DESK, page);
+    expect(page.attributes.has('data-qa-end')).toBe(true);
+    expect(page.end.hidden).toBe(false);
+    q.dispose();
+  });
+
+  it('measures the words once per open question and screen, for the stars to keep out of them', () => {
+    const page = fakePage();
+    const q = make();
+    poseAt(q, qaStop(HOME_CHAPTERS, 1), DESK, page);
+    poseAt(q, qaStop(HOME_CHAPTERS, 1), DESK, page);
+    expect(page.measures()).toBe(1);
+    poseAt(q, qaStop(HOME_CHAPTERS, 1), PHONE, page);
+    expect(page.measures()).toBe(2);
     q.dispose();
   });
 

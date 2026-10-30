@@ -38,7 +38,7 @@ function page() {
   const root = { getAttribute: (name: string) => attributes.get(name) ?? null };
   const doc = {
     documentElement: root,
-    getElementById: (id: string) => ({ 'end-title': title, 'qa-end-title': ringEnd, 'qa-mark-0': firstMark })[id] ?? null,
+    getElementById: (id: string) => ({ 'end-title': title, 'qa-end-title': ringEnd, 'qa-ask-0': firstMark })[id] ?? null,
     defaultView: {
       MutationObserver: FakeObserver,
       setTimeout: (callback: () => void, ms: number) => setTimeout(callback, ms),
@@ -173,7 +173,7 @@ describe("the ring's arrivals", () => {
     expect(FakeObserver.made[0]!.connected).toBe(false);
   });
 
-  it("focuses the first question's mark once the skip's move rests there", () => {
+  it("focuses the first question's button in the list once the skip's move rests there", () => {
     const p = page();
     focusQuestionsOnArrival(p.doc, p.heading);
     expect(FakeObserver.made[0]!.observed).toEqual({ target: p.root, options: { attributes: true, attributeFilter: ['data-qa-at'] } });

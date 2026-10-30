@@ -26,8 +26,8 @@ const TITLE_ID = 'end-title';
 /** The ring's end's title, "Stuur een bericht." (src/ui/QaRing.tsx), focusable by script the same way. */
 const RING_END_ID = 'qa-end-title';
 
-/** The first question's mark's button on the ring (src/ui/QaRing.tsx). */
-const FIRST_MARK_ID = 'qa-mark-0';
+/** The first question's button in the Q&A's list (src/ui/QaRing.tsx; round 10: the list, no buttons on the ring's marks). */
+const FIRST_MARK_ID = 'qa-ask-0';
 
 /**
  * Focuses the end's title once the story rests at the end (without scrolling): with the world there the ring's end,

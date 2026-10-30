@@ -2221,11 +2221,12 @@ html[data-route='home'][data-3d='on'][data-skip] .skip-button {
 }
 
 /* ---------- the Q&A's ring ---------- */
-/* The Q&A as a gold ring round the closing stack (spec 2026-10-29-bob-stack-2-design.md, goal 1; the mock-up Bob chose,
-   "mix"): the answer beside the ring, over a soft dark, and a button over each mark. src/ui/QaRing.tsx renders the words
-   with 3D on; the scene writes where they stand and how much they show (src/ui/qaWriters.ts): `<html data-qa>` while
-   the Q&A shows, `--qa-x`, `--qa-y` and `--qa-show` on the answers' frame, each answer's `hidden` but the one the ring
-   stands at, and each mark's button's `--x`, `--y` and `hidden`. */
+/* The Q&A as a gold ring round the closing stack (spec 2026-10-29-bob-stack-2-design.md, goal 1); since round 10 (spec
+   2026-10-30-bob-qa-list-floors-design.md, Bob picked "A · One list") every question in one list beside the tower, at the
+   right of a laptop's screen and under the tower on a phone, over a soft dark; the open question's reply under it.
+   src/ui/QaRing.tsx renders the words with 3D on; the scene writes how much they show and which is open
+   (src/ui/qaWriters.ts): `<html data-qa>` while the Q&A shows, `--qa-show` on the frame, each question's
+   `aria-expanded` and its reply's `hidden`. */
 .qa {
   position: fixed;
   inset: 0;
@@ -2242,14 +2243,80 @@ html[data-qa] .qa {
   position: absolute;
   left: 0;
   top: 0;
-  width: min(540px, calc(100vw - 40px));
-  transform: translate(var(--qa-x, 0px), calc(var(--qa-y, 0px) + (1 - var(--qa-show, 0)) * 12px));
+  width: min(440px, calc(100vw - 40px));
+  transform: translate(calc(100vw - 100% - max(56px, 7vw)), calc(18dvh + (1 - var(--qa-show, 0)) * 12px));
   opacity: var(--qa-show, 0);
   isolation: isolate;
 }
 
-html[data-qa-at] .qa-frame {
+html[data-qa] .qa-frame {
   pointer-events: auto;
+}
+
+/* The list: each question a quiet row, a thin gold rule between; the open one gold, its reply under it. */
+.qa-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  transition: opacity 0.6s ease, visibility 0s linear 0s;
+}
+
+.qa-item {
+  border-top: 1px solid rgb(226 165 74 / 0.22);
+}
+
+.qa-item:last-child {
+  border-bottom: 1px solid rgb(226 165 74 / 0.22);
+}
+
+.qa-ask {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 17px;
+  line-height: 1.4;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.qa-ask::after {
+  content: '+';
+  font-family: var(--font-label);
+  color: var(--gold-ink);
+}
+
+.qa-ask[aria-expanded='true'] {
+  color: var(--gold-glow);
+}
+
+.qa-ask[aria-expanded='true']::after {
+  content: '\2212';
+}
+
+.qa-ask:hover,
+.qa-ask:focus-visible {
+  color: var(--gold-glow);
+}
+
+.qa-reply {
+  padding: 0 0 16px;
+}
+
+.qa-reply .qa-count {
+  margin-bottom: 8px;
+}
+
+.qa-reply .qa-text {
+  font-size: 17px;
+  line-height: 1.6;
 }
 
 /* A soft dark under the words, so they read over the stack and the ring without a box round them. */
@@ -2307,39 +2374,15 @@ html[data-qa-at] .qa-frame {
   background: rgb(4 2 9 / 0.5);
 }
 
-.qa-marks {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* A mark's button over its mark on the ring: its number in small gold mono, its question its name. */
-.qa-mark {
-  position: absolute;
-  left: 0;
-  top: 0;
-  min-width: 44px;
-  min-height: 44px;
-  transform: translate(calc(var(--x, 0px) - 50%), calc(var(--y, 0px) - 100%));
-  padding: 0 0 12px;
-  border: 0;
-  background: none;
-  font-family: var(--font-label);
-  font-size: 12px;
-  letter-spacing: 0.2em;
-  color: var(--gold-ink);
-  cursor: pointer;
-  pointer-events: auto;
-}
-
-.qa-mark:hover,
-.qa-mark:focus-visible {
-  color: var(--gold-glow);
-}
-
 @media (max-width: 700px) {
   .qa-frame {
     width: calc(100vw - 40px);
+    transform: translate(20px, calc(100dvh - 100% - 72px + (1 - var(--qa-show, 0)) * 12px));
+  }
+
+  .qa-ask,
+  .qa-reply .qa-text {
+    font-size: 15px;
   }
 
   .qa-text {
@@ -2358,14 +2401,14 @@ html[data-qa-at] .qa-frame {
 
 @media (prefers-reduced-motion: reduce) {
   .qa-frame {
-    transform: translate(var(--qa-x, 0px), var(--qa-y, 0px));
+    transform: translate(calc(100vw - 100% - max(56px, 7vw)), 18dvh);
   }
 }
 
 /* The end, unmistakable (spec 2026-10-29-bob-stack-3-design.md, goal 4; Bob picked "2 · Circle"): at the end's mark
    (<html data-qa-end>, src/ui/qaWriters.ts) the dark comes up over the scene and one gold circle draws itself round,
    clockwise from the top, as the site began with the loader's circle; the words stand in the middle, inside it on a
-   laptop, under it on a phone; the marks' numbers go. One scroll up and it all goes. */
+   laptop, under it on a phone; the list goes. One scroll up and it all goes. */
 @property --qa-draw {
   syntax: '<angle>';
   inherits: false;
@@ -2417,9 +2460,8 @@ html[data-qa-end] .qa-seal {
   }
 }
 
-/* Out of sight and, once faded, out of reach: a mark's button takes the pointer whatever its list does, so no invisible
-   button is left for Tab or a click. */
-html[data-qa-end] .qa-marks {
+/* Out of sight and, once faded, out of reach: no invisible question is left for Tab or a click. */
+html[data-qa-end] .qa-list {
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.6s ease, visibility 0s linear 0.6s;

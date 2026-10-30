@@ -9,7 +9,7 @@ import { en, type Dictionary, type EndQuestions } from '~/i18n/en';
 import { nl } from '~/i18n/nl';
 import { useScene } from '~/state/store';
 import { QaRing, QaRingParts } from '~/ui/QaRing';
-import { answerPlace, clearQa, placeMarks, QA_END_ATTRIBUTE, type QaParts, qaWritten, writeQa } from '~/ui/qaWriters';
+import { clearQa, QA_END_ATTRIBUTE, type QaParts, qaWritten, writeQa } from '~/ui/qaWriters';
 
 const LOCALES = [
   ['/', nl],
@@ -27,22 +27,28 @@ const textOf = (html: string): string =>
     .replace(/\s+/g, ' ')
     .trim();
 
-/** A fake of the page's parts the writer touches. */
-function fakeParts(): QaParts & { attributes: Map<string, string>; vars: Map<string, string> } {
+/** A fake of the page's parts the writer touches: the list's questions (each its button's attributes and its reply), the end. */
+function fakeParts(): QaParts & { attributes: Map<string, string>; vars: Map<string, string>; asked: Map<string, string>[] } {
   const attributes = new Map<string, string>();
   const vars = new Map<string, string>();
+  const asked = Array.from({ length: RING_QUESTIONS }, () => new Map<string, string>([['aria-expanded', 'false']]));
   return {
     attributes,
     vars,
+    asked,
     root: { setAttribute: (n, v) => attributes.set(n, v), removeAttribute: (n) => attributes.delete(n) },
     section: { inert: true },
     frame: { style: { setProperty: (n, v) => vars.set(n, v), removeProperty: (n) => vars.delete(n) } },
-    answers: Array.from({ length: RING_QUESTIONS + 1 }, () => ({ hidden: true }))
+    items: asked.map((a) => ({ ask: { setAttribute: (n: string, v: string) => a.set(n, v) }, reply: { hidden: true } })),
+    end: { hidden: true }
   };
 }
-const SIZE = { width: 1440, height: 900 };
+const openOf = (p: ReturnType<typeof fakeParts>): number[] => p.asked.flatMap((a, k) => (a.get('aria-expanded') === 'true' ? [k] : []));
+const shownOf = (p: ReturnType<typeof fakeParts>): number[] => p.items.flatMap((item, k) => (item.reply.hidden ? [] : [k]));
 
-// The Q&A's words beside the gold ring (spec 2026-10-29-bob-stack-2-design.md, goal 1; the mock-up's "mix").
+// The Q&A's words beside the gold ring (spec 2026-10-29-bob-stack-2-design.md, goal 1; the mock-up's "mix"); round 10
+// (Bob, 2026-10-30: "more simple to just go through it"; he picked A, one list): every question in one list beside the
+// tower, the one the ring stands at open, a question asked turning the ring to it.
 describe("the ring's words", () => {
   afterEach(() => useScene.setState({ threeD: true }));
 
@@ -53,17 +59,21 @@ describe("the ring's words", () => {
     expect(renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: ['/'] }, createElement(QaRing)))).toBe('');
   });
 
-  it('renders every question and its answer, in both languages', () => {
+  it('lists every question as a button, its answer under it, in both languages', () => {
     for (const [path, t] of LOCALES) {
       const html = parts(path, t);
-      t.end.questions.forEach(({ question, answer }, k) => {
-        expect(html).toContain(`data-k="${k}"`);
-        expect(textOf(html)).toContain(question);
-        expect(textOf(html)).toContain(answer!);
-        expect(textOf(html)).toContain(t.end.ring.count.replace('{n}', String(k + 1).padStart(2, '0')).replace('{total}', '06'));
+      expect(html).toContain('<ol class="qa-list"');
+      const asks = [...html.matchAll(/<button type="button" class="qa-ask" id="qa-ask-(\d)" aria-expanded="false" aria-controls="qa-reply-(\d)">([^<]*)<\/button>/g)];
+      expect(asks.map((m) => [m[1], m[2]])).toEqual(t.end.questions.map((_, k) => [String(k), String(k)]));
+      expect(asks.map((m) => m[3]!.replace(/&#x27;/g, "'"))).toEqual(t.end.questions.map((q) => q.question));
+      t.end.questions.forEach(({ answer }, k) => {
+        const reply = html.slice(html.indexOf(`id="qa-reply-${k}"`));
+        expect(textOf(reply)).toContain(answer!);
+        expect(textOf(reply)).toContain(t.end.ring.count.replace('{n}', String(k + 1).padStart(2, '0')).replace('{total}', '06'));
       });
-      // Each answer hidden until the scene shows it, and the whole out of reach until then.
-      expect((html.match(/class="qa-answer[^"]*" data-k="\d" hidden=""/g) ?? []).length).toBe(RING_QUESTIONS + 1);
+      // Each reply hidden until the scene opens it, and the end's words too.
+      expect((html.match(/class="qa-reply" id="qa-reply-\d" hidden=""/g) ?? []).length).toBe(RING_QUESTIONS);
+      expect(html).toMatch(new RegExp(`class="qa-answer qa-end" data-k="${RING_QUESTIONS}" hidden=""`));
     }
   });
 
@@ -88,69 +98,54 @@ describe("the ring's words", () => {
     }
   });
 
-  it('names each mark by its question', () => {
-    for (const [path, t] of LOCALES) {
-      const html = parts(path, t);
-      const names = [...html.matchAll(/<button[^>]*class="qa-mark"[^>]*aria-label="([^"]*)"/g)].map((m) => m[1]);
-      expect(names).toHaveLength(RING_QUESTIONS + 1);
-      expect(names.slice(0, RING_QUESTIONS).map((n) => n!.replace(/&#x27;/g, "'"))).toEqual(t.end.questions.map((q) => q.question));
-      expect(names.at(-1)).toBe(t.end.ring.endKicker);
-      expect(html).toContain(`aria-label="${t.end.ring.marks}"`);
-    }
+  it("puts no buttons on the ring's marks: the list is the way to choose", () => {
+    for (const [path, t] of LOCALES) expect(parts(path, t)).not.toContain('qa-mark');
+  });
+
+  it('opens the first question as the Q&A comes in, and the one the ring stands at after, only that one', () => {
+    const p = fakeParts();
+    const written = qaWritten();
+    // Coming in from the look back, between marks: the first.
+    writeQa(p, { on: true, at: null, answer: 0.3 }, written);
+    expect([openOf(p), shownOf(p)]).toEqual([[0], [0]]);
+    expect(p.attributes.get('data-qa')).toBe('');
+    expect(p.section!.inert).toBe(false);
+    writeQa(p, { on: true, at: 2, answer: 1 }, written);
+    expect([openOf(p), shownOf(p), p.attributes.get('data-qa-at')]).toEqual([[2], [2], '2']);
+    // Turning on to another question: the open one stays open until the ring is there.
+    writeQa(p, { on: true, at: null, answer: 1 }, written);
+    expect(openOf(p)).toEqual([2]);
+    writeQa(p, { on: true, at: 4, answer: 1 }, written);
+    expect([openOf(p), shownOf(p)]).toEqual([[4], [4]]);
+    expect(p.end!.hidden).toBe(true);
   });
 
   it('writes only what changed', () => {
     const p = fakeParts();
     const written = qaWritten();
-    writeQa(p, { on: true, at: 2, answer: 1, place: { x: 600, y: 400 } }, written);
-    expect(p.attributes.get('data-qa')).toBe('');
-    expect(p.attributes.get('data-qa-at')).toBe('2');
-    expect(p.section!.inert).toBe(false);
-    expect(p.answers.map((a) => a.hidden)).toEqual([true, true, false, true, true, true, true]);
+    writeQa(p, { on: true, at: 2, answer: 1 }, written);
     expect(p.vars.get('--qa-show')).toBe('1');
-    expect(p.vars.get('--qa-x')).toBe('600px');
-    // The same again writes nothing.
     p.attributes.clear();
     p.vars.clear();
-    writeQa(p, { on: true, at: 2, answer: 1, place: { x: 600, y: 400 } }, written);
+    for (const a of p.asked) a.clear();
+    writeQa(p, { on: true, at: 2, answer: 1 }, written);
     expect(p.attributes.size).toBe(0);
     expect(p.vars.size).toBe(0);
-    // Off a mark: no answer shown, no mark named.
-    writeQa(p, { on: true, at: null, answer: 0, place: null }, written);
-    expect(p.answers.every((a) => a.hidden)).toBe(true);
+    expect(p.asked.every((a) => a.size === 0)).toBe(true);
   });
 
   it('clears every attribute it wrote', () => {
     const p = fakeParts();
     const written = qaWritten();
-    writeQa(p, { on: true, at: 6, answer: 0.5, place: { x: 10, y: 20 } }, written);
+    writeQa(p, { on: true, at: 3, answer: 0.5 }, written);
+    writeQa(p, { on: true, at: RING_QUESTIONS, answer: 0.5 }, written);
     clearQa(p, written);
     expect(p.attributes.size).toBe(0);
     expect(p.vars.size).toBe(0);
     expect(p.section!.inert).toBe(true);
-    expect(p.answers.every((a) => a.hidden)).toBe(true);
-  });
-
-  it('places the answer beside its mark on a laptop and under the ring on a phone', () => {
-    const box = { w: 540, h: 260 };
-    const desk = answerPlace({ x: 500, y: 450 }, box, SIZE);
-    expect(desk.x).toBe(570); // the mark's x and 70 px of air
-    expect(desk.y).toBeCloseTo(450 - 260 * 0.35, 9);
-    // Held on the screen, clear of its edges.
-    const right = answerPlace({ x: 1400, y: 450 }, box, SIZE);
-    expect(right.x).toBe(SIZE.width - box.w - 56);
-    const phone = answerPlace({ x: 200, y: 300 }, { w: 350, h: 300 }, { width: 390, height: 844 });
-    expect(phone).toEqual({ x: 20, y: 844 - 300 - 96 });
-  });
-
-  it("places each mark's button where the ring has it, the far half's hidden", () => {
-    const buttons = Array.from({ length: 3 }, () => ({ hidden: false, style: { props: new Map<string, string>(), setProperty(n: string, v: string) { this.props.set(n, v); } } }));
-    placeMarks(buttons, [{ x: 100, y: 200, front: true }, { x: 5, y: 6, front: false }, null]);
-    expect(buttons[0]!.hidden).toBe(false);
-    expect(buttons[0]!.style.props.get('--x')).toBe('100px');
-    expect(buttons[0]!.style.props.get('--y')).toBe('200px');
-    expect(buttons[1]!.hidden).toBe(true);
-    expect(buttons[2]!.hidden).toBe(true);
+    expect(shownOf(p)).toEqual([]);
+    expect(openOf(p)).toEqual([]);
+    expect(p.end!.hidden).toBe(true);
   });
 });
 
@@ -161,11 +156,13 @@ describe("the ring's end", () => {
     expect(QA_END_ATTRIBUTE).toBe('data-qa-end');
     const p = fakeParts();
     const written = qaWritten();
-    writeQa(p, { on: true, at: RING_QUESTIONS, answer: 1, place: { x: 10, y: 20 } }, written);
+    writeQa(p, { on: true, at: RING_QUESTIONS, answer: 1 }, written);
     expect(p.attributes.get('data-qa-end')).toBe('');
-    writeQa(p, { on: true, at: RING_QUESTIONS - 1, answer: 1, place: { x: 10, y: 20 } }, written);
+    expect(p.end!.hidden).toBe(false);
+    writeQa(p, { on: true, at: RING_QUESTIONS - 1, answer: 1 }, written);
     expect(p.attributes.has('data-qa-end')).toBe(false);
-    writeQa(p, { on: true, at: RING_QUESTIONS, answer: 1, place: { x: 10, y: 20 } }, written);
+    expect(p.end!.hidden).toBe(true);
+    writeQa(p, { on: true, at: RING_QUESTIONS, answer: 1 }, written);
     clearQa(p, written);
     expect(p.attributes.has('data-qa-end')).toBe(false);
   });
@@ -173,14 +170,15 @@ describe("the ring's end", () => {
   it('leaves the end with nothing of it left', () => {
     const p = fakeParts();
     const written = qaWritten();
-    writeQa(p, { on: true, at: RING_QUESTIONS, answer: 1, place: { x: 10, y: 20 } }, written);
-    // Between the marks, on the way back to question 6: the end is gone in the same write.
-    writeQa(p, { on: true, at: null, answer: 0, place: null }, written);
+    writeQa(p, { on: true, at: RING_QUESTIONS, answer: 1 }, written);
+    // Between the marks, on the way back to the list: the end is gone in the same write.
+    writeQa(p, { on: true, at: null, answer: 0 }, written);
     expect(p.attributes.has('data-qa-end')).toBe(false);
-    writeQa(p, { on: true, at: RING_QUESTIONS - 1, answer: 1, place: { x: 10, y: 20 } }, written);
-    expect([p.attributes.has('data-qa-end'), p.attributes.get('data-qa-at')]).toEqual([false, String(RING_QUESTIONS - 1)]);
-    // The Q&A gone (up past question 1 to the look back): nothing either.
-    writeQa(p, { on: false, at: null, answer: 0, place: null }, written);
+    expect(p.end!.hidden).toBe(true);
+    writeQa(p, { on: true, at: 0, answer: 1 }, written);
+    expect([p.attributes.has('data-qa-end'), p.attributes.get('data-qa-at')]).toEqual([false, '0']);
+    // The Q&A gone (up past the list to the look back): nothing either.
+    writeQa(p, { on: false, at: null, answer: 0 }, written);
     expect(p.attributes.has('data-qa-end')).toBe(false);
   });
 
@@ -243,7 +241,7 @@ describe("the ring's end", () => {
     // The words in the middle, inside the circle; the marks' numbers gone; the buttons centred.
     expect(body('html[data-qa-end] .qa-frame')).toMatch(/width:\s*min\(440px, calc\(100vw - 40px\)\)/);
     expect(body('html[data-qa-end] .qa-frame')).toMatch(/transform:\s*translate\(calc\(50vw - 50%\), calc\(50dvh - 50%\)\)/);
-    expect(body('html[data-qa-end] .qa-marks')).toMatch(/opacity:\s*0\b/);
+    expect(body('html[data-qa-end] .qa-list')).toMatch(/opacity:\s*0\b/);
     expect(body('html[data-qa-end] .qa-buttons')).toMatch(/justify-content:\s*center/);
     // On a phone the circle above the words, the words at the foot.
     expect(body('html[data-qa-end] .qa-seal', PHONE)).toMatch(/top:\s*31%/);
@@ -254,9 +252,16 @@ describe("the ring's end", () => {
 
   // A mark's button takes the pointer whatever its list does (pointer-events: auto), so at the end the numbers go out of
   // reach as well as out of sight: no invisible button for Tab or a click (visibility, after their fade).
-  it("takes the marks' numbers out of reach at the end, not only out of sight", () => {
-    expect(body('html[data-qa-end] .qa-marks')).toMatch(/visibility:\s*hidden/);
-    expect(body('html[data-qa-end] .qa-marks')).toMatch(/transition:\s*opacity 0\.6s ease,\s*visibility 0s linear 0\.6s/);
+  it('takes the list out of reach at the end, not only out of sight', () => {
+    expect(body('html[data-qa-end] .qa-list')).toMatch(/visibility:\s*hidden/);
+    expect(body('html[data-qa-end] .qa-list')).toMatch(/transition:\s*opacity 0\.6s ease,\s*visibility 0s linear 0\.6s/);
+  });
+
+  // Round 10: the list stands at the right of a laptop's screen, under the tower on a phone, wherever the ring's marks are.
+  it('stands the list at the right on a laptop and under the tower on a phone', () => {
+    expect(body('.qa-frame')).toMatch(/transform:\s*translate\(calc\(100vw - 100% - [^)]+\)/);
+    expect(body('.qa-frame')).not.toMatch(/--qa-x|--qa-y/);
+    expect(body('.qa-frame', PHONE)).toMatch(/transform:\s*translate\(20px,\s*calc\(100dvh - 100% - [^)]+\)/);
   });
 
   it('draws nothing with reduced motion', () => {

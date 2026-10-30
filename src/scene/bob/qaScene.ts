@@ -1,14 +1,15 @@
 /**
  * The Q&A in the scene, a frame at a time (spec 2026-10-29-bob-stack-2-design.md, goal 1): the gold ring and the decor
  * stars posed from the path (./worldPath.ts `RingFrame`, `QaFrame`), the ring's small click and its mark's flash as it
- * lands on a mark (./qaRing.ts `clickAt`, on the world's clock, none with reduced motion), and on the page the answer at
- * its mark and each mark's button over its mark (src/ui/qaWriters.ts), only what has changed. The Void builds it with
- * the world and calls `pose` each frame, `hide` when the world goes off the screen, `dispose` with the world.
+ * lands on a mark (./qaRing.ts `clickAt`, on the world's clock, none with reduced motion), and on the page the list of
+ * questions beside the tower, the one the ring stands at open, and the end's words at the end's mark (src/ui/qaWriters.ts;
+ * round 10, Bob picked "A · One list"), only what has changed. The Void builds it with the world and calls `pose` each
+ * frame, `hide` when the world goes off the screen, `dispose` with the world.
  */
 import * as THREE from 'three';
 import type { DecorModel } from '~/engine/bob/build/decorStars';
 import type { RingModel } from '~/engine/bob/build/ring';
-import { answerPlace, clearQa, placeMarks, type QaParts, qaWritten, writeQa } from '~/ui/qaWriters';
+import { clearQa, type QaParts, qaWritten, writeQa } from '~/ui/qaWriters';
 import { clickAt } from './qaRing';
 import type { WorldFrame } from './worldPath';
 
@@ -48,12 +49,11 @@ export interface QaScene {
   dispose(): void;
 }
 
-/** The page's ring parts and its marks' buttons, as found in the document. */
+/** The page's Q&A parts, as found in the document. */
 interface Found {
   section: Element & { isConnected: boolean };
   parts: QaParts;
-  buttons: { hidden: boolean; style: { setProperty(name: string, value: string): void } }[];
-  frame: { getBoundingClientRect(): { width: number; height: number } } | null;
+  frame: { getBoundingClientRect(): { left: number; top: number; width: number; height: number } } | null;
 }
 
 /** A mark landed on this close to a whole place is on it. */
@@ -68,11 +68,8 @@ export function makeQaScene(ring: RingModel, decor: DecorModel): QaScene {
   const landing = { mark: null as number | null, at: 0, way: 1, last: Number.NaN };
   let found: Found | null = null;
   let doc: Document | null = null;
-  /** The answers' frame's size, measured once per mark and screen. */
-  const box = { key: '', w: 0, h: 0 };
-  const at = new THREE.Vector3();
-  const toCamera = new THREE.Vector3();
-  const middle = new THREE.Vector3();
+  /** The words' frame's box on the screen, measured once per open question, end and screen. */
+  const box = { key: '', x: 0, y: 0, w: 0, h: 0 };
 
   const find = (d: Document | null): Found | null => {
     if (d === null) return null;
@@ -91,9 +88,12 @@ export function makeQaScene(ring: RingModel, decor: DecorModel): QaScene {
         root: d.documentElement,
         section: section as unknown as { inert: boolean },
         frame,
-        answers: [...section.querySelectorAll('.qa-answer')] as unknown as { hidden: boolean }[]
-      },
-      buttons: [...section.querySelectorAll('.qa-mark')] as unknown as Found['buttons']
+        items: [...section.querySelectorAll('.qa-item')].map((item) => ({
+          ask: item.querySelector('.qa-ask') as unknown as QaParts['items'][number]['ask'],
+          reply: item.querySelector('.qa-reply') as unknown as QaParts['items'][number]['reply']
+        })),
+        end: section.querySelector('.qa-end') as unknown as QaParts['end']
+      }
     };
     return found;
   };
@@ -102,20 +102,10 @@ export function makeQaScene(ring: RingModel, decor: DecorModel): QaScene {
     ring.group.visible = false;
     decor.group.visible = false;
     const f = found;
-    if (f) {
-      clearQa(f.parts, written);
-      placeMarks(f.buttons, []);
-    } else if (doc) {
-      clearQa({ root: doc.documentElement, section: null, frame: null, answers: [] }, written);
-    }
+    if (f) clearQa(f.parts, written);
+    else if (doc) clearQa({ root: doc.documentElement, section: null, frame: null, items: [], end: null }, written);
     landing.mark = null;
     landing.last = Number.NaN;
-  };
-
-  /** Where a world point is on the screen, CSS px, and whether it is in front of the camera. */
-  const screen = (point: THREE.Vector3, camera: THREE.Camera, size: { width: number; height: number }): { x: number; y: number; front: boolean } => {
-    const p = point.clone().project(camera);
-    return { x: ((p.x + 1) / 2) * size.width, y: ((1 - p.y) / 2) * size.height, front: p.z < 1 && p.z > -1 };
   };
 
   return {
@@ -157,48 +147,26 @@ export function makeQaScene(ring: RingModel, decor: DecorModel): QaScene {
         clock
       });
 
-      // The answer at its mark, and each mark's button where the ring has it, on the page.
+      // The list beside the tower, the question the ring stands at open; the end's words at the end's mark.
       const inQa = path.part === 'qa';
       const mark = inQa && nearest >= 0 && Math.abs(place - nearest) < NEAR_MARK ? nearest : null;
-      let placed: { x: number; y: number } | null = null;
-      if (f && mark !== null) {
-        const key = `${mark}:${size.width}x${size.height}`;
-        if (box.key !== key && f.frame) {
-          // Its answer shown first, so the frame measures it (hidden, the frame is no height at all).
-          writeQa(f.parts, { on: inQa, at: mark, answer: qa?.answer ?? 0, place: null }, written);
-          const rect = f.frame.getBoundingClientRect();
-          box.key = key;
-          box.w = rect.width;
-          box.h = rect.height;
-        }
-        const anchor = screen(ring.markAt(mark, at), camera, size);
-        placed = answerPlace(anchor, box, size);
-      }
+      let keepOut: { x: number; y: number; w: number; h: number } | null = null;
       if (f) {
-        writeQa(f.parts, { on: inQa, at: mark, answer: qa?.answer ?? 0, place: placed }, written);
-        middle.set(r.centre[0], r.centre[1], r.centre[2]);
-        toCamera.copy(camera.position).sub(middle);
-        placeMarks(
-          f.buttons,
-          inQa
-            ? f.buttons.map((_, k) => {
-                ring.markAt(k, at);
-                const s = screen(at, camera, size);
-                // Off the screen it is no button: Tab would reach one no one sees.
-                if (!(s.x >= 0 && s.x <= size.width && s.y >= 0 && s.y <= size.height)) return null;
-                return { ...s, front: s.front && at.clone().sub(middle).dot(toCamera) > 0 };
-              })
-            : []
-        );
+        const questions = f.parts.items.length;
+        // The list comes in with the ring onto the first question and stays while it turns from one to another; it goes
+        // as the ring turns on past the last to the end's mark, where the end's words show.
+        const show = !inQa ? 0 : mark === questions || place < 0 ? (qa?.answer ?? 0) : Math.min(1, Math.max(0, questions - place));
+        writeQa(f.parts, { on: inQa, at: mark, answer: show }, written);
+        if (f.frame && show > 0) {
+          const key = `${written.open}:${mark === questions}:${size.width}x${size.height}`;
+          if (box.key !== key) {
+            const rect = f.frame.getBoundingClientRect();
+            Object.assign(box, { key, x: rect.left, y: rect.top, w: rect.width, h: rect.height });
+          }
+          keepOut = { x: box.x, y: box.y, w: box.w, h: box.h };
+        }
       }
-      decor.pose({
-        level: qa?.close ?? 0,
-        clock,
-        dt,
-        camera,
-        keepOut: placed && mark !== null ? { x: placed.x, y: placed.y, w: box.w, h: box.h } : null,
-        size
-      });
+      decor.pose({ level: qa?.close ?? 0, clock, dt, camera, keepOut, size });
       return { place, close: qa?.close ?? 0, lit: qa?.lit ?? 0, at: mark };
     },
     dispose() {
