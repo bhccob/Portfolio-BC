@@ -67,3 +67,23 @@ glowing, their name on hover, and a click opens the project's full page as now, 
 
 The list's exact place and width, the glow's colour, size and pulse speed, how dim the floor goes behind a project's
 page, and the ring's turning speed, all against the mock-ups and the dark gate.
+
+## Build notes (2026-10-30)
+
+- **One Q&A stop**: the ring keeps its seven marks (the QA units, `goToQa`); only the list's mark and the end's are
+  stops on the scroll and the keys (14 key stops, were 19). From a question opened in the list one step goes on to the
+  end (a 2.6 s turn) or back up to the list.
+- **The list** (`src/ui/QaRing.tsx`, `src/ui/qaWriters.ts`): `ol.qa-list` of `button.qa-ask` (`aria-expanded`,
+  `aria-controls`) with the reply under each, the count line over the open answer. The open question is the one the ring
+  last stood at, the first as the Q&A comes in. It stands at the right of a laptop's screen (from 18 % down; 11 % and a
+  little smaller on a short one, 1366x657, so the longest answer open stays on it) and under the tower on a phone. At
+  the end it leaves the frame's flow, so the end's words stand where they did. The marks' buttons went.
+- **Projects in place**: a click on a project, its name or its floor's words goes straight to its own page (the site's
+  project page, about 60 ms in the proof browser), nothing lifted: `focusGoalFor` brings no project close, and the camera
+  stays within 0.05 m. Back and Escape return to the same floor's stop. The close view on the world (`openInside`) is no
+  longer reached by a click; its code stays.
+- **The glow** (`src/scene/bob/floorGlow.ts`): at a floor's stop its projects' light breathes between 1 and 1.35 over
+  2.8 s, on real time (the world's clock sleeps at rest), still with reduced motion. A name on hover shows its floor's
+  heading over it and "Klik om te openen" (on touch "Tik om te openen") under it.
+- **Proof**: the Q&A, end, keyboard, reduced-motion, world and project-page steps rewritten for the flow; the
+  project-page step checks the glow breathes (and stands still with reduced motion) and that nothing flies in.

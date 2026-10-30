@@ -2420,6 +2420,24 @@ html[data-qa] .qa-frame {
   }
 }
 
+/* A short laptop screen (1366x657): higher up and a little smaller, so the longest answer open stays on the screen. */
+@media (max-height: 760px) and (min-width: 701px) {
+  .qa-frame {
+    transform: translate(calc(100vw - 100% - max(56px, 7vw)), calc(11dvh + (1 - var(--qa-show, 0)) * 12px));
+  }
+
+  .qa-ask,
+  .qa-reply .qa-text {
+    font-size: 15px;
+    line-height: 1.45;
+  }
+
+  .qa-ask {
+    min-height: 38px;
+    padding: 6px 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .qa-frame {
     transform: translate(calc(100vw - 100% - max(56px, 7vw)), 18dvh);
@@ -2483,6 +2501,11 @@ html[data-qa-end] .qa-seal {
 
 /* Out of sight and, once faded, out of reach: no invisible question is left for Tab or a click. */
 html[data-qa-end] .qa-list {
+  /* Out of the frame's flow too, so the end's words alone set where the frame stands. */
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.6s ease, visibility 0s linear 0.6s;

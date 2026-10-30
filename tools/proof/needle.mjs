@@ -3214,9 +3214,9 @@ const textMask = (page) =>
     const nav = document.querySelector('.home-nav');
     if (nav !== null && nav.getBoundingClientRect().height > 1) for (const el of nav.querySelectorAll('h2, a, button')) add(el);
     // The world's words where they show: its names, the hint, an area's words, the dots, an open project's own page's
-    // parts and its way back, and the Q&A's answer and its marks' numbers.
+    // parts and its way back, and the Q&A's list (each question and the open reply) and the end's words.
     const showing = (el) => el.checkVisibility({ opacityProperty: true, visibilityProperty: true }) && Number(getComputedStyle(el).opacity) > 0.01;
-    for (const el of document.querySelectorAll('.world-name, .world-hint, .area-caption, .area-dots, .project-view[data-shown] .pv-part, .pv-controls > *, .qa-answer:not([hidden]), .qa-mark:not([hidden])')) {
+    for (const el of document.querySelectorAll('.world-name, .world-hint, .area-caption, .area-dots, .project-view[data-shown] .pv-part, .pv-controls > *, .qa-answer:not([hidden]), .qa-ask, .qa-reply:not([hidden])')) {
       if (showing(el)) add(el);
     }
     // The light dive's shown fact (its words and its line, with their glow: fact 05 still fades out at the hand-over,
@@ -5035,9 +5035,9 @@ async function keyboard(browser, step) {
   await watchFade();
   await page.keyboard.press('Enter');
   const skipped = await ringRestsAt(page, 0, 8_000);
-  await page.waitForFunction(() => document.activeElement?.id === 'qa-mark-0', null, { timeout: 5_000 }).catch(() => {});
+  await page.waitForFunction(() => document.activeElement?.id === 'qa-ask-0', null, { timeout: 5_000 }).catch(() => {});
   const focusedMark = await page.evaluate(() => document.activeElement?.id ?? null);
-  step.check(skipped !== null && focusedMark === 'qa-mark-0' && (await fadeSeen()), `Enter on the skip button fades the story to the Q&A's first question (${skipped === null ? 'never' : `${skipped} ms`}) and the focus goes to its mark (${focusedMark})`);
+  step.check(skipped !== null && focusedMark === 'qa-ask-0' && (await fadeSeen()), `Enter on the skip button fades the story to the Q&A's first question (${skipped === null ? 'never' : `${skipped} ms`}) and the focus goes to its button in the list (${focusedMark})`);
   await takeCsp(page, step);
   await context.close();
   return `Tab: skip link, the header in its order to the language switch (press ${langAt + 1}), ringed and on screen, then out of it; End goes to ${STORY_END} (the end page, ${LAST_CHAPTER}), Home back to 0, both by the fade; the arrows walk ${reachedStops.length} key stops; Tab to Jontai Energy's name at its area, the dots, then the skip button, Enter to "Q&A"`;
@@ -5113,11 +5113,11 @@ async function reducedMotion(browser, step) {
   await page.mouse.move(720, 450);
 
   // 0 home, 1 BOB from above, the five facts at their peaks, the world's stop, each area's, the look back's own stop,
-  // then each mark on the Q&A's ring, the end's last: no open project on the scroll.
+  // then the Q&A's list (its first mark) and the end's (round 10: the ring's inner marks are no stops).
   const places = keyStops(HOME_CHAPTERS);
   step.check(
-    places.length === 12 + RING_MARKS && places[0] === 0 && places[1] === 1 && places[7] === WORLD_STOP && places.at(-RING_MARKS - 1) === LOOK_STOP && JSON.stringify(places.slice(-RING_MARKS)) === JSON.stringify(QA_STOPS) && places.at(-1) === STORY_END && PROJECT_LIST.every((bead) => places.includes(bead.stop)),
-    `the story's ${12 + RING_MARKS} key stops: the home, BOB from above, five facts, the world, three areas, the look back's and the ring's ${RING_MARKS} marks, the end's last (got ${places.map((p) => p.toFixed(3)).join(', ')})`,
+    places.length === 14 && places[0] === 0 && places[1] === 1 && places[7] === WORLD_STOP && places.at(-3) === LOOK_STOP && JSON.stringify(places.slice(-2)) === JSON.stringify([QA_STOPS[0], QA_STOPS.at(-1)]) && places.at(-1) === STORY_END && PROJECT_LIST.every((bead) => places.includes(bead.stop)),
+    `the story's 14 key stops: the home, BOB from above, five facts, the world, three areas, the look back's, the Q&A's list and the end's last (got ${places.map((p) => p.toFixed(3)).join(', ')})`,
   );
   /** Waits out the Q&A's lock after a step on the ring (QA_LOCK_MS from its start), so the next event is heard. */
   const pastLock = (stop) => (stop >= LOOK_STOP - 1e-9 ? page.waitForTimeout(QA_LOCK_MS) : Promise.resolve());
@@ -6185,7 +6185,10 @@ const worldWordsOf = (page) =>
     return {
       names: [...document.querySelectorAll('.world-name')].map((el) => ({
         id: el.dataset.project,
-        text: el.textContent,
+        // The name itself (round 10: its floor's heading over it and how to open it under it, aria-hidden).
+        text: el.querySelector('.world-name-title')?.textContent ?? el.textContent,
+        kicker: el.querySelector('.world-name-kicker')?.textContent ?? null,
+        open: el.querySelector('.world-name-open .world-hint-fine')?.textContent ?? null,
         shown: el.hasAttribute('data-shown') && getComputedStyle(el).visibility === 'visible',
         opacity: Number(el.style.opacity),
         tab: el.tabIndex,
@@ -6257,64 +6260,64 @@ const openOf = (page) =>
     };
   });
 
-/** Waits until project `id` is open and its own page whole (or `ms` passes); answers the time it took, or null. */
-const openWithin = (page, id, ms = 6_000) => {
+/** How long a click on a project may take to bring its own page (round 10: no flight, the router at once), ms. */
+const OPEN_PAGE_MS = 2_500;
+/** How far the camera may move while a project's page opens over its floor (the pointer's sway alone), m. */
+const OPEN_STAYS_M = 0.05;
+
+/** Waits until project `id`'s own page is up (its address and its title), answers the time it took, or null. */
+const openWithin = (page, id, home = '/', ms = 6_000) => {
   const began = Date.now();
   return page
     .waitForFunction(
-      (id) => {
-        const view = document.querySelector(`.project-view[data-project="${id}"]`);
-        return document.documentElement.hasAttribute('data-inside') && history.state?.usr?.['bob-inside'] === id && view !== null && Number(view.style.opacity) > 0.99;
-      },
-      id,
+      ([id, prefix]) => location.pathname === `${prefix}/projects/${id}/` && document.querySelector('.page-title') !== null,
+      [id, home === '/en/' ? '/en' : ''],
       { timeout: ms },
     )
     .then(() => Date.now() - began, () => null);
 };
 
 /**
- * Does `act` (a click, a tap or a key that opens project `id`) and checks the open project that follows: within
- * FLIGHT_MS and a little its own page whole, the page still `home` with the open project's own history entry, on the
- * scroll's phase, its words the dictionary's (`locale`) with "Lees meer", the way back shown and the focus on it.
- * Answers the time it took (ms), or null.
+ * Does `act` (a click, a tap or a key that opens project `id`) and checks what follows (round 10, spec
+ * 2026-10-30-bob-qa-list-floors-design.md: Bob, "the camera doesnt go to the project", and he picked the full page): its
+ * own page within OPEN_PAGE_MS, nothing flying in (the camera within OPEN_STAYS_M of where it stood), its title the
+ * project's and the way back there. Answers the time it took (ms), or null.
  */
 async function opensProject(page, step, at, id, how, act, home = '/') {
   const locale = home === '/en/' ? 'en' : 'nl';
-  const words = new Translator(locale).t.needle.page;
+  const before = (await debugOf(page)).camera.position;
   await act();
-  const took = await openWithin(page, id);
-  await page.waitForTimeout(300);
-  const s = await openOf(page);
+  const took = await openWithin(page, id, home);
+  await page.waitForTimeout(600);
+  const after = (await debugOf(page)).camera.position;
+  const moved = Math.hypot(...after.map((v, i) => v - before[i]));
   const want = viewWords(id, locale);
-  step.check(took !== null && took <= FLIGHT_MS + 800, `${at}: ${how}: ${id} open within ${FLIGHT_MS + 800} ms, its own page whole (${took === null ? 'never' : `${took} ms`})`);
-  step.check(s.path === home && s.state === id && s.phase === 'PROJECTS', `${at}: ${how}: the page still ${home}, its history entry the open project's (${s.state}), on the scroll's phase (${s.phase})`);
-  step.check(
-    s.view !== null && s.view.id === id && s.view.kind === want.kind && s.view.title === want.title && s.view.summary === want.summary && s.view.more === words.readMore,
-    `${at}: ${how}: its page says "${want.kind}", "${want.title}", its summary and "${words.readMore}" (got ${JSON.stringify(s.view && [s.view.kind, s.view.title, s.view.more])})`,
-  );
-  step.check(s.back !== null && s.back.text.includes(words.back) && s.focus?.includes('pv-back') === true, `${at}: ${how}: "${words.back}" shown, the focus on it (${s.focus})`);
+  const words = await page.evaluate(() => ({ title: document.querySelector('.page-title')?.textContent ?? null, lead: (document.querySelector('.lead')?.textContent ?? '').length, back: document.querySelector('.back') !== null }));
+  step.check(took !== null && took <= OPEN_PAGE_MS, `${at}: ${how}: ${id}'s own page within ${OPEN_PAGE_MS} ms (${took === null ? 'never' : `${took} ms`})`);
+  step.check(moved <= OPEN_STAYS_M, `${at}: ${how}: nothing flies in, the camera stays at the floor (it moved ${moved.toFixed(4)} m)`);
+  step.check(words.title === want.title && words.lead > 0 && words.back, `${at}: ${how}: its page says "${want.title}" with its lead, and the way back (got ${JSON.stringify(words)})`);
   return took;
 }
 
 /**
- * Does `act` (a way out of an open project) and checks that the visitor is back out at `place`, at rest, the story not
- * moved on and the page gone; then waits out the flight back (FLIGHT_MS).
+ * Does `act` (a way out of a project's page) and checks that the visitor is back on the home at `place`, at rest, the
+ * story not moved on.
  */
-async function leavesProject(page, step, at, place, how, act) {
+async function leavesProject(page, step, at, place, how, act, home = '/') {
   await act();
   const out = await page
     .waitForFunction(
-      (place) => {
+      ([place, home]) => {
         const d = window.__needleDebug();
-        return !document.documentElement.hasAttribute('data-inside') && d.phase.kind === 'PROJECTS' && Math.abs(d.progress - place) < 1e-9 && Math.abs(d.target - place) < 1e-9;
+        return location.pathname === home && d.phase.kind === 'PROJECTS' && Math.abs(d.progress - place) < 1e-9 && Math.abs(d.target - place) < 1e-9;
       },
-      place,
-      { timeout: 5_000 },
+      [place, home],
+      { timeout: 6_000 },
     )
     .then(() => true, () => false);
-  await page.waitForTimeout(FLIGHT_MS + 300);
-  const after = await openOf(page);
-  step.check(out && !after.open && after.view === null && Math.abs(after.progress - place) < 1e-9, `${at}: ${how}: back out at ${place.toFixed(4)}, at rest and not moved on (progress ${after.progress}, target ${after.target}, open ${after.open}, page ${after.view?.id ?? 'none'})`);
+  await page.waitForTimeout(600);
+  const after = await debugOf(page);
+  step.check(out && Math.abs(after.progress - place) < 1e-9, `${at}: ${how}: back on the home at ${place.toFixed(4)}, at rest and not moved on (progress ${after.progress}, target ${after.target})`);
 }
 
 
@@ -6421,7 +6424,7 @@ async function worldStep(browser, step) {
     const opening = english ? PROJECT_LIST.slice(0, 1) : PROJECT_LIST;
     for (const project of opening) {
       await opensProject(page, step, at, project.id, `${touch ? 'a tap' : 'a click'} on ${project.id}'s object`, () => pressObject(page, touch, project.id), path);
-      await leavesProject(page, step, at, WORLD_STOP, touch ? `"${new Translator(locale).t.needle.page.back}"` : 'Escape', () => (touch ? page.locator('.pv-back').tap() : page.keyboard.press('Escape')));
+      await leavesProject(page, step, at, WORLD_STOP, touch ? 'the way back' : 'Escape', () => (touch ? page.locator('.back').tap() : page.keyboard.press('Escape')), path);
       if (!touch) await page.mouse.move(4, size.height - 4, { steps: 2 });
     }
     await page.waitForTimeout(700);
@@ -6518,165 +6521,84 @@ async function areasStep(browser, step) {
 }
 
 /**
- * A project's own page over the stack (spec 2026-10-29-bob-stack-2-design.md, goal 2), at 1440x900, 390x844 (touch)
- * and 390x844 on /en/, from Steady's area: a click (a tap) on its object opens its page within FLIGHT_MS and a little
- * (`opensProject`: its words, "Lees meer", the way back, the focus), its object in the torn top within 0.05 NDC of the
- * page's spot, its three phones there (on the phone a row with its dots); a still through the inside's luma gate (0.15);
- * the wheel (a swipe) scrolls the page and never leaves it; "Lees meer" opens Steady's own page and Back returns to the
- * open page; → twice quickly (on the phone the next project's button twice) opens the third project, replacing the
- * history entry, and Portle on the way shows its one card; Escape (a laptop), the way back and Back each close it at
- * rest; with reduced motion in and out by the step fade.
+ * A project's page over its floor (round 10, spec 2026-10-30-bob-qa-list-floors-design.md; Bob: "the camera doesnt go to
+ * the project ... project glows so users know where to hover", and he picked the full page), at 1440x900, 390x844 (touch)
+ * and 390x844 on /en/, from Steady's floor: its projects breathe (the light round its object changes over half the glow's
+ * period, and stands still with reduced motion); a click (a tap) on its object opens its own page with nothing flying in
+ * (`opensProject`), and Escape (a laptop) or the way back returns to the same floor at rest; with reduced motion the same.
  */
 async function projectView(browser, step) {
   const summary = [];
-  const shots = [];
-  mkdirSync(STILLS, { recursive: true });
   const runs = [...TWO_SIZES.map((size) => ({ size, path: '/' })), { size: TWO_SIZES[1], path: '/en/' }];
   for (const { size, path } of runs) {
     const english = path === '/en/';
-    const locale = english ? 'en' : 'nl';
     const at = `${sizeName(size)}${english ? ' /en/' : ''}`;
-    const { context, page, cdp, touch } = await readyHome(browser, step, size, path);
-    const words = new Translator(locale).t.needle.page;
-    const [first, second, third] = PROJECT_LIST;
+    const { context, page, touch } = await readyHome(browser, step, size, path);
+    const [first] = PROJECT_LIST;
     await poseAt(page, first.stop);
     await restAt(page);
     await page.waitForTimeout(600);
+    const breath = await glowBreathes(page, first.id);
+    step.check(breath >= GLOW_MOVES, `${at}: at its floor ${first.id} breathes: the light round its object changes ${breath.toFixed(4)} over half a breath (at least ${GLOW_MOVES})`);
     const by = touch ? 'a tap on its object' : 'a click on its object';
-    const openFirst = () => opensProject(page, step, at, first.id, by, () => pressObject(page, touch, first.id), path);
-    const took = await openFirst();
-    {
-      await page.waitForTimeout(300);
-      const s = await openOf(page);
-      const middle = await objectNdc(page, size, first.id);
-      const spot = spotNdc(size);
-      const inTop = middle !== null && s.view !== null && ((1 - middle[1]) / 2) * size.height < s.view.top.bottom;
-      step.check(middle !== null && Math.abs(middle[0] - spot[0]) <= 0.05 && Math.abs(middle[1] - spot[1]) <= 0.05 && inTop, `${at}: ${first.id}'s object stands in the torn top, within 0.05 of the page's spot ${spot.join(', ')} (got ${middle?.map((v) => v.toFixed(3)).join(', ')}; the top's foot at ${Math.round(s.view?.top.bottom ?? -1)} px)`);
-      step.check(s.view?.phones === 3 && s.view.media === 1 && s.view.dots === touch, `${at}: its three phones are there (${s.view?.phones}), ${touch ? 'a row with its dots shown' : 'side by side, no dots'} (dots shown ${s.view?.dots})`);
-    }
-    if (!english) {
-      const file = join(STILLS, `project-view-${first.id}-${sizeName(size)}.png`);
-      await page.screenshot({ path: file });
-      // The scene is in the torn top, where the object turns: its floor is read there.
-      shots.push({ file, kind: 'inside', mask: await textMask(page), region: touch ? { x: [0.15, 0.85], y: [0.08, 0.42] } : { x: [0.3, 0.7], y: [0.06, 0.5] } });
-    }
-
-    // The wheel (a swipe) scrolls the page, and never leaves it.
-    {
-      const before = await openOf(page);
-      if (touch) await slowTouch(page, cdp, [195, 700], [195, 350], 40);
-      else {
-        await page.mouse.move(size.width / 2, size.height * 0.6);
-        for (let i = 0; i < 3; i++) {
-          await page.mouse.wheel(0, RISE.notchPx);
-          await page.waitForTimeout(RISE.notchGapMs);
-        }
-      }
-      await page.waitForTimeout(800);
-      const s = await openOf(page);
-      step.check(s.open && s.view?.id === first.id && s.view.scrollTop > 0 && s.progress === before.progress && s.target === before.target, `${at}: the ${touch ? 'swipe' : 'wheel'} scrolls the page (scrollTop ${s.view?.scrollTop}) and never leaves it (open ${s.open}, the story at ${s.progress} still)`);
-    }
-
-    // "Lees meer": Steady's own page; Back returns to the open page.
-    {
-      const more = page.locator(`.project-view[data-project="${first.id}"] .pv-more`);
-      if (touch) await more.tap();
-      else await more.click();
-      await page.waitForURL((url) => url.pathname.endsWith(`/projects/${first.id}/`), { timeout: FLIGHT_MS + 3_000 }).catch(() => {});
-      const onPage = await waitForProject(page, first.id);
-      const heading = await page.locator('main h1').first().textContent();
-      step.check(onPage.kind === 'PROJECT_FOCUS' && heading?.trim() === first.title, `${at}: "${words.readMore}" opens ${first.id}'s own page (${new URL(page.url()).pathname}), its heading "${heading?.trim()}"`);
-      await page.goBack();
-      const backIn = await openWithin(page, first.id);
-      step.check(backIn !== null, `${at}: Back from there returns to the open page (${backIn === null ? 'never' : `${backIn} ms`})`);
-      await page.waitForTimeout(FLIGHT_MS);
-    }
-
-    // On twice quickly: the third project, its entry replacing the open one's; Portle on the way, with its one card.
-    {
-      const before = await openOf(page);
-      let portle = null;
-      if (touch) {
-        await page.locator(`.project-view[data-project="${first.id}"] .pv-onward`).tap();
-        await openWithin(page, second.id);
-        portle = await openOf(page);
-        await page.locator(`.project-view[data-project="${second.id}"] .pv-onward`).tap();
-      } else {
-        await page.keyboard.press('ArrowRight');
-        await page.waitForTimeout(150);
-        await page.keyboard.press('ArrowRight');
-      }
-      const turned = await openWithin(page, third.id);
-      await page.waitForTimeout(FLIGHT_MS);
-      const s = await openOf(page);
-      step.check(turned !== null && s.view?.id === third.id && s.state === third.id && s.entries === before.entries, `${at}: ${touch ? "the next project's button twice" : '→ twice quickly'} opens ${third.id}, its entry replacing the open one's (history ${before.entries} then ${s.entries})`);
-      if (!touch) {
-        await page.keyboard.press('ArrowLeft');
-        await openWithin(page, second.id);
-        await page.waitForTimeout(FLIGHT_MS);
-        portle = await openOf(page);
-      }
-      step.check(
-        portle?.view?.id === second.id && second.id === 'portle' && portle.view.media === 1 && portle.view.cards === 1,
-        `${at}: ${second.id}'s page shows its one card (${portle?.view?.media} picture blocks, ${portle?.view?.cards} cards, on ${portle?.view?.id})`,
-      );
-      // On a phone the turns ended on the third project; on a laptop ← went back to the second.
-      await leavesProject(page, step, at, touch ? third.stop : second.stop, `"${words.back}" after the turns`, () => (touch ? page.locator('.pv-back').tap() : page.locator('.pv-back').click()));
-      await poseAt(page, first.stop);
-      await restAt(page);
-      await page.waitForTimeout(600);
-    }
-
-    // Every way out, each from the first project opened again.
-    const ways = [
-      [`"${words.back}"`, () => (touch ? page.locator('.pv-back').tap() : page.locator('.pv-back').click())],
-      ...(touch ? [] : [['Escape', () => page.keyboard.press('Escape')]]),
-      ["the browser's Back", () => page.goBack()],
-    ];
-    for (const [how, act] of ways) {
-      await openFirst();
-      await leavesProject(page, step, at, first.stop, how, act);
-    }
-    await takeCsp(page, step);
-    summary.push(`${at}: opened by ${by} in ${took} ms, scrolled, "${words.readMore}" and back, turned twice, out by ${ways.map(([how]) => how).join(', ')}`);
+    const took = await opensProject(page, step, at, first.id, by, () => pressObject(page, touch, first.id), path);
+    await leavesProject(page, step, at, first.stop, touch ? 'the way back' : 'Escape', () => (touch ? page.locator('.back').tap() : page.keyboard.press('Escape')), path);
+    summary.push(`${at}: its page in ${took ?? 'never'} ms, nothing flying in, back at its floor`);
     await context.close();
   }
-
-  // Reduced motion: in and out by the step fade, no flight.
+  // With reduced motion: the glow stands still, the page comes and goes the same.
   {
-    const size = TWO_SIZES[0];
-    const { context, page } = await openSeen(browser, step, size);
-    await page.emulateMedia({ reducedMotion: 'reduce' });
-    await landHome(page);
-    await page.waitForFunction(() => window.__needleDebug().journey.voidState === 'ready', null, { timeout: 30_000 });
-    const first = PROJECT_LIST[0];
+    const { context, page } = await readyHome(browser, step, { ...TWO_SIZES[0], options: { ...(TWO_SIZES[0].options ?? {}), reducedMotion: 'reduce' } });
+    const [first] = PROJECT_LIST;
     await poseAt(page, first.stop);
     await restAt(page);
-    await page.waitForTimeout(400);
-    const watchFade = () =>
-      page.evaluate(() => {
-        window.__fadeSeen = false;
-        new MutationObserver(() => {
-          if (document.documentElement.hasAttribute('data-focus-fade')) window.__fadeSeen = true;
-        }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-focus-fade'] });
-      });
-    await watchFade();
-    await pressObject(page, false, first.id);
-    const took = await openWithin(page, first.id);
-    const fadeIn = await page.evaluate(() => window.__fadeSeen);
-    step.check(took !== null && fadeIn, `reduced motion: a click opens ${first.id}'s page by the step fade (<html data-focus-fade> seen ${fadeIn}, ${took} ms)`);
-    await page.waitForTimeout(400);
-    await watchFade();
+    await page.waitForTimeout(600);
+    const breath = await glowBreathes(page, first.id);
+    step.check(breath < GLOW_MOVES / 2, `reduced motion: the glow stands still (the light round ${first.id}'s object changes ${breath.toFixed(4)})`);
+    await opensProject(page, step, 'reduced motion', first.id, 'a click on its object', () => pressObject(page, false, first.id));
     await leavesProject(page, step, 'reduced motion', first.stop, 'Escape', () => page.keyboard.press('Escape'));
-    const fadeOut = await page.evaluate(() => window.__fadeSeen);
-    step.check(fadeOut, `reduced motion: and Escape closes it by the step fade (<html data-focus-fade> seen ${fadeOut})`);
-    await takeCsp(page, step);
-    summary.push('reduced motion: in and out by the step fade');
     await context.close();
   }
-  step.luma = await gateLuma(browser, step, shots);
-  return `${summary.join('; ')}; ${lumaSummary(step.luma, 'inside')}`;
+  return summary.join('; ');
 }
+
+/** How much the light round a project's object must change over half the glow's breath to count (mean luma, 0..1). */
+const GLOW_MOVES = 0.004;
+
+/** The mean luma change in a 120 px box round project `id`'s object over half the floor glow's period. */
+async function glowBreathes(page, id) {
+  const object = (await debugOf(page)).journey.objects?.find((o) => o.id === id);
+  if (object === undefined) return 0;
+  const clip = { x: Math.max(0, object.x - 60), y: Math.max(0, object.y - 60), width: 120, height: 120 };
+  const lumaOf = async () => {
+    const png = await page.screenshot({ clip });
+    return page.evaluate(async (src) => {
+      const img = await new Promise((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = reject; i.src = src; });
+      const c = document.createElement('canvas');
+      c.width = img.width;
+      c.height = img.height;
+      const g = c.getContext('2d');
+      g.drawImage(img, 0, 0);
+      const d = g.getImageData(0, 0, c.width, c.height).data;
+      let sum = 0;
+      for (let i = 0; i < d.length; i += 4) sum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+      return sum / (d.length / 4) / 255;
+    }, `data:image/png;base64,${png.toString('base64')}`);
+  };
+  let low = Infinity;
+  let high = -Infinity;
+  // Over a whole breath, sampled: the change between its darkest and brightest.
+  for (let k = 0; k < 8; k++) {
+    const l = await lumaOf();
+    low = Math.min(low, l);
+    high = Math.max(high, l);
+    await page.waitForTimeout(FLOOR_GLOW_PERIOD_MS / 8);
+  }
+  return high - low;
+}
+
+/** The floor glow's breath, ms (src/scene/bob/floorGlow.ts). */
+const FLOOR_GLOW_PERIOD_MS = 2_800;
 
 /** Each mark's stop on the Q&A's ring (src/state/chapters.ts `qaStop`): 0 is question 1, the last the end's. */
 const QA_STOPS = Array.from({ length: RING_MARKS }, (_, k) => qaStop(HOME_CHAPTERS, k));
@@ -6685,21 +6607,26 @@ const QA_END = RING_MARKS - 1;
 
 /**
  * Where the Q&A's ring stands now: the bridge's `journey.qa` (null off the ring), `<html data-qa>` and `data-qa-at`
- * (null unset), the answer shown (its mark, count, question and text), the section's `inert`, the story's place and the
- * journey's stretch.
+ * (null unset), the list's open question (round 10: its mark, count, question and text; how many are open), the words'
+ * frame's box, the section's `inert`, the story's place and the journey's stretch.
  */
 const ringOf = (page) =>
   page.evaluate(() => {
     const d = window.__needleDebug();
     const root = document.documentElement;
     const at = root.getAttribute('data-qa-at');
-    const shown = document.querySelector('.qa-answer:not([hidden])');
+    const open = [...document.querySelectorAll('.qa-item')].filter((item) => item.querySelector('.qa-ask')?.getAttribute('aria-expanded') === 'true');
+    const shown = open.length === 1 && !open[0].querySelector('.qa-reply').hidden ? open[0] : null;
     const text = (sel) => shown?.querySelector(sel)?.textContent ?? null;
+    const frame = document.querySelector('.qa-frame')?.getBoundingClientRect() ?? null;
     return {
       qa: d.journey.qa ? { ...d.journey.qa } : null,
       on: root.hasAttribute('data-qa'),
       at: at === null ? null : Number(at),
-      shown: shown === null ? null : { k: Number(shown.dataset.k), count: text('.qa-count'), question: text('.qa-question'), text: text('.qa-text') },
+      shown: shown === null ? null : { k: Number(shown.dataset.k), count: text('.qa-count'), question: text('.qa-ask'), text: text('.qa-text') },
+      opened: open.length,
+      frame: frame === null ? null : { left: frame.left, top: frame.top, right: frame.right, bottom: frame.bottom },
+      focus: document.activeElement?.id ?? null,
       inert: document.getElementById('qa')?.inert ?? null,
       progress: d.progress,
       target: d.target,
@@ -6729,7 +6656,7 @@ const targetNow = (page) =>
     return window.__needleDebug().target;
   });
 
-/** Whether the answer shown is question `k`'s in `t` (the dictionary's): its count, its question and its answer, or the placeholder. */
+/** Whether the open question is question `k`'s in `t` (the dictionary's): its count, its question and its answer, or the placeholder. */
 const answerIs = (shown, k, t) => {
   const { question, answer } = t.end.questions[k];
   const two = (n) => String(n).padStart(2, '0');
@@ -6739,18 +6666,15 @@ const answerIs = (shown, k, t) => {
 };
 
 /**
- * The Q&A as a gold ring round the closing stack (spec 2026-10-29-bob-stack-2-design.md, goal 1), by real input at
- * 1440x900, 1366x657, 390x844 (touch) and 1440 on /en/, from the look back's stop:
- * - one notch (one swipe) closes the stack and rests on question 1 within 3.5 s (`data-qa-at` 0, the stack closed);
- * - on a laptop ten notches in 200 ms step once, a notch 1.0 s after a step began is dropped and one at 1.6 s steps;
- *   each turn rests within 2.3 s;
- * - a click (a tap) on the next mark's button turns the ring to it (only the marks near the ring's front, on the screen,
- *   are buttons: on a phone the mark it stands at alone); on a laptop a mouse drag of RING_DRAG_PX to the left turns it one question on and lets go onto it;
- * - at each rest the answer shown is the dictionary's, its count, its question and its answer;
- * - at 1440 a resize to 390x844 keeps the place;
- * - up from question 1 opens the stack back to the look back's stop, the ring gone;
- * - (with reduced motion each mark is a step by the fade: the reduced-motion step walks the ring both ways);
- * - a still of each mark's stop through the home's luma gate, the words masked (1440x900 and 390x844).
+ * The Q&A as one list beside the tower (round 10, spec 2026-10-30-bob-qa-list-floors-design.md; Bob picked "A · One
+ * list"), by real input at 1440x900, 1366x657, 390x844 (touch) and 1440 on /en/, from the look back's stop:
+ * - one notch (one swipe) closes the stack and rests on the list, question 1 open, within 3.5 s;
+ * - a click (a tap) on each other question turns the ring to its mark and opens it, the others closed, the list inside
+ *   the screen (on a phone too, with the longest answer open);
+ * - Enter on a question (the keyboard) opens it, the focus kept on it;
+ * - from a question opened in the list one notch goes on to the end, and one up from it back to the list's stop;
+ * - at 1440 a resize to 390x844 keeps the place; up from the list opens the stack back to the look back's stop;
+ * - stills of the list, a question opened and the end through the home's luma gate, the words masked.
  */
 async function qaRing(browser, step) {
   const summary = [];
@@ -6765,100 +6689,53 @@ async function qaRing(browser, step) {
     await poseAt(page, LOOK_STOP);
     await restAt(page);
     if (!touch) await page.mouse.move(size.width * 0.5, size.height * 0.92);
-    const rests = [];
+    const opened = [];
 
-    // 1. One input: the stack closes and the ring rests on question 1.
+    // 1. One input: the stack closes and the ring rests on the list, question 1 open.
     await nudge(page, cdp, 1);
     const into = await ringRestsAt(page, 0, 8_000);
     let s = await ringOf(page);
-    step.check(into !== null && into <= 3_500 && s.qa !== null && s.qa.close >= 0.999 && s.at === 0 && s.inert === false, `${at}: one ${touch ? 'swipe' : 'notch'} from the look back's stop closes the stack and rests on question 1 within 3.5 s (${into === null ? 'never' : `${into} ms`}; closed ${s.qa?.close}, data-qa-at ${s.at})`);
-    step.check(answerIs(s.shown, 0, t), `${at}: question 1's answer is the dictionary's: ${JSON.stringify(s.shown)}`);
-    rests.push(0);
+    step.check(into !== null && into <= 3_500 && s.qa !== null && s.qa.close >= 0.999 && s.at === 0 && s.inert === false, `${at}: one ${touch ? 'swipe' : 'notch'} from the look back's stop closes the stack and rests on the list within 3.5 s (${into === null ? 'never' : `${into} ms`}; closed ${s.qa?.close}, data-qa-at ${s.at})`);
+    step.check(answerIs(s.shown, 0, t) && s.opened === 1, `${at}: question 1 open in the list, the dictionary's (${JSON.stringify(s.shown)})`);
+    opened.push(0);
 
-    if (!touch) {
-      // 2. Ten notches in 200 ms: one step. A notch 1.0 s after it began: dropped. One at 1.6 s: a step.
-      await page.waitForTimeout(GESTURE_GAP_MS + 100);
-      const began = Date.now();
-      for (let i = 0; i < 10; i++) {
-        await page.mouse.wheel(0, RISE.notchPx);
-        await page.waitForTimeout(20);
-      }
-      const burst = await targetNow(page);
-      await page.waitForTimeout(Math.max(0, 1_000 - (Date.now() - began)));
-      await page.mouse.wheel(0, RISE.notchPx);
-      const dropped = await targetNow(page);
-      step.check(near(burst, QA_STOPS[1], 1e-9) && near(dropped, QA_STOPS[1], 1e-9), `${at}: ten notches in 200 ms turn the ring one question (target ${burst}, question 2's ${QA_STOPS[1]}), and a notch 1.0 s after it began is dropped (still ${dropped})`);
-      const second = await ringRestsAt(page, 1);
-      const turnS = second === null ? null : (Date.now() - began) / 1000;
-      step.check(turnS !== null && turnS <= 2.3, `${at}: the turn rests on question 2 within 2.3 s (${turnS === null ? 'never' : `${turnS.toFixed(2)} s`})`);
+    // 2. A click (a tap) on each other question turns the ring to its mark and opens it; the list stays on the screen.
+    for (let k = 1; k < QA_END; k++) {
+      await page.waitForTimeout(400);
+      const ask = page.locator(`#qa-ask-${k}`);
+      if (touch) await ask.tap();
+      else await ask.click();
+      const took = await ringRestsAt(page, k, 5_000);
       s = await ringOf(page);
-      step.check(answerIs(s.shown, 1, t), `${at}: question 2's answer is the dictionary's (${s.shown?.question})`);
-      await page.waitForTimeout(GESTURE_GAP_MS + 100);
-      const again = Date.now();
-      await page.mouse.wheel(0, RISE.notchPx);
-      await page.waitForTimeout(Math.max(0, 1_600 - (Date.now() - again)));
-      await page.mouse.wheel(0, RISE.notchPx);
-      const stepped = await targetNow(page);
-      step.check(near(stepped, QA_STOPS[3], 1e-9), `${at}: a notch 1.6 s after a step began steps again: on to question 4 (target ${stepped}, ${QA_STOPS[3]})`);
-      const fourth = await ringRestsAt(page, 3);
-      step.check(fourth !== null && fourth <= 2_300, `${at}: and rests there within 2.3 s of it (${fourth === null ? 'never' : `${fourth} ms`})`);
-      rests.push(1, 3);
-    } else {
-      // On the phone one more swipe turns it one question.
-      await page.waitForTimeout(GESTURE_GAP_MS + 100);
-      await nudge(page, cdp, 1);
-      const second = await ringRestsAt(page, 1);
-      step.check(second !== null && second <= 2_300 + 400, `${at}: one more swipe turns the ring to question 2 and rests within 2.3 s of its lift (${second === null ? 'never' : `${second} ms`})`);
-      rests.push(1);
+      const inside = s.frame !== null && s.frame.top >= 0 && s.frame.bottom <= size.height + 1 && s.frame.left >= 0 && s.frame.right <= size.width + 1;
+      step.check(took !== null && answerIs(s.shown, k, t) && s.opened === 1 && inside, `${at}: a ${touch ? 'tap' : 'click'} on question ${k + 1} turns the ring to it and opens it alone, the list on the screen (${took === null ? 'never' : `${took} ms`}; ${s.shown?.question}; ${s.opened} open; the list ${JSON.stringify(s.frame && Object.values(s.frame).map(Math.round))})`);
+      opened.push(k);
     }
-    s = await ringOf(page);
-    step.check(answerIs(s.shown, rests.at(-1), t), `${at}: question ${rests.at(-1) + 1}'s answer is the dictionary's (${s.shown?.question})`);
 
-    // 3. A mark's button turns the ring to it: the next one's, else the one before (only the marks near the ring's front,
-    // on the screen, are buttons).
+    // 3. The keyboard: Enter on a question opens it, the focus kept on it.
+    if (!touch) {
+      await page.focus('#qa-ask-2');
+      await page.keyboard.press('Enter');
+      const took = await ringRestsAt(page, 2, 5_000);
+      s = await ringOf(page);
+      step.check(took !== null && answerIs(s.shown, 2, t) && s.focus === 'qa-ask-2', `${at}: Enter on question 3 opens it, the focus kept on it (${took === null ? 'never' : `${took} ms`}; focus ${s.focus})`);
+    }
+
+    // 4. From a question opened in the list: one notch on goes to the end, and one up from a question back to the list.
     await page.waitForTimeout(QA_LOCK_MS);
-    const named = await page.evaluate(() => [...document.querySelectorAll('.qa-mark:not([hidden])')].map((b) => Number(b.id.replace('qa-mark-', ''))));
-    const nextMark = named.includes(rests.at(-1) + 1) ? rests.at(-1) + 1 : named.includes(rests.at(-1) - 1) ? rests.at(-1) - 1 : null;
-    if (nextMark === null) {
-      // On a phone only the mark the ring stands at fits the screen: swipes turn it, its own button names it.
-      step.check(touch && named.length === 1 && named[0] === rests.at(-1), `${at}: only the mark the ring stands at is a button, on the screen (${named.join(', ')})`);
-    } else {
-      const mark = page.locator(`#qa-mark-${nextMark}`);
-      if (touch) await mark.tap();
-      else await mark.click();
-      const clicked = await ringRestsAt(page, nextMark, 4_000);
-      s = await ringOf(page);
-      step.check(clicked !== null && answerIs(s.shown, nextMark, t), `${at}: a ${touch ? 'tap' : 'click'} on mark ${nextMark + 1}'s button turns the ring to it (${clicked === null ? 'never' : `${clicked} ms`}; ${s.shown?.question})`);
-      rests.push(nextMark);
-    }
-
-    // 4. A mouse drag of RING_DRAG_PX to the left: one question on, let go onto it.
-    if (!touch) {
-      await page.waitForTimeout(QA_LOCK_MS);
-      // Pressed on the scene, not on a button or the answer's words: the first such place of a few, room to its left.
-      const [x, y] = await page.evaluate((reach) => {
-        const free = ([fx, fy]) => {
-          const el = document.elementFromPoint(fx, fy);
-          return el !== null && el.closest('button, a, .qa-frame, header') === null;
-        };
-        const tries = [[0.6, 0.5], [0.5, 0.3], [0.7, 0.75], [0.45, 0.8], [0.8, 0.4]].map(([a, b]) => [a * innerWidth, b * innerHeight]);
-        return tries.find(([tx, ty]) => free([tx, ty]) && free([tx - reach, ty])) ?? tries[0];
-      }, RING_DRAG_PX);
-      await page.mouse.move(x, y);
-      await page.mouse.down();
-      for (let i = 1; i <= 20; i++) {
-        await page.mouse.move(x - (RING_DRAG_PX * i) / 20, y);
-        await page.waitForTimeout(16);
-      }
-      await page.mouse.up();
-      const onward = rests.at(-1) + 1;
-      const dragged = await ringRestsAt(page, onward, 4_000);
-      s = await ringOf(page);
-      step.check(dragged !== null && answerIs(s.shown, onward, t), `${at}: a mouse drag of ${RING_DRAG_PX} px to the left turns the ring one question on and lets go onto it (${dragged === null ? 'never' : `${dragged} ms`}; ${s.shown?.question})`);
-      const selected = await page.evaluate(() => window.getSelection()?.toString() ?? '');
-      step.check(selected === '', `${at}: and selects none of the words it passed over ("${selected.slice(0, 40)}")`);
-      rests.push(onward);
-    }
+    await poseAt(page, QA_STOPS[3]);
+    await restAt(page);
+    await page.waitForTimeout(GESTURE_GAP_MS + 100);
+    await nudge(page, cdp, 1);
+    const onward = await ringRestsAt(page, QA_END, 6_000);
+    step.check(onward !== null, `${at}: one ${touch ? 'swipe' : 'notch'} from question 4 goes on to the end (${onward === null ? 'never' : `${onward} ms`})`);
+    await page.waitForTimeout(QA_LOCK_MS);
+    await poseAt(page, QA_STOPS[3]);
+    await restAt(page);
+    await page.waitForTimeout(GESTURE_GAP_MS + 100);
+    await nudge(page, cdp, -1);
+    const back = await ringRestsAt(page, 0, 6_000);
+    step.check(back !== null, `${at}: one ${touch ? 'swipe' : 'notch'} up from question 4 comes back to the list's stop (${back === null ? 'never' : `${back} ms`})`);
 
     // 5. At 1440 a resize to 390x844 keeps the place.
     if (size.width === 1440 && !english) {
@@ -6871,35 +6748,32 @@ async function qaRing(browser, step) {
       await page.waitForTimeout(500);
     }
 
-    // 6. Up from question 1 (put there through the bridge) opens the stack back to the look back.
+    // 6. Up from the list (put there through the bridge) opens the stack back to the look back.
     await page.waitForTimeout(QA_LOCK_MS);
     await poseAt(page, QA_STOPS[0]);
     await restAt(page);
     await nudge(page, cdp, -1);
-    const back = await page
+    const look = await page
       .waitForFunction((stop) => {
         const d = window.__needleDebug();
         return Math.abs(d.progress - stop) < 1e-9 && Math.abs(d.target - stop) < 1e-9 && !document.documentElement.hasAttribute('data-qa-at');
       }, LOOK_STOP, { timeout: 8_000 })
       .then(() => true, () => false);
     s = await ringOf(page);
-    step.check(back && (s.qa === null || s.qa.close <= 1e-6), `${at}: up from question 1 opens the stack back to the look back's stop, ${LOOK_STOP.toFixed(3)} (${back ? 'there' : JSON.stringify(s)}; the stack's close ${s.qa?.close ?? 'none'})`);
+    step.check(look && (s.qa === null || s.qa.close <= 1e-6), `${at}: up from the list opens the stack back to the look back's stop, ${LOOK_STOP.toFixed(3)} (${look ? 'there' : JSON.stringify(s)}; the stack's close ${s.qa?.close ?? 'none'})`);
 
-    // 7. A still of each mark's stop.
+    // 7. Stills: the list, a question opened (the longest answer's, on a phone), the end.
     if (!english && size !== DIVE_SIZES[1]) {
-      for (let k = 0; k < RING_MARKS; k++) {
+      for (const k of [0, 3, QA_END]) {
         await poseAt(page, QA_STOPS[k]);
-        // The end's mark once its dark is up and its circle drawn (3 s), as the stills step takes it: half a second in,
-        // the dark is still coming up over the scene and the floor would read wherever the fade stood.
-        await page.waitForTimeout(k === RING_MARKS - 1 ? 3_400 : 500);
+        await page.waitForTimeout(k === QA_END ? 3_400 : 700);
         const file = join(STILLS, `qa-${k + 1}-${sizeName(size)}.png`);
         await page.screenshot({ path: file });
-        // On a phone the answer fills the screen under the ring: the scene's floor is read on the ring, above it.
         shots.push({ file, kind: 'home', mask: await textMask(page), ...(touch ? { region: { x: [0.1, 0.9], y: [0.12, 0.5] } } : {}) });
       }
     }
     await takeCsp(page, step);
-    summary.push(`${at}: into the ring in ${into} ms, rested at ${rests.map((k) => k + 1).join(', ')} and back to the look back`);
+    summary.push(`${at}: into the list in ${into} ms, opened ${opened.map((k) => k + 1).join(', ')}, on to the end and back`);
     await context.close();
   }
 
@@ -6974,9 +6848,9 @@ async function qaEnd(browser, step) {
           end: document.documentElement.hasAttribute('data-qa-end'),
           dark: veil === null ? 0 : Number(veil.opacity) * alpha,
           seal: css('.qa-seal') === null ? 0 : Number(css('.qa-seal').opacity),
-          marks: css('.qa-marks') === null ? null : Number(css('.qa-marks').opacity),
-          // The marks' buttons a visitor can still reach (shown, not hidden by visibility).
-          reach: [...document.querySelectorAll('.qa-mark')].filter((b) => !b.hidden && b.checkVisibility({ visibilityProperty: true })).length,
+          // The list (round 10): how much of it shows, and how many of its questions a visitor can still reach.
+          marks: css('.qa-list') === null ? null : Number(css('.qa-list').opacity),
+          reach: [...document.querySelectorAll('.qa-ask')].filter((b) => b.checkVisibility({ visibilityProperty: true, opacityProperty: true })).length,
           frame: frame && { x: frame.left + frame.width / 2, y: frame.top + frame.height / 2, top: frame.top },
           sealBottom: seal?.bottom ?? null,
           vw: innerWidth,
@@ -6988,14 +6862,14 @@ async function qaEnd(browser, step) {
     const middle = touch ? e.sealBottom !== null && e.frame !== null && e.sealBottom <= e.frame.top : e.frame !== null && Math.abs(e.frame.y - e.vh / 2) <= 0.02 * e.vh;
     step.check(
       e.end && e.dark >= 0.85 && sealed && e.seal === 1 && e.marks === 0 && e.reach === 0 && across && middle,
-      `${at}: the end is unmistakable: data-qa-end, the dark at ${e.dark.toFixed(2)} (0.85 or more), the circle drawn whole within 3 s (${sealed}), the words' middle at (${e.frame?.x.toFixed(0)}, ${e.frame?.y.toFixed(0)}) ${touch ? `across the middle, under the circle (its foot at ${e.sealBottom?.toFixed(0)}, the words from ${e.frame?.top.toFixed(0)})` : 'in the middle'} of ${e.vw}x${e.vh}, the marks' numbers at ${e.marks} and ${e.reach} of them in reach`,
+      `${at}: the end is unmistakable: data-qa-end, the dark at ${e.dark.toFixed(2)} (0.85 or more), the circle drawn whole within 3 s (${sealed}), the words' middle at (${e.frame?.x.toFixed(0)}, ${e.frame?.y.toFixed(0)}) ${touch ? `across the middle, under the circle (its foot at ${e.sealBottom?.toFixed(0)}, the words from ${e.frame?.top.toFixed(0)})` : 'in the middle'} of ${e.vw}x${e.vh}, the list at ${e.marks} and ${e.reach} of its questions in reach`,
     );
-    // One input up: back on question 6, and nothing of the end left.
+    // One input up: back on the list (round 10: its inner marks are no stops), and nothing of the end left.
     await nudge(page, cdp, -1);
-    const up = await ringRestsAt(page, QA_END - 1, 5_000);
+    const up = await ringRestsAt(page, 0, 6_000);
     await page.waitForTimeout(1_600);
     const left = await theEnd();
-    step.check(up !== null && !left.end && left.dark === 0 && left.seal === 0 && left.marks !== 0 && left.reach > 0, `${at}: one ${touch ? 'swipe' : 'notch'} up rests on question 6 (${up === null ? 'never' : `${up} ms`}) and leaves nothing of the end: data-qa-end ${left.end}, the dark ${left.dark}, the circle ${left.seal}, the marks' numbers ${left.marks}`);
+    step.check(up !== null && !left.end && left.dark === 0 && left.seal === 0 && left.marks !== 0 && left.reach > 0, `${at}: one ${touch ? 'swipe' : 'notch'} up rests on the list (${up === null ? 'never' : `${up} ms`}) and leaves nothing of the end: data-qa-end ${left.end}, the dark ${left.dark}, the circle ${left.seal}, the list ${left.marks}`);
     await toEnd();
 
     // "Naar contact": /contact/ with its form.
