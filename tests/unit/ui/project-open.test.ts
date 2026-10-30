@@ -7,7 +7,7 @@ import { WORLD_PROJECTS } from '~/scene/bob/journey';
 import { frame } from '~/state/frame';
 import { insideInHistory, noteOpenedFrom, placeForProject, resetRouteSync, stopForProject, syncRoute } from '~/state/routeSync';
 import { useScene } from '~/state/store';
-import { clickOnWorld, closeInside, lendOpener, openInside, turnInside, viewInside } from '~/ui/projectOpen';
+import { clickOnWorld, closeInside, lendOpener, openAt, openInside, turnInside, viewInside } from '~/ui/projectOpen';
 
 // An open project through the history (src/ui/projectOpen.tsx): its own entry on the home, every way out, the arrows
 // round the end, and its page from it; the page over it is src/ui/ProjectView.tsx's.
@@ -68,7 +68,24 @@ describe('openInside, turnInside, closeInside and viewInside: an open project th
     expect(went).toEqual([]);
     frame.target = frame.progress; // at rest
     expect(clickOnWorld('steady')).toBe(true);
-    expect(useScene.getState().inside).toBe('steady');
+    vi.advanceTimersByTime(0);
+    expect(went).toEqual(['/projects/steady/']);
+  });
+
+  // Round 10 (Bob, 2026-10-30: "the camera doesnt go to the project"; he picked the full page): a click on a project, its
+  // name or its floor's words opens its page straight away, nothing lifting to the camera, which stays at the floor.
+  it('goes to the page at once on a click at the floor, lifting nothing', () => {
+    for (const open of [clickOnWorld, openAt]) {
+      reset();
+      useScene.setState({ phase: { kind: 'PROJECTS', category: 'app' }, scene: 'home' });
+      frame.progress = frame.target = A0;
+      went = [];
+      expect(open('steady')).toBe(true);
+      expect(useScene.getState().inside).toBeNull();
+      expect(frame.focus.move.to).toBeNull();
+      vi.advanceTimersByTime(0);
+      expect(went).toEqual(['/projects/steady/']);
+    }
   });
 
   it('goes to the next and the previous project, round the end', () => {

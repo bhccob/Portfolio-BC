@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { type NavigateFunction, useNavigate } from 'react-router';
 import { type ProjectId, projects } from '~/data/projects';
 import { useTranslator } from '~/i18n/useTranslator';
-import { FLIGHT_MS, FOCUS_FADE_MS, focusPoseAt, moveFocus, restsAt } from '~/scene/bob/focus';
+import { moveFocus, restsAt } from '~/scene/bob/focus';
 import { INSIDE_STATE, opensOnClick } from '~/scene/bob/inside';
 import { journeyAt, WORLD_PROJECTS } from '~/scene/bob/journey';
 import { wakeScene } from '~/scene/motion';
@@ -39,28 +39,21 @@ export function lendOpener(ways: { navigate: NavigateFunction; path: (id: Projec
 }
 
 /**
- * Opens project `id`'s page: the camera flies to the project's open view over FLIGHT_MS (`frame.focus`,
- * src/scene/bob/focus.ts), and once it is there the router goes to the project's page, which stands over it. The flight
- * leaves only from a stop at rest where the project is in view (`restsAt`); with reduced motion, or from anywhere else, a
- * fade stands in for it, and the router goes to the page while the scene is dark. The navigation waits for the flight,
- * so the page never comes over a camera still on its way, and the flight's clock is the document's, so nothing of it
- * starts again on the page. Meanwhile the phase is PROJECT_FOCUS (OPEN_PROJECT), so the scroll takes no input, and
- * `<html data-bead-open>` lets the page's text fade in with its scrim when it comes. A Back (or any way off the home page)
- * during the flight lets the project go (src/state/routeSync.ts), and the router stays. With the project open and the
- * camera there ("Bekijk project", `viewInside`) nothing moves and the router goes at once. Answers whether it began: not
- * while another project is opening, nor without the home page's router. A new opening clears the last one's timer for
- * `<html data-bead-open>`, so an opening soon after the last keeps the attribute until its own page has faded in.
+ * Opens project `id`'s page, over its floor (round 10, spec 2026-10-30-bob-qa-list-floors-design.md; Bob: "the camera
+ * doesnt go to the project", and he picked the full page): nothing lifts and the camera stays where it stands; the router
+ * goes to the page at once. Meanwhile the phase is PROJECT_FOCUS (OPEN_PROJECT), so the scroll takes no input, and
+ * `<html data-bead-open>` lets the page's text fade in with its scrim. Back from its page comes back to this very place
+ * (`noteOpenedFrom`). Answers whether it began: not while another project is opening, nor without the home page's router.
+ * A new opening clears the last one's timer for `<html data-bead-open>`, so an opening soon after the last keeps the
+ * attribute until its own page has faded in.
  */
 export function openBead(id: ProjectId): boolean {
   const ways = opener;
   if (ways === null || frame.focus.opening !== null) return false;
-  const { reducedMotion, dispatch, inside } = useScene.getState();
-  const now = performance.now();
-  const shown = focusPoseAt(frame.focus.move, now);
-  const there = inside === id && shown.id === id && shown.amount === 1 && !shown.moving;
-  const fly = !there && !reducedMotion && restsAt(id, frame.progress, frame.target);
+  const { dispatch } = useScene.getState();
+  // Round 10 (Bob: "the camera doesnt go to the project"): nothing lifts and the camera stays at the floor; the page
+  // comes at once, over it (src/scene/bob/focus.ts `focusGoalFor`).
   frame.focus.opening = id;
-  if (!there) frame.focus.move = moveFocus(frame.focus.move, id, now, fly ? 'fly' : 'fade', frame.shot);
   const root = document.documentElement;
   if (openingClear !== null) clearTimeout(openingClear);
   openingClear = null;
@@ -78,7 +71,7 @@ export function openBead(id: ProjectId): boolean {
         root.removeAttribute(OPENING_ATTRIBUTE);
       }, PAGE_FADE_MS);
     },
-    there ? 0 : fly ? FLIGHT_MS : FOCUS_FADE_MS
+    0
   );
   return true;
 }
@@ -154,11 +147,11 @@ export function viewInside(): boolean {
 }
 
 /**
- * A click on project `id`, its name or its area's words: open on the world where a click opens it (./inside.ts
- * `opensOnClick`: the story at rest at the world, an area or the look back), its page otherwise.
+ * A click on project `id`, its name or its area's words: its page, straight away (round 10, Bob picked the full page with
+ * the camera staying at the floor; the open view on the world, `openInside`, is no longer reached by a click).
  */
 export function openAt(id: ProjectId): boolean {
-  return opensOnClick(journeyAt(frame.progress), frame.progress === frame.target) ? openInside(id) : openBead(id);
+  return openBead(id);
 }
 
 /**
@@ -167,7 +160,7 @@ export function openAt(id: ProjectId): boolean {
  * is moving between stops, a click does nothing"). Answers whether it opened.
  */
 export function clickOnWorld(id: ProjectId): boolean {
-  return opensOnClick(journeyAt(frame.progress), frame.progress === frame.target) && openInside(id);
+  return opensOnClick(journeyAt(frame.progress), frame.progress === frame.target) && openBead(id);
 }
 
 /** The home page's opener: while it is up it lends `openBead` the page's router and language. */
