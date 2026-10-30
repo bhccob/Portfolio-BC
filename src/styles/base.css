@@ -1641,8 +1641,30 @@ html[data-3d='on'] .light-facts {
 }
 
 /* ---------- the contact form ---------- */
+/* The contact page in one centred column (Bob, 2026-10-30: "more simple and in the middle"; he picked "A · Centred"):
+   the same parts, the words centred, the form's labels and fields read from the left. */
+.page.contact {
+  max-width: calc(34rem + 2 * var(--gutter));
+  margin-inline: auto;
+  text-align: center;
+}
+
+.contact .page-title {
+  font-size: clamp(2.2rem, 5vw, 3.2rem);
+}
+
 .contact .lead {
+  margin-inline: auto;
   margin-bottom: 40px;
+}
+
+.contact .form {
+  margin-inline: auto;
+  text-align: left;
+}
+
+.contact .links {
+  justify-content: center;
 }
 
 .form-title {
