@@ -45,8 +45,8 @@ describe('the fall’s pace', () => {
     for (const f of [1, 81, 121, 161, 201, 241, 256]) expect(frameOfPlace(placeOfFrame(f))).toBeCloseTo(f, 9);
     // Each fact (40 frames apart) is twice the scroll apart: 0.803 units, 0.401 before.
     expect(placeOfFrame(121) - placeOfFrame(81)).toBeCloseTo((6 * 40) / 299, 12);
-    // the top, BOB from above, five facts, the world, three areas, the look back, six questions and the end
-    expect(keyStops(HOME_CHAPTERS)).toHaveLength(19);
+    // the top, BOB from above, five facts, the world, three areas, the look back, the Q&A's list and the end (round 10)
+    expect(keyStops(HOME_CHAPTERS)).toHaveLength(14);
   });
 });
 
@@ -140,8 +140,9 @@ describe('chapterAt', () => {
 });
 
 describe('the places of the scroll', () => {
-  it('lists each unit start as a stop; the last, END, is the end of the scroll', () => {
-    expect(stops(c)).toHaveLength(c.units.length);
+  // Bob (2026-10-30): the Q&A "more simple to just go through": one list, one stop; the ring's inner marks are no stops.
+  it("lists each unit start as a stop but the ring's inner marks; the last, END, is the end of the scroll", () => {
+    expect(stops(c)).toHaveLength(c.units.length - (RING_QUESTIONS - 1));
     expect(scrollEnd(c)).toBeCloseTo(L + 16.26, 9);
     expect(scrollEnd(c)).toBeLessThan(c.total);
   });
@@ -161,10 +162,10 @@ describe('the places of the scroll', () => {
     expect(frameOfPlace(placeOfFrame(121))).toBeCloseTo(121, 9);
   });
 
-  it("keeps the key stops: the facts, the world, each area, the look back's own stop, each question and the end", () => {
+  it("keeps the key stops: the facts, the world, each area, the look back's own stop, the Q&A's list and the end", () => {
     expect(FACT_PEAKS).toEqual([81, 121, 161, 201, 241]);
     expect([LAND_STOP, AREA_STOP]).toEqual([expect.closeTo((1.26 + 1.9) / 3.46, 12), 0.7]);
-    const expected = [0, 1, ...FACT_PEAKS.map(placeOfFrame), L + 3.16, L + 4.44, L + 5.84, L + 7.24, L + 9.26, ...[0, 1, 2, 3, 4, 5, 6].map((k) => L + 10.26 + k)];
+    const expected = [0, 1, ...FACT_PEAKS.map(placeOfFrame), L + 3.16, L + 4.44, L + 5.84, L + 7.24, L + 9.26, L + 10.26, L + 16.26];
     const got = keyStops(HOME_CHAPTERS);
     expect(got).toHaveLength(expected.length);
     got.forEach((s, k) => expect(s).toBeCloseTo(expected[k]!, 9));
@@ -211,10 +212,14 @@ describe('the Q&A on the ring', () => {
     expect(c.units.map((u) => u.id)).not.toContain('SHEET');
   });
 
-  it('stops at the look back, at each question and at the end', () => {
+  it('stops once in the Q&A: the list, then the end', () => {
     const qaStops = [0, 1, 2, 3, 4, 5, 6].map((k) => qaStop(c, k));
     const key = keyStops(c);
-    for (const stop of [lookStop(c), ...qaStops]) expect(key.some((s) => Math.abs(s - stop) < 1e-9)).toBe(true);
+    const has = (list: number[], stop: number) => list.some((s) => Math.abs(s - stop) < 1e-9);
+    for (const list of [key, stops(c)]) {
+      for (const stop of [lookStop(c), qaStop(c, 0), qaStop(c, RING_QUESTIONS)]) expect(has(list, stop)).toBe(true);
+      for (let k = 1; k < RING_QUESTIONS; k++) expect(has(list, qaStop(c, k)), `mark ${k}`).toBe(false);
+    }
     for (let k = 1; k < qaStops.length; k++) expect(qaStops[k]!).toBeGreaterThan(qaStops[k - 1]!);
     expect(qaStop(c, RING_QUESTIONS)).toBe(scrollEnd(c));
     expect(key.at(-1)).toBe(scrollEnd(c));

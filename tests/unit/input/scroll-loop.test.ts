@@ -1597,8 +1597,9 @@ describe('reduced motion and the Q&A', () => {
 // ---------------------------------------------------------------- the Q&A on the ring
 
 // The Q&A on the gold ring (spec 2026-10-29-bob-stack-2-design.md, goal 1): "rotating snaps and is slower". From the look
-// back's stop every input is one step, a question, turned slowly; input while a turn's lock holds is dropped.
-describe('the Q&A, a question a step', () => {
+// back's stop every input is one step, turned slowly; input while a turn's lock holds is dropped. Round 10 (Bob,
+// 2026-10-30): the steps are the list (mark 0) and the end; a question is opened from the list (`goToQa`).
+describe('the Q&A, the list and the end a step each', () => {
   const q = (k: number) => qaStop(chapters, k);
 
   it('eases a turn in and out', () => {
@@ -1608,21 +1609,22 @@ describe('the Q&A, a question a step', () => {
     expect(easeInOutQuart(1)).toBe(1);
   });
 
-  it('turns a question in about 1.9 s, eased in and out', async () => {
+  it('turns a question in about 1.9 s, and from the list to the end in one step of 2.6 s, eased in and out', async () => {
     expect(turnTime(q(0), q(1), chapters)).toBeCloseTo(1.1 + (0.9 * 2 * Math.PI) / 7, 9);
     expect(Math.abs(turnTime(q(0), q(1), chapters) - 1.906)).toBeLessThan(0.05);
+    expect(turnTime(q(0), q(6), chapters)).toBe(2.6);
     const s = setup();
     restAt(s, q(0));
     await wheelNotches(s, 1);
-    expect(s.frame.target).toBe(q(1));
+    expect(s.frame.target).toBe(q(6));
     expect(s.home.loop.tweening).toBe('turn');
     const start = s.frames.now;
-    const T = turnTime(q(0), q(1), chapters) * 1000;
+    const T = turnTime(q(0), q(6), chapters) * 1000;
     while (s.frames.now - start < T / 2) s.frames.frame();
-    expect(s.frame.progress).toBeGreaterThan(q(0) + 0.35);
-    expect(s.frame.progress).toBeLessThan(q(0) + 0.65);
+    expect(s.frame.progress).toBeGreaterThan(q(0) + 0.35 * 6);
+    expect(s.frame.progress).toBeLessThan(q(0) + 0.65 * 6);
     s.drain();
-    expect(s.frame.progress).toBe(q(1));
+    expect(s.frame.progress).toBe(q(6));
   });
 
   it('glides into the Q&A in 2.8 s', () => {
@@ -1644,33 +1646,38 @@ describe('the Q&A, a question a step', () => {
     restAt(s, q(0));
     await wheelNotches(s, 1);
     const start = s.frames.now;
-    expect(s.frame.target).toBe(q(1));
+    expect(s.frame.target).toBe(q(6));
     while (s.frames.now - start < 1000) s.frames.frame();
-    await wheelNotches(s, 1);
-    expect(s.frame.target).toBe(q(1));
+    await wheelNotches(s, 1, -120);
+    expect(s.frame.target).toBe(q(6));
     while (s.frames.now - start < 1600) s.frames.frame();
-    await wheelNotches(s, 1);
-    expect(s.frame.target).toBe(q(2));
+    await wheelNotches(s, 1, -120);
+    expect(s.frame.target).toBe(q(0));
   });
 
-  it('steps a key one question too', async () => {
+  it('steps a key from a question opened in the list on to the end, or back to the list', async () => {
     const s = setup();
     restAt(s, q(2));
     s.key('ArrowDown');
     await flush();
-    expect(s.frame.target).toBe(q(3));
+    expect(s.frame.target).toBe(q(6));
     expect(s.home.loop.tweening).toBe('turn');
+    const t = setup();
+    restAt(t, q(2));
+    t.key('ArrowUp');
+    await flush();
+    expect(t.frame.target).toBe(q(0));
   });
 
   it('jumps with reduced motion', async () => {
     const s = setup({ reduced: true });
     restAt(s, q(0));
     await wheelNotches(s, 1);
-    expect(s.frame.target).toBe(q(1));
+    expect(s.frame.target).toBe(q(6));
     expect(s.home.loop.tweening).toBeNull();
   });
 
-  it('turns by a drag and lets go onto the nearest question', async () => {
+  it('turns by a drag and lets go onto the nearest stop, the list or the end', async () => {
     const s = setup();
     restAt(s, q(1));
     s.home.dragRing(0.7);
@@ -1680,7 +1687,10 @@ describe('the Q&A, a question a step', () => {
     expect(s.frame.target).toBe(q(0)); // a drag never takes the ring off its questions, back into the look back
     s.home.dragRing(1.4);
     s.home.releaseRing();
-    expect(s.frame.target).toBe(q(1));
+    expect(s.frame.target).toBe(q(0));
+    s.home.dragRing(4);
+    s.home.releaseRing();
+    expect(s.frame.target).toBe(q(6));
     expect(s.home.loop.tweening).toBe('turn');
   });
 });

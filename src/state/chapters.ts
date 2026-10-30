@@ -158,9 +158,13 @@ export function chapterAt(c: Chapters, p: number, previous?: { index: number }):
   return { index, id: unit.id, local, category: unit.category, project: unit.project };
 }
 
-/** Where scrolling comes to rest: the start of each chapter. The last is the end of the scroll (`scrollEnd`). */
+/**
+ * Where scrolling comes to rest: the start of each chapter. The last is the end of the scroll (`scrollEnd`). Of the Q&A's
+ * ring only the list's mark (0) and the end's are stops (Bob, 2026-10-30: the Q&A "more simple to just go through": one
+ * list beside the tower, a question asked turning the ring to its mark): the starts of QA units 2.. are not.
+ */
 export function stops(c: Chapters): number[] {
-  return c.units.map((unit) => unit.start);
+  return c.units.filter((unit) => !(unit.id === 'QA' && unit.project! >= 2)).map((unit) => unit.start);
 }
 
 /**
@@ -273,12 +277,13 @@ export function areaStop(c: Chapters, category: string): number {
 
 /**
  * Where a key steps (an arrow, Page Up or Down, Space, and every step with reduced motion): the home, BOB from above,
- * each fact at full strength (`FACT_PEAKS`), the world, each area, the look back and each mark on the ring, the last the
+ * each fact at full strength (`FACT_PEAKS`), the world, each area, the look back, the Q&A's list and its end, the last the
  * scroll's end.
  */
 export function keyStops(c: Chapters): number[] {
   const facts = FACT_PEAKS.map((f) => placeIn(c, f));
   const areas = c.units.filter((u) => u.id === 'AREA').map((u) => u.start + AREA_STOP * u.length);
+  // The Q&A's list (mark 0) and its end, as on the scroll (`stops`).
   const marks = c.units.filter((u) => u.id === 'QA').map((u) => u.start + u.length);
-  return [0, riseTop(c), ...facts, worldStop(c), ...areas, lookStop(c), ...marks];
+  return [0, riseTop(c), ...facts, worldStop(c), ...areas, lookStop(c), marks[0]!, marks.at(-1)!];
 }
