@@ -12,8 +12,15 @@ export function Markup({ text }: { text: string }): JSX.Element {
 
 /**
  * The copy without any tag: the plain sentence a heading reads as, and what a longer text with a `<span>` in it is shown
- * as. A stray angle bracket goes too, so no tag can be left that two halves round a removed one made.
+ * as. The tags are taken out again until none is left, so none can stay that two halves round a removed one made; then
+ * a stray angle bracket goes too.
  */
 export function stripMarkup(text: string): string {
-  return text.replace(/<[^>]*>/g, '').replace(/[<>]/g, '');
+  let plain = text;
+  let before: string;
+  do {
+    before = plain;
+    plain = plain.replace(/<[^>]*>/g, '');
+  } while (plain !== before);
+  return plain.replace(/[<>]/g, '');
 }

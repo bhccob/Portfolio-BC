@@ -1290,7 +1290,15 @@ async function phoneMenu(browser, step) {
 }
 
 /** The copy of a heading as text: the dictionaries' only markup is <em>. */
-const plain = (copy) => copy.replace(/<[^>]*>/g, '').replace(/[<>]/g, '');
+const plain = (copy) => {
+  let text = copy;
+  let before;
+  do {
+    before = text;
+    text = text.replace(/<[^>]*>/g, '');
+  } while (text !== before);
+  return text;
+};
 const LITE = { nl: '/lite/', en: '/en/lite/' };
 const CONTACT = { nl: '/contact/', en: '/en/contact/' };
 

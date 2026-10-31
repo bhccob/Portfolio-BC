@@ -29,8 +29,7 @@ const render = (path: string, component: Parameters<typeof createElement>[0]): s
 
 /** The text of a page: its markup removed and its entities decoded, spaces collapsed. */
 const textOf = (html: string): string =>
-  html
-    .replace(/<[^>]*>/g, '').replace(/[<>]/g, '')
+  stripMarkup(html)
     .replace(/&quot;/g, '"')
     .replace(/&#x27;/g, "'")
     .replace(/&lt;/g, '<')

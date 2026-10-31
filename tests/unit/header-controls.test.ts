@@ -9,6 +9,7 @@ import { nl } from '../../src/i18n/nl';
 import { Translator } from '../../src/i18n/Translator';
 import { useScene } from '../../src/state/store';
 import { LangSwitch } from '../../src/ui/LangSwitch';
+import { stripMarkup } from '../../src/ui/Markup';
 import { closeMenuOnLink, MENU_ID, nameToTop, SiteHeader } from '../../src/ui/SiteHeader';
 
 const render = (path: string, component: FunctionComponent): string =>
@@ -21,7 +22,7 @@ const attributes = (html: string): Record<string, string> =>
   );
 
 /** The text a sighted visitor reads: the markup without its tags. */
-const visibleText = (html: string): string => html.replace(/<[^>]*>/g, '').replace(/[<>]/g, '');
+const visibleText = (html: string): string => stripMarkup(html);
 
 /** The links and buttons of the markup, in the order of the page, each with its attributes and its visible text. */
 const controlsOf = (html: string): { tag: string; attrs: Record<string, string>; text: string }[] =>

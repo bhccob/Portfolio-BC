@@ -8,6 +8,7 @@ import { RING_QUESTIONS } from '~/data/qa';
 import { en, type Dictionary, type EndQuestions } from '~/i18n/en';
 import { nl } from '~/i18n/nl';
 import { useScene } from '~/state/store';
+import { stripMarkup } from '~/ui/Markup';
 import { QaRing, QaRingParts } from '~/ui/QaRing';
 import { clearQa, QA_END_ATTRIBUTE, qaLightAnchors, qaLightY, type QaParts, qaWritten, writeQa, writeQaLight } from '~/ui/qaWriters';
 
@@ -20,8 +21,7 @@ const LOCALES = [
 const parts = (path: string, t: Dictionary, questions: EndQuestions = t.end.questions): string =>
   renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: [path] }, createElement(QaRingParts, { questions })));
 const textOf = (html: string): string =>
-  html
-    .replace(/<[^>]*>/g, '').replace(/[<>]/g, '')
+  stripMarkup(html)
     .replace(/&#x27;/g, "'")
     .replace(/&amp;/g, '&')
     .replace(/\s+/g, ' ')
