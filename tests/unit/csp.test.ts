@@ -19,6 +19,13 @@ describe('cspFor', () => {
     expect(cspFor('<script>a();\r\nb();\rc();</script>')).toContain(sha256('a();\nb();\nc();'));
   });
 
+  // GitHub's code scanning (js/bad-tag-filter): a browser ends a script at </script followed by anything up to ">".
+  it('hashes a script whose end tag has more in it, as a browser ends it', () => {
+    expect(cspFor('<script>a()</script >')).toContain(sha256('a()'));
+    expect(cspFor('<script>b()</SCRIPT\n foo="bar">')).toContain(sha256('b()'));
+    expect(cspFor('<style>p{}</style\tx>')).toContain(sha256('p{}'));
+  });
+
   it('hashes each script once, however often it appears', () => {
     const policy = cspFor('<script>a()</script><script>a()</script><script>b()</script>');
     expect(policy.split(sha256('a()')).length - 1).toBe(1);
@@ -113,6 +120,13 @@ describe('applyCsp', () => {
   it('throws on an inline event handler', () => {
     expect(() => applyCsp(page('', '<a onclick="x">y</a>'))).toThrow(/onclick/);
     expect(() => applyCsp(page('', '<button\n  onMouseOver = "x">y</button>'))).toThrow(/onMouseOver/i);
+  });
+
+  // GitHub's code scanning (js/incomplete-multi-character-sanitization): a comment taken out must not join what was
+  // round it into a new comment that hides a live handler (a browser ends "<!<!-- -->" at its first ">").
+  it('finds a handler that a comment taken out would have hidden', () => {
+    expect(() => applyCsp(page('', '<!<!-- -->-- <a onclick="x">y</a> -->'))).toThrow(/onclick/);
+    expect(() => applyCsp(page('', '<!-- <a onclick="x">y</a> -->'))).not.toThrow();
   });
 
   it('throws on a javascript: URL', () => {

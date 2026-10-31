@@ -1,7 +1,6 @@
 import { NavigationType } from 'react-router';
-import * as THREE from 'three';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { applyCameraShot, type CameraShot } from '~/engine/bob/shots';
+import type { CameraShot } from '~/engine/bob/shots';
 import type { ProjectId } from '~/data/projects';
 import {
   FLIGHT_MS,
@@ -42,13 +41,6 @@ const near = (a: Vec3, b: Vec3, digits = 9): void => {
 
 /** The path's start, the hand-over: the world is past it. */
 const L = pathStart(HOME_CHAPTERS);
-
-/** Where `point` lands on a screen of this aspect through `shot`, NDC. */
-function project(shot: CameraShot, aspect: number, point: Vec3): THREE.Vector3 {
-  const camera = new THREE.PerspectiveCamera();
-  applyCameraShot(camera, shot, aspect);
-  return new THREE.Vector3(...point).project(camera);
-}
 
 // ---------------------------------------------------------------- the open view
 

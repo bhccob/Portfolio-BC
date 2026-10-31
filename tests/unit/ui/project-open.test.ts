@@ -1,7 +1,7 @@
 import { NavigationType, type NavigateFunction } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { focusesMain } from '~/app/navigationFocus';
-import { FLIGHT_MS, FOCUS_AT_REST, focusOpensAt, moveFocus } from '~/scene/bob/focus';
+import { FLIGHT_MS, FOCUS_AT_REST, moveFocus } from '~/scene/bob/focus';
 import { INSIDE_STATE } from '~/scene/bob/inside';
 import { WORLD_PROJECTS } from '~/scene/bob/journey';
 import { frame } from '~/state/frame';

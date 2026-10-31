@@ -26,6 +26,11 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           queries: security-and-quality
+          # .github/skills holds a design tool's own scripts (the impeccable skill, run on a developer's machine): no part
+          # of the site, never built or served. The tool's maker answers for them; the scan is of the site and its tools.
+          config: |
+            paths-ignore:
+              - .github/skills
 
       - uses: github/codeql-action/analyze@v4
         with:

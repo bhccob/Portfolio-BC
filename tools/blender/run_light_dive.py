@@ -17,7 +17,7 @@ import os
 import subprocess
 import sys
 
-import bpy  # noqa: F401  (the scripts run inside Blender)
+# The scripts it runs import bpy themselves: this one runs inside Blender too (see the command above).
 
 TOOLS = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(TOOLS))

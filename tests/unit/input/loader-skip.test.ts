@@ -83,7 +83,7 @@ describe('skipSwallower', () => {
 
   it('stops at the cap even with no pause at all', () => {
     const { clock, swallow } = make(1000);
-    let last = true;
+    let last: boolean;
     for (clock.now = 1000; clock.now < 5000; clock.now += 50) {
       last = swallow();
       if (clock.now >= 1000 + SKIP_SWALLOW_CAP_MS) expect(last).toBe(false);

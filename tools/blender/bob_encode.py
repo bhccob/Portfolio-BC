@@ -20,6 +20,7 @@ ims = sc.render.image_settings
 try:
     ims.media_type = 'VIDEO'
 except Exception:
+    # A Blender without media_type: setting FFMPEG below is enough there.
     pass
 ims.file_format = 'FFMPEG'
 ff = sc.render.ffmpeg

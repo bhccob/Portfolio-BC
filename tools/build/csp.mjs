@@ -10,8 +10,9 @@ import { createHash } from 'node:crypto';
 
 export const PLACEHOLDER = '__CSP__';
 
-const SCRIPT_BLOCK = /<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi;
-const STYLE_BLOCK = /<style\b([^>]*)>([\s\S]*?)<\/style\s*>/gi;
+// A block ends where a browser ends it: at </script (or </style) and anything after it up to ">".
+const SCRIPT_BLOCK = /<script\b([^>]*)>([\s\S]*?)<\/script\b[^>]*>/gi;
+const STYLE_BLOCK = /<style\b([^>]*)>([\s\S]*?)<\/style\b[^>]*>/gi;
 const JSON_LD = /\btype\s*=\s*(?:"application\/ld\+json"|'application\/ld\+json'|application\/ld\+json(?=[\s/>]|$))/i;
 const HAS_SRC = /\bsrc\s*=/i;
 
@@ -81,9 +82,11 @@ const ATTRIBUTE = /([^\s"'<>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)
  * @returns {string | null}
  */
 function unsafeMarkup(html) {
+  // Each comment becomes a space, never nothing: the text either side of it must not join into a new "<!--" that would
+  // hide live markup from this check.
   const markup = html
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/(<(script|style)\b[^>]*>)[\s\S]*?(<\/\2\s*>)/gi, '$1$3');
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/(<(script|style)\b[^>]*>)[\s\S]*?(<\/\2\b[^>]*>)/gi, '$1$3');
   for (const [, tag, attributes] of markup.matchAll(TAG)) {
     for (const [, name, double, single, bare] of attributes.matchAll(ATTRIBUTE)) {
       if (/^on[a-z]+$/i.test(name)) return `the event handler ${name}= on <${tag}>`;

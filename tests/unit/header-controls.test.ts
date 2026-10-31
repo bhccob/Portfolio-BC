@@ -21,7 +21,7 @@ const attributes = (html: string): Record<string, string> =>
   );
 
 /** The text a sighted visitor reads: the markup without its tags. */
-const visibleText = (html: string): string => html.replace(/<[^>]*>/g, '');
+const visibleText = (html: string): string => html.replace(/<[^>]*>/g, '').replace(/[<>]/g, '');
 
 /** The links and buttons of the markup, in the order of the page, each with its attributes and its visible text. */
 const controlsOf = (html: string): { tag: string; attrs: Record<string, string>; text: string }[] =>

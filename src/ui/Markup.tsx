@@ -10,7 +10,10 @@ export function Markup({ text }: { text: string }): JSX.Element {
   return <>{parts.map((part, index) => (index % 2 === 1 ? <em key={index}>{part}</em> : part))}</>;
 }
 
-/** The copy without any tag: the plain sentence a heading reads as, and what a longer text with a `<span>` in it is shown as. */
+/**
+ * The copy without any tag: the plain sentence a heading reads as, and what a longer text with a `<span>` in it is shown
+ * as. A stray angle bracket goes too, so no tag can be left that two halves round a removed one made.
+ */
 export function stripMarkup(text: string): string {
-  return text.replace(/<[^>]*>/g, '');
+  return text.replace(/<[^>]*>/g, '').replace(/[<>]/g, '');
 }

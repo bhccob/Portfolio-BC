@@ -46,7 +46,7 @@ const render = (path: string): string => renderToStaticMarkup(createElement(Memo
 /** The text of markup: its tags removed and its entities decoded, spaces collapsed. */
 const textOf = (html: string): string =>
   html
-    .replace(/<[^>]*>/g, '')
+    .replace(/<[^>]*>/g, '').replace(/[<>]/g, '')
     .replace(/&quot;/g, '"')
     .replace(/&#x27;/g, "'")
     .replace(/&lt;/g, '<')

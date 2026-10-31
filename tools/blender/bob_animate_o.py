@@ -3,7 +3,7 @@
 # rises and the camera pushes in to the home: 150 frames, 6.25 s at 24 fps. The B letters exist (bob_reveal_b.py
 # brings them in on the scroll) but are not drawn here. Every animated value is baked per frame with linear keys.
 # Derived from tools/blender/bob_animate.py: the same probe, easings and home; new frame numbers and the wide shot.
-import bpy, bmesh, math, os
+import bpy, bmesh, math
 from mathutils import Vector, Matrix
 
 sc = bpy.data.scenes["BOB_previs"]

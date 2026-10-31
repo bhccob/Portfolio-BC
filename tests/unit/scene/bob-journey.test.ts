@@ -4,7 +4,7 @@ import { applyCameraShot, type CameraShot, homeShotFor, MAX_VFOV, topShotFor } f
 import { restsAt } from '~/scene/bob/focus';
 import { fieldFor, focusShotFor, journeyAt, journeyPoseAt, lensField, WORLD_PROJECTS } from '~/scene/bob/journey';
 import { factAt, lightAt, voidAt, wayShot } from '~/scene/bob/lightDive';
-import { ease, worldPathFor } from '~/scene/bob/worldPath';
+import { worldPathFor } from '~/scene/bob/worldPath';
 import { riseAt, scrollPoseAt } from '~/scene/bob/scrollPose';
 import { AREA_STOP, areaStop, HAND_F, HOME_CHAPTERS, pathStart, placeOfFrame, scrollEnd, lookStop, worldStop } from '~/state/chapters';
 

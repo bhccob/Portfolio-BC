@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { damp } from 'maath/easing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { readGlbJson } from '~/engine/bob/glb';
 import { readNeedleDebugState } from '~/debug/useNeedleDebug';
 import { startHomeScroll } from '~/input/scrollLoop';
 import { connectHomeScroll } from '~/input/useHomeScroll';
@@ -23,8 +22,7 @@ import {
   voidShownFor,
   writeJourney
 } from '~/scene/bob/voidPose';
-import * as THREE from 'three';
-import { applyCameraShot, type CameraShot } from '~/engine/bob/shots';
+import type { CameraShot } from '~/engine/bob/shots';
 import { NavigationType } from 'react-router';
 import { areaStop, chapterAt, HOME_CHAPTERS, keyStops, pathStart, placeOfFrame, scrollEnd, stops, worldStop } from '~/state/chapters';
 import { frame } from '~/state/frame';

@@ -11,7 +11,7 @@ const END_SETTLED = 0.01;
 import { applyEndView, clearEndView, type EndPageNode, type EndRoot, endViewFor, endWritten, NO_END_VIEW } from '~/scene/bob/endView';
 import { idleRuns, needleRests } from '~/scene/bob/idle';
 import { journeyAt, journeyPoseAt, WORLD_PROJECTS } from '~/scene/bob/journey';
-import { ease, sheetBlack } from '~/scene/bob/worldPath';
+import { sheetBlack } from '~/scene/bob/worldPath';
 import { easeHover, hoversAt, pointerMode } from '~/scene/bob/voidPose';
 import { phaseChangeDraws } from '~/scene/motion';
 import { HOME_CHAPTERS, scrollEnd, lookStop } from '~/state/chapters';
@@ -387,9 +387,6 @@ describe('applyEndView: Home writes the end view each frame, only on change', ()
 });
 
 describe('the scene sleeps as soon as the story rests at the end', () => {
-  /** What Home writes into `motion.compass` with the needle settled: its idle is over unless the idle motion runs. */
-  const stillness = (runs: boolean) => ({ ...AT_REST, idle: !runs, needle: 0, needleSpeed: 0 });
-
   it('puts a needle still swinging from the home at rest on the first frame at the end, so the compass asks for no frame (Ruling 19)', () => {
     // A pointer moved at the home just before End: the needle swings from 0 toward 1.2 rad (NEEDLE_SPRING settles in
     // about 3.5 s), and the move to the end page takes about 1.4 s. Each frame as Home runs it: the rule, then the step.

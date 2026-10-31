@@ -21,9 +21,6 @@ import {
   wayNeedle,
   wayShot,
 } from '../../../src/scene/bob/lightDive';
-import { journeyPoseAt } from '../../../src/scene/bob/journey';
-import { LAND_HIT, makeWorldPath } from '../../../src/scene/bob/worldPath';
-import { placeOfFrame } from '../../../src/state/chapters';
 
 type Vec3 = readonly [number, number, number];
 const HERE = fileURLToPath(new URL('.', import.meta.url));

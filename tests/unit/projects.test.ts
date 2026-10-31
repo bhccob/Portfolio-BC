@@ -162,7 +162,7 @@ describe('projects', () => {
       expect(text, locale).not.toMatch(/client work|for a client|klantwerk|voor een klant|opdracht/i);
       expect(text, locale).not.toMatch(/rewards/i);
     }
-    expect(JSON.stringify(jontai)).not.toMatch(/jontaienergy\.com/i);
+    expect(JSON.stringify(jontai).toLowerCase()).not.toContain('jontaienergy.com');
   });
 
   it('say Cookies Clicker is a school project for Web Game Development, made with "a classmate" at most', () => {

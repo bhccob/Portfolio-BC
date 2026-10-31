@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { engravedLevels } from '~/scene/bob/engravedWay';
 import { journeyPoseAt } from '~/scene/bob/journey';
 import { fallStarsLevel, NEBULA, nebulaLevels } from '~/scene/bob/nebulaWay';
-import { makeWorldPath, type WorldPart } from '~/scene/bob/worldPath';
-import { buildChapters, HOME_CHAPTERS, pathStart, LAND_STOP } from '~/state/chapters';
+import type { WorldPart } from '~/scene/bob/worldPath';
+import { HOME_CHAPTERS, pathStart, LAND_STOP } from '~/state/chapters';
 
 const L = pathStart(HOME_CHAPTERS);
 const fall = (frame: number) => nebulaLevels({ stretch: 'light', frame }, null);

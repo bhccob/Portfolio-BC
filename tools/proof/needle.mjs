@@ -358,11 +358,10 @@ const { Translator, locales } = await tsImport('../../src/i18n/Translator.ts', i
 const { HANDLES, PAGE_KINDS } = await tsImport('../../src/app/handle.ts', import.meta.url);
 const { MIN_FILL_MS, SEND_TIMEOUT_MS } = await tsImport('../../src/ui/contactSubmit.ts', import.meta.url);
 const { LOAD_TIMEOUT_MS, RESTORE_TIMEOUT_MS } = await tsImport('../../src/scene/timeouts.ts', import.meta.url);
-const { HOME_CHAPTERS, WORLD_LAYOUT, areaStop, areasOnPath, chapterAt, keyStops, pathStart, placeOfFrame, qaStop, scrollEnd, lookStop, stops, worldStop } = await tsImport('../../src/state/chapters.ts', import.meta.url);
+const { HOME_CHAPTERS, WORLD_LAYOUT, areaStop, areasOnPath, chapterAt, keyStops, pathStart, placeOfFrame, qaStop, scrollEnd, lookStop, worldStop } = await tsImport('../../src/state/chapters.ts', import.meta.url);
 const { SETTLE_SLOP_PX } = await tsImport('../../src/input/target.ts', import.meta.url);
 const { RING_MARKS } = await tsImport('../../src/data/qa.ts', import.meta.url);
 const { QA_LOCK_MS } = await tsImport('../../src/input/scrollLoop.ts', import.meta.url);
-const { RING_DRAG_PX } = await tsImport('../../src/input/ringDrag.ts', import.meta.url);
 const { GESTURE_GAP_MS } = await tsImport('../../src/input/gesture.ts', import.meta.url);
 const { LOADER, LOADER_SEEN_KEY, QUICK, SCRIPT } = await tsImport('../../src/engine/bob/loaderTimeline.ts', import.meta.url);
 const { IDLE_SECONDS, BREATHE } = await tsImport('../../src/scene/bob/look.ts', import.meta.url);
@@ -372,7 +371,7 @@ const { FLIGHT_MS } = await tsImport('../../src/scene/bob/focus.ts', import.meta
 const { applyCameraShot, topShotFor } = await tsImport('../../src/engine/bob/shots.ts', import.meta.url);
 const { PAGE_SPOT } = await tsImport('../../src/scene/bob/spot.ts', import.meta.url);
 const { WORDMARK } = await tsImport('../../src/engine/bob/wordmark.ts', import.meta.url);
-const { WORLD_PROJECTS, journeyAt, journeyPoseAt } = await tsImport('../../src/scene/bob/journey.ts', import.meta.url);
+const { journeyAt, journeyPoseAt } = await tsImport('../../src/scene/bob/journey.ts', import.meta.url);
 const { RISE_TOP, LANDING_HOLD, landingHoldFor } = await tsImport('../../src/scene/bob/landingHold.ts', import.meta.url);
 const { categories } = await tsImport('../../src/data/categories.ts', import.meta.url);
 const { engravedLevels } = await tsImport('../../src/scene/bob/engravedWay.ts', import.meta.url);
@@ -1291,7 +1290,7 @@ async function phoneMenu(browser, step) {
 }
 
 /** The copy of a heading as text: the dictionaries' only markup is <em>. */
-const plain = (copy) => copy.replace(/<[^>]*>/g, '');
+const plain = (copy) => copy.replace(/<[^>]*>/g, '').replace(/[<>]/g, '');
 const LITE = { nl: '/lite/', en: '/en/lite/' };
 const CONTACT = { nl: '/contact/', en: '/en/contact/' };
 
@@ -2872,6 +2871,9 @@ async function stills(browser, step) {
  * than once.
  */
 const LOAD_THROW_AT = '.initTexture(';
+/** `text` as a JavaScript string literal safe inside a script: JSON's, with <, >, / and the line separators escaped. */
+const scriptString = (text) =>
+  JSON.stringify(text).replace(/[<>/\u2028\u2029]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
 const LOAD_THROW_MESSAGE = 'load-throw: the proof makes the compass load throw';
 
 /**
@@ -2892,7 +2894,7 @@ async function loadThrow(browser, step) {
     patched++;
     await route.fulfill({
       response,
-      body: body.replace(LOAD_THROW_AT, `${LOAD_THROW_AT}(() => { throw new Error(${JSON.stringify(LOAD_THROW_MESSAGE)}); })(), `),
+      body: body.replace(LOAD_THROW_AT, `${LOAD_THROW_AT}(() => { throw new Error(${scriptString(LOAD_THROW_MESSAGE)}); })(), `),
     });
   });
   const started = Date.now();
@@ -4470,7 +4472,7 @@ async function storm(browser, step) {
   const summary = [];
   for (const size of STILL_SIZES) {
     const at = sizeName(size);
-    const { context, page, touch } = await readyHome(browser, step, size);
+    const { context, page } = await readyHome(browser, step, size);
     await poseAt(page, 0);
     // In once its plates are, faded in over STORM.fadeIn.
     const came = await page.waitForFunction((home) => { const st = window.__needleDebug().journey.storm; return st !== null && st.sky >= home - 1e-9 && st.flats >= 1 - 1e-9; }, STORM.sky.home, { timeout: 15_000 }).then(() => true, () => false);
@@ -4486,7 +4488,7 @@ async function storm(browser, step) {
     const glare = Math.max(await clippedShare(browser, a, GLARE.box, GLARE.luma), await clippedShare(browser, b, GLARE.box, GLARE.luma));
     step.check(glare <= GLARE.share, `${at}: no glare on the compass, ${(glare * 100).toFixed(3)}% of its box near white (at most ${GLARE.share * 100}%)`);
     // Past the clouds coming in (way frame 95), the storm at its fall light.
-    s = (await poseAt(page, placeOfFrame(110))).journey.storm;
+    await poseAt(page, placeOfFrame(110));
     await page.waitForTimeout(300);
     s = (await debugOf(page)).journey.storm;
     step.check(near(s.sky, STORM.sky.fall, 1e-3) && s.flats === 0 && s.moving === true, `${at}: in the fall (way frame 110) its sky at ${STORM.sky.fall}, no flats, moving (${JSON.stringify(s)})`);
@@ -5700,26 +5702,6 @@ async function voidFail(browser, step) {
 
 // ---------------------------------------------------------------- the end page
 
-/**
- * The page's own scroll once it has stopped moving (the browser's smooth scroll of a wheel or a key, a finger's fling):
- * `window.scrollY` unchanged for 200 ms, waited for up to 4 s. By timers alone: no requestAnimationFrame of the harness's.
- */
-const scrollSettled = (page) =>
-  page.evaluate(async () => {
-    const began = performance.now();
-    let last = window.scrollY;
-    let still = began;
-    while (performance.now() - began < 4_000) {
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      if (window.scrollY !== last) {
-        last = window.scrollY;
-        still = performance.now();
-      } else if (performance.now() - still >= 200) break;
-    }
-    return window.scrollY;
-  });
-
-
 // ---------------------------------------------------------------- the light dive, its facts, the ring, its drag and the sheet
 
 /** The light dive's sizes: a laptop, a short laptop and a phone (touch, coarse pointer, two device pixels). */
@@ -6788,13 +6770,6 @@ const ringRestsAt = (page, k, ms = 6_000) => {
     )
     .then(() => Date.now() - began, () => null);
 };
-
-/** The story's target once the scroll has taken the input before it: two frames on. */
-const targetNow = (page) =>
-  page.evaluate(async () => {
-    for (let i = 0; i < 2; i++) await new Promise((resolve) => requestAnimationFrame(resolve));
-    return window.__needleDebug().target;
-  });
 
 /** Whether the open question is question `k`'s in `t` (the dictionary's): its count, its question and its answer, or the placeholder. */
 const answerIs = (shown, k, t) => {

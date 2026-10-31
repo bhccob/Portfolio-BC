@@ -4,7 +4,7 @@
 // forwards the visitor with <meta http-equiv="refresh">, names its target in a
 // canonical link, and stays out of search results. They are generated, never
 // kept in public/, and take the same policy as every other page (postbuild.mjs).
-import { access, mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { redirects } from '../../src/data/redirects.ts';
 
@@ -66,13 +66,12 @@ export function stubFile(from) {
 export async function writeRedirects(dist) {
   for (const redirect of redirects) {
     const file = join(dist, stubFile(redirect.from));
-    const exists = await access(file).then(
-      () => true,
-      () => false,
-    );
-    if (exists) throw new Error(`redirect ${redirect.from} would overwrite a built page (${file})`);
     await mkdir(dirname(file), { recursive: true });
-    await writeFile(file, stubHtml(redirect), 'utf8');
+    // Written only if no file is there (flag "wx"), in the one call, so nothing can come between a check and the write.
+    await writeFile(file, stubHtml(redirect), { encoding: 'utf8', flag: 'wx' }).catch((error) => {
+      if (error?.code === 'EEXIST') throw new Error(`redirect ${redirect.from} would overwrite a built page (${file})`);
+      throw error;
+    });
   }
   return redirects.length;
 }

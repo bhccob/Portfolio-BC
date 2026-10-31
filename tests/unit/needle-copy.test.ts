@@ -1,8 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { categories } from '../../src/data/categories';
-import { projects } from '../../src/data/projects';
 import { en } from '../../src/i18n/en';
 import { nl } from '../../src/i18n/nl';
 import type { Locale } from '../../src/i18n/Translator';
@@ -101,7 +99,7 @@ describe('the needle dictionary', () => {
   });
 
   it('never links the other company’s site as Bob’s', () => {
-    for (const locale of locales) expect(JSON.stringify(dictionaries[locale].needle)).not.toMatch(/jontaienergy\.com/i);
+    for (const locale of locales) expect(JSON.stringify(dictionaries[locale].needle).toLowerCase()).not.toContain('jontaienergy.com');
   });
 });
 

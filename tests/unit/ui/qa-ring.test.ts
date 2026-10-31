@@ -21,7 +21,7 @@ const parts = (path: string, t: Dictionary, questions: EndQuestions = t.end.ques
   renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: [path] }, createElement(QaRingParts, { questions })));
 const textOf = (html: string): string =>
   html
-    .replace(/<[^>]*>/g, '')
+    .replace(/<[^>]*>/g, '').replace(/[<>]/g, '')
     .replace(/&#x27;/g, "'")
     .replace(/&amp;/g, '&')
     .replace(/\s+/g, ' ')

@@ -288,7 +288,8 @@ class Rule(ABC):
         return page.indexable
 
     @abstractmethod
-    def check(self, page: Page, site: Site) -> list[Issue]: ...
+    def check(self, page: Page, site: Site) -> list[Issue]:
+        """The issues this rule finds on `page` of `site`."""
 
     def error(self, page: Page, message: str) -> Issue:
         return Issue(Severity.ERROR, page.url_path, self.name, message)

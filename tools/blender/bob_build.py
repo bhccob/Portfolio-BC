@@ -625,6 +625,7 @@ for v in ('BLOOM', 'Bloom'):
         gl.inputs['Type'].default_value = v
         break
     except Exception:
+        # This Blender names the glare type otherwise: try the next spelling.
         pass
 gl.inputs['Threshold'].default_value = 0.7
 gl.inputs['Strength'].default_value = 0.55
