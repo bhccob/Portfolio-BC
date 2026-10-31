@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { links } from '~/app/root';
+import { stripMarkup } from '~/ui/Markup';
 
 const path = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
 const read = (p: string): string => readFileSync(path(p), 'utf8');
@@ -39,6 +40,6 @@ describe("the site's icons and the README: Bob's logo", () => {
     }
     // Nothing else: no headings and no prose.
     expect(readme).not.toMatch(/^#/m);
-    expect(readme.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()).toBe('bhccob.com');
+    expect(stripMarkup(readme).replace(/\s+/g, ' ').trim()).toBe('bhccob.com');
   });
 });
