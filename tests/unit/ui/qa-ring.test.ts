@@ -285,6 +285,30 @@ describe("the ring's end", () => {
     expect(body('.qa-frame', ['@media (max-height: 760px) and (min-width: 701px)'])).not.toMatch(/transform/);
   });
 
+  // Round 12 (Bob, 2026-10-31: "add a background style to the Q&A"; shown two, he picked "B · dark panel, gold corners").
+  it('sets the list on a dark panel with gold corners, the scene blurred under it', () => {
+    expect(body('.qa-frame::before')).toMatch(/background:\s*linear-gradient\(180deg, rgb\(8 5 16 \/ [\d.]+\), rgb\(8 5 16 \/ [\d.]+\)\)/);
+    expect(body('.qa-frame::before')).toMatch(/(^|[;\s])backdrop-filter:\s*blur\(\d+px\)/);
+    expect(body('.qa-frame::before')).toMatch(/-webkit-backdrop-filter:\s*blur\(\d+px\)/);
+    expect(body('.qa-frame::before')).toMatch(/border:\s*1px solid rgb\(226 165 74 \/ 0\.16\)/);
+    expect(body('.qa-frame::before')).not.toMatch(/radial-gradient/);
+    // Four gold corners, each two short strokes.
+    const corners = body('.qa-frame::after');
+    expect(corners).toMatch(/content:\s*''/);
+    for (const corner of ['top left', 'top right', 'bottom left', 'bottom right']) {
+      expect(corners).toContain(`${corner} / 28px 2px no-repeat`);
+      expect(corners).toContain(`${corner} / 2px 28px no-repeat`);
+    }
+    // The panel and its corners stand round the list, inside a phone's screen (the list is 20px from each side there).
+    expect(body('.qa-frame::before')).toMatch(/inset:\s*-30px -36px/);
+    expect(body('.qa-frame::after')).toMatch(/inset:\s*-30px -36px/);
+    expect(body('.qa-frame::before', PHONE)).toMatch(/inset:\s*-16px -12px/);
+    expect(body('.qa-frame::after', PHONE)).toMatch(/inset:\s*-16px -12px/);
+    // At the end the circle stands alone: no panel, no corners.
+    expect(body('html[data-qa-end] .qa-frame::before')).toMatch(/display:\s*none/);
+    expect(body('html[data-qa-end] .qa-frame::after')).toMatch(/display:\s*none/);
+  });
+
   // Reduced motion only stills the list's slide: it stays where its screen puts it (a phone's at the foot).
   it('stills the slide with reduced motion and leaves the list where its screen has it', () => {
     expect(body('.qa-frame', REDUCED)).toMatch(/--qa-slide:\s*0px/);

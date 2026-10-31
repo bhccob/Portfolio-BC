@@ -2351,14 +2351,35 @@ html[data-qa] .qa-frame {
   line-height: 1.6;
 }
 
-/* A soft dark under the words, so they read over the stack and the ring without a box round them. */
-.qa-frame::before {
+/* Round 12 (Bob, 2026-10-31: "add a background style to the Q&A"; he picked "B · dark panel, gold corners"): the list on
+   a dark panel, the scene blurred under it, a faint gold edge and a short gold stroke each way at each corner. */
+.qa-frame::before,
+.qa-frame::after {
   content: '';
   position: absolute;
-  inset: -70px -90px;
+  inset: -30px -36px;
   z-index: -1;
-  background: radial-gradient(closest-side, rgb(4 2 9 / 0.88), rgb(4 2 9 / 0.62) 60%, rgb(4 2 9 / 0));
   pointer-events: none;
+}
+
+.qa-frame::before {
+  background: linear-gradient(180deg, rgb(8 5 16 / 0.84), rgb(8 5 16 / 0.72));
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgb(226 165 74 / 0.16);
+}
+
+.qa-frame::after {
+  --qa-corner: rgb(240 190 110 / 0.95);
+  background:
+    linear-gradient(var(--qa-corner), var(--qa-corner)) top left / 28px 2px no-repeat,
+    linear-gradient(var(--qa-corner), var(--qa-corner)) top left / 2px 28px no-repeat,
+    linear-gradient(var(--qa-corner), var(--qa-corner)) top right / 28px 2px no-repeat,
+    linear-gradient(var(--qa-corner), var(--qa-corner)) top right / 2px 28px no-repeat,
+    linear-gradient(var(--qa-corner), var(--qa-corner)) bottom left / 28px 2px no-repeat,
+    linear-gradient(var(--qa-corner), var(--qa-corner)) bottom left / 2px 28px no-repeat,
+    linear-gradient(var(--qa-corner), var(--qa-corner)) bottom right / 28px 2px no-repeat,
+    linear-gradient(var(--qa-corner), var(--qa-corner)) bottom right / 2px 28px no-repeat;
 }
 
 .qa-count {
@@ -2410,6 +2431,11 @@ html[data-qa] .qa-frame {
   .qa-frame {
     width: calc(100vw - 40px);
     transform: translate(20px, calc(100dvh - 100% - 72px + (1 - var(--qa-show, 0)) * var(--qa-slide, 12px)));
+  }
+
+  .qa-frame::before,
+  .qa-frame::after {
+    inset: -16px -12px;
   }
 
   .qa-ask {
@@ -2539,7 +2565,8 @@ html[data-qa-end] .qa-frame {
   text-align: center;
 }
 
-html[data-qa-end] .qa-frame::before {
+html[data-qa-end] .qa-frame::before,
+html[data-qa-end] .qa-frame::after {
   display: none;
 }
 
