@@ -72,7 +72,12 @@ export function flightTravel(s: number): number {
 export function starDepth(z0: number, travel: number, k: number): { z: number; again: boolean } {
   const z = z0 - travel;
   if (z >= 0.08) return { z, again: false };
-  return { z: 1.8 + hash01(k, 31) * 1.4 - (0.08 - z), again: true };
+  return { z: aheadAgain(k) - (0.08 - z), again: true };
+}
+
+/** How far ahead star `k` comes round again once the flight is past it, 1.8 to 3.2 (`starDepth`). */
+export function aheadAgain(k: number): number {
+  return 1.8 + hash01(k, 31) * 1.4;
 }
 
 /** The circle on a screen of `size` (CSS px): round its middle on a laptop (360 px at 1440x900); higher and smaller on a phone. */

@@ -236,11 +236,26 @@ describe("the ring's end", () => {
     expect(p.attributes.has('data-qa-end')).toBe(false);
   });
 
-  it('holds the dark and the circle in its markup, unread by screen readers', () => {
+  // Round 14 (the way out): the sky, its stars and its circle, on one canvas the scene draws; the end apart from the list.
+  it('draws the sky on one canvas under the list, unread by screen readers, and has no dark or circle of its own', () => {
     for (const [path, t] of LOCALES) {
       const html = parts(path, t);
-      expect(html).toContain('<span class="qa-veil" aria-hidden="true"></span>');
-      expect(html).toContain('<span class="qa-seal" aria-hidden="true"></span>');
+      expect(html).toContain('<canvas class="qa-sky" aria-hidden="true"></canvas>');
+      expect(html.indexOf('qa-sky')).toBeLessThan(html.indexOf('qa-frame'));
+      expect(html).not.toMatch(/qa-veil|qa-seal/);
+    }
+  });
+
+  it('stands the end apart from the list, in the middle of the screen', () => {
+    for (const [path, t] of LOCALES) expect(parts(path, t)).toMatch(/<\/ol><\/div><article class="qa-answer qa-end" data-k="\d+" hidden="">/);
+  });
+
+  it("puts Bob's chbc mark over the end's words, in white, unread by screen readers", () => {
+    for (const [path, t] of LOCALES) {
+      const end = parts(path, t).slice(parts(path, t).indexOf('class="qa-answer qa-end"'));
+      expect(end).toMatch(/^class="qa-answer qa-end" data-k="\d+" hidden=""><span class="qa-end-mark" aria-hidden="true"><svg/);
+      expect(end).toContain('fill="#fff"');
+      expect(end).toContain('d="M44 184C45.68 183.93');
     }
   });
 
@@ -280,35 +295,48 @@ describe("the ring's end", () => {
   const PHONE = ['@media (max-width: 700px)'];
   const REDUCED = ['@media (prefers-reduced-motion: reduce)'];
 
-  it('draws the circle at the end', () => {
-    expect(body('.qa-veil')).toMatch(/background:\s*rgb\(4 2 9 \/ 0\.9\)/);
-    expect(body('.qa-veil')).toMatch(/opacity:\s*0\b/);
-    expect(body('.qa-veil')).toMatch(/transition:\s*opacity 1\.4s/);
-    expect(body('html[data-qa-end] .qa-veil')).toMatch(/opacity:\s*1\b/);
-    expect(body('.qa-seal')).toMatch(/width:\s*min\(88vmin, 720px\)/);
-    expect(body('.qa-seal')).toMatch(/border:\s*2px solid/);
-    expect(body('.qa-seal')).toMatch(/border-radius:\s*50%/);
-    expect(body('.qa-seal')).toMatch(/mask:\s*conic-gradient\(#000 var\(--qa-draw\), transparent 0\)/);
-    expect(body('html[data-qa-end] .qa-seal')).toMatch(/animation:\s*qa-draw 2\.2s [^;]* 0\.4s both/);
-    expect(base).toMatch(/@property --qa-draw\s*\{[^}]*syntax:\s*'<angle>'/);
-    expect(base).toMatch(/@keyframes qa-draw\s*\{\s*from\s*\{\s*--qa-draw:\s*0deg;?\s*\}\s*to\s*\{\s*--qa-draw:\s*360deg;?\s*\}/);
-    // The words in the middle, inside the circle; the marks' numbers gone; the buttons centred.
-    expect(body('html[data-qa-end] .qa-frame')).toMatch(/width:\s*min\(440px, calc\(100vw - 40px\)\)/);
-    expect(body('html[data-qa-end] .qa-frame')).toMatch(/transform:\s*translate\(calc\(50vw - 50%\), calc\(50dvh - 50%\)\)/);
-    expect(body('html[data-qa-end] .qa-list')).toMatch(/opacity:\s*0\b/);
-    expect(body('html[data-qa-end] .qa-buttons')).toMatch(/justify-content:\s*center/);
-    // On a phone the circle above the words, the words at the foot.
-    expect(body('html[data-qa-end] .qa-seal', PHONE)).toMatch(/top:\s*31%/);
-    expect(body('html[data-qa-end] .qa-seal', PHONE)).toMatch(/width:\s*64vw/);
-    // On the screen a phone shows, never under its browser's toolbar (100vh is the screen with the toolbar gone).
-    expect(body('html[data-qa-end] .qa-frame', PHONE)).toMatch(/transform:\s*translate\(calc\(50vw - 50%\), calc\(100dvh - 100% - 8dvh\)\)/);
+  // Round 14 (the way out, the mock-up's end): the words in the middle of the calm sky, each part in a little after the one
+  // above, blurred in; Bob's mark over them with a thin ring growing round it as the flight slows.
+  it('stands the end in the middle of the screen, its parts coming in one after another', () => {
+    const end = body('.qa-end');
+    expect(end).toMatch(/position:\s*fixed/);
+    expect(end).toMatch(/left:\s*50%/);
+    expect(end).toMatch(/top:\s*50%/);
+    expect(end).toMatch(/translate:\s*-50% -50%/);
+    expect(end).toMatch(/width:\s*min\(470px, calc\(100vw - 40px\)\)/);
+    expect(end).toMatch(/text-align:\s*center/);
+    expect(body('.qa-end > *')).toMatch(/transition:\s*opacity 1s ease,\s*translate 1\.2s cubic-bezier\([^)]+\),\s*filter 1s ease/);
+    expect(base).toMatch(/@starting-style\s*\{\s*\.qa-end:not\(\[hidden\]\) > \*\s*\{[^}]*opacity:\s*0;[^}]*translate:\s*0 16px;[^}]*filter:\s*blur\(4px\)/);
+    expect([2, 3, 4, 5].map((n) => body(`.qa-end > :nth-child(${n})`).trim())).toEqual([0.18, 0.36, 0.58, 0.85].map((d) => `transition-delay: ${d}s;`));
+    expect(body('.qa-end .qa-count')).toMatch(/letter-spacing:\s*0\.32em/);
+    expect(body('.qa-end .qa-count')).toMatch(/text-transform:\s*uppercase/);
+    expect(body('.qa-end .qa-question')).toMatch(/font-size:\s*26px/);
+    expect(body('.qa-end .qa-question')).toMatch(/letter-spacing:\s*0\.18em/);
+    expect(body('.qa-end .qa-text')).toMatch(/font-size:\s*21px/);
+    expect(body('.qa-end .qa-buttons')).toMatch(/justify-content:\s*center/);
+    // The mark 52 px, as it is (white, no effect on it); the ring round it a thing of its own, grown from 4 px to 42.
+    expect(body('.qa-end-mark')).toMatch(/width:\s*52px/);
+    expect(body('.qa-end-mark')).not.toMatch(/filter|shadow|opacity/);
+    const ring = body('.qa-end-mark::before');
+    expect(ring).toMatch(/width:\s*84px/);
+    expect(ring).toMatch(/border:\s*1\.2px solid rgb\(226 165 74 \/ 0\.75\)/);
+    expect(ring).toMatch(/border-radius:\s*50%/);
+    expect(base).toMatch(/@starting-style\s*\{\s*\.qa-end:not\(\[hidden\]\) \.qa-end-mark::before\s*\{[^}]*scale:\s*0\.095/);
+    // No dark or circle of its own: the sky has them.
+    expect(base).not.toMatch(/qa-veil|qa-seal|--qa-draw/);
   });
 
-  // A mark's button takes the pointer whatever its list does (pointer-events: auto), so at the end the numbers go out of
-  // reach as well as out of sight: no invisible button for Tab or a click (visibility, after their fade).
+  // A question's button takes the pointer whatever its list does (pointer-events: auto), so at the end the list, long faded
+  // as the flight set off, goes out of reach as well as out of sight: no invisible button for Tab or a click.
   it('takes the list out of reach at the end, not only out of sight', () => {
-    expect(body('html[data-qa-end] .qa-list')).toMatch(/visibility:\s*hidden/);
-    expect(body('html[data-qa-end] .qa-list')).toMatch(/transition:\s*opacity 0\.6s ease,\s*visibility 0s linear 0\.6s/);
+    expect(body('html[data-qa-end] .qa-frame')).toMatch(/visibility:\s*hidden/);
+  });
+
+  // Round 14: as the flight sets off the list drifts toward the camera and blurs away (the mock-up's `.panel.past`).
+  it('drifts the list toward the camera and blurs it as the flight sets off', () => {
+    expect(body('.qa-frame')).toMatch(/scale:\s*calc\(1 \+ 0\.08 \* var\(--qa-past, 0\)\)/);
+    expect(body('.qa-frame')).toMatch(/filter:\s*blur\(calc\(6px \* var\(--qa-past, 0\)\)\)/);
+    expect(body('.qa-frame')).toMatch(/transform-origin:\s*30% 20%/);
   });
 
   // Round 10: the list stands at the right of a laptop's screen, under the tower on a phone, wherever the ring's marks are.
@@ -340,10 +368,9 @@ describe("the ring's end", () => {
   });
 
   // Round 12 (Bob, 2026-10-31: "add a background style to the Q&A"; shown two, he picked "B · dark panel, gold corners").
-  it('sets the list on a dark panel with gold corners, the scene blurred under it', () => {
-    expect(body('.qa-frame::before')).toMatch(/background:\s*linear-gradient\(180deg, rgb\(8 5 16 \/ [\d.]+\), rgb\(8 5 16 \/ [\d.]+\)\)/);
-    expect(body('.qa-frame::before')).toMatch(/(^|[;\s])backdrop-filter:\s*blur\(\d+px\)/);
-    expect(body('.qa-frame::before')).toMatch(/-webkit-backdrop-filter:\s*blur\(\d+px\)/);
+  it('sets the list on a dark panel with gold corners over the stars, no blur under it (the mock-up\'s)', () => {
+    expect(body('.qa-frame::before')).toMatch(/background:\s*linear-gradient\(180deg, rgb\(8 5 16 \/ 0\.84\), rgb\(8 5 16 \/ 0\.72\)\)/);
+    expect(body('.qa-frame::before')).not.toMatch(/backdrop-filter/);
     expect(body('.qa-frame::before')).toMatch(/border:\s*1px solid rgb\(226 165 74 \/ 0\.16\)/);
     expect(body('.qa-frame::before')).not.toMatch(/radial-gradient/);
     // Four gold corners, each two short strokes.
@@ -358,18 +385,16 @@ describe("the ring's end", () => {
     expect(body('.qa-frame::after')).toMatch(/inset:\s*-30px -36px/);
     expect(body('.qa-frame::before', PHONE)).toMatch(/inset:\s*-16px -12px/);
     expect(body('.qa-frame::after', PHONE)).toMatch(/inset:\s*-16px -12px/);
-    // At the end the circle stands alone: no panel, no corners.
-    expect(body('html[data-qa-end] .qa-frame::before')).toMatch(/display:\s*none/);
-    expect(body('html[data-qa-end] .qa-frame::after')).toMatch(/display:\s*none/);
   });
 
-  // Round 12 (Bob, 2026-10-31: "i meant more blurry in the Q&A area"; shown two, he picked "2 · the whole background
-  // blurry").
-  it('blurs the whole scene while the Q&A shows, coming and going with it', () => {
-    expect(body('html[data-qa] .scene-host canvas')).toMatch(/filter:\s*blur\(7px\)/);
-    expect(body('.scene-host canvas')).not.toMatch(/filter:\s*blur/);
-    expect(body('.scene-host canvas')).toMatch(/transition:\s*opacity 0\.9s var\(--ease-reveal\),\s*filter 0\.8s ease/);
-    expect(body('.scene-host canvas', REDUCED)).toMatch(/transition:\s*none/);
+  // Round 14: the sky covers the scene where round 12 blurred it.
+  it('lays the sky over the whole screen, the scene under it unblurred', () => {
+    expect(body('.qa-sky')).toMatch(/position:\s*absolute/);
+    expect(body('.qa-sky')).toMatch(/inset:\s*0/);
+    expect(body('.qa-sky')).toMatch(/width:\s*100%/);
+    expect(body('.qa-sky')).toMatch(/height:\s*100%/);
+    expect(body('html[data-qa] .scene-host canvas')).toBe('');
+    expect(body('.scene-host canvas')).not.toMatch(/filter/);
   });
 
   // Round 13 (Bob picked "C · The light"): a thin gold line beside the list and the light on it, at the place the scene
@@ -383,7 +408,6 @@ describe("the ring's end", () => {
     expect(body('.qa-light::before')).toMatch(/height:\s*0/);
     expect(body("html[data-qa-moving='down'] .qa-light::before")).toMatch(/height:\s*64px/);
     expect(body("html[data-qa-moving='up'] .qa-light::before")).toMatch(/top:\s*4px/);
-    expect(body('html[data-qa-end] .qa-rail')).toMatch(/display:\s*none/);
     expect(body('.qa-reply')).toMatch(/transition:[^;]*display 0\.4s allow-discrete/);
     expect(body('.qa-list')).toMatch(/interpolate-size:\s*allow-keywords/);
     expect(base).toMatch(/@starting-style\s*\{\s*\.qa-reply:not\(\[hidden\]\)\s*\{[^}]*height:\s*0/);
@@ -398,16 +422,15 @@ describe("the ring's end", () => {
     for (const groups of [[], PHONE, ['@media (max-height: 940px) and (min-width: 701px)']]) expect(body('.qa-frame', groups)).toMatch(/var\(--qa-slide, 12px\)/);
   });
 
-  it('draws nothing with reduced motion', () => {
-    expect(body('html[data-qa-end] .qa-seal', REDUCED)).toMatch(/animation:\s*none/);
-    expect(body('html[data-qa-end] .qa-seal', REDUCED)).toMatch(/--qa-draw:\s*360deg/);
-    expect(body('.qa-veil', REDUCED)).toMatch(/transition:\s*none/);
+  it('brings the end in at once with reduced motion, its ring whole', () => {
+    expect(body('.qa-end > *', REDUCED)).toMatch(/transition:\s*none/);
+    expect(body('.qa-end-mark::before', REDUCED)).toMatch(/transition:\s*none/);
   });
 
-  // The Q&A stands over the header (z-index 3 against its 2), so the dark lies over it too; a link of the header that has
-  // the keyboard must not be hidden under it (WCAG 2.4.11), as on a project's page (html[data-inside]).
-  it('lifts the header over the dark while the keyboard is in it', () => {
+  // The Q&A stands over <main>'s page (z-index 3), its sky over everything else; the header stands over the sky while the
+  // Q&A shows, as the mock-up had it, so its links are never hidden under it (WCAG 2.4.11).
+  it('stands the header over the sky while the Q&A shows', () => {
     expect(body('.qa')).toMatch(/z-index:\s*3\b/);
-    expect(body('html[data-qa-end] .site-header:focus-within')).toMatch(/z-index:\s*4\b/);
+    expect(body('html[data-qa] .site-header')).toMatch(/z-index:\s*4\b/);
   });
 });

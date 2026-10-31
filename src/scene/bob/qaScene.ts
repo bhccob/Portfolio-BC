@@ -3,10 +3,15 @@
  * place in the Q&A and the way out's stage there (./wayOut.ts), on the page the list of questions (round 10, Bob picked
  * "A · One list"), the one it stands at open, none on the way between two while the gold light runs down the list to the
  * next (round 13, Bob picked "C · The light"); the list coming in late in the blueprint and drifting toward the camera as
- * the flight sets off, the end's words from the flight's 2.8 s (src/ui/qaWriters.ts), only what has changed. The Void
- * makes it with the world and calls `pose` each frame, `hide` when the world goes off the screen, `dispose` with the world.
+ * the flight sets off, the end's words from the flight's 2.8 s (src/ui/qaWriters.ts), only what has changed; and the sky
+ * under it all (src/ui/outSky.ts), the frame grabbed for the blueprint's drawing (../frameGrab.ts) and the panel measured
+ * for its sparks. The Void makes it with the world and calls `pose` each frame, `hide` when the world goes off the screen,
+ * `dispose` with the world.
  */
+import type { QualityTier } from '~/engine/quality';
+import { makeOutSky, type OutSky, type SparkBoxes, sparkTargets } from '~/ui/outSky';
 import { clearQa, qaLightAnchors, qaLightY, type QaParts, qaWritten, writeQa, writeQaLight } from '~/ui/qaWriters';
+import { requestGrab } from '../frameGrab';
 import type { WayOutStretch } from './wayOut';
 import type { WorldFrame } from './worldPath';
 
@@ -16,9 +21,10 @@ export interface QaScenePose {
   path: WorldFrame | null;
   /** Whether the Q&A may show: the world on the home page, no project close. */
   on: boolean;
-  /** The world's clock, s. */
+  /** The world's clock, s: the stars' twinkle, still with reduced motion. */
   clock: number;
   reduced: boolean;
+  tier: QualityTier;
   /** The screen, CSS px. */
   size: { width: number; height: number };
   /** The page (null where there is none). */
@@ -54,10 +60,37 @@ interface Found {
   /** The questions' buttons, as laid out in the frame, and the light's places at them, measured once per screen. */
   asks: { offsetTop: number; offsetHeight: number }[];
   anchors: { key: string; at: number[] };
+  /** Each question's button and reply as elements, for the sparks' places; the sky, where the page has its canvas. */
+  elements: { ask: Element; reply: Element }[];
+  sky: OutSky | null;
 }
 
 /** A question is the one it stands at within this much of its mark. */
 const NEAR_MARK = 0.18;
+/** The panel's sparks have their places measured from here in the blueprint, s: the first answer long open, before they fly. */
+const MEASURE_AT = 2.6;
+/** The panel's dark round the list (src/styles/base.css `.qa-frame::before`), each way, px: a laptop's and a phone's. */
+const PANEL_INSET = { desk: { x: 36, y: 30 }, phone: { x: 12, y: 16 } } as const;
+
+/** The panel's parts on the screen for its sparks (src/ui/outSky.ts `sparkTargets`), the question `open` open; null unmeasurable. */
+function measurePanel(f: Found, open: number | null, size: { width: number }): SparkBoxes | null {
+  if (!f.frame) return null;
+  const frame = f.frame.getBoundingClientRect();
+  const inset = size.width <= 700 ? PANEL_INSET.phone : PANEL_INSET.desk;
+  const questions = f.elements.map(({ ask }) => {
+    const r = ask.getBoundingClientRect();
+    const range = ask.ownerDocument.createRange();
+    range.selectNodeContents(ask);
+    const text = range.getBoundingClientRect().width;
+    return { x: r.left, y: r.top, w: r.width, h: r.height, text: Math.min(text > 0 ? text : r.width * 0.6, r.width) };
+  });
+  const reply = open === null ? null : f.elements[open]?.reply.getBoundingClientRect();
+  return {
+    box: { x: frame.left - inset.x, y: frame.top - inset.y, w: frame.width + 2 * inset.x, h: frame.height + 2 * inset.y },
+    questions,
+    answer: reply && reply.height > 0 ? { x: reply.left, y: reply.top, w: reply.width, h: reply.height } : null
+  };
+}
 
 /** The Q&A's scene: the page's list, written from the path. */
 export function makeQaScene(): QaScene {
@@ -81,12 +114,15 @@ export function makeQaScene(): QaScene {
     }
     const frame = section.querySelector('.qa-frame') as unknown as Found['frame'] & QaParts['frame'];
     const items = [...section.querySelectorAll('.qa-item')];
+    const canvas = section.querySelector('.qa-sky') as HTMLCanvasElement | null;
     found = {
       section,
       frame,
       rail: section.querySelector('.qa-rail') as unknown as Found['rail'],
       asks: items.map((item) => item.querySelector('.qa-ask') as unknown as Found['asks'][number]),
       anchors: { key: '', at: [] },
+      elements: items.map((item) => ({ ask: item.querySelector('.qa-ask')!, reply: item.querySelector('.qa-reply')! })),
+      sky: canvas && typeof canvas.getContext === 'function' ? makeOutSky(canvas) : null,
       parts: {
         root: d.documentElement,
         section: section as unknown as { inert: boolean },
@@ -103,15 +139,17 @@ export function makeQaScene(): QaScene {
 
   const hide = (): void => {
     const f = found;
-    if (f) clearQa(f.parts, written);
-    else if (doc) clearQa({ root: doc.documentElement, section: null, frame: null, items: [], end: null }, written);
+    if (f) {
+      clearQa(f.parts, written);
+      f.sky?.clear();
+    } else if (doc) clearQa({ root: doc.documentElement, section: null, frame: null, items: [], end: null }, written);
     going.last = Number.NaN;
   };
 
   return {
     hide,
     lightOnScreen: () => light,
-    pose({ path, on, size, doc: d }) {
+    pose({ path, on, clock, reduced, tier, size, doc: d }) {
       const qa = path?.qa;
       const f = find(d);
       if (!on || !qa) {
@@ -146,6 +184,18 @@ export function makeQaScene(): QaScene {
           }
           if (resting && listed && Number.isFinite(box.rail)) light = { x: box.rail, y: box.y + qaLightY(f.anchors.at, nearest) };
         }
+        // The sky: the floor's drawing grabbed as the blueprint needs it (the scene still holds the floor under the dark),
+        // the panel measured for its sparks before they fly, and the whole drawn from the way out's stage.
+        const sky = f.sky;
+        if (sky && showing) {
+          if (out.stretch === 'blueprint' && !sky.hasEdges(size)) requestGrab((source, w, h) => sky.takeGrab(source, w, h, size));
+          const panelKey = `${key}:${written.open}`;
+          if (out.stretch === 'blueprint' && out.s >= MEASURE_AT && !sky.hasTargets(panelKey)) {
+            const boxes = measurePanel(f, written.open, size);
+            if (boxes) sky.setTargets(panelKey, sparkTargets(boxes));
+          }
+          sky.draw({ out, marks: questions + 1, clock: reduced ? 0 : clock, size, tier, light });
+        } else sky?.clear();
         return { place, stretch: out.stretch, s: out.s, at };
       }
       return { place, stretch: out.stretch, s: out.s, at: null };

@@ -244,17 +244,11 @@ body:has(.page-ghost):not(:has(main > .page)) .scene-host[data-ready]::after {
    the canvas fades in over it rather than show an empty studio first. */
 .scene-host canvas {
   opacity: 0;
-  transition: opacity 0.9s var(--ease-reveal), filter 0.8s ease;
+  transition: opacity 0.9s var(--ease-reveal);
 }
 
 .scene-host[data-ready] canvas {
   opacity: 1;
-}
-
-/* Round 12 (Bob, 2026-10-31: "i meant more blurry in the Q&A area"; he picked "2 · the whole background blurry"): while
-   the Q&A shows (<html data-qa>, src/ui/qaWriters.ts) the scene behind the list goes soft, coming and going with it. */
-html[data-qa] .scene-host canvas {
-  filter: blur(7px);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2255,12 +2249,13 @@ html[data-route='home'][data-3d='on'][data-skip] .skip-button {
   }
 }
 
-/* ---------- the Q&A's ring ---------- */
-/* The Q&A as a gold ring round the closing stack (spec 2026-10-29-bob-stack-2-design.md, goal 1); since round 10 (spec
-   2026-10-30-bob-qa-list-floors-design.md, Bob picked "A · One list") every question in one list beside the tower, at the
-   right of a laptop's screen and under the tower on a phone, over a soft dark; the open question's reply under it.
+/* ---------- the Q&A ---------- */
+/* The Q&A (spec 2026-10-29-bob-stack-2-design.md, goal 1); since round 10 (spec 2026-10-30-bob-qa-list-floors-design.md,
+   Bob picked "A · One list") every question in one list, at the right of a laptop's screen and at the foot of a phone's,
+   the open question's reply under it; since round 14 (the way out, spec 2026-10-31-bob-way-out-design.md) in the stars, the
+   sky under it drawn by the scene on its own canvas (src/ui/outSky.ts), the end apart in the middle of the screen.
    src/ui/QaRing.tsx renders the words with 3D on; the scene writes how much they show and which is open
-   (src/ui/qaWriters.ts): `<html data-qa>` while the Q&A shows, `--qa-show` on the frame, each question's
+   (src/ui/qaWriters.ts): `<html data-qa>` while the Q&A shows, `--qa-show` and `--qa-past` on the frame, each question's
    `aria-expanded` and its reply's `hidden`. */
 .qa {
   position: fixed;
@@ -2274,12 +2269,30 @@ html[data-qa] .qa {
   visibility: visible;
 }
 
+/* The header stands over the sky while the Q&A shows, as in the mock-up (main's page and the Q&A in it stand at 2 against
+   its 2, after it); its links are never hidden under the dark. */
+html[data-qa] .site-header {
+  z-index: 4;
+}
+
+.qa-sky {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* As the flight sets off (`--qa-past`, round 14) the list drifts toward the camera and blurs away (the mock-up's past). */
 .qa-frame {
   position: absolute;
   left: 0;
   top: 0;
   width: min(600px, calc(100vw - 40px));
   transform: translate(calc(100vw - 100% - max(56px, 7vw)), calc(18dvh + (1 - var(--qa-show, 0)) * var(--qa-slide, 12px)));
+  transform-origin: 30% 20%;
+  scale: calc(1 + 0.08 * var(--qa-past, 0));
+  filter: blur(calc(6px * var(--qa-past, 0)));
   opacity: var(--qa-show, 0);
   isolation: isolate;
 }
@@ -2347,10 +2360,6 @@ html[data-qa-moving='up'] .qa-light::before {
   bottom: auto;
   height: 64px;
   background: linear-gradient(rgb(255 236 190 / 0.95), transparent);
-}
-
-html[data-qa-end] .qa-rail {
-  display: none;
 }
 
 .qa-item {
@@ -2437,7 +2446,7 @@ html[data-qa-end] .qa-rail {
 }
 
 /* Round 12 (Bob, 2026-10-31: "add a background style to the Q&A"; he picked "B · dark panel, gold corners"): the list on
-   a dark panel, the scene blurred under it, a faint gold edge and a short gold stroke each way at each corner. */
+   a dark panel over the stars, a faint gold edge and a short gold stroke each way at each corner. */
 .qa-frame::before,
 .qa-frame::after {
   content: '';
@@ -2449,8 +2458,6 @@ html[data-qa-end] .qa-rail {
 
 .qa-frame::before {
   background: linear-gradient(180deg, rgb(8 5 16 / 0.84), rgb(8 5 16 / 0.72));
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
   border: 1px solid rgb(226 165 74 / 0.16);
 }
 
@@ -2494,11 +2501,6 @@ html[data-qa-end] .qa-rail {
   text-shadow: 0 1px 14px rgb(4 2 9 / 0.9);
 }
 
-.qa-end .qa-question {
-  font-size: 22px;
-  letter-spacing: 0.18em;
-}
-
 .qa-buttons {
   display: flex;
   flex-wrap: wrap;
@@ -2510,6 +2512,118 @@ html[data-qa-end] .qa-rail {
   gap: 10px;
   border-radius: 999px;
   background: rgb(4 2 9 / 0.5);
+}
+
+/* The end (round 14, the way out, the mock-up's): in the middle of the calm sky the flight leaves, Bob's chbc mark over
+   "Einde van de site", "Stuur een bericht." and Bob's line, the two buttons under them, each part in a little after the
+   one above, blurred in. A thin gold ring grows round the mark as the flight slows: a thing of its own, the mark itself
+   as the logo kit has it. */
+.qa-end {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width: min(470px, calc(100vw - 40px));
+  translate: -50% -50%;
+  text-align: center;
+  pointer-events: auto;
+}
+
+.qa-end > * {
+  transition: opacity 1s ease, translate 1.2s cubic-bezier(0.165, 0.84, 0.44, 1), filter 1s ease;
+}
+
+.qa-end > :nth-child(2) {
+  transition-delay: 0.18s;
+}
+
+.qa-end > :nth-child(3) {
+  transition-delay: 0.36s;
+}
+
+.qa-end > :nth-child(4) {
+  transition-delay: 0.58s;
+}
+
+.qa-end > :nth-child(5) {
+  transition-delay: 0.85s;
+}
+
+@starting-style {
+  .qa-end:not([hidden]) > * {
+    opacity: 0;
+    translate: 0 16px;
+    filter: blur(4px);
+  }
+}
+
+.qa-end-mark {
+  position: relative;
+  display: block;
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 26px;
+}
+
+.qa-end-mark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The ring: 84 px round the mark, grown from 4 px over the flight's last 1.8 s, eased out (the mock-up's 3 to 4.8 s, the
+   words having come at 2.8 s). */
+.qa-end-mark::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 84px;
+  height: 84px;
+  margin: -42px 0 0 -42px;
+  border: 1.2px solid rgb(226 165 74 / 0.75);
+  border-radius: 50%;
+  box-shadow: 0 0 12px rgb(226 165 74 / 0.4);
+  transition:
+    scale 1.8s cubic-bezier(0.33, 1, 0.68, 1) 0.2s,
+    opacity 1.8s cubic-bezier(0.33, 1, 0.68, 1) 0.2s;
+}
+
+@starting-style {
+  .qa-end:not([hidden]) .qa-end-mark::before {
+    scale: 0.095;
+    opacity: 0;
+  }
+}
+
+.qa-end .qa-count {
+  margin: 0 0 12px;
+  line-height: 1.4;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.qa-end .qa-question {
+  margin: 0 0 18px;
+  font-size: 26px;
+  line-height: 1.3;
+  letter-spacing: 0.18em;
+}
+
+.qa-end .qa-text {
+  margin: 0 0 28px;
+  font-size: 21px;
+  line-height: 1.6;
+}
+
+.qa-end .qa-buttons {
+  justify-content: center;
+  margin-top: 0;
+}
+
+/* The list, long faded as the flight set off, out of reach at the end: no invisible question for Tab or a click. */
+html[data-qa-end] .qa-frame {
+  visibility: hidden;
 }
 
 @media (max-width: 700px) {
@@ -2551,7 +2665,17 @@ html[data-qa-end] .qa-rail {
   }
 
   .qa-end .qa-question {
-    font-size: 18px;
+    font-size: 20px;
+  }
+
+  .qa-end .qa-text {
+    font-size: 17px;
+  }
+
+  .qa-end-mark {
+    width: 44px;
+    height: 44px;
+    margin-bottom: 22px;
   }
 }
 
@@ -2590,116 +2714,11 @@ html[data-qa-end] .qa-rail {
   .qa-reply {
     transition: none;
   }
-}
 
-/* The end, unmistakable (spec 2026-10-29-bob-stack-3-design.md, goal 4; Bob picked "2 · Circle"): at the end's mark
-   (<html data-qa-end>, src/ui/qaWriters.ts) the dark comes up over the scene and one gold circle draws itself round,
-   clockwise from the top, as the site began with the loader's circle; the words stand in the middle, inside it on a
-   laptop, under it on a phone; the list goes. One scroll up and it all goes. */
-@property --qa-draw {
-  syntax: '<angle>';
-  inherits: false;
-  initial-value: 0deg;
-}
-
-.qa-veil {
-  position: fixed;
-  inset: 0;
-  background: rgb(4 2 9 / 0.9);
-  opacity: 0;
-  transition: opacity 1.4s ease;
-  pointer-events: none;
-}
-
-html[data-qa-end] .qa-veil {
-  opacity: 1;
-}
-
-.qa-seal {
-  position: fixed;
-  left: 50%;
-  top: 50%;
-  width: min(88vmin, 720px);
-  aspect-ratio: 1;
-  translate: -50% -50%;
-  border: 2px solid rgb(226 165 74 / 0.95);
-  border-radius: 50%;
-  box-shadow:
-    0 0 34px rgb(226 165 74 / 0.35),
-    inset 0 0 34px rgb(226 165 74 / 0.18);
-  -webkit-mask: conic-gradient(#000 var(--qa-draw), transparent 0);
-  mask: conic-gradient(#000 var(--qa-draw), transparent 0);
-  opacity: 0;
-  pointer-events: none;
-}
-
-html[data-qa-end] .qa-seal {
-  opacity: 1;
-  animation: qa-draw 2.2s cubic-bezier(0.65, 0, 0.35, 1) 0.4s both;
-}
-
-@keyframes qa-draw {
-  from {
-    --qa-draw: 0deg;
-  }
-  to {
-    --qa-draw: 360deg;
-  }
-}
-
-/* Out of sight and, once faded, out of reach: no invisible question is left for Tab or a click. */
-html[data-qa-end] .qa-list {
-  /* Out of the frame's flow too, so the end's words alone set where the frame stands. */
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.6s ease, visibility 0s linear 0.6s;
-}
-
-/* Placed on the screen the visitor sees (dvh: a phone's browser toolbar left out, as the site's other fixed layers). */
-html[data-qa-end] .qa-frame {
-  width: min(440px, calc(100vw - 40px));
-  transform: translate(calc(50vw - 50%), calc(50dvh - 50%));
-  text-align: center;
-}
-
-html[data-qa-end] .qa-frame::before,
-html[data-qa-end] .qa-frame::after {
-  display: none;
-}
-
-html[data-qa-end] .qa-buttons {
-  justify-content: center;
-}
-
-/* The Q&A stands over the header (3 against 2), so the dark lies over the header too; with the keyboard in it, the
-   header stands over the dark, never a focused link hidden under it (as on a project's page, html[data-inside]). */
-html[data-qa-end] .site-header:focus-within {
-  z-index: 4;
-}
-
-@media (max-width: 700px) {
-  html[data-qa-end] .qa-seal {
-    top: 31%;
-    width: 64vw;
-  }
-
-  html[data-qa-end] .qa-frame {
-    transform: translate(calc(50vw - 50%), calc(100dvh - 100% - 8dvh));
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .qa-veil {
+  /* The end at once, its ring whole. */
+  .qa-end > *,
+  .qa-end-mark::before {
     transition: none;
-  }
-
-  html[data-qa-end] .qa-seal {
-    animation: none;
-    --qa-draw: 360deg;
   }
 }
 

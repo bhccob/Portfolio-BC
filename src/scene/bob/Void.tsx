@@ -864,6 +864,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
         on: home && close.id === null && !handover.focus,
         clock: clock.time,
         reduced: reducedMotion,
+        tier: latest.current.tier,
         size,
         doc: typeof document === 'undefined' ? null : document
       });

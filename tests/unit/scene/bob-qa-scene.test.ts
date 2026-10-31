@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { RING_QUESTIONS } from '~/data/qa';
 import { easeInOutQuart } from '~/input/scrollLoop';
+import { grabWanted } from '~/scene/frameGrab';
 import { makeQaScene, type QaScenePose } from '~/scene/bob/qaScene';
 import { WAY_OUT } from '~/scene/bob/wayOut';
 import { worldPathFor } from '~/scene/bob/worldPath';
@@ -11,7 +12,7 @@ import { HOME_CHAPTERS, pathStart, qaDoor, qaStop } from '~/state/chapters';
  * light's line, the end. Each question's button stands 56 px tall, the first 1 px down the frame (under its rule), as the
  * list stands closed; the frame stands at 900, 160 on the screen, the line 6 px into it.
  */
-function fakePage() {
+function fakePage({ sky = false }: { sky?: boolean } = {}) {
   const attributes = new Map<string, string>();
   const vars = new Map<string, string>();
   const style = { setProperty: (n: string, v: string) => vars.set(n, v), removeProperty: (n: string) => vars.delete(n) };
@@ -29,10 +30,13 @@ function fakePage() {
   let measured = 0;
   const frame = { style, getBoundingClientRect: () => (measured++, { left: 900, top: 160, width: 440, height: 520 }) };
   const rail = { getBoundingClientRect: () => ({ left: 906, top: 168, width: 1, height: 400 }) };
+  // The sky's canvas, with no 2D context here: the sky draws nothing, but asks for what it needs.
+  const canvas = sky ? { width: 0, height: 0, getContext: () => null } : null;
   const section = {
     isConnected: true,
     inert: true,
-    querySelector: (sel: string) => (sel === '.qa-frame' ? frame : sel === '.qa-end' ? end : sel === '.qa-rail' ? rail : null),
+    querySelector: (sel: string) =>
+      sel === '.qa-frame' ? frame : sel === '.qa-end' ? end : sel === '.qa-rail' ? rail : sel === '.qa-sky' ? canvas : null,
     querySelectorAll: (sel: string) => (sel === '.qa-item' ? items : [])
   };
   const doc = {
@@ -46,7 +50,7 @@ function fakePage() {
 /** The Q&A's scene as the Void poses it at place `p` on the home's story, on a screen of `size`. */
 function poseAt(q: ReturnType<typeof makeQaScene>, p: number, size: { width: number; height: number }, page: ReturnType<typeof fakePage>, over: Partial<QaScenePose> = {}) {
   const path = worldPathFor(size.width / size.height).frameAt(p - pathStart(HOME_CHAPTERS));
-  return q.pose({ path, on: true, clock: 0, reduced: false, size, doc: page.doc, ...over });
+  return q.pose({ path, on: true, clock: 0, reduced: false, tier: 'high', size, doc: page.doc, ...over });
 }
 
 const DESK = { width: 1440, height: 900 };
@@ -166,6 +170,18 @@ describe("the Q&A's scene", () => {
     poseAt(q, at(RING_QUESTIONS - 1), DESK, page);
     // The line's middle, and the last question's middle down the frame.
     expect(q.lightOnScreen()).toEqual({ x: 906.5, y: 160 + 29 + 57 * (RING_QUESTIONS - 1) });
+    q.dispose();
+  });
+
+  it('asks for the frame on the screen as the blueprint begins, for the drawing of the last floor, and not before or after', () => {
+    const page = fakePage({ sky: true });
+    const q = makeQaScene();
+    poseAt(q, DOOR, DESK, page);
+    expect(grabWanted()).toBe(false);
+    poseAt(q, at(2), DESK, page);
+    expect(grabWanted()).toBe(false);
+    poseAt(q, blueprint(0.3), DESK, page);
+    expect(grabWanted()).toBe(true);
     q.dispose();
   });
 

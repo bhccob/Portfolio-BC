@@ -5,6 +5,7 @@ import type { EndQuestions } from '~/i18n/en';
 import { useTranslator } from '~/i18n/useTranslator';
 import { goToQa, goToTop } from '~/input/useHomeScroll';
 import { useScene } from '~/state/store';
+import { ChbcMark } from './ChbcMark';
 import { Markup } from './Markup';
 
 /** Whether a question's answer is there to show: a string with something in it (as the end page reads it). */
@@ -19,9 +20,10 @@ const two = (n: number): string => String(n).padStart(2, '0');
  * one list beside the tower, each a button that takes the Q&A to its mark (`goToQa`), its reply under it, a thin gold line
  * beside them with the light that runs down it from question to question (round 13, Bob picked "C · The light"), the count over
  * the answer ("Q&A · 02 / 06") and the answer in reading text (or the end page's placeholder with its tag for one Bob has
- * not sent); the end's mark's words, "Einde van de site", "Stuur een bericht.", Bob's line and two buttons, to the contact
- * page and back to the start; and, for the end, the dark that comes up over the scene and the gold circle that draws
- * itself round (spec 2026-10-29-bob-stack-3-design.md, goal 4).
+ * not sent). Round 14 (the way out, spec 2026-10-31-bob-way-out-design.md): under it all the sky's canvas, which the scene
+ * draws (src/ui/outSky.ts: the blueprint, the stars, the closing circle and the flight); and apart from the list, in the
+ * middle of the screen, the end: Bob's chbc mark, "Einde van de site", "Stuur een bericht.", Bob's line and two buttons,
+ * to the contact page and back to the start.
  *
  * All of it is hidden and out of reach until the scene shows it (src/ui/qaWriters.ts): each reply `hidden` but the open
  * question's, the end's words but at the end, the section `inert` while the Q&A does not show. `questions` are the
@@ -36,8 +38,7 @@ export function QaRingParts({ questions }: { questions?: EndQuestions }): JSX.El
 
   return (
     <section id="qa" className="qa" aria-labelledby="qa-title" inert>
-      <span className="qa-veil" aria-hidden="true" />
-      <span className="qa-seal" aria-hidden="true" />
+      <canvas className="qa-sky" aria-hidden="true" />
       <h2 id="qa-title" className="visually-hidden">
         {t.end.head}
       </h2>
@@ -65,23 +66,26 @@ export function QaRingParts({ questions }: { questions?: EndQuestions }): JSX.El
             </li>
           ))}
         </ol>
-        <article className="qa-answer qa-end" data-k={list.length} hidden>
-          <p className="qa-count">{ring.endKicker}</p>
-          {/* Focusable by script alone: the nav's link and the skip button focus it on arrival (src/ui/endArrival.ts). */}
-          <h2 id="qa-end-title" className="qa-question" tabIndex={-1}>
-            <Markup text={t.end.messageTitle} />
-          </h2>
-          <p className="qa-text">{ring.endLine}</p>
-          <div className="qa-buttons">
-            <Link className="button" to={i18n.path(PAGES.contact)}>
-              {ring.toContact} <span aria-hidden="true">→</span>
-            </Link>
-            <button className="button again" type="button" onClick={() => goToTop()}>
-              <span aria-hidden="true">↑</span> {ring.toStart}
-            </button>
-          </div>
-        </article>
       </div>
+      <article className="qa-answer qa-end" data-k={list.length} hidden>
+        <span className="qa-end-mark" aria-hidden="true">
+          <ChbcMark />
+        </span>
+        <p className="qa-count">{ring.endKicker}</p>
+        {/* Focusable by script alone: the nav's link and the skip button focus it on arrival (src/ui/endArrival.ts). */}
+        <h2 id="qa-end-title" className="qa-question" tabIndex={-1}>
+          <Markup text={t.end.messageTitle} />
+        </h2>
+        <p className="qa-text">{ring.endLine}</p>
+        <div className="qa-buttons">
+          <Link className="button" to={i18n.path(PAGES.contact)}>
+            {ring.toContact} <span aria-hidden="true">→</span>
+          </Link>
+          <button className="button again" type="button" onClick={() => goToTop()}>
+            <span aria-hidden="true">↑</span> {ring.toStart}
+          </button>
+        </div>
+      </article>
     </section>
   );
 }

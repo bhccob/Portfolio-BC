@@ -1,9 +1,10 @@
-import { useThree } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { Bloom, EffectComposer, Noise, Vignette } from '@react-three/postprocessing';
 import { type JSX, useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { shoulder } from '~/engine/studio/shoulder';
 import { useScene } from '~/state/store';
+import { grabNow } from './frameGrab';
 import { GAS_SLOT } from './gasPass';
 import { ShoulderToneMappingEffect } from './ShoulderToneMapping';
 import { LOOK } from './bob/look';
@@ -51,22 +52,41 @@ export function Effects(): JSX.Element | null {
     invalidate();
   }, [composer, gl, invalidate]);
 
-  if (!composer) return null;
+  if (!composer) return <FrameGrab renders />;
   const bloom = BLOOM[tier];
   return (
-    <EffectComposer frameBufferType={THREE.HalfFloatType} multisampling={tier === 'high' ? 4 : 2}>
-      <primitive object={GAS_SLOT} />
-      <Bloom
-        mipmapBlur
-        luminanceThreshold={LOOK.bloom.threshold}
-        luminanceSmoothing={LOOK.bloom.smoothing}
-        radius={LOOK.bloom.radius}
-        intensity={bloom.intensity}
-        resolutionScale={bloom.resolutionScale}
-      />
-      <Vignette offset={LOOK.vignette.offset} darkness={LOOK.vignette.darkness} />
-      <Noise opacity={LOOK.noise} premultiply />
-      <primitive object={shoulderEffect} />
-    </EffectComposer>
+    <>
+      <FrameGrab renders={false} />
+      <EffectComposer frameBufferType={THREE.HalfFloatType} multisampling={tier === 'high' ? 4 : 2}>
+        <primitive object={GAS_SLOT} />
+        <Bloom
+          mipmapBlur
+          luminanceThreshold={LOOK.bloom.threshold}
+          luminanceSmoothing={LOOK.bloom.smoothing}
+          radius={LOOK.bloom.radius}
+          intensity={bloom.intensity}
+          resolutionScale={bloom.resolutionScale}
+        />
+        <Vignette offset={LOOK.vignette.offset} darkness={LOOK.vignette.darkness} />
+        <Noise opacity={LOOK.noise} premultiply />
+        <primitive object={shoulderEffect} />
+      </EffectComposer>
+    </>
   );
+}
+
+/**
+ * The frame grab (./frameGrab.ts, round 14): right after the frame is drawn, while the canvas's buffer still holds it, a
+ * grab asked for gets it. After the composer's render (its priority 1); on the low tier, with no composer, it draws the
+ * frame itself first, as R3F would (a subscriber with a priority takes R3F's own render over).
+ */
+function FrameGrab({ renders }: { renders: boolean }): null {
+  useFrame(
+    ({ gl, scene, camera }) => {
+      if (renders) gl.render(scene, camera);
+      grabNow(gl.domElement);
+    },
+    renders ? 1 : 2
+  );
+  return null;
 }
