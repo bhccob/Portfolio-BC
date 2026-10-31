@@ -6,7 +6,7 @@ import { journeyAt, WORLD_PROJECTS } from '~/scene/bob/journey';
 import { IDLE_SECONDS } from '~/scene/bob/look';
 import { frame } from '~/state/frame';
 import { RING_MARKS } from '~/data/qa';
-import { areaStop, HOME_CHAPTERS, LAND_STOP, pathStart, lookStop, qaStop, worldStop } from '~/state/chapters';
+import { areaStop, HOME_CHAPTERS, LAND_STOP, pathStart, qaDoor, qaStop, worldStop } from '~/state/chapters';
 import { insideInHistory, noteOpenedFrom, resetRouteSync, stopForProject, syncRoute } from '~/state/routeSync';
 import { useScene } from '~/state/store';
 
@@ -14,15 +14,15 @@ import { useScene } from '~/state/store';
 const L = pathStart(HOME_CHAPTERS);
 
 describe('opensOnClick: where a click opens a project on the world', () => {
-  it('opens at rest at the world, at every area and in the look back; nowhere while moving, nor before the world', () => {
+  it('opens at rest at the world and at every area, the last floor (the Q&A\'s door) too; nowhere while moving, nor before the world or in the Q&A', () => {
     expect(LAND_STOP).toBeCloseTo((1.26 + 1.9) / 3.46, 12);
-    const rests = [worldStop(HOME_CHAPTERS), areaStop(HOME_CHAPTERS, 'app'), areaStop(HOME_CHAPTERS, 'game'), L + 8.16, lookStop(HOME_CHAPTERS)];
+    const rests = [worldStop(HOME_CHAPTERS), areaStop(HOME_CHAPTERS, 'app'), areaStop(HOME_CHAPTERS, 'game'), qaDoor(HOME_CHAPTERS)];
     for (const p of rests) {
       expect(opensOnClick(journeyAt(p), true), `at rest at ${p}`).toBe(true);
       expect(opensOnClick(journeyAt(p), false), `moving at ${p}`).toBe(false);
     }
-    // The rise, the light dive, the light still coming down, the stack closing into the Q&A and the questions: none.
-    for (const p of [0, 0.5, 1, 3, L + 0.5, lookStop(HOME_CHAPTERS) + 0.3, lookStop(HOME_CHAPTERS) + 1]) {
+    // The rise, the light dive, the light still coming down, the way into the Q&A and the questions: none.
+    for (const p of [0, 0.5, 1, 3, L + 0.5, qaDoor(HOME_CHAPTERS) + 0.3, qaDoor(HOME_CHAPTERS) + 1, qaStop(HOME_CHAPTERS, 0)]) {
       expect(opensOnClick(journeyAt(p), true), `at ${p}`).toBe(false);
     }
     // A project's own place is a stop where it opens.

@@ -1,17 +1,13 @@
 /**
- * The Q&A in the scene, a frame at a time (spec 2026-10-29-bob-stack-2-design.md, goal 1): the gold ring and the decor
- * stars posed from the path (./worldPath.ts `RingFrame`, `QaFrame`), the ring's slow drift on a clock of its own while the
- * Q&A shows (./qaRing.ts `ringDriftAt`; round 13, none with reduced motion) and its mark's flash as it lands on one, and
- * on the page the list of questions beside the tower, the one the ring stands at open, none on the way between two while
- * the gold light runs down the list to the next (round 13, Bob picked "C · The light"), and the end's words at the end's
- * mark (src/ui/qaWriters.ts; round 10, Bob picked "A · One list"), only what has changed. The Void builds it with the world and calls `pose` each
- * frame, `hide` when the world goes off the screen, `dispose` with the world.
+ * The Q&A in the stars, a frame at a time (round 14, the way out; spec 2026-10-31-bob-way-out-design.md): from the path's
+ * place in the Q&A and the way out's stage there (./wayOut.ts), on the page the list of questions (round 10, Bob picked
+ * "A · One list"), the one it stands at open, none on the way between two while the gold light runs down the list to the
+ * next (round 13, Bob picked "C · The light"); the list coming in late in the blueprint and drifting toward the camera as
+ * the flight sets off, the end's words from the flight's 2.8 s (src/ui/qaWriters.ts), only what has changed. The Void
+ * makes it with the world and calls `pose` each frame, `hide` when the world goes off the screen, `dispose` with the world.
  */
-import * as THREE from 'three';
-import type { DecorModel } from '~/engine/bob/build/decorStars';
-import type { RingModel } from '~/engine/bob/build/ring';
 import { clearQa, qaLightAnchors, qaLightY, type QaParts, qaWritten, writeQa, writeQaLight } from '~/ui/qaWriters';
-import { ringDriftAt } from './qaRing';
+import type { WayOutStretch } from './wayOut';
 import type { WorldFrame } from './worldPath';
 
 /** What the Q&A is posed by, each frame. */
@@ -20,11 +16,9 @@ export interface QaScenePose {
   path: WorldFrame | null;
   /** Whether the Q&A may show: the world on the home page, no project close. */
   on: boolean;
-  /** The world's clock, s; and the frame's step, s. */
+  /** The world's clock, s. */
   clock: number;
-  dt: number;
   reduced: boolean;
-  camera: THREE.Camera;
   /** The screen, CSS px. */
   size: { width: number; height: number };
   /** The page (null where there is none). */
@@ -34,18 +28,19 @@ export interface QaScenePose {
 /** Where the Q&A stands this frame, for the debug bridge (`frame.journey.qa`). */
 export interface QaJourney {
   place: number;
-  close: number;
-  lit: number;
-  /** The mark whose answer shows; null between marks and at the look back. */
+  stretch: WayOutStretch;
+  /** The way out's clock in the blueprint or the flight, s. */
+  s: number;
+  /** The mark whose question is open, or the end's once its words are on; null between and on the way. */
   at: number | null;
 }
 
 export interface QaScene {
-  ring: RingModel;
-  decor: DecorModel;
   /** Poses the Q&A for this frame; answers where it stands, or null where it does not show. */
   pose(p: QaScenePose): QaJourney | null;
-  /** Hides the ring and the stars and clears the page of all the writer wrote. */
+  /** The list's light on the screen, CSS px, where it last rested at a question; null before it has. */
+  lightOnScreen(): { x: number; y: number } | null;
+  /** Clears the page of all the writer wrote. */
   hide(): void;
   dispose(): void;
 }
@@ -55,30 +50,25 @@ interface Found {
   section: Element & { isConnected: boolean };
   parts: QaParts;
   frame: { getBoundingClientRect(): { left: number; top: number; width: number; height: number } } | null;
+  rail: { getBoundingClientRect(): { left: number; width: number } } | null;
   /** The questions' buttons, as laid out in the frame, and the light's places at them, measured once per screen. */
   asks: { offsetTop: number; offsetHeight: number }[];
   anchors: { key: string; at: number[] };
 }
 
-/** A frame's step is never taken as longer than this on the drift's clock, s: a tab back from the background does not lurch it. */
-const MAX_DRIFT_STEP = 0.1;
-
-/** A mark landed on this close to a whole place is on it. */
-const ON_MARK = 1e-4;
-/** An answer is the mark's within this much of it (./qaRing.ts `answerShown` is gone beyond 0.18). */
+/** A question is the one it stands at within this much of its mark. */
 const NEAR_MARK = 0.18;
 
-/** The Q&A's scene for the ring and the decor the Void built with the world. */
-export function makeQaScene(ring: RingModel, decor: DecorModel): QaScene {
+/** The Q&A's scene: the page's list, written from the path. */
+export function makeQaScene(): QaScene {
   const written = qaWritten();
-  /** The landing: the mark the ring last came onto, when (the world's clock) and which way it was turning. */
-  const landing = { mark: null as number | null, at: 0, way: 1, last: Number.NaN };
-  /** The drift's own clock, s: it runs while the Q&A shows, and holds still with reduced motion. */
-  let drifting = 0;
+  /** The way the light last ran (1 down, -1 up) and the place it was at. */
+  const going = { way: 1, last: Number.NaN };
   let found: Found | null = null;
   let doc: Document | null = null;
-  /** The words' frame's box on the screen, measured once per open question, end and screen. */
-  const box = { key: '', x: 0, y: 0, w: 0, h: 0 };
+  /** The list's frame and its light's line on the screen, measured once per open question, end and screen. */
+  const box = { key: '', x: 0, y: 0, w: 0, h: 0, rail: Number.NaN };
+  let light: { x: number; y: number } | null = null;
 
   const find = (d: Document | null): Found | null => {
     if (d === null) return null;
@@ -94,6 +84,7 @@ export function makeQaScene(ring: RingModel, decor: DecorModel): QaScene {
     found = {
       section,
       frame,
+      rail: section.querySelector('.qa-rail') as unknown as Found['rail'],
       asks: items.map((item) => item.querySelector('.qa-ask') as unknown as Found['asks'][number]),
       anchors: { key: '', at: [] },
       parts: {
@@ -111,90 +102,56 @@ export function makeQaScene(ring: RingModel, decor: DecorModel): QaScene {
   };
 
   const hide = (): void => {
-    ring.group.visible = false;
-    decor.group.visible = false;
     const f = found;
     if (f) clearQa(f.parts, written);
     else if (doc) clearQa({ root: doc.documentElement, section: null, frame: null, items: [], end: null }, written);
-    landing.mark = null;
-    landing.last = Number.NaN;
+    going.last = Number.NaN;
   };
 
   return {
-    ring,
-    decor,
     hide,
-    pose({ path, on, clock, dt, reduced, camera, size, doc: d }) {
-      const r = path?.ring;
+    lightOnScreen: () => light,
+    pose({ path, on, size, doc: d }) {
+      const qa = path?.qa;
       const f = find(d);
-      if (!on || !path || !r || r.level <= 0) {
+      if (!on || !qa) {
         hide();
         return null;
       }
-      const qa = path.qa;
-      const place = qa?.place ?? -1;
-      // The landing: which way the ring turns, and the mark it comes onto, when.
-      if (Number.isFinite(landing.last) && place !== landing.last) landing.way = Math.sign(place - landing.last) || landing.way;
-      landing.last = place;
+      const { place, out } = qa;
+      if (Number.isFinite(going.last) && place !== going.last) going.way = Math.sign(place - going.last) || going.way;
+      going.last = place;
       const nearest = Math.round(place);
-      const onMark = qa !== null && nearest >= 0 && Math.abs(place - nearest) < ON_MARK;
-      if (!onMark) landing.mark = null;
-      else if (landing.mark !== nearest) {
-        landing.mark = nearest;
-        landing.at = clock;
-      }
-      const after = clock - landing.at;
-      const landed = !reduced && landing.mark !== null;
-      // The drift, in as the stack closes over the way in (`close`), on its own clock while the Q&A shows.
-      if (path.part === 'qa' && !reduced) drifting += Math.min(Math.max(dt, 0), MAX_DRIFT_STEP);
-      const drift = reduced ? { turn: 0, tip: 0 } : ringDriftAt(drifting);
-      const settled = qa?.close ?? 0;
-      ring.pose({
-        centre: r.centre,
-        scale: r.scale,
-        turn: r.turn + drift.turn * settled,
-        tip: drift.tip * settled,
-        level: r.level,
-        close: qa?.close ?? 0,
-        place,
-        lit: qa?.lit ?? 0,
-        flash: landed ? { mark: landing.mark!, amount: Math.exp(-after * 5) } : null,
-        clock
-      });
-
-      // The list beside the tower, the question the ring stands at open; the end's words at the end's mark.
-      const inQa = path.part === 'qa';
-      const mark = inQa && nearest >= 0 && Math.abs(place - nearest) < NEAR_MARK ? nearest : null;
-      let keepOut: { x: number; y: number; w: number; h: number } | null = null;
+      const resting = out.stretch === 'qa' && Math.abs(place - nearest) < NEAR_MARK;
+      const showing = place > -1;
       if (f) {
         const questions = f.parts.items.length;
-        // The list comes in with the ring onto the first question and stays while it turns from one to another; it goes
-        // as the ring turns on past the last to the end's mark, where the end's words show.
-        const show = !inQa ? 0 : mark === questions || place < 0 ? (qa?.answer ?? 0) : Math.min(1, Math.max(0, questions - place));
-        const between = inQa && place >= 0 && mark === null;
-        writeQa(f.parts, { on: inQa, at: mark, answer: show, between }, written);
-        // The light beside the list: at the question the ring stands at, on its way between two with the scroll (round 13).
-        if (inQa && show > 0 && mark !== questions && f.asks.length === questions) {
-          const key = `${size.width}x${size.height}`;
+        const at = out.endOn ? questions : resting ? nearest : null;
+        const between = out.stretch === 'qa' && !resting;
+        writeQa(f.parts, { on: showing, at, answer: out.panel, between, past: out.past }, written);
+        // The light beside the list: at the first question as the list comes in, then at the one it stands at and on its
+        // way between two with the scroll (round 13); the flight takes it off the list (the sky draws it, src/ui/outSky.ts).
+        const listed = showing && (out.stretch === 'blueprint' || out.stretch === 'qa') && f.asks.length === questions;
+        const key = `${size.width}x${size.height}`;
+        if (listed) {
           if (f.anchors.key !== key) f.anchors = { key, at: qaLightAnchors(f.asks) };
-          writeQaLight(f.parts, { y: qaLightY(f.anchors.at, place), way: between ? (landing.way > 0 ? 1 : -1) : 0 }, written);
+          writeQaLight(f.parts, { y: qaLightY(f.anchors.at, place), way: between ? (going.way > 0 ? 1 : -1) : 0 }, written);
         } else writeQaLight(f.parts, null, written);
-        if (f.frame && show > 0) {
-          const key = `${written.open}:${mark === questions}:${size.width}x${size.height}`;
-          if (box.key !== key) {
+        if (f.frame && showing && out.panel > 0) {
+          const boxKey = `${written.open}:${at === questions}:${key}`;
+          if (box.key !== boxKey) {
             const rect = f.frame.getBoundingClientRect();
-            Object.assign(box, { key, x: rect.left, y: rect.top, w: rect.width, h: rect.height });
+            const rail = f.rail?.getBoundingClientRect();
+            Object.assign(box, { key: boxKey, x: rect.left, y: rect.top, w: rect.width, h: rect.height, rail: rail ? rail.left + rail.width / 2 : Number.NaN });
           }
-          keepOut = { x: box.x, y: box.y, w: box.w, h: box.h };
+          if (resting && listed && Number.isFinite(box.rail)) light = { x: box.rail, y: box.y + qaLightY(f.anchors.at, nearest) };
         }
+        return { place, stretch: out.stretch, s: out.s, at };
       }
-      decor.pose({ level: qa?.close ?? 0, clock, dt, camera, keepOut, size });
-      return { place, close: qa?.close ?? 0, lit: qa?.lit ?? 0, at: mark };
+      return { place, stretch: out.stretch, s: out.s, at: null };
     },
     dispose() {
       hide();
-      ring.dispose();
-      decor.dispose();
     }
   };
 }

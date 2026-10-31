@@ -14,12 +14,12 @@ import {
   stopsFor
 } from '../../../src/input/target';
 import { LANDING_HOLD } from '../../../src/scene/bob/landingHold';
-import { areaStop, buildChapters, HOME_CHAPTERS, keyStops, pathStart, placeOfFrame, qaStop, riseTop, scrollEnd, lookStop, worldStop } from '../../../src/state/chapters';
+import { areaStop, buildChapters, HOME_CHAPTERS, keyStops, pathStart, placeOfFrame, qaDoor, qaStop, riseTop, scrollEnd, worldStop } from '../../../src/state/chapters';
 import type { Phase } from '../../../src/state/machine';
 
-// The home's layout: HOME 0-1, LIGHT to the hand-over (frame 256), the land, an area per category, LOOK, SHEET, END.
-// keyStops(c) = [0, 1, the five facts' places (frames 81, 121, 161, 201, 241), the world, each area, the look back's
-// own stop (the sheet's start), the end].
+// The home's layout: HOME 0-1, LIGHT to the hand-over (frame 256), the land, an area per category, a QA unit per mark, END.
+// keyStops(c) = [0, 1, the five facts' places (frames 81, 121, 161, 201, 241), the world, each area (the last the Q&A's
+// door), each question, the end].
 const c = buildChapters({ areas: (['a', 'b', 'c'] as const).map((category) => ({ category: category as never, projects: [] })) });
 const [F81, F121, , , F241] = [81, 121, 161, 201, 241].map(placeOfFrame) as [number, number, number, number, number];
 /** The hand-over: the path's start, and the landing hold. */
@@ -28,8 +28,10 @@ const L = pathStart(c);
 const W = worldStop(c);
 const A0 = areaStop(c, 'a');
 const A1 = areaStop(c, 'b');
-/** The look back's own stop; the first question's; and the end, the end's mark on the ring. */
-const S = lookStop(c);
+/** The Q&A's door, the last floor's stop; the first question's; and the end, the end's mark. */
+const S = qaDoor(c);
+/** Where the first QA unit starts, 0.42 past the door. */
+const QA0 = c.units.find((u) => u.id === 'QA')!.start;
 const Q0 = qaStop(c, 0);
 const E = scrollEnd(c);
 
@@ -192,7 +194,7 @@ describe('changedChapter', () => {
     expect(changedChapter(c, 1.5, 0, false)).toMatchObject({ index: 1, id: 'LIGHT', category: null });
     expect(changedChapter(c, L + 0.4, 1, false)).toMatchObject({ index: 2, id: 'LAND', category: null });
     expect(changedChapter(c, L + 3.66, 2, false)).toMatchObject({ index: 3, id: 'AREA', category: 'a' });
-    expect(changedChapter(c, S + 0.4, 6, false)).toMatchObject({ index: 7, id: 'QA', category: null, project: 0 });
+    expect(changedChapter(c, QA0 + 0.4, 5, false)).toMatchObject({ index: 6, id: 'QA', category: null, project: 0 });
   });
 
   it('holds the chapter within the hysteresis of its edge while the story moves', () => {
@@ -205,8 +207,8 @@ describe('changedChapter', () => {
   it('reads a story at rest without the hysteresis: a stop on a boundary belongs to the chapter that starts there', () => {
     expect(changedChapter(c, L, 1, true)).toMatchObject({ index: 2, id: 'LAND', category: null });
     expect(changedChapter(c, 1, 0, true)).toMatchObject({ index: 1, id: 'LIGHT' });
-    expect(changedChapter(c, S, 6, true)).toMatchObject({ index: 7, id: 'QA', category: null, project: 0 });
-    expect(changedChapter(c, E, 13, true)).toMatchObject({ index: 14, id: 'END', category: null });
+    expect(changedChapter(c, QA0, 5, true)).toMatchObject({ index: 6, id: 'QA', category: null, project: 0 });
+    expect(changedChapter(c, E, 12, true)).toMatchObject({ index: 13, id: 'END', category: null });
     expect(changedChapter(c, L - 0.005, 2, true)).toMatchObject({ index: 1, id: 'LIGHT' });
   });
 });
@@ -249,10 +251,10 @@ describe('scrollEnabled', () => {
   });
 });
 
-// The Q&A on the gold ring (spec 2026-10-29-bob-stack-2-design.md, goal 1): from the look back's stop on, every input is
-// a step of one question, whatever its size; up from the look back the scroll is continuous again.
+// The Q&A (spec 2026-10-29-bob-stack-2-design.md, goal 1; round 14): from its door, the last floor's stop, on, every
+// input is a step, whatever its size, the first the way in; up from the door the scroll is continuous again.
 describe('the Q&A, a question a step', () => {
-  const look = lookStop(c);
+  const look = qaDoor(c);
   const q = (k: number) => qaStop(c, k);
 
   it('steps one stop per input in the Q&A, whatever its size', () => {
@@ -265,14 +267,17 @@ describe('the Q&A, a question a step', () => {
     expect(inQa(q(4), c)).toBe(true);
   });
 
-  it('goes back to the continuous scroll up from the look back', () => {
+  it('goes back to the continuous scroll up from the door', () => {
     expect(qaStepTarget(look, -1, c)).toBeNull();
     expect(inQa(look - 0.1, c)).toBe(false);
     expect(moveTarget(look, -0.3, c, false)).toBeCloseTo(look - 0.3, 12);
   });
 
-  it('catches a continuous scroll at the look back', () => {
+  it('catches a continuous scroll at the door, the last floor', () => {
+    expect(look).toBe(areaStop(c, 'c'));
     expect(moveTarget(look - 2, 5, c, false)).toBe(look);
     expect(moveTarget(look - 2, 1, c, false)).toBeCloseTo(look - 1, 12);
+    // From the floor before it, a fling stops on the last floor, not past it.
+    expect(moveTarget(A1, 3, c, false)).toBe(look);
   });
 });

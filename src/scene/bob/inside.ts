@@ -11,7 +11,7 @@
  */
 import { type ProjectId, projects } from '~/data/projects';
 import type { JourneyAt } from './journey';
-import { LAND_STOP } from '~/state/chapters';
+import { AREA_STOP, HOME_CHAPTERS, LAND_STOP } from '~/state/chapters';
 import { IDLE_SECONDS } from './look';
 import type { WorldPart } from './worldPath';
 
@@ -97,17 +97,20 @@ export function openWorld(amount: number): number {
 
 /**
  * Whether a click on a project opens it on the world (spec 2026-10-27-bob-hologram-world-design.md), with the journey at
- * `at` and the story at rest (`rest`: the scroll's target where the story stands): at the world's stop, at an area's,
- * or in the look back (its own stop, the first QA unit's start, included), any project on the world. Nowhere else: in
- * the light dive, while the land is still coming in, while the camera glides between two stops, and in the Q&A, where
- * the stack closes and its projects sink into their sockets, nothing opens (a click elsewhere goes to the project's page
- * instead, src/ui/projectOpen.tsx).
+ * `at` and the story at rest (`rest`: the scroll's target where the story stands): at the world's stop or at an area's
+ * (the last the Q&A's door), any project on the world. Nowhere else: in the light dive, while the land is still coming
+ * in, while the camera glides between two stops, and in the way out and the Q&A, where the tower is a blueprint and then
+ * gone, nothing opens (a click elsewhere goes to the project's page instead, src/ui/projectOpen.tsx).
  */
 export function opensOnClick(at: JourneyAt, rest: boolean): boolean {
   if (!rest) return false;
   if (at.stretch === 'land') return at.local >= LAND_STOP - 1e-6;
-  return at.stretch === 'area' || at.stretch === 'look' || (at.stretch === 'qa' && at.project === 0 && at.local === 0);
+  // Past the last area's stop is the way in already.
+  return at.stretch === 'area' && !(at.project === LAST_AREA && at.local > AREA_STOP + 1e-6);
 }
+
+/** The last area's place among the areas: past its stop, the Q&A's door (src/state/chapters.ts `qaDoor`), the way out. */
+const LAST_AREA = HOME_CHAPTERS.units.filter((u) => u.id === 'AREA').length - 1;
 
 /**
  * The inside a history entry's state carries (`{ [INSIDE_STATE]: id }`, as `openInside` pushes it): the project's id

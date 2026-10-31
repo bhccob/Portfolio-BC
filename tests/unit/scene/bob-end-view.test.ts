@@ -14,14 +14,14 @@ import { journeyAt, journeyPoseAt, WORLD_PROJECTS } from '~/scene/bob/journey';
 import { sheetBlack } from '~/scene/bob/worldPath';
 import { easeHover, hoversAt, pointerMode } from '~/scene/bob/voidPose';
 import { phaseChangeDraws } from '~/scene/motion';
-import { HOME_CHAPTERS, scrollEnd, lookStop } from '~/state/chapters';
+import { HOME_CHAPTERS, qaDoor, scrollEnd } from '~/state/chapters';
 import type { Phase } from '~/state/machine';
 
 /** The credits' stop, the scroll's end. */
 const END = scrollEnd(HOME_CHAPTERS);
 
-/** The look back's own stop, where the sheet begins: one unit short of the end. */
-const S = lookStop(HOME_CHAPTERS);
+/** The Q&A's door, the last floor's stop, where the sheet begins. */
+const S = qaDoor(HOME_CHAPTERS);
 
 /** Half way over the sheet: the credits most of the way up, the dark coming up under them. */
 const MID = S + 0.5;
@@ -381,7 +381,7 @@ describe('applyEndView: Home writes the end view each frame, only on change', ()
   });
 
   it('lets the pointer take no project at the end, so nothing keeps drawing', () => {
-    expect(END - S).toBeCloseTo(7, 12);
+    expect(END - S).toBeCloseTo(7.42, 12);
     expect(pointerMode(journeyPoseAt(END, 16 / 9))).toBeNull();
   });
 });
@@ -421,14 +421,14 @@ describe('the scene sleeps as soon as the story rests at the end', () => {
     for (const phase of others) expect(phaseChangeDraws(phase), phase.kind).toBe(true);
   });
 
-  it('reads the pointer (hover and click) at the look back\'s own stop, and not once the sheet has begun', () => {
+  it('reads the pointer (hover and click) at the door, the last floor, and not once the sheet has begun', () => {
     const at = (p: number) => hoversAt(journeyPoseAt(p, 16 / 9));
-    // At the look back's own stop a click on any bead opens it.
+    // At the door a click on any bead opens it.
     expect(at(S)).toBe(true);
     expect(pointerMode(journeyPoseAt(S, 16 / 9))).toBe('any');
-    // The sheet, either way, and the credits: the black comes over the look back, so nothing is read.
+    // The way out, either way, and the end: the blueprint comes over the tower, so nothing is read.
     for (const p of [S + 0.01, MID, S + 0.775, END - 0.01, END]) expect(at(p), `at ${p}`).toBe(false);
-    // Everywhere before the sheet as before: the rise, the light dive, the path and the look back.
+    // Everywhere before it as before: the rise, the light dive and the path.
     for (const p of [0, 0.5, 1, 2, 3, 4, 6, 8, 10, 12, 13, S - 0.001, S]) expect(at(p), `at ${p}`).toBe(true);
     expect(hoversAt({ sheet: 0 })).toBe(true);
     expect(hoversAt({ sheet: 1e-6 })).toBe(false);

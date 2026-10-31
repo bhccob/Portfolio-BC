@@ -1,7 +1,8 @@
 import { RING_MARKS } from '~/data/qa';
 import { END_ATTRIBUTE, pageToTop } from '~/scene/bob/endView';
 import { STEP_FADE_ATTRIBUTE, STEP_FADE_MS } from '~/scene/bob/stepFade';
-import { type ChapterAt, type Chapters, chapterAt, lookStop, pathStart, placeOfFrame, qaPlaceAt, qaStop, riseTop, scrollEnd } from '~/state/chapters';
+import { WAY_OUT } from '~/scene/bob/wayOut';
+import { type ChapterAt, type Chapters, chapterAt, pathStart, placeOfFrame, qaDoor, qaPlaceAt, riseTop, scrollEnd } from '~/state/chapters';
 import type { VoidState } from '~/state/store';
 import {
   changedChapter,
@@ -79,14 +80,7 @@ export function follow(current: number, goal: number, dt: number): number {
   return Math.abs(goal - next) < FOLLOW_ON ? goal : next;
 }
 
-/**
- * The Q&A on the gold ring (spec 2026-10-29-bob-stack-2-design.md, goal 1: "rotating snaps and is slower"): the move
- * from the look back's stop into the first question, the stack closing under the ring, and back, seconds (the mock-up's
- * glide into its questions).
- */
-export const QA_GLIDE_S = 2.8;
-
-/** After a step of the Q&A begins, input is dropped for this long, ms (the mock-up's wheel lock): one turn at a time. */
+/** After a step of the Q&A begins, input is dropped for this long, ms (the mock-up's wheel lock): one step at a time. */
 export const QA_LOCK_MS = 1500;
 
 /** The turn's ease, in and out (the mock-up's): `x` 0..1 of its time to 0..1 of its way. */
@@ -94,17 +88,37 @@ export function easeInOutQuart(x: number): number {
   return x < 0.5 ? 8 * x ** 4 : 1 - (-2 * x + 2) ** 4 / 2;
 }
 
-/**
- * How long the Q&A's move from `from` to `to` takes, seconds: QA_GLIDE_S into or out of the questions (either end before
- * the first, where the stack closes or opens); round the ring, the mock-up's 1.1 + 0.9 s a radian of the ring's turn, held
- * to 1..2.6 s, about 1.9 s a question.
- */
-export function turnTime(from: number, to: number, c: Chapters): number {
+/** Which of the way out's long steps a move of the Q&A from `from` to `to` is, if either: the way in or the flight. */
+function wayOutStep(from: number, to: number, c: Chapters): 'blueprint' | 'flight' | null {
   const a = qaPlaceAt(c, from) ?? -1;
   const b = qaPlaceAt(c, to) ?? -1;
-  if (Math.min(a, b) < 0) return QA_GLIDE_S;
+  if (Math.min(a, b) < 0) return 'blueprint';
+  return Math.max(a, b) > RING_MARKS - 2 ? 'flight' : null;
+}
+
+/**
+ * How long the Q&A's move from `from` to `to` takes, seconds (round 14, the way out): the way in from the door, the
+ * blueprint, and the flight from the last question to the end at the mock-up's own lengths (`WAY_OUT`), either played
+ * back in `WAY_OUT.back`; from one question to another as the ring turned before, the mock-up's 1.1 + 0.9 s a seventh of
+ * a turn, held to 1..2.6 s, about 1.9 s a question.
+ */
+export function turnTime(from: number, to: number, c: Chapters): number {
+  const long = wayOutStep(from, to, c);
+  if (long !== null) return to > from ? WAY_OUT[long] : WAY_OUT.back;
+  const a = qaPlaceAt(c, from) ?? -1;
+  const b = qaPlaceAt(c, to) ?? -1;
   const radians = (Math.abs(b - a) * 2 * Math.PI) / RING_MARKS;
   return Math.min(Math.max(1.1 + 0.9 * radians, 1), 2.6);
+}
+
+/**
+ * How long input is dropped after a step of the Q&A from `from` to `to` begins, ms: the whole of the way in or of the
+ * flight going on (the mock-up's locks, `WAY_OUT.lock`), so a scroll during either never queues a skip past it; QA_LOCK_MS
+ * for any other step.
+ */
+export function qaLockMs(from: number, to: number, c: Chapters): number {
+  const long = wayOutStep(from, to, c);
+  return long !== null && to > from ? WAY_OUT.lock[long] * 1000 : QA_LOCK_MS;
 }
 
 /** A key's glide of one unit (one project), seconds, sqrt-scaled for longer ones; and the shortest glide. */
@@ -311,8 +325,8 @@ export class ScrollLoop {
   }
 
   /**
-   * A turn of the Q&A's ring to `to` (a question, the end's mark or the look back's stop): the target goes there and the
-   * story turns from where it stands, from rest to rest, eased in and out over `turnTime`. Nothing when it is there.
+   * A step of the Q&A to `to` (a question, the end's mark or the door): the target goes there and the story turns from
+   * where it stands, from rest to rest, eased in and out over `turnTime`. Nothing when it is there.
    */
   turnTo(to: number): void {
     const { frame, chapters } = this.o;
@@ -572,13 +586,6 @@ export interface HomeScroll {
   fadeToPlace(place: number): boolean;
   /** Whether the story is headed for `place` now: 3D on, and its target there, or there asked for past a hold. */
   headedTo(place: number): boolean;
-  /**
-   * The Q&A's ring turned by hand (src/input/ringDrag.ts), `units` of the scroll: the story follows the hand at once, the
-   * target and the progress with it, held to the questions (the first to the end's mark). Nothing off the Q&A.
-   */
-  dragRing(units: number): void;
-  /** The hand has let go of the ring: it turns on to the nearest question, as a step of the Q&A. */
-  releaseRing(): void;
   dispose(): void;
 }
 
@@ -595,21 +602,21 @@ export interface HomeScroll {
  * **Past the rise** (spec 2026-10-25-bob-light-dive-design.md, "Exactly with my scroll"). A wheel and a finger move the
  * target by their distance and the story follows (`follow`): the light dive's frames and the light's path go exactly with
  * the scroll, and stay wherever it stops, between two projects too. A finger's glide carries on as a page's would, ended
- * at the look back's stop or the hold. Input during a key's glide rides along when it goes the glide's own way short of
- * its end, and otherwise stops it, the target where the input put it. A key steps among the key stops (`keyTarget`: each
- * fact, each project, the look back), counted from where a glide is going: within the light dive the target moves and the
+ * at the Q&A's door or the hold. Input during a key's glide rides along when it goes the glide's own way short of its
+ * end, and otherwise stops it, the target where the input put it. A key steps among the key stops (`keyTarget`: each
+ * fact, each project, each question), counted from where a glide is going: within the light dive the target moves and the
  * follow eases after it, and a move that starts or ends past it glides (`glideTo`). Home and End keep their meaning: End
  * goes to the end's mark on the ring by the step fade from anywhere; Home goes to the start by the step fade from the
  * path and the Q&A, and by the follow back up from the light dive. With reduced motion every input is a step to a key
  * stop (`moveTarget`), and nothing glides by itself.
  *
- * **The Q&A** (spec 2026-10-29-bob-stack-2-design.md, goal 1: "rotating snaps and is slower"). A continuous scroll down
- * rests on the look back's own stop, and the gesture that brought it there ends there. From it on every input is one step
- * (`qaStepTarget`), whatever its size: the wheel's gesture, a swipe and a key each turn the ring a question (`turnTo`, about
- * 1.9 s), the first from the look back closing the stack under the ring (QA_GLIDE_S); a lift's glide carries nothing on,
- * and every input for QA_LOCK_MS after a step begins is dropped. Up from the first question goes back to the look back,
- * and up from there the scroll is continuous again. The ring turned by hand (`dragRing`) follows the hand, and let go
- * (`releaseRing`) turns on to the nearest question. A mark's button (`toPlace`) turns the ring to it.
+ * **The Q&A** (spec 2026-10-29-bob-stack-2-design.md, goal 1: "rotating snaps and is slower"; round 14, the way out). A
+ * continuous scroll down rests on the Q&A's door, the last floor's stop, and the gesture that brought it there ends there.
+ * From it on every input is one step (`qaStepTarget`), whatever its size: the wheel's gesture, a swipe and a key each take
+ * the Q&A a question (`turnTo`, about 1.9 s), the first from the door the way in, the blueprint, and the last the flight to
+ * the end (`turnTime`); a lift's glide carries nothing on, and input is dropped while a step's lock holds (`qaLockMs`:
+ * the whole way in, the whole flight, else QA_LOCK_MS). Up from the first question goes back to the door, and up from
+ * there the scroll is continuous again. A question's button (`toPlace`) takes the Q&A to it.
  *
  * **The hold.** Every move of the target, a delta, a step or a jump, is clamped to `hold` (`holdLimit` of it): a wheel,
  * a swipe or a key past it rests on it, and a glide that presses into it is ended there, as at the end. The place the
@@ -636,10 +643,10 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
   const { frame, chapters } = o;
   const top = riseTop(chapters);
   const path = pathStart(chapters);
-  const look = lookStop(chapters);
+  const door = qaDoor(chapters);
   const end = scrollEnd(chapters);
   const now = o.now ?? (() => performance.now());
-  /** Until when the Q&A drops input, on `now`'s clock: a step has begun (QA_LOCK_MS). */
+  /** Until when the Q&A drops input, on `now`'s clock: a step has begun (`qaLockMs`). */
   let lockedUntil = Number.NEGATIVE_INFINITY;
   /** The void failed: the end page stands alone past the hold, reached and left by the step fade. */
   const failed = (): boolean => o.voidState?.() === 'failed';
@@ -683,7 +690,7 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
     by: 'wheel' | 'finger';
     /** It has taken its one step off the end page of a failed void: the rest of it moves nothing. */
     spent: boolean;
-    /** It has taken its one step of the Q&A, or was caught at the look back's stop: the rest of it moves nothing. */
+    /** It has taken its one step of the Q&A, or was caught at the Q&A's door: the rest of it moves nothing. */
     stepped: boolean;
   } | null = null;
   /** A lift's glide began on the rise: it runs on the rise alone, and ends at its top. */
@@ -726,7 +733,7 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
 
   /**
    * A step of the Q&A (spec 2026-10-29-bob-stack-2-design.md, goal 1), for an input `dir` its way from `base`: one
-   * question whatever its size, turned slowly (`turnTo`), and every input for QA_LOCK_MS after it dropped. Answers
+   * stop whatever its size, played slowly (`turnTo`), and every input while its lock holds dropped (`qaLockMs`). Answers
    * whether the input was the Q&A's (taken or dropped), so nothing else moves the story for it.
    */
   const qaStep = (base: number, dir: 1 | -1): boolean => {
@@ -736,8 +743,9 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
     if (to === base) return true;
     askFor(to);
     if (frame.target !== to) return true; // the hold keeps it (a failed void's): no step
+    const from = frame.progress;
     loop.turnTo(to);
-    lockedUntil = now() + QA_LOCK_MS;
+    lockedUntil = now() + qaLockMs(from, to, chapters);
     return true;
   };
 
@@ -785,16 +793,16 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
         stepped = true;
       } else {
         const qaBase = loop.heading ?? frame.target;
-        // A failed void has no ring: its end is the end page, reached and left as before (the class's doc).
+        // A failed void has no Q&A: its end is the end page, reached and left as before (the class's doc).
         if (units !== 0 && !failed() && inQa(qaBase, chapters) && qaStepTarget(qaBase, Math.sign(units) as 1 | -1, chapters, stopsNow()) !== null) {
           // In the Q&A a lift's glide carries nothing on, and a gesture takes one step (or none, if it came down from
-          // above and was caught at the look back's stop): the rest of it moves nothing.
+          // above and was caught at the door): the rest of it moves nothing.
           if (by === 'glide') {
             scroll.stopGlide();
             return;
           }
           if (gesture === null) gesture = { from: frame.target, reach: frame.target, anchor: frame.target, direction: 0, by, spent: false, stepped: false };
-          if (!gesture.stepped && gesture.from >= look - 1e-6) qaStep(qaBase, Math.sign(units) as 1 | -1);
+          if (!gesture.stepped && gesture.from >= door - 1e-6) qaStep(qaBase, Math.sign(units) as 1 | -1);
           gesture.stepped = true;
           loop.wake();
           return;
@@ -909,7 +917,7 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
         return;
       }
       if (g.stepped) {
-        scroll.stopGlide(); // a step of the Q&A, or caught at the look back's stop: no glide carries on
+        scroll.stopGlide(); // a step of the Q&A, or caught at the door: no glide carries on
         return;
       }
       // Where it carried: its reach (held to the story's ends, not to the hold) and the glide its lift would leave.
@@ -1011,27 +1019,6 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
       return taken;
     },
     headedTo: (place) => o.threeD() && (frame.target === place || asked === place),
-    dragRing: (units) => {
-      if (!inQa(frame.target, chapters) || !o.threeD()) return;
-      const first = qaStop(chapters, 0);
-      loop.stopTween();
-      frame.target = frame.progress = Math.min(Math.max(frame.target + units, first), end);
-      frame.velocity = 0;
-      const at = changedChapter(chapters, frame.progress, frame.chapterIndex, true);
-      if (at) {
-        frame.chapterIndex = at.index;
-        o.onChapter(at);
-      }
-    },
-    releaseRing: () => {
-      if (!inQa(frame.target, chapters) || !o.threeD()) return;
-      const first = qaStop(chapters, 0) - 1e-6;
-      const marks = stopsNow().filter((stop) => stop >= first);
-      const nearest = marks.reduce((best, stop) => (Math.abs(stop - frame.target) < Math.abs(best - frame.target) ? stop : best), marks[0] ?? end);
-      loop.turnTo(nearest);
-      lockedUntil = now() + QA_LOCK_MS;
-      loop.wake();
-    },
     dispose: () => {
       loop.dispose();
       scroll.dispose();

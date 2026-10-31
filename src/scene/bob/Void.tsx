@@ -2,24 +2,19 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { type ProjectId, projects } from '~/data/projects';
-import { RING_MARKS } from '~/data/qa';
 import { debugBridge } from '~/debug/needleDebug';
 import { proofWorldGate } from '~/debug/worldGate';
 import type { CompassModel } from '~/engine/bob/build/compass';
-import { buildDecorStars } from '~/engine/bob/build/decorStars';
 import { buildGyro, type GyroModel } from '~/engine/bob/build/gyro';
 import { buildEngraved, type EngravedModel } from '~/engine/bob/build/engraved';
 import { circuitOnScreen, type LightModel } from '~/engine/bob/build/light';
 import { buildNebula, type NebulaModel } from '~/engine/bob/build/nebula';
-import { buildRing } from '~/engine/bob/build/ring';
 import { buildStars, type StarsModel, starsFall, starsRound } from '~/engine/bob/build/stars';
 import { buildStorm, type StormModel } from '~/engine/bob/build/storm';
 import { buildVoid, VOID_LOOK, type VoidModel } from '~/engine/bob/build/void';
 import { buildVolume, type VolumeModel } from '~/engine/bob/build/volume';
 import { buildWorld, type WorldModel } from '~/engine/bob/build/world';
 import { lowerTier, type QualityTier } from '~/engine/quality';
-import { ringDragOn } from '~/input/ringDrag';
-import { dragRing, releaseRing } from '~/input/useHomeScroll';
 import { areasOnPath } from '~/state/chapters';
 import { frame, type ObjectOnScreen } from '~/state/frame';
 import { useScene, type VoidState } from '~/state/store';
@@ -86,7 +81,7 @@ interface SpaceParts {
 /** The hologram world once built, and whether it is shown now (null before the first frame). */
 interface WorldParts {
   model: WorldModel;
-  /** The Q&A's ring and stars, built with the world (./qaScene.ts). */
+  /** The Q&A in the stars, made with the world (./qaScene.ts). */
   qa: QaScene;
   /** The gyroscope rings and the realistic stars round the stack (spec 2026-10-29-bob-stack-2-design.md, goal 3). */
   gyro: GyroModel;
@@ -118,8 +113,6 @@ interface VoidRun {
    * last frame, to see them change.
    */
   clock: { time: number; stirred: number; place: number; open: ProjectId | null };
-  /** The Q&A's ring may be turned by hand now: it shows, past the look back's stop (src/input/ringDrag.ts). */
-  qaDrag: boolean;
   /** The hover, eased one project at a time (its place in `WORLD_PROJECTS`), and the project under the pointer now. */
   hover: ReturnType<typeof hoverEase>;
   pointed: number | null;
@@ -394,7 +387,6 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
     nebulaAsked: null,
     time: 0,
     clock: { time: 0, stirred: Number.NEGATIVE_INFINITY, place: Number.NaN, open: null },
-    qaDrag: false,
     hover: hoverEase(),
     pointed: null,
     reading: false,
@@ -471,15 +463,14 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
         if (proof) await proofWorldGate();
         await document.fonts?.load(PRINT_FONT).catch(() => undefined);
         const model = buildWorld(STACK_PLACES, latest.current.tier, scene.environment);
-        // The Q&A's gold ring and its stars (spec 2026-10-29-bob-stack-2-design.md, goal 1), built and warmed with it.
-        const qa = makeQaScene(buildRing(RING_MARKS, scene.environment), buildDecorStars(latest.current.tier, STACK_CENTRE, MACHINE_MIDDLE));
-        qa.ring.group.visible = qa.decor.group.visible = true;
-        // The gyroscope rings and the stars round the stack, with it too.
+        // The Q&A in the stars, the way out (./qaScene.ts): the page's list, written from the path.
+        const qa = makeQaScene();
+        // The gyroscope rings and the stars round the stack, built and warmed with it.
         const gyro = buildGyro([STACK_CENTRE[0], MACHINE_MIDDLE, STACK_CENTRE[2]]);
         const stars = buildStars(starsRound(STACK_CENTRE, MACHINE_MIDDLE), latest.current.tier);
         gyro.group.visible = stars.group.visible = true;
         const holder = new THREE.Group();
-        holder.add(model.group, qa.ring.group, qa.decor.group, gyro.group, stars.group);
+        holder.add(model.group, gyro.group, stars.group);
         model.pose({
           power: 1,
           flash: 0,
@@ -492,8 +483,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
           boardPower: STACK_PLACES.map(() => 1),
           boardLight: STACK_PLACES.map(() => 1),
           lift: NONE_LIFTED,
-          spot: null,
-          sink: 0
+          spot: null
         });
         try {
           uploadTextures(gl, texturesUnder(holder));
@@ -505,8 +495,8 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
           stars.dispose();
           throw error;
         }
-        holder.remove(model.group, qa.ring.group, qa.decor.group, gyro.group, stars.group);
-        qa.ring.group.visible = qa.decor.group.visible = gyro.group.visible = stars.group.visible = false;
+        holder.remove(model.group, gyro.group, stars.group);
+        gyro.group.visible = stars.group.visible = false;
         if (disposed) {
           model.dispose();
           qa.dispose();
@@ -518,7 +508,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       },
       onWorld: (world) => {
         showWorld(world, false);
-        scene.add(world.model.group, world.qa.ring.group, world.qa.decor.group, world.gyro.group, world.stars.group);
+        scene.add(world.model.group, world.gyro.group, world.stars.group);
         run.world = world;
         if (useScene.getState().scene !== null) invalidate();
       },
@@ -555,13 +545,12 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
         space.stars.dispose();
       }
       if (world) {
-        scene.remove(world.model.group, world.qa.ring.group, world.qa.decor.group, world.gyro.group, world.stars.group);
+        scene.remove(world.model.group, world.gyro.group, world.stars.group);
         world.model.dispose();
         world.qa.dispose();
         world.gyro.dispose();
         world.stars.dispose();
       }
-      run.qaDrag = false;
       frame.journey.qa = null;
       const engraved = run.engraved;
       run.engraved = null;
@@ -612,16 +601,6 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       window.removeEventListener('keydown', stir);
     };
   }, [invalidate, run]);
-
-  // The Q&A's ring turned by hand: a mouse's drag past the look back's stop, not one begun on a control or the answer.
-  useEffect(
-    () =>
-      ringDragOn(window, { drag: dragRing, release: releaseRing }, (event) => {
-        if (!run.qaDrag || useScene.getState().scene !== 'home') return false;
-        return !(event.target as Element | null)?.closest?.('a, button, input, select, textarea, .qa-frame');
-      }),
-    [run]
-  );
 
   // A click opens the project under the pointer (`onOpen`, src/ui/projectOpen.tsx `clickOnWorld`), wherever the pointer may
   // take one (`pointerMode`) and is read (`hovering`: not once the sheet has begun, where the click went through the
@@ -770,8 +749,8 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
     const shown = voidShownAt(pose);
     showSpace(space, shown);
     const path = pose.path;
-    // The glass sky only from under it, and not in the look back, which looks up toward it.
-    space.model.setSky((path?.sky ?? true) && camera.position.y < UNDER_SKY);
+    // The glass sky only from under it.
+    space.model.setSky(camera.position.y < UNDER_SKY);
     // The fog the path's (it draws back as the camera pulls back), the studio's own before it.
     if (scene.fog instanceof THREE.Fog) {
       scene.fog.near = path?.fog.near ?? LOOK.fog.near;
@@ -869,8 +848,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
           boardPower: path.boardPower,
           boardLight: path.boardLight,
           lift,
-          spot,
-          sink: path.qa?.close ?? 0
+          spot
         });
         // What the boards, the spine and the CPU reflect turns with the camera round the stack, so they look the same from every side.
         world.model.turn(Math.atan2(camera.position.x - STACK_CENTRE[0], camera.position.z - STACK_CENTRE[2]));
@@ -879,19 +857,16 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
         world.gyro.pose({ level: path.rings.level * openWorld(opened), focus: path.rings.focus, clock: clock.time });
         world.stars.pose({ level: path.rings.level, clock: clock.time });
       }
-      // The Q&A: the gold ring and its stars, the answer at its mark and the marks' buttons (./qaScene.ts); on the home
+      // The Q&A in the stars, the way out (./qaScene.ts): the list, its light and the end's words on the page; on the home
       // page alone, and not while a project is close.
       const qaSeen = world.qa.pose({
         path: on ? path : null,
         on: home && close.id === null && !handover.focus,
         clock: clock.time,
-        dt: dt0,
         reduced: reducedMotion,
-        camera,
         size,
         doc: typeof document === 'undefined' ? null : document
       });
-      run.qaDrag = qaSeen !== null && qaSeen.place >= -1e-3;
       if (proof) frame.journey.qa = qaSeen;
       moving = (easing && home) || ticking;
       if (proof) frame.journey.objects = on ? objectsOnScreen(world.model, camera, size, true) : null;

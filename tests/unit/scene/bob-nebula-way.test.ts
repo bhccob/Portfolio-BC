@@ -64,10 +64,9 @@ describe('the levels: the nebula, its far bands and the look back rings, at a po
     expect(on('land', 0.1)).toMatchObject({ bands: 0.85, rings: 0 });
     expect(on('land', 0.7)).toEqual({ clouds: expect.closeTo(0.8, 12), bands: 1, rings: 0 });
     expect(on('area', 0.1)).toEqual({ clouds: expect.closeTo(0.55, 12), bands: 1, rings: 0 });
-    expect(on('look', 1)).toEqual({ clouds: expect.closeTo(0.8, 12), bands: 1, rings: 0 });
-    // Through the Q&A the space stays as the look back left it, round the ring; the rise has none.
-    expect(on('qa', 0.5)).toEqual({ clouds: expect.closeTo(0.8, 12), bands: 1, rings: 0 });
-    expect(on('qa', 1)).toEqual({ clouds: expect.closeTo(0.8, 12), bands: 1, rings: 0 });
+    // Through the way out the space stays as the last floor left it, under the sky; the rise has none.
+    expect(on('qa', 0.5)).toEqual({ clouds: expect.closeTo(0.55, 12), bands: 1, rings: 0 });
+    expect(on('qa', 1)).toEqual({ clouds: expect.closeTo(0.55, 12), bands: 1, rings: 0 });
     expect(nebulaLevels({ stretch: 'rise', frame: null }, null)).toEqual({ clouds: 0, bands: 0, rings: 0 });
     expect(nebulaLevels({ stretch: 'end', frame: null }, null)).toEqual({ clouds: 0, bands: 0, rings: 0 });
   });
@@ -78,7 +77,6 @@ describe('the levels: the nebula, its far bands and the look back rings, at a po
     expect(nebulaLevels({ stretch: 'area', frame: null }, { part: 'area', t: 0.7, black: 0, index: 0 }).clouds).toBeCloseTo(0.55, 12);
     expect(nebulaLevels({ stretch: 'area', frame: null }, { part: 'area', t: 0, black: 0, index: 0 }).clouds).toBeCloseTo(0.8, 12);
     expect(nebulaLevels({ stretch: 'area', frame: null }, { part: 'area', t: 0, black: 0, index: 1 }).clouds).toBeCloseTo(0.55, 12);
-    expect(nebulaLevels({ stretch: 'look', frame: null }, { part: 'look', t: 1, black: 0, index: -1 }).clouds).toBeCloseTo(0.8, 12);
     // With a project open, half of it.
     expect(nebulaLevels({ stretch: 'area', frame: null }, { part: 'area', t: 0.7, black: 0, index: 0 }, 1).clouds).toBeCloseTo(0.275, 12);
     expect(nebulaLevels({ stretch: 'area', frame: null }, { part: 'area', t: 0.7, black: 0, index: 0 }, 0.5).clouds).toBeCloseTo(0.4125, 12);

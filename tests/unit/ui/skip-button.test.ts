@@ -22,12 +22,12 @@ function rule(selector: string): string {
   throw new Error(`no rule for ${selector}`);
 }
 
-describe('the skip button shows from the first project through the look back', () => {
-  it("shows from the world's stop through the look back, nowhere else", () => {
+describe('the skip button shows from the first project through the last floor', () => {
+  it("shows from the world's stop through the last floor, the Q&A's door, nowhere else", () => {
     const L = pathStart(HOME_CHAPTERS);
     const at = (p: number) => showsSkip(journeyPoseAt(p, 1440 / 900));
-    // the land, the world's stop, an area, the look back's own stop, part-way up the sheet, the credits
-    expect([L + 1.63, L + 3.16, L + 5.66, L + 9.26, L + 9.31, L + 10.26].map(at)).toEqual([false, true, true, true, false, false]);
+    // the land, the world's stop, an area, the last floor (the door), part-way into the blueprint, a question
+    expect([L + 1.63, L + 3.16, L + 5.66, L + 7.24, L + 7.29, L + 9.66].map(at)).toEqual([false, true, true, true, false, false]);
     for (const p of [0, 0.5, 1, 2.5, L - 0.01]) expect(at(p), `at ${p}`).toBe(false);
   });
 

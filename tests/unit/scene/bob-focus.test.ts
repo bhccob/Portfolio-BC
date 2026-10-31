@@ -267,9 +267,10 @@ describe('restsAt: a flight leaves only from a rest where the project is in view
     expect(restsAt('cookies-clicker', L + 5.66, L + 5.66)).toBe(true);
   });
 
-  it("is true for every project in the look back, its own stop included, and false in the Q&A", () => {
-    for (const id of IDS) expect(restsAt(id, L + 8.16, L + 8.16)).toBe(true);
-    for (const id of IDS) expect(restsAt(id, L + 9.26, L + 9.26)).toBe(true);
+  it("is true for every project at the last floor, the Q&A's door, and false past it", () => {
+    for (const id of IDS) expect(restsAt(id, L + 7.24, L + 7.24)).toBe(true);
+    for (const id of IDS) expect(restsAt(id, L + 7.5, L + 7.5)).toBe(false);
+    for (const id of IDS) expect(restsAt(id, L + 8.66, L + 8.66)).toBe(false);
     expect(restsAt('cookies-clicker', L + 9.66, L + 9.66)).toBe(false);
     expect(restsAt('cookies-clicker', L + 10.26, L + 10.26)).toBe(false);
     expect(restsAt('cookies-clicker', L + 16.26, L + 16.26)).toBe(false);

@@ -6,7 +6,7 @@ import { fieldFor, focusShotFor, journeyAt, journeyPoseAt, lensField, WORLD_PROJ
 import { factAt, lightAt, voidAt, wayShot } from '~/scene/bob/lightDive';
 import { worldPathFor } from '~/scene/bob/worldPath';
 import { riseAt, scrollPoseAt } from '~/scene/bob/scrollPose';
-import { AREA_STOP, areaStop, HAND_F, HOME_CHAPTERS, pathStart, placeOfFrame, scrollEnd, lookStop, worldStop } from '~/state/chapters';
+import { AREA_STOP, areaStop, HAND_F, HOME_CHAPTERS, pathStart, placeOfFrame, qaDoor, scrollEnd, worldStop } from '~/state/chapters';
 
 type Vec3 = readonly [number, number, number];
 
@@ -47,11 +47,14 @@ describe("the journey's stretches", () => {
     expect(journeyAt(L)).toMatchObject({ stretch: 'land', local: 0, project: null, frame: null });
     expect(journeyAt(L + 3.46)).toMatchObject({ stretch: 'area', local: 0, project: 0 });
     expect(journeyAt(L + 5.66)).toMatchObject({ stretch: 'area', project: 1 });
-    expect(journeyAt(L + 7.66)).toMatchObject({ stretch: 'look', project: null });
-    expect(journeyAt(L + 9.26)).toMatchObject({ stretch: 'qa', local: 0, project: 0 });
-    expect(journeyAt(L + 10.26)).toMatchObject({ stretch: 'qa', local: 0, project: 1 });
-    expect(journeyAt(L + 10.76)).toMatchObject({ stretch: 'qa', local: 0.5, project: 1 });
-    expect(journeyAt(L + 16.26)).toMatchObject({ stretch: 'end' });
+    expect(journeyAt(L + 7.5)).toMatchObject({ stretch: 'area', project: 2 });
+    const qa = (k: number): number => HOME_CHAPTERS.units.find((u) => u.id === 'QA' && u.project === k)!.start;
+    expect(qa(0)).toBeCloseTo(L + 7.66, 9);
+    expect(journeyAt(qa(0))).toMatchObject({ stretch: 'qa', local: 0, project: 0 });
+    expect(journeyAt(qa(1))).toMatchObject({ stretch: 'qa', local: 0, project: 1 });
+    expect(journeyAt(qa(1) + 0.5)).toMatchObject({ stretch: 'qa', project: 1 });
+    expect(journeyAt(qa(1) + 0.5).local).toBeCloseTo(0.5, 9);
+    expect(journeyAt(L + 14.66)).toMatchObject({ stretch: 'end' });
   });
 
   it('runs the light dive frame by frame: BOB from above is frame 1, the hand-over frame 256', () => {
@@ -144,8 +147,8 @@ describe('the light, the facts and the void', () => {
     for (let p = L - 0.02; p < L + 0.06; p += 0.001) expect(Math.abs(at(p + 0.001) - at(p)), `at ${p}`).toBeLessThan(0.1);
   });
 
-  it('goes into the Q&A over its first unit with no dark, and holds it at 1 to the end', () => {
-    const s = lookStop(HOME_CHAPTERS);
+  it('goes into the Q&A over a unit from its door with no dark, and holds it at 1 to the end', () => {
+    const s = qaDoor(HOME_CHAPTERS);
     expect(journeyPoseAt(s, LAPTOP).sheet).toBe(0);
     expect(journeyPoseAt(s + 0.5, LAPTOP).sheet).toBeCloseTo(0.5, 9);
     expect(journeyPoseAt(s + 0.5, LAPTOP).path!.black).toBe(0);
@@ -159,13 +162,15 @@ describe("the world's projects", () => {
     expect(WORLD_PROJECTS).toEqual(['steady', 'portle', 'jontai-energy', 'cookies-clicker']);
   });
 
-  it('flies back only from a rest where the project is in view: the world, an area or the look back', () => {
+  it("flies back only from a rest where the project is in view: the world or an area, the last the Q&A's door", () => {
     const world = worldStop(HOME_CHAPTERS);
     const jontai = areaStop(HOME_CHAPTERS, 'website');
+    const door = qaDoor(HOME_CHAPTERS);
     expect(restsAt('jontai-energy', world, world)).toBe(true);
     expect(restsAt('jontai-energy', jontai, jontai)).toBe(true);
     expect(restsAt('steady', jontai, jontai)).toBe(true); // every project is on the board, in view
-    expect(restsAt('jontai-energy', L + 9.26, L + 9.26)).toBe(true); // the look back's own stop (SHEET at local 0)
+    expect(restsAt('jontai-energy', door, door)).toBe(true); // the last floor, the Q&A's door
+    expect(restsAt('jontai-energy', L + 8.66, L + 8.66)).toBe(false); // the first question, in the stars
     expect(restsAt('jontai-energy', L + 0.5, L + 0.5)).toBe(false); // the light still coming down
     expect(restsAt('jontai-energy', jontai, jontai + 0.1)).toBe(false); // moving
   });

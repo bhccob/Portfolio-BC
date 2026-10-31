@@ -3,10 +3,11 @@ import type { CameraShot } from '~/engine/bob/shots';
 import { project } from '~/scene/bob/fit';
 import { lightAt } from '~/scene/bob/lightDive';
 import { RING_MARKS } from '~/data/qa';
-import { RING, ringTurnFor } from '~/scene/bob/qaRing';
+import { WAY_OUT, wayOutAt } from '~/scene/bob/wayOut';
 import { EXPLODE, FLASH_GONE, LAND_HIT, LOOK_BOX, makeWorldPath, NAMES_IN, POWER, TOWER_ZOOM, type WorldFrame } from '~/scene/bob/worldPath';
 import { boardCentre, boardTops, LID_TOP, STACK, stackPlaces } from '~/scene/bob/worldLayout';
-import { AREA_STOP, areaStop, areasOnPath, buildChapters, type Chapters, HAND_F, HOME_CHAPTERS, LAND_STOP, pathStart, placeOfFrame, lookStop, qaStop, scrollEnd, WORLD_LAYOUT, worldStop } from '~/state/chapters';
+import { AREA_STOP, areaStop, areasOnPath, buildChapters, type Chapters, HAND_F, HOME_CHAPTERS, LAND_STOP, pathStart, placeOfFrame, qaDoor, qaStop, scrollEnd, WORLD_LAYOUT, worldStop } from '~/state/chapters';
+import { easeInOutQuart } from '~/input/scrollLoop';
 
 type Vec3 = readonly [number, number, number];
 type Box = readonly [number, number, number, number];
@@ -164,8 +165,8 @@ describe('the slow power-on', () => {
 // Bob (2026-10-30): "can the tower be a bit zoomed in in general?", and, shown 12% and 25% nearer, "25% closer": every
 // view of the tower, on every screen, a quarter nearer than its fit.
 describe('the tower 25% nearer', () => {
-  /** Every view of the tower: the world's stop, each board's, the look back's and the ring's. */
-  const shotsOf = (path: ReturnType<typeof makeWorldPath>): CameraShot[] => [path.worldShot, ...areasOnPath().map((_, i) => path.areaShot(i)), path.lookShot, path.ringShot];
+  /** Every view of the tower: the world's stop, each board's, and the look back's (a project's off the stack). */
+  const shotsOf = (path: ReturnType<typeof makeWorldPath>): CameraShot[] => [path.worldShot, ...areasOnPath().map((_, i) => path.areaShot(i)), path.lookShot];
 
   it('stands every view of the tower 1/1.25 as far as its fit, looking the same way through the same field', () => {
     expect(TOWER_ZOOM).toBe(1.25);
@@ -206,7 +207,7 @@ describe('the tower 25% nearer', () => {
   });
 });
 
-describe("the path down the stack: the light lands in the CPU, the stack opens, a stop per board, the look back", () => {
+describe("the path down the stack: the light lands in the CPU, the stack opens, a stop per board, then the way out", () => {
   it("brings the light down into the CPU by the land's hit and keeps it there", () => {
     expect(LAND_HIT).toBeCloseTo(1.26 / 3.46, 12);
     expect(LID_TOP).toBe(0.2);
@@ -221,7 +222,7 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
       last = y;
     }
     for (const t of [LAND_HIT, hit(0.5), hit(1.2), 1]) landAt(t).light.position.forEach((v, k) => expect(v).toBeCloseTo(lid[k]!, 6));
-    for (const place of [worldStop(HOME_CHAPTERS), areaStop(HOME_CHAPTERS, 'game'), lookStop(HOME_CHAPTERS)]) {
+    for (const place of [worldStop(HOME_CHAPTERS), areaStop(HOME_CHAPTERS, 'game'), qaStop(HOME_CHAPTERS, 0)]) {
       home(DESK, place).light.position.forEach((v, k) => expect(v).toBeCloseTo(lid[k]!, 6));
     }
     // At rest the light's trail stands straight up above it, still.
@@ -247,7 +248,7 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
       last = e;
     }
     expect(landAt(hit(1.5)).explode).toBe(1);
-    for (const place of [worldStop(HOME_CHAPTERS), areaStop(HOME_CHAPTERS, 'app'), areaStop(HOME_CHAPTERS, 'game'), lookStop(HOME_CHAPTERS)]) {
+    for (const place of [worldStop(HOME_CHAPTERS), areaStop(HOME_CHAPTERS, 'app'), areaStop(HOME_CHAPTERS, 'game'), qaStop(HOME_CHAPTERS, 0), scrollEnd(HOME_CHAPTERS)]) {
       expect(home(DESK, place).explode).toBe(1);
     }
   });
@@ -327,7 +328,7 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
   it('never takes the camera through a board or the spine', () => {
     for (const aspect of [DESK, PHONE]) {
       const from = worldStop(HOME_CHAPTERS);
-      const to = lookStop(HOME_CHAPTERS);
+      const to = scrollEnd(HOME_CHAPTERS);
       for (let k = 0; k <= 200; k++) {
         const [x, y, z] = home(aspect, from + ((to - from) * k) / 200).shot.position;
         const r = Math.hypot(x - C[0], z - C[2]);
@@ -368,21 +369,6 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
     }
   });
 
-  it('goes only the short way round out from the last board to the look back, no whole turn', () => {
-    const angle = (p: Vec3): number => Math.atan2(p[2] - C[2], p[0] - C[0]);
-    const last = areasOnPath().at(-1)!;
-    const from = areaStop(HOME_CHAPTERS, last.category);
-    const to = lookStop(HOME_CHAPTERS);
-    let turned = 0;
-    let before = angle(home(DESK, from).shot.position);
-    for (let k = 1; k <= 200; k++) {
-      const now = angle(home(DESK, from + ((to - from) * k) / 200).shot.position);
-      turned += Math.atan2(Math.sin(now - before), Math.cos(now - before));
-      before = now;
-    }
-    expect(Math.abs(turned)).toBeLessThan(Math.PI / 2);
-  });
-
   it('lights the board in view and steps the others back', () => {
     expect(home(DESK, worldStop(HOME_CHAPTERS)).boardLight).toEqual([1, 1, 1, 1]);
     areasOnPath().forEach((area, i) => {
@@ -394,7 +380,8 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
         for (const s of board.sockets) expect(levels[s.id], s.id).toBeCloseTo(b === i + 1 ? 1.1 : 0.45, 12);
       });
     });
-    expect(home(DESK, lookStop(HOME_CHAPTERS)).boardLight).toEqual([1, 1, 1, 1]);
+    // The way out holds the last floor as it stood: its board lit, the others stepped back.
+    expect(home(DESK, qaStop(HOME_CHAPTERS, 2)).boardLight).toEqual(home(DESK, qaDoor(HOME_CHAPTERS)).boardLight);
   });
 
   it("lets the names show at the world's stop and at each board's, and a board's caption only at its own", () => {
@@ -410,40 +397,36 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
       const unit = HOME_CHAPTERS.units.find((u) => u.id === 'AREA' && u.category === area.category)!;
       expect(home(DESK, unit.start + 0.35 * unit.length).names).toBe(0);
     });
-    expect(home(DESK, lookStop(HOME_CHAPTERS)).names).toBe(0);
-    expect(home(DESK, lookStop(HOME_CHAPTERS)).caption).toBeNull();
-    expect(home(DESK, lookStop(HOME_CHAPTERS)).dots).toBe(0);
+    expect(home(DESK, qaStop(HOME_CHAPTERS, 0)).names).toBe(0);
+    expect(home(DESK, qaStop(HOME_CHAPTERS, 0)).caption).toBeNull();
+    expect(home(DESK, qaStop(HOME_CHAPTERS, 0)).dots).toBe(0);
     expect(AREA_STOP).toBe(0.7);
   });
 
-  it("shows the skip button from the world's stop through the look back's", () => {
+  it("shows the skip button from the world's stop through the last floor, the Q&A's door", () => {
     const world = worldStop(HOME_CHAPTERS);
     expect(home(DESK, world - 0.05).skip).toBe(false);
     expect(home(DESK, world).skip).toBe(true);
-    expect(home(DESK, lookStop(HOME_CHAPTERS)).skip).toBe(true);
-    expect(home(DESK, lookStop(HOME_CHAPTERS) + 0.1).skip).toBe(false);
+    expect(home(DESK, qaDoor(HOME_CHAPTERS)).skip).toBe(true);
+    expect(home(DESK, qaDoor(HOME_CHAPTERS) + 0.1).skip).toBe(false);
   });
 
-  it('closes the stack over the way into the Q&A, with no dark, and keeps the fog', () => {
-    const look = lookStop(HOME_CHAPTERS);
-    const first = qaStop(HOME_CHAPTERS, 0);
-    const start = home(DESK, look);
-    expect(start.part).toBe('qa');
-    expect([start.explode, start.qa!.close, start.qa!.place]).toEqual([1, 0, -1]);
-    const half = home(DESK, look + 0.5);
-    expect(half.explode).toBeGreaterThan(0);
-    expect(half.explode).toBeLessThan(1);
-    expect(half.explode).toBeCloseTo(1 - half.qa!.close, 12);
-    const closed = home(DESK, first);
-    expect([closed.explode, closed.qa!.close, closed.qa!.place]).toEqual([0, 1, 0]);
-    for (const level of Object.values(closed.levels)) expect(level).toBe(0);
-    for (let k = 0; k <= 20; k++) {
-      const f = home(DESK, look + (k / 20) * (scrollEnd(HOME_CHAPTERS) - look));
-      expect(f.black, `at ${k}`).toBe(0);
-      expect([f.names, f.caption, f.dots, f.sky], `at ${k}`).toEqual([0, null, 0, false]);
-      if (k > 0) expect(f.skip, `at ${k}`).toBe(false);
+  // Round 14 (Bob picked the way out on .superpowers/r14/all.html): the tower stays as the last floor showed it while it
+  // turns into a blueprint and the dark comes over it; its words go with the dark.
+  it('holds the last floor through the way out, as its stop shows it, with no dark of its own and the fog kept', () => {
+    const door = qaDoor(HOME_CHAPTERS);
+    const floor = home(DESK, door);
+    expect(floor.part).toBe('area');
+    expect(floor.qa).toEqual({ place: -1, out: wayOutAt(-1, RING_MARKS) });
+    for (let k = 1; k <= 20; k++) {
+      const f = home(DESK, door + (k / 20) * (scrollEnd(HOME_CHAPTERS) - door));
+      expect(f.shot, `at ${k}`).toEqual(floor.shot);
+      expect([f.explode, f.power, f.black], `at ${k}`).toEqual([1, 1, 0]);
+      expect(f.levels, `at ${k}`).toEqual(floor.levels);
+      expect(f.rings, `at ${k}`).toEqual(floor.rings);
+      expect(f.skip, `at ${k}`).toBe(false);
     }
-    for (const place of [worldStop(HOME_CHAPTERS), look, first]) {
+    for (const place of [worldStop(HOME_CHAPTERS), door, qaStop(HOME_CHAPTERS, 3)]) {
       const { near, far } = home(DESK, place).fog;
       expect(near).toBeGreaterThan(10);
       expect(far).toBeGreaterThan(near);
@@ -451,15 +434,40 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
     expect(LAND_STOP).toBeCloseTo((1.26 + 1.9) / 3.46, 12);
   });
 
-  it('looks back up at the whole machine framed, not far out (Bob, 2026-10-29: "it zooms out too much")', () => {
+  it("reads the place in the Q&A off the chapters, and the way out's stage at it", () => {
+    for (let k = 0; k < RING_MARKS; k++) {
+      const f = home(DESK, qaStop(HOME_CHAPTERS, k));
+      expect(f.qa!.place).toBeCloseTo(k, 12);
+      expect(f.qa!.out).toEqual(wayOutAt(f.qa!.place, RING_MARKS));
+    }
+    expect(home(DESK, qaDoor(HOME_CHAPTERS) - 0.01).qa).toBeNull();
+  });
+
+  it("takes the floor's caption, dots and names away as the dark comes over it", () => {
+    const door = qaDoor(HOME_CHAPTERS);
+    const first = qaStop(HOME_CHAPTERS, 0);
+    // The place the way in's turn has reached `s` seconds in.
+    const placeAt = (s: number): number => door + easeInOutQuart(s / WAY_OUT.blueprint) * (first - door);
+    const start = home(DESK, placeAt(1));
+    expect(start.caption!.opacity).toBe(1);
+    expect([start.names, start.dots]).toEqual([1, 1]);
+    const half = home(DESK, placeAt(2));
+    expect(half.caption!.opacity).toBeCloseTo(1 - half.qa!.out.dark, 9);
+    expect(half.caption!.opacity).toBeGreaterThan(0);
+    expect(half.caption!.opacity).toBeLessThan(1);
+    expect(half.names).toBeCloseTo(half.caption!.opacity, 9);
+    expect(half.dots).toBeCloseTo(half.caption!.opacity, 9);
+    const dark = home(DESK, placeAt(3.7));
+    expect([dark.caption, dark.names, dark.dots]).toEqual([null, 0, 0]);
+  });
+
+  it('frames the whole machine for a project off the stack, looking back up at it, not far out (Bob, 2026-10-29: "it zooms out too much")', () => {
     for (const aspect of [DESK, PHONE]) {
       const path = pathFor(aspect);
-      const f = home(aspect, lookStop(HOME_CHAPTERS));
-      expect(f.part).toBe('qa');
+      const f = { shot: path.lookShot };
       const d = Math.hypot(...([0, 1, 2].map((k) => f.shot.position[k]! - f.shot.target[k]!) as [number, number, number]));
       expect((f.shot.position[1] - f.shot.target[1]) / d).toBeCloseTo(Math.sin((16 * Math.PI) / 180), 6);
       // The fit: the whole machine inside the look back's box, and filling it, the camera no further out than it needs.
-      expect(f.shot).toEqual(path.lookShot);
       const box = LOOK_BOX[aspect === DESK ? 'desk' : 'phone'];
       const seen = path.machine.map((p) => project([...p], fitFor(aspect).lookShot, aspect));
       for (const p of seen) {
@@ -473,71 +481,9 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
     }
   });
 
-  it("holds the ring's view through the questions", () => {
-    for (const aspect of [DESK, PHONE]) {
-      const path = pathFor(aspect);
-      for (let k = 0; k < RING_MARKS; k++) expect(home(aspect, qaStop(HOME_CHAPTERS, k)).shot, `mark ${k}`).toEqual(path.ringShot);
-      // From the look back's view to the ring's over the way in, eased: half way it is between them.
-      const half = home(aspect, lookStop(HOME_CHAPTERS) + 0.5).shot;
-      expect(half.position).not.toEqual(path.lookShot.position);
-      expect(half.position).not.toEqual(path.ringShot.position);
-    }
-  });
-
-  it('frames the ring per screen shape', () => {
-    for (const aspect of [DESK, PHONE]) {
-      const path = pathFor(aspect);
-      const f = home(aspect, qaStop(HOME_CHAPTERS, 2));
-      const shot = path.ringShot;
-      // The mock-up's place: out from its aim (under the closed ring) at its elevation and distance (the fit's; the
-      // site's `TOWER_ZOOM` nearer); the shot looks a little aside of that aim, so the ring stands where the mock-up has it.
-      const aim: Vec3 = [C[0], f.ring.centre[1] - (aspect === DESK ? 1.6 : 0.6), C[2]];
-      const fit = fitFor(aspect).ringShot;
-      const off = [0, 1, 2].map((k) => fit.position[k]! - aim[k]!) as [number, number, number];
-      const d = Math.hypot(...off);
-      expect(d).toBeCloseTo(aspect === DESK ? 23 : 31, 9);
-      expect(off[1] / d).toBeCloseTo(Math.sin(((aspect === DESK ? 15 : 20) * Math.PI) / 180), 9);
-      expect(shot.fov).toBe(aspect === DESK ? 38 : 58);
-      // The mark that faces the camera is on the screen, and so is the closed stack's lid.
-      const r = RING.closedRadius;
-      const front: Vec3 = [C[0] + Math.sin(RING.azimuth) * r, f.ring.centre[1], C[2] + Math.cos(RING.azimuth) * r];
-      for (const p of [front, [C[0], TOPS[0]! + LID_TOP, C[2]] as Vec3]) {
-        const s = project([...p], shot, aspect);
-        expect(s.front).toBe(true);
-        expect(Math.abs(s.x)).toBeLessThan(1);
-        expect(Math.abs(s.y)).toBeLessThan(1);
-      }
-    }
-  });
-
-  it('brings the ring in over the look back, and draws it in and up round the closing stack', () => {
-    const lastArea = HOME_CHAPTERS.units.filter((u) => u.id === 'AREA').at(-1)!;
-    expect(home(DESK, lastArea.start + AREA_STOP * lastArea.length).ring.level).toBe(0);
-    const look = lookStop(HOME_CHAPTERS);
-    const open = home(DESK, look).ring;
-    expect([open.level, open.scale]).toEqual([1, 1]);
-    expect(open.turn).toBeCloseTo(ringTurnFor(-1, RING_MARKS), 12);
-    const closed = home(DESK, qaStop(HOME_CHAPTERS, 0)).ring;
-    expect(closed.scale).toBeCloseTo(RING.closedRadius / RING.radius, 12);
-    const shut = boardTops(BOARDS, 0);
-    expect(closed.centre[1]).toBeCloseTo((shut[0]! + shut.at(-1)!) / 2 - RING.below, 9);
-    expect([closed.centre[0], closed.centre[2]]).toEqual([C[0], C[2]]);
-    for (let k = 0; k < RING_MARKS; k++) {
-      const f = home(DESK, qaStop(HOME_CHAPTERS, k));
-      expect(f.ring.level).toBe(1);
-      // Round 13: the scroll no longer turns the ring a question a step; it holds the look back's turn (and drifts on its
-      // own in the Q&A, src/scene/bob/qaScene.ts).
-      expect(f.ring.turn, `mark ${k}`).toBeCloseTo(ringTurnFor(-1, RING_MARKS), 12);
-      expect(f.qa!.place).toBeCloseTo(k, 12);
-    }
-    expect(home(DESK, scrollEnd(HOME_CHAPTERS)).qa!.lit).toBe(1);
-    expect(home(DESK, qaStop(HOME_CHAPTERS, 2)).qa!.lit).toBe(0);
-  });
-
   it('steps the gyroscope back at a board and in the Q&A', () => {
     expect(home(DESK, worldStop(HOME_CHAPTERS)).rings).toEqual({ level: 1, focus: 1 });
     expect(home(DESK, areaStop(HOME_CHAPTERS, 'app')).rings.focus).toBeCloseTo(0.42, 9);
-    expect(home(DESK, lookStop(HOME_CHAPTERS)).rings.focus).toBeCloseTo(1, 9);
     expect(home(DESK, qaStop(HOME_CHAPTERS, 2)).rings.focus).toBeCloseTo(0.42, 9);
     // Dark until the power comes: before the land's power the rings are not lit.
     expect(landAt(0.2).rings.level).toBe(0);

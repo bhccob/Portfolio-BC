@@ -21,19 +21,18 @@ describe('stepStopFor: reduced motion stands on keyStops with no frame between',
     expect(stepStopFor(placeOfFrame(201) - 0.1, 'loading')).toBe(placeOfFrame(201));
   });
 
-  it('steps reduced motion through the world, each area, the look back and each mark on the ring', () => {
-    // The world's stop, each area's, then the look back's own stop, each question and the end's mark.
+  it("steps reduced motion through the world, each area (the last the Q&A's door) and each mark of the Q&A", () => {
+    // The world's stop, each area's, then each question and the end's mark.
     expect(KEY.filter((stop) => stop > L)).toEqual([
       expect.closeTo(L + 3.16, 9),
       expect.closeTo(L + 4.44, 9),
       expect.closeTo(L + 5.84, 9),
       expect.closeTo(L + 7.24, 9),
-      expect.closeTo(L + 9.26, 9),
-      ...[0, 1, 2, 3, 4, 5, 6].map((k) => expect.closeTo(L + 10.26 + k, 9)),
+      ...[0, 1, 2, 3, 4, 5, 6].map((k) => expect.closeTo(L + 8.66 + k, 9)),
     ]);
     expect(stepStopFor(L + 3.66, 'ready')).toBeCloseTo(L + 3.16, 9);
-    expect(stepStopFor(L + 8.16, 'ready')).toBeCloseTo(L + 7.24, 9);
-    expect(stepStopFor(L + 9.36, 'ready')).toBeCloseTo(L + 9.26, 9);
+    expect(stepStopFor(L + 7.66, 'ready')).toBeCloseTo(L + 7.24, 9);
+    expect(stepStopFor(L + 8.36, 'ready')).toBeCloseTo(L + 8.66, 9);
     // The land is never posed between: a target on the way down stands on the world's stop.
     expect(stepStopFor(L + 1.63, 'ready')).toBeCloseTo(L + 3.16, 9);
   });

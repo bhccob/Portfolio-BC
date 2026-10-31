@@ -31,13 +31,13 @@ export function areasOnPath(list: readonly Project[] = projects.onPath()): AreaS
  * - for each category of the projects on the way, in the categories' order: AREA, the camera going round the stack's
  *   axis and down to the category's board, seen from just under the board above it, its stop (`AREA_STOP`) the board at
  *   rest;
- * - LOOK, the camera pulling back and up over the whole machine;
- * - QA, one for each mark on the Q&A's gold ring (spec 2026-10-29-bob-stack-2-design.md, goal 1): the first from the
- *   look back's stop into the first question, the stack closing under the ring, then one to each question after it, and
- *   the last to the end's mark;
- * - END, the end's mark at rest, the scroll's last stop.
+ * - QA, one for each mark of the Q&A (spec 2026-10-29-bob-stack-2-design.md, goal 1; round 14, spec
+ *   2026-10-31-bob-way-out-design.md): the first the way in from the last floor, the tower turning into a blueprint whose
+ *   sparks build the Q&A in the stars (from the door, the last floor's stop, `qaDoor`), then one to each question after
+ *   it, and the last the flight through the circle to the end;
+ * - END, the end at rest, the scroll's last stop.
  */
-export type ChapterId = 'HOME' | 'LIGHT' | 'LAND' | 'AREA' | 'LOOK' | 'QA' | 'END';
+export type ChapterId = 'HOME' | 'LIGHT' | 'LAND' | 'AREA' | 'QA' | 'END';
 
 export interface ChapterUnit {
   id: ChapterId;
@@ -88,17 +88,17 @@ export const FACT_PEAKS = [81, 121, 161, 201, 241] as const;
 
 /**
  * The world's lengths in units (my calls, after the mock-up's pace): the land, from the hand-over to the world at rest;
- * each area, from the stop before to the area at rest; and the look back. Each QA unit is one: a step of the scroll
- * there is a turn of the ring, whatever its size (src/input/target.ts). The land is `LAND_DROP` to the light's hit on
+ * and each area, from the stop before to the area at rest. Each QA unit is one: a step of the scroll there is a step of
+ * the Q&A, whatever its size (src/input/target.ts). The land is `LAND_DROP` to the light's hit on
  * the lid (Bob, 2026-10-29: the drop "too fast", now twice its 0.63; spec 2026-10-29-bob-stack-3-design.md, goal 1) and
  * 2.2 after it, where it had 1.17, for the tower's slow power-on as the camera pulls back (Bob, 2026-10-30).
  */
 export const LAND_DROP = 1.26;
-export const WORLD_LAYOUT = { land: LAND_DROP + 2.2, area: 1.4, look: 1.6, qa: 1 } as const;
+export const WORLD_LAYOUT = { land: LAND_DROP + 2.2, area: 1.4, qa: 1 } as const;
 
 /**
- * HOME 1, LIGHT `LIGHT_UNITS`, LAND, then an AREA for each area of the world, then LOOK, a QA for each mark on the ring
- * (`questions` and the end's) and END 1. The scroll ends on the last stop, the end's mark (`scrollEnd`), and never goes
+ * HOME 1, LIGHT `LIGHT_UNITS`, LAND, then an AREA for each area of the world, a QA for each mark of the Q&A (`questions`
+ * and the end's) and END 1. The scroll ends on the last stop, the end's mark (`scrollEnd`), and never goes
  * into the END unit; `total` is where the units end. Nothing here is a pixel: the scroll input turns pixels into units.
  */
 export function buildChapters(spec: ChapterSpec): Chapters {
@@ -114,7 +114,6 @@ export function buildChapters(spec: ChapterSpec): Chapters {
       project,
       projects: [...area.projects]
     })),
-    { id: 'LOOK', length: WORLD_LAYOUT.look, ...none },
     ...Array.from({ length: (spec.questions ?? RING_QUESTIONS) + 1 }, (_, mark): Omit<ChapterUnit, 'start'> => ({ id: 'QA', length: WORLD_LAYOUT.qa, ...none, project: mark })),
     { id: 'END', length: 1, ...none }
   ];
@@ -127,7 +126,7 @@ export function buildChapters(spec: ChapterSpec): Chapters {
   return { units, total: start };
 }
 
-/** The chapters of the home page: the rise, the light dive, the world and its areas, the look back and the ring's questions. */
+/** The chapters of the home page: the rise, the light dive, the world and its areas, and the Q&A. */
 export const HOME_CHAPTERS: Chapters = buildChapters({ areas: areasOnPath() });
 
 export interface ChapterAt {
@@ -199,19 +198,19 @@ export function pathStart(c: Chapters): number {
   return lightStart(c) + LIGHT_UNITS;
 }
 
-/** Where the look back starts: the last board at rest, the camera about to pull back over the whole machine. */
-export function lookStart(c: Chapters): number {
-  return startOf(c, 'LOOK');
-}
-
-/** The look back's own stop: the look back at rest, the whole machine in view, where the first QA unit starts. */
-export function lookStop(c: Chapters): number {
-  return startOf(c, 'QA');
+/**
+ * The Q&A's door (round 14, spec 2026-10-31-bob-way-out-design.md): the last floor's stop, the world's where there is no
+ * floor. A scroll down from it is the way in, the tower turning into a blueprint, as one step of the Q&A; the rest of
+ * the last area after its stop is the way in's too.
+ */
+export function qaDoor(c: Chapters): number {
+  const last = c.units.findLast((u) => u.id === 'AREA');
+  return last ? last.start + AREA_STOP * last.length : worldStop(c);
 }
 
 /**
- * The stop of mark `k` on the ring (0 to the questions' count): the end of QA unit `k`. Mark `k` is question `k + 1`,
- * and the last is the end's, the scroll's end (`scrollEnd`). Throws for a mark the ring does not have.
+ * The stop of mark `k` of the Q&A (0 to the questions' count): the end of QA unit `k`. Mark `k` is question `k + 1`,
+ * and the last is the end's, the scroll's end (`scrollEnd`). Throws for a mark the Q&A does not have.
  */
 export function qaStop(c: Chapters, k: number): number {
   const unit = c.units.find((u) => u.id === 'QA' && u.project === k);
@@ -220,12 +219,14 @@ export function qaStop(c: Chapters, k: number): number {
 }
 
 /**
- * Where on the ring place `p` is: -1 at the look back's stop, `k` at mark `k`'s stop, linear between; null before
- * the look back's stop, off the ring.
+ * Where in the Q&A place `p` is: -1 at the door (`qaDoor`), `k` at mark `k`'s stop, linear between, the way in from the
+ * door to the first question one stretch; null before the door, off the Q&A.
  */
 export function qaPlaceAt(c: Chapters, p: number): number | null {
-  const start = lookStop(c);
-  if (!(p >= start)) return null;
+  const door = qaDoor(c);
+  if (!(p >= door)) return null;
+  const first = qaStop(c, 0);
+  if (p < first) return -1 + (p - door) / (first - door);
   const marks = c.units.filter((u) => u.id === 'QA');
   const last = marks.at(-1)!;
   const unit = marks.find((u) => p < u.start + u.length) ?? last;
@@ -277,12 +278,12 @@ export function areaStop(c: Chapters, category: string): number {
 
 /**
  * Where a key steps (an arrow, Page Up or Down, Space, and every step with reduced motion): the home, BOB from above,
- * each fact at full strength (`FACT_PEAKS`), the world, each area, the look back and each mark on the ring, the last the
- * scroll's end.
+ * each fact at full strength (`FACT_PEAKS`), the world, each area (the last the Q&A's door) and each mark of the Q&A, the
+ * last the scroll's end.
  */
 export function keyStops(c: Chapters): number[] {
   const facts = FACT_PEAKS.map((f) => placeIn(c, f));
   const areas = c.units.filter((u) => u.id === 'AREA').map((u) => u.start + AREA_STOP * u.length);
   const marks = c.units.filter((u) => u.id === 'QA').map((u) => u.start + u.length);
-  return [0, riseTop(c), ...facts, worldStop(c), ...areas, lookStop(c), ...marks];
+  return [0, riseTop(c), ...facts, worldStop(c), ...areas, ...marks];
 }

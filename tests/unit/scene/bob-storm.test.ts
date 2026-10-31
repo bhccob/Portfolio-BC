@@ -101,7 +101,7 @@ describe('the storm: its flats, its flash, its levels and when it moves', () => 
     }
     expect(land(LAND_HIT)).toBeCloseTo(STORM.sky.void, 9);
     expect(land(0.9)).toBeCloseTo(STORM.sky.void, 9);
-    for (const stretch of ['area', 'look', 'qa'] as const) {
+    for (const stretch of ['area', 'qa'] as const) {
       expect(stormLevels({ stretch, local: 0.5, frame: null }, 0)).toEqual({ sky: STORM.sky.void, flats: 0, sea: 1 });
       // A project open: quieter, as the rest of the world.
       expect(stormLevels({ stretch, local: 0.5, frame: null }, 1).sky).toBeCloseTo(STORM.sky.void * STORM.sky.open, 9);

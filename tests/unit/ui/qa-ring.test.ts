@@ -170,6 +170,24 @@ describe("the ring's words", () => {
     expect(p.asked.every((a) => a.size === 0)).toBe(true);
   });
 
+  // Round 14 (the way out): as the flight sets off the list drifts toward the camera and blurs away.
+  it('writes how far the list has drifted away, only when it changes, none while it stands', () => {
+    const p = fakeParts();
+    const written = qaWritten();
+    writeQa(p, { on: true, at: 5, answer: 1 }, written);
+    expect(p.vars.has('--qa-past')).toBe(false);
+    writeQa(p, { on: true, at: null, answer: 0.6, past: 0.4321 }, written);
+    expect(p.vars.get('--qa-past')).toBe('0.432');
+    p.vars.clear();
+    writeQa(p, { on: true, at: null, answer: 0.6, past: 0.4321 }, written);
+    expect(p.vars.has('--qa-past')).toBe(false);
+    writeQa(p, { on: true, at: 5, answer: 1, past: 0 }, written);
+    expect(p.vars.has('--qa-past')).toBe(false);
+    writeQa(p, { on: true, at: null, answer: 0.2, past: 0.9 }, written);
+    clearQa(p, written);
+    expect(p.vars.has('--qa-past')).toBe(false);
+  });
+
   it('clears every attribute it wrote', () => {
     const p = fakeParts();
     const written = qaWritten();

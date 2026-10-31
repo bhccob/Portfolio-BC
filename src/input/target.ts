@@ -1,5 +1,5 @@
 import { LANDING_HOLD } from '~/scene/bob/landingHold';
-import { type ChapterAt, type Chapters, chapterAt, keyStops, lookStop, riseTop, scrollEnd } from '~/state/chapters';
+import { type ChapterAt, type Chapters, chapterAt, keyStops, qaDoor, riseTop, scrollEnd } from '~/state/chapters';
 import { type Phase, SCROLL_PHASES } from '~/state/machine';
 import type { VoidState } from '~/state/store';
 
@@ -9,7 +9,7 @@ const ON_STOP = 1e-6;
 /**
  * The stops a key, and reduced motion's every input, steps among for the void's state (`VoidState`,
  * src/scene/bob/Void.tsx): the key stops (`keyStops`: the home, BOB from above, each fact at its full strength, each
- * project's arrival and inside, the look back, the end page) while the void is there or still to come, and with the
+ * project's arrival and inside, each question, the end page) while the void is there or still to come, and with the
  * void failed only the home, BOB from above, the landing hold (src/scene/bob/landingHold.ts, where the scroll holds
  * then) and the end page, so nothing steps to a place on a path whose beads are not there. The scroll input steps its
  * keys among them (src/input/scrollLoop.ts).
@@ -23,7 +23,7 @@ export function stopsFor(c: Chapters, voidState: VoidState): number[] {
 /**
  * Where the scroll target goes for a delta of `units` (one unit is a viewport height of scroll).
  * Normally it moves by the delta and stays inside the story, 0 to the end (`scrollEnd`), and a move down from above the
- * look back's stop rests on it (the Q&A past it is `qaStepTarget`'s). With reduced motion it
+ * Q&A's door, the last floor's stop, rests on it (the Q&A past it is `qaStepTarget`'s). With reduced motion it
  * does not move by a distance but to a place: the next stop down the story for a delta down, the previous one up for
  * a delta up, whatever the size of the delta; none past the last. The stops are `places`, in order: the key stops
  * (`keyStops`) unless given (`stopsFor` the void's state).
@@ -31,10 +31,10 @@ export function stopsFor(c: Chapters, voidState: VoidState): number[] {
 export function moveTarget(target: number, units: number, c: Chapters, reducedMotion: boolean, places: readonly number[] = keyStops(c)): number {
   const end = scrollEnd(c);
   if (!reducedMotion) {
-    // A continuous move down from above is caught by the look back's stop: past it the Q&A goes a question a step.
-    const look = lookStop(c);
+    // A continuous move down from above is caught by the Q&A's door: past it the Q&A goes a step at a time.
+    const door = qaDoor(c);
     const next = Math.min(Math.max(target + units, 0), end);
-    return target < look - ON_STOP && next > look ? look : next;
+    return target < door - ON_STOP && next > door ? door : next;
   }
   if (units === 0) return target;
   if (units > 0) return places.find((stop) => stop > target + ON_STOP) ?? end;
@@ -79,25 +79,24 @@ export function restsAtTop(from: number, to: number, c: Chapters, direction = Ma
 }
 
 /**
- * Whether `place` is in the Q&A on the gold ring (spec 2026-10-29-bob-stack-2-design.md, goal 1): at the look back's own
- * stop or past it, where every input is a step of one question (`qaStepTarget`).
+ * Whether `place` is in the Q&A (spec 2026-10-29-bob-stack-2-design.md, goal 1; round 14): at its door, the last floor's
+ * stop, or past it, where every input is a step (`qaStepTarget`), the first the way in.
  */
 export function inQa(place: number, c: Chapters): boolean {
-  return place >= lookStop(c) - ON_STOP;
+  return place >= qaDoor(c) - ON_STOP;
 }
 
 /**
  * Where a step of the Q&A takes the target from `target`, `dir` its way (1 down, -1 up): the next of `places` (the key
- * stops unless given: the look back's own, each question and the end's mark), or the one before, whatever the input's
- * size ("rotating snaps"); none past the end. Null where it is no step of the Q&A: off it, and up from the look back's
- * stop, where the scroll is continuous again.
+ * stops unless given: the door, each question and the end's mark), or the one before, whatever the input's size; none
+ * past the end. Null where it is no step of the Q&A: off it, and up from the door, where the scroll is continuous again.
  */
 export function qaStepTarget(target: number, dir: 1 | -1, c: Chapters, places: readonly number[] = keyStops(c)): number | null {
   if (!inQa(target, c)) return null;
-  const look = lookStop(c);
-  if (dir < 0 && target <= look + ON_STOP) return null;
+  const door = qaDoor(c);
+  if (dir < 0 && target <= door + ON_STOP) return null;
   if (dir > 0) return places.find((stop) => stop > target + ON_STOP) ?? scrollEnd(c);
-  return places.findLast((stop) => stop < target - ON_STOP && stop >= look - ON_STOP) ?? look;
+  return places.findLast((stop) => stop < target - ON_STOP && stop >= door - ON_STOP) ?? door;
 }
 
 /**

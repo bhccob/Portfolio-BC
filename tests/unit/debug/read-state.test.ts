@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { countCanvasMount, registerStageProbe } from '../../../src/debug/stageReport';
 import { holdLoader, readNeedleDebugState, setStoryProgress } from '../../../src/debug/useNeedleDebug';
 import { onWakeScene } from '../../../src/scene/motion';
-import { chapterAt, HOME_CHAPTERS, pathStart, scrollEnd, lookStop } from '../../../src/state/chapters';
+import { chapterAt, HOME_CHAPTERS, pathStart, qaDoor, scrollEnd } from '../../../src/state/chapters';
 import { frame } from '../../../src/state/frame';
 import { useScene } from '../../../src/state/store';
 
@@ -226,7 +226,7 @@ describe('setStoryProgress', () => {
     setStoryProgress(99);
     expect(frame.target).toBe(scrollEnd(HOME_CHAPTERS));
     expect(useScene.getState().phase).toEqual({ kind: 'END' });
-    setStoryProgress(lookStop(HOME_CHAPTERS) + 0.5);
+    setStoryProgress(qaDoor(HOME_CHAPTERS) + 0.5);
     expect(useScene.getState().phase).toEqual({ kind: 'PROJECTS', category: null });
     setStoryProgress(-4);
     expect(frame.target).toBe(0);

@@ -2,13 +2,14 @@
  * What the scene writes on the page for the Q&A each frame (spec 2026-10-29-bob-stack-2-design.md, goal 1; round 10, spec
  * 2026-10-30-bob-qa-list-floors-design.md: Bob picked "A · One list"): only what has changed, as the names and the
  * captions are written (src/ui/WorldNames.tsx). The words themselves are src/ui/QaRing.tsx's; the stylesheet draws them
- * from what is written here (src/styles/base.css, "the Q&A's ring"):
- * - `<html data-qa>` while the Q&A shows, `data-qa-at="<k>"` while the ring stands at mark `k`, and `data-qa-end` while
- *   it stands at the end's (spec 2026-10-29-bob-stack-3-design.md, goal 4: the dark and the circle);
- * - the frame's `--qa-show` (how much the list, or at the end the end's words, shows, 0..1);
- * - the list's open question: the first as the Q&A comes in, then the one the ring stands at (a question asked in the
- *   list turns the ring to its mark), its button `aria-expanded="true"` and its reply shown, the others closed; none on
- *   the way from one question to another (round 13, Bob picked "C · The light");
+ * from what is written here (src/styles/base.css, "the Q&A"):
+ * - `<html data-qa>` while the Q&A shows (from the way in on), `data-qa-at="<k>"` while it stands at mark `k`, and
+ *   `data-qa-end` once the end's words are on (round 14: from the flight's 2.8 s, the end's mark itself after it);
+ * - the frame's `--qa-show` (how much the list shows, 0..1) and `--qa-past` (round 14: how far it has drifted toward the
+ *   camera and blurred as the flight sets off, 0..1, none while it stands);
+ * - the list's open question: the first as the Q&A comes in, then the one it stands at (a question asked in the list
+ *   takes the Q&A to its mark), its button `aria-expanded="true"` and its reply shown, the others closed; none on the
+ *   way from one question to another (round 13, Bob picked "C · The light");
  * - the gold light beside the list (round 13): its place down the frame, `--qa-light` (px, at a question's middle at
  *   its mark and between two on the way), and `<html data-qa-moving="down|up">` while it runs;
  * - the end's words shown at the end's mark; the section's `inert` while the Q&A does not show.
@@ -32,14 +33,15 @@ export interface QaParts {
 }
 
 /**
- * The Q&A of a frame: whether it shows, the mark the ring stands at (null between), how much the words show, and whether
- * it is on its way from one question to another (none open then).
+ * The Q&A of a frame: whether it shows, the mark it stands at (null between), how much the list shows, whether it is on
+ * its way from one question to another (none open then), and how far the list has drifted away (round 14, 0 standing).
  */
 export interface QaView {
   on: boolean;
   at: number | null;
   answer: number;
   between?: boolean;
+  past?: number;
 }
 
 /** The light beside the list: its place down the frame, px, and the way it runs (1 down, -1 up, 0 at rest). */
@@ -55,6 +57,8 @@ export interface QaWritten {
   /** The list's open question, null for none written. */
   open: number | null;
   answer: number;
+  /** How far the list has drifted away written (NaN for none written yet). */
+  past: number;
   /** The light's place written, px (NaN for none), and its way. */
   light: number;
   way: -1 | 0 | 1;
@@ -62,7 +66,7 @@ export interface QaWritten {
 
 /** Nothing written yet: what the scene starts from, and what a clear leaves. */
 export function qaWritten(): QaWritten {
-  return { on: false, at: null, open: null, answer: Number.NaN, light: Number.NaN, way: 0 };
+  return { on: false, at: null, open: null, answer: Number.NaN, past: Number.NaN, light: Number.NaN, way: 0 };
 }
 
 /**
@@ -116,8 +120,8 @@ export function writeQa(parts: QaParts, view: QaView, written: QaWritten): void 
     if (parts.end) parts.end.hidden = at !== end;
     written.at = at;
   }
-  // The open question: the one the ring stands at; none on the way from one to another; else the last open, else
-  // (coming in) the first.
+  // The open question: the one it stands at; none on the way from one to another; else the last open (at the end, the
+  // last question's, drifting away), else (coming in) the first.
   const open = !view.on ? written.open : at !== null && at < end ? at : view.between ? null : (written.open ?? 0);
   if (view.on && open !== written.open) {
     openItem(parts, open);
@@ -127,6 +131,12 @@ export function writeQa(parts: QaParts, view: QaView, written: QaWritten): void 
   if (answer !== written.answer) {
     parts.frame?.style.setProperty('--qa-show', share(answer));
     written.answer = answer;
+  }
+  const past = view.on ? Math.min(Math.max(view.past ?? 0, 0), 1) : 0;
+  if (past !== written.past) {
+    if (past > 0) parts.frame?.style.setProperty('--qa-past', share(past));
+    else parts.frame?.style.removeProperty('--qa-past');
+    written.past = past;
   }
 }
 
@@ -156,6 +166,7 @@ export function clearQa(parts: QaParts, written: QaWritten): void {
   openItem(parts, null);
   if (parts.end) parts.end.hidden = true;
   parts.frame?.style.removeProperty('--qa-show');
+  parts.frame?.style.removeProperty('--qa-past');
   parts.frame?.style.removeProperty('--qa-light');
   Object.assign(written, qaWritten());
 }

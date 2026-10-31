@@ -1,22 +1,22 @@
 /**
  * The home's journey as plain numbers: from the scroll's progress (in the chapters' units) to where the camera stands,
- * where the light and its fact are, the void's state, the light's path through the projects, and how far the sheet over
- * the look back has come up. Pure, as the rise's pose is (./scrollPose): it imports nothing from React or three and
- * remembers no frame, so the tests read the very pose the scene applies, and a progress sought to a value poses the
- * scene as the scroll did there.
+ * where the light and its fact are, the void's state, the light's path through the projects, and how far the story has
+ * gone past the Q&A's door (the sheet). Pure, as the rise's pose is (./scrollPose): it imports nothing from React or
+ * three and remembers no frame, so the tests read the very pose the scene applies, and a progress sought to a value
+ * poses the scene as the scroll did there.
  *
  * The stretches are the home's chapters (~/state/chapters; spec 2026-10-27-bob-light-path-design.md):
  * - the rise, 0-1: M2a's pose itself (`scrollPoseAt(riseAt(progress))`), the home at 0 to BOB from above at 1;
  * - the light dive: the way's frames 1 to `HAND_F` of the previs (./lightDive.ts), linearly: the needle lights up into
  *   the light, which flows away through the void past Bob's five facts;
  * - the world's path (./worldPath.ts), from the hand-over: the light landing in the CPU and the whole world, each area,
- *   the look back, then the sheet, the look back fading to black as the credits rise over it;
- * - the end, the scroll's last stop: the credits at rest, HTML over the scene (the scene sleeps behind it).
+ *   then the way out (./wayOut.ts): the blueprint, the Q&A in the stars and the flight through its circle;
+ * - the end, the scroll's last stop: the end's words at rest, HTML over the scene's sky.
  * Within 1e-6 of a stop the progress is the stop, as `riseAt` has it, so a sum's float residue never leaves it a hair off.
  */
 import type { ProjectId } from '~/data/projects';
 import { type CameraShot, shotFor } from '~/engine/bob/shots';
-import { areasOnPath, chapterAt, frameOfPlace, HOME_CHAPTERS, pathStart, lookStop, riseTop, scrollEnd, stops } from '~/state/chapters';
+import { areasOnPath, chapterAt, frameOfPlace, HOME_CHAPTERS, pathStart, qaDoor, riseTop, scrollEnd, stops } from '~/state/chapters';
 import { type FactAt, factAt, lightAt, streamAt, trailAt, trailLevel, voidAt, wayNeedle, wayShot } from './lightDive';
 import { type WorldFrame, worldPathFor } from './worldPath';
 import type { LightPose, VoidPose } from './poseTypes';
@@ -28,7 +28,7 @@ export type { LightPose, VoidPose } from './poseTypes';
 type Vec3 = readonly [number, number, number];
 
 /** A stretch of the journey: one of the home's chapters, seen as the camera's move. */
-export type Stretch = 'rise' | 'light' | 'land' | 'area' | 'look' | 'qa' | 'end';
+export type Stretch = 'rise' | 'light' | 'land' | 'area' | 'qa' | 'end';
 
 /**
  * Where the journey is: the stretch and how far through it (`local`, 0 at its start); in the light dive the way's frame
@@ -63,8 +63,9 @@ export interface NeedleOverride {
  * - `needle`: null while the compass holds it and from then on: the light stays the light to the end;
  * - `void`: the void's state, null on the rise;
  * - `path`: the world's path at this place (./worldPath.ts), null before the hand-over;
- * - `sheet`: how far the story has gone into the Q&A, 0..1: the first QA unit's way (the stack closing under the ring),
- *   then 1 to the end; 0 before it. A failed void's end page reads it at the end (src/scene/bob/endView.ts).
+ * - `sheet`: how far the story has gone past the Q&A's door, the last floor's stop, 0..1: over a unit of the way in (the
+ *   tower turning into a blueprint), then 1 to the end; 0 before it. A failed void's end page reads it at the end
+ *   (src/scene/bob/endView.ts).
  */
 export interface JourneyPose {
   at: JourneyAt;
@@ -118,7 +119,7 @@ export function focusShotFor(id: ProjectId, aspect: number): CameraShot {
 }
 
 const PATH_AT = pathStart(HOME_CHAPTERS);
-const SHEET_AT = lookStop(HOME_CHAPTERS);
+const DOOR = qaDoor(HOME_CHAPTERS);
 const RISE_TOP = riseTop(HOME_CHAPTERS);
 const END_AT = scrollEnd(HOME_CHAPTERS);
 /** Within this much of a stop, the progress is on it, as `riseAt` has it: a sum's float residue is the stop. */
@@ -134,7 +135,7 @@ function settled(progress: number): number {
   return p;
 }
 
-const STRETCHES = { LAND: 'land', AREA: 'area', LOOK: 'look', QA: 'qa', END: 'end' } as const;
+const STRETCHES = { LAND: 'land', AREA: 'area', QA: 'qa', END: 'end' } as const;
 
 /**
  * Where the journey is at this progress (the module's doc lists the stretches). NaN reads as 0, the progress is held to
@@ -197,7 +198,7 @@ export function journeyPoseAt(progress: number, aspect: number): JourneyPose {
     needle: null,
     void: path.void,
     path,
-    sheet: at.stretch === 'qa' ? Math.min(1, p - SHEET_AT) : at.stretch === 'end' ? 1 : 0
+    sheet: p > DOOR ? Math.min(1, p - DOOR) : 0
   };
 }
 

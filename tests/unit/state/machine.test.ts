@@ -36,7 +36,7 @@ describe('CHAPTER', () => {
   it("maps the world's chapters to the projects phase: the land, the look back and the sheet with no project", () => {
     expect(transition({ kind: 'LIGHT' }, chapter('LAND'))).toEqual({ kind: 'PROJECTS', category: null });
     expect(transition({ kind: 'LIGHT' }, chapter('AREA', 'website'))).toEqual({ kind: 'PROJECTS', category: 'website' });
-    expect(transition({ kind: 'PROJECTS', category: 'game' }, chapter('LOOK'))).toEqual({ kind: 'PROJECTS', category: null });
+    expect(transition({ kind: 'PROJECTS', category: 'game' }, chapter('QA'))).toEqual({ kind: 'PROJECTS', category: null });
     expect(transition({ kind: 'PROJECTS', category: null }, chapter('QA'))).toEqual({ kind: 'PROJECTS', category: null });
   });
 

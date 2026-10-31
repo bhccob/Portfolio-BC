@@ -3,11 +3,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GESTURE_GAP_MS } from '../../../src/input/gesture';
 import { Inertia } from '../../../src/input/Inertia';
 import { SKIP_QUIET_MS, skipSwallower } from '../../../src/input/loaderSkip';
-import { easeInOutQuart, FOLLOW, follow, GLIDE_MIN_S, GLIDE_S, QA_GLIDE_S, QA_LOCK_MS, RISE_SMOOTH, type Smooth, smoothTimeAt, startHomeScroll, type TweenKind, turnTime } from '../../../src/input/scrollLoop';
+import { easeInOutQuart, FOLLOW, follow, GLIDE_MIN_S, GLIDE_S, QA_LOCK_MS, qaLockMs, RISE_SMOOTH, type Smooth, smoothTimeAt, startHomeScroll, type TweenKind, turnTime } from '../../../src/input/scrollLoop';
+import { WAY_OUT } from '../../../src/scene/bob/wayOut';
 import { connectHomeScroll, goToEnd, goToTop, headedToEnd } from '../../../src/input/useHomeScroll';
 import { LANDING_HOLD } from '../../../src/scene/bob/landingHold';
 import { nearestStop, STEP_FADE_MS, stepFadeAt, stepFadeFrom } from '../../../src/scene/bob/stepFade';
-import { areaStop, buildChapters, type ChapterAt, chapterAt, FALL_PACE, HOME_CHAPTERS, pathStart, placeOfFrame, qaStop, scrollEnd, lookStop, stops, worldStop } from '../../../src/state/chapters';
+import { areaStop, buildChapters, type ChapterAt, chapterAt, FALL_PACE, HOME_CHAPTERS, keyStops, pathStart, placeOfFrame, qaDoor, qaStop, scrollEnd, stops, worldStop } from '../../../src/state/chapters';
 import { frame as storyFrame } from '../../../src/state/frame';
 import { useScene, type VoidState } from '../../../src/state/store';
 
@@ -23,10 +24,10 @@ const L = pathStart(chapters);
 const A0 = worldStop(chapters);
 const A1 = areaStop(chapters, 'a');
 const A2 = areaStop(chapters, 'b');
-/** The look back's own stop: the sheet's start, where the credits begin to rise. */
-const S = lookStop(chapters);
+/** The Q&A's door, the last floor's stop: a scroll down from it is the way in, the blueprint. */
+const S = qaDoor(chapters);
 /** The chapters' indices of the land (the world's stop is inside it), the first QA unit's and the end's. */
-const INDEX = { land: 2, qa: 7, end: 14 } as const;
+const INDEX = { land: 2, qa: 6, end: 13 } as const;
 /** The first question's stop on the ring, the end of the first QA unit. */
 const Q0 = qaStop(chapters, 0);
 /** The first fact's place, the light dive's frame 81: the first key stop past BOB from above. */
@@ -345,7 +346,7 @@ describe('the scroll loop: a glide', () => {
     expect(s.home.scroll.busy).toBe(false);
   });
 
-  it("glides on past the rise as a page would, resting where it ends, and ends one that reaches the look back's stop", async () => {
+  it("glides on past the rise as a page would, resting where it ends, and ends one that reaches the Q&A's door", async () => {
     const alone = glideAlone();
     const s = setup();
     restAt(s, L + 5.26);
@@ -354,7 +355,7 @@ describe('the scroll loop: a glide', () => {
     s.drain();
     expect(s.frame.target).toBeCloseTo(L + 5.66 + alone.px / VH, 6); // on the world, between two stops: no stop
     expect(s.frame.progress).toBe(s.frame.target);
-    // Caught at the look back's stop: past it the Q&A goes a question a step.
+    // Caught at the door, the last floor: past it the Q&A goes a step at a time.
     restAt(s, S - 0.8);
     await s.swipe(-1);
     s.drain();
@@ -874,9 +875,10 @@ describe('reduced motion steps among the key stops', () => {
     expect(s.frame.progress).toBe(F81);
     await drag(s, 300);
     expect(s.frame.target).toBe(placeOfFrame(121));
-    restAt(s, areaStop(chapters, 'c'));
-    s.key('ArrowDown'); // the look back
+    restAt(s, areaStop(chapters, 'b'));
+    s.key('ArrowDown'); // the last floor, the Q&A's door
     expect(s.frame.target).toBe(S);
+    expect(S).toBe(areaStop(chapters, 'c'));
     expect(s.home.loop.tweening).toBeNull(); // no glide with reduced motion
     s.key('ArrowDown');
     expect(s.frame.target).toBe(Q0);
@@ -1536,7 +1538,7 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
   });
 
   describe('the arrival at the first question: on it exactly, and at rest', () => {
-    it('from the look back, ArrowDown turns into the first question and rests on it: progress exactly on it, no velocity, no frame asked for after', async () => {
+    it('from the door, ArrowDown plays the way in to the first question and rests on it: progress exactly on it, no velocity, no frame asked for after', async () => {
       const first = qaStop(HOME_CHAPTERS, 0);
       const s = wiredHome(S, { voidState: 'ready' });
       expect(s.key('ArrowDown').defaultPrevented).toBe(true);
@@ -1545,16 +1547,19 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
       const seen = s.run();
       expect(s.frames.size, 'the loop sleeps').toBe(0);
       expect([storyFrame.target, storyFrame.progress, storyFrame.velocity]).toEqual([first, first, 0]);
-      expect(seen.length / 60).toBeLessThan(2.9);
+      expect(seen.length / 60).toBeLessThan(WAY_OUT.blueprint + 0.1);
     });
 
-    it('does not snap a turn back short of the first question: ArrowUp at 0.98 of the way in turns back to the look back, never there', async () => {
+    it('does not snap a turn back short of the first question: ArrowUp as the lock lets go, near the way in\'s end, turns back to the door, never there', async () => {
       const first = qaStop(HOME_CHAPTERS, 0);
       const s = wiredHome(S, { voidState: 'ready' });
+      const near = S + 0.98 * (first - S);
       s.key('ArrowDown');
+      const start = s.frames.now;
       await flush();
-      for (let i = 0; i < 600 && storyFrame.progress < S + 0.98; i++) s.frames.frame();
-      expect(storyFrame.progress).toBeGreaterThanOrEqual(S + 0.98);
+      // The lock holds for the whole way in: the press up waits it out, and comes a breath before the way in is over.
+      while (s.frames.now - start < WAY_OUT.lock.blueprint * 1000 + 50) s.frames.frame();
+      expect(storyFrame.progress).toBeGreaterThanOrEqual(near);
       expect(storyFrame.progress).toBeLessThan(first);
       s.key('ArrowUp');
       expect(storyFrame.target).toBe(S);
@@ -1566,16 +1571,17 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
 });
 
 describe('reduced motion and the Q&A', () => {
-  it('reduced motion: one wheel step from the look back goes to the first question by a fade, and one up goes back', async () => {
+  it('reduced motion: one wheel step from the door goes to the first question by a fade, and one up goes back', async () => {
     const s = setup({ reduced: true });
     restAt(s, S);
-    // Home's step fade, as it runs it on each frame it poses (src/scene/bob/Home.tsx): the stop the target is nearest.
+    // Home's step fade, as it runs it on each frame it poses (src/scene/bob/stepFade.ts `fadeStop`): the key stop the
+    // target is nearest (the door is a floor's stop, not a unit's start).
     const fade = stepFadeFrom(S);
-    const shown = (now: number): number => stepFadeAt(fade, nearestStop(stops(chapters), s.frame.target), true, now).shown;
+    const shown = (now: number): number => stepFadeAt(fade, nearestStop(keyStops(chapters), s.frame.target), true, now).shown;
 
     await wheelNotches(s, 10, 120, 16); // one gesture: one step
     expect(s.frame.target).toBe(Q0);
-    expect(shown(0)).toBe(S); // the host fades down, the scene still at the look back
+    expect(shown(0)).toBe(S); // the host fades down, the scene still at the last floor
     expect(fade.darkAt).toBe(STEP_FADE_MS);
     expect(shown(STEP_FADE_MS - 1)).toBe(S);
     expect(shown(STEP_FADE_MS)).toBe(Q0); // dark: the scene is at the first question, and the host fades back
@@ -1594,10 +1600,11 @@ describe('reduced motion and the Q&A', () => {
   });
 });
 
-// ---------------------------------------------------------------- the Q&A on the ring
+// ---------------------------------------------------------------- the Q&A
 
-// The Q&A on the gold ring (spec 2026-10-29-bob-stack-2-design.md, goal 1): "rotating snaps and is slower". From the look
-// back's stop every input is one step, a question, turned slowly; input while a turn's lock holds is dropped.
+// The Q&A (spec 2026-10-29-bob-stack-2-design.md, goal 1: "rotating snaps and is slower"; round 14, the way out): from
+// the door, the last floor's stop, every input is one step, the way in, a question or the flight to the end, played
+// slowly; input while a step's lock holds is dropped.
 describe('the Q&A, a question a step', () => {
   const q = (k: number) => qaStop(chapters, k);
 
@@ -1625,10 +1632,36 @@ describe('the Q&A, a question a step', () => {
     expect(s.frame.progress).toBe(q(1));
   });
 
-  it('glides into the Q&A in 2.8 s', () => {
-    expect(QA_GLIDE_S).toBe(2.8);
-    expect(turnTime(S, q(0), chapters)).toBe(2.8);
-    expect(turnTime(q(0), S, chapters)).toBe(2.8);
+  it("plays the way in, the blueprint, in the mock-up's 6.4 s and the flight to the end in its 4.8 s; either back in 2.4 s", () => {
+    expect(WAY_OUT).toEqual({ blueprint: 6.4, flight: 4.8, back: 2.4, lock: { blueprint: 6.2, flight: 4.2 } });
+    expect(turnTime(S, q(0), chapters)).toBe(6.4);
+    expect(turnTime(q(0), S, chapters)).toBe(2.4);
+    expect(turnTime(q(5), q(6), chapters)).toBe(4.8);
+    expect(turnTime(q(6), q(5), chapters)).toBe(2.4);
+    // From within the way in (a step that began part way), still the way in's.
+    expect(turnTime((S + q(0)) / 2, q(0), chapters)).toBe(6.4);
+  });
+
+  it('drops input for the whole way in and the whole flight, as the mock-up did; a question or a way back for QA_LOCK_MS', () => {
+    expect(qaLockMs(S, q(0), chapters)).toBe(6200);
+    expect(qaLockMs(q(5), q(6), chapters)).toBe(4200);
+    expect(qaLockMs(q(0), q(1), chapters)).toBe(QA_LOCK_MS);
+    expect(qaLockMs(q(0), S, chapters)).toBe(QA_LOCK_MS);
+    expect(qaLockMs(q(6), q(5), chapters)).toBe(QA_LOCK_MS);
+  });
+
+  it('drops a scroll during the blueprint, and takes the next once it is over', async () => {
+    const s = setup();
+    restAt(s, S);
+    await wheelNotches(s, 1);
+    const start = s.frames.now;
+    expect(s.frame.target).toBe(q(0));
+    while (s.frames.now - start < 6000) s.frames.frame();
+    await wheelNotches(s, 1);
+    expect(s.frame.target).toBe(q(0));
+    while (s.frames.now - start < 6500) s.frames.frame();
+    await wheelNotches(s, 1);
+    expect(s.frame.target).toBe(q(1));
   });
 
   it('takes one step for a burst of notches', async () => {
@@ -1670,17 +1703,4 @@ describe('the Q&A, a question a step', () => {
     expect(s.home.loop.tweening).toBeNull();
   });
 
-  it('turns by a drag and lets go onto the nearest question', async () => {
-    const s = setup();
-    restAt(s, q(1));
-    s.home.dragRing(0.7);
-    expect(s.frame.target).toBeCloseTo(q(1) + 0.7, 12);
-    expect(s.frame.progress).toBeCloseTo(q(1) + 0.7, 12);
-    s.home.dragRing(-5);
-    expect(s.frame.target).toBe(q(0)); // a drag never takes the ring off its questions, back into the look back
-    s.home.dragRing(1.4);
-    s.home.releaseRing();
-    expect(s.frame.target).toBe(q(1));
-    expect(s.home.loop.tweening).toBe('turn');
-  });
 });

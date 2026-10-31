@@ -74,16 +74,6 @@ export function headedToQuestions(): boolean {
   return connected?.headedTo(qaStop(HOME_CHAPTERS, 0)) ?? false;
 }
 
-/** The Q&A's ring turned by hand, `units` of the scroll (src/input/ringDrag.ts; `HomeScroll.dragRing`). */
-export function dragRing(units: number): void {
-  connected?.dragRing(units);
-}
-
-/** The hand has let go of the ring: it turns on to the nearest question (`HomeScroll.releaseRing`). */
-export function releaseRing(): void {
-  connected?.releaseRing();
-}
-
 /**
  * maath's `damp`, loaded on the first input rather than with the page. `maath/easing` imports three.js, which
  * the scene keeps out of the page's first load (it is its own chunk, fetched after hydration): a static import

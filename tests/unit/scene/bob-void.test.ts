@@ -60,7 +60,7 @@ describe('landingHoldFor: the most the scroll may reach before the beads are rea
 
   it("is the end of the scroll once the void is ready, the end's mark on the ring: nothing holds", () => {
     expect(landingHoldFor('ready')).toBe(END);
-    expect(END).toBeCloseTo(L + 16.26, 9);
+    expect(END).toBeCloseTo(L + 14.66, 9);
   });
 
   it('answers a hold for every state, never above the end nor below the top of the rise', () => {
@@ -740,15 +740,15 @@ describe('the wiring: one journey pose a frame', () => {
     expect(source).toMatch(/run\.engraved = null/);
   });
 
-  it("builds the Q&A's ring and stars with the world, poses them each frame, and hides and frees them with it", () => {
+  it('makes the Q&A in the stars with the world, poses it each frame, and hides and frees it with it; the 3D ring is gone', () => {
     const source = readFileSync(fileURLToPath(new URL('../../../src/scene/bob/Void.tsx', import.meta.url)), 'utf8');
-    expect(source).toMatch(/makeQaScene\(buildRing\(RING_MARKS, scene\.environment\), buildDecorStars\(/);
-    expect(source).toMatch(/holder\.add\(model\.group, qa\.ring\.group, qa\.decor\.group[,)]/);
+    expect(source).toMatch(/const qa = makeQaScene\(/);
+    expect(source).toMatch(/holder\.add\(model\.group, gyro\.group, stars\.group\)/);
+    expect(source).not.toMatch(/buildRing|buildDecorStars|ringDragOn/);
     expect(source).toMatch(/world\.qa\.pose\(\{/);
     // Hidden with the world (and so its page cleared), freed with it.
     expect(source).toMatch(/if \(!shown\) \{\s*world\.qa\.hide\(\);/);
     expect(source).toMatch(/world\.qa\.dispose\(\);/);
-    expect(source).toMatch(/ringDragOn\(window, \{ drag: dragRing, release: releaseRing \}/);
   });
 
   it("builds the fall's stars with the void, round the light's line, and poses them with the fall", () => {
@@ -1085,11 +1085,10 @@ describe('a failed void: the fall plays, the story holds at the landing, and the
 });
 
 describe('pointerMode: which projects the pointer may hover and open', () => {
-  it('is any project once the world is in: at its stop, every area and the look back; none before it or under the sheet', () => {
+  it('is any project once the world is in: at its stop and every area, the last floor (the Q&A\'s door) too; none before it or in the Q&A', () => {
     const at = (p: number) => pointerMode(journeyPoseAt(p, LAPTOP));
     expect([at(0.5), at(placeOfFrame(121)), at(L + 0.5), at(L + 1.63)]).toEqual([null, null, null, null]);
     expect([at(L + 3.16), at(L + 4.44), at(L + 5.66), at(L + 7.24)]).toEqual(['any', 'any', 'any', 'any']);
-    expect([at(L + 8.16), at(L + 9.26)]).toEqual(['any', 'any']);
-    expect([at(L + 9.66), at(END)]).toEqual([null, null]);
+    expect([at(L + 8.16), at(L + 8.66), at(L + 9.66), at(END)]).toEqual([null, null, null, null]);
   });
 });

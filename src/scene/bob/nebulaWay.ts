@@ -70,8 +70,9 @@ function over(span: Span, u: number): number {
 /**
  * Each part's level at a pose: in the light dive by its way frame (`at.frame`), on the world by its part, t and area
  * (`path`, null off it): the clouds up to the world's level and the bands in over the land, as the light leaves the facts
- * behind; quieter over the first area's way in and back up over the look back; with a project open (`open`, 0..1) the
- * clouds go toward `OPEN_LOOK.clouds` of their level (./inside.ts). No rings, which were the beads'.
+ * behind; quieter over the first area's way in, and held so through the way out, where the last floor stands under
+ * the sky (./wayOut.ts); with a project open (`open`, 0..1) the clouds go toward `OPEN_LOOK.clouds` of their level
+ * (./inside.ts). No rings, which were the beads'.
  */
 export function nebulaLevels(at: Pick<JourneyAt, 'stretch' | 'frame'>, path: Pick<WorldFrame, 'part' | 't' | 'black' | 'index'> | null, open = 0): NebulaLevels {
   if (at.stretch === 'light' && at.frame !== null) {
@@ -82,11 +83,10 @@ export function nebulaLevels(at: Pick<JourneyAt, 'stretch' | 'frame'>, path: Pic
   const { part, t, black, index } = path;
   const { world, area } = NEBULA.WORLD_LEVEL;
   const quiet = 1 + (OPEN_LOOK.clouds - 1) * Math.min(1, Math.max(0, open));
-  if (part === 'qa') return { clouds: world * (1 - black) * quiet, bands: 1 - black, rings: 0 };
+  if (part === 'qa') return { clouds: area * (1 - black) * quiet, bands: 1 - black, rings: 0 };
   let clouds: number = world;
   if (part === 'land') clouds = NEBULA.FALL_LEVEL + (world - NEBULA.FALL_LEVEL) * over([0, NEBULA.WHOLE_BY_T], t);
   else if (part === 'area') clouds = index === 0 ? world + (area - world) * over([0, AREA_STOP], t) : area;
-  else if (part === 'look') clouds = area + (world - area) * over([0, 0.9], t);
   const bands = part === 'land' ? NEBULA.FALL_BANDS + (1 - NEBULA.FALL_BANDS) * over(NEBULA.BANDS_IN_T, t) : 1;
   return { clouds: clouds * quiet, bands, rings: 0 };
 }
