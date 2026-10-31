@@ -218,19 +218,27 @@ export function qaStop(c: Chapters, k: number): number {
   return unit.start + unit.length;
 }
 
+/** Within this of a mark of the Q&A (or its door) a place is on it: a sum's float residue is never a way between. */
+const ON_MARK = 1e-9;
+
 /**
  * Where in the Q&A place `p` is: -1 at the door (`qaDoor`), `k` at mark `k`'s stop, linear between, the way in from the
- * door to the first question one stretch; null before the door, off the Q&A.
+ * door to the first question one stretch; null before the door, off the Q&A. Within `ON_MARK` of a mark, the mark.
  */
 export function qaPlaceAt(c: Chapters, p: number): number | null {
   const door = qaDoor(c);
-  if (!(p >= door)) return null;
+  if (!(p >= door - ON_MARK)) return null;
   const first = qaStop(c, 0);
-  if (p < first) return -1 + (p - door) / (first - door);
-  const marks = c.units.filter((u) => u.id === 'QA');
-  const last = marks.at(-1)!;
-  const unit = marks.find((u) => p < u.start + u.length) ?? last;
-  return unit.project! - 1 + Math.min(Math.max((p - unit.start) / unit.length, 0), 1);
+  let place: number;
+  if (p < first) place = -1 + Math.max(p - door, 0) / (first - door);
+  else {
+    const marks = c.units.filter((u) => u.id === 'QA');
+    const last = marks.at(-1)!;
+    const unit = marks.find((u) => p < u.start + u.length) ?? last;
+    place = unit.project! - 1 + Math.min(Math.max((p - unit.start) / unit.length, 0), 1);
+  }
+  const whole = Math.round(place) || 0; // never -0, a hair under the first question
+  return Math.abs(place - whole) < ON_MARK ? whole : place;
 }
 
 /** The place of the way's frame `f` (1 to `HAND_F`, fractional allowed) on the home's scroll: the light dive, linearly. */

@@ -2629,7 +2629,9 @@ html[data-qa-end] .qa-frame {
 @media (max-width: 700px) {
   .qa-frame {
     width: calc(100vw - 40px);
-    transform: translate(20px, calc(100dvh - 100% - 72px + (1 - var(--qa-show, 0)) * var(--qa-slide, 12px)));
+    /* 24 px off the foot (round 14: the header stands over the sky now, so the longest answer open must keep the list's
+       top clear of it on a 390x844 phone). */
+    transform: translate(20px, calc(100dvh - 100% - 24px + (1 - var(--qa-show, 0)) * var(--qa-slide, 12px)));
   }
 
   .qa-frame::before,

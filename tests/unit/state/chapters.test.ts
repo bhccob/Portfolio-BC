@@ -232,4 +232,14 @@ describe('the Q&A', () => {
     expect(qaPlaceAt(c, qaDoor(c) - 1e-6)).toBeNull();
     expect(qaPlaceAt(c, qaDoor(c) - 1)).toBeNull();
   });
+
+  // A place counted from the path's start and back (the world's path) can come a float's hair off a stop: it is on it.
+  it('reads a place a hair off a stop as the stop itself, the way out never left a hair short of a question', () => {
+    for (let k = 0; k <= 6; k++) {
+      expect(qaPlaceAt(c, qaStop(c, k) - 1e-12)).toBe(k);
+      expect(qaPlaceAt(c, qaStop(c, k) + 1e-12)).toBe(Math.min(k, 6));
+    }
+    expect(qaPlaceAt(c, qaDoor(c) - 1e-12)).toBe(-1);
+    expect(qaPlaceAt(c, qaStop(c, 2) - 0.01)).toBeCloseTo(1.99, 12);
+  });
 });
