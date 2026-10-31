@@ -16,7 +16,8 @@ const two = (n: number): string => String(n).padStart(2, '0');
 /**
  * The Q&A's words beside the gold ring round the stack (spec 2026-10-29-bob-stack-2-design.md, goal 1; the mock-up Bob
  * chose, "mix"; round 10, spec 2026-10-30-bob-qa-list-floors-design.md: Bob picked "A · One list"): every question in
- * one list beside the tower, each a button that turns the ring to its mark (`goToQa`), its reply under it, the count over
+ * one list beside the tower, each a button that takes the Q&A to its mark (`goToQa`), its reply under it, a thin gold line
+ * beside them with the light that runs down it from question to question (round 13, Bob picked "C · The light"), the count over
  * the answer ("Q&A · 02 / 06") and the answer in reading text (or the end page's placeholder with its tag for one Bob has
  * not sent); the end's mark's words, "Einde van de site", "Stuur een bericht.", Bob's line and two buttons, to the contact
  * page and back to the start; and, for the end, the dark that comes up over the scene and the gold circle that draws
@@ -41,6 +42,10 @@ export function QaRingParts({ questions }: { questions?: EndQuestions }): JSX.El
         {t.end.head}
       </h2>
       <div className="qa-frame">
+        {/* The gold light's line beside the list (round 13, Bob picked "C · The light"): the scene runs the light down it. */}
+        <span className="qa-rail" aria-hidden="true">
+          <span className="qa-light" />
+        </span>
         <ol className="qa-list">
           {list.map(({ question, answer }, k) => (
             <li key={question} className="qa-item" data-k={k}>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RING_MARKS } from '~/data/qa';
-import { answerShown, clickAt, markAngle, RING, ringLit, ringTurnFor } from '~/scene/bob/qaRing';
+import { answerShown, markAngle, RING, RING_DRIFT, ringDriftAt, ringLit, ringTurnFor } from '~/scene/bob/qaRing';
 
 const DEG = Math.PI / 180;
 /** An angle held to (-π, π]. */
@@ -22,13 +22,20 @@ describe("the Q&A's ring", () => {
     expect(wrap(markAngle(0, RING_MARKS) + ringTurnFor(-1, RING_MARKS) - RING.azimuth)).toBeCloseTo((2 * Math.PI) / RING_MARKS, 12);
   });
 
-  it('clicks a little past and back, gone within a second', () => {
-    expect(clickAt(0)).toBe(0);
-    expect(clickAt(0.03)).toBeGreaterThan(0);
-    expect(Math.max(...Array.from({ length: 200 }, (_, i) => Math.abs(clickAt(i / 200))))).toBeLessThan(0.014);
-    expect(Math.abs(clickAt(1))).toBeLessThan(1e-5);
-    expect(clickAt(-0.1)).toBe(0);
-    expect(clickAt(Number.NaN)).toBe(0);
+  // Round 13 (Bob, 2026-10-31: "can you also make the background ring also move around a bit when theyre on the Q&A").
+  it('drifts a little round and back and sways its tip, slowly, never far', () => {
+    const seconds = Array.from({ length: 6001 }, (_, i) => i / 10);
+    const drift = seconds.map(ringDriftAt);
+    const most = (pick: (d: { turn: number; tip: number }) => number): number => Math.max(...drift.map((d) => Math.abs(pick(d))));
+    expect(most((d) => d.turn)).toBeLessThanOrEqual(RING_DRIFT.turn + 1e-12);
+    expect(most((d) => d.turn)).toBeGreaterThan(0.6 * RING_DRIFT.turn);
+    expect(most((d) => d.tip)).toBeLessThanOrEqual(RING_DRIFT.tip + 1e-12);
+    expect(most((d) => d.tip)).toBeGreaterThan(0.6 * RING_DRIFT.tip);
+    // Slow: never more than half a degree round in a tenth of a second (about 4.4° a second at its quickest).
+    for (let i = 1; i < drift.length; i++) expect(Math.abs(drift[i]!.turn - drift[i - 1]!.turn)).toBeLessThan(DEG / 2);
+    expect(RING_DRIFT.turn).toBeCloseTo(14 * DEG, 12);
+    expect(RING_DRIFT.tip).toBeCloseTo(2.5 * DEG, 12);
+    expect(ringDriftAt(Number.NaN)).toEqual({ turn: 0, tip: 0 });
   });
 
   it('shows the answer only near a mark', () => {

@@ -525,7 +525,9 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
     for (let k = 0; k < RING_MARKS; k++) {
       const f = home(DESK, qaStop(HOME_CHAPTERS, k));
       expect(f.ring.level).toBe(1);
-      expect(f.ring.turn, `mark ${k}`).toBeCloseTo(ringTurnFor(k, RING_MARKS), 12);
+      // Round 13: the scroll no longer turns the ring a question a step; it holds the look back's turn (and drifts on its
+      // own in the Q&A, src/scene/bob/qaScene.ts).
+      expect(f.ring.turn, `mark ${k}`).toBeCloseTo(ringTurnFor(-1, RING_MARKS), 12);
       expect(f.qa!.place).toBeCloseTo(k, 12);
     }
     expect(home(DESK, scrollEnd(HOME_CHAPTERS)).qa!.lit).toBe(1);

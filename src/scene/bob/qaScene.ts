@@ -1,16 +1,17 @@
 /**
  * The Q&A in the scene, a frame at a time (spec 2026-10-29-bob-stack-2-design.md, goal 1): the gold ring and the decor
- * stars posed from the path (./worldPath.ts `RingFrame`, `QaFrame`), the ring's small click and its mark's flash as it
- * lands on a mark (./qaRing.ts `clickAt`, on the world's clock, none with reduced motion), and on the page the list of
- * questions beside the tower, the one the ring stands at open, and the end's words at the end's mark (src/ui/qaWriters.ts;
- * round 10, Bob picked "A · One list"), only what has changed. The Void builds it with the world and calls `pose` each
+ * stars posed from the path (./worldPath.ts `RingFrame`, `QaFrame`), the ring's slow drift on a clock of its own while the
+ * Q&A shows (./qaRing.ts `ringDriftAt`; round 13, none with reduced motion) and its mark's flash as it lands on one, and
+ * on the page the list of questions beside the tower, the one the ring stands at open, none on the way between two while
+ * the gold light runs down the list to the next (round 13, Bob picked "C · The light"), and the end's words at the end's
+ * mark (src/ui/qaWriters.ts; round 10, Bob picked "A · One list"), only what has changed. The Void builds it with the world and calls `pose` each
  * frame, `hide` when the world goes off the screen, `dispose` with the world.
  */
 import * as THREE from 'three';
 import type { DecorModel } from '~/engine/bob/build/decorStars';
 import type { RingModel } from '~/engine/bob/build/ring';
-import { clearQa, type QaParts, qaWritten, writeQa } from '~/ui/qaWriters';
-import { clickAt } from './qaRing';
+import { clearQa, qaLightAnchors, qaLightY, type QaParts, qaWritten, writeQa, writeQaLight } from '~/ui/qaWriters';
+import { ringDriftAt } from './qaRing';
 import type { WorldFrame } from './worldPath';
 
 /** What the Q&A is posed by, each frame. */
@@ -54,7 +55,13 @@ interface Found {
   section: Element & { isConnected: boolean };
   parts: QaParts;
   frame: { getBoundingClientRect(): { left: number; top: number; width: number; height: number } } | null;
+  /** The questions' buttons, as laid out in the frame, and the light's places at them, measured once per screen. */
+  asks: { offsetTop: number; offsetHeight: number }[];
+  anchors: { key: string; at: number[] };
 }
+
+/** A frame's step is never taken as longer than this on the drift's clock, s: a tab back from the background does not lurch it. */
+const MAX_DRIFT_STEP = 0.1;
 
 /** A mark landed on this close to a whole place is on it. */
 const ON_MARK = 1e-4;
@@ -66,6 +73,8 @@ export function makeQaScene(ring: RingModel, decor: DecorModel): QaScene {
   const written = qaWritten();
   /** The landing: the mark the ring last came onto, when (the world's clock) and which way it was turning. */
   const landing = { mark: null as number | null, at: 0, way: 1, last: Number.NaN };
+  /** The drift's own clock, s: it runs while the Q&A shows, and holds still with reduced motion. */
+  let drifting = 0;
   let found: Found | null = null;
   let doc: Document | null = null;
   /** The words' frame's box on the screen, measured once per open question, end and screen. */
@@ -81,14 +90,17 @@ export function makeQaScene(ring: RingModel, decor: DecorModel): QaScene {
       return null;
     }
     const frame = section.querySelector('.qa-frame') as unknown as Found['frame'] & QaParts['frame'];
+    const items = [...section.querySelectorAll('.qa-item')];
     found = {
       section,
       frame,
+      asks: items.map((item) => item.querySelector('.qa-ask') as unknown as Found['asks'][number]),
+      anchors: { key: '', at: [] },
       parts: {
         root: d.documentElement,
         section: section as unknown as { inert: boolean },
         frame,
-        items: [...section.querySelectorAll('.qa-item')].map((item) => ({
+        items: items.map((item) => ({
           ask: item.querySelector('.qa-ask') as unknown as QaParts['items'][number]['ask'],
           reply: item.querySelector('.qa-reply') as unknown as QaParts['items'][number]['reply']
         })),
@@ -133,12 +145,15 @@ export function makeQaScene(ring: RingModel, decor: DecorModel): QaScene {
       }
       const after = clock - landing.at;
       const landed = !reduced && landing.mark !== null;
-      // The turn goes with -place (./qaRing.ts `ringTurnFor`): a little past the mark is a little further that way.
-      const click = landed ? -landing.way * clickAt(after) : 0;
+      // The drift, in as the stack closes over the way in (`close`), on its own clock while the Q&A shows.
+      if (path.part === 'qa' && !reduced) drifting += Math.min(Math.max(dt, 0), MAX_DRIFT_STEP);
+      const drift = reduced ? { turn: 0, tip: 0 } : ringDriftAt(drifting);
+      const settled = qa?.close ?? 0;
       ring.pose({
         centre: r.centre,
         scale: r.scale,
-        turn: r.turn + click,
+        turn: r.turn + drift.turn * settled,
+        tip: drift.tip * settled,
         level: r.level,
         close: qa?.close ?? 0,
         place,
@@ -156,7 +171,14 @@ export function makeQaScene(ring: RingModel, decor: DecorModel): QaScene {
         // The list comes in with the ring onto the first question and stays while it turns from one to another; it goes
         // as the ring turns on past the last to the end's mark, where the end's words show.
         const show = !inQa ? 0 : mark === questions || place < 0 ? (qa?.answer ?? 0) : Math.min(1, Math.max(0, questions - place));
-        writeQa(f.parts, { on: inQa, at: mark, answer: show }, written);
+        const between = inQa && place >= 0 && mark === null;
+        writeQa(f.parts, { on: inQa, at: mark, answer: show, between }, written);
+        // The light beside the list: at the question the ring stands at, on its way between two with the scroll (round 13).
+        if (inQa && show > 0 && mark !== questions && f.asks.length === questions) {
+          const key = `${size.width}x${size.height}`;
+          if (f.anchors.key !== key) f.anchors = { key, at: qaLightAnchors(f.asks) };
+          writeQaLight(f.parts, { y: qaLightY(f.anchors.at, place), way: between ? (landing.way > 0 ? 1 : -1) : 0 }, written);
+        } else writeQaLight(f.parts, null, written);
         if (f.frame && show > 0) {
           const key = `${written.open}:${mark === questions}:${size.width}x${size.height}`;
           if (box.key !== key) {

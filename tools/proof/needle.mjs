@@ -5125,8 +5125,8 @@ async function reducedMotion(browser, step) {
   // then the Q&A's list (its first mark) and the end's (round 10: the ring's inner marks are no stops).
   const places = keyStops(HOME_CHAPTERS);
   step.check(
-    places.length === 14 && places[0] === 0 && places[1] === 1 && places[7] === WORLD_STOP && places.at(-3) === LOOK_STOP && JSON.stringify(places.slice(-2)) === JSON.stringify([QA_STOPS[0], QA_STOPS.at(-1)]) && places.at(-1) === STORY_END && PROJECT_LIST.every((bead) => places.includes(bead.stop)),
-    `the story's 14 key stops: the home, BOB from above, five facts, the world, three areas, the look back's, the Q&A's list and the end's last (got ${places.map((p) => p.toFixed(3)).join(', ')})`,
+    places.length === 12 + RING_MARKS && places[0] === 0 && places[1] === 1 && places[7] === WORLD_STOP && places.at(-RING_MARKS - 1) === LOOK_STOP && JSON.stringify(places.slice(-RING_MARKS)) === JSON.stringify(QA_STOPS) && places.at(-1) === STORY_END && PROJECT_LIST.every((bead) => places.includes(bead.stop)),
+    `the story's ${12 + RING_MARKS} key stops: the home, BOB from above, five facts, the world, three areas, the look back's and each question's, the end's last (got ${places.map((p) => p.toFixed(3)).join(', ')})`,
   );
   /** Waits out the Q&A's lock after a step on the ring (QA_LOCK_MS from its start), so the next event is heard. */
   const pastLock = (stop) => (stop >= LOOK_STOP - 1e-9 ? page.waitForTimeout(QA_LOCK_MS) : Promise.resolve());
@@ -6812,7 +6812,8 @@ const answerIs = (shown, k, t) => {
  * - a click (a tap) on each other question turns the ring to its mark and opens it, the others closed, the list inside
  *   the screen (on a phone too, with the longest answer open);
  * - Enter on a question (the keyboard) opens it, the focus kept on it;
- * - from a question opened in the list one notch goes on to the end, and one up from it back to the list's stop;
+ * - round 13 (Bob picked "C · The light"): from question 4 one notch (one swipe) goes on to question 5 and one up back to
+ *   question 3, the gold light beside the list at rest on the open question's middle;
  * - at 1440 a resize to 390x844 keeps the place; up from the list opens the stack back to the look back's stop;
  * - stills of the list, a question opened and the end through the home's luma gate, the words masked.
  */
@@ -6861,21 +6862,33 @@ async function qaRing(browser, step) {
       step.check(took !== null && answerIs(s.shown, 2, t) && s.focus === 'qa-ask-2', `${at}: Enter on question 3 opens it, the focus kept on it (${took === null ? 'never' : `${took} ms`}; focus ${s.focus})`);
     }
 
-    // 4. From a question opened in the list: one notch on goes to the end, and one up from a question back to the list.
+    // 4. Round 13: from question 4 one notch on goes to question 5, and one up back to question 3, the light on each.
+    const lightOn = (k) =>
+      page.evaluate((k) => {
+        const light = document.querySelector('.qa-light')?.getBoundingClientRect();
+        const ask = document.getElementById(`qa-ask-${k}`)?.getBoundingClientRect();
+        return light && ask ? Math.abs(light.top + light.height / 2 - (ask.top + ask.height / 2)) : null;
+      }, k);
     await page.waitForTimeout(QA_LOCK_MS);
     await poseAt(page, QA_STOPS[3]);
     await restAt(page);
     await page.waitForTimeout(GESTURE_GAP_MS + 100);
     await nudge(page, cdp, 1);
-    const onward = await ringRestsAt(page, QA_END, 6_000);
-    step.check(onward !== null, `${at}: one ${touch ? 'swipe' : 'notch'} from question 4 goes on to the end (${onward === null ? 'never' : `${onward} ms`})`);
+    const onward = await ringRestsAt(page, 4, 6_000);
+    await page.waitForTimeout(500);
+    const onwardLight = await lightOn(4);
+    s = await ringOf(page);
+    step.check(onward !== null && answerIs(s.shown, 4, t) && onwardLight !== null && onwardLight <= 2, `${at}: one ${touch ? 'swipe' : 'notch'} from question 4 goes on to question 5 and opens it, the light on it (${onward === null ? 'never' : `${onward} ms`}; ${s.shown?.question}; the light ${onwardLight?.toFixed(1)} px from its middle)`);
     await page.waitForTimeout(QA_LOCK_MS);
     await poseAt(page, QA_STOPS[3]);
     await restAt(page);
     await page.waitForTimeout(GESTURE_GAP_MS + 100);
     await nudge(page, cdp, -1);
-    const back = await ringRestsAt(page, 0, 6_000);
-    step.check(back !== null, `${at}: one ${touch ? 'swipe' : 'notch'} up from question 4 comes back to the list's stop (${back === null ? 'never' : `${back} ms`})`);
+    const back = await ringRestsAt(page, 2, 6_000);
+    await page.waitForTimeout(500);
+    const backLight = await lightOn(2);
+    s = await ringOf(page);
+    step.check(back !== null && answerIs(s.shown, 2, t) && backLight !== null && backLight <= 2, `${at}: one ${touch ? 'swipe' : 'notch'} up from question 4 comes back to question 3, the light on it (${back === null ? 'never' : `${back} ms`}; the light ${backLight?.toFixed(1)} px from its middle)`);
 
     // 5. At 1440 a resize to 390x844 keeps the place.
     if (size.width === 1440 && !english) {
@@ -7005,12 +7018,12 @@ async function qaEnd(browser, step) {
       e.end && e.dark >= 0.85 && sealed && e.seal === 1 && e.marks === 0 && e.reach === 0 && across && middle,
       `${at}: the end is unmistakable: data-qa-end, the dark at ${e.dark.toFixed(2)} (0.85 or more), the circle drawn whole within 3 s (${sealed}), the words' middle at (${e.frame?.x.toFixed(0)}, ${e.frame?.y.toFixed(0)}) ${touch ? `across the middle, under the circle (its foot at ${e.sealBottom?.toFixed(0)}, the words from ${e.frame?.top.toFixed(0)})` : 'in the middle'} of ${e.vw}x${e.vh}, the list at ${e.marks} and ${e.reach} of its questions in reach`,
     );
-    // One input up: back on the list (round 10: its inner marks are no stops), and nothing of the end left.
+    // One input up: back on the last question (round 13: each question a stop again), and nothing of the end left.
     await nudge(page, cdp, -1);
-    const up = await ringRestsAt(page, 0, 6_000);
+    const up = await ringRestsAt(page, QA_END - 1, 6_000);
     await page.waitForTimeout(1_600);
     const left = await theEnd();
-    step.check(up !== null && !left.end && left.dark === 0 && left.seal === 0 && left.marks !== 0 && left.reach > 0, `${at}: one ${touch ? 'swipe' : 'notch'} up rests on the list (${up === null ? 'never' : `${up} ms`}) and leaves nothing of the end: data-qa-end ${left.end}, the dark ${left.dark}, the circle ${left.seal}, the list ${left.marks}`);
+    step.check(up !== null && !left.end && left.dark === 0 && left.seal === 0 && left.marks !== 0 && left.reach > 0, `${at}: one ${touch ? 'swipe' : 'notch'} up rests on the last question (${up === null ? 'never' : `${up} ms`}) and leaves nothing of the end: data-qa-end ${left.end}, the dark ${left.dark}, the circle ${left.seal}, the list ${left.marks}`);
     await toEnd();
 
     // "Naar contact": /contact/ with its form.

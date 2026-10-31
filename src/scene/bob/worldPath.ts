@@ -476,7 +476,9 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS, { zoo
       level: ringLevel,
       centre: [ringOpen[0], lerp(ringOpen[1], ringShut[1], close), ringOpen[2]],
       scale: lerp(1, RING.closedRadius / RING.radius, close),
-      turn: ringTurnFor(qa?.place ?? -1, RING_MARKS)
+      // The scroll no longer turns it a question a step (round 13, Bob picked "C · The light"): it holds the look back's
+      // turn, and drifts on its own in the Q&A (./qaScene.ts).
+      turn: ringTurnFor(-1, RING_MARKS)
     };
     if (caption !== null && caption.opacity <= 0) caption = null;
 

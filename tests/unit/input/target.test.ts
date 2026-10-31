@@ -57,13 +57,11 @@ describe('moveTarget', () => {
       expect(moveTarget(F241 + 0.1, 0.01, c, true)).toBe(W);
       expect(moveTarget(A0, 1, c, true)).toBe(A1);
       expect(moveTarget(S, 0.01, c, true)).toBe(Q0);
-      // A question opened in the list (Bob, 2026-10-30) steps on to the end.
       expect(moveTarget(qaStop(c, 5), 0.01, c, true)).toBe(E);
     });
 
     it('steps to the previous key stop for a delta up', () => {
-      // Up from the end, the Q&A's list (its inner marks are no stops).
-      expect(moveTarget(E, -0.01, c, true)).toBe(Q0);
+      expect(moveTarget(E, -0.01, c, true)).toBe(qaStop(c, 5));
       expect(moveTarget(Q0, -0.01, c, true)).toBe(S);
       expect(moveTarget(A0, -0.01, c, true)).toBe(W);
       expect(moveTarget((F81 + F121) / 2, -0.01, c, true)).toBe(F81);
@@ -103,7 +101,7 @@ describe('keyTarget: an arrow, Page Up or Down, or Space, without reduced motion
   });
 
   it('steps up to the previous key stop past the top of the rise, and back on the rise moves by its distance again', () => {
-    expect(keyTarget(E, -0.15, c)).toBe(Q0);
+    expect(keyTarget(E, -0.15, c)).toBe(qaStop(c, 5));
     expect(keyTarget(Q0, -0.15, c)).toBe(S);
     expect(keyTarget(W, -0.15, c)).toBe(F241);
     expect(keyTarget(F81, -0.9, c)).toBe(1);
@@ -252,19 +250,15 @@ describe('scrollEnabled', () => {
 });
 
 // The Q&A on the gold ring (spec 2026-10-29-bob-stack-2-design.md, goal 1): from the look back's stop on, every input is
-// a step, whatever its size; up from the look back the scroll is continuous again. Round 10 (Bob, 2026-10-30: "more
-// simple to just go through it"): the steps are the list (mark 0) and the end; a question is opened from the list.
-describe('the Q&A, the list and the end a step each', () => {
+// a step of one question, whatever its size; up from the look back the scroll is continuous again.
+describe('the Q&A, a question a step', () => {
   const look = lookStop(c);
   const q = (k: number) => qaStop(c, k);
 
   it('steps one stop per input in the Q&A, whatever its size', () => {
     expect(qaStepTarget(look, 1, c)).toBe(q(0));
-    expect(qaStepTarget(q(0), 1, c)).toBe(scrollEnd(c));
-    // From a question opened in the list: on to the end, or back to the list's stop.
-    expect(qaStepTarget(q(3), 1, c)).toBe(scrollEnd(c));
-    expect(qaStepTarget(q(3), -1, c)).toBe(q(0));
-    expect(qaStepTarget(scrollEnd(c), -1, c)).toBe(q(0));
+    expect(qaStepTarget(q(0), 1, c)).toBe(q(1));
+    expect(qaStepTarget(q(3), -1, c)).toBe(q(2));
     expect(qaStepTarget(q(0), -1, c)).toBe(look);
     expect(qaStepTarget(scrollEnd(c), 1, c)).toBe(scrollEnd(c));
     expect(inQa(look, c)).toBe(true);

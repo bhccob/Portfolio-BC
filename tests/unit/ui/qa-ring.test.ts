@@ -9,7 +9,7 @@ import { en, type Dictionary, type EndQuestions } from '~/i18n/en';
 import { nl } from '~/i18n/nl';
 import { useScene } from '~/state/store';
 import { QaRing, QaRingParts } from '~/ui/QaRing';
-import { clearQa, QA_END_ATTRIBUTE, type QaParts, qaWritten, writeQa } from '~/ui/qaWriters';
+import { clearQa, QA_END_ATTRIBUTE, qaLightAnchors, qaLightY, type QaParts, qaWritten, writeQa, writeQaLight } from '~/ui/qaWriters';
 
 const LOCALES = [
   ['/', nl],
@@ -98,6 +98,10 @@ describe("the ring's words", () => {
     }
   });
 
+  it('draws a thin line beside the list with the light on it, unread by screen readers', () => {
+    for (const [path, t] of LOCALES) expect(parts(path, t)).toContain('<span class="qa-rail" aria-hidden="true"><span class="qa-light"></span></span>');
+  });
+
   it("puts no buttons on the ring's marks: the list is the way to choose", () => {
     for (const [path, t] of LOCALES) expect(parts(path, t)).not.toContain('qa-mark');
   });
@@ -112,12 +116,44 @@ describe("the ring's words", () => {
     expect(p.section!.inert).toBe(false);
     writeQa(p, { on: true, at: 2, answer: 1 }, written);
     expect([openOf(p), shownOf(p), p.attributes.get('data-qa-at')]).toEqual([[2], [2], '2']);
-    // Turning on to another question: the open one stays open until the ring is there.
-    writeQa(p, { on: true, at: null, answer: 1 }, written);
-    expect(openOf(p)).toEqual([2]);
+    // Round 13 (Bob picked "C · The light"): on the way to another question none is open, the light running down the
+    // list; the next opens as the ring is there.
+    writeQa(p, { on: true, at: null, answer: 1, between: true }, written);
+    expect([openOf(p), shownOf(p)]).toEqual([[], []]);
     writeQa(p, { on: true, at: 4, answer: 1 }, written);
     expect([openOf(p), shownOf(p)]).toEqual([[4], [4]]);
     expect(p.end!.hidden).toBe(true);
+  });
+
+  it("places the light at each question's middle with the list closed, and between them with the scroll", () => {
+    // Each button's middle, each under its 1 px rule, as they stand with every reply closed: wherever one is open.
+    const anchors = qaLightAnchors([
+      { offsetTop: 1, offsetHeight: 56 },
+      { offsetTop: 300, offsetHeight: 56 },
+      { offsetTop: 999, offsetHeight: 90 }
+    ]);
+    expect(anchors).toEqual([29, 86, 160]);
+    expect([qaLightY(anchors, 0), qaLightY(anchors, 1), qaLightY(anchors, 1.5), qaLightY(anchors, 2)]).toEqual([29, 86, 123, 160]);
+    // Before the first (coming in), past the last (on to the end), or no place: held to the list.
+    expect([qaLightY(anchors, -0.4), qaLightY(anchors, 2.6), qaLightY(anchors, Number.NaN)]).toEqual([29, 160, 29]);
+  });
+
+  it('writes the light and the way it runs, only when they change, and clears them', () => {
+    const p = fakeParts();
+    const written = qaWritten();
+    writeQaLight(p, { y: 86.04, way: 1 }, written);
+    expect([p.vars.get('--qa-light'), p.attributes.get('data-qa-moving')]).toEqual(['86px', 'down']);
+    writeQaLight(p, { y: 70.26, way: -1 }, written);
+    expect([p.vars.get('--qa-light'), p.attributes.get('data-qa-moving')]).toEqual(['70.3px', 'up']);
+    p.vars.clear();
+    p.attributes.clear();
+    writeQaLight(p, { y: 70.3, way: -1 }, written);
+    expect([p.vars.size, p.attributes.size]).toEqual([0, 0]);
+    writeQaLight(p, { y: 29, way: 0 }, written);
+    expect([p.vars.get('--qa-light'), p.attributes.has('data-qa-moving')]).toEqual(['29px', false]);
+    writeQaLight(p, { y: 29, way: 1 }, written);
+    clearQa(p, written);
+    expect([p.vars.has('--qa-light'), p.attributes.has('data-qa-moving')]).toEqual([false, false]);
   });
 
   it('writes only what changed', () => {
@@ -316,6 +352,25 @@ describe("the ring's end", () => {
     expect(body('.scene-host canvas')).not.toMatch(/filter:\s*blur/);
     expect(body('.scene-host canvas')).toMatch(/transition:\s*opacity 0\.9s var\(--ease-reveal\),\s*filter 0\.8s ease/);
     expect(body('.scene-host canvas', REDUCED)).toMatch(/transition:\s*none/);
+  });
+
+  // Round 13 (Bob picked "C · The light"): a thin gold line beside the list and the light on it, at the place the scene
+  // writes (`--qa-light`), its tail behind it as it runs; the replies open and close, not snap.
+  it('draws the line and the light beside the list, and lets a reply open and close', () => {
+    expect(body('.qa-list')).toMatch(/padding-left:\s*30px/);
+    expect(body('.qa-list', PHONE)).toMatch(/padding-left:\s*22px/);
+    expect(body('.qa-rail')).toMatch(/position:\s*absolute/);
+    expect(body('.qa-light')).toContain('transform: translateY(calc(var(--qa-light, 0px) - 4.5px))');
+    expect(body('.qa-light')).toMatch(/border-radius:\s*50%/);
+    expect(body('.qa-light::before')).toMatch(/height:\s*0/);
+    expect(body("html[data-qa-moving='down'] .qa-light::before")).toMatch(/height:\s*64px/);
+    expect(body("html[data-qa-moving='up'] .qa-light::before")).toMatch(/top:\s*4px/);
+    expect(body('html[data-qa-end] .qa-rail')).toMatch(/display:\s*none/);
+    expect(body('.qa-reply')).toMatch(/transition:[^;]*display 0\.4s allow-discrete/);
+    expect(body('.qa-list')).toMatch(/interpolate-size:\s*allow-keywords/);
+    expect(base).toMatch(/@starting-style\s*\{\s*\.qa-reply:not\(\[hidden\]\)\s*\{[^}]*height:\s*0/);
+    expect(body('.qa-light::before', REDUCED)).toMatch(/display:\s*none/);
+    expect(body('.qa-reply', REDUCED)).toMatch(/transition:\s*none/);
   });
 
   // Reduced motion only stills the list's slide: it stays where its screen puts it (a phone's at the foot).

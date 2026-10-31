@@ -3,11 +3,15 @@ import { describe, expect, it } from 'vitest';
 import { RING_MARKS, RING_QUESTIONS } from '~/data/qa';
 import { buildDecorStars } from '~/engine/bob/build/decorStars';
 import { buildRing } from '~/engine/bob/build/ring';
+import { RING_DRIFT, ringTurnFor } from '~/scene/bob/qaRing';
 import { makeQaScene, type QaScenePose } from '~/scene/bob/qaScene';
 import { worldPathFor } from '~/scene/bob/worldPath';
 import { HOME_CHAPTERS, lookStop, pathStart, qaStop } from '~/state/chapters';
 
-/** A fake of the page: <html>, the Q&A's section with its frame, its list's questions (each its button and reply), the end. */
+/**
+ * A fake of the page: <html>, the Q&A's section with its frame, its list's questions (each its button and reply), the end.
+ * Each question's button stands 56 px tall, the first 1 px down the frame (under its rule), as the list stands closed.
+ */
 function fakePage() {
   const attributes = new Map<string, string>();
   const vars = new Map<string, string>();
@@ -15,7 +19,11 @@ function fakePage() {
   const expanded = Array.from({ length: RING_QUESTIONS }, () => 'false');
   const items = expanded.map((_, k) => ({
     querySelector: (sel: string) =>
-      sel === '.qa-ask' ? { setAttribute: (n: string, v: string) => n === 'aria-expanded' && (expanded[k] = v) } : sel === '.qa-reply' ? replies[k] : null
+      sel === '.qa-ask'
+        ? { setAttribute: (n: string, v: string) => n === 'aria-expanded' && (expanded[k] = v), offsetTop: 1 + 57 * k, offsetHeight: 56 }
+        : sel === '.qa-reply'
+          ? replies[k]
+          : null
   }));
   const replies = expanded.map(() => ({ hidden: true }));
   const end = { hidden: true };
@@ -72,13 +80,45 @@ describe("the Q&A's scene", () => {
     q.dispose();
   });
 
-  it('keeps the list whole while the ring turns from one question to another, the open one open until it lands', () => {
+  // Round 13 (Bob picked "C · The light"): between two questions the list stands closed, the gold light on its way down
+  // it; the next opens as the light arrives.
+  it('closes the list while the light runs to the next question, and opens that one as it arrives', () => {
     const page = fakePage();
     const q = make();
-    poseAt(q, qaStop(HOME_CHAPTERS, 1), DESK, page);
-    poseAt(q, (qaStop(HOME_CHAPTERS, 1) + qaStop(HOME_CHAPTERS, 2)) / 2, DESK, page);
-    expect(page.vars.get('--qa-show')).toBe('1');
+    const a = qaStop(HOME_CHAPTERS, 1);
+    const b = qaStop(HOME_CHAPTERS, 2);
+    poseAt(q, a, DESK, page);
     expect(page.open()).toEqual([1]);
+    poseAt(q, (a + b) / 2, DESK, page);
+    expect(page.vars.get('--qa-show')).toBe('1');
+    expect(page.open()).toEqual([]);
+    expect(page.replies.every((r) => r.hidden)).toBe(true);
+    poseAt(q, b - 0.05 * (b - a), DESK, page);
+    expect(page.open()).toEqual([2]);
+    q.dispose();
+  });
+
+  it('runs the light down the list with the scroll, question to question, and says which way it goes', () => {
+    const page = fakePage();
+    const q = make();
+    const at = (k: number): number => qaStop(HOME_CHAPTERS, k);
+    const y = (): number => Number.parseFloat(page.vars.get('--qa-light')!);
+    // Each question's middle with the list closed: the first's 1 + 28 px down the frame, then 57 px a question.
+    poseAt(q, at(1), DESK, page);
+    expect(y()).toBeCloseTo(29 + 57, 1);
+    expect(page.attributes.has('data-qa-moving')).toBe(false);
+    poseAt(q, at(1) + 0.25 * (at(2) - at(1)), DESK, page);
+    expect(y()).toBeCloseTo(29 + 57 * 1.25, 1);
+    expect(page.attributes.get('data-qa-moving')).toBe('down');
+    poseAt(q, at(1) + 0.6 * (at(2) - at(1)), DESK, page);
+    poseAt(q, at(1) + 0.4 * (at(2) - at(1)), DESK, page);
+    expect(page.attributes.get('data-qa-moving')).toBe('up');
+    poseAt(q, at(4), DESK, page);
+    expect(y()).toBeCloseTo(29 + 57 * 4, 1);
+    expect(page.attributes.has('data-qa-moving')).toBe(false);
+    // Coming in from the look back it waits at the first question, as the list shows.
+    poseAt(q, lookStop(HOME_CHAPTERS) + 0.9 * (at(0) - lookStop(HOME_CHAPTERS)), DESK, page);
+    expect(y()).toBeCloseTo(29, 1);
     q.dispose();
   });
 
@@ -104,25 +144,25 @@ describe("the Q&A's scene", () => {
     q.dispose();
   });
 
-  it('clicks a little past and back as it lands, with no click with reduced motion', () => {
+  // Round 13 (Bob, 2026-10-31: "can you also make the background ring also move around a bit when theyre on the Q&A"):
+  // the scroll no longer turns it; on its own clock it drifts a little round and back, in as the stack closes.
+  it('drifts the ring a little on its own in the Q&A, and holds it still with reduced motion and at the look back', () => {
     const page = fakePage();
+    const spinOf = (s: ReturnType<typeof make>): number => s.ring.group.getObjectByName('ring:spin')!.rotation.y;
+    const frames = (s: ReturnType<typeof make>, p: number, n: number, over: Partial<QaScenePose> = {}): number[] =>
+      Array.from({ length: n }, () => (poseAt(s, p, DESK, page, { dt: 1 / 30, ...over }), spinOf(s)));
+    const rest = ringTurnFor(-1, RING_MARKS);
     const q = make();
-    const at = qaStop(HOME_CHAPTERS, 3);
-    poseAt(q, at - 0.5, DESK, page, { clock: 0 });
-    poseAt(q, at, DESK, page, { clock: 1 });
-    const spin = q.ring.group.getObjectByName('ring:spin')!;
-    const landed = spin.rotation.y;
-    poseAt(q, at, DESK, page, { clock: 1.05 });
-    expect(spin.rotation.y).not.toBe(landed);
-    poseAt(q, at, DESK, page, { clock: 3 });
-    const still = spin.rotation.y;
+    const turns = frames(q, qaStop(HOME_CHAPTERS, 2), 120);
+    expect(Math.max(...turns) - Math.min(...turns)).toBeGreaterThan(0.01);
+    for (const t of turns) expect(Math.abs(t - rest)).toBeLessThanOrEqual(RING_DRIFT.turn + 1e-9);
     const r = make();
-    poseAt(r, at - 0.5, DESK, page, { clock: 0, reduced: true });
-    poseAt(r, at, DESK, page, { clock: 1, reduced: true });
-    poseAt(r, at, DESK, page, { clock: 1.05, reduced: true });
-    expect(r.ring.group.getObjectByName('ring:spin')!.rotation.y).toBeCloseTo(still, 9);
+    expect(new Set(frames(r, qaStop(HOME_CHAPTERS, 2), 60, { reduced: true }))).toEqual(new Set([rest]));
+    const l = make();
+    expect(new Set(frames(l, lookStop(HOME_CHAPTERS), 60))).toEqual(new Set([rest]));
     q.dispose();
     r.dispose();
+    l.dispose();
   });
 
   it('names no answer at the look back, and lights the stars in as the stack closes', () => {

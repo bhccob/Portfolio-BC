@@ -2293,8 +2293,64 @@ html[data-qa] .qa-frame {
 .qa-list {
   margin: 0;
   padding: 0;
+  padding-left: 30px;
   list-style: none;
   transition: opacity 0.6s ease, visibility 0s linear 0s;
+  interpolate-size: allow-keywords;
+}
+
+/* Round 13 (Bob, 2026-10-31, shown three ways to go through the questions, picked "C · The light"): a thin gold line
+   beside the list and on it the light, as the site's light fell, at the place the scene writes (`--qa-light`, px down
+   the frame, src/ui/qaWriters.ts): at the question the ring stands at, and with the scroll on its way to the next, its
+   tail behind it (`<html data-qa-moving>`). The line stands 8px into the frame, so the light is placed from its top. */
+.qa-rail {
+  position: absolute;
+  left: 6px;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: linear-gradient(rgb(226 165 74 / 0.08), rgb(226 165 74 / 0.4) 20%, rgb(226 165 74 / 0.4) 80%, rgb(226 165 74 / 0.08));
+  pointer-events: none;
+}
+
+.qa-light {
+  position: absolute;
+  left: -4px;
+  top: -8px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #fff4da;
+  box-shadow:
+    0 0 10px 3px rgb(239 181 61 / 0.9),
+    0 0 30px 9px rgb(239 181 61 / 0.32);
+  transform: translateY(calc(var(--qa-light, 0px) - 4.5px));
+}
+
+.qa-light::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  width: 1px;
+  height: 0;
+  background: linear-gradient(transparent, rgb(255 236 190 / 0.95));
+  transition: height 0.3s ease;
+}
+
+html[data-qa-moving='down'] .qa-light::before {
+  height: 64px;
+}
+
+html[data-qa-moving='up'] .qa-light::before {
+  top: 4px;
+  bottom: auto;
+  height: 64px;
+  background: linear-gradient(rgb(255 236 190 / 0.95), transparent);
+}
+
+html[data-qa-end] .qa-rail {
+  display: none;
 }
 
 .qa-item {
@@ -2342,8 +2398,31 @@ html[data-qa] .qa-frame {
   color: var(--gold-glow);
 }
 
+/* A reply opens and closes as the light arrives and leaves (round 13), where the browser can carry its height there. */
 .qa-reply {
+  height: auto;
+  overflow: hidden;
   padding: 0 0 20px;
+  transition:
+    height 0.4s var(--ease-reveal),
+    padding-bottom 0.4s var(--ease-reveal),
+    opacity 0.35s ease,
+    display 0.4s allow-discrete;
+}
+
+.qa-reply[hidden] {
+  display: none;
+  height: 0;
+  padding-bottom: 0;
+  opacity: 0;
+}
+
+@starting-style {
+  .qa-reply:not([hidden]) {
+    height: 0;
+    padding-bottom: 0;
+    opacity: 0;
+  }
 }
 
 .qa-reply .qa-count {
@@ -2444,6 +2523,14 @@ html[data-qa] .qa-frame {
     inset: -16px -12px;
   }
 
+  .qa-list {
+    padding-left: 22px;
+  }
+
+  .qa-rail {
+    left: 4px;
+  }
+
   .qa-ask {
     min-height: 48px;
     padding: 10px 0;
@@ -2494,6 +2581,14 @@ html[data-qa] .qa-frame {
 @media (prefers-reduced-motion: reduce) {
   .qa-frame {
     --qa-slide: 0px;
+  }
+
+  .qa-light::before {
+    display: none;
+  }
+
+  .qa-reply {
+    transition: none;
   }
 }
 

@@ -38,8 +38,10 @@ export interface RingPose {
   /** Its middle, world m, and its size against `RING.radius`. */
   centre: Vec3;
   scale: number;
-  /** Its turn about its own axis, rad (`ringTurnFor`, with the landing's click added). */
+  /** Its turn about its own axis, rad (`ringTurnFor`, with its drift in the Q&A added, `ringDriftAt`). */
   turn: number;
+  /** How much more than `RING.tilt` it is tipped, rad (its drift's sway in the Q&A; 0 elsewhere). */
+  tip: number;
   /** Its light, 0..1: 0 hides it. */
   level: number;
   /** How far the stack has closed under it, 0..1: it brightens in the questions. */
@@ -90,7 +92,9 @@ export function buildRing(marks: number, room: THREE.Texture | null): RingModel 
   group.name = 'ring';
   group.visible = false;
   const tipped = new THREE.Group();
-  tipped.quaternion.setFromAxisAngle(new THREE.Vector3(Math.cos(RING.azimuth), 0, -Math.sin(RING.azimuth)), RING.tilt);
+  tipped.name = 'ring:tipped';
+  const tipAxis = new THREE.Vector3(Math.cos(RING.azimuth), 0, -Math.sin(RING.azimuth));
+  tipped.quaternion.setFromAxisAngle(tipAxis, RING.tilt);
   group.add(tipped);
   const spin = new THREE.Group();
   spin.name = 'ring:spin';
@@ -169,12 +173,13 @@ export function buildRing(marks: number, room: THREE.Texture | null): RingModel 
 
   return {
     group,
-    pose({ centre, scale, turn, level, close, place, lit, flash, clock }) {
+    pose({ centre, scale, turn, tip, level, close, place, lit, flash, clock }) {
       const shown = Math.min(Math.max(level, 0), 1);
       group.visible = shown > 0.001;
       if (!group.visible) return;
       group.position.set(centre[0], centre[1], centre[2]);
       group.scale.setScalar(scale);
+      tipped.quaternion.setFromAxisAngle(tipAxis, RING.tilt + tip);
       spin.rotation.y = turn;
       const end = Math.min(Math.max(lit, 0), 1);
       gold.emissiveIntensity = (look.gold.level + look.gold.qa * close + look.gold.end * end) * shown;

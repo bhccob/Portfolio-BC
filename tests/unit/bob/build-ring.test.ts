@@ -8,6 +8,7 @@ const pose = (over: Partial<RingPose> = {}): RingPose => ({
   centre: [0, 0, 0],
   scale: 1,
   turn: 0,
+  tip: 0,
   level: 1,
   close: 1,
   place: 0,
@@ -92,5 +93,18 @@ describe('the ring', () => {
     ring.dispose();
     expect(spies.length).toBeGreaterThan(5);
     for (const spy of spies) expect(spy).toHaveBeenCalled();
+  });
+
+  it('tips a little further with its sway, about the same axis', () => {
+    const ring = buildRing(RING_MARKS, null);
+    const tipped = named(ring, 'ring:tipped');
+    const angle = (): number => 2 * Math.acos(Math.min(1, Math.abs(tipped.quaternion.w)));
+    ring.pose(pose());
+    expect(angle()).toBeCloseTo(RING.tilt, 9);
+    ring.pose(pose({ tip: 0.04 }));
+    expect(angle()).toBeCloseTo(RING.tilt + 0.04, 9);
+    ring.pose(pose({ tip: -0.03 }));
+    expect(angle()).toBeCloseTo(RING.tilt - 0.03, 9);
+    ring.dispose();
   });
 });
