@@ -309,6 +309,15 @@ describe("the ring's end", () => {
     expect(body('html[data-qa-end] .qa-frame::after')).toMatch(/display:\s*none/);
   });
 
+  // Round 12 (Bob, 2026-10-31: "i meant more blurry in the Q&A area"; shown two, he picked "2 · the whole background
+  // blurry").
+  it('blurs the whole scene while the Q&A shows, coming and going with it', () => {
+    expect(body('html[data-qa] .scene-host canvas')).toMatch(/filter:\s*blur\(7px\)/);
+    expect(body('.scene-host canvas')).not.toMatch(/filter:\s*blur/);
+    expect(body('.scene-host canvas')).toMatch(/transition:\s*opacity 0\.9s var\(--ease-reveal\),\s*filter 0\.8s ease/);
+    expect(body('.scene-host canvas', REDUCED)).toMatch(/transition:\s*none/);
+  });
+
   // Reduced motion only stills the list's slide: it stays where its screen puts it (a phone's at the foot).
   it('stills the slide with reduced motion and leaves the list where its screen has it', () => {
     expect(body('.qa-frame', REDUCED)).toMatch(/--qa-slide:\s*0px/);

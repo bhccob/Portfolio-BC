@@ -3109,6 +3109,10 @@ async function loaderStills(browser, step) {
  * A bead seen from inside is lit on purpose: its objects stand in the warm light under the glass. The approved light path
  * mock-up's insides measure up to 0.138 on a laptop (Steady's, the brightest), so they keep a ceiling of their own,
  * `inside`, a little above it; the clipped share and the floor are the home's.
+ *
+ * The Q&A blurs the whole scene behind its list on purpose (round 12, Bob: "i meant more blurry in the Q&A area"): the
+ * blur spreads a bright point out (a phone's list still, its peak 0.468 sharp, 0.217 blurred), so a `blurred` still's
+ * middle need only reach `floor.blurredPeak`, which a canvas that drew nothing still cannot (its mean fails first).
  */
 const LUMA_GATE = {
   home: 0.11,
@@ -3116,7 +3120,7 @@ const LUMA_GATE = {
   loader: 0.07,
   clip: 0.98,
   clipped: 0.004,
-  floor: { mean: 0.002, peak: 0.3, region: { x: [0.15, 0.85], y: [0.48, 0.85] } },
+  floor: { mean: 0.002, peak: 0.3, blurredPeak: 0.15, region: { x: [0.15, 0.85], y: [0.48, 0.85] } },
   darkPeak: 0.2,
 };
 
@@ -3303,6 +3307,7 @@ async function gateLuma(browser, step, shots) {
       pixels: `${luma.width}x${luma.height}`,
     });
     const floorMean = masked ? luma.sceneMean : luma.mean;
+    const peakFloor = shot.blurred === true ? floor.blurredPeak : floor.peak;
     if (shot.kind === 'control') {
       // The negative control: the canvas hidden, the page's text masked: nothing of the scene is left, so the floor must fail.
       step.check(
@@ -3323,12 +3328,12 @@ async function gateLuma(browser, step, shots) {
       continue;
     }
     step.check(
-      floorMean > floor.mean && luma.peak >= floor.peak,
+      floorMean > floor.mean && luma.peak >= peakFloor,
       masked
-        ? `${name}: dark but drawn with the page's text masked (${percent(luma.masked)} of the still): the scene's mean luma ${floorMean.toFixed(4)} above ${floor.mean} and the brightest pixel of the scene's middle at luma ${luma.peak.toFixed(3)}, ${floor.peak} or more`
-        : `${name}: dark but drawn, mean luma ${luma.mean.toFixed(4)} above ${floor.mean} and the brightest pixel of the scene's middle at luma ${luma.peak.toFixed(3)}, ${floor.peak} or more`,
+        ? `${name}: dark but drawn with the page's text masked (${percent(luma.masked)} of the still): the scene's mean luma ${floorMean.toFixed(4)} above ${floor.mean} and the brightest pixel of the scene's middle at luma ${luma.peak.toFixed(3)}, ${peakFloor} or more${shot.blurred ? ' (blurred)' : ''}`
+        : `${name}: dark but drawn, mean luma ${luma.mean.toFixed(4)} above ${floor.mean} and the brightest pixel of the scene's middle at luma ${luma.peak.toFixed(3)}, ${peakFloor} or more${shot.blurred ? ' (blurred)' : ''}`,
     );
-    console.log(`note: luma ${name} (${luma.width}x${luma.height}): mean ${luma.mean.toFixed(4)} (gate ${limit}, floor ${floor.mean}${masked ? `, scene mean ${floorMean.toFixed(4)} with ${percent(luma.masked)} masked` : ''}), scene peak ${luma.peak.toFixed(3)} (floor ${floor.peak}), clipped ${percent(luma.clipped)} (gate ${percent(LUMA_GATE.clipped)})`);
+    console.log(`note: luma ${name} (${luma.width}x${luma.height}): mean ${luma.mean.toFixed(4)} (gate ${limit}, floor ${floor.mean}${masked ? `, scene mean ${floorMean.toFixed(4)} with ${percent(luma.masked)} masked` : ''}), scene peak ${luma.peak.toFixed(3)} (floor ${peakFloor}), clipped ${percent(luma.clipped)} (gate ${percent(LUMA_GATE.clipped)})`);
   }
   await meter.close();
   return rows;
@@ -6904,7 +6909,8 @@ async function qaRing(browser, step) {
         await page.waitForTimeout(k === QA_END ? 3_400 : 700);
         const file = join(STILLS, `qa-${k + 1}-${sizeName(size)}.png`);
         await page.screenshot({ path: file });
-        shots.push({ file, kind: 'home', mask: await textMask(page), ...(touch ? { region: { x: [0.1, 0.9], y: [0.12, 0.5] } } : {}) });
+        // The scene behind the Q&A is blurred on purpose (round 12): its floor is the blurred one.
+        shots.push({ file, kind: 'home', blurred: true, mask: await textMask(page), ...(touch ? { region: { x: [0.1, 0.9], y: [0.12, 0.5] } } : {}) });
       }
     }
     await takeCsp(page, step);

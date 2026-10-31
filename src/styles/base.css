@@ -244,11 +244,17 @@ body:has(.page-ghost):not(:has(main > .page)) .scene-host[data-ready]::after {
    the canvas fades in over it rather than show an empty studio first. */
 .scene-host canvas {
   opacity: 0;
-  transition: opacity 0.9s var(--ease-reveal);
+  transition: opacity 0.9s var(--ease-reveal), filter 0.8s ease;
 }
 
 .scene-host[data-ready] canvas {
   opacity: 1;
+}
+
+/* Round 12 (Bob, 2026-10-31: "i meant more blurry in the Q&A area"; he picked "2 · the whole background blurry"): while
+   the Q&A shows (<html data-qa>, src/ui/qaWriters.ts) the scene behind the list goes soft, coming and going with it. */
+html[data-qa] .scene-host canvas {
+  filter: blur(7px);
 }
 
 @media (prefers-reduced-motion: reduce) {
