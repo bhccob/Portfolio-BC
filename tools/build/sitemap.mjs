@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { PAGES, pagePaths } from '../../src/data/pages.ts';
 import { defaultLocale, locales, Translator } from '../../src/i18n/Translator.ts';
 
-const ORIGIN = 'https://bhccob.me';
+const ORIGIN = 'https://bhccob.com';
 const SITEMAP = 'sitemap-0.xml';
 
 /** @param {string} text */

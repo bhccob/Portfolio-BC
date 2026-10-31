@@ -1,4 +1,4 @@
-# bhccob.me: Bob Chung's portfolio
+# bhccob.com: Bob Chung's portfolio
 
 Personal portfolio of Bob Chung, a student software engineer in Rotterdam, in Dutch (at `/`) and English (at `/en/`).
 

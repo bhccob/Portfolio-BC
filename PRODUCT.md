@@ -12,7 +12,7 @@ A mixed audience with no single priority visitor; the owner confirmed it should 
 
 ## Product Purpose
 
-The personal portfolio of Bob Chung at bhccob.me. It introduces who he is, his current occupation (student software engineer at MBO 4 in Rotterdam), the projects he has built and the direction he is heading, and it lets visitors message him directly from the site.
+The personal portfolio of Bob Chung at bhccob.com. It introduces who he is, his current occupation (student software engineer at MBO 4 in Rotterdam), the projects he has built and the direction he is heading, and it lets visitors message him directly from the site.
 
 **Success means the visitor remembers him.** The confirmed primary goal is a distinct, memorable personal impression, unlike a template student portfolio. Contact and project case studies are supporting capabilities, not the success measure.
 
@@ -27,7 +27,7 @@ A student software engineer building toward systems and firmware security work, 
 
 - **Languages:** Dutch at `/` (the default, at the owner's request) and English at `/en/`, as separate crawlable pages. The old `/nl/` addresses redirect to the root.
 - **Contact:** a dedicated `/contact` page. Messages go through Web3Forms, and the form falls back to `mailto:` until an access key is configured. GitHub, Instagram and email (bhccob@gmail.com) are the visible channels.
-- **Hosting:** a static site on GitHub Pages under the custom domain bhccob.me (behind Cloudflare), built and deployed by GitHub Actions.
+- **Hosting:** a static site on GitHub Pages under the custom domain bhccob.com (behind Cloudflare), built and deployed by GitHub Actions.
 - **Maintainer:** Bob edits content himself. Copy lives in `src/i18n/en.ts` and `src/i18n/nl.ts`, and projects, skills and profile data live in `src/data/`.
 
 ## Capabilities and Constraints
@@ -74,7 +74,7 @@ A student software engineer building toward systems and firmware security work, 
 
 ## Brand Commitments
 
-- **Identity:** the name Bob Chung, the handle `bhccob` and the domain bhccob.me.
+- **Identity:** the name Bob Chung, the handle `bhccob` and the domain bhccob.com.
 - **Colours:** purple and yellow are the main colours, with dark purple preferred. This is the owner's binding constraint.
 - **Motifs:** low-key maths, tech and sports objects around the site. They are present but never dominant: "minimalistic, yet fun, modern and unique".
 - **Voice:** first person, professional and formal, but personal. The owner asked for polished wording over casual phrasing.

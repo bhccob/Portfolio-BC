@@ -10,7 +10,7 @@ describe('structured data', () => {
     const person = personLd();
     expect(person['@type']).toBe('Person');
     expect(person.name).toBe('Bob Chung');
-    expect(person.url).toBe('https://bhccob.me');
+    expect(person.url).toBe('https://bhccob.com');
     expect(person.jobTitle).toBe('Student Software Engineer');
     expect(person.sameAs).toEqual(['https://github.com/bhccob', 'https://www.instagram.com/bhccob/']);
     expect(JSON.stringify(person)).not.toMatch(/mailto|@gmail/);
@@ -27,7 +27,7 @@ describe('structured data', () => {
     const ld = projectLd(steady, 'en');
     expect(ld['@type']).toBe('SoftwareSourceCode');
     expect(ld.name).toBe('Steady');
-    expect(ld.url).toBe('https://bhccob.me/en/projects/steady/');
+    expect(ld.url).toBe('https://bhccob.com/en/projects/steady/');
     expect(ld.codeRepository).toBe('https://github.com/bhccob/steady');
     expect(ld.dateCreated).toBe('2026');
     expect(ld.inLanguage).toBe('en');
@@ -49,8 +49,8 @@ describe('structured data', () => {
     ]);
     expect(trail['@type']).toBe('BreadcrumbList');
     expect(trail.itemListElement).toEqual([
-      { '@type': 'ListItem', position: 1, name: 'Bob Chung', item: 'https://bhccob.me/' },
-      { '@type': 'ListItem', position: 2, name: 'Steady', item: 'https://bhccob.me/projects/steady/' },
+      { '@type': 'ListItem', position: 1, name: 'Bob Chung', item: 'https://bhccob.com/' },
+      { '@type': 'ListItem', position: 2, name: 'Steady', item: 'https://bhccob.com/projects/steady/' },
     ]);
   });
 });

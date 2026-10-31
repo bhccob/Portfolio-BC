@@ -6,11 +6,11 @@ tags, structured data and internal links (including ``#fragment`` targets),
 plus the security basics a static host leaves to the page itself: a
 Content-Security-Policy, safe ``target="_blank"`` links, no insecure
 ``http://`` resources and redirect stubs that stay out of search results.
-Errors fail the build, so a broken page never reaches bhccob.me.
+Errors fail the build, so a broken page never reaches bhccob.com.
 
 Standard library only. Usage::
 
-    python tools/site_audit.py dist/client [--origin https://bhccob.me] [--strict] [--json]
+    python tools/site_audit.py dist/client [--origin https://bhccob.com] [--strict] [--json]
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Iterable, Iterator
 from urllib.parse import unquote, urlparse
 
-DEFAULT_ORIGIN = "https://bhccob.me"
+DEFAULT_ORIGIN = "https://bhccob.com"
 EXPECTED_LOCALES = ("en", "nl", "x-default")
 SKIPPED_SCHEMES = ("mailto:", "tel:", "javascript:", "data:")
 # Directives every page's Content-Security-Policy must set (the rest are page-specific hashes).

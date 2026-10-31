@@ -19,7 +19,7 @@ export class Person {
   readonly email = 'bhccob@gmail.com';
   readonly city = 'Rotterdam';
   readonly country = 'NL';
-  readonly site = 'https://bhccob.me';
+  readonly site = 'https://bhccob.com';
 
   readonly socials: readonly SocialLink[] = [
     { id: 'github', label: 'GitHub', handle: '@bhccob', url: 'https://github.com/bhccob' },

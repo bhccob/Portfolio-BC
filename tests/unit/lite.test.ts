@@ -227,8 +227,8 @@ describe('the contact page', () => {
     const dutch = form('/contact/', 'abc');
     expect(dutch).toMatch(/<form[^>]*action="https:\/\/api\.web3forms\.com\/submit"/);
     expect(tagOf(dutch, 'input', 'access_key')).toContain('value="abc"');
-    expect(dutch).toContain('value="https://bhccob.me/contact/?sent=1"');
-    expect(form('/en/contact/', 'abc')).toContain('value="https://bhccob.me/en/contact/?sent=1"');
+    expect(dutch).toContain('value="https://bhccob.com/contact/?sent=1"');
+    expect(form('/en/contact/', 'abc')).toContain('value="https://bhccob.com/en/contact/?sent=1"');
   });
 
   it('treats a blank key as no key', () => {

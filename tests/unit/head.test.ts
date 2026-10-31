@@ -41,30 +41,30 @@ describe('head', () => {
     expect(content(tags, 'property', 'og:description')).toBe(steady.description);
   });
 
-  it('names the English page as canonical, on bhccob.me', () => {
-    expect(link(tags, 'canonical')?.href).toBe('https://bhccob.me/en/projects/steady/');
-    expect(content(tags, 'property', 'og:url')).toBe('https://bhccob.me/en/projects/steady/');
+  it('names the English page as canonical, on bhccob.com', () => {
+    expect(link(tags, 'canonical')?.href).toBe('https://bhccob.com/en/projects/steady/');
+    expect(content(tags, 'property', 'og:url')).toBe('https://bhccob.com/en/projects/steady/');
   });
 
   it('names the Dutch page as canonical for a Dutch page', () => {
-    expect(link(head({ ...steady, locale: 'nl' }), 'canonical')?.href).toBe('https://bhccob.me/projects/steady/');
+    expect(link(head({ ...steady, locale: 'nl' }), 'canonical')?.href).toBe('https://bhccob.com/projects/steady/');
   });
 
   it('links the same page in both languages, and x-default is the Dutch one', () => {
-    expect(alternate(tags, 'nl')).toBe('https://bhccob.me/projects/steady/');
-    expect(alternate(tags, 'en')).toBe('https://bhccob.me/en/projects/steady/');
+    expect(alternate(tags, 'nl')).toBe('https://bhccob.com/projects/steady/');
+    expect(alternate(tags, 'en')).toBe('https://bhccob.com/en/projects/steady/');
     expect(alternate(tags, 'x-default')).toBe(alternate(tags, 'nl'));
-    expect(alternate(head({ ...steady, locale: 'nl' }), 'x-default')).toBe('https://bhccob.me/projects/steady/');
+    expect(alternate(head({ ...steady, locale: 'nl' }), 'x-default')).toBe('https://bhccob.com/projects/steady/');
   });
 
   it('links the English home page at /en/ and the Dutch one at the root', () => {
     const home = head({ locale: 'en', route: '/', title: en.meta.homeTitle, description: en.meta.homeDescription });
-    expect(alternate(home, 'nl')).toBe('https://bhccob.me/');
-    expect(alternate(home, 'en')).toBe('https://bhccob.me/en/');
+    expect(alternate(home, 'nl')).toBe('https://bhccob.com/');
+    expect(alternate(home, 'en')).toBe('https://bhccob.com/en/');
   });
 
-  it('describes the page for social cards, with the share image on bhccob.me', () => {
-    expect(content(tags, 'property', 'og:image')).toBe('https://bhccob.me/og.jpg');
+  it('describes the page for social cards, with the share image on bhccob.com', () => {
+    expect(content(tags, 'property', 'og:image')).toBe('https://bhccob.com/og.jpg');
     expect(content(tags, 'property', 'og:type')).toBe('website');
     expect(content(tags, 'property', 'og:locale')).toBe('en_GB');
     expect(content(head({ ...steady, locale: 'nl' }), 'property', 'og:locale')).toBe('nl_NL');
@@ -72,7 +72,7 @@ describe('head', () => {
   });
 
   it('accepts another share image, as a path or as a full URL', () => {
-    expect(content(head({ ...steady, image: '/x.jpg' }), 'property', 'og:image')).toBe('https://bhccob.me/x.jpg');
+    expect(content(head({ ...steady, image: '/x.jpg' }), 'property', 'og:image')).toBe('https://bhccob.com/x.jpg');
     expect(content(head({ ...steady, image: 'https://example.org/y.jpg' }), 'property', 'og:image')).toBe('https://example.org/y.jpg');
   });
 

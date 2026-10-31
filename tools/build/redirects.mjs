@@ -8,7 +8,7 @@ import { access, mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { redirects } from '../../src/data/redirects.ts';
 
-const ORIGIN = 'https://bhccob.me';
+const ORIGIN = 'https://bhccob.com';
 
 const WORDS = {
   nl: { title: 'Verplaatst | Bob Chung', moved: 'Deze pagina is verplaatst naar' },
@@ -40,7 +40,7 @@ export function stubHtml({ to, locale }) {
   <style>${STYLE}</style>
 </head>
 <body>
-  <p>${words.moved} <a href="${target}">bhccob.me${target}</a>.</p>
+  <p>${words.moved} <a href="${target}">bhccob.com${target}</a>.</p>
 </body>
 </html>
 `;

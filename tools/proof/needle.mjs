@@ -1553,7 +1553,7 @@ async function contactKeyed(browser, step, lang) {
   step.check(posts.length === 1, `${path}: a filled form posts once (posted ${posts.length})`);
   const sent = posts[0] ?? {};
   step.check(Boolean(sent.access_key) && sent.name === 'Ada Lovelace' && sent.email === 'ada@example.com' && sent.message?.startsWith('Hello Bob'), `${path}: the post carries the key and the three fields (got ${JSON.stringify(Object.keys(sent))})`);
-  step.check(sent.subject === 'Portfolio: A question' && sent.from_name === 'bhccob.me portfolio', `${path}: the post has the site's subject and sender (got ${sent.subject}, ${sent.from_name})`);
+  step.check(sent.subject === 'Portfolio: A question' && sent.from_name === 'bhccob.com portfolio', `${path}: the post has the site's subject and sender (got ${sent.subject}, ${sent.from_name})`);
   step.check((await title()) === c.successTitle, `${path}: the "${c.successTitle}" panel is shown`);
 
   // The next message waits a minute.

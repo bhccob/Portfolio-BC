@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PAGES, pagePaths } from '../../src/data/pages';
 import { sitemapIndexXml, sitemapXml } from '../../tools/build/sitemap.mjs';
 
-const ORIGIN = 'https://bhccob.me';
+const ORIGIN = 'https://bhccob.com';
 
 describe('sitemap', () => {
   const xml = sitemapXml();

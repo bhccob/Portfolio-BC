@@ -1,5 +1,5 @@
 ---
-name: bhccob.me
+name: bhccob.com
 description: Bob Chung's portfolio as a grainy purple board printed with fat, playful type, with cream prints for the work and split-flap tiles as the mechanical detail.
 colors:
   board-deep: "#140a24"
@@ -318,7 +318,7 @@ components:
     padding: "10px 0 12px"
 ---
 
-# Design System: bhccob.me
+# Design System: bhccob.com
 
 ## Overview
 
@@ -516,7 +516,7 @@ Scroll scenes (`ScrollScenes.ts`) tie each section to the scroll position, in bo
 - **Screenshot:** on a project page the screenshot settles from 118% as it unfolds.
 
 ### Share Images
-Every page has a 1200 × 630 share image rendered at build time in the site's own fonts (glyph outlines via opentype.js): the board with its grid, the ball mark and "bhccob.me" top left. The site image is the outlined name with a yellow lens across UN and the portrait as a tilted cream print; project images carry the category label in yellow mono, the title in paper display type, the type line in lilac, the screenshot as a cream print turned -3°, and a Yellowtail signature.
+Every page has a 1200 × 630 share image rendered at build time in the site's own fonts (glyph outlines via opentype.js): the board with its grid, the ball mark and "bhccob.com" top left. The site image is the outlined name with a yellow lens across UN and the portrait as a tilted cream print; project images carry the category label in yellow mono, the title in paper display type, the type line in lilac, the screenshot as a cream print turned -3°, and a Yellowtail signature.
 
 ## Do's and Don'ts
 

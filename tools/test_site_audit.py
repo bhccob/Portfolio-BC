@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from site_audit import Severity, SiteAuditor, main  # noqa: E402
 
-ORIGIN = "https://bhccob.me"
+ORIGIN = "https://bhccob.com"
 CSP = "default-src 'self'; script-src 'self' 'sha256-abc'; object-src 'none'; base-uri 'self'"
 
 

@@ -70,7 +70,7 @@ describe('redirect stubs', () => {
 
   it('points the canonical, the refresh and the link at the target', () => {
     const html = stubHtml(legacy);
-    expect(html).toContain('<link rel="canonical" href="https://bhccob.me/lite/#career" />');
+    expect(html).toContain('<link rel="canonical" href="https://bhccob.com/lite/#career" />');
     expect(html).toContain('<meta http-equiv="refresh" content="0; url=/lite/#career" />');
     expect(html).toContain('<a href="/lite/#career">');
   });

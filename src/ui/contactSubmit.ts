@@ -17,7 +17,7 @@ export interface ContactFields {
 export type ContactPayload = { mode: 'web3forms'; body: Record<string, string> } | { mode: 'mailto'; href: string };
 
 // The site's own labels on a message, as the first form of the portfolio wrote them (they are for Bob's inbox, not shown on the page).
-export const FROM_NAME = 'bhccob.me portfolio';
+export const FROM_NAME = 'bhccob.com portfolio';
 const SUBJECT_PREFIX = 'Portfolio: ';
 const SUBJECT_DEFAULT = 'New message';
 

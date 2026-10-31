@@ -37,7 +37,7 @@ describe('contactPayload with an access key', () => {
   it('names the site as the sender and gives a message without a subject the default subject', () => {
     const payload = contactPayload(fields, 'k');
     if (payload.mode !== 'web3forms') throw new Error('unreachable');
-    expect(payload.body.from_name).toBe('bhccob.me portfolio');
+    expect(payload.body.from_name).toBe('bhccob.com portfolio');
     expect(payload.body.subject).toBe('Portfolio: New message');
   });
 
