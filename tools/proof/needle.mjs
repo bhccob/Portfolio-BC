@@ -569,7 +569,7 @@ async function routes(browser, step) {
     const htmlLang = await page.getAttribute('html', 'lang');
     step.check(htmlLang === lang, `${path} has <html lang="${lang}"> (got ${htmlLang})`);
     if (!scene) {
-      const canvases = await page.locator('canvas').count();
+      const canvases = await page.locator('.scene-host canvas').count();
       step.check(canvases === 0, `${path} shows no scene: no <canvas> (got ${canvases})`);
     }
     await takeCsp(page, step);
@@ -705,7 +705,7 @@ async function persist(browser, step) {
     const state = await page.evaluate(() => ({
       path: location.pathname,
       mounts: window.__needleDebug().canvasMounts,
-      canvases: document.querySelectorAll('canvas').length,
+      canvases: document.querySelectorAll('.scene-host canvas').length,
       tag: document.querySelector('.scene-host canvas')?.dataset.id ?? null,
     }));
     visited.push(state.path);
@@ -795,7 +795,7 @@ async function expectNotFound(browser, step, urls) {
       lang: document.documentElement.lang,
       type: performance.getEntriesByType('navigation')[0]?.type,
       mounts: window.__needleDebug?.().canvasMounts,
-      canvases: document.querySelectorAll('canvas').length,
+      canvases: document.querySelectorAll('.scene-host canvas').length,
       phase: window.__needleDebug?.().phase.kind,
       url: location.pathname,
     }));
@@ -1145,7 +1145,7 @@ async function homeNav(browser, step) {
   const stored = await page.evaluate(() => ({
     threeD: document.documentElement.dataset['3d'],
     mounts: window.__needleDebug?.().canvasMounts ?? 0,
-    canvases: document.querySelectorAll('canvas').length,
+    canvases: document.querySelectorAll('.scene-host canvas').length,
   }));
   step.check(stored.threeD === 'on' && stored.mounts === 1 && stored.canvases === 1, `with needle-3d = off stored from before, 3D is on and the Stage mounts (got ${JSON.stringify(stored)})`);
   step.check(visuallyHidden(await boxOf(page, '.home-nav')), 'and the home nav is hidden, as with 3D on');
@@ -2182,7 +2182,7 @@ async function loaded(browser, step) {
   const on = await old.page.evaluate(() => ({
     threeD: document.documentElement.dataset['3d'],
     mounts: window.__needleDebug?.().canvasMounts ?? 0,
-    canvases: document.querySelectorAll('canvas').length,
+    canvases: document.querySelectorAll('.scene-host canvas').length,
     card: document.querySelector('.scene-fallback') !== null,
   }));
   step.check(on.threeD === 'on' && on.mounts === 1 && on.canvases === 1 && !on.card, `with needle-3d = off stored from before: HOME_IDLE after ${oldAt} ms with 3D on, one Stage, one <canvas>, no card (got ${JSON.stringify(on)})`);
@@ -2251,7 +2251,7 @@ async function noScene(browser, step) {
     await page.mouse.move(700, 500, { steps: 5 });
     await page.waitForTimeout(1_500); // a Stage on its way would have asked for its chunk by now
     const state = await page.evaluate(() => ({
-      canvases: document.querySelectorAll('canvas').length,
+      canvases: document.querySelectorAll('.scene-host canvas').length,
       mounts: window.__needleDebug?.().canvasMounts ?? null,
       webgl: document.querySelector('.scene-host')?.getAttribute('data-webgl') ?? null,
       card: document.querySelector('.scene-fallback') !== null,
@@ -2288,7 +2288,7 @@ async function noScene(browser, step) {
   const slept = (await page.evaluate(() => window.__allRaf)) - from;
   const kept = await page.evaluate(() => ({
     mounts: window.__needleDebug().canvasMounts,
-    canvases: document.querySelectorAll('canvas').length,
+    canvases: document.querySelectorAll('.scene-host canvas').length,
     tag: document.querySelector('.scene-host canvas')?.dataset.id ?? null,
     route: window.__needleDebug().route,
   }));
@@ -2375,7 +2375,7 @@ async function noWebglOne(browser, step, label, expected) {
       link: document.querySelector('.scene-fallback a')?.getAttribute('href') ?? null,
       linkText: document.querySelector('.scene-fallback a')?.textContent ?? null,
       role: document.querySelector('.scene-fallback')?.getAttribute('role') ?? null,
-      canvases: document.querySelectorAll('canvas').length,
+      canvases: document.querySelectorAll('.scene-host canvas').length,
       mounts: window.__needleDebug?.().canvasMounts ?? 0,
       webgl: document.querySelector('.scene-host')?.getAttribute('data-webgl') ?? null,
       threeD: document.documentElement.dataset['3d'],
@@ -2487,7 +2487,7 @@ async function sceneFailures(browser, step) {
   const fellBack = async (page, what, within) => {
     const shown = await page.waitForSelector('.scene-fallback', { timeout: within }).then(() => true, () => false);
     const state = await page.evaluate(() => ({
-      canvases: document.querySelectorAll('canvas').length,
+      canvases: document.querySelectorAll('.scene-host canvas').length,
       threeD: document.documentElement.dataset['3d'],
       stored: localStorage.getItem('needle-3d'),
       phase: window.__needleDebug?.().phase.kind ?? null,
@@ -2769,7 +2769,7 @@ async function stills(browser, step) {
         await page.waitForTimeout(1_200); // as long as a scene page is given to fade in: one would have come by now
         const plain = await scrims(page);
         const debug = await debugOf(page);
-        const canvases = await page.locator('canvas').count();
+        const canvases = await page.locator('.scene-host canvas').count();
         step.check(
           !plain.ready && canvases === 0 && debug?.canvasMounts === 0 && scenery.length === 0 && plain.posterLeast >= 0.5,
           `${at}: no scene loads (ready ${plain.ready}, ${canvases} canvas, ${debug?.canvasMounts} mounts, scene files ${scenery.join(' ') || 'none'}) and the poster carries the page's scrim (least alpha ${plain.posterLeast})`,
@@ -2921,7 +2921,7 @@ async function loadThrow(browser, step) {
     stored: localStorage.getItem('needle-3d'),
     phase: window.__needleDebug?.().phase.kind ?? null,
     ready: document.querySelector('.scene-host')?.hasAttribute('data-ready') ?? null,
-    canvases: document.querySelectorAll('canvas').length,
+    canvases: document.querySelectorAll('.scene-host canvas').length,
     mounts: window.__needleDebug?.().canvasMounts ?? 0,
   }));
   step.check(patched === 1 && found === 1, `the real Stage chunk was served with its one "${LOAD_THROW_AT}" call made to throw (served ${patched}, call found ${found} times)`);
@@ -4367,7 +4367,7 @@ async function giveUp(browser, step) {
   const state = await page.evaluate(() => ({
     title: document.querySelector('.scene-fallback-title')?.textContent ?? null,
     link: document.querySelector('.scene-fallback a')?.getAttribute('href') ?? null,
-    canvases: document.querySelectorAll('canvas').length,
+    canvases: document.querySelectorAll('.scene-host canvas').length,
     phase: window.__needleDebug?.().phase.kind ?? null,
   }));
   step.check(asked >= 1, `the page asked for the compass's file and got no answer (${asked} requests)`);
@@ -5100,7 +5100,7 @@ async function langKeepsPhase(browser, step) {
       await page.waitForTimeout(250); // a sync that wrongly moved the phase would have by now
       const now = await debugOf(page);
       const same = await page.evaluate(() => window.__needleDebug().phase === window.__keptPhase);
-      const canvas = await page.evaluate(() => ({ canvases: document.querySelectorAll('canvas').length, tag: document.querySelector('.scene-host canvas')?.dataset.id ?? null }));
+      const canvas = await page.evaluate(() => ({ canvases: document.querySelectorAll('.scene-host canvas').length, tag: document.querySelector('.scene-host canvas')?.dataset.id ?? null }));
       step.check(sameAs(now) && same, `after the client-side switch to ${to}: the phase is still ${label}, the very same state with no new transition (got ${JSON.stringify(now.phase)}, same object ${same})`);
       step.check(now.locale === lang && now.route === route, `and the bridge says locale ${lang}, route ${route} (got ${now.locale}, ${now.route})`);
       step.check(now.canvasMounts === 1 && canvas.canvases === 1 && canvas.tag === 'lang-canvas', `and canvasMounts is 1, the same <canvas> (got ${now.canvasMounts} mounts, ${canvas.canvases} canvas, tag ${canvas.tag})`);
