@@ -339,6 +339,50 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
     }
   });
 
+  // Bob (2026-10-31): "when camera transition (go down) to each floor it atleast rotate the go down so it doesnt look so
+  // stale and boring i want it to be sort of like dramatic"; shown four ways, he picked "B · one turn round the tower".
+  it('turns the camera once round the tower on the way down to each board, starting to its right, with the scroll', () => {
+    const angle = (p: Vec3): number => Math.atan2(p[2] - C[2], p[0] - C[0]);
+    for (const aspect of [DESK, PHONE]) {
+      areasOnPath().forEach((area) => {
+        const unit = HOME_CHAPTERS.units.find((u) => u.id === 'AREA' && u.category === area.category)!;
+        const where = `${area.category} at ${aspect.toFixed(2)}`;
+        const placeAt = (k: number, n: number): number => unit.start + (AREA_STOP * unit.length * k) / n;
+        let turned = 0;
+        let last = angle(home(aspect, placeAt(0, 400)).shot.position);
+        for (let k = 1; k <= 400; k++) {
+          const now = angle(home(aspect, placeAt(k, 400)).shot.position);
+          turned += Math.atan2(Math.sin(now - last), Math.cos(now - last));
+          last = now;
+        }
+        expect(turned, where).toBeCloseTo(-2 * Math.PI, 6);
+        // It sets off to the right, and half way down it looks from behind the tower.
+        expect(home(aspect, placeAt(1, 4)).shot.position[0], where).toBeGreaterThan(C[0] + 1);
+        const half = home(aspect, placeAt(1, 2)).shot;
+        expect(half.position[2], where).toBeLessThan(C[2]);
+        // (Within a hair: the whole machine's view, where the first move starts, looks a little aside.)
+        expect(Math.abs(half.position[0] - C[0]), where).toBeLessThan(0.25);
+        // Still looking at the tower's middle all the way round.
+        expect(Math.hypot(half.target[0] - C[0], half.target[2] - C[2]), where).toBeLessThan(0.25);
+      });
+    }
+  });
+
+  it('goes only the short way round out from the last board to the look back, no whole turn', () => {
+    const angle = (p: Vec3): number => Math.atan2(p[2] - C[2], p[0] - C[0]);
+    const last = areasOnPath().at(-1)!;
+    const from = areaStop(HOME_CHAPTERS, last.category);
+    const to = lookStop(HOME_CHAPTERS);
+    let turned = 0;
+    let before = angle(home(DESK, from).shot.position);
+    for (let k = 1; k <= 200; k++) {
+      const now = angle(home(DESK, from + ((to - from) * k) / 200).shot.position);
+      turned += Math.atan2(Math.sin(now - before), Math.cos(now - before));
+      before = now;
+    }
+    expect(Math.abs(turned)).toBeLessThan(Math.PI / 2);
+  });
+
   it('lights the board in view and steps the others back', () => {
     expect(home(DESK, worldStop(HOME_CHAPTERS)).boardLight).toEqual([1, 1, 1, 1]);
     areasOnPath().forEach((area, i) => {

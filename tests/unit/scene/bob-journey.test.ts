@@ -6,7 +6,7 @@ import { fieldFor, focusShotFor, journeyAt, journeyPoseAt, lensField, WORLD_PROJ
 import { factAt, lightAt, voidAt, wayShot } from '~/scene/bob/lightDive';
 import { ease, worldPathFor } from '~/scene/bob/worldPath';
 import { riseAt, scrollPoseAt } from '~/scene/bob/scrollPose';
-import { areaStop, HAND_F, HOME_CHAPTERS, pathStart, placeOfFrame, scrollEnd, lookStop, worldStop } from '~/state/chapters';
+import { AREA_STOP, areaStop, HAND_F, HOME_CHAPTERS, pathStart, placeOfFrame, scrollEnd, lookStop, worldStop } from '~/state/chapters';
 
 type Vec3 = readonly [number, number, number];
 
@@ -87,14 +87,20 @@ describe("the journey's camera", () => {
     }
   });
 
-  it('has no seam anywhere: no 1/1000 step moves the camera more than 0.15 m or turns it more than 2 degrees', () => {
+  // On the way down to a floor the camera goes once round the tower (Bob, 2026-10-31, "B · one turn round the tower";
+  // worldPath.ts `FLOOR_TURN`), some 90 m round in a move: there a step may carry it up to TURN_STEP.
+  it('has no seam anywhere: no 1/1000 step moves the camera more than 0.15 m (TURN_STEP round to a floor) or turns it more than 2 degrees', () => {
+    const TURN_STEP = 0.6;
+    const turns = HOME_CHAPTERS.units.filter((u) => u.id === 'AREA').map((u) => [u.start, u.start + AREA_STOP * u.length] as const);
+    const limitAt = (p: number): number => (turns.some(([a, b]) => p > a && p <= b + 1e-9) ? TURN_STEP : 0.15);
     for (const a of SCREENS) {
-      let worst = { p: 0, move: 0, turn: 0 };
+      let worst = { p: 0, over: 0, turn: 0 };
       for (let i = 1; i < STEPS.length; i++) {
         const s = shotStep(journeyPoseAt(STEPS[i - 1]!, a).shot, journeyPoseAt(STEPS[i]!, a).shot);
-        if (s.move > worst.move || s.turn > worst.turn) worst = { p: STEPS[i]!, move: Math.max(worst.move, s.move), turn: Math.max(worst.turn, s.turn) };
+        const over = s.move / limitAt(STEPS[i]!);
+        if (over > worst.over || s.turn > worst.turn) worst = { p: STEPS[i]!, over: Math.max(worst.over, over), turn: Math.max(worst.turn, s.turn) };
       }
-      expect(worst.move, `at ${a}, ${worst.p}`).toBeLessThan(0.15);
+      expect(worst.over, `at ${a}, ${worst.p}`).toBeLessThan(1);
       expect(worst.turn, `at ${a}, ${worst.p}`).toBeLessThan(2);
     }
   });

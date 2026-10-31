@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CameraShot } from '~/engine/bob/shots';
-import { around, aroundShot } from '~/scene/bob/around';
+import { around, aroundShot, turnedRound } from '~/scene/bob/around';
 
 type Vec3 = readonly [number, number, number];
 const C: Vec3 = [1, -5, 2];
@@ -49,5 +49,26 @@ describe('around: the way from one place to another round the board, never acros
     expect(flat(mid.target)).toBeCloseTo(2.6, 9);
     expect(angleOf(mid.position)).toBeCloseTo(1.45, 9);
     expect(mid.up).toEqual([0, 1, 0]);
+  });
+});
+
+describe('turnedRound: a shot turned round the centre, as the camera turns on the way down to a floor', () => {
+  const shot: CameraShot = { position: at(0.4, 9, 6), target: at(0.4, 1.5, 2), fov: 38, up: [0, 1, 0], sway: 0 };
+
+  it('turns its position and its target by the angle, each at its own distance and height', () => {
+    const turned = turnedRound(shot, C, -1.2);
+    expect(angleOf(turned.position)).toBeCloseTo(0.4 - 1.2, 9);
+    expect(angleOf(turned.target)).toBeCloseTo(0.4 - 1.2, 9);
+    expect(flat(turned.position)).toBeCloseTo(9, 9);
+    expect(flat(turned.target)).toBeCloseTo(1.5, 9);
+    expect(turned.position[1]).toBe(6);
+    expect(turned.target[1]).toBe(2);
+  });
+
+  it('keeps the rest of the shot, and a whole turn is the shot itself', () => {
+    const whole = turnedRound(shot, C, -2 * Math.PI);
+    expect(whole.position).toEqual(shot.position.map((v) => expect.closeTo(v, 9)));
+    expect(whole.target).toEqual(shot.target.map((v) => expect.closeTo(v, 9)));
+    expect({ fov: whole.fov, up: whole.up, sway: whole.sway }).toEqual({ fov: 38, up: [0, 1, 0], sway: 0 });
   });
 });

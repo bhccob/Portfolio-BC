@@ -12,8 +12,9 @@
  *   tower"); the closed stack explodes open over the power's middle, each board sliding down to its place; the light
  *   stays on the lid, its trail standing above it as a still column; the camera comes down out of the fall to look at
  *   the light coming in, then pulls slowly back over the power-on to the whole machine by `LAND_STOP`;
- * - AREA, one per board of the stack: the camera goes round the stack's axis (./around.ts) and down to the board, seen
- *   from just under the board above it, by `AREA_STOP`; the board in view lit, the others stepped back, its caption in;
+ * - AREA, one per board of the stack: the camera goes down to the board, turning once round the stack's axis on the way
+ *   (`FLOOR_TURN`, ./around.ts), from the front by `AREA_STOP`; the board in view lit, the others stepped back, its
+ *   caption in;
  * - LOOK: round and back and up, the whole machine framed in the nebula, the Q&A's gold ring coming in round it;
  * - QA, one for each mark on the ring (spec 2026-10-29-bob-stack-2-design.md, goal 1): over the first, from the look
  *   back's stop to the first question, the stack closes (`explode` back to 0), its projects sinking into their sockets,
@@ -29,7 +30,7 @@ import type { ProjectId } from '~/data/projects';
 import { RING_MARKS } from '~/data/qa';
 import { type CameraShot, shotToward } from '~/engine/bob/shots';
 import { AREA_STOP, type Chapters, HAND_F, HOME_CHAPTERS, LAND_DROP, LAND_STOP, lookStop, pathStart, WORLD_LAYOUT, worldStop } from '~/state/chapters';
-import { aroundShot } from './around';
+import { aroundShot, turnedRound } from './around';
 import { fitDistance } from './fit';
 import { lightAt, sizeFor, streamAt, trailAt, trailLevel, voidAt, wayShot } from './lightDive';
 import type { LightPose, VoidPose } from './poseTypes';
@@ -105,6 +106,14 @@ export function sheetBlack(share: number): number {
  * nearer, "25% closer"). The camera comes in along its own line, the field unchanged.
  */
 export const TOWER_ZOOM = 1.25;
+
+/**
+ * The camera's turn round the tower on the way down to each board, radians, as `turnedRound` (./around.ts) measures it
+ * (Bob, 2026-10-31: "when camera transition (go down) to each floor it atleast rotate the go down so it doesnt look so
+ * stale and boring i want it to be sort of like dramatic"; shown four ways, he picked "B · one turn round the tower"):
+ * one whole turn, setting off to the right, with the scroll, so it arrives at the board from the front as before.
+ */
+export const FLOOR_TURN = -2 * Math.PI;
 
 /** The gyroscope rings round the stack step back to this at a board's stop and in the Q&A, so the thing in view leads. */
 export const RINGS_FOCUS = 0.42;
@@ -381,7 +390,10 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS, { zoo
 
   function shotAt(s: Segment, t: number): CameraShot {
     if (s.kind === 'land') return t < LAND_HIT ? shotToward(handShot, landShot, ease(t / LAND_HIT)) : shotToward(landShot, worldShot, ease(seg(t, LAND_HIT, LAND_STOP)));
-    if (s.kind === 'area') return aroundShot(stopShot(s.i - 1), stopShot(s.i), C, ease(seg(t, 0, AREA_STOP)));
+    if (s.kind === 'area') {
+      const e = ease(seg(t, 0, AREA_STOP));
+      return turnedRound(aroundShot(stopShot(s.i - 1), stopShot(s.i), C, e), C, FLOOR_TURN * e);
+    }
     if (s.kind === 'look') return aroundShot(stopShot(count - 1), lookShot, C, ease(seg(t, 0, LOOK_AT)));
     // The Q&A: from the look back to the ring's view over the way in, then still while the ring turns.
     return s.i === 0 ? shotToward(lookShot, ringShot, ease(t)) : ringShot;

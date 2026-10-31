@@ -46,3 +46,19 @@ export function aroundShot(a: CameraShot, b: CameraShot, centre: R3, e: number):
   if (a.sway !== undefined || b.sway !== undefined) shot.sway = (a.sway ?? 0) + ((b.sway ?? 0) - (a.sway ?? 0)) * e;
   return shot;
 }
+
+/**
+ * `shot` turned `angle` radians round `centre`'s upright axis (the angle as `around` measures it, from +x toward +z):
+ * its position and its target each at their own distance and height, the rest of it kept. The camera's turn round the
+ * tower on the way down to a floor (./worldPath.ts `FLOOR_TURN`).
+ */
+export function turnedRound(shot: CameraShot, centre: R3, angle: number): CameraShot {
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  const turn = (p: R3): Vec3 => {
+    const x = p[0] - centre[0];
+    const z = p[2] - centre[2];
+    return [centre[0] + x * c - z * s, p[1], centre[2] + x * s + z * c];
+  };
+  return { ...shot, position: turn(shot.position), target: turn(shot.target) };
+}
