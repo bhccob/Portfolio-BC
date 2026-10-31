@@ -11,7 +11,8 @@ import '~/styles/base.css';
 import { Shell } from './Shell';
 
 export const links: LinksFunction = () => [
-  // Without an icon link the browser asks for /favicon.ico, which does not exist.
+  // Bob's logo, the chbc kit's: the .ico for browsers that ask for one, the SVG for the rest.
+  { rel: 'icon', href: '/favicon.ico', sizes: '48x48' },
   { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
   { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
   { rel: 'manifest', href: '/site.webmanifest' },
