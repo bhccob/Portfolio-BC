@@ -314,7 +314,9 @@ export const projects = new ProjectCatalog([
     // The old static site's screenshot, which no page shows now; `imageAlt` is its text.
     image: 'jontai-energy.png',
     // The redesign as it is now (c8c9c62, 2026-10-28, type-led; Bob, round 16: "update the jontai project image"), run
-    // from a scratch copy: its first screen, the clock set to a Wednesday 11:00 in Aruba so the store reads as open.
+    // from a scratch copy: its first screen at 1440 x 810, the card's 16:9, so its headline and buttons are not cut off,
+    // set on a little more of the page's own cream round it (to 1680 x 945), so a phone's narrower card, which crops the
+    // sides, cuts none of its words; the clock set to a Wednesday 11:00 in Aruba so the store reads as open.
     pictures: [
       {
         file: 'jontai-type.webp',
