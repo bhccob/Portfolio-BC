@@ -907,7 +907,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
     motion.beads = moving;
     if (proof) {
       frame.journey.world = path
-        ? { power: path.power, names: path.names, caption: path.caption ? { ...path.caption } : null, dots: path.dots, explode: path.explode, tops: boardTops(STACK_PLACES, path.explode), lift: { ...(close.id !== null ? close.lifts : NONE_LIFTED) } }
+        ? { power: path.power, names: path.names, caption: path.caption ? { ...path.caption } : null, dots: path.dots, explode: path.explode, tops: boardTops(STACK_PLACES, path.explode), lift: { ...(close.id !== null ? close.lifts : NONE_LIFTED) }, tower: world?.model.group.visible ?? false, dust: world?.dust.points.visible ?? false }
         : null;
     }
     if (!shown) return;

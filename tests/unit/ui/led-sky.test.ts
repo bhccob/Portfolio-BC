@@ -99,6 +99,15 @@ describe('the LED screen: the digitize, from the frame grab (round 15)', () => {
     expect(calls).not.toContain('linear');
   });
 
+  it('darkens only the LEDs behind the words, never the scene under the line', () => {
+    const { sky, fills } = setup();
+    sky.draw({ source: SOURCE, line: 0.5, end: 0.2, size: SIZE, core: null });
+    const hush = fills.filter((f) => typeof f.style !== 'string');
+    expect(hush.length).toBeGreaterThan(0);
+    // The hush (the gradient fill, not a laser's: those sit on the line) never reaches under the line.
+    for (const h of hush) expect(h.y + h.h).toBeLessThanOrEqual(450 + 1e-9);
+  });
+
   it('clears when the grab gives nothing', () => {
     const { sky, fills, calls } = setup();
     sky.draw({ source: null, line: 0.8, end: 0, size: SIZE, core: null });

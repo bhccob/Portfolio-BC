@@ -165,18 +165,19 @@
  *              words at the bottom left (category, name, open hint) and no other's, the dots shown with its own lit, the
  *              names gone; a still of each through the home's luma gate; the first dot glides back to the first area
  *              round the board
- *   qa-ring    the Q&A in the stars (round 14, the way out), at 1440x900, 1366x657, 390x844 (touch) and 1440 on /en/,
- *              from the last floor, the Q&A's door: one notch (swipe) plays the blueprint, the floor drawn in gold from
- *              its own frame, and rests on question 1 within 8 s; each question's button takes the Q&A to it and opens
- *              it, the list on the screen; Enter opens one; from question 4 one notch on and one up, the light on the
- *              open one; each answer the dictionary's; at 1440 a resize to 390x844 keeps the place; up from question 1
- *              plays the blueprint back to the door; a still of the list, a question and the end through the home's
- *              luma gate (with reduced motion the reduced-motion step walks the Q&A)
- *   qa-end     the end at 1440x900 and 390x844 (touch): from question 6 one input flies through the circle to it
- *              (within 6 s), "Einde van de site", "Stuur een bericht.", the line word for word, Bob's mark and both
- *              buttons; the end unmistakable (<html data-qa-end>: the sky dark over the scene, the words in the screen's
- *              middle, the list out of reach, the ring round the mark grown whole) and one input up leaves it with
- *              nothing of it left; "Naar contact" opens /contact/ with its form; "Terug naar het begin" takes the story
+ *   qa-ring    the Q&A (round 15, the dissolve and the Q&A with the scroll), at 1440x900, 1366x657, 390x844 (touch)
+ *              and 1440 on /en/, from the last floor, the Q&A's door: one notch (swipe) plays the dissolve, the stardust
+ *              over the closing tower and then the tower gone, and rests on question 1 within 9 s, its words on the
+ *              reading line, the core's light beside them; a question's worth of scroll moves it a question on; a burst
+ *              and a slow scroll rest where they stopped; at 1440 a resize to 390x844 keeps the place; a phone's longest
+ *              answer whole on the screen; half way past question 6 the LEDs over the laser's line; up from question 1
+ *              plays the dissolve back to the door, the tower whole; a still of question 1, question 4 and the end through
+ *              the home's luma gate (with reduced motion the reduced-motion step walks the Q&A)
+ *   qa-end     the end at 1440x900 and 390x844 (touch): from question 6 the scroll goes on to it (within 6 s), the
+ *              digitize's LEDs, "Einde van de site", "Stuur een bericht.", the line word for word, Bob's mark and both
+ *              buttons; the end unmistakable (<html data-qa-end>: the LEDs over the whole screen, the words at 40% of the
+ *              height, the column out of reach, the ring round the mark grown whole) and a question's worth back up
+ *              leaves nothing of it; "Naar contact" opens /contact/ with its form; "Terug naar het begin" takes the story
  *              to the home at 0; at 1440 the nav's .end-link goes to the end with the focus on #qa-end-title, the header
  *              over the sky; where 3D cannot run (Edge without WebGL) #end is in the flow with its form, nothing of the
  *              Q&A left
@@ -360,7 +361,7 @@ const { HANDLES, PAGE_KINDS } = await tsImport('../../src/app/handle.ts', import
 const { MIN_FILL_MS, SEND_TIMEOUT_MS } = await tsImport('../../src/ui/contactSubmit.ts', import.meta.url);
 const { LOAD_TIMEOUT_MS, RESTORE_TIMEOUT_MS } = await tsImport('../../src/scene/timeouts.ts', import.meta.url);
 const { HOME_CHAPTERS, WORLD_LAYOUT, areaStop, areasOnPath, chapterAt, keyStops, pathStart, placeOfFrame, qaDoor, qaStop, scrollEnd, worldStop } = await tsImport('../../src/state/chapters.ts', import.meta.url);
-const { SETTLE_SLOP_PX } = await tsImport('../../src/input/target.ts', import.meta.url);
+const { QA_QUESTION_PX, SETTLE_SLOP_PX } = await tsImport('../../src/input/target.ts', import.meta.url);
 const { RING_MARKS } = await tsImport('../../src/data/qa.ts', import.meta.url);
 const { QA_LOCK_MS, easeInOutQuart } = await tsImport('../../src/input/scrollLoop.ts', import.meta.url);
 const { WAY_OUT } = await tsImport('../../src/scene/bob/wayOut.ts', import.meta.url);
@@ -2821,7 +2822,7 @@ async function stills(browser, step) {
     }
     await context.close();
   }
-  // The light dive, the path's stops, the way out's blueprint and its end, through the luma gate: the scene's with the
+  // The light dive, the path's stops, the way out's dissolve, its digitize and its end, through the luma gate: the scene's with the
   // page's text masked.
   const gated = [];
   for (const size of sizes) {
@@ -2830,9 +2831,11 @@ async function stills(browser, step) {
     const places = [
       ...[32, 60, 121, 241].map((frame) => ({ name: `light-${frame}`, progress: placeOfFrame(frame) })),
       ...PROJECT_LIST.map((bead) => ({ name: `area-${bead.id}`, progress: bead.stop })),
-      // The blueprint 2 s in (round 14): the last floor drawn in gold from its own frame, grabbed as the way in begins.
-      { name: 'blueprint', progress: blueprintAt(2), before: blueprintAt(0.3) },
-      // The end once its words are in (round 14: Bob's mark, the words, the ring round the mark), in the calm sky.
+      // The dissolve 5 s in (round 15): the points of the tower on their way out to the field of stardust.
+      { name: 'dissolve', progress: dissolveAt(5), before: dissolveAt(0.3) },
+      // The digitize half way (round 15): the laser's line half way down, the LEDs over it.
+      { name: 'digitize', progress: QA_STOPS[QA_END - 1] + 0.48 * (QA_STOPS[QA_END] - QA_STOPS[QA_END - 1]), wait: 900 },
+      // The end once its words are in (Bob's mark, the words, the ring round the mark), on the LEDs.
       { name: 'qa-end', progress: STORY_END, wait: 3_400, ...(touch ? { region: { x: [0.1, 0.9], y: [0.12, 0.5] } } : {}) },
     ];
     for (const place of places) {
@@ -3231,7 +3234,7 @@ const textMask = (page) =>
     // The world's words where they show: its names, the hint, an area's words, the dots, an open project's own page's
     // parts and its way back, and the Q&A's list (each question and the open reply) and the end's words.
     const showing = (el) => el.checkVisibility({ opacityProperty: true, visibilityProperty: true }) && Number(getComputedStyle(el).opacity) > 0.01;
-    for (const el of document.querySelectorAll('.world-name, .world-hint, .area-caption, .area-dots, .project-view[data-shown] .pv-part, .pv-controls > *, .qa-answer:not([hidden]), .qa-ask, .qa-reply:not([hidden])')) {
+    for (const el of document.querySelectorAll('.world-name, .world-hint, .area-caption, .area-dots, .project-view[data-shown] .pv-part, .pv-controls > *, .qa-answer:not([hidden]), .qa-block .qa-question, .qa-block .qa-text')) {
       if (showing(el)) add(el);
     }
     // The light dive's shown fact (its words and its line, with their glow: fact 05 still fades out at the hand-over,
@@ -5275,8 +5278,8 @@ const areaEnd = (bead) => {
 const PATH_START = pathStart(HOME_CHAPTERS);
 /** The Q&A's door, the last floor's stop (round 14): one step from it plays the way in, the blueprint, to question 1. */
 const DOOR = qaDoor(HOME_CHAPTERS);
-/** The place the way in's eased turn has reached `s` seconds into the blueprint (src/input/scrollLoop.ts `turnTime`). */
-const blueprintAt = (s) => DOOR + easeInOutQuart(s / WAY_OUT.blueprint) * (QA_STOPS[0] - DOOR);
+/** The place the way in's eased turn has reached `s` seconds into the dissolve (src/input/scrollLoop.ts `turnTime`). */
+const dissolveAt = (s) => DOOR + easeInOutQuart(s / WAY_OUT.dissolve) * (QA_STOPS[0] - DOOR);
 
 /** Where `poseOnTheFrame` puts the story: the rise (0.6), the fall (fact 03's peak), the land and Steady's area. */
 const SAME_FRAME_AT = [0.6, placeOfFrame(161), PATH_START + 0.6, PATH_START + 1.9];
@@ -6739,26 +6742,35 @@ const QA_STOPS = Array.from({ length: RING_MARKS }, (_, k) => qaStop(HOME_CHAPTE
 const QA_END = RING_MARKS - 1;
 
 /**
- * Where the Q&A's ring stands now: the bridge's `journey.qa` (null off the ring), `<html data-qa>` and `data-qa-at`
- * (null unset), the list's open question (round 10: its mark, count, question and text; how many are open), the words'
- * frame's box, the section's `inert`, the story's place and the journey's stretch.
+ * Where the Q&A stands now (round 15): the bridge's `journey.qa` (null off it) and `journey.world` (the solid tower and
+ * the stardust drawn), `<html data-qa>` and `data-qa-at` (null unset), the block whose words' middle is nearest the
+ * reading line (its question, its answer, its box and how far off the line), the column's opacity, the core's light on
+ * the screen (CSS px), the focus, the section's `inert`, the story's place and the journey's stretch.
  */
 const ringOf = (page) =>
   page.evaluate(() => {
     const d = window.__needleDebug();
     const root = document.documentElement;
     const at = root.getAttribute('data-qa-at');
-    const open = [...document.querySelectorAll('.qa-item')].filter((item) => item.querySelector('.qa-ask')?.getAttribute('aria-expanded') === 'true');
-    const shown = open.length === 1 && !open[0].querySelector('.qa-reply').hidden ? open[0] : null;
-    const text = (sel) => shown?.querySelector(sel)?.textContent ?? null;
-    const frame = document.querySelector('.qa-frame')?.getBoundingClientRect() ?? null;
+    const line = (innerWidth <= 700 ? 0.62 : 0.5) * innerHeight;
+    const blocks = [...document.querySelectorAll('.qa-block')].map((b) => {
+      const q = b.querySelector('.qa-question');
+      const t = b.querySelector('.qa-text');
+      const qb = q.getBoundingClientRect();
+      const tb = t.getBoundingClientRect();
+      return { k: Number(b.dataset.k), question: q.textContent, text: t.textContent, top: qb.top, bottom: tb.bottom, left: qb.left, right: Math.max(qb.right, tb.right), off: (qb.top + tb.bottom) / 2 - line };
+    });
+    const shown = blocks.reduce((best, b) => (best === null || Math.abs(b.off) < Math.abs(best.off) ? b : best), null);
+    const column = document.querySelector('.qa-column');
+    const light = d.journey.light;
     return {
       qa: d.journey.qa ? { ...d.journey.qa } : null,
+      world: d.journey.world ? { tower: d.journey.world.tower, dust: d.journey.world.dust, explode: d.journey.world.explode } : null,
       on: root.hasAttribute('data-qa'),
       at: at === null ? null : Number(at),
-      shown: shown === null ? null : { k: Number(shown.dataset.k), count: text('.qa-count'), question: text('.qa-ask'), text: text('.qa-text') },
-      opened: open.length,
-      frame: frame === null ? null : { left: frame.left, top: frame.top, right: frame.right, bottom: frame.bottom },
+      shown,
+      column: column ? Number(getComputedStyle(column).opacity) : null,
+      core: light ? { x: ((light.x + 1) / 2) * innerWidth, y: ((1 - light.y) / 2) * innerHeight } : null,
       focus: document.activeElement?.id ?? null,
       inert: document.getElementById('qa')?.inert ?? null,
       progress: d.progress,
@@ -6767,7 +6779,7 @@ const ringOf = (page) =>
     };
   });
 
-/** Waits until the ring rests at mark `k` (the story at its stop, `data-qa-at` k); answers the ms it took from now, or null. */
+/** Waits until the Q&A rests at mark `k` (the story at its stop, `data-qa-at` k); answers the ms it took from now, or null. */
 const ringRestsAt = (page, k, ms = 6_000) => {
   const began = Date.now();
   return page
@@ -6782,27 +6794,48 @@ const ringRestsAt = (page, k, ms = 6_000) => {
     .then(() => Date.now() - began, () => null);
 };
 
-/** Whether the open question is question `k`'s in `t` (the dictionary's): its count, its question and its answer, or the placeholder. */
+/** Waits until the story is at rest (its progress on its target) in the Q&A; answers the place there, or null. */
+const qaAtRest = (page, ms = 4_000) =>
+  page
+    .waitForFunction(() => {
+      const d = window.__needleDebug();
+      return d.journey.qa !== null && Math.abs(d.progress - d.target) < 1e-6;
+    }, null, { timeout: ms })
+    .then(() => page.evaluate(() => window.__needleDebug().journey.qa.place), () => null);
+
+/** Whether the block on the line is question `k`'s in `t` (the dictionary's): its question and its answer, or the placeholder. */
 const answerIs = (shown, k, t) => {
   const { question, answer } = t.end.questions[k];
-  const two = (n) => String(n).padStart(2, '0');
-  const count = t.end.ring.count.replace('{n}', two(k + 1)).replace('{total}', two(t.end.questions.length));
   const given = typeof answer === 'string' && answer.trim() !== '';
-  return shown?.k === k && shown.count === count && shown.question === question && (given ? shown.text === answer : shown.text?.startsWith(t.end.placeholder) === true);
+  return shown?.k === k && shown.question === question && (given ? shown.text === answer : shown.text?.startsWith(t.end.placeholder) === true);
 };
 
+/** The LED canvas's alpha over the screen at the share `y` of its height, 0..255 (a strip across its middle half). */
+const ledAlphaAt = (page, y) =>
+  page.evaluate((y) => {
+    const leds = document.querySelector('.qa-leds');
+    const ctx = leds?.getContext('2d');
+    if (!leds || !ctx || leds.width === 0) return 0;
+    const row = Math.min(leds.height - 1, Math.round(y * leds.height));
+    const { data } = ctx.getImageData(Math.round(leds.width / 4), row, Math.round(leds.width / 2), 1);
+    let sum = 0;
+    for (let i = 3; i < data.length; i += 4) sum += data[i];
+    return sum / (data.length / 4);
+  }, y);
+
 /**
- * The Q&A in the stars (round 14, the way out; round 10's one list, Bob picked "A · One list"), by real input at
- * 1440x900, 1366x657, 390x844 (touch) and 1440 on /en/, from the last floor, the Q&A's door:
- * - one notch (one swipe) plays the blueprint, the floor drawn in gold on the sky (gold pixels on its canvas 2.2 s in),
- *   and rests on the list, question 1 open, within 8 s;
- * - a click (a tap) on each other question takes the Q&A to it and opens it, the others closed, the list inside the
- *   screen (on a phone too, with the longest answer open);
- * - Enter on a question (the keyboard) opens it, the focus kept on it;
- * - round 13 (Bob picked "C · The light"): from question 4 one notch (one swipe) goes on to question 5 and one up back to
- *   question 3, the gold light beside the list at rest on the open question's middle;
- * - at 1440 a resize to 390x844 keeps the place; up from the list plays the blueprint back to the door;
- * - stills of the list, a question opened and the end through the home's luma gate, the words masked.
+ * The Q&A (round 15, spec 2026-11-01-bob-dissolve-digitize-design.md: the dissolve, the Q&A with the scroll), by real
+ * input at 1440x900, 1366x657, 390x844 (touch) and 1440 on /en/, from the last floor, the Q&A's door:
+ * - one notch (one swipe) plays the dissolve: 2.9 s in the stardust drawn over the closing tower, 3.6 s in the solid
+ *   tower gone; it rests on question 1 within 9 s, the column shown, its words on the reading line, the core's light
+ *   beside them (right of the column on a laptop, over it on a phone), every word of question 1 the dictionary's;
+ * - QA_QUESTION_PX of wheel in small notches (a phone: a drag that long) moves the Q&A a question on, the next on the
+ *   line; a fast burst and a slow one both leave it at rest where the scroll stopped, inside the Q&A;
+ * - at 1440 a resize to 390x844 keeps the place and the question on the line; on a phone the question on the line is
+ *   whole on the screen;
+ * - half way past question 6 the LEDs are lit over the laser's line and not under it;
+ * - from question 1 a new gesture up plays the dissolve back to the door, the tower whole and open again;
+ * - stills of question 1, question 4 and the end through the home's luma gate, the words masked.
  */
 async function qaRing(browser, step) {
   const summary = [];
@@ -6813,98 +6846,82 @@ async function qaRing(browser, step) {
     const english = path === '/en/';
     const t = new Translator(english ? 'en' : 'nl').t;
     const at = `${sizeName(size)}${english ? ' /en/' : ''}`;
+    const phone = size.width <= 700;
     const { context, page, cdp, touch } = await readyHome(browser, step, size, path);
     await poseAt(page, DOOR);
     await restAt(page);
-    if (!touch) await page.mouse.move(size.width * 0.5, size.height * 0.92);
-    const opened = [];
+    if (!touch) await page.mouse.move(size.width * 0.5, size.height * 0.5);
 
-    // 1. One input: the blueprint plays (the floor in gold on the sky's canvas) and the list rests on question 1.
+    // 1. One input: the dissolve plays, and the Q&A rests on question 1.
     const began = Date.now();
     await nudge(page, cdp, 1);
-    await page.waitForTimeout(2_200);
-    const gold = await page.evaluate(() => {
-      const sky = document.querySelector('.qa-sky');
-      const ctx = sky?.getContext('2d');
-      if (!sky || !ctx || sky.width === 0) return 0;
-      const { data } = ctx.getImageData(0, 0, sky.width, sky.height);
-      let n = 0;
-      for (let i = 0; i < data.length; i += 4 * 16) if (data[i] > 120 && data[i + 1] > 80 && data[i + 2] < 90 && data[i + 3] > 200) n++;
-      return n;
-    });
-    const rested = await ringRestsAt(page, 0, 8_000);
-    const into = rested === null ? null : Date.now() - began;
+    await page.waitForTimeout(2_900 - (Date.now() - began));
+    const mid = await ringOf(page);
+    step.check(mid.qa?.stretch === 'dissolve' && mid.world?.dust === true && mid.world?.tower === true && mid.world.explode < 1, `${at}: 2.9 s into the dissolve the stardust is drawn over the closing tower (${JSON.stringify(mid.world)}; ${mid.qa?.stretch})`);
+    await page.waitForTimeout(3_600 - (Date.now() - began));
+    const gone = await ringOf(page);
+    step.check(gone.world?.tower === false && gone.world?.dust === true, `${at}: 3.6 s in, the solid tower is gone under its points (${JSON.stringify(gone.world)})`);
+    const into = await ringRestsAt(page, 0, 9_000 - (Date.now() - began));
+    await page.waitForTimeout(1_300);
     let s = await ringOf(page);
-    step.check(gold >= 200, `${at}: 2.2 s into the blueprint the floor is drawn in gold on the sky's canvas (${gold} gold pixels of every sixteenth)`);
-    step.check(into !== null && into <= 8_000 && s.qa !== null && s.qa.stretch === 'qa' && s.at === 0 && s.inert === false, `${at}: one ${touch ? 'swipe' : 'notch'} from the last floor plays the blueprint and rests on the list within 8 s (${into === null ? 'never' : `${into} ms`}; ${s.qa?.stretch}, data-qa-at ${s.at})`);
-    step.check(answerIs(s.shown, 0, t) && s.opened === 1, `${at}: question 1 open in the list, the dictionary's (${JSON.stringify(s.shown)})`);
-    opened.push(0);
+    const beside = s.core !== null && s.shown !== null && (phone ? s.core.y < s.shown.top : s.core.x > s.shown.right);
+    step.check(into !== null && s.qa?.stretch === 'qa' && s.at === 0 && s.inert === false && s.column > 0.95 && Math.abs(s.shown.off) <= 30 && answerIs(s.shown, 0, t) && beside, `${at}: the dissolve rests on question 1 within 9 s, its words the dictionary's on the reading line, the core's light ${phone ? 'over' : 'right of'} them (${into === null ? 'never' : `${Date.now() - began} ms`}; off the line ${s.shown?.off.toFixed(0)} px; core ${JSON.stringify(s.core && [Math.round(s.core.x), Math.round(s.core.y)])}, words ${JSON.stringify(s.shown && [Math.round(s.shown.left), Math.round(s.shown.top), Math.round(s.shown.right), Math.round(s.shown.bottom)])})`);
 
-    // 2. A click (a tap) on each other question turns the ring to its mark and opens it; the list stays on the screen.
-    for (let k = 1; k < QA_END; k++) {
-      await page.waitForTimeout(400);
-      const ask = page.locator(`#qa-ask-${k}`);
-      if (touch) await ask.tap();
-      else await ask.click();
-      const took = await ringRestsAt(page, k, 5_000);
-      s = await ringOf(page);
-      const inside = s.frame !== null && s.frame.top >= 0 && s.frame.bottom <= size.height + 1 && s.frame.left >= 0 && s.frame.right <= size.width + 1;
-      step.check(took !== null && answerIs(s.shown, k, t) && s.opened === 1 && inside, `${at}: a ${touch ? 'tap' : 'click'} on question ${k + 1} turns the ring to it and opens it alone, the list on the screen (${took === null ? 'never' : `${took} ms`}; ${s.shown?.question}; ${s.opened} open; the list ${JSON.stringify(s.frame && Object.values(s.frame).map(Math.round))})`);
-      opened.push(k);
-    }
-
-    // 3. The keyboard: Enter on a question opens it, the focus kept on it.
+    // 2. A question's worth of scroll moves it a question on; a burst and a slow scroll both rest where they stopped.
+    await page.waitForTimeout(GESTURE_GAP_MS + 100);
+    if (touch) await nudge(page, cdp, 1, Math.round(QA_QUESTION_PX / 1.4));
+    else for (let k = 0; k < 5; k++) await nudge(page, cdp, 1, QA_QUESTION_PX / 5);
+    const one = await qaAtRest(page);
+    await page.waitForTimeout(300);
+    s = await ringOf(page);
+    const onward = touch ? one !== null && one > 0.6 && one < 2.6 : one !== null && Math.abs(one - 1) <= 0.05 && s.shown?.k === 1;
+    step.check(onward, `${at}: ${touch ? 'a drag' : `${QA_QUESTION_PX} px of wheel`} moves the Q&A ${touch ? 'on, past question 1' : 'a question on, question 2 on the line'} (place ${one?.toFixed(3)}; ${s.shown?.k})`);
     if (!touch) {
-      await page.focus('#qa-ask-2');
-      await page.keyboard.press('Enter');
-      const took = await ringRestsAt(page, 2, 5_000);
-      s = await ringOf(page);
-      step.check(took !== null && answerIs(s.shown, 2, t) && s.focus === 'qa-ask-2', `${at}: Enter on question 3 opens it, the focus kept on it (${took === null ? 'never' : `${took} ms`}; focus ${s.focus})`);
+      for (let k = 0; k < 12; k++) await page.mouse.wheel(0, 100);
+      const fast = await qaAtRest(page);
+      for (let k = 0; k < 4; k++) {
+        await page.mouse.wheel(0, 60);
+        await page.waitForTimeout(220);
+      }
+      const slow = await qaAtRest(page);
+      step.check(fast !== null && slow !== null && fast > one + 1 && slow > fast && slow <= QA_END, `${at}: a fast burst and a slow scroll both leave the Q&A at rest where they stopped (${one?.toFixed(3)} → ${fast?.toFixed(3)} → ${slow?.toFixed(3)})`);
     }
 
-    // 4. Round 13: from question 4 one notch on goes to question 5, and one up back to question 3, the light on each.
-    const lightOn = (k) =>
-      page.evaluate((k) => {
-        const light = document.querySelector('.qa-light')?.getBoundingClientRect();
-        const ask = document.getElementById(`qa-ask-${k}`)?.getBoundingClientRect();
-        return light && ask ? Math.abs(light.top + light.height / 2 - (ask.top + ask.height / 2)) : null;
-      }, k);
-    await page.waitForTimeout(QA_LOCK_MS);
-    await poseAt(page, QA_STOPS[3]);
+    // 3. At 1440 a resize to 390x844 keeps the place and the question on the line; a phone's question whole on the screen.
+    await poseAt(page, QA_STOPS[2]);
     await restAt(page);
-    await page.waitForTimeout(GESTURE_GAP_MS + 100);
-    await nudge(page, cdp, 1);
-    const onward = await ringRestsAt(page, 4, 6_000);
-    await page.waitForTimeout(500);
-    const onwardLight = await lightOn(4);
-    s = await ringOf(page);
-    step.check(onward !== null && answerIs(s.shown, 4, t) && onwardLight !== null && onwardLight <= 2, `${at}: one ${touch ? 'swipe' : 'notch'} from question 4 goes on to question 5 and opens it, the light on it (${onward === null ? 'never' : `${onward} ms`}; ${s.shown?.question}; the light ${onwardLight?.toFixed(1)} px from its middle)`);
-    await page.waitForTimeout(QA_LOCK_MS);
-    await poseAt(page, QA_STOPS[3]);
-    await restAt(page);
-    await page.waitForTimeout(GESTURE_GAP_MS + 100);
-    await nudge(page, cdp, -1);
-    const back = await ringRestsAt(page, 2, 6_000);
-    await page.waitForTimeout(500);
-    const backLight = await lightOn(2);
-    s = await ringOf(page);
-    step.check(back !== null && answerIs(s.shown, 2, t) && backLight !== null && backLight <= 2, `${at}: one ${touch ? 'swipe' : 'notch'} up from question 4 comes back to question 3, the light on it (${back === null ? 'never' : `${back} ms`}; the light ${backLight?.toFixed(1)} px from its middle)`);
-
-    // 5. At 1440 a resize to 390x844 keeps the place.
+    await page.waitForTimeout(700);
     if (size.width === 1440 && !english) {
       const before = await ringOf(page);
       await page.setViewportSize({ width: 390, height: 844 });
-      await page.waitForTimeout(700);
+      await page.waitForTimeout(800);
       const after = await ringOf(page);
-      step.check(near(after.progress, before.progress, 1e-9) && near(after.target, before.target, 1e-9) && after.at === before.at && answerIs(after.shown, before.at, t), `${at}: resized to 390x844 the Q&A keeps its place (mark ${before.at} then ${after.at}, progress ${before.progress} then ${after.progress})`);
+      step.check(near(after.progress, before.progress, 1e-9) && after.at === before.at && after.shown?.k === before.shown?.k && Math.abs(after.shown.off) <= 30, `${at}: resized to 390x844 the Q&A keeps its place and its question on the line (mark ${before.at} then ${after.at}; off the line ${after.shown?.off.toFixed(0)} px)`);
       await page.setViewportSize({ width: size.width, height: size.height });
       await page.waitForTimeout(500);
     }
+    if (phone) {
+      const longest = t.end.questions.reduce((best, q, k) => ((q.answer ?? '').length > (t.end.questions[best].answer ?? '').length ? k : best), 0);
+      await poseAt(page, QA_STOPS[longest]);
+      await restAt(page);
+      await page.waitForTimeout(700);
+      s = await ringOf(page);
+      step.check(s.shown?.k === longest && s.shown.top >= 0 && s.shown.bottom <= size.height, `${at}: the longest answer (question ${longest + 1}) is whole on the screen on the line (${Math.round(s.shown?.top)} to ${Math.round(s.shown?.bottom)} of ${size.height})`);
+    }
 
-    // 6. Up from the list (put there through the bridge) plays the blueprint back to the door, the last floor.
-    await page.waitForTimeout(QA_LOCK_MS);
+    // 4. Half way past question 6: the LEDs over the laser's line and none under it.
+    await poseAt(page, QA_STOPS[QA_END - 1] + 0.48 * (QA_STOPS[QA_END] - QA_STOPS[QA_END - 1]));
+    await restAt(page);
+    await page.waitForTimeout(800);
+    s = await ringOf(page);
+    const over = await ledAlphaAt(page, 0.15);
+    const under = await ledAlphaAt(page, 0.9);
+    step.check(s.qa?.stretch === 'digitize' && s.qa.line > 0.3 && s.qa.line < 0.7 && over >= 250 && under === 0, `${at}: half way past question 6 the LEDs stand over the laser's line and not under it (line ${s.qa?.line.toFixed(2)}; alpha ${over.toFixed(0)} over, ${under.toFixed(0)} under)`);
+
+    // 5. From question 1 a new gesture up plays the dissolve back to the door, the tower whole and open.
     await poseAt(page, QA_STOPS[0]);
     await restAt(page);
+    await page.waitForTimeout(GESTURE_GAP_MS + 100);
     await nudge(page, cdp, -1);
     const door = await page
       .waitForFunction((stop) => {
@@ -6912,22 +6929,22 @@ async function qaRing(browser, step) {
         return Math.abs(d.progress - stop) < 1e-9 && Math.abs(d.target - stop) < 1e-9 && !document.documentElement.hasAttribute('data-qa');
       }, DOOR, { timeout: 8_000 })
       .then(() => true, () => false);
+    await page.waitForTimeout(300);
     s = await ringOf(page);
-    step.check(door && (s.qa === null || s.qa.stretch === 'floor'), `${at}: up from the list plays the blueprint back to the last floor, the Q&A's door, ${DOOR.toFixed(3)} (${door ? 'there' : JSON.stringify(s)}; ${s.qa?.stretch ?? 'off the Q&A'})`);
+    step.check(door && (s.qa === null || s.qa.stretch === 'floor') && s.world?.tower === true && s.world?.dust === false && s.world.explode === 1, `${at}: up from question 1 plays the dissolve back to the last floor, the Q&A's door, the tower whole and open (${door ? 'there' : JSON.stringify(s)}; ${JSON.stringify(s.world)})`);
 
-    // 7. Stills: the list, a question opened (the longest answer's, on a phone), the end.
+    // 6. Stills: question 1, question 4, the end.
     if (!english && size !== DIVE_SIZES[1]) {
       for (const k of [0, 3, QA_END]) {
         await poseAt(page, QA_STOPS[k]);
-        await page.waitForTimeout(k === QA_END ? 3_400 : 700);
+        await page.waitForTimeout(k === QA_END ? 3_400 : 1_000);
         const file = join(STILLS, `qa-${k + 1}-${sizeName(size)}.png`);
         await page.screenshot({ path: file });
-        // The sky's stars and its circle are the scene's here (round 14): their floor is the home's.
         shots.push({ file, kind: 'home', mask: await textMask(page), ...(touch ? { region: { x: [0.1, 0.9], y: [0.12, 0.5] } } : {}) });
       }
     }
     await takeCsp(page, step);
-    summary.push(`${at}: into the list in ${into} ms, opened ${opened.map((k) => k + 1).join(', ')}, on to the end and back`);
+    summary.push(`${at}: the dissolve to question 1 in ${into} ms, the Q&A with the scroll, the LEDs, and back`);
     await context.close();
   }
 
@@ -6936,15 +6953,14 @@ async function qaRing(browser, step) {
 }
 
 /**
- * The end (round 14, the way out), at 1440x900 and 390x844 (touch): from question 6 one input (a notch, a swipe) flies
- * through the circle to it within 6 s (`journey.qa.stretch` 'end'), Bob's mark over its words "Einde van de site",
- * "Stuur een bericht.", the line word for word and both buttons; "Naar contact" opens /contact/ with its form; "Terug
- * naar het begin" takes the story back to the home, at 0. The end is unmistakable: `<html data-qa-end>`, the sky dark over
- * the scene (its canvas's alpha 250 or more), the words' middle within 2 % of the screen's, the list out of reach, the
- * ring round the mark grown whole; one input up and nothing of it is left. At 1440 once: the nav's `.end-link`, reached
- * by Tab, goes to the end with the focus on `#qa-end-title`, the header over the sky. Where 3D cannot run (Edge without
- * WebGL; the header's 3D switch went, 2026-10-29) `#end` is in the home's flow with its form, and nothing of the Q&A is
- * left (`data-qa`, `data-qa-at`, `data-qa-end`, `#qa`).
+ * The end (round 15, the digitize), at 1440x900 and 390x844 (touch): from question 6 the scroll goes on to it
+ * (`journey.qa.stretch` 'end'), Bob's mark over its words "Einde van de site", "Stuur een bericht.", the line word for
+ * word and both buttons; "Naar contact" opens /contact/ with its form; "Terug naar het begin" takes the story back to
+ * the home, at 0. The end is unmistakable: `<html data-qa-end>`, the LEDs over the whole screen (their canvas's alpha 250
+ * or more at its foot), the words' middle at 40% of the height within 3%, the column out of reach, the ring round the
+ * mark grown whole; scrolled back up a question's worth and nothing of it is left. At 1440 once: the nav's `.end-link`,
+ * reached by Tab, goes to the end with the focus on `#qa-end-title`, the header over the LEDs. Where 3D cannot run (Edge
+ * without WebGL) `#end` is in the home's flow with its form, and nothing of the Q&A is left.
  */
 async function qaEnd(browser, step) {
   const summary = [];
@@ -6956,13 +6972,17 @@ async function qaEnd(browser, step) {
     const toEnd = async () => {
       await poseAt(page, DOOR);
       await restAt(page);
-      if (!touch) await page.mouse.move(size.width * 0.5, size.height * 0.92);
+      if (!touch) await page.mouse.move(size.width * 0.5, size.height * 0.5);
       await nudge(page, cdp, 1);
       await ringRestsAt(page, 0, 10_000);
       await poseAt(page, QA_STOPS[QA_END - 1]);
       await restAt(page);
-      await nudge(page, cdp, 1);
-      return ringRestsAt(page, QA_END, 8_000);
+      await page.waitForTimeout(GESTURE_GAP_MS + 100);
+      const began = Date.now();
+      if (touch) await nudge(page, cdp, 1, 600);
+      else for (let k = 0; k < 7; k++) await nudge(page, cdp, 1, 100);
+      const took = await ringRestsAt(page, QA_END, 8_000);
+      return took === null ? null : Date.now() - began;
     };
     const took = await toEnd();
     const s = await ringOf(page);
@@ -6978,35 +6998,25 @@ async function qaEnd(browser, step) {
         again: end?.querySelector('.qa-buttons button.again')?.textContent?.trim() ?? null,
       };
     });
-    step.check(took !== null && took <= 6_000 && s.qa !== null && s.qa.stretch === 'end', `${at}: from question 6 one ${touch ? 'swipe' : 'notch'} flies through the circle to the end within 6 s (${s.qa?.stretch}, ${took === null ? 'never' : `${took} ms`})`);
+    step.check(took !== null && took <= 6_000 && s.qa?.stretch === 'end', `${at}: from question 6 the scroll goes on to the end within 6 s (${s.qa?.stretch}, ${took === null ? 'never' : `${took} ms`})`);
     step.check(
       words.mark === 'chbc' && words.kicker === ring.endKicker && words.title === 'Stuur een bericht.' && words.line === ring.endLine && words.contact?.startsWith(ring.toContact) === true && words.again?.endsWith(ring.toStart) === true,
       `${at}: the end has Bob's mark and says "${ring.endKicker}", "Stuur een bericht.", the line word for word, and "${ring.toContact}" and "${ring.toStart}" (got ${JSON.stringify(words)})`,
     );
 
-    // The end unmistakable (round 14): the sky dark over the scene, the words in the middle, the list out of reach, the
-    // ring round the mark grown whole once the words are in (their last part at 0.85 s, 1.2 s long; the ring 0.2 + 1.8 s).
+    // The end unmistakable: the LEDs over the whole screen, the words at 40% of the height, the column out of reach, the
+    // ring round the mark grown whole once the words are in.
     await page.waitForTimeout(2_300);
     const theEnd = () =>
       page.evaluate(() => {
-        const sky = document.querySelector('.qa-sky');
-        const ctx = sky?.getContext('2d');
-        // The sky's dark: its alpha at a corner patch, 0..255.
-        let dark = 0;
-        if (sky && ctx && sky.width > 0) {
-          const { data } = ctx.getImageData(4, sky.height - 24, 20, 20);
-          for (let i = 3; i < data.length; i += 4) dark += data[i];
-          dark /= data.length / 4;
-        }
         const end = document.querySelector('.qa-end');
         const box = end && !end.hidden ? end.getBoundingClientRect() : null;
         const mark = document.querySelector('.qa-end-mark');
         const ring = mark ? getComputedStyle(mark, '::before') : null;
         return {
           end: document.documentElement.hasAttribute('data-qa-end'),
-          dark,
-          // How many of the list's questions a visitor can still reach.
-          reach: [...document.querySelectorAll('.qa-ask')].filter((b) => b.checkVisibility({ visibilityProperty: true, opacityProperty: true })).length,
+          // How many of the column's questions a visitor can still reach.
+          reach: [...document.querySelectorAll('.qa-block')].filter((b) => b.checkVisibility({ visibilityProperty: true, opacityProperty: true })).length,
           words: box && { x: box.left + box.width / 2, y: box.top + box.height / 2 },
           ring: ring ? { scale: ring.scale, opacity: Number(ring.opacity) } : null,
           vw: innerWidth,
@@ -7014,18 +7024,21 @@ async function qaEnd(browser, step) {
         };
       });
     const e = await theEnd();
-    const middle = e.words !== null && Math.abs(e.words.x - e.vw / 2) <= 0.02 * e.vw && Math.abs(e.words.y - e.vh / 2) <= 0.02 * e.vh;
+    const lit = await ledAlphaAt(page, 0.95);
+    const placed = e.words !== null && Math.abs(e.words.x - e.vw / 2) <= 0.02 * e.vw && Math.abs(e.words.y - 0.4 * e.vh) <= 0.03 * e.vh;
     const ringWhole = e.ring !== null && (e.ring.scale === 'none' || e.ring.scale === '1') && e.ring.opacity === 1;
     step.check(
-      e.end && e.dark >= 250 && e.reach === 0 && middle && ringWhole,
-      `${at}: the end is unmistakable: data-qa-end, the sky dark over the scene (alpha ${e.dark.toFixed(0)} of 255), the words' middle at (${e.words?.x.toFixed(0)}, ${e.words?.y.toFixed(0)}) in the middle of ${e.vw}x${e.vh}, ${e.reach} of the list's questions in reach, the ring round the mark ${JSON.stringify(e.ring)}`,
+      e.end && lit >= 250 && e.reach === 0 && placed && ringWhole,
+      `${at}: the end is unmistakable: data-qa-end, the LEDs over the whole screen (alpha ${lit.toFixed(0)} at its foot), the words' middle at (${e.words?.x.toFixed(0)}, ${e.words?.y.toFixed(0)}) of ${e.vw}x${e.vh}, ${e.reach} of the column's questions in reach, the ring round the mark ${JSON.stringify(e.ring)}`,
     );
-    // One input up: back on the last question, and nothing of the end left.
-    await nudge(page, cdp, -1);
-    const up = await ringRestsAt(page, QA_END - 1, 6_000);
+    // Back up a question's worth: on question 6 again, and nothing of the end left.
+    await page.waitForTimeout(GESTURE_GAP_MS + 100);
+    if (touch) await nudge(page, cdp, -1, Math.round(QA_QUESTION_PX / 1.4));
+    else for (let k = 0; k < 5; k++) await nudge(page, cdp, -1, QA_QUESTION_PX / 5);
+    const back = await qaAtRest(page);
     await page.waitForTimeout(1_600);
     const left = await theEnd();
-    step.check(up !== null && !left.end && left.words === null && left.reach > 0, `${at}: one ${touch ? 'swipe' : 'notch'} up rests on the last question (${up === null ? 'never' : `${up} ms`}) and leaves nothing of the end: data-qa-end ${left.end}, the words ${JSON.stringify(left.words)}, ${left.reach} questions in reach`);
+    step.check(back !== null && back < QA_END - 0.75 && !left.end && left.words === null && left.reach > 0, `${at}: scrolled back up a question's worth (place ${back?.toFixed(3)}) nothing of the end is left: data-qa-end ${left.end}, the words ${JSON.stringify(left.words)}, ${left.reach} questions in reach`);
     await toEnd();
 
     // "Naar contact": /contact/ with its form.
@@ -7051,7 +7064,7 @@ async function qaEnd(browser, step) {
       .then(() => true, () => false);
     step.check(home, `${at}: "${ring.toStart}" takes the story back to the home, at 0 (${home ? 'there' : JSON.stringify(await frameOf(page))})`);
     await takeCsp(page, step);
-    summary.push(`${at}: the end in ${took} ms, lit, its words and both buttons`);
+    summary.push(`${at}: the end in ${took} ms, on the LEDs, its words and both buttons`);
     await context.close();
   }
 
@@ -7073,21 +7086,21 @@ async function qaEnd(browser, step) {
     await page.waitForTimeout(300);
     const focus = await page.evaluate(() => document.activeElement?.id ?? null);
     step.check(arrived !== null && focus === 'qa-end-title', `1440x900: the nav's link goes to the end's mark (${arrived === null ? 'never' : `${arrived} ms`}) with the focus on #qa-end-title (${focus})`);
-    // The header stands over the sky while the Q&A shows (the Q&A is at z-index 3), its links never hidden under the dark.
+    // The header stands over the LEDs while the Q&A shows (the Q&A is at z-index 3), its links never hidden under them.
     await page.focus('.site-header a[href="/contact/"]');
     const over = await page.evaluate(() => ({
       end: document.documentElement.hasAttribute('data-qa-end'),
       header: Number(getComputedStyle(document.querySelector('.site-header')).zIndex),
       qa: Number(getComputedStyle(document.querySelector('.qa')).zIndex),
     }));
-    step.check(over.end && over.header > over.qa, `1440x900: at the end the header stands over the sky (z-index ${over.header} over the Q&A's ${over.qa}, data-qa-end ${over.end})`);
+    step.check(over.end && over.header > over.qa, `1440x900: at the end the header stands over the LEDs (z-index ${over.header} over the Q&A's ${over.qa}, data-qa-end ${over.end})`);
 
     await takeCsp(page, step);
     await context.close();
     summary.push(`the nav's link to the end with the focus on its title (${presses} Tabs)`);
   }
 
-  // Where 3D cannot run (Edge without WebGL): #end in the home's flow with its form, nothing of the ring.
+  // Where 3D cannot run (Edge without WebGL): #end in the home's flow with its form, nothing of the Q&A.
   {
     const own = await chromium.launch({ channel: 'msedge', headless: true, args: NO_WEBGL });
     try {
@@ -7106,7 +7119,7 @@ async function qaEnd(browser, step) {
           qa: html.hasAttribute('data-qa') || html.hasAttribute('data-qa-at') || html.hasAttribute('data-qa-end') || document.getElementById('qa') !== null,
         };
       });
-      step.check(off.threeD === 'off' && off.inFlow && off.form && !off.qa, `1440x900 without WebGL: #end is in the home's flow after the nav with its form, and nothing of the ring is left (${JSON.stringify(off)})`);
+      step.check(off.threeD === 'off' && off.inFlow && off.form && !off.qa, `1440x900 without WebGL: #end is in the home's flow after the nav with its form, and nothing of the Q&A is left (${JSON.stringify(off)})`);
       await takeCsp(page, step);
       await context.close();
       summary.push('without WebGL #end in the flow');

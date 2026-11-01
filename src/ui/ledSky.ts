@@ -119,14 +119,14 @@ export function makeLedSky(canvas: HTMLCanvasElement, small: () => HTMLCanvasEle
         const o = (cell - s) / 2;
         for (let k = 0; k < cells.length; k += 2) ctx.fillRect(cells[k]! * cell + o, cells[k + 1]! * cell + o, s, s);
       });
-      // Behind the end's words, the LEDs go dark.
+      // Behind the end's words, the LEDs go dark: over the line only, never the scene still under it.
       if (end > 0) {
         const y = LED.hush.at * H;
         const hush = ctx.createRadialGradient(W / 2, y, 0, W / 2, y, LED.hush.radius);
         hush.addColorStop(0, `rgba(3, 1, 8, ${LED.hush.alpha * end})`);
         hush.addColorStop(1, 'rgba(3, 1, 8, 0)');
         ctx.fillStyle = hush;
-        ctx.fillRect(0, 0, W, H);
+        ctx.fillRect(0, 0, W, over);
       }
       // The laser while it is on its way: its glow above it, then the line.
       if (line < 1) {

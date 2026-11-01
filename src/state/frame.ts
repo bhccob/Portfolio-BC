@@ -31,6 +31,9 @@ export interface WorldOnScreen {
   tops: number[];
   /** Each project's lift off its socket toward the spot, 0..1 (none listed: on its socket). */
   lift: Partial<Record<ProjectId, number>>;
+  /** Whether the solid tower is drawn, and the stardust it dissolves into (round 15, the way out). */
+  tower: boolean;
+  dust: boolean;
 }
 
 /**
