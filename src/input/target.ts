@@ -1,5 +1,5 @@
 import { LANDING_HOLD } from '~/scene/bob/landingHold';
-import { type ChapterAt, type Chapters, chapterAt, keyStops, qaDoor, riseTop, scrollEnd } from '~/state/chapters';
+import { type ChapterAt, type Chapters, chapterAt, keyStops, qaDoor, qaStop, riseTop, scrollEnd } from '~/state/chapters';
 import { type Phase, SCROLL_PHASES } from '~/state/machine';
 import type { VoidState } from '~/state/store';
 
@@ -87,16 +87,42 @@ export function inQa(place: number, c: Chapters): boolean {
 }
 
 /**
- * Where a step of the Q&A takes the target from `target`, `dir` its way (1 down, -1 up): the next of `places` (the key
- * stops unless given: the door, each question and the end's mark), or the one before, whatever the input's size; none
- * past the end. Null where it is no step of the Q&A: off it, and up from the door, where the scroll is continuous again.
+ * Where a step of the Q&A takes the target from `target`, `dir` its way (1 down, -1 up): only through the door (round
+ * 15, the dissolve): down from the door, or from within the dissolve, to the first question; up from the first question,
+ * or from within the dissolve, to the door. Null where it is no step: off the Q&A, up from the door (the scroll is
+ * continuous again), and past the first question, where the Q&A is free like a page (`freeQaTarget`).
  */
-export function qaStepTarget(target: number, dir: 1 | -1, c: Chapters, places: readonly number[] = keyStops(c)): number | null {
+export function qaStepTarget(target: number, dir: 1 | -1, c: Chapters): number | null {
   if (!inQa(target, c)) return null;
   const door = qaDoor(c);
-  if (dir < 0 && target <= door + ON_STOP) return null;
-  if (dir > 0) return places.find((stop) => stop > target + ON_STOP) ?? scrollEnd(c);
-  return places.findLast((stop) => stop < target - ON_STOP && stop >= door - ON_STOP) ?? door;
+  const first = qaStop(c, 0);
+  if (target <= door + ON_STOP) return dir > 0 ? first : null;
+  if (target < first - ON_STOP) return dir > 0 ? first : door;
+  return dir < 0 && target <= first + ON_STOP ? door : null;
+}
+
+/** One question's worth of a wheel in the free Q&A, px (the mock-up's); a finger goes this much further than its drag. */
+export const QA_QUESTION_PX = 520;
+export const QA_FINGER = 1.4;
+
+/** Whether `place` is in the free Q&A: from the first question's stop to the end's. */
+export function inFreeQa(place: number, c: Chapters): boolean {
+  return place >= qaStop(c, 0) - ON_STOP;
+}
+
+/**
+ * Where `units` (a viewport a unit, as the virtual scroll gives them) by `by` take the target in the free Q&A, at
+ * `unitPx` px a unit (spec 2026-11-01-bob-dissolve-digitize-design.md): a wheel or a glide a question for
+ * QA_QUESTION_PX, a finger QA_FINGER times that, a key 0.35 of a question (an arrow) or a whole one (a page); held to
+ * the first question and the end. Null when it is the step back through the door instead: up from the first question.
+ */
+export function freeQaTarget(target: number, units: number, by: 'wheel' | 'finger' | 'glide' | 'key' | 'held', unitPx: number, c: Chapters): number | null {
+  const first = qaStop(c, 0);
+  if (units < 0 && target <= first + ON_STOP) return null;
+  const question = qaStop(c, 1) - first;
+  const keyed = by === 'key' || by === 'held';
+  const questions = keyed ? Math.sign(units) * (Math.abs(units) < 0.5 ? 0.35 : 1) : ((units * unitPx) / QA_QUESTION_PX) * (by === 'finger' ? QA_FINGER : 1);
+  return Math.min(Math.max(target + questions * question, first), scrollEnd(c));
 }
 
 /**

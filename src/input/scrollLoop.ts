@@ -2,11 +2,13 @@ import { RING_MARKS } from '~/data/qa';
 import { END_ATTRIBUTE, pageToTop } from '~/scene/bob/endView';
 import { STEP_FADE_ATTRIBUTE, STEP_FADE_MS } from '~/scene/bob/stepFade';
 import { WAY_OUT } from '~/scene/bob/wayOut';
-import { type ChapterAt, type Chapters, chapterAt, pathStart, placeOfFrame, qaDoor, qaPlaceAt, riseTop, scrollEnd } from '~/state/chapters';
+import { type ChapterAt, type Chapters, chapterAt, pathStart, placeOfFrame, qaDoor, qaPlaceAt, qaStop, riseTop, scrollEnd } from '~/state/chapters';
 import type { VoidState } from '~/state/store';
 import {
   changedChapter,
+  freeQaTarget,
   holdLimit,
+  inFreeQa,
   inQa,
   jumpTarget,
   keyTarget,
@@ -60,6 +62,12 @@ export function smoothTimeAt(c: Chapters, progress: number, target: number): num
  */
 export const FOLLOW = { tau: 0.45, floorFramesPerSecond: 12 } as const;
 
+/**
+ * The free Q&A's follow (round 15, the mock-up's 5 a second): the story eases to the scroll's place there with this time
+ * constant, s, quicker than the light dive's, so the words go with the scroll like a page.
+ */
+export const QA_FOLLOW_TAU = 0.2;
+
 /** The follow's floor, units a second. */
 const FOLLOW_FLOOR = FOLLOW.floorFramesPerSecond * (placeOfFrame(2) - placeOfFrame(1));
 
@@ -67,13 +75,13 @@ const FOLLOW_FLOOR = FOLLOW.floorFramesPerSecond * (placeOfFrame(2) - placeOfFra
 const FOLLOW_ON = 1e-7;
 
 /**
- * One frame of the follow, `dt` seconds: from `current` toward `goal` by the share of the time constant, or by the
+ * One frame of the follow, `dt` seconds: from `current` toward `goal` by the share of the time constant `tau`, or by the
  * floor's step near it, never past it; on it within FOLLOW_ON.
  */
-export function follow(current: number, goal: number, dt: number): number {
+export function follow(current: number, goal: number, dt: number, tau: number = FOLLOW.tau): number {
   const d = goal - current;
   if (d === 0 || !(dt > 0)) return current;
-  let step = d * (1 - Math.exp(-dt / FOLLOW.tau));
+  let step = d * (1 - Math.exp(-dt / tau));
   const floor = FOLLOW_FLOOR * dt;
   if (Math.abs(step) < floor) step = Math.sign(d) * Math.min(Math.abs(d), floor);
   const next = current + step;
@@ -88,23 +96,20 @@ export function easeInOutQuart(x: number): number {
   return x < 0.5 ? 8 * x ** 4 : 1 - (-2 * x + 2) ** 4 / 2;
 }
 
-/** Which of the way out's long steps a move of the Q&A from `from` to `to` is, if either: the way in or the flight. */
-function wayOutStep(from: number, to: number, c: Chapters): 'blueprint' | 'flight' | null {
+/** Whether a move of the Q&A from `from` to `to` is the dissolve (round 15): through the door, either way. */
+function dissolveStep(from: number, to: number, c: Chapters): boolean {
   const a = qaPlaceAt(c, from) ?? -1;
   const b = qaPlaceAt(c, to) ?? -1;
-  if (Math.min(a, b) < 0) return 'blueprint';
-  return Math.max(a, b) > RING_MARKS - 2 ? 'flight' : null;
+  return Math.min(a, b) < 0;
 }
 
 /**
- * How long the Q&A's move from `from` to `to` takes, seconds (round 14, the way out): the way in from the door, the
- * blueprint, and the flight from the last question to the end at the mock-up's own lengths (`WAY_OUT`), either played
- * back in `WAY_OUT.back`; from one question to another as the ring turned before, the mock-up's 1.1 + 0.9 s a seventh of
- * a turn, held to 1..2.6 s, about 1.9 s a question.
+ * How long a turn of the Q&A from `from` to `to` takes, seconds (round 15): the dissolve from the door at the mock-up's
+ * own length (`WAY_OUT.dissolve`), played back in `WAY_OUT.back`; any other (none is asked for past the first question,
+ * where the Q&A is free) as the ring turned before, the mock-up's 1.1 + 0.9 s a seventh of a turn, held to 1..2.6 s.
  */
 export function turnTime(from: number, to: number, c: Chapters): number {
-  const long = wayOutStep(from, to, c);
-  if (long !== null) return to > from ? WAY_OUT[long] : WAY_OUT.back;
+  if (dissolveStep(from, to, c)) return to > from ? WAY_OUT.dissolve : WAY_OUT.back;
   const a = qaPlaceAt(c, from) ?? -1;
   const b = qaPlaceAt(c, to) ?? -1;
   const radians = (Math.abs(b - a) * 2 * Math.PI) / RING_MARKS;
@@ -112,13 +117,12 @@ export function turnTime(from: number, to: number, c: Chapters): number {
 }
 
 /**
- * How long input is dropped after a step of the Q&A from `from` to `to` begins, ms: the whole of the way in or of the
- * flight going on (the mock-up's locks, `WAY_OUT.lock`), so a scroll during either never queues a skip past it; QA_LOCK_MS
- * for any other step.
+ * How long input is dropped after a step of the Q&A from `from` to `to` begins, ms: the whole of the dissolve going on
+ * (the mock-up's lock, `WAY_OUT.lock.dissolve`), so a scroll during it never queues a skip past it; QA_LOCK_MS for the
+ * way back.
  */
 export function qaLockMs(from: number, to: number, c: Chapters): number {
-  const long = wayOutStep(from, to, c);
-  return long !== null && to > from ? WAY_OUT.lock[long] * 1000 : QA_LOCK_MS;
+  return dissolveStep(from, to, c) && to > from ? WAY_OUT.lock.dissolve * 1000 : QA_LOCK_MS;
 }
 
 /** A key's glide of one unit (one project), seconds, sqrt-scaled for longer ones; and the shortest glide. */
@@ -456,7 +460,8 @@ export class ScrollLoop {
     const smoothTime = smoothTimeAt(chapters, frame.progress, frame.target);
     if (smoothTime === null) {
       this.damping = false;
-      frame.progress = follow(frame.progress, frame.target, dt);
+      const free = inFreeQa(frame.progress, chapters) && inFreeQa(frame.target, chapters);
+      frame.progress = follow(frame.progress, frame.target, dt, free ? QA_FOLLOW_TAU : FOLLOW.tau);
       return;
     }
     if (!this.damping) {
@@ -737,7 +742,7 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
    * whether the input was the Q&A's (taken or dropped), so nothing else moves the story for it.
    */
   const qaStep = (base: number, dir: 1 | -1): boolean => {
-    const to = qaStepTarget(base, dir, chapters, stopsNow());
+    const to = qaStepTarget(base, dir, chapters);
     if (to === null) return false;
     if (now() < lockedUntil) return true;
     if (to === base) return true;
@@ -783,6 +788,24 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
         gesture = null; // a key puts the target on its stop: a wheel it cut short has nothing left
         glideOnRise = false;
         const base = loop.heading ?? startPlace(); // counted from where a glide is going, or where the story stands
+        // The free Q&A (round 15): a key glides it on by its share of a question; up from the first question, the dissolve back.
+        if (units !== 0 && !failed() && inFreeQa(base, chapters)) {
+          // While the dissolve plays (its lock), every input is dropped.
+          if (now() < lockedUntil) {
+            loop.wake();
+            return;
+          }
+          const to = freeQaTarget(base, units, by, o.unitPx(), chapters);
+          if (to === null) {
+            if (by !== 'held') qaStep(base, -1);
+          } else {
+            settling = false;
+            askFor(to);
+            loop.glideTo(frame.target);
+          }
+          loop.wake();
+          return;
+        }
         if (units !== 0 && !failed() && inQa(base, chapters) && (by === 'held' || qaStep(base, Math.sign(units) as 1 | -1))) {
           loop.wake();
           return;
@@ -793,8 +816,23 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
         stepped = true;
       } else {
         const qaBase = loop.heading ?? frame.target;
+        const first = qaStop(chapters, 0);
+        const free = units !== 0 && !failed() && inFreeQa(qaBase, chapters);
+        // While the dissolve plays (its lock), every input is dropped.
+        if (free && now() < lockedUntil) {
+          if (by === 'glide') scroll.stopGlide();
+          loop.wake();
+          return;
+        }
+        // Up the free Q&A to the first question by a lift's glide, or by a gesture that began further down it: it rests
+        // there; only a gesture begun on the first question plays the dissolve back (round 15).
+        if (free && units < 0 && qaBase <= first + 1e-6 && (by === 'glide' || (gesture !== null && gesture.from > first + 1e-6))) {
+          if (by === 'glide') scroll.stopGlide();
+          loop.wake();
+          return;
+        }
         // A failed void has no Q&A: its end is the end page, reached and left as before (the class's doc).
-        if (units !== 0 && !failed() && inQa(qaBase, chapters) && qaStepTarget(qaBase, Math.sign(units) as 1 | -1, chapters, stopsNow()) !== null) {
+        if (units !== 0 && !failed() && inQa(qaBase, chapters) && qaStepTarget(qaBase, Math.sign(units) as 1 | -1, chapters) !== null) {
           // In the Q&A a lift's glide carries nothing on, and a gesture takes one step (or none, if it came down from
           // above and was caught at the door): the rest of it moves nothing.
           if (by === 'glide') {
@@ -804,6 +842,19 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
           if (gesture === null) gesture = { from: frame.target, reach: frame.target, anchor: frame.target, direction: 0, by, spent: false, stepped: false };
           if (!gesture.stepped && gesture.from >= door - 1e-6) qaStep(qaBase, Math.sign(units) as 1 | -1);
           gesture.stepped = true;
+          loop.wake();
+          return;
+        }
+        // The free Q&A (round 15): the target goes with the scroll like a page, held to the first question and the end,
+        // and the story follows it (QA_FOLLOW_TAU); a lift's glide ends at either.
+        if (free) {
+          if (by !== 'glide' && gesture === null) gesture = { from: frame.target, reach: frame.target, anchor: frame.target, direction: 0, by, spent: false, stepped: false };
+          const to = freeQaTarget(qaBase, units, by, o.unitPx(), chapters) ?? first;
+          settling = false;
+          if (loop.heading !== null) loop.stopTween();
+          if (!o.reducedMotion() && turnsBack(to)) loop.letGo();
+          askFor(to);
+          if (by === 'glide' && (to <= first + 1e-9 || to >= end - 1e-9)) scroll.stopGlide();
           loop.wake();
           return;
         }
@@ -885,7 +936,7 @@ export function startHomeScroll(o: HomeScrollOptions): HomeScroll {
         }
         // A place on the ring (a mark's button) from the ring: a turn of the Q&A; else a key's glide.
         if (o.reducedMotion()) fadeTo = frame.target;
-        else if (inQa(from, chapters) && inQa(frame.target, chapters)) loop.turnTo(frame.target);
+        else if (inQa(from, chapters) && inQa(frame.target, chapters) && !(inFreeQa(from, chapters) && inFreeQa(frame.target, chapters))) loop.turnTo(frame.target);
         else loop.glideTo(frame.target);
         loop.wake();
         return;

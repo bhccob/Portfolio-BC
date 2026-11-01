@@ -3,8 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GESTURE_GAP_MS } from '../../../src/input/gesture';
 import { Inertia } from '../../../src/input/Inertia';
 import { SKIP_QUIET_MS, skipSwallower } from '../../../src/input/loaderSkip';
-import { easeInOutQuart, FOLLOW, follow, GLIDE_MIN_S, GLIDE_S, QA_LOCK_MS, qaLockMs, RISE_SMOOTH, type Smooth, smoothTimeAt, startHomeScroll, type TweenKind, turnTime } from '../../../src/input/scrollLoop';
+import { easeInOutQuart, FOLLOW, follow, GLIDE_MIN_S, GLIDE_S, QA_FOLLOW_TAU, QA_LOCK_MS, qaLockMs, RISE_SMOOTH, type Smooth, smoothTimeAt, startHomeScroll, type TweenKind, turnTime } from '../../../src/input/scrollLoop';
 import { WAY_OUT } from '../../../src/scene/bob/wayOut';
+import { QA_QUESTION_PX } from '../../../src/input/target';
 import { connectHomeScroll, goToEnd, goToTop, headedToEnd } from '../../../src/input/useHomeScroll';
 import { LANDING_HOLD } from '../../../src/scene/bob/landingHold';
 import { nearestStop, STEP_FADE_MS, stepFadeAt, stepFadeFrom } from '../../../src/scene/bob/stepFade';
@@ -24,7 +25,7 @@ const L = pathStart(chapters);
 const A0 = worldStop(chapters);
 const A1 = areaStop(chapters, 'a');
 const A2 = areaStop(chapters, 'b');
-/** The Q&A's door, the last floor's stop: a scroll down from it is the way in, the blueprint. */
+/** The Q&A's door, the last floor's stop: a scroll down from it is the way in, the dissolve. */
 const S = qaDoor(chapters);
 /** The chapters' indices of the land (the world's stop is inside it), the first QA unit's and the end's. */
 const INDEX = { land: 2, qa: 6, end: 13 } as const;
@@ -1547,7 +1548,7 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
       const seen = s.run();
       expect(s.frames.size, 'the loop sleeps').toBe(0);
       expect([storyFrame.target, storyFrame.progress, storyFrame.velocity]).toEqual([first, first, 0]);
-      expect(seen.length / 60).toBeLessThan(WAY_OUT.blueprint + 0.1);
+      expect(seen.length / 60).toBeLessThan(WAY_OUT.dissolve + 0.1);
     });
 
     it('does not snap a turn back short of the first question: ArrowUp as the lock lets go, near the way in\'s end, turns back to the door, never there', async () => {
@@ -1558,7 +1559,7 @@ describe("the home as the page wires it: the landing hold, a failed void, the he
       const start = s.frames.now;
       await flush();
       // The lock holds for the whole way in: the press up waits it out, and comes a breath before the way in is over.
-      while (s.frames.now - start < WAY_OUT.lock.blueprint * 1000 + 50) s.frames.frame();
+      while (s.frames.now - start < WAY_OUT.lock.dissolve * 1000 + 50) s.frames.frame();
       expect(storyFrame.progress).toBeGreaterThanOrEqual(near);
       expect(storyFrame.progress).toBeLessThan(first);
       s.key('ArrowUp');
@@ -1602,11 +1603,13 @@ describe('reduced motion and the Q&A', () => {
 
 // ---------------------------------------------------------------- the Q&A
 
-// The Q&A (spec 2026-10-29-bob-stack-2-design.md, goal 1: "rotating snaps and is slower"; round 14, the way out): from
-// the door, the last floor's stop, every input is one step, the way in, a question or the flight to the end, played
-// slowly; input while a step's lock holds is dropped.
-describe('the Q&A, a question a step', () => {
+// The Q&A (round 15, spec 2026-11-01-bob-dissolve-digitize-design.md): from the door, the last floor's stop, one input
+// plays the dissolve to the first question, slowly, input dropped while it plays; past it the Q&A is free like a page,
+// the story following the scroll, and up from the first question one input plays the dissolve back.
+describe('the Q&A: the dissolve a step, the questions free like a page', () => {
   const q = (k: number) => qaStop(chapters, k);
+  /** One notch's share of a question: 120 px of wheel over QA_QUESTION_PX. */
+  const notch = (px = 120): number => (px / QA_QUESTION_PX) * (q(1) - q(0));
 
   it('eases a turn in and out', () => {
     expect(easeInOutQuart(0)).toBe(0);
@@ -1615,92 +1618,107 @@ describe('the Q&A, a question a step', () => {
     expect(easeInOutQuart(1)).toBe(1);
   });
 
-  it('turns a question in about 1.9 s, eased in and out', async () => {
-    expect(turnTime(q(0), q(1), chapters)).toBeCloseTo(1.1 + (0.9 * 2 * Math.PI) / 7, 9);
-    expect(Math.abs(turnTime(q(0), q(1), chapters) - 1.906)).toBeLessThan(0.05);
-    const s = setup();
-    restAt(s, q(0));
-    await wheelNotches(s, 1);
-    expect(s.frame.target).toBe(q(1));
-    expect(s.home.loop.tweening).toBe('turn');
-    const start = s.frames.now;
-    const T = turnTime(q(0), q(1), chapters) * 1000;
-    while (s.frames.now - start < T / 2) s.frames.frame();
-    expect(s.frame.progress).toBeGreaterThan(q(0) + 0.35);
-    expect(s.frame.progress).toBeLessThan(q(0) + 0.65);
-    s.drain();
-    expect(s.frame.progress).toBe(q(1));
-  });
-
-  it("plays the way in, the blueprint, in the mock-up's 6.4 s and the flight to the end in its 4.8 s; either back in 2.4 s", () => {
-    expect(WAY_OUT).toEqual({ blueprint: 6.4, flight: 4.8, back: 2.4, lock: { blueprint: 6.2, flight: 4.2 } });
-    expect(turnTime(S, q(0), chapters)).toBe(6.4);
+  it("plays the dissolve in the mock-up's 7.5 s, back in 2.4 s, input dropped for 7.2 s of it", () => {
+    expect(turnTime(S, q(0), chapters)).toBe(7.5);
     expect(turnTime(q(0), S, chapters)).toBe(2.4);
-    expect(turnTime(q(5), q(6), chapters)).toBe(4.8);
-    expect(turnTime(q(6), q(5), chapters)).toBe(2.4);
-    // From within the way in (a step that began part way), still the way in's.
-    expect(turnTime((S + q(0)) / 2, q(0), chapters)).toBe(6.4);
-  });
-
-  it('drops input for the whole way in and the whole flight, as the mock-up did; a question or a way back for QA_LOCK_MS', () => {
-    expect(qaLockMs(S, q(0), chapters)).toBe(6200);
-    expect(qaLockMs(q(5), q(6), chapters)).toBe(4200);
-    expect(qaLockMs(q(0), q(1), chapters)).toBe(QA_LOCK_MS);
+    // From within the dissolve (a step that began part way), still the dissolve's.
+    expect(turnTime((S + q(0)) / 2, q(0), chapters)).toBe(7.5);
+    expect(qaLockMs(S, q(0), chapters)).toBe(7200);
     expect(qaLockMs(q(0), S, chapters)).toBe(QA_LOCK_MS);
-    expect(qaLockMs(q(6), q(5), chapters)).toBe(QA_LOCK_MS);
   });
 
-  it('drops a scroll during the blueprint, and takes the next once it is over', async () => {
+  it('drops a scroll during the dissolve, and the next, once it is over, moves the free Q&A', async () => {
     const s = setup();
     restAt(s, S);
     await wheelNotches(s, 1);
     const start = s.frames.now;
     expect(s.frame.target).toBe(q(0));
-    while (s.frames.now - start < 6000) s.frames.frame();
+    while (s.frames.now - start < 7000) s.frames.frame();
     await wheelNotches(s, 1);
     expect(s.frame.target).toBe(q(0));
-    while (s.frames.now - start < 6500) s.frames.frame();
+    while (s.frames.now - start < 7600) s.frames.frame();
     await wheelNotches(s, 1);
-    expect(s.frame.target).toBe(q(1));
+    expect(s.frame.target).toBeCloseTo(q(0) + notch(), 9);
   });
 
-  it('takes one step for a burst of notches', async () => {
+  it('takes one step for a burst of notches at the door', async () => {
     const s = setup();
     restAt(s, S);
     await wheelNotches(s, 10, 120, 20);
     expect(s.frame.target).toBe(q(0));
   });
 
-  it('drops input inside the lock', async () => {
-    expect(QA_LOCK_MS).toBe(1500);
+  it('moves the free Q&A with the wheel, 520 px a question, the story following quickly and resting where the scroll stops', async () => {
     const s = setup();
-    restAt(s, q(0));
-    await wheelNotches(s, 1);
+    restAt(s, q(1));
+    await wheelNotches(s, 3, 100, 0);
+    const target = q(1) + 3 * notch(100);
+    expect(s.frame.target).toBeCloseTo(target, 9);
+    expect(s.home.loop.tweening).toBeNull();
+    // The Q&A's follow (QA_FOLLOW_TAU, 0.2 s): about two thirds of the way in a fifth of a second.
     const start = s.frames.now;
-    expect(s.frame.target).toBe(q(1));
-    while (s.frames.now - start < 1000) s.frames.frame();
-    await wheelNotches(s, 1);
-    expect(s.frame.target).toBe(q(1));
-    while (s.frames.now - start < 1600) s.frames.frame();
-    await wheelNotches(s, 1);
-    expect(s.frame.target).toBe(q(2));
+    const from = s.frame.progress;
+    while (s.frames.now - start < 200) s.frames.frame();
+    const share = (s.frame.progress - from) / (target - from);
+    expect(share).toBeGreaterThan(0.5);
+    expect(share).toBeLessThan(0.75);
+    s.drain();
+    // No snap to a question: it rests where the scroll left it.
+    expect(s.frame.progress).toBeCloseTo(target, 9);
+    expect(QA_FOLLOW_TAU).toBe(0.2);
   });
 
-  it('steps a key one question too', async () => {
+  it('rests on the end for a long push', async () => {
+    const s = setup();
+    restAt(s, q(4));
+    await wheelNotches(s, 40, 120);
+    expect(s.frame.target).toBe(END);
+    s.drain();
+    expect(s.frame.progress).toBe(END);
+  });
+
+  it('a glide up stops at question 1: no step back through the door until a new gesture asks', async () => {
+    const s = setup();
+    restAt(s, q(1) + 0.5);
+    await s.swipe(1, 12);
+    s.drain();
+    expect(s.frame.target).toBe(q(0));
+    expect(s.frame.progress).toBe(q(0));
+    // A new gesture up from there plays the dissolve back to the door, in 2.4 s.
+    await wheelNotches(s, 1, -120);
+    expect(s.frame.target).toBe(S);
+    expect(s.home.loop.tweening).toBe('turn');
+    const ran = s.drain().frames;
+    expect(s.frame.progress).toBe(S);
+    expect(ran / 60).toBeLessThan(2.4 + 0.2);
+  });
+
+  it('moves the free Q&A by a glide for a key: an arrow 0.35 of a question, Page Down a whole one', async () => {
     const s = setup();
     restAt(s, q(2));
     s.key('ArrowDown');
     await flush();
-    expect(s.frame.target).toBe(q(3));
-    expect(s.home.loop.tweening).toBe('turn');
+    expect(s.frame.target).toBeCloseTo(q(2) + 0.35 * (q(1) - q(0)), 9);
+    expect(s.home.loop.tweening).toBe('glide');
+    s.drain();
+    s.key('PageDown');
+    await flush();
+    expect(s.frame.target).toBeCloseTo(q(3) + 0.35 * (q(1) - q(0)), 9);
   });
 
-  it('jumps with reduced motion', async () => {
+  it('glides to a place asked for within the free Q&A, as a key does', async () => {
+    const s = setup();
+    restAt(s, q(1));
+    expect(s.home.toPlace(q(4))).toBe(true);
+    expect(s.frame.target).toBe(q(4));
+    expect(s.home.loop.tweening).toBe('glide');
+  });
+
+  it('jumps with reduced motion, a question at a time', async () => {
     const s = setup({ reduced: true });
     restAt(s, q(0));
     await wheelNotches(s, 1);
     expect(s.frame.target).toBe(q(1));
     expect(s.home.loop.tweening).toBeNull();
   });
-
 });

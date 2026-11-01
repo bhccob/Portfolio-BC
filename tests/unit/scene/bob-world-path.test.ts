@@ -455,7 +455,7 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
   const closedTops = boardTops(BOARDS, 0);
   const T: Vec3 = [C[0], (closedTops[0]! + closedTops[closedTops.length - 1]!) / 2 - 0.6, C[2]];
   const view = (shot: CameraShot): { d: number; el: number; az: number } => {
-    const v = [0, 1, 2].map((k) => shot.position[k]! - shot.target[k]!) as Vec3;
+    const v: Vec3 = [shot.position[0] - shot.target[0], shot.position[1] - shot.target[1], shot.position[2] - shot.target[2]];
     const d = Math.hypot(...v);
     return { d, el: Math.asin(v[1] / d), az: Math.atan2(v[0], v[2]) };
   };

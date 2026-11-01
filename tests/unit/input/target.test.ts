@@ -2,11 +2,15 @@ import { describe, expect, it } from 'vitest';
 import {
   changedChapter,
   holdLimit,
+  freeQaTarget,
+  inFreeQa,
   inQa,
   jumpTarget,
   keyTarget,
   moveTarget,
   pinnedAtEnd,
+  QA_FINGER,
+  QA_QUESTION_PX,
   qaStepTarget,
   releaseTarget,
   restsAtTop,
@@ -253,18 +257,48 @@ describe('scrollEnabled', () => {
 
 // The Q&A (spec 2026-10-29-bob-stack-2-design.md, goal 1; round 14): from its door, the last floor's stop, on, every
 // input is a step, whatever its size, the first the way in; up from the door the scroll is continuous again.
-describe('the Q&A, a question a step', () => {
+describe('the Q&A: the dissolve a step, the questions free like a page (round 15)', () => {
   const look = qaDoor(c);
   const q = (k: number) => qaStop(c, k);
 
-  it('steps one stop per input in the Q&A, whatever its size', () => {
+  it('steps only through the door: down to the first question, up from it to the door', () => {
     expect(qaStepTarget(look, 1, c)).toBe(q(0));
-    expect(qaStepTarget(q(0), 1, c)).toBe(q(1));
-    expect(qaStepTarget(q(3), -1, c)).toBe(q(2));
     expect(qaStepTarget(q(0), -1, c)).toBe(look);
-    expect(qaStepTarget(scrollEnd(c), 1, c)).toBe(scrollEnd(c));
+    // From within the dissolve (a step that began part way), its own ends.
+    expect(qaStepTarget((look + q(0)) / 2, 1, c)).toBe(q(0));
+    expect(qaStepTarget((look + q(0)) / 2, -1, c)).toBe(look);
+    // Past the first question there are no steps: the scroll is free.
+    expect(qaStepTarget(q(0), 1, c)).toBeNull();
+    expect(qaStepTarget(q(3), -1, c)).toBeNull();
+    expect(qaStepTarget(scrollEnd(c), 1, c)).toBeNull();
     expect(inQa(look, c)).toBe(true);
     expect(inQa(q(4), c)).toBe(true);
+  });
+
+  it('is free from the first question to the end', () => {
+    expect(inFreeQa(q(0), c)).toBe(true);
+    expect(inFreeQa(q(3) + 0.4, c)).toBe(true);
+    expect(inFreeQa(scrollEnd(c), c)).toBe(true);
+    expect(inFreeQa((look + q(0)) / 2, c)).toBe(false);
+    expect(inFreeQa(look, c)).toBe(false);
+  });
+
+  it('moves the free Q&A a question for 520 px of wheel, a finger 1.4 times as far, a key 0.35 or a whole question', () => {
+    expect(QA_QUESTION_PX).toBe(520);
+    expect(QA_FINGER).toBe(1.4);
+    expect(freeQaTarget(q(0), 1, 'wheel', 1040, c)).toBeCloseTo(q(0) + 2, 12);
+    expect(freeQaTarget(q(0), 1, 'glide', 1040, c)).toBeCloseTo(q(0) + 2, 12);
+    expect(freeQaTarget(q(0), 1, 'finger', 1040, c)).toBeCloseTo(q(0) + 2.8, 12);
+    expect(freeQaTarget(q(2), 0.15, 'key', 900, c)).toBeCloseTo(q(2) + 0.35, 12);
+    expect(freeQaTarget(q(2), -0.15, 'key', 900, c)).toBeCloseTo(q(2) - 0.35, 12);
+    expect(freeQaTarget(q(2), 0.9, 'key', 900, c)).toBeCloseTo(q(3), 12);
+    expect(freeQaTarget(q(2), 0.9, 'held', 900, c)).toBeCloseTo(q(3), 12);
+    // Held to the end, and to the first question from above it.
+    expect(freeQaTarget(q(5), 5, 'wheel', 900, c)).toBe(scrollEnd(c));
+    expect(freeQaTarget(q(0) + 0.5, -1, 'wheel', 520, c)).toBe(q(0));
+    // Up from the first question it is the step back through the door.
+    expect(freeQaTarget(q(0), -0.1, 'wheel', 900, c)).toBeNull();
+    expect(freeQaTarget(q(0), -0.15, 'key', 900, c)).toBeNull();
   });
 
   it('goes back to the continuous scroll up from the door', () => {
