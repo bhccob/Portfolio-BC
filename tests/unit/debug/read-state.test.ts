@@ -80,10 +80,10 @@ describe('readNeedleDebugState', () => {
   });
 
   it("reports the scroll's pose as the home last posed it, as a copy", () => {
-    expect(readNeedleDebugState({ route: 'home', locale: 'nl' }).scroll).toEqual({ u: 0, letters: 0, iris: 0, needleDip: 0 });
-    Object.assign(frame.scroll, { u: 0.5, letters: 0.32, iris: 0.67, needleDip: 0.78 });
+    expect(readNeedleDebugState({ route: 'home', locale: 'nl' }).scroll).toEqual({ u: 0, letters: 0, iris: 0, needleDip: 0, dial: 0, dialText: '' });
+    Object.assign(frame.scroll, { u: 0.5, letters: 0.32, iris: 0.67, needleDip: 0.78, dial: 0.25, dialText: 'BOB CHUNG • ' });
     const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
-    expect(state.scroll).toEqual({ u: 0.5, letters: 0.32, iris: 0.67, needleDip: 0.78 });
+    expect(state.scroll).toEqual({ u: 0.5, letters: 0.32, iris: 0.67, needleDip: 0.78, dial: 0.25, dialText: 'BOB CHUNG • ' });
     expect(state.scroll).not.toBe(frame.scroll);
     frame.scroll.u = 1;
     expect(state.scroll.u).toBe(0.5);

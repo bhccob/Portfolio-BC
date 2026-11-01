@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { type CameraShot, homeShotFor, topShotFor } from '~/engine/bob/shots';
-import { RISE_SPANS, riseAt, scrollPoseAt } from '~/scene/bob/scrollPose';
+import { dialShown, RISE_SPANS, riseAt, scrollPoseAt } from '~/scene/bob/scrollPose';
 import { moveTarget } from '~/input/target';
 import { HOME_CHAPTERS } from '~/state/chapters';
 
@@ -23,6 +23,16 @@ function distanceOf(shot: CameraShot): number {
 const STEPS = Array.from({ length: 201 }, (_, i) => i / 200);
 
 describe("the scroll's pose", () => {
+  // Round 16 (Bob: "Dial (C)"): the dial shows at the home and is gone a quarter of the way up, before the letters light.
+  it('shows the dial at the home and lets it go before the letters light', () => {
+    expect(dialShown(0)).toBe(1);
+    expect(dialShown(0.125)).toBeCloseTo(0.5, 12);
+    expect(dialShown(0.25)).toBe(0);
+    expect(dialShown(1)).toBe(0);
+    expect(dialShown(RISE_SPANS.letters[0])).toBe(0);
+    expect(dialShown(Number.NaN)).toBe(1);
+  });
+
   it('is the home at 0 and BOB from above at 1, on every screen', () => {
     for (const a of ASPECTS) {
       expect(scrollPoseAt(0, a)).toEqual({ u: 0, iris: 0, needleDip: 0, letters: 0, shot: homeShotFor(a) });

@@ -62,7 +62,7 @@ export interface NeedleDebugState {
    * rise; the compass and the engraving ease them). With reduced motion `u` is the stop the step fade shows. All 0 while
    * nothing drives the home (the loader, a held seek, no Stage).
    */
-  scroll: { u: number; letters: number; iris: number; needleDip: number };
+  scroll: { u: number; letters: number; iris: number; needleDip: number; dial: number; dialText: string };
   /**
    * Where the home's journey stands as the scene last posed it (`frame.journey`, a copy): the stretch (`rise`, `light`,
    * `land`, `area`, `look`, `qa`, `end`), how far through it (0 at its stop), the area's place among the

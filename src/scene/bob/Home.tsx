@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import type { ProjectId } from '~/data/projects';
 import { AngleSpring, wrapAngle } from '~/engine/AngleSpring';
 import type { CompassModel } from '~/engine/bob/build/compass';
+import { DIAL, type DialModel, dialText } from '~/engine/bob/build/dial';
 import type { EngravingModel } from '~/engine/bob/build/engraving';
 import type { GlassModel } from '~/engine/bob/build/glassFloor';
 import type { SmokeModel } from '~/engine/bob/build/smoke';
@@ -20,7 +21,10 @@ import type { JourneyPose } from './journey';
 import { needleGlowAt } from './look';
 import { HOME_POSE } from './openingPose';
 import { heldAtLanding } from './landingHold';
-import { risingFor } from './scrollPose';
+import { dialShown, risingFor } from './scrollPose';
+import { localeFromPath } from '~/i18n/locale';
+import type { Locale } from '~/i18n/Translator';
+import { translatorFor } from '~/i18n/useTranslator';
 import { STEP_FADE_ATTRIBUTE, type StepFade, stepFadeAt, stepFadeFrom, stepStopFor } from './stepFade';
 
 /** The longest step the needle and the idle clock take in one frame, seconds: a wake from sleep jumps neither. */
@@ -48,6 +52,20 @@ export interface HomeModels {
   /** The glass floor and its traces: posed by the Opening to the home, and dimmed and dissolved by Home in the light dive. */
   glass: GlassModel;
   traces: TracesModel;
+  /** The dial round the compass's base (round 16, ~/engine/bob/build/dial.ts): shown at the home, gone up the rise. */
+  dial: DialModel;
+}
+
+/** The dial's words in each language, made once (the hero's name and its line, src/i18n). */
+const DIAL_WORDS = new Map<Locale, string>();
+function dialWordsFor(locale: Locale): string {
+  let words = DIAL_WORDS.get(locale);
+  if (words === undefined) {
+    const { t } = translatorFor(locale);
+    words = dialText(t.needle.hero.name, t.hero.badge);
+    DIAL_WORDS.set(locale, words);
+  }
+  return words;
 }
 
 /**
@@ -124,6 +142,8 @@ interface HomeState {
   /** The glass top's fade and the glass's dissolve as Home last wrote them (NaN when not written since a hand-over). */
   top: number;
   dissolve: number;
+  /** When Home last took the home over (performance.now() ms): the dial comes in over `DIAL.fadeIn` from there. */
+  liveAt: number;
 }
 
 /**
@@ -170,7 +190,7 @@ function showHeld(state: HomeState, on: boolean): void {
 
 /** `frame.scroll` with nothing driving the home: every share 0. */
 function clearScroll(): void {
-  frame.scroll.u = frame.scroll.letters = frame.scroll.iris = frame.scroll.needleDip = 0;
+  frame.scroll.u = frame.scroll.letters = frame.scroll.iris = frame.scroll.needleDip = frame.scroll.dial = 0;
 }
 
 /** Scratch for the pivot's place on the screen: no vector is made per frame. */
@@ -249,6 +269,7 @@ export function Home({ models, handover }: HomeProps): null {
     end: endWritten(),
     top: Number.NaN,
     dissolve: Number.NaN,
+    liveAt: 0,
   }));
   const invalidate = useThree((three) => three.invalidate);
   /** The pivot the needle turns on (`CompassModel.pivot`): the needle's own centre, the armillary's origin. */
@@ -281,6 +302,7 @@ export function Home({ models, handover }: HomeProps): null {
         models.compass.setIris(0);
         models.compass.setNeedleDip(0);
         models.engraving.setLetters(0);
+        models.dial.pose(0, 0);
         // The glass top as the home has it: the Opening poses its glow from the held moment from here.
         poseTop(models, 0, 0);
         state.top = state.dissolve = Number.NaN;
@@ -309,6 +331,7 @@ export function Home({ models, handover }: HomeProps): null {
       stirred = true;
       state.idleTime = 0;
       state.base = handover.time;
+      state.liveAt = now;
       state.target = handover.needle;
       spring.set(handover.needle, 0);
       state.u = Number.NaN;
@@ -390,6 +413,14 @@ export function Home({ models, handover }: HomeProps): null {
     scroll.letters = pose.letters;
     scroll.iris = pose.iris;
     scroll.needleDip = pose.needleDip;
+    // The dial (round 16): the page's words, shown at the home and gone a quarter of the way up, come in over its fade
+    // after a hand-over; turning slowly on the page's time (at rest the storm's frames carry it), still with reduced motion.
+    const words = dialWordsFor(localeFromPath(window.location.pathname));
+    models.dial.setText(words);
+    const dial = dialShown(pose.u) * Math.min(1, Math.max(0, (now - state.liveAt) / 1000 / DIAL.fadeIn));
+    models.dial.pose(dial, reduced ? 0 : (now / 1000) * DIAL.turn);
+    scroll.dial = dial;
+    scroll.dialText = words;
     // The way in (the light dive's frames 14-28): the glass top goes dark as the camera comes down to it and the glass
     // dissolves round the light, so by the time the camera is in the O there is only the light and the void opening round
     // it; back as it was on the way up. Written only where it changes.

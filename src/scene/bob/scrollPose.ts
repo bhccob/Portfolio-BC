@@ -112,6 +112,15 @@ export function risingFor(u: number): boolean {
   return u > HOME_MARGIN;
 }
 
+/** How far up the rise the dial is gone (round 16, ~/engine/bob/build/dial.ts): a quarter, before the letters light at 0.29. */
+const DIAL_GONE = 0.25;
+
+/** The dial's level at the rise `u`: whole at the home, eased out by `DIAL_GONE` of the rise and gone above it; NaN reads as the home. */
+export function dialShown(u: number): number {
+  if (!Number.isFinite(u)) return 1;
+  return 1 - smoothstep(u / DIAL_GONE);
+}
+
 /**
  * One moment of the scroll: the rise `u` (held to 0..1), the shares of the
  * iris, the needle's dip and the letters' light (each 0 to 1, linear in the

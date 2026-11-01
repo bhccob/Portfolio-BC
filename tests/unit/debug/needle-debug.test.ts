@@ -21,7 +21,7 @@ function state(over: Partial<NeedleDebugState> = {}): NeedleDebugState {
     threeD: true,
     loader: { stage: 'home', elapsed: SCRIPT.home, strokes: [0, 0, 0, 0, 1] },
     needleAngle: 0.66,
-    scroll: { u: 0, letters: 0, iris: 0, needleDip: 0 },
+    scroll: { u: 0, letters: 0, iris: 0, needleDip: 0, dial: 0, dialText: '' },
     journey: { stretch: 'rise', local: 0, project: null, voidState: 'ready', frame: null, sheet: 0, light: null, objects: null, world: null, engraved: null, nebula: null, qa: null, circuit: null, storm: null },
     ...over,
   };

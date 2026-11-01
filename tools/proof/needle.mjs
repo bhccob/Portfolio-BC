@@ -360,7 +360,7 @@ const { Translator, locales } = await tsImport('../../src/i18n/Translator.ts', i
 const { HANDLES, PAGE_KINDS } = await tsImport('../../src/app/handle.ts', import.meta.url);
 const { MIN_FILL_MS, SEND_TIMEOUT_MS } = await tsImport('../../src/ui/contactSubmit.ts', import.meta.url);
 const { LOAD_TIMEOUT_MS, RESTORE_TIMEOUT_MS } = await tsImport('../../src/scene/timeouts.ts', import.meta.url);
-const { HOME_CHAPTERS, WORLD_LAYOUT, areaStop, areasOnPath, chapterAt, keyStops, pathStart, placeOfFrame, qaDoor, qaStop, scrollEnd, worldStop } = await tsImport('../../src/state/chapters.ts', import.meta.url);
+const { HOME_CHAPTERS, WORLD_LAYOUT, areaStop, areasOnPath, chapterAt, keyStops, pathStart, placeOfFrame, qaDoor, qaStop, riseTop, scrollEnd, worldStop } = await tsImport('../../src/state/chapters.ts', import.meta.url);
 const { QA_QUESTION_PX, SETTLE_SLOP_PX } = await tsImport('../../src/input/target.ts', import.meta.url);
 const { RING_MARKS } = await tsImport('../../src/data/qa.ts', import.meta.url);
 const { QA_LOCK_MS, easeInOutQuart } = await tsImport('../../src/input/scrollLoop.ts', import.meta.url);
@@ -7227,6 +7227,51 @@ async function resize(browser, step) {
   return `fact 02 at frame ${after.journey.frame?.toFixed(1)}, below the light after the turn; Steady's words and object kept through the turn; between two areas the camera ${off.toFixed(2)} m off the centre`;
 }
 
+/**
+ * Round 16 (Bob picked "Dial (C)"): the dial at the start screen. On a laptop and a phone, and on /en/: it comes in at the
+ * home with the page's words (the hero's name and its line, in capitals), is gone a quarter of the way up the rise and at
+ * BOB from above, and back at the home; with reduced motion it is there at the home too.
+ */
+async function dialStep(browser, step) {
+  const summary = [];
+  for (const [size, path] of [[TWO_SIZES[0], '/'], [TWO_SIZES[1], '/'], [TWO_SIZES[0], '/en/']]) {
+    const english = path === '/en/';
+    const at = `${sizeName(size)}${english ? ' /en/' : ''}`;
+    const { t } = new Translator(english ? 'en' : 'nl');
+    const words = `${t.needle.hero.name} • ${t.hero.badge}`.toUpperCase();
+    const { context, page } = await readyHome(browser, step, size, path);
+    await poseAt(page, 0);
+    const came = await page.waitForFunction(() => window.__needleDebug().scroll.dial >= 0.99, null, { timeout: 5_000 }).then(() => true, () => false);
+    let s = (await debugOf(page)).scroll;
+    step.check(came && s.dialText === words, `${at}: at the home the dial is in (${s.dial.toFixed(3)}) with "${words}" (got "${s.dialText}")`);
+    for (const [place, name] of [[0.25, 'a quarter of the way up'], [riseTop(HOME_CHAPTERS), 'BOB from above']]) {
+      await poseAt(page, place);
+      await page.waitForTimeout(300);
+      s = (await debugOf(page)).scroll;
+      step.check(s.dial === 0, `${at}: ${name} the dial is gone (${s.dial})`);
+    }
+    await poseAt(page, 0);
+    await page.waitForTimeout(300);
+    s = (await debugOf(page)).scroll;
+    step.check(s.dial >= 0.99, `${at}: and back at the home it is in again (${s.dial.toFixed(3)})`);
+    if (!english) {
+      const file = join(STILLS, `dial-${sizeName(size)}.png`);
+      await page.screenshot({ path: file });
+    }
+    await takeCsp(page, step);
+    await context.close();
+    summary.push(`${at}: in at the home, gone up the rise`);
+  }
+  const reduced = await readyHome(browser, step, TWO_SIZES[0], '/');
+  await reduced.page.emulateMedia({ reducedMotion: 'reduce' });
+  await poseAt(reduced.page, 0);
+  await reduced.page.waitForTimeout(1_200);
+  const r = (await debugOf(reduced.page)).scroll;
+  step.check(r.dial >= 0.99, `reduced motion: the dial is there at the home (${r.dial.toFixed(3)})`);
+  await reduced.context.close();
+  return `${summary.join('; ')}; reduced motion: there at the home`;
+}
+
 const STEPS = {
   routes,
   slash,
@@ -7250,6 +7295,7 @@ const STEPS = {
   world: worldStep,
   areas: areasStep,
   'qa-ring': qaRing,
+  dial: dialStep,
   resize,
   'project-view': projectView,
   nebula,

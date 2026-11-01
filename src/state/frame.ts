@@ -84,9 +84,10 @@ export const frame = {
    * The scroll's pose as the Home (src/scene/bob/Home.tsx) last posed it, on each frame it drives the home: the rise `u`
    * (0 at the home, 1 looking straight down on BOB; src/scene/bob/scrollPose.ts) and the shares of the letters' light,
    * the iris and the needle's dip, each 0..1 before the setters ease them. With reduced motion the rise is the stop the
-   * step fade shows, not the damped progress. All 0 while no Home drives the home. The debug bridge reports it.
+   * step fade shows, not the damped progress. All 0 while no Home drives the home. The debug bridge reports it. Round 16:
+   * the dial's level (0..1, ~/engine/bob/build/dial.ts) and the words it was last given.
    */
-  scroll: { u: 0, letters: 0, iris: 0, needleDip: 0 },
+  scroll: { u: 0, letters: 0, iris: 0, needleDip: 0, dial: 0, dialText: '' },
   /**
    * Where the home's journey stands (src/scene/bob/journey.ts `journeyAt`), as the scene last posed it: the stretch
    * (`rise`, `light`, `land`, `area`, `look`, `qa`, `end`), how far through it, the area's place among

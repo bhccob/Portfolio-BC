@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { type GLTF, GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { ProjectId } from '~/data/projects';
 import { bandStrip, COMPASS_PARTS, type CompassModel, loadCompass } from '~/engine/bob/build/compass';
+import { buildDial, type DialModel } from '~/engine/bob/build/dial';
 import { buildEngraving, type EngravingModel } from '~/engine/bob/build/engraving';
 import { buildGlass, type GlassModel } from '~/engine/bob/build/glassFloor';
 import { buildLight, type LightModel } from '~/engine/bob/build/light';
@@ -103,6 +104,8 @@ interface LoaderParts {
    * the loader and its lamp is in the scene's light count from the first frame; the Void poses it. The Opening's to free.
    */
   light: LightModel;
+  /** The dial round the compass's base (round 16, ~/engine/bob/build/dial): built hidden, so it is compiled with the loader; Home poses it. */
+  dial: DialModel;
 }
 
 /** What the Opening mounts Home and the Void with, once the compass exists. */
@@ -399,8 +402,11 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       made.push(smoke);
       const light = buildLight(built);
       made.push(light);
-      scene.add(glass.group, traces.group, engraving.group, probe.group, smoke.group, light.group);
-      parts = { glass, engraving, traces, probe, smoke, light };
+      // The dial round the compass's base (round 16), hidden until Home shows it at the home.
+      const dial = buildDial();
+      made.push(dial);
+      scene.add(glass.group, traces.group, engraving.group, probe.group, smoke.group, light.group, dial.group);
+      parts = { glass, engraving, traces, probe, smoke, light, dial };
     } catch (error) {
       for (const part of made) part.dispose();
       latest.current.onFail('the loader could not be built', error);
@@ -510,7 +516,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       const now = clockOf(state);
       pose(parts, compass, openingPoseAt(now, state.path), state.elapsed, state);
       // Home and the Void mount now; they drive nothing until the Opening hands the home over.
-      setModels({ home: { compass, engraving: parts.engraving, smoke: parts.smoke, glass: parts.glass, traces: parts.traces }, light: parts.light });
+      setModels({ home: { compass, engraving: parts.engraving, smoke: parts.smoke, glass: parts.glass, traces: parts.traces, dial: parts.dial }, light: parts.light });
 
       // The strips go up to the GPU now, not on the frame that first shows the bands, and the home's programs compile.
       uploadTextures(gl, homeParts.strips);
@@ -548,8 +554,9 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       frame.shot = null;
       frame.loader.stage = null;
       frame.needleAngle = 0;
-      scene.remove(parts.glass.group, parts.traces.group, parts.engraving.group, parts.probe.group, parts.smoke.group, parts.light.group);
+      scene.remove(parts.glass.group, parts.traces.group, parts.engraving.group, parts.probe.group, parts.smoke.group, parts.light.group, parts.dial.group);
       parts.light.dispose();
+      parts.dial.dispose();
       parts.glass.dispose();
       parts.engraving.dispose();
       parts.traces.dispose();
