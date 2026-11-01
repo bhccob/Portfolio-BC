@@ -63,11 +63,11 @@ describe("the stack's places: the power board, a board per category below, socke
     expect(stackPlaces(areasOnPath(list)).map((b) => b.category)).toEqual([null, 'app', 'game']);
   });
 
-  it('turns each category board 75° further round the stack, the first at -40°, then half a turn more for each floor down (round 15)', () => {
+  it('turns each category board 75° further round the stack, the first at -40°', () => {
     const boards = stackPlaces(areasOnPath());
-    expect(boards[1]!.facing).toBeCloseTo(-40 * DEG + Math.PI, 12);
-    expect(boards[2]!.facing).toBeCloseTo(35 * DEG + 2 * Math.PI, 12);
-    expect(boards[3]!.facing).toBeCloseTo(110 * DEG + 3 * Math.PI, 12);
+    expect(boards[1]!.facing).toBeCloseTo(-40 * DEG, 12);
+    expect(boards[2]!.facing).toBeCloseTo(35 * DEG, 12);
+    expect(boards[3]!.facing).toBeCloseTo(110 * DEG, 12);
   });
 
   it("stands a board's projects on the side it faces, 4.4 out and 3.4 apart along the ring", () => {

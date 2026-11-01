@@ -377,29 +377,31 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
     }
   });
 
-  it('sees each board at its stop exactly as before: the board and its stop turned alike', () => {
-    const step = STACK.apart / STACK.ring;
+  // The boards stay as they are (the half-turn flipbook Bob approved: only the camera goes round), so every other floor is
+  // seen from the other side of the stack; the whole machine's view stays as it was.
+  it('stops at each board where the half turns leave the camera, every project of it on the screen', () => {
     for (const aspect of [DESK, PHONE]) {
       const path = makeWorldPath(aspect);
       const front = Math.atan2(path.worldShot.position[2] - C[2], path.worldShot.position[0] - C[0]);
       BOARDS.slice(1).forEach((board, i) => {
         const where = `board ${i} at ${aspect.toFixed(2)}`;
         const stop = path.areaShot(i);
-        // Turned back, the stop is the front one the boards were framed from before the half turn.
+        // Turned back by its half turns, the stop is the front one the board is framed from.
         const before = turnedRound(stop, C, -floorTurn(i));
         expect(Math.atan2(before.position[2] - C[2], before.position[0] - C[0]), where).toBeCloseTo(front, 9);
-        const facing = STACK.first + i * STACK.turn;
-        board.sockets.forEach((s, j) => {
-          const a = facing + (j - (board.sockets.length - 1) / 2) * step;
-          const was: Vec3 = [Math.sin(a) * STACK.ring, board.top, Math.cos(a) * STACK.ring];
-          const now: Vec3 = [s.at[0], board.top, s.at[1]];
-          const seen = project(now, stop, aspect);
-          const seenBefore = project(was, before, aspect);
-          expect(seen.x, where).toBeCloseTo(seenBefore.x, 9);
-          expect(seen.y, where).toBeCloseTo(seenBefore.y, 9);
-        });
+        for (const s of board.sockets) {
+          const seen = project([s.at[0], board.top + STACK.hover + 0.9, s.at[1]], stop, aspect);
+          // Its object's middle, with room for the object itself round it (a phone's 25 px of 195: 0.13).
+          expect(seen.front, where).toBe(true);
+          expect(Math.abs(seen.x), where).toBeLessThan(0.87);
+          expect(Math.abs(seen.y), where).toBeLessThan(0.87);
+        }
       });
     }
+  });
+
+  it("keeps each category board's facing: 75° further round each, the first at -40°", () => {
+    BOARDS.slice(1).forEach((board, i) => expect(board.facing).toBeCloseTo(STACK.first + i * STACK.turn, 12));
   });
 
   it('lights the board in view and steps the others back', () => {

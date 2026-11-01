@@ -13,8 +13,8 @@
  *   stays on the lid, its trail standing above it as a still column; the camera comes down out of the fall to look at
  *   the light coming in, then pulls slowly back over the power-on to the whole machine by `LAND_STOP`;
  * - AREA, one per board of the stack: the camera goes down to the board, turning half round the stack's axis on the way
- *   (`FLOOR_TURN`, ./around.ts), the board turned with it, so it stands at `AREA_STOP` seeing the board as from the front;
- *   the board in view lit, the others stepped back, its caption in;
+ *   (`FLOOR_TURN`, ./around.ts), so it stands at `AREA_STOP` on the side the half turns leave it (every other board seen
+ *   from behind the stack); the board in view lit, the others stepped back, its caption in;
  * - from the last board's stop, the Q&A's door, the way out (round 15, ./wayOut.ts): the floors close while the tower
  *   dissolves (the stardust, ../../engine/bob/build/stardust.ts), its words gone at once and every board lit; the camera
  *   eases to the closed tower and moves off it, up, back and round, the tower slid aside of the words (`wayOutShot`), and
@@ -104,7 +104,8 @@ export const TOWER_ZOOM = 1.25;
  * The camera's turn round the tower on the way down to each board, radians, as `turnedRound` (./around.ts) measures it
  * (Bob, 2026-10-31, round 12: a whole turn, "sort of like dramatic"; 2026-11-01, round 15: "can you make the scroll to
  * rotate around the tower less agressive", then "Yes, half per floor"): half a turn, the same way each time, with the
- * scroll. Each board is turned with its stop (./worldLayout.ts `stackPlaces`), so the camera sees it there as before.
+ * scroll. The boards stay as they are (the half-turn flipbook Bob approved: only the camera goes round), so every other
+ * board is seen from the other side of the stack; the whole machine's view stays as it was.
  */
 export const FLOOR_TURN = -Math.PI;
 
@@ -164,12 +165,14 @@ const BOARD_LIGHT = { view: 1, power: 0.7, aside: 0.45 } as const;
 /**
  * The mock-up's framings, by the screen's shape: each view's field (deg); the whole machine's elevation (deg) and box;
  * a board's elevation, how far above its top the camera looks, and its box (round 11, Bob picked "A · a little nearer":
- * from the front as at the whole machine, the board in the middle, its rim in the middle 60% of a laptop's screen); the
- * look back's elevation, distance and azimuth (rad). A box is [left, right, bottom, top] of the screen, NDC.
+ * from the front as at the whole machine, the board in the middle, its rim in the middle 60% of a laptop's screen; round
+ * 15, a phone's a little wider than its screen no more, so a project seen from behind the stack, nearer, keeps its whole
+ * object on it); the look back's elevation, distance and azimuth (rad). A box is [left, right, bottom, top] of the
+ * screen, NDC.
  */
 const FRAME = {
   desk: { fov: 38, world: { elevation: 30, box: [-0.66, 0.66, -0.86, 0.82] as Box }, board: { elevation: 30, lift: 0.2, box: [-0.6, 0.6, -0.6, 0.6] as Box } },
-  phone: { fov: 58, world: { elevation: 26, box: [-0.9, 0.9, -0.62, 0.7] as Box }, board: { elevation: 26, lift: 0.6, box: [-1, 1, -0.6, 0.6] as Box } }
+  phone: { fov: 58, world: { elevation: 26, box: [-0.9, 0.9, -0.62, 0.7] as Box }, board: { elevation: 26, lift: 0.6, box: [-0.94, 0.94, -0.6, 0.6] as Box } }
 } as const;
 const LOOK = { elevation: 16, azimuth: 0.5 } as const;
 /** How far the spine's tip hangs below the last board, and how far the machine's middle stands below its top, m. */

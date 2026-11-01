@@ -77,10 +77,7 @@ export function stackPlaces(areas: readonly AreaSpec[]): BoardPlace[] {
   return [
     power,
     ...areas.map(({ category, projects }, k): BoardPlace => {
-      // Turned with its stop by the camera's half turns on the way down (./worldPath.ts `floorTurn`): a socket at facing a
-      // stands at (sin a, cos a), so the camera's turn of −π(k + 1) moves it by +π(k + 1), and each board is seen at its
-      // stop exactly as before the half turn (round 15, Bob: "Yes, half per floor").
-      const facing = STACK.first + k * STACK.turn + Math.PI * (k + 1);
+      const facing = STACK.first + k * STACK.turn;
       return {
         index: k + 1,
         category,

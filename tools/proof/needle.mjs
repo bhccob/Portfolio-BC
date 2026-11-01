@@ -5010,9 +5010,9 @@ async function keyboard(browser, step) {
   const atStart = await debugOf(page);
   step.check(atStart.chapter.id === 'HOME' && atStart.phase.kind === 'HOME_IDLE', `and to HOME, HOME_IDLE (got ${JSON.stringify([atStart.chapter, atStart.phase])})`);
 
-  // The arrows from BOB from above: each fact at its peak, the world, each area, each mark of the Q&A.
+  // The arrows from BOB from above: each fact at its peak, the world, each area, and through the dissolve to question 1.
   await poseAt(page, RISE_TOP);
-  const walk = keyStops(HOME_CHAPTERS).filter((stop) => stop > RISE_TOP);
+  const walk = keyStops(HOME_CHAPTERS).filter((stop) => stop > RISE_TOP && stop <= QA_STOPS[0] + 1e-9);
   const reachedStops = [];
   for (const stop of walk) {
     await page.keyboard.press('ArrowDown');
@@ -5021,6 +5021,14 @@ async function keyboard(browser, step) {
     step.check(near(rested.target, stop, 1e-9) && near(rested.progress, rested.target, 1e-4), `ArrowDown steps to the next key stop, ${stop.toFixed(4)} (got ${rested.target})`);
     await page.waitForTimeout(150);
   }
+
+  // Past question 1 the Q&A is free like a page (round 15): an arrow glides it 0.35 of a question, Page Down a whole one.
+  await page.keyboard.press('ArrowDown');
+  const arrowed = await restAt(page);
+  step.check(near(arrowed.target, QA_STOPS[0] + 0.35 * (QA_STOPS[1] - QA_STOPS[0]), 1e-9) && near(arrowed.progress, arrowed.target, 1e-4), `in the free Q&A ArrowDown glides 0.35 of a question on (got ${arrowed.target})`);
+  await page.keyboard.press('PageDown');
+  const paged = await restAt(page);
+  step.check(near(paged.target, QA_STOPS[0] + 1.35 * (QA_STOPS[1] - QA_STOPS[0]), 1e-9) && near(paged.progress, paged.target, 1e-4), `in the free Q&A Page Down glides a whole question on (got ${paged.target})`);
 
   // At the Website board, Jontai Energy's: Tab from the language switch reaches its name in the board's words, then the
   // boards' dots, then the skip button; Enter on it.
@@ -6481,8 +6489,10 @@ async function areasStep(browser, step) {
       const tops = state.journey.world?.tops ?? [];
       const [ex, ey, ez] = state.camera.position;
       step.check(
-        tops.length > area.index + 1 && Math.abs(ex - centre[0]) < 0.01 && ez > centre[2] && ey > tops[area.index + 1],
-        `${at}: the camera rests in front of the stack as at the whole machine, not turned to a project (x ${(ex - centre[0]).toFixed(3)} m off the axis, z ${(ez - centre[2]).toFixed(2)} m out), over the board in view (eye ${ey.toFixed(2)}, its top ${tops[area.index + 1]?.toFixed(2)})`,
+        // Round 15: half a turn round the stack to each board, so the first and the third are seen from behind it, the
+        // second from the front, as at the whole machine; never turned to a project (on the axis's line).
+        tops.length > area.index + 1 && Math.abs(ex - centre[0]) < 0.01 && Math.sign(ez - centre[2]) === (area.index % 2 === 0 ? -1 : 1) && ey > tops[area.index + 1],
+        `${at}: the camera rests on the side half a turn a board leaves it (${area.index % 2 === 0 ? 'behind the stack' : 'in front of it'}), not turned to a project (x ${(ex - centre[0]).toFixed(3)} m off the axis, z ${(ez - centre[2]).toFixed(2)} m out), over the board in view (eye ${ey.toFixed(2)}, its top ${tops[area.index + 1]?.toFixed(2)})`,
       );
       const own = PROJECT_LIST.filter((p) => p.index === area.index);
       for (const project of own) {
