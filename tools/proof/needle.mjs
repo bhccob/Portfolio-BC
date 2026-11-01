@@ -6992,6 +6992,8 @@ async function qaEnd(browser, step) {
       if (touch) await nudge(page, cdp, 1, 600);
       else for (let k = 0; k < 7; k++) await nudge(page, cdp, 1, 100);
       const took = await ringRestsAt(page, QA_END, 8_000);
+      // The scene's own report of it comes with the next frame drawn: wait for the end there too.
+      await page.waitForFunction(() => window.__needleDebug().journey.qa?.stretch === 'end', null, { timeout: 2_000 }).catch(() => {});
       return took === null ? null : Date.now() - began;
     };
     const took = await toEnd();
