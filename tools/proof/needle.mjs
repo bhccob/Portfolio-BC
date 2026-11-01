@@ -4842,8 +4842,9 @@ async function bridge(browser, step) {
   );
   step.check(Number.isFinite(at.needleAngle) && Math.abs(at.needleAngle) <= Math.PI * 2, `the needle's angle is reported, in radians (got ${at.needleAngle})`);
   step.check(
-    JSON.stringify(at.scroll) === JSON.stringify({ u: 0, letters: 0, iris: 0, needleDip: 0 }),
-    `and the scroll's pose is reported, at the home before any scroll: u, letters, iris and needleDip all 0 (got ${JSON.stringify(at.scroll)})`,
+    // Round 16: with the dial's level and words beside them (the dial's own step checks those).
+    JSON.stringify({ u: at.scroll.u, letters: at.scroll.letters, iris: at.scroll.iris, needleDip: at.scroll.needleDip }) === JSON.stringify({ u: 0, letters: 0, iris: 0, needleDip: 0 }) && typeof at.scroll.dial === 'number' && typeof at.scroll.dialText === 'string',
+    `and the scroll's pose is reported, at the home before any scroll: u, letters, iris and needleDip all 0, the dial's level and words with them (got ${JSON.stringify(at.scroll)})`,
   );
   step.check(
     at.journey.stretch === 'rise' && at.journey.local === 0 && at.journey.project === null && VOID_STATES.includes(at.journey.voidState),
