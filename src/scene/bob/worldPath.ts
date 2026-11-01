@@ -12,9 +12,9 @@
  *   tower"); the closed stack explodes open over the power's middle, each board sliding down to its place; the light
  *   stays on the lid, its trail standing above it as a still column; the camera comes down out of the fall to look at
  *   the light coming in, then pulls slowly back over the power-on to the whole machine by `LAND_STOP`;
- * - AREA, one per board of the stack: the camera goes down to the board, turning once round the stack's axis on the way
- *   (`FLOOR_TURN`, ./around.ts), from the front by `AREA_STOP`; the board in view lit, the others stepped back, its
- *   caption in;
+ * - AREA, one per board of the stack: the camera goes down to the board, turning half round the stack's axis on the way
+ *   (`FLOOR_TURN`, ./around.ts), the board turned with it, so it stands at `AREA_STOP` seeing the board as from the front;
+ *   the board in view lit, the others stepped back, its caption in;
  * - from the last board's stop, the Q&A's door, the way out (round 14, ./wayOut.ts): the tower held as the last board's
  *   stop shows it while it turns into a blueprint under the dark the sky brings (src/ui/outSky.ts), its words going with
  *   the dark, then held, unseen, through the Q&A in the stars and the flight to the end.
@@ -102,11 +102,16 @@ export const TOWER_ZOOM = 1.25;
 
 /**
  * The camera's turn round the tower on the way down to each board, radians, as `turnedRound` (./around.ts) measures it
- * (Bob, 2026-10-31: "when camera transition (go down) to each floor it atleast rotate the go down so it doesnt look so
- * stale and boring i want it to be sort of like dramatic"; shown four ways, he picked "B · one turn round the tower"):
- * one whole turn, setting off to the right, with the scroll, so it arrives at the board from the front as before.
+ * (Bob, 2026-10-31, round 12: a whole turn, "sort of like dramatic"; 2026-11-01, round 15: "can you make the scroll to
+ * rotate around the tower less agressive", then "Yes, half per floor"): half a turn, the same way each time, with the
+ * scroll. Each board is turned with its stop (./worldLayout.ts `stackPlaces`), so the camera sees it there as before.
  */
-export const FLOOR_TURN = -2 * Math.PI;
+export const FLOOR_TURN = -Math.PI;
+
+/** The turn the camera and board `i` (0-based among the category boards) stand at; the world's stop (−1) 0. */
+export function floorTurn(i: number): number {
+  return i < 0 ? 0 : FLOOR_TURN * (i + 1);
+}
 
 /** The gyroscope rings round the stack step back to this at a board's stop (and the way out holds it), so the thing in view leads. */
 export const RINGS_FOCUS = 0.42;
@@ -312,7 +317,9 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS, { zoo
   // still go into specific project when scroll and i dont want that just make it slightly zoom in each foor but not too
   // close"): never turned to its projects, the board's middle in the middle of the screen.
   const boardShots = boards.map((b): CameraShot => framed(rimOf(b, C), [C[0], b.top + F.board.lift, C[2]], 0, F.board.elevation * DEG, F.board.box));
-  const stopShot = (i: number): CameraShot => (i < 0 ? worldShot : boardShots[i]!);
+  /** A board's stop as framed from the front (the moves turn round from these), and as the camera stands there, turned. */
+  const frontShot = (i: number): CameraShot => (i < 0 ? worldShot : boardShots[i]!);
+  const stopShot = (i: number): CameraShot => (i < 0 ? worldShot : turnedRound(boardShots[i]!, C, floorTurn(i)));
 
   // The light: from the hand-over straight down onto the lid, carrying the fall's speed in and easing into the hit (Bob:
   // the drop was too fast; it quickened into the lid at twice the mean, now it settles at half).
@@ -363,8 +370,8 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS, { zoo
     if (s.kind === 'land') return t < LAND_HIT ? shotToward(handShot, landShot, ease(t / LAND_HIT)) : shotToward(landShot, worldShot, ease(seg(t, LAND_HIT, LAND_STOP)));
     if (s.kind === 'area') {
       const e = ease(seg(t, 0, AREA_STOP));
-      // At its stop and after, the board's own shot, exactly: the way out holds it (a whole turn is a float's hair off).
-      return e >= 1 ? stopShot(s.i) : turnedRound(aroundShot(stopShot(s.i - 1), stopShot(s.i), C, e), C, FLOOR_TURN * e);
+      // At its stop and after, the board's own shot, exactly: the way out holds it.
+      return e >= 1 ? stopShot(s.i) : turnedRound(aroundShot(frontShot(s.i - 1), frontShot(s.i), C, e), C, floorTurn(s.i - 1) + FLOOR_TURN * e);
     }
     // The way out: the last board's stop, held.
     return stopShot(count - 1);

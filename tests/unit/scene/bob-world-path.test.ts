@@ -4,7 +4,8 @@ import { project } from '~/scene/bob/fit';
 import { lightAt } from '~/scene/bob/lightDive';
 import { RING_MARKS } from '~/data/qa';
 import { WAY_OUT, wayOutAt } from '~/scene/bob/wayOut';
-import { EXPLODE, FLASH_GONE, LAND_HIT, LOOK_BOX, makeWorldPath, NAMES_IN, POWER, TOWER_ZOOM, type WorldFrame } from '~/scene/bob/worldPath';
+import { turnedRound } from '~/scene/bob/around';
+import { EXPLODE, FLASH_GONE, FLOOR_TURN, floorTurn, LAND_HIT, LOOK_BOX, makeWorldPath, NAMES_IN, POWER, TOWER_ZOOM, type WorldFrame } from '~/scene/bob/worldPath';
 import { boardCentre, boardTops, LID_TOP, STACK, stackPlaces } from '~/scene/bob/worldLayout';
 import { AREA_STOP, areaStop, areasOnPath, buildChapters, type Chapters, HAND_F, HOME_CHAPTERS, LAND_STOP, pathStart, placeOfFrame, qaDoor, qaStop, scrollEnd, WORLD_LAYOUT, worldStop } from '~/state/chapters';
 import { easeInOutQuart } from '~/input/scrollLoop';
@@ -302,9 +303,11 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
         const where = `${area.category} at ${aspect.toFixed(2)}`;
         expect(f.part).toBe('area');
         expect(f.index).toBe(i);
-        // From the front, the way the whole machine is seen, whichever way the board's projects face.
-        expect(Math.abs(f.shot.position[0] - C[0]), where).toBeLessThan(1e-9);
-        expect(f.shot.position[2], where).toBeGreaterThan(C[2]);
+        // From the front, the way the whole machine is seen, whichever way the board's projects face, once turned back by
+        // the camera's half turns on the way down (the board is turned with it, round 15).
+        const front = turnedRound(f.shot, C, -floorTurn(i));
+        expect(Math.abs(front.position[0] - C[0]), where).toBeLessThan(1e-9);
+        expect(front.position[2], where).toBeGreaterThan(C[2]);
         // Looking at the board's middle, a little over its top.
         expect(f.shot.target[0], where).toBeCloseTo(C[0], 9);
         expect(f.shot.target[2], where).toBeCloseTo(C[2], 9);
@@ -340,9 +343,13 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
     }
   });
 
-  // Bob (2026-10-31): "when camera transition (go down) to each floor it atleast rotate the go down so it doesnt look so
-  // stale and boring i want it to be sort of like dramatic"; shown four ways, he picked "B · one turn round the tower".
-  it('turns the camera once round the tower on the way down to each board, starting to its right, with the scroll', () => {
+  // Bob (2026-11-01, round 15): "can you make the scroll to rotate around the tower less agressive"; shown four ways and
+  // asked, "Yes, half per floor": half a turn round the tower on the way down to each board, the same way each time.
+  it('turns the camera half round the tower on the way down to each board, the same way each time', () => {
+    expect(FLOOR_TURN).toBe(-Math.PI);
+    expect(floorTurn(-1)).toBe(0);
+    expect(floorTurn(0)).toBe(-Math.PI);
+    expect(floorTurn(2)).toBe(-3 * Math.PI);
     const angle = (p: Vec3): number => Math.atan2(p[2] - C[2], p[0] - C[0]);
     for (const aspect of [DESK, PHONE]) {
       areasOnPath().forEach((area) => {
@@ -353,18 +360,41 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
         let last = angle(home(aspect, placeAt(0, 400)).shot.position);
         for (let k = 1; k <= 400; k++) {
           const now = angle(home(aspect, placeAt(k, 400)).shot.position);
-          turned += Math.atan2(Math.sin(now - last), Math.cos(now - last));
+          const step = Math.atan2(Math.sin(now - last), Math.cos(now - last));
+          // Always the same way round: never a step back.
+          expect(step, where).toBeLessThanOrEqual(1e-9);
+          turned += step;
           last = now;
         }
-        expect(turned, where).toBeCloseTo(-2 * Math.PI, 6);
-        // It sets off to the right, and half way down it looks from behind the tower.
-        expect(home(aspect, placeAt(1, 4)).shot.position[0], where).toBeGreaterThan(C[0] + 1);
+        expect(turned, where).toBeCloseTo(-Math.PI, 6);
+        // Still looking at the tower's middle half way down.
         const half = home(aspect, placeAt(1, 2)).shot;
-        expect(half.position[2], where).toBeLessThan(C[2]);
-        // (Within a hair: the whole machine's view, where the first move starts, looks a little aside.)
-        expect(Math.abs(half.position[0] - C[0]), where).toBeLessThan(0.25);
-        // Still looking at the tower's middle all the way round.
         expect(Math.hypot(half.target[0] - C[0], half.target[2] - C[2]), where).toBeLessThan(0.25);
+      });
+    }
+  });
+
+  it('sees each board at its stop exactly as before: the board and its stop turned alike', () => {
+    const step = STACK.apart / STACK.ring;
+    for (const aspect of [DESK, PHONE]) {
+      const path = makeWorldPath(aspect);
+      const front = Math.atan2(path.worldShot.position[2] - C[2], path.worldShot.position[0] - C[0]);
+      BOARDS.slice(1).forEach((board, i) => {
+        const where = `board ${i} at ${aspect.toFixed(2)}`;
+        const stop = path.areaShot(i);
+        // Turned back, the stop is the front one the boards were framed from before the half turn.
+        const before = turnedRound(stop, C, -floorTurn(i));
+        expect(Math.atan2(before.position[2] - C[2], before.position[0] - C[0]), where).toBeCloseTo(front, 9);
+        const facing = STACK.first + i * STACK.turn;
+        board.sockets.forEach((s, j) => {
+          const a = facing + (j - (board.sockets.length - 1) / 2) * step;
+          const was: Vec3 = [Math.sin(a) * STACK.ring, board.top, Math.cos(a) * STACK.ring];
+          const now: Vec3 = [s.at[0], board.top, s.at[1]];
+          const seen = project(now, stop, aspect);
+          const seenBefore = project(was, before, aspect);
+          expect(seen.x, where).toBeCloseTo(seenBefore.x, 9);
+          expect(seen.y, where).toBeCloseTo(seenBefore.y, 9);
+        });
       });
     }
   });

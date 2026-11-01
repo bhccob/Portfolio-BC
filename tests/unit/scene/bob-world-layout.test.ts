@@ -9,6 +9,8 @@ const flat = (p: Vec3, c: Vec3): number => Math.hypot(p[0] - c[0], p[2] - c[2]);
 const DEG = Math.PI / 180;
 /** The angle round the stack of a point on a board, the mock-up's way: (x, z) = (sin a, cos a) · r. */
 const angleOf = (at: readonly [number, number]): number => Math.atan2(at[0], at[1]);
+/** An angle as −π..π, so a facing turned by whole half turns compares with the socket's own angle. */
+const wrap = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
 
 describe("the stack's places: the power board, a board per category below, sockets on each board's ring", () => {
   it('sizes the stack as the mock-up Bob approved did', () => {
@@ -61,18 +63,18 @@ describe("the stack's places: the power board, a board per category below, socke
     expect(stackPlaces(areasOnPath(list)).map((b) => b.category)).toEqual([null, 'app', 'game']);
   });
 
-  it('turns each category board 75° further round the stack, the first at -40°', () => {
+  it('turns each category board 75° further round the stack, the first at -40°, then half a turn more for each floor down (round 15)', () => {
     const boards = stackPlaces(areasOnPath());
-    expect(boards[1]!.facing).toBeCloseTo(-40 * DEG, 12);
-    expect(boards[2]!.facing).toBeCloseTo(35 * DEG, 12);
-    expect(boards[3]!.facing).toBeCloseTo(110 * DEG, 12);
+    expect(boards[1]!.facing).toBeCloseTo(-40 * DEG + Math.PI, 12);
+    expect(boards[2]!.facing).toBeCloseTo(35 * DEG + 2 * Math.PI, 12);
+    expect(boards[3]!.facing).toBeCloseTo(110 * DEG + 3 * Math.PI, 12);
   });
 
   it("stands a board's projects on the side it faces, 4.4 out and 3.4 apart along the ring", () => {
     const [, one] = stackPlaces([{ category: 'website', projects: ['jontai-energy'] }]);
     const [socket] = one!.sockets;
     expect(Math.hypot(...socket!.at)).toBeCloseTo(4.4, 12);
-    expect(angleOf(socket!.at)).toBeCloseTo(one!.facing, 12);
+    expect(wrap(angleOf(socket!.at) - one!.facing)).toBeCloseTo(0, 12);
     // `out` is level, a unit long, the way from the spine through the socket.
     expect(socket!.out[1]).toBe(0);
     expect(socket!.out[0]).toBeCloseTo(Math.sin(one!.facing), 12);
@@ -80,9 +82,9 @@ describe("the stack's places: the power board, a board per category below, socke
 
     const [, three] = stackPlaces([{ category: 'game', projects: ['steady', 'portle', 'cookies-clicker'] }]);
     const angles = three!.sockets.map((s) => angleOf(s.at));
-    for (let k = 1; k < angles.length; k++) expect((angles[k]! - angles[k - 1]!) * 4.4).toBeCloseTo(3.4, 6);
+    for (let k = 1; k < angles.length; k++) expect(wrap(angles[k]! - angles[k - 1]!) * 4.4).toBeCloseTo(3.4, 6);
     // The middle one stands on the side the board faces; the three either side of it.
-    expect(angles[1]).toBeCloseTo(three!.facing, 12);
+    expect(wrap(angles[1]! - three!.facing)).toBeCloseTo(0, 12);
   });
 
   it("keeps every socket clear of the spine's hole and inside its board", () => {
