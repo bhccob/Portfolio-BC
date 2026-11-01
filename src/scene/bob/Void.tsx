@@ -9,6 +9,7 @@ import { buildGyro, type GyroModel } from '~/engine/bob/build/gyro';
 import { buildEngraved, type EngravedModel } from '~/engine/bob/build/engraved';
 import { circuitOnScreen, type LightModel } from '~/engine/bob/build/light';
 import { buildNebula, type NebulaModel } from '~/engine/bob/build/nebula';
+import { buildStardust, type StardustModel, stardustPose } from '~/engine/bob/build/stardust';
 import { buildStars, type StarsModel, starsFall, starsRound } from '~/engine/bob/build/stars';
 import { buildStorm, type StormModel } from '~/engine/bob/build/storm';
 import { buildVoid, VOID_LOOK, type VoidModel } from '~/engine/bob/build/void';
@@ -40,8 +41,8 @@ import { loadStormPlates } from './stormPlates';
 import { easeHover, hoverEase, hoversAt, nearestSphere, needleFor, needleGlowFor, pointerMode, voidShownAt } from './voidPose';
 import { loadVoid, type VoidLoadSteps } from './voidLoad';
 import { uploadTextures, warm } from './warm';
-import { boardCentre, boardTops, stackPlaces } from './worldLayout';
-import { type WorldFrame, type WorldPath, worldPathFor } from './worldPath';
+import { boardCentre, boardTops, STACK, stackPlaces } from './worldLayout';
+import { towerStands, type WorldFrame, type WorldPath, worldPathFor } from './worldPath';
 
 /** The longest step the void's clocks take in one frame, seconds: a wake from sleep jumps nothing. */
 const MAX_STEP = 0.1;
@@ -86,6 +87,8 @@ interface WorldParts {
   /** The gyroscope rings and the realistic stars round the stack (spec 2026-10-29-bob-stack-2-design.md, goal 3). */
   gyro: GyroModel;
   stars: StarsModel;
+  /** The tower as points of light on the way out, and the field they settle in (round 15, ../../engine/bob/build/stardust.ts). */
+  dust: StardustModel;
   shown: boolean | null;
 }
 
@@ -204,6 +207,7 @@ function showWorld(world: WorldParts, shown: boolean): void {
     world.qa.hide();
     world.gyro.group.visible = false;
     world.stars.group.visible = false;
+    world.dust.points.visible = false;
   }
 }
 
@@ -468,9 +472,11 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
         // The gyroscope rings and the stars round the stack, built and warmed with it.
         const gyro = buildGyro([STACK_CENTRE[0], MACHINE_MIDDLE, STACK_CENTRE[2]]);
         const stars = buildStars(starsRound(STACK_CENTRE, MACHINE_MIDDLE), latest.current.tier);
-        gyro.group.visible = stars.group.visible = true;
+        // The stardust the tower dissolves into on the way out, built and warmed with it.
+        const dust = buildStardust({ centre: STACK_CENTRE, tops: boardTops(STACK_PLACES, 0), core: STACK.core, radius: STACK.radius }, latest.current.tier);
+        gyro.group.visible = stars.group.visible = dust.points.visible = true;
         const holder = new THREE.Group();
-        holder.add(model.group, gyro.group, stars.group);
+        holder.add(model.group, gyro.group, stars.group, dust.points);
         model.pose({
           power: 1,
           flash: 0,
@@ -493,22 +499,24 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
           qa.dispose();
           gyro.dispose();
           stars.dispose();
+          dust.dispose();
           throw error;
         }
-        holder.remove(model.group, gyro.group, stars.group);
-        gyro.group.visible = stars.group.visible = false;
+        holder.remove(model.group, gyro.group, stars.group, dust.points);
+        gyro.group.visible = stars.group.visible = dust.points.visible = false;
         if (disposed) {
           model.dispose();
           qa.dispose();
           gyro.dispose();
           stars.dispose();
+          dust.dispose();
           return null;
         }
-        return { model, qa, gyro, stars, shown: null };
+        return { model, qa, gyro, stars, dust, shown: null };
       },
       onWorld: (world) => {
         showWorld(world, false);
-        scene.add(world.model.group, world.gyro.group, world.stars.group);
+        scene.add(world.model.group, world.gyro.group, world.stars.group, world.dust.points);
         run.world = world;
         if (useScene.getState().scene !== null) invalidate();
       },
@@ -545,11 +553,12 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
         space.stars.dispose();
       }
       if (world) {
-        scene.remove(world.model.group, world.gyro.group, world.stars.group);
+        scene.remove(world.model.group, world.gyro.group, world.stars.group, world.dust.points);
         world.model.dispose();
         world.qa.dispose();
         world.gyro.dispose();
         world.stars.dispose();
+        world.dust.dispose();
       }
       frame.journey.qa = null;
       const engraved = run.engraved;
@@ -855,7 +864,20 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
         // The gyroscope rings, lit with the power and stepped back at a board and in the Q&A, quieter with a project open;
         // the stars round the stack in with them.
         world.gyro.pose({ level: path.rings.level * openWorld(opened), focus: path.rings.focus, clock: clock.time });
-        world.stars.pose({ level: path.rings.level, clock: clock.time });
+        // The stars round the stack stay on the way out, where the rings go with the solid tower (round 15).
+        const stands = towerStands(path.qa);
+        world.stars.pose({ level: stands ? path.rings.level : (path.boardPower[0] ?? 1), clock: clock.time });
+        // The tower dissolved on the way out: the solid one, its projects and the rings gone once its points stand over it,
+        // the points flown out to the field; back whenever the story leaves the way out, or a project is close.
+        const solid = stands || close.id !== null;
+        world.model.group.visible = solid;
+        world.gyro.group.visible = world.gyro.group.visible && solid;
+        const fov = ((camera as THREE.PerspectiveCamera).fov * Math.PI) / 180;
+        const dust = close.id === null ? stardustPose(path.qa?.out ?? null, clock.time, reducedMotion, (size.height * gl.getPixelRatio()) / (2 * Math.tan(fov / 2))) : null;
+        world.dust.points.visible = dust !== null;
+        if (dust) world.dust.pose(dust);
+      } else {
+        world.dust.points.visible = false;
       }
       // The Q&A in the stars, the way out (./qaScene.ts): the list, its light and the end's words on the page; on the home
       // page alone, and not while a project is close.

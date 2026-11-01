@@ -185,6 +185,14 @@ export interface QaFrame {
   out: WayOutView;
 }
 
+/**
+ * Whether the solid tower, its projects and the gold rings stand in the scene (round 15): off the way out, at its door
+ * and through the dissolve until its points have taken the tower's place (`WayOutView.solid`).
+ */
+export function towerStands(qa: QaFrame | null): boolean {
+  return qa === null || qa.place <= -1 || qa.out.solid;
+}
+
 /** One moment of the stack's path. */
 export interface WorldFrame {
   part: WorldPart;
