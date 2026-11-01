@@ -29,7 +29,7 @@ import { motion } from '../motion';
 import { engravedLevels, shaftRings } from './engravedWay';
 import type { Handover } from './Home';
 import { journeyAt, type JourneyAt, type LightPose, WORLD_PROJECTS } from './journey';
-import { floorGlow } from './floorGlow';
+import { towerBreath } from './breathe';
 import { LOOK } from './look';
 import { setGasPass } from '../gasPass';
 import { fallStarsLevel, nebulaLevels } from './nebulaWay';
@@ -116,6 +116,8 @@ interface VoidRun {
    * last frame, to see them change.
    */
   clock: { time: number; stirred: number; place: number; open: ProjectId | null };
+  /** The tower's breath the world was last posed with (./breathe.ts), for the proof's report. */
+  breath: number;
   /** The hover, eased one project at a time (its place in `WORLD_PROJECTS`), and the project under the pointer now. */
   hover: ReturnType<typeof hoverEase>;
   pointed: number | null;
@@ -396,6 +398,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
     nebulaAsked: null,
     time: 0,
     clock: { time: 0, stirred: Number.NEGATIVE_INFINITY, place: Number.NaN, open: null },
+    breath: 0,
     hover: hoverEase(),
     pointed: null,
     reading: false,
@@ -494,7 +497,8 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
           boardPower: STACK_PLACES.map(() => 1),
           boardLight: STACK_PLACES.map(() => 1),
           lift: NONE_LIFTED,
-          spot: null
+          spot: null,
+          breath: 0
         });
         try {
           uploadTextures(gl, texturesUnder(holder));
@@ -833,12 +837,10 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       if (ticking) clock.time += dt0;
       if (on && path) {
         const levels = { ...path.levels };
-        // At a floor's stop its projects breathe softly brighter, so it shows where to point (round 10, ./floorGlow.ts).
-        const at = journeyAt(frame.progress);
-        if (at.stretch === 'area' && at.project !== null) {
-          const glow = floorGlow(now / 1000, reducedMotion);
-          for (const id of areasOnPath()[at.project]?.projects ?? []) if (levels[id] !== undefined) levels[id] *= glow;
-        }
+        // Every project and its socket breathe together, on every floor, all the time (round 16, ./breathe.ts): on the
+        // page's time, so at rest the storm's frames carry it.
+        const breath = towerBreath(now / 1000, reducedMotion);
+        run.breath = breath;
         const hovered = run.hover.id === null ? null : WORLD_PROJECTS[run.hover.id];
         if (hovered && levels[hovered] !== undefined) levels[hovered] *= 1 + HOVER_LIFT * run.hover.amount;
         // Each project as far up to the spot as the move has it (the shown one, and those on their way down), lit as it
@@ -862,7 +864,8 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
           boardPower: path.boardPower,
           boardLight: path.boardLight,
           lift,
-          spot
+          spot,
+          breath
         });
         // What the boards, the spine and the CPU reflect turns with the camera round the stack, so they look the same from every side.
         world.model.turn(Math.atan2(camera.position.x - STACK_CENTRE[0], camera.position.z - STACK_CENTRE[2]));
@@ -912,7 +915,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
     motion.beads = moving;
     if (proof) {
       frame.journey.world = path
-        ? { power: path.power, names: path.names, caption: path.caption ? { ...path.caption } : null, dots: path.dots, explode: path.explode, tops: boardTops(STACK_PLACES, path.explode), lift: { ...(close.id !== null ? close.lifts : NONE_LIFTED) }, tower: world?.model.group.visible ?? false, dust: world?.dust.points.visible ?? false }
+        ? { power: path.power, names: path.names, caption: path.caption ? { ...path.caption } : null, dots: path.dots, explode: path.explode, tops: boardTops(STACK_PLACES, path.explode), lift: { ...(close.id !== null ? close.lifts : NONE_LIFTED) }, tower: world?.model.group.visible ?? false, dust: world?.dust.points.visible ?? false, breath: run.breath }
         : null;
     }
     if (!shown) return;

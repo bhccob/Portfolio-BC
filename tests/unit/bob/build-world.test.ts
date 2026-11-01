@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { projects, type ProjectId } from '~/data/projects';
-import { buildWorld, type WorldModel, type WorldPose } from '~/engine/bob/build/world';
+import { breathedLevel, buildWorld, WORLD_LOOK, type WorldModel, type WorldPose } from '~/engine/bob/build/world';
 import type { CameraShot } from '~/engine/bob/shots';
 import { spotFor } from '~/scene/bob/spot';
 import { boardCentre, boardTops, STACK, stackPlaces } from '~/scene/bob/worldLayout';
@@ -47,6 +47,7 @@ const pose = (over: Partial<WorldPose> = {}): WorldPose => ({
   boardLight: BOARDS.map(() => 1),
   lift: each(0),
   spot: null,
+  breath: 0,
   ...over
 });
 const named = (model: WorldModel, name: string): THREE.Object3D => {
@@ -194,6 +195,35 @@ describe('the world as the stack: its boards, the spine, the socketed CPU, the s
     model.pose(pose({ lift: { ...each(0), steady: 0.5 }, spot: SPOT }));
     const half = worldOf(hit);
     expect(half.y).toBeGreaterThan(OPEN[1]! + STACK.hover + 1);
+  });
+
+  // Round 16 (Bob: "Breathe (A) but make it so everytime it breathes regardless if its not on that floor"): every socket
+  // and project brighter with the tower's breath, the mock-up's numbers.
+  it('breathes each socket with the tower', () => {
+    expect(WORLD_LOOK.breath).toEqual({ object: 2.2, glow: 5, ring: 3, column: 6 });
+    const model = build();
+    const read = (): [number, number, number] => {
+      const glow = (named(model, 'world:socket:steady:glow') as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>).material.opacity;
+      const ring = (named(model, 'world:socket:steady:ring') as THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>).material.uniforms.uLevel!.value as number;
+      const column = (named(model, 'world:socket:steady:column') as THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>).material.uniforms.uLevel!.value as number;
+      return [glow, ring, column];
+    };
+    model.pose(pose({ breath: 0 }));
+    const still = read();
+    model.pose(pose({ breath: 1 }));
+    const full = read();
+    expect(still.every((v) => v > 0)).toBe(true);
+    expect(full[0] / still[0]).toBeCloseTo(6, 9);
+    expect(full[1] / still[1]).toBeCloseTo(4, 9);
+    expect(full[2] / still[2]).toBeCloseTo(7, 9);
+  });
+
+  it("breathes a project's light on its socket, and holds a risen one steady", () => {
+    expect(breathedLevel(1, 0, 0)).toBe(1);
+    expect(breathedLevel(1, 1, 0)).toBeCloseTo(3.2, 12);
+    expect(breathedLevel(0.45, 0.5, 0)).toBeCloseTo(0.45 * 2.1, 12);
+    expect(breathedLevel(1.1, 1, 1)).toBe(1.1);
+    expect(breathedLevel(1, 1, 0.5)).toBeCloseTo(2.1, 12);
   });
 
   it("moves a project's click sphere with its object", () => {

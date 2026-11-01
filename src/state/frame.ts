@@ -36,6 +36,8 @@ export interface WorldOnScreen {
   /** Whether the solid tower is drawn, and the stardust it dissolves into (round 15, the way out). */
   tower: boolean;
   dust: boolean;
+  /** The tower's breath the world was last posed with, 0..1 (round 16, ~/scene/bob/breathe.ts). */
+  breath: number;
 }
 
 /**

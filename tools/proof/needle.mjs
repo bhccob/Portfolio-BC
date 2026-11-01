@@ -4512,6 +4512,14 @@ async function storm(browser, step) {
     const settled = await settlesToStorm(page, (IDLE_SECONDS + 4) * 1000);
     const fps = await framesPerSecond(page, 2_000);
     step.check(settled !== null && fps <= STORM_FPS_MAX && fps >= STORM.fps / 3, `${at}: left alone there the canvas draws the storm alone, ${fps.toFixed(1)} frames a second (between ${STORM.fps / 3} and ${STORM_FPS_MAX})`);
+    // Round 16: and on the storm's frames the tower still breathes, at no frame more.
+    // Three reads 0.4 s apart: a third of a breath, so they differ by at least 0.25 wherever the breath stands.
+    const breaths = [];
+    for (let k = 0; k < 3; k++) {
+      if (k) await page.waitForTimeout(400);
+      breaths.push((await debugOf(page)).journey.world?.breath ?? 0);
+    }
+    step.check(Math.max(...breaths) - Math.min(...breaths) > 0.1, `${at}: and the tower still breathes on its frames (${breaths.map((b) => b.toFixed(3)).join(', ')}, 0.4 s apart)`);
     summary.push(`${at}: in at ${STORM.sky.home} and moving (${moved.toFixed(4)} over 3 s), ${STORM.sky.fall} in the fall, ${STORM.sky.void} at the world, ${fps.toFixed(1)} fps alone`);
     await takeCsp(page, step);
     await context.close();
@@ -6572,9 +6580,18 @@ async function projectView(browser, step) {
     await poseAt(page, first.stop);
     await restAt(page);
     await page.waitForTimeout(600);
-    // Round 10 (Bob: the projects glow "so users know where to hover"): at its floor its projects breathe.
+    // Round 10 (Bob: the projects glow "so users know where to hover"), round 16 ("Breathe (A) ... regardless if its not
+    // on that floor"): at its floor its projects breathe, and at the whole machine's stop, before any floor, they do too.
     const breath = await glowBreathes(page, first.id);
     step.check(breath >= GLOW_MOVES, `${at}: at its floor ${first.id} breathes: the light round its object changes ${breath.toFixed(4)} over a breath (at least ${GLOW_MOVES})`);
+    await poseAt(page, worldStop(HOME_CHAPTERS));
+    await restAt(page);
+    await page.waitForTimeout(600);
+    const whole = await glowBreathes(page, third.id);
+    step.check(whole >= GLOW_MOVES, `${at}: at the whole machine's stop ${third.id} breathes too: the light round its object changes ${whole.toFixed(4)} over a breath (at least ${GLOW_MOVES})`);
+    await poseAt(page, first.stop);
+    await restAt(page);
+    await page.waitForTimeout(600);
     const by = touch ? 'a tap on its object' : 'a click on its object';
     const openFirst = () => opensProject(page, step, at, first.id, by, () => pressObject(page, touch, first.id), path);
     const took = await openFirst();
@@ -6686,9 +6703,11 @@ async function projectView(browser, step) {
     await poseAt(page, first.stop);
     await restAt(page);
     await page.waitForTimeout(400);
-    // Round 10: the floor's glow stands still with reduced motion.
+    // Round 10, round 16: the tower's breath stands still with reduced motion, held half way.
     const breath = await glowBreathes(page, first.id);
-    step.check(breath < GLOW_MOVES / 2, `reduced motion: the floor's glow stands still (the light round ${first.id}'s object changes ${breath.toFixed(4)})`);
+    step.check(breath < GLOW_MOVES / 2, `reduced motion: the tower's breath stands still (the light round ${first.id}'s object changes ${breath.toFixed(4)})`);
+    const held = [(await debugOf(page)).journey.world?.breath, await page.waitForTimeout(600).then(async () => (await debugOf(page)).journey.world?.breath)];
+    step.check(held.every((b) => b === 0.5), `reduced motion: and held half way, ${held.join(' then ')} (0.5)`);
     const watchFade = () =>
       page.evaluate(() => {
         window.__fadeSeen = false;
@@ -6717,7 +6736,7 @@ async function projectView(browser, step) {
 /** How much the light round a project's object must change over half the glow's breath to count (mean luma, 0..1). */
 const GLOW_MOVES = 0.004;
 
-/** The mean luma change in a 120 px box round project `id`'s object over half the floor glow's period. */
+/** The mean luma change in a 120 px box round project `id`'s object over the tower's breath. */
 async function glowBreathes(page, id) {
   const object = (await debugOf(page)).journey.objects?.find((o) => o.id === id);
   if (object === undefined) return 0;
@@ -6744,13 +6763,13 @@ async function glowBreathes(page, id) {
     const l = await lumaOf();
     low = Math.min(low, l);
     high = Math.max(high, l);
-    await page.waitForTimeout(FLOOR_GLOW_PERIOD_MS / 8);
+    await page.waitForTimeout(TOWER_BREATH_MS / 8);
   }
   return high - low;
 }
 
-/** The floor glow's breath, ms (src/scene/bob/floorGlow.ts). */
-const FLOOR_GLOW_PERIOD_MS = 2_800;
+/** The tower's breath, ms (src/scene/bob/breathe.ts, TOWER_BREATH.period). */
+const TOWER_BREATH_MS = 2_400;
 
 /** Each mark's stop on the Q&A's ring (src/state/chapters.ts `qaStop`): 0 is question 1, the last the end's. */
 const QA_STOPS = Array.from({ length: RING_MARKS }, (_, k) => qaStop(HOME_CHAPTERS, k));

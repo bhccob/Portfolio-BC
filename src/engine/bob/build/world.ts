@@ -34,15 +34,26 @@ import { buildSpine, type SpineModel } from './spine';
 /**
  * How the world looks (the mock-up's numbers, tuned there against the site's darkness limit): its colours; a socket's
  * glow and column; the CPU's lid from dark to powered and its glow beneath; the beam's and the open project's lamp's
- * light at a full lift.
+ * light at a full lift; how much more each part lights at the top of the tower's breath (round 16, the mock-up's option A:
+ * at a breath `b` the project's light times `1 + object·b`, its socket's glow, ring and column times `1 + glow·b`,
+ * `1 + ring·b` and `1 + column·b`; ~/scene/bob/breathe.ts).
  */
 export const WORLD_LOOK = {
   colour: { gold: 0xe2a54a, goldLight: 0xffbf6f, violet: 0x6a35b8, haze: 0x8a6cf2, deep: 0x140a24, night: 0x07040e },
   socket: { glow: 0.2, empty: 0.15, column: 0.2 },
   cpu: { lid: { dark: 0.15, powered: 1.25 }, under: 0.3 },
   beam: 0.16,
-  lamp: 9
+  lamp: 9,
+  breath: { object: 2.2, glow: 5, ring: 3, column: 6 }
 } as const;
+
+/**
+ * A project's light at the tower's breath `breath` (0..1) with it `risen` (0..1) off its socket: on its socket it breathes
+ * with the tower; on its way up to the spot it goes steady, so the open project is the one still, bright thing.
+ */
+export function breathedLevel(level: number, breath: number, risen: number): number {
+  return level * (1 + WORLD_LOOK.breath.object * breath * (1 - risen));
+}
 
 /** What the world is posed by, each frame. */
 export interface WorldPose {
@@ -72,6 +83,8 @@ export interface WorldPose {
    * stands there at its own size, `scale` over its radius. Null while nothing rises.
    */
   spot: SpotPose | null;
+  /** The tower's breath, 0..1 (~/scene/bob/breathe.ts): every project and its socket lit up with it. */
+  breath: number;
 }
 
 export interface WorldModel {
@@ -900,7 +913,7 @@ export function buildWorld(boards: readonly BoardPlace[], tier: QualityTier, roo
 
   /** A project's socket on its board: a gold collar, a glow, a turning dashed ring and a faint column up to the object. */
   const socketMetal = new THREE.MeshStandardMaterial({ color: 0x8a6a34, metalness: 1, roughness: 0.36 });
-  const socketFor = (id: ProjectId): { group: THREE.Group; set(clock: number, level: number, empty: number): void } => {
+  const socketFor = (id: ProjectId): { group: THREE.Group; set(clock: number, level: number, empty: number, breath: number): void } => {
     const socket = new THREE.Group();
     socket.name = `world:socket:${id}`;
     const collar = new THREE.Mesh(
@@ -922,6 +935,7 @@ export function buildWorld(boards: readonly BoardPlace[], tier: QualityTier, roo
     socketGlow.position.y = 0.006;
     const ringMaterial = additive(new THREE.ShaderMaterial({ vertexShader: UV_VERTEX, fragmentShader: RING_FRAGMENT, uniforms: { uTime: { value: 0 }, uLevel: { value: 1 }, uGold: { value: GOLD } } }));
     const ring = new THREE.Mesh(new THREE.RingGeometry(0.76, 0.79, 160).rotateX(-Math.PI / 2), ringMaterial);
+    ring.name = `world:socket:${id}:ring`;
     ring.position.y = 0.012;
     const columnMaterial = additive(
       new THREE.ShaderMaterial({
@@ -933,16 +947,18 @@ export function buildWorld(boards: readonly BoardPlace[], tier: QualityTier, roo
     );
     const height = STACK.hover * 0.9;
     const column = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.72, height, 64, 1, true).translate(0, height / 2, 0), columnMaterial);
+    column.name = `world:socket:${id}:column`;
     for (const m of [socketGlow, ring, column]) m.renderOrder = 3;
     socket.add(collar, socketGlow, ring, column);
     return {
       group: socket,
-      set(clock, level, empty) {
-        glowMaterial.opacity = (look.socket.glow + look.socket.empty * empty) * level;
+      set(clock, level, empty, breath) {
+        const up = look.breath;
+        glowMaterial.opacity = (look.socket.glow + look.socket.empty * empty) * level * (1 + up.glow * breath);
         ringMaterial.uniforms.uTime!.value = clock;
-        ringMaterial.uniforms.uLevel!.value = level;
+        ringMaterial.uniforms.uLevel!.value = level * (1 + up.ring * breath);
         columnMaterial.uniforms.uTime!.value = clock;
-        columnMaterial.uniforms.uLevel!.value = look.socket.column * level * (1 - empty);
+        columnMaterial.uniforms.uLevel!.value = look.socket.column * level * (1 - empty) * (1 + up.column * breath);
       }
     };
   };
@@ -1026,7 +1042,7 @@ export function buildWorld(boards: readonly BoardPlace[], tier: QualityTier, roo
     hits,
     anchors: (id) => find(id).made.anchors,
     top: (id) => find(id).made.top,
-    pose({ power, flash, clock, levels, open, float, world, tops, boardPower, boardLight, lift, spot }) {
+    pose({ power, flash, clock, levels, open, float, world, tops, boardPower, boardLight, lift, spot, breath }) {
       holders.forEach((holder, k) => {
         holder.position.y = tops[k] ?? boards[k]!.top;
         plates[k]!.set(clock, boardPower[k] ?? power, (boardLight[k] ?? 1) * world);
@@ -1064,8 +1080,9 @@ export function buildWorld(boards: readonly BoardPlace[], tier: QualityTier, roo
         offset.copy(p.middle).multiplyScalar(now.scale).applyQuaternion(p.root.quaternion);
         p.root.position.set(now.centre[0] - offset.x, now.centre[1] - offset.y, now.centre[2] - offset.z);
         p.root.scale.setScalar(now.scale);
-        p.made.set(clock, open[p.id] ?? 0, level);
-        p.socket.set(clock, (boardLight[p.board] ?? 1) * world, risen);
+        // The tower's breath on every project and its socket alike, whichever board is in view (round 16).
+        p.made.set(clock, open[p.id] ?? 0, breathedLevel(level, breath, risen));
+        p.socket.set(clock, (boardLight[p.board] ?? 1) * world, risen, breath);
         if (risen > lit) {
           lit = risen;
           shown = p;
