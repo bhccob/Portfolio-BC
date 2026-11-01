@@ -27,20 +27,22 @@ describe('Jontai Energy, the concept redesign', () => {
     expect(jontai.pictureKind).toBe('wide');
     expect(jontai.pictures).toEqual([
       {
-        file: 'jontai-dawn.webp',
+        file: 'jontai-type.webp',
         alt: {
-          nl: 'Herontwerp van Jontai Energy: “Aruba sunlight, made useful.” naast een zonnepaneel op een gestucte muur bij zonsopgang',
-          en: 'Jontai Energy redesign: “Aruba sunlight, made useful.” beside a solar panel on a plaster wall at dawn'
+          nl: 'Herontwerp van Jontai Energy: JONTAI in grote groene letters boven “Aruba sunlight, made useful.”, met Explore solar en Visit the store',
+          en: 'Jontai Energy redesign: JONTAI in large green letters above “Aruba sunlight, made useful.”, with Explore solar and Visit the store'
         }
       }
     ]);
-    expect(jontai.pictureCaption('nl')).toBe('Het eerste scherm van het herontwerp, bij zonsopgang');
-    expect(jontai.pictureCaption('en')).toBe("The redesign's first screen, at dawn");
-    expect(typeof jontai.pictureUrl('jontai-dawn.webp')).toBe('string');
+    expect(jontai.pictureCaption('nl')).toBe('Het eerste scherm van het herontwerp');
+    expect(jontai.pictureCaption('en')).toBe("The redesign's first screen");
+    expect(typeof jontai.pictureUrl('jontai-type.webp')).toBe('string');
     const view = viewOf(render('/', ProjectViews));
     expect((view.match(/class="pv-card pv-wide"/g) ?? []).length).toBe(1);
-    expect(view).toContain('alt="Herontwerp van Jontai Energy: “Aruba sunlight, made useful.” naast een zonnepaneel op een gestucte muur bij zonsopgang"');
+    expect(view).toContain('alt="Herontwerp van Jontai Energy: JONTAI in grote groene letters boven “Aruba sunlight, made useful.”, met Explore solar en Visit the store"');
+    // Neither of the pictures before it: the old static site's first screen, nor the retired sunrise film's.
     expect(view).not.toContain('jontai-home');
+    expect(view).not.toContain('jontai-dawn');
   });
 
   it("lists the redesign's own tools", () => {

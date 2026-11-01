@@ -313,18 +313,19 @@ export const projects = new ProjectCatalog([
     links: { repo: 'https://github.com/bhccob/Jontai-Energy' },
     // The old static site's screenshot, which no page shows now; `imageAlt` is its text.
     image: 'jontai-energy.png',
-    // The redesign's last commit (9546f43), run from a scratch copy: its first screen once the sunrise has played.
+    // The redesign as it is now (c8c9c62, 2026-10-28, type-led; Bob, round 16: "update the jontai project image"), run
+    // from a scratch copy: its first screen, the clock set to a Wednesday 11:00 in Aruba so the store reads as open.
     pictures: [
       {
-        file: 'jontai-dawn.webp',
+        file: 'jontai-type.webp',
         alt: {
-          nl: 'Herontwerp van Jontai Energy: “Aruba sunlight, made useful.” naast een zonnepaneel op een gestucte muur bij zonsopgang',
-          en: 'Jontai Energy redesign: “Aruba sunlight, made useful.” beside a solar panel on a plaster wall at dawn'
+          nl: 'Herontwerp van Jontai Energy: JONTAI in grote groene letters boven “Aruba sunlight, made useful.”, met Explore solar en Visit the store',
+          en: 'Jontai Energy redesign: JONTAI in large green letters above “Aruba sunlight, made useful.”, with Explore solar and Visit the store'
         }
       }
     ],
     pictureKind: 'wide',
-    pictureCaption: { nl: 'Het eerste scherm van het herontwerp, bij zonsopgang', en: "The redesign's first screen, at dawn" },
+    pictureCaption: { nl: 'Het eerste scherm van het herontwerp', en: "The redesign's first screen" },
     copy: {
       en: {
         type: 'Concept website redesign · Personal project',

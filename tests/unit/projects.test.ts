@@ -238,7 +238,7 @@ describe('pictures', () => {
 
   it('gives Jontai Energy, Cookies Clicker and Portle one wide picture each', () => {
     expect(project('jontai-energy').pictureKind).toBe('wide');
-    expect(project('jontai-energy').pictures.map((picture) => picture.file)).toEqual(['jontai-dawn.webp']);
+    expect(project('jontai-energy').pictures.map((picture) => picture.file)).toEqual(['jontai-type.webp']);
     expect(project('cookies-clicker').pictureKind).toBe('wide');
     expect(project('cookies-clicker').pictures.map((picture) => picture.file)).toEqual(['cookies-playing.webp']);
     expect(project('portle').pictureKind).toBe('wide');
