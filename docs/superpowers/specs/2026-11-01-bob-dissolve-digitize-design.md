@@ -138,3 +138,19 @@ diagonal.
 
 The file layout, the points' exact sampling of the tower, how the free scroll joins the scroll loop, the phone's exact
 framing, and the order of the work.
+
+## Build notes (2026-11-01)
+
+- **The boards stay; only the camera turns.** The design above turned every other board half round with its stop so each
+  floor looked as before; the full proof run showed that put Steady's and Portle's names off the top of the whole
+  machine's view. Built instead as the half-turn flipbook Bob approved showed it: the camera goes half round to each
+  floor and the boards keep their facings, so the first and third floors are seen from behind the stack, and the whole
+  machine's view is as it was. On a phone the floor's frame is a little wider (0.94 of the screen, was 1), so a project
+  seen from behind, nearer, keeps its whole object on the screen.
+- The free Q&A drops input while the dissolve's lock holds (the turn's heading is already question 1).
+- A gesture that scrolls up the Q&A to question 1 rests there; only a new gesture begun on question 1 plays the dissolve
+  back.
+- The stars round the stack keep the power's light on the way out (the rings go with the solid tower).
+- The LEDs' dark circle behind the end's words stays over the laser's line (it darkened the scene under it).
+- The debug bridge's `journey.world` says whether the solid tower and the stardust are drawn; the harness checks the
+  dissolve with it.
