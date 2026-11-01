@@ -18,6 +18,8 @@ export interface ObjectOnScreen {
   y: number;
   r: number;
   visible: boolean;
+  /** How near the line from the camera to its middle comes to the tower's axis, m (`sightGap`): under `CORE_CLEAR`, the core may hide it. */
+  gap: number;
 }
 
 /** What the world's path showed on the last frame: the board's power, the names, an area's words and the dots. */

@@ -5,7 +5,7 @@ import { lightAt } from '~/scene/bob/lightDive';
 import { RING_MARKS } from '~/data/qa';
 import { WAY_OUT, wayOutAt } from '~/scene/bob/wayOut';
 import { turnedRound } from '~/scene/bob/around';
-import { ease, EXPLODE, FLASH_GONE, FLOOR_TURN, floorTurn, LAND_HIT, LOOK_BOX, makeWorldPath, NAMES_IN, POWER, TOWER_ZOOM, type WorldFrame } from '~/scene/bob/worldPath';
+import { CORE_CLEAR, ease, EXPLODE, FIRST_FLOOR_PAST, FLASH_GONE, FLOOR_TURN, floorTurn, LAND_HIT, LOOK_BOX, makeWorldPath, NAMES_IN, POWER, sightGap, TOWER_ZOOM, type WorldFrame } from '~/scene/bob/worldPath';
 import { boardCentre, boardTops, LID_TOP, STACK, stackPlaces } from '~/scene/bob/worldLayout';
 import { AREA_STOP, areaStop, areasOnPath, buildChapters, type Chapters, HAND_F, HOME_CHAPTERS, LAND_STOP, pathStart, placeOfFrame, qaDoor, qaStop, scrollEnd, WORLD_LAYOUT, worldStop } from '~/state/chapters';
 import { easeInOutQuart } from '~/input/scrollLoop';
@@ -348,14 +348,17 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
 
   // Bob (2026-11-01, round 15): "can you make the scroll to rotate around the tower less agressive"; shown four ways and
   // asked, "Yes, half per floor": half a turn round the tower on the way down to each board, the same way each time.
-  it('turns the camera half round the tower on the way down to each board, the same way each time', () => {
+  // Round 16: the first floor 40° past it, so Portle stands clear of the core; the second floor's move 40° short of it.
+  it('turns the camera round the tower on the way down to each board, the same way each time', () => {
     expect(FLOOR_TURN).toBe(-Math.PI);
+    expect(FIRST_FLOOR_PAST).toBeCloseTo(-40 * DEG, 12);
     expect(floorTurn(-1)).toBe(0);
-    expect(floorTurn(0)).toBe(-Math.PI);
+    expect(floorTurn(0)).toBeCloseTo(-Math.PI - 40 * DEG, 12);
+    expect(floorTurn(1)).toBe(-2 * Math.PI);
     expect(floorTurn(2)).toBe(-3 * Math.PI);
     const angle = (p: Vec3): number => Math.atan2(p[2] - C[2], p[0] - C[0]);
     for (const aspect of [DESK, PHONE]) {
-      areasOnPath().forEach((area) => {
+      areasOnPath().forEach((area, i) => {
         const unit = HOME_CHAPTERS.units.find((u) => u.id === 'AREA' && u.category === area.category)!;
         const where = `${area.category} at ${aspect.toFixed(2)}`;
         const placeAt = (k: number, n: number): number => unit.start + (AREA_STOP * unit.length * k) / n;
@@ -369,7 +372,7 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
           turned += step;
           last = now;
         }
-        expect(turned, where).toBeCloseTo(-Math.PI, 6);
+        expect(turned, where).toBeCloseTo(floorTurn(i) - floorTurn(i - 1), 6);
         // Still looking at the tower's middle half way down.
         const half = home(aspect, placeAt(1, 2)).shot;
         expect(Math.hypot(half.target[0] - C[0], half.target[2] - C[2]), where).toBeLessThan(0.25);
@@ -398,6 +401,28 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
         }
       });
     }
+  });
+
+  // Bob (2026-11-01, round 16), the live bug: Portle behind the core at the first floor's stop. From each floor's stop the
+  // line to each of its projects keeps CORE_CLEAR off the tower's axis (before the fix, Portle's passed 1.05 m off it).
+  it("keeps every floor's projects clear of the core at its stop", () => {
+    for (const aspect of [DESK, PHONE]) {
+      areasOnPath().forEach((area) => {
+        const shot = home(aspect, areaStop(HOME_CHAPTERS, area.category)).shot;
+        const board = BOARDS.find((b) => b.category === area.category)!;
+        for (const s of board.sockets) {
+          const gap = sightGap(shot.position, [C[0] + s.at[0], TOPS[board.index]! + STACK.hover + 0.45, C[2] + s.at[1]], [C[0], C[2]]);
+          expect(gap, `${s.id} at ${area.category}, ${aspect.toFixed(2)}`).toBeGreaterThanOrEqual(CORE_CLEAR);
+        }
+      });
+    }
+  });
+
+  it('measures a sight line by its nearest to an upright axis', () => {
+    expect(sightGap([0, 0, 10], [0, 0, -10], [0, 0])).toBe(0);
+    expect(sightGap([5, 0, 10], [5, 0, -10], [0, 0])).toBe(5);
+    expect(sightGap([0, 0, 10], [0, 0, 5], [0, 0])).toBe(5);
+    expect(sightGap([3, 4, 0], [3, -9, 0], [0, 0])).toBe(3);
   });
 
   it("keeps each category board's facing: 75° further round each, the first at -40°", () => {

@@ -13,8 +13,9 @@
  *   stays on the lid, its trail standing above it as a still column; the camera comes down out of the fall to look at
  *   the light coming in, then pulls slowly back over the power-on to the whole machine by `LAND_STOP`;
  * - AREA, one per board of the stack: the camera goes down to the board, turning half round the stack's axis on the way
- *   (`FLOOR_TURN`, ./around.ts), so it stands at `AREA_STOP` on the side the half turns leave it (every other board seen
- *   from behind the stack); the board in view lit, the others stepped back, its caption in;
+ *   (`FLOOR_TURN`, ./around.ts; the first board 40° past it, `FIRST_FLOOR_PAST`), so it stands at `AREA_STOP` on the side
+ *   the half turns leave it (every other board seen from behind the stack); the board in view lit, the others stepped
+ *   back, its caption in;
  * - from the last board's stop, the Q&A's door, the way out (round 15, ./wayOut.ts): the floors close while the tower
  *   dissolves (the stardust, ../../engine/bob/build/stardust.ts), its words gone at once and every board lit; the camera
  *   eases to the closed tower and moves off it, up, back and round, the tower slid aside of the words (`wayOutShot`), and
@@ -109,9 +110,31 @@ export const TOWER_ZOOM = 1.25;
  */
 export const FLOOR_TURN = -Math.PI;
 
+/**
+ * How far past its half turn the first board's stop goes, radians (round 16, the live bug: seen from behind, Portle stood
+ * behind the core there): 40° on the same way round, so both its projects stand clear of the core. The second board's
+ * move goes 40° short of a half turn to make it up; the boards after are as they were.
+ */
+export const FIRST_FLOOR_PAST = (-40 * Math.PI) / 180;
+
 /** The turn the camera and board `i` (0-based among the category boards) stand at; the world's stop (−1) 0. */
 export function floorTurn(i: number): number {
-  return i < 0 ? 0 : FLOOR_TURN * (i + 1);
+  return i < 0 ? 0 : FLOOR_TURN * (i + 1) + (i === 0 ? FIRST_FLOOR_PAST : 0);
+}
+
+/** How far off the tower's axis the line from a board's stop to each of its projects must keep, m (the core and its wiring). */
+export const CORE_CLEAR = 2;
+
+/**
+ * How near the line from `eye` to `point` comes to the upright axis through `axis` (x, z), m, measured across the floor
+ * (in x and z): the core stands the whole tower's height, so only how near, not where up it, matters.
+ */
+export function sightGap(eye: readonly [number, number, number], point: readonly [number, number, number], axis: readonly [number, number]): number {
+  const dx = point[0] - eye[0];
+  const dz = point[2] - eye[2];
+  const length = dx * dx + dz * dz;
+  const t = length > 0 ? Math.min(1, Math.max(0, ((axis[0] - eye[0]) * dx + (axis[1] - eye[2]) * dz) / length)) : 0;
+  return Math.hypot(eye[0] + dx * t - axis[0], eye[2] + dz * t - axis[1]);
 }
 
 /** How long into the dissolve the floor's words take to go, s. */
@@ -450,8 +473,9 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS, { zoo
     if (s.kind === 'land') return t < LAND_HIT ? shotToward(handShot, landShot, ease(t / LAND_HIT)) : shotToward(landShot, worldShot, ease(seg(t, LAND_HIT, LAND_STOP)));
     if (s.kind === 'area') {
       const e = ease(seg(t, 0, AREA_STOP));
-      // At its stop and after, the board's own shot, exactly: the way out holds it.
-      return e >= 1 ? stopShot(s.i) : turnedRound(aroundShot(frontShot(s.i - 1), frontShot(s.i), C, e), C, floorTurn(s.i - 1) + FLOOR_TURN * e);
+      // At its stop and after, the board's own shot, exactly: the way out holds it. On the way, from the last stop's turn
+      // to this one's (a half turn, the first 40° more and the second 40° less).
+      return e >= 1 ? stopShot(s.i) : turnedRound(aroundShot(frontShot(s.i - 1), frontShot(s.i), C, e), C, floorTurn(s.i - 1) + (floorTurn(s.i) - floorTurn(s.i - 1)) * e);
     }
     // The way out: the last board's stop, held.
     return stopShot(count - 1);

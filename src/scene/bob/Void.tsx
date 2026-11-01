@@ -42,7 +42,7 @@ import { easeHover, hoverEase, hoversAt, nearestSphere, needleFor, needleGlowFor
 import { loadVoid, type VoidLoadSteps } from './voidLoad';
 import { uploadTextures, warm } from './warm';
 import { boardCentre, boardTops, STACK, stackPlaces } from './worldLayout';
-import { towerStands, type WorldFrame, type WorldPath, worldPathFor } from './worldPath';
+import { sightGap, towerStands, type WorldFrame, type WorldPath, worldPathFor } from './worldPath';
 
 /** The longest step the void's clocks take in one frame, seconds: a wake from sleep jumps nothing. */
 const MAX_STEP = 0.1;
@@ -316,11 +316,16 @@ function showOpenWords(model: WorldModel | null, close: Handover['close']): void
   showProjectViews(viewLevels(id, close));
 }
 
-/** Each project's object on the screen for the proof harness: its click's sphere's middle (CSS px) and radius there. */
+/**
+ * Each project's object on the screen for the proof harness: its click's sphere's middle (CSS px) and radius there, and how
+ * near the camera's line to it comes to the tower's axis (`sightGap`).
+ */
 function objectsOnScreen(model: WorldModel, camera: THREE.Camera, size: { width: number; height: number }, visible: boolean): ObjectOnScreen[] {
   return model.hits.map((hit) => {
     const { x, y, r } = hitOnScreen(hit, camera, size);
-    return { id: hit.userData.id as string, x, y, r, visible };
+    const at = hit.getWorldPosition(new THREE.Vector3());
+    const gap = sightGap([camera.position.x, camera.position.y, camera.position.z], [at.x, at.y, at.z], [STACK_CENTRE[0], STACK_CENTRE[2]]);
+    return { id: hit.userData.id as string, x, y, r, visible, gap };
   });
 }
 

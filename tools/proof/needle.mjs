@@ -379,7 +379,7 @@ const { RISE_TOP, LANDING_HOLD, landingHoldFor } = await tsImport('../../src/sce
 const { categories } = await tsImport('../../src/data/categories.ts', import.meta.url);
 const { engravedLevels } = await tsImport('../../src/scene/bob/engravedWay.ts', import.meta.url);
 const { NEBULA, nebulaLevels } = await tsImport('../../src/scene/bob/nebulaWay.ts', import.meta.url);
-const { worldPathFor } = await tsImport('../../src/scene/bob/worldPath.ts', import.meta.url);
+const { CORE_CLEAR, floorTurn, worldPathFor } = await tsImport('../../src/scene/bob/worldPath.ts', import.meta.url);
 const { projects: PROJECTS } = await tsImport('../../src/data/projects.ts', import.meta.url);
 /**
  * How long the canvas may keep drawing after the last thing that stirred it, ms: the home's idle motion
@@ -6488,16 +6488,22 @@ async function areasStep(browser, step) {
       step.check(nearest > 2.2, `${at}: on the way the camera stays ${nearest.toFixed(2)} m from the stack's axis, never through the spine (more than 2.2 m, ${seen.length} samples)`);
       const tops = state.journey.world?.tops ?? [];
       const [ex, ey, ez] = state.camera.position;
+      // Round 15: half a turn round the stack to each board, so the first and the third are seen from behind it, the
+      // second from the front, as at the whole machine; round 16: the first 40° past its half turn, so Portle is clear of
+      // the core. The camera rests at the board's turn round the axis (`floorTurn`), measured from the front (+z).
+      const turned = Math.atan2(ex - centre[0], ez - centre[2]);
+      const meant = Math.atan2(Math.sin(-floorTurn(area.index)), Math.cos(-floorTurn(area.index)));
+      const off = Math.abs(Math.atan2(Math.sin(turned - meant), Math.cos(turned - meant)));
       step.check(
-        // Round 15: half a turn round the stack to each board, so the first and the third are seen from behind it, the
-        // second from the front, as at the whole machine; never turned to a project (on the axis's line).
-        tops.length > area.index + 1 && Math.abs(ex - centre[0]) < 0.01 && Math.sign(ez - centre[2]) === (area.index % 2 === 0 ? -1 : 1) && ey > tops[area.index + 1],
-        `${at}: the camera rests on the side half a turn a board leaves it (${area.index % 2 === 0 ? 'behind the stack' : 'in front of it'}), not turned to a project (x ${(ex - centre[0]).toFixed(3)} m off the axis, z ${(ez - centre[2]).toFixed(2)} m out), over the board in view (eye ${ey.toFixed(2)}, its top ${tops[area.index + 1]?.toFixed(2)})`,
+        tops.length > area.index + 1 && off < 0.01 && ey > tops[area.index + 1],
+        `${at}: the camera rests at the board's turn round the stack, ${((meant * 180) / Math.PI).toFixed(1)}° from the front (at ${((turned * 180) / Math.PI).toFixed(1)}°, x ${(ex - centre[0]).toFixed(3)} m, z ${(ez - centre[2]).toFixed(2)} m off the axis), over the board in view (eye ${ey.toFixed(2)}, its top ${tops[area.index + 1]?.toFixed(2)})`,
       );
       const own = PROJECT_LIST.filter((p) => p.index === area.index);
       for (const project of own) {
         const object = state.journey.objects?.find((o) => o.id === project.id);
         step.check(object !== undefined && object.visible && object.x - object.r >= 0 && object.x + object.r <= size.width && object.y - object.r >= HEADER_PX && object.y + object.r <= size.height, `${at}: ${project.id}'s object framed inside the screen (${object === undefined ? 'none' : `${Math.round(object.x)},${Math.round(object.y)} r ${Math.round(object.r)}`})`);
+        // Round 16 (the live bug: Portle behind the core at the first floor): the camera's line to it keeps clear of the core.
+        step.check(object !== undefined && object.gap >= CORE_CLEAR, `${at}: ${project.id} clear of the core, its sight line ${object === undefined ? 'none' : object.gap.toFixed(2)} m off the tower's axis (at least ${CORE_CLEAR})`);
       }
       const words = await worldWordsOf(page);
       const caption = words.captions.find((c) => c.area === area.index);
