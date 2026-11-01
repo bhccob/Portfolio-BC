@@ -124,7 +124,7 @@ export function writeJourney(
 /**
  * Whether the pointer is read for the beads with the journey at `pose`: whether it may hover a bead, and whether a click
  * (a tap) may open the selected one (src/scene/bob/Void.tsx). Not once the story has gone past the Q&A's door (`sheet`
- * above 0), where the tower turns into a blueprint and then is gone: there a pointer neither turns a project nor wakes
+ * above 0), where the tower dissolves and then is gone: there a pointer neither turns a project nor wakes
  * the canvas, and a click or a tap opens nothing. Everywhere else on the path, as before: `sheet` is 0 there (one that is
  * not a number reads as none).
  */

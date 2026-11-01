@@ -2250,13 +2250,12 @@ html[data-route='home'][data-3d='on'][data-skip] .skip-button {
 }
 
 /* ---------- the Q&A ---------- */
-/* The Q&A (spec 2026-10-29-bob-stack-2-design.md, goal 1); since round 10 (spec 2026-10-30-bob-qa-list-floors-design.md,
-   Bob picked "A · One list") every question in one list, at the right of a laptop's screen and at the foot of a phone's,
-   the open question's reply under it; since round 14 (the way out, spec 2026-10-31-bob-way-out-design.md) in the stars, the
-   sky under it drawn by the scene on its own canvas (src/ui/outSky.ts), the end apart in the middle of the screen.
-   src/ui/QaRing.tsx renders the words with 3D on; the scene writes how much they show and which is open
-   (src/ui/qaWriters.ts): `<html data-qa>` while the Q&A shows, `--qa-show` and `--qa-past` on the frame, each question's
-   `aria-expanded` and its reply's `hidden`. */
+/* The Q&A (round 15, spec 2026-11-01-bob-dissolve-digitize-design.md; Bob: "i want the Q&A also the be just very simple
+   and blend in to scroll"): every question and its answer, plain words in one column at the left of a laptop (across a
+   phone), going with the scroll like a page and fading out at its top and bottom; a dark band behind it; under it the
+   digitize's LED screen (src/ui/ledSky.ts); the end apart, over the LEDs. src/ui/QaRing.tsx renders the words with 3D on;
+   the scene writes how much they show and where the column stands (src/ui/qaWriters.ts): `<html data-qa>` while the Q&A
+   shows, `--qa-column` and `--qa-band` on the section, the track's move. */
 .qa {
   position: fixed;
   inset: 0;
@@ -2269,13 +2268,13 @@ html[data-qa] .qa {
   visibility: visible;
 }
 
-/* The header stands over the sky while the Q&A shows, as in the mock-up (main's page and the Q&A in it stand at 2 against
-   its 2, after it); its links are never hidden under the dark. */
+/* The header stands over the Q&A while it shows (main's page and the Q&A in it stand at 2 against its 2, after it); its
+   links are never hidden under the LEDs. */
 html[data-qa] .site-header {
   z-index: 4;
 }
 
-.qa-sky {
+.qa-leds {
   position: absolute;
   inset: 0;
   display: block;
@@ -2283,195 +2282,65 @@ html[data-qa] .site-header {
   height: 100%;
 }
 
-/* As the flight sets off (`--qa-past`, round 14) the list drifts toward the camera and blurs away (the mock-up's past). */
-.qa-frame {
+.qa-band {
   position: absolute;
-  left: 0;
-  top: 0;
-  width: min(600px, calc(100vw - 40px));
-  transform: translate(calc(100vw - 100% - max(56px, 7vw)), calc(18dvh + (1 - var(--qa-show, 0)) * var(--qa-slide, 12px)));
-  transform-origin: 30% 20%;
-  scale: calc(1 + 0.08 * var(--qa-past, 0));
-  filter: blur(calc(6px * var(--qa-past, 0)));
-  opacity: var(--qa-show, 0);
-  isolation: isolate;
+  inset: 0;
+  background: linear-gradient(90deg, rgb(4 2 9 / 0.82), rgb(4 2 9 / 0.55) 30%, rgb(4 2 9 / 0) 52%);
+  opacity: var(--qa-band, 0);
 }
 
-html[data-qa] .qa-frame {
+.qa-column {
+  position: absolute;
+  left: max(16px, 7.5vw);
+  top: 0;
+  bottom: 0;
+  width: min(500px, calc(100vw - 32px));
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(transparent 0, #000 24%, #000 76%, transparent 100%);
+  mask-image: linear-gradient(transparent 0, #000 24%, #000 76%, transparent 100%);
+  opacity: var(--qa-column, 0);
+  transition: opacity 1.2s ease;
+}
+
+html[data-qa] .qa-column {
   pointer-events: auto;
 }
 
-/* The list: each question a row, a thin gold rule between; the open one gold, its reply under it. Round 11 (Bob,
-   2026-10-30: "Q&A text bigger and more apparent", then "Even bigger"): a size up, the rules and the dark stronger. */
-.qa-list {
-  margin: 0;
-  padding: 0;
-  padding-left: 30px;
-  list-style: none;
-  transition: opacity 0.6s ease, visibility 0s linear 0s;
-  interpolate-size: allow-keywords;
-}
-
-/* Round 13 (Bob, 2026-10-31, shown three ways to go through the questions, picked "C · The light"): a thin gold line
-   beside the list and on it the light, as the site's light fell, at the place the scene writes (`--qa-light`, px down
-   the frame, src/ui/qaWriters.ts): at the question the ring stands at, and with the scroll on its way to the next, its
-   tail behind it (`<html data-qa-moving>`). The line stands 8px into the frame, so the light is placed from its top. */
-.qa-rail {
+.qa-track {
   position: absolute;
-  left: 6px;
-  top: 8px;
-  bottom: 8px;
-  width: 1px;
-  background: linear-gradient(rgb(226 165 74 / 0.08), rgb(226 165 74 / 0.4) 20%, rgb(226 165 74 / 0.4) 80%, rgb(226 165 74 / 0.08));
-  pointer-events: none;
+  left: 0;
+  right: 0;
+  top: 0;
+  will-change: transform;
 }
 
-.qa-light {
-  position: absolute;
-  left: -4px;
-  top: -8px;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #fff4da;
-  box-shadow:
-    0 0 10px 3px rgb(239 181 61 / 0.9),
-    0 0 30px 9px rgb(239 181 61 / 0.32);
-  transform: translateY(calc(var(--qa-light, 0px) - 4.5px));
+.qa-block {
+  padding: 0 0 24vh;
 }
 
-.qa-light::before {
-  content: '';
-  position: absolute;
-  left: 4px;
-  bottom: 4px;
-  width: 1px;
-  height: 0;
-  background: linear-gradient(transparent, rgb(255 236 190 / 0.95));
-  transition: height 0.3s ease;
-}
-
-html[data-qa-moving='down'] .qa-light::before {
-  height: 64px;
-}
-
-html[data-qa-moving='up'] .qa-light::before {
-  top: 4px;
-  bottom: auto;
-  height: 64px;
-  background: linear-gradient(rgb(255 236 190 / 0.95), transparent);
-}
-
-.qa-item {
-  border-top: 1px solid rgb(226 165 74 / 0.4);
-}
-
-.qa-item:last-child {
-  border-bottom: 1px solid rgb(226 165 74 / 0.4);
-}
-
-.qa-ask {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  width: 100%;
-  min-height: 56px;
-  padding: 12px 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  font-size: 24px;
-  line-height: 1.35;
-  text-align: left;
+.qa-block .qa-question {
+  margin: 0 0 14px;
+  font-family: var(--font-name);
+  font-size: clamp(22px, 2vw, 28px);
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: normal;
+  text-transform: none;
+  text-wrap: balance;
   color: var(--ink);
-  cursor: pointer;
 }
 
-.qa-ask::after {
-  content: '+';
-  font-family: var(--font-label);
-  color: var(--gold-ink);
+.qa-block .qa-question:focus-visible {
+  outline: 2px solid var(--gold-ink);
+  outline-offset: 6px;
 }
 
-.qa-ask[aria-expanded='true'] {
-  color: var(--gold-glow);
-}
-
-.qa-ask[aria-expanded='true']::after {
-  content: '\2212';
-}
-
-.qa-ask:hover,
-.qa-ask:focus-visible {
-  color: var(--gold-glow);
-}
-
-/* A reply opens and closes as the light arrives and leaves (round 13), where the browser can carry its height there. */
-.qa-reply {
-  height: auto;
-  overflow: hidden;
-  padding: 0 0 20px;
-  transition:
-    height 0.4s var(--ease-reveal),
-    padding-bottom 0.4s var(--ease-reveal),
-    opacity 0.35s ease,
-    display 0.4s allow-discrete;
-}
-
-.qa-reply[hidden] {
-  display: none;
-  height: 0;
-  padding-bottom: 0;
-  opacity: 0;
-}
-
-@starting-style {
-  .qa-reply:not([hidden]) {
-    height: 0;
-    padding-bottom: 0;
-    opacity: 0;
-  }
-}
-
-.qa-reply .qa-count {
-  margin-bottom: 10px;
-  font-size: 13px;
-  color: var(--gold-ink);
-}
-
-.qa-reply .qa-text {
-  font-size: 21px;
-  line-height: 1.6;
-}
-
-/* Round 12 (Bob, 2026-10-31: "add a background style to the Q&A"; he picked "B · dark panel, gold corners"): the list on
-   a dark panel over the stars, a faint gold edge and a short gold stroke each way at each corner. */
-.qa-frame::before,
-.qa-frame::after {
-  content: '';
-  position: absolute;
-  inset: -30px -36px;
-  z-index: -1;
-  pointer-events: none;
-}
-
-.qa-frame::before {
-  background: linear-gradient(180deg, rgb(8 5 16 / 0.84), rgb(8 5 16 / 0.72));
-  border: 1px solid rgb(226 165 74 / 0.16);
-}
-
-.qa-frame::after {
-  --qa-corner: rgb(240 190 110 / 0.95);
-  background:
-    linear-gradient(var(--qa-corner), var(--qa-corner)) top left / 28px 2px no-repeat,
-    linear-gradient(var(--qa-corner), var(--qa-corner)) top left / 2px 28px no-repeat,
-    linear-gradient(var(--qa-corner), var(--qa-corner)) top right / 28px 2px no-repeat,
-    linear-gradient(var(--qa-corner), var(--qa-corner)) top right / 2px 28px no-repeat,
-    linear-gradient(var(--qa-corner), var(--qa-corner)) bottom left / 28px 2px no-repeat,
-    linear-gradient(var(--qa-corner), var(--qa-corner)) bottom left / 2px 28px no-repeat,
-    linear-gradient(var(--qa-corner), var(--qa-corner)) bottom right / 28px 2px no-repeat,
-    linear-gradient(var(--qa-corner), var(--qa-corner)) bottom right / 2px 28px no-repeat;
+.qa-block .qa-text {
+  margin: 0;
+  font-size: clamp(16px, 1.25vw, 18px);
+  line-height: 1.75;
+  color: rgb(252 237 192 / 0.8);
+  text-shadow: 0 1px 14px rgb(4 2 9 / 0.9);
 }
 
 .qa-count {
@@ -2514,14 +2383,14 @@ html[data-qa-moving='up'] .qa-light::before {
   background: rgb(4 2 9 / 0.5);
 }
 
-/* The end (round 14, the way out, the mock-up's): in the middle of the calm sky the flight leaves, Bob's chbc mark over
-   "Einde van de site", "Stuur een bericht." and Bob's line, the two buttons under them, each part in a little after the
-   one above, blurred in. A thin gold ring grows round the mark as the flight slows: a thing of its own, the mark itself
-   as the logo kit has it. */
+/* The end (round 14; round 15 on the digitize's LEDs, a little over the middle, where the LEDs go dark behind it): Bob's
+   chbc mark over "Einde van de site", "Stuur een bericht." and Bob's line, the two buttons under them, each part in a
+   little after the one above, blurred in. A thin gold ring grows round the mark as it comes: a thing of its own, the mark
+   itself as the logo kit has it. */
 .qa-end {
   position: fixed;
   left: 50%;
-  top: 50%;
+  top: 40%;
   width: min(470px, calc(100vw - 40px));
   translate: -50% -50%;
   text-align: center;
@@ -2570,8 +2439,7 @@ html[data-qa-moving='up'] .qa-light::before {
   height: 100%;
 }
 
-/* The ring: 84 px round the mark, grown from 4 px over the flight's last 1.8 s, eased out (the mock-up's 3 to 4.8 s, the
-   words having come at 2.8 s). */
+/* The ring: 84 px round the mark, grown from 4 px over 1.8 s as the end comes, eased out. */
 .qa-end-mark::before {
   content: '';
   position: absolute;
@@ -2621,49 +2489,17 @@ html[data-qa-moving='up'] .qa-light::before {
   margin-top: 0;
 }
 
-/* The list, long faded as the flight set off, out of reach at the end: no invisible question for Tab or a click. */
-html[data-qa-end] .qa-frame {
-  visibility: hidden;
-}
-
 @media (max-width: 700px) {
-  .qa-frame {
-    width: calc(100vw - 40px);
-    /* 24 px off the foot (round 14: the header stands over the sky now, so the longest answer open must keep the list's
-       top clear of it on a 390x844 phone). */
-    transform: translate(20px, calc(100dvh - 100% - 24px + (1 - var(--qa-show, 0)) * var(--qa-slide, 12px)));
+  .qa-column {
+    left: 16px;
+    right: 16px;
+    width: auto;
+    -webkit-mask-image: linear-gradient(transparent 0, transparent 30%, #000 42%, #000 88%, transparent 100%);
+    mask-image: linear-gradient(transparent 0, transparent 30%, #000 42%, #000 88%, transparent 100%);
   }
 
-  .qa-frame::before,
-  .qa-frame::after {
-    inset: -16px -12px;
-  }
-
-  .qa-list {
-    padding-left: 22px;
-  }
-
-  .qa-rail {
-    left: 4px;
-  }
-
-  .qa-ask {
-    min-height: 48px;
-    padding: 10px 0;
-    font-size: 18px;
-  }
-
-  .qa-reply .qa-text {
-    font-size: 16px;
-  }
-
-  .qa-text {
-    font-size: 18px;
-    line-height: 1.6;
-  }
-
-  .qa-question {
-    font-size: 14px;
+  .qa-band {
+    background: linear-gradient(0deg, rgb(4 2 9 / 0.85), rgb(4 2 9 / 0.5) 28%, rgb(4 2 9 / 0) 50%);
   }
 
   .qa-end .qa-question {
@@ -2681,45 +2517,11 @@ html[data-qa-end] .qa-frame {
   }
 }
 
-/* A laptop screen up to 940px tall (1440x900, 1536x864): higher up, so the longest answer open (the list 731px tall)
-   stays on the screen. */
-@media (max-height: 940px) and (min-width: 701px) {
-  .qa-frame {
-    transform: translate(calc(100vw - 100% - max(56px, 7vw)), calc(10dvh + (1 - var(--qa-show, 0)) * var(--qa-slide, 12px)));
-  }
-}
-
-/* A short laptop screen (1366x657): a little smaller too. */
-@media (max-height: 760px) and (min-width: 701px) {
-  .qa-ask {
-    min-height: 44px;
-    padding: 8px 0;
-    font-size: 20px;
-    line-height: 1.3;
-  }
-
-  .qa-reply .qa-text {
-    font-size: 18px;
-    line-height: 1.5;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .qa-frame {
-    --qa-slide: 0px;
-  }
-
-  .qa-light::before {
-    display: none;
-  }
-
-  .qa-reply {
-    transition: none;
-  }
-
-  /* The end at once, its ring whole. */
+  /* The end at once, its ring whole; the column without its fade. */
   .qa-end > *,
-  .qa-end-mark::before {
+  .qa-end-mark::before,
+  .qa-column {
     transition: none;
   }
 }

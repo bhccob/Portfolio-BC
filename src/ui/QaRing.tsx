@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 import { PAGES } from '~/data/pages';
 import type { EndQuestions } from '~/i18n/en';
 import { useTranslator } from '~/i18n/useTranslator';
-import { goToQa, goToTop } from '~/input/useHomeScroll';
+import { goToTop } from '~/input/useHomeScroll';
 import { useScene } from '~/state/store';
 import { ChbcMark } from './ChbcMark';
 import { Markup } from './Markup';
@@ -11,61 +11,49 @@ import { Markup } from './Markup';
 /** Whether a question's answer is there to show: a string with something in it (as the end page reads it). */
 const given = (answer: string | null | undefined): answer is string => typeof answer === 'string' && answer.trim() !== '';
 
-/** A number on the ring, two digits. */
-const two = (n: number): string => String(n).padStart(2, '0');
-
 /**
- * The Q&A's words beside the gold ring round the stack (spec 2026-10-29-bob-stack-2-design.md, goal 1; the mock-up Bob
- * chose, "mix"; round 10, spec 2026-10-30-bob-qa-list-floors-design.md: Bob picked "A · One list"): every question in
- * one list beside the tower, each a button that takes the Q&A to its mark (`goToQa`), its reply under it, a thin gold line
- * beside them with the light that runs down it from question to question (round 13, Bob picked "C · The light"), the count over
- * the answer ("Q&A · 02 / 06") and the answer in reading text (or the end page's placeholder with its tag for one Bob has
- * not sent). Round 14 (the way out, spec 2026-10-31-bob-way-out-design.md): under it all the sky's canvas, which the scene
- * draws (src/ui/outSky.ts: the blueprint, the stars, the closing circle and the flight); and apart from the list, in the
- * middle of the screen, the end: Bob's chbc mark, "Einde van de site", "Stuur een bericht.", Bob's line and two buttons,
- * to the contact page and back to the start.
+ * The Q&A's words (round 15, spec 2026-11-01-bob-dissolve-digitize-design.md; Bob: "i want the Q&A also the be just very
+ * simple and blend in to scroll"): every question and its answer, plain words in one column at the left (across a
+ * phone), no box, no numbers, the column going with the scroll like a page (the scene moves its track, src/ui/qaWriters.ts);
+ * the answer in reading text, or the end page's placeholder with its tag for one Bob has not sent. Under it the LED
+ * screen's canvas (the digitize, src/ui/ledSky.ts) and a dark band behind the words. Apart from it, in the middle of the
+ * screen, the end: Bob's chbc mark, "Einde van de site", "Stuur een bericht.", Bob's line and two buttons, to the contact
+ * page and back to the start.
  *
- * All of it is hidden and out of reach until the scene shows it (src/ui/qaWriters.ts): each reply `hidden` but the open
- * question's, the end's words but at the end, the section `inert` while the Q&A does not show. `questions` are the
- * dictionary's unless given.
+ * All of it is out of reach until the scene shows it: the section `inert` while the Q&A does not show, the end's words
+ * hidden but at the end. A question's heading is focusable by script alone (the skip button lands on the first,
+ * src/ui/endArrival.ts). `questions` are the dictionary's unless given.
  */
 export function QaRingParts({ questions }: { questions?: EndQuestions }): JSX.Element {
   const i18n = useTranslator();
   const { t } = i18n;
   const list = questions ?? t.end.questions;
   const ring = t.end.ring;
-  const count = (k: number): string => ring.count.replace('{n}', two(k + 1)).replace('{total}', two(list.length));
 
   return (
     <section id="qa" className="qa" aria-labelledby="qa-title" inert>
-      <canvas className="qa-sky" aria-hidden="true" />
+      <canvas className="qa-leds" aria-hidden="true" />
+      <div className="qa-band" aria-hidden="true" />
       <h2 id="qa-title" className="visually-hidden">
         {t.end.head}
       </h2>
-      <div className="qa-frame">
-        {/* The gold light's line beside the list (round 13, Bob picked "C · The light"): the scene runs the light down it. */}
-        <span className="qa-rail" aria-hidden="true">
-          <span className="qa-light" />
-        </span>
-        <ol className="qa-list">
+      <div className="qa-column">
+        <div className="qa-track">
           {list.map(({ question, answer }, k) => (
-            <li key={question} className="qa-item" data-k={k}>
-              <button type="button" className="qa-ask" id={`qa-ask-${k}`} aria-expanded="false" aria-controls={`qa-reply-${k}`} onClick={() => goToQa(k)}>
+            <article key={question} className="qa-block" data-k={k}>
+              <h3 className="qa-question" id={`qa-ask-${k}`} tabIndex={-1}>
                 {question}
-              </button>
-              <div className="qa-reply" id={`qa-reply-${k}`} hidden>
-                <p className="qa-count">{count(k)}</p>
-                {given(answer) ? (
-                  <p className="qa-text">{answer}</p>
-                ) : (
-                  <p className="qa-text is-placeholder">
-                    {t.end.placeholder} <span className="end-tag">{t.end.placeholderTag}</span>
-                  </p>
-                )}
-              </div>
-            </li>
+              </h3>
+              {given(answer) ? (
+                <p className="qa-text">{answer}</p>
+              ) : (
+                <p className="qa-text is-placeholder">
+                  {t.end.placeholder} <span className="end-tag">{t.end.placeholderTag}</span>
+                </p>
+              )}
+            </article>
           ))}
-        </ol>
+        </div>
       </div>
       <article className="qa-answer qa-end" data-k={list.length} hidden>
         <span className="qa-end-mark" aria-hidden="true">

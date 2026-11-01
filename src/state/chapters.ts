@@ -32,9 +32,9 @@ export function areasOnPath(list: readonly Project[] = projects.onPath()): AreaS
  *   axis and down to the category's board, seen from just under the board above it, its stop (`AREA_STOP`) the board at
  *   rest;
  * - QA, one for each mark of the Q&A (spec 2026-10-29-bob-stack-2-design.md, goal 1; round 14, spec
- *   2026-10-31-bob-way-out-design.md): the first the way in from the last floor, the tower turning into a blueprint whose
- *   sparks build the Q&A in the stars (from the door, the last floor's stop, `qaDoor`), then one to each question after
- *   it, and the last the flight through the circle to the end;
+ *   2026-10-31-bob-way-out-design.md; round 15, 2026-11-01-bob-dissolve-digitize-design.md): the first the way in from the
+ *   last floor, the tower dissolving into stardust (from the door, the last floor's stop, `qaDoor`), then one to each
+ *   question after it, which the scroll goes through freely, and the last the digitize to the end;
  * - END, the end at rest, the scroll's last stop.
  */
 export type ChapterId = 'HOME' | 'LIGHT' | 'LAND' | 'AREA' | 'QA' | 'END';
@@ -200,7 +200,7 @@ export function pathStart(c: Chapters): number {
 
 /**
  * The Q&A's door (round 14, spec 2026-10-31-bob-way-out-design.md): the last floor's stop, the world's where there is no
- * floor. A scroll down from it is the way in, the tower turning into a blueprint, as one step of the Q&A; the rest of
+ * floor. A scroll down from it is the way in, the tower dissolving into stardust, as one step of the Q&A; the rest of
  * the last area after its stop is the way in's too.
  */
 export function qaDoor(c: Chapters): number {

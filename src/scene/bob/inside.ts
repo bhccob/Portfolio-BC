@@ -99,7 +99,7 @@ export function openWorld(amount: number): number {
  * Whether a click on a project opens it on the world (spec 2026-10-27-bob-hologram-world-design.md), with the journey at
  * `at` and the story at rest (`rest`: the scroll's target where the story stands): at the world's stop or at an area's
  * (the last the Q&A's door), any project on the world. Nowhere else: in the light dive, while the land is still coming
- * in, while the camera glides between two stops, and in the way out and the Q&A, where the tower is a blueprint and then
+ * in, while the camera glides between two stops, and in the way out and the Q&A, where the tower dissolves and then
  * gone, nothing opens (a click elsewhere goes to the project's page instead, src/ui/projectOpen.tsx).
  */
 export function opensOnClick(at: JourneyAt, rest: boolean): boolean {

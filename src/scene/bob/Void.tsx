@@ -82,7 +82,7 @@ interface SpaceParts {
 /** The hologram world once built, and whether it is shown now (null before the first frame). */
 interface WorldParts {
   model: WorldModel;
-  /** The Q&A in the stars, made with the world (./qaScene.ts). */
+  /** The Q&A's words and the digitize's LEDs, made with the world (./qaScene.ts). */
   qa: QaScene;
   /** The gyroscope rings and the realistic stars round the stack (spec 2026-10-29-bob-stack-2-design.md, goal 3). */
   gyro: GyroModel;
@@ -467,7 +467,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
         if (proof) await proofWorldGate();
         await document.fonts?.load(PRINT_FONT).catch(() => undefined);
         const model = buildWorld(STACK_PLACES, latest.current.tier, scene.environment);
-        // The Q&A in the stars, the way out (./qaScene.ts): the page's list, written from the path.
+        // The Q&A, the way out (./qaScene.ts): the page's words and the LEDs, written from the path.
         const qa = makeQaScene();
         // The gyroscope rings and the stars round the stack, built and warmed with it.
         const gyro = buildGyro([STACK_CENTRE[0], MACHINE_MIDDLE, STACK_CENTRE[2]]);
@@ -879,7 +879,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       } else {
         world.dust.points.visible = false;
       }
-      // The Q&A in the stars, the way out (./qaScene.ts): the list, its light and the end's words on the page; on the home
+      // The Q&A, the way out (./qaScene.ts): the column of words, the end's words and the LEDs on the page; on the home
       // page alone, and not while a project is close.
       const qaSeen = world.qa.pose({
         path: on ? path : null,
@@ -888,7 +888,9 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
         reduced: reducedMotion,
         tier: latest.current.tier,
         size,
-        doc: typeof document === 'undefined' ? null : document
+        doc: typeof document === 'undefined' ? null : document,
+        // The core's light on the screen, CSS px: the LEDs' ripple runs out from it.
+        core: frame.journey.light ? { x: ((lightPoint.x + 1) / 2) * size.width, y: ((1 - lightPoint.y) / 2) * size.height } : null
       });
       if (proof) frame.journey.qa = qaSeen;
       moving = (easing && home) || ticking;

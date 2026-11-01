@@ -615,13 +615,14 @@ export interface HomeScroll {
  * path and the Q&A, and by the follow back up from the light dive. With reduced motion every input is a step to a key
  * stop (`moveTarget`), and nothing glides by itself.
  *
- * **The Q&A** (spec 2026-10-29-bob-stack-2-design.md, goal 1: "rotating snaps and is slower"; round 14, the way out). A
- * continuous scroll down rests on the Q&A's door, the last floor's stop, and the gesture that brought it there ends there.
- * From it on every input is one step (`qaStepTarget`), whatever its size: the wheel's gesture, a swipe and a key each take
- * the Q&A a question (`turnTo`, about 1.9 s), the first from the door the way in, the blueprint, and the last the flight to
- * the end (`turnTime`); a lift's glide carries nothing on, and input is dropped while a step's lock holds (`qaLockMs`:
- * the whole way in, the whole flight, else QA_LOCK_MS). Up from the first question goes back to the door, and up from
- * there the scroll is continuous again. A question's button (`toPlace`) takes the Q&A to it.
+ * **The Q&A** (round 15, spec 2026-11-01-bob-dissolve-digitize-design.md). A continuous scroll down rests on the Q&A's
+ * door, the last floor's stop, and the gesture that brought it there ends there. From it one input, whatever its size,
+ * plays the way in, the dissolve, to the first question (`qaStepTarget`, `turnTo`, `turnTime`), input dropped while it
+ * plays (`qaLockMs`). Past it the Q&A is free like a page (`freeQaTarget`): a wheel moves it a question for every
+ * QA_QUESTION_PX, a finger QA_FINGER times further, a key glides it 0.35 of a question or a whole one, and the story
+ * follows quickly (QA_FOLLOW_TAU), held to the first question and the end, the end's mark its one stop; a lift's glide
+ * ends at either. A gesture begun on the first question going up plays the dissolve back to the door, and up from there
+ * the scroll is continuous again; one that came up the Q&A to it rests there. A place asked for in it glides there.
  *
  * **The hold.** Every move of the target, a delta, a step or a jump, is clamped to `hold` (`holdLimit` of it): a wheel,
  * a swipe or a key past it rests on it, and a glide that presses into it is ended there, as at the end. The place the

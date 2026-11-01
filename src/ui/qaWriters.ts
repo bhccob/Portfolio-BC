@@ -1,172 +1,142 @@
 /**
- * What the scene writes on the page for the Q&A each frame (spec 2026-10-29-bob-stack-2-design.md, goal 1; round 10, spec
- * 2026-10-30-bob-qa-list-floors-design.md: Bob picked "A · One list"): only what has changed, as the names and the
- * captions are written (src/ui/WorldNames.tsx). The words themselves are src/ui/QaRing.tsx's; the stylesheet draws them
- * from what is written here (src/styles/base.css, "the Q&A"):
- * - `<html data-qa>` while the Q&A shows (from the way in on), `data-qa-at="<k>"` while it stands at mark `k`, and
- *   `data-qa-end` once the end's words are on (round 14: from the flight's 2.8 s, the end's mark itself after it);
- * - the frame's `--qa-show` (how much the list shows, 0..1) and `--qa-past` (round 14: how far it has drifted toward the
- *   camera and blurred as the flight sets off, 0..1, none while it stands);
- * - the list's open question: the first as the Q&A comes in, then the one it stands at (a question asked in the list
- *   takes the Q&A to its mark), its button `aria-expanded="true"` and its reply shown, the others closed; none on the
- *   way from one question to another (round 13, Bob picked "C · The light");
- * - the gold light beside the list (round 13): its place down the frame, `--qa-light` (px, at a question's middle at
- *   its mark and between two on the way), and `<html data-qa-moving="down|up">` while it runs;
- * - the end's words shown at the end's mark; the section's `inert` while the Q&A does not show.
+ * The Q&A's writer (round 15, spec 2026-11-01-bob-dissolve-digitize-design.md; Bob: "i want the Q&A also the be just
+ * very simple and blend in to scroll"): the page's words written from the way out's stage at the scroll's place
+ * (src/scene/bob/qaScene.ts), only what has changed. `<html data-qa>` while the Q&A shows, `data-qa-at` the question on
+ * the reading line (the end's mark once its words are on) and `data-qa-end` at the end; on the section `--qa-column` and
+ * `--qa-band` (how much the column and the dark band behind it show) and `inert` while the Q&A does not; the column's
+ * track moved so the question at the place stands on the reading line; the end `hidden` but at the end. Pure but for the
+ * parts it is given.
  */
 
 export const QA_ATTRIBUTE = 'data-qa';
 export const QA_AT_ATTRIBUTE = 'data-qa-at';
 export const QA_END_ATTRIBUTE = 'data-qa-end';
-export const QA_MOVING_ATTRIBUTE = 'data-qa-moving';
 
-/** The rule over each question in the list, px (src/styles/base.css `.qa-item`'s border-top). */
-const ITEM_RULE = 1;
+/** Within this of its place a question stands on the reading line (`qaNearest`). */
+const NEAR = 0.18;
+/** The track's move is written again only past this, px. */
+const OFFSET_STEP = 0.05;
 
-/** The page's parts the writer touches: <html>, the section, the frame, each question (its button and reply), the end. */
+/** The page's parts the writer touches: <html>, the section (its `inert` and its vars), the column's track, the end. */
 export interface QaParts {
   root: { setAttribute(name: string, value: string): void; removeAttribute(name: string): void };
-  section: { inert: boolean } | null;
-  frame: { style: { setProperty(name: string, value: string): void; removeProperty(name: string): void } } | null;
-  items: { ask: { setAttribute(name: string, value: string): void }; reply: { hidden: boolean } }[];
+  section: { inert: boolean; style: { setProperty(name: string, value: string): void; removeProperty(name: string): void } } | null;
+  track: { style: { transform: string } } | null;
   end: { hidden: boolean } | null;
 }
 
-/**
- * The Q&A of a frame: whether it shows, the mark it stands at (null between), how much the list shows, whether it is on
- * its way from one question to another (none open then), and how far the list has drifted away (round 14, 0 standing).
- */
+/** What the page shows at one place. */
 export interface QaView {
+  /** The Q&A shows: past its door. */
   on: boolean;
+  /** How much the column and the band behind it show, 0..1. */
+  column: number;
+  band: number;
+  /** The track's move, px: the question at the place on the reading line (`qaOffset`). */
+  offset: number;
+  /** The question on the reading line, the end's mark at the end, or none. */
   at: number | null;
-  answer: number;
-  between?: boolean;
-  past?: number;
-}
-
-/** The light beside the list: its place down the frame, px, and the way it runs (1 down, -1 up, 0 at rest). */
-export interface QaLight {
-  y: number;
-  way: -1 | 0 | 1;
+  /** The end's words on. */
+  endOn: boolean;
 }
 
 /** What has been written, so a frame writes only what differs. */
 export interface QaWritten {
   on: boolean;
+  column: string;
+  band: string;
+  offset: number;
   at: number | null;
-  /** The list's open question, null for none written. */
-  open: number | null;
-  answer: number;
-  /** How far the list has drifted away written (NaN for none written yet). */
-  past: number;
-  /** The light's place written, px (NaN for none), and its way. */
-  light: number;
-  way: -1 | 0 | 1;
+  endOn: boolean;
 }
 
 /** Nothing written yet: what the scene starts from, and what a clear leaves. */
 export function qaWritten(): QaWritten {
-  return { on: false, at: null, open: null, answer: Number.NaN, past: Number.NaN, light: Number.NaN, way: 0 };
+  return { on: false, column: '', band: '', offset: Number.NaN, at: null, endOn: false };
 }
 
 /**
- * Where the light stands at each question, px down the frame: the middle of its button as the list stands with every
- * reply closed (each button under its rule), so the light's way does not jump as a reply closes or opens. `asks` are
- * the buttons, as laid out (`offsetTop` in the frame, `offsetHeight`); none closed but the first's place matters.
+ * The track's move at `place` that stands the middle of question k's words on the reading line `line` at place k:
+ * linear between two, and on before the first and past the last by the first and the last gaps. Each centre is a
+ * block's words' middle down the track, px. None measured: 0.
  */
-export function qaLightAnchors(asks: readonly { offsetTop: number; offsetHeight: number }[]): number[] {
-  const anchors: number[] = [];
-  asks.forEach((ask, k) => {
-    if (k === 0) anchors.push(ask.offsetTop + ask.offsetHeight / 2);
-    else anchors.push(anchors[k - 1]! + asks[k - 1]!.offsetHeight / 2 + ITEM_RULE + ask.offsetHeight / 2);
-  });
-  return anchors;
+export function qaOffset(centres: readonly number[], place: number, line: number): number {
+  const c = centres;
+  if (c.length === 0) return 0;
+  if (c.length === 1) return line - c[0]!;
+  const last = c.length - 1;
+  let at: number;
+  if (place <= 0) at = c[0]! + place * (c[1]! - c[0]!);
+  else if (place >= last) at = c[last]! + (place - last) * (c[last]! - c[last - 1]!);
+  else {
+    const i = Math.floor(place);
+    at = c[i]! + (place - i) * (c[i + 1]! - c[i]!);
+  }
+  return line - at;
 }
 
-/** The light's place at `place` on the ring, px: at question `k`'s anchor at place `k`, between two on the way; held to the list. */
-export function qaLightY(anchors: readonly number[], place: number): number {
-  if (anchors.length === 0) return 0;
-  const p = Number.isFinite(place) ? Math.min(Math.max(place, 0), anchors.length - 1) : 0;
-  const k = Math.min(Math.floor(p), anchors.length - 2);
-  if (k < 0) return anchors[0]!;
-  return anchors[k]! + (anchors[k + 1]! - anchors[k]!) * (p - k);
+/** The reading line on a screen, px from its top: its middle on a laptop, a little under it on a phone (≤ 700 px wide). */
+export function qaReadingLine(size: { width: number; height: number }): number {
+  return (size.width <= 700 ? 0.62 : 0.5) * size.height;
 }
 
-const share = (x: number): string => String(Math.round(x * 1000) / 1000);
-
-/** Opens question `open` of `parts`' list (none for null), closing the others. */
-function openItem(parts: QaParts, open: number | null): void {
-  parts.items.forEach((item, k) => {
-    item.ask.setAttribute('aria-expanded', k === open ? 'true' : 'false');
-    item.reply.hidden = k !== open;
-  });
+/** The question whose place `place` is within NEAR of, of `questions`; none between two or off them. */
+export function qaNearest(place: number, questions: number): number | null {
+  const k = Math.round(place);
+  return k >= 0 && k < questions && Math.abs(place - k) <= NEAR ? k : null;
 }
+
+const share = (x: number): string => Math.min(Math.max(x, 0), 1).toFixed(3);
 
 /** Writes `view` to the page's `parts`, only what differs from `written`, which it updates. */
 export function writeQa(parts: QaParts, view: QaView, written: QaWritten): void {
+  const { root, section, track, end } = parts;
   if (view.on !== written.on) {
-    if (view.on) parts.root.setAttribute(QA_ATTRIBUTE, '');
-    else parts.root.removeAttribute(QA_ATTRIBUTE);
-    if (parts.section) parts.section.inert = !view.on;
     written.on = view.on;
+    if (view.on) root.setAttribute(QA_ATTRIBUTE, '');
+    else root.removeAttribute(QA_ATTRIBUTE);
+    if (section) section.inert = !view.on;
+  }
+  const column = share(view.column);
+  if (column !== written.column) {
+    written.column = column;
+    section?.style.setProperty('--qa-column', column);
+  }
+  const band = share(view.band);
+  if (band !== written.band) {
+    written.band = band;
+    section?.style.setProperty('--qa-band', band);
+  }
+  if (track && !(Math.abs(view.offset - written.offset) < OFFSET_STEP)) {
+    written.offset = view.offset;
+    track.style.transform = `translate3d(0, ${view.offset.toFixed(1)}px, 0)`;
   }
   const at = view.on ? view.at : null;
-  const end = parts.items.length;
   if (at !== written.at) {
-    if (at === null) parts.root.removeAttribute(QA_AT_ATTRIBUTE);
-    else parts.root.setAttribute(QA_AT_ATTRIBUTE, String(at));
-    if (at === end) parts.root.setAttribute(QA_END_ATTRIBUTE, '');
-    else parts.root.removeAttribute(QA_END_ATTRIBUTE);
-    if (parts.end) parts.end.hidden = at !== end;
     written.at = at;
+    if (at === null) root.removeAttribute(QA_AT_ATTRIBUTE);
+    else root.setAttribute(QA_AT_ATTRIBUTE, String(at));
   }
-  // The open question: the one it stands at; none on the way from one to another; else the last open (at the end, the
-  // last question's, drifting away), else (coming in) the first.
-  const open = !view.on ? written.open : at !== null && at < end ? at : view.between ? null : (written.open ?? 0);
-  if (view.on && open !== written.open) {
-    openItem(parts, open);
-    written.open = open;
-  }
-  const answer = view.on ? Math.min(Math.max(view.answer, 0), 1) : 0;
-  if (answer !== written.answer) {
-    parts.frame?.style.setProperty('--qa-show', share(answer));
-    written.answer = answer;
-  }
-  const past = view.on ? Math.min(Math.max(view.past ?? 0, 0), 1) : 0;
-  if (past !== written.past) {
-    if (past > 0) parts.frame?.style.setProperty('--qa-past', share(past));
-    else parts.frame?.style.removeProperty('--qa-past');
-    written.past = past;
-  }
-}
-
-/** Writes the light beside the list (`QaLight`), or takes it away (null), only what differs from `written`. */
-export function writeQaLight(parts: QaParts, light: QaLight | null, written: QaWritten): void {
-  const y = light === null ? Number.NaN : Math.round(light.y * 10) / 10;
-  if (!Object.is(y, written.light)) {
-    if (Number.isNaN(y)) parts.frame?.style.removeProperty('--qa-light');
-    else parts.frame?.style.setProperty('--qa-light', `${y}px`);
-    written.light = y;
-  }
-  const way = light?.way ?? 0;
-  if (way !== written.way) {
-    if (way === 0) parts.root.removeAttribute(QA_MOVING_ATTRIBUTE);
-    else parts.root.setAttribute(QA_MOVING_ATTRIBUTE, way > 0 ? 'down' : 'up');
-    written.way = way;
+  const endOn = view.on && view.endOn;
+  if (endOn !== written.endOn) {
+    written.endOn = endOn;
+    if (endOn) root.setAttribute(QA_END_ATTRIBUTE, '');
+    else root.removeAttribute(QA_END_ATTRIBUTE);
+    if (end) end.hidden = !endOn;
   }
 }
 
 /** Clears all the writer wrote: the Q&A gone from the page (the scene let go, or 3D switched off). */
 export function clearQa(parts: QaParts, written: QaWritten): void {
-  parts.root.removeAttribute(QA_ATTRIBUTE);
-  parts.root.removeAttribute(QA_AT_ATTRIBUTE);
-  parts.root.removeAttribute(QA_END_ATTRIBUTE);
-  parts.root.removeAttribute(QA_MOVING_ATTRIBUTE);
-  if (parts.section) parts.section.inert = true;
-  openItem(parts, null);
-  if (parts.end) parts.end.hidden = true;
-  parts.frame?.style.removeProperty('--qa-show');
-  parts.frame?.style.removeProperty('--qa-past');
-  parts.frame?.style.removeProperty('--qa-light');
+  const { root, section, end } = parts;
+  root.removeAttribute(QA_ATTRIBUTE);
+  root.removeAttribute(QA_AT_ATTRIBUTE);
+  root.removeAttribute(QA_END_ATTRIBUTE);
+  if (section) {
+    section.inert = true;
+    section.style.removeProperty('--qa-column');
+    section.style.removeProperty('--qa-band');
+  }
+  if (end) end.hidden = true;
   Object.assign(written, qaWritten());
 }

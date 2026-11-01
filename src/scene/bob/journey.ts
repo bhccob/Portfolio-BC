@@ -10,7 +10,7 @@
  * - the light dive: the way's frames 1 to `HAND_F` of the previs (./lightDive.ts), linearly: the needle lights up into
  *   the light, which flows away through the void past Bob's five facts;
  * - the world's path (./worldPath.ts), from the hand-over: the light landing in the CPU and the whole world, each area,
- *   then the way out (./wayOut.ts): the blueprint, the Q&A in the stars and the flight through its circle;
+ *   then the way out (./wayOut.ts): the dissolve into stardust, the Q&A with the scroll and the digitize to the end;
  * - the end, the scroll's last stop: the end's words at rest, HTML over the scene's sky.
  * Within 1e-6 of a stop the progress is the stop, as `riseAt` has it, so a sum's float residue never leaves it a hair off.
  */
@@ -64,7 +64,7 @@ export interface NeedleOverride {
  * - `void`: the void's state, null on the rise;
  * - `path`: the world's path at this place (./worldPath.ts), null before the hand-over;
  * - `sheet`: how far the story has gone past the Q&A's door, the last floor's stop, 0..1: over a unit of the way in (the
- *   tower turning into a blueprint), then 1 to the end; 0 before it. A failed void's end page reads it at the end
+ *   tower dissolving), then 1 to the end; 0 before it. A failed void's end page reads it at the end
  *   (src/scene/bob/endView.ts).
  */
 export interface JourneyPose {

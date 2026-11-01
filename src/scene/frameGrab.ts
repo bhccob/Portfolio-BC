@@ -1,6 +1,6 @@
 /**
- * One grab of the frame on the screen (round 14, the way out): the sky asks for it when the blueprint needs the last
- * floor's edges (src/ui/outSky.ts), and the effects hand it over right after the next frame is drawn
+ * One grab of the frame on the screen (round 14; round 15, the digitize): the Q&A's scene asks for it each frame the LED
+ * screen draws (src/scene/bob/qaScene.ts, src/ui/ledSky.ts), and the effects hand it over right after the next frame is drawn
  * (./Effects.tsx `FrameGrab`), while the canvas's buffer still holds it (it is not kept past the frame).
  */
 
@@ -26,6 +26,6 @@ export function grabNow(canvas: HTMLCanvasElement): void {
   try {
     take(canvas, canvas.width, canvas.height);
   } catch {
-    // A frame it could not read (a lost context): the blueprint draws its sparks without the edges.
+    // A frame it could not read (a lost context): the LEDs wait for the next.
   }
 }
