@@ -28,7 +28,7 @@ import { captionHover, nameLevel, showWorldNames, type WorldNamesView } from '~/
 import { motion } from '../motion';
 import { engravedLevels, shaftRings } from './engravedWay';
 import type { Handover } from './Home';
-import { journeyAt, type JourneyAt, type LightPose, WORLD_PROJECTS } from './journey';
+import { type JourneyAt, type LightPose, WORLD_PROJECTS } from './journey';
 import { towerBreath } from './breathe';
 import { LOOK } from './look';
 import { setGasPass } from '../gasPass';
