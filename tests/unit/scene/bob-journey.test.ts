@@ -6,7 +6,9 @@ import { fieldFor, focusShotFor, journeyAt, journeyPoseAt, lensField, WORLD_PROJ
 import { factAt, lightAt, voidAt, wayShot } from '~/scene/bob/lightDive';
 import { worldPathFor } from '~/scene/bob/worldPath';
 import { riseAt, scrollPoseAt } from '~/scene/bob/scrollPose';
-import { AREA_STOP, areaStop, HAND_F, HOME_CHAPTERS, pathStart, placeOfFrame, qaDoor, scrollEnd, worldStop } from '~/state/chapters';
+import { AREA_STOP, areaStop, HAND_F, HOME_CHAPTERS, pathStart, placeOfFrame, qaDoor, qaStop, scrollEnd, worldStop } from '~/state/chapters';
+import { easeInOutQuart } from '~/input/scrollLoop';
+import { WAY_OUT } from '~/scene/bob/wayOut';
 
 type Vec3 = readonly [number, number, number];
 
@@ -96,15 +98,37 @@ describe("the journey's camera", () => {
     const TURN_STEP = 0.6;
     const turns = HOME_CHAPTERS.units.filter((u) => u.id === 'AREA').map((u) => [u.start, u.start + AREA_STOP * u.length] as const);
     const limitAt = (p: number): number => (turns.some(([a, b]) => p > a && p <= b + 1e-9) ? TURN_STEP : 0.15);
+    // The dissolve (round 15) is a step the scroll plays on its own clock, never resting between the door and question 1:
+    // it is walked below a frame at a time, not here.
+    const door = qaDoor(HOME_CHAPTERS);
+    const first = qaStop(HOME_CHAPTERS, 0);
+    const played = (p: number): boolean => p > door + 1e-9 && p < first - 1e-9;
     for (const a of SCREENS) {
       let worst = { p: 0, over: 0, turn: 0 };
       for (let i = 1; i < STEPS.length; i++) {
+        if (played(STEPS[i - 1]!) || played(STEPS[i]!)) continue;
         const s = shotStep(journeyPoseAt(STEPS[i - 1]!, a).shot, journeyPoseAt(STEPS[i]!, a).shot);
         const over = s.move / limitAt(STEPS[i]!);
         if (over > worst.over || s.turn > worst.turn) worst = { p: STEPS[i]!, over: Math.max(worst.over, over), turn: Math.max(worst.turn, s.turn) };
       }
       expect(worst.over, `at ${a}, ${worst.p}`).toBeLessThan(1);
       expect(worst.turn, `at ${a}, ${worst.p}`).toBeLessThan(2);
+    }
+  });
+
+  it('plays the dissolve without a seam: no frame of it at 60 fps moves the camera more than 0.6 m or turns it more than 2 degrees', () => {
+    const door = qaDoor(HOME_CHAPTERS);
+    const first = qaStop(HOME_CHAPTERS, 0);
+    const frames = Math.round(WAY_OUT.dissolve * 60);
+    const placeAt = (k: number): number => door + easeInOutQuart(k / frames) * (first - door);
+    for (const a of SCREENS) {
+      let worst = { k: 0, move: 0, turn: 0 };
+      for (let k = 1; k <= frames; k++) {
+        const s = shotStep(journeyPoseAt(placeAt(k - 1), a).shot, journeyPoseAt(placeAt(k), a).shot);
+        if (s.move > worst.move || s.turn > worst.turn) worst = { k, move: Math.max(worst.move, s.move), turn: Math.max(worst.turn, s.turn) };
+      }
+      expect(worst.move, `at ${a}, frame ${worst.k}`).toBeLessThan(0.6);
+      expect(worst.turn, `at ${a}, frame ${worst.k}`).toBeLessThan(2);
     }
   });
 

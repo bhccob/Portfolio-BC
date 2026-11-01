@@ -15,9 +15,10 @@
  * - AREA, one per board of the stack: the camera goes down to the board, turning half round the stack's axis on the way
  *   (`FLOOR_TURN`, ./around.ts), the board turned with it, so it stands at `AREA_STOP` seeing the board as from the front;
  *   the board in view lit, the others stepped back, its caption in;
- * - from the last board's stop, the Q&A's door, the way out (round 14, ./wayOut.ts): the tower held as the last board's
- *   stop shows it while it turns into a blueprint under the dark the sky brings (src/ui/outSky.ts), its words going with
- *   the dark, then held, unseen, through the Q&A in the stars and the flight to the end.
+ * - from the last board's stop, the Q&A's door, the way out (round 15, ./wayOut.ts): the floors close while the tower
+ *   dissolves (the stardust, ../../engine/bob/build/stardust.ts), its words gone at once and every board lit; the camera
+ *   eases to the closed tower and moves off it, up, back and round, the tower slid aside of the words (`wayOutShot`), and
+ *   goes on with the Q&A to the end, the tower back in the middle.
  *
  * The camera's places are the mock-up's (its `poseFor`), each framed by fit (./fit.ts) round what its view must hold;
  * where the mock-up moved the picture with a view offset, the shot looks a little aside instead (`aside`), as the site's
@@ -25,7 +26,6 @@
  */
 import type { CategoryId } from '~/data/categories';
 import type { ProjectId } from '~/data/projects';
-import { RING_MARKS } from '~/data/qa';
 import { type CameraShot, shotToward } from '~/engine/bob/shots';
 import { AREA_STOP, type Chapters, HAND_F, HOME_CHAPTERS, LAND_DROP, LAND_STOP, pathStart, qaDoor, qaPlaceAt, WORLD_LAYOUT, worldStop } from '~/state/chapters';
 import { aroundShot, turnedRound } from './around';
@@ -33,7 +33,7 @@ import { fitDistance } from './fit';
 import { lightAt, sizeFor, streamAt, trailAt, trailLevel, voidAt, wayShot } from './lightDive';
 import type { LightPose, VoidPose } from './poseTypes';
 import { type WayOutView, wayOutAt } from './wayOut';
-import { type BoardPlace, boardCentre, LID_TOP, STACK, stackPlaces } from './worldLayout';
+import { type BoardPlace, boardCentre, boardTops, LID_TOP, STACK, stackPlaces } from './worldLayout';
 
 export type Vec3 = [number, number, number];
 type R3 = readonly [number, number, number];
@@ -111,6 +111,38 @@ export const FLOOR_TURN = -Math.PI;
 /** The turn the camera and board `i` (0-based among the category boards) stand at; the world's stop (−1) 0. */
 export function floorTurn(i: number): number {
   return i < 0 ? 0 : FLOOR_TURN * (i + 1);
+}
+
+/** How long into the dissolve the floor's words take to go, s. */
+const WORDS_GO = 0.6;
+
+/**
+ * The way out's camera off the closed tower (the mock-up's `dustWorld` shot, spec 2026-11-01-bob-dissolve-digitize-design.md):
+ * how far back it pulls (times the closed shot's distance), how much higher and how far round it goes (deg), by the way
+ * out's `away`, `q` and `end`; how far it slides the tower aside of the words, a share of the screen (right on a laptop,
+ * up on a phone); and the fog it draws back to (m, times the pull).
+ */
+export const WAY_OUT_CAMERA = {
+  pull: { away: 0.6, q: 0.8, end: 0.15 },
+  rise: { away: 14, q: -8, end: 6 },
+  turn: { away: 15, q: 40 },
+  slide: 0.17,
+  fog: { near: 30, far: 170 }
+} as const;
+
+/**
+ * `base` turned round `about`: its distance from it times `pull`, `rise` rad higher, `turn` rad further round (as
+ * atan2(x, z) measures it), its target `toward` of the way to `about`. Pure.
+ */
+export function orbitShot(base: CameraShot, about: R3, o: { pull: number; rise: number; turn: number; toward: number }): CameraShot {
+  const v = sub(base.position, about);
+  const d = len(v) || 1;
+  const el = Math.max(-1.5, Math.min(1.5, Math.asin(Math.max(-1, Math.min(1, v[1] / d))) + o.rise));
+  const az = Math.atan2(v[0], v[2]) + o.turn;
+  const r = d * o.pull;
+  const position = add(about, [Math.sin(az) * Math.cos(el) * r, Math.sin(el) * r, Math.cos(az) * Math.cos(el) * r]);
+  const target: Vec3 = [lerp(base.target[0], about[0], o.toward), lerp(base.target[1], about[1], o.toward), lerp(base.target[2], about[2], o.toward)];
+  return { ...base, position, target };
 }
 
 /** The gyroscope rings round the stack step back to this at a board's stop (and the way out holds it), so the thing in view leads. */
@@ -205,6 +237,8 @@ export interface WorldPath {
   worldShot: CameraShot;
   areaShot(index: number): CameraShot;
   lookShot: CameraShot;
+  /** The closed tower framed whole, from the last floor's side: where the dissolve takes the camera. */
+  closedShot: CameraShot;
   /** Every point the whole machine's view must hold: each board's rim, what floats over it, the CPU and the spine's tip. */
   machine: Vec3[];
   /** Every view's camera and what it looks at (the land's and the stops'): the clouds stay out of them. */
@@ -320,6 +354,41 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS, { zoo
   /** A board's stop as framed from the front (the moves turn round from these), and as the camera stands there, turned. */
   const frontShot = (i: number): CameraShot => (i < 0 ? worldShot : boardShots[i]!);
   const stopShot = (i: number): CameraShot => (i < 0 ? worldShot : turnedRound(boardShots[i]!, C, floorTurn(i)));
+  // The closed tower, whole in the middle of the screen, from the side the last floor's stop sees it (the mock-up's).
+  const shut = boardTops(places, 0);
+  const closedMiddle: Vec3 = [C[0], (shut[0]! + shut[shut.length - 1]!) / 2 - 0.6, C[2]];
+  const closedRims = boards.flatMap((b, i) => rimOf({ ...b, top: shut[i + 1]! }, C));
+  const closedShot = turnedRound(framed(closedRims, closedMiddle, 0, 24 * DEG, [-0.5, 0.5, -0.38, 0.38]), C, floorTurn(count - 1));
+  /** The shot slid by `share` of the screen, the tower aside of the words: the camera left on a laptop, down on a phone. */
+  const slid = (shot: CameraShot, share: number): CameraShot => {
+    if (!(share > 0)) return shot;
+    const forward = norm(sub(shot.target, shot.position));
+    const right = norm(cross(forward, [0, 1, 0]));
+    const up = cross(right, forward);
+    const d = len(sub(closedMiddle, shot.position));
+    const tanV = Math.tan((shot.fov * DEG) / 2);
+    const move = phone ? mul(up, -2 * share * d * tanV) : mul(right, -2 * share * d * tanV * aspect);
+    return { ...shot, position: add(shot.position, move), target: add(shot.target, move) };
+  };
+  const W = WAY_OUT_CAMERA;
+  const pullOf = (out: WayOutView): number => 1 + W.pull.away * out.away + W.pull.q * out.q + W.pull.end * out.end;
+  /** The camera on the way out: to the closed tower as the floors close, then off it with the Q&A, slid aside of the words. */
+  const wayOutShot = (out: WayOutView): CameraShot => {
+    const base = shotToward(stopShot(count - 1), closedShot, out.close);
+    const turned = orbitShot(base, closedMiddle, {
+      pull: pullOf(out),
+      rise: (W.rise.away * out.away + W.rise.q * out.q + W.rise.end * out.end) * DEG,
+      turn: (W.turn.away * out.away + W.turn.q * out.q) * DEG,
+      toward: out.away
+    });
+    return slid(turned, W.slide * out.slide);
+  };
+  /** The fog on the way out: the closing shot's, drawn back to the stardust's as the camera moves off. */
+  const wayOutFog = (out: WayOutView): { near: number; far: number } => {
+    const from = fogFor(shotToward(stopShot(count - 1), closedShot, out.close));
+    const pull = pullOf(out);
+    return { near: lerp(from.near, W.fog.near * pull, out.away), far: lerp(from.far, W.fog.far * pull, out.away) };
+  };
 
   // The light: from the hand-over straight down onto the lid, carrying the fall's speed in and easing into the hit (Bob:
   // the drop was too fast; it quickened into the lid at twice the mean, now it settles at half).
@@ -380,7 +449,11 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS, { zoo
   function frameAt(q: number): WorldFrame {
     const qq = Math.max(q, 0);
     const { s, t } = segmentAt(qq);
-    const shot = shotAt(s, t);
+    // The Q&A: its place, from its door on, and the way out's stage there.
+    const place = qaPlaceAt(c, qq + START);
+    const qa: QaFrame | null = place === null ? null : { place, out: wayOutAt(place) };
+    const out = qa !== null && qa.place > -1 ? qa.out : null;
+    const shot = out !== null ? wayOutShot(out) : shotAt(s, t);
     const forward = norm(sub(shot.target, shot.position));
     const black = 0;
     const landing = s.kind === 'land' && t < LAND_HIT;
@@ -400,9 +473,6 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS, { zoo
       trail,
       trailLevel: handTrail
     };
-    // The Q&A: its place, from its door on, and the way out's stage there.
-    const place = qaPlaceAt(c, qq + START);
-    const qa: QaFrame | null = place === null ? null : { place, out: wayOutAt(place, RING_MARKS) };
 
     let power = 1;
     let flash = 0;
@@ -442,9 +512,11 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS, { zoo
     let focus = 1;
     if (s.kind === 'area') focus = lerp(s.i === 0 ? 1 : RINGS_FOCUS, RINGS_FOCUS, ease(seg(t, 0, AREA_STOP)));
     else if (s.kind === 'qa') focus = count > 0 ? RINGS_FOCUS : 1;
-    // The floor's words go as the dark comes over it.
-    if (qa !== null) {
-      const keep = 1 - qa.out.dark;
+    // The way out: the floors close, every board lit as one, and the floor's words go as the close starts.
+    if (out !== null) {
+      explode = 1 - out.close;
+      boardLight = mixLight(boardLight, boardLightAt(-1), out.close);
+      const keep = 1 - seg(out.g, 0, WORDS_GO);
       names *= keep;
       dots *= keep;
       if (caption !== null) caption = { index: caption.index, opacity: caption.opacity * keep };
@@ -470,14 +542,14 @@ export function makeWorldPath(aspect: number, c: Chapters = HOME_CHAPTERS, { zoo
       skip: qq >= WORLD_Q - 1e-9 && qq <= DOOR_Q + 1e-9,
       black,
       qa,
-      rings: { level: boardPowerAt(power)[0] ?? power, focus },
-      fog: fogFor(shot)
+      rings: { level: (boardPowerAt(power)[0] ?? power) * (out === null || out.solid ? 1 : 0), focus },
+      fog: out !== null ? wayOutFog(out) : fogFor(shot)
     };
   }
 
   const sights: [Vec3, Vec3][] = [landShot, worldShot, ...boardShots, lookShot].map((shot) => [[...shot.position] as Vec3, [...shot.target] as Vec3]);
 
-  return { places, projects: projectIds, centre: C, worldShot, areaShot: (i) => stopShot(i), lookShot, machine, sights, frameAt };
+  return { places, projects: projectIds, centre: C, worldShot, areaShot: (i) => stopShot(i), lookShot, closedShot, machine, sights, frameAt };
 }
 
 /** The last path made by `worldPathFor`, and the aspect it was made for. */

@@ -1,17 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import type { CameraShot } from '~/engine/bob/shots';
+import { type CameraShot, shotToward } from '~/engine/bob/shots';
 import { project } from '~/scene/bob/fit';
 import { lightAt } from '~/scene/bob/lightDive';
 import { RING_MARKS } from '~/data/qa';
 import { WAY_OUT, wayOutAt } from '~/scene/bob/wayOut';
 import { turnedRound } from '~/scene/bob/around';
-import { EXPLODE, FLASH_GONE, FLOOR_TURN, floorTurn, LAND_HIT, LOOK_BOX, makeWorldPath, NAMES_IN, POWER, TOWER_ZOOM, type WorldFrame } from '~/scene/bob/worldPath';
+import { ease, EXPLODE, FLASH_GONE, FLOOR_TURN, floorTurn, LAND_HIT, LOOK_BOX, makeWorldPath, NAMES_IN, POWER, TOWER_ZOOM, type WorldFrame } from '~/scene/bob/worldPath';
 import { boardCentre, boardTops, LID_TOP, STACK, stackPlaces } from '~/scene/bob/worldLayout';
 import { AREA_STOP, areaStop, areasOnPath, buildChapters, type Chapters, HAND_F, HOME_CHAPTERS, LAND_STOP, pathStart, placeOfFrame, qaDoor, qaStop, scrollEnd, WORLD_LAYOUT, worldStop } from '~/state/chapters';
 import { easeInOutQuart } from '~/input/scrollLoop';
 
 type Vec3 = readonly [number, number, number];
 type Box = readonly [number, number, number, number];
+const DEG = Math.PI / 180;
 const DESK = 16 / 10;
 const PHONE = 390 / 844;
 const C = boardCentre();
@@ -249,9 +250,11 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
       last = e;
     }
     expect(landAt(hit(1.5)).explode).toBe(1);
-    for (const place of [worldStop(HOME_CHAPTERS), areaStop(HOME_CHAPTERS, 'app'), areaStop(HOME_CHAPTERS, 'game'), qaStop(HOME_CHAPTERS, 0), scrollEnd(HOME_CHAPTERS)]) {
+    for (const place of [worldStop(HOME_CHAPTERS), areaStop(HOME_CHAPTERS, 'app'), areaStop(HOME_CHAPTERS, 'game'), qaDoor(HOME_CHAPTERS)]) {
       expect(home(DESK, place).explode).toBe(1);
     }
+    // The way out closes it again (round 15): shut from question 1 to the end.
+    for (const place of [qaStop(HOME_CHAPTERS, 0), scrollEnd(HOME_CHAPTERS)]) expect(home(DESK, place).explode).toBe(0);
   });
 
   it('powers the boards from the top down', () => {
@@ -410,8 +413,8 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
         for (const s of board.sockets) expect(levels[s.id], s.id).toBeCloseTo(b === i + 1 ? 1.1 : 0.45, 12);
       });
     });
-    // The way out holds the last floor as it stood: its board lit, the others stepped back.
-    expect(home(DESK, qaStop(HOME_CHAPTERS, 2)).boardLight).toEqual(home(DESK, qaDoor(HOME_CHAPTERS)).boardLight);
+    // The way out lights every board as the tower closes (round 15).
+    expect(home(DESK, qaStop(HOME_CHAPTERS, 2)).boardLight).toEqual([1, 1, 1, 1]);
   });
 
   it("lets the names show at the world's stop and at each board's, and a board's caption only at its own", () => {
@@ -441,54 +444,105 @@ describe("the path down the stack: the light lands in the CPU, the stack opens, 
     expect(home(DESK, qaDoor(HOME_CHAPTERS) + 0.1).skip).toBe(false);
   });
 
-  // Round 14 (Bob picked the way out on .superpowers/r14/all.html): the tower stays as the last floor showed it while it
-  // turns into a blueprint and the dark comes over it; its words go with the dark.
-  it('holds the last floor through the way out, as its stop shows it, with no dark of its own and the fog kept', () => {
-    const door = qaDoor(HOME_CHAPTERS);
-    const floor = home(DESK, door);
-    expect(floor.part).toBe('area');
-    expect(floor.qa).toEqual({ place: -1, out: wayOutAt(-1, RING_MARKS) });
-    for (let k = 1; k <= 20; k++) {
-      const f = home(DESK, door + (k / 20) * (scrollEnd(HOME_CHAPTERS) - door));
-      expect(f.shot, `at ${k}`).toEqual(floor.shot);
-      expect([f.explode, f.power, f.black], `at ${k}`).toEqual([1, 1, 0]);
-      expect(f.levels, `at ${k}`).toEqual(floor.levels);
-      expect(f.rings, `at ${k}`).toEqual(floor.rings);
-      expect(f.skip, `at ${k}`).toBe(false);
+  // Round 15 (spec 2026-11-01-bob-dissolve-digitize-design.md): from the door the floors close while the tower dissolves,
+  // and the camera, never stopping, eases to the closed tower and moves off it with the Q&A.
+  const door = qaDoor(HOME_CHAPTERS);
+  const first = qaStop(HOME_CHAPTERS, 0);
+  /** The place the dissolve's turn has reached `g` seconds in. */
+  const dissolveAt = (g: number): number => door + easeInOutQuart(g / WAY_OUT.dissolve) * (first - door);
+  const lastBoard = areasOnPath().length - 1;
+  /** The middle the camera turns round off the closed tower: the closed tops' middle, 0.6 under. */
+  const closedTops = boardTops(BOARDS, 0);
+  const T: Vec3 = [C[0], (closedTops[0]! + closedTops[closedTops.length - 1]!) / 2 - 0.6, C[2]];
+  const view = (shot: CameraShot): { d: number; el: number; az: number } => {
+    const v = [0, 1, 2].map((k) => shot.position[k]! - shot.target[k]!) as Vec3;
+    const d = Math.hypot(...v);
+    return { d, el: Math.asin(v[1] / d), az: Math.atan2(v[0], v[2]) };
+  };
+  /** How far round from `b` to `a`, degrees, −180..180. */
+  const round = (a: number, b: number): number => Math.atan2(Math.sin(a - b), Math.cos(a - b)) / DEG;
+
+  it('holds the last floor at the door, the stack open', () => {
+    const f = home(DESK, door);
+    expect(f.shot).toEqual(pathFor(DESK).areaShot(lastBoard));
+    expect(f.explode).toBe(1);
+    expect(f.qa).toEqual({ place: -1, out: wayOutAt(-1) });
+  });
+
+  it('closes the tower as the dissolve plays, its words gone at once', () => {
+    for (const aspect of [DESK, PHONE]) {
+      const path = pathFor(aspect);
+      // The closed tower framed whole, from the last floor's side.
+      expect(round(view(path.closedShot).az, view(path.areaShot(lastBoard)).az)).toBeCloseTo(0, 9);
+      expect(path.closedShot.target[1]).toBeCloseTo(T[1], 9);
+      // Before the camera moves off it, the way from the last floor's stop to the closed tower's shot.
+      const g = 2.4;
+      const f = at(HOME_CHAPTERS, aspect, dissolveAt(g));
+      const toward = shotToward(path.areaShot(lastBoard), path.closedShot, ease(g / 3.4));
+      for (const k of [0, 1, 2]) {
+        expect(f.shot.position[k]).toBeCloseTo(toward.position[k]!, 9);
+        expect(f.shot.target[k]).toBeCloseTo(toward.target[k]!, 9);
+      }
     }
-    for (const place of [worldStop(HOME_CHAPTERS), door, qaStop(HOME_CHAPTERS, 3)]) {
-      const { near, far } = home(DESK, place).fog;
-      expect(near).toBeGreaterThan(10);
-      expect(far).toBeGreaterThan(near);
-    }
-    expect(LAND_STOP).toBeCloseTo((1.26 + 1.9) / 3.46, 12);
+    const half = home(DESK, dissolveAt(1.7));
+    expect(half.explode).toBeCloseTo(0.5, 9);
+    const early = home(DESK, dissolveAt(0.3));
+    expect(early.names).toBeCloseTo(0.5, 9);
+    expect(early.dots).toBeCloseTo(0.5, 9);
+    expect(early.caption!.opacity).toBeCloseTo(0.5, 9);
+    const gone = home(DESK, dissolveAt(0.6));
+    expect([gone.caption, gone.names, gone.dots]).toEqual([null, 0, 0]);
+    expect(home(DESK, first).boardLight).toEqual([1, 1, 1, 1]);
+  });
+
+  it('moves off the closed tower and slides it aside of the words: right on a laptop, up on a phone', () => {
+    const desk = home(DESK, first);
+    expect(project(T, desk.shot, DESK).x).toBeCloseTo(0.34, 2);
+    expect(Math.abs(project(T, desk.shot, DESK).y)).toBeLessThan(0.02);
+    const phone = at(HOME_CHAPTERS, PHONE, first);
+    expect(project(T, phone.shot, PHONE).y).toBeCloseTo(0.34, 2);
+    expect(Math.abs(project(T, phone.shot, PHONE).x)).toBeLessThan(0.02);
+    const closed = view(pathFor(DESK).closedShot);
+    const v = view(desk.shot);
+    expect(v.d / closed.d).toBeCloseTo(1.6, 9);
+    expect((v.el - closed.el) / DEG).toBeCloseTo(14, 9);
+    expect(round(v.az, closed.az)).toBeCloseTo(15, 9);
+  });
+
+  it('goes with the Q&A: further, lower and round with each question, back to the middle at the end', () => {
+    const closed = view(pathFor(DESK).closedShot);
+    const mid = view(home(DESK, qaStop(HOME_CHAPTERS, 3)).shot);
+    expect(mid.d / closed.d).toBeCloseTo(1.6 + 0.8 * ease(0.5), 9);
+    expect((mid.el - closed.el) / DEG).toBeCloseTo(14 - 8 * ease(0.5), 9);
+    expect(round(mid.az, closed.az)).toBeCloseTo(15 + 40 * ease(0.5), 9);
+    const endShot = home(DESK, scrollEnd(HOME_CHAPTERS)).shot;
+    const end = view(endShot);
+    expect(end.d / closed.d).toBeCloseTo(2.55, 9);
+    expect((end.el - closed.el) / DEG).toBeCloseTo(12, 9);
+    expect(round(end.az, closed.az)).toBeCloseTo(55, 9);
+    for (const k of [0, 1, 2]) expect(endShot.target[k]).toBeCloseTo(T[k]!, 9);
+  });
+
+  it('lets the rings go with the solid tower, and draws the fog back with the camera', () => {
+    expect(home(DESK, dissolveAt(3.2)).rings.level).toBeGreaterThan(0);
+    expect(home(DESK, dissolveAt(3.3)).rings.level).toBe(0);
+    expect(home(DESK, qaStop(HOME_CHAPTERS, 3)).rings.level).toBe(0);
+    const fog = home(DESK, qaStop(HOME_CHAPTERS, 3)).fog;
+    const pull = 1.6 + 0.8 * ease(0.5);
+    expect(fog.near).toBeCloseTo(30 * pull, 9);
+    expect(fog.far).toBeCloseTo(170 * pull, 9);
+    const atDoor = home(DESK, door).fog;
+    expect(atDoor.far).toBeGreaterThan(atDoor.near);
+    for (const place of [worldStop(HOME_CHAPTERS), door]) expect(home(DESK, place).skip).toBe(true);
   });
 
   it("reads the place in the Q&A off the chapters, and the way out's stage at it", () => {
     for (let k = 0; k < RING_MARKS; k++) {
       const f = home(DESK, qaStop(HOME_CHAPTERS, k));
       expect(f.qa!.place).toBeCloseTo(k, 12);
-      expect(f.qa!.out).toEqual(wayOutAt(f.qa!.place, RING_MARKS));
+      expect(f.qa!.out).toEqual(wayOutAt(f.qa!.place));
     }
     expect(home(DESK, qaDoor(HOME_CHAPTERS) - 0.01).qa).toBeNull();
-  });
-
-  it("takes the floor's caption, dots and names away as the dark comes over it", () => {
-    const door = qaDoor(HOME_CHAPTERS);
-    const first = qaStop(HOME_CHAPTERS, 0);
-    // The place the way in's turn has reached `s` seconds in.
-    const placeAt = (s: number): number => door + easeInOutQuart(s / WAY_OUT.blueprint) * (first - door);
-    const start = home(DESK, placeAt(1));
-    expect(start.caption!.opacity).toBe(1);
-    expect([start.names, start.dots]).toEqual([1, 1]);
-    const half = home(DESK, placeAt(2));
-    expect(half.caption!.opacity).toBeCloseTo(1 - half.qa!.out.dark, 9);
-    expect(half.caption!.opacity).toBeGreaterThan(0);
-    expect(half.caption!.opacity).toBeLessThan(1);
-    expect(half.names).toBeCloseTo(half.caption!.opacity, 9);
-    expect(half.dots).toBeCloseTo(half.caption!.opacity, 9);
-    const dark = home(DESK, placeAt(3.7));
-    expect([dark.caption, dark.names, dark.dots]).toEqual([null, 0, 0]);
   });
 
   it('frames the whole machine for a project off the stack, looking back up at it, not far out (Bob, 2026-10-29: "it zooms out too much")', () => {
