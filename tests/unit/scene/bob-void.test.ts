@@ -743,12 +743,22 @@ describe('the wiring: one journey pose a frame', () => {
   it('makes the Q&A in the stars with the world, poses it each frame, and hides and frees it with it; the 3D ring is gone', () => {
     const source = readFileSync(fileURLToPath(new URL('../../../src/scene/bob/Void.tsx', import.meta.url)), 'utf8');
     expect(source).toMatch(/const qa = makeQaScene\(/);
-    expect(source).toMatch(/holder\.add\(model\.group, gyro\.group, stars\.group\)/);
+    expect(source).toMatch(/holder\.add\(model\.group, gyro\.group, stars\.group, dust\.points\)/);
     expect(source).not.toMatch(/buildRing|buildDecorStars|ringDragOn/);
     expect(source).toMatch(/world\.qa\.pose\(\{/);
     // Hidden with the world (and so its page cleared), freed with it.
     expect(source).toMatch(/if \(!shown\) \{\s*world\.qa\.hide\(\);/);
     expect(source).toMatch(/world\.qa\.dispose\(\);/);
+  });
+
+  it('builds the stardust with the world, shows the solid tower only while it stands, poses the dust from the way out, and frees it with the world (round 15)', () => {
+    const source = readFileSync(fileURLToPath(new URL('../../../src/scene/bob/Void.tsx', import.meta.url)), 'utf8');
+    expect(source).toContain('buildStardust({ centre: STACK_CENTRE, tops: boardTops(STACK_PLACES, 0), core: STACK.core, radius: STACK.radius }, latest.current.tier)');
+    expect(source).toContain('scene.add(world.model.group, world.gyro.group, world.stars.group, world.dust.points)');
+    expect(source).toContain('world.model.group.visible = solid;');
+    expect(source).toMatch(/stardustPose\(path\.qa\?\.out \?\? null, clock\.time, reducedMotion,/);
+    expect(source).toContain('world.dust.points.visible = false;');
+    expect(source).toContain('world.dust.dispose();');
   });
 
   it("builds the fall's stars with the void, round the light's line, and poses them with the fall", () => {
@@ -775,7 +785,8 @@ describe('the wiring: one journey pose a frame', () => {
     expect(source).toContain('buildGyro([STACK_CENTRE[0], MACHINE_MIDDLE, STACK_CENTRE[2]])');
     expect(source).toContain('buildStars(starsRound(STACK_CENTRE, MACHINE_MIDDLE), latest.current.tier)');
     expect(source).toContain('world.gyro.pose({ level: path.rings.level * openWorld(opened), focus: path.rings.focus, clock: clock.time })');
-    expect(source).toContain('world.stars.pose({ level: path.rings.level, clock: clock.time })');
+    // On the way out the stars stay with the power, where the rings go with the solid tower (round 15).
+    expect(source).toContain('world.stars.pose({ level: stands ? path.rings.level : (path.boardPower[0] ?? 1), clock: clock.time })');
     // Hidden with the world, freed with it.
     expect(source).toContain('world.gyro.group.visible = false;');
     expect(source).toContain('world.gyro.dispose();');
