@@ -259,9 +259,10 @@
  *              page scrim; and the light dive (way frames 60, 121, 241), each project's arrival, the look
  *              back and the Q&A's end at both sizes, gated by LUMA_GATE as home stills, with the page's text masked
  *   loader-stills  at 1440x900 and 390x844, in a fresh context, once the real load has landed (HOME_IDLE): the
- *              opening's clock held (`seekLoader`) at five moments of the BOB loader, which cuts the circle alone and
- *              runs 6.25 s: 0.5 s (dark: the probe coming down), 50/24 s (engrave: half the circle), 3.6 s (open: the
- *              iris), 4.6 s (rise) and SCRIPT.home, 6.25 s (home), each moment's `loader.stage` checked and a still
+ *              opening's clock held (`seekLoader`) at five moments of the BOB loader, whose signal is read into the
+ *              name and curled into the circle (round 17), 7.75 s: 0.5 s (dark: the line coming in), 56/24 s (engrave:
+ *              half the name read), 5 s (open: the iris), 6.1 s (rise) and SCRIPT.home, 7.75 s (home), each moment's
+ *              `loader.stage` checked and a still
  *              taken (`m2/loader-<n>-<size>.png`); the phase stays HOME_IDLE throughout, and let go the opening is
  *              back at home
  *   loader-skip  a first visit's full show: a click 1.5 s in (inside the circle's cut) lands on HOME_IDLE within
@@ -2989,16 +2990,16 @@ async function fps(browser, step) {
 /**
  * The opening's five moments for the stills: the loader's clock held at each (`seekLoader`: the full show of a load that
  * had landed from the start), the stage each must show and what the moment is, against the preview's stills
- * (tools/blender/bob_animate_o.py; src/engine/bob/loaderTimeline.ts, SCRIPT). The show is 6.25 s and cuts the circle
- * alone: black with the probe coming down, half the circle cut, the iris opening, the compass rising, and the home it
- * lands on. The stages are those of SCRIPT's frames: `dark` to frame 26 (1.08 s), `engrave` to frame 74 (3.08 s, the
- * circle closed), `open` to frame 88 (3.67 s), `rise` to the home.
+ * (tools/blender/bob_animate_o.py; src/engine/bob/loaderTimeline.ts, SCRIPT). The show is 7.75 s: black with the
+ * signal's line coming in, half the name read (round 17), the iris opening, the compass rising, and the home it lands
+ * on. The stages are those of SCRIPT's frames: `dark` to frame 20 (0.83 s), `engrave` to frame 110 (4.58 s, the line
+ * curled into the circle), `open` to frame 124 (5.17 s), `rise` to the home.
  */
 const LOADER_MOMENTS = [
-  { seconds: 0.5, stage: 'dark', what: 'black, the probe coming down' },
-  { seconds: 50 / 24, stage: 'engrave', what: 'half the circle' },
-  { seconds: 3.6, stage: 'open', what: 'the iris' },
-  { seconds: 4.6, stage: 'rise', what: 'the rise' },
+  { seconds: 0.5, stage: 'dark', what: 'black, the line coming in' },
+  { seconds: 56 / 24, stage: 'engrave', what: 'half the name read' },
+  { seconds: 5, stage: 'open', what: 'the iris' },
+  { seconds: 6.1, stage: 'rise', what: 'the rise' },
   { seconds: SCRIPT.home, stage: 'home', what: 'home' },
 ];
 
@@ -3018,12 +3019,12 @@ const othersOf = (loader) => (loader?.strokes ?? []).reduce((sum, share, mark) =
 const circleWhole = (loader) => loader?.strokes?.length === 5 && circleOf(loader) === 1 && othersOf(loader) === 0;
 
 /**
- * How far into the full show the skip steps act, s: inside the circle's cut (SCRIPT.circle: 1.08 to 3.08 s), so the
- * stage is `engrave` and the circle part cut. (The old 3 s is past the circle's close at 3.08 s.)
+ * How far into the full show the skip steps act, s: inside the signal's read (SCRIPT.decode: 0.83 to 3.83 s), so the
+ * stage is `engrave`, the line part read and the circle not yet cut (round 17).
  */
 const CUT_AT = 1.5;
 
-/** How far past CUT_AT a step may find the clock when it looks, s: the stage is `engrave` until 3.08 s. */
+/** How far past CUT_AT a step may find the clock when it looks, s: the stage is `engrave` until 4.58 s. */
 const CUT_WITHIN = 0.3;
 
 /**
@@ -3118,11 +3119,11 @@ async function loaderStills(browser, step) {
  * nothing; in the middle only the scene can make it. (The scene's black alone, the preview's, is a mean of about 0.001;
  * the page's night, which the poster shows, about 0.0115.)
  *
- * The one still that is black on purpose is the loader's first moment, `dark` (0.5 s: black, the probe coming down, a
- * thin wick at the top of the picture and the faint traces). It keeps the loader's ceiling and the clipped share, and
- * its floor is `darkPeak`: the brightest pixel of the whole still (the loader stills carry no page text: the hero and
- * the header are hidden while the clock is held) is the probe, at luma 0.2 or more (0.26 and 0.30 measured at the two
- * sizes), which a canvas that drew nothing cannot reach. The middle's floor does not apply: the probe is not there.
+ * The one still that is black on purpose is the loader's first moment, `dark` (0.5 s: black, the signal's line coming
+ * in over the faint traces, round 17). It keeps the loader's ceiling and the clipped share, and its floor is
+ * `darkPeak`: the brightest pixel of the whole still (the loader stills carry no page text: the hero and the header are
+ * hidden while the clock is held) is the line, at luma 0.2 or more, which a canvas that drew nothing cannot reach. The
+ * middle's floor does not apply.
  *
  * A bead seen from inside is lit on purpose: its objects stand in the warm light under the glass. The approved light path
  * mock-up's insides measure up to 0.138 on a laptop (Steady's, the brightest), so they keep a ceiling of their own,
@@ -3336,7 +3337,7 @@ async function gateLuma(browser, step, shots) {
     if (dark) {
       step.check(
         luma.peakAll >= LUMA_GATE.darkPeak,
-        `${name}: black on purpose but drawn, the brightest pixel of the whole still (the probe coming down) at luma ${luma.peakAll.toFixed(3)}, ${LUMA_GATE.darkPeak} or more (the mean is ${luma.mean.toFixed(4)})`,
+        `${name}: black on purpose but drawn, the brightest pixel of the whole still (the line coming in) at luma ${luma.peakAll.toFixed(3)}, ${LUMA_GATE.darkPeak} or more (the mean is ${luma.mean.toFixed(4)})`,
       );
       console.log(`note: luma ${name} (${luma.width}x${luma.height}), the black first moment: mean ${luma.mean.toFixed(4)} (gate ${limit}), brightest pixel ${luma.peakAll.toFixed(3)} (floor ${LUMA_GATE.darkPeak}), clipped ${percent(luma.clipped)} (gate ${percent(LUMA_GATE.clipped)})`);
       continue;
@@ -3932,6 +3933,8 @@ const watchLoader = (context, everyMs) =>
         elapsed: loader.elapsed,
         // The marks are in STROKE_ORDER, the circle last: the loader cuts the circle alone, so the four before it are 0.
         circle: loader.strokes[4],
+        // The signal's light (round 17): the full path's alone.
+        signal: loader.signal?.level ?? 0,
         others: loader.strokes.slice(0, 4).reduce((sum, share) => sum + share, 0),
         camera: { position: camera.position, fov: camera.fov },
         phase: phase.kind,
@@ -3994,8 +3997,8 @@ async function loaderSkip(browser, step) {
   const inputAt = await page.evaluate(() => window.__inputAt);
   const took = inputAt !== null && record.idleAt !== null ? Math.round(record.idleAt - inputAt) : null;
   step.check(
-    at.stage === 'engrave' && at.elapsed >= CUT_AT && at.elapsed < CUT_AT + CUT_WITHIN && circleOf(at) > 0 && circleOf(at) < 1 && othersOf(at) === 0,
-    `a first visit plays the full show: ${CUT_AT} s in it engraves, the circle part cut and no B (stage ${at.stage} at ${at.elapsed.toFixed(2)} s, circle cut ${circleOf(at).toFixed(2)}, the B marks ${othersOf(at)})`,
+    at.stage === 'engrave' && at.elapsed >= CUT_AT && at.elapsed < CUT_AT + CUT_WITHIN && at.signal.decode > 0 && at.signal.decode < 1 && circleOf(at) === 0 && othersOf(at) === 0,
+    `a first visit plays the full show: ${CUT_AT} s in it reads the signal, part read, the circle not yet cut and no B (stage ${at.stage} at ${at.elapsed.toFixed(2)} s, read ${at.signal.decode.toFixed(2)}, circle cut ${circleOf(at).toFixed(2)}, the B marks ${othersOf(at)})`,
   );
   step.check(clicked && took !== null && took >= 0 && took <= SKIP_WITHIN_MS, `a click at ${CUT_AT} s lands on HOME_IDLE ${took} ms later (within ${SKIP_WITHIN_MS} ms; the stages ${stagesOf(record.samples).join(' → ')})`);
   await page.waitForTimeout(500);
@@ -4293,8 +4296,8 @@ async function quickLoader(browser, step) {
   );
   const whole = again.samples.filter((sample) => sample.stage !== null && sample.stage !== 'dark');
   step.check(
-    whole.length > 0 && whole.every((sample) => sample.circle === 1 && sample.others === 0),
-    `the circle is cut whole from the first frame it shows, and nothing else is (circle ${[...new Set(whole.map((sample) => sample.circle))].join(' ')}, the B marks ${[...new Set(whole.map((sample) => sample.others))].join(' ')})`,
+    whole.length > 0 && whole.every((sample) => sample.circle === 1 && sample.others === 0 && sample.signal === 0),
+    `the circle is cut whole from the first frame it shows, nothing else is, and no signal shows (signal ${[...new Set(whole.map((sample) => sample.signal))].join(' ')}, circle ${[...new Set(whole.map((sample) => sample.circle))].join(' ')}, the B marks ${[...new Set(whole.map((sample) => sample.others))].join(' ')})`,
   );
   await takeCsp(page, step);
   await context.close();
@@ -4323,8 +4326,8 @@ async function loaderReduced(browser, step) {
   step.check(!stages.includes('engrave') && !stages.includes('open') && stages.at(-1) === 'home', `the opening never engraves: ${stages.join(' → ')} over ${samples.length} samples`);
   const shown = samples.filter((sample) => sample.stage !== null && sample.stage !== 'dark');
   step.check(
-    shown.length > 0 && shown.every((sample) => sample.circle === 1 && sample.others === 0),
-    `the circle is whole whenever it shows, and nothing else is cut (circle ${[...new Set(shown.map((sample) => sample.circle))].join(' ')}, the B marks ${[...new Set(shown.map((sample) => sample.others))].join(' ')})`,
+    shown.length > 0 && shown.every((sample) => sample.circle === 1 && sample.others === 0 && sample.signal === 0),
+    `the circle is whole whenever it shows, nothing else is cut, and no signal shows (signal ${[...new Set(shown.map((sample) => sample.signal))].join(' ')}, circle ${[...new Set(shown.map((sample) => sample.circle))].join(' ')}, the B marks ${[...new Set(shown.map((sample) => sample.others))].join(' ')})`,
   );
   // From the moment the canvas shows (data-ready): before it, the Stage's camera stands where three made it, unseen.
   const framed = samples.filter((sample) => readyAt !== null && sample.t > readyAt && sample.stage !== null && sample.camera.fov > 0);
@@ -7273,6 +7276,91 @@ async function dialStep(browser, step) {
   return `${summary.join('; ')}; reduced motion: there at the home`;
 }
 
+/** The signal's moments (round 17): half way through the read, the read whole, half way through the curl, and curled. */
+const SIGNAL_MOMENTS = {
+  half: (SCRIPT.decode.start + SCRIPT.decode.end) / 2,
+  read: SCRIPT.decode.end,
+  curling: (SCRIPT.curl.start + SCRIPT.curl.end) / 2,
+  curled: SCRIPT.curl.end,
+};
+
+/** The signal's read-out as the page shows it (src/ui/SignalReadout.tsx): hidden or not, the label's and each box's opacity and box, the name. */
+async function readoutOf(page) {
+  return page.evaluate(() => {
+    const root = document.querySelector('.signal-readout');
+    if (root === null) return null;
+    const op = (el) => Number(getComputedStyle(el).opacity);
+    const rect = (el) => {
+      const r = el.getBoundingClientRect();
+      return { left: r.left, right: r.right };
+    };
+    const name = root.querySelector('.signal-name');
+    return {
+      hidden: root.hidden,
+      label: op(root.querySelector('.signal-label')),
+      bytes: [...root.querySelectorAll('.signal-byte')].map((el) => ({ char: el.querySelector('.signal-char').textContent, opacity: op(el), box: rect(el) })),
+      name: { text: name.textContent, opacity: op(name) },
+    };
+  });
+}
+
+/**
+ * Round 17 (Bob: "B · Signal"): the signal's read-out at 1440x900, 390x844 and on /en/, the clock held (`seekLoader`)
+ * once landed: half way through the read the label and the first four frames' boxes (B, O, B and the space), no more,
+ * each inside the screen, the line part read and the circle not yet cut; read whole, every box and the name BOB CHUNG;
+ * half way through the curl the read-out gone; curled, the circle cut and the line dark; at home the read-out hidden.
+ * Stills of the read half way and of the curl (`m2/signal-*.png`).
+ */
+async function signalStep(browser, step) {
+  mkdirSync(STILLS, { recursive: true });
+  const summary = [];
+  for (const [size, path] of [[STILL_SIZES[0], '/'], [STILL_SIZES[1], '/'], [STILL_SIZES[0], '/en/']]) {
+    const at = `${sizeName(size)}${path === '/en/' ? ' /en/' : ''}`;
+    const { context, page } = await openPage(browser, step, () => false, { width: size.width, height: size.height }, size.options);
+    await page.goto(`${BASE}${path}?proof`, { waitUntil: 'load' });
+    await page.bringToFront();
+    await reachHomeIdle(page);
+    await page.evaluate(() => document.fonts.ready);
+    await page.evaluate(() => document.documentElement.setAttribute('data-loading', ''));
+    let loader = await seekLoader(page, SIGNAL_MOMENTS.half);
+    let r = await readoutOf(page);
+    const read = r?.bytes.filter((b) => b.opacity > 0).map((b) => b.char).join('') ?? '';
+    step.check(
+      r !== null && !r.hidden && r.label > 0.99 && read === 'BOB␣' && loader.signal.decode > 0.45 && loader.signal.decode < 0.55 && circleOf(loader) === 0,
+      `${at}: half way through the read the label shows and the first four frames are read out, no more (read "${read}", decode ${loader.signal.decode.toFixed(3)}, circle ${circleOf(loader)})`,
+    );
+    step.check(
+      r !== null && r.bytes.length === 9 && r.bytes.every((b) => b.box.left >= 0 && b.box.right <= size.width),
+      `${at}: every box inside the screen (${r?.bytes.map((b) => `${Math.round(b.box.left)}-${Math.round(b.box.right)}`).join(', ')})`,
+    );
+    if (path === '/') await page.screenshot({ path: join(STILLS, `signal-read-${sizeName(size)}.png`) });
+    loader = await seekLoader(page, SIGNAL_MOMENTS.read);
+    r = await readoutOf(page);
+    step.check(
+      r !== null && r.name.text === 'BOB CHUNG' && r.name.opacity > 0.99 && r.bytes.every((b) => b.opacity > 0.99),
+      `${at}: read whole, every frame read out and the name BOB CHUNG under them (got "${r?.name.text}" at ${r?.name.opacity}; boxes ${r?.bytes.map((b) => b.opacity).join(' ')})`,
+    );
+    loader = await seekLoader(page, SIGNAL_MOMENTS.curling);
+    if (path === '/') await page.screenshot({ path: join(STILLS, `signal-curl-${sizeName(size)}.png`) });
+    r = await readoutOf(page);
+    step.check(r === null || r.hidden, `${at}: half way through the curl the read-out is gone (hidden ${r?.hidden})`);
+    loader = await seekLoader(page, SIGNAL_MOMENTS.curled);
+    r = await readoutOf(page);
+    step.check(
+      circleOf(loader) === 1 && loader.signal.level === 0 && (r === null || r.hidden),
+      `${at}: curled, the circle cut, the line dark and the read-out hidden (circle ${circleOf(loader)}, light ${loader.signal.level}, hidden ${r?.hidden})`,
+    );
+    await page.evaluate(() => document.documentElement.removeAttribute('data-loading'));
+    await seekLoader(page, -1);
+    r = await readoutOf(page);
+    step.check(r === null || r.hidden, `${at}: let go, at home the read-out stays hidden (hidden ${r?.hidden})`);
+    await takeCsp(page, step);
+    await context.close();
+    summary.push(`${at}: half read (BOB␣), whole (BOB CHUNG), gone by the curl`);
+  }
+  return summary.join('; ');
+}
+
 const STEPS = {
   routes,
   slash,
@@ -7314,6 +7402,7 @@ const STEPS = {
   'title-ij': titleIj,
   stills,
   'loader-stills': loaderStills,
+  signal: signalStep,
   'loader-skip': loaderSkip,
   'loader-lite': loaderLite,
   'loader-skip-touch': loaderSkipTouch,
