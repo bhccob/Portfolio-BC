@@ -1075,6 +1075,65 @@ html:not([data-3d='on']) .area-dots {
    desk, below it on a phone), [data-align] how the words hang on their point. For the eye only (aria-hidden): the list
    after them is what a screen reader reads. Sizes are the mock-up's frame px: 15 of a 1440-wide frame, 18 of a phone's
    585; the colours are its gold (the number), its words' cream and its line's pale gold. */
+/* The loader's signal read out under its line (round 17, src/ui/SignalReadout.tsx, src/scene/bob/signalReadout.ts): the
+   channel's label, a thin box per byte with its letter and code, the name as far as it is read. Placed by transform. */
+.signal-readout {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 2;
+  color: var(--gold-ink);
+  font: 500 12px / 1 var(--font-label);
+  letter-spacing: 0.12em;
+}
+
+.signal-readout[hidden] {
+  display: none;
+}
+
+html:not([data-3d='on']) .signal-readout {
+  display: none;
+}
+
+.signal-label,
+.signal-byte,
+.signal-name {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  white-space: nowrap;
+}
+
+.signal-label {
+  color: var(--gold-ink-75);
+  font-size: 11px;
+}
+
+.signal-byte {
+  display: flex;
+  justify-content: center;
+  gap: 0.9em;
+  padding: 6px 0;
+  border: 1px solid rgb(228 190 127 / 0.4);
+  border-radius: 5px;
+}
+
+.signal-byte[data-code='hidden'] .signal-code {
+  display: none;
+}
+
+.signal-code {
+  color: var(--gold-ink-75);
+}
+
+.signal-name {
+  color: var(--gold-title);
+  font-size: 16px;
+  letter-spacing: 0.24em;
+}
+
 .light-fact-layer {
   --fact-size: clamp(13px, 1.0417vw, 17px);
   --fact-number: max(11px, calc(0.74 * var(--fact-size)));

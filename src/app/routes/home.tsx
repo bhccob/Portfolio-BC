@@ -15,6 +15,7 @@ import { focusEndOnArrival } from '~/ui/endArrival';
 import { EndPage } from '~/ui/EndPage';
 import { LightFactLabels, LightFactList } from '~/ui/LightFacts';
 import { QaRing } from '~/ui/QaRing';
+import { SignalReadout } from '~/ui/SignalReadout';
 import { SkipButton } from '~/ui/SkipButton';
 import { WorldNames } from '~/ui/WorldNames';
 import { HANDLES, type RouteHandle } from '../handle';
@@ -76,6 +77,9 @@ export default function Home() {
       {/* "Snel naar vragen ↓": shown from the first project through the look back, it fades the story straight to the
           Q&A's first question (src/ui/SkipButton.tsx). After the names and an area's words, so Tab reaches the shown words first. */}
       <SkipButton />
+
+      {/* The loader's signal read out under its line (round 17, src/ui/SignalReadout.tsx): for the eye, on a first visit. */}
+      <SignalReadout />
 
       {/* The Q&A's words beside the gold ring round the stack, with 3D on (src/ui/QaRing.tsx): the answers, the end and a
           button for each mark, out of reach until the scene shows them. Client-only: the HTML's questions are the end

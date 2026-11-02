@@ -6,6 +6,7 @@ import type { ProjectId } from '~/data/projects';
 import { bandStrip, COMPASS_PARTS, type CompassModel, loadCompass } from '~/engine/bob/build/compass';
 import { buildDial, type DialModel } from '~/engine/bob/build/dial';
 import { buildSignal, type SignalModel } from '~/engine/bob/build/signal';
+import { readoutLayout, writeReadout } from './signalReadout';
 import { localeFromPath } from '~/i18n/locale';
 import { translatorFor } from '~/i18n/useTranslator';
 import { buildEngraving, type EngravingModel } from '~/engine/bob/build/engraving';
@@ -111,6 +112,8 @@ interface LoaderParts {
   dial: DialModel;
   /** The signal (round 17, ~/engine/bob/build/signal): the full path's line, read into the hero's name and curled into the circle. */
   signal: SignalModel;
+  /** The hero's name the signal carries, in the page's language at the build: the read-out's too. */
+  word: string;
 }
 
 /** What the Opening mounts Home and the Void with, once the compass exists. */
@@ -411,10 +414,11 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       const dial = buildDial();
       made.push(dial);
       // The signal, the hero's name in the page's language (round 17), hidden until the full path lights it.
-      const signal = buildSignal(translatorFor(localeFromPath(window.location.pathname)).t.needle.hero.name);
+      const word = translatorFor(localeFromPath(window.location.pathname)).t.needle.hero.name;
+      const signal = buildSignal(word);
       made.push(signal);
       scene.add(glass.group, traces.group, engraving.group, probe.group, smoke.group, light.group, dial.group, signal.group);
-      parts = { glass, engraving, traces, probe, smoke, light, dial, signal };
+      parts = { glass, engraving, traces, probe, smoke, light, dial, signal, word };
     } catch (error) {
       for (const part of made) part.dispose();
       latest.current.onFail('the loader could not be built', error);
@@ -562,6 +566,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       frame.shot = null;
       frame.loader.stage = null;
       frame.needleAngle = 0;
+      writeReadout(null, document);
       scene.remove(parts.glass.group, parts.traces.group, parts.engraving.group, parts.probe.group, parts.smoke.group, parts.light.group, parts.dial.group, parts.signal.group);
       parts.signal.dispose();
       parts.light.dispose();
@@ -664,7 +669,11 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
     if (held !== null || !atHome) state.posedHome = false;
     const compass = home.current?.compass ?? null;
     if (!state.posedHome) {
-      const needle = pose(parts, compass, openingPoseAt(clock, state.path), time, state);
+      const posed = openingPoseAt(clock, state.path);
+      const needle = pose(parts, compass, posed, time, state);
+      // The signal's read-out under its line (round 17), on the full path only; gone from the home on.
+      const { decode, curl, level } = posed.signal;
+      writeReadout(state.path === 'full' && level > 0 ? readoutLayout(parts.word, decode, curl, level, lineOnScreen(three.camera, three.size)) : null, document);
       // The home's pose is applied once, and only once the compass exists; then the home is Home's, from here.
       if (atHome && held === null && compass) {
         state.posedHome = true;
@@ -705,6 +714,18 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       <Void compass={models.home.compass} light={models.light} handover={handover} tier={tier} onOpen={clickOnWorld} />
     </>
   ) : null;
+}
+
+/** Scratch for `lineOnScreen`: no vector is made per frame. */
+const onLine = new THREE.Vector3();
+
+/** Where a point of the signal's line (world x on the glass, its low level) falls on the screen, CSS px. */
+function lineOnScreen(camera: THREE.Camera, size: { width: number; height: number }): (x: number) => { x: number; y: number } {
+  camera.updateMatrixWorld();
+  return (x) => {
+    onLine.set(x, 0, 0).project(camera);
+    return { x: ((onLine.x + 1) / 2) * size.width, y: ((1 - onLine.y) / 2) * size.height };
+  };
 }
 
 /** Where the live opening stands: at home once it skips its loader, else as the loader's timeline says. */
