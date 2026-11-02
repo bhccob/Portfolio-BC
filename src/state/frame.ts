@@ -142,9 +142,10 @@ export const frame = {
    * Where the opening stands, as the Opening last posed it: its stage (null while no Opening is mounted), the loader's
    * visible seconds, and how much of each of the five marks is cut (`STROKE_ORDER`: the left B, its bar, the right B,
    * its bar, the circle; the loader cuts the circle alone, so the first four stay 0). The Rig reads the stage (the
-   * parallax is the home's alone); the debug bridge reports all three.
+   * parallax is the home's alone); the debug bridge reports all three, and the signal's read, curl and light as the
+   * Opening last posed it (round 17).
    */
-  loader: { stage: null as LoaderStage | null, elapsed: 0, strokes: [0, 0, 0, 0, 0] as readonly number[] },
+  loader: { stage: null as LoaderStage | null, elapsed: 0, strokes: [0, 0, 0, 0, 0] as readonly number[], signal: { decode: 0, curl: 0, level: 0 } },
   /**
    * The loader time the proof bridge holds the opening at (`seekLoader`, behind `?proof` only), seconds, or null for
    * the live clock. While it is set the Opening poses the whole scene at that moment on every frame and the home's

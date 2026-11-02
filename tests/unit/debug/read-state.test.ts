@@ -8,7 +8,7 @@ import { useScene } from '../../../src/state/store';
 
 function resetFrame(): void {
   Object.assign(frame, { progress: 0, target: 0, velocity: 0, chapterIndex: 0, contextLost: false, loaderHold: null, needleAngle: 0 });
-  Object.assign(frame.loader, { stage: null, elapsed: 0, strokes: [0, 0, 0, 0, 0] });
+  Object.assign(frame.loader, { stage: null, elapsed: 0, strokes: [0, 0, 0, 0, 0], signal: { decode: 0, curl: 0, level: 0 } });
   Object.assign(frame.scroll, { u: 0, letters: 0, iris: 0, needleDip: 0 });
 }
 
@@ -64,16 +64,17 @@ describe('readNeedleDebugState', () => {
 
   it("reports where the opening stands and the needle's angle, from the frame, as copies", () => {
     const before = readNeedleDebugState({ route: 'home', locale: 'nl' });
-    expect(before.loader).toEqual({ stage: null, elapsed: 0, strokes: [0, 0, 0, 0, 0] });
+    expect(before.loader).toEqual({ stage: null, elapsed: 0, strokes: [0, 0, 0, 0, 0], signal: { decode: 0, curl: 0, level: 0 } });
     expect(before.needleAngle).toBe(0);
     const strokes = [0, 0, 0, 0, 0.4];
-    Object.assign(frame.loader, { stage: 'engrave', elapsed: 2, strokes });
+    Object.assign(frame.loader, { stage: 'engrave', elapsed: 2, strokes, signal: { decode: 0.4, curl: 0, level: 1 } });
     frame.needleAngle = 1.2;
     frame.loaderHold = 2;
     const state = readNeedleDebugState({ route: 'home', locale: 'nl' });
-    // The three fields of the opening and nothing else of the frame's (the hold is the bridge's own business).
-    expect(state.loader).toEqual({ stage: 'engrave', elapsed: 2, strokes: [0, 0, 0, 0, 0.4] });
+    // The opening's fields and nothing else of the frame's (the hold is the bridge's own business), the signal's as a copy.
+    expect(state.loader).toEqual({ stage: 'engrave', elapsed: 2, strokes: [0, 0, 0, 0, 0.4], signal: { decode: 0.4, curl: 0, level: 1 } });
     expect(state.loader).not.toBe(frame.loader);
+    expect(state.loader.signal).not.toBe(frame.loader.signal);
     // The strokes are a copy too: the Opening's next pose cannot change a state already read.
     expect(state.loader.strokes).not.toBe(strokes);
     expect(state.needleAngle).toBe(1.2);

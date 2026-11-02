@@ -50,7 +50,7 @@ export interface NeedleDebugState {
    * the held moment's. The stage is null while no opening is mounted (3D off, no WebGL, a failed scene), so a harness
    * can tell "no loader" from any moment of one.
    */
-  loader: { stage: LoaderStage | null; elapsed: number; strokes: number[] };
+  loader: { stage: LoaderStage | null; elapsed: number; strokes: number[]; signal: { decode: number; curl: number; level: number } };
   /**
    * The compass needle's angle now (`frame.needleAngle`), radians: 0 up the screen, positive clockwise as the camera
    * sees it, so a pointer straight to the right of the pivot pulls it toward pi/2. 0 before any compass is posed.

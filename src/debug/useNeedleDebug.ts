@@ -22,7 +22,7 @@ export function readNeedleDebugState(view: ShellView): NeedleDebugState {
   const { phase, tier, threeD } = useScene.getState();
   const at = chapterAt(HOME_CHAPTERS, frame.progress, { index: frame.chapterIndex });
   const { dpr, fps, camera } = readStageProbe();
-  const { stage, elapsed, strokes } = frame.loader;
+  const { stage, elapsed, strokes, signal } = frame.loader;
   const { u, letters, iris, needleDip, dial, dialText } = frame.scroll;
   return {
     phase,
@@ -39,7 +39,7 @@ export function readNeedleDebugState(view: ShellView): NeedleDebugState {
     canvasMounts: canvasMounts(),
     contextLost: frame.contextLost,
     threeD,
-    loader: { stage, elapsed, strokes: [...strokes] },
+    loader: { stage, elapsed, strokes: [...strokes], signal: { ...signal } },
     needleAngle: frame.needleAngle,
     scroll: { u, letters, iris, needleDip, dial, dialText },
     journey: {

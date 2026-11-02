@@ -19,7 +19,7 @@ function state(over: Partial<NeedleDebugState> = {}): NeedleDebugState {
     canvasMounts: 1,
     contextLost: false,
     threeD: true,
-    loader: { stage: 'home', elapsed: SCRIPT.home, strokes: [0, 0, 0, 0, 1] },
+    loader: { stage: 'home', elapsed: SCRIPT.home, strokes: [0, 0, 0, 0, 1], signal: { decode: 1, curl: 1, level: 0 } },
     needleAngle: 0.66,
     scroll: { u: 0, letters: 0, iris: 0, needleDip: 0, dial: 0, dialText: '' },
     journey: { stretch: 'rise', local: 0, project: null, voidState: 'ready', frame: null, sheet: 0, light: null, objects: null, world: null, engraved: null, nebula: null, qa: null, circuit: null, storm: null },
@@ -119,10 +119,10 @@ describe('installNeedleDebug', () => {
   });
 
   it("hands the opening's clock and the needle's angle through", () => {
-    const made = state({ loader: { stage: 'engrave', elapsed: 2, strokes: [0, 0, 0, 0, 0.4] }, needleAngle: 1.5 });
+    const made = state({ loader: { stage: 'engrave', elapsed: 2, strokes: [0, 0, 0, 0, 0], signal: { decode: 0.4, curl: 0, level: 1 } }, needleAngle: 1.5 });
     installNeedleDebug('?proof', () => made, act);
     const at = (win.__needleDebug as () => NeedleDebugState)();
-    expect(at.loader).toEqual({ stage: 'engrave', elapsed: 2, strokes: [0, 0, 0, 0, 0.4] });
+    expect(at.loader).toEqual({ stage: 'engrave', elapsed: 2, strokes: [0, 0, 0, 0, 0], signal: { decode: 0.4, curl: 0, level: 1 } });
     expect(at.needleAngle).toBe(1.5);
   });
 

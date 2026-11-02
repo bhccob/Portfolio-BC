@@ -5,6 +5,9 @@ import { type GLTF, GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import type { ProjectId } from '~/data/projects';
 import { bandStrip, COMPASS_PARTS, type CompassModel, loadCompass } from '~/engine/bob/build/compass';
 import { buildDial, type DialModel } from '~/engine/bob/build/dial';
+import { buildSignal, type SignalModel } from '~/engine/bob/build/signal';
+import { localeFromPath } from '~/i18n/locale';
+import { translatorFor } from '~/i18n/useTranslator';
 import { buildEngraving, type EngravingModel } from '~/engine/bob/build/engraving';
 import { buildGlass, type GlassModel } from '~/engine/bob/build/glassFloor';
 import { buildLight, type LightModel } from '~/engine/bob/build/light';
@@ -106,6 +109,8 @@ interface LoaderParts {
   light: LightModel;
   /** The dial round the compass's base (round 16, ~/engine/bob/build/dial): built hidden, so it is compiled with the loader; Home poses it. */
   dial: DialModel;
+  /** The signal (round 17, ~/engine/bob/build/signal): the full path's line, read into the hero's name and curled into the circle. */
+  signal: SignalModel;
 }
 
 /** What the Opening mounts Home and the Void with, once the compass exists. */
@@ -405,8 +410,11 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       // The dial round the compass's base (round 16), hidden until Home shows it at the home.
       const dial = buildDial();
       made.push(dial);
-      scene.add(glass.group, traces.group, engraving.group, probe.group, smoke.group, light.group, dial.group);
-      parts = { glass, engraving, traces, probe, smoke, light, dial };
+      // The signal, the hero's name in the page's language (round 17), hidden until the full path lights it.
+      const signal = buildSignal(translatorFor(localeFromPath(window.location.pathname)).t.needle.hero.name);
+      made.push(signal);
+      scene.add(glass.group, traces.group, engraving.group, probe.group, smoke.group, light.group, dial.group, signal.group);
+      parts = { glass, engraving, traces, probe, smoke, light, dial, signal };
     } catch (error) {
       for (const part of made) part.dispose();
       latest.current.onFail('the loader could not be built', error);
@@ -554,7 +562,8 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       frame.shot = null;
       frame.loader.stage = null;
       frame.needleAngle = 0;
-      scene.remove(parts.glass.group, parts.traces.group, parts.engraving.group, parts.probe.group, parts.smoke.group, parts.light.group, parts.dial.group);
+      scene.remove(parts.glass.group, parts.traces.group, parts.engraving.group, parts.probe.group, parts.smoke.group, parts.light.group, parts.dial.group, parts.signal.group);
+      parts.signal.dispose();
       parts.light.dispose();
       parts.dial.dispose();
       parts.glass.dispose();
@@ -723,7 +732,7 @@ function clamp01(x: number): number {
  *   `settleAngle` of its settle.
  */
 function pose(parts: LoaderParts, compass: CompassModel | null, at: OpeningPose, time: number, state: Run): number {
-  const { glass, engraving, traces, probe, smoke } = parts;
+  const { glass, engraving, traces, probe, smoke, signal } = parts;
   let cut = 0;
   for (let i = 0; i < STROKE_ORDER.length; i++) {
     engraving.setStroke(STROKE_ORDER[i], at.strokes[i]);
@@ -740,6 +749,9 @@ function pose(parts: LoaderParts, compass: CompassModel | null, at: OpeningPose,
   glass.setLip(at.iris > 0);
   smoke.setDensity(at.smoke);
   smoke.setTime(time);
+  // The signal (round 17): read, curled and lit as the pose says; the proof reads it back.
+  signal.pose(at.signal.decode, at.signal.curl, at.signal.level, time);
+  frame.loader.signal = { ...at.signal };
 
   const tip = at.probe;
   probe.setTip(tip.x, tip.y, tip.z);
