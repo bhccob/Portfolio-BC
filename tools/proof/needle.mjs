@@ -7334,13 +7334,13 @@ async function signalStep(browser, step) {
       `${at}: every box inside the screen (${r?.bytes.map((b) => `${Math.round(b.box.left)}-${Math.round(b.box.right)}`).join(', ')})`,
     );
     if (path === '/') await page.screenshot({ path: join(STILLS, `signal-read-${sizeName(size)}.png`) });
-    loader = await seekLoader(page, SIGNAL_MOMENTS.read);
+    await seekLoader(page, SIGNAL_MOMENTS.read);
     r = await readoutOf(page);
     step.check(
       r !== null && r.name.text === 'BOB CHUNG' && r.name.opacity > 0.99 && r.bytes.every((b) => b.opacity > 0.99),
       `${at}: read whole, every frame read out and the name BOB CHUNG under them (got "${r?.name.text}" at ${r?.name.opacity}; boxes ${r?.bytes.map((b) => b.opacity).join(' ')})`,
     );
-    loader = await seekLoader(page, SIGNAL_MOMENTS.curling);
+    await seekLoader(page, SIGNAL_MOMENTS.curling);
     if (path === '/') await page.screenshot({ path: join(STILLS, `signal-curl-${sizeName(size)}.png`) });
     r = await readoutOf(page);
     step.check(r === null || r.hidden, `${at}: half way through the curl the read-out is gone (hidden ${r?.hidden})`);
