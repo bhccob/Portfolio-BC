@@ -13,12 +13,12 @@ const quickClock = (q: number): LoaderClock => loaderAt({ elapsed: 1 + q, loaded
 /** The reduced path's clock `q` seconds after the load. */
 const reducedClock = (q: number): LoaderClock => loaderAt({ elapsed: 1 + q, loadedAt: 1, skipAt: null, path: 'reduced' });
 
-/** Moments of the full show, in visible seconds, through its descent, its cut, its opening, its rise and its push-in. */
-const SHOW_TIMES = [0.4, 1.5, 2.5, 3.2, 3.8, 4.4, 5, 5.6, 6];
+/** Moments of the full show, in visible seconds, through the line coming in, its read, its curl, the opening, the rise and the push-in. */
+const SHOW_TIMES = [0.4, 1.5, 2.5, 3.2, 4.2, 5, 5.6, 6.4, 7.2];
 
 /** A clock with every field at 0 but those given, the script at its end (so the circle is cut, the probe is away and the smoke is up). */
 function clockWith(partial: Partial<LoaderClock>): LoaderClock {
-  return { stage: 'open', script: SCRIPT.home, strokes: [0, 0, 0, 0, 1], ticks: 0, outer: 0, iris: 0, glow: 0, rise: 0, camera: 0, settle: 0, fade: 0, ...partial };
+  return { stage: 'open', script: SCRIPT.home, strokes: [0, 0, 0, 0, 1], decode: 1, curl: 1, ticks: 0, outer: 0, iris: 0, glow: 0, rise: 0, camera: 0, settle: 0, fade: 0, ...partial };
 }
 
 /** The distance from the camera to what it looks at. */
@@ -250,12 +250,12 @@ describe('the pose on the full path', () => {
     expect(openingPoseAt(clockAt(SCRIPT.settle.end), 'full').needleSettle).toBe(1);
   });
 
-  it('rises from the black: the traces start at nothing and reach their level as the descent ends', () => {
+  it('rises from the black: the traces start at nothing and reach their level as the line is in', () => {
     expect(openingPoseAt(clockAt(0), 'full').traces).toBe(0);
-    expect(openingPoseAt(clockAt(SCRIPT.descend.end), 'full').traces).toBeCloseTo(TRACES_LOOK.level, 12);
-    expect(openingPoseAt(clockAt(SCRIPT.descend.end), 'full').traces).toBe(TRACES_LOOK.level);
-    expect(openingPoseAt(clockAt(SCRIPT.descend.end + 5), 'full').traces).toBeCloseTo(TRACES_LOOK.level, 12);
-    expect(openingPoseAt(clockAt((SCRIPT.descend.start + SCRIPT.descend.end) / 2), 'full').traces).toBeCloseTo(TRACES_LOOK.level / 2, 9);
+    expect(openingPoseAt(clockAt(SCRIPT.lineIn.end), 'full').traces).toBeCloseTo(TRACES_LOOK.level, 12);
+    expect(openingPoseAt(clockAt(SCRIPT.lineIn.end), 'full').traces).toBe(TRACES_LOOK.level);
+    expect(openingPoseAt(clockAt(SCRIPT.lineIn.end + 5), 'full').traces).toBeCloseTo(TRACES_LOOK.level, 12);
+    expect(openingPoseAt(clockAt((SCRIPT.lineIn.start + SCRIPT.lineIn.end) / 2), 'full').traces).toBeCloseTo(TRACES_LOOK.level / 2, 9);
   });
 
   it('never lets the traces rise above their level or fall back', () => {
@@ -288,15 +288,36 @@ describe('the pose on the full path', () => {
     expect(openingPoseAt(held, 'full').engraveGlow).toBe(1);
   });
 
-  it('lights the engraving as the circle starts to be cut', () => {
+  it('lights the engraving as the read starts', () => {
     expect(openingPoseAt(clockAt(0), 'full').engraveGlow).toBe(0);
-    expect(openingPoseAt(clockAt(SCRIPT.circle.start), 'full').engraveGlow).toBe(1);
-    expect(openingPoseAt(clockAt(SCRIPT.circle.start + 1), 'full').engraveGlow).toBe(1);
+    expect(openingPoseAt(clockAt(SCRIPT.decode.start), 'full').engraveGlow).toBe(1);
+    expect(openingPoseAt(clockAt(SCRIPT.decode.start + 1), 'full').engraveGlow).toBe(1);
+  });
+
+  // Round 17 (Bob: "B · Signal"): the signal's line, lit with the world, read, curled, and gone once it is the circle.
+  it('poses the signal: lit as the line comes in, read and curled by the clock, gone once curled', () => {
+    const mid = (s: { start: number; end: number }) => (s.start + s.end) / 2;
+    expect(openingPoseAt(clockAt(0), 'full').signal).toEqual({ decode: 0, curl: 0, level: 0 });
+    const reading = openingPoseAt(clockAt(mid(SCRIPT.decode)), 'full').signal;
+    expect(reading.decode).toBeCloseTo(0.5, 9);
+    expect(reading.curl).toBe(0);
+    expect(reading.level).toBe(1);
+    expect(openingPoseAt(clockAt(mid(SCRIPT.curl)), 'full').signal.curl).toBeCloseTo(0.5, 9);
+    expect(openingPoseAt(clockAt(mid(SCRIPT.curl)), 'full').signal.level).toBe(1);
+    expect(openingPoseAt(clockAt(SCRIPT.curl.end), 'full').signal).toEqual({ decode: 1, curl: 1, level: 0 });
+    expect(HOME_POSE.signal).toEqual({ decode: 1, curl: 1, level: 0 });
+  });
+
+  it('never shows the signal on the quick path or the reduced path', () => {
+    for (const q of [-1, 0, 0.3, 1, 3]) {
+      expect(openingPoseAt(quickClock(q), 'quick').signal.level).toBe(0);
+      expect(openingPoseAt(reducedClock(q), 'reduced').signal.level).toBe(0);
+    }
   });
 
   it('follows a skip as it follows any script: the pose is a function of the clock', () => {
     const skipped = clockAt(2, 1.5);
-    expect(skipped.script).toBeGreaterThan(SCRIPT.circle.end);
+    expect(skipped.script).toBeGreaterThan(SCRIPT.curl.end);
     expect(openingPoseAt(skipped, 'full').probe).toEqual(probeAt(skipped));
     expect(openingPoseAt(skipped, 'full').strokes).toEqual(skipped.strokes);
   });
@@ -442,8 +463,8 @@ describe('the home pose', () => {
 
   it('still equals the end of every path, and every moment after it, with the curves in', () => {
     const ends: [string, LoaderClock, LoaderPath][] = [
-      ['full 6.25', clockAt(SCRIPT.home), 'full'],
-      ['full 7', clockAt(7), 'full'],
+      ['full 7.75', clockAt(SCRIPT.home), 'full'],
+      ['full 8.5', clockAt(8.5), 'full'],
       ['full 60', clockAt(60), 'full'],
       ['full, skipped', clockAt(3, 2), 'full'],
       ['quick 2.5', quickClock(2.5), 'quick'],
@@ -501,6 +522,7 @@ describe('the home pose', () => {
     expect(Object.isFrozen(HOME_POSE)).toBe(true);
     expect(Object.isFrozen(HOME_POSE.strokes)).toBe(true);
     expect(Object.isFrozen(HOME_POSE.probe)).toBe(true);
+    expect(Object.isFrozen(HOME_POSE.signal)).toBe(true);
   });
 
   it('is not the pose of any moment before the home', () => {

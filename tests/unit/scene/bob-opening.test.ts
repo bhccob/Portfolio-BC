@@ -120,15 +120,16 @@ describe('the held clock (seekLoader)', () => {
     expect(heldLoaderInput(1, 'quick')).toEqual({ elapsed: 1, loadedAt: 0, skipAt: null, path: 'quick' });
   });
 
-  it('plays the full script at its own seconds: a still never waits on the circle', () => {
-    for (const seconds of [1.0, 2.0, 3.0, 3.5, 4.5, SCRIPT.home]) expect(held(seconds).script).toBeCloseTo(seconds, 12);
-    expect(held(1).stage).toBe('dark');
+  it('plays the full script at its own seconds: a still never waits on the read', () => {
+    for (const seconds of [0.5, 2.0, 4.0, 5.0, 6.0, SCRIPT.home]) expect(held(seconds).script).toBeCloseTo(seconds, 12);
+    expect(held(0.5).stage).toBe('dark');
     expect(held(2).stage).toBe('engrave');
-    expect(held(3.5).stage).toBe('open');
-    expect(held(4.5).stage).toBe('rise');
+    expect(held(5).stage).toBe('open');
+    expect(held(6).stage).toBe('rise');
     expect(held(SCRIPT.home).stage).toBe('home');
-    // Past the circle's hold, which a load still out would stop at.
-    expect(held(3.5).strokes[4]).toBe(1);
+    // Past the read's hold, which a load still out would stop at: read whole and curled into the circle.
+    expect(held(5).decode).toBe(1);
+    expect(held(5).strokes[4]).toBe(1);
   });
 
   it('reads a bad time as the start, as the live clock does', () => {

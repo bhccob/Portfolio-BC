@@ -105,6 +105,11 @@ export interface OpeningPose {
   needleSettle: number;
   /** How thick the smoke is (`SmokeModel.setDensity`). */
   smoke: number;
+  /**
+   * The signal's line (round 17, `SignalModel.pose`): how far it is read and curled, and its light (the world's fade on
+   * the full path while it is a line; 0 once curled into the circle, and on the quick and reduced paths, which have none).
+   */
+  signal: { decode: number; curl: number; level: number };
 }
 
 /**
@@ -126,7 +131,8 @@ export const HOME_POSE: Readonly<OpeningPose> = Object.freeze({
   rise: 1,
   reveal: 1,
   needleSettle: 1,
-  smoke: 1
+  smoke: 1,
+  signal: Object.freeze({ decode: 1, curl: 1, level: 0 })
 });
 
 /**
@@ -162,7 +168,8 @@ export function openingPoseAt(clock: LoaderClock, path: LoaderPath): OpeningPose
     rise: clock.rise,
     reveal: path === 'full' ? 1 : clock.fade,
     needleSettle: clock.settle,
-    smoke: ease(path === 'full' ? clock.script / SMOKE_SECONDS : clock.fade)
+    smoke: ease(path === 'full' ? clock.script / SMOKE_SECONDS : clock.fade),
+    signal: { decode: clock.decode, curl: clock.curl, level: path === 'full' && clock.curl < 1 ? easeOut(clock.fade) : 0 }
   };
 }
 

@@ -1,19 +1,19 @@
 /**
- * The BOB loader's timeline: which stage the opening is in, how much of each
- * mark the laser has cut and how far the opening, the rise and the push-in
- * have come, from the seconds the loader has been visible, when the home's
+ * The BOB loader's timeline: which stage the opening is in, how far the
+ * signal has been read and curled, whether the circle stands cut, and how far
+ * the opening, the rise and the push-in have come, from the seconds the loader has been visible, when the home's
  * assets finished loading and when the visitor asked to skip. Pure, and it
  * imports nothing from three, so the loader's tests run it without a browser
  * and the entry bundle can read it beside the Stage's chunk.
  *
- * The full path is the Blender preview (tools/blender/bob_animate_o.py) at its
- * own pace, 6.25 s from black to home, in the spec's section 2.1 (revised
- * 2026-10-22, Bob's pick): the laser cuts the circle alone, and the two B
- * letters are not drawn here (they arrive on the scroll):
- * - a fast load never shortens it, so every first-time visitor sees the O cut;
- * - a load that is still out when the circle is due to close holds the script
- *   just short of it, the laser creeping on, and the script goes on from there
- *   once the load lands;
+ * The full path is the signal (round 17, spec 2026-11-01-bob-signal-loader-design.md; Bob: "B · Signal"): one gold
+ * line on the glass read, as a logic analyzer reads a wire, into the UART frames of BOB CHUNG, then curled into the
+ * circle; then the Blender preview (tools/blender/bob_animate_o.py) from its circle on, 7.75 s from black to home. The
+ * two B letters are not drawn here (they arrive on the scroll):
+ * - a fast load never shortens it, so every first-time visitor sees the name read and the O made;
+ * - a load that is still out when the read is due to end holds the script
+ *   just short of the last letter, the cursor creeping on, and the script goes
+ *   on from there once the load lands;
  * - any input skips: the rest of the script runs in `LOADER.skip` seconds, or
  *   at its own pace when less than that is left, so a skip never
  *   ends later than the show would have.
@@ -33,19 +33,22 @@ export interface Span {
   readonly end: number;
 }
 
-/** The first and last frame of each span of the preview, and the frame it comes home on. */
+/**
+ * The first and last frame of each span, and the frame it comes home on: the signal's three in place of the probe's
+ * descent and the cut (frames 1-74 of the preview), then the preview's own from the ticks on, 36 frames later.
+ */
 const FRAMES = {
-  descend: [1, 26],
-  circle: [26, 74],
-  ticks: [72, 86],
-  outer: [74, 96],
-  probeOut: [74, 94],
-  iris: [80, 96],
-  glow: [78, 106],
-  rise: [88, 140],
-  camera: [80, 140],
-  settle: [100, 150],
-  home: 150
+  lineIn: [1, 20],
+  decode: [20, 92],
+  curl: [92, 110],
+  ticks: [108, 122],
+  outer: [110, 132],
+  iris: [116, 132],
+  glow: [114, 142],
+  rise: [124, 176],
+  camera: [116, 176],
+  settle: [136, 186],
+  home: 186
 } as const;
 
 /** The frames `from` to `to` as seconds. */
@@ -55,20 +58,21 @@ function frames(from: number, to: number): Span {
 
 /**
  * The full path's script, in seconds from the loader's start: the spec's
- * section 7 timings at 24 fps. `descend` is the probe coming down (and the
- * world fading up from black), `circle` is the one cut, `ticks` and `outer`
- * grow the ticks and the outer ring, `probeOut` is the probe leaving, `iris`
+ * section 7 timings at 24 fps, the signal's first. `lineIn` is the world
+ * fading up from black with the signal's line in it, `decode` the line read
+ * left to right, `curl` the line curling into the circle, which stands cut once
+ * it has; `ticks` and `outer` grow the ticks and the outer ring, `iris`
  * is the glass inside the circle closing, `glow` the warm light from the
  * tunnel, `rise` the compass coming up, `camera` the push-in, `settle` the
  * needle swinging in, and `home` the second the loader ends. There are no
  * spans for the B letters: the loader never cuts them.
  */
 export const SCRIPT = Object.freeze({
-  descend: frames(...FRAMES.descend),
-  circle: frames(...FRAMES.circle),
+  lineIn: frames(...FRAMES.lineIn),
+  decode: frames(...FRAMES.decode),
+  curl: frames(...FRAMES.curl),
   ticks: frames(...FRAMES.ticks),
   outer: frames(...FRAMES.outer),
-  probeOut: frames(...FRAMES.probeOut),
   iris: frames(...FRAMES.iris),
   glow: frames(...FRAMES.glow),
   rise: frames(...FRAMES.rise),
@@ -125,7 +129,7 @@ export const LOADER_SEEN_KEY = 'bob-loader-seen';
  * The script second at which the circle stands at `LOADER.hold` of its cut:
  * where the script stops while the load is out.
  */
-export const HOLD_AT = (FRAMES.circle[0] + LOADER.hold * (FRAMES.circle[1] - FRAMES.circle[0])) / FPS;
+export const HOLD_AT = (FRAMES.decode[0] + LOADER.hold * (FRAMES.decode[1] - FRAMES.decode[0])) / FPS;
 
 /** Which of the three openings plays. */
 export type LoaderPath = 'full' | 'quick' | 'reduced';
@@ -162,6 +166,13 @@ export interface LoaderClock {
    * loader cuts the circle alone, so the first four are always 0 and only the last runs from 0 to 1.
    */
   strokes: readonly [number, number, number, number, number];
+  /**
+   * How far the signal's line has been read, left to right (round 17): on the full path its share of `decode`, held
+   * short of the last letter while the load is out; 1 on the quick and reduced paths, which have no signal.
+   */
+  decode: number;
+  /** How far the read line has curled into the circle: its share of `curl`; 1 on the quick and reduced paths. */
+  curl: number;
   /** How far the 144 ticks have grown. */
   ticks: number;
   /** How far the thin outer ring is drawn. */
@@ -200,10 +211,10 @@ function timeOrNull(time: number | null): number | null {
   return time !== null && Number.isFinite(time) ? Math.max(0, time) : null;
 }
 
-/** Where the full path stands: the script second, and the least the circle may show (the crawl reached so far, or 0 before any wait). */
+/** Where the full path stands: the script second, and the least the read may show (the crawl reached so far, or 0 before any wait). */
 interface Playback {
   script: number;
-  circleFloor: number;
+  decodeFloor: number;
 }
 
 /**
@@ -230,8 +241,8 @@ interface Playback {
  * pressed after it has nothing left to run, so it cannot run the script back.
  */
 function playFull(elapsed: number, loadedAt: number | null, skipAt: number | null): Playback {
-  const { script, circleFloor } = playUncapped(elapsed, loadedAt, skipAt);
-  return { script: Math.min(script, SCRIPT.home), circleFloor };
+  const { script, decodeFloor } = playUncapped(elapsed, loadedAt, skipAt);
+  return { script: Math.min(script, SCRIPT.home), decodeFloor };
 }
 
 /** `playFull` before its script is held to `SCRIPT.home`. */
@@ -244,7 +255,7 @@ function playUncapped(elapsed: number, loadedAt: number | null, skipAt: number |
   const crept = (t: number, from: number, until: number): number => (t < from ? 0 : crawlAt(Math.min(t, until) - from));
 
   if (skipAt === null || elapsed < skipAt) {
-    return { script: plain(elapsed), circleFloor: stalls ? crept(elapsed, H, L ?? Infinity) : 0 };
+    return { script: plain(elapsed), decodeFloor: stalls ? crept(elapsed, H, L ?? Infinity) : 0 };
   }
 
   if (L !== null && skipAt >= L) {
@@ -254,7 +265,7 @@ function playUncapped(elapsed: number, loadedAt: number | null, skipAt: number |
     // at 1 s a second from here), whichever is sooner. Nothing left (a skip at or after the home) is the home at once.
     const lasts = Math.min(LOADER.skip, home - from);
     const u = lasts > 0 ? (elapsed - skipAt) / lasts : 1;
-    return { script: u >= 1 ? home : from + (home - from) * u, circleFloor: stalls ? crept(elapsed, H, L) : 0 };
+    return { script: u >= 1 ? home : from + (home - from) * u, decodeFloor: stalls ? crept(elapsed, H, L) : 0 };
   }
 
   // The skip came before the load was known. Its own pace changes nothing here: the rest from H (home - H, 3.3 s) is
@@ -269,17 +280,22 @@ function playUncapped(elapsed: number, loadedAt: number | null, skipAt: number |
     const u = (elapsed - goAt) / LOADER.skip;
     script = u >= 1 ? home : H + (home - H) * u;
   }
-  return { script, circleFloor: crept(elapsed, holdAt, goAt) };
+  return { script, decodeFloor: crept(elapsed, holdAt, goAt) };
 }
 
-/** The full path's clock at this script second, with the circle at least `circleFloor`. */
-function fullClock({ script, circleFloor }: Playback): LoaderClock {
+/**
+ * The full path's clock at this script second, with the read at least `decodeFloor`; the circle stands cut once the
+ * line has curled into it, not before, so the curled line and the engraving's circle never draw at once.
+ */
+function fullClock({ script, decodeFloor }: Playback): LoaderClock {
   const stage: LoaderStage =
-    script < SCRIPT.descend.end ? 'dark' : script < SCRIPT.circle.end ? 'engrave' : script < SCRIPT.rise.start ? 'open' : script < SCRIPT.home ? 'rise' : 'home';
+    script < SCRIPT.lineIn.end ? 'dark' : script < SCRIPT.curl.end ? 'engrave' : script < SCRIPT.rise.start ? 'open' : script < SCRIPT.home ? 'rise' : 'home';
   return {
     stage,
     script,
-    strokes: [0, 0, 0, 0, Math.max(circleFloor, through(script, SCRIPT.circle))],
+    strokes: [0, 0, 0, 0, script >= SCRIPT.curl.end ? 1 : 0],
+    decode: Math.max(decodeFloor, through(script, SCRIPT.decode)),
+    curl: through(script, SCRIPT.curl),
     ticks: through(script, SCRIPT.ticks),
     outer: through(script, SCRIPT.outer),
     iris: through(script, SCRIPT.iris),
@@ -287,7 +303,7 @@ function fullClock({ script, circleFloor }: Playback): LoaderClock {
     rise: through(script, SCRIPT.rise),
     camera: through(script, SCRIPT.camera),
     settle: through(script, SCRIPT.settle),
-    fade: through(script, SCRIPT.descend)
+    fade: through(script, SCRIPT.lineIn)
   };
 }
 
@@ -298,6 +314,8 @@ function quickClock(q: number): LoaderClock {
     stage,
     script: SCRIPT.home,
     strokes: [0, 0, 0, 0, 1],
+    decode: 1,
+    curl: 1,
     ticks: 1,
     outer: 1,
     iris: through(q, QUICK.iris),
@@ -316,6 +334,8 @@ function reducedClock(q: number): LoaderClock {
     stage: q < 0 ? 'dark' : q < LOADER.reducedFade ? 'rise' : 'home',
     script: SCRIPT.home,
     strokes: [0, 0, 0, 0, 1],
+    decode: 1,
+    curl: 1,
     ticks: 1,
     outer: 1,
     iris: 1,
