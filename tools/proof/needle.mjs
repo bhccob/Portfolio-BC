@@ -277,9 +277,9 @@
  *   loader-skip-touch  on a touch phone (390x844): the loader never draws at the high tier (a coarse pointer starts on medium); a tap 1.5 s in
  *              lands on HOME_IDLE within 1.6 s, its touchstart not prevented; a tap on Menu, then on its Contact link, 1.5 s
  *              into a project page's show still navigates
- *   quick-loader  a first visit plays the full show and marks the loader seen (`bob-loader-seen` in localStorage);
- *              with the flag set, a load never engraves and reaches HOME_IDLE within QUICK.home + 0.5 s of the load
- *              (the first moment past `dark`)
+ *   quick-loader  a first visit plays the full show and marks the loader seen (`bob-loader-seen` in the tab's
+ *              sessionStorage); reloaded with the flag set, a load never engraves and reaches HOME_IDLE within
+ *              QUICK.home + 0.5 s of the load (the first moment past `dark`); a new tab plays the full show again
  *   loader-reduced  with reduced motion the opening never engraves (dark, the fade, home), the camera is the home
  *              shot throughout (three samples identical: early, half way, landed), and nothing is marked seen
  *   give-up    the compass's file (/models/bob-compass.glb) never answers: the fallback card ("THE NEEDLE LOST
@@ -3681,7 +3681,7 @@ async function scrollBob(browser, step) {
     const touch = size.options.hasTouch === true;
     const aspect = size.width / size.height;
     const { context, page } = await openPage(browser, step, () => false, { width: size.width, height: size.height }, size.options);
-    await context.addInitScript((key) => localStorage.setItem(key, '1'), LOADER_SEEN_KEY);
+    await context.addInitScript((key) => sessionStorage.setItem(key, '1'), LOADER_SEEN_KEY);
     await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
     await page.bringToFront();
     await reachHomeIdle(page);
@@ -4007,7 +4007,7 @@ async function loaderSkip(browser, step) {
   await takeCsp(page, step);
 
   // The wheel: the full show again (the flag cleared), and a burst from CUT_AT s in.
-  await page.evaluate((key) => localStorage.removeItem(key), LOADER_SEEN_KEY);
+  await page.evaluate((key) => sessionStorage.removeItem(key), LOADER_SEEN_KEY);
   await page.reload({ waitUntil: 'load' });
   await loaderAtLeast(page, CUT_AT);
   const second = (await debugOf(page)).loader;
@@ -4045,7 +4045,7 @@ async function loaderSkip(browser, step) {
   await takeCsp(page, step);
 
   // A key: the full show again (the flag cleared), and Space CUT_AT s in, a real key press.
-  await page.evaluate((key) => localStorage.removeItem(key), LOADER_SEEN_KEY);
+  await page.evaluate((key) => sessionStorage.removeItem(key), LOADER_SEEN_KEY);
   await page.reload({ waitUntil: 'load' });
   await loaderAtLeast(page, CUT_AT);
   const third = (await debugOf(page)).loader;
@@ -4108,7 +4108,7 @@ async function loaderLite(browser, step) {
   });
   await page.goto(`${BASE}/projects/steady/?proof`, { waitUntil: 'load' });
   await page.bringToFront();
-  const flag = await page.evaluate((key) => localStorage.getItem(key), LOADER_SEEN_KEY);
+  const flag = await page.evaluate((key) => sessionStorage.getItem(key), LOADER_SEEN_KEY);
   await loaderAtLeast(page, CUT_AT);
   const at = (await debugOf(page)).loader;
   await page.click('.site-header a[href="/contact/"]');
@@ -4241,7 +4241,7 @@ async function loaderSkipTouch(browser, step) {
   await takeCsp(page, step);
 
   // A project page's full show: a tap on the menu's Contact link CUT_AT s in still navigates.
-  await page.evaluate((key) => localStorage.removeItem(key), LOADER_SEEN_KEY);
+  await page.evaluate((key) => sessionStorage.removeItem(key), LOADER_SEEN_KEY);
   await page.goto(`${BASE}/projects/steady/?proof`, { waitUntil: 'load' });
   await loaderAtLeast(page, CUT_AT);
   const project = (await debugOf(page)).loader;
@@ -4267,10 +4267,11 @@ async function loaderSkipTouch(browser, step) {
 const QUICK_WITHIN = QUICK.home + 0.5;
 
 /**
- * The quick path (spec §2.1, a later visit): a fresh context plays the full show (it engraves) and, landed, marks the
- * loader seen in this browser (`bob-loader-seen` = 1 in localStorage). Reloaded with the flag set, the opening never
- * engraves (dark until the load, then open, rise, home) and reaches HOME_IDLE within QUICK_WITHIN s of the load: of the
- * first sample past `dark`, which comes at the load (the quick path's spans run from it).
+ * The quick path (spec §2.1, a later visit; round 18, Bob: "Yes, every new tab"): a fresh context plays the full show
+ * (it engraves) and, landed, marks the loader seen in this tab (`bob-loader-seen` = 1 in its sessionStorage, nothing in
+ * localStorage). Reloaded with the flag set, the opening never engraves (dark until the load, then open, rise, home)
+ * and reaches HOME_IDLE within QUICK_WITHIN s of the load: of the first sample past `dark`, which comes at the load (the
+ * quick path's spans run from it). A new tab in the same browser plays the full show again.
  */
 async function quickLoader(browser, step) {
   const { context, page } = await openPage(browser, step);
@@ -4279,8 +4280,11 @@ async function quickLoader(browser, step) {
   await page.bringToFront();
   await reachHomeIdle(page);
   const first = stagesOf((await loaderRecord(page)).samples);
-  const seen = await page.evaluate((key) => localStorage.getItem(key), LOADER_SEEN_KEY);
-  step.check(first.includes('engrave') && seen === '1', `a first visit engraves (${first.join(' → ')}) and, landed, marks the loader seen in this browser (${LOADER_SEEN_KEY} ${seen})`);
+  const [seen, kept] = await page.evaluate((key) => [sessionStorage.getItem(key), localStorage.getItem(key)], LOADER_SEEN_KEY);
+  step.check(
+    first.includes('engrave') && seen === '1' && kept === null,
+    `a first visit engraves (${first.join(' → ')}) and, landed, marks the loader seen in this tab (${LOADER_SEEN_KEY} ${seen} in sessionStorage, ${kept} in localStorage)`,
+  );
   await takeCsp(page, step);
 
   await page.reload({ waitUntil: 'load' });
@@ -4300,8 +4304,15 @@ async function quickLoader(browser, step) {
     `the circle is cut whole from the first frame it shows, nothing else is, and no signal shows (signal ${[...new Set(whole.map((sample) => sample.signal))].join(' ')}, circle ${[...new Set(whole.map((sample) => sample.circle))].join(' ')}, the B marks ${[...new Set(whole.map((sample) => sample.others))].join(' ')})`,
   );
   await takeCsp(page, step);
+
+  const tab = await context.newPage();
+  await tab.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+  await tab.bringToFront();
+  await reachHomeIdle(tab);
+  const fresh = stagesOf((await loaderRecord(tab)).samples);
+  step.check(fresh.includes('engrave'), `a new tab in the same browser plays the full show again (${fresh.join(' → ')})`);
   await context.close();
-  return `a first visit: ${first.join(' → ')}; with the flag: ${stages.join(' → ')}, HOME_IDLE ${took} ms after the load (limit ${QUICK_WITHIN * 1000})`;
+  return `a first visit: ${first.join(' → ')}; with the flag: ${stages.join(' → ')}, HOME_IDLE ${took} ms after the load (limit ${QUICK_WITHIN * 1000}); a new tab: ${fresh.join(' → ')}`;
 }
 
 /** Two camera samples are the same shot: position and field of view, to a millionth. */
@@ -4336,7 +4347,7 @@ async function loaderReduced(browser, step) {
     three.length === 3 && three.every((sample) => sameShot(sample.camera, three[0].camera)),
     `once the canvas shows (${Math.round(readyAt)} ms), the camera shot is the same in three samples (${three.map((sample) => `${sample.stage} at ${sample.t} ms: [${sample.camera.position.map((v) => v.toFixed(3)).join(', ')}] fov ${sample.camera.fov.toFixed(2)}`).join('; ')})`,
   );
-  const seen = await page.evaluate((key) => localStorage.getItem(key), LOADER_SEEN_KEY);
+  const seen = await page.evaluate((key) => sessionStorage.getItem(key), LOADER_SEEN_KEY);
   step.check(seen === null, `the reduced fade marks nothing seen (${LOADER_SEEN_KEY} ${seen})`);
   await takeCsp(page, step);
   await context.close();
@@ -5349,7 +5360,7 @@ async function openWorld(page) {
 /** A context at one of the still sizes with the seen flag set (the quick path to the home, as `scroll-bob` takes it) and its page. */
 async function openSeen(browser, step, size, expected = () => false) {
   const opened = await openPage(browser, step, expected, { width: size.width, height: size.height }, size.options);
-  await opened.context.addInitScript((key) => localStorage.setItem(key, '1'), LOADER_SEEN_KEY);
+  await opened.context.addInitScript((key) => sessionStorage.setItem(key, '1'), LOADER_SEEN_KEY);
   return opened;
 }
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SafeStorage } from '~/engine/core/SafeStorage';
 import {
   advanceClock,
@@ -8,6 +8,7 @@ import {
   LOADER_SEEN_KEY,
   loaderAt,
   loaderGaveUp,
+  loaderMemory,
   loaderSeen,
   type LoaderPath,
   markLoaderSeen,
@@ -496,5 +497,37 @@ describe('the path and the visit', () => {
     expect(loaderSeen(storage)).toBe(true);
     items.set('bob-loader-seen', '0');
     expect(loaderSeen(storage)).toBe(false);
+  });
+
+  // Round 18 (Bob: "Yes, every new tab"): the note lives in the tab's sessionStorage, so a new tab plays the full show
+  // and a reload of the same tab the quick path.
+  describe('kept per tab', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    const stubWindow = () => {
+      const local = new Map<string, string>();
+      const session = new Map<string, string>();
+      const fake = (items: Map<string, string>) =>
+        ({ getItem: (key: string) => items.get(key) ?? null, setItem: (key: string, value: string) => void items.set(key, value) }) as unknown as Storage;
+      vi.stubGlobal('window', { localStorage: fake(local), sessionStorage: fake(session) });
+      return { local, session };
+    };
+
+    it("marks the loader seen in the tab's session storage, and leaves the browser's local storage alone", () => {
+      const { local, session } = stubWindow();
+      expect(loaderSeen(loaderMemory())).toBe(false);
+      markLoaderSeen(loaderMemory());
+      expect(session.get('bob-loader-seen')).toBe('1');
+      expect(local.has('bob-loader-seen')).toBe(false);
+      expect(loaderSeen(loaderMemory())).toBe(true);
+    });
+
+    it("reads a note left in the browser's local storage by an earlier visit as a first visit", () => {
+      const { local } = stubWindow();
+      local.set('bob-loader-seen', '1');
+      expect(loaderSeen(loaderMemory())).toBe(false);
+    });
   });
 });

@@ -15,11 +15,10 @@ import { buildLight, type LightModel } from '~/engine/bob/build/light';
 import { buildProbe, type ProbeModel } from '~/engine/bob/build/probe';
 import { buildSmoke, type SmokeModel } from '~/engine/bob/build/smoke';
 import { buildTraces, tracesUnder, type TracesModel } from '~/engine/bob/build/traces';
-import { advanceClock, LOADER, type LoaderClock, type LoaderPath, loaderAt, loaderGaveUp, loaderSeen, markLoaderSeen } from '~/engine/bob/loaderTimeline';
+import { advanceClock, LOADER, type LoaderClock, type LoaderPath, loaderAt, loaderGaveUp, loaderMemory, loaderSeen, markLoaderSeen } from '~/engine/bob/loaderTimeline';
 import { settleAngle } from '~/engine/bob/needle';
 import { traceLayout } from '~/engine/bob/traces';
 import { STROKE_ORDER } from '~/engine/bob/wordmark';
-import { SafeStorage } from '~/engine/core/SafeStorage';
 import { readout } from '~/engine/loading';
 import { lowerTier, type QualityTier } from '~/engine/quality';
 import { useLoaderSkip } from '~/input/loaderSkip';
@@ -276,7 +275,7 @@ export interface OpeningProps {
  * shot, and `frame.journey` (`writeJourney`: its stretch, local and project) for the debug bridge. While the loader's
  * shots stand, `handover.pose` is null.
  *
- * The loader's path (full, quick or reduced) is `pathFor(loaderSeen(localStorage), reducedMotion)`, read once at mount
+ * The loader's path (full, quick or reduced) is `pathFor(loaderSeen(loaderMemory()), reducedMotion)`, read once at mount
  * (reduced beats quick, quick beats full).
  * `motion.loader` keeps the Heartbeat drawing until `home`; `frame.loader` says where the opening stands.
  *
@@ -288,7 +287,7 @@ export interface OpeningProps {
  * is set to now, so the home's scroll input swallows the rest of the gesture for SKIP_SWALLOW_MS more. It is null from
  * each mount until then.
  *
- * **Landing.** At `home` it marks the loader seen in this browser (`markLoaderSeen(SafeStorage.local())`; on the full
+ * **Landing.** At `home` it marks the loader seen in this tab (`markLoaderSeen(loaderMemory())`; on the full
  * and quick paths, not the reduced fade: `marksSeen`) and dispatches `LOADED` (the only place it is sent while a Stage
  * is up), once. From then on the Opening poses the home once each time the clock reaches `home`, asks for one more
  * frame, and hands it over (`handover`) to Home (Home.tsx), which drives the needle, the bands' turn,
@@ -431,7 +430,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
     home.current = homeParts;
 
     const { reducedMotion, phase } = useScene.getState();
-    const start = openingStartFor(phase.kind, loaderSeen(SafeStorage.local()), reducedMotion);
+    const start = openingStartFor(phase.kind, loaderSeen(loaderMemory()), reducedMotion);
     frame.loaderSkipEndsMs = null;
     const state: Run = {
       ready: false,
@@ -700,7 +699,7 @@ export function Opening({ tier, reflector, onStarted, onReady, onFail }: Opening
       if (!state.landed) {
         state.landed = true;
         // A later visit is one after the show has played (spec §2.1): the reduced fade marks nothing.
-        if (marksSeen(state.path)) markLoaderSeen(SafeStorage.local());
+        if (marksSeen(state.path)) markLoaderSeen(loaderMemory());
         useScene.getState().dispatch({ type: 'LOADED' });
       }
     }

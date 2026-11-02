@@ -22,7 +22,7 @@
  * no engraving at all, so they run on their own, short spans from the load.
  * Where a visitor has both, reduced wins: it is the path that moves least.
  */
-import type { SafeStorage } from '~/engine/core/SafeStorage';
+import { SafeStorage } from '~/engine/core/SafeStorage';
 
 /** The preview's frame rate; the script's frames are over it. */
 export const FPS = 24;
@@ -122,7 +122,7 @@ export const LOADER = {
   maxStep: 0.1
 } as const;
 
-/** The key under which the browser remembers that the loader has played (in `localStorage`). */
+/** The key under which the tab remembers that the loader has played (in its `sessionStorage`: `loaderMemory`). */
 export const LOADER_SEEN_KEY = 'bob-loader-seen';
 
 /**
@@ -394,7 +394,16 @@ export function loaderGaveUp(elapsed: number, loadedAt: number | null): boolean 
 }
 
 /**
- * Whether the loader has played in this browser. Pass `SafeStorage.local()` at
+ * Where the loader's seen note is kept: the tab's `sessionStorage` (round 18, Bob: "Yes, every new tab"), so every
+ * new tab plays the full show and a reload of the same tab the quick path. A note an earlier build left in the
+ * browser's `localStorage` is not read.
+ */
+export function loaderMemory(): SafeStorage {
+  return SafeStorage.session();
+}
+
+/**
+ * Whether the loader has played in this tab. Pass `loaderMemory()` at
  * runtime. A storage that throws, or any stored value but '1', reads as not
  * seen, so the visitor gets the whole show rather than none.
  */
@@ -403,7 +412,7 @@ export function loaderSeen(storage: SafeStorage): boolean {
 }
 
 /**
- * Marks the loader as played in this browser. Pass `SafeStorage.local()` at
+ * Marks the loader as played in this tab. Pass `loaderMemory()` at
  * runtime. A storage that throws is ignored, as `SafeStorage` does for every
  * write.
  */

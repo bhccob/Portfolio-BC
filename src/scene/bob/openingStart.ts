@@ -33,7 +33,7 @@ export interface OpeningStart {
 /**
  * How an opening mounted in this phase begins: `skip` as `skipsLoader` says,
  * and the path as `pathFor` says, the quick one if the loader was `seen` in
- * this browser and the reduced one if the visitor asks for less motion
+ * this tab and the reduced one if the visitor asks for less motion
  * (reduced beats quick, and quick beats full). The path is kept for a skipped
  * opening too: a seek still plays it.
  */
@@ -42,7 +42,7 @@ export function openingStartFor(phase: Phase['kind'], seen: boolean, reduced: bo
 }
 
 /**
- * Whether landing on this path marks the loader seen in this browser (`markLoaderSeen`). A later visit is one after
+ * Whether landing on this path marks the loader seen in this tab (`markLoaderSeen`). A later visit is one after
  * the full show has played once (spec §2.1), so the full path marks it (whether it played whole or was skipped), and
  * so does the quick path, which only plays once it is marked; the reduced path's fade is no show, and leaves a visitor
  * who later lets motion back on the whole of it.
