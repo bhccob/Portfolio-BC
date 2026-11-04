@@ -16,6 +16,78 @@ const across = (p: Vec3): number => p[0];
 // `circuit`): five lanes beside the light's way, straight runs jogging at 45°, a via at each jog's end, pulses running
 // down into the light.
 describe('the circuit', () => {
+  /** The lanes as they were laid before the routes were indexed, reading every stretch for each point: what must not change. */
+  const laidTheLongWay = (t: TrailPoint[], radius: number, right: Vec3, seed = 7) => {
+    const scale = radius / MOCK_HALF;
+    const rl = Math.hypot(...right) || 1;
+    const r: Vec3 = [right[0] / rl, right[1] / rl, right[2] / rl];
+    const depth: Vec3 = [-r[2], 0, r[0]];
+    const offsetAt = (route: ReturnType<typeof routeOf>, y: number): number => {
+      for (const s of route) {
+        if (y > s.top || y < s.bottom) continue;
+        return s.jog ? s.from + ((s.to - s.from) * (s.top - y)) / (s.top - s.bottom) : s.from;
+      }
+      return route.at(-1)?.to ?? 0;
+    };
+    return LANES.map(([, dz], k) => {
+      const route = routeOf(k, seed);
+      const points: Vec3[] = [];
+      const above: number[] = [];
+      const vias: Vec3[] = [];
+      const base: { at: Vec3; above: number }[] = [];
+      let run = 0;
+      for (let i = 0; i < t.length; i++) {
+        const p = t[i]!.point as Vec3;
+        if (i > 0) {
+          const q = t[i - 1]!.point as Vec3;
+          const lo = Math.min(p[1], q[1]);
+          const hi = Math.max(p[1], q[1]);
+          const turns = [...new Set(route.map((s) => s.bottom))].filter((y) => y > lo && y < hi);
+          turns.sort((a, b) => (p[1] > q[1] ? a - b : b - a));
+          for (const y of turns) {
+            const u = (y - q[1]) / (p[1] - q[1]);
+            const at: Vec3 = [q[0] + (p[0] - q[0]) * u, q[1] + (p[1] - q[1]) * u, q[2] + (p[2] - q[2]) * u];
+            base.push({ at, above: run + Math.hypot(at[0] - q[0], at[1] - q[1], at[2] - q[2]) });
+          }
+          run += Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
+        }
+        base.push({ at: p, above: run });
+      }
+      const jogEnds = new Set(route.filter((s) => s.jog).map((s) => s.bottom));
+      for (const { at, above: up } of base) {
+        const off = offsetAt(route, at[1]) * scale;
+        const point: Vec3 = [at[0] + r[0] * off + depth[0] * dz * scale, at[1] + r[1] * off, at[2] + r[2] * off + depth[2] * dz * scale];
+        points.push(point);
+        above.push(up);
+        if (jogEnds.has(at[1])) vias.push(point);
+      }
+      return { points, above, vias };
+    });
+  };
+
+  it("lays the same lanes as reading every stretch would, on a way up, a way down and past the route's ends", () => {
+    const trails: TrailPoint[][] = [trail(-3, 6, 24), trail(-120, 14, 24), trail(60, 30, 24), trail(79, 5, 8), trail(-239, 3, 12), trail(-20, 0.001, 24)];
+    // A trail running the other way, oldest first: its turns are met from the bottom.
+    trails.push([...trail(-40, 9, 24)].reverse());
+    for (const t of trails) {
+      const fast = circuitLanes(t, RADIUS, [0.8, 0, 0.6]);
+      const slow = laidTheLongWay(t, RADIUS, [0.8, 0, 0.6]);
+      fast.forEach((lane, k) => {
+        expect(lane.points).toEqual(slow[k]!.points);
+        expect(lane.above).toEqual(slow[k]!.above);
+        expect(lane.vias).toEqual(slow[k]!.vias);
+      });
+    }
+  });
+
+  it("lays a light's lanes in a small share of a frame (it does so every frame the light shows)", () => {
+    const t = trail(-30, 8, 24);
+    const started = performance.now();
+    for (let i = 0; i < 300; i++) circuitLanes(t, RADIUS, RIGHT);
+    // 300 frames' worth took about 900 ms on a fast desktop when each point read every stretch.
+    expect(performance.now() - started).toBeLessThan(300);
+  });
+
   it('lays five lanes beside the trail', () => {
     expect(LANES).toEqual([
       [0, 0, 0.042],

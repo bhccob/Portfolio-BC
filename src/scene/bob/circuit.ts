@@ -67,6 +67,39 @@ function stepper(seed: number): () => number {
 
 const routes = new Map<string, RouteStretch[]>();
 
+/**
+ * What a route is read by each frame, worked out once: its turns, highest first (a stretch's bottom is the next one's
+ * top, and each stretch goes on down from the last, so each turn is there once and in order), and the ends of its jogs.
+ * A lane is laid every frame the light shows, 24 points on five lanes over routes of hundreds of stretches: this is
+ * what keeps that to a binary search a point (it was a third of the main thread's work a frame).
+ */
+interface RouteIndex {
+  turns: number[];
+  jogEnds: Set<number>;
+}
+
+const indexes = new WeakMap<RouteStretch[], RouteIndex>();
+
+function indexOf(route: RouteStretch[]): RouteIndex {
+  const kept = indexes.get(route);
+  if (kept) return kept;
+  const made = { turns: route.map((s) => s.bottom), jogEnds: new Set(route.filter((s) => s.jog).map((s) => s.bottom)) };
+  indexes.set(route, made);
+  return made;
+}
+
+/** The place in `descending` of its first value at or under `y`; its length when none is. */
+function firstAtOrUnder(descending: readonly number[], y: number): number {
+  let lo = 0;
+  let hi = descending.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (descending[mid]! <= y) hi = mid;
+    else lo = mid + 1;
+  }
+  return lo;
+}
+
 /** Lane `lane`'s routing down the world's height, for `seed`: made once, kept. */
 export function routeOf(lane: number, seed: number): RouteStretch[] {
   const key = `${lane}:${seed}`;
@@ -96,12 +129,10 @@ export function routeOf(lane: number, seed: number): RouteStretch[] {
 
 /** The lane's place across the way at world height `y`, mock-up m. */
 function offsetAt(route: RouteStretch[], y: number): number {
-  for (const s of route) {
-    if (y > s.top || y < s.bottom) continue;
-    if (!s.jog) return s.from;
-    return s.from + ((s.to - s.from) * (s.top - y)) / (s.top - s.bottom);
-  }
-  return route.at(-1)?.to ?? 0;
+  const s = route[firstAtOrUnder(indexOf(route).turns, y)];
+  if (!s || y > s.top) return route.at(-1)?.to ?? 0;
+  if (!s.jog) return s.from;
+  return s.from + ((s.to - s.from) * (s.top - y)) / (s.top - s.bottom);
 }
 
 const sub = (a: Vec3, b: Vec3): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -127,6 +158,7 @@ export function circuitLanes(trail: readonly TrailPoint[], radius: number, right
     const lane: TraceLane = { points: [], above: [], width: width * scale, fade: LANE_FADE[k]! * scale, vias: [] };
     if (trail.length < 2) return lane;
     const route = routeOf(k, seed);
+    const { turns, jogEnds } = indexOf(route);
     // The trail with a point at each of the routing's turns between two of its points.
     const base: { at: Vec3; above: number }[] = [];
     let run = 0;
@@ -136,10 +168,14 @@ export function circuitLanes(trail: readonly TrailPoint[], radius: number, right
         const q = trail[i - 1]!.point as Vec3;
         const lo = Math.min(p[1], q[1]);
         const hi = Math.max(p[1], q[1]);
-        // Each turn once: a stretch's bottom is the next one's top.
-        const turns = [...new Set(route.map((s) => s.bottom))].filter((y) => y > lo && y < hi);
-        turns.sort((a, b) => (p[1] > q[1] ? a - b : b - a));
-        for (const y of turns) {
+        // Each turn strictly between the two, in the order the trail meets them.
+        const first = firstAtOrUnder(turns, hi);
+        let last = first;
+        while (last < turns.length && turns[last]! > lo) last++;
+        const rising = p[1] > q[1];
+        for (let t = rising ? last - 1 : first; rising ? t >= first : t < last; t += rising ? -1 : 1) {
+          const y = turns[t]!;
+          if (y >= hi) continue;
           const at = lerp3(q, p, (y - q[1]) / (p[1] - q[1]));
           base.push({ at, above: run + len(sub(at, q)) });
         }
@@ -147,7 +183,6 @@ export function circuitLanes(trail: readonly TrailPoint[], radius: number, right
       }
       base.push({ at: p, above: run });
     }
-    const jogEnds = new Set(route.filter((s) => s.jog).map((s) => s.bottom));
     for (const { at, above } of base) {
       const off = offsetAt(route, at[1]) * scale;
       const point: Vec3 = [at[0] + r[0] * off + depth[0] * dz * scale, at[1] + r[1] * off, at[2] + r[2] * off + depth[2] * dz * scale];
