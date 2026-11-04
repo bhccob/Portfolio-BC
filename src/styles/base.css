@@ -942,6 +942,15 @@ html[data-3d='on'] .end-link:hover {
   }
 }
 
+/* A finger's worth of target round the language link on a tablet or a phone on its side, with no change to how it looks.
+   (Not the area dots: at 28 px they already pass, and more would take a tap meant for a project at the screen's edge.) */
+@media (pointer: coarse) and (min-width: 721px) {
+  .header-control {
+    justify-content: center;
+    min-width: 44px;
+  }
+}
+
 /* An area's words at the foot on the left (src/ui/AreaCaption.tsx): its category in the gold label face, its project's
    name in the title face (a link that opens it), the hint under. The scene writes the opacity; inert under half. */
 .area-caption {
