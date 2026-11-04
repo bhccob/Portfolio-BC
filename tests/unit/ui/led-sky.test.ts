@@ -1,48 +1,70 @@
 import { describe, expect, it } from 'vitest';
-import { LED_TINTS, ledCell, ledLevel, makeLedSky } from '~/ui/ledSky';
+import { LED, LED_TINTS, ledCell, ledLevel, makeLedSky } from '~/ui/ledSky';
 
-/** A 2D context that records what is drawn: each fill with its style, the gradients asked for. */
+/** A WebGL2 context that records what is drawn. */
 function recorder() {
-  const fills: { style: unknown; x: number; y: number; w: number; h: number }[] = [];
-  const calls: string[] = [];
-  const gradient = () => ({ addColorStop: () => undefined });
-  const ctx = {
-    fillStyle: '' as unknown,
-    clearRect: () => calls.push('clear'),
-    fillRect(x: number, y: number, w: number, h: number) {
-      fills.push({ style: this.fillStyle, x, y, w, h });
+  const uniforms: Record<string, unknown> = {};
+  const sources: string[] = [];
+  const counts = { draw: 0, clear: 0, upload: 0, compile: 0, status: 0 };
+  const gl = {
+    VERTEX_SHADER: 1,
+    FRAGMENT_SHADER: 2,
+    LINK_STATUS: 3,
+    createProgram: () => ({}),
+    createShader: () => ({}),
+    shaderSource: (_: unknown, source: string) => sources.push(source),
+    compileShader: () => {
+      counts.compile++;
     },
-    createLinearGradient: () => {
-      calls.push('linear');
-      return gradient();
+    attachShader: () => undefined,
+    linkProgram: () => undefined,
+    getProgramParameter: () => {
+      counts.status++;
+      return true;
     },
-    createRadialGradient: () => {
-      calls.push('radial');
-      return gradient();
+    useProgram: () => undefined,
+    bindVertexArray: () => undefined,
+    createVertexArray: () => ({}),
+    bindTexture: () => undefined,
+    createTexture: () => ({}),
+    texParameteri: () => undefined,
+    pixelStorei: () => undefined,
+    getUniformLocation: (_: unknown, name: string) => name,
+    uniform3fv: (name: string, v: number[]) => (uniforms[name] = v),
+    uniform1f: (name: string, v: number) => (uniforms[name] = v),
+    uniform2f: (name: string, a: number, b: number) => (uniforms[name] = [a, b]),
+    uniform3f: (name: string, a: number, b: number, c: number) => (uniforms[name] = [a, b, c]),
+    clearColor: () => undefined,
+    clear: () => {
+      counts.clear++;
+    },
+    viewport: () => undefined,
+    texImage2D: () => {
+      counts.upload++;
+    },
+    drawArrays: () => {
+      counts.draw++;
     }
   };
-  return { ctx, fills, calls };
+  return { gl, uniforms, sources, counts };
 }
 
-/** A canvas over a recording context, and the small one the frame is read through: every pixel at `grey` (0..255). */
-function setup(grey = 128) {
+function setup() {
   const screen = recorder();
-  const canvas = { width: 0, height: 0, getContext: () => screen.ctx } as unknown as HTMLCanvasElement;
-  const small = {
+  const asked: unknown[] = [];
+  const canvas = {
     width: 0,
     height: 0,
-    getContext: () => ({
-      drawImage: () => undefined,
-      getImageData: (_x: number, _y: number, w: number, h: number) => ({ data: new Uint8ClampedArray(w * h * 4).fill(grey) })
-    })
+    getContext: (_: string, options: unknown) => {
+      asked.push(options);
+      return screen.gl;
+    }
   } as unknown as HTMLCanvasElement;
-  const sky = makeLedSky(canvas, () => small);
-  return { sky, canvas, ...screen };
+  return { sky: makeLedSky(canvas), canvas, asked, ...screen };
 }
 
 const SIZE = { width: 1440, height: 900 };
-const SOURCE = {} as CanvasImageSource;
-const DARK = '#030108';
+const SOURCE = { width: 1800, height: 1125 } as unknown as HTMLCanvasElement;
 
 describe('the LED screen: the digitize, from the frame grab (round 15)', () => {
   it('has 6 px cells, 5 on a phone', () => {
@@ -51,69 +73,95 @@ describe('the LED screen: the digitize, from the frame grab (round 15)', () => {
     expect(ledCell(390)).toBe(5);
   });
 
-  it('reads a cell\'s level off its brightness: 1.1 √l of twelve', () => {
+  it("reads a cell's level off its brightness: 1.1 √l of twelve", () => {
     expect(ledLevel(0)).toBe(0);
     expect(ledLevel(0.25)).toBe(6);
     expect(ledLevel(1)).toBe(11);
     expect(ledLevel(2)).toBe(11);
   });
 
-  it('tints the levels from dark violet through violet and gold to warm white', () => {
-    expect(LED_TINTS).toHaveLength(12);
+  it('keeps its tints, dark violet to warm white', () => {
+    expect(LED_TINTS).toHaveLength(LED.levels);
     expect(LED_TINTS[0]).toBe('rgb(38,26,92)');
     expect(LED_TINTS[11]).toBe('rgb(255,238,205)');
   });
 
-  it('draws nothing while the line has not come', () => {
-    const { sky, fills, calls } = setup();
-    sky.draw({ source: SOURCE, line: 0, end: 0, size: SIZE, core: null });
-    expect(fills).toEqual([]);
-    expect(calls).toEqual(['clear']);
+  it('asks for no context until the Q&A is under way, and keeps its pixels when it has one', () => {
+    const { sky, asked, counts } = setup();
+    expect(asked).toEqual([]);
+    sky.prepare();
+    sky.prepare();
+    expect(asked).toHaveLength(1);
+    expect(asked[0]).toMatchObject({ alpha: true, premultipliedAlpha: true, preserveDrawingBuffer: true, antialias: false });
+    // Compiling, not waited for: only the first draw asks how it went.
+    expect(counts.compile).toBe(2);
+    expect(counts.status).toBe(0);
+    sky.draw({ source: SOURCE, line: 0.5, end: 0, size: SIZE, core: null });
+    expect(counts.status).toBe(1);
   });
 
-  it('turns the world over the line into dots on the dark, and leaves it as it is under it', () => {
-    const { sky, canvas, fills, calls } = setup();
+  it('draws nothing while the line has not come', () => {
+    const { sky, counts } = setup();
+    sky.draw({ source: SOURCE, line: 0, end: 0, size: SIZE, core: null });
+    expect(counts.draw).toBe(0);
+    expect(counts.upload).toBe(0);
+    // Nothing stood on the canvas, so nothing is cleared either.
+    expect(counts.clear).toBe(0);
+  });
+
+  it('draws the frame as one draw, sized to the screen', () => {
+    const { sky, canvas, counts, uniforms } = setup();
     sky.draw({ source: SOURCE, line: 0.5, end: 0, size: SIZE, core: null });
     expect([canvas.width, canvas.height]).toEqual([1440, 900]);
-    expect(fills[0]).toEqual({ style: DARK, x: 0, y: 0, w: 1440, h: 450 });
-    const dots = fills.filter((f) => typeof f.style === 'string' && f.style.startsWith('rgb('));
-    expect(dots.length).toBeGreaterThan(1000);
-    for (const d of dots) expect(d.y).toBeLessThan(450 + 6);
-    // Grey 128 is level 9: a dot 0.28 + 0.6 · 9 / 11 of the cell.
-    expect(dots[0]!.w).toBeCloseTo(6 * (0.28 + (0.6 * 9) / 11), 9);
-    // The laser while it is on its way: its glow, then its line.
-    expect(calls).toContain('linear');
-    expect(calls).not.toContain('radial');
+    expect(counts.draw).toBe(1);
+    expect(counts.upload).toBe(1);
+    expect(uniforms.uSize).toEqual([1440, 900]);
+    expect(uniforms.uCell).toBe(6);
+    expect(uniforms.uOver).toBe(450);
+    expect(uniforms.uLaser).toBe(1);
+    expect(uniforms.uEnd).toBe(0);
+    expect(uniforms.uTints).toHaveLength(LED.levels * 3);
   });
 
-  it('leaves out the faintest cells', () => {
-    const { sky, fills } = setup(2);
-    sky.draw({ source: SOURCE, line: 1, end: 0, size: SIZE, core: null });
-    expect(fills.filter((f) => typeof f.style === 'string' && f.style.startsWith('rgb('))).toEqual([]);
+  it('writes the numbers of the mock-up into its shader', () => {
+    const { sky, sources } = setup();
+    sky.prepare();
+    const fragment = sources[1]!;
+    expect(fragment).toContain(`uTints[${LED.levels}]`);
+    expect(fragment).toContain(`level >= ${LED.skip}`);
+    expect(fragment).toContain(LED.gain.toFixed(3));
+    expect(fragment).toContain(LED.hush.radius.toFixed(1));
+    expect(fragment).toContain(LED.ripple.width.toFixed(1));
   });
 
-  it('darkens the middle behind the end\'s words as the end comes, and the line is gone once past', () => {
-    const { sky, calls } = setup();
-    sky.draw({ source: SOURCE, line: 1, end: 0.6, size: SIZE, core: { x: 720, y: 500 } });
-    expect(calls).toContain('radial');
-    expect(calls).not.toContain('linear');
+  it('holds the line over the screen, and the laser goes once it is past', () => {
+    const { sky, uniforms } = setup();
+    sky.draw({ source: SOURCE, line: 1.4, end: 0.6, size: SIZE, core: { x: 720, y: 500 } });
+    expect(uniforms.uOver).toBe(900);
+    expect(uniforms.uLaser).toBe(0);
+    expect(uniforms.uEnd).toBe(0.6);
+    expect(uniforms.uCore).toEqual([720, 500, 1]);
+    expect(uniforms.uWave).toBeCloseTo(0.6 * LED.ripple.reach * Math.hypot(1440, 900), 9);
   });
 
-  it('darkens only the LEDs behind the words, never the scene under the line', () => {
-    const { sky, fills } = setup();
-    sky.draw({ source: SOURCE, line: 0.5, end: 0.2, size: SIZE, core: null });
-    const hush = fills.filter((f) => typeof f.style !== 'string');
-    expect(hush.length).toBeGreaterThan(0);
-    // The hush (the gradient fill, not a laser's: those sit on the line) never reaches under the line.
-    for (const h of hush) expect(h.y + h.h).toBeLessThanOrEqual(450 + 1e-9);
-  });
-
-  it('clears when the grab gives nothing', () => {
-    const { sky, fills, calls } = setup();
+  it('clears when the grab gives nothing, and only what it drew', () => {
+    const { sky, counts } = setup();
+    sky.draw({ source: SOURCE, line: 0.5, end: 0, size: SIZE, core: null });
     sky.draw({ source: null, line: 0.8, end: 0, size: SIZE, core: null });
-    expect(fills).toEqual([]);
-    expect(calls).toEqual(['clear']);
+    expect(counts.draw).toBe(1);
+    expect(counts.clear).toBe(1);
+    // Once clear, it stays clear with no more work: the scene clears it every frame it does not draw it.
     sky.clear();
-    expect(calls).toEqual(['clear', 'clear']);
+    expect(counts.clear).toBe(1);
+  });
+
+  it('stands aside where there is no context', () => {
+    const canvas = { width: 0, height: 0, getContext: () => null } as unknown as HTMLCanvasElement;
+    const sky = makeLedSky(canvas);
+    expect(() => {
+      sky.prepare();
+      sky.draw({ source: SOURCE, line: 0.5, end: 0, size: SIZE, core: null });
+      sky.clear();
+    }).not.toThrow();
   });
 });

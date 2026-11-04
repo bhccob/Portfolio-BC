@@ -141,6 +141,7 @@ export function makeQaScene(): QaScene {
         writeQa(f.parts, { on: showing, column: out.column, band: out.band, offset, at, endOn: out.endOn }, written);
         const leds = f.leds;
         if (leds) {
+          if (showing) leds.prepare();
           if (showing && out.line > 0) requestGrab((source) => leds.draw({ source, line: out.line, end: out.end, size, core }));
           else leds.clear();
         }
