@@ -14,6 +14,7 @@
  * the same from the first frame to the last (three compiles every lit material for it).
  */
 import * as THREE from 'three';
+import { BILLBOARD_FRAGMENT, billboardGeometry, billboardMesh } from '~/engine/bob/build/billboards';
 import { clamp01 } from '~/engine/bob/build/haze';
 import { palette } from '~/engine/palette';
 import { lowerTier, type QualityTier } from '~/engine/quality';
@@ -129,6 +130,25 @@ const TRACE_FRAGMENT = /* glsl */ `
     float edge = 1.0 - abs(vSide) * 0.5;
     vec3 c = uColor * (0.32 + 0.22 * edge) + uHot * packet * 1.8;
     gl_FragColor = vec4(c * fade * uLevel, 1.0);
+  }
+`;
+
+/** A via: a quad facing the camera at its place, its size in metres, its light its own (as a sprite with its own opacity). */
+const VIA_VERTEX = /* glsl */ `
+  attribute vec3 aAt;
+  attribute float aSize;
+  attribute float aLight;
+  uniform vec3 uColour;
+  varying vec2 vUv;
+  varying vec3 vColour;
+  varying float vOpacity;
+  void main() {
+    vUv = uv;
+    vColour = uColour;
+    vOpacity = aLight;
+    vec4 mv = modelViewMatrix * vec4(aAt, 1.0);
+    mv.xy += position.xy * aSize;
+    gl_Position = projectionMatrix * mv;
   }
 `;
 
@@ -267,16 +287,23 @@ export function buildLight(tier: QualityTier): LightModel {
     traces.add(mesh);
     return { mesh, geometry, positions, aboves, material };
   });
-  const vias = new THREE.Group();
-  vias.name = 'light:vias';
-  const viaSprites = LANES.map(() =>
-    Array.from({ length: look.vias.most }, () => {
-      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ name: 'light:via', map: textures.via, color: look.vias.colour, opacity: 0, ...ADDED }));
-      sprite.visible = false;
-      vias.add(sprite);
-      return sprite;
-    })
-  );
+  // The vias: one draw for all of them (./billboards.ts), their places, sizes and lights written each frame.
+  const viaMost = LANES.length * look.vias.most;
+  const viaAt = new THREE.InstancedBufferAttribute(new Float32Array(viaMost * 3), 3).setUsage(THREE.DynamicDrawUsage);
+  const viaSize = new THREE.InstancedBufferAttribute(new Float32Array(viaMost), 1).setUsage(THREE.DynamicDrawUsage);
+  const viaLight = new THREE.InstancedBufferAttribute(new Float32Array(viaMost), 1).setUsage(THREE.DynamicDrawUsage);
+  const viaGeometry = billboardGeometry(0);
+  viaGeometry.setAttribute('aAt', viaAt);
+  viaGeometry.setAttribute('aSize', viaSize);
+  viaGeometry.setAttribute('aLight', viaLight);
+  const viaMaterial = new THREE.ShaderMaterial({
+    name: 'light:via',
+    vertexShader: VIA_VERTEX,
+    fragmentShader: BILLBOARD_FRAGMENT,
+    uniforms: { uMap: { value: textures.via }, uColour: { value: new THREE.Color(look.vias.colour) } },
+    ...ADDED
+  });
+  const vias = billboardMesh('light:vias', viaGeometry, viaMaterial);
 
   const lamp = new THREE.PointLight(look.lamp.colour, 0, look.lamp.distance, 2);
   lamp.name = 'light:lamp';
@@ -334,6 +361,7 @@ export function buildLight(tier: QualityTier): LightModel {
       const scale = r / MOCK_HALF;
       const showVias = standing !== 'low';
       vias.visible = showVias;
+      let viaCount = 0;
       laid.forEach((lane, k) => {
         const target = lanes[k]!;
         const n = Math.min(lane.points.length, cap);
@@ -347,15 +375,14 @@ export function buildLight(tier: QualityTier): LightModel {
           along.set(q[0] - o[0], q[1] - o[1], q[2] - o[2]).normalize();
           toCamera.set(camera.position.x - p[0], camera.position.y - p[1], camera.position.z - p[2]).normalize();
           across.crossVectors(along, toCamera).normalize().multiplyScalar(half);
-          for (const [v, sign] of [
-            [i * 2, -1],
-            [i * 2 + 1, 1]
-          ] as const) {
-            out[v * 3] = p[0] + across.x * sign;
-            out[v * 3 + 1] = p[1] + across.y * sign;
-            out[v * 3 + 2] = p[2] + across.z * sign;
-            ups[v] = lane.above[i]!;
-          }
+          const v = i * 6;
+          out[v] = p[0] - across.x;
+          out[v + 1] = p[1] - across.y;
+          out[v + 2] = p[2] - across.z;
+          out[v + 3] = p[0] + across.x;
+          out[v + 4] = p[1] + across.y;
+          out[v + 5] = p[2] + across.z;
+          ups[i * 2] = ups[i * 2 + 1] = lane.above[i]!;
         }
         target.positions.needsUpdate = true;
         target.aboves.needsUpdate = true;
@@ -367,17 +394,23 @@ export function buildLight(tier: QualityTier): LightModel {
         u.uTime!.value = clock;
         u.uLevel!.value = look.traces.levels[k]! * level;
         // Its vias, each fading up the way as its trace does.
-        const sprites = viaSprites[k]!;
-        sprites.forEach((sprite, j) => {
-          const via = showVias ? lane.vias[j] : undefined;
-          sprite.visible = via !== undefined;
-          if (!via) return;
-          sprite.position.set(via[0], via[1], via[2]);
-          sprite.scale.setScalar((look.vias.size + LANES[k]![2] * 4) * scale);
-          const up = Math.max(0, via[1] - pose.position[1]);
-          (sprite.material as THREE.SpriteMaterial).opacity = look.vias.level * Math.exp(-up / Math.max(lane.fade, 1e-6)) * level;
-        });
+        if (!showVias) return;
+        const size = (look.vias.size + LANES[k]![2] * 4) * scale;
+        const fade = Math.max(lane.fade, 1e-6);
+        for (let j = 0; j < Math.min(lane.vias.length, look.vias.most); j++) {
+          const via = lane.vias[j]!;
+          viaAt.setXYZ(viaCount, via[0], via[1], via[2]);
+          viaSize.setX(viaCount, size);
+          viaLight.setX(viaCount, look.vias.level * Math.exp(-Math.max(0, via[1] - pose.position[1]) / fade) * level);
+          viaCount++;
+        }
       });
+      viaGeometry.instanceCount = viaCount;
+      if (viaCount > 0) {
+        viaAt.needsUpdate = true;
+        viaSize.needsUpdate = true;
+        viaLight.needsUpdate = true;
+      }
     },
     setTier(next) {
       standing = lowerTier(standing, next);
@@ -386,10 +419,10 @@ export function buildLight(tier: QualityTier): LightModel {
     dispose() {
       for (const geometry of [frameGeometry, innerGeometry, dialGeometry, ...lanes.map((l) => l.geometry)]) geometry.dispose();
       for (const material of [coreMaterial, haloMaterial, auraMaterial, frameMaterial, innerMaterial, dialMaterial, ...lanes.map((l) => l.material)]) material.dispose();
-      for (const sprite of viaSprites.flat()) (sprite.material as THREE.SpriteMaterial).dispose();
+      viaMaterial.dispose();
       core.geometry.dispose();
       halo.geometry.dispose();
-      for (const sprite of viaSprites.flat()) sprite.geometry.dispose();
+      viaGeometry.dispose();
       textures.core.dispose();
       textures.glow.dispose();
       textures.via.dispose();
@@ -415,7 +448,7 @@ function draws(o: THREE.Object3D): boolean {
   o.traverseVisible((p) => {
     const drawn = p as THREE.Mesh;
     if (found || !(drawn.isMesh || (p as THREE.Sprite).isSprite || (p as THREE.Line).isLine || (p as THREE.Points).isPoints)) return;
-    found = (p as THREE.Sprite).isSprite || drawn.geometry.drawRange.count !== 0;
+    found = (p as THREE.Sprite).isSprite || (drawn.geometry.drawRange.count !== 0 && (drawn.geometry as THREE.InstancedBufferGeometry).instanceCount !== 0);
   });
   return found;
 }

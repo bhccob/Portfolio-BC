@@ -8,9 +8,13 @@
  *
  * No React: the Void builds them and poses them on the world's clock, so they stand still while the canvas sleeps and with
  * reduced motion. The low tier makes half the stars. The textures are made on the CPU, so the node tests build them.
+ *
+ * They draw in four draws, one a picture (./billboards.ts): the glows, the cores, the spikes and the shells. The twinkle
+ * is in the shader, so posing them takes two numbers a frame however many there are.
  */
 import * as THREE from 'three';
 import type { QualityTier } from '~/engine/quality';
+import { BILLBOARD_FRAGMENT, billboardGeometry, billboardMesh } from './billboards';
 
 type Vec3 = readonly [number, number, number];
 
@@ -63,9 +67,24 @@ export interface StarsPose {
   clock: number;
 }
 
+/** A star as it was placed. */
+export interface Star {
+  /** A companion of a pair. */
+  pair: boolean;
+  at: THREE.Vector3;
+  size: number;
+  /** Its core's colour. */
+  tint: THREE.Color;
+  /** Brighter than SPIKED: it has spikes. */
+  spiked: boolean;
+  shell: boolean;
+}
+
 export interface StarsModel {
-  /** `stars`: each star's core (`stars:star:<k>`, a companion `stars:pair:<k>`), its glow, its spikes and its shell. */
+  /** `stars`: one draw each of the glows, the cores, the spikes and the shells (`stars:glows` and so on). */
   group: THREE.Group;
+  /** The stars placed, for the tests. */
+  stars: readonly Star[];
   pose(p: StarsPose): void;
   dispose(): void;
 }
@@ -150,6 +169,82 @@ const glowTexture = (): THREE.DataTexture => made(64, (x, y) => Math.pow(Math.ma
 
 const ADDED = { transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false } as const;
 
+/**
+ * Each star's own light and its place: as bright as `aStar.x` times the level and its twinkle at its own pace (`aStar.y`,
+ * phase `aStar.z`), by each layer's `uGain` (held to `uCap`); a shell's light is even, the level alone (`uEven`), and
+ * spikes breathe a little with the twinkle (`uBreathe`). The quad faces the camera, `aSize` metres across, as a sprite.
+ */
+const STAR_VERTEX = /* glsl */ `
+  attribute vec3 aAt;
+  attribute float aSize;
+  attribute vec3 aTint;
+  attribute vec3 aStar;
+  uniform float uLevel;
+  uniform float uClock;
+  uniform float uGain;
+  uniform float uCap;
+  uniform float uEven;
+  uniform float uBreathe;
+  varying vec2 vUv;
+  varying vec3 vColour;
+  varying float vOpacity;
+  void main() {
+    float twinkle = 0.84 + 0.1 * sin(uClock * aStar.y + aStar.z) + 0.06 * sin(uClock * aStar.y * 2.7 + aStar.z * 1.3);
+    float light = mix(aStar.x * twinkle, 1.0, uEven) * uLevel;
+    vOpacity = min(uCap, light * uGain);
+    vColour = aTint;
+    vUv = uv;
+    vec4 mv = modelViewMatrix * vec4(aAt, 1.0);
+    mv.xy += position.xy * aSize * mix(1.0, 0.92 + 0.08 * twinkle, uBreathe);
+    gl_Position = projectionMatrix * mv;
+  }
+`;
+
+/** A quad of a layer: its place, its size, its colour and its star's own light. */
+interface Quad {
+  at: THREE.Vector3;
+  size: number;
+  tint: THREE.Color;
+  base: number;
+  rate: number;
+  phase: number;
+}
+
+/** One layer of the field as one draw. */
+function layer(name: string, quads: readonly Quad[], map: THREE.Texture, look: { gain: number; cap?: number; even?: boolean; breathe?: boolean }): { mesh: THREE.Mesh; material: THREE.ShaderMaterial } {
+  const geometry = billboardGeometry(quads.length);
+  const at = new Float32Array(quads.length * 3);
+  const size = new Float32Array(quads.length);
+  const tint = new Float32Array(quads.length * 3);
+  const star = new Float32Array(quads.length * 3);
+  quads.forEach((q, k) => {
+    q.at.toArray(at, k * 3);
+    size[k] = q.size;
+    q.tint.toArray(tint, k * 3);
+    star.set([q.base, q.rate, q.phase], k * 3);
+  });
+  geometry.setAttribute('aAt', new THREE.InstancedBufferAttribute(at, 3));
+  geometry.setAttribute('aSize', new THREE.InstancedBufferAttribute(size, 1));
+  geometry.setAttribute('aTint', new THREE.InstancedBufferAttribute(tint, 3));
+  geometry.setAttribute('aStar', new THREE.InstancedBufferAttribute(star, 3));
+  const material = new THREE.ShaderMaterial({
+    name,
+    vertexShader: STAR_VERTEX,
+    fragmentShader: BILLBOARD_FRAGMENT,
+    uniforms: {
+      uMap: { value: map },
+      uLevel: { value: 0 },
+      uClock: { value: 0 },
+      uGain: { value: look.gain },
+      uCap: { value: look.cap ?? 1e6 },
+      uEven: { value: look.even ? 1 : 0 },
+      uBreathe: { value: look.breathe ? 1 : 0 }
+    },
+    ...ADDED
+  });
+  return { mesh: billboardMesh(name, geometry, material), material };
+}
+
 /** Builds the field `field` for `tier`, dark. */
 export function buildStars(field: StarField, tier: QualityTier): StarsModel {
   const group = new THREE.Group();
@@ -168,38 +263,25 @@ export function buildStars(field: StarField, tier: QualityTier): StarsModel {
     for (const [colour, weight] of SPECTRA) if ((u -= weight) <= 0) return new THREE.Color(colour);
     return new THREE.Color(SPECTRA[SPECTRA.length - 1]![0]);
   };
-  const stars: { core: THREE.Sprite; glow: THREE.Sprite; spikes: THREE.Sprite | null; shell: THREE.Sprite | null; base: number; rate: number; phase: number; spike: number }[] = [];
-  const sprite = (name: string, map: THREE.Texture, colour: THREE.Color): THREE.Sprite => {
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, color: colour, opacity: 0, ...ADDED }));
-    s.name = name;
-    return s;
-  };
+  const stars: Star[] = [];
+  const cores: Quad[] = [];
+  const glows: Quad[] = [];
+  const spikes: Quad[] = [];
+  const gases: Quad[] = [];
   let pairs = 0;
   let shells = 0;
   const add = (at: THREE.Vector3, size: number, tint: THREE.Color, bright: number, shell: boolean, pair: boolean): void => {
-    const k = stars.length;
-    const core = sprite(`stars:${pair ? 'pair' : 'star'}:${k}`, textures.core, tint.clone().lerp(white, 0.55));
-    core.scale.setScalar(size);
-    core.position.copy(at);
-    const glow = sprite(`stars:glow:${k}`, textures.glow, tint.clone());
-    glow.scale.setScalar(size * 2.6);
-    glow.position.copy(at);
-    group.add(glow, core);
-    let spikes: THREE.Sprite | null = null;
-    if (bright > SPIKED) {
-      spikes = sprite(`stars:spikes:${k}`, textures.spikes, tint.clone().lerp(white, 0.3));
-      spikes.scale.setScalar(size * (3.2 + bright * 3));
-      spikes.position.copy(at);
-      group.add(spikes);
-    }
-    let gas: THREE.Sprite | null = null;
-    if (shell) {
-      gas = sprite(`stars:shell:${k}`, textures.glow, tint.clone().lerp(haze, 0.4));
-      gas.scale.setScalar(size * 11);
-      gas.position.copy(at);
-      group.add(gas);
-    }
-    stars.push({ core, glow, spikes, shell: gas, base: bright, rate: 0.6 + random() * 2.2, phase: random() * 9, spike: spikes ? spikes.scale.x : 0 });
+    const spiked = bright > SPIKED;
+    // The generator's draws in the order they always came, so this is the very field Bob approved.
+    const rate = 0.6 + random() * 2.2;
+    const phase = random() * 9;
+    const own = { base: bright, rate, phase, at };
+    const coreTint = tint.clone().lerp(white, 0.55);
+    cores.push({ ...own, size, tint: coreTint });
+    glows.push({ ...own, size: size * 2.6, tint: tint.clone() });
+    if (spiked) spikes.push({ ...own, size: size * (3.2 + bright * 3), tint: tint.clone().lerp(white, 0.3) });
+    if (shell) gases.push({ ...own, size: size * 11, tint: tint.clone().lerp(haze, 0.4) });
+    stars.push({ pair, at, size, tint: coreTint, spiked, shell });
   };
 
   const [cx, cy, cz] = field.centre;
@@ -229,26 +311,31 @@ export function buildStars(field: StarField, tier: QualityTier): StarsModel {
     }
   }
 
+  const layers = [
+    layer('stars:glows', glows, textures.glow, { gain: 0.2 }),
+    layer('stars:cores', cores, textures.core, { gain: 1.15, cap: 1 }),
+    ...(spikes.length > 0 ? [layer('stars:spikes', spikes, textures.spikes, { gain: 0.55, breathe: true })] : []),
+    ...(gases.length > 0 ? [layer('stars:shells', gases, textures.glow, { gain: 0.05, even: true })] : [])
+  ];
+  for (const { mesh } of layers) group.add(mesh);
+
   return {
     group,
+    stars,
     pose({ level, clock }) {
       const shown = Math.min(Math.max(level, 0), 1);
       group.visible = shown > 0.001;
       if (!group.visible) return;
-      for (const star of stars) {
-        const twinkle = 0.84 + 0.1 * Math.sin(clock * star.rate + star.phase) + 0.06 * Math.sin(clock * star.rate * 2.7 + star.phase * 1.3);
-        const light = shown * star.base * twinkle;
-        (star.core.material as THREE.SpriteMaterial).opacity = Math.min(1, light * 1.15);
-        (star.glow.material as THREE.SpriteMaterial).opacity = light * 0.2;
-        if (star.spikes) {
-          (star.spikes.material as THREE.SpriteMaterial).opacity = light * 0.55;
-          star.spikes.scale.setScalar(star.spike * (0.92 + 0.08 * twinkle));
-        }
-        if (star.shell) (star.shell.material as THREE.SpriteMaterial).opacity = shown * 0.05;
+      for (const { material } of layers) {
+        material.uniforms.uLevel!.value = shown;
+        material.uniforms.uClock!.value = clock;
       }
     },
     dispose() {
-      for (const star of stars) for (const s of [star.core, star.glow, star.spikes, star.shell]) (s?.material as THREE.SpriteMaterial | undefined)?.dispose();
+      for (const { mesh, material } of layers) {
+        mesh.geometry.dispose();
+        material.dispose();
+      }
       textures.core.dispose();
       textures.spikes.dispose();
       textures.glow.dispose();
