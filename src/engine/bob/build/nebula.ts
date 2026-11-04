@@ -13,6 +13,7 @@
  * Everything is drawn additively over the dark and writes no depth (the beads' own depth hides what is behind them).
  */
 import * as THREE from 'three';
+import { drain } from '~/engine/core/pace';
 import { engravedMaterial, engravingTexture, ringGeometry } from '~/engine/bob/build/engraved';
 import type { QualityTier } from '~/engine/quality';
 import type { NebulaLevels } from '~/scene/bob/nebulaWay';
@@ -128,6 +129,19 @@ const SHELL_FRAGMENT = /* glsl */ `
   }
 `;
 
+/** The far shell read from its picture (`bake`). */
+const SKY_FRAGMENT = /* glsl */ `
+  uniform float uLevel;
+  uniform samplerCube uSky;
+  varying vec3 vDir;
+  void main() {
+    gl_FragColor = vec4(textureCube(uSky, normalize(vDir)).rgb * uLevel, 1.0);
+  }
+`;
+
+/** The picture's size, a face: it stays soft behind the stars, the dust and the gas. */
+const SKY_SIZE = 512;
+
 function shellMesh(): THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial> {
   const look = NEBULA_LOOK;
   const material = new THREE.ShaderMaterial({
@@ -210,7 +224,7 @@ function direction(random: () => number): [number, number, number] {
 }
 
 /** `count` stars between `rMin` and `rMax` round the middle: small and soft, a few bigger, gold, violet or white. */
-function stars(name: string, count: number, rMin: number, rMax: number, seed: number): THREE.Points<THREE.BufferGeometry, THREE.ShaderMaterial> {
+function* stars(name: string, count: number, rMin: number, rMax: number, seed: number): Generator<void, THREE.Points<THREE.BufferGeometry, THREE.ShaderMaterial>> {
   const random = seeded(seed);
   const pos: number[] = [];
   const size: number[] = [];
@@ -225,18 +239,20 @@ function stars(name: string, count: number, rMin: number, rMax: number, seed: nu
     const c = tints[random() < 0.35 ? 0 : random() < 0.5 ? 1 : 2]!;
     const k = (big ? 0.9 : 0.45) * (0.5 + random() * 0.5);
     colour.push(c.r * k, c.g * k, c.b * k);
+    if (i % 256 === 255) yield;
   }
   return points(name, pos, size, colour);
 }
 
 /** Fine dust gathered where the far shell's clouds are, between `rMin` and `rMax`: tiny soft points, violet, a little gold. */
-function dust(name: string, count: number, rMin: number, rMax: number, seed: number): THREE.Points<THREE.BufferGeometry, THREE.ShaderMaterial> {
+function* dust(name: string, count: number, rMin: number, rMax: number, seed: number): Generator<void, THREE.Points<THREE.BufferGeometry, THREE.ShaderMaterial>> {
   const random = seeded(seed);
   const pos: number[] = [];
   const size: number[] = [];
   const colour: number[] = [];
   const tints = [new THREE.Color(0xb486ff), new THREE.Color(0xd08cff), new THREE.Color(0x8f6bff), new THREE.Color(0xffbf6f), new THREE.Color(0xfff4e6)];
   for (let tries = 0; pos.length / 3 < count && tries < count * 12; tries++) {
+    if (tries % 256 === 255) yield;
     const d = direction(random);
     // Its density: patches of the plane's noise round the sphere, read off the direction.
     const lon = Math.atan2(d[2], d[0]);
@@ -267,6 +283,12 @@ export interface NebulaModel {
    * and the camera's place (`eye`, world), from which a band seen edge on fades out; without it none fades.
    */
   update(levels: NebulaLevels, place: number, eye?: Vec3): void;
+  /**
+   * Draws the far shell once into a picture of the whole sky, and reads it from that from now on (its colour depends on
+   * the way alone, nothing else): 120 noise hashes a pixel become one read of a texture. A touch softer, which is why it
+   * is for the tiers below the high one. Called again after a lost context, whose picture went with it.
+   */
+  bake(gl: THREE.WebGLRenderer): void;
   dispose(): void;
 }
 
@@ -281,6 +303,15 @@ export function buildNebula(
   tier: QualityTier,
   canvas: () => HTMLCanvasElement = () => document.createElement('canvas')
 ): NebulaModel {
+  return drain(nebulaSteps(middle, tier, canvas));
+}
+
+/** `buildNebula` as steps it may stop between (~/engine/core/pace), for a nebula built between the frames. */
+export function* nebulaSteps(
+  middle: readonly [number, number, number],
+  tier: QualityTier,
+  canvas: () => HTMLCanvasElement = () => document.createElement('canvas')
+): Generator<void, NebulaModel> {
   const look = NEBULA_LOOK;
   const group = new THREE.Group();
   group.name = 'nebula';
@@ -291,13 +322,15 @@ export function buildNebula(
   around.position.set(...middle);
   group.add(around);
   const shell = shellMesh();
-  const starsFar = stars('nebula:stars:far', look.stars.far[tier], 44, 58, 5);
-  const starsNear = stars('nebula:stars:near', look.stars.near[tier], 18, 34, 9);
-  const dustFar = dust('nebula:dust:far', look.dust.far[tier], 46, 58, 31);
-  const dustNear = dust('nebula:dust:near', look.dust.near[tier], 24, 36, 37);
+  const starsFar = yield* stars('nebula:stars:far', look.stars.far[tier], 44, 58, 5);
+  const starsNear = yield* stars('nebula:stars:near', look.stars.near[tier], 18, 34, 9);
+  const dustFar = yield* dust('nebula:dust:far', look.dust.far[tier], 46, 58, 31);
+  const dustNear = yield* dust('nebula:dust:near', look.dust.near[tier], 24, 36, 37);
   around.add(shell, starsFar, starsNear, dustFar, dustNear);
+  yield;
 
   const map = engravingTexture(canvas());
+  yield;
   const random = seeded(23);
   const bands: { pivot: THREE.Object3D; ring: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>; turn: number; speed: number }[] = [];
   for (let k = 0; k < look.bands.count[tier]; k++) {
@@ -313,9 +346,14 @@ export function buildNebula(
     pivot.add(ring);
     around.add(pivot);
     bands.push({ pivot, ring, turn: pivot.rotation.y, speed: (random() < 0.5 ? -1 : 1) * (0.012 + random() * 0.01) });
+    yield;
   }
 
   const pointsParts = [starsFar, starsNear, dustFar, dustNear];
+  /** The shell as it is drawn from its noise, and its picture and what reads it, once baked. */
+  const procedural = shell.material;
+  let sky: THREE.WebGLCubeRenderTarget | null = null;
+  let skyMaterial: THREE.ShaderMaterial | null = null;
   const centre = new THREE.Vector3();
   const normal = new THREE.Vector3();
   const turn = new THREE.Quaternion();
@@ -345,9 +383,33 @@ export function buildNebula(
       if (eye !== undefined && bl > 0) group.updateMatrixWorld(true);
       for (const band of bands) band.ring.material.uniforms.uLevel!.value = bl * look.bands.level * (eye === undefined || bl <= 0 ? 1 : facing(band.ring, eye));
     },
+    bake(gl) {
+      sky ??= new THREE.WebGLCubeRenderTarget(SKY_SIZE, { type: THREE.HalfFloatType, generateMipmaps: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false });
+      skyMaterial ??= new THREE.ShaderMaterial({
+        vertexShader: SHELL_VERTEX,
+        fragmentShader: SKY_FRAGMENT,
+        uniforms: { uLevel: { value: 0 }, uSky: { value: sky.texture } },
+        side: THREE.BackSide,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+      skyMaterial.uniforms.uLevel!.value = shell.material.uniforms.uLevel!.value;
+      procedural.uniforms.uLevel!.value = 1;
+      procedural.blending = THREE.NoBlending;
+      procedural.transparent = false;
+      const alone = new THREE.Scene();
+      const copy = new THREE.Mesh(shell.geometry, procedural);
+      copy.frustumCulled = false;
+      alone.add(copy);
+      new THREE.CubeCamera(0.1, look.shell.radius * 2, sky).update(gl, alone);
+      shell.material = skyMaterial;
+    },
     dispose() {
+      sky?.dispose();
+      skyMaterial?.dispose();
       shell.geometry.dispose();
-      shell.material.dispose();
+      procedural.dispose();
       for (const p of pointsParts) {
         p.geometry.dispose();
         p.material.dispose();

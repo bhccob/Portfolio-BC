@@ -11,6 +11,8 @@
  * It reads no clock of its own.
  */
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { drain } from '~/engine/core/pace';
 import type { QualityTier } from '~/engine/quality';
 import { seeded } from './plate';
 
@@ -110,6 +112,11 @@ function flange(r0: number, r1: number, h: number, metal: THREE.Material, edge: 
 
 /** The spine for the boards of `spec` at this tier, its metal reflecting `room` (none: unlit by a room). */
 export function buildSpine(spec: SpineSpec, tier: QualityTier, room: THREE.Texture | null): SpineModel {
+  return drain(spineSteps(spec, tier, room));
+}
+
+/** `buildSpine` as steps it may stop between (~/engine/core/pace), for a world built between the frames. */
+export function* spineSteps(spec: SpineSpec, tier: QualityTier, room: THREE.Texture | null): Generator<void, SpineModel> {
   const { tops, hole, thick } = spec;
   const group = new THREE.Group();
   group.name = 'spine';
@@ -161,6 +168,11 @@ export function buildSpine(spec: SpineSpec, tier: QualityTier, room: THREE.Textu
     plate.position.y = -height * 0.16;
     piece.add(plate);
     const bundles = last ? Math.round(SPINE_LOOK.bundles[tier] / 2) : SPINE_LOOK.bundles[tier];
+    // The span's cables, one mesh a material: they were a hundred meshes a span, the most of the tower's draw calls.
+    const cables = new Map<THREE.Material, THREE.BufferGeometry[]>([
+      [cableDark, []],
+      [cableCopper, []]
+    ]);
     for (let b = 0; b < bundles; b++) {
       const t0 = (b / bundles) * Math.PI * 2 + k * 0.3;
       for (let c = 0; c < 4; c++) {
@@ -179,9 +191,19 @@ export function buildSpine(spec: SpineSpec, tier: QualityTier, room: THREE.Textu
           [Math.max(rEnd, (levels[2]![2] + rEnd) / 2 + 0.15), (yMid + yEnd) / 2],
           [rEnd, yEnd]
         ].map(([r, y]) => new THREE.Vector3(Math.sin(t) * r!, y!, Math.cos(t) * r!));
-        piece.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, 0.032, 6), c === 1 && b % 3 === 0 ? cableCopper : cableDark));
+        cables.get(c === 1 && b % 3 === 0 ? cableCopper : cableDark)!.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, 0.032, 6));
       }
+      yield;
     }
+    for (const [material, tubes] of cables) {
+      if (tubes.length === 0) continue;
+      const mesh = new THREE.Mesh(mergeGeometries(tubes), material);
+      mesh.name = 'spine:cables';
+      mesh.userData.tubes = tubes.length;
+      piece.add(mesh);
+      for (const tube of tubes) tube.dispose();
+    }
+    yield;
     const core = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, height, 48, 1, true).translate(0, -height / 2, 0), coreMaterial);
     core.name = `spine:core${k}`;
     core.renderOrder = 3;

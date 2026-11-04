@@ -1,46 +1,72 @@
-import { PerformanceMonitor } from '@react-three/drei';
-import { addTail, useThree } from '@react-three/fiber';
-import { type JSX, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { qualityFor, qualitySteps, tierFor } from '~/engine/quality';
+import { addTail, useFrame, useThree } from '@react-three/fiber';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { FrameJudge, qualityFor, qualitySteps, tierFor } from '~/engine/quality';
 import { useScene } from '~/state/store';
+import { setGasQuality } from './gasPass';
 
 export interface QualityGovernorProps {
   /** The rung of the quality ladder the scene draws at (engine/quality), 0 the best. */
   step: number;
   finePointer: boolean;
-  /** Frames ran slow: the next rung down. */
+  /** Frames ran slow: the rung to go down to. */
   onStep(step: number): void;
 }
 
+/** What a rung asks of the store and the gas: read by the Stage too, before its first render. */
+export function applyStep(step: number, finePointer: boolean): void {
+  const quality = qualityFor(step, finePointer);
+  const scene = useScene.getState();
+  scene.setTier(tierFor(step, finePointer));
+  scene.setPost({ samples: quality.samples, bloom: quality.bloom });
+  setGasQuality(quality.gas);
+}
+
 /**
- * Walks the quality ladder down, never up, as drei's PerformanceMonitor judges the frame rate: each decline is one
- * rung (engine/quality's `qualitySteps`), which sets the pixel ratio (`setDpr`, never above the device's), the tier
- * (`tierFor`: high, medium, low; the store's `setTier`), and through the Stage the glass floor's reflection. An incline
- * is ignored: a page view never climbs back.
- *
- * The canvas renders on demand, so the monitor sees only the frames that are drawn. A sleep between two of them is
- * not a slow frame: the monitor is started afresh every time the scene goes to sleep (R3F's tail), so it only ever
- * measures runs of frames drawn back to back.
+ * Walks the quality ladder down, never up, as `FrameJudge` judges the frames: each rung sets the pixel ratio (`setDpr`,
+ * never above the device's), the tier, the post chain's MSAA and bloom and the gas (`applyStep`), and through the Stage the
+ * glass floor's reflection. The canvas renders on demand, so only frames drawn back to back are lengths at all: a sleep
+ * between two of them (R3F's tail) starts the count over, and nothing here renders while the scene runs.
  */
-export function QualityGovernor({ step, finePointer, onStep }: QualityGovernorProps): JSX.Element {
+export function QualityGovernor({ step, finePointer, onStep }: QualityGovernorProps): null {
   const setDpr = useThree((state) => state.setDpr);
-  const [run, setRun] = useState(0);
+  const [judge] = useState(() => new FrameJudge());
   const current = useRef(step);
+  const last = useRef<number | null>(null);
   useLayoutEffect(() => {
     current.current = step;
   }, [step]);
 
-  useEffect(() => addTail(() => setRun((n) => n + 1)), []);
+  useEffect(
+    () =>
+      addTail(() => {
+        last.current = null;
+        judge.rest();
+      }),
+    [judge]
+  );
 
   useEffect(() => {
     setDpr([1, qualityFor(step, finePointer).pixelRatio]);
-    useScene.getState().setTier(tierFor(step, finePointer));
+    applyStep(step, finePointer);
   }, [step, finePointer, setDpr]);
 
-  const decline = useCallback(() => {
-    if (current.current >= qualitySteps(finePointer) - 1) return;
-    onStep(current.current + 1);
-  }, [finePointer, onStep]);
+  useFrame(() => {
+    // While the void and the world are being built the frames are slow for a reason that will pass.
+    if (useScene.getState().voidState === 'loading') {
+      last.current = null;
+      judge.rest();
+      return;
+    }
+    const now = performance.now();
+    const before = last.current;
+    last.current = now;
+    if (before === null) return;
+    const down = judge.frame(now - before);
+    if (down > 0) {
+      const next = Math.min(current.current + down, qualitySteps(finePointer) - 1);
+      if (next !== current.current) onStep(next);
+    }
+  });
 
-  return <PerformanceMonitor key={run} onDecline={decline} />;
+  return null;
 }

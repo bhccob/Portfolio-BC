@@ -18,7 +18,7 @@ const span = (spine: ReturnType<typeof buildSpine>, k: number): THREE.Object3D =
 const tubes = (o: THREE.Object3D): number => {
   let n = 0;
   o.traverse((c) => {
-    if ((c as THREE.Mesh).geometry instanceof THREE.TubeGeometry) n++;
+    if (c.name === 'spine:cables') n += c.userData.tubes as number;
   });
   return n;
 };
@@ -86,6 +86,14 @@ describe('the quantum spine in code: flanges, cable bundles, the glass core, the
     // Dim while a project is open.
     spine.set(0, 1, 0.2);
     expect(lamps()[0]).toBeLessThan(whole[0]!);
+  });
+
+  it("draws a span's cables as one mesh a material, not one a cable", () => {
+    let meshes = 0;
+    span(buildSpine(SPEC, 'high', null), 1).traverse((c) => {
+      if (c.name === 'spine:cables') meshes++;
+    });
+    expect(meshes).toBe(2);
   });
 
   it('uses fewer bundles on the lower tiers', () => {

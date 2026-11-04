@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { drain } from '~/engine/core/pace';
 import { useScene } from '~/state/store';
 
 /**
@@ -31,7 +32,15 @@ function warmingRenderer(gl: THREE.WebGLRenderer, composer: boolean): { renderer
  * exactly once, and the Opening's load is the first to call it.
  */
 export function uploadTextures(gl: THREE.WebGLRenderer, textures: Iterable<THREE.Texture>): void {
-  for (const texture of textures) gl.initTexture(texture);
+  drain(uploadSteps(gl, textures));
+}
+
+/** The uploads as steps, one a texture, for whoever uploads between the frames (`paced`): a board's maps take tens of ms each. */
+export function* uploadSteps(gl: THREE.WebGLRenderer, textures: Iterable<THREE.Texture>): Generator<void, void> {
+  for (const texture of textures) {
+    gl.initTexture(texture);
+    yield;
+  }
 }
 
 /**
@@ -42,7 +51,7 @@ export function uploadTextures(gl: THREE.WebGLRenderer, textures: Iterable<THREE
  * environment and its lights, and their own visible ones beside.
  */
 export async function warm(gl: THREE.WebGLRenderer, objects: THREE.Object3D, camera: THREE.Camera, what: string, into: THREE.Scene | null = null): Promise<void> {
-  const warming = warmingRenderer(gl, useScene.getState().tier !== 'low');
+  const warming = warmingRenderer(gl, useScene.getState().composer);
   try {
     await warming.renderer.compileAsync(objects, camera, into);
   } catch (error) {

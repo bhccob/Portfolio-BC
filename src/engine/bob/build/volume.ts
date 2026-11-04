@@ -17,6 +17,7 @@
  */
 import { Pass } from 'postprocessing';
 import * as THREE from 'three';
+import { drain, paced } from '~/engine/core/pace';
 import type { QualityTier } from '~/engine/quality';
 import { seeded } from './plate';
 
@@ -31,7 +32,7 @@ export const VOLUME_LOOK = {
 } as const;
 
 /** How much smaller than the screen the gas is drawn, and how many steps its rays take, by tier: none on low. */
-export function volumeTier(tier: QualityTier): { scale: 1.5 | 2; steps: 84 | 56 } | null {
+export function volumeTier(tier: QualityTier): { scale: number; steps: number } | null {
   if (tier === 'high') return { scale: 1.5, steps: VOLUME_LOOK.steps.high };
   if (tier === 'medium') return { scale: 2, steps: VOLUME_LOOK.steps.medium };
   return null;
@@ -40,10 +41,26 @@ export function volumeTier(tier: QualityTier): { scale: 1.5 | 2; steps: 84 | 56 
 const NOISE = 64;
 /** The noise's voxels, made once: they are the same for every volume, and take a while to make. */
 let voxels: Uint8Array | null = null;
+/** Their making, under way (`prepareNoise`), which whoever needs them now finishes. */
+let making: Generator<void, void> | null = null;
+
+/** Makes the noise a few ms a frame, while the loader plays, so the landing never waits for it: about 0.3 s of work on a fast desktop, over a second on a laptop. */
+export async function prepareNoise(): Promise<void> {
+  if (voxels !== null) return;
+  making ??= voxelSteps();
+  await paced(making, 3);
+}
+
+function noiseVoxels(): Uint8Array {
+  if (voxels === null) {
+    making ??= voxelSteps();
+    drain(making);
+  }
+  return voxels as Uint8Array;
+}
 
 /** A tiling 64³ noise: R a smooth fractal noise, G a billowy cellular one, B and A the first shifted, for warping. */
-function noiseVoxels(): Uint8Array {
-  if (voxels !== null) return voxels;
+function* voxelSteps(): Generator<void, void> {
   const S = NOISE;
   const random = seeded(4242);
   const lattice = (f: number): Float32Array => Float32Array.from({ length: f * f * f }, () => random());
@@ -117,6 +134,7 @@ function noiseVoxels(): Uint8Array {
         data[i * 4] = Math.round(fbm * 255);
         data[i * 4 + 1] = Math.round(Math.min(1, billow) * 255);
       }
+      yield;
     }
   }
   const shifted = (x: number, y: number, z: number): number => r[((z % S) * S + (y % S)) * S + (x % S)]!;
@@ -128,9 +146,9 @@ function noiseVoxels(): Uint8Array {
         data[i + 3] = Math.round(shifted(x + 43, y + 29, z + 7) * 255);
       }
     }
+    yield;
   }
   voxels = data;
-  return data;
 }
 
 /** The tiling 64³ noise as a texture: a new texture over the voxels made once (the storm stirs its plates with it too). */
@@ -197,8 +215,11 @@ const MARCH_FRAGMENT = /* glsl */ `
     float near = smoothstep(1.5, 6.0, length(p - uCam));
     float layer = 0.3 + 0.7 * smoothstep(16.0, -16.0, q.y);
     float far = 1.0 - smoothstep(70.0, 110.0, length(q));
+    // The sum first, and the noise only where it is not nothing: most of a ray's steps stop here.
+    float placed = world * sight * near * layer * far;
+    if (placed <= 0.0) return 0.0;
     float big = smoothstep(0.53, 0.67, texture(uNoise, p * 0.0065 + vec3(0.31, 0.07, 0.53)).r);
-    return world * sight * near * layer * far * big;
+    return placed * big;
   }
 
   vec4 w;
@@ -208,7 +229,11 @@ const MARCH_FRAGMENT = /* glsl */ `
     vec3 warp = (w.gba - 0.5) * 0.6;
     vec4 n = texture(uNoise, q + warp);
     float detail = texture(uNoise, q * 4.6 + warp * 1.8).r;
-    float fine = texture(uNoise, q * 12.5 - warp * 2.5).g;
+    #ifdef GAS_LEAN
+      float fine = 0.5;
+    #else
+      float fine = texture(uNoise, q * 12.5 - warp * 2.5).g;
+    #endif
     tint = n.b;
     float body = n.r * 0.6 + n.g * 0.4;
     // The edges eaten away by finer noise and cut steep: wisps and filaments with an edge to them, not soft blobs.
@@ -253,14 +278,19 @@ const MARCH_FRAGMENT = /* glsl */ `
           // Lit edges: thinner gas toward a light means this side faces it.
           vec3 toCore = normalize(uCore - p);
           float core = clamp((d - densityAt(p + toCore * 1.8)) * 1.3 + 0.06, 0.0, 1.0);
-          float star = clamp((d - densityAt(p + uKey * 2.6)) * 1.1 + 0.03, 0.0, 1.0);
+          float toStar = densityAt(p + uKey * 2.6);
+          float star = clamp((d - toStar) * 1.1 + 0.03, 0.0, 1.0);
           vec3 fromCore = p - uCore;
           float reach = 1.0 / (1.0 + dot(fromCore, fromCore) * 0.005);
           // Glowing gas where the tint is high, dark dust where it is low: the dust only takes light away.
           float gas = smoothstep(0.35, 0.8, tint);
           vec3 hue = mix(mix(uDeep, uWisp, gas), uRose, smoothstep(0.55, 0.9, w.a) * 0.35);
           // Its own shade: the side away from the far star darker, as a cloud is in its own shadow, so it has a form.
-          float shade = exp(-densityAt(p + uKey * 3.5) * 3.0);
+          #ifdef GAS_LEAN
+            float shade = exp(-toStar * 3.0);
+          #else
+            float shade = exp(-densityAt(p + uKey * 3.5) * 3.0);
+          #endif
           vec3 glow = hue * (0.025 + 0.26 * gas * gas) * (0.3 + 0.7 * shade)
                     + uGold * core * reach * gas * (0.08 + 0.7 * uPower)
                     + uPale * star * star * (0.04 + 0.32 * gas);
@@ -333,6 +363,11 @@ export interface VolumeModel {
   march: THREE.ShaderMaterial;
   /** The composite's material: the scene, and the gas over it. */
   composite: THREE.ShaderMaterial;
+  /**
+   * Compiles its two programs off the main thread, as they will be used (into half-float targets): its first frame would
+   * otherwise stall the fall for as long as they take (over 100 ms on a fast desktop). Resolves when they are ready.
+   */
+  compile(gl: THREE.WebGLRenderer): Promise<unknown>;
   /** Sets what the gas is marched by, for `camera`, this frame; the pass is off at level 0. */
   update(camera: THREE.PerspectiveCamera, input: VolumeInput): void;
   dispose(): void;
@@ -344,7 +379,13 @@ export function buildVolume(tier: QualityTier): VolumeModel | null {
   if (look === null) return null;
   const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false });
   const c = VOLUME_LOOK.colour;
+  // How small it is marched: the tier's to start with, the quality ladder's after (`setQuality`, in place).
+  let scale = look.scale;
+  let chain: [number, number] | null = null;
   const march = new THREE.ShaderMaterial({
+    // Below the high tier a lit step takes twelve reads of the noise for twenty: the finest of its detail, and a shade that
+    // shares the star's sample.
+    defines: tier === 'high' ? {} : { GAS_LEAN: 1 },
     vertexShader: MARCH_VERTEX,
     fragmentShader: MARCH_FRAGMENT,
     uniforms: {
@@ -396,6 +437,15 @@ export function buildVolume(tier: QualityTier): VolumeModel | null {
       this.fullscreenMaterial = composite;
     }
 
+    /** The scene and the camera the composite is drawn with: the pass's own, for `compile`. */
+    get fullscreenScene(): THREE.Scene {
+      return this.scene;
+    }
+
+    get fullscreenCamera(): THREE.Camera {
+      return this.camera;
+    }
+
     override getDepthTexture(): THREE.Texture {
       return u.uDepth!.value as THREE.Texture;
     }
@@ -404,9 +454,18 @@ export function buildVolume(tier: QualityTier): VolumeModel | null {
       u.uDepth!.value = depth;
     }
 
+    /** Marches it smaller or in fewer steps from now on: a uniform and a target's size, nothing compiled. */
+    setQuality(next: { scale: number; steps: number }): void {
+      u.uSteps!.value = Math.min(next.steps, VOLUME_LOOK.steps.high);
+      if (next.scale === scale) return;
+      scale = next.scale;
+      if (chain) this.setSize(chain[0], chain[1]);
+    }
+
     override setSize(width: number, height: number): void {
-      const w = Math.max(1, Math.ceil(width / look.scale));
-      const h = Math.max(1, Math.ceil(height / look.scale));
+      chain = [width, height];
+      const w = Math.max(1, Math.ceil(width / scale));
+      const h = Math.max(1, Math.ceil(height / scale));
       target.setSize(w, h);
       u.uSize!.value.set(w, h);
       composite.uniforms.uTexel!.value.set(1 / w, 1 / h);
@@ -426,6 +485,16 @@ export function buildVolume(tier: QualityTier): VolumeModel | null {
     pass,
     march,
     composite,
+    compile(gl) {
+      const before = gl.getRenderTarget();
+      gl.setRenderTarget(target);
+      try {
+        // compile() reads the render target at once, before the promises settle.
+        return Promise.all([gl.compileAsync(marchScene, flat), gl.compileAsync(pass.fullscreenScene, pass.fullscreenCamera)]);
+      } finally {
+        gl.setRenderTarget(before);
+      }
+    },
     update(camera, input) {
       const level = Number.isFinite(input.level) ? Math.min(1, Math.max(0, input.level)) : 0;
       composite.uniforms.uLevel!.value = level;

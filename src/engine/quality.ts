@@ -1,16 +1,14 @@
 /**
- * The quality ladder: what the scene draws at each step, best first. The
- * scene starts at step 0 and the QualityGovernor (src/scene, drei's
- * PerformanceMonitor) moves it one step down each time its frames run slow; it
- * never climbs back within a page view. Each pointer
- * gives up the cheapest-to-lose cost first: half the dust while the canvas
- * stays sharp, then the glass floor's reflection (a second render of the whole
- * scene every frame; the rung was v3's clearcoat), then the pixel
- * ratio with more dust. A coarse pointer (a phone or tablet) starts softer and
- * never draws the reflection: its first rung is already medium, so
- * the costliest part never runs on a phone's first loader, and its steps give
- * up the pixel ratio, then the post chain. The BOB scene reads the pixel ratio
- * and the reflection (src/scene/bob/Opening.tsx); nothing draws dust.
+ * The quality ladder: what the scene draws at each step, best first. The scene starts at the first step this GPU can
+ * hold (`startStep`, timed before anything is built, src/scene/gpuBench.ts), and the QualityGovernor (src/scene) moves it
+ * down if its frames still run slow (`FrameJudge`); it never climbs back within a page view. Each step gives up what costs
+ * most for what shows least: the gas's rays (by far the dearest thing the scene draws: on a weak GPU three quarters of
+ * the frame), the MSAA, the glass floor's reflection (a second render of the whole scene every frame), then the pixel
+ * ratio. A coarse pointer (a phone or tablet) never draws the reflection: its first step is already medium.
+ *
+ * Nothing on a step down is built again or compiled again (a rebuild in the middle of the story froze a laptop for three
+ * seconds): the gas, the MSAA and the bloom change in place, and the post chain stays on the last step of a page view that
+ * began above it. The last step goes without one only when the page view starts there.
  */
 
 export interface Quality {
@@ -18,24 +16,29 @@ export interface Quality {
   pixelRatio: number;
   /** The glass floor's reflection (GlassModel's reflector, high tier only): once off, it is gone for the page view. */
   reflector: boolean;
-  /** How many dust motes drift in the air. */
-  dust: number;
+  /** The post chain's MSAA samples. */
+  samples: number;
+  /** The bloom's resolution, a share of the screen's. */
+  bloom: number;
+  /** The gas (src/engine/bob/build/volume.ts): how much smaller than the screen it is marched and in how many steps; none on the last step. */
+  gas: { scale: number; steps: number } | null;
+  /** What this step costs a frame, ms per million pixels drawn, on the GPU `BENCH_REFERENCE_MS` was timed on (measured there, at the tower). */
+  cost: number;
 }
 
 const FINE: readonly Readonly<Quality>[] = [
-  { pixelRatio: 1.75, reflector: true, dust: 400 },
-  { pixelRatio: 1.75, reflector: true, dust: 200 },
-  { pixelRatio: 1.75, reflector: false, dust: 200 },
-  { pixelRatio: 1.25, reflector: false, dust: 150 },
-  { pixelRatio: 1, reflector: false, dust: 100 }
+  { pixelRatio: 1.75, reflector: true, samples: 4, bloom: 1, gas: { scale: 1.5, steps: 84 }, cost: 64 },
+  { pixelRatio: 1.5, reflector: true, samples: 2, bloom: 0.5, gas: { scale: 2, steps: 56 }, cost: 44 },
+  { pixelRatio: 1.25, reflector: false, samples: 2, bloom: 0.5, gas: { scale: 2.5, steps: 40 }, cost: 18 },
+  { pixelRatio: 1, reflector: false, samples: 0, bloom: 0.5, gas: { scale: 3, steps: 28 }, cost: 13 },
+  { pixelRatio: 1, reflector: false, samples: 0, bloom: 0.25, gas: null, cost: 10.5 }
 ];
 
-// No rung of a coarse pointer has the reflection. Its first rung was v3's clearcoat rung, which became the
-// reflector's switch, so a phone started on the costliest rung: a second render of the scene every frame.
+// No rung of a coarse pointer has the reflection, which a phone would start on otherwise: a second render of the scene every frame.
 const COARSE: readonly Readonly<Quality>[] = [
-  { pixelRatio: 1.25, reflector: false, dust: 150 },
-  { pixelRatio: 1, reflector: false, dust: 100 },
-  { pixelRatio: 1, reflector: false, dust: 80 }
+  { pixelRatio: 1.25, reflector: false, samples: 2, bloom: 0.5, gas: { scale: 2.5, steps: 40 }, cost: 18 },
+  { pixelRatio: 1, reflector: false, samples: 0, bloom: 0.5, gas: { scale: 3, steps: 28 }, cost: 13 },
+  { pixelRatio: 1, reflector: false, samples: 0, bloom: 0.25, gas: null, cost: 10.5 }
 ];
 
 /** How many steps the ladder has for this pointer. */
@@ -86,4 +89,93 @@ export function tierFor(step: number, finePointer: boolean): QualityTier {
   const index = rung(step, ladder);
   if (index === ladder.length - 1) return 'low';
   return ladder[index].reflector ? 'high' : 'medium';
+}
+
+/** What ./gpuBench.ts timed the GPU the steps' `cost` were measured on (an AMD Radeon of two compute units, a weak one), ms. */
+export const BENCH_REFERENCE_MS = 13;
+
+/** The frame a step must fit to be started on, ms: 60 Hz. */
+export const START_BUDGET_MS = 17;
+
+/**
+ * A GPU that times this quick or quicker starts at the best whatever the screen, ms: a strong card does much better than the
+ * weak one the costs were measured on would say (an RTX 4080 Super draws 4K at the best step in about 9 ms).
+ */
+export const STRONG_MS = 1;
+
+/**
+ * The first step this GPU can hold on a screen of `screen` CSS px at `devicePixelRatio`: each step's cost at the pixels it
+ * would draw, scaled by how the GPU timed (`benchMs`) against the one the costs were measured on. With no timing it is the
+ * best step, and the governor judges it by its frames.
+ */
+export function startStep(benchMs: number | null, finePointer: boolean, screen: { width: number; height: number }, devicePixelRatio: number): number {
+  const ladder = finePointer ? FINE : COARSE;
+  if (benchMs === null || !Number.isFinite(benchMs) || benchMs < 0 || benchMs <= STRONG_MS) return 0;
+  const speed = benchMs / BENCH_REFERENCE_MS;
+  const steps = ladder.findIndex((q) => {
+    const ratio = Math.min(Math.max(devicePixelRatio, 1), q.pixelRatio);
+    const millions = (screen.width * screen.height * ratio * ratio) / 1e6;
+    return q.cost * millions * speed <= START_BUDGET_MS;
+  });
+  return steps === -1 ? ladder.length - 1 : steps;
+}
+
+/** A frame longer than this is a sleep or a one-off stall, not the frame rate, ms. */
+const NOT_A_FRAME_MS = 250;
+/** How much drawing a verdict is drawn from, ms and frames. */
+const WINDOW_MS = 700;
+const WINDOW_FRAMES = 12;
+/** The drawing a step is given to settle before it is judged, ms. */
+const SETTLE_MS = 300;
+/** A frame rate under these (in ms a frame, the worst tenth left out) takes one step down, or two. */
+export const SLOW_MS = 24;
+export const VERY_SLOW_MS = 45;
+/** A step that did not take this much off the frame did not help. */
+const HELPED = 0.92;
+
+/**
+ * Judges the frames the canvas draws back to back (the governor tells it each one's length, and `rest`s it when the scene
+ * sleeps) and says how many steps down they ask for, 0 mostly. It waits for enough drawing to be sure; leaves out the worst
+ * tenth, so a stall is not the frame rate; and it gives up after two steps that did not help: then it is not the GPU
+ * holding the frames back (a slow CPU, a browser or a battery saver holding them to 30 a second), and lower quality would
+ * cost the look for nothing.
+ */
+export class FrameJudge {
+  private frames: number[] = [];
+  private spent = 0;
+  private settling = 0;
+  private lastSlow: number | null = null;
+  private useless = 0;
+
+  /** A frame of `ms`: the steps down it now asks for. */
+  frame(ms: number): number {
+    if (!(ms > 0) || ms > NOT_A_FRAME_MS || this.useless >= 2) return 0;
+    if (this.settling > 0) {
+      this.settling -= ms;
+      return 0;
+    }
+    this.frames.push(ms);
+    this.spent += ms;
+    if (this.spent < WINDOW_MS || this.frames.length < WINDOW_FRAMES) return 0;
+    const sorted = [...this.frames].sort((a, b) => a - b);
+    const kept = sorted.slice(0, Math.ceil(sorted.length * 0.9));
+    const mean = kept.reduce((sum, f) => sum + f, 0) / kept.length;
+    this.frames = [];
+    this.spent = 0;
+    if (this.lastSlow !== null) {
+      this.useless = mean < this.lastSlow * HELPED ? 0 : this.useless + 1;
+      this.lastSlow = null;
+      if (this.useless >= 2) return 0;
+    }
+    if (mean <= SLOW_MS) return 0;
+    this.lastSlow = mean;
+    this.settling = SETTLE_MS;
+    return mean > VERY_SLOW_MS ? 2 : 1;
+  }
+
+  /** The scene went to sleep: what comes next is a new run of frames. */
+  rest(): void {
+    this.frames = [];
+    this.spent = 0;
+  }
 }

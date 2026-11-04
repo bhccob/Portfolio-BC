@@ -54,6 +54,40 @@ describe('the nebula in 3D: a volume of gas each pixel marches through, drawn in
     }
   });
 
+  it('changes how it is marched in place: a uniform and a target, no new program', () => {
+    const volume = buildVolume('high')!;
+    const program = volume.march.fragmentShader;
+    const version = volume.march.version;
+    volume.pass.setSize(1440, 900);
+    (volume.pass as unknown as { setQuality(q: { scale: number; steps: number }): void }).setQuality({ scale: 3, steps: 28 });
+    expect(volume.march.uniforms.uSteps!.value).toBe(28);
+    const image = (volume.composite.uniforms.uGas!.value as THREE.Texture).image as { width: number; height: number };
+    expect([image.width, image.height]).toEqual([480, 300]);
+    expect(volume.march.fragmentShader).toBe(program);
+    expect(volume.march.version).toBe(version);
+    volume.dispose();
+  });
+
+  it('never marches more steps than its loop has', () => {
+    const volume = buildVolume('high')!;
+    (volume.pass as unknown as { setQuality(q: { scale: number; steps: number }): void }).setQuality({ scale: 1, steps: 500 });
+    expect(volume.march.uniforms.uSteps!.value).toBe(VOLUME_LOOK.steps.high);
+    volume.dispose();
+  });
+
+  it('takes the lean march below the high tier, and the whole one on it', () => {
+    const high = buildVolume('high')!;
+    const medium = buildVolume('medium')!;
+    expect(high.march.defines).not.toHaveProperty('GAS_LEAN');
+    expect(medium.march.defines).toHaveProperty('GAS_LEAN');
+    high.dispose();
+    medium.dispose();
+  });
+
+  it('reads the noise only where the place allows gas at all', () => {
+    expect(SOURCE).toMatch(/if \(placed <= 0\.0\) return 0\.0;\s+float big = smoothstep/);
+  });
+
   it('marches 84 steps on high and 56 on medium', () => {
     const high = buildVolume('high')!;
     const medium = buildVolume('medium')!;

@@ -8,13 +8,14 @@ import type { CompassModel } from '~/engine/bob/build/compass';
 import { buildGyro, type GyroModel } from '~/engine/bob/build/gyro';
 import { buildEngraved, type EngravedModel } from '~/engine/bob/build/engraved';
 import { circuitOnScreen, type LightModel } from '~/engine/bob/build/light';
-import { buildNebula, type NebulaModel } from '~/engine/bob/build/nebula';
+import { nebulaSteps, type NebulaModel } from '~/engine/bob/build/nebula';
 import { buildStardust, type StardustModel, stardustPose } from '~/engine/bob/build/stardust';
 import { buildStars, type StarsModel, starsFall, starsRound } from '~/engine/bob/build/stars';
 import { buildStorm, type StormModel } from '~/engine/bob/build/storm';
 import { buildVoid, VOID_LOOK, type VoidModel } from '~/engine/bob/build/void';
-import { buildVolume, type VolumeModel } from '~/engine/bob/build/volume';
-import { buildWorld, type WorldModel } from '~/engine/bob/build/world';
+import { buildVolume, prepareNoise, type VolumeModel } from '~/engine/bob/build/volume';
+import { type WorldModel, worldSteps } from '~/engine/bob/build/world';
+import { nextSlice, paced } from '~/engine/core/pace';
 import { lowerTier, type QualityTier } from '~/engine/quality';
 import { areasOnPath } from '~/state/chapters';
 import { frame, type ObjectOnScreen } from '~/state/frame';
@@ -40,7 +41,7 @@ import { STORM, stormFade, stormFlash, stormLevels, stormMoves } from './storm';
 import { loadStormPlates } from './stormPlates';
 import { easeHover, hoverEase, hoversAt, nearestSphere, needleFor, needleGlowFor, pointerMode, voidShownAt } from './voidPose';
 import { loadVoid, type VoidLoadSteps } from './voidLoad';
-import { uploadTextures, warm } from './warm';
+import { uploadSteps, warm } from './warm';
 import { boardCentre, boardTops, STACK, stackPlaces } from './worldLayout';
 import { sightGap, towerStands, type WorldFrame, type WorldPath, worldPathFor } from './worldPath';
 
@@ -68,6 +69,24 @@ function texturesUnder(root: THREE.Object3D): Set<THREE.Texture> {
     if (mesh.isMesh) for (const material of materialsOf(mesh)) for (const texture of texturesOf(material)) found.add(texture);
   });
   return found;
+}
+
+/**
+ * What in `root` the lights fall on, as stand-ins to compile: three keeps an unlit material on the program it has when the
+ * lights change, and compiling the whole scene would only give it a second one with the same source.
+ */
+function litUnder(root: THREE.Object3D): THREE.Group {
+  const group = new THREE.Group();
+  root.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    if (!materialsOf(mesh).some((m) => (m as THREE.MeshStandardMaterial).isMeshStandardMaterial)) return;
+    // The very mesh, for what its geometry asks of the program, but with no parent or children of its own here.
+    const standIn = Object.create(mesh) as THREE.Mesh;
+    standIn.children = [];
+    group.children.push(standIn);
+  });
+  return group;
 }
 
 /** The void once built: its model, the tier it stands at, and whether it is shown now (null before the first frame). */
@@ -414,6 +433,23 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
     latest.current = { tier, onOpen };
   });
 
+  // The noise the storm and the gas are made of, a few ms a frame while the loader plays: the landing never waits for it.
+  useEffect(() => {
+    void prepareNoise();
+  }, []);
+
+  // A lost context takes the nebula's picture of its far shell with it, which lived only on the GPU.
+  useEffect(() => {
+    const restored = (): void => {
+      const kept = run.nebula;
+      if (kept && kept.tier !== 'high') kept.model.bake(gl);
+      invalidate();
+    };
+    const canvas = gl.domElement;
+    canvas.addEventListener('webglcontextrestored', restored);
+    return () => canvas.removeEventListener('webglcontextrestored', restored);
+  }, [gl, invalidate, run]);
+
   useEffect(() => {
     let disposed = false;
 
@@ -430,7 +466,9 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       buildVoid: async () => {
         const built = latest.current.tier;
         const model = buildVoid(built);
+        await nextSlice();
         const stars = buildStars(starsFall(FALL_TOP, STACK_CENTRE[1] - FALL_BELOW, [0, 0]), built);
+        await nextSlice();
         const holder = new THREE.Group();
         holder.add(model.group, stars.group);
         model.group.visible = true;
@@ -439,7 +477,7 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
         model.setRingMist(0.5);
         model.setDust(1);
         try {
-          uploadTextures(gl, texturesUnder(holder));
+          await paced(uploadSteps(gl, texturesUnder(holder)));
           await warm(gl, holder, camera, 'the void', scene);
         } catch (error) {
           model.dispose();
@@ -474,14 +512,18 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
       buildWorld: async () => {
         if (proof) await proofWorldGate();
         await document.fonts?.load(PRINT_FONT).catch(() => undefined);
-        const model = buildWorld(STACK_PLACES, latest.current.tier, scene.environment);
+        // Between the frames, as all of the load: the scroll is free to start the moment the home has landed.
+        const model = await paced(worldSteps(STACK_PLACES, latest.current.tier, scene.environment));
         // The Q&A, the way out (./qaScene.ts): the page's words and the LEDs, written from the path.
         const qa = makeQaScene();
         // The gyroscope rings and the stars round the stack, built and warmed with it.
         const gyro = buildGyro([STACK_CENTRE[0], MACHINE_MIDDLE, STACK_CENTRE[2]]);
+        await nextSlice();
         const stars = buildStars(starsRound(STACK_CENTRE, MACHINE_MIDDLE), latest.current.tier);
+        await nextSlice();
         // The stardust the tower dissolves into on the way out, built and warmed with it.
         const dust = buildStardust({ centre: STACK_CENTRE, tops: boardTops(STACK_PLACES, 0), core: STACK.core, radius: STACK.radius }, latest.current.tier);
+        await nextSlice();
         gyro.group.visible = stars.group.visible = dust.points.visible = true;
         const holder = new THREE.Group();
         holder.add(model.group, gyro.group, stars.group, dust.points);
@@ -501,7 +543,14 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
           breath: 0
         });
         try {
-          uploadTextures(gl, texturesUnder(holder));
+          await paced(uploadSteps(gl, texturesUnder(holder)));
+          // Its lamps light all that is lit once it shows, the void, the compass and the rest: three builds their programs
+          // again for that many lights, then and there, unless they were compiled for it now (it took 130 ms out of the
+          // scroll when the tower came in). Compiling reads the lights at once, so the world need only stand there for that.
+          scene.add(holder);
+          const rest = warm(gl, litUnder(scene), camera, 'the scene under the world', scene);
+          scene.remove(holder);
+          await rest;
           await warm(gl, holder, camera, 'the world', scene);
         } catch (error) {
           model.dispose();
@@ -660,14 +709,28 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
     if (!storm.asked) {
       storm.asked = true;
       loadStormPlates().then(
-        (plates) => {
+        async (plates) => {
+          // Its noise first, between the frames: it may be on its way already (the Void's mount).
+          await prepareNoise();
           if (run.storm !== storm) {
             for (const plate of Object.values(plates)) plate.dispose();
             return;
           }
-          uploadTextures(gl, Object.values(plates));
-          storm.model = buildStorm(plates);
-          scene.add(storm.model.group);
+          await paced(uploadSteps(gl, Object.values(plates)));
+          if (run.storm !== storm) {
+            for (const plate of Object.values(plates)) plate.dispose();
+            return;
+          }
+          const model = buildStorm(plates);
+          // Its programs ready before it joins the scene: on its first frame they would hold the scroll up behind whatever
+          // else is compiling.
+          await warm(gl, model.group, camera, 'the storm', scene);
+          if (run.storm !== storm) {
+            model.dispose();
+            return;
+          }
+          storm.model = model;
+          scene.add(model.group);
           storm.inAt = performance.now();
           invalidate();
         },
@@ -936,23 +999,35 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
   });
 
   /**
-   * The nebula for the world's path `world` at the ladder's tier, or the last one built while it is being made (null
-   * before the first): its build is asked for on the first frame that needs it and made apart from the frame (a timeout),
-   * so its textures and its points never stall a frame of the scroll; it is needed only from the fall's frame 50, seconds
-   * of scrolling after the landing. A new path (a new aspect) or a lower tier asks for it afresh, and the new one takes the
-   * old one's place, which is freed.
+   * The nebula for the world's path `world`, or the last one built while it is being made (null before the first): its
+   * build is asked for on the first frame that needs it and made between the frames, so its textures and its points never
+   * stall a frame of the scroll; it is needed only from the fall's frame 50, seconds of scrolling after the landing. A new
+   * path (a new aspect) asks for it afresh, and the new one takes the old one's place, which is freed. A lower rung does
+   * not: it stands the gas down in place (../gasPass.ts), where a rebuild would freeze the page in the middle of the story.
    */
   function nebulaFor(world: WorldPath): NebulaModel | null {
     const kept = run.nebula;
-    if (kept && kept.world === world && kept.tier === tier) return kept.model;
+    if (kept && kept.world === world) return kept.model;
     const asked = run.nebulaAsked;
-    if (!asked || asked.world !== world || asked.tier !== tier) {
+    if (!asked || asked.world !== world) {
       const ask = { world, tier };
       run.nebulaAsked = ask;
-      setTimeout(() => {
-        if (run.nebulaAsked !== ask) return;
+      void paced(nebulaSteps(world.centre, ask.tier)).then(async (model) => {
+        if (run.nebulaAsked !== ask) {
+          model.dispose();
+          return;
+        }
         run.nebulaAsked = null;
-        const made = { world, tier: ask.tier, model: buildNebula(world.centre, ask.tier), gas: buildVolume(ask.tier) };
+        const gas = buildVolume(ask.tier);
+        // Its programs ready before it is handed over, so its first frame does not stall the fall.
+        await gas?.compile(gl).catch(() => undefined);
+        await warm(gl, model.group, camera, 'the nebula', scene);
+        if (run.nebulaAsked !== null && run.nebulaAsked !== ask) {
+          model.dispose();
+          gas?.dispose();
+          return;
+        }
+        const made = { world, tier: ask.tier, model, gas };
         const old = run.nebula;
         if (old) {
           scene.remove(old.model.group);
@@ -962,10 +1037,11 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
         scene.add(made.model.group);
         // The post chain (../Effects.tsx) lays the gas's pass in after the scene, before the bloom.
         if (made.gas) setGasPass(made.gas.pass);
-        void warm(gl, made.model.group, camera, 'the nebula', scene);
         run.nebula = made;
         invalidate();
-      }, 0);
+        // Below the high tier its far shell is read from a picture of itself: it takes a tenth of the frame there.
+        if (ask.tier !== 'high' && run.nebula === made) made.model.bake(gl);
+      });
     }
     return kept?.model ?? null;
   }
@@ -977,14 +1053,10 @@ export function Void({ compass, light, handover, tier, onOpen }: VoidProps): nul
     gas.dispose();
   }
 
-  /** The engraved shaft at the ladder's tier, built afresh for a lower tier. */
+  /** The engraved shaft, built once, at the rung the story reaches it on. */
   function engravedFor(): NonNullable<VoidRun['engraved']> {
     const kept = run.engraved;
-    if (kept && kept.tier === tier) return kept;
-    if (kept) {
-      scene.remove(kept.model.group);
-      kept.model.dispose();
-    }
+    if (kept) return kept;
     const made = { tier, model: buildEngraved(shaftRings(), [], tier) };
     scene.add(made.model.group);
     // Built at the home, hidden until the light ignites: its shaders compiled now, so that frame does not stall.

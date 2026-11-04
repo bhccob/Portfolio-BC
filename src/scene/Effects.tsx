@@ -1,6 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { Bloom, EffectComposer, Noise, Vignette } from '@react-three/postprocessing';
-import { type JSX, useEffect, useMemo } from 'react';
+import type { BloomEffect, EffectComposer as EffectComposerImpl } from 'postprocessing';
+import { type JSX, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { shoulder } from '~/engine/studio/shoulder';
 import { useScene } from '~/state/store';
@@ -10,14 +11,11 @@ import { ShoulderToneMappingEffect } from './ShoulderToneMapping';
 import { LOOK } from './bob/look';
 
 /**
- * Bloom by tier, milestone 1's resolutions with LOOK's numbers: mipmap blur, LOOK's threshold in linear HDR (0.7: only
- * what glows past it blooms, the engraving's lines, the laser's point and its sparks, the tunnel's light; never a gold
- * specular), LOOK's smoothing and radius, and LOOK's intensity at full resolution on high and at half on medium.
+ * The bloom's strength: LOOK's intensity, at full resolution as on the high tier, or at half or less. Its threshold (0.7 in
+ * linear HDR: only what glows past it blooms, the engraving's lines, the laser's point and its sparks, the tunnel's light;
+ * never a gold specular), smoothing and radius are LOOK's.
  */
-const BLOOM = {
-  high: { intensity: LOOK.bloom.intensity.high, resolutionScale: 1 },
-  medium: { intensity: LOOK.bloom.intensity.medium, resolutionScale: 0.5 },
-} as const;
+const bloomStrength = (scale: number): number => (scale >= 1 ? LOOK.bloom.intensity.high : LOOK.bloom.intensity.medium);
 
 /**
  * The post chain, by tier (QualityGovernor sets it), milestone 1's chain with the numbers of LOOK
@@ -28,15 +26,31 @@ const BLOOM = {
  *     2026-10-29), Bloom (BLOOM), Vignette, Noise (premultiplied, so it never lifts the
  *     blacks), then the shoulder tone mapping last, on the linear buffer, at LOOK.exposure. The renderer's own tone
  *     mapping is off meanwhile, so the shoulder is applied once.
- *   - low: no composer at all; the renderer tone-maps in every material with the shoulder as its CustomToneMapping at
- *     LOOK.exposure (revision 4's path).
+ *   - no composer at all (`composer` off in the store: a page view that started on the low tier): the renderer tone-maps
+ *     in every material with the shoulder as its CustomToneMapping at LOOK.exposure (revision 4's path).
+ * A page view that started higher keeps the chain to its last step: taking it away means every material in the scene
+ * compiling again, seconds of frozen page in the middle of the story. What changes on the way down changes in place
+ * (`post`): the MSAA and the bloom's size, neither of which compiles a thing.
  */
 export function Effects(): JSX.Element | null {
   const gl = useThree((state) => state.gl);
   const invalidate = useThree((state) => state.invalidate);
-  const tier = useScene((state) => state.tier);
-  const composer = tier !== 'low';
+  const composer = useScene((state) => state.composer);
+  const post = useScene((state) => state.post);
+  // What the chain is built with: later rungs change it in place, and a change of its props would build it all again.
+  const [built] = useState(post);
+  const chain = useRef<EffectComposerImpl | null>(null);
+  const bloom = useRef<BloomEffect | null>(null);
   const shoulderEffect = useMemo(() => new ShoulderToneMappingEffect({ exposure: LOOK.exposure }), []);
+
+  useEffect(() => {
+    if (chain.current) chain.current.multisampling = post.samples;
+    if (bloom.current) {
+      bloom.current.resolution.scale = post.bloom;
+      bloom.current.intensity = bloomStrength(post.bloom);
+    }
+    invalidate();
+  }, [post, invalidate]);
 
   // A primitive is not R3F's to dispose.
   useEffect(() => () => shoulderEffect.dispose(), [shoulderEffect]);
@@ -53,19 +67,19 @@ export function Effects(): JSX.Element | null {
   }, [composer, gl, invalidate]);
 
   if (!composer) return <FrameGrab renders />;
-  const bloom = BLOOM[tier];
   return (
     <>
       <FrameGrab renders={false} />
-      <EffectComposer frameBufferType={THREE.HalfFloatType} multisampling={tier === 'high' ? 4 : 2}>
+      <EffectComposer ref={chain} frameBufferType={THREE.HalfFloatType} multisampling={built.samples}>
         <primitive object={GAS_SLOT} />
         <Bloom
+          ref={bloom}
           mipmapBlur
           luminanceThreshold={LOOK.bloom.threshold}
           luminanceSmoothing={LOOK.bloom.smoothing}
           radius={LOOK.bloom.radius}
-          intensity={bloom.intensity}
-          resolutionScale={bloom.resolutionScale}
+          intensity={bloomStrength(built.bloom)}
+          resolutionScale={built.bloom}
         />
         <Vignette offset={LOOK.vignette.offset} darkness={LOOK.vignette.darkness} />
         <Noise opacity={LOOK.noise} premultiply />

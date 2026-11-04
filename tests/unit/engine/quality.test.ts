@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { lowerTier, qualityFor, qualitySteps, type QualityTier, tierFor } from '~/engine/quality';
+import { BENCH_REFERENCE_MS, FrameJudge, lowerTier, qualityFor, qualitySteps, type QualityTier, SLOW_MS, startStep, tierFor, VERY_SLOW_MS } from '~/engine/quality';
 
 describe('tierFor', () => {
   it('cuts the fine-pointer ladder into high (steps 0-1), medium (2-3) and low (4)', () => {
@@ -35,18 +35,25 @@ describe('tierFor', () => {
 });
 
 describe('qualityFor', () => {
-  it('walks the fine-pointer ladder: dust, then the reflection, then the pixel ratio with the dust', () => {
-    expect(qualityFor(0, true)).toEqual({ pixelRatio: 1.75, reflector: true, dust: 400 });
-    expect(qualityFor(1, true)).toEqual({ pixelRatio: 1.75, reflector: true, dust: 200 });
-    expect(qualityFor(2, true)).toEqual({ pixelRatio: 1.75, reflector: false, dust: 200 });
-    expect(qualityFor(3, true)).toEqual({ pixelRatio: 1.25, reflector: false, dust: 150 });
-    expect(qualityFor(4, true)).toEqual({ pixelRatio: 1, reflector: false, dust: 100 });
+  it('walks the fine-pointer ladder: the gas and the MSAA first, then the reflection, then the pixel ratio, then the gas altogether', () => {
+    const steps = [0, 1, 2, 3, 4].map((step) => qualityFor(step, true));
+    expect(steps.map((q) => q.reflector)).toEqual([true, true, false, false, false]);
+    expect(steps.map((q) => q.pixelRatio)).toEqual([1.75, 1.5, 1.25, 1, 1]);
+    expect(steps.map((q) => q.samples)).toEqual([4, 2, 2, 0, 0]);
+    expect(steps.map((q) => q.gas)).toEqual([{ scale: 1.5, steps: 84 }, { scale: 2, steps: 56 }, { scale: 2.5, steps: 40 }, { scale: 3, steps: 28 }, null]);
   });
 
-  it('walks the coarse-pointer ladder without the reflection: the pixel ratio with the dust, then the post chain', () => {
-    expect(qualityFor(0, false)).toEqual({ pixelRatio: 1.25, reflector: false, dust: 150 });
-    expect(qualityFor(1, false)).toEqual({ pixelRatio: 1, reflector: false, dust: 100 });
-    expect(qualityFor(2, false)).toEqual({ pixelRatio: 1, reflector: false, dust: 80 });
+  it('walks the coarse-pointer ladder without the reflection', () => {
+    const steps = [0, 1, 2].map((step) => qualityFor(step, false));
+    expect(steps.map((q) => q.reflector)).toEqual([false, false, false]);
+    expect(steps.map((q) => q.pixelRatio)).toEqual([1.25, 1, 1]);
+    expect(steps.map((q) => q.gas)).toEqual([{ scale: 2.5, steps: 40 }, { scale: 3, steps: 28 }, null]);
+  });
+
+  it('costs less on every step down', () => {
+    for (const fine of [true, false]) {
+      for (let step = 1; step < qualitySteps(fine); step++) expect(qualityFor(step, fine).cost).toBeLessThan(qualityFor(step - 1, fine).cost);
+    }
   });
 
   it('starts a coarse pointer without the reflection: its first rung reads as medium', () => {
@@ -87,13 +94,14 @@ describe('qualityFor', () => {
     }
   });
 
-  it('only ever gives something up: no step raises the ratio or the dust', () => {
+  it('only ever gives something up: no step raises the ratio, the MSAA or the gas', () => {
     for (const fine of [true, false]) {
       for (let step = 1; step < qualitySteps(fine); step++) {
         const before = qualityFor(step - 1, fine);
         const after = qualityFor(step, fine);
         expect(after.pixelRatio).toBeLessThanOrEqual(before.pixelRatio);
-        expect(after.dust).toBeLessThanOrEqual(before.dust);
+        expect(after.samples).toBeLessThanOrEqual(before.samples);
+        expect(after.gas?.steps ?? 0).toBeLessThanOrEqual(before.gas?.steps ?? 0);
         expect(after).not.toEqual(before);
       }
     }
@@ -106,9 +114,9 @@ describe('qualityFor', () => {
 
   it('answers a fresh object, so a caller cannot change the ladder', () => {
     const quality = qualityFor(0, true);
-    quality.dust = 0;
+    quality.samples = 0;
     quality.reflector = false;
-    expect(qualityFor(0, true)).toEqual({ pixelRatio: 1.75, reflector: true, dust: 400 });
+    expect(qualityFor(0, true)).toMatchObject({ pixelRatio: 1.75, reflector: true, samples: 4 });
   });
 });
 
@@ -126,5 +134,89 @@ describe('lowerTier', () => {
     expect(lowerTier('medium', 'high')).toBe('medium');
     expect(lowerTier('low', 'medium')).toBe('low');
     for (const tier of TIERS) expect(lowerTier(tier, tier)).toBe(tier);
+  });
+});
+
+describe('startStep: the first rung this GPU can hold', () => {
+  const DESK = { width: 1920, height: 1080 };
+
+  it('starts at the best with no timing, or a timing that makes no sense', () => {
+    expect(startStep(null, true, DESK, 1)).toBe(0);
+    expect(startStep(Number.NaN, true, DESK, 1)).toBe(0);
+    expect(startStep(-1, true, DESK, 1)).toBe(0);
+  });
+
+  it('starts a strong desktop GPU at the best, on a 1440p screen too', () => {
+    // An RTX 4080 Super timed about 0.6 ms.
+    expect(startStep(0.6, true, { width: 2560, height: 1440 }, 1)).toBe(0);
+    expect(startStep(0.6, true, DESK, 1)).toBe(0);
+  });
+
+  it('starts the weak GPU the costs were measured on near the bottom, and a slower one at the bottom', () => {
+    expect(startStep(BENCH_REFERENCE_MS, true, { width: 1536, height: 864 }, 1.25)).toBeGreaterThanOrEqual(3);
+    expect(startStep(BENCH_REFERENCE_MS * 4, true, DESK, 1)).toBe(qualitySteps(true) - 1);
+  });
+
+  it('starts lower on more pixels', () => {
+    const small = startStep(3, true, { width: 1280, height: 720 }, 1);
+    const big = startStep(3, true, { width: 3840, height: 2160 }, 1);
+    expect(big).toBeGreaterThan(small);
+  });
+
+  it('stays on the coarse ladder for a phone', () => {
+    expect(startStep(0.5, false, { width: 390, height: 844 }, 3)).toBe(0);
+    expect(tierFor(startStep(0.5, false, { width: 390, height: 844 }, 3), false)).toBe('medium');
+    expect(startStep(100, false, { width: 390, height: 844 }, 3)).toBe(qualitySteps(false) - 1);
+  });
+});
+
+describe('FrameJudge', () => {
+  /** `count` frames of `ms`, the steps down they asked for. */
+  const run = (judge: FrameJudge, ms: number, count: number): number[] => Array.from({ length: count }, () => judge.frame(ms)).filter((d) => d > 0);
+
+  it('asks for nothing while frames hold their time', () => {
+    expect(run(new FrameJudge(), 16.7, 500)).toEqual([]);
+    expect(run(new FrameJudge(), 5.5, 2000)).toEqual([]);
+  });
+
+  it('asks for a step down once it has seen enough slow frames, within a second', () => {
+    const judge = new FrameJudge();
+    const ms = SLOW_MS + 6;
+    expect(run(judge, ms, Math.floor(700 / ms) - 1)).toEqual([]);
+    expect(run(judge, ms, 4)).toEqual([1]);
+  });
+
+  it('asks for two when they are very slow', () => {
+    expect(run(new FrameJudge(), VERY_SLOW_MS + 10, 20)[0]).toBe(2);
+  });
+
+  it('does not take a stall for the frame rate', () => {
+    const judge = new FrameJudge();
+    const asked: number[] = [];
+    for (let i = 0; i < 100; i++) asked.push(judge.frame(i % 20 === 0 ? 120 : 16.7));
+    expect(asked.filter((d) => d > 0)).toEqual([]);
+  });
+
+  it('does not count a sleep as a frame', () => {
+    expect(new FrameJudge().frame(5000)).toBe(0);
+    expect(run(new FrameJudge(), 1000, 50)).toEqual([]);
+  });
+
+  it('starts its count over after a rest', () => {
+    const judge = new FrameJudge();
+    run(judge, 40, 16);
+    judge.rest();
+    expect(run(judge, 40, 16)).toEqual([]);
+  });
+
+  it('gives up after two steps that did not help: frames held at 30 a second are not the GPU', () => {
+    const judge = new FrameJudge();
+    expect(run(judge, 33.4, 400).length).toBe(2);
+  });
+
+  it('keeps going while the steps do help', () => {
+    const judge = new FrameJudge();
+    const asked = [...run(judge, 42, 40), ...run(judge, 34, 40), ...run(judge, 28, 60)];
+    expect(asked.length).toBeGreaterThanOrEqual(3);
   });
 });

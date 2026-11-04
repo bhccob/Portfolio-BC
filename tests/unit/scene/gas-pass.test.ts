@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { Pass } from 'postprocessing';
 import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { GAS_SLOT, gasPass, setGasPass } from '~/scene/gasPass';
+import { GAS_SLOT, gasPass, setGasPass, setGasQuality } from '~/scene/gasPass';
 
 class Stub extends Pass {
   depth: THREE.Texture | null = null;
@@ -15,10 +15,12 @@ class Stub extends Pass {
     this.size = [width, height];
   }
   override render = vi.fn();
+  setQuality = vi.fn();
 }
 
 afterEach(() => {
   setGasPass(null);
+  setGasQuality({ scale: 1.5, steps: 84 });
   GAS_SLOT.setDepthTexture(null as unknown as THREE.Texture);
 });
 
@@ -64,6 +66,26 @@ describe("the gas's slot in the post chain", () => {
     const output = new THREE.WebGLRenderTarget(1, 1);
     GAS_SLOT.render(gl, input, output, 0.016, false);
     expect(pass.render).toHaveBeenCalledWith(gl, input, output, 0.016, false);
+  });
+
+  it("tells the gas held how it is marched, in place, and whichever is handed over after it", () => {
+    const pass = new Stub();
+    setGasPass(pass);
+    setGasQuality({ scale: 3, steps: 28 });
+    expect(pass.setQuality).toHaveBeenLastCalledWith({ scale: 3, steps: 28 });
+    const next = new Stub();
+    setGasPass(next);
+    expect(next.setQuality).toHaveBeenLastCalledWith({ scale: 3, steps: 28 });
+  });
+
+  it('stands the gas down on the rung that has none, and lets it on again if one is asked for', () => {
+    const pass = new Stub();
+    setGasPass(pass);
+    expect(GAS_SLOT.enabled).toBe(true);
+    setGasQuality(null);
+    expect(GAS_SLOT.enabled).toBe(false);
+    setGasQuality({ scale: 3, steps: 28 });
+    expect(GAS_SLOT.enabled).toBe(true);
   });
 
   it('takes a gas back only if it is still the one held: a newer one stays', () => {

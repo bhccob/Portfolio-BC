@@ -16,6 +16,10 @@ export type VoidState = 'idle' | 'loading' | 'ready' | 'failed';
 export interface SceneState {
   phase: Phase;
   tier: Tier;
+  /** Whether the post chain is on (src/scene/Effects.tsx): off only for a page view that starts on the low tier. */
+  composer: boolean;
+  /** The post chain's MSAA samples and its bloom's share of the screen, as the quality ladder has them. */
+  post: { samples: number; bloom: number };
   /** The visitor's 3D switch. Off shows the poster and the plain page. */
   threeD: boolean;
   reducedMotion: boolean;
@@ -38,6 +42,8 @@ export interface SceneState {
   hover: ProjectId | null;
   dispatch(event: SceneEvent): void;
   setTier(tier: Tier): void;
+  setComposer(on: boolean): void;
+  setPost(post: { samples: number; bloom: number }): void;
   setScene(scene: SceneKind | null): void;
   /** The same state again is no change. */
   setVoidState(state: VoidState): void;
@@ -90,6 +96,8 @@ export function readClientPrefs(win: PrefsSource | undefined): { threeD: boolean
 export const useScene = create<SceneState>()((set) => ({
   phase: { kind: 'LOADING' },
   tier: 'high',
+  composer: true,
+  post: { samples: 4, bloom: 1 },
   threeD: true,
   reducedMotion: false,
   transitionId: 0,
@@ -105,7 +113,9 @@ export const useScene = create<SceneState>()((set) => ({
       return phase === state.phase ? state : { phase, transitionId: state.transitionId + 1 };
     }),
 
-  setTier: (tier) => set({ tier }),
+  setTier: (tier) => set((state) => (state.tier === tier ? state : { tier })),
+  setComposer: (composer) => set((state) => (state.composer === composer ? state : { composer })),
+  setPost: (post) => set((state) => (state.post.samples === post.samples && state.post.bloom === post.bloom ? state : { post })),
 
   // The same scene again is no change: returning the state notifies nobody.
   setScene: (scene) => set((state) => (state.scene === scene ? state : { scene })),

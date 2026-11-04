@@ -14,13 +14,28 @@ let depth: THREE.Texture | null = null;
 let depthPacking: DepthPackingStrategies | undefined;
 let size: [number, number] | null = null;
 
+/** How the gas is marched, as the quality ladder has it now (src/engine/quality.ts): null, none. */
+export type GasQuality = { scale: number; steps: number } | null;
+let quality: GasQuality = null;
+let asked = false;
+
+/** A pass that can change how it is marched in place: the gas's. */
+type Tunable = Pass & { setQuality?(next: { scale: number; steps: number }): void };
+
+/** Sets how the gas is marched from now on, in place, on the one held and whichever comes after it. Null stands it down. */
+export function setGasQuality(next: GasQuality): void {
+  quality = next;
+  asked = true;
+  if (held !== null && next !== null) (held as Tunable).setQuality?.(next);
+}
+
 /** The slot: it needs the chain's depth, hands it and the chain's size to the gas held, and runs it; off without one. */
 class GasSlot extends Pass {
   constructor() {
     super('GasSlot');
     this.needsDepthTexture = true;
     // On only while it holds a gas that is on (the gas is off at level 0): the chain skips it otherwise.
-    Object.defineProperty(this, 'enabled', { get: () => held?.enabled ?? false, set: () => {}, configurable: true });
+    Object.defineProperty(this, 'enabled', { get: () => (held?.enabled ?? false) && (!asked || quality !== null), set: () => {}, configurable: true });
   }
 
   override getDepthTexture(): THREE.Texture {
@@ -63,4 +78,5 @@ export function setGasPass(pass: Pass | null, only?: Pass): void {
   if (pass === null) return;
   if (depth !== null) pass.setDepthTexture(depth, depthPacking);
   if (size !== null) pass.setSize(size[0], size[1]);
+  if (quality !== null) (pass as Tunable).setQuality?.(quality);
 }

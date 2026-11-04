@@ -13,7 +13,7 @@ import { LOOK } from './bob/look';
  *   - the reflection room (src/engine/bob/build/room.ts), prefiltered through PMREM into `scene.environment`, which is
  *     what makes the metal gold and keeps the glass smoked;
  *   - one dim warm key light from the upper left for the gold and a faint violet rim from behind (LOOK.key, LOOK.rim);
- *   - no dust (restraint, spec §4): the quality ladder's `dust` rung goes unused.
+ *   - no dust (restraint, spec §4).
  * It sets the renderer up as milestone 1's did (sRGB output, the shoulder as CustomToneMapping, LOOK.exposure); Effects
  * then decides whether the renderer tone-maps or the post chain does.
  *

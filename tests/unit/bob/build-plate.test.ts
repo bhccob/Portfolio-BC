@@ -57,6 +57,22 @@ function corners(p: { x: number; z: number; yaw: number; half: [number, number] 
 const CELL_GIVE = 0.05;
 
 describe("the stack's boards in code: mask, copper, gold, print, parts and their buses", () => {
+  it('keeps what stands on a board from being worked out again every frame, and its gloss for the high tier', () => {
+    const high = buildPlate(APP, 'high', null, canvas);
+    high.group.traverse((o) => expect(o.matrixAutoUpdate, o.name).toBe(false));
+    const top = (plate: typeof high) => (plate.group.getObjectByName('plate:top') as THREE.Mesh).material as THREE.MeshPhysicalMaterial;
+    expect(top(high).clearcoat).toBeGreaterThan(0);
+    const medium = buildPlate(APP, 'medium', null, canvas);
+    expect(top(medium).type).toBe('MeshStandardMaterial');
+    expect(top(medium).bumpMap).not.toBeNull();
+    const low = buildPlate(APP, 'low', null, canvas);
+    expect(top(low).type).toBe('MeshStandardMaterial');
+    expect(top(low).bumpMap).toBeNull();
+    high.dispose();
+    medium.dispose();
+    low.dispose();
+  });
+
   it('keeps the look of the mock-up', () => {
     expect(PLATE_LOOK).toEqual({
       size: { high: 2048, medium: 1024, low: 1024 },

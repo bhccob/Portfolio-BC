@@ -3,16 +3,18 @@ import { type JSX, memo, useCallback, useEffect, useMemo, useState } from 'react
 import { debugBridge } from '~/debug/needleDebug';
 import { StageProbe } from '~/debug/StageProbe';
 import { countCanvasMount } from '~/debug/stageReport';
-import { qualityFor, tierFor } from '~/engine/quality';
+import { qualityFor, startStep, tierFor } from '~/engine/quality';
 import { frame } from '~/state/frame';
+import { useScene } from '~/state/store';
 import { Opening } from './bob/Opening';
 import { Effects } from './Effects';
 import { Heartbeat } from './Heartbeat';
 import { resetMotion } from './motion';
-import { QualityGovernor } from './QualityGovernor';
+import { applyStep, QualityGovernor } from './QualityGovernor';
 import { Rig } from './Rig';
 import { Studio } from './Studio';
 import { RESTORE_TIMEOUT_MS, visibleTimeout } from './timeouts';
+import { gpuSpeed } from './webgl';
 
 /**
  * A mouse or trackpad: the finer quality ladder (src/engine/quality.ts). Read once, when the Stage's chunk loads (in the
@@ -21,16 +23,37 @@ import { RESTORE_TIMEOUT_MS, visibleTimeout } from './timeouts';
 const FINE_POINTER = typeof window !== 'undefined' && window.matchMedia?.('(pointer: fine)').matches === true;
 
 /**
- * The rung reached so far in this page view. A Stage mounted again (3D switched off and on) starts there: the
- * ladder never climbs back within a page view.
+ * The rung reached so far in this page view, once the first Stage has asked. A Stage mounted again (3D switched off and
+ * on) starts there: the ladder never climbs back within a page view.
  */
-let reached = 0;
+let reached: number | null = null;
+
+/**
+ * The rung a Stage starts on: the first the GPU can hold (`startStep`), or where this page view has got to. Behind `?proof`
+ * a `step` in the query string puts it there and holds it there, for the harness to read a rung by itself (with `govern`
+ * too, it only starts there, to watch the ladder walk down).
+ */
+function startingStep(held: number | null): number {
+  if (held !== null) return held;
+  reached ??= startStep(gpuSpeed(), FINE_POINTER, { width: window.innerWidth, height: window.innerHeight }, window.devicePixelRatio);
+  return reached;
+}
+
+/** The rung `?proof&step=N` holds the scene on, or none. */
+function heldStep(): number | null {
+  if (debugBridge() === null) return null;
+  const asked = new URLSearchParams(window.location.search).get('step');
+  return asked === null ? null : Number(asked);
+}
 
 // The Canvas's own props are constants, so a Stage render never reconfigures the renderer or the camera. `flat`:
 // R3F sets no tone mapping of its own (Studio and Effects do). `alpha: false`: the studio is opaque.
-const GL = { antialias: true, alpha: false, stencil: false, powerPreference: 'high-performance' } as const;
+const GL = { alpha: false, stencil: false, powerPreference: 'high-performance' } as const;
 // `manual`: R3F leaves the camera alone on resize; Rig frames it (aspect, view offset) itself.
 const CAMERA = { fov: 30, near: 0.1, far: 100, position: [0, 0, 5] as [number, number, number], manual: true };
+
+/** What a held rung does when its frames run slow. */
+const ignoreStep = (): void => {};
 
 export interface StageProps {
   /**
@@ -91,7 +114,18 @@ function ContextWatch({ onFail }: Pick<StageProps, 'onFail'>): null {
  * 3D, the phase) from the store.
  */
 export default memo(function Stage({ onStarted, onReady, onFail }: StageProps): JSX.Element {
-  const [step, setStep] = useState(() => reached);
+  const [held] = useState(heldStep);
+  const [governs] = useState(() => held === null || new URLSearchParams(window.location.search).has('govern'));
+  const [step, setStep] = useState(() => {
+    const first = startingStep(held);
+    // Before any part of the scene renders, so each builds for the rung it will draw at, and only a page view that starts
+    // on the low tier goes without the post chain. The canvas's own MSAA is for that one alone: under a post chain it
+    // would only smooth a full-screen triangle, at the price of a second buffer of the whole screen.
+    applyStep(first, FINE_POINTER);
+    useScene.getState().setComposer(tierFor(first, FINE_POINTER) !== 'low');
+    return first;
+  });
+  const [glProps] = useState(() => ({ ...GL, antialias: !useScene.getState().composer }));
   const quality = qualityFor(step, FINE_POINTER);
   // The tier the QualityGovernor writes into the store for this rung, handed to the Opening from this render, so its
   // first build has it before the governor's effect has run.
@@ -108,19 +142,19 @@ export default memo(function Stage({ onStarted, onReady, onFail }: StageProps): 
   }, []);
 
   const stepDown = useCallback((next: number) => {
-    reached = Math.max(reached, next);
+    reached = Math.max(reached ?? 0, next);
     setStep(next);
   }, []);
 
   return (
     // R3F 9.8 makes a THREE.Clock per root, which three 0.186 reports once as deprecated (a console warning); no Canvas prop avoids it.
-    <Canvas dpr={dpr} frameloop="demand" flat gl={GL} camera={CAMERA}>
+    <Canvas dpr={dpr} frameloop="demand" flat gl={glProps} camera={CAMERA}>
       <ContextWatch onFail={onFail} />
       <Studio />
       <Opening tier={tier} reflector={quality.reflector} onStarted={onStarted} onReady={onReady} onFail={onFail} />
       <Rig />
       <Effects />
-      <QualityGovernor step={step} finePointer={FINE_POINTER} onStep={stepDown} />
+      <QualityGovernor step={step} finePointer={FINE_POINTER} onStep={governs ? stepDown : ignoreStep} />
       <Heartbeat />
       {probe && <StageProbe />}
     </Canvas>

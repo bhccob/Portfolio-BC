@@ -723,14 +723,14 @@ describe('the wiring: one journey pose a frame', () => {
     );
     expect(calls).toEqual(['scene/bob/warm.ts']);
     expect(read('scene/bob/Opening.tsx')).toMatch(/uploadTextures\(gl, homeParts\.strips\)/);
-    expect(read('scene/bob/Void.tsx')).toMatch(/uploadTextures\(gl, texturesUnder\(holder\)\)/);
+    expect(read('scene/bob/Void.tsx')).toMatch(/paced\(uploadSteps\(gl, texturesUnder\(holder\)\)\)/);
   });
 
-  it('builds the engraved shaft per tier, frees the last on a lower one, and writes its levels each frame from engravedLevels', () => {
+  it('builds the engraved shaft once, never again on a lower rung, and writes its levels each frame from engravedLevels', () => {
     const source = read('scene/bob/Void.tsx');
-    // One build a tier, from the shaft's rings and no trips; the last one taken out and freed.
+    // One build, from the shaft's rings and no trips: a rebuild on a step down would freeze the page mid-story.
     expect(source).toMatch(/buildEngraved\(\s*shaftRings\(\)\s*,\s*\[\]\s*,\s*tier\s*\)/);
-    expect(source).toMatch(/scene\.remove\(\s*kept\.model\.group\s*\)[\s\S]{0,80}kept\.model\.dispose\(\)/);
+    expect(source).toMatch(/const kept = run\.engraved;\s*if \(kept\) return kept;/);
     // Each posed frame: the levels from the pose, the light's place and the fog; on the bridge behind ?proof.
     expect(source).toMatch(/engravedLevels\(\s*pose\.at\s*\)/);
     expect(source).toMatch(/\.update\(\s*levels\s*,\s*pose\.light\?\.position \?\? null\s*,/);
@@ -997,11 +997,11 @@ describe('loadVoid: the void is built at the hand-over, the world after it', () 
   it('builds the world in its load as the stack, its print font loaded first, and draws no bead', () => {
     const source = read('scene/bob/Void.tsx');
     expect(source).toMatch(/STACK_PLACES = stackPlaces\(\s*areasOnPath\(\)\s*\)/);
-    expect(source).toMatch(/buildWorld\(\s*STACK_PLACES,\s*latest\.current\.tier,\s*scene\.environment\s*\)/);
+    expect(source).toMatch(/paced\(worldSteps\(\s*STACK_PLACES,\s*latest\.current\.tier,\s*scene\.environment\s*\)\)/);
     // The boards' print is drawn in Martian Mono: the font is loaded before the world is built.
     const load = source.indexOf('document.fonts?.load(PRINT_FONT)');
     expect(load).toBeGreaterThan(-1);
-    expect(load).toBeLessThan(source.indexOf('buildWorld(STACK_PLACES'));
+    expect(load).toBeLessThan(source.indexOf('worldSteps(STACK_PLACES'));
     expect(source).toMatch(/PRINT_FONT = '500 40px "Martian Mono Variable"'/);
     // Posed with the stack's tops as the path opens it, and turned with the camera.
     expect(source).toMatch(/tops: boardTops\(STACK_PLACES, path\.explode\)/);

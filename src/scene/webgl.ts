@@ -3,6 +3,8 @@
  * rasteriser, where the scene would crawl at a few frames a second. The page shows the poster and the fallback
  * card for anything but 'ok' (SceneHost).
  */
+import { gpuBench } from './gpuBench';
+
 export type WebGLSupport = 'ok' | 'none' | 'software';
 
 /**
@@ -25,6 +27,14 @@ function rendererName(gl: WebGL2RenderingContext): string {
   return info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL ?? UNMASKED_RENDERER_WEBGL) ?? '') : plain;
 }
 
+/** What the probe timed the GPU at (./gpuBench.ts), ms; null before a probe, or where it could not tell. */
+let benched: number | null = null;
+
+/** The probe's timing of the GPU, ms; null where there is none. */
+export function gpuSpeed(): number | null {
+  return benched;
+}
+
 /**
  * Probes a fresh canvas for a WebGL2 context and lets it go again. 'none': no context (WebGL off, blocked, or
  * WebGL1 only); 'software': a software rasteriser draws it; 'ok': a GPU, or a GPU the browser will not name.
@@ -39,7 +49,9 @@ export function webglSupport(create: () => HTMLCanvasElement = () => document.cr
   }
   if (!gl) return 'none';
   try {
-    return SOFTWARE.test(rendererName(gl)) ? 'software' : 'ok';
+    if (SOFTWARE.test(rendererName(gl))) return 'software';
+    benched = gpuBench(gl);
+    return 'ok';
   } catch {
     return 'ok';
   } finally {

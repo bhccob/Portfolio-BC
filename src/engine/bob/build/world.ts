@@ -24,12 +24,13 @@ import * as THREE from 'three';
 import type { CategoryId } from '~/data/categories';
 import { categories } from '~/data/categories';
 import { type ProjectId, projects } from '~/data/projects';
+import { drain } from '~/engine/core/pace';
 import type { QualityTier } from '~/engine/quality';
 import { liftAt, type SpotPose } from '~/scene/bob/spot';
 import { type BoardPlace, boardCentre, LID_TOP, objectKind, type ObjectKind, STACK } from '~/scene/bob/worldLayout';
 import { ease } from '~/scene/bob/worldPath';
-import { buildPlate, type PlateModel, seeded } from './plate';
-import { buildSpine, type SpineModel } from './spine';
+import { type PlateModel, plateSteps, seeded } from './plate';
+import { type SpineModel, spineSteps } from './spine';
 
 /**
  * How the world looks (the mock-up's numbers, tuned there against the site's darkness limit): its colours; a socket's
@@ -463,6 +464,11 @@ function anchorsFor(parent: THREE.Object3D, places: readonly (readonly [number, 
 const boardLabel = (category: CategoryId | null): string => (category ? categories.byId(category).heading('nl') : '');
 
 export function buildWorld(boards: readonly BoardPlace[], tier: QualityTier, room: THREE.Texture | null, canvas: Canvas = () => document.createElement('canvas')): WorldModel {
+  return drain(worldSteps(boards, tier, room, canvas));
+}
+
+/** `buildWorld` as steps it may stop between (~/engine/core/pace): the Void builds the world between the frames. */
+export function* worldSteps(boards: readonly BoardPlace[], tier: QualityTier, room: THREE.Texture | null, canvas: Canvas = () => document.createElement('canvas')): Generator<void, WorldModel> {
   const look = WORLD_LOOK;
   const group = new THREE.Group();
   group.name = 'world';
@@ -510,11 +516,13 @@ export function buildWorld(boards: readonly BoardPlace[], tier: QualityTier, roo
   const holders: THREE.Group[] = [];
   const plates: PlateModel[] = [];
   let first = 1;
-  boards.forEach((board, k) => {
+  for (const [k, board] of boards.entries()) {
     const holder = new THREE.Group();
     holder.name = `world:board:${k}`;
     holder.position.set(centre[0], board.top, centre[2]);
-    const plate = buildPlate(
+    holder.updateMatrix();
+    holder.matrixAutoUpdate = false;
+    const plate: PlateModel = yield* plateSteps(
       {
         radius: board.radius,
         hole: board.hole,
@@ -534,8 +542,9 @@ export function buildWorld(boards: readonly BoardPlace[], tier: QualityTier, roo
     group.add(holder);
     holders.push(holder);
     plates.push(plate);
-  });
-  const spine: SpineModel = buildSpine({ tops: boards.map((b) => b.top), hole: STACK.hole, thick: STACK.thick }, tier, room);
+    yield;
+  }
+  const spine: SpineModel = yield* spineSteps({ tops: boards.map((b) => b.top), hole: STACK.hole, thick: STACK.thick }, tier, room);
   const spineHolder = new THREE.Group();
   spineHolder.name = 'world:spine';
   spineHolder.position.set(centre[0], 0, centre[2]);
@@ -979,7 +988,7 @@ export function buildWorld(boards: readonly BoardPlace[], tier: QualityTier, roo
   const placed: Placed[] = [];
   const hits: THREE.Object3D[] = [];
   const invisible = new THREE.MeshBasicMaterial({ visible: false });
-  boards.forEach((board, k) => {
+  for (const [k, board] of boards.entries()) {
     for (const s of board.sockets) {
       const socket = socketFor(s.id);
       socket.group.position.set(s.at[0], 0, s.at[1]);
@@ -999,8 +1008,9 @@ export function buildWorld(boards: readonly BoardPlace[], tier: QualityTier, roo
       hits.push(hit);
       group.add(root);
       placed.push({ id: s.id, board: k, at: s.at, made, root, middle: sphere.center.clone(), radius: sphere.radius, socket, phase: placed.length * 2.1 });
+      yield;
     }
-  });
+  }
 
   // The beam from the spine up to a lifted project, and the lamp that lights it on the camera's side.
   const beamMaterial = additive(
@@ -1044,7 +1054,12 @@ export function buildWorld(boards: readonly BoardPlace[], tier: QualityTier, roo
     top: (id) => find(id).made.top,
     pose({ power, flash, clock, levels, open, float, world, tops, boardPower, boardLight, lift, spot, breath }) {
       holders.forEach((holder, k) => {
-        holder.position.y = tops[k] ?? boards[k]!.top;
+        const top = tops[k] ?? boards[k]!.top;
+        // Only as it moves: a board at rest asks nothing of its hundred parts' matrices.
+        if (holder.position.y !== top) {
+          holder.position.y = top;
+          holder.updateMatrix();
+        }
         plates[k]!.set(clock, boardPower[k] ?? power, (boardLight[k] ?? 1) * world);
       });
       spine.pose([...tops]);

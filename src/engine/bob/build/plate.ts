@@ -20,6 +20,7 @@
  */
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { drain } from '~/engine/core/pace';
 import type { QualityTier } from '~/engine/quality';
 import { patchBrushed, roundTangents } from './brushed';
 
@@ -1016,9 +1017,16 @@ export interface PlateModel {
 
 /** The board of `spec` at this tier, its metal and gloss reflecting `room` (none: unlit by a room). */
 export function buildPlate(spec: PlateSpec, tier: QualityTier, room: THREE.Texture | null, canvas: Canvas = () => document.createElement('canvas')): PlateModel {
+  return drain(plateSteps(spec, tier, room, canvas));
+}
+
+/** `buildPlate` as steps it may stop between (~/engine/core/pace), for a world built between the frames. */
+export function* plateSteps(spec: PlateSpec, tier: QualityTier, room: THREE.Texture | null, canvas: Canvas = () => document.createElement('canvas')): Generator<void, PlateModel> {
   const R = spec.radius;
   const { parts, buses, grid } = layOut(spec, tier);
+  yield;
   const maps = drawBoard(spec, tier, parts, buses, grid, canvas);
+  yield;
   const group = new THREE.Group();
   group.name = 'plate';
 
@@ -1028,17 +1036,28 @@ export function buildPlate(spec: PlateSpec, tier: QualityTier, room: THREE.Textu
   const pos = topDisc.getAttribute('position');
   const uv = topDisc.getAttribute('uv');
   for (let i = 0; i < pos.count; i++) uv.setXY(i, pos.getX(i) / (2 * R) + 0.5, pos.getZ(i) / (2 * R) + 0.5);
-  const plate = new THREE.MeshPhysicalMaterial({
-    map: maps.base,
-    bumpMap: maps.data,
-    bumpScale: 2.2,
-    roughnessMap: maps.data,
-    metalnessMap: maps.data,
-    roughness: 1,
-    metalness: 1,
-    clearcoat: PLATE_LOOK.lacquer.clearcoat,
-    clearcoatRoughness: PLATE_LOOK.lacquer.clearcoatRoughness
-  });
+  // The lacquer is a second layer of light on the screen's biggest surface: the high tier's. Below it the board is the same mask without its gloss.
+  const plate =
+    tier === 'high'
+      ? new THREE.MeshPhysicalMaterial({
+          map: maps.base,
+          bumpMap: maps.data,
+          bumpScale: 2.2,
+          roughnessMap: maps.data,
+          metalnessMap: maps.data,
+          roughness: 1,
+          metalness: 1,
+          clearcoat: PLATE_LOOK.lacquer.clearcoat,
+          clearcoatRoughness: PLATE_LOOK.lacquer.clearcoatRoughness
+        })
+      : new THREE.MeshStandardMaterial({
+          map: maps.base,
+          ...(tier === 'medium' ? { bumpMap: maps.data, bumpScale: 2.2 } : {}),
+          roughnessMap: maps.data,
+          metalnessMap: maps.data,
+          roughness: 1,
+          metalness: 1
+        });
   const top = new THREE.Mesh(topDisc, plate);
   top.name = 'plate:top';
 
@@ -1111,9 +1130,17 @@ export function buildPlate(spec: PlateSpec, tier: QualityTier, room: THREE.Textu
   under.position.y = -THICK - 0.3;
   under.renderOrder = 2;
 
+  yield;
   const mats = partMaterials(canvas);
+  yield;
   const partsGroup = buildParts(parts, mats, tier);
   group.add(top, light, edge, lipTop, lipBottom, bottom, under, partsGroup);
+  // Nothing on a board ever moves on it: its parts' matrices are worked out once, where a whole tower's were composed twice a frame.
+  group.traverse((o) => {
+    o.updateMatrix();
+    o.matrixAutoUpdate = false;
+  });
+  yield;
 
   // What dims with the board, and what reflects the room: every lit material on it, by its light and its colour.
   const dimmed = [...dimming, ...Object.values(mats)].map((m) => {
