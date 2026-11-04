@@ -313,6 +313,13 @@
  *              <script> and an inline handler (<img onerror>) do not run, and the page reports a
  *              securitypolicyviolation for each (script-src-elem, script-src-attr); the browser's console refusal of
  *              each is expected and counted
+ *   smooth     on / (the GPU), by real wheel from the landing down to the Q&A's door and on through the dissolve: no main-thread
+ *              task over SMOOTH_TASK_MS and no frame over SMOOTH_FRAME_MS once the void and the world are ready (every frame's
+ *              length and the longest task are reported); the frames judge asks for no step down on this machine's strength
+ *   rungs      each rung of the quality ladder, held by `?proof&step=N`: the tier and the pixel ratio it says, the canvas drawn at
+ *              the home, the tower and the LED screen past the Q&A with no console error: a rung's parts compile and draw
+ *   walk-down  the ladder walked down in place on a page view that began at the top (`?proof&step=0&govern`, its frames held
+ *              back so they read slow): the pixel ratio falls, the post chain stays on and no main-thread task runs over 250 ms
  *   fps        on / (the GPU), 3 s after the scene is ready: 120 requestAnimationFrame frames while the scene
  *              draws, and their mean frame rate is reported, not gated, with the scene's own rolling fps, tier and
  *              pixel ratio from the bridge; it passes when the canvas holds the scene: read back through toDataURL
@@ -865,6 +872,8 @@ async function esc(browser, step) {
   // A direct load has no page before it in the visit, so Escape goes to the home page.
   await page.keyboard.press('Escape');
   await page.waitForURL(`${BASE}/`, { timeout: 5_000 });
+  // The address changes a moment before React has put the new page in: the h1 is read once it has.
+  await page.waitForFunction((h1) => document.querySelector('h1')?.textContent === h1, HOME_H1, { timeout: 2_000 }).catch(() => {});
   step.check((await page.textContent('h1')) === HOME_H1, 'a direct load of /projects/steady/ + Escape lands on the home page');
   step.check(documents.length === 0, `by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
   const afterDirect = await waitForStop(page, 'app');
@@ -926,6 +935,8 @@ async function esc(browser, step) {
   await waitForProject(page, 'steady');
   await page.click('a[href="/en/projects/steady/"]');
   await page.waitForFunction(() => location.pathname === '/en/projects/steady/' && document.documentElement.lang === 'en', null, { timeout: 5_000 });
+  // A moment for the page's own Escape to hear of the new language: no hand is as quick as the address changing.
+  await page.waitForTimeout(100);
   await pressEscape();
   step.check(pathname() === '/en/', `a direct load + the language switch + Escape lands on /en/, not back on the Dutch page (got ${pathname()})`);
   step.check(documents.length === 0, `by client navigation, no document load (got ${documents.join(', ') || 'none'})`);
@@ -2983,6 +2994,153 @@ async function fps(browser, step) {
   await takeCsp(page, step);
   await context.close();
   return `mean ${mean} fps over 120 frames (the scene's own meter ${debug?.fps?.toFixed(1)}), tier ${debug?.tier}, dpr ${debug?.dpr}, the canvas is not blank (brightest ${pixel?.max})`;
+}
+
+// ---------------------------------------------------------------- the frames: no stalls, every rung
+
+/** The longest a main-thread task may take once the void and the world are ready, ms; and a frame. */
+const SMOOTH_TASK_MS = 120;
+const SMOOTH_FRAME_MS = 150;
+
+/** Keeps the page's long tasks and its frames' lengths from the moment the page begins, in window.__tasks and window.__frameMs. */
+const watchSmooth = (context) =>
+  context.addInitScript(() => {
+    window.__tasks = [];
+    window.__frameMs = [];
+    try {
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) window.__tasks.push({ at: entry.startTime, ms: entry.duration });
+      }).observe({ type: 'longtask', buffered: true });
+    } catch {
+      // No long tasks to watch in this browser: the frames still are.
+    }
+    let last = 0;
+    const tick = (now) => {
+      if (last) window.__frameMs.push({ at: now, ms: now - last });
+      last = now;
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+
+async function smooth(browser, step) {
+  const { context, page } = await openPage(browser, step);
+  await watchSmooth(context);
+  await page.goto(`${BASE}/?proof`, { waitUntil: 'load' });
+  await page.bringToFront();
+  await reachHomeIdle(page);
+  await page.waitForFunction(() => window.__needleDebug?.().journey.voidState === 'ready', null, { timeout: 30_000 });
+  await page.waitForTimeout(1_500);
+  const from = await page.evaluate(() => performance.now());
+  const before = await debugOf(page);
+  await page.mouse.move(720, 450);
+  let still = 0;
+  let at = -1;
+  const until = Date.now() + 70_000;
+  while (Date.now() < until) {
+    await page.mouse.wheel(0, 120);
+    await page.waitForTimeout(120);
+    const now = await page.evaluate(() => {
+      const debug = window.__needleDebug();
+      return { place: debug.progress, stretch: debug.journey.stretch };
+    });
+    if (now.stretch === 'qa' && now.place > 0 && still > 6) break;
+    still = now.place === at ? still + 1 : 0;
+    at = now.place;
+    // A rest ends the gesture: the door and the stops take the next notch.
+    if (still > 12) await page.waitForTimeout(450);
+  }
+  const { tasks, frames } = await page.evaluate((from) => ({ tasks: window.__tasks.filter((t) => t.at >= from), frames: window.__frameMs.filter((f) => f.at >= from).map((f) => f.ms) }), from);
+  const longest = Math.max(0, ...tasks.map((t) => t.ms));
+  const worst = Math.max(0, ...frames);
+  frames.sort((a, b) => a - b);
+  const p95 = frames[Math.floor(frames.length * 0.95)] ?? 0;
+  const after = await debugOf(page);
+  step.check(frames.length > 200, `the walk drew frames all the way (${frames.length})`);
+  step.check(longest <= SMOOTH_TASK_MS, `no main-thread task over ${SMOOTH_TASK_MS} ms once the world is ready (the longest ${longest.toFixed(0)} ms, of ${tasks.length} over 50 ms)`);
+  step.check(worst <= SMOOTH_FRAME_MS, `no frame over ${SMOOTH_FRAME_MS} ms (the longest ${worst.toFixed(0)} ms; 95 % within ${p95.toFixed(1)} ms)`);
+  step.check(after.tier === before.tier && after.dpr === before.dpr, `the ladder asks for nothing on this GPU: ${before.tier} at ${before.dpr} before, ${after.tier} at ${after.dpr} after`);
+  await takeCsp(page, step);
+  await context.close();
+  return `${frames.length} frames, 95 % within ${p95.toFixed(1)} ms, the longest ${worst.toFixed(0)} ms; the longest task ${longest.toFixed(0)} ms`;
+}
+
+/** The ladder's rungs as the fine pointer's: the tier and the pixel ratio each says at a device ratio of 1.5. */
+const RUNGS = [
+  { step: 0, tier: 'high', dpr: 1.5 },
+  { step: 1, tier: 'high', dpr: 1.5 },
+  { step: 2, tier: 'medium', dpr: 1.25 },
+  { step: 3, tier: 'medium', dpr: 1 },
+  { step: 4, tier: 'low', dpr: 1 }
+];
+
+async function rungs(browser, step) {
+  const summary = [];
+  for (const rung of RUNGS) {
+    const { context, page } = await openPage(browser, step, () => false, { width: 1280, height: 720 }, { deviceScaleFactor: 1.5 });
+    await page.goto(`${BASE}/?proof&step=${rung.step}`, { waitUntil: 'load' });
+    await page.bringToFront();
+    await reachHomeIdle(page);
+    await page.waitForFunction(() => window.__needleDebug?.().journey.voidState === 'ready', null, { timeout: 30_000 });
+    await page.waitForTimeout(400);
+    const home = await readCanvas(page);
+    const at = await debugOf(page);
+    step.check(at.tier === rung.tier && at.dpr === rung.dpr, `rung ${rung.step}: tier ${at.tier} (${rung.tier}), pixel ratio ${at.dpr} (${rung.dpr})`);
+    step.check(drawn(home), `rung ${rung.step}: the home is drawn (brightest ${home?.max})`);
+    // The tower, then the Q&A's far end, where the LED screen stands on the grabbed frame.
+    const c = await page.evaluate(() => {
+      window.__needleDebug.set({ progress: 10.5 });
+      return true;
+    });
+    await page.mouse.move(640, 80);
+    await page.waitForTimeout(900);
+    const tower = await readCanvas(page);
+    step.check(c && tower !== null && tower.max > 20, `rung ${rung.step}: the tower is drawn (brightest ${tower?.max})`);
+    await takeCsp(page, step);
+    await context.close();
+    summary.push(`${rung.step}: ${rung.tier} ${rung.dpr}`);
+  }
+  return `every rung compiles and draws: ${summary.join(', ')}`;
+}
+
+async function walkDown(browser, step) {
+  const { context, page } = await openPage(browser, step, () => false, { width: 1280, height: 720 }, { deviceScaleFactor: 1.5 });
+  await watchSmooth(context);
+  await page.goto(`${BASE}/?proof&step=0&govern`, { waitUntil: 'load' });
+  await page.bringToFront();
+  await reachHomeIdle(page);
+  await page.waitForFunction(() => window.__needleDebug?.().journey.voidState === 'ready', null, { timeout: 30_000 });
+  await page.evaluate(() => window.__needleDebug.set({ progress: 10.5 }));
+  await page.waitForTimeout(1_000);
+  const from = await page.evaluate(() => performance.now());
+  const start = await debugOf(page);
+  // Each frame held 40 ms on the main thread: slow enough to ask for steps, from the page's own requestAnimationFrame.
+  await page.evaluate(() => {
+    const hold = () => {
+      const until = performance.now() + 40;
+      while (performance.now() < until);
+      window.__holding = requestAnimationFrame(hold);
+    };
+    window.__holding = requestAnimationFrame(hold);
+  });
+  const moved = Date.now() + 6_000;
+  while (Date.now() < moved) {
+    await page.mouse.move(640 + Math.random() * 40, 80 + Math.random() * 40);
+    await page.waitForTimeout(50);
+  }
+  await page.evaluate(() => cancelAnimationFrame(window.__holding));
+  await page.waitForTimeout(600);
+  const end = await debugOf(page);
+  const tower = await readCanvas(page);
+  const tasks = await page.evaluate((from) => window.__tasks.filter((t) => t.at >= from).map((t) => t.ms), from);
+  const longest = Math.max(0, ...tasks);
+  step.check(start.tier === 'high', `it starts at the top (${start.tier})`);
+  step.check(end.dpr < start.dpr, `the ladder has walked down (pixel ratio ${start.dpr} to ${end.dpr}, tier ${start.tier} to ${end.tier})`);
+  step.check(tower !== null && tower.max > 20, `the tower is still drawn on the way down (brightest ${tower?.max}): the post chain stayed`);
+  step.check(longest <= 250, `no main-thread task over 250 ms on the way (the longest ${longest.toFixed(0)} ms): nothing is built or compiled again`);
+  await takeCsp(page, step);
+  await context.close();
+  return `pixel ratio ${start.dpr} to ${end.dpr}, tier ${start.tier} to ${end.tier}; the longest task ${longest.toFixed(0)} ms`;
 }
 
 // ---------------------------------------------------------------- the BOB opening, the dark look, the aim, the hero
@@ -6864,10 +7022,13 @@ const answerIs = (shown, k, t) => {
 const ledAlphaAt = (page, y) =>
   page.evaluate((y) => {
     const leds = document.querySelector('.qa-leds');
-    const ctx = leds?.getContext('2d');
-    if (!leds || !ctx || leds.width === 0) return 0;
+    // The screen's own WebGL context (src/ui/ledSky.ts), which keeps its pixels; none has been asked for before it first draws.
+    const gl = leds?.getContext('webgl2');
+    if (!leds || !gl || leds.width === 0) return 0;
     const row = Math.min(leds.height - 1, Math.round(y * leds.height));
-    const { data } = ctx.getImageData(Math.round(leds.width / 4), row, Math.round(leds.width / 2), 1);
+    const across = Math.round(leds.width / 2);
+    const data = new Uint8Array(across * 4);
+    gl.readPixels(Math.round(leds.width / 4), leds.height - 1 - row, across, 1, gl.RGBA, gl.UNSIGNED_BYTE, data);
     let sum = 0;
     for (let i = 3; i < data.length; i += 4) sum += data[i];
     return sum / (data.length / 4);
@@ -7409,6 +7570,9 @@ const STEPS = {
   'no-scene': noScene,
   'no-webgl': noWebgl,
   fps,
+  smooth,
+  rungs,
+  'walk-down': walkDown,
   background,
   'title-ij': titleIj,
   stills,

@@ -73,6 +73,10 @@ node tools/proof/needle.mjs
 | `STEPS` | comma list of steps to run; an unknown step, or none, exits 1 | all |
 | `PLAYWRIGHT_CORE` | path of the `playwright-core` package | normal resolution |
 
+Behind `?proof` a page can be held on one rung of the quality ladder, `?proof&step=N` (0 the best), and with `&govern` it only
+starts there and the frames decide from there. A build with no `PUBLIC_WEB3FORMS_KEY` has no contact form, so give the build
+any value for the harness (`PUBLIC_WEB3FORMS_KEY=local-proof-placeholder npm run build`).
+
 For example, the milestone 1 review's run:
 
 ```
