@@ -59,13 +59,19 @@ export function viewLevels(
 }
 
 const views = new Map<ProjectId, HTMLElement>();
+/** The level each page was last written at: the scene asks every frame, and a page only hears of a change. */
+const levelsWritten = new Map<ProjectId, number>();
 
 export function registerProjectView(id: ProjectId, el: HTMLElement): () => void {
   views.set(id, el);
+  levelsWritten.set(id, 0);
   el.style.opacity = '0';
   el.toggleAttribute('inert', true);
   return () => {
-    if (views.get(id) === el) views.delete(id);
+    if (views.get(id) === el) {
+      views.delete(id);
+      levelsWritten.delete(id);
+    }
   };
 }
 
@@ -73,6 +79,8 @@ export function registerProjectView(id: ProjectId, el: HTMLElement): () => void 
 export function showProjectViews(levels: Partial<Record<ProjectId, number>>): void {
   for (const [id, el] of views) {
     const level = Math.round(Math.min(Math.max(levels[id] ?? 0, 0), 1) * 1000) / 1000;
+    if (levelsWritten.get(id) === level) continue;
+    levelsWritten.set(id, level);
     el.style.opacity = String(level);
     el.toggleAttribute('inert', level < 0.5);
     el.toggleAttribute('data-shown', level > 0);

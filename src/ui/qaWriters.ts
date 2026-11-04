@@ -48,11 +48,13 @@ export interface QaWritten {
   offset: number;
   at: number | null;
   endOn: boolean;
+  /** The page is clear and nothing has been written since: a clear has nothing to do (the scene clears every frame off the Q&A). */
+  clear: boolean;
 }
 
 /** Nothing written yet: what the scene starts from, and what a clear leaves. */
 export function qaWritten(): QaWritten {
-  return { on: false, column: '', band: '', offset: Number.NaN, at: null, endOn: false };
+  return { on: false, column: '', band: '', offset: Number.NaN, at: null, endOn: false, clear: false };
 }
 
 /**
@@ -91,6 +93,7 @@ const share = (x: number): string => Math.min(Math.max(x, 0), 1).toFixed(3);
 /** Writes `view` to the page's `parts`, only what differs from `written`, which it updates. */
 export function writeQa(parts: QaParts, view: QaView, written: QaWritten): void {
   const { root, section, track, end } = parts;
+  written.clear = false;
   if (view.on !== written.on) {
     written.on = view.on;
     if (view.on) root.setAttribute(QA_ATTRIBUTE, '');
@@ -128,6 +131,7 @@ export function writeQa(parts: QaParts, view: QaView, written: QaWritten): void 
 
 /** Clears all the writer wrote: the Q&A gone from the page (the scene let go, or 3D switched off). */
 export function clearQa(parts: QaParts, written: QaWritten): void {
+  if (written.clear) return;
   const { root, section, end } = parts;
   root.removeAttribute(QA_ATTRIBUTE);
   root.removeAttribute(QA_AT_ATTRIBUTE);
@@ -138,5 +142,5 @@ export function clearQa(parts: QaParts, written: QaWritten): void {
     section.style.removeProperty('--qa-band');
   }
   if (end) end.hidden = true;
-  Object.assign(written, qaWritten());
+  Object.assign(written, qaWritten(), { clear: true });
 }

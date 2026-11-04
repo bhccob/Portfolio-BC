@@ -175,6 +175,19 @@ describe('the writer: the column with the scroll, the end', () => {
     writeQa(p, { ...VIEW, on: false, at: null }, qaWritten());
     expect(p.section!.inert).toBe(true);
   });
+
+  it('does nothing on a clear of a clear page: the scene clears every frame off the Q&A', () => {
+    const p = fakeParts();
+    const written = qaWritten();
+    clearQa(p, written);
+    p.section!.inert = false;
+    clearQa(p, written);
+    expect(p.section!.inert).toBe(false);
+    // A write in between brings the work back.
+    writeQa(p, VIEW, written);
+    clearQa(p, written);
+    expect(p.section!.inert).toBe(true);
+  });
 });
 
 describe("the Q&A's styles", () => {

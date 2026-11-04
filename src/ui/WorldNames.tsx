@@ -120,11 +120,30 @@ export function registerWorldHint(el: HTMLElement): () => void {
 
 /** A name hidden: unseen, out of Tab's reach and the pointer's (`[data-shown]` is what makes it visible). */
 function hide(parts: WorldNameParts): void {
+  // Written once as it goes: the scene hides what is hidden every frame it draws.
+  if (hidden.has(parts)) return;
+  hidden.add(parts);
   parts.root.style.opacity = '0';
   parts.line.style.opacity = '0';
   parts.root.style.pointerEvents = 'none';
   parts.root.tabIndex = -1;
   parts.root.toggleAttribute('data-shown', false);
+  parts.root.toggleAttribute('data-hot', false);
+}
+
+/** The names now hidden. */
+const hidden = new WeakSet<WorldNameParts>();
+
+/** Each name's size as last measured, and the screen and text it was measured at: reading it forces a layout, so it is read only when one of them changed. */
+const measured = new WeakMap<WorldNameParts, { screen: number; text: string; width: number; height: number }>();
+
+function sizeOf(parts: WorldNameParts, screen: number): { width: number; height: number } {
+  const text = parts.root.textContent ?? '';
+  const kept = measured.get(parts);
+  if (kept && kept.screen === screen && kept.text === text && kept.width > 0) return kept;
+  const made = { screen, text, width: parts.root.offsetWidth, height: parts.root.offsetHeight || NAME_HEIGHT };
+  measured.set(parts, made);
+  return made;
 }
 
 /** A name's height when the page has not laid it out, px. */
@@ -146,17 +165,17 @@ export function showWorldNames(view: WorldNamesView | null, size: { width: numbe
     const own = name ? Math.round(opacity * Math.min(Math.max(name.level, 0), 1) * 1000) / 1000 : 0;
     if (!name || own <= 0) {
       hide(parts);
-      parts.root.toggleAttribute('data-hot', false);
       continue;
     }
     shown.set(id, { view: name, parts, opacity: own });
   }
   const places = placeNames(
-    [...shown.values()].map(({ view: n, parts }) => ({ id: n.id, anchor: n.anchor, category: n.category, width: parts.root.offsetWidth, height: parts.root.offsetHeight || NAME_HEIGHT })),
+    [...shown.values()].map(({ view: n, parts }) => ({ id: n.id, anchor: n.anchor, category: n.category, ...sizeOf(parts, size.width) })),
     size
   );
   for (const [id, { view: name, parts, opacity: own }] of shown) {
     const { line, box } = places.get(id)!;
+    hidden.delete(parts);
     parts.line.setAttribute('points', line.points.map(([x, y]) => `${x},${y}`).join(' '));
     parts.root.style.transform = `translate3d(${box.left}px, ${line.text.top}px, 0) translateY(-100%)`;
     parts.root.style.opacity = String(own);
